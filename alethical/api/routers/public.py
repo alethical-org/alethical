@@ -43,6 +43,7 @@ from alethical.api.services.legislative_sessions import (
 from alethical.api.services.committee_finance import (
     committee_finance,
     current_release as current_campaign_finance_release,
+    pin_to_one_view as pin_campaign_finance_to_one_view,
 )
 from alethical.api.services.independent_spending import (
     independent_spending_for_legislator,
@@ -2751,12 +2752,15 @@ def committee_finance_for_year(
     Read ``state`` on each block before its numbers:
 
     * ``reported`` -- we hold itemized rows and the figures are real.
-    * ``not_reported`` -- we hold none for this committee-year. **Never render this
-      as 0.** A committee whose donors all gave $200 or less is never itemized, so
-      absence here is silence rather than a zero. ``independent_spending`` is the one
-      exception and says so below.
-    * ``unavailable`` -- our own copy of that download is stale. A fact about us, and
-      never a figure about the committee.
+    * ``not_reported`` -- we hold none for this committee-year, in a year the download
+      does cover. **Never render this as 0.** A committee whose donors all gave $200 or
+      less is never itemized, so absence here is silence rather than a zero.
+      ``independent_spending`` is the one exception and says so below.
+    * ``unavailable`` -- either our own copy of that download is stale, or the download
+      holds nothing at all for the year asked for. Both are facts about us and never a
+      figure about the committee. The downloads reach 2015 to the present while this
+      route accepts years to 2100, so a request for a year past the data reads
+      unavailable rather than reporting a zero for a year nobody has filed for.
 
     ``money_out.itemized_payment_total`` sums every row whatever its ``Type``, with
     the source's own labels in ``by_type``. A candidate committee files
@@ -2784,6 +2788,10 @@ def committee_finance_for_year(
     whether a committee exists and nothing here reads it yet. 503 means we hold no
     usable release at all.
     """
+    # Before any other statement: pins every read below to one instant of the
+    # database, so 2 publishes landing mid-request cannot turn this committee's
+    # spending into an absence while its income has already been read.
+    pin_campaign_finance_to_one_view(db)
     release = current_campaign_finance_release(db)
     if release is None or not release.is_usable:
         raise HTTPException(

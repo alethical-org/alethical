@@ -794,12 +794,36 @@ surface may show these only as named payments, with no composition bar
 **Read each block's `state` before its numbers:**
 
 - `reported` — we hold itemized rows and the figures are real.
-- `not_reported` — we hold none for this committee-year. **Never render as 0.** Senator Omar
-  Fateh's Senate committee (18488) is the live case: its 2025 filing itemizes $2,300.00 that
-  the bulk download does not carry, so a zero here would print "$0 raised" over a real filing.
-- `unavailable` — our copy of that one download is stale (section H's release-held-across-
-  2-publishes case). A fact about us, never a figure about the committee. Judged per dataset,
-  because the 3 downloads are pruned independently.
+- `not_reported` — we hold none for this committee-year, in a year the download does cover.
+  **Never render as 0.** Senator Omar Fateh's Senate committee (18488) is the live case: its
+  2025 filing itemizes $2,300.00 that the bulk download does not carry, so a zero here would
+  print "$0 raised" over a real filing.
+- `unavailable` — a gap of ours, never a figure about the committee. Three ways to reach it,
+  and the second and third were found by an adversarial review rather than by the first build:
+  our copy of that download is stale (section H's release-held-across-2-publishes case); the
+  download holds nothing at all for the year asked for; or a row in the committee's own set has
+  a blank amount, so the total cannot be computed and is withheld rather than understated.
+  Judged per dataset, because the 3 downloads are pruned independently.
+
+The year check matters most on `independent_spending`, because an empty answer there is a
+published finding rather than a gap. The downloads reach 2015 to the present and this route
+accepts years to 2100, so without it a request for 2027 reports "no independent spending was
+reported about this committee" about a year nobody has filed for — and a page defaulting to
+"this year" reaches 2027 on 1 January. Asked only when a committee's own rows come back empty,
+so a populated request costs nothing extra.
+
+**The whole request reads one instant of the database** (`SET TRANSACTION ISOLATION LEVEL
+REPEATABLE READ`, issued as the first statement of the request's transaction). Resolving the
+release once fixes *which* release is read; this fixes *whether its rows are still there* from
+the first statement to the last. Without it, 2 publishes landing mid-request take the named
+release's rows away halfway through, and money out reads "not reported" after money in has
+already reported a figure — section H's exact forbidden case, arrived at by a race rather than
+a bad query. Verified through production's Supabase transaction pooler on Aug 12 2026: the
+default is `read committed`, the pin makes it `repeatable read`, and the next transaction on
+that pooled connection is back to `read committed`, so it cannot leak into another reader's
+request. It is a `SET TRANSACTION` statement rather than an engine or session setting for
+exactly that reason — the same hazard that makes a session-level advisory lock unsafe in
+`alethical/pipeline/campaign_finance.py`.
 
 `money_in.itemized_contribution_total` counts only rows the source types `Contribution`,
 compared case-insensitively and trimmed. The other 3 receipt types are real money the filing

@@ -42,6 +42,9 @@ from alethical.api.services.committee_finance import (
     committee_finance,
     current_release,
     find_committee,
+    money_in,
+    money_out,
+    pin_to_one_view,
 )
 from alethical.db import models
 from alethical.db.session import get_session_factory
@@ -59,6 +62,10 @@ POLITICAL_FUND = "41360"  # Alliance for a Better Minnesota State PAC.
 # spending. 283 of these carry a negative number the Board assigns internally,
 # because they are local candidates the state does not register.
 LOCAL_CANDIDATE = "-2139639405"
+
+# `on=None` means "use the default date", so a deliberately dateless row needs its
+# own marker. Every date in the live release is real; the column is nullable.
+NO_DATE = "none"
 
 CF_TABLES = (
     "cf_contribution_row",
@@ -165,8 +172,8 @@ def _receipt(
             recipient_reg_num=reg_num,
             recipient=name,
             recipient_type=entity,
-            amount=Decimal(amount),
-            receipt_date=on or date(year, 6, 1),
+            amount=None if amount is None else Decimal(amount),
+            receipt_date=None if on == NO_DATE else (on or date(year, 6, 1)),
             year=year,
             contributor="A Donor",
             receipt_type=receipt_type,
@@ -200,9 +207,9 @@ def _payment(
             entity_type=entity,
             entity_sub_type=sub_type,
             vendor_name="A Vendor",
-            amount=Decimal(amount),
-            unpaid_amount=Decimal(unpaid),
-            transaction_date=on or date(year, 6, 1),
+            amount=None if amount is None else Decimal(amount),
+            unpaid_amount=None if unpaid is None else Decimal(unpaid),
+            transaction_date=None if on == NO_DATE else (on or date(year, 6, 1)),
             year=year,
             type=kind,
             affected_committee_reg_num=affected,
@@ -288,6 +295,11 @@ def test_a_committee_we_hold_no_rows_for_reads_not_reported(db):
     published = Published(db)
     _receipt(db, published.contributions, reg_num=CANDIDATE, amount="5100.00")
     _payment(db, published.expenditures, reg_num=CANDIDATE, amount="4151.04")
+    # Somebody else's 2024 rows, so 2024 is a year the download covers. Without them
+    # the honest answer is "unavailable", because a download holding nothing at all
+    # for a year says nothing about any committee in it.
+    _receipt(db, published.contributions, reg_num=PARTY_UNIT, amount="1.00", year=2024)
+    _payment(db, published.expenditures, reg_num=PARTY_UNIT, amount="1.00", year=2024)
     db.commit()
     finance = _finance(db, CANDIDATE, year=2024)
     assert finance is not None
@@ -809,6 +821,10 @@ def test_the_route_never_prints_a_zero_for_a_committee_we_hold_no_rows_for(db, c
     # none for 2025, against a 2025 filing that itemizes $2,300.00.
     _receipt(db, published.contributions, reg_num=CANDIDATE, amount="100.00", year=2024)
     _payment(db, published.expenditures, reg_num=CANDIDATE, amount="100.00", year=2024)
+    # Another committee's 2025 rows, so 2025 is a year the downloads cover and this
+    # committee's empty 2025 is silence about the committee rather than a gap of ours.
+    _receipt(db, published.contributions, reg_num=PARTY_UNIT, amount="1.00")
+    _payment(db, published.expenditures, reg_num=PARTY_UNIT, amount="1.00")
     _independent(db, published.independent, reg_num=PARTY_UNIT, amount="100.00")
     db.commit()
     body = client.get(
@@ -827,3 +843,193 @@ def test_the_route_never_prints_a_zero_for_a_committee_we_hold_no_rows_for(db, c
     # And the one block where absence is a finding rather than a gap.
     assert body["independent_spending"]["state"] == REPORTED
     assert Decimal(body["independent_spending"]["supporting"]) == 0
+
+
+# --- Our own gaps, found by an adversarial review (Codex, 12 Aug 2026) -------
+
+
+def test_a_year_the_download_does_not_reach_is_never_a_zero(db):
+    """The route accepts years to 2100 and the files reach 2026. 2027 is months away.
+
+    The independent-spending block is the dangerous one, because an empty answer
+    there is a published finding: without a per-year check it reports "nobody spent
+    anything about this committee" for a year nobody has filed for. Money in and money
+    out must not read "not reported" either, which implies a year we cover.
+    """
+    published = Published(db)
+    _receipt(db, published.contributions, reg_num=CANDIDATE, amount="5100.00")
+    _payment(db, published.expenditures, reg_num=CANDIDATE, amount="4151.04")
+    _independent(db, published.independent, reg_num=CANDIDATE, amount="1000.00")
+    db.commit()
+    finance = _finance(db, CANDIDATE, year=2100)
+    assert finance is not None
+    assert finance.money_in.state == UNAVAILABLE
+    assert finance.money_out.state == UNAVAILABLE
+    assert finance.independent_spending.state == UNAVAILABLE
+    assert finance.independent_spending.spending is None
+
+
+def test_a_year_the_download_does_reach_still_reads_not_reported(db):
+    """The other side of that check, so it cannot be over-applied.
+
+    A year the file covers, where this committee simply never appears, is silence
+    about the committee and must stay `not_reported` -- otherwise the $200 threshold's
+    ordinary case starts reading as our own outage.
+    """
+    published = Published(db)
+    _receipt(
+        db, published.contributions, reg_num=PARTY_UNIT, amount="100.00", year=2024
+    )
+    _receipt(
+        db, published.contributions, reg_num=CANDIDATE, amount="5100.00", year=2025
+    )
+    _payment(db, published.expenditures, reg_num=PARTY_UNIT, amount="100.00", year=2024)
+    _payment(db, published.expenditures, reg_num=CANDIDATE, amount="1.00", year=2025)
+    db.commit()
+    finance = _finance(db, CANDIDATE, year=2024)
+    assert finance is not None
+    assert finance.money_in.state == NOT_REPORTED
+    assert finance.money_out.state == NOT_REPORTED
+
+
+def test_a_row_with_no_amount_withholds_the_figure_instead_of_inventing_zero(db):
+    """`sum` skips a blank amount while `count(*)` still counts its row.
+
+    So a group of blanks sums to 0 over a positive row count, which publishes an
+    invented zero on a named organisation's page. Every row in the live release
+    carries an amount; the column is nullable and the loader stores a blank as null,
+    so one blank cell in a future download is enough.
+    """
+    published = Published(db)
+    _receipt(db, published.contributions, reg_num=CANDIDATE, amount=None)
+    _payment(db, published.expenditures, reg_num=CANDIDATE, amount=None)
+    db.commit()
+    finance = _finance(db, CANDIDATE)
+    assert finance is not None
+    assert finance.money_in.state == NOT_REPORTED
+    assert finance.money_in.itemized_contribution_total is None
+    assert finance.money_out.state == NOT_REPORTED
+    assert finance.money_out.itemized_payment_total is None
+
+
+def test_one_blank_amount_beside_a_real_one_withholds_the_whole_figure(db):
+    """An understated total published as complete is as wrong as an invented zero.
+
+    The same treatment §7 gives a filer-year whose split fails its reconciliation: a
+    figure we cannot fully compute is not published at all.
+    """
+    published = Published(db)
+    _receipt(db, published.contributions, reg_num=CANDIDATE, amount="5100.00")
+    _receipt(db, published.contributions, reg_num=CANDIDATE, amount=None)
+    db.commit()
+    finance = _finance(db, CANDIDATE)
+    assert finance is not None
+    assert finance.money_in.state == NOT_REPORTED
+    assert finance.money_in.itemized_contribution_total is None
+
+
+def test_a_contribution_with_no_date_does_not_crash_the_request(db):
+    """`min()` over an empty sequence raised, so one blank date returned HTTP 500.
+
+    Money out already guarded this and money in did not. The honest answer is the
+    total we do hold with no dates beside it, never an error page.
+    """
+    published = Published(db)
+    _receipt(
+        db, published.contributions, reg_num=CANDIDATE, amount="100.00", on=NO_DATE
+    )
+    db.commit()
+    finance = _finance(db, CANDIDATE)
+    assert finance is not None
+    assert finance.money_in.state == REPORTED
+    assert finance.money_in.itemized_contribution_total == Decimal("100.00")
+    assert finance.money_in.first_receipt_on is None
+    assert finance.money_in.last_receipt_on is None
+
+
+def test_rows_pruned_mid_request_cannot_turn_a_figure_into_an_absence(db, client):
+    """2 publishes inside one request take the named release's rows away halfway.
+
+    Section H names this exact sequence and forbids rendering it as "this committee
+    has no payments". The request reads one pinned instant of the database, so a
+    publish landing after it starts is invisible to it.
+    """
+    first = Published(db)
+    _receipt(db, first.contributions, reg_num=CANDIDATE, amount="100.00")
+    _payment(db, first.expenditures, reg_num=CANDIDATE, amount="50.00")
+    _independent(db, first.independent, reg_num=CANDIDATE, amount="25.00")
+    db.commit()
+
+    session = get_session_factory()()
+    try:
+        pin_to_one_view(session)
+        release = current_release(session)
+        assert release is not None
+        assert money_in(
+            session, release, registration_number=CANDIDATE, year=2025
+        ).itemized_contribution_total == Decimal("100.00")
+
+        # Two publishes land, and the second one prunes the release above.
+        second = Published(db)
+        _receipt(db, second.contributions, reg_num=CANDIDATE, amount="1.00")
+        db.commit()
+        third = Published(db)
+        _receipt(db, third.contributions, reg_num=CANDIDATE, amount="2.00")
+        db.commit()
+        for table in ("cf_contribution_row", "cf_expenditure_row"):
+            db.execute(
+                text(f"DELETE FROM {table} WHERE snapshot_id = ANY(:ids)"),
+                {"ids": [first.contributions.id, first.expenditures.id]},
+            )
+        db.commit()
+
+        after = money_out(session, release, registration_number=CANDIDATE, year=2025)
+        assert after.state == REPORTED
+        assert after.itemized_payment_total == Decimal("50.00")
+    finally:
+        session.rollback()
+        session.close()
+
+
+def test_the_route_itself_runs_in_the_pinned_view(db):
+    """The pin is invisible in the response, so this reads it from the database.
+
+    Without this the route could quietly stop pinning and every test would still
+    pass, because the difference only shows when a publish lands mid-request. The
+    isolation level is read while the request's own transaction is still open.
+    Verified against production's Supabase transaction pooler on 12 Aug 2026: the
+    default is "read committed", the pin makes it "repeatable read", and the next
+    transaction on that pooled connection is back to "read committed", so the setting
+    cannot leak into another reader's request.
+    """
+    from fastapi.testclient import TestClient
+
+    from alethical.api.main import create_app
+    from alethical.db.session import get_db
+
+    published = Published(db)
+    _receipt(db, published.contributions, reg_num=CANDIDATE, amount="5100.00")
+    db.commit()
+
+    seen: list[str] = []
+    session = get_session_factory()()
+
+    def one_session():
+        try:
+            yield session
+        finally:
+            # Still inside the request's transaction, so this is the level the route's
+            # own reads ran at.
+            seen.append(session.scalar(text("SHOW transaction_isolation")))
+
+    app = create_app()
+    app.dependency_overrides[get_db] = one_session
+    try:
+        response = TestClient(app).get(
+            f"/api/v1/committees/{CANDIDATE}/finance", params={"year": 2025}
+        )
+        assert response.status_code == 200, response.text
+    finally:
+        session.rollback()
+        session.close()
+    assert seen == ["repeatable read"]

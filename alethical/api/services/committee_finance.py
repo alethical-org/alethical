@@ -31,16 +31,24 @@ receipts of which **not one** is a contribution, which is why the contribution
 figure's state is decided by the contribution rows alone rather than by whether the
 committee appears at all.
 
-**It never mixes two releases.** A request resolves the live release once and reads
-all 3 datasets from that one set of snapshot ids, because each statement otherwise
-sees the newest committed state and a committee's spending could come from a
-different day than its income (``docs/product-onboarding/data-ingestion-onboarding.md``
-section H).
+**It never mixes two releases, and it holds that across the whole request rather
+than only at the start.** A request resolves the live release once and reads all 3
+datasets from that one set of snapshot ids, because each statement otherwise sees the
+newest committed state and a committee's spending could come from a different day than
+its income. Resolving once is not sufficient on its own: rows survive exactly one
+further publish, so 2 publishes landing *between* this request's statements would take
+the named release's rows away halfway through and turn a figure into an absence. So a
+request also pins itself to one instant of the database (``pin_to_one_view``), which is
+one of the 2 shapes ``docs/product-onboarding/data-ingestion-onboarding.md`` section H
+names as safe.
 
-**It never reads a stale release as an answer.** The loader keeps one spare
-generation of rows, so a release id held across 2 publishes finds no rows at all.
-"No rows for a release that exists" is our own staleness and reads as
-``UNAVAILABLE`` -- a fact about us, never a fact about a committee.
+**It never reads our own gaps as an answer.** Two different gaps, both ours and both
+reading ``UNAVAILABLE``. The loader keeps one spare generation of rows, so a release id
+held across 2 publishes finds no rows at all -- "no rows for a release that exists" is
+staleness. And the downloads reach 2015 to the present while the route accepts years to
+2100, so a year the files do not cover is a gap in our data rather than a quiet year for
+a committee. Without the second check a request for 2027 reports independent spending as
+a measured ``0``, which is a published finding about a year nobody has filed for.
 
 **It never decides which kinds of money count.** Money out is the sum of every row
 the committee filed, with the source's own ``Type`` label kept alongside each
@@ -69,7 +77,7 @@ from decimal import Decimal
 from typing import Mapping
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session, aliased
 
 from alethical.api.services.independent_spending import (
@@ -257,12 +265,47 @@ class CommitteeFinance:
     independent_spending: IndependentSpendingAbout
 
 
+def pin_to_one_view(db: Session) -> None:
+    """Make every later statement in this request see one instant of the database.
+
+    Resolving the release once is not enough on its own, and the gap is a real
+    sequence rather than a theoretical one. The rows of a replaced set survive
+    exactly one further publish, so if 2 publishes land *between* this request's
+    statements, the release we already named loses its rows halfway through: money in
+    reads a real figure and money out then finds nothing, which renders as "this
+    committee made no payments" -- the missing-versus-zero failure
+    ``.claude/rules/grounded-answers.md`` rule 12 forbids, arrived at by a race rather
+    than by a bad query.
+
+    ``REPEATABLE READ`` closes it, which is one of the 2 shapes
+    ``docs/product-onboarding/data-ingestion-onboarding.md`` section H names as safe
+    (the other being a single statement, which 3 datasets cannot be). Every statement
+    then reads the instant this transaction began, so a publish landing mid-request is
+    invisible to it and cannot turn a figure into an absence.
+
+    Issued as a statement rather than set on the engine or the session, deliberately.
+    Production connects through Supabase's transaction pooler, where a *session*
+    setting can outlive the client that set it and reach another request on the same
+    backend connection -- the same hazard that makes a session-level advisory lock
+    unsafe in ``alethical/pipeline/campaign_finance.py``. ``SET TRANSACTION`` is scoped
+    to this transaction by definition and ends with it.
+
+    Must be the first statement in the transaction; Postgres refuses it once a
+    statement has run, so callers call it before resolving anything.
+    """
+    db.execute(text("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ"))
+
+
 def current_release(db: Session) -> Release | None:
     """The published release and its 3 snapshots, resolved in one read.
 
     ``None`` means no release is published, which is a fact about us. Section H is
     explicit that re-resolving the live release per query can hand back a mixed set,
     so a request calls this once and passes the result to every read below.
+
+    Pair it with ``pin_to_one_view`` for the stronger guarantee: resolving once fixes
+    *which* release a request reads, and the pinned view fixes *whether its rows are
+    still there* from the first statement to the last.
     """
     contributions = aliased(CampaignFinanceSnapshot)
     expenditures = aliased(CampaignFinanceSnapshot)
@@ -345,6 +388,50 @@ def _snapshot_has_rows(db: Session, dataset: Dataset, snapshot_id: UUID) -> bool
         )
         is not None
     )
+
+
+def _snapshot_covers_year(
+    db: Session, dataset: Dataset, snapshot_id: UUID, year: int
+) -> bool:
+    """Whether this snapshot holds any row at all for ``year``, from any committee.
+
+    The question a snapshot-wide row check cannot answer, and the difference decides
+    whether an empty answer is about the committee or about us. The downloads cover
+    2015 to the present while this endpoint accepts years to 2100, so without this a
+    request for a year the files do not reach returns a **confident zero**: measured
+    on the live release, every dataset holds rows for 2015 through 2026 and none
+    beyond, so asking for 2027 today reports "no independent spending was reported
+    about this committee", as a finding, about a year nobody has filed for. That is
+    not a distant edge case -- 2027 is months away, and a page defaulting to "this
+    year" reaches it on 1 January.
+
+    Asked only when a committee's own rows come back empty, so the ordinary populated
+    request costs nothing: rows for that committee in that year already prove the year
+    is covered.
+    """
+    model = _ROW_MODEL[dataset]
+    return (
+        db.scalar(
+            select(model.row_number)
+            .where(model.snapshot_id == snapshot_id, model.year == year)
+            .limit(1)
+        )
+        is not None
+    )
+
+
+def _empty_state(db: Session, release: Release, dataset: Dataset, year: int) -> str:
+    """What an empty result means: silence about the committee, or a gap in our data.
+
+    ``NOT_REPORTED`` when the download covers this year and simply never names this
+    committee -- which for money in and money out is the ordinary case, because only
+    payments over $200 are itemized. ``UNAVAILABLE`` when the download holds nothing
+    for this year at all, because then the emptiness is ours and says nothing about
+    anybody.
+    """
+    if _snapshot_covers_year(db, dataset, release.snapshot_ids[dataset], year):
+        return NOT_REPORTED
+    return UNAVAILABLE
 
 
 def find_committee(
@@ -444,6 +531,10 @@ def money_in(
         select(
             CampaignFinanceContributionRow.receipt_type,
             func.coalesce(func.sum(CampaignFinanceContributionRow.amount), 0),
+            # `count(amount)` counts rows that HAVE an amount; `count(*)` counts rows.
+            # Both are needed: the sum silently skips a row with no amount, so a plain
+            # row count beside it would present an incomplete total as complete.
+            func.count(CampaignFinanceContributionRow.amount),
             func.count(),
             func.min(CampaignFinanceContributionRow.receipt_date),
             func.max(CampaignFinanceContributionRow.receipt_date),
@@ -463,14 +554,52 @@ def money_in(
         for row in sorted(rows, key=lambda row: row[0] or "")
         if not _is_contribution(row[0])
     )
-    if not contributions:
-        return MoneyIn(NOT_REPORTED, None, None, None, None, others, source_url)
+    if not contributions or not _every_row_has_an_amount(contributions):
+        return MoneyIn(
+            _empty_state(db, release, Dataset.contributions, year),
+            None,
+            None,
+            None,
+            None,
+            others,
+            source_url,
+        )
 
     total = sum((Decimal(row[1]) for row in contributions), Decimal(0))
     payments = sum(row[2] for row in contributions)
-    first = min(row[3] for row in contributions if row[3] is not None)
-    last = max(row[4] for row in contributions if row[4] is not None)
-    return MoneyIn(REPORTED, total, payments, first, last, others, source_url)
+    # `if ... else None`, matching money out. Every date in the live release is a real
+    # date, but the column is nullable, so an all-null group would otherwise take
+    # `min()` over an empty sequence and turn one blank cell into an HTTP 500.
+    dates = [row[4] for row in contributions if row[4] is not None]
+    last_dates = [row[5] for row in contributions if row[5] is not None]
+    return MoneyIn(
+        REPORTED,
+        total,
+        payments,
+        min(dates) if dates else None,
+        max(last_dates) if last_dates else None,
+        others,
+        source_url,
+    )
+
+
+def _every_row_has_an_amount(rows) -> bool:
+    """Whether every row behind these subtotals carries an amount.
+
+    ``sum`` skips a row whose amount is blank while ``count(*)`` still counts it, so a
+    group of blanks sums to 0 over a positive row count -- which publishes an invented
+    zero, and a group of one blank and one real payment publishes an understated total
+    as though it were whole. Both are the missing-versus-zero failure rule 12 forbids,
+    so a figure we cannot fully compute is not published at all: the same treatment §7
+    gives a filer-year whose split fails its reconciliation.
+
+    Every one of the 583,152 contribution rows and 377,860 expenditure rows in the live
+    release carries an amount, so this changes no figure today. It is here because the
+    column is nullable and the loader stores a blank as null rather than inventing a
+    value, which makes one blank cell in a future download enough to print a wrong
+    number on a named organisation's page.
+    """
+    return all(row[2] == row[3] for row in rows)
 
 
 def _is_contribution(receipt_type: str | None) -> bool:
@@ -496,6 +625,7 @@ def money_out(
         select(
             CampaignFinanceExpenditureRow.type,
             func.coalesce(func.sum(CampaignFinanceExpenditureRow.amount), 0),
+            func.count(CampaignFinanceExpenditureRow.amount),
             func.count(),
             func.coalesce(func.sum(CampaignFinanceExpenditureRow.unpaid_amount), 0),
             func.min(CampaignFinanceExpenditureRow.transaction_date),
@@ -509,20 +639,33 @@ def money_out(
         )
         .group_by(CampaignFinanceExpenditureRow.type)
     ).all()
-    if not rows:
-        return MoneyOut(NOT_REPORTED, None, None, None, None, None, (), source_url)
+    if not rows or not _every_row_has_an_amount(rows):
+        return MoneyOut(
+            _empty_state(db, release, Dataset.expenditures, year),
+            None,
+            None,
+            None,
+            None,
+            None,
+            (),
+            source_url,
+        )
 
     by_type = tuple(
         ExpenditureTypeTotal(row[0] or "", Decimal(row[1]), row[2])
         for row in sorted(rows, key=lambda row: row[0] or "")
     )
-    dates = [row[4] for row in rows if row[4] is not None]
-    last_dates = [row[5] for row in rows if row[5] is not None]
+    dates = [row[5] for row in rows if row[5] is not None]
+    last_dates = [row[6] for row in rows if row[6] is not None]
     return MoneyOut(
         state=REPORTED,
         itemized_payment_total=sum((Decimal(row[1]) for row in rows), Decimal(0)),
         itemized_payments=sum(row[2] for row in rows),
-        unpaid_total=sum((Decimal(row[3]) for row in rows), Decimal(0)),
+        # All 376,035 expenditure rows in the live release state an unpaid amount
+        # explicitly, 0 of them blank, so this coalesce never fires today. It is not a
+        # claim that a blank means nothing is owed: `_every_row_has_an_amount` has
+        # already refused the whole figure by the time a row is that incomplete.
+        unpaid_total=sum((Decimal(row[4]) for row in rows), Decimal(0)),
         first_transaction_on=min(dates) if dates else None,
         last_transaction_on=max(last_dates) if last_dates else None,
         by_type=by_type,
@@ -544,6 +687,18 @@ def independent_spending_about(
     source_url = release.source_urls[Dataset.independent_expenditures]
     if stale is not None:
         return IndependentSpendingAbout(stale, None, None)
+    # The one block whose empty answer is a real 0, which is exactly why it needs the
+    # year check hardest: a 0 here is a published finding, so a year the download does
+    # not reach would state "nobody spent anything about this committee" about a year
+    # nobody has filed for. The live release stops at 2026 and this endpoint accepts
+    # 2100.
+    if not _snapshot_covers_year(
+        db,
+        Dataset.independent_expenditures,
+        release.snapshot_ids[Dataset.independent_expenditures],
+        year,
+    ):
+        return IndependentSpendingAbout(UNAVAILABLE, None, source_url)
     return IndependentSpendingAbout(
         REPORTED,
         spending_for_committee(
