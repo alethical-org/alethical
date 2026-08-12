@@ -144,6 +144,16 @@ pipeline-work target:
 load-campaign-finance target="local" dry="true":
   uv run python scripts/load_campaign_finance.py --target {{target}} {{ if dry == "true" { "--dry-run" } else { "" } }}
 
+# Copy every stored source file to Cloudflare R2, and prove the copy arrived (#1402).
+# The daily job .github/workflows/mirror-raw-files.yml already does this; run it by
+# hand to check the second copy now or after a failed run. It only ever adds, and a
+# second run copies nothing. Needs the 4 SUPABASE_STORAGE_S3_* and 4 CLOUDFLARE_R2_*
+# values from .env.
+#   just mirror-raw-files                            # dry run against production
+#   just mirror-raw-files production false           # copy for real
+mirror-raw-files target="production" dry="true":
+  ALETHICAL_DATABASE_TARGET={{target}} PYTHONPATH=. uv run python scripts/mirror_raw_files.py --target {{target}} {{ if dry == "true" { "--dry-run" } else { "" } }}
+
 # Reconcile current legislator membership against the official roster PDF.
 # Dry-run by default (no writes); pass apply=true to deactivate departed members.
 # Set ALETHICAL_DATABASE_TARGET=production to run against prod.

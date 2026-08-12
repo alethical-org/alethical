@@ -25,8 +25,11 @@ fetch** and Storage credentials to **keep** what it fetched, because the Board k
 no archive and our copy is the only record of what it published on a given date
 (section **H**).
 Everything is orchestrated through an **Oban (Postgres-backed) job queue driven
-from a CLI** — there is **no scheduler/cron**; a human runs the pipeline. All
-batch ingestion is **dry-run by default** and **idempotent**.
+from a CLI** — **nothing ingests on a schedule; a human runs the pipeline**. All
+batch ingestion is **dry-run by default** and **idempotent**. Scheduled jobs do
+exist beside it (`.github/workflows/`) and **none of them ingests**: they check for
+gaps a human run left behind, and one copies stored files to a second place
+(section **H**).
 
 Code: [`alethical/pipeline/`](../../alethical/pipeline) (batch) ·
 [`alethical/api/`](../../alethical/api) (query-time) ·
@@ -466,6 +469,39 @@ Storage-scoped credentials that cannot touch the database
 `_SECRET_ACCESS_KEY`). Details and the reason it is not the database:
 `campaign-finance-system-design.md` §4.5.
 
+**And a second copy of every one of them, on Cloudflare R2** — Supabase's own
+documentation says database backups "do not include objects you store via the
+Storage API", so nothing that protects the database protects that bucket
+([#1402](https://github.com/alethical-org/alethical/issues/1402)). A daily job
+(`.github/workflows/mirror-raw-files.yml`) copies anything not already there, reads
+each object back out and hashes it, and only then records the time on
+`cf_snapshot_body.mirrored_at` — so that column means "read back and confirmed",
+never "the upload returned 200". Run it by hand with `just mirror-raw-files`
+(dry-run by default). It needs the 4 `CLOUDFLARE_R2_*` values on top of the Storage
+ones. Free at our sizes: R2 includes the first 10 GB then charges $0.015 per GB,
+and pulling data back out is free so a restore costs nothing.
+
+**Two things about that copy that are not obvious.**
+
+1. **The bucket is the work list, not the database.** One bucket serves every
+   database, so a run against a local database writes its downloads beside
+   production's. Measured 12 August 2026: 12 objects stored, 3 of them named by a
+   production row. A job driven off the rows would have copied a quarter of the
+   store and reported success. The other 9 are real downloads of dated Minnesota
+   files, exactly as unrepeatable as the 3.
+2. **Repeating it is nearly free, so a daily schedule stays cheap as the store
+   grows.** An object already recorded as copied is skipped without moving a byte.
+   Measured the same day: the first run copied all 115 MB in 88 seconds, and the run
+   straight after it took 2 seconds and moved nothing. Re-proving the *whole* store
+   and proving that a restore actually works is a separate job
+   ([#802](https://github.com/alethical-org/alethical/issues/802)).
+
+**What is lost if both copies are lost, stated plainly**, because it bounds how much
+this is worth building: every parsed row and every file hash live in Postgres and
+ride the database backups, so no figure on the site disappears. What disappears is
+the ability to show the source bytes behind a figure and to examine a rejected
+download.
+
 **Reading this data.** Resolve `cf_current_release` once and use that release id for
 all 3 datasets in a request: each statement sees the newest committed state, so
 re-resolving per query can hand back a mixed set. **A replaced set keeps its rows
@@ -585,7 +621,7 @@ just pipeline local --write --allow-writes     # commit after review
 | `uv run python scripts/backfill_rag_bulk.py`                                             | Threaded RAG backfill for current versions missing chunks                                                                                                                                                       |
 | `uv run python -m alethical.pipeline.committee_memberships --cleanup-orphans`            | Committee repair/backfill                                                                                                                                                                                       |
 | `uv run python -m alethical.pipeline.votes`                                              | Vote backfill (debug)                                                                                                                                                                                           |
-| `just load-campaign-finance [target=local] [dry=true]`                                   | Fetch the Board's 3 campaign-finance files, check them, publish as one dated set that replaces the previous one. Dry-run by default (writes nothing, needs no credentials); a first import quarantines by design — see section **H**                    |
+| `just mirror-raw-files [target=production] [dry=true]`                                   | Copy every stored campaign-finance file to Cloudflare R2 and read each copy back to check it arrived whole. Dry-run by default. Only ever adds; a second run copies nothing. The daily job `.github/workflows/mirror-raw-files.yml` does this already — section **H**   |
 | `uv run python -m alethical.pipeline.ai_enrichment {prepare\|submit\|status\|apply} ...` | Direct OpenAI Batch control. Four modes, not the two listed here: `prepare` builds the JSONL batch file and `apply` writes results back, which are the two you actually need to run a batch end to end.         |
 
 ## Provenance, idempotency & data layers
@@ -629,7 +665,9 @@ just pipeline local --write --allow-writes     # commit after review
   scraping still works without it. It is no longer the only one: a real (non-dry)
   campaign-finance load also needs the 4 `SUPABASE_STORAGE_S3_*` values, which keep
   each downloaded file's bytes (section **H**). Those are Storage-scoped on purpose
-  and cannot reach the database. DB via `DATABASE_URL` or Supabase vars. See
+  and cannot reach the database. Copying those bytes to a second place needs the 4
+  `CLOUDFLARE_R2_*` values as well; ingestion never reads them, only
+  `scripts/mirror_raw_files.py` does. DB via `DATABASE_URL` or Supabase vars. See
   [`.env.example`](../../.env.example) for every variable, grouped by source, and
   [`CONTRIBUTING.md`](../../CONTRIBUTING.md) for setup.
 - **System deps:** `uv`, Postgres **with pgvector**, and **`pdftotext`
