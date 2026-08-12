@@ -55,6 +55,41 @@ def _bool_arg(args: dict[str, Any], name: str, default: bool = False) -> bool:
     return bool(value)
 
 
+def _rate_limited_source_session(engine: Any, args: dict[str, Any]) -> Any | None:
+    from alethical.pipeline.minnesota import http_session
+    from alethical.pipeline.request_limits import (
+        DEFAULT_SOURCE_REQUEST_INTERVAL_SECONDS,
+        DatabaseRequestLimiter,
+        RateLimitedSession,
+    )
+
+    configured_interval = args.get("request_interval_seconds")
+    target = str(args.get("database_target") or "")
+    request_interval = (
+        0.0
+        if configured_interval is None and target == "local"
+        else float(
+            DEFAULT_SOURCE_REQUEST_INTERVAL_SECONDS
+            if configured_interval is None
+            else configured_interval
+        )
+    )
+    if target != "local":
+        request_interval = max(
+            request_interval,
+            DEFAULT_SOURCE_REQUEST_INTERVAL_SECONDS,
+        )
+    if request_interval == 0:
+        return None
+    return RateLimitedSession(
+        http_session(),
+        DatabaseRequestLimiter(
+            engine,
+            interval_seconds=request_interval,
+        ),
+    )
+
+
 def _resolve_rag_write_url(args: dict[str, Any]) -> str:
     """Resolve the DB URL for RAG writes, enforcing the production-only convention.
 
@@ -98,6 +133,8 @@ class PipelineRunWorker:
             "oban_target": job.args.get("oban_target"),
             "oban_dsn": job.args.get("oban_dsn"),
         }
+        if job.args.get("request_interval_seconds") is not None:
+            common["request_interval_seconds"] = job.args["request_interval_seconds"]
         if job.args.get("database_url"):
             common["database_url"] = database_url
         dry_run = _bool_arg(job.args, "dry_run", True)
@@ -205,7 +242,12 @@ class FullBillSyncWorker:
                 connect_args=NO_PREPARED_STATEMENTS,
             )
             with Session(engine) as db:
-                pipeline = MinnesotaIngestionPipeline(db)
+                source_session = _rate_limited_source_session(engine, job.args)
+                pipeline = (
+                    MinnesotaIngestionPipeline(db, sess=source_session)
+                    if source_session is not None
+                    else MinnesotaIngestionPipeline(db)
+                )
                 targets = pipeline.discover_bill_targets(
                     session_code=str(
                         job.args.get("session_code") or DEFAULT_SESSION_CODE
@@ -253,6 +295,10 @@ class FullBillSyncWorker:
                 "oban_target": job.args.get("oban_target"),
                 "oban_dsn": job.args.get("oban_dsn"),
             }
+            if job.args.get("request_interval_seconds") is not None:
+                common["request_interval_seconds"] = job.args[
+                    "request_interval_seconds"
+                ]
             if job.args.get("database_url"):
                 common["database_url"] = _database_url(job.args)
             for chunk_index in range(0, len(targets), chunk_size):
@@ -340,7 +386,12 @@ class BillSyncChunkWorker:
                 connect_args=NO_PREPARED_STATEMENTS,
             )
             with Session(engine) as db:
-                pipeline = MinnesotaIngestionPipeline(db)
+                source_session = _rate_limited_source_session(engine, job.args)
+                pipeline = (
+                    MinnesotaIngestionPipeline(db, sess=source_session)
+                    if source_session is not None
+                    else MinnesotaIngestionPipeline(db)
+                )
                 stats = pipeline.ingest_bills(targets)
                 if include_rag:
                     from alethical.pipeline.rag_ingest import (

@@ -37,6 +37,7 @@ from alethical.pipeline.minnesota import (
     BillRefreshRejected,
     BillTarget,
     MinnesotaIngestionPipeline,
+    content_hash,
     parse_bill_section,
     parse_bill_text_html,
     parse_bill_xml,
@@ -1713,6 +1714,29 @@ def test_ingest_bills_reports_a_new_bill_as_public_text_changed(
 
         assert result["bill_keys"] == ["94-2025-HF5002"]
         assert result["text_changed_bill_keys"] == ["94-2025-HF5002"]
+
+        session.rollback()
+
+
+def test_successful_bill_run_saves_the_exact_accepted_status_fingerprint(
+    seed_database: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        canonical, bill_text = _refresh_payload(
+            description="A newly found bill.",
+            authors=[("500215", "Author, New")],
+        )
+        _mock_bill_fetches(monkeypatch, [(canonical, bill_text)])
+
+        pipeline.ingest_bills([BillTarget(chamber="House", bill_number="5002")])
+        bill = session.scalar(select(Bill).where(Bill.bill_key == "94-2025-HF5002"))
+        assert bill is not None
+        run = session.get(IngestionRun, bill.ingestion_run_id)
+
+        assert run is not None
+        assert run.stats["source_status_fingerprint"] == content_hash("xml-0")
 
         session.rollback()
 

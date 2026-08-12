@@ -2068,12 +2068,19 @@ class MinnesotaIngestionPipeline:
         current_text = self._public_text_signature(bill)
         self.finish_run(
             run,
-            self._run_stats(
-                payload.canonical,
-                payload.bill_text,
-                retried=retried,
-                corroborated_drop=corroborated_drop,
-            ),
+            {
+                **self._run_stats(
+                    payload.canonical,
+                    payload.bill_text,
+                    retried=retried,
+                    corroborated_drop=corroborated_drop,
+                ),
+                # The accepted source, not the earlier scheduled preflight. A
+                # source can change again between those 2 fetches or revert to
+                # an older response, so the bill's committed run owns the only
+                # safe baseline for the next cheap pass (#1323).
+                "source_status_fingerprint": payload.xml_artifact.content_hash,
+            },
         )
         return BillIngestionResult(
             bill=bill,
