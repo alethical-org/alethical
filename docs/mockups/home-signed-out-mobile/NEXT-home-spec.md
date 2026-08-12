@@ -6,7 +6,7 @@ rules below define how the real ones are chosen from ingested data.
 
 ## Homepage background
 
-- [ ] **HOME-UI-001**: While the web homepage viewport is below 768px wide, the system shall omit the black dotted texture from the hero.
+- [x] **HOME-UI-001**: While the web homepage viewport is below 768px wide, the system shall omit the black dotted texture from the hero.
 - [x] **HOME-UI-002**: While the web homepage viewport is 768px wide or wider, the system shall display the black dotted texture in the hero.
 - [x] **HOME-UI-003**: At every web homepage width, the system shall preserve the green dotted texture behind Find My Legislator.
 
