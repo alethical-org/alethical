@@ -1487,11 +1487,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Backfill structured vote events and vote records from official roll-call sources."
     )
-    parser.add_argument(
+    database_selection = parser.add_mutually_exclusive_group()
+    database_selection.add_argument(
         "--database-url",
-        default=os.environ.get("DATABASE_URL"),
+        default=None,
     )
-    parser.add_argument(
+    database_selection.add_argument(
         "--target",
         choices=("local", "production"),
         default=None,
@@ -1544,10 +1545,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.write and not reconciliation_requested:
         parser.error("--write is only used by saved-vote reconciliation")
     database_url = (
-        database_url_for_target(args.target, args.database_url)
+        database_url_for_target(args.target)
         if args.target is not None
         else normalize_database_url(
-            args.database_url or supabase_database_url() or get_database_url()
+            args.database_url
+            or os.environ.get("DATABASE_URL")
+            or supabase_database_url()
+            or get_database_url()
         )
     )
     engine = create_engine(
