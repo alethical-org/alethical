@@ -319,6 +319,42 @@ def section_anchors(db: Session, version: Any) -> list[SectionAnchor]:
     ]
 
 
+def source_version_matches_current_text(
+    db: Session, bill: Any, version: Any, candidate_hash: str
+) -> bool:
+    """Whether a prepared prompt hash still represents current official text."""
+    if not version.is_current or version.bill_id != bill.id:
+        return False
+
+    official_sections = list(
+        db.scalars(
+            select(BillVersionSection)
+            .where(BillVersionSection.bill_version_id == version.id)
+            .order_by(BillVersionSection.source_order.asc())
+        )
+    )
+    raw_hashes = [
+        hashlib.sha256((section.raw_text or "").encode("utf-8")).hexdigest()
+        for section in official_sections
+    ]
+    prefix = [bill.bill_key, str(version.id)]
+    valid_hashes = {
+        source_hash([*prefix, *raw_hashes]),
+        source_hash([*prefix, *[value[:16] for value in raw_hashes]]),
+    }
+
+    stored_hashes: list[str] = []
+    for section, raw_hash in zip(official_sections, raw_hashes, strict=True):
+        stored_hash = section.source_hash or raw_hash
+        if stored_hash not in {raw_hash, raw_hash[:16]}:
+            break
+        stored_hashes.append(stored_hash)
+    else:
+        valid_hashes.add(source_hash([*prefix, *stored_hashes]))
+
+    return candidate_hash in valid_hashes
+
+
 def chief_sponsor_names(bill: Any) -> list[str]:
     names: list[str] = []
     for sponsorship in sorted(bill.sponsorships, key=lambda item: item.source_order):
@@ -1039,6 +1075,7 @@ def apply_output(args: argparse.Namespace) -> None:
     )
     applied = 0
     failed = 0
+    outdated = 0
     citation_points = 0
     citation_anchored = 0
     with Session(engine) as db:
@@ -1097,6 +1134,23 @@ def apply_output(args: argparse.Namespace) -> None:
                 continue
 
             bill_version_id = uuid.UUID(item.bill_version_id)
+            # The accepted refresh path takes the same row lock before it reads
+            # or changes official text. Whichever transaction starts first
+            # finishes first, so this freshness decision cannot race a refresh
+            # that would otherwise commit between the check and the upsert.
+            bill = db.scalar(select(Bill).where(Bill.id == bill_id).with_for_update())
+            version = current_bill_version(db, bill_id)
+            if (
+                bill is None
+                or version is None
+                or version.id != bill_version_id
+                or item.bill_key != bill.bill_key
+                or not source_version_matches_current_text(
+                    db, bill, version, item.source_version_hash
+                )
+            ):
+                outdated += 1
+                continue
             # Ground per-key-point citations against the bill's sections before
             # persisting (#377): unanchorable points are dropped, never invented.
             stats = resolve_key_point_citations(db, bill_version_id, content)
@@ -1166,6 +1220,7 @@ def apply_output(args: argparse.Namespace) -> None:
         "dry_run": args.dry_run,
     }
     if not merge:
+        summary["outdated"] = outdated
         summary["key_points"] = citation_points
         summary["key_points_anchored"] = citation_anchored
     print(json.dumps(summary, indent=2))

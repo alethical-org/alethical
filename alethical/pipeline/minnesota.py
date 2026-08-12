@@ -42,6 +42,7 @@ LEGISLATOR_LOCK_KEY = 610312263003
 
 schema = load_schema()
 ArtifactType = schema.ArtifactType
+AIEnrichment = schema.AIEnrichment
 Bill = schema.Bill
 BillAction = schema.BillAction
 BillStats = schema.BillStats
@@ -52,6 +53,7 @@ ChamberType = schema.ChamberType
 Committee = schema.Committee
 CommitteeMembership = schema.CommitteeMembership
 District = schema.District
+EnrichmentType = schema.EnrichmentType
 IngestionRun = schema.IngestionRun
 IngestionStatus = schema.IngestionStatus
 Jurisdiction = schema.Jurisdiction
@@ -1904,8 +1906,13 @@ class MinnesotaIngestionPipeline:
             "bill", f"{target.session_code}:{target.chamber}:{target.bill_number}"
         )
         payload = self._fetch_bill_source(target, run)
+        # Summary apply takes this same row lock before checking official text.
+        # It prevents a prepared result from passing on old text and becoming
+        # current just after this refresh commits its replacement text.
         existing_bill = self.db.scalar(
-            select(Bill).where(Bill.bill_key == payload.canonical["bill_key"])
+            select(Bill)
+            .where(Bill.bill_key == payload.canonical["bill_key"])
+            .with_for_update()
         )
         previous_text = self._public_text_signature(existing_bill)
         drops = self.bill_refresh_drops(payload.canonical, payload.bill_text)
@@ -2413,6 +2420,19 @@ class MinnesotaIngestionPipeline:
                 # thin response cannot roll back the other 24 bills in a chunk.
                 refresh_rejections.append(exc.report())
         bills = [result.bill for result in results]
+        text_changed_bills = [
+            result.bill for result in results if result.public_text_changed
+        ]
+        if text_changed_bills:
+            self.db.execute(
+                update(AIEnrichment)
+                .where(
+                    AIEnrichment.bill_id.in_([bill.id for bill in text_changed_bills]),
+                    AIEnrichment.enrichment_type == EnrichmentType.bill_summary,
+                    AIEnrichment.is_current.is_(True),
+                )
+                .values(is_current=False)
+            )
         # Refresh stats only for the legislators this batch actually touched (the
         # sponsors of its bills), not the whole jurisdiction — otherwise concurrent
         # chunk workers all contend on the same ~400 legislator_stats rows and hit
@@ -2435,9 +2455,7 @@ class MinnesotaIngestionPipeline:
         return {
             "bills_ingested": len(bills),
             "bill_keys": [bill.bill_key for bill in bills],
-            "text_changed_bill_keys": [
-                result.bill.bill_key for result in results if result.public_text_changed
-            ],
+            "text_changed_bill_keys": [bill.bill_key for bill in text_changed_bills],
             "bill_refresh_rejections": refresh_rejections,
         }
 
