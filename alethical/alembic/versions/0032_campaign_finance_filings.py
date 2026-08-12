@@ -227,7 +227,9 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_constraint(
-        "fk_cf_release_filing_snapshot_id_cf_filing_snapshot", "cf_release", type_="foreignkey"
+        "fk_cf_release_filing_snapshot_id_cf_filing_snapshot",
+        "cf_release",
+        type_="foreignkey",
     )
     op.drop_column("cf_release", "filing_snapshot_id")
     op.drop_table("cf_filing_figure")
