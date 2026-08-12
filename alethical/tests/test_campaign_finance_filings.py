@@ -26,7 +26,7 @@ from urllib.parse import parse_qs, urlparse
 
 import pytest
 import requests
-from sqlalchemy import select, text
+from sqlalchemy import func, select, text
 
 from alethical.db import models
 from alethical.db.session import get_session_factory
@@ -183,7 +183,13 @@ class FakeBoard:
     unreadable_amendments: bool = False
     null_amendments: bool = False
     special_election_filers: set[str] = field(default_factory=set)
+    # Registered filers that have filed nothing, and which of the 2 shapes the Board
+    # uses to say so: an empty `data`, or an empty `pdfs` beside noticed-but-unfiled
+    # reports. Both are real, both measured in production.
+    no_reports_empty_data: set[str] = field(default_factory=set)
+    no_reports_with_notices: set[str] = field(default_factory=set)
     reported_through: dict[tuple[str, int], str] = field(default_factory=dict)
+    pdfs_is_a_nonempty_list: set[str] = field(default_factory=set)
     requests_seen: list[tuple[str, dict[str, str]]] = field(default_factory=list)
 
     def __post_init__(self) -> None:
@@ -263,6 +269,45 @@ class FakeBoard:
         return {"tabcontent": f'<div class="row">{"".join(tables)}</div>'}
 
     def catalogue_payload(self, registration: str, segment: tuple[int, int]) -> Any:
+        # PHP encodes an empty array as [] and a populated associative array as {}, so
+        # "this filer has filed nothing" arrives as a different JSON *type*.
+        if registration in self.no_reports_empty_data:
+            return {
+                "data": [],
+                "tabcontent": "<p>No information found for Reports and Data</p>",
+            }
+        if registration in self.no_reports_with_notices:
+            return {
+                "data": {
+                    "pdfs": [],
+                    # Reports the Board has noticed as due and this filer has not filed.
+                    # One of them carries no `amendments` key at all.
+                    "notices": {
+                        "abc": {
+                            "RegisteredEntityID": registration,
+                            "ReportType": "C",
+                            "FilingYear": str(max(segment)),
+                            "ReportName": "2026 Pre-Primary Report",
+                            "NoticePeriod": "1",
+                            "CutOffDate": f"{max(segment)}-07-20 00:00:00",
+                            "SpecialElectionindicator": "0",
+                            "amendments": ["0"],
+                        },
+                        "def": {
+                            "RegisteredEntityID": registration,
+                            "ReportType": "E",
+                            "FilingYear": str(max(segment)),
+                            "ReportName": "2026 Pre-General Report",
+                            "NoticePeriod": "1",
+                            "SpecialElectionindicator": "0",
+                        },
+                    },
+                    "disclosure": [],
+                },
+                "tabcontent": "<div>Large pre-election contributions</div>",
+            }
+        if registration in self.pdfs_is_a_nonempty_list:
+            return {"data": {"pdfs": [{"RegisteredEntityID": registration}]}}
         if self.unreadable_amendments:
             amendments: Any = ["not-a-number"]
         elif self.null_amendments:
@@ -725,6 +770,89 @@ def test_no_amendment_list_is_recorded_as_unknown_rather_than_as_version_zero(
     assert reports
     assert all(report.effective_amendment_index is None for report in reports)
     assert all(report.amendment_count is None for report in reports)
+
+
+@pytest.mark.parametrize("shape", ["empty_data", "empty_pdfs_with_notices"])
+def test_a_registered_filer_that_has_filed_nothing_is_ordinary(board, shape) -> None:
+    """39 of 1,603 real filers, and treating any one as a failure blocks the release.
+
+    This route is PHP, which encodes an empty array as ``[]`` and a populated
+    associative array as ``{}``, so "no reports" and "some reports" arrive as different
+    JSON *types* — at both levels. The first full production run quarantined on exactly
+    this, having read 55,845 figures perfectly.
+    """
+    if shape == "empty_data":
+        board.no_reports_empty_data.add("11880")
+    else:
+        board.no_reports_with_notices.add("11880")
+    reports, errors = filings.parse_catalogue_payload(
+        board.catalogue_payload("11880", (2024, 2025)), "11880"
+    )
+    assert errors == []
+    assert reports == []
+
+
+def test_reports_the_board_has_noticed_but_nobody_filed_are_not_counted_as_filings(
+    board,
+) -> None:
+    """One real filer carries an empty filed list beside 2 noticed reports.
+
+    A noticed report is one the Board says is due. Counting it would invent a filing,
+    and a page could then say a committee reported in a period it never reported in.
+    """
+    board.no_reports_with_notices.add("11880")
+    payload = board.catalogue_payload("11880", (2024, 2025))
+    assert payload["data"]["notices"]
+    reports, errors = filings.parse_catalogue_payload(payload, "11880")
+    assert errors == []
+    assert reports == []
+
+
+def test_a_nonempty_list_where_the_filed_reports_belong_is_still_an_error(
+    board,
+) -> None:
+    """ "None" is spelled as an empty list, so only an EMPTY one may be read as none.
+
+    A populated list is a shape nothing has ever seen here, and reading it as "no
+    reports" would throw real filings away without a word.
+    """
+    board.pdfs_is_a_nonempty_list.add("11880")
+    reports, errors = filings.parse_catalogue_payload(
+        board.catalogue_payload("11880", (2024, 2025)), "11880"
+    )
+    assert reports == []
+    assert any("carries no pdfs object" in error for error in errors)
+
+
+def test_a_run_publishes_with_filers_that_have_filed_nothing(db, board, store) -> None:
+    """The end-to-end version, because the unit test above passed while the run failed."""
+    board.no_reports_empty_data.add("18999")
+    board.no_reports_with_notices.add("20724")
+    published = publish_first(db, board, store)
+    assert not published.blocked, published.summary()
+    assert published.errors == []
+    # The filers are still on the record, with their own directory rows.
+    kept = db.scalars(
+        select(models.CampaignFinanceFiler.registration_number).where(
+            models.CampaignFinanceFiler.snapshot_id == published.snapshot_id
+        )
+    ).all()
+    assert {"18999", "20724"} <= set(kept)
+    # And neither contributed a catalogued report.
+    for registration in ("18999", "20724"):
+        assert (
+            db.scalar(
+                select(func.count())
+                .select_from(models.CampaignFinanceFilingReport)
+                .where(
+                    models.CampaignFinanceFilingReport.snapshot_id
+                    == published.snapshot_id,
+                    models.CampaignFinanceFilingReport.registration_number
+                    == registration,
+                )
+            )
+            == 0
+        )
 
 
 def test_an_amendment_list_that_is_there_and_unreadable_is_an_error(board) -> None:

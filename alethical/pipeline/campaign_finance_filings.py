@@ -485,6 +485,16 @@ class CatalogueReport:
     termination_date: Optional[date]
 
 
+def _is_empty_php_array(value: Any) -> bool:
+    """Whether this is PHP's ``[]``, which is how this route spells "none".
+
+    Narrow on purpose. ``[]`` means the collection is empty; a **non-empty** list where
+    an object belongs is a shape nothing here has seen, and reading it as "none" would
+    throw real reports away without a word.
+    """
+    return isinstance(value, list) and not value
+
+
 def parse_catalogue_payload(
     payload: Any, registration_number: str
 ) -> tuple[list[CatalogueReport], list[str]]:
@@ -500,19 +510,50 @@ def parse_catalogue_payload(
       report row, including reports filed years before it. Read as "this report
       terminated the committee" it is wrong on 15 of one filer's 16 rows, so it is
       stored once per filer rather than per report.
+
+    **A registered filer that has filed nothing is ordinary, and it arrives as an empty
+    LIST where a filer with reports sends an object.** This route is PHP, and PHP encodes
+    an empty array as ``[]`` and a populated associative array as ``{}`` — so "none"
+    and "some" come back as different JSON types, at both levels. Measured on the first
+    full production run: 39 of 1,603 registered filers, all recently registered, and
+    treating any of them as a failure quarantined the entire release. An empty list is
+    therefore read as zero reports; a **non-empty** list stays an error, because that
+    would be a shape nothing here has ever seen.
+
+    ``notices`` and ``disclosure`` are deliberately not read. Filer 41430's catalogue
+    carries an empty ``pdfs`` beside a populated ``notices`` holding 2 reports the Board
+    has noticed as due, one of them with no ``amendments`` key at all. Those are reports
+    that have not been filed, and this table records filings, so counting them would
+    invent reports. They are the likelier home of a "this report is late" signal than a
+    null ``amendments`` array, which matters to whoever builds that
+    ([#1375](https://github.com/alethical-org/alethical/issues/1375)).
     """
     errors: list[str] = []
-    if not isinstance(payload, dict) or not isinstance(payload.get("data"), dict):
+    if not isinstance(payload, dict):
         errors.append(
-            f"the catalogue for {registration_number} is not an object carrying data "
+            f"the catalogue for {registration_number} is not an object "
             f"(got {type(payload).__name__}: {str(payload)[:80]!r})"
         )
         return [], errors
-    rows = payload["data"].get("pdfs")
+    data = payload.get("data")
+    if _is_empty_php_array(data):
+        # Registered, and has filed nothing. Not a failure, and not silence either: the
+        # filer still gets its directory row, and every filer-year it has no figures for
+        # is counted by the empty-answer check.
+        return [], errors
+    if not isinstance(data, dict):
+        errors.append(
+            f"the catalogue for {registration_number} is not an object carrying data "
+            f"(got {type(data).__name__}: {str(payload)[:80]!r})"
+        )
+        return [], errors
+    rows = data.get("pdfs")
+    if _is_empty_php_array(rows):
+        return [], errors
     if not isinstance(rows, dict):
         errors.append(
             f"the catalogue for {registration_number} carries no pdfs object "
-            f"(got {type(rows).__name__})"
+            f"(got {type(rows).__name__}: {str(rows)[:80]!r})"
         )
         return [], errors
 
