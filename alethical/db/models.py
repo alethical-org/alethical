@@ -529,7 +529,7 @@ class Bill(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     #   * short_title — the plain-language headline every card, bill page and Ask
     #     answer displays instead of the official legal ``title``. Copied from the
     #     current bill_summary enrichment's ``short_title`` by a trigger on
-    #     ``ai_enrichment`` (alembic 0032), because the source lives inside a
+    #     ``ai_enrichment`` (alembic 0033), because the source lives inside a
     #     TOASTed JSONB column that keyword search cannot afford to read per
     #     request. Search matches it alongside title/description, so the words a
     #     reader can actually see resolve to the bill they are looking at.

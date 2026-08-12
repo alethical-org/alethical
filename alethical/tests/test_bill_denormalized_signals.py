@@ -401,11 +401,11 @@ def test_status_recomputes_when_actions_change(seed_database) -> None:
 
 
 def test_short_title_trigger_lifecycle(seed_database) -> None:
-    """``bill.short_title`` tracks the current summary's headline (alembic 0032).
+    """``bill.short_title`` tracks the current summary's headline (alembic 0033).
 
     Search matches this column, so a stale copy means a reader searching the words
     on a card finds the wrong bill, or none — the same class of failure as the
-    missing column it replaced (#1452). Every enrichment write path has to keep it
+    missing column it replaced (#1456). Every enrichment write path has to keep it
     honest, which is what the trigger guarantees and this pins.
     """
     bid = None

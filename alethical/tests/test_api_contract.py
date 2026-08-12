@@ -1251,7 +1251,7 @@ def test_bill_detail_exposes_normalized_ai_analysis_without_metadata(client):
     assert detail_payload["ai_analysis"] == {
         # The plain-language headline every surface shows in place of the official
         # legal title. Also copied onto ``bill.short_title`` by a trigger so
-        # keyword search can match it (#1452).
+        # keyword search can match it (#1456).
         "short_title": "Statewide Jobs and Worker Training Budget",
         "summary": (
             "SF 1832 is an omnibus jobs, labor, and economic development package. "
@@ -1468,7 +1468,7 @@ def test_bill_search_matches_inflected_word_roots(client):
 
 def test_bill_search_finds_a_bill_by_the_headline_its_card_displays(client):
     """Search matches the plain-language headline a reader can actually see
-    (#1452), not only the bill's official legal title.
+    (#1456), not only the bill's official legal title.
 
     The reported failure, on production: searching the exact words on SF 3458's
     card — "Repeal of Political Contribution Refund Program" — returned nothing,

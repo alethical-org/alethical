@@ -412,8 +412,22 @@ def _like_escape(value: str) -> str:
 # ("repealing the political contribution refund program"); "of" appears nowhere
 # in it, and one unmatched word is enough to drop the bill.
 _FUNCTION_WORDS = frozenset(
-    {"a", "an", "and", "at", "by", "for", "from", "in", "of", "on", "or", "the", "to",
-     "with"}
+    {
+        "a",
+        "an",
+        "and",
+        "at",
+        "by",
+        "for",
+        "from",
+        "in",
+        "of",
+        "on",
+        "or",
+        "the",
+        "to",
+        "with",
+    }
 )
 
 
@@ -433,7 +447,7 @@ def search_words(q: str) -> list[str]:
 
 # What a bill keyword search matches, in one place so ``/bills`` and the
 # ``/search`` typeahead can never search different text. ``short_title`` is the
-# plain-language headline the card displays (alembic 0032); a reader searching the
+# plain-language headline the card displays (alembic 0033); a reader searching the
 # words on screen must find the bill they are looking at, and before it was
 # searched they did not. The official ``title`` and ``description`` stay, so a
 # query quoting the legal wording keeps working. Ask's bill disambiguation

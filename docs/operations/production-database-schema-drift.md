@@ -106,7 +106,16 @@ rather than a finding. The gap that remains is the migration itself —
 
 **The snapshot compares** tables, columns, types, nullability, defaults, constraints,
 indexes, enums and owned extensions — **not** views, sequences, functions, triggers,
-grants or row-level-security policies, none of which this schema uses today.
+grants or row-level-security policies.
+
+Functions and triggers are the notable omission, and the claim that this schema used
+none of them was wrong when it was written: `0007` and `0014` maintain
+`bill.has_current_summary` / `status_key` / `status_rank` from triggers, and `0033`
+adds `ai_enrichment_short_title` for `bill.short_title`. A trigger that silently stops
+firing in production would leave a denormalized column stale while every column, type
+and index still matched, so this check would pass. What guards them instead is the
+equivalence suite `alethical/tests/test_bill_denormalized_signals.py`, which asserts
+each column against the source it derives from.
 
 Names are compared separately from definitions, because a constraint can be correct and
 still be *named* differently on the two sides — which is its own latent break, and one
@@ -126,11 +135,13 @@ so a new exception has to be added deliberately:
 - **Extensions we do not own.** Compared by allowlist (`vector`, `pg_trgm`) rather than
   by difference, because Supabase installs `pgcrypto`, `uuid-ossp`, `pg_stat_statements`
   and `supabase_vault` as platform furniture. Finding D9.
-- **Indexes a migration creates that no model declares** — eight of them. The composite
+- **Indexes a migration creates that no model declares** — nine of them. The composite
   indexes `0001` adds by hand, the vector index that `0012` swaps from ivfflat to HNSW,
-  and the three trigram search indexes from `0011`. The trigram three are the only group
-  that *could* move onto the models; leaving them is a deliberate choice to keep the
-  `0001` rewrite a transcription.
+  and four trigram search indexes: three from `0011`, plus `ix_bill_short_title_trgm`
+  from `0033`. Those four are the only group that *could* move onto the models; leaving
+  them there is a deliberate choice, because a `gin_trgm_ops` index on a model would
+  need `pg_trgm` to exist before `create_all` runs, and because it keeps the `0001`
+  rewrite a transcription.
 - **Row-level security**, reported and never failed. Finding D10.
 
 ## The findings

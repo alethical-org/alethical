@@ -1,4 +1,4 @@
-"""Unit coverage for keyword-search word normalization (#571, #1452).
+"""Unit coverage for keyword-search word normalization (#571, #1456).
 
 Two reported failures, both "a real bill returned zero results":
 

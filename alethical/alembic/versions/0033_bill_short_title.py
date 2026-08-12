@@ -30,8 +30,8 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 # Keep the revision id <= 32 chars — alembic_version.version_num is varchar(32).
-revision = "0032_bill_short_title"
-down_revision = "0031_cf_record_set_hash"
+revision = "0033_bill_short_title"
+down_revision = "0032_campaign_finance_filings"
 branch_labels = None
 depends_on = None
 

@@ -150,7 +150,7 @@ def test_the_ignore_sets_stay_small_and_deliberate() -> None:
         "oban_producers",
     }
     assert OWNED_EXTENSIONS == {"vector", "pg_trgm"}
-    # 9 since alembic 0032 added ix_bill_short_title_trgm. Asked the question this
+    # 9 since alembic 0033 added ix_bill_short_title_trgm. Asked the question this
     # docstring asks: it is not a finding, it is a fourth member of the trigram
     # search group already listed here, created the same way for the same reason.
     # A gin_trgm_ops index cannot move onto the models without pg_trgm existing
