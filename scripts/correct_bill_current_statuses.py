@@ -51,7 +51,6 @@ from alethical.db.models import Bill, BillAction, Chamber
 from alethical.db.session import (
     NO_PREPARED_STATEMENTS,
     database_url_for_target,
-    normalize_database_url,
 )
 from alethical.pipeline.minnesota import select_current_bill_action
 
@@ -222,7 +221,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description="Correct bill.current_status using chamber-local action order (#1322)."
     )
-    parser.add_argument("--database-url", default=os.environ.get("DATABASE_URL"))
+    parser.add_argument("--database-url", default=None)
     parser.add_argument("--bill-key", default=None)
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument(
@@ -249,9 +248,8 @@ def main() -> None:
     if args.apply and not args.restore_snapshot and args.snapshot is None:
         parser.error("--apply requires --snapshot so every write has a rollback")
 
-    database_url = normalize_database_url(
-        args.database_url
-        or database_url_for_target(os.environ.get("ALETHICAL_DATABASE_TARGET"))
+    database_url = database_url_for_target(
+        os.environ.get("ALETHICAL_DATABASE_TARGET"), args.database_url
     )
     engine = create_engine(
         database_url, echo=False, connect_args=NO_PREPARED_STATEMENTS
