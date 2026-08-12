@@ -35,6 +35,12 @@ button read `✓ Tracked`; the reader never has to press Track a second time. Ol
 `?track=1` links remain accepted for compatibility, but new Track requests do not create
 them or redirect to a bill page.
 
+The app waits for its saved-session check before deciding whether a Google return error is
+still real. A valid signed-in session wins over an old or repeated return error, and the
+saved Track request still finishes. With no valid session, the dialog shows the real error
+and keeps the same Track request ready for **Try again**. One fast double press can start
+only one Google sign-in attempt.
+
 ## Honest failures
 
 A failed save or removal never changes the button to a state the server did not accept.
