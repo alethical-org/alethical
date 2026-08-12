@@ -1,12 +1,11 @@
 """Equivalence + drift guards for the denormalized bill signals (#505).
 
 These pin the DB-maintained columns (``has_current_summary``, ``status_key``,
-``status_rank``) to the Python expressions that remain the source of truth
-(``current_bill_summary_enrichment_bill_ids``, ``bill_status_key_expr``,
-``bill_progress_rank``). If the SQL cascade in alembic 0007/0014 ever drifts from
-the Python cascade — in either direction — a test here fails. This is the CI face of
-#505's accuracy gate; the corpus byte-identical proof runs the same comparison
-against real production data.
+``status_rank``, ``short_title``) to the source records or Python expressions they
+derive from. Corpus comparisons cover the summary flag and status columns; the
+short-title lifecycle test covers every insert, rewrite, retirement, blank and
+delete path that can change its source. This is the CI face of #505's accuracy
+gate; the older columns' byte-identical proof also runs against production data.
 """
 
 from __future__ import annotations
