@@ -93,8 +93,9 @@ Single scrolling screen. Regions:
   - Summary: 14px/1.55, `#6b716b`.
   - Meta line (top hairline `rgba(17,21,15,0.08)`, 13px): **"Signed into Law"** (`#4f5651`) +
     **"Effective {date}"** (`#9aa39e`, margin-left 10).
-  - Cards: **SF 3933** — "Stop Harms from Addictive Feeds Act", Effective July 1, 2027;
-    **SF 856** — "Office of the Inspector General", Effective Aug 1, 2026.
+  - Card identities and their status, summary, and effective-date line are illustrative here. The
+    running page uses the editorially selected bill IDs, but takes each displayed field from the
+    saved public bill response.
 - **"See more"** button (full-width, white, border `rgba(17,21,15,0.2)`, radius 13, 14px/700, arrow
   icon; hover → border `#2ed47e`, text `#149d5b`) → **Search Bills**.
 

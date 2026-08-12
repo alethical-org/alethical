@@ -26,14 +26,10 @@ import { formatNiceDate, plainBillSummary } from '../../lib/billDetail';
 import { HOT_ISSUE_BILL_KEYS } from '../../lib/hotIssues';
 import { HomeLegislatorFinder } from '../../components/home/HomeLegislatorFinder';
 import { HOME_BILL_GROUP_CONTINUATIONS, HOME_PUBLIC_INTRO } from '../../lib/homepage';
+import { homeHeroBillFacts } from '../../lib/homeBillFacts';
 import { formatSessionLabel, SESSION_LABEL_FALLBACK } from '../../lib/sessionLabel';
 import { LinkArrow } from '../../components/LinkArrow';
 import type { Bill } from '../../data/types';
-
-// The v2 signed-out home — docs/mockups/home-signed-out-v2 (README = state/token/copy
-// spec; the .dc.html = literal values). The answer card and the bill cards are STATIC
-// marketing illustration built from researched data — not ingestion, not generated
-// answers (held decision 2026-07-12, see #143). Do not wire them to data here.
 
 const t = theme;
 const isWeb = Platform.OS === 'web';
@@ -337,37 +333,23 @@ const searchActionHoverShadow = Platform.select({
   default: {},
 }) as object;
 
-// --- Hero answer card (static sample answer — HF 4138) ---
+// This is an editorial placement, not a claim about the bill. All visible bill facts
+// below come from the saved public response for this key.
+const HOME_HERO_BILL_KEY = '94-2026-HF4138';
 
-// The bill code badge and the "View bill profile" footer link both point to our own
-// bill profile page (in-app navigation), not the official source — so badge and link
-// agree. The external source-text link lives on the bill profile, not on this teaser.
-const HF4138_BILL_ID = '94-2026-HF4138';
-// Chief author's legislator profile on our own site (in-app navigation), matching the
-// badge and footer link. Her official House profile is reachable from that profile page.
-const PEGGY_SCOTT_LEGISLATOR_ID = '2ebc386c-bf7e-4b9c-9d81-81f3bef1f971';
-
-function CitedSectionCard({ title, quote, note }: { title: string; quote: string; note?: string }) {
-  const { isMobile } = useResponsive();
-  return (
-    <View style={styles.sectionCardBox}>
-      <View style={styles.sectionCardHead}>
-        <Text style={styles.sectionCardTitle}>{title}</Text>
-      </View>
-      <View style={styles.sectionCardQuote}>
-        <Text style={[styles.sectionCardQuoteText, isMobile && styles.sectionCardQuoteTextMobile]}>
-          {quote}
-        </Text>
-      </View>
-      {note ? <Text style={styles.sectionCardNote}>{note}</Text> : null}
-    </View>
-  );
-}
-
-function AnswerCard({ dimmed }: { dimmed: boolean }) {
+function AnswerCard({
+  dimmed,
+  bill,
+  isLoading,
+}: {
+  dimmed: boolean;
+  bill?: Bill;
+  isLoading: boolean;
+}) {
   const [badgeHovered, badgeHover] = useHover();
   const { isMobile } = useResponsive();
   const navigation = useNavigation<any>();
+  const facts = bill ? homeHeroBillFacts(bill) : undefined;
   const blurOverlay: object = isWeb
     ? {
         backgroundColor: 'rgba(255,255,255,0.6)',
@@ -377,25 +359,26 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
     : { backgroundColor: 'rgba(255,255,255,0.75)' };
   return (
     <View style={[styles.answerCard, isMobile && styles.answerCardMobile, t.shadows.lg as object]}>
-      {/* The bold question is the first element (the "ASKED" eyebrow was removed). */}
-      <Text style={styles.askedQuestion}>What’s in the new social media law for kids?</Text>
+      <Text style={styles.askedQuestion}>A current bill record, in plain language</Text>
 
       {/* Full-width divider between the question and the bill facts. */}
       <View style={styles.billDividerRow}>
         <View style={styles.hairlineFlex} />
       </View>
 
-      {/* badge + meta. Mobile: compact 2×2 grid (fixed 90px left column shared by
-          badge + votes; right column holds dates and chief author, both aligned
-          at 90 + 20px). Desktop: two balanced meta columns (left = signed/effective,
-          right = chief author + vote counts). */}
-      {isMobile ? (
+      {!facts ? (
+        <Text style={styles.answerSummary}>
+          {isLoading
+            ? 'Loading the current bill record…'
+            : 'This bill record is unavailable right now.'}
+        </Text>
+      ) : isMobile ? (
         <View style={styles.billMetaMobile}>
           <View style={styles.billMetaMobileRow}>
             <View style={styles.billMetaMobileBadgeCell}>
               <Pressable
-                {...linkProps(routePath.bill(HF4138_BILL_ID), () =>
-                  navigation.navigate('BillDetail', { billId: HF4138_BILL_ID }),
+                {...linkProps(routePath.bill(bill!.id), () =>
+                  navigation.navigate('BillDetail', { billId: bill!.id }),
                 )}
                 {...badgeHover}
                 style={[styles.billBadgeLg, badgeHovered && { backgroundColor: '#fbe7bd' }]}
@@ -406,52 +389,50 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
                     badgeHovered && { textDecorationLine: 'underline' },
                   ]}
                 >
-                  HF 4138
+                  {facts.identifier}
                 </Text>
               </Pressable>
             </View>
             <View style={styles.billMetaMobileRight}>
               <Text style={styles.billMetaText}>
-                <Text style={styles.billMetaBold}>Signed</Text> May 26, 2026
+                <Text style={styles.billMetaBold}>Status</Text> {facts.status}
               </Text>
-              <Text style={[styles.billMetaText, { marginTop: 2 }]}>
-                <Text style={styles.billMetaBold}>Effective</Text> July 1, 2027
-              </Text>
+              {facts.effectiveDate ? (
+                <Text style={[styles.billMetaText, { marginTop: 2 }]}>
+                  <Text style={styles.billMetaBold}>Effective</Text> {facts.effectiveDate}
+                </Text>
+              ) : null}
             </View>
           </View>
-          <View style={[styles.billMetaMobileRow, { marginTop: 12 }]}>
-            <View style={styles.billMetaMobileVotesCell}>
-              <Text style={styles.billMetaText}>
-                House <Text style={styles.billVoteNum}>132–2</Text>
-              </Text>
-              <Text style={[styles.billMetaText, { marginTop: 2 }]}>
-                Senate <Text style={styles.billVoteNum}>66–0</Text>
-              </Text>
-            </View>
-            <View style={styles.billMetaMobileRight}>
-              <View style={styles.billMetaLinkRow}>
-                <Text style={styles.billMetaText}>Chief author </Text>
-                <TextLink
-                  label="Rep. Peggy Scott →"
-                  href={routePath.legislator(PEGGY_SCOTT_LEGISLATOR_ID)}
-                  internal
-                  size={13}
-                  weight="600"
-                  onPress={() =>
-                    navigation.navigate('LegislatorProfile', {
-                      legislatorId: PEGGY_SCOTT_LEGISLATOR_ID,
-                    })
-                  }
-                />
+          {facts.author ? (
+            <View style={[styles.billMetaMobileRow, { marginTop: 12 }]}>
+              <View style={styles.billMetaMobileRight}>
+                <View style={styles.billMetaLinkRow}>
+                  <Text style={styles.billMetaText}>Chief author </Text>
+                  {facts.author.id ? (
+                    <TextLink
+                      label={`${facts.author.name} →`}
+                      href={routePath.legislator(facts.author.id)}
+                      internal
+                      size={13}
+                      weight="600"
+                      onPress={() =>
+                        navigation.navigate('LegislatorProfile', { legislatorId: facts.author!.id })
+                      }
+                    />
+                  ) : (
+                    <Text style={styles.billMetaText}>{facts.author.name}</Text>
+                  )}
+                </View>
               </View>
             </View>
-          </View>
+          ) : null}
         </View>
       ) : (
         <View style={styles.billMetaRow}>
           <Pressable
-            {...linkProps(routePath.bill(HF4138_BILL_ID), () =>
-              navigation.navigate('BillDetail', { billId: HF4138_BILL_ID }),
+            {...linkProps(routePath.bill(bill!.id), () =>
+              navigation.navigate('BillDetail', { billId: bill!.id }),
             )}
             {...badgeHover}
             style={[styles.billBadgeLg, badgeHovered && { backgroundColor: '#fbe7bd' }]}
@@ -459,89 +440,57 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
             <Text
               style={[styles.billBadgeLgText, badgeHovered && { textDecorationLine: 'underline' }]}
             >
-              HF 4138
+              {facts.identifier}
             </Text>
           </Pressable>
           <View style={styles.billMetaCols}>
             <View style={styles.billMetaColsRow}>
               <View>
                 <Text style={styles.billMetaText}>
-                  <Text style={styles.billMetaBold}>Signed</Text> May 26, 2026
+                  <Text style={styles.billMetaBold}>Status</Text> {facts.status}
                 </Text>
-                <Text style={[styles.billMetaText, { marginTop: 2 }]}>
-                  <Text style={styles.billMetaBold}>Effective</Text> July 1, 2027
-                </Text>
+                {facts.effectiveDate ? (
+                  <Text style={[styles.billMetaText, { marginTop: 2 }]}>
+                    <Text style={styles.billMetaBold}>Effective</Text> {facts.effectiveDate}
+                  </Text>
+                ) : null}
               </View>
-              <View>
+              {facts.author ? (
                 <View style={styles.billMetaLinkRow}>
                   <Text style={styles.billMetaText}>Chief author </Text>
-                  <TextLink
-                    label="Rep. Peggy Scott →"
-                    href={routePath.legislator(PEGGY_SCOTT_LEGISLATOR_ID)}
-                    internal
-                    size={13}
-                    weight="600"
-                    onPress={() =>
-                      navigation.navigate('LegislatorProfile', {
-                        legislatorId: PEGGY_SCOTT_LEGISLATOR_ID,
-                      })
-                    }
-                  />
+                  {facts.author.id ? (
+                    <TextLink
+                      label={`${facts.author.name} →`}
+                      href={routePath.legislator(facts.author.id)}
+                      internal
+                      size={13}
+                      weight="600"
+                      onPress={() =>
+                        navigation.navigate('LegislatorProfile', { legislatorId: facts.author!.id })
+                      }
+                    />
+                  ) : (
+                    <Text style={styles.billMetaText}>{facts.author.name}</Text>
+                  )}
                 </View>
-                <Text style={[styles.billMetaText, { marginTop: 2 }]}>
-                  House 132–2 · Senate 66–0
-                </Text>
-              </View>
+              ) : null}
             </View>
           </View>
         </View>
       )}
 
-      <Text style={styles.answerSummary}>
-        Minnesota’s{' '}
-        <Text style={styles.answerSummaryBold}>Stop Harms from Addictive Social Media Act</Text>{' '}
-        will require parental consent for kids under 16, ban addictive features, and default their
-        accounts to the strictest privacy.
-      </Text>
+      {facts?.summary ? <Text style={styles.answerSummary}>{facts.summary}</Text> : null}
 
-      <View style={styles.citedRow}>
-        <Text style={styles.citedLabel}>CITED SECTIONS</Text>
-        <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-          <Circle cx={12} cy={12} r={9} stroke={t.colors.brand.graphics} strokeWidth={2} />
-          <Path
-            d="M8.5 12.2 L11 14.7 L15.7 9.6"
-            stroke={t.colors.brand.graphics}
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
+      {facts ? (
+        <View style={styles.answerFooter}>
+          <TextLink
+            label="View bill profile →"
+            href={routePath.bill(bill!.id)}
+            internal
+            onPress={() => navigation.navigate('BillDetail', { billId: bill!.id })}
           />
-        </Svg>
-      </View>
-
-      <View style={styles.sectionCardStack}>
-        <CitedSectionCard
-          title="Parental consent"
-          quote="A covered social media platform may not create an account for a user identified as a child … without first obtaining verifiable parental consent."
-        />
-        <CitedSectionCard
-          title="Addictive features"
-          quote="A covered social media platform may not present addictive interface features in the display or feed of any account of a child."
-          note="Such as infinite scrolling, autoplay video, and push notifications"
-        />
-        <CitedSectionCard
-          title="Privacy by default"
-          quote="An account for a child shall have all privacy settings set by default at the most private levels."
-        />
-      </View>
-
-      <View style={styles.answerFooter}>
-        <TextLink
-          label="View bill profile →"
-          href={routePath.bill(HF4138_BILL_ID)}
-          internal
-          onPress={() => navigation.navigate('BillDetail', { billId: HF4138_BILL_ID })}
-        />
-      </View>
+        </View>
+      ) : null}
 
       {/* de-emphasis overlay while a nav menu is open */}
       {dimmed ? <View pointerEvents="none" style={[styles.answerOverlay, blurOverlay]} /> : null}
@@ -645,6 +594,9 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
     { limit: 3 },
     { enabled: isFocused },
   );
+  const heroBill = useFeaturedBills([HOME_HERO_BILL_KEY], {
+    enabled: isFocused && !isSignedIn,
+  });
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
   // The signed-in hero's inputs. Both queries are gated on being signed in AND on
   // Home being the visible screen, like the feed queries above.
@@ -816,7 +768,11 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
                       onWhatsMoving={scrollToBillActivity}
                     />
                   ) : (
-                    <AnswerCard dimmed={openMenu !== null} />
+                    <AnswerCard
+                      dimmed={openMenu !== null}
+                      bill={heroBill.data?.[0]}
+                      isLoading={heroBill.isLoading}
+                    />
                   )}
                 </View>
               </View>
@@ -964,19 +920,9 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
 // each card shows that bill's real data. HF 4138 is the enacted social-media law
 // the design's card 1 depicts (the mock labeled it "SF 3933", which is a different
 // bill in our corpus). SF 856 is the enacted Office of the Inspector General bill.
-// `effectiveDate` is editorial metadata verified from the enacted primary source
-// (grounded-answers rule 9). The API now derives a statutory effective date for
-// enacted bills whose act resolves to one (#483 / #562 / #706) — HF 4138 is one of
-// them, and `bill.effectiveDate` serves the same July 1, 2027 shown here. SF 856 is
-// NOT: the Revisor flags it "various dates", so its value stays editorial and these
-// literals stay the single source for both cards rather than one card silently
-// switching sources.
-// HF 4138 → 2026 Ch. 111 §§1–2 (325M), both "effective July 1, 2027";
-// SF 856 → 2026 Ch. 92, Minnesota's default effective date (Aug 1 following the
-// May 14, 2026 signing) for the act's general provisions (some sections stagger).
-const IN_THE_NEWS: { key: string; hotIssue: boolean; effectiveDate?: string }[] = [
-  { key: '94-2026-HF4138', hotIssue: true, effectiveDate: 'July 1, 2027' },
-  { key: '94-2025-SF856', hotIssue: true, effectiveDate: 'Aug 1, 2026' },
+const IN_THE_NEWS: { key: string; hotIssue: boolean }[] = [
+  { key: '94-2026-HF4138', hotIssue: true },
+  { key: '94-2025-SF856', hotIssue: true },
 ];
 
 // status text → filled progress steps (of 5), mirroring BillResultCard.billStage
@@ -1008,12 +954,10 @@ function BillBadge({ label }: { label: string }) {
 function NewsCardMobile({
   bill,
   hotIssue,
-  effectiveDate,
   onPress,
 }: {
   bill: Bill;
   hotIssue: boolean;
-  effectiveDate?: string;
   onPress: () => void;
 }) {
   const [hovered, hoverProps] = useHover();
@@ -1043,7 +987,9 @@ function NewsCardMobile({
       ) : null}
       <View style={m.cardMeta}>
         <Text style={m.metaStatus}>{bill.status}</Text>
-        {effectiveDate ? <Text style={m.metaEffective}>Effective {effectiveDate}</Text> : null}
+        {bill.effectiveDate ? (
+          <Text style={m.metaEffective}>Effective {bill.effectiveDate}</Text>
+        ) : null}
       </View>
     </Pressable>
   );
@@ -1437,7 +1383,6 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
                     key={bill.id}
                     bill={bill}
                     hotIssue={pin.hotIssue}
-                    effectiveDate={pin.effectiveDate}
                     onPress={() => openBill(bill.id)}
                   />
                 ))}
@@ -2133,7 +2078,6 @@ const styles = StyleSheet.create({
   // (flush with the votes below it), matching the design. Both cells share the width
   // so the right column aligns across both rows.
   billMetaMobileBadgeCell: { width: 104, alignItems: 'flex-start' },
-  billMetaMobileVotesCell: { width: 104 },
   billMetaMobileRight: { flex: 1, minWidth: 0 },
   answerSummary: {
     fontFamily: t.typography.body,
@@ -2141,49 +2085,6 @@ const styles = StyleSheet.create({
     lineHeight: 27,
     color: t.colors.ink,
     marginBottom: 14,
-  },
-  answerSummaryBold: { fontWeight: t.fontWeights.semibold },
-  citedRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
-  citedLabel: {
-    fontFamily: t.typography.mono,
-    fontSize: t.fontSizes.label,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 0.7,
-    color: t.colors.text.muted,
-  },
-  sectionCardStack: { gap: 8 },
-  sectionCardBox: {
-    backgroundColor: '#f7f9f8',
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink08,
-    borderRadius: 14,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-  },
-  sectionCardHead: { flexDirection: 'row', alignItems: 'center' },
-  sectionCardTitle: {
-    fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.body,
-    fontWeight: t.fontWeights.bold,
-    color: t.colors.text.primary,
-  },
-  sectionCardQuote: {
-    marginTop: 8,
-  },
-  sectionCardQuoteText: {
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.small,
-    lineHeight: 21,
-    color: t.colors.text.secondary,
-    fontStyle: 'italic',
-  },
-  sectionCardQuoteTextMobile: { fontSize: 16, lineHeight: 24 },
-  sectionCardNote: {
-    marginTop: 10,
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.small,
-    lineHeight: 20.3,
-    color: '#6f756f',
   },
   answerFooter: {
     marginTop: 12,

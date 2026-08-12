@@ -15,14 +15,10 @@ describe('cited sections distinguish quoted statute without decorative rules', (
     expect(home).not.toMatch(/<CitedSectionCard\s+n=/);
   });
 
-  it('keeps Home and Answer quotes flush left with no decorative rule', () => {
-    expect(home).not.toContain('borderLeftWidth: 3');
-    expect(home).not.toContain('paddingLeft: 12');
+  it('keeps Answer quotes flush left with no decorative rule', () => {
     expect(citationCard).not.toContain('borderLeftWidth: 3');
     expect(citationCard).not.toContain('paddingLeft: 12');
     expect(answer).toContain('variant="answer"');
-    expect(home).toContain('isMobile && styles.sectionCardQuoteTextMobile');
-    expect(home).toContain('sectionCardQuoteTextMobile: { fontSize: 16, lineHeight: 24 }');
     expect(citationCard).toContain('isMobile && styles.quoteMobile');
     expect(citationCard).toContain('quoteMobile: { fontSize: 16, lineHeight: 24 }');
   });
@@ -47,15 +43,14 @@ describe('cited sections distinguish quoted statute without decorative rules', (
     expect(answer).toContain('marginTop: 14,\n    paddingLeft: t.spacing.underCardText,');
   });
 
-  it('separates the homepage gloss without indenting or italicizing it', () => {
-    expect(home).toContain('sectionCardNote: {\n    marginTop: 10,');
-    expect(home).not.toContain('paddingLeft: 15');
-    expect(home).toContain("lineHeight: 20.3,\n    color: '#6f756f',");
+  it('does not present uncited statutory excerpts on Home', () => {
+    expect(home).not.toContain('<CitedSectionCard');
+    expect(home).not.toContain('CITED SECTIONS');
+    expect(home).not.toContain('sectionCardQuoteTextMobile');
   });
 
-  it('reuses the 17px under-card inset on trailing rows and footnotes', () => {
+  it('reuses the 17px under-card inset on Answer trailing rows and footnotes', () => {
     expect(tokens).toContain('underCardText: 17,');
-    expect(home).toContain('paddingLeft: t.spacing.underCardText,');
     expect(answer).toContain('paddingLeft: t.spacing.underCardText,');
   });
 });
