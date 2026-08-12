@@ -125,8 +125,9 @@ PUBLISH_LOCK_KEY = 610312263010
 
 # How many superseded releases keep their rows after being replaced. One, so a
 # request that resolved the previous release a moment before a publish still finds
-# its rows instead of an empty page (see prune()). Measured cost: 51 MB per
-# generation against 8 GB of database disk.
+# its rows instead of an empty page (see prune()). Measured cost on the full
+# 11 Aug 2026 set: 241 MB per generation (193 MB of rows, 48 MB of indexes)
+# against 8 GB of database disk with about 3 GB already used.
 KEEP_SUPERSEDED_GENERATIONS = 1
 
 ISO_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
@@ -1562,8 +1563,9 @@ def prune(db: Session) -> tuple[int, int]:
     the instant a new one lands hands a request that started moments earlier **zero
     rows** — which a page renders as "this committee has no payments", the exact
     missing-versus-zero failure `.claude/rules/grounded-answers.md` rule 12 forbids.
-    One spare generation is 51 MB measured, against 8 GB of database disk, and the
-    *next* publish removes it, so nothing accumulates.
+    One spare generation is 241 MB measured on the full 11 Aug 2026 set (193 MB of
+    rows plus 48 MB of indexes), against 8 GB of database disk with about 3 GB
+    already used, and the *next* publish removes it, so nothing accumulates.
 
     Only rows are pruned. Every body is kept indefinitely, including every
     quarantined one, because the checks compare recorded measurements rather than

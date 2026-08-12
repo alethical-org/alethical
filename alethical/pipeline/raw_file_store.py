@@ -119,7 +119,13 @@ class RawFileStore:
             raise RuntimeError(
                 f"{self.bucket}/{key} read back as {stored.hexdigest()} but the bytes "
                 f"we uploaded hash to {expected_sha256}. Refusing to record a row that "
-                "points at a body we cannot vouch for."
+                "points at a body we cannot vouch for. If the object was already "
+                "there, the likeliest cause is a change in how we compress: the key "
+                "names the original file, so a body written by an older compression "
+                "setting is a different object under the same name. Compare the "
+                "compression recorded on the existing row before removing anything, "
+                "because a stored body may be the only record of what the source "
+                "published that day."
             )
 
     def get(self, key: str, destination: str) -> None:

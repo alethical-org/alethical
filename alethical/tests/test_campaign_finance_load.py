@@ -111,7 +111,11 @@ EXPENDITURE_ROWS = [
 ]
 
 INDEPENDENT_ROWS = [
-    '"Alliance for a Better MN",30161,PCF,,"Fateh, Omar Senate Committee",18466,'
+    # 18488 really is Senator Omar Fateh's Senate committee, checked against the live
+    # file rather than assumed: this fixture first paired that name with 18466, which
+    # is Senator Lindsey Port's, and a fixture that puts one named person's number
+    # beside another's is the exact confusion §5 exists to prevent.
+    '"Alliance for a Better MN",30161,PCF,,"Fateh, Omar Senate Committee",18488,'
     'Against,2025,2025-09-10,"Independent Expenditure",1500.00,.00,No,,Mailers,'
     '"Print Co",Minneapolis,MN,55401',
     # The independent file prints 2 decimals and sometimes omits the integer part.
@@ -1005,8 +1009,8 @@ def test_the_replaced_set_keeps_its_rows_for_one_generation_then_loses_them(
     started moments before a publish would find **zero rows** for a release that was
     live when it started, and a page renders that as "this committee has no
     payments" — the missing-versus-zero failure `.claude/rules/grounded-answers.md`
-    rule 12 forbids. One spare generation is 51 MB measured; the next publish removes
-    it, so nothing accumulates.
+    rule 12 forbids. One spare generation is 241 MB measured on the full 11 Aug 2026
+    set; the next publish removes it, so nothing accumulates.
     """
     first = publish_first(db, board, store)
     generation_1 = snapshot_of(

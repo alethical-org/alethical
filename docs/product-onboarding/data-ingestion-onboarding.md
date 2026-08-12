@@ -471,9 +471,25 @@ all 3 datasets in a request: each statement sees the newest committed state, so
 re-resolving per query can hand back a mixed set. **A replaced set keeps its rows
 until the publish after next**, so a request that resolved a release moments before
 a publish still finds its rows rather than an empty page — which is why the loader
-keeps one spare generation (51 MB measured) instead of deleting the old rows the
-instant new ones land. An id cached for longer than that resolves to no rows, so
-re-resolve rather than keeping one.
+keeps one spare generation (241 MB measured on the full 11 Aug 2026 set: 193 MB of
+rows plus 48 MB of indexes) instead of deleting the old rows the
+instant new ones land. That covers one publish landing inside a request, which is the
+realistic case, and **not two**: an id held across 2 publishes resolves to no rows. So
+re-resolve rather than caching an id, and treat "no rows for a release that exists" as
+stale, never as an answer about a person — a page rendering it as "this committee has
+no payments" is the missing-versus-zero failure `.claude/rules/grounded-answers.md`
+rule 12 forbids.
+
+**What makes 2 people running the import at once safe**, since the answer is not
+obvious and 2 of the 3 mechanisms exist only because a review found the sequence that
+breaks without them. One: publishing takes a single lock and moves a one-row pointer,
+so the sets queue instead of interleaving, and a run whose download started before the
+live set's is refused rather than allowed to replace newer data with older. Two:
+**deleting old rows takes that same lock**, because otherwise a run that finished
+first could delete the rows of a set a second run published a moment later, leaving
+the live set with no rows at all. Three: **the comparison checks run again inside the
+lock**, because passing them against the set that was live when a run started is not
+the same as passing them against the set that is live when it publishes.
 
 ## E & F — the credentialed sources (Anthropic and OpenAI)
 

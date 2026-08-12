@@ -80,13 +80,17 @@ worktree-rm branch:
   -git branch -D {{branch}}
   @echo "🧹 Removed worktree ../alethical-wt-{{branch}}."
 
+# Pinned to the same ruff CI runs (.github/workflows/ci.yml). Unpinned, `uvx`
+# resolves the newest release: today that is ruff 0.16, which reports 778 findings
+# on a tree CI calls clean, and `just format` would have rewritten 611 of them into
+# a diff no reviewer asked for. CI is the arbiter, so local must ask the same tool.
 format:
-  uvx ruff check --fix alethical scripts
-  uvx ruff format alethical scripts
+  uvx ruff@0.15.0 check --fix alethical scripts
+  uvx ruff@0.15.0 format alethical scripts
   pnpm --dir apps/frontend exec prettier --write .
 
 lint:
-  uvx ruff check alethical scripts
+  uvx ruff@0.15.0 check alethical scripts
   uvx ty check alethical/db
   pnpm install --frozen-lockfile
   pnpm --dir apps/frontend exec tsc --noEmit
