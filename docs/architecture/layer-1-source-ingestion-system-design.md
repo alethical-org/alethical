@@ -596,6 +596,14 @@ flushes the accepted canonical rows, rebuilds only `text_changed_bill_keys` thro
 database session, and commits both layers once. The worker refuses a separate RAG database because
 2 connections cannot make that publication atomic ([#1320](https://github.com/alethical-org/alethical/issues/1320)).
 
+That same accepted text-change subset retires any current `bill_summary` before the transaction
+commits. The database then clears `Bill.has_current_summary`, so product reads show the current
+official record with no summary until a later enrichment lands. Metadata-only changes and rejected
+thin responses do not retire a still-matching summary. Ingestion does not start paid enrichment;
+the later missing-current batch can select the bill. Refresh and summary apply take the same bill-row
+lock, so a result that finishes while a refresh is committing must wait and then check the committed
+text rather than restoring an old summary ([#1321](https://github.com/alethical-org/alethical/issues/1321)).
+
 ```bash
 # Single read-only pipeline entry point.
 just pipeline local --dry-run
@@ -739,7 +747,7 @@ uv run python -m alethical.pipeline.oban --target production enqueue ai-apply \
 uv run python -m alethical.pipeline.oban --target production drain ai_apply
 ```
 
-The script skips current enrichments when `model_name` and `source_version_hash` already match unless `--force` is passed. Applying output marks older current `bill_summary` rows for the bill non-current, then upserts the completed enrichment for the exact bill version and source hash.
+The script skips current enrichments when `model_name` and `source_version_hash` already match unless `--force` is passed. Before applying output, it verifies that the manifest still names the bill's current version and derives both supported source-hash forms directly from the current official section text. The 64-character form is used before retrieval rows exist; retrieval uses the same hash shortened to 16 characters. Accepting both means adding a search index cannot make unchanged output look old, while changed, missing or reordered official text still fails the check. Outdated output is counted and skipped, leaving the bill without a summary instead of letting a job prepared before a later refresh restore stale words. A matching output marks older current `bill_summary` rows for the bill non-current, then upserts the completed enrichment for the exact bill version and source hash ([#1321](https://github.com/alethical-org/alethical/issues/1321)).
 
 ## Codex Headless Backend
 

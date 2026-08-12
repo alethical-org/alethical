@@ -6,10 +6,10 @@ the interim. That is not one cadence keyed to a clock, it is a cadence keyed to 
 calendar, because the measured activity data shows 102 active days in an 18-month span and 7
 consecutive months with none. **None of it can be switched on yet:** the thin-response guard
 shipped in [#1319](https://github.com/alethical-org/alethical/issues/1319) and current text now
-reaches search atomically ([#1320](https://github.com/alethical-org/alethical/issues/1320)), but
-two safety fixes still come first
-([#1321](https://github.com/alethical-org/alethical/issues/1321),
-[#1322](https://github.com/alethical-org/alethical/issues/1322)), then the schedule
+reaches search atomically ([#1320](https://github.com/alethical-org/alethical/issues/1320)). A
+changed bill also stops showing a summary of its earlier text
+([#1321](https://github.com/alethical-org/alethical/issues/1321)). One safety fix still comes
+first ([#1322](https://github.com/alethical-org/alethical/issues/1322)), then the schedule
 ([#1323](https://github.com/alethical-org/alethical/issues/1323)).
 
 This is a decision record, not a description of shipped behaviour. What ships today is documented
@@ -125,8 +125,8 @@ too fast for July.
 
 ## 4. Why none of it can be scheduled yet
 
-A refresh still cannot run unattended. The first 2 of 4 verified defects are fixed; the other 2
-remain:
+A refresh still cannot run unattended. The first 3 of 4 verified defects are fixed; the other 1
+remains:
 
 - **Fixed: 1 thin response no longer deletes good facts.** A lower action, author, version or
   section count triggers a second full fetch before any bill fact changes. Two differing thin
@@ -137,8 +137,11 @@ remain:
   rebuilt, after the canonical rows are flushed, on the same database connection and in the same
   transaction. A failed rebuild rolls back both writes instead of publishing half a refresh.
   ([#1320](https://github.com/alethical-org/alethical/issues/1320))
-- **A changed bill keeps its old summary.** Nothing ties a summary to the text version it was
-  written from. ([#1321](https://github.com/alethical-org/alethical/issues/1321))
+- **Fixed: a changed bill no longer shows its old summary.** The accepted text-change signal marks
+  the displayed summary non-current in the same transaction. A completed summary job also checks
+  the current version and official section text before it can display its output, so a job started
+  before a later refresh cannot restore stale words. Metadata-only and rejected refreshes leave a
+  matching summary alone. ([#1321](https://github.com/alethical-org/alethical/issues/1321))
 - **Status is chosen by comparing action numbers across chambers**, which each restart at 1.
   ([#1322](https://github.com/alethical-org/alethical/issues/1322))
 

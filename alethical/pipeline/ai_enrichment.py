@@ -319,10 +319,12 @@ def section_anchors(db: Session, version: Any) -> list[SectionAnchor]:
     ]
 
 
-def current_source_version_hash(db: Session, bill: Any, version: Any) -> str | None:
-    """Return the prompt hash only when it still represents current official text."""
+def source_version_matches_current_text(
+    db: Session, bill: Any, version: Any, candidate_hash: str
+) -> bool:
+    """Whether a prepared prompt hash still represents current official text."""
     if not version.is_current or version.bill_id != bill.id:
-        return None
+        return False
 
     official_sections = list(
         db.scalars(
@@ -331,31 +333,26 @@ def current_source_version_hash(db: Session, bill: Any, version: Any) -> str | N
             .order_by(BillVersionSection.source_order.asc())
         )
     )
-    rag_sections = list(
-        db.scalars(
-            select(RagSectionDocument).where(
-                RagSectionDocument.bill_version_id == version.id
-            )
-        )
-    )
-    if rag_sections:
-        official_by_id = {section.id: section for section in official_sections}
-        if len(rag_sections) != len(official_by_id):
-            return None
-        for rag_section in rag_sections:
-            official = official_by_id.get(rag_section.bill_version_section_id)
-            if official is None:
-                return None
-            expected_hash = hashlib.sha256(
-                (official.raw_text or "").encode("utf-8")
-            ).hexdigest()[:16]
-            if rag_section.source_hash != expected_hash:
-                return None
+    raw_hashes = [
+        hashlib.sha256((section.raw_text or "").encode("utf-8")).hexdigest()
+        for section in official_sections
+    ]
+    prefix = [bill.bill_key, str(version.id)]
+    valid_hashes = {
+        source_hash([*prefix, *raw_hashes]),
+        source_hash([*prefix, *[value[:16] for value in raw_hashes]]),
+    }
 
-    anchors = section_anchors(db, version)
-    return source_hash(
-        [bill.bill_key, str(version.id), *[item.source_hash for item in anchors]]
-    )
+    stored_hashes: list[str] = []
+    for section, raw_hash in zip(official_sections, raw_hashes, strict=True):
+        stored_hash = section.source_hash or raw_hash
+        if stored_hash not in {raw_hash, raw_hash[:16]}:
+            break
+        stored_hashes.append(stored_hash)
+    else:
+        valid_hashes.add(source_hash([*prefix, *stored_hashes]))
+
+    return candidate_hash in valid_hashes
 
 
 def chief_sponsor_names(bill: Any) -> list[str]:
@@ -1137,15 +1134,20 @@ def apply_output(args: argparse.Namespace) -> None:
                 continue
 
             bill_version_id = uuid.UUID(item.bill_version_id)
-            bill = db.get(Bill, bill_id)
+            # The accepted refresh path takes the same row lock before it reads
+            # or changes official text. Whichever transaction starts first
+            # finishes first, so this freshness decision cannot race a refresh
+            # that would otherwise commit between the check and the upsert.
+            bill = db.scalar(select(Bill).where(Bill.id == bill_id).with_for_update())
             version = current_bill_version(db, bill_id)
             if (
                 bill is None
                 or version is None
                 or version.id != bill_version_id
                 or item.bill_key != bill.bill_key
-                or current_source_version_hash(db, bill, version)
-                != item.source_version_hash
+                or not source_version_matches_current_text(
+                    db, bill, version, item.source_version_hash
+                )
             ):
                 outdated += 1
                 continue

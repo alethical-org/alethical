@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from alethical.api.serializers import current_bill_summary_enrichment
 from alethical.db.models import (
     AIEnrichment,
     ArtifactType,
@@ -1255,6 +1256,28 @@ def _store_refresh_payload(
     return bill
 
 
+def _add_current_summary(session: Session, bill: Bill) -> AIEnrichment:
+    current_version = session.scalar(
+        select(BillVersion).where(
+            BillVersion.bill_id == bill.id,
+            BillVersion.is_current.is_(True),
+        )
+    )
+    assert current_version is not None
+    summary = AIEnrichment(
+        bill_id=bill.id,
+        bill_version_id=current_version.id,
+        enrichment_type=EnrichmentType.bill_summary,
+        model_name="test-summary-model",
+        content_json={"summary": "This describes the stored official text."},
+        source_version_hash="stored-official-text",
+        is_current=True,
+    )
+    session.add(summary)
+    session.flush()
+    return summary
+
+
 def _bill_author_names(session: Session, bill: Bill) -> list[str]:
     return list(
         session.scalars(
@@ -1505,9 +1528,15 @@ def test_ingest_bills_reports_a_new_bill_as_public_text_changed(
         session.rollback()
 
 
+@pytest.mark.parametrize(
+    "version_codes",
+    [("0", "1"), ("0", "1", "2")],
+    ids=["same-version-new-words", "new-current-version"],
+)
 def test_changed_bill_text_retires_its_current_summary(
     seed_database: None,
     monkeypatch: pytest.MonkeyPatch,
+    version_codes: tuple[str, ...],
 ) -> None:
     """#1321: accepted new official text must stop serving the old summary."""
     with Session(get_engine()) as session:
@@ -1520,28 +1549,12 @@ def test_changed_bill_text_retires_its_current_summary(
         bill = _store_refresh_payload(
             pipeline, refs, canonical, bill_text, artifact_suffix="summary-original"
         )
-        session.flush()
-        current_version = session.scalar(
-            select(BillVersion).where(
-                BillVersion.bill_id == bill.id,
-                BillVersion.is_current.is_(True),
-            )
-        )
-        summary = AIEnrichment(
-            bill_id=bill.id,
-            bill_version_id=current_version.id,
-            enrichment_type=EnrichmentType.bill_summary,
-            model_name="test-summary-model",
-            content_json={"summary": "This describes the old official text."},
-            source_version_hash="old-official-text",
-            is_current=True,
-        )
-        session.add(summary)
-        session.flush()
+        summary = _add_current_summary(session, bill)
 
         refreshed_canonical, refreshed_text = _refresh_payload(
             description="A complete description.",
             authors=[("500215", "Author, First")],
+            version_codes=version_codes,
             section_texts=(
                 "The official wording has changed.",
                 "The second section is unchanged.",
@@ -1557,7 +1570,44 @@ def test_changed_bill_text_retires_its_current_summary(
 
         assert summary.is_current is False
         assert bill.has_current_summary is False
+        assert current_bill_summary_enrichment(bill.enrichments) is None
         assert result["text_changed_bill_keys"] == [bill.bill_key]
+
+        session.rollback()
+
+
+def test_metadata_only_refresh_keeps_its_current_summary(
+    seed_database: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#1321: unchanged official text keeps the summary that still describes it."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        canonical, bill_text = _refresh_payload(
+            description="The stored description.",
+            authors=[("500216", "Author, First")],
+        )
+        bill = _store_refresh_payload(
+            pipeline, refs, canonical, bill_text, artifact_suffix="summary-metadata"
+        )
+        summary = _add_current_summary(session, bill)
+
+        refreshed_canonical, refreshed_text = _refresh_payload(
+            description="A metadata-only description change.",
+            authors=[("500216", "Author, First")],
+        )
+        _mock_bill_fetches(monkeypatch, [(refreshed_canonical, refreshed_text)])
+        result = pipeline.ingest_bills(
+            [BillTarget(chamber="House", bill_number="5002")]
+        )
+        session.flush()
+        session.refresh(summary)
+        session.refresh(bill)
+
+        assert result["text_changed_bill_keys"] == []
+        assert summary.is_current is True
+        assert bill.has_current_summary is True
 
         session.rollback()
 
@@ -1693,7 +1743,7 @@ def test_2_different_thin_fetches_preserve_facts_and_request_an_issue(
         bill = _store_refresh_payload(
             pipeline, refs, *original, artifact_suffix="rejected-original"
         )
-        session.flush()
+        summary = _add_current_summary(session, bill)
 
         empty = _refresh_payload(description="", authors=[])
         partial = _refresh_payload(
@@ -1707,6 +1757,7 @@ def test_2_different_thin_fetches_preserve_facts_and_request_an_issue(
         )
         session.flush()
         session.refresh(bill)
+        session.refresh(summary)
 
         assert fetched == ["xml-0", "html-0", "xml-1", "html-1"]
         assert result["bills_ingested"] == 0
@@ -1722,6 +1773,8 @@ def test_2_different_thin_fetches_preserve_facts_and_request_an_issue(
         ]
         assert bill.description == "Stored description."
         assert _bill_author_names(session, bill) == ["Author, First", "Author, Second"]
+        assert summary.is_current is True
+        assert bill.has_current_summary is True
         failed_run = session.scalar(
             select(IngestionRun)
             .where(IngestionRun.target_key == "0942025:House:5002")

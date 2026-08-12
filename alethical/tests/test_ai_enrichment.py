@@ -3,10 +3,12 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
 
 import pytest
-from sqlalchemy import create_engine, delete, select
+from sqlalchemy import create_engine, delete, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -1109,6 +1111,71 @@ def _enrichment(
     )
 
 
+def _summary_apply_args(
+    tmp_path,
+    *,
+    stem: str,
+    custom_id: str,
+    bill_id,
+    bill_key: str,
+    version_id,
+    source_version_hash: str,
+) -> SimpleNamespace:
+    manifest_path = tmp_path / f"{stem}.manifest.json"
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "created_at": "20260811T000000Z",
+                "endpoint": "/v1/responses",
+                "mode": "summaries",
+                "model": "claude:claude-sonnet-5",
+                "items": [
+                    {
+                        "custom_id": custom_id,
+                        "bill_id": str(bill_id),
+                        "bill_key": bill_key,
+                        "bill_version_id": str(version_id),
+                        "model": "claude:claude-sonnet-5",
+                        "source_version_hash": source_version_hash,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    output_path = tmp_path / f"{stem}.output.jsonl"
+    output_path.write_text(
+        json.dumps(
+            {
+                "custom_id": custom_id,
+                "response": {
+                    "status_code": 200,
+                    "body": {
+                        "output_text": json.dumps(
+                            {
+                                "summary": "A summary of the old text.",
+                                "key_points": [],
+                                "policy_areas": ["Education"],
+                            }
+                        )
+                    },
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return SimpleNamespace(
+        api_key=None,
+        output_path=str(output_path),
+        output_dir=str(tmp_path),
+        batch_id=None,
+        manifest_path=str(manifest_path),
+        database_url=get_database_url(),
+        dry_run=False,
+    )
+
+
 def test_the_five_column_key_refuses_a_second_row() -> None:
     """The database must refuse the duplicate, because the code cannot (#927).
 
@@ -1307,6 +1374,15 @@ def test_apply_output_refuses_a_summary_for_text_that_is_no_longer_current(
         )
         db.add(section)
         db.flush()
+        _prompt, prepared_hash, _truncated = ai_enrichment.bill_prompt(
+            db, bill, version, max_input_chars=60_000
+        )
+        assert ai_enrichment.source_version_matches_current_text(
+            db, bill, version, prepared_hash
+        )
+
+        # Search stores the same raw-text hash in a shorter form. Adding that
+        # index after preparation must not make unchanged official text look old.
         db.add(
             schema.RagSectionDocument(
                 bill_id=bill_id,
@@ -1320,12 +1396,8 @@ def test_apply_output_refuses_a_summary_for_text_that_is_no_longer_current(
             )
         )
         db.flush()
-        _prompt, prepared_hash, _truncated = ai_enrichment.bill_prompt(
-            db, bill, version, max_input_chars=60_000
-        )
-        assert (
-            ai_enrichment.current_source_version_hash(db, bill, version)
-            == prepared_hash
+        assert ai_enrichment.source_version_matches_current_text(
+            db, bill, version, prepared_hash
         )
 
         # The paid work was prepared above. Before it finishes, the same official
@@ -1337,64 +1409,36 @@ def test_apply_output_refuses_a_summary_for_text_that_is_no_longer_current(
             .values(is_current=False)
         )
         section.raw_text = "New official text that the prepared summary never saw."
+        db.flush()
+        assert not ai_enrichment.source_version_matches_current_text(
+            db, bill, version, prepared_hash
+        )
+
+        # The same protection holds before a search row exists. A stale stored
+        # section hash cannot make changed raw text look unchanged.
+        db.execute(
+            delete(schema.RagSectionDocument).where(
+                schema.RagSectionDocument.bill_id == bill_id
+            )
+        )
+        section.source_hash = hashlib.sha256(original_text.encode()).hexdigest()[:16]
+        db.flush()
+        assert not ai_enrichment.source_version_matches_current_text(
+            db, bill, version, prepared_hash
+        )
         db.commit()
 
     try:
         custom_id = "bill_summary:test-2025-HF999022:fedcba9876543210"
-        manifest_path = tmp_path / "manifest.json"
-        manifest_path.write_text(
-            json.dumps(
-                {
-                    "created_at": "20260811T000000Z",
-                    "endpoint": "/v1/responses",
-                    "mode": "summaries",
-                    "model": "claude:claude-sonnet-5",
-                    "items": [
-                        {
-                            "custom_id": custom_id,
-                            "bill_id": str(bill_id),
-                            "bill_key": "test-2025-HF999022",
-                            "bill_version_id": str(version_id),
-                            "model": "claude:claude-sonnet-5",
-                            "source_version_hash": prepared_hash,
-                        }
-                    ],
-                }
-            ),
-            encoding="utf-8",
-        )
-        output_path = tmp_path / "output.jsonl"
-        output_path.write_text(
-            json.dumps(
-                {
-                    "custom_id": custom_id,
-                    "response": {
-                        "status_code": 200,
-                        "body": {
-                            "output_text": json.dumps(
-                                {
-                                    "summary": "A summary of the old text.",
-                                    "key_points": [],
-                                    "policy_areas": ["Education"],
-                                }
-                            )
-                        },
-                    },
-                }
-            )
-            + "\n",
-            encoding="utf-8",
-        )
-
         ai_enrichment.apply_output(
-            SimpleNamespace(
-                api_key=None,
-                output_path=str(output_path),
-                output_dir=str(tmp_path),
-                batch_id=None,
-                manifest_path=str(manifest_path),
-                database_url=get_database_url(),
-                dry_run=False,
+            _summary_apply_args(
+                tmp_path,
+                stem="outdated",
+                custom_id=custom_id,
+                bill_id=bill_id,
+                bill_key="test-2025-HF999022",
+                version_id=version_id,
+                source_version_hash=prepared_hash,
             )
         )
 
@@ -1419,4 +1463,122 @@ def test_apply_output_refuses_a_summary_for_text_that_is_no_longer_current(
                 )
             )
             db.commit()
+            _cleanup(db, bill_id)
+
+
+def test_apply_output_waits_for_an_inflight_text_refresh(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A concurrent refresh must finish before summary freshness is decided."""
+    bill_key = "test-2025-HF999023"
+    original_text = "Official text before the concurrent refresh."
+    refreshed_text = "New official text committed by the concurrent refresh."
+    with _session() as db:
+        bill_id, version_id = _make_bill_with_summary(
+            db,
+            bill_key=bill_key,
+            file_number=999023,
+            content={"summary": "The old summary.", "key_points": []},
+        )
+        bill = db.get(schema.Bill, bill_id)
+        version = db.get(schema.BillVersion, version_id)
+        assert bill is not None and version is not None
+        db.add(
+            schema.BillVersionSection(
+                bill_version_id=version_id,
+                section_id_text="laws.0.1.0",
+                source_order=0,
+                raw_text=original_text,
+                source_hash=hashlib.sha256(original_text.encode()).hexdigest(),
+            )
+        )
+        db.flush()
+        _prompt, prepared_hash, _truncated = ai_enrichment.bill_prompt(
+            db, bill, version, max_input_chars=60_000
+        )
+        db.commit()
+
+    custom_id = "bill_summary:test-2025-HF999023:0123456789abcdef"
+    apply_args = _summary_apply_args(
+        tmp_path,
+        stem="concurrent",
+        custom_id=custom_id,
+        bill_id=bill_id,
+        bill_key=bill_key,
+        version_id=version_id,
+        source_version_hash=prepared_hash,
+    )
+
+    apply_engine_ready = threading.Event()
+    matcher_entered = threading.Event()
+    release_matcher = threading.Event()
+    original_matcher = ai_enrichment.source_version_matches_current_text
+    original_create_engine = ai_enrichment.create_engine
+
+    def observed_create_engine(*args, **kwargs):
+        engine = original_create_engine(*args, **kwargs)
+        apply_engine_ready.set()
+        return engine
+
+    def observed_matcher(*args, **kwargs) -> bool:
+        matches = original_matcher(*args, **kwargs)
+        matcher_entered.set()
+        if not release_matcher.wait(timeout=5):
+            raise AssertionError("summary freshness check did not resume")
+        return matches
+
+    monkeypatch.setattr(
+        ai_enrichment, "source_version_matches_current_text", observed_matcher
+    )
+    monkeypatch.setattr(ai_enrichment, "create_engine", observed_create_engine)
+
+    try:
+        with _session() as refresh_db:
+            locked_bill = refresh_db.scalar(
+                select(schema.Bill).where(schema.Bill.id == bill_id).with_for_update()
+            )
+            assert locked_bill is not None
+            section = refresh_db.scalar(
+                select(schema.BillVersionSection).where(
+                    schema.BillVersionSection.bill_version_id == version_id
+                )
+            )
+            assert section is not None
+            section.raw_text = refreshed_text
+            section.source_hash = hashlib.sha256(refreshed_text.encode()).hexdigest()
+            refresh_db.execute(
+                update(schema.AIEnrichment)
+                .where(
+                    schema.AIEnrichment.bill_id == bill_id,
+                    schema.AIEnrichment.is_current.is_(True),
+                )
+                .values(is_current=False)
+            )
+            refresh_db.flush()
+
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(ai_enrichment.apply_output, apply_args)
+                assert apply_engine_ready.wait(timeout=5)
+                reached_before_refresh_commit = matcher_entered.wait(timeout=1)
+                refresh_db.commit()
+                try:
+                    assert matcher_entered.wait(timeout=5)
+                finally:
+                    release_matcher.set()
+                future.result(timeout=10)
+
+        assert reached_before_refresh_commit is False
+        with _session() as db:
+            current = db.scalar(
+                select(schema.AIEnrichment).where(
+                    schema.AIEnrichment.bill_id == bill_id,
+                    schema.AIEnrichment.enrichment_type
+                    == schema.EnrichmentType.bill_summary,
+                    schema.AIEnrichment.is_current.is_(True),
+                )
+            )
+            assert current is None
+    finally:
+        release_matcher.set()
+        with _session() as db:
             _cleanup(db, bill_id)

@@ -94,6 +94,14 @@ either wait-and-watch (`generate`) or hand-over-and-come-back (`batch-submit` th
 `apply` = file it in the cabinet. Only the writer step is where "which billing rail"
 matters.
 
+`apply` is also the free freshness gate. Before it files a summary, it checks that the bill's
+current version and official section text still match what `prepare` recorded. Both valid text-hash
+lengths are accepted, so building the search index after preparation does not waste unchanged paid
+output. If the bill changed while the model was writing, `apply` reports the result as `outdated`
+and does not display it. It does not spend money on a replacement; a later missing-current
+preparation may select that bill. Apply and refresh also take the same bill-row lock, so a refresh
+cannot commit between this check and the summary write ([#1321](https://github.com/alethical-org/alethical/issues/1321)).
+
 **Same output, very different wall-clock — this is the real tradeoff.** The two
 `generate` rails produce identical text, but not at identical speed. The subscription
 CLI path (`--provider claude-cli --model sonnet`) runs bills **one at a time**, so a

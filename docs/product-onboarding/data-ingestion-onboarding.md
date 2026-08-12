@@ -213,6 +213,15 @@ back the bill refresh too, so the retry cannot mistake unindexed new text for an
 The worker refuses inline writes to a different RAG database because that second connection could
 publish only half of the refresh.
 
+For every bill in `text_changed_bill_keys`, the same transaction marks its displayed
+`bill_summary` non-current and the database clears `Bill.has_current_summary`
+([#1321](https://github.com/alethical-org/alethical/issues/1321)). The product therefore shows the
+new official record without a summary rather than pairing it with an older draft's explanation.
+Metadata-only updates and rejected thin responses keep the summary that still matches. This step
+does not call a model or spend money; a later missing-current batch may choose the bill for a new
+summary. Refresh and summary apply take the same bill-row lock, so a result prepared from old text
+cannot pass its check during a refresh and become current after that refresh commits.
+
 ### A section's body is stored twice, and that is deliberate
 
 `bill_version_section` holds each section's body in two columns, written together
@@ -373,6 +382,14 @@ Two further backends write the same schema. A local **Codex CLI** runs on the
 (`anthropic_enrichment.py`, `ANTHROPIC_API_KEY`) is the one every production summary
 actually comes from — it was missing from this section, from the pipeline diagram, and
 from the stage table above.
+
+Before `ai-apply` makes a completed summary current, it checks that the manifest still names the
+bill's current version and derives the accepted hashes from its current official section text.
+It accepts both the full 64-character hash used before retrieval is built and the 16-character
+form retrieval uses. Adding retrieval rows therefore cannot make unchanged output look old, while
+changed, missing or reordered text still fails. An outdated result is counted under `outdated` and
+skipped, so a long-running job cannot undo the ingest-time retirement after a later text change. It
+does not start or pay for a replacement run.
 
 **F. RAG chat synthesis:** `POST https://api.openai.com/v1/responses` with an
 "answer only from the provided bill text" system prompt over pgvector-retrieved
