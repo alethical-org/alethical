@@ -805,6 +805,20 @@ What the unconfirmed state must do instead is explain itself, and never render "
 registered for this person" the same as "we have not confirmed which of their committees is
 theirs to show".
 
+**A claim about the population belongs on exactly one surface, and a per-member surface speaks only
+about that member.** This is the rule that keeps the coverage count from needing a second design when
+it stops being zero. The count is inherently a statement about all 200, so it lives where a reader
+meets the whole set — the money landing page — and it requantifies as answers land. A member's own
+page says nothing about the other 199: not "no figures are on any profile", not "every profile starts
+here", not "this is true of everyone today". Those sentences are true at zero and false the moment the
+first confirmation lands, so they are written with an expiry date built in. **The wording to reach for
+is the one that is equally true at 0 confirmed, at 144 and at 199**: we have not confirmed which
+committee is this member's, so no figures are shown here, and that is our work rather than a fact
+about them. Written once, it never needs a partial variant, and no page can contradict another as the
+number moves. Decided 12 Aug 2026 while resolving where the zero-confirmed fact belongs; it is also
+why the legislator directory carries no money caveat at all (that page shows no money, so a caveat
+there would advertise an absence).
+
 **On a sitting member's profile, only the second of those two ever happens.** All 200 sitting
 members appear in the Board's registered-filer directory (§5.1), so a member with no registered
 committee is not a case the profile tab reaches, and its unconfirmed state can say the true and
