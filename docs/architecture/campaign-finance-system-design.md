@@ -950,6 +950,12 @@ report as a clean value — `2026-07-20 00:00:00` — so nothing needs a date pa
 know when a period ended. Read as an instruction to implementers, the paragraph above looked like
 the only route to one, and it is not.
 
+**It is never empty: 0 of 1,707 reports**, across 130 legislator committees and filing years 2009 to
+2026, including 1,041 reports from before 2023. Checked for null and for whitespace-only, because an
+absent value in a fixed field list arrives as an empty string rather than a missing key. So a surface
+that cannot resolve a period **end** is a defensive state rather than an observed one; a surface that
+cannot resolve a **start** is the ordinary fallback, since no start is served at all.
+
 **The catalogue's full field list, so what it does not carry is settled rather than unchecked.**
 Per report: `RegisteredEntityID`, `RegisteredEntityType`, `ReportType`, `FilingYear`,
 `as_2DigitYear`, `ReportName`, `PrePrimaryReport`, `PreGeneralReport`, `YearEndReport`,
@@ -1046,6 +1052,16 @@ searchType=Candidate&downloadpdf=true&year=25&type=pcc&period=YE
 `type` is `pcc`, `ptu` or `pcf`; `period` is `C` (pre-primary), `E` (pre-general) or `YE`
 (year-end); `se` is the special-election flag. **Check that the body starts with `%PDF`** —
 nothing else in the response distinguishes a document from the error page.
+
+**Those three period values cannot express every report the catalogue returns.** Of 1,707 reports
+across 130 legislator committees, 63 (3.7%) carry a type this route has no documented value for: `A`
+(31, pre-primary under an older name — "2010 15th Day Pre-Primary"), `B` (31, pre-general under an
+older name), and `G` (1, a 2026 pre-primary report). Mostly historical, **but `A`, `B` and `G` all
+have 2026 instances**, which is inside the range a profile shows. So this is a third way a superseded
+figure goes missing, alongside the soft HTML failure and the pre-2023 boundary: the document exists
+and the route cannot ask for it. Whether `period=A` is accepted and merely undocumented, or rejected,
+is untested — a one-request check, and until it runs the missing-prior-figure state fires more often
+than the HTML failure rate alone predicts.
 
 **The per-filing route is a validation path, not a display path.** §9.5 derives the non-itemized
 figure by subtraction, and a subtraction that comes out *positive but short* publishes silently: a
@@ -1223,6 +1239,13 @@ flag).** The evidence:
 
 - `tabname=reports_data` on the same endpoint returns, per report, an `amendments` array. It is
   highest-first in **366 of 367** multi-version reports in the 1,005-report catalogue.
+- **One call returns a filer's whole history, not the year you asked for.** A 2025-scoped request
+  for filer 11880 comes back with 28 reports spanning 2009 to 2026, so 130 calls covered 1,707
+  reports. Scope the year on the way out, never in the request.
+- **Its report keys collide across filers, and the collision is silent.** Keying a collection on a
+  report's own hash alone collapsed 130 filers to 29 and 1,707 reports to 57, with no error and no
+  duplicate warning — a small number that reads as a small population. Key on `(filer, hash)`. This
+  cost one measurement a near-miss: a correct finding on a thirtieth of the sample claimed for it.
 - The exception is filer 17868's 2015 pre-special-election report, whose array is
   `['1','0','1','0']` — **duplicated entries**. Deduplicate before taking the maximum, and do
   not treat this catalogue as a clean version ledger.
@@ -1312,6 +1335,10 @@ Recorded as not run, never as passed:
   special-election `CutOffDate` (§9.5) is confirmed on **one** filer-year, 18453 in 2024. A wrong
   start renders as a plausible date range rather than as an error, so this needs confirming across
   the population before a build relies on it.
+- **Whether the PDF route accepts `period=A`, `B` or `G`** (§9.4) is untested, one request. Until it
+  runs, 63 of 1,707 reports — including 2026 instances of all three types — have no documented way to
+  be requested, and the missing-prior-figure state fires more often than the HTML failure rate alone
+  predicts.
 - ~~**The computed itemized split against the filing's own stated split** (§7) reconciled on 2
   filer-years at full precision.~~ **Run since** (§9.4): for the 2025 sitting-legislator population
   in full — 208 of 209, one having no 2025 year-end report, of which 199 of 202 ordinary
