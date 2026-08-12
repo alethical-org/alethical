@@ -25,6 +25,7 @@ from typing import Any, Iterator, Optional
 from urllib.parse import parse_qs, urlparse
 
 import pytest
+import requests
 from sqlalchemy import select, text
 
 from alethical.db import models
@@ -757,6 +758,51 @@ def test_a_missing_cookie_gets_403_and_is_not_retried(board) -> None:
     assert found == []
     assert any("PHPSESSID" in error for error in errors)
     assert len(board.requests_seen) == 1
+
+
+def test_a_dropped_network_is_retried_for_about_two_minutes(monkeypatch) -> None:
+    """A 48-minute run has to survive one blip to be worth starting.
+
+    The first production run died at filer 500 of 1,603 because the host lost DNS, so
+    13 minutes of requests were thrown away by 15 seconds of intolerance. Re-asking is
+    always safe here: a request that never left the machine cannot have been duplicated.
+    """
+    slept: list[float] = []
+    monkeypatch.setattr(filings.time, "sleep", slept.append)
+    attempts = {"n": 0}
+
+    def flaky(url, data=None, timeout=None):
+        attempts["n"] += 1
+        if attempts["n"] < 4:
+            raise requests.ConnectionError("nodename nor servname provided")
+        return _Answered(200, b'{"tabcontent":"ok"}')
+
+    session = filings.http_session()
+    monkeypatch.setattr(session, "post", flaky)
+    response = filings.post_form(session, "http://example.test/api", {"id": "1"})
+    assert response.status_code == 200
+    assert attempts["n"] == 4
+    assert slept == [5, 10, 20]
+    # And a network that never comes back still stops the run rather than publishing a
+    # partial set.
+    attempts["n"] = 0
+
+    def dead(url, data=None, timeout=None):
+        attempts["n"] += 1
+        raise requests.ConnectionError("nodename nor servname provided")
+
+    monkeypatch.setattr(session, "post", dead)
+    with pytest.raises(requests.ConnectionError):
+        filings.post_form(session, "http://example.test/api", {"id": "1"})
+    assert attempts["n"] == filings.MAX_CONNECTION_ATTEMPTS
+
+
+@dataclass
+class _Answered:
+    """The 2 attributes ``post_form`` reads off a response."""
+
+    status_code: int
+    content: bytes
 
 
 def test_a_server_error_is_retried(board, monkeypatch) -> None:
