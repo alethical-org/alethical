@@ -559,6 +559,51 @@ stale, never as an answer about a person — a page rendering it as "this commit
 no payments" is the missing-versus-zero failure `.claude/rules/grounded-answers.md`
 rule 12 forbids.
 
+**Do not write those queries yourself. `alethical/pipeline/campaign_finance_reader.py`
+already holds them** ([#1330](https://github.com/alethical-org/alethical/issues/1330)),
+and it exists because 4 measured source behaviours make a plain `SELECT ... GROUP BY`
+return a figure that looks entirely reasonable and is wrong. It resolves the release in
+one statement, refuses rather than returning a zero when the rows have been pruned
+under it, and is keyed on a registration number so a legislator's committee reads
+through the same code as a party unit. `scripts/show_party_and_caucus_money.py` prints
+the whole picture for the state parties and caucuses and writes nothing.
+
+The 4 behaviours, all measured on 2026-08-12, because a future reader will be tempted
+to query the tables directly:
+
+1. **A candidate committee and a party unit label the same spending differently.** In
+   2025 candidate committees filed 6,762 rows typed `Campaign Expenditure` and **none**
+   typed `General Expenditure`; party units filed 7,524 the other way round and none
+   the first way. So a query naming either label returns a plausible total with a whole
+   kind of filer silently missing. `money_out` has no parameter to filter by label.
+2. **Filter contributions to `Receipt type = 'Contribution'` before any total**, and
+   report what you excluded rather than dropping it. 1.2% of the rows in the file
+   called "itemized contributions" are not contributions, and the share is 6.57% for
+   party units against 0.36% for candidate committees — roughly 18 times more
+   load-bearing for exactly the filers whose money reaches candidates.
+3. **Only a `Contribution` row names who received the money.** Across all 377,860
+   expenditure rows it carries an affected committee's registration number on 61,816 of
+   its 61,840, and every other label carries one on **zero**; those rows carry a
+   *vendor* instead, which is a supplier and not the recipient of a transfer. So a
+   money-out list with a "who received this" column would be blank on 92.5% of a state
+   party's or caucus's outgoing rows.
+4. **A filer's kind comes from the file's own type column, never from its registration
+   number.** The Board's own subtype resolves the 4 legislative caucuses (`CAU`) and
+   the 6 state party units (`SPU`) exactly, and never contradicts itself within a
+   download. A registration-number band does not: 4,672 rows carry a type that
+   disagrees with theirs. Nor does a name: 12 filers whose names contain "Caucus" are
+   political committees and funds rather than caucuses.
+
+**And an unresolved payee registration number is usually a local candidate, not a gap
+in our ingestion.** Minnesota's Board does not register candidates for city, county or
+school-board office, so it fills the affected-committee column with a synthetic
+**negative** placeholder number for them. 511 distinct such numbers appear across 560
+of the 2025 and 2026 `Contribution` rows ($299,156.30), plus 1,912 rows in the
+independent-expenditures file, and every one is named "X for &lt;local office&gt;"
+("Frey, Jacob for Minneapolis Mayor"). A negative number never appears on the *filer*
+side of any of the 3 files. So a surface must not print one as an error or imply the
+money went to a state filer.
+
 **What makes 2 people running the import at once safe**, since the answer is not
 obvious and 2 of the 3 mechanisms exist only because a review found the sequence that
 breaks without them. One: publishing takes a single lock and moves a one-row pointer,
@@ -758,6 +803,7 @@ just pipeline local --write --allow-writes     # commit after review
 | `uv run python -m alethical.pipeline.committee_memberships --cleanup-orphans`            | Committee repair/backfill                                                                                                                                                                                       |
 | `uv run python -m alethical.pipeline.votes`                                              | Vote backfill (debug)                                                                                                                                                                                           |
 | `just mirror-raw-files [target=production] [dry=true]`                                   | Copy every stored campaign-finance file to Cloudflare R2 and read each copy back to check it arrived whole. Dry-run by default. Only ever adds; a second run copies nothing. The daily job `.github/workflows/mirror-raw-files.yml` does this already — section **H**   |
+| `uv run python scripts/show_party_and_caucus_money.py --target production`                | Print the money in and out of the state parties and the 4 caucuses from the published set. Reads only, never writes (`--reg-num`, `--years`, `--transfers`) — section **H**                                       |
 | `uv run python -m alethical.pipeline.ai_enrichment {prepare\|submit\|status\|apply} ...` | Direct OpenAI Batch control. Four modes, not the two listed here: `prepare` builds the JSONL batch file and `apply` writes results back, which are the two you actually need to run a batch end to end.         |
 
 ## Provenance, idempotency & data layers
