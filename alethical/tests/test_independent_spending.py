@@ -8,7 +8,7 @@ prevents. The three that matter most:
 * **Our own missing data is never anyone's zero.** A release whose rows have gone
   says nothing about a named person (`.claude/rules/grounded-answers.md` rule 12).
 * **A name is never enough to attribute a payment.** The live release carries
-  11 "Fateh, Omar for Minneapolis Mayor" committees in 2025 while sitting Senator
+  10 "Fateh, Omar for Minneapolis Mayor" committees in 2025 while sitting Senator
   Omar Fateh's own Senate committee has none, so matching on a name would put a
   city mayoral race on a state senator's profile.
 * **There are two figures and never a third.** Every row in the source records
@@ -43,7 +43,7 @@ ReleaseStatus = models.CampaignFinanceReleaseStatus
 Decision = models.CommitteeLinkReviewDecision
 
 SENATE_COMMITTEE = "18488"
-# The real registration number of one of the 11 Minneapolis mayoral committees
+# The real registration number of one of the 10 Minneapolis mayoral committees
 # that carry Senator Omar Fateh's name in the live 2025 release. Kept verbatim,
 # negative sign included, because the sign is what separates a city committee
 # from a legislative one in the source.

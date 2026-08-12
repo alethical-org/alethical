@@ -13,11 +13,12 @@ affected *committee* and none names a person
 (``docs/architecture/campaign-finance-system-design.md`` §7, Display rules), so a
 figure is reachable only through a committee link a person has confirmed. The
 sharpest case is real and lives in the live release: Senator Omar Fateh sits in
-the Senate, and 2025 carries 11 separate "Fateh, Omar for Minneapolis Mayor"
-committees holding $488,000 supporting and $163,000 opposing. His Senate
-committee (18488) has no independent spending at all after 2022. Matching on the
-name would put a city mayoral race on a state senator's profile; matching on a
-confirmed registration number reports his 2025 as the verified 0 it is.
+the Senate, and 2025 carries 10 separate "Fateh, Omar for Minneapolis Mayor"
+committees across 101 payments: $487,974.82 supporting and $162,841.95 opposing.
+His Senate committee (18488) has no independent spending at all after 2022.
+Matching on the name would put a city mayoral race on a state senator's profile;
+matching on a confirmed registration number reports his 2025 as the verified 0
+it is. Measured against the live release on 12 Aug 2026.
 
 **It never invents a third "target not recorded" figure.** The issue that
 commissioned this asked for one, from a measurement of the retired Base44 copy
