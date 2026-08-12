@@ -257,11 +257,50 @@ def independent_spending_for_legislator(
         registration_numbers=[link.registration_number for link in links],
     )
     committees = tuple(
-        _committee_spending(link, totals.get(link.registration_number))
+        _committee_spending(
+            link.registration_number,
+            link.committee_name_as_reviewed,
+            link.office_as_reviewed,
+            totals.get(link.registration_number),
+        )
         for link in sorted(links, key=lambda link: link.registration_number)
     )
     return IndependentSpending(
         REPORTED, year, committees, release.source_url, release.fetched_at
+    )
+
+
+def spending_for_committee(
+    db: Session,
+    *,
+    registration_number: str,
+    committee_name: str,
+    year: int,
+    snapshot_id: UUID,
+    office: str | None = None,
+) -> CommitteeSpending:
+    """One committee's independent spending, with no confirmed link in the path.
+
+    The committee-scoped entry point ([#1442](https://github.com/alethical-org/alethical/issues/1442)).
+    A registration number identifies a committee on its own, so a committee page
+    needs none of the confirming a legislator's profile needs -- what the
+    confirmation buys is the right to put a *person's* name over the figure, which
+    is the claim the file cannot support and this function does not make.
+
+    Same query as the legislator path above, deliberately: the rules about which
+    directions may be read and how a total is assembled are mutation-checked in one
+    place and must not be reimplemented beside it.
+
+    Staleness is **not** decided here. The caller resolves the release and must have
+    established that this snapshot holds rows, because a committee with no rows in a
+    live snapshot is a measured 0 while a snapshot with no rows at all is our own
+    staleness, and only the caller can tell those apart.
+    """
+    totals = _totals_by_committee(
+        db, snapshot_id, year=year, registration_numbers=[registration_number]
+    )
+    return _committee_spending(
+        registration_number, committee_name, office, totals.get(registration_number)
     )
 
 
@@ -332,17 +371,26 @@ def _totals_by_committee(
 
 
 def _committee_spending(
-    link: LegislatorCampaignCommittee,
+    registration_number: str,
+    committee_name: str,
+    office: str | None,
     totals: dict[str, tuple[Decimal, int, date | None, date | None]] | None,
 ) -> CommitteeSpending:
+    """Assemble one committee's figures.
+
+    Takes the name and office as plain values rather than a confirmed link, because
+    a committee page has no link and must still name the committee -- from the
+    download's own text, which is a fact about the committee rather than about
+    anyone's identity.
+    """
     supporting = (totals or {}).get(SUPPORTING, (Decimal(0), 0, None, None))
     opposing = (totals or {}).get(OPPOSING, (Decimal(0), 0, None, None))
     dates = [value for value in (supporting[2], opposing[2]) if value is not None]
     last_dates = [value for value in (supporting[3], opposing[3]) if value is not None]
     return CommitteeSpending(
-        registration_number=link.registration_number,
-        committee_name=link.committee_name_as_reviewed,
-        office=link.office_as_reviewed,
+        registration_number=registration_number,
+        committee_name=committee_name,
+        office=office,
         supporting=Decimal(supporting[0]),
         opposing=Decimal(opposing[0]),
         supporting_payments=supporting[1],

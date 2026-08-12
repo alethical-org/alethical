@@ -40,6 +40,10 @@ from alethical.api.services.legislative_sessions import (
     current_legislature_scope,
     named_special_session,
 )
+from alethical.api.services.committee_finance import (
+    committee_finance,
+    current_release as current_campaign_finance_release,
+)
 from alethical.api.services.independent_spending import (
     independent_spending_for_legislator,
 )
@@ -2716,6 +2720,157 @@ def legislator_independent_spending(
                 }
                 for committee in spending.committees
             ],
+        }
+    )
+
+
+@router.get(
+    "/committees/{registration_number}/finance",
+    response_model=DetailResponse,
+)
+def committee_finance_for_year(
+    registration_number: str,
+    year: int = Query(ge=2015, le=2100),
+    db: Session = Depends(get_db),
+):
+    """One campaign committee's money in and money out for one year.
+
+    Keyed on Minnesota's registration number, which identifies a committee on its
+    own, so nothing here waits on anyone confirming which committee belongs to which
+    person ([#1442](https://github.com/alethical-org/alethical/issues/1442)).
+
+    **Every figure is a sum of itemized rows, never a committee's total.** Minnesota
+    names a donor only once their giving passes $200 in aggregate within a calendar
+    year, so the payments listed here always add up to less than the committee
+    reported raising -- around 4 dollars in 10 go unnamed on a typical filing. The
+    reported total comes from a different source that nothing stores yet
+    ([#1408](https://github.com/alethical-org/alethical/issues/1408)); until it
+    lands, a surface may show these figures only as named payments and must not
+    present them as a whole (``.claude/rules/grounded-answers.md`` rule 12).
+
+    Read ``state`` on each block before its numbers:
+
+    * ``reported`` -- we hold itemized rows and the figures are real.
+    * ``not_reported`` -- we hold none for this committee-year. **Never render this
+      as 0.** A committee whose donors all gave $200 or less is never itemized, so
+      absence here is silence rather than a zero. ``independent_spending`` is the one
+      exception and says so below.
+    * ``unavailable`` -- our own copy of that download is stale. A fact about us, and
+      never a figure about the committee.
+
+    ``money_out.itemized_payment_total`` sums every row whatever its ``Type``, with
+    the source's own labels in ``by_type``. A candidate committee files
+    ``Campaign Expenditure`` and a party unit files ``General Expenditure`` for the
+    same thing, so any single-label filter reports a whole kind of filer as having
+    spent nothing.
+
+    ``money_in.itemized_contribution_total`` counts only rows the source types
+    ``Contribution``. The other 3 receipt types it carries are real money reported on
+    separate schedules -- a candidate's loan to their own campaign, most often -- and
+    appear under ``other_receipts`` with the source's own label. They must never be
+    added to the contribution figure.
+
+    ``independent_spending`` is money others spent supporting or opposing this
+    committee, and it is the one block where a committee with no rows reads as a
+    measured ``0``: nobody filed an independent expenditure over $200 about them,
+    which is a finding rather than a gap.
+
+    Dates are the first and last payment we hold, not a reporting period. Almost
+    every Minnesota report runs from 1 January and a special-election filer's does
+    not, so no surface may present these as the period a figure covers.
+
+    404 means this registration number appears nowhere in the current release. That
+    is a statement about our records: the Board's registered-filer directory decides
+    whether a committee exists and nothing here reads it yet. 503 means we hold no
+    usable release at all.
+    """
+    release = current_campaign_finance_release(db)
+    if release is None or not release.is_usable:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "no usable campaign-finance release is published; "
+                "this says nothing about any committee"
+            ),
+        )
+    finance = committee_finance(
+        db, release, registration_number=registration_number, year=year
+    )
+    if finance is None:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "no records for this registration number in the current "
+                "campaign-finance release"
+            ),
+        )
+    spending = finance.independent_spending
+    return DetailResponse(
+        data={
+            "registration_number": finance.committee.registration_number,
+            "committee_name": finance.committee.name,
+            "entity_type": finance.committee.entity_type,
+            "entity_sub_type": finance.committee.entity_sub_type,
+            "year": finance.year,
+            "release_id": str(finance.release_id),
+            "fetched_at": finance.fetched_at,
+            "money_in": {
+                "state": finance.money_in.state,
+                "itemized_contribution_total": (
+                    finance.money_in.itemized_contribution_total
+                ),
+                "itemized_contribution_payments": (
+                    finance.money_in.itemized_contribution_payments
+                ),
+                "first_receipt_on": finance.money_in.first_receipt_on,
+                "last_receipt_on": finance.money_in.last_receipt_on,
+                "other_receipts": [
+                    {
+                        "receipt_type": receipt.receipt_type,
+                        "total": receipt.total,
+                        "payments": receipt.payments,
+                    }
+                    for receipt in finance.money_in.other_receipts
+                ],
+                "source_url": finance.money_in.source_url,
+            },
+            "money_out": {
+                "state": finance.money_out.state,
+                "itemized_payment_total": finance.money_out.itemized_payment_total,
+                "itemized_payments": finance.money_out.itemized_payments,
+                "unpaid_total": finance.money_out.unpaid_total,
+                "first_transaction_on": finance.money_out.first_transaction_on,
+                "last_transaction_on": finance.money_out.last_transaction_on,
+                "by_type": [
+                    {
+                        "type": entry.expenditure_type,
+                        "total": entry.total,
+                        "payments": entry.payments,
+                    }
+                    for entry in finance.money_out.by_type
+                ],
+                "source_url": finance.money_out.source_url,
+            },
+            "independent_spending": {
+                "state": spending.state,
+                "supporting": (
+                    spending.spending.supporting if spending.spending else None
+                ),
+                "opposing": spending.spending.opposing if spending.spending else None,
+                "supporting_payments": (
+                    spending.spending.supporting_payments if spending.spending else None
+                ),
+                "opposing_payments": (
+                    spending.spending.opposing_payments if spending.spending else None
+                ),
+                "first_payment_on": (
+                    spending.spending.first_payment_on if spending.spending else None
+                ),
+                "last_payment_on": (
+                    spending.spending.last_payment_on if spending.spending else None
+                ),
+                "source_url": spending.source_url,
+            },
         }
     )
 
