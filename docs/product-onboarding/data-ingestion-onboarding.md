@@ -357,6 +357,11 @@ official corrections made without a bill-action change. The correction is accept
 official tally equals the complete resolved member list. An accepted change replaces the roll-call
 facts and member votes together; an incomplete or ambiguous official response changes nothing.
 
+A saved-vote correction names its database in exactly 1 way. `--target production` always builds
+Alethical's Supabase address from `SUPABASE_PROJECT_URL` and `SUPABASE_DB_PASSWORD`; it ignores an
+ambient `DATABASE_URL`, and `--target` cannot be combined with `--database-url`. Otherwise a local
+database can produce a believable dry run while the report says it checked production.
+
 ## D — District lookup (query-time, not batch)
 
 Powers "Find My Legislator." Called synchronously by

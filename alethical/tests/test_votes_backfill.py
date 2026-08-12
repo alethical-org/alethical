@@ -14,8 +14,10 @@ from types import SimpleNamespace
 
 import pytest
 from sqlalchemy import select
+from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
+import alethical.pipeline.votes as votes
 from alethical.db.models import (
     Bill,
     BillAction,
@@ -801,3 +803,83 @@ def test_json_report_replaces_the_destination_atomically(tmp_path) -> None:
         "counts": {"updated": 1}
     }
     assert list(tmp_path.iterdir()) == [destination]
+
+
+def test_production_reconciliation_ignores_ambient_database_url(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setenv(
+        "DATABASE_URL", "postgresql://alethical:alethical@localhost:54329/alethical"
+    )
+    monkeypatch.setenv("SUPABASE_PROJECT_URL", "https://target-ref.supabase.co")
+    monkeypatch.setenv("SUPABASE_DB_PASSWORD", "production-password")
+    monkeypatch.delenv("SUPABASE_POOLER_HOST", raising=False)
+    captured: dict[str, object] = {}
+
+    def capture_engine(url: str, **_kwargs):  # noqa: ANN202
+        captured["url"] = url
+        return object()
+
+    class FakeSession:
+        def __init__(self, _engine: object) -> None:
+            pass
+
+        def __enter__(self) -> object:
+            return object()
+
+        def __exit__(self, *_args: object) -> None:
+            return None
+
+    monkeypatch.setattr(votes, "create_engine", capture_engine)
+    monkeypatch.setattr(votes, "Session", FakeSession)
+    monkeypatch.setattr(
+        votes, "rate_limited_source_session", lambda _engine, *, target: object()
+    )
+    monkeypatch.setattr(
+        votes,
+        "reconcile_saved_votes",
+        lambda *_args, **_kwargs: votes.VoteReconciliationReport(),
+    )
+
+    exit_code = votes.main(["--target", "production", "--bill-key", "94-2025-HF1141"])
+
+    assert exit_code == 0
+    resolved = make_url(str(captured["url"]))
+    assert resolved.host == "aws-1-us-east-2.pooler.supabase.com"
+    assert resolved.database == "postgres"
+    assert json.loads(capsys.readouterr().out) == {
+        "counts": {"failed": 0, "rejected": 0, "unchanged": 0, "updated": 0},
+        "failed": [],
+        "rejected": [],
+        "target": "production",
+        "unchanged": [],
+        "updated": [],
+        "write": False,
+    }
+
+
+def test_database_url_cannot_be_combined_with_a_named_target(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(
+        votes,
+        "database_url_for_target",
+        lambda *_args, **_kwargs: pytest.fail("conflicting inputs reached resolution"),
+    )
+
+    with pytest.raises(SystemExit) as raised:
+        votes.main(
+            [
+                "--target",
+                "production",
+                "--database-url",
+                "postgresql://localhost/alethical",
+                "--bill-key",
+                "94-2025-HF1141",
+            ]
+        )
+
+    assert raised.value.code == 2
+    assert "not allowed with argument" in capsys.readouterr().err
