@@ -806,6 +806,15 @@ day we checked, and the next date something is due — and deliberately shows **
 in the two variants where no period is covered, rather than falling back to a year label. Anyone
 rewriting this paragraph should read what shipped first.
 
+**The next-due date may be a served fact rather than a transcribed one.** The panel's fourth fact was
+specified against a hand-kept table of filing calendars, because which calendar a member is on is not
+in any data we hold ([#1375](https://github.com/alethical-org/alethical/issues/1375)). §9.4 now records
+the Board answering it per filer instead: asking for a report that is not out yet returns the date it
+will be. So the "Not reported" state can name a real date without anyone classifying members onto
+calendars. Measured on 6 filers, one report type and one day, so **build the state to take a date it
+may not get**: a member whose release date we cannot obtain shows no date rather than a guessed one,
+which is the rule that already applied when the calendar was the source.
+
 **One legislator, several committees.** Minnesota registers a committee per office, so a person
 accumulates them: 17 sitting members tie to more than one, and 8 have 2 or more active in
 2025 or 2026 at once (measured 11 Aug 2026). So a confirmed link is one-to-many and carries
@@ -1053,15 +1062,38 @@ searchType=Candidate&downloadpdf=true&year=25&type=pcc&period=YE
 (year-end); `se` is the special-election flag. **Check that the body starts with `%PDF`** —
 nothing else in the response distinguishes a document from the error page.
 
-**Those three period values cannot express every report the catalogue returns.** Of 1,707 reports
-across 130 legislator committees, 63 (3.7%) carry a type this route has no documented value for: `A`
-(31, pre-primary under an older name — "2010 15th Day Pre-Primary"), `B` (31, pre-general under an
-older name), and `G` (1, a 2026 pre-primary report). Mostly historical, **but `A`, `B` and `G` all
-have 2026 instances**, which is inside the range a profile shows. So this is a third way a superseded
-figure goes missing, alongside the soft HTML failure and the pre-2023 boundary: the document exists
-and the route cannot ask for it. Whether `period=A` is accepted and merely undocumented, or rejected,
-is untested — a one-request check, and until it runs the missing-prior-figure state fires more often
-than the HTML failure rate alone predicts.
+**`period` takes the catalogue's own `ReportType` verbatim. Those three values were an incomplete
+list, not a restrictive one.** The catalogue returns three more across 1,707 legislator reports — `A`
+(31, pre-primary under an older name, "2010 15th Day Pre-Primary"), `B` (31, pre-general under an
+older name) and `G` (1) — and **all three return real PDFs**: `A` and `B` on filer 19273's 2026
+reports, `G` on filer 19259's, at 17,170, 17,644 and 19,750 bytes. So those 63 reports are reachable,
+and an earlier version of this paragraph called them a third cause of a missing prior figure. They are
+not. Pass through whatever type the catalogue names.
+
+**There are at least three soft-failure shapes, and two of them are not HTML.** The 30,424-byte HTML
+page above is one. These two are plain text at HTTP 200, 68 and 172 bytes:
+
+- `File requested has not been released.  Try back on 02/02/2027 at 8am` — the report exists and is
+  scheduled. Returned for a 2026 year-end on 5 of 6 filers tested.
+- `The file requested has not been released.  Files are available at 8am following the due date.  If
+  you believe that this report should be available please contact the board.` — returned for
+  `period=C` on a filer whose 2026 pre-primary is type `G`, so **this is also what a wrong `period`
+  code looks like**: not an error, a polite plain-text no.
+
+**That last one is the genuine third cause of a missing prior figure**, and it is worse than the one
+it replaced, because a check testing "is the body HTML" passes both of these as success. §9.4's
+`%PDF` rule catches all three, and it earned itself twice in one afternoon — the second time against a
+shape nobody had imagined.
+
+**And the same failure hands us a served release date, per filer, per report.** "Try back on
+02/02/2027" against a calendar due date of 1 Feb 2027, with the second variant stating the rule
+outright: files are available at 8am following the due date. That is a per-filer answer to the
+question [#1375](https://github.com/alethical-org/alethical/issues/1375) was opened to hand-transcribe,
+and it skips the part nobody could do, which is classifying each member onto a calendar. Limits worth
+keeping in view: 6 filers, one report type, one day, and an undocumented route. **The sixth filer is
+the corroboration worth noticing** — 18472 returns a real 2026 year-end PDF because a terminating
+committee files its final report early, which is §7's closed-committee state arriving independently
+from a different route.
 
 **The per-filing route is a validation path, not a display path.** §9.5 derives the non-itemized
 figure by subtraction, and a subtraction that comes out *positive but short* publishes silently: a
@@ -1335,10 +1367,10 @@ Recorded as not run, never as passed:
   special-election `CutOffDate` (§9.5) is confirmed on **one** filer-year, 18453 in 2024. A wrong
   start renders as a plausible date range rather than as an error, so this needs confirming across
   the population before a build relies on it.
-- **Whether the PDF route accepts `period=A`, `B` or `G`** (§9.4) is untested, one request. Until it
-  runs, 63 of 1,707 reports — including 2026 instances of all three types — have no documented way to
-  be requested, and the missing-prior-figure state fires more often than the HTML failure rate alone
-  predicts.
+- ~~**Whether the PDF route accepts `period=A`, `B` or `G`** (§9.4) is untested, one request.~~ **Run,
+  and all three serve real PDFs** (§9.4), so `period` passes the catalogue's `ReportType` through
+  rather than choosing among three. What is still untested is whether the served release date behaves
+  as "due date plus one" beyond the 6 filers, 1 report type and 1 day it was measured on.
 - ~~**The computed itemized split against the filing's own stated split** (§7) reconciled on 2
   filer-years at full precision.~~ **Run since** (§9.4): for the 2025 sitting-legislator population
   in full — 208 of 209, one having no 2025 year-end report, of which 199 of 202 ordinary
