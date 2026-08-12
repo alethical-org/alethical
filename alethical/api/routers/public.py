@@ -404,12 +404,51 @@ def _like_escape(value: str) -> str:
     return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
+# Grammatical filler carries no search signal, but under the all-words-must-match
+# rule above a single one of these can zero out an otherwise perfect query. The
+# reported case: searching the exact headline a card displays, "Repeal of
+# Political Contribution Refund Program", returned nothing for SF 3458, whose
+# card shows precisely that. Every other word matched its official title
+# ("repealing the political contribution refund program"); "of" appears nowhere
+# in it, and one unmatched word is enough to drop the bill.
+_FUNCTION_WORDS = frozenset(
+    {"a", "an", "and", "at", "by", "for", "from", "in", "of", "on", "or", "the", "to",
+     "with"}
+)
+
+
+def search_words(q: str) -> list[str]:
+    """The words of ``q`` a match is actually required on.
+
+    Filler words are dropped, but only while at least one other word survives, so
+    a query made entirely of them ("of the") still searches for what was typed
+    rather than silently matching every bill. Dropping a *required* word can only
+    widen the match set, never shrink it — the same one-way guarantee the stemming
+    and trigram branches above are built on.
+    """
+    words = [word for word in q.split() if word]
+    significant = [word for word in words if word.lower() not in _FUNCTION_WORDS]
+    return significant or words
+
+
+# What a bill keyword search matches, in one place so ``/bills`` and the
+# ``/search`` typeahead can never search different text. ``short_title`` is the
+# plain-language headline the card displays (alembic 0032); a reader searching the
+# words on screen must find the bill they are looking at, and before it was
+# searched they did not. The official ``title`` and ``description`` stay, so a
+# query quoting the legal wording keeps working. Ask's bill disambiguation
+# (``_resolve_bill_by_content`` in routers/ask.py) deliberately reads its own
+# fields and is not part of this.
+BILL_SEARCH_COLUMNS = (Bill.title, Bill.short_title, Bill.description)
+
+
 def keyword_search_clause(columns, q: str):
     """Case-insensitive keyword match over ``columns`` for query ``q``. Each word
     in ``q`` must match at least one column — as a raw substring, via its stemmed
     root, or (for longer words) via trigram word-similarity so typos still
-    resolve. All words must match (AND). Returns None for an empty query."""
-    words = [word for word in q.split() if word]
+    resolve. All words must match (AND), filler words excepted (``search_words``).
+    Returns None for an empty query."""
+    words = search_words(q)
     if not words:
         return None
     per_word = []
@@ -844,7 +883,7 @@ def bills(
             # mentions the digits in its title or description (#134).
             stmt = stmt.where(number_clause)
         else:
-            keyword_clause = keyword_search_clause([Bill.title, Bill.description], q)
+            keyword_clause = keyword_search_clause(BILL_SEARCH_COLUMNS, q)
             if keyword_clause is not None:
                 stmt = stmt.where(keyword_clause)
     topic_value = (topic or "").strip()
@@ -2947,7 +2986,7 @@ def search(
             # Bill-number query → exclusive ID lookup, not free text (see /bills).
             bills_stmt = bills_stmt.where(number_clause)
         else:
-            keyword_clause = keyword_search_clause([Bill.title, Bill.description], q)
+            keyword_clause = keyword_search_clause(BILL_SEARCH_COLUMNS, q)
             if keyword_clause is not None:
                 bills_stmt = bills_stmt.where(keyword_clause)
         payload["bills"] = [

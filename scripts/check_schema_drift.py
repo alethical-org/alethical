@@ -96,11 +96,11 @@ OWNED_EXTENSIONS = frozenset({"vector", "pg_trgm"})
 #     first and 0001's own create_index fail;
 #   * the vector index, where 0001 builds an ivfflat one and 0012 replaces it with
 #     HNSW. A column can carry one index declaration, not a before and an after;
-#   * the trigram search indexes 0011 adds. These are the one group that *could*
-#     move onto the models (SQLAlchemy can express gin_trgm_ops), which would
-#     shorten this list by three. Left where they are: this change is a
-#     transcription of the old baseline, and moving them changes what create_all
-#     builds.
+#   * the trigram search indexes, three from 0011 and one from 0032. These are the
+#     one group that *could* move onto the models (SQLAlchemy can express
+#     gin_trgm_ops), which would shorten this list by four. Left where they are:
+#     this change is a transcription of the old baseline, and moving them changes
+#     what create_all builds.
 MIGRATION_ONLY_INDEXES = frozenset(
     {
         "ix_legislator_service_period_legislator_session_current",
@@ -110,6 +110,7 @@ MIGRATION_ONLY_INDEXES = frozenset(
         "ix_rag_chunk_embedding_embedding_hnsw",
         "ix_bill_title_trgm",
         "ix_bill_description_trgm",
+        "ix_bill_short_title_trgm",
         "ix_legislator_full_name_trgm",
     }
 )

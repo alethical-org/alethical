@@ -526,11 +526,19 @@ class Bill(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     #     and ``bill_action`` maintain the columns (alembic 0014, #607). Lets
     #     sort=progress and the status filter read a plain indexed column instead
     #     of a live join + CASE cascade.
+    #   * short_title — the plain-language headline every card, bill page and Ask
+    #     answer displays instead of the official legal ``title``. Copied from the
+    #     current bill_summary enrichment's ``short_title`` by a trigger on
+    #     ``ai_enrichment`` (alembic 0032), because the source lives inside a
+    #     TOASTed JSONB column that keyword search cannot afford to read per
+    #     request. Search matches it alongside title/description, so the words a
+    #     reader can actually see resolve to the bill they are looking at.
     has_current_summary: Mapped[bool] = mapped_column(
         Boolean, default=False, server_default=text("false"), nullable=False
     )
     status_key: Mapped[Optional[str]] = mapped_column(String(50))
     status_rank: Mapped[Optional[int]] = mapped_column(SmallInteger)
+    short_title: Mapped[Optional[str]] = mapped_column(Text)
     latest_action_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True)
     )
@@ -2508,8 +2516,9 @@ def bill_list_stmt(
     identical to ``"progress"`` when there is nothing to rank against.
 
     ``text_query`` (search only) ranks the closest keyword match first: when set,
-    trigram word-similarity of the query against title/description becomes the
-    primary sort, with ``sort`` as the tie-break. Browsing (no query) is
+    trigram word-similarity of the query against the bill's two titles (official
+    ``title`` / displayed ``short_title``) and its description becomes the primary
+    sort, with ``sort`` as the tie-break. Browsing (no query) is
     unaffected — the endpoints pass it only for a free-text search (#573).
     Because relevance is prepended to *whatever* ``sort`` is asked for, a caller
     that lets the user choose the sort must pass ``text_query`` only for the
@@ -2559,7 +2568,17 @@ def bill_list_stmt(
         # merely mentions "health care facility" in its description. Title
         # similarity leads, description similarity breaks title ties, then the
         # chosen ``sort`` breaks the rest (#573).
-        title_relevance = func.word_similarity(text_query, Bill.title)
+        #
+        # "Title" means whichever of the two titles the query is closer to: the
+        # official legal ``title`` or the plain-language ``short_title`` the card
+        # actually displays. Someone who types the words on screen has typed the
+        # bill's subject just as squarely as someone quoting its legal title, so
+        # the closer of the two ranks the bill — GREATEST, not a second tie-break,
+        # because either title matching is one signal, not two.
+        title_relevance = func.greatest(
+            func.word_similarity(text_query, Bill.title),
+            func.word_similarity(text_query, func.coalesce(Bill.short_title, "")),
+        )
         description_relevance = func.word_similarity(
             text_query, func.coalesce(Bill.description, "")
         )

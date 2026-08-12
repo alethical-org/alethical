@@ -1249,7 +1249,10 @@ def test_bill_detail_exposes_normalized_ai_analysis_without_metadata(client):
     detail_payload = detail_response.json()["data"]
 
     assert detail_payload["ai_analysis"] == {
-        "short_title": None,
+        # The plain-language headline every surface shows in place of the official
+        # legal title. Also copied onto ``bill.short_title`` by a trigger so
+        # keyword search can match it (#1452).
+        "short_title": "Statewide Jobs and Worker Training Budget",
         "summary": (
             "SF 1832 is an omnibus jobs, labor, and economic development package. "
             "It combines agency appropriations with policy changes for workforce programs, "
@@ -1458,6 +1461,50 @@ def test_bill_search_matches_inflected_word_roots(client):
     # The multi-type /search endpoint uses the same normalization.
     combined = client.get(
         "/api/v1/search", params={"q": "establishes", "types": "bills"}
+    )
+    assert combined.status_code == 200
+    assert 1832 in [b["file_number"] for b in combined.json()["data"]["bills"]]
+
+
+def test_bill_search_finds_a_bill_by_the_headline_its_card_displays(client):
+    """Search matches the plain-language headline a reader can actually see
+    (#1452), not only the bill's official legal title.
+
+    The reported failure, on production: searching the exact words on SF 3458's
+    card — "Repeal of Political Contribution Refund Program" — returned nothing,
+    because search read only ``bill.title`` and ``bill.description`` while every
+    surface *displays* the AI-written ``short_title``. SF 1832's fixture headline
+    is "Statewide Jobs and Worker Training Budget"; "Statewide" and "Training"
+    appear in neither its official title nor its description, so each assertion
+    below returned zero results before the headline became searchable."""
+    session = {"session": "94-2025-regular"}
+
+    headline = client.get(
+        "/api/v1/bills",
+        params={**session, "q": "Statewide Jobs and Worker Training Budget"},
+    )
+    assert headline.status_code == 200
+    assert 1832 in [b["file_number"] for b in headline.json()["data"]]
+
+    # One word that exists only in the headline is enough, and it ranks the bill
+    # first: a headline match is as strong a subject signal as a legal-title one.
+    single = client.get("/api/v1/bills", params={**session, "q": "Statewide"})
+    assert single.status_code == 200
+    single_numbers = [b["file_number"] for b in single.json()["data"]]
+    assert single_numbers and single_numbers[0] == 1832
+
+    # Filler words no longer gate the match. "with" appears nowhere in SF 1832's
+    # title, description or headline, so requiring it dropped the bill entirely.
+    filler = client.get(
+        "/api/v1/bills", params={**session, "q": "jobs budget with worker training"}
+    )
+    assert filler.status_code == 200
+    assert 1832 in [b["file_number"] for b in filler.json()["data"]]
+
+    # The multi-type /search typeahead matches the same text, so a bill cannot be
+    # findable in one search box and invisible in the other.
+    combined = client.get(
+        "/api/v1/search", params={"q": "Statewide Training", "types": "bills"}
     )
     assert combined.status_code == 200
     assert 1832 in [b["file_number"] for b in combined.json()["data"]["bills"]]
