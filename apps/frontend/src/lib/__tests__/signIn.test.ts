@@ -6,6 +6,8 @@ import {
   SIGN_IN_INTENTS,
   SIGN_IN_RETRY_LABEL,
   SignInIntent,
+  authErrorReturnDecision,
+  createSignInAttemptGate,
   initialSignInState,
   parseAuthError,
   signInButtonLabel,
@@ -199,6 +201,18 @@ describe('dialog state machine', () => {
 });
 
 describe('reading a failure off the return URL', () => {
+  it('waits for the saved session before deciding whether a return error is real', () => {
+    expect(authErrorReturnDecision(true, false)).toBe('wait-for-session');
+  });
+
+  it('ignores an old return error when the reader already has a valid session', () => {
+    expect(authErrorReturnDecision(false, true)).toBe('keep-success');
+  });
+
+  it('shows a return error when the session check finds no signed-in reader', () => {
+    expect(authErrorReturnDecision(false, false)).toBe('show-error');
+  });
+
   it('treats backing out of Google as cancelled, everything else as a failure', () => {
     expect(signInErrorKind('access_denied')).toBe('cancelled');
     expect(signInErrorKind('server_error')).toBe('failed');
@@ -239,5 +253,22 @@ describe('reading a failure off the return URL', () => {
     expect(urlWithoutAuthError('https://alethical.com/tracked#error=access_denied')).toBe(
       '/tracked',
     );
+  });
+});
+
+describe('starting Google sign-in once', () => {
+  it('accepts the first press and blocks a second press before the screen redraws', () => {
+    const gate = createSignInAttemptGate();
+
+    expect(gate.begin()).toBe(true);
+    expect(gate.begin()).toBe(false);
+  });
+
+  it('accepts a fresh press after a failed attempt is reset', () => {
+    const gate = createSignInAttemptGate();
+
+    expect(gate.begin()).toBe(true);
+    gate.reset();
+    expect(gate.begin()).toBe(true);
   });
 });

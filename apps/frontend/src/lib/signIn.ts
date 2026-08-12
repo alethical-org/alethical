@@ -87,6 +87,32 @@ export function signInErrorKind(code: string | null | undefined): SignInErrorKin
   return code === 'access_denied' ? 'cancelled' : 'failed';
 }
 
+export type AuthErrorReturnDecision = 'wait-for-session' | 'keep-success' | 'show-error';
+
+/** Decide whether an OAuth error is still real after the saved session is checked. */
+export function authErrorReturnDecision(
+  isSessionLoading: boolean,
+  isSignedIn: boolean,
+): AuthErrorReturnDecision {
+  if (isSessionLoading) return 'wait-for-session';
+  return isSignedIn ? 'keep-success' : 'show-error';
+}
+
+/** Synchronously blocks a second press before React can redraw the busy button. */
+export function createSignInAttemptGate() {
+  let started = false;
+  return {
+    begin() {
+      if (started) return false;
+      started = true;
+      return true;
+    },
+    reset() {
+      started = false;
+    },
+  };
+}
+
 export interface SignInDialogState {
   open: boolean;
   intent: SignInIntent;

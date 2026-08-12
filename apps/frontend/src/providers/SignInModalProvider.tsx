@@ -4,6 +4,8 @@ import { Platform } from 'react-native';
 import { SignInDialog } from '../components/auth/SignInDialog';
 import {
   SignInRequest,
+  authErrorReturnDecision,
+  createSignInAttemptGate,
   initialSignInState,
   parseAuthError,
   signInErrorKind,
@@ -70,10 +72,11 @@ function restoreScrollPosition(scrollY?: number) {
 }
 
 export function SignInModalProvider({ children }: PropsWithChildren) {
-  const { isSignedIn, authError, authErrorKind, signInWithGoogle } = useAuth();
+  const { isLoading, isSignedIn, authError, authErrorKind, signInWithGoogle } = useAuth();
   const { setTrackedBill } = useTrackedBillWrite();
   const [state, dispatch] = useReducer(signInReducer, initialSignInState);
   const pendingRequest = useRef<SignInRequest | null>(readPendingSignIn());
+  const signInAttemptGate = useRef(createSignInAttemptGate()).current;
 
   const openSignIn = useCallback(
     (request: SignInRequest) => {
@@ -86,16 +89,21 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
   );
 
   const close = useCallback(() => {
+    signInAttemptGate.reset();
     pendingRequest.current = null;
     clearPendingSignIn();
     dispatch({ type: 'close' });
-  }, []);
+  }, [signInAttemptGate]);
 
   const onContinue = useCallback(() => {
+    if (!signInAttemptGate.begin()) return;
     dispatch({ type: 'connect' });
     // Development builds only: stop here so the connecting state can be looked at
     // (lib/devSignInHold.ts). Nothing is stashed because nothing is coming back.
-    if (signInHeldConnecting()) return;
+    if (signInHeldConnecting()) {
+      signInAttemptGate.reset();
+      return;
+    }
     const request: SignInRequest = {
       intent: state.intent,
       returnTo: state.returnTo,
@@ -105,8 +113,19 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
     };
     pendingRequest.current = request;
     stashPendingSignIn(request);
-    void signInWithGoogle(state.returnTo);
-  }, [signInWithGoogle, state.billCode, state.billId, state.intent, state.returnTo, state.scrollY]);
+    void signInWithGoogle(state.returnTo).catch(() => {
+      signInAttemptGate.reset();
+      dispatch({ type: 'fail', kind: 'failed' });
+    });
+  }, [
+    signInAttemptGate,
+    signInWithGoogle,
+    state.billCode,
+    state.billId,
+    state.intent,
+    state.returnTo,
+    state.scrollY,
+  ]);
 
   // Signing in anywhere — including a second tab — closes the dialog. When this
   // tab came back from a Track request, finish that exact idempotent write first.
@@ -115,6 +134,7 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
     const justSignedIn = isSignedIn && !authWasSignedIn.current;
     authWasSignedIn.current = isSignedIn;
     if (!isSignedIn || (!justSignedIn && !pendingRequest.current)) return;
+    signInAttemptGate.reset();
     const request = pendingRequest.current;
     pendingRequest.current = null;
     clearPendingSignIn();
@@ -124,15 +144,16 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
     }
     dispatch({ type: 'close' });
     return stopRestoringScroll;
-  }, [isSignedIn, setTrackedBill]);
+  }, [isSignedIn, setTrackedBill, signInAttemptGate]);
 
   // A failure we can see live: the native Google sheet being dismissed, or
   // Supabase refusing before any redirect happens.
   useEffect(() => {
     if (authError && state.status === 'connecting') {
+      signInAttemptGate.reset();
       dispatch({ type: 'fail', kind: authErrorKind ?? 'failed' });
     }
-  }, [authError, authErrorKind, state.status]);
+  }, [authError, authErrorKind, signInAttemptGate, state.status]);
 
   // The web return trip: Google sends failures back as URL params on the page we
   // asked it to return to. Reopen the dialog where it left off, then take the
@@ -140,10 +161,18 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
   const returnHandled = useRef(false);
   useEffect(() => {
     if (!isWeb || typeof window === 'undefined' || returnHandled.current) return;
-    returnHandled.current = true;
     const failure = parseAuthError(window.location.search, window.location.hash);
+    if (!failure) {
+      returnHandled.current = true;
+      return;
+    }
+    const decision = authErrorReturnDecision(isLoading, isSignedIn);
+    if (decision === 'wait-for-session') return;
+    returnHandled.current = true;
+    window.history.replaceState(null, '', urlWithoutAuthError(window.location.href));
+    if (decision === 'keep-success') return;
+    signInAttemptGate.reset();
     const pending = pendingRequest.current;
-    if (!failure) return;
     pendingRequest.current = null;
     clearPendingSignIn();
     dispatch({
@@ -151,8 +180,7 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
       request: pending ?? { intent: 'nav' },
       kind: signInErrorKind(failure.code),
     });
-    window.history.replaceState(null, '', urlWithoutAuthError(window.location.href));
-  }, []);
+  }, [isLoading, isSignedIn, signInAttemptGate]);
 
   const value = useMemo(() => ({ openSignIn }), [openSignIn]);
 
