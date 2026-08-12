@@ -179,6 +179,20 @@ retries with linear backoff on `429/500/502/503/504`).
 Reference URL shapes: `https://api.revisor.mn.gov/bills/v1/94/2025/0/HF/2136/` ·
 `https://www.revisor.mn.gov/bills/94/2025/0/HF/2136/versions/0/`
 
+### A bill's current status keeps the 2 chamber counters separate
+
+House action 20 is not automatically newer than Senate action 7. Each chamber starts its own
+counter at 1, so the importer orders action numbers only inside that chamber
+([#1322](https://github.com/alethical-org/alethical/issues/1322)). It then compares the last House
+and Senate actions by date. An undated action after dated actions carries the chamber's preceding
+date for this comparison only; its stored `action_at` stays empty. If both chamber tails land on the
+same date, their order in the official status XML is the stable fallback.
+
+An enactment or veto is a terminal milestone. A later routine label cannot make an enacted bill
+look pending again. `latest_action_at` still records only the latest real date supplied by the
+state. The release dry run found 163 stored current-status labels that the bounded correction will
+cover under this rule.
+
 ### Re-fetches refuse 1 thin source response
 
 Before an existing bill is changed, the importer compares the fetched counts of
@@ -197,6 +211,11 @@ The future scheduled refresh
 ([#1323](https://github.com/alethical-org/alethical/issues/1323)) owns turning that
 post-retry signal into a GitHub issue. A blank description is non-destructive: it
 keeps the stored description, just as a blank parsed title keeps the stored title.
+
+One accepted-removal path is still unsafe: a twice-confirmed lower section list does not yet delete
+the absent stored section or its search rows
+([#1423](https://github.com/alethical-org/alethical/issues/1423)). The automatic schedule remains
+off until that separate fix ships.
 
 ### Changed bill text and search rows publish together
 

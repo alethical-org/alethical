@@ -296,7 +296,12 @@ Validation examples:
 - bill companion numbers should match expected file type patterns
 - 1 response may not lower a stored bill's action, author, text-version or section count;
   the same lower source facts must arrive twice before they are accepted
-- actions should be ordered by action number and date
+- an action number orders actions only inside its own chamber because House and Senate counters
+  each restart at 1
+- each chamber tail carries its preceding real date when that tail has no date; this value is used
+  only to compare chamber tails and is never saved as the missing action's date
+- chamber tails are compared by that carried date, then by official XML chamber-block order when
+  dates tie; an enactment or veto remains the current status instead of yielding to a routine label
 
 Reconciliation examples:
 
