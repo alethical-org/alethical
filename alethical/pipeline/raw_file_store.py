@@ -56,10 +56,16 @@ def sha256_of_file(path: str) -> str:
 
 
 class RawFileStore:
-    """The private bucket that holds one immutable object per downloaded file.
+    """The private bucket that holds one object per distinct downloaded file.
 
-    Keys are content addresses, so an object is written once and never
-    overwritten and no version history is needed.
+    Keys are content addresses, which is what makes an object effectively
+    immutable: any writer putting bytes at that key is putting the same bytes,
+    because the key is their hash. **Nothing here enforces write-once at the
+    protocol level**, and Codex was right to say so — there is no conditional
+    write, and an unversioned S3 bucket lets a same-key upload replace what is
+    there. What is enforced instead is stronger where it counts: every object is
+    read back and hashed before any database row points at it, so a row can never
+    claim bytes that are missing, truncated, or not the ones we meant.
     """
 
     def __init__(self, client, bucket: str = BUCKET) -> None:

@@ -1183,6 +1183,126 @@ def test_a_dry_run_writes_nothing(db, board, store) -> None:
     assert store.objects == {}
 
 
+# --- What Codex found at max reasoning effort --------------------------------
+#
+# Each of the 4 below is a defect a review found in working, passing code, and
+# each is written as the sequence that produces it rather than as a description of
+# the fix, so a later rewrite has to keep the property and not just the wording.
+
+
+def test_two_records_that_differ_only_in_where_a_control_character_falls() -> None:
+    """A separator inside a field made 2 different records hash identically.
+
+    Codex demonstrated it: joining the fields with one byte means ``["A\\x1fB", "C"]``
+    and ``["A", "B\\x1fC"]`` produce the same bytes to hash, so a changed file would
+    be found on file as unchanged and the change would be lost in silence. The parser
+    rejects only NUL, so every other control character arrives here as ordinary text.
+    Each field's own length is hashed first, which no rearrangement can fake.
+    """
+    left = cf._record_fingerprint(["A\x1fB", "C"])
+    right = cf._record_fingerprint(["A", "B\x1fC"])
+    assert left != right
+    # And the ordinary property still holds: the same record hashes the same.
+    assert cf._record_fingerprint(["A", "B"]) == cf._record_fingerprint(["A", "B"])
+
+
+def test_identical_bytes_compress_identically_whatever_the_file_is_called(
+    tmp_path,
+) -> None:
+    """``mtime=0`` alone was not enough, which is Codex's finding.
+
+    ``gzip`` also writes the output file's own basename into the header, so the same
+    input written to 2 differently-named files compressed to 2 different hashes.
+    Measured here rather than argued. The compressed hash has to be a property of the
+    download, never of a temporary path on the machine that happened to fetch it.
+    """
+    source = tmp_path / "same-input.csv"
+    source.write_bytes(b"a,b,c\n" * 500)
+    first, first_size = cf.gzip_to(str(source), str(tmp_path / "one.csv.gz"))
+    second, second_size = cf.gzip_to(str(source), str(tmp_path / "two.csv.gz"))
+    assert first == second
+    assert first_size == second_size
+
+
+def test_pruning_waits_for_the_lock_a_publish_holds(db, board, store) -> None:
+    """Otherwise pruning deletes the rows of a set another import just published.
+
+    Codex found the sequence, and it ends with the live release holding no rows at
+    all: run A publishes and commits, releasing the lock; run A reads the pointer to
+    decide what to keep; run B publishes a newer set; run A's next statement sees B's
+    snapshots, which are absent from the list A already built, and deletes their rows.
+    Each statement in a normal transaction gets a fresh view, so a keep-list built one
+    statement earlier is already out of date.
+
+    Proved by holding that lock from a second connection and showing pruning waits
+    rather than proceeding on a stale read. A wait is the whole fix: it makes the
+    pointer read below un-overtakeable.
+    """
+    publish_first(db, board, store)
+
+    holder = get_session_factory()()
+    try:
+        holder.execute(
+            text("SELECT pg_advisory_xact_lock(:key)"), {"key": cf.PUBLISH_LOCK_KEY}
+        )
+        db.commit()
+        db.execute(text("SET LOCAL lock_timeout = '750ms'"))
+        with pytest.raises(Exception) as blocked:
+            cf.prune(db)
+        assert "lock" in str(blocked.value).lower()
+    finally:
+        holder.rollback()
+        holder.close()
+        db.rollback()
+
+    # With the lock free it runs, and takes nothing that is live.
+    assert cf.prune(db) == (0, 0)
+
+
+def test_publishing_rechecks_the_bands_against_the_release_it_finds_in_the_lock(
+    db, board, store, monkeypatch
+) -> None:
+    """Being newer is not the same as having been compared.
+
+    Codex's sequence: 2 runs both read a live release of 100 rows, the first publishes
+    105 and passes the growth limit, and the second — which started later, so the age
+    check waves it through — publishes its 100 rows, a 4.8% fall from what is now live
+    against a limit of 0.5%. Its numbers were never compared with anything that was
+    ever published.
+
+    Simulated by pinning the *outer* validation to the release that was live when the
+    run started while a newer one is really live, which is exactly the state 2
+    overlapping runs produce. The re-check inside the lock is what refuses it.
+    """
+    first = publish_first(db, board, store)
+    stale_baselines = cf.baseline_snapshots(db)
+
+    # A second set whose total is 9.5% higher: inside the 10% growth limit, so it
+    # publishes normally. Same row count, so only the money moves.
+    raised = [row.replace(",500.0000,", ",1175.0000,") for row in CONTRIBUTION_ROWS]
+    assert raised != CONTRIBUTION_ROWS
+    board.set_rows(Dataset.contributions, raised)
+    second = run(db, board, store)
+    assert second.published, second.summary()
+    assert second.release_id != first.release_id
+
+    # Now a set carrying the first release's money again, with one donor's name spelled
+    # differently so it is genuinely a new set rather than the unchanged one. Against
+    # the release this run thinks is live every band passes; against the release that
+    # really is live its total is 9% lower, and the limit is 1%.
+    board.set_rows(
+        Dataset.contributions,
+        [row.replace("Smith", "Smyth") for row in CONTRIBUTION_ROWS],
+    )
+    monkeypatch.setattr(cf, "baseline_snapshots", lambda _db: stale_baselines)
+    with pytest.raises(cf.CampaignFinanceRefusal) as refusal:
+        run(db, board, store)
+    message = str(refusal.value)
+    assert "amount_sum_within_band" in message
+    assert "another import published in between" in message
+    assert live(db).id == second.release_id, "the newer set must stay live"
+
+
 def test_measurements_record_what_the_checks_compare(db, board, store) -> None:
     """Kept on the snapshot rather than recomputed from rows.
 

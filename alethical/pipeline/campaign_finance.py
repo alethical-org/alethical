@@ -54,13 +54,22 @@ one body is stored per distinct record set rather than per download. Keyed on th
 bytes alone, every run would look like a new file, publish a new release, renumber
 every row, and prune the set it had just replaced.
 
-Two things a reader of this data must know. A request must **resolve one release id
-and use it for all 3 datasets**: each statement sees the newest committed state, so
-re-resolving "the live release" per query can hand back a mixed set. And the rows
-of a superseded release survive one further publish and are then pruned, which is
-enough for a request that resolved that release moments before a publish; an id
-cached for longer than that resolves to no rows, so re-resolve rather than keeping
-one.
+Two things a reader of this data must know, and the second one has a limit worth
+stating exactly. A request must **resolve one release id and use it for all 3
+datasets**: each statement sees the newest committed state, so re-resolving "the
+live release" per query can hand back a mixed set. Safest is to resolve the pointer,
+the release and the rows in a single statement, or in one explicitly repeatable-read
+transaction.
+
+And **the rows of a superseded release survive exactly one further publish**, then
+go. That covers a request that resolved a release moments before a publish, which is
+the realistic case, because a publish is a person running a command and the 3
+downloads alone take about 90 seconds. It does **not** cover 2 publishes landing
+inside one request: a reader holding the release from before both of them finds no
+rows, and a page that renders that as "this committee has no payments" is exactly the
+missing-versus-zero failure `.claude/rules/grounded-answers.md` rule 12 forbids. So
+re-resolve rather than caching an id, and treat "0 rows for a release id that exists"
+as stale, never as an answer about a person.
 """
 
 from __future__ import annotations
@@ -479,6 +488,19 @@ class LoadReport:
                 f"  pruned {self.pruned_rows:,} rows from "
                 f"{self.pruned_snapshots} superseded snapshot(s)"
             )
+            # Said once, at the end, where an operator reads the outcome — not only
+            # buried 3 times among the per-file lines above. Codex's second finding
+            # is that a file where 2 amounts were swapped between 2 committees
+            # passes every check this loader can run, because each one watches the
+            # whole file rather than any one filer's money. That is true, and the
+            # only checks that would catch it need Minnesota's own per-filer totals
+            # (#1408). So a published set says what it has not been compared with,
+            # rather than reading as fully checked.
+            lines.append(
+                "  not reconciled against Minnesota's own figures: no filing total "
+                "and no filer directory are stored yet (#1408), so this set is "
+                "checked for shape and movement, not for whose money each row is"
+            )
         else:
             lines.append("  nothing published")
         return "\n".join(lines)
@@ -784,11 +806,7 @@ def parse_and_measure(
             # 583,152 tuples of 15 strings costs hundreds of megabytes. Kept with
             # duplicates, because 20,524 records in one real download repeat another
             # record and a set would throw that multiplicity away.
-            fingerprints.append(
-                hashlib.blake2b(
-                    "\x1f".join(raw).encode("utf-8", "surrogatepass"), digest_size=16
-                ).digest()
-            )
+            fingerprints.append(_record_fingerprint(raw))
             # The exact signature of the Board's backslash-escaped quote once the
             # default reader has consumed the closing quote into the value. This
             # definition counts 18 contribution and 17 expenditure records on the
@@ -812,6 +830,26 @@ def parse_and_measure(
             digest.update(fingerprint)
         measured.record_set_hash = digest.hexdigest()
     return measured
+
+
+def _record_fingerprint(raw: list[str]) -> bytes:
+    """A 16-byte digest of one record, with each field's own length hashed first.
+
+    The length prefix is the whole point. Joining the fields with a separator
+    instead lets 2 different records produce identical bytes whenever a field
+    contains that separator: ``["A\\x1fB", "C"]`` and ``["A", "B\\x1fC"]`` both
+    join to ``A\\x1fB\\x1fC``. Codex found that at max reasoning effort and
+    demonstrated the collision, and it is not academic — the parser rejects only
+    NUL, so every other control character reaches here as ordinary text. Two
+    records colliding would make a changed file look unchanged, which defeats the
+    one thing the record-set hash decides.
+    """
+    digest = hashlib.blake2b(digest_size=16)
+    for cell in raw:
+        encoded = cell.encode("utf-8", "surrogatepass")
+        digest.update(len(encoded).to_bytes(4, "big"))
+        digest.update(encoded)
+    return digest.digest()
 
 
 def _records(reader: Any, measured: Measurements) -> Iterable[list[str]]:
@@ -1046,15 +1084,22 @@ def _columns_that_gained_blanks(
 
 
 def gzip_to(source_path: str, destination_path: str) -> tuple[str, int]:
-    """Compress with ``mtime=0``, so identical input always compresses identically.
+    """Compress with ``mtime=0`` and no stored filename, so identical input always
+    compresses to identical bytes.
 
-    Without that the same file gets a new timestamp in its gzip header every run
-    and an unchanged download would look like a new one in the store.
+    Both arguments are load-bearing and ``mtime=0`` alone is not enough, which is
+    Codex's finding. Without ``mtime=0`` the same file gets a new timestamp in its
+    gzip header every run. And ``GzipFile`` also writes the *output file's own
+    basename* into that header, so measured here: the same 1,200 bytes written to
+    ``a.csv.gz`` and to ``b.csv.gz`` produced 2 different compressed hashes, and
+    ``filename=""`` produced one. Today's output name happens to be stable per
+    dataset, so this was latent rather than live — but it made the compressed hash
+    depend on a local temporary path, which is not a property of the download.
     """
     with (
         open(source_path, "rb") as source,
         open(destination_path, "wb") as raw,
-        gzip.GzipFile(fileobj=raw, mode="wb", mtime=0) as compressed,
+        gzip.GzipFile(fileobj=raw, mode="wb", mtime=0, filename="") as compressed,
     ):
         shutil.copyfileobj(source, compressed, COPY_CHUNK_BYTES)
     return sha256_of_file(destination_path), os.path.getsize(destination_path)
@@ -1344,6 +1389,7 @@ def publish(
     fetch_completed_at: datetime,
     ingestion_run_id: Optional[uuid.UUID],
     notes: Optional[str],
+    approved_hashes: Optional[set[str]] = None,
     store: Any = None,
     directory: Optional[str] = None,
 ) -> uuid.UUID:
@@ -1354,6 +1400,15 @@ def publish(
     release's is refused. Without that, two overlapping imports let the one that
     *started* first finish last and replace newer data with older data — a "one
     published release" rule limits quantity, not age.
+
+    **The comparison checks are then re-run against the release found inside the
+    lock**, because being newer is not the same as having been compared. Codex
+    found the gap: 2 runs both read a live release of 100 rows, the first publishes
+    105 rows and passes the 5% growth limit, and the second — which started later,
+    so the age check waves it through — publishes its 100 rows, a 4.8% fall from
+    what is now live, against a limit of 0.5%. Its numbers were never compared with
+    anything that was ever published. Re-running here is cheap because every check
+    reads recorded measurements rather than rows.
     """
     db.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": PUBLISH_LOCK_KEY})
     pointer = db.execute(
@@ -1378,6 +1433,39 @@ def publish(
             "is the one thing the pointer row exists to prevent. Re-run to fetch "
             "the current files."
         )
+
+    inside_lock: dict[Dataset, Any] = {}
+    if current is not None:
+        for dataset, column in RELEASE_SNAPSHOT_COLUMN.items():
+            baseline = db.get(
+                schema.CampaignFinanceSnapshot,
+                getattr(current, column),
+                populate_existing=True,
+            )
+            if baseline is not None:
+                inside_lock[dataset] = baseline
+    for outcome in outcomes:
+        measured = outcome.measurements
+        rechecked = validate(
+            outcome.spec,
+            outcome.fetched,
+            measured,
+            inside_lock.get(outcome.spec.dataset),
+            operator_approved=bool(
+                measured is not None
+                and measured.record_set_hash in (approved_hashes or set())
+            ),
+        )
+        failed = [check for check in rechecked if check.blocks_publication]
+        if failed:
+            raise CampaignFinanceRefusal(
+                f"Refusing to publish {outcome.spec.key}: it passed its checks against "
+                "the set that was live when this run started, and fails them against "
+                "the set that is live now, so another import published in between. "
+                + "; ".join(f"{check.name}: {check.detail}" for check in failed)
+                + ". Re-run to compare against what is actually published."
+            )
+        outcome.checks = rechecked
 
     for outcome in outcomes:
         spec = outcome.spec
@@ -1480,7 +1568,19 @@ def prune(db: Session) -> tuple[int, int]:
     Only rows are pruned. Every body is kept indefinitely, including every
     quarantined one, because the checks compare recorded measurements rather than
     old rows and the Board keeps no archive of its own.
+
+    **It takes the same lock ``publish()`` takes, and that is what makes it safe
+    to run outside the publish transaction.** Codex found the sequence at max
+    reasoning effort, and it ends with the live release holding no rows at all:
+    run A publishes, commits, and releases the lock; run A reads the pointer here
+    and builds its keep-list; run B publishes a newer set and commits; run A's
+    next statement sees B's snapshots, because each statement in a Read Committed
+    transaction gets a fresh view, and they are absent from the list A already
+    built, so A deletes the rows of the set that is live. Holding the publish lock
+    for this whole transaction means no publish can commit in that gap, so the
+    pointer read below cannot go stale while it is being acted on.
     """
+    db.execute(text("SELECT pg_advisory_xact_lock(:key)"), {"key": PUBLISH_LOCK_KEY})
     release = live_release(db)
     keep: set[uuid.UUID] = set()
     if release is not None:
@@ -1705,6 +1805,7 @@ def load_campaign_finance(
             fetch_completed_at=fetch_completed_at,
             ingestion_run_id=ingestion_run_id,
             notes=notes,
+            approved_hashes=approved,
             store=store,
             directory=directory,
         )
