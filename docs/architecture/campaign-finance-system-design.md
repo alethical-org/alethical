@@ -728,10 +728,20 @@ card would have shown every dollar of it as unnamed small-donor money. **So unti
 passes this check, its split is not published**, and "we hold no itemized rows" is never rendered
 as "this money had no names".
 
-**Every figure carries its own "reported through" date, and that is what makes the no-ranking
-rule below enforceable.** The route returns each committee's most-recent-report-through date, so
-the date beside a total is a per-figure fact rather than a page-level one — which is the
-difference between a page that cannot be compared across members and a page that shows why.
+**A figure may not be rendered for a requested year unless the returned coverage end falls inside
+that year. This is a guard, not a caption.** The totals route **ignores the year you ask for when
+that year has no report, and returns the most recent report's figures instead** — HTTP 200, no
+marker, nothing in the response different except its coverage-end date. Measured on 8 filers with a
+2025 report and no 2026 report: all 8 answered a 2026 request with their 2025 figures, byte for byte
+(§9.1). So the coverage-end date is the only thing standing between a page and **printing last
+year's money under this year's heading**, which is the worst output this product can produce: a
+wrong number that looks exactly like a right one. Check it first, then print it beside the figure.
+
+**Three of §7's empty-year states never fire if a build trusts that route.** A member not on this
+year's ballot, a member whose committee has closed, and a member whose report is late are all
+populations whose request for this year returns last year's money. Each is drawn as an empty
+treatment, and each would instead show a full, confident, stale total. The states are right; the
+trigger is what has to change, and the trigger is the coverage-end check above.
 
 **When the totals route fails, keep the last accepted figures and their existing date.** §9.3
 makes an undocumented route's failures stop a release rather than degrade it, and answers several
@@ -837,7 +847,13 @@ different people, which is the concrete case behind §5.
 
 **Never rank, total or sort members by amount for the current year.** Sitting members are on two
 different filing calendars, so on any day in 2026 a side-by-side list compares one member's
-part-year total against another member's blank. Verified by reading the Board's own calendars
+part-year total against another member's — **and the second figure is not blank, which is worse
+than the version of this rule that stood here until 12 Aug 2026.** That version reasoned from a
+blank. There is none: a member with nothing filed for this year answers with last year's money
+(§9.1), so an unguarded list would put two members side by side, both figures confident, both
+looking current, covering **different periods**, with nothing on screen to say so. The rule was
+right and its stated reason described a failure that does not occur. Verified by reading the
+Board's own calendars
 on 11 Aug 2026: a member on the 2026 ballot filed a pre-primary report on 27 Jul covering 1 Jan
 to 20 Jul and files a pre-general on 26 Oct (`cfb.mn.gov/pdf/calendars/2026_senate_house_district_court.pdf`),
 while a member **not** running files nothing covering 2026 money until the year-end report due
@@ -989,6 +1005,19 @@ every one of them carries the 2026 termination date, so read as "this report ter
 committee" it is wrong on 15 of 16 rows. It means "this registration is terminated, as of this date",
 and says nothing about the report it is attached to. §7 turns the same fact into a display state.
 
+**Read termination from any row, and never infer it from `TerminationYear`.** It is present on every
+report row of a terminated filer, not only the final one: across 12 filers carrying one, 16 of 16,
+17 of 17, 8 of 8, 6 of 6 and so on. So a profile takes it from whatever year's row it already holds
+and needs no extra query. And `TerminationYear` is **never** set while `TerminationDate` is empty — 0
+cases in 1,707 rows — so the date is the field to read and the year is a derivative of it.
+
+**A terminating committee files its final report at termination, not at the period's end, and that
+confirms §9.6's null-array signal rather than breaking it.** Filer 18472's 2026 year-end is catalogued
+with a cutoff of 12/31/2026 and serves a real document today, months early, carrying
+`amendments: ['0']`. So `['0']` means *filed* even while the nominal period is still open, which is
+exactly what the signal claims; a null array still means never filed. This was checked specifically
+because it looked like a counter-example.
+
 **Each contributor-type line is that schedule's itemized plus non-itemized total, from the
 effective version.** Checked line by line against the documents for two filers. Senator Scott
 Dibble's committee (15667), 2024: the route's individuals $4,869.59 equals the report's
@@ -996,12 +1025,38 @@ $2,600.00 itemized plus $2,269.59 non-itemized; lobbyist $200.00 equals $0.00 pl
 committee/fund $750.00 equals $250.00 plus $500.00. Its campaign expenditures and noncampaign
 disbursements match their schedules the same way.
 
-**"Most recent report through" is the figure's coverage end, and it is load-bearing.** §7
-forbids ranking or totalling members by amount for the current year, because members sit on two
-different filing calendars and a comparison would put one member's part-year total beside
-another's blank. This field is what makes that enforceable per figure rather than per page: it
-states the date each committee's own numbers actually run to, and it is the date to print
-beside them.
+**"Most recent report through" is the figure's coverage end, and it is the only guard against
+publishing the wrong year entirely.** State the guard before the caption, because the caption is
+what it looks like and the guard is what it does.
+
+**The route ignores the year you ask for when that year has no report.** It answers 200 with the
+most recent report's figures instead: no status, no empty block, no marker, and nothing in the
+response different except this field. Measured on 8 filers holding a 2025 report and no 2026 report
+at all, each queried at both years:
+
+| filer | 2025 answer | 2026 answer |
+|---|---|---|
+| 16697 | through 12/31/2025, $22,502.00 | identical |
+| 17075 | through 12/31/2025, $12,050.00 | identical |
+| 17532 | through 12/31/2025, $10,940.00 | identical |
+| 17686 | through 12/31/2025, $3,550.30 | identical |
+| 17860 | through 12/31/2025, $0.00 | identical |
+| 18020 | through 12/31/2025, $8,886.63 | identical |
+| 18157 | through 12/31/2025, $4,970.00 | identical |
+| 18168 | through 12/31/2025, $14,329.00 | identical |
+
+8 of 8, and filer 18472 the same: a 2026 request returns 12/31/2025 and $9,455.00. **Note filer
+17860**: a genuine reported $0.00 for 2025, returned again for 2026, so the failure is not detectable
+by treating zero as absent either.
+
+**So the rule is: a figure may not be rendered for a requested year unless the returned coverage end
+falls inside that year.** Otherwise the year has no data and §7's empty state applies. Then, and only
+then, print this date beside the figure — which is also what makes §7's no-ranking rule enforceable
+per figure rather than per page.
+
+**And this route does not return a terminating committee's final report**, even where the catalogue
+serves that report's document today (§9.6). So the population §7 most needs an empty state for is
+exactly the population this route answers with stale money.
 
 ### 9.2 What it costs, and how far back it reaches
 
