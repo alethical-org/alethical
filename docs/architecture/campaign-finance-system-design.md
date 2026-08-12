@@ -14,6 +14,17 @@ dated snapshot, and publish the newest snapshot that passes its checks by replac
 previous one entirely. Never merge new rows into old ones. Show what the filings record;
 never assert that one payment caused another action.
 
+**Scope: money filed with the Minnesota Campaign Finance and Public Disclosure Board, and nothing
+else.** Congressional and presidential campaigns file with the Federal Election Commission, a
+different agency under different rules, and none of it is in this design (§2.4 records why, and
+`campaign-finance-roadmap.md` item 14 records that it is deliberate). Two consequences bind every
+surface, not just the ingestion: **no reader-facing copy, filter, chip, empty state or search
+placeholder may name a federal race, imply one is coming, or read as though a missing federal
+candidate were a gap in our Minnesota record** (`.claude/rules/grounded-answers.md` rule 2, never
+advertise what you can't answer, and rule 6, copy claims match shipped capability). And where a
+reader could reasonably search for a federal name — campaign finance being the domain where the
+famous names are federal — a surface says what the record **is** rather than listing what it lacks.
+
 ---
 
 ## Who edits this document
@@ -247,11 +258,21 @@ also live on the Board's report viewer and as PDFs, though most PDFs older than 
 served (§9.4). **Never rebuild payment rows out of a PDF for any period the bulk files already
 cover** — that is what the retired system did, and it is where its errors came from.
 
-### 2.4 Federal
+### 2.4 Federal, which this design does not cover
 
-Federal Election Commission API, deferred (see the roadmap). Federal data does carry its own
-transaction identifier on about 79% of rows, so when it is built it keys on that identifier
-directly and rejects rows without one.
+**Out of scope, deliberately** (`campaign-finance-roadmap.md` item 14): a separate agency, a separate
+set of rules, and a large amount of work for a Minnesota-first product. Nothing in this document
+describes it and nothing built from this document reads it.
+
+Recorded here rather than dropped for two reasons. First, so a later session can tell a **decision**
+from an **oversight** — the absence of federal money is a choice, not a hole someone forgot. Second,
+one measured fact that would matter if that choice ever changes: federal data carries its own
+transaction identifier on about 79% of rows, so it would key on that identifier directly and reject
+rows without one, which is the opposite of §4's snapshot approach and the reason it cannot simply be
+added to this pipeline.
+
+**This is not a promise, a phase, or a "coming soon".** Nothing reader-facing may present it as one
+(see the scope paragraph in this document's opening).
 
 ---
 
