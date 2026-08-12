@@ -138,17 +138,20 @@ Their public accounts, linked from their profile.
 
 Somewhere to send an anonymous pointer to something worth looking at.
 
-### 14. Federal money
+---
 
-Congressional races and federal committees. Deferred on purpose: it is a separate system, a
-different set of rules, and a large amount of work for a Minnesota-first product.
+## Minnesota only, and we do not say otherwise
 
-**Nothing we build says this is coming.** Everything on this list is Minnesota money reported to
-Minnesota's Campaign Finance Board. Money in races for Congress or for president is reported to a
-different agency, and we hold none of it, so no page, filter, empty state or search box may hint that
-it is on the way. A reader who searches for a member of Congress finds nothing, and the page has to
-say what it does hold rather than promise what it does not: a person who is told "not yet" believes a
-date exists, and there is none.
+Everything above is money reported to Minnesota's Campaign Finance Board: Minnesota races,
+Minnesota candidates, Minnesota committees and parties. Money reported to any other body is not
+part of this product, is not on this list, and is not named anywhere a reader can see.
+
+That second half is the part worth stating. We do not put "not yet" on a page, or list what we do
+not hold beside what we do. Telling someone a thing is not here yet promises them a date, and there
+is no date. Every page says what it holds and stops there.
+
+Eugene's call, 12 Aug 2026. It replaces an earlier "deferred" wording on this list, which had
+started to read as a plan.
 
 ---
 

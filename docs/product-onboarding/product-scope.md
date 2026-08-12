@@ -195,8 +195,9 @@ Minnesota focus or relies on unreviewed sources rather than an official public r
   screen is individually correct. Design: `docs/architecture/campaign-finance-system-design.md`.
   Plain-language plan: `docs/product-onboarding/campaign-finance-roadmap.md`.
 
-  - **Minnesota first, federal deferred.** Federal filings are a separate system with separate
-    rules; they wait.
+  - **Minnesota only.** Money filed with the Minnesota Campaign Finance and Public Disclosure
+    Board, and nothing else. Filings made to any other body are out of scope and are not named
+    on any surface, because naming an absence advertises it (Eugene, 12 Aug 2026).
   - **Whole-set replacement, not row merging.** Minnesota publishes no per-transaction
     identifier and two payments can be legitimately identical, so no key built from a row's
     contents can separate a genuine repeat payment from a re-import.
