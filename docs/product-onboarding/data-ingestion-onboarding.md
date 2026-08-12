@@ -674,6 +674,25 @@ The failures, each measured and each guarded rather than trusted:
    spacer row is served as `<td colspan="2"></th>`. Rows are classified by which cells
    they hold, which leaves the spacer matching neither.
 
+**And one that runs the other way: a response that looks broken and is perfectly
+ordinary.** A committee that is registered but has filed nothing sends an empty **list**
+where a committee with filings sends an object. This part of the Board's site is PHP, and
+PHP writes an empty array as `[]` and a populated one as `{}`, so "none" and "some" arrive
+as different JSON *types* — at two levels, `data` itself and `pdfs` inside it. Measured on
+the first full production run: **39 of 1,603 registered filers**, all recently registered.
+Treating any one of them as a failure quarantined a release that had already read 55,845
+figures correctly. So an empty list means zero reports, and a **non-empty** list is still
+an error, because that is a shape nothing here has seen and reading it as "none" would
+discard real filings in silence.
+
+**Reports the Board has only noticed as due are not counted as filings.** Filer 41430
+returns an empty filed-report list beside a `notices` collection holding 2 reports the
+Board says are due and nobody has filed, one of them carrying no amendment record at all.
+Counting those would let a page say a committee reported in a period it never reported in.
+It is also the likelier home of a "this report is late" signal than a missing amendment
+record inside the filed list, which matters to
+[#1375](https://github.com/alethical-org/alethical/issues/1375).
+
 **The label set is a contract in code, measured across the whole population rather than
 sampled.** An unknown, missing or repeated label stops a release, so the set has to be
 the real one: 4,809 requests over all 1,603 filers produced 3,630 filer-years and 55,845
