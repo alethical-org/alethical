@@ -1,0 +1,139 @@
+name: Copy stored source files to a second place
+
+# Keeps a second copy of the exact bytes of every campaign-finance download we
+# store (#1402). Supabase's own documentation says database backups "do not
+# include objects you store via the Storage API", so without this the private
+# `raw-source-files` bucket is the only copy and nothing protects it.
+#
+# Why losing one is not recoverable, unlike most backups: Minnesota's Campaign
+# Finance Board publishes no archive. The 23 download links never change and the
+# file behind each one is replaced as it grows, so a file we fail to keep cannot
+# be fetched again — asking returns a different file. Every figure we publish
+# resolves to a numbered line in one specific dated download, and resolves to
+# nothing if that download is gone.
+#
+# What is at stake is bounded, which is worth stating so nobody over-builds this:
+# every parsed row and every file hash live in Postgres and ride the database
+# backups, so no displayed figure disappears. What disappears is the ability to
+# show the source bytes behind a figure and to examine a rejected download.
+#
+# Free, at our sizes and well past them: Cloudflare R2 includes the first 10 GB
+# then charges $0.015 per GB, the whole store is 115 MB today and grows an
+# estimated 7 to 10 GB a year, pulling data back out of R2 costs nothing so a
+# restore is free, and GitHub Actions is free on a public repository.
+#
+# Cheap to repeat: an object already recorded as copied is skipped without moving
+# a byte. Measured 12 August 2026 — the first run copied 115 MB in 88 seconds, and
+# the run straight after it took 2 seconds and moved nothing.
+#
+# Design: docs/architecture/campaign-finance-system-design.md §4.5.
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 13:00 UTC daily (~7-8am America/Chicago). An hour after the searchability
+    # check at 12:00 and two after the bill-section gap check at 11:00, so the
+    # scheduled jobs never contend for the database.
+    - cron: "0 13 * * *"
+
+concurrency:
+  group: production-raw-file-mirror
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    # The database URL is built from the same Supabase inputs the app, migrations
+    # and the sibling checks use (supabase_database_url), so there is no separate
+    # DATABASE_URL copy of the password to rotate out of date (#288).
+    env:
+      ALETHICAL_DATABASE_TARGET: production
+      SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_STORAGE_S3_ENDPOINT: ${{ secrets.SUPABASE_STORAGE_S3_ENDPOINT }}
+      SUPABASE_STORAGE_S3_REGION: ${{ secrets.SUPABASE_STORAGE_S3_REGION }}
+      SUPABASE_STORAGE_S3_ACCESS_KEY_ID: ${{ secrets.SUPABASE_STORAGE_S3_ACCESS_KEY_ID }}
+      SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY: ${{ secrets.SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY }}
+      CLOUDFLARE_R2_ENDPOINT: ${{ secrets.CLOUDFLARE_R2_ENDPOINT }}
+      CLOUDFLARE_R2_BUCKET: ${{ secrets.CLOUDFLARE_R2_BUCKET }}
+      CLOUDFLARE_R2_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
+      CLOUDFLARE_R2_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      # Pinned to an exact release, matching the sibling workflows: setup-uv
+      # stopped publishing floating major tags after v7, so this one is bumped by
+      # hand. prune-cache keeps the smaller dependency cache.
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          enable-cache: true
+          prune-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version-file: ".python-version"
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      # Names every missing secret at once rather than dying on the first one, so
+      # one run tells you everything to add. A missing secret must fail rather than
+      # skip: a backup that quietly stops is worse than none, because it is trusted.
+      - name: Check the secrets are set
+        shell: bash
+        run: |
+          missing=()
+          for name in SUPABASE_PROJECT_URL SUPABASE_DB_PASSWORD \
+                      SUPABASE_STORAGE_S3_ENDPOINT SUPABASE_STORAGE_S3_REGION \
+                      SUPABASE_STORAGE_S3_ACCESS_KEY_ID SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY \
+                      CLOUDFLARE_R2_ENDPOINT CLOUDFLARE_R2_BUCKET \
+                      CLOUDFLARE_R2_ACCESS_KEY_ID CLOUDFLARE_R2_SECRET_ACCESS_KEY; do
+            [ -n "${!name}" ] || missing+=("$name")
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            printf 'Not set as repository secrets: %s\n' "${missing[*]}"
+            exit 1
+          fi
+
+      # Copies anything not already proven present, reading each object back out of
+      # the second store and hashing it before recording that it arrived. Exits 1 on
+      # any failure.
+      #
+      # Two things here are load-bearing, both learned from the sibling workflows:
+      #   * PYTHONPATH=. — the script lives in scripts/, so a plain `uv run python
+      #     scripts/...` puts scripts/ on sys.path and not the repo root, and the
+      #     script dies on `import alethical`. That would fire the alert below and
+      #     claim the backup failed when nothing had been attempted at all.
+      #   * shell: bash — GitHub's default is `bash -e` WITHOUT pipefail, so the
+      #     `| tee` would hand back tee's exit code (always 0) and swallow the
+      #     script's 1. `shell: bash` runs `bash -eo pipefail`.
+      - name: Copy every stored file that is not already in the second place
+        shell: bash
+        run: |
+          PYTHONPATH=. uv run python scripts/mirror_raw_files.py \
+            --target production | tee mirror-report.txt
+
+      # Mirrors rag-coverage-gaps.yml: use the built-in token, and comment on the
+      # open issue rather than filing a duplicate, so a fault that sits unfixed for
+      # a week is one issue and not seven. No external service or secret.
+      - name: Open an alert issue if any file failed to copy
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Stored campaign-finance files are not being copied to a second place"
+          report=$(cat mirror-report.txt 2>/dev/null || echo "(the job produced no output — it may have failed before reaching either store)")
+          body=$(printf '**Net:** The exact bytes of at least one Minnesota campaign-finance download now exist in only one place, and nothing backs that place up. Minnesota keeps no archive and replaces each file as it grows, so a file lost here cannot be downloaded again — asking returns a different file, and the source behind any figure we published from it is gone for good.\n\n```\n%s\n```\n\n**What to check first.** If the report names missing settings, add them as repository secrets (Settings, then Secrets and variables, then Actions) and re-run this job. If it says one name is claiming two different files, do NOT delete either — a stored file may be the only record of what Minnesota published that day.\n\n**Run it by hand** from a fresh worktree off `origin/main`. It only ever adds, never deletes, and a second run copies nothing:\n\n```\nALETHICAL_DATABASE_TARGET=production PYTHONPATH=. uv run python scripts/mirror_raw_files.py --target production --dry-run\nALETHICAL_DATABASE_TARGET=production PYTHONPATH=. uv run python scripts/mirror_raw_files.py --target production\n```\n\nBackground: [#1402](https://github.com/alethical-org/alethical/issues/1402). Run: %s. Auto-filed by `.github/workflows/mirror-raw-files.yml`.' "$report" "$RUN_URL")
+          existing=$(gh issue list --state open --search "$title in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "Still failing as of this run — $RUN_URL"$'\n\n```\n'"$report"$'\n```'
+          else
+            gh issue create --title "🚨 $title" --label backend --body "$body"
+          fi

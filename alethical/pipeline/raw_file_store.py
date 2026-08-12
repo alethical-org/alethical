@@ -30,7 +30,7 @@ from __future__ import annotations
 
 import hashlib
 import os
-from typing import BinaryIO
+from typing import BinaryIO, Optional
 
 BUCKET = "raw-source-files"
 
@@ -44,6 +44,17 @@ REQUIRED_ENV = (
     "SUPABASE_STORAGE_S3_REGION",
     "SUPABASE_STORAGE_S3_ACCESS_KEY_ID",
     "SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY",
+)
+
+# The second copy. Supabase's own documentation says database backups "do not
+# include objects you store via the Storage API", so nothing that protects the
+# database protects the bucket above — see #1402 and
+# ``docs/architecture/campaign-finance-system-design.md`` §4.5.
+MIRROR_REQUIRED_ENV = (
+    "CLOUDFLARE_R2_ENDPOINT",
+    "CLOUDFLARE_R2_BUCKET",
+    "CLOUDFLARE_R2_ACCESS_KEY_ID",
+    "CLOUDFLARE_R2_SECRET_ACCESS_KEY",
 )
 
 
@@ -73,16 +84,45 @@ class RawFileStore:
         self.bucket = bucket
 
     def exists(self, key: str) -> bool:
+        return self.size(key) is not None
+
+    def size(self, key: str) -> Optional[int]:
+        """The stored object's byte size, or ``None`` when there is no such object.
+
+        Size is not identity — the hash is — but it is the one property a single
+        cheap request returns, and because keys are content addresses any
+        difference at all means two different files are claiming one name. So the
+        mirror uses it to tell "already copied" from "must not be overwritten"
+        without moving bytes.
+        """
         from botocore.exceptions import ClientError
 
         try:
-            self._client.head_object(Bucket=self.bucket, Key=key)
+            response = self._client.head_object(Bucket=self.bucket, Key=key)
         except ClientError as error:
             status = error.response.get("ResponseMetadata", {}).get("HTTPStatusCode")
             if status in (403, 404):
-                return False
+                return None
             raise
-        return True
+        return int(response["ContentLength"])
+
+    def list_objects(self) -> dict[str, int]:
+        """Every object in the bucket, as key to byte size.
+
+        The bucket is the authority on what has been stored, and the database is
+        not: one bucket serves every database, so a local run's downloads land
+        beside production's and production's rows describe only some of what is
+        there. Measured 12 August 2026 — 12 objects present, 3 of them named by a
+        production row. A mirror driven off the rows would have left 9 real
+        downloads of dated Minnesota files unprotected.
+        """
+        objects: dict[str, int] = {}
+        for page in self._client.get_paginator("list_objects_v2").paginate(
+            Bucket=self.bucket
+        ):
+            for item in page.get("Contents", []):
+                objects[item["Key"]] = int(item["Size"])
+        return objects
 
     def put_and_verify(self, key: str, path: str, expected_sha256: str) -> None:
         """Upload the file at ``path``, then read the object back and hash it.
@@ -168,3 +208,40 @@ def raw_file_store_from_env(bucket: str = BUCKET) -> RawFileStore:
         config=Config(signature_version="s3v4", s3={"addressing_style": "path"}),
     )
     return RawFileStore(client, bucket=bucket)
+
+
+def mirror_file_store_from_env() -> RawFileStore:
+    """Build the second copy's store — Cloudflare R2 — from the environment.
+
+    Same class, same read-back check, different endpoint: both stores speak S3, so
+    the second copy is one copy step rather than a second integration.
+
+    Two things R2 needs that Supabase does not, both measured 11 August 2026:
+
+    * ``region_name="auto"``. R2 has no regions and ignores the value, but boto3
+      refuses to sign a request without one.
+    * **Never call ``list_buckets``.** The token is scoped to this one bucket, so
+      listing them all answers ``AccessDenied``. That is the scoping working, not
+      a misconfiguration, and it is why nothing here uses it as a health check.
+    """
+    import boto3
+    from botocore.config import Config
+
+    missing = [name for name in MIRROR_REQUIRED_ENV if not os.environ.get(name)]
+    if missing:
+        raise RuntimeError(
+            "Cannot reach the second copy: "
+            + ", ".join(missing)
+            + " not set. These are the Cloudflare R2 settings and its bucket-scoped "
+            "key, and they live in the gitignored .env at the repository root. In a "
+            "GitHub Actions run they are repository secrets of the same names."
+        )
+    client = boto3.client(
+        "s3",
+        endpoint_url=os.environ["CLOUDFLARE_R2_ENDPOINT"],
+        region_name="auto",
+        aws_access_key_id=os.environ["CLOUDFLARE_R2_ACCESS_KEY_ID"],
+        aws_secret_access_key=os.environ["CLOUDFLARE_R2_SECRET_ACCESS_KEY"],
+        config=Config(signature_version="s3v4", s3={"addressing_style": "path"}),
+    )
+    return RawFileStore(client, bucket=os.environ["CLOUDFLARE_R2_BUCKET"])
