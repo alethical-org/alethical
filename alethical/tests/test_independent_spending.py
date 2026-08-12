@@ -383,6 +383,24 @@ def test_a_rejected_link_never_counts(db, legislator):
     assert result.state == LINK_UNCONFIRMED
 
 
+def test_the_freshness_date_is_utc(db, legislator):
+    """The freshness date is normalised to UTC before anyone reads it.
+
+    The driver can return a ``timestamptz`` in the session's own timezone, and
+    this instant is the date a page prints beside the money. Left alone, a page
+    can name the wrong day for when we last fetched.
+    """
+    snapshot = _snapshot(db, Dataset.independent_expenditures)
+    _publish(db, independent=snapshot)
+    _row(db, snapshot, reg_num=SENATE_COMMITTEE, direction="For", amount="10.00")
+    db.commit()
+    _confirm(db, legislator, SENATE_COMMITTEE)
+    result = independent_spending_for_legislator(db, legislator.id, year=2025)
+    assert result.fetched_at is not None
+    assert result.fetched_at.utcoffset().total_seconds() == 0
+    assert result.fetched_at == datetime(2026, 8, 12, 2, 54, tzinfo=UTC)
+
+
 def test_the_route_serves_the_same_states(client, db, legislator):
     """The endpoint carries ``state`` so a page cannot read a figure it may not."""
     response = client.get(

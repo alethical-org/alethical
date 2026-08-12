@@ -1,6 +1,6 @@
 # Alethical Backend API System Design
 
-<!-- describes: alethical/api/routers/*.py, alethical/api/problems.py, alethical/api/serializers.py, alethical/api/services/representative_lookup.py, alethical/api/services/contact.py, alethical/api/auth.py, alethical/api/services/auth.py -->
+<!-- describes: alethical/api/routers/*.py, alethical/api/problems.py, alethical/api/serializers.py, alethical/api/services/representative_lookup.py, alethical/api/services/contact.py, alethical/api/services/independent_spending.py, alethical/api/auth.py, alethical/api/services/auth.py -->
 
 Status: **design reference, not an inventory of what exists.** Much of this document is the
 target shape rather than the shipped API, and the two used to be indistinguishable here: it
@@ -697,6 +697,50 @@ Filters (`legislator_votes()` takes two):
   the unfiltered one.
 - `vote_value` — **NOT BUILT**, same silent pass-through.
 - `cursor` — **NOT BUILT**
+
+#### `GET /api/v1/legislators/{legislator_id}/independent-spending`
+
+Shipped Aug 12 2026 ([#1332](https://github.com/alethical-org/alethical/issues/1332)), after
+the Aug 3 audit — so the preamble's "verified present on Aug 3 2026" does not cover it.
+
+Purpose:
+
+- money spent to support or oppose this legislator, for one calendar year, by groups that are
+  not their own campaign. It passes through no filing the campaign makes.
+
+`year` is **required** (`ge=2015, le=2100`, no default), which makes this the only public GET
+here with a required query param: a call without it is a 422, not a default year. Deliberate —
+a defaulted year would silently answer about a different period than the caller meant.
+
+**Read `state` before any figure. It carries the whole contract, and a client that reads
+`supporting` without branching on it will print "$0 spent against Senator X" out of an absent
+release:**
+
+- `unavailable` — no usable published release. A fact about us, never a figure about a person.
+  Also covers the stale case in `docs/product-onboarding/data-ingestion-onboarding.md` section H,
+  where a release id held across 2 publishes finds no rows.
+- `link_unconfirmed` — no human-confirmed link between this legislator and a campaign
+  committee, so no payment can be attributed to them. **Today this is every legislator**:
+  `legislator_campaign_committee` holds 0 rows in production (measured 12 Aug 2026), and it
+  drains as [#1354](https://github.com/alethical-org/alethical/issues/1354)'s review lands.
+- `reported` — real figures, and here a **0 is a measured 0**.
+
+`supporting`, `opposing` and `payment_count` are `null` in every state except `reported`.
+
+There are exactly 2 money figures and never a third: all 41,130 rows of the live release record
+"For" or "Against" and none is blank, so an "unrecorded target" figure would read 0 forever and
+imply the source leaves the question open. A row whose direction cannot be read joins neither.
+
+Returns `legislator_id`, `year`, `state`, `supporting`, `opposing`, `payment_count`,
+`source_url`, `fetched_at`, and `committees[]`. Each committee carries `registration_number`,
+`committee_name`, `office`, its own `supporting` / `opposing`, `supporting_payments`,
+`opposing_payments`, `first_payment_on`, `last_payment_on` — because a member can hold several
+committees at once and §7 of `docs/architecture/campaign-finance-system-design.md` (Display
+rules) requires a figure to say which committee it belongs to rather than only which year.
+
+**Not wired to any client yet.** No file under `apps/frontend/src` references it; the display
+belongs to [#1329](https://github.com/alethical-org/alethical/issues/1329)'s campaign money tab.
+So Story 3's access path below is still the complete list of what a profile screen calls.
 
 ### Districts and Lookup
 

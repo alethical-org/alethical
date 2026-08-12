@@ -39,7 +39,7 @@ unavailable, never as an answer about a named person
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -167,7 +167,12 @@ def current_release(db: Session) -> Release | None:
     ).first()
     if row is None:
         return None
-    return Release(snapshot_id=row[0], source_url=row[1], fetched_at=row[2])
+    # The driver can hand back a `timestamptz` in the session's own timezone
+    # (`docs/architecture/backend-api-system-design.md`, sitemap `lastmod`), and this
+    # instant is the freshness date a page prints. Normalized here so a reader is
+    # never told the money was fetched on the wrong day.
+    fetched_at = row[2].astimezone(UTC) if row[2] is not None else None
+    return Release(snapshot_id=row[0], source_url=row[1], fetched_at=fetched_at)
 
 
 def confirmed_committees(
