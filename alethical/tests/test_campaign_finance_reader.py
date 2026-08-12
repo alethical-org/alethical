@@ -37,6 +37,7 @@ Needs the local Postgres on port 54329.
 from __future__ import annotations
 
 import threading
+from datetime import timedelta
 from decimal import Decimal
 from http.server import ThreadingHTTPServer
 from typing import Iterator
@@ -533,6 +534,17 @@ def test_the_release_is_resolved_once_with_all_three_files(db, release):
     assert release.contributions.row_count == len(CONTRIBUTIONS)
     assert release.expenditures.row_count == len(EXPENDITURES)
     assert release.fetched_at is not None
+
+
+def test_the_freshness_date_is_normalized_to_utc(db, release):
+    """Because it is a date a page prints, and the driver may not hand back UTC.
+
+    A ``timestamptz`` can come back in the session's own timezone, so an
+    unnormalized value can tell a reader the files were fetched on the wrong day
+    (found by the #1332 session, ``alethical/api/services/independent_spending.py``).
+    """
+    assert release.fetched_at.tzinfo is not None
+    assert release.fetched_at.utcoffset() == timedelta(0)
 
 
 def test_an_emptied_release_refuses_rather_than_reporting_a_zero(db, release):

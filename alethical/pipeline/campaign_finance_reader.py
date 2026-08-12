@@ -52,6 +52,21 @@ one measured against the live release on 12 Aug 2026:
    band, and the Libertarian Party of Minnesota is registration 40858 with type
    ``PTU`` (§5, Identity). ``party_units_and_caucuses`` reads the subtype column.
 
+**Where this module ends and `alethical/api/services/independent_spending.py` begins,
+because they overlap and the boundary is a product rule rather than a tidiness
+preference.** That module answers "what was spent for and against *this legislator*"
+and reaches its figures only through a committee link a person has confirmed, because
+every row in the source names a committee and none names a person, so matching by name
+would put a city mayoral race on a state senator's profile — its own docstring records
+the live case, 10 separate "Fateh, Omar for Minneapolis Mayor" committees in 2025 while
+Senator Fateh's own Senate committee has had no independent spending since 2022.
+
+This module is keyed on a registration number and needs no such link, and the reason is
+not that the rule is relaxed here: **for a party unit or a caucus the registration
+number is the organisation.** There is no person to misattribute money to and no
+identity to confirm, so §5's human-confirmation requirement has nothing to attach to.
+Anything scoped to a *legislator* belongs in that module and must not be rebuilt here.
+
 **Separate transfers, never a chain.** Nothing here joins one transfer to another, and
 nothing may be added that does. That a party paid a caucus and the caucus later paid a
 candidate are two documented facts; that the same dollars travelled between them is
@@ -74,7 +89,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Iterable, Optional, Sequence
 
@@ -143,7 +158,10 @@ class Release:
     id: uuid.UUID
     # The page's freshness date (#861). It is the date the files were fetched, and
     # it is never the period a figure covers: the period is per filer and always
-    # earlier (§7).
+    # earlier (§7). Normalized to UTC, because the driver can hand a `timestamptz`
+    # back in the session's own timezone and this instant is a date a page prints —
+    # so an unnormalized value can tell a reader the money was fetched on the wrong
+    # day (found by the #1332 session, `alethical/api/services/independent_spending.py`).
     fetched_at: datetime
     contributions: SourceFile
     expenditures: SourceFile
@@ -215,7 +233,7 @@ def live_release(db: Session) -> Optional[Release]:
         )
     return Release(
         id=release_id,
-        fetched_at=fetched_at,
+        fetched_at=fetched_at.astimezone(UTC) if fetched_at is not None else fetched_at,
         contributions=SourceFile(
             Dataset.contributions,
             contributions_id,
@@ -696,9 +714,13 @@ def transfers_to(
 class IndependentSpending:
     """What one filer spent independently in one year, split by for and against.
 
-    ``stance`` is the file's own ``For /Against`` value and is never inferred. A row
-    that states neither is kept under its own stance so it is reported rather than
-    assigned to a side.
+    ``stance`` is the file's own ``For /Against`` value and is never inferred. The
+    ``(not stated)`` bucket is defensive only and should never appear: across all
+    41,130 rows of the live release on 12 Aug 2026, 31,718 read "For", 9,412 read
+    "Against" and **none is blank** (measured by the #1332 session). It exists so a
+    future blank is reported rather than assigned to a side, and a surface must not
+    print an always-empty third figure, which would tell a reader the source leaves
+    the question open when it does not.
     """
 
     reg_num: str
