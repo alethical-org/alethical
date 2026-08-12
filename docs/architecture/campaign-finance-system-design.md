@@ -15,15 +15,13 @@ previous one entirely. Never merge new rows into old ones. Show what the filings
 never assert that one payment caused another action.
 
 **Scope: money filed with the Minnesota Campaign Finance and Public Disclosure Board, and nothing
-else.** Congressional and presidential campaigns file with the Federal Election Commission, a
-different agency under different rules, and none of it is in this design (§2.4 records why, and
-`campaign-finance-roadmap.md` item 14 records that it is deliberate). Two consequences bind every
-surface, not just the ingestion: **no reader-facing copy, filter, chip, empty state or search
-placeholder may name a federal race, imply one is coming, or read as though a missing federal
-candidate were a gap in our Minnesota record** (`.claude/rules/grounded-answers.md` rule 2, never
-advertise what you can't answer, and rule 6, copy claims match shipped capability). And where a
-reader could reasonably search for a federal name — campaign finance being the domain where the
-famous names are federal — a surface says what the record **is** rather than listing what it lacks.
+else.** Minnesota state races, Minnesota candidates, Minnesota committees and party units. Money
+filed with any other agency is out of scope, is not read, is not stored, and is not named anywhere —
+not in a page, a filter, a chip, an empty state, a search placeholder, a roadmap line, or a
+"coming soon". A surface says what this record **is**; it never lists what it is not, because naming
+an absence advertises a thing we do not have (`.claude/rules/grounded-answers.md` rule 2, never
+advertise what you can't answer, and rule 6, copy claims match shipped capability). Eugene's call,
+12 Aug 2026, tightening an earlier "deferred" framing that had begun to read as a promise.
 
 ---
 
@@ -257,22 +255,6 @@ by 36.5% of what sitting legislators raised in 2024 and 41.3% in 2025, measured 
 also live on the Board's report viewer and as PDFs, though most PDFs older than 2023 are not
 served (§9.4). **Never rebuild payment rows out of a PDF for any period the bulk files already
 cover** — that is what the retired system did, and it is where its errors came from.
-
-### 2.4 Federal, which this design does not cover
-
-**Out of scope, deliberately** (`campaign-finance-roadmap.md` item 14): a separate agency, a separate
-set of rules, and a large amount of work for a Minnesota-first product. Nothing in this document
-describes it and nothing built from this document reads it.
-
-Recorded here rather than dropped for two reasons. First, so a later session can tell a **decision**
-from an **oversight** — the absence of federal money is a choice, not a hole someone forgot. Second,
-one measured fact that would matter if that choice ever changes: federal data carries its own
-transaction identifier on about 79% of rows, so it would key on that identifier directly and reject
-rows without one, which is the opposite of §4's snapshot approach and the reason it cannot simply be
-added to this pipeline.
-
-**This is not a promise, a phase, or a "coming soon".** Nothing reader-facing may present it as one
-(see the scope paragraph in this document's opening).
 
 ---
 
