@@ -143,6 +143,13 @@ Somewhere to send an anonymous pointer to something worth looking at.
 Congressional races and federal committees. Deferred on purpose: it is a separate system, a
 different set of rules, and a large amount of work for a Minnesota-first product.
 
+**Nothing we build says this is coming.** Everything on this list is Minnesota money reported to
+Minnesota's Campaign Finance Board. Money in races for Congress or for president is reported to a
+different agency, and we hold none of it, so no page, filter, empty state or search box may hint that
+it is on the way. A reader who searches for a member of Congress finds nothing, and the page has to
+say what it does hold rather than promise what it does not: a person who is told "not yet" believes a
+date exists, and there is none.
+
 ---
 
 ## Why this order
