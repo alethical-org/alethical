@@ -95,6 +95,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from alethical.db import models as schema
+from alethical.pipeline.campaign_finance_filings import filings_context
 from alethical.pipeline.http_text import response_text
 from alethical.pipeline.raw_file_store import sha256_of_file
 
@@ -138,6 +139,11 @@ DOWNLOAD_LINK = re.compile(r'href="([^"]*\?download=(-?\d+))"')
 TAG = re.compile(r"<[^>]+>")
 
 MAX_REPORTED_ROW_ERRORS = 5
+
+# The one value in the contributions file's "Receipt type" column that belongs in a
+# contribution total. The other 3 -- Miscellaneous, Miscellaneous Income and Loan
+# Payable -- are 1.2% of the rows and the filing reports each on its own schedule.
+CONTRIBUTION_RECEIPT_TYPE = "Contribution"
 
 
 # --- What each file looks like ----------------------------------------------
@@ -248,6 +254,13 @@ class DatasetSpec:
     columns: tuple[Column, ...]
     table: type
     filer_attribute: str
+    # The second registration number on a row: who the money came from on a
+    # contribution, and which committee a payment was about on the other 2 files.
+    # Kept apart from ``filer_attribute`` because the two are different populations
+    # and only the filer is a Minnesota registrant by definition — a contributor may
+    # be a federal committee the Board's directory has never heard of, so counting
+    # both together would make an unknown-number check unreadable.
+    counterparty_attribute: Optional[str] = None
 
     @property
     def key(self) -> str:
@@ -272,6 +285,7 @@ DATASETS: tuple[DatasetSpec, ...] = (
         columns=CONTRIBUTION_COLUMNS,
         table=schema.CampaignFinanceContributionRow,
         filer_attribute="recipient_reg_num",
+        counterparty_attribute="contrib_reg_num",
     ),
     DatasetSpec(
         dataset=Dataset.expenditures,
@@ -286,6 +300,7 @@ DATASETS: tuple[DatasetSpec, ...] = (
         columns=EXPENDITURE_COLUMNS,
         table=schema.CampaignFinanceExpenditureRow,
         filer_attribute="committee_reg_num",
+        counterparty_attribute="affected_committee_reg_num",
     ),
     DatasetSpec(
         dataset=Dataset.independent_expenditures,
@@ -300,6 +315,7 @@ DATASETS: tuple[DatasetSpec, ...] = (
         columns=INDEPENDENT_COLUMNS,
         table=schema.CampaignFinanceIndependentExpenditureRow,
         filer_attribute="spender_reg_num",
+        counterparty_attribute="affected_committee_reg_num",
     ),
 )
 
@@ -382,6 +398,51 @@ class Measurements:
     blank_counts_by_column: dict[str, int] = field(default_factory=dict)
     malformed_quote_record_count: int = 0
     errors: list[str] = field(default_factory=list)
+    # The registration numbers themselves, not just how many, because §4.3's second
+    # check needs to ask whether each one names a filer Minnesota has registered.
+    # Kept as sets rather than counted, which costs a few thousand short strings
+    # against the 583,152 rows already being read.
+    filer_numbers: set[str] = field(default_factory=set)
+    counterparty_numbers: set[str] = field(default_factory=set)
+    # And the same numbers split by the row's year, because the check that reads them
+    # can only be asked of recent years. The directory lists *current* registrants, so
+    # a filer who deregistered in 2016 is legitimately absent: measured 12 Aug 2026 on
+    # the contributions file, 47.9% of 2015's filers are unknown to today's directory
+    # against 6.5% of 2025's and 0.7% of 2026's. A check over every year would be
+    # reporting how long ago the file starts.
+    filer_numbers_by_year: dict[int, set[str]] = field(default_factory=dict)
+    # Contributions only: what our itemized rows add up to per filer per year, split
+    # by whether the payment was cash or in kind. This is the left-hand side of the
+    # reconciliation against the Board's own reported total (#1408), and it is
+    # measured during the parse for the same reason everything else here is — the
+    # file is read once, before any row is written, so a set can be refused before
+    # it lands rather than after.
+    #
+    # **In-kind is kept apart because the reported figure excludes it.** Measured on
+    # 12 Aug 2026 across 389 comparable filer-years: adding in-kind rows in makes our
+    # sum exceed the Board's own figure on 24 of them against 15 on cash alone, so
+    # folding the two together would manufacture 9 failures out of a difference the
+    # filing itself reports separately.
+    contribution_cash_by_filer_year: dict[tuple[str, int], Decimal] = field(
+        default_factory=dict
+    )
+    contribution_in_kind_by_filer_year: dict[tuple[str, int], Decimal] = field(
+        default_factory=dict
+    )
+    # The same cash sums, counting only payments dated on or before the date the
+    # Board's own figure for that filer-year runs to. **This is the only sum the
+    # reconciliation may use**, because the itemized download runs ahead of the
+    # figure: filer 18336's 2026 figure covers through 31 March while our rows for it
+    # run to 20 July, and $321,870.52 of its cash contributions are dated after the
+    # figure's own coverage end. Comparing the year's whole sum against a figure that
+    # stops in March is not a failed reconciliation, it is a comparison of two
+    # different periods.
+    contribution_cash_through_cutoff: dict[tuple[str, int], Decimal] = field(
+        default_factory=dict
+    )
+    contribution_rows_after_cutoff: int = 0
+    contribution_cash_after_cutoff: Decimal = Decimal("0")
+    contribution_rows_without_a_date: int = 0
 
     @property
     def repeat_fraction(self) -> float:
@@ -451,6 +512,33 @@ class LoadReport:
     def quarantined(self) -> list[DatasetOutcome]:
         return [outcome for outcome in self.outcomes if outcome.blocked]
 
+    def reconciliation_line(self) -> str:
+        """What a published set has and has not been checked against, in one line.
+
+        Written for the operator reading the end of a run rather than as a summary of
+        the checks above, and it deliberately names the remaining gap every time. A
+        released set that reads as fully checked is worse than one that says where it
+        stops.
+        """
+        found = next(
+            (
+                check
+                for outcome in self.outcomes
+                for check in outcome.checks
+                if check.name == "reported_totals_reconcile"
+            ),
+            None,
+        )
+        if found is None or found.status == "not_run":
+            return "not reconciled against Minnesota's own figures: " + (
+                found.detail if found else "the check did not run"
+            )
+        return (
+            f"reconciled against Minnesota's own figures ({found.detail}), but not "
+            "against each filing's own itemized subtotal (#1433) — so our rows being "
+            "SHORT for a filer would still read as small-donor money"
+        )
+
     def summary(self) -> str:
         lines: list[str] = []
         for outcome in self.outcomes:
@@ -490,18 +578,11 @@ class LoadReport:
                 f"{self.pruned_snapshots} superseded snapshot(s)"
             )
             # Said once, at the end, where an operator reads the outcome — not only
-            # buried 3 times among the per-file lines above. Codex's second finding
-            # is that a file where 2 amounts were swapped between 2 committees
-            # passes every check this loader can run, because each one watches the
-            # whole file rather than any one filer's money. That is true, and the
-            # only checks that would catch it need Minnesota's own per-filer totals
-            # (#1408). So a published set says what it has not been compared with,
-            # rather than reading as fully checked.
-            lines.append(
-                "  not reconciled against Minnesota's own figures: no filing total "
-                "and no filer directory are stored yet (#1408), so this set is "
-                "checked for shape and movement, not for whose money each row is"
-            )
+            # buried 3 times among the per-file lines above. What it says has changed
+            # since #1408: the per-filer reconciliation now runs, so the line reports
+            # what it concluded and what is still not compared, rather than announcing
+            # a check that did not exist.
+            lines.append(f"  {self.reconciliation_line()}")
         else:
             lines.append("  nothing published")
         return "\n".join(lines)
@@ -698,8 +779,16 @@ def parse_and_measure(
     source_path: str,
     snapshot_id: uuid.UUID,
     copy_path: str,
+    contribution_cutoffs: Optional[dict[tuple[str, int], date]] = None,
 ) -> Measurements:
     """Read the file once: type every value, measure it, and write the COPY file.
+
+    ``contribution_cutoffs`` maps a filer-year to the date the Board's own figure for
+    it runs to, read from the published filings snapshot (#1408). It is passed in
+    rather than applied afterwards so the bounded sums are built in the one streaming
+    pass, which keeps the reconciliation a check that runs **before** any row is
+    written. Absent, the bounded sums are simply not built and the reconciliation
+    reports itself as not run.
 
     Parsed with Python's **default** ``csv`` reader and nothing else, because the
     Board's files are not valid CSV and every other setting loses real money. It
@@ -721,7 +810,7 @@ def parse_and_measure(
     """
     measured = Measurements(column_names=[column.source for column in spec.columns])
     fingerprints: list[bytes] = []
-    filers: set[str] = set()
+    filers = measured.filer_numbers
     expected = len(spec.columns)
     blanks = {column.source: 0 for column in spec.columns}
     years: dict[str, int] = {}
@@ -736,6 +825,24 @@ def parse_and_measure(
         index
         for index, column in enumerate(spec.columns)
         if column.attribute == spec.filer_attribute
+    )
+    counterparty_at = _column_index(spec, spec.counterparty_attribute)
+    # Contributions only. On the other 2 files there is no receipt type to filter on
+    # and no reported contributions figure to compare against, so both stay None and
+    # the per-filer-year sums below are simply never built.
+    receipt_type_at = _column_index(
+        spec, "receipt_type" if spec.dataset is Dataset.contributions else None
+    )
+    in_kind_at = _column_index(
+        spec, "in_kind" if spec.dataset is Dataset.contributions else None
+    )
+    receipt_date_at = next(
+        (
+            2 + index
+            for index, column in enumerate(spec.columns)
+            if column.kind == "date"
+        ),
+        None,
     )
     date_sources = [column.source for column in spec.columns if column.kind == "date"]
 
@@ -803,6 +910,62 @@ def parse_and_measure(
             filer = raw[filer_at].strip()
             if filer:
                 filers.add(filer)
+                if year is not None:
+                    measured.filer_numbers_by_year.setdefault(int(year), set()).add(
+                        filer
+                    )
+            if counterparty_at is not None:
+                counterparty = raw[counterparty_at].strip()
+                if counterparty:
+                    measured.counterparty_numbers.add(counterparty)
+            if (
+                receipt_type_at is not None
+                and in_kind_at is not None
+                and filer
+                and year is not None
+                and amount is not None
+                # 1.2% of the rows in a file named for contributions are not
+                # contributions -- Miscellaneous, Miscellaneous Income and Loan
+                # Payable -- and the filing reports each of those on its own
+                # schedule. Comparing without this filter made 19 of 202
+                # legislator-years disagree where 3 really do (§2.1, §7).
+                and raw[receipt_type_at].strip() == CONTRIBUTION_RECEIPT_TYPE
+            ):
+                # Cash and in-kind kept apart rather than added together, because
+                # they are reported as separate figures and it is measured rather
+                # than assumed which of them the reported contributions total holds.
+                in_kind = raw[in_kind_at].strip().lower() == "yes"
+                bucket = (
+                    measured.contribution_in_kind_by_filer_year
+                    if in_kind
+                    else measured.contribution_cash_by_filer_year
+                )
+                filer_year = (filer, int(year))
+                bucket[filer_year] = bucket.get(filer_year, Decimal("0")) + amount
+                if not in_kind and contribution_cutoffs is not None:
+                    cutoff = contribution_cutoffs.get(filer_year)
+                    if cutoff is not None:
+                        received = (
+                            typed[receipt_date_at]
+                            if receipt_date_at is not None
+                            else None
+                        )
+                        if received is None:
+                            # An undated row is counted as inside the period rather
+                            # than outside it. Deliberately the direction that can
+                            # cause a false failure: a false failure stops a release
+                            # loudly and a missed overage publishes a wrong figure
+                            # quietly, and §9.4's whole argument is that the quiet
+                            # direction is the dangerous one.
+                            measured.contribution_rows_without_a_date += 1
+                        if received is None or received <= cutoff:
+                            through = measured.contribution_cash_through_cutoff
+                            through[filer_year] = (
+                                through.get(filer_year, Decimal("0")) + amount
+                            )
+                        else:
+                            measured.contribution_rows_after_cutoff += 1
+                            measured.contribution_cash_after_cutoff += amount
             # A 16-byte digest per record rather than the record itself: a list of
             # 583,152 tuples of 15 strings costs hundreds of megabytes. Kept with
             # duplicates, because 20,524 records in one real download repeat another
@@ -816,7 +979,7 @@ def parse_and_measure(
                 measured.malformed_quote_record_count += 1
 
     measured.distinct_row_count = len(set(fingerprints))
-    measured.distinct_filer_count = len(filers)
+    measured.distinct_filer_count = len(measured.filer_numbers)
     measured.rows_by_year = dict(sorted(years.items()))
     measured.blank_counts_by_column = blanks
     measured.blank_date_count = sum(blanks[source] for source in date_sources)
@@ -831,6 +994,17 @@ def parse_and_measure(
             digest.update(fingerprint)
         measured.record_set_hash = digest.hexdigest()
     return measured
+
+
+def _column_index(spec: DatasetSpec, attribute: Optional[str]) -> Optional[int]:
+    """Where a named column sits in a raw record, or None when it has none."""
+    if attribute is None:
+        return None
+    return next(
+        index
+        for index, column in enumerate(spec.columns)
+        if column.attribute == attribute
+    )
 
 
 def _record_fingerprint(raw: list[str]) -> bytes:
@@ -915,12 +1089,18 @@ def validate(
     baseline: Optional[Any],
     *,
     operator_approved: bool,
+    filings: Optional[Any] = None,
 ) -> list[Check]:
     """Compare a candidate against the live release's snapshot for the same file.
 
     Comparisons are against **recorded measurements**, never against old rows, so
     a superseded set's rows can be pruned without losing the ability to check the
     next download.
+
+    ``filings`` is the published snapshot of Minnesota's own figures and filer
+    directory (a ``FilingsContext`` from ``campaign_finance_filings``). Without it the
+    2 checks that need the Board's own statements report themselves as not run, with
+    the command that fixes that.
 
     ``operator_approved`` waives the comparison checks only, for an operator who
     has named the exact hashes they reviewed. It never waives a structural check:
@@ -1020,27 +1200,205 @@ def validate(
             comparison=True,
         )
 
-    # Two checks §4.3 asks for that this loader cannot run. Recorded as not run,
-    # with the reason, never as passed.
+    # The 2 checks §4.3 asks for that read Minnesota's own statements about its filers
+    # rather than this file alone. They are the only checks here that watch **one
+    # filer's money** instead of the whole file's shape, which is what a file with 2
+    # committees' amounts swapped would slip past.
+    checks.extend(_checks_against_the_board(spec, measured, filings))
+    # And the one this repo still cannot run. Recorded as not run with its reason,
+    # never as passed.
     checks.append(
         Check(
-            "reported_totals_reconcile",
+            "reported_itemized_split_matches_ours",
             "not_run",
-            "needs each filing's official total. The Board's per-filer totals "
-            "route is established (§9.1) but nothing in this repo fetches or "
-            "stores those figures yet, so there is no total to reconcile against",
-        )
-    )
-    checks.append(
-        Check(
-            "registration_numbers_resolve_to_a_known_filer",
-            "not_run",
-            "needs the Board's registered-filer directory (§9.7). The route is "
-            "established and #1354's matcher reads it live, but no table holds it, "
-            "and yesterday's payments are not a filer directory",
+            "needs each filing's own stated itemized and non-itemized subtotals, "
+            "which the Board publishes only inside the report document and not on any "
+            "route that carries figures. That is the half of the reconciliation that "
+            "catches our rows being SHORT, which is the direction nothing announces: "
+            "the missing money lands in the derived non-itemized figure and reads as "
+            "ordinary small-donor money. Tracked as #1433",
         )
     )
     return checks
+
+
+# Money on both sides is numeric(18,4) and the Board prints 2 decimal places, so a
+# sub-cent difference is arithmetic rather than a contradiction. Across 1,600 filers a
+# cent each is $16, against the wrong figures this check exists to stop.
+RECONCILE_TOLERANCE = Decimal("0.01")
+# The share of recent-year registration numbers that may be absent from the Board's
+# current directory. Filers deregister, so some absence is ordinary: measured 12 Aug
+# 2026 on the contributions file, 11.2% of 2024's filers, 6.5% of 2025's and 0.7% of
+# 2026's are unknown to today's directory. The ceiling sits at roughly twice the worst
+# recent year, which still leaves it far below the near-100% a shifted column would
+# produce.
+UNKNOWN_FILER_SHARE_CEILING = 0.25
+
+
+def _checks_against_the_board(
+    spec: DatasetSpec, measured: Measurements, filings: Optional[Any]
+) -> list[Check]:
+    """§4.3's 2 checks that need the Board's own figures and filer directory (#1408).
+
+    Both report ``not_run`` when no filings snapshot is published, because that is the
+    truth and it names the command that fixes it. Once one is published they pass or
+    fail.
+    """
+    if filings is None:
+        reason = (
+            "no filings snapshot is published, so there is no reported total and no "
+            "filer directory to check against. Fetch them with "
+            "scripts/load_campaign_finance_filings.py"
+        )
+        return [
+            Check("reported_totals_reconcile", "not_run", reason),
+            Check("registration_numbers_resolve_to_a_known_filer", "not_run", reason),
+        ]
+    return [
+        _reported_totals_reconcile(spec, measured, filings),
+        _registrations_resolve(spec, measured, filings),
+    ]
+
+
+def _reported_totals_reconcile(
+    spec: DatasetSpec, measured: Measurements, filings: Any
+) -> Check:
+    """Do our itemized rows fit inside what each filer itself reported taking in?
+
+    **The comparison is bounded by the figure's own coverage end**, because the
+    itemized download runs ahead of the figure. Filer 18336's 2026 figure covers
+    through 31 March while our rows for it run to 20 July, and $321,870.52 of its cash
+    contributions are dated after that. Comparing the year's whole sum against a figure
+    that stops in March compares two different periods and calls the difference an
+    error.
+
+    **Special-election filer-years are excluded rather than failed.** Such a filer
+    files a second report series that this route does not return, so its regular
+    figures are a part of the year and not the year: filer 19207's 2025 figure is
+    $0.00 against $7,000.00 of real itemized payments, all of them in the special
+    series. §7 has those years read "Not reported" until both series are assembled.
+
+    What this catches is our rows being **too big** for the filer's own total, which is
+    what a file with 2 committees' amounts swapped would produce. What it cannot catch
+    is our rows being too small while still fitting, which needs the filing's own
+    stated itemized subtotal and is the separate not-run check above.
+    """
+    name = "reported_totals_reconcile"
+    if spec.dataset is not Dataset.contributions:
+        return Check(
+            name,
+            "not_run",
+            "this check compares itemized contributions against a reported "
+            "contributions figure, and this file carries neither. The Board publishes "
+            "no itemized-expenditure counterpart to reconcile against",
+        )
+    comparable = {
+        filer_year: official
+        for filer_year, official in filings.reported_contributions.items()
+        if filer_year not in filings.special_election_filer_years
+    }
+    skipped_special = len(filings.reported_contributions) - len(comparable)
+    # Two reasons this check can compare nothing, and they are not the same fact. One
+    # says the route cannot speak for these filers at all; the other says we hold no
+    # rows inside the period it does speak for. Reporting either as the other sends an
+    # operator looking in the wrong place.
+    if not comparable:
+        return Check(
+            name,
+            "not_run",
+            f"all {skipped_special:,} filer-years with a reported total are "
+            "special-election ones, and this route returns only their regular report "
+            "series, so none of them can be compared against a whole year of our rows",
+        )
+    if not measured.contribution_cash_through_cutoff:
+        return Check(
+            name,
+            "not_run",
+            f"{len(comparable):,} filer-years can be compared and none of them has an "
+            "itemized row in this file dated inside the period their reported total "
+            f"covers, so there is nothing to compare ({skipped_special:,} further "
+            "special-election filer-years were excluded)",
+        )
+    compared = 0
+    exceeded: list[str] = []
+    for filer_year, official in sorted(comparable.items()):
+        ours = measured.contribution_cash_through_cutoff.get(filer_year)
+        if ours is None:
+            continue
+        compared += 1
+        if ours - official > RECONCILE_TOLERANCE:
+            registration, year = filer_year
+            exceeded.append(
+                f"{registration} {year}: our rows total {ours} against a reported "
+                f"{official}, over by {ours - official}"
+            )
+    detail = (
+        f"{compared:,} filer-years compared against the Board's own figures, "
+        f"{skipped_special:,} special-election filer-years excluded"
+    )
+    if exceeded:
+        return Check(
+            name,
+            "failed",
+            f"{len(exceeded)} filer-year(s) hold more itemized money than the filer "
+            "itself reported taking in, which would print as a negative amount of "
+            "unnamed money: "
+            + "; ".join(exceeded[:MAX_REPORTED_ROW_ERRORS])
+            + f". {detail}",
+        )
+    return Check(name, "passed", detail)
+
+
+def _registrations_resolve(
+    spec: DatasetSpec, measured: Measurements, filings: Any
+) -> Check:
+    """Does every registration number in the years we show name a filer Minnesota lists?
+
+    Asked only of the years the published filings cover, because the directory lists
+    *current* registrants and a filer who deregistered in 2016 is legitimately absent
+    from it. An unknown number is reported rather than treated as fatal, which is what
+    §4.3 asks for — a filer registering between our directory snapshot and this
+    download is ordinary. What the ceiling catches is the systematic break: a shifted
+    column would make almost every number unknown at once.
+
+    The **contributor** side of a row is deliberately not checked, only counted. A
+    contributor can be any person or a committee registered somewhere else entirely,
+    and 65.3% of them are unknown to Minnesota's directory as a matter of course, so
+    including them would make the number unreadable.
+    """
+    name = "registration_numbers_resolve_to_a_known_filer"
+    years = [int(year) for year in filings.years]
+    numbers: set[str] = set()
+    for year in years:
+        numbers |= measured.filer_numbers_by_year.get(year, set())
+    if not numbers:
+        return Check(
+            name,
+            "not_run",
+            "this file holds no rows in "
+            + (", ".join(str(year) for year in years) or "the published years")
+            + ", which are the years the published filings cover",
+        )
+    unknown = sorted(numbers - filings.known_registrations)
+    share = len(unknown) / len(numbers)
+    counterparties = len(measured.counterparty_numbers - filings.known_registrations)
+    detail = (
+        f"{len(unknown):,} of {len(numbers):,} filer registration numbers in "
+        f"{', '.join(str(year) for year in years)} are new to the Board's directory of "
+        f"{len(filings.known_registrations):,} current registrants ({share:.2%})"
+        + (f", first few {', '.join(unknown[:5])}" if unknown else "")
+        + f". Separately and not checked: {counterparties:,} counterparty numbers are "
+        "not current Minnesota registrants, which is ordinary"
+    )
+    if share > UNKNOWN_FILER_SHARE_CEILING:
+        return Check(
+            name,
+            "failed",
+            f"{detail}. Above the {UNKNOWN_FILER_SHARE_CEILING:.0%} ceiling, which "
+            "means either the directory is badly out of date or this file's columns "
+            "have moved",
+        )
+    return Check(name, "passed", detail)
 
 
 def _baseline_repeat_fraction(baseline: Any) -> Optional[float]:
@@ -1393,6 +1751,7 @@ def publish(
     approved_hashes: Optional[set[str]] = None,
     store: Any = None,
     directory: Optional[str] = None,
+    filings: Optional[Any] = None,
 ) -> uuid.UUID:
     """Load the rows and move the live pointer, in one transaction.
 
@@ -1456,6 +1815,7 @@ def publish(
                 measured is not None
                 and measured.record_set_hash in (approved_hashes or set())
             ),
+            filings=filings,
         )
         failed = [check for check in rechecked if check.blocks_publication]
         if failed:
@@ -1695,6 +2055,23 @@ def load_campaign_finance(
             ingestion_run_id = run.id
             store = store or _store_from_env()
 
+        # Read before the downloads, so the same published figures bound the parse and
+        # the checks. A filings run publishing mid-download would otherwise leave the
+        # cutoffs and the comparison disagreeing about which period was measured.
+        filings = filings_context(db)
+        if filings is None:
+            log(
+                "note: no filings snapshot is published, so the 2 checks that compare "
+                "against Minnesota's own figures cannot run"
+            )
+        else:
+            log(
+                f"comparing against filings snapshot {filings.snapshot_id} "
+                f"({len(filings.reported_contributions):,} filer-years with a reported "
+                f"total, {len(filings.known_registrations):,} registered filers)"
+            )
+        cutoffs = filings.contribution_cutoffs() if filings is not None else None
+
         fetch_started_at = datetime.now(UTC)
         for spec in DATASETS:
             fetched = fetch_download(http, spec, resolved[spec.dataset], directory)
@@ -1716,6 +2093,7 @@ def load_campaign_finance(
                 outcome.fetched.path,
                 outcome.candidate_snapshot_id,
                 outcome.copy_path,
+                contribution_cutoffs=cutoffs,
             )
             measured = outcome.measurements
             log(
@@ -1771,6 +2149,7 @@ def load_campaign_finance(
                 operator_approved=bool(
                     measured is not None and measured.record_set_hash in approved
                 ),
+                filings=filings,
             )
 
         blocked = [outcome for outcome in report.outcomes if outcome.blocked]
@@ -1810,6 +2189,7 @@ def load_campaign_finance(
             approved_hashes=approved,
             store=store,
             directory=directory,
+            filings=filings,
         )
         report.published = True
         report.pruned_snapshots, report.pruned_rows = prune(db)

@@ -1476,6 +1476,52 @@ class CampaignFinanceDataset(enum.Enum):
     independent_expenditures = "independent_expenditures"
 
 
+class CampaignFinanceFilerKind(enum.Enum):
+    """Which of Minnesota's 3 registered-filer kinds a registration number is.
+
+    Not cosmetic, and not derivable from the number: it decides which viewer the
+    Board's own services answer for, and **asking the wrong one returns HTTP 200
+    with no figures at all** rather than an error (#1408). It also decides which set
+    of labels a filer's figures carry — a candidate committee reports 17 lines and
+    breaks its money in down by contributor type, while a party unit and a committee
+    or fund report 16 and carry one combined contributions line.
+    """
+
+    candidate_committee = "candidate_committee"
+    party_unit = "party_unit"
+    political_committee_or_fund = "political_committee_or_fund"
+
+
+class CampaignFinanceReconcileOutcome(enum.Enum):
+    """Whether one filer-year's official total can be shown beside our payments.
+
+    This is the value a display surface reads before printing a split, because
+    `docs/architecture/campaign-finance-system-design.md` §7 is explicit that until a
+    filer-year passes its check, its split is not published. Every value that is not
+    ``reconciled`` means "print the named payments alone, with no whole to divide".
+    """
+
+    # Our itemized rows fit inside the filer's own reported contributions total, so
+    # the remainder is money the state never named and the two-number card is honest.
+    reconciled = "reconciled"
+    # Our rows exceed the official total. A negative remainder is a failed
+    # reconciliation, never a figure to clamp (§9.5).
+    rows_exceed_reported_total = "rows_exceed_reported_total"
+    # A special-election filer files a second report series that the totals route does
+    # not return, so its regular figures are a part of the year rather than the year.
+    # Known, measured, and not a fault: 10 of 407 committee-years.
+    special_election_series_missing = "special_election_series_missing"
+    # The Board returned no figures for this filer-year at all. Consistent with a
+    # filer that filed nothing, and indistinguishable from it in the response alone,
+    # which is why it is corroborated against the filer's report catalogue.
+    no_reported_figures = "no_reported_figures"
+    # We hold a reported total and no itemized payment rows to compare it against.
+    # Left as its own value rather than folded into ``reconciled``, because "the state
+    # named nobody" and "we hold nobody" look identical on a card and are not the
+    # same claim.
+    no_itemized_rows = "no_itemized_rows"
+
+
 class CampaignFinanceSnapshotStatus(enum.Enum):
     # Bytes fetched and stored; not yet checked.
     fetched = "fetched"
@@ -1930,6 +1976,299 @@ class CampaignFinanceIndependentExpenditureRow(Base):
             "year",
         ),
     )
+
+
+# --- Campaign finance: what each filer itself reported -----------------------
+#
+# The 3 tables above hold the payments Minnesota itemized. These hold what each
+# committee said it raised and spent in total, which is a different and larger
+# number: roughly 4 dollars in 10 that a sitting member raised has no name attached,
+# because the state only names a donor once their giving passes $200 for the year.
+# `.claude/rules/grounded-answers.md` rule 12 requires both numbers on the page, so
+# without these tables no surface may print a total at all.
+#
+# Same promise as the tables above and for the same reasons -- a dated set, checked
+# before anything is published, published by replacing the previous set entirely, and
+# traceable to the exact bytes the Board served. What differs is the source's shape:
+# these come from 3 undocumented per-filer services rather than from whole-file
+# downloads, and all 3 answer HTTP 200 to several kinds of failure, which is why the
+# checks in `alethical/pipeline/campaign_finance_filings.py` are the design rather
+# than a safety net. Full reasoning:
+# docs/architecture/campaign-finance-system-design.md §9 (Filed reports: where the
+# official totals come from).
+
+
+class CampaignFinanceFilingSnapshot(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """One run of the Board's per-filer services, and the responses it kept.
+
+    Unlike the 3 downloads, whose bytes are one file each, a run here makes about
+    4,800 requests. Their bodies are kept as **one gzipped JSON Lines object per
+    run**, each line carrying one response's own sha256 and its base64-encoded bytes,
+    so a published figure traces to a line and that line's bytes can be proved to be
+    the ones it was read from. One object rather than 4,800 because 4,800 tiny objects
+    would cost more to store and to audit than the evidence is worth, and the
+    per-response hash keeps the tracing exact either way.
+
+    ``record_set_hash`` is the change detector, hashed over the parsed figures sorted,
+    so a run that finds every filer unchanged publishes nothing. The archive's own
+    hash cannot do that job: response bodies carry no ordering guarantee and the
+    request timings differ every run.
+    """
+
+    __tablename__ = "cf_filing_snapshot"
+
+    # The run's fetch window, not an instant. A run takes about 48 minutes, and an
+    # amendment can land inside it, so the window is recorded rather than collapsed --
+    # the same hazard §4.1 rules on for the downloads, with the same answer.
+    fetch_started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    fetch_completed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    status: Mapped[CampaignFinanceSnapshotStatus] = mapped_column(
+        SQLEnum(CampaignFinanceSnapshotStatus, name="cf_snapshot_status"),
+        nullable=False,
+    )
+    record_set_hash: Mapped[Optional[str]] = mapped_column(String(64))
+    # The calendar years asked for, and the 2-year election segments they resolve to.
+    # Both are stored because they are not the same thing and the difference is a
+    # trap: the route ignores its own `year` field, so the segment alone decides which
+    # 2 years come back.
+    years: Mapped[Optional[list]] = mapped_column(JSONB)
+    segments: Mapped[Optional[list]] = mapped_column(JSONB)
+
+    filer_count: Mapped[Optional[int]] = mapped_column(Integer)
+    report_count: Mapped[Optional[int]] = mapped_column(Integer)
+    filing_count: Mapped[Optional[int]] = mapped_column(Integer)
+    figure_count: Mapped[Optional[int]] = mapped_column(Integer)
+    # Filer-years we asked for and the Board returned no figures for. Consistent with
+    # a filer that filed nothing, and **indistinguishable from asking the wrong
+    # viewer**, which answers 200 with no table at all -- so this is a measured share
+    # rather than a per-filer judgement, and a jump in it stops a release.
+    filer_years_without_figures: Mapped[Optional[int]] = mapped_column(Integer)
+    reported_contributions_sum: Mapped[Optional[Decimal]] = mapped_column(
+        Numeric(20, 4)
+    )
+    measurements: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    validation_json: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    error_text: Mapped[Optional[str]] = mapped_column(Text)
+    ingestion_run_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("ingestion_run.id")
+    )
+
+    # The archive. Folded onto this row rather than given its own table, because there
+    # is exactly one archive per run -- unlike the downloads, where one body serves
+    # many reshuffled fetches of the same records and the split earns itself.
+    object_key: Mapped[Optional[str]] = mapped_column(Text)
+    compressed_hash: Mapped[Optional[str]] = mapped_column(String(64))
+    compressed_byte_size: Mapped[Optional[int]] = mapped_column(BigInteger)
+    compression: Mapped[str] = mapped_column(String(20), nullable=False, default="gzip")
+    response_count: Mapped[Optional[int]] = mapped_column(Integer)
+    mirrored_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        Index(
+            "uq_cf_filing_snapshot_record_set_hash",
+            "record_set_hash",
+            unique=True,
+            postgresql_where=text("record_set_hash IS NOT NULL"),
+        ),
+        Index("ix_cf_filing_snapshot_status", "status"),
+    )
+
+
+class CampaignFinanceFilingCurrentSnapshot(TimestampMixin, Base):
+    """A single row naming the live filings snapshot. One row, forever.
+
+    Exists for the same reason ``cf_current_release`` does: publishing takes
+    ``SELECT ... FOR UPDATE`` on it and refuses a candidate whose fetch window opened
+    before the live one's, because a rule limiting how many snapshots are published
+    limits quantity and says nothing about age.
+    """
+
+    __tablename__ = "cf_filing_current"
+
+    id: Mapped[bool] = mapped_column(
+        Boolean, primary_key=True, default=True, server_default=text("true")
+    )
+    snapshot_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("cf_filing_snapshot.id")
+    )
+
+    __table_args__ = (CheckConstraint("id", name="single_row"),)
+
+
+class CampaignFinanceFiler(Base):
+    """One registered filer, as the Board's nightly directory lists them.
+
+    **The 3 lists are not the same width.** A candidate row carries 11 columns
+    including party, office sought and district; a party-unit row and a
+    committee-or-fund row carry 4 -- name, registration number, registration date and
+    termination date. So ``party``, ``office`` and ``district`` are legitimately empty
+    for two of the three kinds rather than missing, and nothing may read their absence
+    as a gap to fill.
+
+    No timestamps, and nothing human may live here, for the same reason as the row
+    tables above: the set is rebuilt on every run, so anything stored here is
+    destroyed silently. A person's checked link to a legislator lives in
+    ``legislator_campaign_committee``, keyed on the registration number, which is
+    durable across every snapshot.
+    """
+
+    __tablename__ = "cf_filer"
+
+    snapshot_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("cf_filing_snapshot.id", ondelete="CASCADE"), primary_key=True
+    )
+    registration_number: Mapped[str] = mapped_column(String(20), primary_key=True)
+    kind: Mapped[CampaignFinanceFilerKind] = mapped_column(
+        SQLEnum(CampaignFinanceFilerKind, name="cf_filer_kind"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    candidate_name: Mapped[Optional[str]] = mapped_column(Text)
+    party: Mapped[Optional[str]] = mapped_column(String(20))
+    office: Mapped[Optional[str]] = mapped_column(String(60))
+    district: Mapped[Optional[str]] = mapped_column(String(20))
+    registration_date: Mapped[Optional[date]] = mapped_column(Date)
+    # Registration-level, and the reason a year can be empty for a reason none of the
+    # other display states describes (§7's fifth state, a closed committee).
+    termination_date: Mapped[Optional[date]] = mapped_column(Date)
+    # The Board's own flag. **Not a synonym for "sitting legislator"** -- only 198 of
+    # 209 flagged rows are legislative seats and 5 sitting members have no flagged
+    # live filer in their own seat -- so it is stored as the Board's claim and never
+    # read as ours (§9.7).
+    is_incumbent: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+
+class CampaignFinanceFilingReport(Base):
+    """One report as the Board's own catalogue lists it.
+
+    Keyed ``(snapshot_id, row_number)`` rather than on the report's apparent natural
+    key, because nothing establishes that a filer cannot list two reports of the same
+    type in the same year, and a unique constraint asserting otherwise would stop a
+    release over a claim we never measured. Nothing here needs uniqueness: every read
+    asks whether a filer-year has *any* report, or whether *any* of them is a
+    special-election one.
+
+    ``TerminationDate`` is deliberately absent. The catalogue copies it onto every
+    report row, including reports filed years earlier -- read as "this report
+    terminated the committee" it is wrong on 15 of one filer's 16 rows -- so it is
+    stored once per filer on ``cf_filer`` and never per report.
+    """
+
+    __tablename__ = "cf_filing_report"
+
+    snapshot_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("cf_filing_snapshot.id", ondelete="CASCADE"), primary_key=True
+    )
+    row_number: Mapped[int] = mapped_column(Integer, primary_key=True)
+    registration_number: Mapped[str] = mapped_column(String(20), nullable=False)
+    filing_year: Mapped[int] = mapped_column(Integer, nullable=False)
+    report_type: Mapped[str] = mapped_column(String(8), nullable=False)
+    report_name: Mapped[Optional[str]] = mapped_column(Text)
+    # The period's end, served as a clean value. Nothing needs a date parsed out of a
+    # label to know when a period ended. No period *start* is served anywhere, which
+    # is why §7 forbids hardcoding 1 January.
+    cut_off_date: Mapped[Optional[date]] = mapped_column(Date)
+    # A candidate in a special election files a whole second report series, and the
+    # totals service returns only the regular one. This flag is what tells a
+    # reconciliation that came out negative apart from a new fault.
+    special_election: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    # The highest amendment index after deduplicating, which is the effective version
+    # (§9.6). Deduplicating matters: one report's list reads ['1','0','1','0'].
+    # Nullable, and NULL means "the catalogue carries no amendment record for this
+    # report" rather than "this report was never amended". Ordinary on old reports: 5
+    # of filer 20008's 64 reports serve no list, all from 2004, 2006 and 2007. Storing
+    # 0 would assert the original version is effective, and §9.4 is explicit that a
+    # missing marker in an older year means the document is unavailable.
+    effective_amendment_index: Mapped[Optional[int]] = mapped_column(Integer)
+    amendment_count: Mapped[Optional[int]] = mapped_column(Integer)
+
+    __table_args__ = (
+        Index(
+            "ix_cf_filing_report_filer_year",
+            "snapshot_id",
+            "registration_number",
+            "filing_year",
+        ),
+    )
+
+
+class CampaignFinanceFiling(UUIDPrimaryKeyMixin, Base):
+    """One filer's own reported figures for one calendar year.
+
+    Called a filing because that is what it is: every report in a Minnesota calendar
+    year restates everything since 1 January, so the year's most recent report *is*
+    the year, and these are that report's figures with its amendments already
+    resolved by the Board.
+
+    ``reported_through`` is the figure's coverage end and it is load-bearing rather
+    than decorative: members sit on two different filing calendars, so on any day in
+    2026 one member's part-year total sits beside another member's blank, and §7
+    forbids ranking or totalling members for the current year because of it. This
+    column is what makes that enforceable per figure instead of per page.
+    """
+
+    __tablename__ = "cf_filing"
+
+    snapshot_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("cf_filing_snapshot.id", ondelete="CASCADE"), nullable=False
+    )
+    registration_number: Mapped[str] = mapped_column(String(20), nullable=False)
+    filer_kind: Mapped[CampaignFinanceFilerKind] = mapped_column(
+        SQLEnum(CampaignFinanceFilerKind, name="cf_filer_kind"), nullable=False
+    )
+    filing_year: Mapped[int] = mapped_column(Integer, nullable=False)
+    # The 2-year window that was asked for. Kept because the route ignores its own
+    # `year` field and answers from the segment alone, so the segment is the only
+    # record of what was actually requested.
+    segment_start: Mapped[int] = mapped_column(Integer, nullable=False)
+    segment_end: Mapped[int] = mapped_column(Integer, nullable=False)
+    # The block's heading exactly as served ("2025 - Election year", and for a
+    # committee or fund in an odd year simply "2025"). Kept verbatim rather than
+    # normalised, because the suffix differs by viewer and a parser that required it
+    # would work on candidates and break on funds.
+    block_heading: Mapped[str] = mapped_column(Text, nullable=False)
+    reported_through: Mapped[Optional[date]] = mapped_column(Date)
+    # Which response this year's figures were read from, and where that response sits
+    # in the run's archive. Together they are the trace from a published number back
+    # to the bytes behind it.
+    response_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    archive_line: Mapped[int] = mapped_column(Integer, nullable=False)
+
+    figures: Mapped[list["CampaignFinanceFilingFigure"]] = relationship(
+        cascade="all, delete-orphan"
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "snapshot_id",
+            "registration_number",
+            "filing_year",
+            name="uq_cf_filing_snapshot_filer_year",
+        ),
+    )
+
+
+class CampaignFinanceFilingFigure(Base):
+    """One labelled money line of one filing.
+
+    A row per line rather than a column per line, because the two filer kinds report
+    different lines under different names -- a candidate committee 17 and a party unit
+    or fund 16 -- and columns would be a mostly-empty union of both. ``line_key`` is
+    ours and stable; ``label_as_served`` is the Board's own wording, kept because 3 of
+    the labels carry a date inside them and that date is a fact about the figure.
+    """
+
+    __tablename__ = "cf_filing_figure"
+
+    filing_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("cf_filing.id", ondelete="CASCADE"), primary_key=True
+    )
+    line_key: Mapped[str] = mapped_column(String(48), primary_key=True)
+    label_as_served: Mapped[str] = mapped_column(Text, nullable=False)
+    amount: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
 
 
 def bill_detail_stmt(
