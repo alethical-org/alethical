@@ -305,6 +305,11 @@ whole files and replaces whole sets.
 3. **Validate** (§4.3). A snapshot that fails is kept for diagnosis and never published.
 4. **Publish** by replacing the previous published set entirely.
 
+   **The reader's half of that contract, in one place.** A request resolves one release id and uses
+   it for all 3 datasets, because re-resolving per query can hand back a mixed set: each statement
+   sees the newest committed state. And an id held longer than one further publish resolves to no
+   rows (§4.5 keeps one spare generation, not more), so re-resolve rather than caching one.
+
 **Related files release together.** Contributions, general expenditures, independent
 expenditures and the reports that cover the same period form one release. Files fetched on
 different days must never be shown together, or a committee's spending will be from a
@@ -418,10 +423,14 @@ quarantined download. Today's files remain downloadable from the Board; what cou
 rebuilt is what the Board published on a past date.
 
 **Retention: keep every successful body and every quarantined one, indefinitely.** Only
-*parsed rows* are pruned, and only for snapshots no published release references — the checks
-in §4.3 compare against recorded measurements, not against old rows, so nothing needs the rows
-of a superseded set. Pruning successful bodies to save space would give up exactly the record
-this section exists to hold.
+*parsed rows* are pruned — the checks in §4.3 compare against recorded measurements, not against
+old rows. But a **superseded set keeps its rows until the publish after next**, one generation
+rather than none, because a reader does need them briefly: a request resolves the live release in
+one statement and asks for rows in the next, so deleting the previous set the instant a new one
+lands returns zero rows to a request that started moments earlier, which a page renders as "this
+committee has no payments" (`.claude/rules/grounded-answers.md` rule 12, missing versus zero). One
+spare generation is 51 MB measured. Pruning successful bodies to save space would give up exactly
+the record this section exists to hold.
 
 "Every body" means one per distinct set of records, not one per download. Because the export
 shuffles (§2.1), keeping every download would store the same data repeatedly in a different order;
@@ -1253,6 +1262,20 @@ data[params][0]=all
 names and the viewer URL templates. **Omitting `data[params][0]=all` returns `false`, not an
 error** — another silent failure to check for.
 
+**A candidate row carries these 11 columns**, which is worth stating because two of them close
+questions elsewhere in this document: `RegisteredEntityFullName`, `RegisteredEntityID`, `Party`,
+`OfficeSoughtFullName`, `District`, `RegistrationDate`, `TerminationDate`, `Incumbent`,
+`CandidateFullName`, `DistrictKey`, `OfficeKey`. **`RegistrationDate` and `TerminationDate` are here
+for every filer in a single call**, which is why sizing the closed-committee state
+([#1415](https://github.com/alethical-org/alethical/issues/1415)) turned out to be one request
+rather than 200: 1 of the 162 sitting members resolvable by district and surname has a closed
+committee, and 0 have closed one and opened another. That leaves 38 unresolved by that match, which
+is the match failing rather than members proven to hold no committee.
+
+So termination is **three views of one fact**, not three sources: registration-level here,
+repeated onto every report row in §9.1's catalogue, and cited in §5.1. Comparing them corroborates
+nothing.
+
 The candidate directory carries an `Incumbent` flag, 209 rows on 11 August 2026, which is how
 the sitting legislators measured above were selected. **Do not read that flag as "sitting
 legislator" — §5.1 measures both ways it fails**: only 198 of the 209 are legislative seats, and
@@ -1302,11 +1325,19 @@ Recorded as not run, never as passed:
   expenditure side has since been checked for those same 4 filers, which confirmed the pre-amendment
   cause on money out as well and found a second unexplained gap: HRCC is missing 3 outgoing payments
   worth **$21,940.32**, present in no version of its filing. Both unexplained gaps need the Board
-  itself and sit with Eugene. Those two samples
-  establish that the comparison works and the documents are there; they do **not** establish a
-  failure rate for either kind, and HRCC is one hit rather than a measured rate. The check has not
-  run for any year before 2025, for any filer outside those samples, or for the expenditure side
-  at all.
+  itself and sit with Eugene. Those two samples establish that the comparison works and the documents
+  are there; they do **not** establish a failure rate for either kind, and HRCC is one hit rather than
+  a measured rate. The check has not run for any year before 2025, nor for any filer outside those
+  samples; the expenditure side has run for those 4 filers only and for no others.
+- **The closed-committee count** (§7's fifth state) is 1 sitting member of the **162** resolvable by
+  district plus surname, with 0 having closed one committee and opened another, read off one nightly
+  directory snapshot. The 38 unresolved are that match failing, never members shown to hold no
+  committee, so the count is a floor rather than a population figure
+  ([#1415](https://github.com/alethical-org/alethical/issues/1415)).
+- **Whether a member ever held a committee that both opened and closed between two of our
+  snapshots** cannot be answered at all: §4 replaces whole sets, so nothing records a registration
+  that appeared and vanished between them. Not a launch concern, and the place a retention question
+  would land if one is ever needed.
 
 Codex reviewed this section adversarially before it was committed and could not reach
 cfb.mn.gov from its own environment, so its objections about rate limits, blocking and current
