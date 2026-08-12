@@ -723,3 +723,107 @@ def test_every_dataset_is_read_from_the_release_the_request_resolved(db):
     assert finance.release_id == first.release.id
     assert finance.money_in.itemized_contribution_total == Decimal("100.00")
     assert finance.money_out.itemized_payment_total == Decimal("50.00")
+
+
+# --- The route's own decisions ------------------------------------------------
+
+
+def test_the_route_refuses_rather_than_answering_from_a_stale_release(db, client):
+    """503, not an empty page. We cannot answer, and that is a fact about us.
+
+    A 404 here would say this committee does not exist, on the strength of our own
+    pruning; a 200 with empty figures would say it has no money.
+    """
+    Published(db)
+    response = client.get(
+        f"/api/v1/committees/{CANDIDATE}/finance", params={"year": 2025}
+    )
+    assert response.status_code == 503
+
+
+def test_the_route_says_404_about_our_records_not_about_minnesotas(db, client):
+    """A number we hold nothing for is a gap in our copy, not a missing committee.
+
+    The Board's registered-filer directory decides whether a committee exists and
+    nothing here reads it yet, so the wording may not claim otherwise.
+    """
+    published = Published(db)
+    _receipt(db, published.contributions, reg_num=CANDIDATE, amount="5100.00")
+    db.commit()
+    response = client.get("/api/v1/committees/99999/finance", params={"year": 2025})
+    assert response.status_code == 404
+    assert "registration number" in response.json()["detail"]
+
+
+def test_the_route_serves_both_traps_in_one_payload(db, client):
+    """End to end: the loan stays out of the contribution figure and stays visible,
+    and a party unit's only expenditure label still reaches its total."""
+    published = Published(db)
+    _receipt(
+        db,
+        published.contributions,
+        reg_num=PARTY_UNIT,
+        amount="1488168.08",
+        name="HRCC",
+        entity="PTU",
+    )
+    _receipt(
+        db,
+        published.contributions,
+        reg_num=PARTY_UNIT,
+        amount="382.59",
+        receipt_type="Miscellaneous",
+        name="HRCC",
+        entity="PTU",
+    )
+    _payment(
+        db,
+        published.expenditures,
+        reg_num=PARTY_UNIT,
+        amount="725879.43",
+        kind="General Expenditure",
+        name="HRCC",
+        entity="PTU",
+        sub_type="CAU",
+    )
+    db.commit()
+    response = client.get(
+        f"/api/v1/committees/{PARTY_UNIT}/finance", params={"year": 2025}
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()["data"]
+    assert body["committee_name"] == "HRCC"
+    assert body["money_in"]["itemized_contribution_total"] == "1488168.0800"
+    assert body["money_in"]["other_receipts"] == [
+        {"receipt_type": "Miscellaneous", "total": "382.5900", "payments": 1}
+    ]
+    assert body["money_out"]["itemized_payment_total"] == "725879.4300"
+    assert body["release_id"] == str(published.release.id)
+
+
+def test_the_route_never_prints_a_zero_for_a_committee_we_hold_no_rows_for(db, client):
+    """The launch-day shape of most committee-years, and the one rule 12 turns on."""
+    published = Published(db)
+    # This committee is known to us and its 2025 is empty, which is the real shape:
+    # Senator Omar Fateh's Senate committee (18488) has rows for 2024 and 2026 and
+    # none for 2025, against a 2025 filing that itemizes $2,300.00.
+    _receipt(db, published.contributions, reg_num=CANDIDATE, amount="100.00", year=2024)
+    _payment(db, published.expenditures, reg_num=CANDIDATE, amount="100.00", year=2024)
+    _independent(db, published.independent, reg_num=PARTY_UNIT, amount="100.00")
+    db.commit()
+    body = client.get(
+        f"/api/v1/committees/{CANDIDATE}/finance", params={"year": 2025}
+    ).json()["data"]
+    assert body["money_in"] == {
+        "state": NOT_REPORTED,
+        "itemized_contribution_total": None,
+        "itemized_contribution_payments": None,
+        "first_receipt_on": None,
+        "last_receipt_on": None,
+        "other_receipts": [],
+        "source_url": "https://cfb.mn.gov/reports/contributions.csv",
+    }
+    assert body["money_out"]["itemized_payment_total"] is None
+    # And the one block where absence is a finding rather than a gap.
+    assert body["independent_spending"]["state"] == REPORTED
+    assert Decimal(body["independent_spending"]["supporting"]) == 0
