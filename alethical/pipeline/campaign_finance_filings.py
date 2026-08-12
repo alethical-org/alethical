@@ -99,8 +99,14 @@ REQUEST_TIMEOUT_SECONDS = 60
 # roughly 1,200 requests in 2 hours. That is an observation about one day, not a rate
 # limit the Board has told us, so it stays conservative rather than being tuned down.
 REQUEST_SPACING_SECONDS = 0.25
+# A server error: the Board answered, so 3 tries 5 seconds apart and then stop.
 MAX_ATTEMPTS = 3
 RETRY_PAUSE_SECONDS = 5
+# A request that never left the machine: retried much longer, because a 48-minute run
+# has to survive one network blip to be worth starting, and re-asking cannot duplicate
+# anything. The pauses sum to about 2 minutes.
+CONNECTION_RETRY_PAUSES = (5, 10, 20, 40, 60)
+MAX_CONNECTION_ATTEMPTS = len(CONNECTION_RETRY_PAUSES) + 1
 
 VIEWER_BY_KIND = {
     FilerKind.candidate_committee: "candidates",
@@ -710,17 +716,31 @@ def post_form(http: requests.Session, url: str, form: dict[str, str]) -> Respons
     A 403 is **not** retried. It is what this route returns when the cookie is
     missing or wrongly named, and repeating the same request cannot fix that; a
     retry loop there would turn one clear failure into 3 slow ones.
+
+    **A request that never left the machine is retried far longer than one the server
+    answered badly**, and the difference is the whole point. A full run makes about
+    4,800 requests over roughly 48 minutes, so it only has to survive one dropped
+    Wi-Fi connection or one sleeping laptop to be worth running at all. The first
+    production run died at filer 500 of 1,603 on
+    ``socket.gaierror: nodename nor servname provided`` — the host lost DNS, so the
+    Board and the database both became unreachable at once and 13 minutes of requests
+    were thrown away. 3 attempts 5 seconds apart tolerate 15 seconds of that; the
+    backoff below tolerates about 2 minutes, which covers an ordinary blip.
+
+    A connection error is always safe to retry, however many times: the request never
+    reached the Board, so nothing can be duplicated by asking again. A 5xx is different
+    and stays at 3 attempts, because the server did answer and hammering it is rude.
     """
     started_at = datetime.now(UTC)
     last_error: Optional[Exception] = None
-    for attempt in range(1, MAX_ATTEMPTS + 1):
+    for attempt in range(1, MAX_CONNECTION_ATTEMPTS + 1):
         try:
             response = http.post(url, data=form, timeout=REQUEST_TIMEOUT_SECONDS)
         except requests.RequestException as error:
             last_error = error
-            if attempt == MAX_ATTEMPTS:
+            if attempt == MAX_CONNECTION_ATTEMPTS:
                 raise
-            time.sleep(RETRY_PAUSE_SECONDS)
+            time.sleep(CONNECTION_RETRY_PAUSES[attempt - 1])
             continue
         if response.status_code >= 500 and attempt < MAX_ATTEMPTS:
             time.sleep(RETRY_PAUSE_SECONDS)
