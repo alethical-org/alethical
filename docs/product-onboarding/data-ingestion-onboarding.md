@@ -639,9 +639,31 @@ the difference explained. Design:
 **What to run.** `uv run python scripts/load_campaign_finance_filings.py --dry-run`
 fetches, checks and reports, writing nothing. `--target local` and `--target
 production` publish. `--only-filers 11880` narrows a run to 3 requests, which is what
-makes a scoped live check possible before a full one. Quarantine and the
-publish-by-naming-the-hash loop work exactly as they do for the downloads, with one
-hash instead of three (`--publish-hash`).
+makes a scoped live check possible before a full one — and a narrowed run **refuses to
+publish**, because publishing replaces the whole live set and 2 filers would delete every
+other committee's reported total.
+
+**Publishing a quarantined set: name its hash and do not fetch again.** A first run has
+nothing to compare against, so it quarantines by design, exactly as the downloads do. The
+difference is what the second step costs. Re-fetching to publish is another 48 minutes,
+and in an election season the two runs may **never agree**, because filings land daily and
+each fetch hashes differently — so the set an operator reviewed would stay unpublishable
+for as long as filings keep arriving. Publish from the responses already kept instead:
+
+```
+uv run python scripts/load_campaign_finance_filings.py --target production \
+    --publish-stored-hash <the records line, in full>
+```
+
+That fetches nothing. It reads the archive stored at fetch time, checks the object's own
+fingerprint, checks every response's fingerprint, confirms the whole set still hashes to
+what was recorded, and then runs every check again against whatever is live now. A hash
+nobody stored is a refusal, never a fetch. `--publish-hash` still exists and does re-fetch;
+prefer the stored form.
+
+What naming a hash waives is only the comparison against a previous snapshot. A response
+that did not parse, a label this design does not know, a value that is not money, and a
+filer kind that came back mostly empty stop the run whatever you pass.
 
 **A full run is about 4,800 requests and takes roughly 48 minutes.** Measured on
 2026-08-12 across all 1,603 registered filers: median response 0.23 seconds, slowest

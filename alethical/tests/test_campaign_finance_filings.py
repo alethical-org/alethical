@@ -1049,6 +1049,82 @@ def test_a_second_run_publishing_the_same_figures_cites_the_archive_that_was_kep
         archive.unlink(missing_ok=True)
 
 
+def test_a_stored_set_publishes_from_its_kept_bytes_without_fetching_again(
+    db, board, store
+) -> None:
+    """The intended path for a first run, and the only one that converges.
+
+    A first run quarantines for want of anything to compare against. Publishing it by
+    re-running costs a second 48-minute fetch, and in an election season the two may
+    never agree, because filings land daily and each fetch hashes differently. This
+    publishes the reviewed set from the responses kept at fetch time.
+
+    A filer with no figures is included on purpose: "this filer-year reported nothing"
+    is a fact the record hash covers, so a rebuild that dropped them would hash
+    differently and refuse itself. Nothing else in this run has fetched, so the list can
+    only come from the archive.
+    """
+    board.empty_filers.add("18999")
+    first = run(db, board, store)
+    assert first.blocked
+    assert ("18999", 2025) in first.without_figures
+    requests_before = len(board.requests_seen)
+
+    published = filings.publish_stored_filings(
+        db, first.record_set_hash, store=store, log=lambda message: None
+    )
+    assert not published.blocked, published.summary()
+    # Not one request was made.
+    assert len(board.requests_seen) == requests_before
+    # The empty filer-years came back out of the archive, so the guard against a whole
+    # filer kind going dark had something to read.
+    assert sorted(published.without_figures) == sorted(first.without_figures)
+    check = checks_of(published)["no_filer_kind_came_back_mostly_empty"]
+    assert check.status == "passed"
+    assert "candidate_committee 25.0% empty" in check.detail
+
+    assert filings.live_filings_snapshot(db).id == first.snapshot_id
+    assert figures_of(db, first.snapshot_id, "11880", 2025)["total_receipts"] == (
+        Decimal("13900.48")
+    )
+    snapshot = db.get(models.CampaignFinanceFilingSnapshot, first.snapshot_id)
+    assert snapshot.status is models.CampaignFinanceSnapshotStatus.loaded
+    assert snapshot.filer_years_without_figures == len(first.without_figures)
+
+
+def test_publishing_a_stored_hash_nobody_stored_is_a_refusal_not_a_fetch(
+    db, board, store
+) -> None:
+    with pytest.raises(filings.CampaignFinanceFilingsRefusal, match="never fetches"):
+        filings.publish_stored_filings(
+            db, "0" * 64, store=store, log=lambda message: None
+        )
+    assert board.requests_seen == []
+
+
+def test_publishing_a_stored_set_still_runs_the_structural_checks(
+    db, board, store
+) -> None:
+    """What an operator waives is the comparison against an earlier snapshot, never a
+    structural failure. So a stored set whose responses could not be read has no hash to
+    name in the first place, and one that can be read is still checked against what is
+    live now."""
+    board.empty_filers.update(
+        row["RegisteredEntityID"]
+        for row in DIRECTORY_ROWS[FilerKind.candidate_committee]
+    )
+    first = run(db, board, store)
+    assert first.blocked
+    published = filings.publish_stored_filings(
+        db, first.record_set_hash, store=store, log=lambda message: None
+    )
+    assert published.blocked
+    assert (
+        checks_of(published)["no_filer_kind_came_back_mostly_empty"].status == "failed"
+    )
+    assert filings.live_filings_snapshot(db) is None
+
+
 def test_two_runs_that_could_not_be_read_each_keep_their_own_responses(
     db, board, store
 ) -> None:

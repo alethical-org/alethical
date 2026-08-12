@@ -73,6 +73,7 @@ from alethical.db.session import (  # noqa: E402
 from alethical.pipeline.campaign_finance_filings import (  # noqa: E402
     CampaignFinanceFilingsRefusal,
     load_campaign_finance_filings,
+    publish_stored_filings,
 )
 
 
@@ -120,11 +121,30 @@ def main() -> int:
         "--publish-hash",
         default=None,
         metavar="SHA256",
-        help="Publish a run the comparison checks quarantined, by naming its record "
-        "hash (the 'records' line this command prints, in full). This is the intended "
-        "path for a first run. Structural checks are never waived.",
+        help="Fetch again, and publish if the figures still hash to this. Prefer "
+        "--publish-stored-hash, which skips the 48-minute fetch entirely.",
+    )
+    parser.add_argument(
+        "--publish-stored-hash",
+        default=None,
+        metavar="SHA256",
+        help="Publish a set already on file, from the responses kept at fetch time, "
+        "WITHOUT fetching anything. This is the intended path for a first run: read the "
+        "counts a run printed, then name its record hash (the 'records' line, in full). "
+        "Re-fetching to publish takes another 48 minutes and in an election season may "
+        "never agree, because filings land daily and each fetch hashes differently. "
+        "Structural checks still run against whatever is live now.",
     )
     args = parser.parse_args()
+
+    if args.publish_stored_hash and (
+        args.dry_run or args.publish_hash or args.only_filers or args.years
+    ):
+        parser.error(
+            "--publish-stored-hash publishes bytes already on file and fetches nothing, "
+            "so it takes no --years, no --only-filers, no --publish-hash and no "
+            "--dry-run. The years and filers are whatever that stored run covered."
+        )
 
     database_url = normalize_database_url(
         args.database_url or database_url_for_target(args.target)
@@ -134,6 +154,14 @@ def main() -> int:
     )
     with Session(engine) as session:
         try:
+            if args.publish_stored_hash:
+                run = publish_stored_filings(
+                    session,
+                    args.publish_stored_hash,
+                    log=lambda message: print(message, file=sys.stderr),
+                )
+                print(run.summary())
+                return 1 if run.blocked else 0
             run = load_campaign_finance_filings(
                 session,
                 dry_run=args.dry_run,
