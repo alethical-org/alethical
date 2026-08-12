@@ -30,7 +30,9 @@ from __future__ import annotations
 
 import hashlib
 import threading
+import uuid
 from dataclasses import dataclass, field
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -43,6 +45,7 @@ from sqlalchemy import select, text
 from alethical.db import models
 from alethical.db.session import get_session_factory
 from alethical.pipeline import campaign_finance as cf
+from alethical.pipeline import campaign_finance_filings as filings_pipeline
 
 Dataset = models.CampaignFinanceDataset
 SnapshotStatus = models.CampaignFinanceSnapshotStatus
@@ -274,6 +277,16 @@ CF_TABLES = (
     "cf_fetch_observation",
     "cf_snapshot_body",
 )
+# The filings tables too, because these tests now seed one to turn the 2 checks that
+# read Minnesota's own figures on. Leaving one behind would silently change what the
+# next test's checks compare against.
+CF_FILING_TABLES = (
+    "cf_filing_figure",
+    "cf_filing",
+    "cf_filing_report",
+    "cf_filer",
+    "cf_filing_snapshot",
+)
 
 
 def _clear(session) -> None:
@@ -283,6 +296,9 @@ def _clear(session) -> None:
     for table in CF_TABLES:
         session.execute(text(f"DELETE FROM {table}"))
     session.execute(text("DELETE FROM cf_snapshot"))
+    session.execute(text("UPDATE cf_filing_current SET snapshot_id = NULL"))
+    for table in CF_FILING_TABLES:
+        session.execute(text(f"DELETE FROM {table}"))
     session.commit()
 
 
@@ -1141,17 +1157,130 @@ def test_publishing_refuses_a_candidate_older_than_the_live_release(
     assert "older data" in str(refusal.value)
 
 
-# --- The two checks this loader cannot run -----------------------------------
+# --- The checks that read Minnesota's own figures -----------------------------
+#
+# These 2 were recorded as permanently not-run until #1408 stored the Board's own
+# per-filer totals and its registered-filer list. They now run, and they are the only
+# checks here that watch one committee's money rather than the whole file's shape --
+# which is what a file with 2 committees' amounts swapped between them slipped past.
 
 
-def test_the_two_unrunnable_checks_are_recorded_as_not_run_with_their_reason(
+# Every filer the 3 fixture files name, so a seeded directory looks like one that
+# really lists Minnesota's registrants. Without all of them the unknown-number check
+# reads the fixture as a shifted column, which is the check working and the fixture
+# lying.
+FIXTURE_REGISTRATIONS = {"19200", "40858", "19004", "20010", "30161", "30999"}
+
+
+def seed_filings_snapshot(
+    db,
+    *,
+    reported: dict[tuple[str, int], str],
+    reported_through: Optional[dict[tuple[str, int], date]] = None,
+    registrations: Optional[set[str]] = None,
+    special_election: Optional[set[tuple[str, int]]] = None,
+    years: tuple[int, ...] = (2025,),
+) -> models.CampaignFinanceFilingSnapshot:
+    """Publish a filings snapshot directly, so these tests do not need the Board.
+
+    The fetching side is covered by ``test_campaign_finance_filings.py``. What matters
+    here is only what the download loader reads out of a published one.
+    """
+    now = datetime.now(UTC)
+    snapshot = models.CampaignFinanceFilingSnapshot(
+        fetch_started_at=now,
+        fetch_completed_at=now,
+        status=SnapshotStatus.loaded,
+        record_set_hash=uuid.uuid4().hex + uuid.uuid4().hex[:32],
+        years=list(years),
+        segments=[[2024, 2025]],
+        measurements={},
+        validation_json={},
+        compression="gzip",
+    )
+    db.add(snapshot)
+    db.flush()
+    for registration in sorted(
+        registrations if registrations is not None else FIXTURE_REGISTRATIONS
+    ):
+        db.add(
+            models.CampaignFinanceFiler(
+                snapshot_id=snapshot.id,
+                registration_number=registration,
+                kind=models.CampaignFinanceFilerKind.candidate_committee,
+                name=f"Committee {registration}",
+                is_incumbent=False,
+            )
+        )
+    for row_number, (filer_year, _) in enumerate(sorted(reported.items()), start=1):
+        registration, year = filer_year
+        db.add(
+            models.CampaignFinanceFilingReport(
+                snapshot_id=snapshot.id,
+                row_number=row_number,
+                registration_number=registration,
+                filing_year=year,
+                report_type="YE",
+                report_name=f"{year} Year-End Report",
+                cut_off_date=date(year, 12, 31),
+                special_election=filer_year in (special_election or set()),
+                effective_amendment_index=0,
+                amendment_count=1,
+            )
+        )
+    for (registration, year), amount in sorted(reported.items()):
+        filing = models.CampaignFinanceFiling(
+            snapshot_id=snapshot.id,
+            registration_number=registration,
+            filer_kind=models.CampaignFinanceFilerKind.candidate_committee,
+            filing_year=year,
+            segment_start=2024,
+            segment_end=2025,
+            block_heading=f"{year} - Election year",
+            reported_through=(reported_through or {}).get(
+                (registration, year), date(year, 12, 31)
+            ),
+            response_hash="0" * 64,
+            archive_line=1,
+        )
+        db.add(filing)
+        db.flush()
+        db.add(
+            models.CampaignFinanceFilingFigure(
+                filing_id=filing.id,
+                line_key="individuals_contributions",
+                label_as_served="Individuals contributions",
+                amount=Decimal(amount),
+            )
+        )
+    db.execute(
+        text(
+            "INSERT INTO cf_filing_current (id, snapshot_id) VALUES (true, :snapshot) "
+            "ON CONFLICT (id) DO UPDATE SET snapshot_id = :snapshot"
+        ),
+        {"snapshot": snapshot.id},
+    )
+    db.commit()
+    return snapshot
+
+
+def contributions_checks(report: cf.LoadReport) -> dict[str, cf.Check]:
+    outcome = next(
+        outcome
+        for outcome in report.outcomes
+        if outcome.spec.dataset is Dataset.contributions
+    )
+    return {check.name: check for check in outcome.checks}
+
+
+def test_the_two_checks_say_they_did_not_run_when_no_filings_are_published(
     db, board, store
 ) -> None:
-    """Never as passed.
+    """Not run, with the command that fixes it. Never as passed.
 
-    Reconciling against a filing's official total and resolving a registration
-    number against the Board's filer directory both need data no table here holds
-    yet, even though §9 has since established the route to each.
+    This is the honest state of a database that holds payments and no reported totals,
+    and it names ``scripts/load_campaign_finance_filings.py`` rather than leaving an
+    operator to work out what is missing.
     """
     report = run(db, board, store, dry_run=True)
     for outcome in report.outcomes:
@@ -1161,8 +1290,280 @@ def test_the_two_unrunnable_checks_are_recorded_as_not_run_with_their_reason(
             "registration_numbers_resolve_to_a_known_filer",
         ):
             assert recorded[name].status == "not_run"
-            assert recorded[name].detail
+            assert "load_campaign_finance_filings" in recorded[name].detail
             assert not recorded[name].blocks_publication
+
+
+def test_itemized_rows_that_fit_inside_the_reported_total_pass(
+    db, board, store
+) -> None:
+    seed_filings_snapshot(db, reported={("19200", 2025): "2000.00"})
+    report = run(db, board, store, dry_run=True)
+    check = contributions_checks(report)["reported_totals_reconcile"]
+    assert check.status == "passed", check.detail
+    assert "1 of 1 comparable filer-years compared" in check.detail
+
+
+def test_itemized_rows_that_exceed_the_reported_total_stop_the_run(
+    db, board, store
+) -> None:
+    """A negative amount of unnamed money is a failed reconciliation, not a figure to
+    clamp -- and it is what a file with 2 committees' amounts swapped would produce."""
+    seed_filings_snapshot(db, reported={("19200", 2025): "1500.00"})
+    report = run(db, board, store)
+    check = contributions_checks(report)["reported_totals_reconcile"]
+    assert check.status == "failed", check.detail
+    assert "19200 2025" in check.detail
+    assert report.refusal is not None
+    assert db.scalars(select(models.CampaignFinanceRelease)).all() == []
+
+
+def test_the_comparison_stops_at_the_date_the_reported_figure_runs_to(
+    db, board, store
+) -> None:
+    """The itemized download runs ahead of the figure, and one fixture row proves it.
+
+    A $75.00 payment dated 4 January 2026 carries ``Year`` 2025, so it belongs to the
+    2025 file year while sitting outside a figure that runs to 31 December 2025.
+    Counting it would compare a year's whole sum against a figure covering less than the
+    year and call the difference an error: with the bound applied our rows total
+    $1,504.5678 and without it $1,579.5678.
+    """
+    seed_filings_snapshot(db, reported={("19200", 2025): "1550.00"})
+    report = run(db, board, store, dry_run=True)
+    assert contributions_checks(report)["reported_totals_reconcile"].status == "passed"
+
+    measured = next(
+        outcome.measurements
+        for outcome in report.outcomes
+        if outcome.spec.dataset is Dataset.contributions
+    )
+    assert measured.contribution_cash_through_cutoff[("19200", 2025)] == Decimal(
+        "1504.5678"
+    )
+    assert measured.contribution_cash_by_filer_year[("19200", 2025)] == Decimal(
+        "1579.5678"
+    )
+    assert measured.contribution_rows_after_cutoff == 1
+    assert measured.contribution_cash_after_cutoff == Decimal("75.0000")
+
+
+def test_in_kind_payments_are_left_out_of_the_comparison(db, board, store) -> None:
+    """The reported contributions figure excludes them, and the filing states them
+    separately, so folding them in manufactures failures."""
+    seed_filings_snapshot(db, reported={("19200", 2025): "1510.00"})
+    report = run(db, board, store, dry_run=True)
+    assert contributions_checks(report)["reported_totals_reconcile"].status == "passed"
+    measured = next(
+        outcome.measurements
+        for outcome in report.outcomes
+        if outcome.spec.dataset is Dataset.contributions
+    )
+    assert measured.contribution_in_kind_by_filer_year[("19200", 2025)] == Decimal(
+        "21.4900"
+    )
+
+
+def test_a_special_election_filer_year_is_excluded_while_the_others_are_compared(
+    db, board, store
+) -> None:
+    """Such a filer files a second report series the totals route does not return, so
+    its regular figures are a part of the year and not the year (§9.5).
+
+    Its reported total here is $1.00 against $1,504.5678 of our rows, so if it were
+    compared it would fail loudly. Another filer is seeded alongside it, because a test
+    where the only candidate is excluded proves the exclusion and not that anything is
+    still being checked.
+    """
+    seed_filings_snapshot(
+        db,
+        reported={("19200", 2025): "1.00", ("40858", 2025): "600.00"},
+        special_election={("19200", 2025)},
+    )
+    report = run(db, board, store, dry_run=True)
+    check = contributions_checks(report)["reported_totals_reconcile"]
+    assert check.status == "passed", check.detail
+    assert "1 of 1 comparable filer-years compared" in check.detail
+    assert "1 special-election filer-years excluded" in check.detail
+
+
+def test_when_every_reported_filer_year_is_special_election_the_check_says_so(
+    db, board, store
+) -> None:
+    """Not "passed", which it did not earn, and not the no-rows reason either."""
+    seed_filings_snapshot(
+        db,
+        reported={("19200", 2025): "1.00"},
+        special_election={("19200", 2025)},
+    )
+    report = run(db, board, store, dry_run=True)
+    check = contributions_checks(report)["reported_totals_reconcile"]
+    assert check.status == "not_run"
+    assert "special-election" in check.detail
+    assert "regular report series" in check.detail
+
+
+def test_a_registration_number_the_directory_does_not_list_is_reported_not_fatal(
+    db, board, store
+) -> None:
+    """Filers deregister, so some absence is ordinary. §4.3 asks for it to be reported
+    as new."""
+    seed_filings_snapshot(
+        db,
+        reported={("19200", 2025): "2000.00"},
+        registrations={"19200", "40858"},
+    )
+    report = run(db, board, store, dry_run=True)
+    check = contributions_checks(report)[
+        "registration_numbers_resolve_to_a_known_filer"
+    ]
+    assert check.status == "passed", check.detail
+    assert "0 of 2 filer registration numbers" in check.detail
+    assert "are new to the Board's directory" in check.detail
+
+
+def test_almost_every_registration_number_being_unknown_stops_the_run(
+    db, board, store
+) -> None:
+    """What a shifted column looks like, and the only thing the ceiling is for."""
+    seed_filings_snapshot(
+        db, reported={("99999", 2025): "1.00"}, registrations={"99999"}
+    )
+    report = run(db, board, store)
+    check = contributions_checks(report)[
+        "registration_numbers_resolve_to_a_known_filer"
+    ]
+    assert check.status == "failed", check.detail
+    assert "ceiling" in check.detail
+    assert report.refusal is not None
+
+
+def test_the_contributor_side_of_a_row_is_counted_and_never_checked(
+    db, board, store
+) -> None:
+    """A contributor can be a person or a committee registered somewhere else, and
+    65.3% of them are unknown to Minnesota's directory as a matter of course."""
+    seed_filings_snapshot(db, reported={("19200", 2025): "2000.00"})
+    report = run(db, board, store, dry_run=True)
+    check = contributions_checks(report)[
+        "registration_numbers_resolve_to_a_known_filer"
+    ]
+    assert check.status == "passed"
+    assert "not checked" in check.detail
+
+
+def test_the_split_against_each_filings_own_stated_subtotal_is_still_not_run(
+    db, board, store
+) -> None:
+    """The half that catches our rows being SHORT, which needs the report documents.
+
+    Recorded as not run with its reason and its issue, never as passed, because a
+    shortfall in our rows lands in the derived non-itemized figure and reads as
+    ordinary small-donor money.
+    """
+    seed_filings_snapshot(db, reported={("19200", 2025): "2000.00"})
+    report = run(db, board, store, dry_run=True)
+    check = contributions_checks(report)["reported_itemized_split_matches_ours"]
+    assert check.status == "not_run"
+    assert "#1433" in check.detail
+
+
+def test_a_filer_year_the_check_could_not_compare_is_counted_not_hidden(
+    db, board, store
+) -> None:
+    """Codex found the version that silently skipped these.
+
+    A filer-year with a reported total and rows in the file, but no row inside the
+    period that total covers, vanished from the comparison while the check reported
+    "passed, 1 filer-year compared" — and the committee whose rows exceeded its total
+    was the one that vanished. So every filer-year the check could not compare is
+    counted and told apart by reason.
+    """
+    seed_filings_snapshot(
+        db,
+        reported={("19200", 2025): "2000.00", ("19004", 2025): "500.00"},
+        # 19004 has expenditure rows in the fixture and no contribution rows at all,
+        # which is the shape #1433 exists for: the filing may itemize money we lack.
+        reported_through={("19200", 2025): date(2025, 12, 31)},
+    )
+    report = run(db, board, store, dry_run=True)
+    check = contributions_checks(report)["reported_totals_reconcile"]
+    assert check.status == "passed", check.detail
+    assert "1 of 2 comparable filer-years compared" in check.detail
+    assert "1 hold no itemized row of ours at all" in check.detail
+    assert "#1433" in check.detail
+
+
+def test_a_run_refuses_when_the_reported_figures_moved_while_it_downloaded(
+    db, board, store
+) -> None:
+    """The hazard the release lock cannot see, and Codex's fourth finding.
+
+    The 2 pipelines take different locks on purpose, so a filings run can publish new
+    figures during the ~90 seconds a download run spends fetching. The comparison then
+    still holds against the figures that were live when it ran, while the pair a reader
+    is shown is these rows beside figures nothing has compared them to.
+    """
+    seed_filings_snapshot(db, reported={("19200", 2025): "2000.00"})
+    stale_context = filings_pipeline.filings_context(db)
+    assert stale_context is not None
+    first = run(db, board, store)
+    hashes = [
+        outcome.measurements.record_set_hash
+        for outcome in first.outcomes
+        if outcome.measurements
+    ]
+
+    # A filings run publishes a newer set of figures in the gap between this run reading
+    # the figures and this run publishing its rows.
+    seed_filings_snapshot(db, reported={("19200", 2025): "2500.00"})
+
+    # And this run is still holding the figures it read before that happened, which is
+    # exactly what a real run holds: the context is read once, before the downloads.
+    def stale(_db):
+        return stale_context
+
+    original = cf.filings_context
+    cf.filings_context = stale
+    try:
+        with pytest.raises(cf.CampaignFinanceRefusal, match="no longer the live one"):
+            cf.load_campaign_finance(
+                db,
+                store=store,
+                landing_page=board.landing_page,
+                log=lambda message: None,
+                publish_hashes=hashes,
+            )
+    finally:
+        cf.filings_context = original
+    assert db.scalars(select(models.CampaignFinanceRelease)).all() == []
+
+
+def test_a_published_release_records_which_figures_it_was_checked_against(
+    db, board, store
+) -> None:
+    """So the pair is auditable rather than only guarded."""
+    snapshot = seed_filings_snapshot(db, reported={("19200", 2025): "2000.00"})
+    report = publish_first(db, board, store)
+    release = db.get(models.CampaignFinanceRelease, report.release_id)
+    assert release.filing_snapshot_id == snapshot.id
+
+
+def test_a_published_set_says_what_it_has_not_been_compared_with(
+    db, board, store
+) -> None:
+    """The line an operator reads at the end of a run.
+
+    A released set that reads as fully checked is worse than one that says where it
+    stops, so the remaining gap is named every time.
+    """
+    seed_filings_snapshot(db, reported={("19200", 2025): "2000.00"})
+    report = publish_first(db, board, store)
+    line = report.reconciliation_line()
+    assert line.startswith("reconciled against Minnesota's own figures")
+    assert "#1433" in line
+    assert "SHORT" in line
+    assert line in report.summary()
 
 
 def test_a_published_snapshot_records_the_checks_it_passed(db, board, store) -> None:

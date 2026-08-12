@@ -154,6 +154,23 @@ load-campaign-finance target="local" dry="true":
 mirror-raw-files target="production" dry="true":
   ALETHICAL_DATABASE_TARGET={{target}} PYTHONPATH=. uv run python scripts/mirror_raw_files.py --target {{target}} {{ if dry == "true" { "--dry-run" } else { "" } }}
 
+# Fetch what each Minnesota committee itself reported, plus the state's list of
+# registered filers (#1408). This is what lets a page show the true total beside the
+# payments we can name: roughly 4 dollars in 10 that a sitting member raised has no
+# name attached, because the state only names a donor once their yearly giving passes
+# $200. It also turns on the 2 checks the download loader used to record as "not run".
+# Dry-run by default, same as above, and a real run needs the same 4 storage values.
+# A FULL RUN IS ABOUT 4,800 REQUESTS AND ROUGHLY 48 MINUTES, so check one committee
+# first -- that is 3 requests:
+#   just load-campaign-finance-filings local true 11880   # dry run, one committee
+#   just load-campaign-finance-filings                    # dry run, every filer
+#   just load-campaign-finance-filings production false   # publish to production
+# A first run has nothing to compare against, so it quarantines by design. Read the
+# printed counts, then publish it by naming its record hash:
+#   uv run python scripts/load_campaign_finance_filings.py --target local --publish-hash H
+load-campaign-finance-filings target="local" dry="true" filers="":
+  uv run python scripts/load_campaign_finance_filings.py --target {{target}} {{ if dry == "true" { "--dry-run" } else { "" } }} {{ if filers != "" { "--only-filers " + filers } else { "" } }}
+
 # Reconcile current legislator membership against the official roster PDF.
 # Dry-run by default (no writes); pass apply=true to deactivate departed members.
 # Set ALETHICAL_DATABASE_TARGET=production to run against prod.

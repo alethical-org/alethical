@@ -135,6 +135,7 @@ specifically the ingestion that _builds the retrieval corpus_ those depend on.
 | F   | RAG chat synthesis                       | OpenAI Responses API                                                                   | HTTPS `POST`, JSON                         | `OPENAI_API_KEY` | [me.py](../../alethical/api/routers/me.py)                                                                                           |
 | G   | Map tiles                                | OpenStreetMap                                                                          | HTTP tiles                                 | none             | frontend `MapPinPicker.tsx`                                                                                                          |
 | H   | Campaign finance (money in and out)      | MN Campaign Finance Board data downloads                                               | HTTP `GET`, 3 whole CSV files              | none to fetch; storage credentials to keep the files | [campaign_finance.py](../../alethical/pipeline/campaign_finance.py), [raw_file_store.py](../../alethical/pipeline/raw_file_store.py) |
+| H2  | What each committee itself reported, and Minnesota's registered-filer list | MN Campaign Finance Board per-filer services (undocumented) | HTTP `POST`, JSON — and money inside an HTML table inside JSON | none to fetch; storage credentials to keep the responses | [campaign_finance_filings.py](../../alethical/pipeline/campaign_finance_filings.py) |
 
 **Every one of those `GET`s decodes through one helper, and it has to**
 ([http_text.py](../../alethical/pipeline/http_text.py)). Sources A, B and C each
@@ -456,12 +457,48 @@ you pass.
 5. **720 newlines sit inside quoted fields**, so a line count is not a row count, and
    a row's number is its CSV *record* number.
 
-**Two checks the design asks for that this loader cannot run**, recorded against
-every snapshot as "not run" with the reason and never as passed: reconciling itemized
-payments against a filing's official total, and resolving a registration number
-against the Board's registered-filer directory. Both routes are established
-(`campaign-finance-system-design.md` §9.1 and §9.7) and nothing in this repo fetches
-or stores those figures yet.
+**The two checks that watch one committee's money now run** ([#1408](https://github.com/alethical-org/alethical/issues/1408)).
+They used to be recorded as permanently "not run", and they matter more than their
+number suggests: every other check here watches the *whole file* — its row count, its
+total, its shape — so a file with two committees' amounts swapped between them passes
+all of them. Only a per-committee comparison catches that.
+
+- **`reported_totals_reconcile`** adds up our itemized payments for a committee and a
+  year and checks they fit inside what that committee itself reported taking in. Over
+  the total and there would be a negative amount of unnamed money on the page, which
+  is a failed check rather than a number to trim.
+- **`registration_numbers_resolve_to_a_known_filer`** checks each committee number in
+  the years we show against Minnesota's own list of registered filers, and reports the
+  ones it does not know as new.
+
+Both need the second pipeline below. With no filings snapshot published they report
+"not run" and name the command that fixes it, which is the honest state of a database
+holding payments and no reported totals.
+
+**Three things that decide whether a comparison is even fair, all measured.** Each one
+would otherwise produce a confident wrong answer:
+
+1. **The comparison stops at the date the reported figure runs to.** The itemized
+   download runs *ahead* of the figure: filer 18336's 2026 figures cover through 31
+   March while our rows for it run to 20 July, and $321,870.52 of its cash
+   contributions are dated after that. Comparing a whole year against a figure that
+   stops in March compares two different periods and calls the difference an error.
+2. **In-kind payments are left out.** The reported figure excludes them and the filing
+   states them separately. Folding them in made our sum exceed the Board's own figure
+   on 24 of 389 comparable filer-years against 15 on cash alone.
+3. **Special-election filers are excluded, not failed.** Such a candidate files a whole
+   second report series that the totals route does not return, so its regular figures
+   are a part of the year rather than the year: filer 19207's 2025 figure is $0.00
+   against $7,000.00 of real itemized payments, all of them in the special series.
+
+**One half is still not run, and it is the dangerous half.** Recorded as
+`reported_itemized_split_matches_ours` with its reason and
+[#1433](https://github.com/alethical-org/alethical/issues/1433). What runs today
+catches our rows being *too big* for a committee's own total. Nothing yet catches them
+being too *small*, because a payment we are missing does not vanish — it moves into the
+derived "not itemized" figure and reads as ordinary small-donor money. Seeing it needs
+each filing's own stated itemized subtotal, which the Board publishes only inside the
+report document.
 
 **Where the bytes go, and why it is a correctness requirement rather than
 housekeeping.** The Board publishes no archive: the download links never change and
@@ -532,6 +569,98 @@ first could delete the rows of a set a second run published a moment later, leav
 the live set with no rows at all. Three: **the comparison checks run again inside the
 lock**, because passing them against the set that was live when a run started is not
 the same as passing them against the set that is live when it publishes.
+
+### H2 — What each committee itself reported, and the filer directory
+
+_Verified against the code and the live source on 2026-08-12
+([#1408](https://github.com/alethical-org/alethical/issues/1408))._
+
+A second pipeline beside the downloads, because roughly **4 dollars in 10** that a
+sitting member raised has no name attached: Minnesota only names a donor once their
+giving passes $200 for the year (36.5% of the 2024 total and 41.3% of 2025). So the
+sums of the payments we hold understate every committee, and
+`.claude/rules/grounded-answers.md` rule 12 requires both numbers on the screen with
+the difference explained. Design:
+[`campaign-finance-system-design.md`](../architecture/campaign-finance-system-design.md)
+§9 (Filed reports: where the official totals come from).
+
+**What to run.** `uv run python scripts/load_campaign_finance_filings.py --dry-run`
+fetches, checks and reports, writing nothing. `--target local` and `--target
+production` publish. `--only-filers 11880` narrows a run to 3 requests, which is what
+makes a scoped live check possible before a full one. Quarantine and the
+publish-by-naming-the-hash loop work exactly as they do for the downloads, with one
+hash instead of three (`--publish-hash`).
+
+**A full run is about 4,800 requests and takes roughly 48 minutes.** Measured on
+2026-08-12 across all 1,603 registered filers: median response 0.23 seconds, slowest
+1.9 seconds, at 0.25 seconds between requests.
+
+**Three undocumented routes, all answering HTTP 200 to several kinds of failure.** The
+registered-filer directory, a filer's report catalogue, and a filer's reported figures.
+The failures, each measured and each guarded rather than trusted:
+
+1. **A missing or wrongly-named cookie returns 403.** A cookie *named* `PHPSESSID` is
+   required and its value is never read: an empty value is accepted and `x=y` is not.
+   That is an observed effect, not a published contract, so if the Board starts checking
+   the value every request fails at once.
+2. **Omitting one directory parameter returns the JSON literal `false`**, not an error.
+3. **A GET with the same parameters returns 200 and "No information found".**
+4. **The wrong viewer for a filer's kind returns 200 with no figures at all** — the same
+   answer an unregistered filer gets. So a filer's kind is read from the directory and
+   never guessed, and the guard is that **no filer kind may come back mostly empty**.
+   That guard is per kind because empty answers are ordinary and nowhere near uniform:
+   1.0% of party units, 7.0% to 23.0% of committees and funds, and 32.5% to 46.3% of
+   candidate committees, which is 21.7% across a default run. A run-wide ceiling would
+   either quarantine every honest run or hide one kind going dark behind two healthy
+   ones.
+5. **The `year` field is ignored — the 2-year election segment decides which years come
+   back.** Asking for 2026 with the segment 2020–2021 returns 2021 and 2020, correctly
+   labelled and not what was wanted. So the years in the answer are checked against the
+   request. One request returns **both** years of its segment, which is why asking about
+   2024 and 2025 costs no more than 2025 alone.
+6. **Money arrives inside an HTML table inside JSON, and the markup is invalid** — a
+   spacer row is served as `<td colspan="2"></th>`. Rows are classified by which cells
+   they hold, which leaves the spacer matching neither.
+
+**The label set is a contract in code, measured across the whole population rather than
+sampled.** An unknown, missing or repeated label stops a release, so the set has to be
+the real one: 4,809 requests over all 1,603 filers produced 3,630 filer-years and 55,845
+figures with **zero unknown labels**. A candidate committee reports 16 money lines
+broken down by contributor type; a party unit and a committee or fund report 15 with one
+combined contributions line. Three of the labels carry a date inside them
+("Ending cash balance as of 12/31/2025", and it is not always 31 December), so those
+match on the label's stem.
+
+**Two heading forms, and requiring either one breaks the other.** 3,162 blocks read
+`2025 - Election year` and 468 read a bare `2025` — the suffix depends on the viewer, so
+the parser takes the leading 4-digit year and keeps the whole heading as served.
+
+**A closed year with no amendment record is not a year that was never amended.** 9.1% of
+33,619 catalogued reports serve no amendment list at all, all of them older reports, and
+those are stored as unknown rather than as version 0. Where there is a list it is
+deduplicated before the maximum is taken, because one real report's list reads
+`['1','0','1','0']`.
+
+**Five pinned figures are a canary for the amendment rule.** The Board's route decides
+which amended version of a report is effective, and nothing on our side can see it
+change. So a fixed set of closed filer-years must keep returning the figures recorded in
+the design; a mismatch stops the run and says that either a filer amended a closed year,
+which is ordinary and wants the pinned figure updated, or the route stopped resolving
+amendments, which is not.
+
+**Where the responses go.** All of a run's ~4,800 responses are kept as **one gzipped
+JSON Lines object** in the same private bucket the downloads use, each line carrying one
+response's own sha256 and its exact bytes. Every stored figure names the line it came
+from, so a published number traces back to a response we still hold. One object rather
+than 4,800, because 4,800 tiny objects would cost more to store and audit than the
+evidence is worth.
+
+**The second run is the one that publishes, and that is where line numbers can go
+wrong.** A first run quarantines for want of anything to compare against, so the run
+that publishes is a later one whose own responses were numbered against an archive
+nobody kept. When the figures are unchanged the run therefore rebuilds itself **from the
+archive that was kept** and re-checks that it still reproduces the recorded figures,
+which doubles as a full integrity check of the stored object.
 
 ## E & F — the credentialed sources (Anthropic and OpenAI)
 
@@ -622,7 +751,8 @@ just pipeline local --write --allow-writes     # commit after review
 | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `uv run python scripts/load_minnesota_data.py`                                           | Live loader — roster + profiles + smoke bill set, idempotent (`--legislator-limit N`, `--bill HF2136`, `--roster-only`, `--skip-bills`, `--reconcile-roster`, `--reconcile-only [--dry-run]`, `--session-slug`) |
 | `just reconcile-roster [apply=true]`                                                     | Reconcile current membership against the official roster PDF (dry-run by default; deactivates departed members). `ALETHICAL_DATABASE_TARGET=production` to target prod                                          |
-| `just load-campaign-finance [target] [dry]`                                               | Fetch the Board's 3 campaign-finance files, check them, publish as one dated set replacing the previous one. Dry-run by default (writes nothing, needs no credentials); a first import quarantines by design — section **H** |
+| `just load-campaign-finance [target=local] [dry=true]`                                    | Fetch the Board's 3 campaign-finance files, check them, publish as one dated set replacing the previous one. Dry-run by default (writes nothing, needs no credentials); a first import quarantines by design — section **H** |
+| `just load-campaign-finance-filings [target=local] [dry=true] [filers=""]`                 | Fetch what each committee itself reported plus Minnesota's registered-filer list, which is what lets a page show the true total beside the payments we can name. Turns on the 2 checks the loader above used to record as "not run". A full run is ~4,800 requests and ~48 minutes, so pass `filers` to check a few first — section **H2** |
 | `uv run python scripts/load_sample_data.py`                                              | Deterministic fixtures for tests/offline demos (no network)                                                                                                                                                     |
 | `uv run python scripts/backfill_rag_bulk.py`                                             | Threaded RAG backfill for current versions missing chunks                                                                                                                                                       |
 | `uv run python -m alethical.pipeline.committee_memberships --cleanup-orphans`            | Committee repair/backfill                                                                                                                                                                                       |
