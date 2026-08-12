@@ -681,6 +681,16 @@ This should be folded into regular bill ingestion as a post-action stage:
 
 Votes remain optional. A bill can have zero vote events if it never receives a recorded roll call, if the action was not a roll call, or if the official source cannot be matched deterministically.
 
+Saved roll calls are reconciled, not blindly rewritten. An accepted bill-action change targets
+the exact stored bill key, and a bounded rotating sweep catches a chamber correction made without
+a matching Revisor action change. The reconciler first reads a complete official tally and member
+list. A missing, duplicate, ambiguous, or unresolved member rejects that roll call and preserves
+the saved event. When every official fact is unchanged, it writes nothing. When a fact changed,
+the event and every member row change in one database transaction. The daily missing-vote top-up
+remains separate and additive. This split is required by
+[#1446](https://github.com/alethical-org/alethical/issues/1446): finding a newly posted roll call
+and correcting an already saved roll call have different safety rules.
+
 # AI Enrichment Status
 
 The database and API are ready to serve AI enrichment. Enrichment is intentionally separate from canonical source ingestion: bill text, actions, votes, and committees are synced first; AI summaries are generated later from the canonical bill corpus.

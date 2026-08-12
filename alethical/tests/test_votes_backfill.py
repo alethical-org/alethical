@@ -7,14 +7,27 @@ parser is exercised against the shapes it actually meets in production.
 from __future__ import annotations
 
 import uuid
+from datetime import UTC, datetime
+import json
+import re
+from types import SimpleNamespace
 
+import pytest
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from alethical.db.models import (
+    Bill,
+    BillAction,
+    BillStats,
     Legislator,
+    LegislatorStats,
     LegislativeSession,
     LegislatorServicePeriod,
     SessionType,
+    VoteEvent,
+    VoteRecord,
+    VoteValue,
 )
 from alethical.db.session import get_engine
 from alethical.pipeline.minnesota import MinnesotaIngestionPipeline
@@ -24,8 +37,11 @@ from alethical.pipeline.votes import (
     looks_like_bill_number,
     parse_house_votes,
     parse_senate_vote_from_pdf,
+    parse_senate_votes_from_pdf,
     parse_senate_vote_scoped,
+    reconcile_saved_votes,
     resolve_name,
+    write_json_report,
 )
 
 
@@ -58,6 +74,7 @@ def _house_block(heading: str, yeas: int, nays: int, aye: str, no: str) -> str:
         f"<H3>{yeas} YEA and {nays} Nay</H3>"
         "<div><b>Motion to consider</b></div>"
         "<b>Date:</b> 05/11/2026</div>"
+        "<b>Journal Page</b> <a>1234</a>"
         "Those who voted in the affirmative were:"
         f"<table><tr><td>{aye}</td><td></td></tr></table>"
         "Those who voted in the negative were:"
@@ -158,6 +175,25 @@ def test_parse_senate_vote_motion_prefers_question_line():
     assert parsed.motion_text == "Final passage of S.F. No. 856, as amended"
 
 
+def test_parse_senate_votes_reads_corrected_tally_without_old_count():
+    text = (
+        "The question was taken on the final passage of S.F. No. 856.\n"
+        "The roll was called, and there were yeas 59 and nays 8 as follows:\n"
+        "Those who voted in the affirmative were:\n"
+        "Abeler\n"
+        "Those who voted in the negative were:\n"
+        "Bahr\n"
+        "So the bill passed.\n"
+    )
+
+    parsed = parse_senate_votes_from_pdf(text, "4654", "https://example/journal.pdf")
+
+    assert len(parsed) == 1
+    assert (parsed[0].yes_count, parsed[0].no_count) == (59, 8)
+    assert parsed[0].affirmative_names == ["Abeler"]
+    assert parsed[0].negative_names == ["Bahr"]
+
+
 def test_parse_senate_vote_scoped_returns_none_when_bill_absent():
     parsed = parse_senate_vote_scoped(
         SENATE_DAY_JOURNAL,
@@ -223,3 +259,545 @@ def test_build_legislator_index_includes_departed_session_members(
         # The departed member resolves just like the current one.
         assert resolve_name("Departed", index) is not None
         assert resolve_name("Current", index) is not None
+
+
+def _vote_reconciliation_fixture(
+    db: Session,
+) -> tuple[Bill, BillAction, list[Legislator]]:
+    pipeline = MinnesotaIngestionPipeline(db)
+    refs = pipeline.seed_reference_data()
+    house = refs["chambers"]["house"]
+    file_number = 100_000 + uuid.uuid4().int % 900_000
+    bill = Bill(
+        session_id=refs["session"].id,
+        chamber_id=house.id,
+        bill_key=f"94-2025-HF{file_number}",
+        file_type="HF",
+        file_number=file_number,
+        title="Vote correction test bill",
+    )
+    db.add(bill)
+    db.flush()
+    action = BillAction(
+        bill_id=bill.id,
+        chamber_id=house.id,
+        action_number=10,
+        action_text="Bill was passed",
+        action_at=datetime(2026, 5, 11, tzinfo=UTC),
+        journal_page="1234",
+        roll_call_text="2-1",
+    )
+    db.add(action)
+    db.flush()
+
+    legislators: list[Legislator] = []
+    unique = uuid.uuid4().hex[:8]
+    for index, (first, last) in enumerate(
+        (("Ada", "Able"), ("Bo", "Baker"), ("Cy", "Corrected")), start=1
+    ):
+        name = f"{first} {last}{unique}"
+        district = pipeline.upsert_district(refs, house, f"{70 + index}A")
+        legislator = Legislator(
+            jurisdiction_id=refs["jurisdiction"].id,
+            slug=f"{name.lower().replace(' ', '-')}-{uuid.uuid4().hex[:6]}",
+            external_key=f"vote-correction-{uuid.uuid4().hex}",
+            full_name=name,
+            sort_name=f"{name.split()[1]}, {name.split()[0]}",
+        )
+        db.add(legislator)
+        db.flush()
+        db.add(
+            LegislatorServicePeriod(
+                legislator_id=legislator.id,
+                session_id=refs["session"].id,
+                chamber_id=house.id,
+                district_id=district.id,
+                period_sequence=1,
+                is_current=True,
+            )
+        )
+        legislators.append(legislator)
+
+    event = VoteEvent(
+        bill_id=bill.id,
+        bill_action_id=action.id,
+        chamber_id=house.id,
+        motion_text="Old motion",
+        result_text="Old result",
+        occurred_at=datetime(2026, 5, 10, tzinfo=UTC),
+        official_url="https://example.test/old",
+        yes_count=2,
+        no_count=1,
+    )
+    db.add(event)
+    db.flush()
+    db.add_all(
+        [
+            VoteRecord(
+                vote_event_id=event.id,
+                legislator_id=legislators[0].id,
+                vote_value=VoteValue.yes,
+                sort_order=1,
+            ),
+            VoteRecord(
+                vote_event_id=event.id,
+                legislator_id=legislators[1].id,
+                vote_value=VoteValue.yes,
+                sort_order=2,
+            ),
+            VoteRecord(
+                vote_event_id=event.id,
+                legislator_id=legislators[2].id,
+                vote_value=VoteValue.no,
+                sort_order=3,
+            ),
+        ]
+    )
+    db.add(BillStats(bill_id=bill.id, vote_event_count=1))
+    for legislator in legislators:
+        db.add(
+            LegislatorStats(
+                legislator_id=legislator.id,
+                session_id=refs["session"].id,
+                vote_record_count=1,
+            )
+        )
+    db.commit()
+    return bill, action, legislators
+
+
+def _corrected_house_vote_html(bill_number: int = 9001, suffix: str = "") -> str:
+    return (
+        "<main>"
+        '<div class="panel-content">'
+        f"<H3>H.F. NO. {bill_number}</H3>"
+        "<H3>2 YEA and 1 Nay</H3>"
+        "<div><b>Final passage</b></div>"
+        "<b>Date:</b> 05/11/2026</div>"
+        "<b>Journal Page</b> <a>1234</a>"
+        "Those who voted in the affirmative were:"
+        f"<table><tr><td>Able{suffix}</td><td></td></tr>"
+        f"<tr><td>Corrected{suffix}</td><td></td></tr></table>"
+        "Those who voted in the negative were:"
+        f"<table><tr><td>Baker{suffix}</td><td></td></tr></table>"
+        "</main>"
+    )
+
+
+class _StaticSourceSession:
+    def __init__(self, text: str) -> None:
+        self.text = text
+        self.urls: list[str] = []
+
+    def get(self, url: str, **_kwargs):  # noqa: ANN201
+        self.urls.append(url)
+        return SimpleNamespace(
+            text=self.text,
+            content=self.text.encode(),
+            encoding="utf-8",
+            apparent_encoding="utf-8",
+            headers={"Content-Type": "text/html; charset=utf-8"},
+            raise_for_status=lambda: None,
+        )
+
+
+def _fixture_vote_html(bill: Bill, legislators: list[Legislator]) -> str:
+    suffix = legislators[0].full_name.removeprefix("Ada Able")
+    return _corrected_house_vote_html(bill.file_number, suffix)
+
+
+def test_reconciliation_replaces_changed_event_and_member_votes_together(
+    seed_database: None,
+) -> None:
+    with Session(get_engine()) as db:
+        bill, action, legislators = _vote_reconciliation_fixture(db)
+        source = _StaticSourceSession(_fixture_vote_html(bill, legislators))
+
+        report = reconcile_saved_votes(
+            db,
+            bill_keys=[bill.bill_key],
+            dry_run=False,
+            source_session=source,
+        )
+
+        assert [item.bill_key for item in report.updated] == [bill.bill_key], report
+        assert not report.unchanged
+        assert not report.rejected
+        assert not report.failed
+        event = db.scalar(
+            select(VoteEvent).where(VoteEvent.bill_action_id == action.id)
+        )
+        assert event is not None
+        assert event.motion_text == "Final passage"
+        assert event.result_text == action.action_text
+        assert event.occurred_at == datetime(2026, 5, 11, tzinfo=UTC)
+        assert event.official_url and "house.mn.gov/votes/Details" in event.official_url
+        records = db.scalars(
+            select(VoteRecord)
+            .where(VoteRecord.vote_event_id == event.id)
+            .order_by(VoteRecord.sort_order)
+        ).all()
+        assert [(row.legislator_id, row.vote_value) for row in records] == [
+            (legislators[0].id, VoteValue.yes),
+            (legislators[2].id, VoteValue.yes),
+            (legislators[1].id, VoteValue.no),
+        ]
+
+
+def test_reconciliation_finds_independent_tally_correction_by_vote_identity(
+    seed_database: None,
+) -> None:
+    with Session(get_engine()) as db:
+        bill, action, legislators = _vote_reconciliation_fixture(db)
+        suffix = legislators[0].full_name.removeprefix("Ada Able")
+        html = _fixture_vote_html(bill, legislators).replace(
+            "<H3>2 YEA and 1 Nay</H3>", "<H3>1 YEA and 2 Nay</H3>"
+        )
+        html = html.replace(
+            f"<tr><td>Corrected{suffix}</td><td></td></tr>", ""
+        ).replace(
+            f"<table><tr><td>Baker{suffix}</td><td></td></tr></table>",
+            f"<table><tr><td>Baker{suffix}</td><td></td></tr>"
+            f"<tr><td>Corrected{suffix}</td><td></td></tr></table>",
+        )
+
+        report = reconcile_saved_votes(
+            db,
+            bill_keys=[bill.bill_key],
+            dry_run=False,
+            source_session=_StaticSourceSession(html),
+        )
+
+        assert [item.bill_key for item in report.updated] == [bill.bill_key], report
+        event = db.scalar(
+            select(VoteEvent).where(VoteEvent.bill_action_id == action.id)
+        )
+        assert event is not None
+        assert (event.yes_count, event.no_count) == (1, 2)
+        records = db.scalars(
+            select(VoteRecord)
+            .where(VoteRecord.vote_event_id == event.id)
+            .order_by(VoteRecord.sort_order)
+        ).all()
+        assert [(row.legislator_id, row.vote_value) for row in records] == [
+            (legislators[0].id, VoteValue.yes),
+            (legislators[1].id, VoteValue.no),
+            (legislators[2].id, VoteValue.no),
+        ]
+
+
+def test_targeted_reconciliation_fills_a_new_roll_call_and_refreshes_counts(
+    seed_database: None,
+) -> None:
+    with Session(get_engine()) as db:
+        bill, action, legislators = _vote_reconciliation_fixture(db)
+        event = db.scalar(
+            select(VoteEvent).where(VoteEvent.bill_action_id == action.id)
+        )
+        assert event is not None
+        db.query(VoteRecord).filter(VoteRecord.vote_event_id == event.id).delete()
+        db.delete(event)
+        db.scalar(
+            select(BillStats).where(BillStats.bill_id == bill.id)
+        ).vote_event_count = 0
+        for legislator in legislators:
+            db.scalar(
+                select(LegislatorStats).where(
+                    LegislatorStats.legislator_id == legislator.id,
+                    LegislatorStats.session_id == bill.session_id,
+                )
+            ).vote_record_count = 0
+        db.commit()
+
+        report = reconcile_saved_votes(
+            db,
+            bill_keys=[bill.bill_key],
+            dry_run=False,
+            source_session=_StaticSourceSession(_fixture_vote_html(bill, legislators)),
+        )
+
+        assert [item.bill_key for item in report.updated] == [bill.bill_key], report
+        created = db.scalar(
+            select(VoteEvent).where(VoteEvent.bill_action_id == action.id)
+        )
+        assert created is not None
+        assert (
+            db.scalar(
+                select(BillStats).where(BillStats.bill_id == bill.id)
+            ).vote_event_count
+            == 1
+        )
+        assert all(
+            db.scalar(
+                select(LegislatorStats).where(
+                    LegislatorStats.legislator_id == legislator.id,
+                    LegislatorStats.session_id == bill.session_id,
+                )
+            ).vote_record_count
+            == 1
+            for legislator in legislators
+        )
+
+
+def test_targeted_reconciliation_accepts_confirmed_action_removal(
+    seed_database: None,
+) -> None:
+    with Session(get_engine()) as db:
+        bill, action, _legislators = _vote_reconciliation_fixture(db)
+        event = db.scalar(
+            select(VoteEvent).where(VoteEvent.bill_action_id == action.id)
+        )
+        assert event is not None
+        event.bill_action_id = None
+        db.flush()
+        db.delete(action)
+        db.commit()
+
+        report = reconcile_saved_votes(
+            db,
+            bill_keys=[bill.bill_key],
+            dry_run=False,
+            source_session=_StaticSourceSession(""),
+        )
+
+        assert [item.bill_key for item in report.unchanged] == [bill.bill_key]
+        assert report.unchanged[0].reason == "no current roll-call action"
+        assert db.get(VoteEvent, event.id) is not None
+
+
+def test_reconciliation_rejects_duplicate_events_for_one_action(
+    seed_database: None,
+) -> None:
+    with Session(get_engine()) as db:
+        bill, action, legislators = _vote_reconciliation_fixture(db)
+        db.add(
+            VoteEvent(
+                bill_id=bill.id,
+                bill_action_id=action.id,
+                chamber_id=action.chamber_id,
+                result_text="Duplicate",
+                yes_count=2,
+                no_count=1,
+            )
+        )
+        db.commit()
+
+        report = reconcile_saved_votes(
+            db,
+            bill_keys=[bill.bill_key],
+            dry_run=False,
+            source_session=_StaticSourceSession(_fixture_vote_html(bill, legislators)),
+        )
+
+        assert len(report.rejected) == 1
+        assert report.rejected[0].reason == "bill action has 2 saved roll calls"
+
+
+def test_reconciliation_writes_nothing_when_every_saved_fact_matches(
+    seed_database: None,
+) -> None:
+    with Session(get_engine()) as db:
+        bill, action, legislators = _vote_reconciliation_fixture(db)
+        source = _StaticSourceSession(_fixture_vote_html(bill, legislators))
+        first = reconcile_saved_votes(
+            db, bill_keys=[bill.bill_key], dry_run=False, source_session=source
+        )
+        event = db.scalar(
+            select(VoteEvent).where(VoteEvent.bill_action_id == action.id)
+        )
+        assert event is not None
+        event_updated_at = event.updated_at
+        record_ids = tuple(
+            db.scalars(
+                select(VoteRecord.id)
+                .where(VoteRecord.vote_event_id == event.id)
+                .order_by(VoteRecord.sort_order)
+            ).all()
+        )
+
+        second = reconcile_saved_votes(
+            db, bill_keys=[bill.bill_key], dry_run=False, source_session=source
+        )
+
+        assert len(first.updated) == 1
+        assert [item.bill_key for item in second.unchanged] == [bill.bill_key]
+        db.refresh(event)
+        assert event.updated_at == event_updated_at
+        assert (
+            tuple(
+                db.scalars(
+                    select(VoteRecord.id)
+                    .where(VoteRecord.vote_event_id == event.id)
+                    .order_by(VoteRecord.sort_order)
+                ).all()
+            )
+            == record_ids
+        )
+
+
+@pytest.mark.parametrize(
+    "source_change",
+    [
+        lambda html: html.replace(
+            re.search(r"<tr><td>Corrected[^<]*</td><td></td></tr>", html).group(0),
+            "",
+        ),
+        lambda html: html.replace("Corrected", "Unknown Person"),
+        lambda html: html.replace(
+            re.search(r"<tr><td>Corrected([^<]*)</td><td></td></tr>", html).group(0),
+            re.search(r"<tr><td>Able([^<]*)</td><td></td></tr>", html).group(0),
+        ),
+    ],
+)
+def test_reconciliation_rejects_incomplete_unresolved_or_duplicate_member_lists(
+    seed_database: None,
+    source_change,
+) -> None:
+    with Session(get_engine()) as db:
+        bill, action, legislators = _vote_reconciliation_fixture(db)
+        html = source_change(_fixture_vote_html(bill, legislators))
+        before_event = db.scalar(
+            select(VoteEvent).where(VoteEvent.bill_action_id == action.id)
+        )
+        assert before_event is not None
+        before_motion = before_event.motion_text
+        before_records = tuple(
+            db.scalars(
+                select(VoteRecord.id)
+                .where(VoteRecord.vote_event_id == before_event.id)
+                .order_by(VoteRecord.sort_order)
+            ).all()
+        )
+
+        report = reconcile_saved_votes(
+            db,
+            bill_keys=[bill.bill_key],
+            dry_run=False,
+            source_session=_StaticSourceSession(html),
+        )
+
+        assert [item.bill_key for item in report.rejected] == [bill.bill_key]
+        db.refresh(before_event)
+        assert before_event.motion_text == before_motion
+        assert (
+            tuple(
+                db.scalars(
+                    select(VoteRecord.id)
+                    .where(VoteRecord.vote_event_id == before_event.id)
+                    .order_by(VoteRecord.sort_order)
+                ).all()
+            )
+            == before_records
+        )
+
+
+def test_reconciliation_rolls_back_event_when_member_replace_fails(
+    seed_database: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with Session(get_engine()) as db:
+        bill, action, legislators = _vote_reconciliation_fixture(db)
+        event = db.scalar(
+            select(VoteEvent).where(VoteEvent.bill_action_id == action.id)
+        )
+        assert event is not None
+        old_motion = event.motion_text
+        old_records = tuple(
+            db.scalars(
+                select(VoteRecord.id).where(VoteRecord.vote_event_id == event.id)
+            ).all()
+        )
+
+        def fail_after_event_update(*_args, **_kwargs):  # noqa: ANN202
+            raise RuntimeError("forced member write failure")
+
+        monkeypatch.setattr(
+            "alethical.pipeline.votes._replace_vote_records", fail_after_event_update
+        )
+        report = reconcile_saved_votes(
+            db,
+            bill_keys=[bill.bill_key],
+            dry_run=False,
+            source_session=_StaticSourceSession(_fixture_vote_html(bill, legislators)),
+        )
+
+        assert [item.bill_key for item in report.failed] == [bill.bill_key]
+        db.expire_all()
+        restored = db.get(VoteEvent, event.id)
+        assert restored is not None and restored.motion_text == old_motion
+        assert (
+            tuple(
+                db.scalars(
+                    select(VoteRecord.id).where(VoteRecord.vote_event_id == event.id)
+                ).all()
+            )
+            == old_records
+        )
+
+
+def test_exact_bill_key_keeps_same_number_from_another_session_out(
+    seed_database: None,
+) -> None:
+    with Session(get_engine()) as db:
+        bill, _action, _legislators = _vote_reconciliation_fixture(db)
+        report = reconcile_saved_votes(
+            db,
+            bill_keys=[bill.bill_key.replace("94-2025", "94-2026")],
+            dry_run=True,
+            source_session=_StaticSourceSession(_corrected_house_vote_html()),
+        )
+        assert not report.updated
+        assert not report.unchanged
+        assert len(report.failed) == 1
+        assert report.failed[0].reason == "bill key not found"
+
+
+def test_bounded_sweep_is_repeatable_for_one_day_and_rotates_next_day(
+    seed_database: None,
+) -> None:
+    with Session(get_engine()) as db:
+        _vote_reconciliation_fixture(db)
+        _vote_reconciliation_fixture(db)
+        _vote_reconciliation_fixture(db)
+        source = _StaticSourceSession(_corrected_house_vote_html())
+
+        first = reconcile_saved_votes(
+            db,
+            safety_sweep_limit=2,
+            dry_run=True,
+            source_session=source,
+            now=datetime(2026, 8, 12, tzinfo=UTC),
+        )
+        repeated = reconcile_saved_votes(
+            db,
+            safety_sweep_limit=2,
+            dry_run=True,
+            source_session=source,
+            now=datetime(2026, 8, 12, 23, 59, tzinfo=UTC),
+        )
+        rotated = reconcile_saved_votes(
+            db,
+            safety_sweep_limit=2,
+            dry_run=True,
+            source_session=source,
+            now=datetime(2026, 8, 13, tzinfo=UTC),
+        )
+
+        assert [item.vote_event_id for item in first.items] == [
+            item.vote_event_id for item in repeated.items
+        ]
+        assert [item.vote_event_id for item in first.items] != [
+            item.vote_event_id for item in rotated.items
+        ]
+
+
+def test_json_report_replaces_the_destination_atomically(tmp_path) -> None:
+    destination = tmp_path / "vote-report.json"
+    destination.write_text('{"old": true}\n', encoding="utf-8")
+
+    write_json_report(destination, {"counts": {"updated": 1}})
+
+    assert json.loads(destination.read_text(encoding="utf-8")) == {
+        "counts": {"updated": 1}
+    }
+    assert list(tmp_path.iterdir()) == [destination]

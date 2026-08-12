@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import re
 import subprocess
@@ -9,9 +10,8 @@ import tempfile
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, Sequence
 from urllib.parse import urlencode
 
 import requests
@@ -22,6 +22,7 @@ from alethical.pipeline.http_text import response_text
 from alethical.db import models as schema
 from alethical.db.session import (
     NO_PREPARED_STATEMENTS,
+    database_url_for_target,
     get_database_url,
     normalize_database_url,
 )
@@ -33,6 +34,7 @@ BillAction = schema.BillAction
 BillStats = schema.BillStats
 Chamber = schema.Chamber
 Legislator = schema.Legislator
+LegislativeSession = schema.LegislativeSession
 LegislatorServicePeriod = schema.LegislatorServicePeriod
 VoteEvent = schema.VoteEvent
 VoteRecord = schema.VoteRecord
@@ -65,8 +67,80 @@ class BackfillStats:
     cross_chamber_mirror: int = 0
 
 
+@dataclass(frozen=True)
+class VoteReconciliationItem:
+    bill_key: str
+    vote_event_id: str | None
+    action_number: int | None
+    outcome: str
+    reason: str | None = None
+
+
+@dataclass(frozen=True)
+class VoteReconciliationReport:
+    updated: tuple[VoteReconciliationItem, ...] = ()
+    unchanged: tuple[VoteReconciliationItem, ...] = ()
+    rejected: tuple[VoteReconciliationItem, ...] = ()
+    failed: tuple[VoteReconciliationItem, ...] = ()
+
+    @property
+    def items(self) -> tuple[VoteReconciliationItem, ...]:
+        return self.updated + self.unchanged + self.rejected + self.failed
+
+    def to_dict(self) -> dict[str, Any]:
+        def item_dict(item: VoteReconciliationItem) -> dict[str, Any]:
+            return {
+                "bill_key": item.bill_key,
+                "vote_event_id": item.vote_event_id,
+                "action_number": item.action_number,
+                "outcome": item.outcome,
+                "reason": item.reason,
+            }
+
+        return {
+            "counts": {
+                "updated": len(self.updated),
+                "unchanged": len(self.unchanged),
+                "rejected": len(self.rejected),
+                "failed": len(self.failed),
+            },
+            "updated": [item_dict(item) for item in self.updated],
+            "unchanged": [item_dict(item) for item in self.unchanged],
+            "rejected": [item_dict(item) for item in self.rejected],
+            "failed": [item_dict(item) for item in self.failed],
+        }
+
+
 def supabase_database_url() -> str | None:
     return _supabase_database_url()
+
+
+def rate_limited_source_session(engine: Any, *, target: str) -> Any:
+    """Use the shared production source pace when the scheduler has shipped it."""
+    try:
+        from alethical.pipeline.request_limits import (
+            DEFAULT_SOURCE_REQUEST_INTERVAL_SECONDS,
+            DatabaseRequestLimiter,
+            RateLimitedSession,
+        )
+        from alethical.pipeline.minnesota import http_session
+    except ImportError:
+        # #1446 lands before #1323 by design. The workflow that enables the
+        # bounded sweep is held until #1323 rebases, supplies this shared limiter,
+        # and removes this temporary release-order fallback.
+        if target == "production":
+            raise RuntimeError(
+                "production vote reconciliation waits for the shared database "
+                "source limiter from #1323"
+            )
+        return requests.Session()
+    return RateLimitedSession(
+        http_session(),
+        DatabaseRequestLimiter(
+            engine,
+            interval_seconds=DEFAULT_SOURCE_REQUEST_INTERVAL_SECONDS,
+        ),
+    )
 
 
 def parse_roll_call(value: str | None) -> tuple[int, int] | None:
@@ -214,14 +288,21 @@ def parse_house_votes(
     return votes
 
 
-def get_text(url: str, *, retries: int = 4, backoff: float = 2.0) -> str:
+def get_text(
+    url: str,
+    *,
+    retries: int = 4,
+    backoff: float = 2.0,
+    source_session: Any | None = None,
+) -> str:
     # The MN House votes endpoint returns intermittent 500s under rapid requests,
     # so retry transient (5xx / connection) failures with exponential backoff;
     # a 4xx still fails fast.
     last_exc: Exception | None = None
     for attempt in range(retries):
         try:
-            response = requests.get(
+            source = source_session or requests
+            response = source.get(
                 url, headers={"User-Agent": USER_AGENT}, timeout=TIMEOUT_SECONDS
             )
             response.raise_for_status()
@@ -237,9 +318,12 @@ def get_text(url: str, *, retries: int = 4, backoff: float = 2.0) -> str:
     raise last_exc
 
 
-def senate_pdf_for_page(journal_page: str) -> tuple[str, int]:
+def senate_pdf_for_page(
+    journal_page: str, *, source_session: Any | None = None
+) -> tuple[str, int]:
     page = journal_page.lower().replace("a", "").replace("c", "")
-    payload = requests.get(
+    source = source_session or requests
+    payload = source.get(
         "https://www.senate.mn/api/journal/gotopage",
         params={"page": page, "ls": "94"},
         headers={"User-Agent": USER_AGENT},
@@ -253,10 +337,17 @@ def senate_pdf_for_page(journal_page: str) -> tuple[str, int]:
     )
 
 
-def pdf_pages_text(pdf_url: str, first_page: int, last_page: int) -> str:
+def pdf_pages_text(
+    pdf_url: str,
+    first_page: int,
+    last_page: int,
+    *,
+    source_session: Any | None = None,
+) -> str:
     with tempfile.TemporaryDirectory() as temp_dir:
         pdf_path = Path(temp_dir) / "journal.pdf"
-        response = requests.get(
+        source = source_session or requests
+        response = source.get(
             pdf_url, headers={"User-Agent": USER_AGENT}, timeout=TIMEOUT_SECONDS
         )
         response.raise_for_status()
@@ -283,15 +374,14 @@ SENATE_JOURNAL_LIST_URL = (
 )
 
 
-@lru_cache(maxsize=1)
-def senate_journal_index() -> dict[str, str]:
+def senate_journal_index(*, source_session: Any | None = None) -> dict[str, str]:
     """Map each session day 'YYYYMMDD' to its Senate journal PDF URL.
 
     Used to recover the journal for a roll-call action whose JOURNAL_PAGE is
     empty at the Revisor source: the day's journal is located by the action
     date instead.
     """
-    html_text = get_text(SENATE_JOURNAL_LIST_URL)
+    html_text = get_text(SENATE_JOURNAL_LIST_URL, source_session=source_session)
     index: dict[str, str] = {}
     for href in re.findall(r'href="([^"]*\.pdf)"', html_text, flags=re.I):
         name = href.rsplit("/", 1)[-1]
@@ -304,16 +394,19 @@ def senate_journal_index() -> dict[str, str]:
     return index
 
 
-def senate_pdf_for_date(action_at: datetime | None) -> str | None:
+def senate_pdf_for_date(
+    action_at: datetime | None, *, journal_index: dict[str, str]
+) -> str | None:
     if action_at is None:
         return None
-    return senate_journal_index().get(action_at.strftime("%Y%m%d"))
+    return journal_index.get(action_at.strftime("%Y%m%d"))
 
 
-def pdf_full_text(pdf_url: str) -> str:
+def pdf_full_text(pdf_url: str, *, source_session: Any | None = None) -> str:
     with tempfile.TemporaryDirectory() as temp_dir:
         pdf_path = Path(temp_dir) / "journal.pdf"
-        response = requests.get(
+        source = source_session or requests
+        response = source.get(
             pdf_url, headers={"User-Agent": USER_AGENT}, timeout=TIMEOUT_SECONDS
         )
         response.raise_for_status()
@@ -355,13 +448,14 @@ def names_between(text: str, start: int, end_pattern: str) -> tuple[list[str], i
     return names, end
 
 
-def parse_senate_vote_from_pdf(
-    text: str, yes_count: int, no_count: int, journal_page: str, official_url: str
+def _parse_senate_vote_at(
+    text: str,
+    count_match: re.Match[str],
+    yes_count: int,
+    no_count: int,
+    journal_page: str | None,
+    official_url: str,
 ) -> ParsedVote | None:
-    count_pattern = rf"The roll was called, and there were yeas\s+{yes_count}\s+and nays\s+{no_count}"
-    count_match = re.search(count_pattern, text, flags=re.I)
-    if not count_match:
-        return None
     prefix = text[: count_match.start()]
     motion_lines = [
         normalize_space(line)
@@ -422,6 +516,81 @@ def parse_senate_vote_from_pdf(
     )
 
 
+SENATE_ROLL_CALL_PATTERN = re.compile(
+    r"The roll was called, and there were yeas\s+(\d+)\s+and nays\s+(\d+)\b",
+    flags=re.I,
+)
+
+
+def parse_senate_vote_from_pdf(
+    text: str,
+    yes_count: int,
+    no_count: int,
+    journal_page: str | None,
+    official_url: str,
+) -> ParsedVote | None:
+    count_pattern = re.compile(
+        rf"The roll was called, and there were yeas\s+{yes_count}\s+and nays\s+{no_count}\b",
+        flags=re.I,
+    )
+    count_match = count_pattern.search(text)
+    if count_match is None:
+        return None
+    return _parse_senate_vote_at(
+        text, count_match, yes_count, no_count, journal_page, official_url
+    )
+
+
+def parse_senate_votes_from_pdf(
+    text: str, journal_page: str | None, official_url: str
+) -> list[ParsedVote]:
+    """Parse every complete roll call in a Senate journal slice."""
+    votes: list[ParsedVote] = []
+    for count_match in SENATE_ROLL_CALL_PATTERN.finditer(text):
+        vote = _parse_senate_vote_at(
+            text,
+            count_match,
+            int(count_match.group(1)),
+            int(count_match.group(2)),
+            journal_page,
+            official_url,
+        )
+        if vote is not None:
+            votes.append(vote)
+    return votes
+
+
+def parse_senate_votes_scoped(
+    text: str,
+    file_type: str,
+    file_number: int,
+    official_url: str,
+) -> list[ParsedVote]:
+    """Parse this bill's complete roll calls from a full-day Senate journal."""
+    letter = file_type[0].upper()
+    wanted_bill = re.compile(
+        rf"{letter}\.?\s*F\.?\s*No\.?\s*0*{file_number}\b", flags=re.I
+    )
+    any_bill = re.compile(r"[HS]\.?\s*F\.?\s*No\.?\s*0*\d+\b", flags=re.I)
+    all_bill_hits = list(any_bill.finditer(text))
+    votes: list[ParsedVote] = []
+    for bill_hit in wanted_bill.finditer(text):
+        end = next(
+            (
+                other.start()
+                for other in all_bill_hits
+                if other.start() > bill_hit.start()
+            ),
+            len(text),
+        )
+        votes.extend(
+            parse_senate_votes_from_pdf(
+                text[bill_hit.start() : end], None, official_url
+            )
+        )
+    return votes
+
+
 def parse_senate_vote_scoped(
     text: str,
     file_type: str,
@@ -436,29 +605,14 @@ def parse_senate_vote_scoped(
     preceding text references this bill (e.g. 'H.F. No. 3615'), then hand the
     slice from there to the standard per-page parser.
     """
-    letter = file_type[0].upper()
-    bill_pattern = re.compile(
-        rf"{letter}\.?\s*F\.?\s*No\.?\s*0*{file_number}\b", flags=re.I
-    )
-    count_pattern = re.compile(
-        rf"The roll was called, and there were yeas\s+{yes_count}\s+and nays\s+{no_count}\b",
-        flags=re.I,
-    )
-    for count_match in count_pattern.finditer(text):
-        window_start = max(0, count_match.start() - 2500)
-        bill_hits = list(bill_pattern.finditer(text, window_start, count_match.start()))
-        if bill_hits:
-            # Slice from this bill's reference (immediately before its own count
-            # line) so the per-page parser locks onto this roll call rather than
-            # an earlier bill's identically-tallied one.
-            return parse_senate_vote_from_pdf(
-                text[bill_hits[-1].start() :],
-                yes_count,
-                no_count,
-                None,
-                official_url,
-            )
-    return None
+    matches = [
+        vote
+        for vote in parse_senate_votes_scoped(
+            text, file_type, file_number, official_url
+        )
+        if vote.yes_count == yes_count and vote.no_count == no_count
+    ]
+    return matches[0] if len(matches) == 1 else None
 
 
 def vote_name_key(name: str) -> tuple[str, tuple[str, ...]]:
@@ -528,8 +682,54 @@ def resolve_name(
 
 
 def find_matching_vote(
-    votes: list[ParsedVote], action: Any, yes_count: int, no_count: int
+    votes: list[ParsedVote],
+    action: Any,
+    yes_count: int,
+    no_count: int,
+    saved_event: Any | None = None,
 ) -> ParsedVote | None:
+    def unique(items: list[ParsedVote]) -> ParsedVote | None:
+        return items[0] if len(items) == 1 else None
+
+    # Stable identity fields come before the tally. That lets the safety sweep
+    # find a roll call after the government corrects its count, which is exactly
+    # when matching only the old count would lose the vote we need to repair.
+    if saved_event is not None and action.journal_page:
+        page_match = unique(
+            [vote for vote in votes if vote.journal_page == action.journal_page]
+        )
+        if page_match is not None:
+            return page_match
+
+    expected_date = (
+        action.action_at or getattr(saved_event, "occurred_at", None)
+        if saved_event is not None
+        else None
+    )
+    if expected_date is not None:
+        date_matches = [
+            vote
+            for vote in votes
+            if vote.occurred_at is not None
+            and vote.occurred_at.date() == expected_date.date()
+        ]
+        date_match = unique(date_matches)
+        if date_match is not None:
+            return date_match
+
+    saved_motion = normalize_space(getattr(saved_event, "motion_text", "") or "")
+    if saved_motion:
+        motion_match = unique(
+            [
+                vote
+                for vote in votes
+                if normalize_space(vote.motion_text or "").casefold()
+                == saved_motion.casefold()
+            ]
+        )
+        if motion_match is not None:
+            return motion_match
+
     tally_matches = [
         vote
         for vote in votes
@@ -541,13 +741,525 @@ def find_matching_vote(
     # break a genuine tie when several votes share the same tally.
     if len(tally_matches) == 1:
         return tally_matches[0]
-    if action.journal_page:
-        page_matches = [
-            vote for vote in tally_matches if vote.journal_page == action.journal_page
-        ]
-        if len(page_matches) == 1:
-            return page_matches[0]
+    if len(votes) == 1:
+        return votes[0]
     return None
+
+
+def _source_vote_for_action(
+    action: Any,
+    bill: Any,
+    chamber: Any,
+    *,
+    source_session: Any | None,
+    house_cache: dict[str, list[ParsedVote]],
+    senate_cache: dict[str, Any],
+    saved_event: Any | None = None,
+) -> ParsedVote | None:
+    # The House and Senate endpoints below are the current 94th Legislature
+    # sources. Refuse another session instead of silently attaching a same-number
+    # current vote to an older bill.
+    if not str(bill.bill_key).startswith("94-"):
+        return None
+    counts = parse_roll_call(action.roll_call_text)
+    if counts is None:
+        return None
+    yes_count, no_count = counts
+    if chamber.slug == "house":
+        bill_number = house_bill_number(bill.file_type, bill.file_number)
+        url = (
+            "https://www.house.mn.gov/votes/Details?"
+            f"{urlencode({'BillNumber': bill_number, 'SessionKey': '302'})}"
+        )
+        if url not in house_cache:
+            house_cache[url] = parse_house_votes(
+                get_text(url, source_session=source_session), bill_number, url
+            )
+        return find_matching_vote(
+            house_cache[url], action, yes_count, no_count, saved_event
+        )
+    if chamber.slug == "senate" and action.journal_page:
+        pdf_url, internal_page = senate_pdf_for_page(
+            action.journal_page, source_session=source_session
+        )
+        for first_page in (internal_page, max(1, internal_page - 1)):
+            text_key = f"{pdf_url}#{first_page}-{internal_page + 1}"
+            if text_key not in senate_cache:
+                senate_cache[text_key] = pdf_pages_text(
+                    pdf_url,
+                    first_page,
+                    internal_page + 1,
+                    source_session=source_session,
+                )
+            vote = find_matching_vote(
+                parse_senate_votes_from_pdf(
+                    senate_cache[text_key],
+                    action.journal_page,
+                    f"{pdf_url}#page={internal_page}",
+                ),
+                action,
+                yes_count,
+                no_count,
+                saved_event,
+            )
+            if vote is not None:
+                return vote
+        return None
+    if chamber.slug == "senate":
+        index_key = "__journal_index__"
+        if index_key not in senate_cache:
+            senate_cache[index_key] = senate_journal_index(
+                source_session=source_session
+            )
+        pdf_url = senate_pdf_for_date(
+            action.action_at, journal_index=senate_cache[index_key]
+        )
+        if not pdf_url:
+            return None
+        if pdf_url not in senate_cache:
+            senate_cache[pdf_url] = pdf_full_text(
+                pdf_url, source_session=source_session
+            )
+        return find_matching_vote(
+            parse_senate_votes_scoped(
+                senate_cache[pdf_url], bill.file_type, bill.file_number, pdf_url
+            ),
+            action,
+            yes_count,
+            no_count,
+            saved_event,
+        )
+    return None
+
+
+@dataclass(frozen=True)
+class _ValidatedVote:
+    motion_text: str | None
+    result_text: str | None
+    occurred_at: datetime | None
+    official_url: str
+    yes_count: int
+    no_count: int
+    records: tuple[tuple[Any, VoteValue, int], ...]
+
+
+def _validate_complete_vote(
+    db: Session,
+    *,
+    parsed_vote: ParsedVote,
+    action: Any,
+    bill: Any,
+    chamber: Any,
+    legislator_indexes: dict[
+        tuple[Any, Any], dict[tuple[str, tuple[str, ...]], list[Any]]
+    ],
+) -> tuple[_ValidatedVote | None, str | None]:
+    if parsed_vote.yes_count != len(parsed_vote.affirmative_names):
+        return None, "affirmative member list does not equal the official tally"
+    if parsed_vote.no_count != len(parsed_vote.negative_names):
+        return None, "negative member list does not equal the official tally"
+    all_names = parsed_vote.affirmative_names + parsed_vote.negative_names
+    normalized_names = [normalize_space(name).casefold() for name in all_names]
+    if any(not name for name in normalized_names):
+        return None, "official member list contains a blank name"
+    if len(set(normalized_names)) != len(normalized_names):
+        return None, "official member list contains a duplicate name"
+
+    index_key = (chamber.id, bill.session_id)
+    if index_key not in legislator_indexes:
+        legislator_indexes[index_key] = build_legislator_index(
+            db, chamber.id, bill.session_id
+        )
+    index = legislator_indexes[index_key]
+    records: list[tuple[Any, VoteValue, int]] = []
+    seen_legislators: set[Any] = set()
+    sort_order = 0
+    for value, names in (
+        (VoteValue.yes, parsed_vote.affirmative_names),
+        (VoteValue.no, parsed_vote.negative_names),
+    ):
+        for name in names:
+            legislator = resolve_name(name, index)
+            if legislator is None:
+                return None, f"official member name did not resolve: {name}"
+            if legislator.id in seen_legislators:
+                return None, f"official member resolved more than once: {name}"
+            seen_legislators.add(legislator.id)
+            sort_order += 1
+            records.append((legislator.id, value, sort_order))
+
+    return (
+        _ValidatedVote(
+            motion_text=parsed_vote.motion_text or action.action_text,
+            result_text=action.action_text,
+            occurred_at=parsed_vote.occurred_at or action.action_at,
+            official_url=parsed_vote.official_url,
+            yes_count=parsed_vote.yes_count,
+            no_count=parsed_vote.no_count,
+            records=tuple(records),
+        ),
+        None,
+    )
+
+
+def _saved_vote_signature(event: Any, records: Sequence[Any]) -> tuple[Any, ...]:
+    return (
+        event.yes_count,
+        event.no_count,
+        event.result_text,
+        event.occurred_at,
+        event.motion_text,
+        event.official_url,
+        tuple(
+            (record.legislator_id, record.vote_value)
+            for record in sorted(records, key=lambda item: item.sort_order)
+        ),
+    )
+
+
+def _validated_vote_signature(vote: _ValidatedVote) -> tuple[Any, ...]:
+    return (
+        vote.yes_count,
+        vote.no_count,
+        vote.result_text,
+        vote.occurred_at,
+        vote.motion_text,
+        vote.official_url,
+        tuple((legislator_id, value) for legislator_id, value, _order in vote.records),
+    )
+
+
+def _replace_vote_records(
+    db: Session, event: Any, records: Sequence[tuple[Any, VoteValue, int]]
+) -> None:
+    db.execute(delete(VoteRecord).where(VoteRecord.vote_event_id == event.id))
+    for legislator_id, value, sort_order in records:
+        db.add(
+            VoteRecord(
+                vote_event_id=event.id,
+                legislator_id=legislator_id,
+                vote_value=value,
+                sort_order=sort_order,
+            )
+        )
+
+
+def _refresh_vote_counts(
+    db: Session,
+    *,
+    bill_id: Any,
+    session_id: Any,
+    affected_legislator_ids: set[Any],
+) -> None:
+    bill_stats = db.scalar(select(BillStats).where(BillStats.bill_id == bill_id))
+    if bill_stats is not None:
+        bill_stats.vote_event_count = int(
+            db.scalar(
+                select(func.count())
+                .select_from(VoteEvent)
+                .where(VoteEvent.bill_id == bill_id)
+            )
+            or 0
+        )
+    for legislator_id in affected_legislator_ids:
+        stats = db.scalar(
+            select(schema.LegislatorStats).where(
+                schema.LegislatorStats.legislator_id == legislator_id,
+                schema.LegislatorStats.session_id == session_id,
+            )
+        )
+        if stats is not None:
+            stats.vote_record_count = int(
+                db.scalar(
+                    select(func.count())
+                    .select_from(VoteRecord)
+                    .join(VoteEvent, VoteEvent.id == VoteRecord.vote_event_id)
+                    .join(Bill, Bill.id == VoteEvent.bill_id)
+                    .where(
+                        VoteRecord.legislator_id == legislator_id,
+                        Bill.session_id == session_id,
+                    )
+                )
+                or 0
+            )
+
+
+def _sweep_event_ids(db: Session, *, limit: int, now: datetime) -> list[Any]:
+    if limit <= 0:
+        return []
+    event_ids = list(
+        db.scalars(
+            select(VoteEvent.id)
+            .join(Bill, Bill.id == VoteEvent.bill_id)
+            .join(LegislativeSession, LegislativeSession.id == Bill.session_id)
+            .where(VoteEvent.bill_action_id.is_not(None))
+            .where(LegislativeSession.is_current.is_(True))
+            .order_by(VoteEvent.id.asc())
+        ).all()
+    )
+    if not event_ids:
+        return []
+    # A deterministic daily rotation needs no cursor write. Each day moves by the
+    # requested window width, and a retry on the same day selects the same events.
+    day_number = (now.astimezone(UTC).date() - datetime(1970, 1, 1).date()).days
+    offset = (day_number * limit) % len(event_ids)
+    return [
+        event_ids[(offset + index) % len(event_ids)]
+        for index in range(min(limit, len(event_ids)))
+    ]
+
+
+def reconcile_saved_votes(
+    db: Session,
+    *,
+    bill_keys: Sequence[str] = (),
+    safety_sweep_limit: int = 0,
+    dry_run: bool,
+    source_session: Any | None = None,
+    now: datetime | None = None,
+) -> VoteReconciliationReport:
+    """Recheck saved roll calls and replace only complete, changed official records."""
+    now = now or datetime.now(UTC)
+    groups: dict[str, list[VoteReconciliationItem]] = {
+        "updated": [],
+        "unchanged": [],
+        "rejected": [],
+        "failed": [],
+    }
+    selected_work: list[tuple[Any, Any, Any, Any | None]] = []
+    seen_event_ids: set[Any] = set()
+    seen_action_ids: set[Any] = set()
+
+    for bill_key in dict.fromkeys(bill_keys):
+        bill = db.scalar(select(Bill).where(Bill.bill_key == bill_key))
+        if bill is None:
+            groups["failed"].append(
+                VoteReconciliationItem(
+                    bill_key, None, None, "failed", "bill key not found"
+                )
+            )
+            continue
+        actions = list(
+            db.scalars(
+                select(BillAction)
+                .where(
+                    BillAction.bill_id == bill.id,
+                    BillAction.roll_call_text.op("~")(r"^\s*\d+\s*-\s*\d+\s*$"),
+                )
+                .order_by(BillAction.action_number.asc())
+            ).all()
+        )
+        if not actions:
+            groups["unchanged"].append(
+                VoteReconciliationItem(
+                    bill_key,
+                    None,
+                    None,
+                    "unchanged",
+                    "no current roll-call action",
+                )
+            )
+            continue
+        for action in actions:
+            chamber = db.get(Chamber, action.chamber_id) if action.chamber_id else None
+            if chamber is None:
+                groups["rejected"].append(
+                    VoteReconciliationItem(
+                        bill_key,
+                        None,
+                        action.action_number,
+                        "rejected",
+                        "roll-call action has no chamber",
+                    )
+                )
+                continue
+            if leading_chamber(action.action_text) not in (None, chamber.slug):
+                groups["unchanged"].append(
+                    VoteReconciliationItem(
+                        bill_key,
+                        None,
+                        action.action_number,
+                        "unchanged",
+                        "cross-chamber copy is preserved without a second vote",
+                    )
+                )
+                continue
+            events = list(
+                db.scalars(
+                    select(VoteEvent)
+                    .where(VoteEvent.bill_action_id == action.id)
+                    .order_by(VoteEvent.id.asc())
+                ).all()
+            )
+            if len(events) > 1:
+                groups["rejected"].append(
+                    VoteReconciliationItem(
+                        bill_key,
+                        None,
+                        action.action_number,
+                        "rejected",
+                        f"bill action has {len(events)} saved roll calls",
+                    )
+                )
+                continue
+            event = events[0] if events else None
+            selected_work.append((bill, action, chamber, event))
+            seen_action_ids.add(action.id)
+            if event is not None:
+                seen_event_ids.add(event.id)
+
+    for event_id in _sweep_event_ids(db, limit=safety_sweep_limit, now=now):
+        if event_id not in seen_event_ids:
+            event = db.get(VoteEvent, event_id)
+            if event is None or event.bill_action_id in seen_action_ids:
+                continue
+            bill = db.get(Bill, event.bill_id)
+            action = db.get(BillAction, event.bill_action_id)
+            chamber = db.get(Chamber, event.chamber_id)
+            if bill is None or action is None or chamber is None:
+                groups["rejected"].append(
+                    VoteReconciliationItem(
+                        getattr(bill, "bill_key", str(event.bill_id)),
+                        str(event.id),
+                        getattr(action, "action_number", None),
+                        "rejected",
+                        "saved roll call is not linked to a complete bill action",
+                    )
+                )
+                continue
+            selected_work.append((bill, action, chamber, event))
+            seen_event_ids.add(event_id)
+            seen_action_ids.add(action.id)
+
+    house_cache: dict[str, list[ParsedVote]] = {}
+    senate_cache: dict[str, Any] = {}
+    legislator_indexes: dict[
+        tuple[Any, Any], dict[tuple[str, tuple[str, ...]], list[Any]]
+    ] = {}
+
+    for bill, action, chamber, event in selected_work:
+        item_args = (
+            bill.bill_key,
+            str(event.id) if event is not None else None,
+            action.action_number,
+        )
+        try:
+            parsed_vote = _source_vote_for_action(
+                action,
+                bill,
+                chamber,
+                source_session=source_session,
+                house_cache=house_cache,
+                senate_cache=senate_cache,
+                saved_event=event,
+            )
+        except Exception as exc:  # noqa: BLE001
+            groups["failed"].append(
+                VoteReconciliationItem(
+                    *item_args,
+                    "failed",
+                    f"source read failed: {type(exc).__name__}: {exc}",
+                )
+            )
+            continue
+        if parsed_vote is None:
+            groups["rejected"].append(
+                VoteReconciliationItem(
+                    *item_args, "rejected", "official roll call did not match uniquely"
+                )
+            )
+            continue
+        validated, rejection = _validate_complete_vote(
+            db,
+            parsed_vote=parsed_vote,
+            action=action,
+            bill=bill,
+            chamber=chamber,
+            legislator_indexes=legislator_indexes,
+        )
+        if validated is None:
+            groups["rejected"].append(
+                VoteReconciliationItem(*item_args, "rejected", rejection)
+            )
+            continue
+        saved_records = (
+            list(
+                db.scalars(
+                    select(VoteRecord)
+                    .where(VoteRecord.vote_event_id == event.id)
+                    .order_by(VoteRecord.sort_order.asc())
+                ).all()
+            )
+            if event is not None
+            else []
+        )
+        if event is not None and _saved_vote_signature(
+            event, saved_records
+        ) == _validated_vote_signature(validated):
+            groups["unchanged"].append(VoteReconciliationItem(*item_args, "unchanged"))
+            continue
+        if dry_run:
+            groups["updated"].append(
+                VoteReconciliationItem(
+                    *item_args, "updated", "dry run; no rows written"
+                )
+            )
+            continue
+
+        old_legislator_ids = {record.legislator_id for record in saved_records}
+        new_legislator_ids = {record[0] for record in validated.records}
+        try:
+            with db.begin_nested():
+                if event is None:
+                    event = VoteEvent(
+                        bill_id=bill.id,
+                        bill_action_id=action.id,
+                        chamber_id=chamber.id,
+                        yes_count=validated.yes_count,
+                        no_count=validated.no_count,
+                    )
+                    db.add(event)
+                    db.flush()
+                event.motion_text = validated.motion_text
+                event.result_text = validated.result_text
+                event.occurred_at = validated.occurred_at
+                event.official_url = validated.official_url
+                event.yes_count = validated.yes_count
+                event.no_count = validated.no_count
+                _replace_vote_records(db, event, validated.records)
+                db.flush()
+                _refresh_vote_counts(
+                    db,
+                    bill_id=bill.id,
+                    session_id=bill.session_id,
+                    affected_legislator_ids=old_legislator_ids | new_legislator_ids,
+                )
+            db.commit()
+        except Exception as exc:  # noqa: BLE001
+            db.rollback()
+            groups["failed"].append(
+                VoteReconciliationItem(
+                    *item_args,
+                    "failed",
+                    f"atomic replacement failed: {type(exc).__name__}: {exc}",
+                )
+            )
+            continue
+        groups["updated"].append(
+            VoteReconciliationItem(
+                bill.bill_key,
+                str(event.id),
+                action.action_number,
+                "updated",
+            )
+        )
+
+    return VoteReconciliationReport(
+        updated=tuple(groups["updated"]),
+        unchanged=tuple(groups["unchanged"]),
+        rejected=tuple(groups["rejected"]),
+        failed=tuple(groups["failed"]),
+    )
 
 
 def backfill_votes(
@@ -557,6 +1269,7 @@ def backfill_votes(
     dry_run: bool,
     only_missing: bool = False,
     bill: str | None = None,
+    source_session: Any | None = None,
 ) -> BackfillStats:
     query = (
         select(BillAction)
@@ -596,7 +1309,7 @@ def backfill_votes(
         "cross_chamber_mirror": 0,
     }
     house_cache: dict[str, list[ParsedVote]] = {}
-    senate_cache: dict[str, str] = {}
+    senate_cache: dict[str, Any] = {}
     legislator_indexes: dict[
         tuple[Any, Any], dict[tuple[str, tuple[str, ...]], list[Any]]
     ] = {}
@@ -622,54 +1335,14 @@ def backfill_votes(
                 stats["cross_chamber_mirror"] += 1
                 continue
 
-            parsed_vote: ParsedVote | None = None
-            if chamber.slug == "house":
-                bill_number = house_bill_number(bill.file_type, bill.file_number)
-                url = f"https://www.house.mn.gov/votes/Details?{urlencode({'BillNumber': bill_number, 'SessionKey': '302'})}"
-                if url not in house_cache:
-                    house_cache[url] = parse_house_votes(
-                        get_text(url), bill_number, url
-                    )
-                parsed_vote = find_matching_vote(
-                    house_cache[url], action, yes_count, no_count
-                )
-            elif chamber.slug == "senate" and action.journal_page:
-                pdf_url, internal_page = senate_pdf_for_page(action.journal_page)
-                # A roll call can straddle a page boundary: the "yeas .. nays .."
-                # count line sometimes sits at the foot of the page before the
-                # one JOURNAL_PAGE points at. Try the exact page first (preserves
-                # existing matches), then widen backward one page if needed.
-                for first_page in (internal_page, max(1, internal_page - 1)):
-                    text_key = f"{pdf_url}#{first_page}-{internal_page + 1}"
-                    if text_key not in senate_cache:
-                        senate_cache[text_key] = pdf_pages_text(
-                            pdf_url, first_page, internal_page + 1
-                        )
-                    parsed_vote = parse_senate_vote_from_pdf(
-                        senate_cache[text_key],
-                        yes_count,
-                        no_count,
-                        action.journal_page,
-                        f"{pdf_url}#page={internal_page}",
-                    )
-                    if parsed_vote is not None:
-                        break
-            elif chamber.slug == "senate":
-                # JOURNAL_PAGE is empty at the Revisor source for a few Senate
-                # roll calls. Recover the day's journal by the action date and
-                # locate this bill's roll call within the full-day text.
-                pdf_url = senate_pdf_for_date(action.action_at)
-                if pdf_url:
-                    if pdf_url not in senate_cache:
-                        senate_cache[pdf_url] = pdf_full_text(pdf_url)
-                    parsed_vote = parse_senate_vote_scoped(
-                        senate_cache[pdf_url],
-                        bill.file_type,
-                        bill.file_number,
-                        yes_count,
-                        no_count,
-                        pdf_url,
-                    )
+            parsed_vote = _source_vote_for_action(
+                action,
+                bill,
+                chamber,
+                source_session=source_session,
+                house_cache=house_cache,
+                senate_cache=senate_cache,
+            )
         except Exception as exc:  # noqa: BLE001
             stats["no_source_match"] += 1
             bill_key = getattr(
@@ -793,18 +1466,44 @@ def backfill_votes(
     return BackfillStats(**stats)
 
 
-def main() -> None:
+def write_json_report(path: Path, payload: dict[str, Any]) -> None:
+    """Replace a machine-readable report only after its full JSON is ready."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(
+        mode="w",
+        encoding="utf-8",
+        dir=path.parent,
+        prefix=f".{path.name}.",
+        suffix=".tmp",
+        delete=False,
+    ) as handle:
+        temporary = Path(handle.name)
+        json.dump(payload, handle, indent=2, sort_keys=True)
+        handle.write("\n")
+    temporary.replace(path)
+
+
+def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Backfill structured vote events and vote records from official roll-call sources."
     )
     parser.add_argument(
         "--database-url",
-        default=os.environ.get("DATABASE_URL")
-        or supabase_database_url()
-        or get_database_url(),
+        default=os.environ.get("DATABASE_URL"),
+    )
+    parser.add_argument(
+        "--target",
+        choices=("local", "production"),
+        default=None,
+        help="Name the database for a saved-vote check: local or production.",
     )
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--write",
+        action="store_true",
+        help="Write saved-vote corrections. Without this, reconciliation is read-only.",
+    )
     parser.add_argument(
         "--only-missing",
         action="store_true",
@@ -815,24 +1514,85 @@ def main() -> None:
         default=None,
         help="Restrict to a single bill, e.g. 'HF1141' (for targeted re-ingest).",
     )
-    args = parser.parse_args()
-    if not args.database_url:
-        raise SystemExit("DATABASE_URL or Supabase env vars are required")
+    parser.add_argument(
+        "--bill-key",
+        action="append",
+        default=[],
+        help=(
+            "Recheck saved roll calls for one exact stored bill key. Repeat for "
+            "several keys, e.g. --bill-key 94-2025-HF1141."
+        ),
+    )
+    parser.add_argument(
+        "--safety-sweep-limit",
+        type=int,
+        default=0,
+        help="Recheck this many saved roll calls in the deterministic daily sweep.",
+    )
+    parser.add_argument(
+        "--report-path",
+        type=Path,
+        default=None,
+        help="Atomically save the reconciliation report as JSON.",
+    )
+    args = parser.parse_args(argv)
+    reconciliation_requested = bool(args.bill_key or args.safety_sweep_limit)
+    if reconciliation_requested and args.target is None:
+        parser.error("saved-vote reconciliation requires --target local or production")
+    if args.write and args.dry_run:
+        parser.error("--write and --dry-run cannot be combined")
+    if args.write and not reconciliation_requested:
+        parser.error("--write is only used by saved-vote reconciliation")
+    database_url = (
+        database_url_for_target(args.target, args.database_url)
+        if args.target is not None
+        else normalize_database_url(
+            args.database_url or supabase_database_url() or get_database_url()
+        )
+    )
     engine = create_engine(
-        normalize_database_url(args.database_url),
+        database_url,
         pool_pre_ping=True,
         connect_args=NO_PREPARED_STATEMENTS,
     )
     with Session(engine) as db:
-        stats = backfill_votes(
-            db,
-            limit=args.limit,
-            dry_run=args.dry_run,
-            only_missing=args.only_missing,
-            bill=args.bill,
-        )
-        print(stats)
+        if reconciliation_requested:
+            if args.only_missing or args.bill:
+                raise SystemExit(
+                    "saved-vote reconciliation cannot be combined with --only-missing or --bill"
+                )
+            if args.safety_sweep_limit < 0:
+                raise SystemExit("--safety-sweep-limit cannot be negative")
+            report = reconcile_saved_votes(
+                db,
+                bill_keys=args.bill_key,
+                safety_sweep_limit=args.safety_sweep_limit,
+                dry_run=not args.write,
+                source_session=rate_limited_source_session(engine, target=args.target),
+            )
+            payload = {
+                "target": args.target,
+                "write": args.write,
+                **report.to_dict(),
+            }
+            print(json.dumps(payload, indent=2, sort_keys=True))
+            if args.report_path is not None:
+                write_json_report(args.report_path, payload)
+            if report.rejected or report.failed:
+                return 1
+        else:
+            if args.report_path is not None:
+                parser.error("--report-path is only used by saved-vote reconciliation")
+            stats = backfill_votes(
+                db,
+                limit=args.limit,
+                dry_run=args.dry_run,
+                only_missing=args.only_missing,
+                bill=args.bill,
+            )
+            print(stats)
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
