@@ -40,6 +40,9 @@ from alethical.api.services.legislative_sessions import (
     current_legislature_scope,
     named_special_session,
 )
+from alethical.api.services.independent_spending import (
+    independent_spending_for_legislator,
+)
 from alethical.api.services.issue_bills import MIN_ISSUE_LENGTH, matched_issue_bill_ids
 from alethical.api.services.representative_lookup import (
     DistrictMatch,
@@ -2606,6 +2609,61 @@ def legislator_votes(
     ]
     return CollectionResponse(
         data=data, page={"limit": limit, "next_cursor": None, "has_more": False}
+    )
+
+
+@router.get(
+    "/legislators/{legislator_id}/independent-spending",
+    response_model=DetailResponse,
+)
+def legislator_independent_spending(
+    legislator_id: str,
+    year: int = Query(ge=2015, le=2100),
+    db: Session = Depends(get_db),
+):
+    """Money spent about this legislator by groups other than their campaign.
+
+    ``state`` is the field to read first, because only ``reported`` carries
+    figures a page may print:
+
+    * ``unavailable`` -- we hold no usable release. A fact about us, and never
+      rendered as a figure about a named person.
+    * ``link_unconfirmed`` -- we have not yet confirmed which registered
+      committee is theirs, so no payment can be attributed to them.
+    * ``reported`` -- ``supporting`` and ``opposing`` are real, and a 0 is a
+      measured 0.
+
+    There are deliberately two figures and never a third: every row in the
+    source records "For" or "Against" and none is blank
+    (``alethical/api/services/independent_spending.py``).
+    """
+    legislator = get_legislator_by_id(db, legislator_id)
+    spending = independent_spending_for_legislator(db, legislator.id, year=year)
+    return DetailResponse(
+        data={
+            "legislator_id": str(legislator.id),
+            "year": spending.year,
+            "state": spending.state,
+            "supporting": spending.supporting,
+            "opposing": spending.opposing,
+            "payment_count": spending.payment_count,
+            "source_url": spending.source_url,
+            "fetched_at": spending.fetched_at,
+            "committees": [
+                {
+                    "registration_number": committee.registration_number,
+                    "committee_name": committee.committee_name,
+                    "office": committee.office,
+                    "supporting": committee.supporting,
+                    "opposing": committee.opposing,
+                    "supporting_payments": committee.supporting_payments,
+                    "opposing_payments": committee.opposing_payments,
+                    "first_payment_on": committee.first_payment_on,
+                    "last_payment_on": committee.last_payment_on,
+                }
+                for committee in spending.committees
+            ],
+        }
     )
 
 
