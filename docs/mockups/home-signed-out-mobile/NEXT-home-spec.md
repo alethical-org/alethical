@@ -4,6 +4,12 @@ Applies to both the web home (`LIVE Home Signed Out v2 (web).dc.html`) and mobil
 (`LIVE Home mobile v3.dc.html`). The bills shown in the design are **illustrative placeholders** — the
 rules below define how the real ones are chosen from ingested data.
 
+## Homepage background
+
+- [ ] **HOME-UI-001**: While the web homepage viewport is below 768px wide, the system shall omit the black dotted texture from the hero.
+- [x] **HOME-UI-002**: While the web homepage viewport is 768px wide or wider, the system shall display the black dotted texture in the hero.
+- [x] **HOME-UI-003**: At every web homepage width, the system shall preserve the green dotted texture behind Find My Legislator.
+
 ## Bill Activity — data-driven (most recent), NOT curated
 The cards under **Bill Activity** are selected automatically from the ingested bill data. The
 designed bills (SF 1832, SF 2210, HF 88, …) are placeholders; do not hardcode them.
