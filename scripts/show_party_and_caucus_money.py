@@ -18,14 +18,16 @@ Which filers it covers: the ones the Board's own files classify as a state party
 of registration numbers, and nothing matches on a name — 12 filers whose names contain
 "Caucus" are political committees and funds rather than caucuses.
 
-What the numbers are, and are not. Every figure is the sum of the itemized rows the
-Board published, never a filer's true total: Minnesota names a donor only once their
-giving passes $200 in aggregate within the calendar year, and everything below that
-appears as one unnamed lump on the filed report, which this repo does not store yet
-([#1408](https://github.com/alethical-org/alethical/issues/1408)). So the totals here
-are named payments, and the difference between them and a filing's own total is
-legitimate small-donor money rather than a gap in our data
-(`docs/architecture/campaign-finance-system-design.md` §7, Display rules).
+**Two numbers per year, because one of them alone is misleading.** "Money in" is the
+sum of the itemized rows the Board published, and it is never a filer's true total:
+Minnesota names a donor only once their giving passes $200 in aggregate within the
+calendar year, and everything below that appears as one unnamed lump. "Reported by the
+filer" is that filer's own figure from its filed report, stored by
+[#1408](https://github.com/alethical-org/alethical/issues/1408). The gap between them
+is legitimate small-donor money rather than a gap in our data, and #1408 measured it at
+roughly 4 dollars in every 10, so printing only the first understates every committee
+while looking authoritative (`.claude/rules/grounded-answers.md` rule 12 and
+`docs/architecture/campaign-finance-system-design.md` §7, Display rules).
 
 Money in and money out are each split by the source's own labels rather than summed
 into one figure, because the labels mean different things and because filtering to any
@@ -131,8 +133,11 @@ def report(db: Session, release: reader.Release, args: argparse.Namespace) -> in
         f"{len(filers)} filer(s)."
     )
     print(
-        "Every total below is the named payments the Board itemized. None of them is "
-        "a filer's reported total, because no filed report is stored yet (#1408)."
+        "Each year shows 2 different numbers. 'Money in' is the payments the Board "
+        "named, which is never a filer's whole income. 'Reported by the filer' is "
+        "that filer's own figure from its filed report. The gap between them is "
+        "money from donors who gave $200 or less in total for the year, whom "
+        "Minnesota never names."
     )
 
     for filer in filers:
@@ -148,6 +153,7 @@ def report(db: Session, release: reader.Release, args: argparse.Namespace) -> in
         incoming = reader.money_in(db, release, filer.reg_num, years)
         outgoing = reader.money_out(db, release, filer.reg_num, years)
         independent = reader.independent_spending_by(db, release, filer.reg_num, years)
+        reported = reader.reported_contributions(db, filer.reg_num, years)
 
         for year in years:
             print(f"  {year}")
@@ -169,6 +175,8 @@ def report(db: Session, release: reader.Release, args: argparse.Namespace) -> in
                         "reports these on separate schedules, outside its "
                         "contribution totals."
                     )
+
+            _print_reported(reported, entry, year)
 
             spent = next((row for row in outgoing if row.year == year), None)
             if spent is None:
@@ -212,15 +220,63 @@ def report(db: Session, release: reader.Release, args: argparse.Namespace) -> in
                     f"    {resolution.rows_without_a_payee_number} transfer row(s) "
                     "name no payee registration number at all"
                 )
-            print(
-                "    'appears as a filer in this release' is weaker than the Board's "
-                "registered-filer directory, which nothing stores yet (#1408)."
-            )
+            if resolution.directory_checked:
+                print(
+                    f"    against the Board's registered-filer directory: "
+                    f"{len(resolution.absent_from_directory)} absent"
+                    + (
+                        f" ({', '.join(resolution.absent_from_directory)})"
+                        if resolution.absent_from_directory
+                        else ""
+                    )
+                )
+            else:
+                print(
+                    "    the Board's registered-filer directory was NOT checked, "
+                    "because no filings snapshot is published here. Load one with "
+                    "just load-campaign-finance-filings."
+                )
 
         if args.transfers:
             _print_transfers(db, release, filer, years)
 
     return 0
+
+
+def _print_reported(
+    reported: list[reader.ReportedContributions],
+    itemized: reader.MoneyIn | None,
+    year: int,
+) -> None:
+    """The second of rule 12's two numbers, and what the gap between them means."""
+    entry = next((row for row in reported if row.year == year), None)
+    if entry is None:
+        print(
+            "    reported by the filer: not reported. Either no filed report is "
+            "stored for this year, or none is published. That is a fact about us, "
+            "not about the filer."
+        )
+        return
+    through = (
+        f", covering through {entry.reported_through.isoformat()}"
+        if entry.reported_through
+        else ", and the filing does not state the period it covers"
+    )
+    print(f"    reported by the filer: {money(entry.total)}{through}")
+    if not entry.comparable:
+        print(
+            "      the Board's totals route cannot speak for this year, because this "
+            "filer also filed a special-election series it does not return. Do not "
+            "compare the 2 figures here."
+        )
+        return
+    if itemized is not None:
+        gap = entry.total - itemized.contributions.total
+        print(
+            f"      the 2 figures differ by {money(gap)}. That is money from donors "
+            "who gave $200 or less in total for the year, whom Minnesota never "
+            "names. It is not an error and not missing data."
+        )
 
 
 def _print_transfers(

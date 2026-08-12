@@ -454,6 +454,7 @@ def test_the_public_surface_has_no_way_to_relate_two_transfers(db):
         "PayeeResolution",
         "Release",
         "ReleaseNoLongerHeld",
+        "ReportedContributions",
         "STATE_PARTY_UNIT",
         "SourceFile",
         "TRANSFER_EXPENDITURE_TYPE",
@@ -463,6 +464,7 @@ def test_the_public_surface_has_no_way_to_relate_two_transfers(db):
         "money_in",
         "money_out",
         "party_units_and_caucuses",
+        "reported_contributions",
         "resolve_payees",
         "transfers_from",
         "transfers_to",
@@ -509,6 +511,32 @@ def test_resolution_is_a_weaker_claim_than_the_boards_own_directory(db, release)
     resolution = reader.resolve_payees(db, release, "20010", [2025])
     assert set(resolution.payee_reg_nums) == {"19200", "20003"}
     assert resolution.unresolved == ()
+
+
+def test_the_directory_check_says_when_it_did_not_run(db, release):
+    """An empty "absent" list must not read as a clean result.
+
+    The Board's registered-filer directory is a separate published set (#1408). With
+    none published here, nothing was checked — and reporting that as 0 absent would
+    turn "we did not look" into "everything passed", which is the shape of every
+    missing-versus-zero failure rule 12 forbids.
+    """
+    resolution = reader.resolve_payees(db, release, "20010", [2025])
+
+    assert resolution.directory_checked is False
+    assert resolution.absent_from_directory == ()
+    # The weak check still ran and is a different claim.
+    assert set(resolution.payee_reg_nums) == {"19200", "20003"}
+
+
+def test_a_reported_total_is_absent_rather_than_zero_when_none_is_published(db):
+    """No filings snapshot is a fact about us, never about the filer.
+
+    Returning an empty list rather than a zero-valued row, because a party that
+    reported nothing and a party whose report we do not hold are different facts about
+    a named organisation (§7, Missing versus zero).
+    """
+    assert reader.reported_contributions(db, "20010", [2025]) == []
 
 
 # --- Independent spending ----------------------------------------------------

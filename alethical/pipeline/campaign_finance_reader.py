@@ -6,16 +6,18 @@ caucuses, and any other filer, and it enforces in code the handful of source
 behaviours that make a naive query quietly wrong. It lives beside its writer so both
 halves of what we know about this source sit in one directory.
 
-**Every figure here is the sum of the itemized rows the Board published, and never a
-filer's true total.** Minnesota names a donor only once their giving passes $200 in
-aggregate within the calendar year (Minnesota Statutes 10A.20 subd. 3(c)); everything
-below that reaches us as one unnamed lump on the filed report, which this repo does
-not store yet ([#1408](https://github.com/alethical-org/alethical/issues/1408)). So
-nothing returned here may be displayed as a total, and no caller may compute a
-percentage out of it. ``docs/architecture/campaign-finance-system-design.md`` §7
-(Display rules) says what a surface must do instead: print the named payments alone,
-labelled as named payments, with no composition bar, because there is no whole to
-divide.
+**Two numbers, and neither one substitutes for the other.** ``money_in`` returns the
+sum of the itemized rows the Board published, which is never a filer's true total:
+Minnesota names a donor only once their giving passes $200 in aggregate within the
+calendar year (Minnesota Statutes 10A.20 subd. 3(c)), and everything below that
+reaches us as one unnamed lump. The filer's own reported figure is a different number
+and comes from a different source, now stored by
+[#1408](https://github.com/alethical-org/alethical/issues/1408) and served here by
+``reported_contributions``. ``.claude/rules/grounded-answers.md`` rule 12 requires
+**both** on any surface that shows either, because the gap between them is legitimate
+small-donor money rather than an error or a hole in our data, and #1408 measured it at
+roughly 4 dollars in every 10. A page printing only the itemized sum understates every
+committee by about that much while looking authoritative.
 
 The four source behaviours this module exists to stop a caller getting wrong, each
 one measured against the live release on 12 Aug 2026:
@@ -777,6 +779,77 @@ def independent_spending_by(
     ]
 
 
+# --- The other number: what the filer itself reported ------------------------
+
+
+@dataclass(frozen=True)
+class ReportedContributions:
+    """One filer-year's own reported contribution figure, from its filed report.
+
+    The second of rule 12's two numbers. It comes from the Board's totals route
+    (#1408), not from the downloads, so it is a separate claim by a separate source and
+    the two are never reconciled into one figure for display.
+
+    ``reported_through`` is the date the figure runs to and must be shown with it: a
+    reported total covering January to June is not a year's money, and §7 requires
+    every total to state the period it covers.
+
+    ``comparable`` is False when the Board's totals route cannot speak for this
+    filer-year, which happens when the filer also filed a special-election series the
+    route does not return. Those years read "Not reported" rather than being compared
+    (§9.5), so a caller must not treat a False here as a zero or as a mismatch.
+    """
+
+    reg_num: str
+    year: int
+    total: Decimal
+    reported_through: Optional[date]
+    comparable: bool
+
+
+def reported_contributions(
+    db: Session,
+    reg_num: str,
+    years: Optional[Iterable[int]] = None,
+) -> list[ReportedContributions]:
+    """What this filer reported taking in from contributors, per year.
+
+    Reads through ``campaign_finance_filings.filings_context``, which is #1408's own
+    reader, rather than re-deriving the line keys here: which lines add up to
+    "contributions" differs by filer kind and deliberately excludes public subsidy,
+    loan income and miscellaneous income, none of which is a contribution and none of
+    which appears in the itemized download. Duplicating that mapping is how the two
+    halves would drift.
+
+    Returns an empty list when no filings snapshot is published, which is a fact about
+    us and never about the filer. A year absent from the result is likewise "not
+    reported", never a zero — the same rule as ``money_in``.
+    """
+    from alethical.pipeline import campaign_finance_filings as filings
+
+    context = filings.filings_context(db)
+    if context is None:
+        return []
+    wanted = set(years) if years is not None else None
+    result: list[ReportedContributions] = []
+    for (registration, year), total in context.reported_contributions.items():
+        if registration != reg_num:
+            continue
+        if wanted is not None and year not in wanted:
+            continue
+        result.append(
+            ReportedContributions(
+                reg_num=registration,
+                year=year,
+                total=total,
+                reported_through=context.reported_through.get((registration, year)),
+                comparable=(registration, year)
+                not in context.special_election_filer_years,
+            )
+        )
+    return sorted(result, key=lambda row: row.year)
+
+
 # --- Do the payees resolve to a filer we hold? -------------------------------
 
 
@@ -784,13 +857,19 @@ def independent_spending_by(
 class PayeeResolution:
     """Whether each registration number a filer paid appears as a filer here.
 
-    A weaker claim than the one §4.3 wants and the difference matters. This says a
-    number appears somewhere in the same release as a filer of its own. It does
-    **not** say the Board's registered-filer directory (§9.7) knows that number,
-    which is the check the loader records as ``not_run`` because no table holds that
-    directory yet ([#1408](https://github.com/alethical-org/alethical/issues/1408)).
-    A number that resolves here and is absent from the directory is still
-    unconfirmed.
+    Two claims of different strength, kept apart because a caller must know which one
+    it is holding.
+
+    ``unresolved`` is the weak one: the number appears nowhere in this release as a
+    filer of its own. ``absent_from_directory`` is the strong one, against the Board's
+    registered-filer directory (§9.7), which
+    [#1408](https://github.com/alethical-org/alethical/issues/1408) now stores. A
+    number can pass the weak check and fail the strong one.
+
+    ``directory_checked`` is False when no filings snapshot is published, and then
+    ``absent_from_directory`` is empty because nothing was checked rather than because
+    everything passed. A caller must not read an empty tuple as a clean result without
+    reading this flag first.
 
     **An unresolved number is usually a local candidate, not a gap in our
     ingestion.** Measured across every 2025 and 2026 ``Contribution`` row in the
@@ -822,6 +901,8 @@ class PayeeResolution:
     # Rows whose payee carries no registration number at all, which cannot be
     # resolved either way.
     rows_without_a_payee_number: int
+    absent_from_directory: tuple[str, ...] = ()
+    directory_checked: bool = False
 
 
 def resolve_payees(
@@ -874,10 +955,17 @@ def resolve_payees(
         ),
         params,
     ).scalar_one()
+    from alethical.pipeline import campaign_finance_filings as filings
+
+    context = filings.filings_context(db)
     return PayeeResolution(
         payee_reg_nums=tuple(reg for reg, _ in rows),
         unresolved=tuple(reg for reg, resolved in rows if not resolved),
         rows_without_a_payee_number=int(missing),
+        absent_from_directory=()
+        if context is None
+        else tuple(reg for reg, _ in rows if reg not in context.known_registrations),
+        directory_checked=context is not None,
     )
 
 
@@ -891,6 +979,7 @@ __all__ = [
     "MoneyOut",
     "PayeeResolution",
     "Release",
+    "ReportedContributions",
     "ReleaseNoLongerHeld",
     "STATE_PARTY_UNIT",
     "SourceFile",
@@ -901,6 +990,7 @@ __all__ = [
     "money_in",
     "money_out",
     "party_units_and_caucuses",
+    "reported_contributions",
     "resolve_payees",
     "transfers_from",
     "transfers_to",
