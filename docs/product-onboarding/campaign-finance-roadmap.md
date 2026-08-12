@@ -160,6 +160,42 @@ date exists, and there is none.
    the caucus money is the story and links are how you move through it.
 4. **Within the first priority the order is enforced.** After that, things are ordered but can
    move if a reason appears.
+5. **Build all of it first, then chase the places our copy looks short.** Decided by Eugene on
+   12 Aug 2026, and explained below.
+
+### Build everything first, investigate the data afterwards
+
+We know of 4 committees whose own filings name more donations than the spreadsheet we downloaded
+actually contains ([#1386](https://github.com/alethical-org/alethical/issues/1386)). One is a
+caucus and 3 are sitting legislators. Every measurement we can take on our own side has been
+taken, twice, and the only step left is asking Minnesota's Campaign Finance Board why their own
+download disagrees with their own filings. That is an email a person sends, not something anyone
+can build, and a reply could take weeks. So the pages and features get built now and that
+question gets answered whenever the Board answers it.
+
+**Why that is safe today.** None of this money reaches a reader yet. The downloaded rows are
+sitting in our database, and there is no page, no web address and no service that shows any of
+them to anybody. A wrong number cannot be read off a screen that does not exist.
+
+**Why it is not safe for the reason you would expect, and this is the condition on the
+decision.** The engineering plan says a committee whose two figures do not add up is simply not
+published
+([campaign-finance-system-design.md §7 (display rules)](https://github.com/alethical-org/alethical/blob/main/docs/architecture/campaign-finance-system-design.md)).
+Today that is a sentence in a document with nothing in the software carrying it out. The program
+that loads the spreadsheets records that comparison as **"not run"**, because nothing yet fetches
+each committee's own reported total to compare against, and only a check that actually *fails*
+stops a release, so one that never ran stops nothing
+(`alethical/pipeline/campaign_finance.py`). Nothing anywhere else computes it either: no table
+keeps a reported total, no part of our service hands this data out, and the "Campaign Finance"
+entry in the site's menu is a coming-soon label with no page behind it.
+
+**So the comparison has to be built as part of the money pages themselves**
+([#1329](https://github.com/alethical-org/alethical/issues/1329)), using the official totals that
+[#1408](https://github.com/alethical-org/alethical/issues/1408) is fetching. If those pages ship
+without it, each of the 4 short committees would show the donations we are missing as money that
+had no donor, which is a false statement about money the state named
+(`.claude/rules/grounded-answers.md` rule 12). Parking the investigation is safe; shipping the
+pages without that check is not.
 
 ---
 
