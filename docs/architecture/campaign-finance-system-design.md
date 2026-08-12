@@ -492,6 +492,16 @@ under two legislators' names. The same number may be **rejected** for several le
 is what ruling out a shared surname looks like, and rejections are kept so the proposer stops
 re-suggesting them and so "checked, not theirs" never reads as "nobody has looked".
 
+**The reason this is a person's job is not that a name match might be wrong. It is that if it is
+wrong, nothing downstream will ever notice.** Measured on the totals route: the financial response
+carries no registration number, no committee name, and no filer identifier of any kind, so two
+different filers return structurally identical documents differing only in their amounts (§9). There
+is no field to check the link against, no reconciliation that would fail, and no check anywhere later
+in the pipeline that could catch it. The money would render perfectly, dated correctly, reconciled
+against a real filing — **under the wrong person's photograph**. That is why the identity is the
+registration number, why the link is a row a person wrote, and why it is never re-derived from a name
+at query time.
+
 **One named person stays the rule, and a second reviewer was considered and rejected.** Two people
 reading one committee name share the whole of their evidence and so share its mistakes: the
 ambiguous cases are ambiguous because a name genuinely is, not because a reader might be careless.
@@ -927,6 +937,24 @@ which version supersedes which. It does not cover everything (§9.5), and it is 
 Every measurement below was taken against the Board's own service on 11 August 2026. Where a
 figure comes from a sample rather than a population, the sample is named.
 
+**The standing rule for everything in this section, because every failure it has shown us answers
+200 and looks like data.** A stale year, five refusal shapes, a wrong `period` code, an empty body:
+none of them arrives as an error.
+
+> Nothing from this route may be displayed on the strength of the request alone. Where the response
+> carries a field that independently confirms what was asked — the coverage end for the period, a
+> `%PDF` header for a document — **that field is the gate and the request is not**. Where it carries
+> none, the guarantee has to come from the request instead, and must be stated as such. The financial
+> response identifies no filer, so which committee a figure belongs to rests entirely on the
+> registration number we sent: it is carried through from a human-confirmed link (§5.1) and never
+> re-derived from a name at query time.
+
+The second half of that is not a hedge. Measured across four requests, the financial response carries
+**no registration number, no committee name, and no filer identifier of any kind** — filers 11880 and
+18472 return structurally identical documents differing only in their amounts. So a rule promising
+that a field always confirms the request would create false confidence exactly where none is
+available, which is why both halves are stated.
+
 ### 9.1 The route
 
 `POST https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/<viewer>/api`
@@ -1086,6 +1114,15 @@ any of the following fails:
 - A fixed set of test filer-years still returns the figures recorded here, including the two
   amendment cases in §9.6, which is what detects a silently changed resolution rule.
 - Totals have not moved more than a sane band from the last accepted release, per §4.3.
+- The returned coverage end falls inside the year that was requested (§9.1). This is the check that
+  catches the route's own most dangerous behaviour, so it belongs in the release gate and not only in
+  the display layer.
+
+**Four content shapes for this route, and only one of them is data.** The normal answer is 17
+labelled rows, about 4,325 characters. `No information found for Financial` comes back when
+`year_data` is omitted. A bare `[]` comes back from a GET. And **an unknown filer id fails loudly**,
+which is the one piece of good news here: 151 characters reading `Data not available` for each year,
+returned identically for id `99999` and for id `0`, and clearly distinguishable from a real answer.
 
 **Keep the raw response bytes for every accepted release**, in the store §4.5 defines. If the
 Board's HTML changes later, a published figure cannot otherwise be traced to the response that
