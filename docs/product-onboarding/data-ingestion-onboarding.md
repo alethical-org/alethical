@@ -348,6 +348,12 @@ votes need dedicated adapters (User-Agent `Alethical Vote Backfill/0.1`):
 Votes are **optional** — a bill legitimately has zero vote events if there was no
 recorded roll call or the source can't be matched deterministically.
 
+The daily job still fills only missing roll calls. Saved roll calls use a separate correction
+path: an accepted changed bill action rechecks that exact bill, and a small rotating sample catches
+official corrections made without a bill-action change. The correction is accepted only when the
+official tally equals the complete resolved member list. An accepted change replaces the roll-call
+facts and member votes together; an incomplete or ambiguous official response changes nothing.
+
 ## D — District lookup (query-time, not batch)
 
 Powers "Find My Legislator." Called synchronously by
