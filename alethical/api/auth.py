@@ -39,6 +39,26 @@ def _confirmed_email(principal) -> str | None:
     return None
 
 
+def _resolve_confirmed_email(auth_service, token: str, principal):
+    """Ask the provider only while Alethical still lacks trusted confirmation."""
+    if principal.email_verified:
+        return principal
+    resolver = getattr(auth_service, "resolve_confirmed_email", None)
+    if resolver is None:
+        return principal
+    try:
+        return resolver(token, principal)
+    except RuntimeError as exc:
+        raise problem_exception(
+            503,
+            "Service Unavailable",
+            str(exc),
+            type_slug="service-unavailable",
+        ) from exc
+    except Exception as exc:
+        raise problem_exception(401, "Unauthorized", str(exc)) from exc
+
+
 def _reconcile_identity_fields(db: Session, user, identity, principal) -> bool:
     """Backfill email fields only when a value actually changes.
 
@@ -151,6 +171,8 @@ def get_optional_current_user(
         if not user.is_active:
             _mark_deactivated(request)
             return None
+        if identity.email_verified_at is None:
+            principal = _resolve_confirmed_email(auth_service, token, principal)
         if _reconcile_identity_fields(db, user, identity, principal):
             db.commit()
         return user
@@ -164,6 +186,7 @@ def get_optional_current_user(
     # through to a brand-new account with no primary_email, which is recoverable
     # (the accounts can be merged later) where a refusal would leave a real
     # person stuck behind provider state they cannot see or fix (#1039).
+    principal = _resolve_confirmed_email(auth_service, token, principal)
     confirmed_email = _confirmed_email(principal)
     user = None
     if confirmed_email:

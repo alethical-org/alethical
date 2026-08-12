@@ -80,10 +80,11 @@ method uses to find and join an account another sign-in method already made, so 
 key, not a contact detail. Since [#1039](https://github.com/alethical-org/alethical/issues/1039)
 nothing writes an unconfirmed address there, in either direction: an unconfirmed sign-in
 cannot use it to reach an existing account, and cannot reserve it so that the person who
-does own the address later joins _theirs_. All 5 accounts in production today came from
-Google, which always confirms, so all 5 have one. An account created from an unconfirmed
-sign-in would have none, and the address that sign-in claimed would sit on the Google-link
-row (`auth_identity.email`) instead, where it is not a key and opens nothing.
+does own the address later joins _theirs_. Alethical reads confirmation from Supabase's
+trusted user record, not from the sign-in token or a profile field the signed-in person can
+edit ([#1466](https://github.com/alethical-org/alethical/issues/1466)). An account created
+from an unconfirmed sign-in has no main email; the address that sign-in claimed sits on the
+Google-link row (`auth_identity.email`) instead, where it is not a key and opens nothing.
 
 **Where the name comes from.** Nobody types it. When someone signs in for the first
 time we take the part of their email address before the `@` and use that as their
