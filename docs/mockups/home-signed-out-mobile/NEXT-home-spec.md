@@ -41,8 +41,8 @@ data or recency. Claude Code must treat this as a manually configured list of bi
 `inTheNews` / `featured` config), rendered in the order given.
 - Current selection: **SF 3933** (Stop Harms from Addictive Feeds Act) and **SF 856**
   (Office of the Inspector General).
-- Each card's status/meta line still reflects that bill's real data (status, dates), but the
-  *inclusion and order* are editorial, not algorithmic.
+- Each card's status and effective date, when the public response supplies one, still reflect that
+  bill's real data. The *inclusion and order* are editorial, not algorithmic.
 
 ## Navigation — "See more" / "See all"
 Both home **"See more"** buttons (mobile: *In the News* and *Bill Activity*) link to the

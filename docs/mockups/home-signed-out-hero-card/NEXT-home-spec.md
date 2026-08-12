@@ -20,30 +20,24 @@ we don't yet serve on-demand.
   record"** — NOT "every answer linked to official sources". Once the Ask field is gone, "answer"
   copy promises an on-demand capability that no longer exists on the page.
 
-## Hero answer card (demo/teaser) — anatomy + rules
-The card on the right of the hero is an **illustrative demo** of grounded-answer output. Its bill
-content (HF 4138, dates, votes, excerpts) is **placeholder** — do not reconcile or reproduce it;
-only the design is authoritative.
+## Hero bill card — anatomy + rules
+The card on the right of the hero is an editorial placement for 1 saved public bill record. Its
+visual shape is authoritative; every displayed bill fact comes from the current public bill
+response. If the response does not supply a fact, Home does not show it.
 
 Anatomy, top → bottom:
-1. Question headline.
-2. Labeled **"BILL"** divider (mono eyebrow + hairline). This is the card's ONLY divider.
-3. Bill row: **amber code badge** (links to our bill profile) + **two balanced meta columns** —
-   left = Signed / Effective, right = Chief author / **House–Senate vote counts**.
+1. Plain-language card headline.
+2. Hairline divider. This is the card's ONLY divider.
+3. Bill row: **amber code badge** (links to our bill profile) + live status, effective date when
+   supplied, and chief author when supplied.
 4. Plain-language summary paragraph (heavier/darker type — reads as a new section on its own).
-5. **"CITED SECTIONS"** header + green circle-check (✓). No statute number in the label.
-6. Up to **3 cited-section cards**: **plain-language title only** + flush-left italic excerpt.
-   No numbered chips and no decorative rule.
 
 Rules:
-- **No companion-bill line.** Votes live in the right meta column (keeps two balanced columns).
-- **One divider only** — the labeled "BILL". No plain hairline between the bill facts and the
+- **No companion-bill line, vote total, or quoted statute text.** The small public bill response
+  does not carry a complete source-backed version of those facts, so showing them here would risk
+  freezing a record in app code.
+- **One divider only** — below the headline. No plain hairline between the bill facts and the
   summary; ~22px of space carries that shift instead.
-- **Header** is "CITED SECTIONS" + green ✓ — the statute number is NOT in the label.
-- **Section titles** are plain-language only — no "3(b) —" subsection-number prefixes (that detail
-  is bill-profile territory).
-- **Excerpts** are flush-left italic with **no surrounding quotation marks** (matches the bill
-  profile's "From the bill").
 - **Footer:** a single internal **"View bill profile →"** (green text link) to our bill profile.
   The external source-text link ("Read the full law" / "Read the bill text") lives on the bill
   profile, NOT here.
