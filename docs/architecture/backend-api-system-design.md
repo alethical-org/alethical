@@ -317,8 +317,12 @@ and pinned by `alethical/tests/test_auth_multi_user_isolation.py`,
 `alethical/tests/test_auth_token_verification.py` and
 `alethical/tests/test_auth_read_path.py`.
 
-`SupabaseAuthService.authenticate` maps the token's claims onto an
+`SupabaseAuthService.authenticate` maps the token's signed claims onto an
 `AuthenticatedPrincipal` (`provider`, `provider_subject`, `email`, `email_verified`).
+The token proves the subject and reported address, but it does not carry Supabase's trusted
+`email_confirmed_at` value. When Alethical needs to establish confirmation, it asks Supabase
+for the user record with the same bearer token and verifies that record's subject still matches
+the token. A person-editable profile field never counts as confirmation.
 `get_optional_current_user` then takes one of two paths, and the split matters:
 
 - **Resolution** — an `auth_identity` row already exists for
@@ -329,7 +333,11 @@ and pinned by `alethical/tests/test_auth_multi_user_isolation.py`,
   `last_used_at` / `last_signed_in_at` per request was the read-path write removed
   by [#990](https://github.com/alethical-org/alethical/pull/990)
   ([#108](https://github.com/alethical-org/alethical/issues/108)); both columns are
-  now written at provisioning only.
+  now written at provisioning only. The one repair exception is an identity whose
+  `email_verified_at` is still empty: Alethical asks Supabase again and fills the confirmed
+  email once. Later reads stay local. This lets the 2 accounts affected before
+  [#1466](https://github.com/alethical-org/alethical/issues/1466) repair themselves on their
+  next authenticated request, without a bulk production rewrite.
 - **Provisioning** — first sign-in for that identity. Look for an existing
   `user_account` whose `primary_email` equals the principal's **confirmed** email;
   create one if there is none; then create the `auth_identity` and commit once.
@@ -410,7 +418,9 @@ that is recorded, belong to
 `email_confirmed_at` **or** `phone_confirmed_at`, so a phone-verified account with an
 unconfirmed address arrived claiming the address was proven — and that flag is precisely
 what now decides whether an identity may join an existing account. It reads
-`email_confirmed_at` alone.
+`email_confirmed_at` only from Supabase's trusted user record. Supabase does not put that
+field in the access token, and any lookalike in `user_metadata` is ignored because the signed-in
+person can edit it ([#1466](https://github.com/alethical-org/alethical/issues/1466)).
 
 **Still outstanding, and it bounds the guard rather than merely sizing it.** Whether an
 unconfirmed account can obtain a token at all is a Supabase project setting this

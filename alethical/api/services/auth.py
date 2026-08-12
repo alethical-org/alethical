@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import lru_cache
 import os
 import secrets
 
+from httpx import RequestError
 from supabase import create_client
+from supabase_auth.errors import AuthRetryableError
 
 
 @dataclass(frozen=True)
@@ -35,16 +37,35 @@ class SupabaseAuthService:
         if not subject:
             raise ValueError("Supabase JWT missing subject")
         email = claims.get("email")
-        # Only a confirmed *email* counts. ``phone_confirmed_at`` used to satisfy
-        # this too, which meant a phone-verified account with an unconfirmed
-        # address arrived claiming the address was proven -- and that flag is what
-        # decides whether an identity may join an existing account (#1039).
-        email_verified = bool(claims.get("email_confirmed_at"))
+        # The access-token claims do not include Supabase's trusted
+        # ``email_confirmed_at`` value. User metadata is editable by the signed-in
+        # person, so it cannot safely replace that value either. The database
+        # resolution layer calls ``resolve_confirmed_email`` only when the answer
+        # can fill a missing confirmation, keeping ordinary reads local (#1466).
         return AuthenticatedPrincipal(
             provider="supabase",
             provider_subject=subject,
             email=email,
-            email_verified=email_verified,
+            email_verified=False,
+        )
+
+    def resolve_confirmed_email(
+        self, bearer_token: str, principal: AuthenticatedPrincipal
+    ) -> AuthenticatedPrincipal:
+        """Read email confirmation from Supabase's trusted user record."""
+        try:
+            response = self._client.auth.get_user(bearer_token)
+        except (AuthRetryableError, RequestError) as exc:
+            raise RuntimeError("Unable to read Supabase user") from exc
+        user = response.user if response is not None else None
+        if user is None:
+            raise ValueError("Unable to read Supabase user")
+        if user.id != principal.provider_subject:
+            raise ValueError("Supabase user subject does not match verified JWT")
+        return replace(
+            principal,
+            email=user.email,
+            email_verified=bool(user.email and user.email_confirmed_at),
         )
 
 
@@ -89,6 +110,23 @@ class CompositeAuthService:
         if last_error is not None:
             raise last_error
         raise ValueError("No authentication services configured")
+
+    def resolve_confirmed_email(
+        self, bearer_token: str, principal: AuthenticatedPrincipal
+    ) -> AuthenticatedPrincipal:
+        last_error: ValueError | None = None
+        for service in self._services:
+            resolver = getattr(service, "resolve_confirmed_email", None)
+            if resolver is None:
+                continue
+            try:
+                return resolver(bearer_token, principal)
+            except ValueError as exc:
+                last_error = exc
+                continue
+        if last_error is not None:
+            raise last_error
+        return principal
 
 
 @lru_cache(maxsize=1)
