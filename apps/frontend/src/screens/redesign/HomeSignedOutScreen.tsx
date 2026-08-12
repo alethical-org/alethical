@@ -5,6 +5,7 @@ import Svg, { Circle, Path } from 'react-native-svg';
 
 import { theme, prefersReducedMotion } from '../../theme/tokens';
 import { Container, Footer, MNMap, PageBackground, TopNav } from '../../theme/primitives';
+import { getHomeDotVisibility } from '../../theme/pageBackground';
 import { IaItem, MenuKey } from '../../navigation/ia';
 import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
 import { useResponsive } from '../../hooks/useResponsive';
@@ -620,6 +621,7 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
   // everything below it — Bills Moving, Find My Legislator, the footer, the nav —
   // is identical either way, so signing in never takes a capability away.
   const { isSignedIn, user } = useAuth();
+  const dotVisibility = getHomeDotVisibility(isWeb, false);
   // Only fetch when Home is the visible screen. Under a bottom-tabs navigator Home
   // stays mounted beneath a deep-linked stack screen (e.g. a bill), so ungated it
   // would fire these queries and contend with the visible screen's first load.
@@ -704,7 +706,7 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
   const heroGradientWeb: object = isWeb
     ? { backgroundImage: 'linear-gradient(180deg,#f4f5f7 0%,#f7f8fa 55%,#fdfdfe 90%,#ffffff 100%)' }
     : { backgroundColor: t.colors.surfaces.s300 };
-  const heroDotsWeb: object = isWeb
+  const heroDotsWeb: object = dotVisibility.hero
     ? {
         backgroundImage: t.gradients.dotInk,
         backgroundSize: '30px 30px',
@@ -717,7 +719,7 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
   const finderGradientWeb: object = isWeb
     ? { backgroundImage: 'linear-gradient(180deg,#eaf6ef 0%,#f2f9f5 45%,#ffffff 100%)' }
     : { backgroundColor: t.colors.tint.t100 };
-  const finderDotsWeb: object = isWeb
+  const finderDotsWeb: object = dotVisibility.finder
     ? {
         backgroundImage: t.gradients.dotGreen,
         backgroundSize: '30px 30px',
@@ -732,7 +734,7 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
           {/* HERO WRAPPER */}
           <View style={[styles.heroWrap, heroGradientWeb]}>
-            {isWeb ? (
+            {dotVisibility.hero ? (
               <View
                 pointerEvents="none"
                 style={[StyleSheet.absoluteFillObject as object, heroDotsWeb]}
@@ -901,7 +903,7 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
 
           {/* FIND MY LEGISLATOR */}
           <View style={[styles.finderBand, finderGradientWeb]}>
-            {isWeb ? (
+            {dotVisibility.finder ? (
               <View
                 pointerEvents="none"
                 style={[StyleSheet.absoluteFillObject as object, finderDotsWeb]}
@@ -1199,7 +1201,8 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
   // breakpoints — phone under 768 and tablet 768-1100 — which differ in layout, not
   // in content.
   const { isSignedIn, user } = useAuth();
-  const { isTablet } = useResponsive();
+  const { isMobile, isTablet } = useResponsive();
+  const dotVisibility = getHomeDotVisibility(isWeb, isMobile);
   // Only fetch when Home is the visible screen. Under a bottom-tabs navigator Home
   // stays mounted beneath a deep-linked stack screen (e.g. a bill), so ungated it
   // would fire these queries and contend with the visible screen's first load.
@@ -1282,10 +1285,9 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
   const newsLoading = news.isLoading;
   const activityLoading = introduced.isLoading || signed.isLoading;
 
-  // Masked dot textures — only two sections carry them (Hero, Find My
-  // Legislator), each contained to its own section and faded soft at the edges
-  // (mask stops lifted from the mock source). No page-wide dot field.
-  const heroDotsWeb: object = isWeb
+  // Find My Legislator keeps its masked dots at every web width. The hero keeps
+  // them on tablets but drops them on phones for a plain upper background.
+  const heroDotsWeb: object = dotVisibility.hero
     ? {
         backgroundImage: t.gradients.dotInk, // rgba(17,21,15,0.07)
         backgroundSize: '30px 30px',
@@ -1295,7 +1297,7 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
           'linear-gradient(to bottom, transparent 0px, transparent 110px, #000 230px, #000 calc(100% - 40px), transparent 100%)',
       }
     : {};
-  const finderDotsWeb: object = isWeb
+  const finderDotsWeb: object = dotVisibility.finder
     ? {
         backgroundImage: t.gradients.dotGreen, // rgba(20,157,91,0.09)
         backgroundSize: '30px 30px',
@@ -1325,10 +1327,10 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
     <PageBackground>
       <View style={m.root}>
         <ScrollView style={m.scroll} contentContainerStyle={m.scrollContent}>
-          {/* HERO — TopNav + copy share one wrapper so the masked dot texture
-              spans them, faded off the top bar and out before In the News. */}
+          {/* HERO — TopNav + copy share one wrapper. Tablets keep its masked dots;
+              phones use the plain background. */}
           <View style={m.heroWrap}>
-            {isWeb ? (
+            {dotVisibility.hero ? (
               <View
                 pointerEvents="none"
                 style={[StyleSheet.absoluteFillObject as object, heroDotsWeb]}
@@ -1564,7 +1566,7 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
               account card (no hard section break). Green dots mask to the finder. */}
           <View style={[m.greenBand, greenBandGradientWeb]}>
             <View style={m.finderInner}>
-              {isWeb ? (
+              {dotVisibility.finder ? (
                 <View
                   pointerEvents="none"
                   style={[StyleSheet.absoluteFillObject as object, finderDotsWeb]}

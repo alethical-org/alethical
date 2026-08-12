@@ -14,6 +14,11 @@
 
 # Handoff: Home (Mobile, Signed-Out) — Alethical
 
+> **Shipped variation (2026-08-11):** At phone widths below 768px, the hero has no dotted
+> texture. Tablet and desktop hero dots stay, as do the green dots behind Find My Legislator.
+> This note supersedes the hero-dot details below; the prototype remains unchanged as the
+> original design record.
+
 ## Overview
 The **mobile** signed-out home for **Alethical**, a Minnesota legislative-transparency product.
 A compact, single-column, vertically-scrolling screen. From top to bottom the visitor: reads the
