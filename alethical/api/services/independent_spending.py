@@ -126,9 +126,7 @@ class IndependentSpending:
     def payment_count(self) -> int | None:
         if self.state != REPORTED:
             return None
-        return sum(
-            c.supporting_payments + c.opposing_payments for c in self.committees
-        )
+        return sum(c.supporting_payments + c.opposing_payments for c in self.committees)
 
 
 @dataclass(frozen=True)
@@ -286,7 +284,16 @@ def _totals_by_committee(
     year: int,
     registration_numbers: list[str],
 ) -> dict[str, dict[str, tuple[Decimal, int, date | None, date | None]]]:
-    """``{registration_number: {direction: (amount, payments, first, last)}}``."""
+    """``{registration_number: {direction: (amount, payments, first, last)}}``.
+
+    Both WHERE clauses below narrow the scan; neither is what makes the result
+    correct. ``_committee_spending`` reads each committee's entry by its own
+    registration number and reads only the two known directions, so a row for
+    another committee or an unreadable direction cannot reach a figure even if
+    these clauses were dropped. Verified by removing each one and watching the
+    suite stay green, which is why it is written down rather than assumed: a
+    future reader must not mistake these for the guard and relax the read.
+    """
     direction = func.initcap(
         func.trim(CampaignFinanceIndependentExpenditureRow.for_against)
     )

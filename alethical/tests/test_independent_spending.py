@@ -131,7 +131,9 @@ def _row(db, snapshot, *, reg_num, direction, amount, year=2025, row_number=None
     db.add(
         models.CampaignFinanceIndependentExpenditureRow(
             snapshot_id=snapshot.id,
-            row_number=row_number if row_number is not None else _next_row(db, snapshot),
+            row_number=row_number
+            if row_number is not None
+            else _next_row(db, snapshot),
             spender="Some Independent Committee",
             spender_reg_num="41234",
             affected_committee_name="Fateh, Omar Senate Committee",
@@ -272,13 +274,44 @@ def test_another_office_never_joins_the_total(db, legislator):
     snapshot = _snapshot(db, Dataset.independent_expenditures)
     _publish(db, independent=snapshot)
     _row(db, snapshot, reg_num=MAYORAL_COMMITTEE, direction="For", amount="34623.72")
-    _row(db, snapshot, reg_num=MAYORAL_COMMITTEE, direction="Against", amount="162841.95")
+    _row(
+        db, snapshot, reg_num=MAYORAL_COMMITTEE, direction="Against", amount="162841.95"
+    )
+    # The Senate committee carries money of its own, so the figures below are a
+    # real total that excludes the mayoral race, not an empty result that would
+    # read the same whether the filter worked or not.
+    _row(db, snapshot, reg_num=SENATE_COMMITTEE, direction="For", amount="500.00")
     db.commit()
     _confirm(db, legislator, SENATE_COMMITTEE)
     result = independent_spending_for_legislator(db, legislator.id, year=2025)
     assert result.state == REPORTED
-    assert result.supporting == Decimal(0)
+    assert result.supporting == Decimal("500.00")
     assert result.opposing == Decimal(0)
+
+
+def test_each_committee_keeps_its_own_money(db, legislator):
+    """A member with two confirmed committees gets two figures, not two copies of one.
+
+    Minnesota registers a committee per office, so a member can hold several at
+    once (§7). Reading one committee's rows under another's name is the same
+    class of error as reading another person's, and it hides inside a page total
+    that happens to add up.
+    """
+    snapshot = _snapshot(db, Dataset.independent_expenditures)
+    _publish(db, independent=snapshot)
+    _row(db, snapshot, reg_num="18488", direction="For", amount="300.00")
+    _row(db, snapshot, reg_num="19205", direction="Against", amount="7000.00")
+    db.commit()
+    _confirm(db, legislator, "18488")
+    _confirm(db, legislator, "19205")
+    result = independent_spending_for_legislator(db, legislator.id, year=2025)
+    by_number = {c.registration_number: c for c in result.committees}
+    assert by_number["18488"].supporting == Decimal("300.00")
+    assert by_number["18488"].opposing == Decimal(0)
+    assert by_number["19205"].supporting == Decimal(0)
+    assert by_number["19205"].opposing == Decimal("7000.00")
+    assert result.supporting == Decimal("300.00")
+    assert result.opposing == Decimal("7000.00")
 
 
 def test_reviewed_period_bounds_the_year(db, legislator):
@@ -316,7 +349,14 @@ def test_a_different_year_is_left_out(db, legislator):
     """Each figure covers one calendar year and borrows nothing from another."""
     snapshot = _snapshot(db, Dataset.independent_expenditures)
     _publish(db, independent=snapshot)
-    _row(db, snapshot, reg_num=SENATE_COMMITTEE, direction="For", amount="500.00", year=2024)
+    _row(
+        db,
+        snapshot,
+        reg_num=SENATE_COMMITTEE,
+        direction="For",
+        amount="500.00",
+        year=2024,
+    )
     db.commit()
     _confirm(db, legislator, SENATE_COMMITTEE)
     result = independent_spending_for_legislator(db, legislator.id, year=2025)
@@ -346,7 +386,8 @@ def test_a_rejected_link_never_counts(db, legislator):
 def test_the_route_serves_the_same_states(client, db, legislator):
     """The endpoint carries ``state`` so a page cannot read a figure it may not."""
     response = client.get(
-        f"/api/v1/legislators/{legislator.slug}/independent-spending", params={"year": 2025}
+        f"/api/v1/legislators/{legislator.slug}/independent-spending",
+        params={"year": 2025},
     )
     assert response.status_code == 200
     body = response.json()["data"]
