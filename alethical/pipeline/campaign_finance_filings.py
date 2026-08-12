@@ -1849,6 +1849,7 @@ def rebuild_run_from_retained_archive(
     filers: list[DirectoryFiler] = []
     reports: list[CatalogueReport] = []
     rebuilt: list[ParsedFiling] = []
+    empties: list[tuple[str, int]] = []
     errors: list[str] = []
     # Reading the object is itself a check on it. A truncated or damaged archive fails
     # inside gzip or inside json, and letting either escape as a stdlib error would hand
@@ -1930,6 +1931,20 @@ def rebuild_run_from_retained_archive(
             continue
         tab = parse_financial_tab(payload, kind, list(segment))
         errors.extend(f"{registration}: {problem}" for problem in tab.errors)
+        # The filer-years the Board had nothing for, rebuilt by the same rule the fetch
+        # uses: counted only for a year that was asked for, because one request brings
+        # back both years of its segment and the extra one was never requested.
+        #
+        # Rebuilt rather than inherited so this function's output depends only on the
+        # archive. Today's caller has just fetched and already holds the same list, so
+        # leaving it alone would happen to work — which is exactly why it is done here:
+        # ``publish_stored_filings`` publishes without fetching at all, and there the
+        # run object has nothing to inherit. "This filer-year reported nothing" is a
+        # fact the record hash covers, so a run missing them hashes differently from the
+        # run that stored them and refuses itself.
+        for year in segment:
+            if year in run.years and year not in tab.years:
+                empties.append((registration, int(year)))
         for year, block in sorted(tab.years.items()):
             rebuilt.append(
                 ParsedFiling(
@@ -1951,6 +1966,7 @@ def rebuild_run_from_retained_archive(
     run.filers = filers
     run.reports = reports
     run.filings = rebuilt
+    run.without_figures = empties
     run.errors = errors
     run.compute_record_set_hash()
     if errors or run.record_set_hash != snapshot.record_set_hash:
@@ -2502,6 +2518,96 @@ def load_campaign_finance_filings(
             f"{snapshots} superseded snapshot(s)"
         )
         _finish_filings_run(db, ingestion_run_id, run, dry_run)
+        return run
+
+
+def publish_stored_filings(
+    db: Session,
+    record_set_hash: str,
+    *,
+    store: Any = None,
+    log=print,
+) -> FilingsRun:
+    """Publish a set of figures already on file, from the bytes we kept, without fetching.
+
+    **Why this exists rather than "just run it again".** A first run has nothing to
+    compare against, so it quarantines by design and an operator publishes it by naming
+    the record hash they reviewed. Doing that by re-running means a second 48-minute
+    fetch — and in an election season the two may never agree, because filings land
+    daily and each fetch produces a different hash from the one before it. The set the
+    operator reviewed would then be unpublishable for as long as filings keep arriving.
+
+    It is safe precisely because it fetches nothing: everything published here comes out
+    of the archive stored at fetch time, whose object hash, per-response hashes and
+    record hash are all verified before a row is written. Naming a hash that is not on
+    file is a refusal rather than a fetch.
+
+    The checks all run again against whatever is live now, because a stored set is not
+    a reviewed set: what an operator waives is the comparison against a *previous*
+    snapshot, never a structural failure.
+    """
+    snapshot = find_filings_snapshot(db, record_set_hash)
+    if snapshot is None:
+        raise CampaignFinanceFilingsRefusal(
+            f"No filings snapshot holds the record hash {record_set_hash!r}. This "
+            "publishes a set already on file and never fetches, so the hash has to be "
+            "one a previous run printed, in full."
+        )
+    ensure_filings_pointer_row(db)
+    run = FilingsRun(
+        years=[int(year) for year in (snapshot.years or [])],
+        segments=[(int(start), int(end)) for start, end in (snapshot.segments or [])],
+        fetch_started_at=snapshot.fetch_started_at,
+        fetch_completed_at=snapshot.fetch_completed_at,
+    )
+    run.snapshot_id = snapshot.id
+    run.record_set_hash = snapshot.record_set_hash or ""
+    run.archive_key = snapshot.object_key
+    run.archive_hash = snapshot.compressed_hash
+    run.archive_size = snapshot.compressed_byte_size
+    run.response_count = snapshot.response_count or 0
+
+    with tempfile.TemporaryDirectory(
+        prefix="alethical-cf-filings-publish-"
+    ) as directory:
+        store = store or _store_from_env()
+        log(f"rebuilding filings snapshot {snapshot.id} from {snapshot.object_key}")
+        rebuild_run_from_retained_archive(db, run, snapshot, store, directory)
+        log(run.summary())
+
+        live = live_filings_snapshot(db)
+        if live is not None and live.id == snapshot.id:
+            log("this snapshot is already the live one; nothing to do")
+            run.unchanged = True
+            return run
+        run.checks = validate_filings(
+            run,
+            live,
+            published_filer_years(db, live.id) if live is not None else None,
+            operator_approved=True,
+        )
+        if run.blocked:
+            quarantine_filings(db, run)
+            log(
+                "quarantined. Nothing was published and the previous snapshot is "
+                "still live."
+            )
+            return run
+        publish_filings(
+            db,
+            run,
+            ingestion_run_id=None,
+            notes=(
+                "published from the stored archive by an operator naming the reviewed "
+                f"record hash {record_set_hash}"
+            ),
+            approved_hash=record_set_hash,
+        )
+        snapshots, rows = prune_filings(db)
+        log(
+            f"published filings snapshot {snapshot.id} from its kept archive; pruned "
+            f"{rows:,} rows from {snapshots} superseded snapshot(s)"
+        )
         return run
 
 
