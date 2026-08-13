@@ -159,6 +159,11 @@ export function reportedThroughLabel(through: string | null | undefined): string
  * total, and the state's own published list of the donations that had to be named.
  * Rounded to whole percent, because the precision a reader needs is "about 4 dollars
  * in 10", and the exact dollars are on the same card.
+ *
+ * **Of the donations reported, never of "the money raised".** The reported figure sums
+ * the filing's contribution lines only and deliberately excludes public subsidy, loan
+ * income and miscellaneous income, so a share "of the money raised" would be a share of
+ * a larger number than the one it was taken from.
  */
 export function unnamedShareLabel(
   unnamed: number | string | null | undefined,
@@ -170,7 +175,7 @@ export function unnamedShareLabel(
   if (!bottom || (bottom as number) <= 0) return null;
   const share = Math.round(((top as number) / (bottom as number)) * 100);
   if (share < 0 || share > 100) return null;
-  return `${share}% of the money raised`;
+  return `${share}% of the donations the committee reported`;
 }
 
 /**
@@ -181,11 +186,15 @@ export function unnamedShareLabel(
  * the size of a gift, and 327,759 of the 583,152 published rows are individually
  * under $200 and named anyway. "Candidates" rather than "committees", because a
  * ballot-question committee's threshold is $500.
+ *
+ * It says the state's file does not name them, **not** that nobody knows who they are.
+ * The second is a claim about the world that this source cannot support: the committee
+ * knows, and another record may say so. Only the first is what Minnesota published.
  */
 export const UNNAMED_MONEY_EXPLANATION =
   'Minnesota only makes candidates name a donor once that donor has given more than ' +
   '$200 in total for the year. Donors who gave $200 or less in total are never named, ' +
-  'so their money is counted here but nobody knows who they are.';
+  'so their money is counted here and the state’s public file does not say who gave it.';
 
 /**
  * What the spending figure means, which is a different sentence when there is none.
@@ -209,6 +218,29 @@ export function spendingNote(state: MoneyBlockState): string {
   return (
     'Minnesota only publishes a committee’s payments over $200, and it published none ' +
     'for this committee this year. That does not mean the committee spent nothing.'
+  );
+}
+
+/**
+ * Whether the split on screen was checked against the committee's own filed report.
+ *
+ * Two official sources can be added up correctly and still disagree, and only reading
+ * the committee's own report catches the case where its filing itemizes money our copy
+ * is missing entirely: that shortfall lands silently in the unnamed figure and becomes a
+ * claim that money had no donor. 14 committee-years in the live release fail that check.
+ *
+ * The comparison costs a document request per filing. It has been run for 2025 and not
+ * for 2026, so on the year a reader lands on the answer today is "not checked". The
+ * figures are still the best evidence we have and are shown either way; what may not
+ * happen is an unchecked figure reading exactly like a checked one.
+ *
+ * `null` when checked, because a page should not decorate the ordinary case.
+ */
+export function statedSplitNote(state: string | null | undefined): string | null {
+  if (state === 'agrees') return null;
+  return (
+    'We have not yet compared this against the report the committee filed, so we cannot ' +
+    'rule out that its filing names donations our copy is missing.'
   );
 }
 
@@ -249,9 +281,9 @@ export function splitExplanation(state: SplitState): string | null {
       return null;
     case 'no_reported_total':
       return (
-        'The state has not published a report for this committee covering this year, ' +
-        'so there is no official total to compare these donations against. What is ' +
-        'listed here is only the donations Minnesota required this committee to name.'
+        'We do not have an official total for this committee covering this year that we ' +
+        'can stand behind, so there is nothing to compare these donations against. What ' +
+        'is listed here is only the donations Minnesota required this committee to name.'
       );
     case 'sources_disagree':
       return (
@@ -317,15 +349,42 @@ export function otherOfficeNote(count: number | null | undefined): string | null
   const committees = count === 1 ? 'one other committee' : `${count} other committees`;
   return (
     `This member also has ${committees} registered with the state for a different ` +
-    'race, not for their seat in the Legislature. That money is a real public record ' +
-    'and it is not shown here, because it is not money raised for the job this page is ' +
-    'about.'
+    'race, not for their seat in the Legislature. Those records are public and are not ' +
+    'shown here, because they are not about the job this page is about.'
   );
 }
 
-/** Whether the tab should show the unconfirmed explanation instead of figures. */
-export function showsUnconfirmedState(state: LinkState, committeeCount: number): boolean {
-  return state !== 'confirmed' || committeeCount === 0;
+/**
+ * Which empty state the tab is in, when it has no committee to draw.
+ *
+ * `'unconfirmed'` and `'confirmed-elsewhere'` are different facts and an earlier version
+ * collapsed them, so a member whose committee is checked and whose reviewed period simply
+ * does not reach the year on screen was told nobody had looked at them. That is the
+ * missing-versus-zero failure moved into the navigation: it blames our unfinished work
+ * for something that is finished.
+ *
+ * `null` means there are committees to draw and no empty state at all.
+ */
+export function emptyStateFor(
+  state: LinkState,
+  committeeCount: number,
+): 'unconfirmed' | 'confirmed-elsewhere' | null {
+  if (committeeCount > 0) return null;
+  return state === 'confirmed' ? 'confirmed-elsewhere' : 'unconfirmed';
+}
+
+/**
+ * What the page says when the match is checked and covers a different year.
+ *
+ * Takes the year so the sentence names it. A reader who switched to 2026 and found
+ * nothing needs to be told which year they are looking at, not a general statement.
+ */
+export function confirmedElsewhereExplanation(year: number): string {
+  return (
+    `We have confirmed which committee is this member's, and the years it covers do ` +
+    `not include ${year}. Try another year. This is not a gap in the record: a ` +
+    `committee is registered for a particular race and does not run forever.`
+  );
 }
 
 /**
@@ -338,7 +397,7 @@ export function showsUnconfirmedState(state: LinkState, committeeCount: number):
  * broken (`.claude/rules/grounded-answers.md` rules 6 and 7).
  */
 export const FILING_SCHEDULE_NOTE =
-  'Minnesota publishes campaign money on a filing schedule, not day by day. Members ' +
-  'on the 2026 ballot filed on 27 July for money raised through 20 July, and file ' +
-  'again on 26 October. Members not on the ballot do not report their 2026 money until ' +
-  '1 February 2027.';
+  'Minnesota publishes campaign money on a filing schedule, not day by day. The 2026 ' +
+  'schedule required members on the ballot to file by 27 July for money raised through ' +
+  '20 July, and again by 26 October. Members not on the ballot are not required to ' +
+  'report their 2026 money until 1 February 2027.';

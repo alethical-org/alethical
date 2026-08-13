@@ -448,6 +448,10 @@ def test_the_public_surface_has_no_way_to_relate_two_transfers(db):
         "CAUCUS_COMMITTEE",
         "CONTRIBUTION_RECEIPT",
         "Bucket",
+        # Money *in*, cash only, per filer-year. It names no payer and no counterparty,
+        # so it adds no way to relate one payment to another (#1329).
+        "ContributionCash",
+        "contribution_cash",
         "Filer",
         "IndependentSpending",
         "MoneyIn",

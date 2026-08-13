@@ -553,7 +553,10 @@ interface ApiLegislatorCampaignMoneyPayload {
       reported_through?: string | null;
       named_total?: string | null;
       named_payments?: number | null;
+      named_cash_total?: string | null;
+      named_in_kind_total?: string | null;
       unnamed_total?: string | null;
+      stated_split_state?: string;
       first_payment_on?: string | null;
       last_payment_on?: string | null;
     };
@@ -2265,7 +2268,10 @@ export async function getLegislatorCampaignMoneyFromApi(
         reportedThrough: committee.split.reported_through ?? null,
         namedTotal: committee.split.named_total ?? null,
         namedPayments: committee.split.named_payments ?? null,
+        namedCashTotal: committee.split.named_cash_total ?? null,
+        namedInKindTotal: committee.split.named_in_kind_total ?? null,
         unnamedTotal: committee.split.unnamed_total ?? null,
+        statedSplitState: committee.split.stated_split_state ?? 'not_checked',
         firstPaymentOn: committee.split.first_payment_on ?? null,
         lastPaymentOn: committee.split.last_payment_on ?? null,
       },

@@ -26,7 +26,9 @@ import {
   paymentCountLabel,
   paymentDateRangeLabel,
   reportedThroughLabel,
-  showsUnconfirmedState,
+  confirmedElsewhereExplanation,
+  emptyStateFor,
+  statedSplitNote,
   spendingNote,
   splitExplanation,
   unnamedShareLabel,
@@ -93,6 +95,14 @@ describe('the sentence explaining money with no name on it', () => {
     expect(UNNAMED_MONEY_EXPLANATION).toContain('$200 or less in total');
   });
 
+  it("says the state's file does not name them, not that nobody knows", () => {
+    // The source proves only what Minnesota published. The committee knows who gave it,
+    // and another record may say so, which makes "nobody knows" a claim about the world
+    // that this file cannot support.
+    expect(UNNAMED_MONEY_EXPLANATION).toContain('public file does not say who gave it');
+    expect(UNNAMED_MONEY_EXPLANATION).not.toContain('nobody knows');
+  });
+
   it('never says that small donations go unnamed', () => {
     // 327,759 of the 583,152 published rows are individually under $200 and are named
     // anyway, because that donor's yearly total had already passed it.
@@ -136,6 +146,9 @@ describe('splitExplanation', () => {
   it('labels a lone figure as only the donations that had to be named', () => {
     const text = splitExplanation('no_reported_total') ?? '';
     expect(text).toMatch(/only the donations/);
+    // Not "the state has not published a report": the same state is reached when we
+    // hold a report we cannot use, and blaming Minnesota for our gap is its own claim.
+    expect(text).not.toMatch(/state has not published/i);
   });
 
   it('never states a reason as a fact about the person', () => {
@@ -223,9 +236,14 @@ describe('paymentCountLabel', () => {
 });
 
 describe('unnamedShareLabel', () => {
-  it('states the share of money with no name on it', () => {
-    // Jim Nash's House committee, 2025: $9,822.32 of a reported $20,552.62.
-    expect(unnamedShareLabel('9822.32', '20552.62')).toBe('48% of the money raised');
+  it('states the share of the donations reported, not of "the money raised"', () => {
+    // Jim Nash's House committee, 2025: $10,072.32 of a reported $20,552.62. The
+    // reported figure sums the filing's contribution lines only and excludes public
+    // subsidy, loan income and miscellaneous income, so "the money raised" would be a
+    // share of a larger number than the one it came from.
+    expect(unnamedShareLabel('10072.32', '20552.62')).toBe(
+      '49% of the donations the committee reported',
+    );
   });
 
   it('states nothing when there is no whole to take a share of', () => {
@@ -262,13 +280,21 @@ describe('the unconfirmed state, which is every profile today', () => {
     );
   });
 
-  it('shows the unconfirmed panel whenever there is nothing confirmed to show', () => {
-    expect(showsUnconfirmedState('unconfirmed', 0)).toBe(true);
-    expect(showsUnconfirmedState('reviewed_none_confirmed', 0)).toBe(true);
-    // Confirmed, but no committee whose reviewed period covers this year: still
-    // nothing this page may attribute to them.
-    expect(showsUnconfirmedState('confirmed', 0)).toBe(true);
-    expect(showsUnconfirmedState('confirmed', 1)).toBe(false);
+  it('tells "nobody has looked" apart from "checked, but not this year"', () => {
+    // An earlier version collapsed the two, so a member whose committee IS checked and
+    // whose reviewed years simply do not reach the year on screen was told nobody had
+    // looked at them. That blames our unfinished work for something that is finished.
+    expect(emptyStateFor('unconfirmed', 0)).toBe('unconfirmed');
+    expect(emptyStateFor('reviewed_none_confirmed', 0)).toBe('unconfirmed');
+    expect(emptyStateFor('confirmed', 0)).toBe('confirmed-elsewhere');
+    expect(emptyStateFor('confirmed', 1)).toBeNull();
+  });
+
+  it('names the year a checked match does not cover, and blames no one', () => {
+    const text = confirmedElsewhereExplanation(2026);
+    expect(text).toContain('2026');
+    expect(text).toContain('not a gap in the record');
+    expect(text).not.toMatch(/have not yet confirmed|nobody has/i);
   });
 });
 
@@ -285,6 +311,9 @@ describe('otherOfficeNote', () => {
     expect(text).toContain('one other committee');
     expect(text).toContain('not shown here');
     expect(text).not.toMatch(/\$/);
+    // We check only that a committee exists for another race, never that it holds any
+    // money for the year on screen, so the sentence may not say money is there.
+    expect(text).not.toMatch(/that money is/i);
   });
 
   it('counts more than one', () => {
@@ -296,7 +325,29 @@ describe('otherOfficeNote', () => {
   });
 });
 
+describe('statedSplitNote', () => {
+  it("says nothing when the committee's own filed report was checked", () => {
+    expect(statedSplitNote('agrees')).toBeNull();
+  });
+
+  it('says an unchecked figure is unchecked, without accusing the committee', () => {
+    // The comparison costs a document request per filing and has been run for 2025 and
+    // not for 2026, so the year a reader lands on says "not checked" today. Blanking
+    // every 2026 profile would distort more than labelling the figure does.
+    const text = statedSplitNote('not_checked') ?? '';
+    expect(text).toContain('not yet compared');
+    expect(text).not.toMatch(/hid|conceal|failed to|refus/i);
+  });
+});
+
 describe('the filing schedule note', () => {
+  it('describes the schedule rather than asserting that members filed', () => {
+    // A filer's newest available report can still end on 31 March, so "members filed on
+    // 27 July" states something we did not check about every member.
+    expect(FILING_SCHEDULE_NOTE).toContain('required members on the ballot to file');
+    expect(FILING_SCHEDULE_NOTE).not.toMatch(/Members on the 2026 ballot filed on/);
+  });
+
   it('names when new money next appears, so a July figure is not read as a fault', () => {
     // Nothing new publishes between 21 July and 26 October 2026, and this ships in
     // September, so without this line "checked today" over July figures reads as

@@ -3226,9 +3226,12 @@ def legislator_campaign_finance(
     whenever the derivation cannot be honest:
 
     * ``shown`` -- ``unnamed_total`` is real. It is the committee's own reported total
-      minus the named payments we hold, and it is usually large: Minnesota names a
-      donor only once their giving passes $200 in aggregate within a calendar year, so
-      roughly 4 dollars in 10 have no name on a typical filing.
+      minus the named **cash** payments we hold, and it is usually large: Minnesota
+      names a donor only once their giving passes $200 in aggregate within a calendar
+      year, so roughly 4 dollars in 10 have no name on a typical filing. Cash only,
+      because the Board's reported contributions figure excludes donated goods and
+      services while our itemized rows include them; ``named_in_kind_total`` carries
+      that difference so it is neither added in nor silently dropped.
     * ``no_reported_total`` -- no official total this page may print for this year, so
       there is no whole to divide. The named payments stand alone, labelled as named
       payments.
@@ -3248,6 +3251,14 @@ def legislator_campaign_finance(
     them so a page can say they exist without reporting a dollar of them. A committee
     whose reviewed office is blank is kept, because absence is not evidence of another
     race and hiding real money on a blank field is the worse error.
+
+    ``stated_split_state`` says whether the committee's own filed report was checked
+    against our rows for this year. ``agrees`` means the two match and a page may say
+    the split is verified against the filing itself; ``not_checked`` means the
+    comparison has not been made, which is a fact about us and never a verdict about the
+    committee. A page shows the figures either way and must not let the second read as
+    the first. ``disagrees`` never reaches a page as a split at all: it becomes
+    ``sources_disagree`` above.
 
     ``first_payment_on`` and ``last_payment_on`` describe the payments we hold and are
     **not** a coverage period. No surface may turn them into one, or assume a period
@@ -3353,7 +3364,10 @@ def legislator_campaign_finance(
                         "reported_through": entry.split.reported_through,
                         "named_total": entry.split.named_total,
                         "named_payments": entry.split.named_payments,
+                        "named_cash_total": entry.split.named_cash_total,
+                        "named_in_kind_total": entry.split.named_in_kind_total,
                         "unnamed_total": entry.split.unnamed_total,
+                        "stated_split_state": entry.split.stated_split_state,
                         "first_payment_on": entry.split.first_payment_on,
                         "last_payment_on": entry.split.last_payment_on,
                     },

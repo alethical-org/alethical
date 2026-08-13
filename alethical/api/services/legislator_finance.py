@@ -73,6 +73,11 @@ from alethical.api.services.committee_finance import (
     CommitteeFinance,
     committee_finance,
 )
+from alethical.api.services.committee_stated_split import (
+    AGREES,
+    DISAGREES,
+    stated_split_for_year,
+)
 from alethical.api.services.independent_spending import (
     REPORTED,
     confirmed_committees,
@@ -114,6 +119,17 @@ SPLIT_PERIODS_DIFFER = "periods_differ"
 #: The filing reports money and we hold no named payment for it.
 SPLIT_NO_NAMED_PAYMENTS = "no_named_payments"
 
+#: The committee's own filed report states the same itemized figure we hold, so the
+#: split has been checked against the filing rather than only derived from it.
+STATED_SPLIT_AGREES = "agrees"
+#: Nobody has compared this committee-year against its own filed report yet. A fact
+#: about us: the comparison costs a document request per filing, and it has been run
+#: for 2025 and not for 2026 (measured on the live release, 13 Aug 2026: 296 of 312
+#: candidate committee-years with our rows agree for 2025, and all 424 for 2026 are
+#: unrun). The figures are still our best evidence, so they are shown and labelled
+#: rather than blanked.
+STATED_SPLIT_NOT_CHECKED = "not_checked"
+
 #: A penny, matching the release-time reconciliation in
 #: ``alethical/pipeline/campaign_finance.py``. Two sources rounding differently is not
 #: a contradiction; a dollar apart is.
@@ -139,9 +155,21 @@ class NamedMoneySplit:
     reported_through: date | None
     named_total: Decimal | None
     named_payments: int | None
+    #: The part of ``named_total`` that was cash, which is the only part the
+    #: subtraction may use: the Board's reported contributions figure excludes donated
+    #: goods and services while our itemized rows include them.
+    named_cash_total: Decimal | None
+    #: Named donations of goods and services rather than money. Shown on its own line
+    #: because it is real money's worth that the reported total does not carry, so it
+    #: can be neither added to the reported figure nor silently dropped.
+    named_in_kind_total: Decimal | None
     unnamed_total: Decimal | None
     first_payment_on: date | None
     last_payment_on: date | None
+    #: Whether the committee's own filed report was checked against our rows for this
+    #: year, from ``committee_stated_split``. ``AGREES`` is the only value that lets a
+    #: page say the split has been verified against the filing itself.
+    stated_split_state: str
 
 
 @dataclass(frozen=True)
@@ -277,7 +305,9 @@ def named_money_split(
     *,
     first_payment_on: date | None,
     last_payment_on: date | None,
+    named_cash_total: Decimal | None,
     withheld_filer_years: frozenset[tuple[str, int]],
+    stated_split_state: str,
 ) -> NamedMoneySplit:
     """Whether this committee-year's split may be drawn, and what it is.
 
@@ -293,6 +323,32 @@ def named_money_split(
     reported_through = money_in.reported_through
     named_total = money_in.itemized_contribution_total
     named_payments = money_in.itemized_contribution_payments
+    in_kind_total = (
+        named_total - named_cash_total
+        if named_total is not None and named_cash_total is not None
+        else None
+    )
+
+    if stated_split_state == DISAGREES:
+        # The committee's own filed report states a different itemized figure from the
+        # one we hold. That is #1433's check, and it catches the direction the release
+        # reconciliation cannot: a filing that itemizes money our rows are missing
+        # entirely, which would otherwise land silently in the unnamed figure and become
+        # a positive claim that money had no donor. 14 committee-years in the live
+        # release, 3 of them candidate committees for 2025.
+        return NamedMoneySplit(
+            state=SPLIT_SOURCES_DISAGREE,
+            reported_total=reported_total,
+            reported_through=reported_through,
+            named_total=named_total,
+            named_payments=named_payments,
+            named_cash_total=named_cash_total,
+            named_in_kind_total=in_kind_total,
+            unnamed_total=None,
+            first_payment_on=first_payment_on,
+            last_payment_on=last_payment_on,
+            stated_split_state=stated_split_state,
+        )
 
     def outcome(state: str, unnamed: Decimal | None = None) -> NamedMoneySplit:
         return NamedMoneySplit(
@@ -301,9 +357,12 @@ def named_money_split(
             reported_through=reported_through,
             named_total=named_total,
             named_payments=named_payments,
+            named_cash_total=named_cash_total,
+            named_in_kind_total=in_kind_total,
             unnamed_total=unnamed,
             first_payment_on=first_payment_on,
             last_payment_on=last_payment_on,
+            stated_split_state=stated_split_state,
         )
 
     # §7's coverage-end guard, and it is a guard rather than a caption. The Board's
@@ -327,9 +386,12 @@ def named_money_split(
             reported_through=None,
             named_total=named_total,
             named_payments=named_payments,
+            named_cash_total=named_cash_total,
+            named_in_kind_total=in_kind_total,
             unnamed_total=None,
             first_payment_on=first_payment_on,
             last_payment_on=last_payment_on,
+            stated_split_state=stated_split_state,
         )
 
     # What the release itself decided, read before anything computed here. A release
@@ -355,13 +417,23 @@ def named_money_split(
     if last_payment_on is not None and last_payment_on > reported_through:
         return outcome(SPLIT_PERIODS_DIFFER)
 
-    if named_total is None:
+    if named_cash_total is None:
         return outcome(SPLIT_NO_NAMED_PAYMENTS)
 
-    if named_total - reported_total > DISAGREEMENT_TOLERANCE:
+    # **Cash against cash.** The Board's reported contributions figure excludes donated
+    # goods and services and our itemized rows include them, so subtracting the whole
+    # itemized figure understates what went unnamed and manufactures disagreements that
+    # are not one. In the live release 2,346 named contribution rows across 400
+    # committee-years for 2025 and 2026 are in kind: Jim Nash's House committee holds
+    # $250.00 of it in 2025, which moved the unnamed figure by exactly that much.
+    remainder = reported_total - named_cash_total
+    if remainder < 0:
+        # Every negative, not merely a large one. A tolerance on the comparison and no
+        # tolerance on the subtraction let a penny through as "-$0.01 of money with
+        # nobody's name on it", which cannot be true of anything.
         return outcome(SPLIT_SOURCES_DISAGREE)
 
-    return outcome(SPLIT_SHOWN, reported_total - named_total)
+    return outcome(SPLIT_SHOWN, remainder)
 
 
 def legislator_finance(
@@ -408,9 +480,12 @@ def legislator_finance(
                         reported_through=None,
                         named_total=None,
                         named_payments=None,
+                        named_cash_total=None,
+                        named_in_kind_total=None,
                         unnamed_total=None,
                         first_payment_on=None,
                         last_payment_on=None,
+                        stated_split_state=STATED_SPLIT_NOT_CHECKED,
                     ),
                 )
             )
@@ -418,6 +493,17 @@ def legislator_finance(
         first_on, last_on = payment_dates(
             db, release, registration_number=link.registration_number, year=year
         )
+        cash = next(
+            (
+                entry.total
+                for entry in reader.contribution_cash(
+                    db, release, link.registration_number, years=[year]
+                )
+                if entry.year == year
+            ),
+            None,
+        )
+        stated = stated_split_for_year(db, release, link.registration_number, year)
         committees.append(
             LegislatorCommitteeMoney(
                 registration_number=link.registration_number,
@@ -428,7 +514,20 @@ def legislator_finance(
                     finance,
                     first_payment_on=first_on,
                     last_payment_on=last_on,
+                    named_cash_total=cash,
                     withheld_filer_years=withheld,
+                    # Only ``agrees`` is a pass. Everything else -- the Board serving no
+                    # document, our own reader failing to prove itself, or nobody having
+                    # run the comparison -- is a fact about the check rather than about
+                    # the committee, and the page says which it is rather than implying
+                    # a verification that did not happen.
+                    stated_split_state=(
+                        STATED_SPLIT_AGREES
+                        if stated.status == AGREES
+                        else DISAGREES
+                        if stated.status == DISAGREES
+                        else STATED_SPLIT_NOT_CHECKED
+                    ),
                 ),
             )
         )

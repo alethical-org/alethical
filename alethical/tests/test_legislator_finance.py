@@ -39,7 +39,10 @@ from alethical.api.services.committee_finance import (
     MoneyIn,
     MoneyOut,
 )
+from alethical.api.services.committee_stated_split import AGREES, DISAGREES, NOT_RUN
 from alethical.api.services.legislator_finance import (
+    STATED_SPLIT_AGREES,
+    STATED_SPLIT_NOT_CHECKED,
     LINK_CONFIRMED,
     LINK_REVIEWED_NONE_CONFIRMED,
     LINK_UNCONFIRMED,
@@ -96,12 +99,27 @@ def _finance(
     )
 
 
-def _split(finance: CommitteeFinance, *, last_payment_on: date | None, withheld=()):
+def _split(
+    finance: CommitteeFinance,
+    *,
+    last_payment_on: date | None,
+    withheld=(),
+    cash: str | None = "__same__",
+    stated: str = STATED_SPLIT_NOT_CHECKED,
+):
+    """``cash`` defaults to "all of it was cash", which is 400 committee-years short of
+    the truth and the right default for a test about something else."""
+    whole = finance.money_in.itemized_contribution_total
+    named_cash = (
+        whole if cash == "__same__" else (None if cash is None else Decimal(cash))
+    )
     return named_money_split(
         finance,
         first_payment_on=date(finance.year, 1, 4),
         last_payment_on=last_payment_on,
+        named_cash_total=named_cash,
         withheld_filer_years=frozenset(withheld),
+        stated_split_state=stated,
     )
 
 
@@ -199,14 +217,21 @@ def test_named_payments_exceeding_the_filers_own_total_withhold_the_split():
     assert split.reported_total == Decimal("20552.62")
 
 
-def test_a_penny_apart_is_rounding_and_not_a_contradiction():
-    """The tolerance matches the release-time reconciliation, so the two cannot disagree."""
+def test_a_penny_over_never_prints_a_penny_of_negative_unnamed_money():
+    """Every negative is a disagreement, not only a large one.
+
+    An earlier version tolerated a penny on the comparison and applied no tolerance to
+    the subtraction, so $20,552.63 of named payments against a reported $20,552.62 was
+    accepted and then printed **-$0.01 of donations with nobody's name on them**, which
+    cannot be true of anything. Found by Codex on PR #1499.
+    """
     split = _split(
         _finance(named_total="20552.63", reported_total="20552.62"),
         last_payment_on=date(2025, 12, 31),
     )
 
-    assert split.state == SPLIT_SHOWN
+    assert split.state == SPLIT_SOURCES_DISAGREE
+    assert split.unnamed_total is None
 
 
 def test_the_release_can_withhold_a_filer_year_this_arithmetic_would_publish():
@@ -354,6 +379,78 @@ def test_payment_dates_are_carried_but_are_never_a_coverage_period():
 
     assert split.first_payment_on == date(2025, 1, 4)
     assert split.last_payment_on == date(2025, 11, 12)
+
+
+def test_donated_goods_are_not_subtracted_from_a_cash_only_reported_total():
+    """The measured defect this page shipped with, on the very committee in its guide.
+
+    Minnesota's reported contributions figure excludes donated goods and services, and
+    our itemized rows include them, so subtracting the whole itemized figure understates
+    what went unnamed. Jim Nash's House committee holds $250.00 of donated goods in
+    2025: the wrong subtraction gives $9,822.32 of unnamed money and the right one gives
+    $10,072.32. 2,346 named contribution rows across 400 committee-years for 2025 and
+    2026 are in kind, so this is ordinary rather than rare.
+    """
+    split = _split(_finance(), last_payment_on=date(2025, 11, 12), cash="10480.30")
+
+    assert split.state == SPLIT_SHOWN
+    assert split.unnamed_total == Decimal("10072.32")
+    # The whole itemized figure still stands as what the committee actually received.
+    assert split.named_total == Decimal("10730.30")
+    assert split.named_in_kind_total == Decimal("250.00")
+
+
+def test_in_kind_alone_never_manufactures_a_disagreement():
+    """Folding the two together makes our sum exceed the Board's figure on 24 filer-years
+    against 15 on cash alone, so 9 of those disagreements would be our arithmetic rather
+    than Minnesota's data.
+    """
+    split = _split(
+        _finance(named_total="21000.00", reported_total="20552.62"),
+        last_payment_on=date(2025, 11, 12),
+        cash="20000.00",
+    )
+
+    assert split.state == SPLIT_SHOWN
+    assert split.unnamed_total == Decimal("552.62")
+
+
+def test_a_filing_that_itemizes_more_than_we_hold_withholds_the_split():
+    """#1433's check, which catches the direction the release reconciliation cannot.
+
+    A filing can state a larger itemized figure than our rows carry, and that shortfall
+    lands silently in the unnamed figure where it becomes a positive claim that money
+    had no donor. 14 committee-years in the live release disagree this way, 3 of them
+    candidate committees for 2025.
+    """
+    split = _split(_finance(), last_payment_on=date(2025, 11, 12), stated=DISAGREES)
+
+    assert split.state == SPLIT_SOURCES_DISAGREE
+    assert split.unnamed_total is None
+    # Both official figures survive. The page shows them and subtracts neither.
+    assert split.reported_total == Decimal("20552.62")
+    assert split.named_total == Decimal("10730.30")
+
+
+def test_a_checked_split_is_told_apart_from_an_unchecked_one():
+    """Shown either way, and never allowed to read as the same thing.
+
+    The comparison costs a document request per filing and has been run for 2025 and not
+    for 2026: 296 of 312 candidate committee-years with our rows agree for 2025, and all
+    424 for 2026 are unrun. Blanking every 2026 profile would be a bigger distortion than
+    labelling the figure, so the state travels with it and the page says which it is.
+    """
+    checked = _split(
+        _finance(), last_payment_on=date(2025, 11, 12), stated=STATED_SPLIT_AGREES
+    )
+    unchecked = _split(_finance(), last_payment_on=date(2025, 11, 12))
+
+    assert checked.state == SPLIT_SHOWN
+    assert unchecked.state == SPLIT_SHOWN
+    assert checked.stated_split_state == STATED_SPLIT_AGREES
+    assert unchecked.stated_split_state == STATED_SPLIT_NOT_CHECKED
+    assert AGREES == STATED_SPLIT_AGREES
+    assert NOT_RUN != STATED_SPLIT_AGREES
 
 
 # --- Which of a member's committees belong on a legislative profile ----------

@@ -28,6 +28,8 @@ import {
   UNNAMED_MONEY_EXPLANATION,
   type CampaignMoneyYear,
   campaignMoneyYears,
+  confirmedElsewhereExplanation,
+  emptyStateFor,
   formatDay,
   formatMoney,
   moneyFigure,
@@ -35,7 +37,7 @@ import {
   paymentCountLabel,
   paymentDateRangeLabel,
   reportedThroughLabel,
-  showsUnconfirmedState,
+  statedSplitNote,
   spendingNote,
   splitExplanation,
   unnamedShareLabel,
@@ -114,8 +116,15 @@ export function CampaignMoneyTab({
         <View style={styles.card}>
           <Text style={styles.muted}>Loading campaign money…</Text>
         </View>
-      ) : showsUnconfirmedState(money.linkState, money.committees.length) ? (
+      ) : emptyStateFor(money.linkState, money.committees.length) === 'unconfirmed' ? (
         <UnconfirmedPanel />
+      ) : emptyStateFor(money.linkState, money.committees.length) === 'confirmed-elsewhere' ? (
+        <View style={styles.card}>
+          <Text accessibilityRole="header" aria-level={3} style={styles.h3}>
+            No committee of theirs covers {year}
+          </Text>
+          <Text style={styles.body}>{confirmedElsewhereExplanation(year)}</Text>
+        </View>
       ) : (
         money.committees.map((committee) => (
           <CommitteeCard
@@ -235,6 +244,8 @@ function MoneyIn({
   const named = moneyIn ? moneyFigure(moneyIn.state, split.namedTotal) : null;
   const reported = formatMoney(split.reportedTotal);
   const unnamed = formatMoney(split.unnamedTotal);
+  const inKind = formatMoney(split.namedInKindTotal);
+  const checkNote = statedSplitNote(split.statedSplitState);
 
   return (
     <View style={styles.block}>
@@ -249,7 +260,7 @@ function MoneyIn({
             // same only when the report covers the whole year, and on a member whose
             // report stops in March the second label would be false while the first
             // stays true beside its own coverage date.
-            label="Total this committee reported to the state"
+            label="Donations this committee reported to the state"
             value={reported}
             note={reportedThroughLabel(split.reportedThrough)}
             isDesktop={isDesktop}
@@ -276,6 +287,16 @@ function MoneyIn({
         />
       ) : null}
 
+      {inKind ? (
+        // Its own line rather than folded into either figure. It is real money's worth
+        // the committee received, and the state's reported total does not carry it, so
+        // it can be neither added to that total nor quietly dropped.
+        <Text style={styles.explain}>
+          {inKind} of the donations above were goods and services rather than money. The state
+          counts those separately from the total below.
+        </Text>
+      ) : null}
+
       {split.state === 'shown' && unnamed ? (
         <>
           <Figure
@@ -285,6 +306,7 @@ function MoneyIn({
             isDesktop={isDesktop}
           />
           <Text style={styles.explain}>{UNNAMED_MONEY_EXPLANATION}</Text>
+          {checkNote ? <Text style={styles.explain}>{checkNote}</Text> : null}
         </>
       ) : null}
 

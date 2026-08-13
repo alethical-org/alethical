@@ -600,7 +600,15 @@ export interface CampaignCommitteeMoney {
     reportedThrough: string | null;
     namedTotal: string | null;
     namedPayments: number | null;
+    /** The cash part of `namedTotal`, which is the only part the subtraction may use:
+     *  the state's reported figure excludes donated goods and services. */
+    namedCashTotal: string | null;
+    /** Named donations of goods and services rather than money. */
+    namedInKindTotal: string | null;
     unnamedTotal: string | null;
+    /** Whether the committee's own filed report was checked against our rows.
+     *  'agrees' is the only value that means verified. */
+    statedSplitState: string;
     firstPaymentOn: string | null;
     lastPaymentOn: string | null;
   };
