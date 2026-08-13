@@ -1318,6 +1318,66 @@ def test_itemized_rows_that_exceed_the_reported_total_stop_the_run(
     assert db.scalars(select(models.CampaignFinanceRelease)).all() == []
 
 
+def test_a_failing_filer_year_is_named_so_a_page_can_withhold_that_one(
+    db, board, store
+) -> None:
+    """§7 withholds the split per filer-year, not per release.
+
+    Picking which committee to withhold out of a sentence is not something a page can
+    do, so the filer-years are recorded as data beside the prose.
+    """
+    seed_filings_snapshot(db, reported={("19200", 2025): "1500.00"})
+    report = run(db, board, store, dry_run=True)
+    check = contributions_checks(report)["reported_totals_reconcile"]
+    assert check.status == "failed"
+    assert check.filer_years == ("19200:2025",)
+    assert check.as_json()["filer_years"] == ["19200:2025"]
+
+
+def test_naming_the_hashes_waives_the_reconciliation_but_still_names_the_filers(
+    db, board, store
+) -> None:
+    """Because 3 committees Minnesota contradicts itself about must not freeze
+    583,196 payment rows forever (#1477).
+
+    A frozen corpus is its own harm. What may never be waived is the record of which
+    filer-years failed, so those and only those withhold their split.
+    """
+    seed_filings_snapshot(db, reported={("19200", 2025): "1500.00"})
+    published = publish_first(db, board, store)
+    check = contributions_checks(published)["reported_totals_reconcile"]
+    assert check.status == "overridden"
+    assert check.filer_years == ("19200:2025",)
+    assert "must not publish a split" in check.detail
+    # And it really did publish, which is the point.
+    assert published.published
+
+    release = db.get(models.CampaignFinanceRelease, published.release_id)
+    snapshot = snapshot_of(db, release, Dataset.contributions)
+    recorded = {c["name"]: c for c in snapshot.validation_json["checks"]}
+    assert recorded["reported_totals_reconcile"]["filer_years"] == ["19200:2025"]
+
+
+def test_a_structural_check_is_still_never_waived_by_naming_hashes(
+    db, board, store
+) -> None:
+    """The waiver above must not have widened into one that covers everything."""
+    seed_filings_snapshot(db, reported={("19200", 2025): "2000.00"})
+    board.set_rows(
+        Dataset.contributions,
+        [CONTRIBUTION_ROWS[0].replace("2025-07-10", "not-a-date")],
+    )
+    first = run(db, board, store)
+    hashes = [
+        outcome.measurements.record_set_hash
+        for outcome in first.outcomes
+        if outcome.measurements
+    ]
+    waived = run(db, board, store, publish_hashes=hashes)
+    assert waived.refusal is not None
+    assert not waived.published
+
+
 def test_the_comparison_stops_at_the_date_the_reported_figure_runs_to(
     db, board, store
 ) -> None:

@@ -36,6 +36,7 @@ Needs the local Postgres on port 54329.
 
 from __future__ import annotations
 
+import json
 import threading
 from datetime import timedelta
 from decimal import Decimal
@@ -609,3 +610,72 @@ def test_no_published_release_reads_as_none_not_as_an_error(db):
     """A database with nothing published is a real state, not a failure."""
     cf.ensure_pointer_row(db)
     assert reader.live_release(db) is None
+
+
+# --- Filer-years that must not show a split ----------------------------------
+
+
+def test_nothing_is_withheld_when_every_filer_year_reconciled(db, release):
+    """The ordinary case, so the reader is not read as "there is always a problem"."""
+    assert reader.filer_years_that_must_not_show_a_split(db, release) == frozenset()
+
+
+def test_a_filer_year_the_release_refused_is_named_to_the_caller(db, release):
+    """Recording which committee-years contradict themselves is only half the job.
+
+    The other half is a caller being able to ask, because a surface that computes
+    "how much of this money had no name on it" would otherwise print a negative
+    share for exactly these committees (§9.5, a negative reconciliation is a failure
+    rather than a number to clamp).
+    """
+    db.execute(
+        text("UPDATE cf_snapshot SET validation_json = :recorded WHERE id = :snapshot"),
+        {
+            "recorded": json.dumps(
+                {
+                    "checks": [
+                        {
+                            "name": "reported_totals_reconcile",
+                            "status": "overridden",
+                            "detail": "reviewed and published anyway",
+                            "filer_years": ["19200:2025", "30654:2024"],
+                        }
+                    ]
+                }
+            ),
+            "snapshot": release.contributions.snapshot_id,
+        },
+    )
+    db.commit()
+
+    assert reader.filer_years_that_must_not_show_a_split(db, release) == frozenset(
+        {("19200", 2025), ("30654", 2024)}
+    )
+
+
+def test_a_registration_number_holding_a_colon_still_resolves(db, release):
+    """The year is split off the right-hand end, so a number containing a colon keeps
+    its whole self rather than being truncated at the first one."""
+    db.execute(
+        text("UPDATE cf_snapshot SET validation_json = :recorded WHERE id = :snapshot"),
+        {
+            "recorded": json.dumps(
+                {
+                    "checks": [
+                        {
+                            "name": "reported_totals_reconcile",
+                            "status": "failed",
+                            "detail": "x",
+                            "filer_years": ["A:B:2025", "malformed", "19200:notayear"],
+                        }
+                    ]
+                }
+            ),
+            "snapshot": release.contributions.snapshot_id,
+        },
+    )
+    db.commit()
+
+    assert reader.filer_years_that_must_not_show_a_split(db, release) == frozenset(
+        {("A:B", 2025)}
+    )

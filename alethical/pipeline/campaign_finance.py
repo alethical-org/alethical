@@ -372,13 +372,25 @@ class Check:
     name: str
     status: str  # "passed" | "failed" | "not_run" | "overridden"
     detail: str
+    # The filer-years this check found fault with, as "<registration>:<year>". Recorded
+    # separately from the prose because a surface has to act on it: §7 says a
+    # filer-year that fails this check does not publish its split, and picking that out
+    # of a sentence is not something a page can do.
+    filer_years: tuple[str, ...] = ()
 
     @property
     def blocks_publication(self) -> bool:
         return self.status == "failed"
 
-    def as_json(self) -> dict[str, str]:
-        return {"name": self.name, "status": self.status, "detail": self.detail}
+    def as_json(self) -> dict:
+        recorded: dict = {
+            "name": self.name,
+            "status": self.status,
+            "detail": self.detail,
+        }
+        if self.filer_years:
+            recorded["filer_years"] = list(self.filer_years)
+        return recorded
 
 
 @dataclass
@@ -1204,7 +1216,11 @@ def validate(
     # rather than this file alone. They are the only checks here that watch **one
     # filer's money** instead of the whole file's shape, which is what a file with 2
     # committees' amounts swapped would slip past.
-    checks.extend(_checks_against_the_board(spec, measured, filings))
+    checks.extend(
+        _checks_against_the_board(
+            spec, measured, filings, operator_approved=operator_approved
+        )
+    )
     # And the one this repo still cannot run. Recorded as not run with its reason,
     # never as passed.
     checks.append(
@@ -1236,7 +1252,11 @@ UNKNOWN_FILER_SHARE_CEILING = 0.25
 
 
 def _checks_against_the_board(
-    spec: DatasetSpec, measured: Measurements, filings: Optional[Any]
+    spec: DatasetSpec,
+    measured: Measurements,
+    filings: Optional[Any],
+    *,
+    operator_approved: bool = False,
 ) -> list[Check]:
     """§4.3's 2 checks that need the Board's own figures and filer directory (#1408).
 
@@ -1254,10 +1274,28 @@ def _checks_against_the_board(
             Check("reported_totals_reconcile", "not_run", reason),
             Check("registration_numbers_resolve_to_a_known_filer", "not_run", reason),
         ]
-    return [
-        _reported_totals_reconcile(spec, measured, filings),
-        _registrations_resolve(spec, measured, filings),
-    ]
+    reconcile = _reported_totals_reconcile(spec, measured, filings)
+    # Waivable by an operator who has named the exact hashes, like every other
+    # comparison here — and unlike a structural check, which no flag lets through.
+    #
+    # It has to be, and the first production run is why. It failed on 3 filer-years of
+    # 2,342 compared, and all 3 are contradictions inside Minnesota's own published
+    # data rather than faults in the download (#1477). Left unwaivable, 3 committees
+    # the Board disagrees with itself about would freeze every future refresh of
+    # 583,196 payment rows, and a corpus frozen indefinitely is its own harm
+    # (`.claude/rules/grounded-answers.md` rule 7, staleness). The filer-years are
+    # recorded on the check so a surface can withhold those and only those, which is
+    # what §7 asks for: "until a filer-year passes this check, its split is not
+    # published".
+    if reconcile.status == "failed" and operator_approved:
+        reconcile = Check(
+            reconcile.name,
+            "overridden",
+            f"{reconcile.detail} — waived by an operator who named this hash. The "
+            "filer-years above must not publish a split until they reconcile",
+            reconcile.filer_years,
+        )
+    return [reconcile, _registrations_resolve(spec, measured, filings)]
 
 
 def _reported_totals_reconcile(
@@ -1330,6 +1368,7 @@ def _reported_totals_reconcile(
     # reporting its own coverage as its result.
     no_rows_at_all: list[tuple[str, int]] = []
     rows_only_outside_the_period: list[tuple[str, int]] = []
+    failed_filer_years: list[str] = []
     for filer_year, official in sorted(comparable.items()):
         ours = measured.contribution_cash_through_cutoff.get(filer_year)
         if ours is None:
@@ -1349,6 +1388,7 @@ def _reported_totals_reconcile(
                 f"{registration} {year}: our rows total {ours} against a reported "
                 f"{official}, over by {ours - official}"
             )
+            failed_filer_years.append(f"{registration}:{year}")
     detail = (
         f"{compared:,} of {len(comparable):,} comparable filer-years compared against "
         f"the Board's own figures; {len(no_rows_at_all):,} hold no itemized row of ours "
@@ -1365,6 +1405,7 @@ def _reported_totals_reconcile(
             "unnamed money: "
             + "; ".join(exceeded[:MAX_REPORTED_ROW_ERRORS])
             + f". {detail}",
+            tuple(failed_filer_years),
         )
     return Check(name, "passed", detail)
 

@@ -535,6 +535,46 @@ def money_in(
     return result
 
 
+def filer_years_that_must_not_show_a_split(
+    db: Session, release: Release
+) -> frozenset[tuple[str, int]]:
+    """Filer-years whose reported total and our rows contradict each other.
+
+    **Ask this before computing "how much of this committee's money had no name on
+    it", and show the named payments alone for anything it returns.** That figure is
+    the reported total minus the rows we hold, so where our rows are the larger of the
+    two it comes out negative, and §9.5 is explicit that a negative result is a failed
+    reconciliation rather than a number to clamp to zero.
+
+    It is not empty because something is broken here. The release-time check refuses
+    these filer-years, and an operator may publish the other 2,000-odd anyway by naming
+    the reviewed hashes — which is deliberate, because the 3 real cases are
+    contradictions inside Minnesota's own published data
+    ([#1477](https://github.com/alethical-org/alethical/issues/1477)) and freezing
+    every payment refresh until the Board resolves them trades a loud problem for the
+    quiet one `.claude/rules/grounded-answers.md` rule 7 warns about.
+
+    Read from the checks recorded on the published snapshot rather than recomputed,
+    so a surface sees exactly what the release decided rather than a second opinion
+    formed later against rows that may since have been replaced.
+    """
+    recorded = db.execute(
+        text(
+            "SELECT validation_json FROM cf_snapshot WHERE id = :snapshot",
+        ),
+        {"snapshot": release.contributions.snapshot_id},
+    ).scalar()
+    withheld: set[tuple[str, int]] = set()
+    for check in (recorded or {}).get("checks") or []:
+        if check.get("name") != "reported_totals_reconcile":
+            continue
+        for entry in check.get("filer_years") or []:
+            registration, _, year = str(entry).rpartition(":")
+            if registration and year.isdigit():
+                withheld.add((registration, int(year)))
+    return frozenset(withheld)
+
+
 def money_out(
     db: Session,
     release: Release,
