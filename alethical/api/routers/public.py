@@ -41,6 +41,7 @@ from alethical.api.services.legislative_sessions import (
     named_special_session,
 )
 from alethical.api.services.committee_finance import (
+    ReleaseNoLongerHeld,
     committee_finance,
     current_release as current_campaign_finance_release,
     pin_to_one_view as pin_campaign_finance_to_one_view,
@@ -2779,10 +2780,6 @@ def committee_finance_for_year(
     measured ``0``: nobody filed an independent expenditure over $200 about them,
     which is a finding rather than a gap.
 
-    Dates are the first and last payment we hold, not a reporting period. Almost
-    every Minnesota report runs from 1 January and a special-election filer's does
-    not, so no surface may present these as the period a figure covers.
-
     404 means this registration number appears nowhere in the current release. That
     is a statement about our records: the Board's registered-filer directory decides
     whether a committee exists and nothing here reads it yet. 503 means we hold no
@@ -2792,18 +2789,25 @@ def committee_finance_for_year(
     # database, so 2 publishes landing mid-request cannot turn this committee's
     # spending into an absence while its income has already been read.
     pin_campaign_finance_to_one_view(db)
-    release = current_campaign_finance_release(db)
-    if release is None or not release.is_usable:
-        raise HTTPException(
-            status_code=503,
-            detail=(
-                "no usable campaign-finance release is published; "
-                "this says nothing about any committee"
-            ),
-        )
-    finance = committee_finance(
-        db, release, registration_number=registration_number, year=year
+    unusable = HTTPException(
+        status_code=503,
+        detail=(
+            "no usable campaign-finance release is published; "
+            "this says nothing about any committee"
+        ),
     )
+    try:
+        release = current_campaign_finance_release(db)
+        if release is None:
+            raise unusable
+        finance = committee_finance(
+            db, release, registration_number=registration_number, year=year
+        )
+    except ReleaseNoLongerHeld:
+        # The release exists and its rows have been replaced out from under it, so we
+        # cannot name this committee at all. A 404 here would say it does not exist,
+        # on the strength of our own pruning.
+        raise unusable from None
     if finance is None:
         raise HTTPException(
             status_code=404,
@@ -2830,8 +2834,6 @@ def committee_finance_for_year(
                 "itemized_contribution_payments": (
                     finance.money_in.itemized_contribution_payments
                 ),
-                "first_receipt_on": finance.money_in.first_receipt_on,
-                "last_receipt_on": finance.money_in.last_receipt_on,
                 "other_receipts": [
                     {
                         "receipt_type": receipt.receipt_type,
@@ -2840,15 +2842,14 @@ def committee_finance_for_year(
                     }
                     for receipt in finance.money_in.other_receipts
                 ],
+                "reported_total": finance.money_in.reported_total,
+                "reported_through": finance.money_in.reported_through,
                 "source_url": finance.money_in.source_url,
             },
             "money_out": {
                 "state": finance.money_out.state,
                 "itemized_payment_total": finance.money_out.itemized_payment_total,
                 "itemized_payments": finance.money_out.itemized_payments,
-                "unpaid_total": finance.money_out.unpaid_total,
-                "first_transaction_on": finance.money_out.first_transaction_on,
-                "last_transaction_on": finance.money_out.last_transaction_on,
                 "by_type": [
                     {
                         "type": entry.expenditure_type,

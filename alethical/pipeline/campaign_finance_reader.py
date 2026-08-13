@@ -406,6 +406,19 @@ class Bucket:
     label: str
     rows: int
     total: Decimal
+    # How many of `rows` carry no amount at all. `sum` skips a row with a null
+    # amount while `count(*)` still counts it, so a bucket of blanks reports a total
+    # of 0 over a positive row count -- an invented zero -- and one blank beside a
+    # real payment reports an understated total as though it were whole. Both are the
+    # missing-versus-zero failure `.claude/rules/grounded-answers.md` rule 12 forbids,
+    # so the count is carried here and a caller withholds the figure rather than
+    # printing it (#1442).
+    #
+    # 0 for every row of the live release: all 583,152 contribution rows and 377,860
+    # expenditure rows state an amount. The column is nullable and the loader stores a
+    # blank as null rather than inventing a value, so one blank cell in a future
+    # download is enough to make this matter.
+    rows_missing_an_amount: int = 0
 
 
 @dataclass(frozen=True)
@@ -491,7 +504,8 @@ def money_in(
         params["years"] = year_values
     rows = db.execute(
         text(
-            "SELECT year, receipt_type, count(*), coalesce(sum(amount), 0) "
+            "SELECT year, receipt_type, count(*), coalesce(sum(amount), 0), "
+            "       count(*) - count(amount) "
             "  FROM cf_contribution_row "
             " WHERE snapshot_id = :snapshot AND recipient_reg_num = :reg_num "
             "   AND year IS NOT NULL" + clause + " "
@@ -504,9 +518,11 @@ def money_in(
         return []
 
     by_year: dict[int, list[Bucket]] = {}
-    for year, receipt_type, count, total in rows:
+    for year, receipt_type, count, total, missing in rows:
         label = receipt_type if receipt_type is not None else "(not stated)"
-        by_year.setdefault(int(year), []).append(Bucket(label, int(count), total))
+        by_year.setdefault(int(year), []).append(
+            Bucket(label, int(count), total, int(missing))
+        )
     result: list[MoneyIn] = []
     for year in sorted(by_year):
         buckets = by_year[year]
@@ -551,7 +567,8 @@ def money_out(
         params["years"] = year_values
     rows = db.execute(
         text(
-            "SELECT year, type, count(*), coalesce(sum(amount), 0) "
+            "SELECT year, type, count(*), coalesce(sum(amount), 0), "
+            "       count(*) - count(amount) "
             "  FROM cf_expenditure_row "
             " WHERE snapshot_id = :snapshot AND committee_reg_num = :reg_num "
             "   AND year IS NOT NULL" + clause + " "
@@ -564,9 +581,14 @@ def money_out(
         return []
 
     by_year: dict[int, list[Bucket]] = {}
-    for year, label, count, total in rows:
+    for year, label, count, total, missing in rows:
         by_year.setdefault(int(year), []).append(
-            Bucket(label if label is not None else "(not stated)", int(count), total)
+            Bucket(
+                label if label is not None else "(not stated)",
+                int(count),
+                total,
+                int(missing),
+            )
         )
     return [MoneyOut(reg_num, year, tuple(by_year[year])) for year in sorted(by_year)]
 

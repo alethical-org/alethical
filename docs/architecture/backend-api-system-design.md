@@ -780,16 +780,30 @@ they are reachable only as the target of an independent expenditure.
 `year` is **required** (`ge=2015, le=2100`, no default), for the same reason as the endpoint
 above: a defaulted year silently answers about a different period than the caller meant.
 
+**No figure here is summed by the API layer.** Every total comes from
+`alethical/pipeline/campaign_finance_reader.py` ([#1330](https://github.com/alethical-org/alethical/issues/1330)),
+which is the single home for the source behaviours that make a plausible query silently wrong.
+This endpoint adds only what a page needs and a command-line reader does not: who a
+registration number belongs to, a per-block state instead of an exception, what an empty answer
+*means*, and independent spending aimed **at** the committee (a different question from the
+reader's `independent_spending_by`, which is money the filer *spent*).
+
 **Every figure is a sum of itemized rows, never a committee's total.** Minnesota names a donor
 only once their giving passes $200 in aggregate within a calendar year, so the listed payments
 always add up to less than the committee reported raising — around 4 dollars in 10 go unnamed
 on a typical filing (`docs/architecture/campaign-finance-system-design.md` §9.5). Every field
 carries `itemized` in its own name and there is deliberately no field a client could mistake
-for a grand total. The reported total comes from a separate source
-([#1408](https://github.com/alethical-org/alethical/issues/1408)) and nothing stores it yet;
-`reported_total` is left free as a purely additive field for whoever lands it. Until then a
-surface may show these only as named payments, with no composition bar
-(`.claude/rules/grounded-answers.md` rule 12).
+for a grand total.
+
+**Rule 12's second number is served, and it is live.** `money_in.reported_total` is what the
+filer itself reported taking in, from its own filed report rather than from the download, with
+`reported_through` naming the date it runs to. Show both; never add them together and never
+reconcile them into one figure. Measured against production on Aug 12 2026: HRCC's 2025 is
+$1,488,168.08 itemized against $1,747,196.69 reported, and Senator Lindsey Port's is $5,100.00
+against $10,155.00 — the gap in each is legitimate small-donor money, not an error.
+`reported_total` is `null` when no filings snapshot is published, and also for a
+special-election filer whose second report series the Board's route does not return, because
+§9.5 is explicit that those read "Not reported" rather than being compared.
 
 **Read each block's `state` before its numbers:**
 
@@ -800,10 +814,16 @@ surface may show these only as named payments, with no composition bar
   print "$0 raised" over a real filing.
 - `unavailable` — a gap of ours, never a figure about the committee. Three ways to reach it,
   and the second and third were found by an adversarial review rather than by the first build:
-  our copy of that download is stale (section H's release-held-across-2-publishes case); the
-  download holds nothing at all for the year asked for; or a row in the committee's own set has
-  a blank amount, so the total cannot be computed and is withheld rather than understated.
-  Judged per dataset, because the 3 downloads are pruned independently.
+  our copy of that download is stale; the download holds nothing at all for the year asked for;
+  or a row in the committee's own set has a blank amount, so the total cannot be computed and is
+  withheld rather than understated. Judged per dataset, because the 3 downloads are pruned
+  independently — one stale download must not blank the other two, which is why this endpoint
+  carries a state per block where the reader raises.
+
+  Staleness itself is the reader's judgement, and it is sharper than a row check: each snapshot
+  records the row count it published, so "published 583,152 rows and holds none now" is a
+  replaced set, while "published 0" is a file that was legitimately empty. A release naming a
+  snapshot that is no longer `loaded` is refused outright.
 
 The year check matters most on `independent_spending`, because an empty answer there is a
 published finding rather than a gap. The downloads reach 2015 to the present and this route
@@ -848,11 +868,13 @@ download's `Amount` is the filing's *total* column and a row can be unpaid.
 directly. It is the one block where a committee with no rows reads as a measured **0**: nobody
 filed an independent expenditure over $200 about them, which is a finding rather than a gap.
 
-Dates are the first and last payment we hold, never a reporting period. Almost every Minnesota
-report runs from 1 January and a special-election filer's does not — filer 19223 reports from
-11 July 2025 — so this layer states no period at all and nothing downstream can inherit a
-hardcoded 1 January from it. `fetched_at` is the release's single freshness date and is always
-later than the period any figure covers.
+**No date on a figure is one this layer invented.** The period a total covers is
+`reported_through`, the filing's own answer. An earlier version derived a range from the span of
+the rows it happened to hold; that approximated a fact the source states exactly, and a surface
+would have shown the approximation as the period. Almost every Minnesota report runs from
+1 January and a special-election filer's does not — filer 19223 reports from 11 July 2025 — so
+no surface may hardcode 1 January either. `fetched_at` is the release's single freshness date
+and is never the period a figure covers: that is per filing and always earlier.
 
 The whole response resolves from **one** release id, returned as `release_id`. Section H is
 explicit that re-resolving per query can pair one day's income with another day's spending.

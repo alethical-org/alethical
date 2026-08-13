@@ -37,6 +37,7 @@ from sqlalchemy import text
 
 from alethical.api.services.committee_finance import (
     NOT_REPORTED,
+    ReleaseNoLongerHeld,
     REPORTED,
     UNAVAILABLE,
     committee_finance,
@@ -98,7 +99,17 @@ def db(seed_database: None):
         session.close()
 
 
-def _snapshot(db, dataset: Dataset) -> models.CampaignFinanceSnapshot:
+def _snapshot(
+    db, dataset: Dataset, *, row_count: int = 0
+) -> models.CampaignFinanceSnapshot:
+    """One loaded snapshot.
+
+    ``row_count`` is what the snapshot recorded at publish time, and it is what tells
+    a pruned release from a file that was legitimately empty: a snapshot that
+    published 1,000 rows and holds none has been replaced, while one that published 0
+    is just empty. Default 0 so an ordinary fixture is "empty", and a test that means
+    "pruned" says so.
+    """
     marker = f"{dataset.value}-{uuid.uuid4()}"
     snapshot = models.CampaignFinanceSnapshot(
         dataset=dataset,
@@ -107,6 +118,7 @@ def _snapshot(db, dataset: Dataset) -> models.CampaignFinanceSnapshot:
         content_hash=hashlib.sha256(marker.encode()).hexdigest(),
         record_set_hash=hashlib.sha256(f"records-{marker}".encode()).hexdigest(),
         byte_size=1024,
+        row_count=row_count,
         status=SnapshotStatus.loaded,
     )
     db.add(snapshot)
@@ -117,10 +129,16 @@ def _snapshot(db, dataset: Dataset) -> models.CampaignFinanceSnapshot:
 class Published:
     """A published release plus the 3 snapshots behind it, for adding rows to."""
 
-    def __init__(self, db):
-        self.contributions = _snapshot(db, Dataset.contributions)
-        self.expenditures = _snapshot(db, Dataset.expenditures)
-        self.independent = _snapshot(db, Dataset.independent_expenditures)
+    def __init__(self, db, *, published_rows: int = 0):
+        self.contributions = _snapshot(
+            db, Dataset.contributions, row_count=published_rows
+        )
+        self.expenditures = _snapshot(
+            db, Dataset.expenditures, row_count=published_rows
+        )
+        self.independent = _snapshot(
+            db, Dataset.independent_expenditures, row_count=published_rows
+        )
         release = models.CampaignFinanceRelease(
             contributions_snapshot_id=self.contributions.id,
             expenditures_snapshot_id=self.expenditures.id,
@@ -259,18 +277,23 @@ def test_no_published_release_is_not_an_answer(db):
     assert current_release(db) is None
 
 
-def test_a_release_whose_rows_are_gone_is_unusable(db):
+def test_a_release_whose_rows_are_gone_refuses_rather_than_answering(db):
     """A release id held across 2 publishes finds no rows. That is our staleness.
 
     The loader keeps one spare generation, so this is reachable in production by a
-    request that resolved a release just before 2 publishes landed. Reporting it as
-    a committee's figures would put our own pruning on a named organisation's page.
+    request that resolved a release just before 2 publishes landed. Reporting it as a
+    committee's figures would put our own pruning on a named organisation's page.
+
+    The snapshots say they published rows and hold none, which is what separates this
+    from a download that was genuinely empty.
     """
-    Published(db)
+    published = Published(db, published_rows=1000)
     release = current_release(db)
     assert release is not None
-    assert release.is_usable is False
-    assert release.loaded == frozenset()
+    assert release.contributions.row_count == 1000
+    with pytest.raises(ReleaseNoLongerHeld):
+        committee_finance(db, release, registration_number=CANDIDATE, year=2025)
+    assert published.release.id == release.id
 
 
 def test_one_stale_dataset_does_not_blank_the_others(db):
@@ -402,8 +425,15 @@ def test_an_unexpected_receipt_label_is_never_silently_a_contribution(db):
     assert finance.money_in.other_receipts[0].receipt_type == "Contribution Refund"
 
 
-def test_a_differently_cased_contribution_still_counts(db):
-    """Case and stray spacing must not move real contributions out of the figure."""
+def test_a_spelling_we_do_not_recognise_fails_safe(db):
+    """The Board owns this spelling, and the label is matched exactly (#1330).
+
+    Every one of the 583,152 contribution rows in the live release reads exactly
+    `Contribution`, with no stray case or spacing. If that ever changes, the money
+    must still reach the page under whatever the source called it, and must never
+    quietly join the contribution figure: an understated headline beside a visible
+    labelled bucket is recoverable, and a silently inflated one is not.
+    """
     published = Published(db)
     _receipt(
         db,
@@ -415,8 +445,11 @@ def test_a_differently_cased_contribution_still_counts(db):
     db.commit()
     finance = _finance(db, CANDIDATE)
     assert finance is not None
-    assert finance.money_in.state == REPORTED
-    assert finance.money_in.itemized_contribution_total == Decimal("250.00")
+    assert finance.money_in.state == NOT_REPORTED
+    assert finance.money_in.itemized_contribution_total is None
+    assert [r.receipt_type for r in finance.money_in.other_receipts] == [
+        " CONTRIBUTION "
+    ]
 
 
 # --- Money out: both labels, and the total that is not the paid column -------
@@ -504,7 +537,6 @@ def test_an_unpaid_bill_is_reported_beside_the_total_not_inside_it(db):
     finance = _finance(db, CANDIDATE)
     assert finance is not None
     assert finance.money_out.itemized_payment_total == Decimal("1000.00")
-    assert finance.money_out.unpaid_total == Decimal("250.00")
 
 
 # --- Which year, and which dates ---------------------------------------------
@@ -537,15 +569,17 @@ def test_the_files_own_year_column_decides_not_the_rows_date(db):
     finance = _finance(db, CANDIDATE, year=2025)
     assert finance is not None
     assert finance.money_in.itemized_contribution_total == Decimal("100.00")
-    assert finance.money_in.first_receipt_on == date(2024, 12, 30)
 
 
-def test_the_dates_are_the_payments_we_hold_never_the_first_of_january(db):
+def test_no_figure_carries_a_period_this_layer_invented(db):
     """Almost every report runs from 1 January and a special-election filer's does not.
 
-    Filer 19223 reports from 11 July 2025. This layer states no reporting period at
-    all -- only the first and last payment it holds -- so nothing downstream can
-    inherit a hardcoded 1 January from here.
+    Filer 19223 reports from 11 July 2025, so a period must come from the filing and
+    never from us. The only period field is `reported_through`, which is the filing's
+    own answer through #1408, and it is `None` here because no filings snapshot is
+    published. An earlier version of this layer derived a range from the span of rows
+    it held; that was an approximation of a fact the source states exactly, and a
+    surface would have shown it as the period.
     """
     published = Published(db)
     _receipt(
@@ -555,18 +589,18 @@ def test_the_dates_are_the_payments_we_hold_never_the_first_of_january(db):
         amount="500.00",
         on=date(2025, 7, 11),
     )
-    _receipt(
-        db,
-        published.contributions,
-        reg_num=CANDIDATE,
-        amount="500.00",
-        on=date(2025, 11, 4),
-    )
     db.commit()
     finance = _finance(db, CANDIDATE)
     assert finance is not None
-    assert finance.money_in.first_receipt_on == date(2025, 7, 11)
-    assert finance.money_in.last_receipt_on == date(2025, 11, 4)
+    assert finance.money_in.reported_through is None
+    assert finance.money_in.reported_total is None
+    date_fields = [
+        name
+        for block in (finance.money_in, finance.money_out)
+        for name, value in vars(block).items()
+        if isinstance(value, date)
+    ]
+    assert date_fields == []
 
 
 # --- Independent spending, reached without anyone confirming anything --------
@@ -746,7 +780,7 @@ def test_the_route_refuses_rather_than_answering_from_a_stale_release(db, client
     A 404 here would say this committee does not exist, on the strength of our own
     pruning; a 200 with empty figures would say it has no money.
     """
-    Published(db)
+    Published(db, published_rows=1000)
     response = client.get(
         f"/api/v1/committees/{CANDIDATE}/finance", params={"year": 2025}
     )
@@ -834,9 +868,9 @@ def test_the_route_never_prints_a_zero_for_a_committee_we_hold_no_rows_for(db, c
         "state": NOT_REPORTED,
         "itemized_contribution_total": None,
         "itemized_contribution_payments": None,
-        "first_receipt_on": None,
-        "last_receipt_on": None,
         "other_receipts": [],
+        "reported_total": None,
+        "reported_through": None,
         "source_url": "https://cfb.mn.gov/reports/contributions.csv",
     }
     assert body["money_out"]["itemized_payment_total"] is None
@@ -928,11 +962,13 @@ def test_one_blank_amount_beside_a_real_one_withholds_the_whole_figure(db):
     assert finance.money_in.itemized_contribution_total is None
 
 
-def test_a_contribution_with_no_date_does_not_crash_the_request(db):
-    """`min()` over an empty sequence raised, so one blank date returned HTTP 500.
+def test_a_contribution_with_no_date_is_still_counted(db):
+    """A blank date must not cost a committee its figure.
 
-    Money out already guarded this and money in did not. The honest answer is the
-    total we do hold with no dates beside it, never an error page.
+    This caught a crash while this layer derived its own date range: `min()` over an
+    all-blank group raised, so one blank cell returned HTTP 500. Delegating the sums
+    removed that code, and the case is kept because the money is still real and the
+    column is still nullable.
     """
     published = Published(db)
     _receipt(
@@ -943,8 +979,6 @@ def test_a_contribution_with_no_date_does_not_crash_the_request(db):
     assert finance is not None
     assert finance.money_in.state == REPORTED
     assert finance.money_in.itemized_contribution_total == Decimal("100.00")
-    assert finance.money_in.first_receipt_on is None
-    assert finance.money_in.last_receipt_on is None
 
 
 def test_rows_pruned_mid_request_cannot_turn_a_figure_into_an_absence(db, client):
@@ -1033,3 +1067,69 @@ def test_the_route_itself_runs_in_the_pinned_view(db):
         session.rollback()
         session.close()
     assert seen == ["repeatable read"]
+
+
+def test_a_special_election_filers_total_is_never_printed_as_a_figure(db, monkeypatch):
+    """The Board's totals route cannot speak for a filer that filed 2 report series.
+
+    §9.5 measured 10 such committee-years and is explicit that they read "Not
+    reported" rather than being compared: the route returns only the regular series,
+    so for filer 18453 it would print $317.20 against a true $283,287.13. #1330's
+    reader flags them with `comparable=False`, and this layer must drop the figure
+    rather than pass a number that wrong to a page.
+    """
+    from alethical.pipeline import campaign_finance_reader as reader
+
+    published = Published(db)
+    _receipt(db, published.contributions, reg_num=CANDIDATE, amount="5100.00")
+    db.commit()
+
+    def one_incomparable_total(db_, reg_num, years=None):
+        return [
+            reader.ReportedContributions(
+                reg_num=reg_num,
+                year=2025,
+                total=Decimal("317.20"),
+                reported_through=date(2025, 12, 31),
+                comparable=False,
+            )
+        ]
+
+    monkeypatch.setattr(reader, "reported_contributions", one_incomparable_total)
+    finance = _finance(db, CANDIDATE)
+    assert finance is not None
+    assert finance.money_in.itemized_contribution_total == Decimal("5100.00")
+    assert finance.money_in.reported_total is None
+    assert finance.money_in.reported_through is None
+
+
+def test_a_comparable_total_is_served_beside_the_itemized_sum(db, monkeypatch):
+    """Rule 12's two numbers, both on screen and never added together.
+
+    The other side of the test above, so the guard cannot be satisfied by dropping
+    every reported total. Production serves `null` here today because nothing has run
+    #1408's filings loader against it yet.
+    """
+    from alethical.pipeline import campaign_finance_reader as reader
+
+    published = Published(db)
+    _receipt(db, published.contributions, reg_num=CANDIDATE, amount="5100.00")
+    db.commit()
+
+    def one_real_total(db_, reg_num, years=None):
+        return [
+            reader.ReportedContributions(
+                reg_num=reg_num,
+                year=2025,
+                total=Decimal("8600.00"),
+                reported_through=date(2025, 12, 31),
+                comparable=True,
+            )
+        ]
+
+    monkeypatch.setattr(reader, "reported_contributions", one_real_total)
+    finance = _finance(db, CANDIDATE)
+    assert finance is not None
+    assert finance.money_in.itemized_contribution_total == Decimal("5100.00")
+    assert finance.money_in.reported_total == Decimal("8600.00")
+    assert finance.money_in.reported_through == date(2025, 12, 31)
