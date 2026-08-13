@@ -3242,6 +3242,13 @@ def legislator_campaign_finance(
       of it. Never rendered as "this money had no names", which is the claim it would
       silently become.
 
+    ``committees`` carries only committees for a **legislative** office. A member may
+    have confirmed committees for a run at something else, and §7 forbids that race's
+    money appearing under their legislative profile; ``other_office_committees`` counts
+    them so a page can say they exist without reporting a dollar of them. A committee
+    whose reviewed office is blank is kept, because absence is not evidence of another
+    race and hiding real money on a blank field is the worse error.
+
     ``first_payment_on`` and ``last_payment_on`` describe the payments we hold and are
     **not** a coverage period. No surface may turn them into one, or assume a period
     starts on 1 January: filer 19223 reports from 11 July 2025 (§9.5).
@@ -3276,6 +3283,11 @@ def legislator_campaign_finance(
             "legislator_id": str(legislator.id),
             "year": finance.year,
             "link_state": finance.link_state,
+            # Confirmed committees this page leaves out because they are for a race
+            # other than a legislative seat. Served rather than dropped in silence: a
+            # reader who knows their member ran for Attorney General should be told the
+            # money exists and is not this, instead of concluding we missed it.
+            "other_office_committees": finance.other_office_committees,
             "release_id": str(release.id),
             "fetched_at": release.fetched_at,
             "committees": [

@@ -72,9 +72,19 @@ A member can hold more than one committee, because Minnesota registers one per o
 the tab shows **one card per committee**, each headed with the office it is for, the
 year, and the committee's registration number.
 
-Money from a race for a different office never appears here. Outside spending on a city
-mayoral campaign is a real public record, but putting it under a state senator's name
-would say something about their legislative work that no filing supports.
+**Money from a race for a different office never appears here.** A member may have run
+for Attorney General or Governor, and those committees are real public records, but
+putting that money under their legislative profile says something about their work in the
+Legislature that no filing supports. The page leaves those out and says so in a line
+carrying no figure, so a reader who knows about that campaign is told the money exists
+rather than concluding we missed it.
+
+The test is whether the committee is for a **legislative** office, not whether it matches
+the seat the member holds now. Liz Reyer sits in the House and has a live Senate
+committee as well; filtering to her own chamber would have thrown away a real committee
+of hers. A committee with no office recorded is kept, because a blank field is not
+evidence of another race and hiding a member's real money is the worse of the two
+mistakes available.
 
 ### The year switch
 

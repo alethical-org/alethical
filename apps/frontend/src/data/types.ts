@@ -616,4 +616,8 @@ export interface LegislatorCampaignMoney {
    *  which is per committee and always earlier. */
   fetchedAt: string | null;
   committees: CampaignCommitteeMoney[];
+  /** Confirmed committees left out because they are for a race other than a
+   *  legislative seat. Counted rather than dropped in silence, so a reader who knows
+   *  their member ran for something else is told the money exists and is not this. */
+  otherOfficeCommittees: number;
 }

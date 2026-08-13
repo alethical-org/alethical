@@ -43,6 +43,7 @@ from alethical.api.services.legislator_finance import (
     LINK_CONFIRMED,
     LINK_REVIEWED_NONE_CONFIRMED,
     LINK_UNCONFIRMED,
+    is_for_a_legislative_office,
     SPLIT_NO_NAMED_PAYMENTS,
     SPLIT_NO_REPORTED_TOTAL,
     SPLIT_PERIODS_DIFFER,
@@ -353,6 +354,54 @@ def test_payment_dates_are_carried_but_are_never_a_coverage_period():
 
     assert split.first_payment_on == date(2025, 1, 4)
     assert split.last_payment_on == date(2025, 11, 12)
+
+
+# --- Which of a member's committees belong on a legislative profile ----------
+
+
+def test_a_members_house_and_senate_committees_both_belong_here():
+    """Matched on the office, never on the chamber the member sits in.
+
+    Liz Reyer sits in the House and has 2 live committees: "Reyer, Lizabeth House
+    Committee" and "Reyer, Liz Senate Committee". Filtering to her own chamber would
+    throw away a real committee of hers, which is why the test is on the office being
+    legislative at all rather than on it matching the seat.
+    """
+    assert is_for_a_legislative_office("House")
+    assert is_for_a_legislative_office("Senate")
+
+
+def test_a_run_at_a_different_office_never_reaches_a_legislative_profile():
+    """§7: money from a race for another office never appears under a legislator's profile.
+
+    A run for Attorney General is a real public record and a committee a person may well
+    confirm as this member's. Reporting its receipts under their legislative profile
+    asserts something about their legislative work that no filing supports. The offices
+    below are the rest of the closed vocabulary the committee names carry, measured on
+    the 11 Aug 2026 download: Gov 66, Atty Gen 18, State Aud 17, Sec of State 11,
+    Sup Court 11, Dist Court 54, App Court 2.
+    """
+    for office in (
+        "Gov",
+        "Atty Gen",
+        "State Aud",
+        "Sec of State",
+        "Sup Court",
+        "App Court",
+        "Dist Court",
+    ):
+        assert not is_for_a_legislative_office(office), office
+
+
+def test_a_committee_with_no_office_recorded_is_kept():
+    """Absence is not evidence of another race, and hiding real money is the worse error.
+
+    2 committees in the download carry no office at all ("Reyes, Peter M Jr Committee",
+    "Brown, Anthony L Committee"). A reader cannot tell a hidden figure from a figure
+    that does not exist, so a blank field never removes a member's money.
+    """
+    assert is_for_a_legislative_office(None)
+    assert is_for_a_legislative_office("")
 
 
 # --- Whose money this is, which only a person decides ------------------------

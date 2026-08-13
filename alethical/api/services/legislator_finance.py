@@ -148,12 +148,10 @@ class NamedMoneySplit:
 class LegislatorCommitteeMoney:
     """One confirmed committee of this legislator's, with the year's money.
 
-    ``office`` is what the reviewer recorded the committee as being for, and it is why
-    money from a race for another office never appears here: §7 is explicit that
-    outside spending on a city campaign is a real record which placing under a state
-    senator's name asserts something about their legislative work that no filing
-    supports. The link table is the only thing that knows which office a committee is
-    for, so it travels with the figure rather than being inferred from the name.
+    ``office`` is what the reviewer recorded the committee as being for. It travels with
+    the figure so a card can say which committee a number belongs to rather than only
+    which year, and it is what ``is_for_a_legislative_office`` reads to keep a race for
+    something else off this page.
     """
 
     registration_number: str
@@ -165,12 +163,54 @@ class LegislatorCommitteeMoney:
 
 @dataclass(frozen=True)
 class LegislatorFinance:
-    """Everything a legislator's campaign money tab may show for one year."""
+    """Everything a legislator's campaign money tab may show for one year.
+
+    ``other_office_committees`` counts this member's confirmed committees that this page
+    deliberately leaves out because they are for a race other than a legislative seat.
+    It is served rather than dropped in silence: a reader who knows their member ran for
+    Attorney General should be told the money exists and is elsewhere, not left to
+    conclude we missed it.
+    """
 
     legislator_id: UUID
     year: int
     link_state: str
     committees: tuple[LegislatorCommitteeMoney, ...]
+    other_office_committees: int
+
+
+#: The 2 offices a sitting member of the Minnesota Legislature holds, spelled exactly as
+#: `alethical/pipeline/legislator_committee_match.py` parses them out of a committee's own
+#: name. That vocabulary is closed and short, measured across the 11 Aug 2026 download:
+#: House 1,078, Senate 473, Dist Court 54, Gov 66, Atty Gen 18, State Aud 17,
+#: Sec of State 11, Sup Court 11, App Court 2, and 2 committees carrying no office at all.
+#: A reviewer stores the parsed value verbatim, so an exact match is right here and a
+#: substring search would only invent ways to be wrong.
+LEGISLATIVE_OFFICES = frozenset({"House", "Senate"})
+
+
+def is_for_a_legislative_office(office: str | None) -> bool:
+    """Whether a confirmed committee belongs on a legislator's profile at all.
+
+    §7: **money from a race for another office never appears under a legislator's
+    profile.** A run for Attorney General is a real public record and putting its
+    receipts under a state senator's name asserts something about their legislative work
+    that no filing supports.
+
+    **Matched against the office, never against the chamber the member sits in**, and
+    that distinction is measured rather than stylistic. Liz Reyer sits in the House and
+    has two live committees, "Reyer, Lizabeth House Committee" and "Reyer, Liz Senate
+    Committee"; filtering to her own chamber would throw away a real committee of hers.
+    Both are legislative, so both belong here.
+
+    **A committee with no office recorded is kept.** 2 committees in the download carry
+    no office at all, and absence is not evidence of another race. Hiding a member's real
+    money on the strength of a blank field is the worse of the two errors available here,
+    because a reader cannot tell a hidden figure from a figure that does not exist.
+    """
+    if not office:
+        return True
+    return office in LEGISLATIVE_OFFICES
 
 
 def link_state(db: Session, legislator_id: UUID) -> str:
@@ -336,7 +376,15 @@ def legislator_finance(
     registered for them, which §5.1 measured as false for all 200 sitting members.
     """
     state = link_state(db, legislator_id)
-    links = confirmed_committees(db, legislator_id, year=year)
+    confirmed = confirmed_committees(db, legislator_id, year=year)
+    # §7's office boundary, applied here rather than trusted to the reviewer. A person
+    # confirms that a committee is *this member's*, which is a different question from
+    # whether it is their *legislative* committee, and a run for Attorney General is
+    # both a real committee of theirs and a race this page may not report.
+    links = [
+        row for row in confirmed if is_for_a_legislative_office(row.office_as_reviewed)
+    ]
+    other_office = len(confirmed) - len(links)
     withheld = reader.filer_years_that_must_not_show_a_split(db, release)
     committees: list[LegislatorCommitteeMoney] = []
     for link in sorted(links, key=lambda row: row.registration_number):
@@ -389,4 +437,5 @@ def legislator_finance(
         year=year,
         link_state=state,
         committees=tuple(committees),
+        other_office_committees=other_office,
     )

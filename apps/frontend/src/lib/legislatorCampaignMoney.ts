@@ -300,6 +300,29 @@ export const LINK_UNCONFIRMED_EXPLANATION =
   'yet. Matching a committee to the wrong person is the worst mistake this page could ' +
   'make, so a person checks every match by hand.';
 
+/**
+ * What the page says about committees it deliberately left out.
+ *
+ * A member may have a confirmed committee for a run at something other than their
+ * legislative seat, and §7 forbids that race's money appearing here: putting a run for
+ * Attorney General under a state senator's name says something about their legislative
+ * work that no filing supports. Leaving it out in silence would be its own small lie
+ * though, because a reader who knows about that campaign concludes we missed it. So the
+ * page names that the money exists and reports not a dollar of it.
+ *
+ * `null` for the ordinary case of nothing left out.
+ */
+export function otherOfficeNote(count: number | null | undefined): string | null {
+  if (!count || !Number.isFinite(count) || count < 1) return null;
+  const committees = count === 1 ? 'one other committee' : `${count} other committees`;
+  return (
+    `This member also has ${committees} registered with the state for a different ` +
+    'race, not for their seat in the Legislature. That money is a real public record ' +
+    'and it is not shown here, because it is not money raised for the job this page is ' +
+    'about.'
+  );
+}
+
 /** Whether the tab should show the unconfirmed explanation instead of figures. */
 export function showsUnconfirmedState(state: LinkState, committeeCount: number): boolean {
   return state !== 'confirmed' || committeeCount === 0;

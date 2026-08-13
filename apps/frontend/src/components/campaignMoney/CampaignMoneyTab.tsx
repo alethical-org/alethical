@@ -31,6 +31,7 @@ import {
   formatDay,
   formatMoney,
   moneyFigure,
+  otherOfficeNote,
   paymentCountLabel,
   paymentDateRangeLabel,
   reportedThroughLabel,
@@ -125,6 +126,10 @@ export function CampaignMoneyTab({
           />
         ))
       )}
+
+      {money && !isLoading && !isError ? (
+        <OtherOfficeNote count={money.otherOfficeCommittees} />
+      ) : null}
 
       <FreshnessNote fetchedAt={money?.fetchedAt ?? null} />
     </View>
@@ -407,6 +412,23 @@ function SourceLink({ label, url }: { label: string; url: string }) {
     <Text style={styles.source} {...externalLinkProps(url, () => void Linking.openURL(url))}>
       {label}
     </Text>
+  );
+}
+
+/**
+ * What we hold and are deliberately not showing.
+ *
+ * Sits outside the committee cards on purpose. It is a statement about which
+ * committees are on this page rather than a figure about any one of them, and putting
+ * it inside a card would read as a caveat on that card's numbers.
+ */
+function OtherOfficeNote({ count }: { count: number }) {
+  const note = otherOfficeNote(count);
+  if (!note) return null;
+  return (
+    <View style={styles.card}>
+      <Text style={styles.explain}>{note}</Text>
+    </View>
   );
 }
 

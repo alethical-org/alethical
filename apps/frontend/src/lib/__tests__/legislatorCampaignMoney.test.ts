@@ -22,6 +22,7 @@ import {
   formatDay,
   formatMoney,
   moneyFigure,
+  otherOfficeNote,
   paymentCountLabel,
   paymentDateRangeLabel,
   reportedThroughLabel,
@@ -268,6 +269,30 @@ describe('the unconfirmed state, which is every profile today', () => {
     // nothing this page may attribute to them.
     expect(showsUnconfirmedState('confirmed', 0)).toBe(true);
     expect(showsUnconfirmedState('confirmed', 1)).toBe(false);
+  });
+});
+
+describe('otherOfficeNote', () => {
+  it('says nothing when nothing was left out', () => {
+    expect(otherOfficeNote(0)).toBeNull();
+    expect(otherOfficeNote(null)).toBeNull();
+  });
+
+  it('names that the money exists and reports not a dollar of it', () => {
+    // Leaving a member's run for Attorney General out in silence is its own small lie:
+    // a reader who knows about that campaign concludes we missed it.
+    const text = otherOfficeNote(1) ?? '';
+    expect(text).toContain('one other committee');
+    expect(text).toContain('not shown here');
+    expect(text).not.toMatch(/\$/);
+  });
+
+  it('counts more than one', () => {
+    expect(otherOfficeNote(2)).toContain('2 other committees');
+  });
+
+  it('never suggests the member hid it', () => {
+    expect(otherOfficeNote(1)).not.toMatch(/hid|conceal|undisclosed|failed to/i);
   });
 });
 

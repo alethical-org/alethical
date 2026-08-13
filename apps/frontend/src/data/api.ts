@@ -525,6 +525,7 @@ interface ApiLegislatorCampaignMoneyPayload {
   legislator_id: string;
   year: number;
   link_state: LegislatorCampaignMoney['linkState'];
+  other_office_committees?: number;
   release_id: string;
   fetched_at?: string | null;
   committees: {
@@ -2226,6 +2227,7 @@ export async function getLegislatorCampaignMoneyFromApi(
     year: payload.year,
     linkState: payload.link_state,
     fetchedAt: payload.fetched_at ?? null,
+    otherOfficeCommittees: payload.other_office_committees ?? 0,
     committees: payload.committees.map((committee) => ({
       registrationNumber: committee.registration_number,
       committeeNameAsReviewed: committee.committee_name_as_reviewed,
