@@ -115,6 +115,16 @@ MIGRATION_ONLY_INDEXES = frozenset(
     }
 )
 
+# Issue #1045 has to rename live columns across separate database and Railway
+# releases. The first release adds the honest names beside the old names while
+# the application still maps only the old names. Ignore only those exact extra
+# migration columns, only when they are absent from models.py, and remove this
+# set after the application switch and old-column cleanup are both live.
+TRANSITIONAL_MIGRATION_ONLY_COLUMNS = {
+    "auth_identity.linked_at": "timestamp with time zone NULL",
+    "user_account.last_identity_linked_at": "timestamp with time zone NULL",
+}
+
 # Row-level security is on for every production table with zero policies, and off
 # everywhere else. That is Supabase's secure default, not a broken permission: the
 # app connects as the table owner and bypasses it. Reported by the production mode
@@ -336,6 +346,22 @@ def diff_snapshots(left: Snapshot, right: Snapshot) -> list[Difference]:
     return differences
 
 
+def _filter_transitional_model_gaps(
+    differences: list[Difference],
+) -> list[Difference]:
+    """Allow only #1045's exact migration-first compatibility columns."""
+    return [
+        difference
+        for difference in differences
+        if not (
+            difference.category == "column"
+            and difference.left
+            == TRANSITIONAL_MIGRATION_ONLY_COLUMNS.get(difference.key)
+            and difference.right is None
+        )
+    ]
+
+
 # ---------------------------------------------------------------------------
 # Throwaway databases
 # ---------------------------------------------------------------------------
@@ -458,7 +484,8 @@ def run_migrations_vs_models() -> tuple[Snapshot, Snapshot, list[Difference]]:
         finally:
             mig_engine.dispose()
             mod_engine.dispose()
-    return left, right, diff_snapshots(left, right)
+    differences = _filter_transitional_model_gaps(diff_snapshots(left, right))
+    return left, right, differences
 
 
 def run_production_vs_migrations() -> tuple[Snapshot, Snapshot, list[Difference]]:
