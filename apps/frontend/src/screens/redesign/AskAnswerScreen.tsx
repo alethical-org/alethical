@@ -18,6 +18,7 @@ import {
   useAskAnswer,
   useBill,
   useBillVersionText,
+  useFeaturedBills,
   useLegislators,
   usePrefetchSuggestedAnswer,
 } from '../../hooks/useAppQueries';
@@ -53,6 +54,7 @@ import {
   resolveSectionAnchor,
   sectionAnchorId,
 } from '../../lib/billText';
+import { askBillCardIds, currentAskBill } from '../../lib/billFreshness';
 import { STICKY_RAIL } from '../../components/billDetail/interactions';
 import { AskAnswerBill, AskAnswerLegislator } from '../../data/types';
 
@@ -289,6 +291,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
 
   const askQuery = useAskAnswer(question, suggestionIdentity);
   const prefetchSuggestedAnswer = usePrefetchSuggestedAnswer();
+  const isSavedSuggestion = Boolean(suggestionIdentity);
 
   // §4.6 — the placeholder's "name" entry point. A query that resolves to a
   // single legislator name is records navigation, so redirect to that profile
@@ -309,9 +312,26 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
   }, [nameMatch, navigation]);
 
   const answer = askQuery.data;
+  // Free-form Ask is a POST and can generate paid prose, so tab focus must never
+  // replay it. Keep its prose fixed and refresh only the bill cards through the
+  // existing read-only batch endpoint. Saved suggestions are already a safe GET
+  // that rebuilds their current bill card whenever that query refreshes.
+  const askBillIds = useMemo(
+    () => (isSavedSuggestion ? [] : askBillCardIds(answer)),
+    [answer, isSavedSuggestion],
+  );
+  const currentAskBillsQuery = useFeaturedBills(askBillIds, {
+    enabled: !isSavedSuggestion && askBillIds.length > 0,
+  });
+  const currentAskBillsById = useMemo(
+    () => new Map((currentAskBillsQuery.data ?? []).map((bill) => [bill.id, bill])),
+    [currentAskBillsQuery.data],
+  );
   const displayQuestion = answer?.question ?? question;
   const isLegislators = answer?.intent === 'topic_legislators';
-  const compactBills = answer?.bills ?? [];
+  const compactBills = (answer?.bills ?? []).map((bill) =>
+    currentAskBill(bill, currentAskBillsById),
+  );
   const shownLegislators = answer?.legislators ?? [];
   const hasMatches = Boolean(answer?.hasAnswer && answer.totalMatches > 0);
   const noMatches = Boolean(answer?.hasAnswer && answer.totalMatches === 0);
@@ -321,8 +341,8 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
       : crossIntentChips(answer?.intent, answer?.topic);
   const issueSort = resolveIssueAnswerSort(route.params?.sort);
   const shownIssueBills = issueAnswerBills(
-    answer?.billCards ?? [],
-    answer?.latestActionBillCards ?? [],
+    (answer?.billCards ?? []).map((bill) => currentAskBill(bill, currentAskBillsById)),
+    (answer?.latestActionBillCards ?? []).map((bill) => currentAskBill(bill, currentAskBillsById)),
     issueSort,
   );
   const isIssueAnswer = Boolean(
@@ -333,13 +353,19 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
   // answer. A resolved bill deep-links its Votes tab; otherwise it degrades to
   // the topic_bills list. hasAnswer is true, so this sits outside `pending`.
   const isVoteDeflection = answer?.intent === 'legislator_vote';
-  const resolvedBill = answer?.resolvedBill;
+  const resolvedBill = answer?.resolvedBill
+    ? currentAskBill(answer.resolvedBill, currentAskBillsById)
+    : undefined;
 
   // bill_text → the §9.5 single-bill answer: the prose, the answering bill's card,
   // its remaining suggested questions, and the cited-section rail.
   const isBillText = answer?.intent === 'bill_text';
-  const answeringBill = answer?.answeringBill;
-  const answeringBillCard = answer?.answeringBillCard;
+  const answeringBill = answer?.answeringBill
+    ? currentAskBill(answer.answeringBill, currentAskBillsById)
+    : undefined;
+  const answeringBillCard = answer?.answeringBillCard
+    ? currentAskBill(answer.answeringBillCard, currentAskBillsById)
+    : undefined;
   const citations = answer?.citations ?? [];
 
   // A saved public suggestion carries the complete current bill card and this
