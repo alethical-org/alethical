@@ -71,9 +71,18 @@ def empty_data_tables(url: str) -> list[str]:
     """Empty this app's tables in `url`, and return the names emptied.
 
     One `TRUNCATE` rather than dropping and recreating the database, because dropping
-    would make every run pay a migrate-from-empty; this costs a single statement.
-    `CASCADE` because the tables reference each other, and truncating them together in
-    one statement means no foreign key is ever left pointing at a row that is gone.
+    would make every run pay a migrate-from-empty; this costs a single statement. All
+    the tables are named in that one statement, which is what lets Postgres empty
+    tables that reference each other without leaving a foreign key pointing at a row
+    that is gone.
+
+    Deliberately **not** `CASCADE`, which would defeat the restriction in
+    `data_tables_to_empty` above: `CASCADE` empties every table holding a foreign key
+    into a named one, recursively, so a table belonging to something else would be
+    emptied after all -- silently, and precisely in the case the restriction promises
+    to protect. Without it, such a table makes this statement fail instead, naming
+    itself in the error. A loud failure is the right answer there, because the
+    alternative is destroying data this suite does not own.
     """
     global EMPTIED_TABLES
     # Imported here, not at module scope: `conftest.py` imports this module before it
@@ -98,9 +107,7 @@ def empty_data_tables(url: str) -> list[str]:
             )
             if names:
                 quoted = ", ".join(f'"{name}"' for name in names)
-                connection.exec_driver_sql(
-                    f"TRUNCATE {quoted} RESTART IDENTITY CASCADE"
-                )
+                connection.exec_driver_sql(f"TRUNCATE {quoted} RESTART IDENTITY")
     finally:
         engine.dispose()
     EMPTIED_TABLES = names
