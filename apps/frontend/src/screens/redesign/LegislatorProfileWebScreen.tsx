@@ -339,7 +339,6 @@ export function LegislatorProfileWebScreen() {
           </View>
         </View>
 
-
         <RoadmapZone legislatorName={displayName} vote={previewVote} />
       </View>
 

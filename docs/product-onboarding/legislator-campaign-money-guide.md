@@ -1,6 +1,6 @@
 # How the Campaign money tab works (plain-English guide)
 
-<!-- describes: apps/frontend/src/components/campaignMoney/CampaignMoneyTab.tsx, apps/frontend/src/components/campaignMoney/LegislatorProfileTabs.tsx, apps/frontend/src/lib/legislatorCampaignMoney.ts, apps/frontend/src/screens/redesign/LegislatorProfileWebScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/navigation/links.ts, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, alethical/api/services/legislator_finance.py, alethical/api/routers/public.py -->
+<!-- describes: apps/frontend/src/components/campaignMoney/CampaignMoneyTab.tsx, apps/frontend/src/components/legislator/OutsideSpendingCard.tsx, apps/frontend/src/lib/outsideSpending.ts, alethical/api/services/independent_spending.py, apps/frontend/src/components/campaignMoney/LegislatorProfileTabs.tsx, apps/frontend/src/lib/legislatorCampaignMoney.ts, apps/frontend/src/screens/redesign/LegislatorProfileWebScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/navigation/links.ts, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, alethical/api/services/legislator_finance.py, alethical/api/routers/public.py -->
 
 Every current Minnesota House and Senate member's profile page has two tabs:
 **Overview**, which is the page as it has always been, and **Campaign money**, which
@@ -135,13 +135,80 @@ kind of payment. There is no second, bigger number here, and the tab says so: Mi
 publishes payments over $200 but publishes no official total for a committee's spending,
 so there is nothing to compare against and no split to draw.
 
-### Outside spending
+### Spending by outside groups
 
-Money that groups other than the campaign spent supporting or opposing this member is a
-separate public record and is never added to the committee's own money. It is being
-built by [#1332](https://github.com/alethical-org/alethical/issues/1332) and
-[#1454](https://github.com/alethical-org/alethical/issues/1454) and mounts into this
-tab; the section below each committee is reserved for it.
+A group that is not a candidate's campaign can spend money to help or hurt that
+candidate. Minnesota calls this an **independent expenditure**. **The money never reaches
+the campaign and never appears in any report the campaign files**, so somebody reading
+only the committee cards above would miss it entirely and have no way to know it was
+missing. That is why this block sits on the same tab, below them, and never has its
+figures added to theirs.
+
+It shows the current calendar year and the one before, each with up to 3 figures.
+
+| Figure | What it means |
+| --- | --- |
+| **Spent supporting them** | Payments Minnesota's filing marks `For` this legislator's committee. |
+| **Spent opposing them** | Payments the filing marks `Against` it. |
+| **Spent where the filing does not say which** | Payments whose `For` or `Against` cannot be read. |
+
+Each figure carries **its own payment count**, because the payments behind one figure are
+not the payments behind another. Below them the block states the span the payments
+actually fall in, rather than assuming a year runs from 1 January, which a
+special-election filer's report does not.
+
+**And it names the committees the figures cover.** The figures add up every committee
+somebody has confirmed belongs to this legislator, and a bare total would hide two things:
+a member can hold several committees while only 1 has been reviewed, so the total can be a
+fraction of their money presented as all of it, and a member can hold committees for
+different offices, which the total would combine.
+
+**The 2 sides are never added, subtracted or netted against each other**, and never drawn
+as opposing halves of one shape. That a group spent money opposing a lawmaker is a fact
+with a filing behind it; that it changed anything is not. Nothing here says the legislator
+received, raised, welcomed or coordinated any of it.
+
+**The third figure is usually absent, on purpose.** Every one of the 41,130 payments in the
+current download records `For` or `Against` and none is blank, so that figure is $0 for
+everybody today and is hidden while it is. A permanently empty row would tell a reader
+Minnesota leaves the question open when it does not. It exists for the day Minnesota
+publishes something the code cannot classify: before
+[#1454](https://github.com/alethical-org/alethical/issues/1454) such a payment was dropped
+from both sides while the page still read as complete.
+
+**There is no $200 floor on this file.** 17,194 of its 41,130 payments are under $200 and
+13,393 are under $100, the smallest being $0.00. The $200 that does exist in Minnesota law
+is the *donor's yearly total* on the donations file described further up this guide, and it
+does not apply here. This block says "told the state" rather than calling its figures all
+outside spending, because nothing can know about spending nobody filed.
+
+**Why it says nothing today, and it is the same reason as the committee cards.** Minnesota
+records each payment against a committee, never against a person. Senator Omar Fateh is the
+measured case: he is a sitting state senator and also ran for Minneapolis Mayor, and the
+2025 filings carry 10 separate committees named "Fateh, Omar for Minneapolis Mayor" holding
+$487,974.82 of supporting and $162,841.95 of opposing spending, while his Senate committee
+has had none since 2022. A page matching on his name would put roughly $488,000 of a city
+mayoral race on a state senator's legislative profile.
+
+**The 4 answers this block can give**, which are 4 different things and not 4 ways of
+saying zero:
+
+1. **Real figures**, each to the cent.
+2. **A checked zero** — no outside group reported spending anything about this legislator
+   that year. The committee is confirmed and the download covers the year, so this is a
+   published finding.
+3. **No confirmed committee yet** — today's answer for everybody.
+4. **A gap in our own copy** — a stale snapshot, a payment whose amount is blank, or a year
+   the files do not reach. All 3 figures are withheld rather than published short by an
+   unknown amount, because a figure short by an unknown amount and printed without a mark
+   looks verified and is wrong.
+
+Its own freshness date is shown as *Copied from the state on …*. The 2 years are 2 separate
+requests, so if a new download becomes current between them the block shows **no** date
+rather than one that is true of only some of the figures under it.
+
+Built by [#1332](https://github.com/alethical-org/alethical/issues/1332) and
+[#1454](https://github.com/alethical-org/alethical/issues/1454).
 
 ---
 
