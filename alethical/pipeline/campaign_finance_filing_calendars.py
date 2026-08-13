@@ -317,7 +317,10 @@ _PARTY_AND_FUND_2026 = (
 )
 
 CALENDARS: dict[tuple[CalendarKey, int], tuple[CalendarEntry, ...]] = {
-    (CalendarKey.legislative_candidate_filing_for_office, 2026): _LEGISLATIVE_FILING_2026,
+    (
+        CalendarKey.legislative_candidate_filing_for_office,
+        2026,
+    ): _LEGISLATIVE_FILING_2026,
     (CalendarKey.candidate_not_filing_for_office, 2026): _NOT_FILING_2026,
     (CalendarKey.state_party_or_legislative_caucus, 2026): _PARTY_AND_FUND_2026,
     (CalendarKey.political_committee_or_fund, 2026): _PARTY_AND_FUND_2026,
