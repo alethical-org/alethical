@@ -1,6 +1,6 @@
 # Alethical Backend API System Design
 
-<!-- describes: alethical/api/routers/*.py, alethical/api/problems.py, alethical/api/serializers.py, alethical/api/services/representative_lookup.py, alethical/api/services/contact.py, alethical/api/services/independent_spending.py, alethical/api/services/committee_finance.py, alethical/api/auth.py, alethical/api/services/auth.py -->
+<!-- describes: alethical/api/routers/*.py, alethical/api/problems.py, alethical/api/serializers.py, alethical/api/services/representative_lookup.py, alethical/api/services/contact.py, alethical/api/services/independent_spending.py, alethical/api/services/committee_finance.py, alethical/api/services/campaign_finance_payments.py, alethical/api/auth.py, alethical/api/services/auth.py -->
 
 Status: **design reference, not an inventory of what exists.** Much of this document is the
 target shape rather than the shipped API, and the two used to be indistinguishable here: it
@@ -886,6 +886,110 @@ explicit that re-resolving per query can pair one day's income with another day'
 
 **Not wired to any client yet.** No file under `apps/frontend/src` references it; the display
 belongs to [#1329](https://github.com/alethical-org/alethical/issues/1329)'s campaign money tab.
+
+#### `GET /api/v1/committees/{registration_number}/payments`
+
+Shipped Aug 12 2026 ([#1331](https://github.com/alethical-org/alethical/issues/1331)), served by
+`alethical/api/services/campaign_finance_payments.py`.
+
+Purpose:
+
+- the individual payments behind the figures above, one direction per request:
+  `direction=received` (who paid this committee), `direction=made` (who it paid), or
+  `direction=independent` (what others spent about it)
+
+**This endpoint returns no total of any kind, and that is the design.** Every figure a surface
+may print comes from the `finance` endpoint above, where
+`alethical/pipeline/campaign_finance_reader.py` enforces the source's traps once. What this adds
+is rows, each with its own amount, its own date, its own label in the source's own words, and a
+`record_number` that traces it to one line of one dated download. So the traps cannot bite here:
+no receipt type is filtered out and no expenditure label is either, because there is no figure
+for a dropped row to fall out of.
+
+`year` is **optional** here, unlike on `finance`, and its absence means every year the download
+holds (2015 to 2026 today). The reason the two differ: a figure without a period is a wrong
+number, while a payment carries its own date and reads honestly in a list spanning years — and a
+donor's payments are not confined to one year, which is the whole point of the reverse direction
+below.
+
+`linkable_registration_numbers` lists the counterparty numbers on this page that this release
+also holds as a filer, and **only those may be rendered as links.** Contribution rows carry a
+number for a lobbyist as readily as for a party unit: all 912 distinct numbers arriving on rows
+typed `Lobbyist` in the live release appear nowhere as a committee's registration number, so a
+client linking every number it is handed would produce a wrong link rather than a dead one. The
+check is against the rows we hold rather than against the contributor-type column, because that
+column is not a reliable sorter either — 11 of 521 `Political Committee/Fund` numbers resolve
+nowhere.
+
+#### `GET /api/v1/campaign-finance/payments-under-name`
+
+Shipped Aug 12 2026 ([#1331](https://github.com/alethical-org/alethical/issues/1331)). The
+reverse direction: every payment recorded under exactly one printed name.
+
+`name` is matched **character for character**. No trimming, no case folding, no initial matching,
+no fuzzy anything, and the reason is measured rather than cautious. The live release holds
+"Messinger, Alida" (121 payments to 39 committees), "Messinger, Alida R" (10 to 6) and
+"Messinger, Alida Rockefelle" (4 to 1) as 3 separate strings, and it also holds
+"Messinger, William Frye" beside "Messinger, Wiiiam Frey" — so any rule loose enough to join the
+first three joins those two as well.
+`docs/architecture/campaign-finance-system-design.md` §5 (Identity) is the governing rule: a
+person, an employer and a vendor carry no identifier in Minnesota's data, so the printed string
+is the whole of the key. **A client labels the result with the string it asked for and never with
+a person**, and never says it is everything that person gave.
+
+`role` picks the column:
+
+- `contributor` — who money came from. Each row names the committee that received it, and those
+  numbers are all linkable, because these are those committees' own filings.
+- `vendor` — a supplier a committee paid, from the expenditures download.
+- `independent_vendor` — a supplier paid out of independent spending. **A separate role on
+  purpose.** 491 independent-expenditure rows share a spender, vendor, amount and date with an
+  expenditures row (and 166 the reverse), and whether those are one payment filed twice or two
+  payments that coincide is not established — so the 2 downloads are 2 answers and a client
+  cannot add them by accident.
+- `employer` — payments whose donor typed this string in the employer box. That column is free
+  text holding statuses and occupations as much as employers: its 4 commonest values are
+  "Not Employed" (67,342 rows), "Retired" (36,517), "Self employed Retired" (16,788) and "Lawyer"
+  (9,276), and 87,419 rows carry nothing at all. **Never present it as a company's giving or as a
+  count of its employees.**
+
+**Both endpoints use a detail envelope rather than a collection envelope, deliberately.** `state`
+decides whether `payments` may be read at all, and the 3 values are the 3 different facts an
+empty list can be: `reported`, `not_reported` (we hold none — **never a zero**, and under a name
+it means only that this spelling matched nothing), and `unavailable` (our copy of that download
+is stale, or it does not reach the year asked for). A top-level `data: []` invites a client to
+render the list without reading the state, which is
+`.claude/rules/grounded-answers.md` rule 12's missing-versus-zero failure arriving through the
+envelope. So `state` is a sibling of `payments`, and the paging keys keep the names and the place
+this document's offset contract already gives them: `page.limit`, `page.offset`, `page.has_more`,
+with `limit + 1` fetched and a deterministic tie-breaker.
+
+That tie-breaker is the row's date and then its `record_number`, and it may **never** be the
+row's contents: 15,786 contribution rows in the live release are content-identical to at least
+one other, in 6,464 groups, and one group holds 119 identical rows. Nothing deduplicates, and
+`record_number` is a citation into one dated file rather than a stable id a client may store
+(§4.2). `release_id` comes back on every page so a client can see when a later page came from a
+different day's data.
+
+- **200 with `state: "not_reported"`** on the name route — no row carries this exact spelling.
+  Deliberately not a 404: the Board's directory decides whether a *committee* exists and nothing
+  decides whether a *person* does, so all we know is that the string matched nothing.
+- **404 on the committee route** — this registration number appears in no dataset of the current
+  release, resolved with the same `find_committee` the `finance` route uses so the 2 cannot
+  disagree about whether a committee exists. Without it an unknown number reads as
+  `not_reported`, which invents a committee and then reports its silence: the reader sees no rows
+  either way and cannot tell the 2 apart. Live case, found by an automated review: `30161`
+  circulates as "Alliance for a Better MN" and is in no dataset of the release (the Alliance's
+  committees are 41360 and 80024). The 404 is a statement about **our records**, never about the
+  Board's. A **stale** release does not 404, because denying a committee's existence on the
+  strength of our own pruning is the same failure one level up; it reads `unavailable`.
+- **422** — a `direction` or `role` we do not serve, never a silent fallback to a different
+  question.
+- **503** — no usable release at all. A fact about us.
+
+**Neither is wired to any client yet.** Nothing under `apps/frontend/src` references either; the
+clicking belongs to [#1331](https://github.com/alethical-org/alethical/issues/1331)'s remaining
+half, which waits on [#1329](https://github.com/alethical-org/alethical/issues/1329).
 
 ### Districts and Lookup
 

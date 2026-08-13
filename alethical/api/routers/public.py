@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from collections import Counter, defaultdict
+from dataclasses import asdict
 from datetime import UTC, date, datetime, timedelta
 from typing import Any, Literal
 from uuid import UUID
@@ -40,10 +41,22 @@ from alethical.api.services.legislative_sessions import (
     current_legislature_scope,
     named_special_session,
 )
+from alethical.api.services.campaign_finance_payments import (
+    MAX_PAYMENTS,
+    PaymentPage,
+    independent_payments_about,
+    independent_payments_to_vendor,
+    payments_from_contributor,
+    payments_from_donors_typing,
+    payments_made,
+    payments_received,
+    payments_to_vendor,
+)
 from alethical.api.services.committee_finance import (
     ReleaseNoLongerHeld,
     committee_finance,
     current_release as current_campaign_finance_release,
+    find_committee,
     pin_to_one_view as pin_campaign_finance_to_one_view,
 )
 from alethical.api.services.independent_spending import (
@@ -2880,6 +2893,244 @@ def committee_finance_for_year(
                 ),
                 "source_url": spending.source_url,
             },
+        }
+    )
+
+
+def _payment_page_payload(page: PaymentPage) -> dict:
+    """One block of payments, over HTTP.
+
+    A detail envelope rather than a collection envelope, deliberately. ``state`` decides
+    whether ``payments`` may be read at all -- an empty list is 3 different facts and only
+    2 of them are about the record -- and a top-level ``data: []`` invites a client to
+    render the list without reading the state, which is the missing-versus-zero failure
+    ``.claude/rules/grounded-answers.md`` rule 12 forbids. So ``state`` is a sibling of
+    ``payments`` and the paging keys keep the names and the place
+    ``docs/architecture/backend-api-system-design.md`` (Pagination -- offset, deliberately)
+    already gives them.
+
+    ``asdict`` rather than a hand-written mapping per payment shape: the 3 shapes are the
+    3 downloads' own columns, and a hand-written mapping is where a column quietly stops
+    being served after the source gains one.
+    """
+    return {
+        "state": page.state,
+        "payments": [asdict(payment) for payment in page.payments],
+        "page": {
+            "limit": page.limit,
+            "offset": page.offset,
+            "has_more": page.has_more,
+        },
+        "linkable_registration_numbers": sorted(page.linkable_registration_numbers),
+        "dataset": page.dataset.value,
+        "source_url": page.source_url,
+        "release_id": str(page.release_id),
+        "fetched_at": page.fetched_at,
+    }
+
+
+def _resolve_campaign_finance_release(db: Session):
+    """The one release this request reads, pinned so nothing can shift under it.
+
+    Raises the same 503 the aggregate route raises when nothing usable is published,
+    because "we hold no release" is a fact about us and must never reach a page as a
+    committee's or a donor's zero.
+    """
+    pin_campaign_finance_to_one_view(db)
+    release = current_campaign_finance_release(db)
+    if release is None:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "no usable campaign-finance release is published; "
+                "this says nothing about any committee or donor"
+            ),
+        )
+    return release
+
+
+def _refuse_a_committee_we_hold_no_record_of(
+    db: Session, release, registration_number: str
+) -> None:
+    """404 a registration number we hold nothing about, rather than reporting its silence.
+
+    "This committee reported no itemized payments" and "we have never seen this
+    registration number" are different facts, and the payment reader cannot tell them
+    apart: both come back as no rows, which it correctly calls ``not_reported``. Serving
+    that for an unknown number invents a subject and then attributes silence to it, which
+    is `.claude/rules/grounded-answers.md` rule 12's missing-versus-zero failure with the
+    committee itself as the missing value. Found by an automated review (Greptile).
+
+    Live case: ``30161`` circulates as "Alliance for a Better MN" and appears in no dataset
+    of the current release (its real committees are 41360 and 80024), so a page asking for
+    its payments would have printed "reported no payments received" about a committee we
+    hold no record of.
+
+    Resolved with ``find_committee``, the same answer the aggregate ``/finance`` route
+    gives, so 2 routes about one committee cannot disagree about whether it exists. Like
+    that route, the 404 is a statement about **our records**: the Board's registered-filer
+    directory decides whether a committee exists and nothing here reads it yet (§9.7).
+
+    A stale release deliberately does **not** 404. When the rows have been replaced out
+    from under this release, ``find_committee`` cannot say whether we hold this committee,
+    and denying its existence on the strength of our own pruning is the same failure one
+    level up. The read that follows reports ``unavailable`` instead, which is a fact about
+    us.
+    """
+    try:
+        if find_committee(db, release, registration_number) is not None:
+            return
+    except ReleaseNoLongerHeld:
+        return
+    raise HTTPException(
+        status_code=404,
+        detail=(
+            "no records for this registration number in the current "
+            "campaign-finance release"
+        ),
+    )
+
+
+@router.get(
+    "/committees/{registration_number}/payments",
+    response_model=DetailResponse,
+)
+def committee_payments(
+    registration_number: str,
+    direction: Literal["received", "made", "independent"],
+    year: int | None = Query(default=None, ge=2015, le=2100),
+    limit: int = Query(default=50, ge=1, le=MAX_PAYMENTS),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+):
+    """The individual payments behind one committee's figures, one direction at a time.
+
+    Keyed on Minnesota's registration number, which identifies a committee on its own, so
+    nothing here waits on anyone confirming whose committee it is
+    ([#1331](https://github.com/alethical-org/alethical/issues/1331)). The aggregate
+    figures live on ``/committees/{registration_number}/finance``; **this route returns no
+    total of any kind**, only rows with their own amounts, dates and labels.
+
+    ``direction``:
+
+    * ``received`` -- who paid this committee, from its own contributions filing. Every
+      ``receipt_type`` is listed, including the loans and miscellaneous income that are
+      real money reported on separate schedules. They must not be added to a contribution
+      figure, which is why no figure is returned.
+    * ``made`` -- who this committee paid, every ``expenditure_type`` included. A
+      candidate committee files ``Campaign Expenditure`` and a party unit files
+      ``General Expenditure`` for the same thing, so a caller filtering on one label would
+      report a whole kind of filer as having spent nothing. Most rows name a vendor, which
+      is a supplier; the ``Contribution``-typed rows name another committee instead.
+    * ``independent`` -- what others spent for or against this committee. It passed
+      through no filing of theirs.
+
+    Read ``state`` before the rows: ``reported`` means the rows are real, ``not_reported``
+    means we hold none and **is never a zero** (only donors passing $200 in aggregate for
+    the year are named at all), and ``unavailable`` means our own copy is stale or the
+    download does not reach the year asked for.
+
+    ``linkable_registration_numbers`` lists the counterparty numbers on this page that
+    this release also holds as a filer. Only those may be rendered as links: 912 lobbyist
+    numbers arrive on contribution rows and none of them is a committee.
+
+    Omit ``year`` for every year the download holds, which is 2015 to 2026 today.
+
+    404 means this registration number appears in no dataset of the current release, which
+    is a statement about our records rather than about Minnesota's: without it an unknown
+    number would come back as ``not_reported``, inventing a committee and then reporting
+    its silence. 503 means we hold no usable release, also a fact about us.
+    """
+    release = _resolve_campaign_finance_release(db)
+    _refuse_a_committee_we_hold_no_record_of(db, release, registration_number)
+    reader_for = {
+        "received": payments_received,
+        "made": payments_made,
+        "independent": independent_payments_about,
+    }[direction]
+    page = reader_for(
+        db,
+        release,
+        registration_number=registration_number,
+        year=year,
+        limit=limit,
+        offset=offset,
+    )
+    return DetailResponse(
+        data={
+            "registration_number": registration_number,
+            "direction": direction,
+            "year": year,
+            **_payment_page_payload(page),
+        }
+    )
+
+
+@router.get("/campaign-finance/payments-under-name", response_model=DetailResponse)
+def payments_under_one_printed_name(
+    name: str = Query(min_length=1, max_length=200),
+    role: Literal["contributor", "vendor", "independent_vendor", "employer"] = Query(),
+    year: int | None = Query(default=None, ge=2015, le=2100),
+    limit: int = Query(default=50, ge=1, le=MAX_PAYMENTS),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+):
+    """Every payment recorded under exactly one printed name.
+
+    **The match is exact, character for character, and that is the design.** A person, an
+    employer and a vendor carry no identifier in Minnesota's data, so the printed string
+    is the whole of the key
+    (``docs/architecture/campaign-finance-system-design.md`` §5). The live release holds
+    "Messinger, Alida" (121 payments to 39 committees), "Messinger, Alida R" (10 to 6) and
+    "Messinger, Alida Rockefelle" (4 to 1) as 3 separate strings. Joining them is a guess,
+    and the same file holds "Messinger, William Frye" and "Messinger, Wiiiam Frey", which
+    any rule loose enough to join the first three would join to each other.
+
+    So a surface labels this result with the string it asked for, never with a person, and
+    never says it is everything that person gave.
+
+    ``role`` picks which column the name is matched against:
+
+    * ``contributor`` -- who the money came from. Each row names the committee that
+      received it, and those numbers are linkable because these are those committees' own
+      filings.
+    * ``vendor`` -- a supplier a committee paid, from the expenditures download.
+    * ``independent_vendor`` -- a supplier paid out of independent spending, from the
+      independent-expenditures download. **A separate request on purpose.** 491 rows there
+      share a spender, vendor, amount and date with an expenditures row, and whether that
+      is one payment filed twice or two payments that coincide is not established, so the
+      2 lists are never combined.
+    * ``employer`` -- payments whose donor typed this string in the employer box. It is
+      free text holding statuses and occupations as much as employers: its 4 commonest
+      values are "Not Employed", "Retired", "Self employed Retired" and "Lawyer". Never
+      present it as a company's giving or as a count of its employees.
+
+    ``state`` of ``not_reported`` means no row carries this exact string, which is a fact
+    about the spelling and our records, never about a person's giving.
+    """
+    release = _resolve_campaign_finance_release(db)
+    if role == "contributor":
+        page = payments_from_contributor(
+            db, release, contributor=name, year=year, limit=limit, offset=offset
+        )
+    elif role == "vendor":
+        page = payments_to_vendor(
+            db, release, vendor=name, year=year, limit=limit, offset=offset
+        )
+    elif role == "independent_vendor":
+        page = independent_payments_to_vendor(
+            db, release, vendor=name, year=year, limit=limit, offset=offset
+        )
+    else:
+        page = payments_from_donors_typing(
+            db, release, employer=name, year=year, limit=limit, offset=offset
+        )
+    return DetailResponse(
+        data={
+            "name": name,
+            "role": role,
+            "year": year,
+            **_payment_page_payload(page),
         }
     )
 
