@@ -28,13 +28,15 @@ overrides:
   # is still too young, pin the highest safe version the gate allows instead of
   # weakening the gate.
   #
-  # Still open and browser-unreachable: image-size has no patched release, and
-  # uuid, ts-deepmerge, diff and @xmldom/xmldom need incompatible major-version
-  # jumps underneath eas-cli, xcode and @expo/plist. Forcing those jumps would
-  # risk native iOS and Android builds that CI does not exercise.
+  # Still open and browser-unreachable: image-size has no patched release.
+  # Metro reads only image files from the project checkout while building; the
+  # package is absent from the finished website. The exact exception and its
+  # upstream status live in docs/verification/1493-build-tool-security/README.md.
   "@babel/core": 7.29.6 # 85 Babel plugins — arbitrary file read via sourceMappingURL
   ajv: 8.18.0 # eas-cli — ReDoS via the $data option
   brace-expansion: 5.0.9 # via minimatch — DoS via unbounded expansion
+  "eas-cli@21.6.0>diff": 8.0.3 # eas-cli uses the compatible diffLines export
+  "eas-cli@21.6.0>ts-deepmerge": 8.0.0 # patched below to retain eas-cli's default import
   fast-uri: 3.1.5 # eas-cli via ajv — host confusion through backslashes
   form-data: 4.0.6 # eas-cli — CRLF injection in multipart field names
   joi: 17.13.4 # eas-cli — uncaught RangeError on deeply nested input
@@ -49,4 +51,7 @@ overrides:
   tar: 7.5.22 # eas-cli — crafted archive stack-overflow DoS
   "ws@7": 7.5.11 # metro, react-native dev server
   "ws@8": 8.21.0 # @expo/cli and @supabase/realtime-js (which never imports it)
+  uuid: 11.1.1 # eas-cli, Expo telemetry, and xcode use compatible v1/v4/validate APIs
   yaml: 2.8.4 # eas-cli held 2.6.0; dedupes onto metro-config's copy
+patchedDependencies:
+  ts-deepmerge@8.0.0: patches/ts-deepmerge@8.0.0.patch

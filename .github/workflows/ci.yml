@@ -230,6 +230,12 @@ jobs:
       - name: Check Expo package compatibility
         run: pnpm exec expo install --check
 
+      # Security fixes can cross package major versions while preserving only
+      # the narrow commands EAS CLI and Xcode use. Exercise those commands so a
+      # future grouped dependency update cannot silently break native builds.
+      - name: Check secured build-tool compatibility
+        run: pnpm run check:build-tool-security
+
       - name: Type check frontend
         run: pnpm exec tsc --noEmit
 

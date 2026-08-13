@@ -12,6 +12,7 @@
     "build": "node ./scripts/check-brand-assets.mjs && node ./scripts/start-expo.mjs export --platform web && node ./scripts/optimize-release-program.mjs && node ./scripts/check-release-assets.mjs && node ./scripts/check-icon-bundle.mjs",
     "brand:generate": "node ./scripts/generate-brand-assets.mjs",
     "brand:check": "node ./scripts/check-brand-assets.mjs",
+    "check:build-tool-security": "node ./scripts/check-build-tool-security.mjs",
     "format": "prettier --write .",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -50,7 +51,7 @@
   "devDependencies": {
     "@resvg/resvg-js": "2.6.2",
     "@types/react": "19.2.18",
-    "eas-cli": "20.0.0",
+    "eas-cli": "21.6.0",
     "pngjs": "7.0.0",
     "prettier": "3.9.6",
     "terser": "5.46.2",
