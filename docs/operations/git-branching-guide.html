@@ -852,8 +852,12 @@
       <ol class="rules">
         <li>
           <h3>Start from the branch you will merge back into</h3>
-          <p>Cut a feature branch from <code>develop</code>, a hotfix from <code>main</code>.
-            Cutting from wherever your laptop happened to be pointing is how someone else's
+          <p>The base is different in the 2 graphs, so name it every time rather than
+            trusting where your laptop is pointing. In this repository there is no
+            <code>develop</code>, so a feature branch is cut from <code>main</code>. In the
+            reference flow a feature branch is cut from <code>develop</code> and a hotfix
+            from <code>main</code>.</p>
+          <p>Cutting from wherever your laptop happened to be pointing is how someone else's
             half finished work ends up inside your pull request.</p>
         </li>
         <li>
@@ -925,8 +929,11 @@ git push -u origin release/1.4
 git switch release/1.4
 git commit -m "Fix empty filter state on staging"
 
-<span class="cmt"># ship it: into production, tagged</span>
+<span class="cmt"># ship it: open the pull request into production, then actually merge it</span>
 gh pr create --base main --head release/1.4
+gh pr merge &lt;number&gt; --merge
+
+<span class="cmt"># only now does main point at the release, so only now is the tag correct</span>
 git switch main &amp;&amp; git pull
 git tag -a v1.4.0 -m "Release 1.4.0"
 git push origin v1.4.0
@@ -935,14 +942,32 @@ git push origin v1.4.0
 gh pr create --base develop --head release/1.4</pre>
 
     <div class="col">
-      <p>Clean up. Safe, because <code>--merged</code> only ever lists branches whose work
-        is already in the base branch:</p>
+      <p>The order in that block is the whole point. Opening a pull request does not merge
+        it, so tagging before the merge lands puts <code>v1.4.0</code> on the commit that was
+        live <em>before</em> the release, and the tag then names the wrong thing forever.
+        Tag only after <code>git pull</code> has actually moved <code>main</code>.</p>
+      <p>2 more things that bite here. Use a merge rather than a squash into
+        <code>main</code>, so production history keeps the release's commits. And keep
+        <code>release/1.4</code> alive until it has also been merged into
+        <code>develop</code>: a repository set to delete branches on merge will otherwise
+        remove it the moment it reaches production, taking the QA fixes with it.</p>
     </div>
-    <pre><span class="cmt"># which of my local branches are already merged, and so deletable</span>
-git branch --merged origin/main
+
+    <div class="col">
+      <p>Clean up. Safe, because <code>--merged</code> only ever lists branches whose work
+        is already in the branch you name. Name the branch you actually merged into:
+        <code>origin/develop</code> for a feature in the reference flow, and
+        <code>origin/main</code> in this repository, which has no <code>develop</code>.
+        Checking a feature branch against <code>main</code> in the reference flow reports it
+        as unmerged for as long as the release is still in testing, which is one of the ways
+        finished branches quietly pile up:</p>
+    </div>
+    <pre><span class="cmt"># which local branches are already merged into their base, and so deletable</span>
+git branch --merged origin/develop
 
 <span class="cmt"># delete them (-d refuses anything unmerged, unlike -D)</span>
-git branch --merged origin/main | grep -v '\*' | xargs -n 1 git branch -d
+<span class="cmt"># skip * (the branch you are on) and + (a branch checked out in another worktree)</span>
+git branch --merged origin/develop | grep -v '[*+]' | xargs -n 1 git branch -d
 
 <span class="cmt"># forget remote branches that no longer exist on the server</span>
 git fetch --prune</pre>
@@ -954,7 +979,10 @@ git fetch --prune</pre>
       <p class="eyebrow">Part 6 &middot; reading a repo yourself</p>
       <h2>How the numbers on this page were measured</h2>
       <p>Run these in any repository to see its real shape rather than its intended one.
-        Every figure above came from them.</p>
+        Every figure above came from them. They name <code>origin/main</code> because that is
+        this repository's only long lived branch; on a team running the 3 branch model, ask
+        the same questions against <code>origin/develop</code> as well, since that is where
+        its feature branches are supposed to land.</p>
     </div>
     <pre><span class="cmt"># how many shared branches never came back (53 here)</span>
 git branch -r --no-merged origin/main | wc -l
