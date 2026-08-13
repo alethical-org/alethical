@@ -57,7 +57,7 @@ they're for, so the right one can be found without reading every file:
 | Tool | What it does | Costs money? |
 |---|---|---|
 | `scripts/load_minnesota_data.py` | Pulls a legislative session's bills and votes from Minnesota's official websites into our database | No |
-| `scripts/load_campaign_finance.py` | Downloads Minnesota's 3 official campaign-money files and stores the exact bytes, dated | No |
+| `scripts/load_campaign_finance.py` | Downloads Minnesota's 3 official campaign-money files and stores the exact bytes, dated. Also re-checks every person-confirmed link between a legislator and their campaign committee against this run's own data, and opens (or updates) a warning on GitHub if one no longer matches — it never changes or removes the link itself, and it never stops the money files from publishing | No |
 | `scripts/load_campaign_finance_filings.py` | Asks Minnesota's campaign-finance board, one committee at a time, what that committee itself reported raising and spending | No |
 | `scripts/build_legislative_district_boundaries.py` | Builds the map of Minnesota's voting districts from the state's official 2022 election-map files | No |
 | `scripts/load_sample_data.py` | Loads made-up practice data for testing on a laptop. Never touches real records | No |

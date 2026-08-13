@@ -243,9 +243,12 @@ not become clearer for being read twice. What is independent of the reader is th
 committee list, which party's units pay the committee, and the committee's published name, which
 can change. A wrong answer therefore surfaces the day the evidence shifts rather than waiting for
 somebody to re-read 200 rows. It reports and never repairs, because a contradiction wants a
-person's eyes. It is not scheduled and nothing runs it on a clock; it belongs in the data load
-([#1328](https://github.com/alethical-org/alethical/issues/1328)), where the records are already
-in hand.
+person's eyes. It is not scheduled and nothing runs it on a clock; it runs inside the data load
+([#1328](https://github.com/alethical-org/alethical/issues/1328),
+[#1398](https://github.com/alethical-org/alethical/issues/1398)) every time that load runs, using
+the records already in hand there. A contradiction never blocks that load — the money data it
+publishes is correct whether or not a committee's identity changed — and it is filed as a GitHub
+issue so it reaches a person without anyone remembering to look.
 
 ---
 

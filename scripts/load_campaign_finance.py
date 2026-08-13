@@ -44,12 +44,23 @@ the gitignored ``.env`` at the repository root. A dry run needs neither.
 Design: ``docs/architecture/campaign-finance-system-design.md`` §4 (Ingestion:
 snapshot and replace). Plain-English walkthrough:
 ``docs/product-onboarding/data-ingestion-onboarding.md`` § "H — Campaign finance".
+
+**Every run also re-checks every person-confirmed legislator-committee link (#1354)
+against this run's own data** — see ``verify_confirmed_committee_links`` in
+``alethical/pipeline/campaign_finance.py`` (#1398). A contradiction never blocks
+publication and is never repaired automatically; it is printed loudly in the summary
+below and, on a real (non-dry) run, filed or updated as a GitHub issue via ``gh`` —
+the same alerting idiom ``.github/workflows/mirror-raw-files.yml`` uses, reusing
+whatever ``gh`` login already runs this command by hand, since this load carries no
+schedule of its own to attach a token to.
 """
 
 from __future__ import annotations
 
 import argparse
 import os
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -69,6 +80,109 @@ from alethical.pipeline.campaign_finance import (  # noqa: E402
     CampaignFinanceRefusal,
     load_campaign_finance,
 )
+
+COMMITTEE_LINK_ALERT_TITLE = (
+    "Confirmed legislator-committee link(s) now contradict the Board's own data"
+)
+
+
+def _file_committee_link_alert(contradictions: list[str]) -> None:
+    """Make a stale confirmed link (#1354) reach a person, the way the sibling
+    ingestion jobs already do.
+
+    Searches for an already-open issue by title and comments on it; files a new one
+    otherwise — the same idiom ``.github/workflows/mirror-raw-files.yml`` uses, so a
+    contradiction that persists across several loads is one issue growing a comment
+    thread rather than several duplicates. Uses the ``gh`` CLI already authenticated on
+    whatever machine runs this load, because this load has no schedule of its own to
+    carry a ``GITHUB_TOKEN`` on.
+
+    Never raises. A contradiction not reaching GitHub must not be read as this load
+    having failed — the report already printed it loudly above, and this is a second,
+    more durable channel on top of that, not the only one.
+    """
+    if shutil.which("gh") is None:
+        print(
+            "note: 'gh' is not installed here, so no GitHub issue was filed for the "
+            "committee-link contradiction(s) printed above. Install it "
+            "(https://cli.github.com) or file one by hand.",
+            file=sys.stderr,
+        )
+        return
+    report_block = "\n".join(contradictions)
+    try:
+        existing = subprocess.run(
+            [
+                "gh",
+                "issue",
+                "list",
+                "--state",
+                "open",
+                "--search",
+                f"{COMMITTEE_LINK_ALERT_TITLE} in:title",
+                "--json",
+                "number",
+                "--jq",
+                ".[0].number // empty",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        number = existing.stdout.strip() if existing.returncode == 0 else ""
+        if number:
+            subprocess.run(
+                [
+                    "gh",
+                    "issue",
+                    "comment",
+                    number,
+                    "--body",
+                    f"Still contradicting as of this run:\n\n```\n{report_block}\n```",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+            print(f"note: commented on existing alert issue #{number}", file=sys.stderr)
+            return
+        body = (
+            "**Net:** A campaign-finance load just re-checked every person-confirmed "
+            "legislator-to-committee link against Minnesota's own records, and "
+            f"{len(contradictions)} no longer agree. Until a person looks again, money "
+            "may be rendering on the wrong legislator's page.\n\n"
+            f"```\n{report_block}\n```\n\n"
+            "Each line is the legislator, the committee, what changed, and who "
+            "confirmed the link originally. A rename or a closed committee is a "
+            "legitimate event and not necessarily a mistake — re-check it with:\n\n"
+            "```\nPYTHONPATH=. uv run python "
+            "scripts/review_legislator_campaign_committees.py review "
+            '--contributions /path/to/contributions.csv --reviewer "Your Name"\n```\n\n'
+            "Background: `docs/architecture/campaign-finance-system-design.md` §5.1. "
+            "Auto-filed by `scripts/load_campaign_finance.py` (#1398)."
+        )
+        subprocess.run(
+            [
+                "gh",
+                "issue",
+                "create",
+                "--title",
+                f"🚨 {COMMITTEE_LINK_ALERT_TITLE}",
+                "--label",
+                "backend",
+                "--body",
+                body,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        print("note: filed a new alert issue", file=sys.stderr)
+    except (subprocess.SubprocessError, OSError) as error:
+        print(
+            f"note: could not file/update the GitHub alert issue: {error}",
+            file=sys.stderr,
+        )
 
 
 def main() -> int:
@@ -127,6 +241,13 @@ def main() -> int:
             return 1
 
     print(report.summary())
+    # Never on --dry-run: a dry run's whole point is to write nothing, and filing a
+    # real GitHub issue is a write. A real run files or updates one regardless of
+    # whether the money data itself published, was unchanged, or was quarantined —
+    # a stale committee link is a separate question from whether this run's
+    # payment rows are correct (#1398).
+    if report.committee_link_contradictions and not args.dry_run:
+        _file_committee_link_alert(report.committee_link_contradictions)
     if report.refusal:
         return 1
     return 0
