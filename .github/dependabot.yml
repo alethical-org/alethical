@@ -72,6 +72,62 @@ updates:
     directory: "/"
     schedule:
       interval: monthly
+    # Expo selects one tested set of Expo, React, React Native, and native
+    # packages for each SDK. Dependabot compares each package in isolation and
+    # mixed SDK 55 with SDK 57 in #1394. Leave routine version moves for these
+    # packages to an intentional Expo SDK upgrade. Patch updates remain open
+    # where Expo accepts a patch range. Security updates are still allowed
+    # because update-types applies only to scheduled version updates.
+    ignore:
+      - dependency-name: "expo"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
+      - dependency-name: "expo-*"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
+      - dependency-name: "@expo/*"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
+      - dependency-name: "react"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
+          - "version-update:semver-patch"
+      - dependency-name: "react-dom"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
+          - "version-update:semver-patch"
+      - dependency-name: "react-native"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
+          - "version-update:semver-patch"
+      - dependency-name: "@react-native-async-storage/async-storage"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
+          - "version-update:semver-patch"
+      - dependency-name: "react-native-safe-area-context"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
+      - dependency-name: "react-native-screens"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
+      - dependency-name: "react-native-svg"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
+          - "version-update:semver-patch"
+      - dependency-name: "react-native-web"
+        update-types:
+          - "version-update:semver-major"
+          - "version-update:semver-minor"
     groups:
       javascript-dependencies:
         patterns:
