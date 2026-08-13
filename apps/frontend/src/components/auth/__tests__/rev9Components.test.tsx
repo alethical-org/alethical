@@ -127,12 +127,22 @@ describe('rev 9 shared sign-in components', () => {
     const sending = renderToStaticMarkup(
       <ResendControl status="sending" sentMessage="Sent." onResend={vi.fn()} />,
     );
+    const rateLimited = renderToStaticMarkup(
+      <ResendControl
+        status="rate-limited"
+        secondsRemaining={37}
+        sentMessage="We’ve sent one."
+        onResend={vi.fn()}
+      />,
+    );
 
     expect(waiting).toContain('role="status"');
     expect(waiting).toContain('aria-live="off"');
     expect(waiting).toContain('You can resend in 37 seconds.');
     expect(sending).toContain('aria-busy="true"');
     expect(sending).toContain('Resending…');
+    expect(rateLimited).toContain('You can resend in 37 seconds.');
+    expect(rateLimited).not.toContain('We’ve sent one.');
   });
 
   it('names the other signed-in account without making the card interactive', () => {
@@ -159,10 +169,15 @@ describe('rev 9 shared sign-in components', () => {
     expect(container).toContain("maxHeight: '92dvh'");
     expect(container).toContain('accessibilityLabel={title}');
     expect(container).not.toContain("role: 'dialog'");
+    expect(container).not.toContain("'aria-modal': true");
     expect(container).toContain('accessible={false}');
     expect(container).toContain("'aria-hidden': true");
     expect(container).toContain('ScrollView');
     expect(container).toContain('focusableChildren');
+    expect(container).toContain('element.getClientRects().length > 0');
+    expect(container).not.toContain('element.offsetParent !== null');
+    expect(container).toContain("element.getAttribute('aria-disabled') !== 'true'");
+    expect(container).toContain('focusables[nextIndex].focus()');
     expect(container).toContain("card.setAttribute('tabindex', '-1')");
     expect(container).toContain("card.removeAttribute('tabindex')");
     expect(container).toContain("event.key === 'Escape'");

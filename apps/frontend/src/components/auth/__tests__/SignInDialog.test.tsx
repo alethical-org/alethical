@@ -66,6 +66,7 @@ function props(overrides: Partial<SignInDialogProps> = {}): SignInDialogProps {
     onCreateAccount: ok,
     onResendConfirmation: ok,
     onForgotPassword: ok,
+    onBackFromOutcome: vi.fn(),
     ...overrides,
   };
 }
@@ -114,9 +115,7 @@ describe('rev 9 sign-in dialog', () => {
     const html = render({ initialScreen: 'create', initialEmail: 'jordan@example.com' });
 
     expect(html).toContain('Create your Alethical account');
-    expect(html).toContain(
-      'You’ll use this email and password to sign in. Your tracked list is saved to your account.',
-    );
+    expect(html).toContain('Bills you track are saved to your account.');
     expect(html.match(/autocomplete="new-password"/gi)).toHaveLength(2);
     expect(html).toContain('CONFIRM PASSWORD');
     expect(html).toContain('Use at least 15 characters. A few words with spaces works well.');
@@ -161,6 +160,26 @@ describe('rev 9 sign-in dialog', () => {
     expect(sent).toContain('Change email');
   });
 
+  it('uses dedicated deactivated and unsafe-match outcomes without a sign-in form', () => {
+    const deactivated = render({
+      errorKind: 'deactivated',
+      errorMessage:
+        'This account has been deactivated, so we’ve signed you out. Bills, votes and legislators are all still here to read. Contact us at ask@alethical.com if you think this is a mistake.',
+    });
+    const unsafe = render({
+      errorKind: 'match-failed',
+      errorMessage:
+        'We couldn’t safely match this sign-in to your account. Sign in with the method you used before.',
+    });
+
+    expect(deactivated).toContain('This account has been deactivated');
+    expect(deactivated).toContain('Back to sign in');
+    expect(deactivated).not.toContain('Continue with Google');
+    expect(unsafe).toContain('We couldn’t match this sign-in');
+    expect(unsafe).toContain('Back to sign in');
+    expect(unsafe).not.toContain('EMAIL');
+  });
+
   it('uses shared validation, first-press locking, and the supplied resend wait', () => {
     expect(SOURCE).toContain('validateEmail(email)');
     expect(SOURCE).toContain('validatePassword(password)');
@@ -168,8 +187,15 @@ describe('rev 9 sign-in dialog', () => {
     expect(SOURCE).toContain('createValidRequestGate()');
     expect(SOURCE).toContain("result.error.kind === 'email-not-confirmed'");
     expect(SOURCE).toContain("result.error.kind === 'check-email'");
+    expect(SOURCE).toContain("if (error.kind === 'bad-credentials') setPassword('')");
     expect(SOURCE).toContain('Math.ceil(resendWaitSeconds)');
     expect(SOURCE).not.toMatch(/resendWaitSeconds\s*=\s*60/);
     expect(SOURCE).not.toContain('maxlength');
+  });
+
+  it('clears email and password values as soon as the sign-in form closes', () => {
+    expect(SOURCE).toContain("setEmail('');");
+    expect(SOURCE).toContain("setPassword('');");
+    expect(SOURCE).toContain("setConfirmation('');");
   });
 });

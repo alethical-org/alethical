@@ -681,7 +681,7 @@ export function TopNav({
             </ScrollView>
             <View style={styles.menuFooter}>
               {isSignedIn ? (
-                <AccountDrawerRow onSignedOut={() => setDrawerOpen(false)} />
+                <AccountDrawerRow />
               ) : (
                 <PrimaryButton
                   label="Sign in"

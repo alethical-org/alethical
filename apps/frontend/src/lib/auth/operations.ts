@@ -7,10 +7,12 @@ export interface AuthUser {
   id: string;
   name: string;
   email: string;
+  signInMethods: { google: boolean; password: boolean } | null;
 }
 
 export type AuthOperationResult<T = undefined> =
-  { ok: true; data: T } | { ok: false; error: PublicAuthError };
+  | { ok: true; data: T }
+  | { ok: false; error: PublicAuthError };
 
 export function authSuccess<T = undefined>(data?: T): AuthOperationResult<T> {
   return { ok: true, data: data as T };
