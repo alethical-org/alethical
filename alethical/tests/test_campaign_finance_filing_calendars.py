@@ -80,7 +80,8 @@ def test_all_4_calendars_are_transcribed_for_2026() -> None:
 @pytest.mark.parametrize(
     ("report_name", "period_end"),
     [
-        # The Board serves a `CutOffDate` per report (§9.1), and these are the 3 periods
+        # The Board serves a `CutOffDate` per report (`docs/architecture/campaign-finance-system-design.md`
+        # §9.1, The route), and these are the 3 periods
         # a candidate calendar shares with what it serves. Every one matches, which is
         # the only independent check available on a hand-transcription.
         ("Pre-primary report of receipts and expenditures", date(2026, 7, 20)),
@@ -101,7 +102,8 @@ def test_a_transcribed_period_end_matches_the_cut_off_date_the_board_serves(
 def test_no_period_start_is_assumed_and_the_2025_year_end_starts_where_it_is_printed() -> (
     None
 ):
-    """§7 forbids hardcoding 1 January as a period start. Almost every period does begin
+    """`docs/architecture/campaign-finance-system-design.md` §7 (Display rules) forbids
+    hardcoding 1 January as a period start. Almost every period does begin
     there, which is exactly why each one has to come off the document -- so this asserts
     the 2 different years, from the 2 calendars, as printed."""
     filing = calendars.CALENDARS[
@@ -256,7 +258,8 @@ def test_absence_is_not_readable_before_the_years_first_election_report_is_due()
 def test_a_terminated_registration_owes_nothing_further_and_is_not_read_as_unknown() -> (
     None
 ):
-    """A closed committee is a 5th state §7 already names, and it is an answer rather
+    """A closed committee is a 5th state `docs/architecture/campaign-finance-system-design.md`
+    §7 (Display rules) already names, and it is an answer rather
     than a gap: a page can say the committee closed on this date."""
     placed = place(
         registration_number="18472",
@@ -282,7 +285,8 @@ def test_a_termination_still_in_the_future_does_not_close_the_committee_yet() ->
 def test_a_special_election_filer_is_unknown_rather_than_placed_on_the_regular_series() -> (
     None
 ):
-    """They file a whole second series whose period starts §9.9 records as confirmed on
+    """They file a whole second series whose period starts `docs/architecture/campaign-finance-system-design.md`
+    §9.9 (Checks this design asks for that were not run) records as confirmed on
     one filer-year. Reading their pre-election report as an ordinary placement would
     print a plausible wrong date range, which renders as data rather than as an error."""
     placed = place(
@@ -337,7 +341,8 @@ def test_the_pre_general_carries_the_exemption_printed_beside_it() -> None:
 
 
 def test_a_report_from_another_year_never_places_a_committee() -> None:
-    """One request returns a filer's whole history (§9.6), so a 2024 pre-primary is
+    """One request returns a filer's whole history (`docs/architecture/campaign-finance-system-design.md`
+    §9.6, Which version is effective), so a 2024 pre-primary is
     ordinary to be holding while asking about 2026 and must not answer for it."""
     placed = place(
         catalogued=[
@@ -372,17 +377,25 @@ def _clear(session) -> None:
     session.commit()
 
 
-def _publish_snapshot(session, *, filers, reports) -> uuid.UUID:
+# When the fake snapshot was fetched. On ``AS_OF`` itself, so the ordinary tests sit at
+# the earliest date the service will answer for -- and so they keep passing forever,
+# which ``datetime.now()`` would not: the guard added for #1481 refuses an ``as_of``
+# before the fetch, so a snapshot stamped "now" would start refusing ``AS_OF`` tomorrow.
+FETCHED_AT = datetime(2026, 8, 12, 9, 0, tzinfo=UTC)
+
+
+def _publish_snapshot(
+    session, *, filers, reports, fetched_at: datetime = FETCHED_AT
+) -> uuid.UUID:
     """A live filings snapshot holding exactly these filers and reports.
 
     Written straight in rather than through the loader: what is under test is what a
     *read* makes of stored rows, and the loader's own refusals have their own suite in
     ``test_campaign_finance_filings.py``.
     """
-    now = datetime.now(UTC)
     snapshot = models.CampaignFinanceFilingSnapshot(
-        fetch_started_at=now,
-        fetch_completed_at=now,
+        fetch_started_at=fetched_at,
+        fetch_completed_at=fetched_at,
         status=models.CampaignFinanceSnapshotStatus.loaded,
     )
     session.add(snapshot)
@@ -491,3 +504,42 @@ def test_coverage_counts_what_could_not_be_placed_and_says_why(db) -> None:
         "44444",
         "66666",
     }
+
+
+def test_a_day_before_the_filings_were_read_is_refused_rather_than_answered(db) -> None:
+    """The evidence is the live snapshot and the catalogue only grows within a year, so
+    classifying an earlier day against today's rows can place a committee on the ballot
+    on a day the state had not yet scheduled its election report. Refused instead.
+
+    Found by a review bot on #1481, against a docstring that had claimed a caller could
+    ask what a page said last week.
+    """
+    _publish_snapshot(
+        db,
+        filers=[("17500", "House", None)],
+        reports=[("17500", 2026, "2026 Pre-Primary Report", False)],
+    )
+    answer = service.filing_schedule(db, "17500", year=2026, as_of=date(2026, 3, 1))
+    assert isinstance(answer, service.ScheduleUnavailable)
+    assert answer.state == service.AS_OF_PREDATES_THE_EVIDENCE
+    assert "2026-08-12" in answer.reason and "2026-03-01" in answer.reason
+
+    # The same refusal for a whole population, rather than a count of guesses.
+    coverage = service.schedule_coverage(
+        db, ["17500"], year=2026, as_of=date(2026, 3, 1)
+    )
+    assert coverage.unknown == 1
+    assert coverage.with_next_due_date == 0
+
+
+def test_the_day_the_filings_were_read_is_answered(db) -> None:
+    """The boundary is inclusive: the guard refuses days *before* the fetch, and the
+    fetch day itself is exactly when a page first renders from a fresh snapshot."""
+    _publish_snapshot(
+        db,
+        filers=[("17500", "House", None)],
+        reports=[("17500", 2025, "2025 Year-End Report", False)],
+        fetched_at=datetime(2026, 8, 12, 23, 59, tzinfo=UTC),
+    )
+    answer = service.filing_schedule(db, "17500", year=2026, as_of=date(2026, 8, 12))
+    assert answer.schedule_class is ScheduleClass.not_filing_for_office

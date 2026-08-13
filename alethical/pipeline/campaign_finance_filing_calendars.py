@@ -47,16 +47,19 @@ finance_filing_calendars.py`` pins the 3 of those that the candidate calendars s
 
 * **Never that a report is late.** The absent amendment record that marks an unfiled
   report is only readable that way in the current year: 3,036 of 36,655 catalogued
-  reports carry none, and 2,140 of those are from 2002 to 2007, where §9.4 establishes
+  reports carry none, and 2,140 of those are from 2002 to 2007, where §9.4 (Report PDFs
+  are a fallback, not a route) establishes
   documents are not served at all. Calling one of those late would put "late" on a
   20-year-old filing, and telling a reader a named politician missed a deadline they do
   not have is the worst thing this surface can do.
-* **Never a period start we did not read off a document.** §7 forbids hardcoding
+* **Never a period start we did not read off a document.** ``docs/architecture/campaign-finance-system-design.md``
+  §7 (Display rules) forbids hardcoding
   1 January precisely because a special-election filer's period does not start there.
   Every start below is printed on the calendar it came from -- including the 2025
   year-end report's ``1/1/2025``, which is the one most likely to be assumed.
 * **Never a schedule for a special-election filer.** They file a whole second report
-  series whose period starts §9.9 records as confirmed on one filer-year, so they are
+  series whose period starts §9.9 (Checks this design asks for that were not run) records
+  as confirmed on one filer-year, so they are
   reported unknown rather than placed on a calendar built for the regular series.
 * **Never a no-activity rule.** None of the 4 calendars says what a committee with no
   activity owes; searched for "activit", "even if", "zero", "no receipts" and "nothing"
@@ -202,7 +205,8 @@ class Determination:
     next_report: Optional[CalendarEntry] = None
     # Set only for a terminated registration, and it is the date the *registration*
     # ended rather than any report's date. The catalogue copies this value onto every
-    # report row including ones filed years earlier (§9.1), so it is read from the filer
+    # report row including ones filed years earlier (``docs/architecture/campaign-finance-system-design.md``
+    # §9.1, The route), so it is read from the filer
     # and never from a report.
     terminated_on: Optional[date] = None
 
