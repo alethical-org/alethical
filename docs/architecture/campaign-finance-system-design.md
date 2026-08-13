@@ -34,11 +34,22 @@ decisions were taken against text which had already been replaced. One session r
 keeping downloaded files in the database an hour after its own merged work had settled on
 Supabase Storage; another merged a display rule that a third had already measured to be wrong.
 
-- **The owner today** is the session titled **`design IA`**
-  (`local_b9788aeb-73d3-4093-9a6e-0d35ec006f20`). It changes only when Eugene says so. If that
-  session is not in your live list, ask Eugene who holds the pen rather than editing this file:
-  the first version of this line named a title that did not exist, because the owner wrote a
-  description of its own role instead of reading its title, and two sessions could not find it.
+- **The owner today** is the session titled **`1328 Finish the campaign finance loader`**
+  (`e8c5a620-e1d7-417c-ac06-8273a0b416f3`), appointed by Eugene 13 Aug 2026. Copy a title
+  verbatim from the live task list; the first version of this line named a title that did not
+  exist, because the owner described its own role instead of reading its title, and 2 sessions
+  could not find it.
+- **The pen passes; it never lapses (Eugene, 13 Aug 2026).** The rule as first written said to ask
+  Eugene when the named session is gone, and that is exactly what went wrong: `design IA` finished
+  and 4 measured corrections then sat in issue comments where no builder reads them, including a
+  wrong number in this file that others were budgeting against. So **if the named session is not in
+  your live list, you may take the pen**: name yourself here in the same commit as your edit, and
+  say which issue the measurement came from. One editor at a time is the point; a specific person
+  is not.
+- **Why one editor still, with this much concurrency.** 41 worktrees in this repo carried a commit
+  within the last few hours when this was checked (13 Aug 2026), against the 3 sessions whose
+  collision produced the rule. The case for it is stronger than when it was written, which is why
+  the fix above is a handover and not a relaxation.
 - **If you are another session:** post your measurement or recommendation as a comment on the
   issue you are working, then message the owner. Do not open a pull request against this file.
 - **Send the wording you would have written**, not just the finding. The owner lands it and
@@ -432,7 +443,8 @@ rather than none, because a reader does need them briefly: a request resolves th
 one statement and asks for rows in the next, so deleting the previous set the instant a new one
 lands returns zero rows to a request that started moments earlier, which a page renders as "this
 committee has no payments" (`.claude/rules/grounded-answers.md` rule 12, missing versus zero). One
-spare generation is 51 MB measured. Pruning successful bodies to save space would give up exactly
+spare generation is **241 MB measured** (#1328, 13 Aug 2026, summing the 3 row tables' live sets
+in production). An earlier 51 MB in this sentence counted one dataset rather than the set. Pruning successful bodies to save space would give up exactly
 the record this section exists to hold.
 
 "Every body" means one per distinct set of records, not one per download. Because the export
@@ -469,7 +481,17 @@ to it.
 **People, employers and vendors have no identifier, and are never joined or split
 automatically.** The retired system compared donor names exactly, so "Messinger, Alida" and
 "Messinger, Alida R" were two different people. Loosening that into automatic matching trades
-one wrong answer for another. Likely matches are surfaced for a person to confirm, and the
+one wrong answer for another.
+
+**What that rule costs, measured, because a surface has to be honest about it** (#1331, 13 Aug
+2026, against production release `3f2bdf90`). Alida Messinger reaches 3 printed strings in the
+same download: "Messinger, Alida" (121 payments to 39 committees), "Messinger, Alida R" (10 to
+6) and "Messinger, Alida Rockefelle" (4 to 1). A page following the first shows 121 payments and
+is silent about **$2,033,000** reachable under the other 2. So the rule is right and the silence
+is not: a surface listing one string may not imply it is the whole of a person's giving. The same
+file also holds "Messinger, William Frye" beside "Messinger, Wiiiam Frey", which is why the rule
+holds anyway -- those 2 are indistinguishable from one misspelling and from 2 real people, and
+nothing available to us settles which. Likely matches are surfaced for a person to confirm, and the
 confirmed link is stored against the durable identifiers, not against a snapshot row.
 
 A candidate joins an Alethical legislator only through a link a person has checked.
@@ -1219,9 +1241,13 @@ earned itself three times in two days, each time against a shape nobody had imag
 
 **And the same failure hands us a served release date, per filer, per report.** "Try back on
 02/02/2027" against a calendar due date of 1 Feb 2027, with the second variant stating the rule
-outright: files are available at 8am following the due date. That is a per-filer answer to the
-question [#1375](https://github.com/alethical-org/alethical/issues/1375) was opened to hand-transcribe,
-and it skips the part nobody could do, which is classifying each member onto a calendar. Limits worth
+outright: files are available at 8am following the due date. That looked like a per-filer answer to the
+question [#1375](https://github.com/alethical-org/alethical/issues/1375) was opened to hand-transcribe.
+**It is not, measured on the full population (#1375, 13 Aug 2026): 1,261 filers carry a catalogued 2026
+pre-primary and not one filer of any kind carries a 2026 pre-general, though it is due 26 Oct.** Nothing
+served can name the next report, so the hand-transcribed calendars were necessary after all and shipped
+in [#1481](https://github.com/alethical-org/alethical/pull/1481). The served date remains useful for the
+report it does name. Limits worth
 keeping in view: 6 filers, one report type, one day, and an undocumented route. **The sixth filer is
 the corroboration worth noticing** — 18472 returns a real 2026 year-end PDF because a terminating
 committee files its final report early, which is §7's closed-committee state arriving independently
