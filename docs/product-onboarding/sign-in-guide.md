@@ -74,7 +74,7 @@ must not guess them from a drawing.
 | Require current password | Off | The signed-in password form needs only the new password |
 | Leaked-password protection | On | Known stolen passwords are rejected with an inline message |
 | CAPTCHA | Off | No human-check box is shown |
-| Password-changed security email | Off | The success screen does not claim an email was sent |
+| Password-changed security email | On | Adding or changing a password sends a separate warning; the success screen does not claim delivery |
 | Minimum length in Supabase | 15 | The browser and sign-in service enforce the same passphrase rule |
 | Required character groups | None | Passphrases and spaces work |
 | Confirmation/reset link lifetime | 3,600 seconds | Expired links use the shared dead-link page |
@@ -90,6 +90,10 @@ Supabase Auth. The current design sample is not a source of truth.
 Production uses the Alethical Resend account through Supabase custom SMTP. On 13 August 2026, a
 throwaway production account proved that confirmation, confirmation resend, password reset,
 password sign-in, and sign-out all work. The account was deleted after the check.
+
+The confirmation and reset emails put every private link value after `#`, so Vercel does not receive
+those values in its request logs. The password-change warning uses “recently changed” because
+Supabase's built-in security-email template does not provide the time of the change.
 
 `EXPO_PUBLIC_EMAIL_PASSWORD_SIGN_IN_ENABLED=true` makes the email controls visible in production.
 Google sign-in remains available beside them. Keep the code and example-file default `false` so a

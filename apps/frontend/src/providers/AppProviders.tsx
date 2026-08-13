@@ -7,6 +7,7 @@ import { createAppQueryClient } from '../lib/appQueryClient';
 import { AuthProvider } from './AuthProvider';
 import { SignInModalProvider } from './SignInModalProvider';
 import { TrackedBillWriteProvider } from './TrackedBillWriteProvider';
+import { PasswordChangedNotice } from '../components/auth/PasswordChangedNotice';
 
 export function AppProviders({ children }: PropsWithChildren) {
   const [queryClient] = useState(createAppQueryClient);
@@ -21,6 +22,7 @@ export function AppProviders({ children }: PropsWithChildren) {
             <SignInModalProvider>
               <StatusBar style="dark" />
               {children}
+              <PasswordChangedNotice />
             </SignInModalProvider>
           </TrackedBillWriteProvider>
         </AuthProvider>

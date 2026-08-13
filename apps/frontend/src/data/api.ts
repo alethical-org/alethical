@@ -88,6 +88,7 @@ interface ApiCurrentUserPayload {
   id: string;
   display_name?: string | null;
   primary_email?: string | null;
+  sign_in_methods?: { google: boolean; password: boolean } | null;
 }
 
 interface ApiSponsorPayload {
@@ -1523,9 +1524,12 @@ function mapChatSessionPayload(
   };
 }
 
-export async function getCurrentUserFromApi(
-  accessToken: string,
-): Promise<{ id: string; name: string; email: string }> {
+export async function getCurrentUserFromApi(accessToken: string): Promise<{
+  id: string;
+  name: string;
+  email: string;
+  signInMethods: { google: boolean; password: boolean } | null;
+}> {
   const response = await apiRequest<DetailResponse<ApiCurrentUserPayload>>(
     '/me',
     { method: 'GET' },
@@ -1537,6 +1541,7 @@ export async function getCurrentUserFromApi(
     id: response.data.id,
     name: (response.data.display_name ?? email.split('@')[0]) || 'Signed-in user',
     email,
+    signInMethods: response.data.sign_in_methods ?? null,
   };
 }
 

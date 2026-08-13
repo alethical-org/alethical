@@ -44,8 +44,7 @@ interface IntentConfig {
 // The generic copy is shared by every plain Sign in button. Only a Track action
 // gets a different reason and glyph (docs/mockups/sign-in).
 const GENERIC_HEADLINE = 'Sign in to Alethical';
-const GENERIC_SUBCOPY =
-  'Track bills across sessions and pick up where you left off. Your tracked list is saved to your account.';
+const GENERIC_SUBCOPY = 'Bills you track are saved to your account.';
 
 export const SIGN_IN_INTENTS: Record<SignInIntent, IntentConfig> = {
   nav: {
@@ -66,7 +65,7 @@ export function signInCopy(intent: SignInIntent, billCode?: string) {
 }
 
 export const SIGN_IN_ERROR_MESSAGES: Record<SignInErrorKind, string> = {
-  failed: 'Something went wrong reaching Google. Check your connection and try again.',
+  failed: 'We couldn’t complete that request. Check your connection and try again.',
   cancelled:
     'Sign-in didn’t finish. The Google step was closed or cancelled before you were signed in. Try again when you’re ready.',
   // Not a failure the reader can retry their way out of, so it says what happened
@@ -91,6 +90,12 @@ export function signInButtonLabel(status: SignInStatus): string {
  */
 export function signInErrorKind(code: string | null | undefined): SignInErrorKind {
   return code === 'access_denied' ? 'cancelled' : 'failed';
+}
+
+/** Serious account results replace the ordinary form instead of appearing as a field error. */
+export function dedicatedSignInOutcome(kind: string): SignInErrorKind | null {
+  if (kind === 'deactivated' || kind === 'match-failed') return kind;
+  return null;
 }
 
 export type AuthErrorReturnDecision = 'wait-for-session' | 'keep-success' | 'show-error';

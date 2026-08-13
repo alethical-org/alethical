@@ -15,6 +15,7 @@ import {
   SIGN_IN_ERROR_MESSAGES,
   authErrorReturnDecision,
   createSignInAttemptGate,
+  dedicatedSignInOutcome,
   initialSignInState,
   parseAuthError,
   signInErrorKind,
@@ -22,6 +23,7 @@ import {
   urlWithoutAuthError,
 } from '../lib/signIn';
 import { pendingSignInRequest } from '../lib/trackIntent';
+import { buildEmailLinkRedirectUrl, requestedSignInState } from '../lib/auth/linkSession';
 import {
   ApiError,
   completePendingTrackActionFromApi,
@@ -78,28 +80,32 @@ function clearPendingSignIn() {
 
 function readRequestedScreen(): SignInDialogScreen | undefined {
   if (!isWeb || typeof window === 'undefined') return undefined;
+  let storedScreen: string | null = null;
   try {
-    const screen = window.sessionStorage.getItem(OPEN_SIGN_IN_KEY);
+    storedScreen = window.sessionStorage.getItem(OPEN_SIGN_IN_KEY);
     window.sessionStorage.removeItem(OPEN_SIGN_IN_KEY);
-    return screen === 'forgot' ? 'forgot' : screen === 'sign-in' ? 'sign-in' : undefined;
   } catch {
-    return undefined;
+    // The non-secret hash below survives when browser storage is unavailable.
   }
+  const requested = requestedSignInState(storedScreen, window.location.hash);
+  if (window.location.hash !== requested.cleanHash) {
+    window.history.replaceState(
+      null,
+      '',
+      `${window.location.pathname}${window.location.search}${requested.cleanHash}`,
+    );
+  }
+  return requested.screen;
 }
 
 function confirmationUrl(pendingReference?: string) {
-  if (!isWeb || typeof window === 'undefined') return 'alethical://confirm?auth_action=confirm';
-  const url = new URL('/confirm', window.location.origin);
-  url.searchParams.set('auth_action', 'confirm');
-  if (pendingReference) url.searchParams.set('pending', pendingReference);
-  return url.toString();
+  if (!isWeb || typeof window === 'undefined') return 'alethical://confirm#auth_action=confirm';
+  return buildEmailLinkRedirectUrl(window.location.origin, 'confirm', pendingReference);
 }
 
 function resetUrl() {
-  if (!isWeb || typeof window === 'undefined') return 'alethical://reset?auth_action=reset';
-  const url = new URL('/reset', window.location.origin);
-  url.searchParams.set('auth_action', 'reset');
-  return url.toString();
+  if (!isWeb || typeof window === 'undefined') return 'alethical://reset#auth_action=reset';
+  return buildEmailLinkRedirectUrl(window.location.origin, 'reset');
 }
 
 function restoreScrollPosition(scrollY?: number) {
@@ -123,6 +129,7 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
     accessToken,
     authError,
     authErrorKind,
+    dismissAuthError,
     signInWithGoogle,
     signInWithPassword,
     createAccount,
@@ -153,12 +160,13 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
   );
 
   const close = useCallback(() => {
+    dismissAuthError();
     signInAttemptGate.reset();
     pendingRequest.current = null;
     clearPendingSignIn();
     dispatch({ type: 'close' });
     setBusyAction(null);
-  }, [signInAttemptGate]);
+  }, [dismissAuthError, signInAttemptGate]);
 
   const ensurePendingReference = useCallback(async (completion: 'ordinary' | 'email-link') => {
     const existing = pendingRequest.current;
@@ -233,7 +241,11 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
       try {
         await ensurePendingReference('ordinary');
         const result = await signInWithPassword(email, password);
-        if (!result.ok) return result;
+        if (!result.ok) {
+          const outcome = dedicatedSignInOutcome(result.error.kind);
+          if (outcome) dispatch({ type: 'fail', kind: outcome });
+          return result;
+        }
         return { ok: true };
       } finally {
         setBusyAction(null);
@@ -248,7 +260,11 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
       try {
         const pendingReference = await ensurePendingReference('email-link');
         const result = await createAccount(email, password, confirmationUrl(pendingReference));
-        if (!result.ok) return result;
+        if (!result.ok) {
+          const outcome = dedicatedSignInOutcome(result.error.kind);
+          if (outcome) dispatch({ type: 'fail', kind: outcome });
+          return result;
+        }
         return { ok: true };
       } catch {
         return {
@@ -321,15 +337,37 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
       });
   }, [accessToken, completeOrdinaryPending, isSignedIn, signInAttemptGate]);
 
-  // A failure we can see live: the native Google sheet being dismissed, or
-  // Supabase refusing before any redirect happens.
+  // A provider result can arrive before a redirect, after a full-page return,
+  // or when an old account is found during an ordinary read. Serious account
+  // results always open their dedicated screen; a request failure reopens only
+  // when a sign-in request was in progress.
   useEffect(() => {
-    if (authError && state.status === 'connecting') {
-      signInAttemptGate.reset();
-      setBusyAction(null);
-      dispatch({ type: 'fail', kind: authErrorKind ?? 'failed' });
+    if (!authError) return;
+    const kind = authErrorKind ?? 'failed';
+    if (kind === 'cancelled') {
+      if (state.status === 'connecting') close();
+      return;
     }
-  }, [authError, authErrorKind, signInAttemptGate, state.status]);
+    const serious = dedicatedSignInOutcome(kind);
+    const request = pendingRequest.current;
+    if (!serious && state.status !== 'connecting' && !request) return;
+    if (state.status === 'error' && state.errorKind === kind) return;
+    signInAttemptGate.reset();
+    setBusyAction(null);
+    if (state.open) {
+      dispatch({ type: 'fail', kind });
+    } else {
+      dispatch({ type: 'reopenWithError', request: request ?? { intent: 'nav' }, kind });
+    }
+  }, [
+    authError,
+    authErrorKind,
+    close,
+    signInAttemptGate,
+    state.errorKind,
+    state.open,
+    state.status,
+  ]);
 
   // The web return trip: Google sends failures back as URL params on the page we
   // asked it to return to. Reopen the dialog where it left off, then take the
@@ -350,6 +388,10 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
     signInAttemptGate.reset();
     setBusyAction(null);
     const pending = pendingRequest.current;
+    if (signInErrorKind(failure.code) === 'cancelled') {
+      close();
+      return;
+    }
     pendingRequest.current = null;
     clearPendingSignIn();
     dispatch({
@@ -357,7 +399,7 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
       request: pending ?? { intent: 'nav' },
       kind: signInErrorKind(failure.code),
     });
-  }, [isLoading, isSignedIn, signInAttemptGate]);
+  }, [close, isLoading, isSignedIn, signInAttemptGate]);
 
   const value = useMemo(() => ({ openSignIn }), [openSignIn]);
 
@@ -376,6 +418,7 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
         billCode={state.billCode}
         initialScreen={initialScreen}
         errorMessage={state.errorKind ? SIGN_IN_ERROR_MESSAGES[state.errorKind] : null}
+        errorKind={state.errorKind}
         busyAction={busyAction}
         emailPasswordEnabled={EMAIL_PASSWORD_ENABLED}
         resendWaitSeconds={RESEND_WAIT_SECONDS}
@@ -385,6 +428,21 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
         onCreateAccount={onCreateAccount}
         onResendConfirmation={onResendConfirmation}
         onForgotPassword={onForgotPassword}
+        onBackFromOutcome={() => {
+          dismissAuthError();
+          dispatch({
+            type: 'open',
+            request: {
+              intent: state.intent,
+              returnTo: state.returnTo,
+              billId: state.billId,
+              billCode: state.billCode,
+              scrollY: state.scrollY,
+              pendingReference: state.pendingReference,
+              pendingCompletion: state.pendingCompletion,
+            },
+          });
+        }}
       />
     </SignInModalContext.Provider>
   );

@@ -1,5 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
-import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import {
@@ -8,6 +16,9 @@ import {
   validatePassword,
   validatePasswordMatch,
 } from '../../lib/auth/rev9Auth';
+import { passwordMethodCopy, type PasswordMethodCopy } from '../../lib/auth/passwordMethod';
+import { clearSignedInAuthDrafts } from '../../lib/auth/signOutCleanup';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { theme as t } from '../../theme/tokens';
 import { useAuth } from '../../providers/AuthProvider';
 import { FormError } from './FormError';
@@ -23,6 +34,8 @@ import { SignInContainer } from './SignInContainer';
 
 const isWeb = Platform.OS === 'web';
 const emailPasswordEnabled = process.env.EXPO_PUBLIC_EMAIL_PASSWORD_SIGN_IN_ENABLED === 'true';
+const SIGN_OUT_FAILURE = 'We couldn’t sign you out. Check your connection and try again.';
+const OTHER_DEVICE_NOTE = 'You may still be signed in on other devices';
 
 function displayName(name: string | undefined, email: string | undefined) {
   const trimmed = (name ?? '').trim();
@@ -113,8 +126,16 @@ function QuietButton({
   );
 }
 
-export function SetPasswordDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { setPassword } = useAuth();
+export function SetPasswordDialog({
+  open,
+  onClose,
+  onDone = onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onDone?: () => void;
+}) {
+  const { setPassword, user } = useAuth();
   const [password, setPasswordValue] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [passwordError, setPasswordError] = useState<string | undefined>();
@@ -122,6 +143,11 @@ export function SetPasswordDialog({ open, onClose }: { open: boolean; onClose: (
   const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
+  const currentCopy = useMemo(
+    () => passwordMethodCopy(user?.signInMethods ?? null, user?.email ?? 'your email'),
+    [user?.email, user?.signInMethods?.google, user?.signInMethods?.password],
+  );
+  const [flowCopy, setFlowCopy] = useState<PasswordMethodCopy>(currentCopy);
   const passwordRef = useRef<any>(null);
   const confirmationRef = useRef<any>(null);
   const requestGate = useRef(createValidRequestGate()).current;
@@ -131,6 +157,11 @@ export function SetPasswordDialog({ open, onClose }: { open: boolean; onClose: (
     if (!open) {
       wasOpen.current = false;
       requestGate.reset();
+      setPasswordValue('');
+      setConfirmation('');
+      setPasswordError(undefined);
+      setConfirmationError(undefined);
+      setFormError(null);
       return;
     }
     if (wasOpen.current) return;
@@ -142,7 +173,8 @@ export function SetPasswordDialog({ open, onClose }: { open: boolean; onClose: (
     setFormError(null);
     setBusy(false);
     setSaved(false);
-  }, [open, requestGate]);
+    setFlowCopy(currentCopy);
+  }, [currentCopy, open, requestGate]);
 
   const save = async () => {
     const nextPasswordError = validatePassword(password) ?? undefined;
@@ -187,12 +219,8 @@ export function SetPasswordDialog({ open, onClose }: { open: boolean; onClose: (
   return (
     <SignInContainer
       open
-      title={saved ? 'Password saved' : 'Set or change password'}
-      description={
-        saved
-          ? 'You can now sign in with your email or with Google. It’s the same Alethical account.'
-          : 'Use a password with this email as another way to sign in. It keeps the same Alethical account.'
-      }
+      title={saved ? flowCopy.doneTitle : flowCopy.title}
+      description={saved ? flowCopy.doneDescription : flowCopy.description}
       icon={
         <View style={[styles.passwordTile, saved && styles.passwordTileDone]}>
           <PasswordIcon
@@ -205,7 +233,7 @@ export function SetPasswordDialog({ open, onClose }: { open: boolean; onClose: (
       onClose={busy ? undefined : onClose}
     >
       {saved ? (
-        <LoadingButton label="Done" busyLabel="Done" onPress={onClose} />
+        <LoadingButton label="Done" busyLabel="Done" onPress={onDone} />
       ) : (
         <>
           {formError ? (
@@ -275,6 +303,20 @@ function ChevronIcon() {
   );
 }
 
+function ChevronRightIcon() {
+  return (
+    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <Path
+        d="M9 5 L16 12 L9 19"
+        stroke={t.colors.text.faint}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
 function Avatar({ label, size }: { label: string; size: number }) {
   return (
     <View style={[styles.avatar, { width: size, height: size }]}>
@@ -301,12 +343,103 @@ function Identity({ name, email, avatar }: { name: string; email: string; avatar
   );
 }
 
+type AccountSignOutState = 'idle' | 'busy' | 'failed';
+
+function useAccountSignOut(onSuccess?: () => void) {
+  const { signOut } = useAuth();
+  const [state, setState] = useState<AccountSignOutState>('idle');
+  const locked = useRef(false);
+
+  const press = async () => {
+    if (locked.current) return;
+    locked.current = true;
+    setState('busy');
+    try {
+      const result = await signOut();
+      if (result.ok) {
+        clearSignedInAuthDrafts();
+        onSuccess?.();
+        return;
+      }
+    } catch {
+      // The one public failure below covers both provider and connection errors.
+    }
+    locked.current = false;
+    setState('failed');
+  };
+
+  return {
+    state,
+    label: state === 'busy' ? 'Signing out…' : state === 'failed' ? 'Try again' : 'Sign out',
+    press,
+  };
+}
+
+function DesktopSignOut({ flow }: { flow: ReturnType<typeof useAccountSignOut> }) {
+  const reduceMotion = useReducedMotion();
+  return (
+    <>
+      {flow.state === 'failed' ? (
+        <View style={styles.desktopSignOutError}>
+          <FormError variant="banner" message={SIGN_OUT_FAILURE} />
+        </View>
+      ) : null}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ busy: flow.state === 'busy', disabled: flow.state === 'busy' }}
+        aria-busy={flow.state === 'busy' || undefined}
+        aria-disabled={flow.state === 'busy' || undefined}
+        onPress={() => void flow.press()}
+        style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
+      >
+        {flow.state === 'busy' && !reduceMotion ? (
+          <ActivityIndicator size="small" color={t.colors.brand.forest} />
+        ) : (
+          <SignOutIcon color={t.colors.text.faint} />
+        )}
+        <Text style={styles.menuItemText}>{flow.label}</Text>
+      </Pressable>
+      <Text style={styles.desktopSignOutNote}>{OTHER_DEVICE_NOTE}</Text>
+    </>
+  );
+}
+
+function PhoneSignOut({ flow }: { flow: ReturnType<typeof useAccountSignOut> }) {
+  const reduceMotion = useReducedMotion();
+  return (
+    <>
+      {flow.state === 'failed' ? (
+        <View style={styles.phoneSignOutError}>
+          <FormError variant="banner" message={SIGN_OUT_FAILURE} />
+        </View>
+      ) : null}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ busy: flow.state === 'busy', disabled: flow.state === 'busy' }}
+        aria-busy={flow.state === 'busy' || undefined}
+        aria-disabled={flow.state === 'busy' || undefined}
+        onPress={() => void flow.press()}
+        style={({ pressed }) => [styles.sheetButton, pressed && styles.sheetButtonPressed]}
+      >
+        {flow.state === 'busy' && !reduceMotion ? (
+          <ActivityIndicator size="small" color={t.colors.brand.forest} />
+        ) : (
+          <SignOutIcon color={t.colors.text.primary} />
+        )}
+        <Text style={styles.sheetButtonText}>{flow.label}</Text>
+      </Pressable>
+      <Text style={styles.phoneSignOutNote}>{OTHER_DEVICE_NOTE}</Text>
+    </>
+  );
+}
+
 /** Desktop top nav: avatar + first name + chevron, opening a right-aligned menu. */
 export function AccountNavButton() {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const wrapRef = useRef<View>(null);
+  const signOutFlow = useAccountSignOut();
 
   // Any click outside the button + panel closes the menu, matching how the nav's
   // own dropdowns behave (a full-screen overlay would swallow the panel's rows).
@@ -316,10 +449,11 @@ export function AccountNavButton() {
       const node = wrapRef.current as unknown as HTMLElement | null;
       const target = event.target as Node | null;
       if (node && target && node.contains(target)) return;
+      if (signOutFlow.state === 'busy') return;
       setOpen(false);
     };
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false);
+      if (event.key === 'Escape' && signOutFlow.state !== 'busy') setOpen(false);
     };
     document.addEventListener('pointerdown', handlePointerDown, true);
     document.addEventListener('keydown', handleKeyDown, true);
@@ -327,10 +461,11 @@ export function AccountNavButton() {
       document.removeEventListener('pointerdown', handlePointerDown, true);
       document.removeEventListener('keydown', handleKeyDown, true);
     };
-  }, [open]);
+  }, [open, signOutFlow.state]);
 
   const name = displayName(user?.name, user?.email);
   const firstName = name.split(' ')[0];
+  const passwordCopy = passwordMethodCopy(user?.signInMethods ?? null, user?.email ?? 'your email');
 
   return (
     <>
@@ -358,43 +493,46 @@ export function AccountNavButton() {
             </View>
             <View style={styles.menuDivider} />
             {emailPasswordEnabled ? (
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => {
-                  setOpen(false);
-                  setPasswordOpen(true);
-                }}
-                style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
-              >
-                <PasswordIcon color={t.colors.text.faint} />
-                <Text style={styles.menuItemText}>Set or change password</Text>
-              </Pressable>
+              <>
+                <Pressable
+                  accessibilityRole="button"
+                  onPress={() => {
+                    setOpen(false);
+                    setPasswordOpen(true);
+                  }}
+                  style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
+                >
+                  <PasswordIcon color={t.colors.text.faint} />
+                  <Text style={styles.menuItemText}>{passwordCopy.rowLabel}</Text>
+                </Pressable>
+                <View style={styles.menuDivider} />
+              </>
             ) : null}
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => {
-                setOpen(false);
-                void signOut();
-              }}
-              style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
-            >
-              <SignOutIcon color={t.colors.text.faint} />
-              <Text style={styles.menuItemText}>Sign out</Text>
-            </Pressable>
+            <DesktopSignOut flow={signOutFlow} />
           </View>
         ) : null}
       </View>
-      <SetPasswordDialog open={passwordOpen} onClose={() => setPasswordOpen(false)} />
+      <SetPasswordDialog
+        open={passwordOpen}
+        onClose={() => setPasswordOpen(false)}
+        onDone={() => {
+          setPasswordOpen(false);
+          setOpen(true);
+        }}
+      />
     </>
   );
 }
 
 /** Phone top bar: a 44x44 avatar target that opens the account sheet. */
 export function AccountAvatarButton() {
-  const { user, signOut } = useAuth();
+  const reduceMotion = useReducedMotion();
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const name = displayName(user?.name, user?.email);
+  const passwordCopy = passwordMethodCopy(user?.signInMethods ?? null, user?.email ?? 'your email');
+  const signOutFlow = useAccountSignOut();
 
   return (
     <>
@@ -408,11 +546,19 @@ export function AccountAvatarButton() {
       >
         <Avatar label={name} size={34} />
       </Pressable>
-      <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
+      <Modal
+        visible={open}
+        transparent
+        animationType={reduceMotion ? 'none' : 'slide'}
+        onRequestClose={() => {
+          if (signOutFlow.state !== 'busy') setOpen(false);
+        }}
+      >
         <View style={styles.sheetScrim}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Close account menu"
+            disabled={signOutFlow.state === 'busy'}
             onPress={() => setOpen(false)}
             style={StyleSheet.absoluteFill}
           />
@@ -431,52 +577,40 @@ export function AccountAvatarButton() {
                   setOpen(false);
                   setPasswordOpen(true);
                 }}
-                style={({ pressed }) => [styles.sheetButton, pressed && styles.sheetButtonPressed]}
+                style={({ pressed }) => [
+                  styles.sheetPasswordButton,
+                  pressed && styles.sheetButtonPressed,
+                ]}
               >
                 <PasswordIcon color={t.colors.text.primary} />
-                <Text style={styles.sheetButtonText}>Set or change password</Text>
+                <Text style={[styles.sheetButtonText, styles.sheetPasswordText]}>
+                  {passwordCopy.rowLabel}
+                </Text>
+                <ChevronRightIcon />
               </Pressable>
             ) : null}
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => {
-                setOpen(false);
-                void signOut();
-              }}
-              style={({ pressed }) => [styles.sheetButton, pressed && styles.sheetButtonPressed]}
-            >
-              <SignOutIcon color={t.colors.text.primary} />
-              <Text style={styles.sheetButtonText}>Sign out</Text>
-            </Pressable>
+            <PhoneSignOut flow={signOutFlow} />
           </View>
         </View>
       </Modal>
-      <SetPasswordDialog open={passwordOpen} onClose={() => setPasswordOpen(false)} />
+      <SetPasswordDialog
+        open={passwordOpen}
+        onClose={() => setPasswordOpen(false)}
+        onDone={() => {
+          setPasswordOpen(false);
+          setOpen(true);
+        }}
+      />
     </>
   );
 }
 
-/** Phone drawer footer: who you are, and a way out. */
-export function AccountDrawerRow({ onSignedOut }: { onSignedOut?: () => void }) {
-  const { user, signOut } = useAuth();
+/** Phone drawer footer: identity only. Account actions live in the account sheet. */
+export function AccountDrawerRow() {
+  const { user } = useAuth();
   const name = displayName(user?.name, user?.email);
 
-  return (
-    <View>
-      <Identity name={name} email={user?.email ?? ''} avatar={44} />
-      <Pressable
-        accessibilityRole="button"
-        onPress={() => {
-          onSignedOut?.();
-          void signOut();
-        }}
-        style={({ pressed }) => [styles.drawerSignOut, pressed && styles.drawerSignOutPressed]}
-      >
-        <SignOutIcon color={t.colors.text.faint} />
-        <Text style={styles.drawerSignOutText}>Sign out</Text>
-      </Pressable>
-    </View>
-  );
+  return <Identity name={name} email={user?.email ?? ''} avatar={44} />;
 }
 
 const focusRingWeb = isWeb
@@ -516,7 +650,7 @@ const styles = StyleSheet.create({
     color: t.colors.text.muted,
   },
   // Sits above the page beneath it, the same way the nav's dropdown triggers do.
-  navWrap: { position: 'relative', zIndex: 60 },
+  navWrap: { position: 'relative', zIndex: 40 },
   navPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -541,8 +675,8 @@ const styles = StyleSheet.create({
     top: '100%',
     right: 0,
     marginTop: 10,
-    width: 268,
-    zIndex: 60,
+    width: 288,
+    zIndex: 1,
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
     borderColor: t.colors.alpha.ink10,
@@ -556,8 +690,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    paddingVertical: 13,
-    paddingHorizontal: 15,
+    paddingTop: 13,
+    paddingRight: 15,
+    paddingBottom: 13,
+    paddingLeft: 12,
   },
   menuItemPressed: { backgroundColor: t.colors.surfaces.s300 },
   menuItemText: {
@@ -565,6 +701,17 @@ const styles = StyleSheet.create({
     fontSize: t.fontSizes.small,
     fontWeight: t.fontWeights.semibold,
     color: t.colors.text.primary,
+  },
+  desktopSignOutError: { marginTop: 12, marginHorizontal: 15 },
+  desktopSignOutNote: {
+    paddingTop: 2,
+    paddingRight: 15,
+    paddingBottom: 14,
+    paddingLeft: 15,
+    fontFamily: t.typography.body,
+    fontSize: 12,
+    lineHeight: 17,
+    color: t.colors.text.faint,
   },
   passwordTile: {
     width: 52,
@@ -631,6 +778,20 @@ const styles = StyleSheet.create({
     borderRadius: 13,
     paddingVertical: 16,
   },
+  sheetPasswordButton: {
+    marginTop: 18,
+    width: '100%',
+    minHeight: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: t.colors.surfaces.base,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: t.colors.alpha.ink08,
+    paddingHorizontal: 2,
+  },
+  sheetPasswordText: { flex: 1, textAlign: 'left' },
   sheetButtonPressed: { backgroundColor: t.colors.surfaces.s300 },
   sheetButtonText: {
     fontFamily: t.typography.ui,
@@ -638,20 +799,12 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.semibold,
     color: t.colors.text.primary,
   },
-  drawerSignOut: {
-    marginTop: 12,
-    minHeight: 44,
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 8,
-  },
-  drawerSignOutPressed: { opacity: 0.7 },
-  drawerSignOutText: {
-    fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.bodyLg,
-    fontWeight: t.fontWeights.semibold,
-    color: t.colors.text.primary,
+  phoneSignOutError: { marginTop: 16 },
+  phoneSignOutNote: {
+    marginTop: 10,
+    fontFamily: t.typography.body,
+    fontSize: 13.5,
+    lineHeight: 20,
+    color: t.colors.text.faint,
   },
 });

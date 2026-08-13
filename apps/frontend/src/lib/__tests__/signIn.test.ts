@@ -12,10 +12,20 @@ import {
   parseAuthError,
   signInButtonLabel,
   signInCopy,
+  dedicatedSignInOutcome,
   signInErrorKind,
   signInReducer,
   urlWithoutAuthError,
 } from '../signIn';
+
+describe('serious account outcomes', () => {
+  it('routes only deactivated and unsafe-match results to dedicated screens', () => {
+    expect(dedicatedSignInOutcome('deactivated')).toBe('deactivated');
+    expect(dedicatedSignInOutcome('match-failed')).toBe('match-failed');
+    expect(dedicatedSignInOutcome('request-failure')).toBeNull();
+    expect(dedicatedSignInOutcome('bad-credentials')).toBeNull();
+  });
+});
 
 const ALL_INTENTS = Object.keys(SIGN_IN_INTENTS) as SignInIntent[];
 
@@ -37,17 +47,13 @@ describe('intent → copy', () => {
   });
 
   it('uses the shorter nav subcopy', () => {
-    expect(signInCopy('nav').subcopy).toBe(
-      'Track bills across sessions and pick up where you left off. Your tracked list is saved to your account.',
-    );
+    expect(signInCopy('nav').subcopy).toBe('Bills you track are saved to your account.');
   });
 
   it('uses the approved Track-intent copy', () => {
     const { headline, subcopy } = signInCopy('track', 'HF 4138');
     expect(headline).toBe('Sign in to track this bill');
-    expect(subcopy).toBe(
-      'Track bills across sessions and pick up where you left off. Your tracked list is saved to your account.',
-    );
+    expect(subcopy).toBe('Bills you track are saved to your account.');
   });
 
   it('uses the same Track-intent copy when only the id is known', () => {
@@ -59,6 +65,14 @@ describe('intent → copy', () => {
       expect(signInCopy(intent).headline.length).toBeGreaterThan(0);
       expect(signInCopy(intent).subcopy.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('shared Google failure copy', () => {
+  it('uses the same connection failure as every other sign-in request', () => {
+    expect(SIGN_IN_ERROR_MESSAGES.failed).toBe(
+      'We couldn’t complete that request. Check your connection and try again.',
+    );
   });
 });
 
@@ -105,7 +119,9 @@ describe('no sign-in copy promises a notification', () => {
   });
 
   it('states the payoff we can actually deliver: a saved list', () => {
-    expect(signInCopy('track', 'HF 4138').subcopy.toLowerCase()).toContain('tracked list');
+    expect(signInCopy('track', 'HF 4138').subcopy).toBe(
+      'Bills you track are saved to your account.',
+    );
   });
 });
 

@@ -190,6 +190,10 @@ describe('rendered head', () => {
 describe('the shipped page shell', () => {
   const template = readFileSync(resolve(__dirname, '../../../public/index.html'), 'utf8');
 
+  it('lets the phone keyboard resize sign-in pages instead of covering the action', () => {
+    expect(template).toContain('interactive-widget=resizes-content');
+  });
+
   it('carries the home page head the builders generate', () => {
     const start = template.indexOf(HEAD_MARKER_START) + HEAD_MARKER_START.length;
     const end = template.indexOf(HEAD_MARKER_END);

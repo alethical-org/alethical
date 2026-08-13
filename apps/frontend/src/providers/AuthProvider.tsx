@@ -22,9 +22,13 @@ import {
   validateAlethicalSession,
 } from '../lib/auth/operations';
 import { normalizeEmail } from '../lib/auth/rev9Auth';
+import {
+  signOutLocallyAndVerify,
+  validationFailureRevokesSession,
+} from '../lib/auth/sessionSafety';
 import { restoreAuthSession } from '../lib/authRestore';
 import { SIGN_IN_ERROR_MESSAGES, SignInErrorKind, signInErrorKind } from '../lib/signIn';
-import { isSupabaseConfigured, supabase } from '../lib/supabase';
+import { clearStoredSupabaseSession, isSupabaseConfigured, supabase } from '../lib/supabase';
 
 interface AuthContextValue {
   isLoading: boolean;
@@ -34,6 +38,7 @@ interface AuthContextValue {
   accessToken: string | null;
   authError: string | null;
   authErrorKind: SignInErrorKind | null;
+  dismissAuthError: () => void;
   signInWithGoogle: (returnTo?: string) => Promise<AuthOperationResult<unknown>>;
   signInWithPassword: (email: string, password: string) => Promise<AuthOperationResult<unknown>>;
   createAccount: (
@@ -111,7 +116,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
         setIsLoading(false);
         return result;
       }
-      await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
+      if (validationFailureRevokesSession(result.error.kind)) {
+        await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
+        await clearStoredSupabaseSession();
+      }
       setSession(null);
       setUser(null);
       failWith(result.error.message, publicErrorKind(result.error.kind));
@@ -126,6 +134,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       onAccountDeactivated(() => {
         validationGeneration.current += 1;
         void supabase.auth.signOut({ scope: 'local' }).finally(() => {
+          void clearStoredSupabaseSession();
           setSession(null);
           setUser(null);
           failWith(SIGN_IN_ERROR_MESSAGES.deactivated, 'deactivated');
@@ -177,6 +186,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       accessToken: session?.access_token ?? null,
       authError,
       authErrorKind,
+      dismissAuthError: clearAuthError,
       signInWithGoogle: async (returnTo?: string) => {
         clearAuthError();
         if (!isSupabaseConfigured) {
@@ -269,15 +279,21 @@ export function AuthProvider({ children }: PropsWithChildren) {
       },
       setPassword: async (password: string) => {
         const { error } = await supabase.auth.updateUser({ password });
-        return error ? authFailure(error, user?.email) : authSuccess();
+        if (error) return authFailure(error, user?.email);
+        if (user?.signInMethods) {
+          setUser({
+            ...user,
+            signInMethods: { ...user.signInMethods, password: true },
+          });
+        }
+        return authSuccess();
       },
       signOut: async () => {
         clearAuthError();
         validationGeneration.current += 1;
-        const { error } = await supabase.auth.signOut({ scope: 'local' });
-        const restored = error ? null : await supabase.auth.getSession();
-        if (error || restored?.error || restored?.data.session) {
-          const failure = authFailure(error ?? restored?.error ?? null);
+        const result = await signOutLocallyAndVerify(supabase.auth);
+        if (!result.signedOut) {
+          const failure = authFailure(result.error);
           failWith(SIGN_IN_ERROR_MESSAGES.failed);
           return failure;
         }
