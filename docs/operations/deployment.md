@@ -149,7 +149,7 @@ Required Vercel environment variables:
 EXPO_PUBLIC_API_URL=https://alethical-api-production.up.railway.app
 EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
-EXPO_PUBLIC_EMAIL_PASSWORD_SIGN_IN_ENABLED=false
+EXPO_PUBLIC_EMAIL_PASSWORD_SIGN_IN_ENABLED=true
 EXPO_PUBLIC_AUTH_RESEND_WAIT_SECONDS=60
 ```
 
@@ -157,10 +157,10 @@ EXPO_PUBLIC_AUTH_RESEND_WAIT_SECONDS=60
 It controls the visible wait after a confirmation or reset email. Read the project setting before
 changing it; the number shown in a design file is not a product setting.
 
-Keep `EXPO_PUBLIC_EMAIL_PASSWORD_SIGN_IN_ENABLED=false` until Supabase custom SMTP is connected
-to Resend and confirmation, resend, reset, and password-change emails have all arrived. Change it
-to `true` only in the same release that passes those checks. Google remains available while it is
-false.
+Keep `EXPO_PUBLIC_EMAIL_PASSWORD_SIGN_IN_ENABLED=false` in a new environment until Supabase custom
+SMTP is connected to Resend and confirmation, resend, and reset emails have all arrived. Change it
+to `true` only in the same release that passes those checks. Production passed them on 13 August
+2026 and is `true`. Google remains available in either state.
 
 Set `EXPO_PUBLIC_API_URL` for both Production and Preview. Without the Preview value, the server's
 first-response text still works but the loaded preview app cannot read any record and replaces that
@@ -235,12 +235,9 @@ Read on 6 August 2026:
 | `external.anonymous_users` | `false` | No anonymous sign-in. |
 | `disable_signup` | `false` | New sign-ups allowed. |
 
-One honest limit on that reading: `mailer_autoconfirm: false` maps to "Confirm email is on"
-by Supabase's naming, where `mailer_autoconfirm: true` is the auto-confirm-without-checking
-mode. That mapping is read from the field name and the dashboard label, not proved by
-signing up with an unconfirmed address, which would mean creating an account in production.
-If anyone wants it proved rather than read, that is the test, and it needs a throwaway
-address and Eugene's say-so.
+`mailer_autoconfirm: false` was also proved through a throwaway production account on 13 August
+2026. The account could not use password sign-in until its confirmation email was opened and the
+person pressed **Confirm email**. The throwaway account was deleted after the check.
 
 The dashboard walkthrough below is kept as the way to *change* the setting, and as a
 cross-check if the endpoint above ever disagrees with it.

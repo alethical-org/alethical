@@ -109,7 +109,7 @@ Set under **Authentication** in the Alethical Supabase project. Verified 2026-08
 
 | Setting | Intended | Why |
 | --- | --- | --- |
-| Email provider | On | Supports email and password after the release flag is enabled. |
+| Email provider | On | Supports the live email and password option. |
 | Google provider | On | Keeps the existing Google sign-in. |
 | Confirm email | On | A password account cannot claim an address before proving it. |
 | Manual identity linking | Off | Matching confirmed emails use Supabase's automatic account match; no second linking flow ships. |
@@ -121,8 +121,10 @@ Set under **Authentication** in the Alethical Supabase project. Verified 2026-08
 | CAPTCHA | Off | No human-check box ships. |
 | Email confirmation template | Alethical `/confirm` link using Supabase `TokenHash` | Email scanners cannot spend the 1-use token before the reader presses Confirm email. |
 | Password reset template | Alethical `/reset` link using Supabase `TokenHash` | Opening the email reaches a safe gate before the 1-use token is spent. |
-| Password-changed security email | Off | The success page does not claim a notice was sent. Enable after custom SMTP is live. |
-| Built-in email limit | 2 emails per hour | Too small for launch. Keep email/password controls off until Resend custom SMTP is connected. |
+| Password-changed security email | Off | The MVP success page does not claim or send a separate notice. |
+| Custom SMTP through Resend | On | Alethical sends confirmation and reset messages from `ask@alethical.com`. |
+| Authentication email limit | 30 emails per hour | Supabase limits total confirmation and reset email volume. |
+| Sign-up and sign-in limit | 30 requests per 5 minutes per IP address | One internet address cannot make unlimited attempts. |
 
 ## Settings documented elsewhere
 

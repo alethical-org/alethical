@@ -67,7 +67,7 @@ must not guess them from a drawing.
 
 | Setting | Checked 13 August 2026 | Product result |
 | --- | --- | --- |
-| Email provider | On | Supabase is ready, but Alethical keeps the controls hidden until launch |
+| Email provider | On | Email and password controls are live |
 | Google provider | On | Continue with Google stays available |
 | Confirm email | On | New email accounts must prove the address |
 | Secure password change | Off | No fresh-proof code field is shipped |
@@ -79,14 +79,18 @@ must not guess them from a drawing.
 | Required character groups | None | Passphrases and spaces work |
 | Confirmation/reset link lifetime | 3,600 seconds | Expired links use the shared dead-link page |
 | Email code length | 8 digits | Alethical does not hardcode a code length |
+| Authentication email limit | 30 per hour | The project limits confirmation and reset email volume |
+| Sign-up and sign-in limit | 30 per 5 minutes per IP address | One internet address cannot make unlimited attempts |
 
 The resend wait is a release setting (`EXPO_PUBLIC_AUTH_RESEND_WAIT_SECONDS`) and must match
 Supabase Auth. The current design sample is not a source of truth.
 
-## Launch requirement
+## Live email sender
 
-Supabase's built-in sender allows only 2 authentication emails per hour and is not a production
-sender. Email sign-in is ready to launch only after the existing Resend account is connected to
-Supabase custom SMTP and a confirmation, resend, and reset email each arrive.
-Until then, `EXPO_PUBLIC_EMAIL_PASSWORD_SIGN_IN_ENABLED` stays `false`, which keeps the new email
-controls hidden while Google sign-in continues to work.
+Production uses the Alethical Resend account through Supabase custom SMTP. On 13 August 2026, a
+throwaway production account proved that confirmation, confirmation resend, password reset,
+password sign-in, and sign-out all work. The account was deleted after the check.
+
+`EXPO_PUBLIC_EMAIL_PASSWORD_SIGN_IN_ENABLED=true` makes the email controls visible in production.
+Google sign-in remains available beside them. Keep the code and example-file default `false` so a
+new environment cannot show email sign-in before its sender passes the same checks.
