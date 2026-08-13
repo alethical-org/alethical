@@ -149,7 +149,7 @@ Required Vercel environment variables:
 EXPO_PUBLIC_API_URL=https://alethical-api-production.up.railway.app
 EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
-EXPO_PUBLIC_EMAIL_PASSWORD_SIGN_IN_ENABLED=false
+EXPO_PUBLIC_EMAIL_PASSWORD_SIGN_IN_ENABLED=true
 EXPO_PUBLIC_AUTH_RESEND_WAIT_SECONDS=60
 ```
 
