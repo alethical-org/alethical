@@ -119,9 +119,9 @@ Set under **Authentication** in the Alethical Supabase project. Verified 2026-08
 | Secure password change | Off | No fresh-proof email-code field ships. |
 | Require current password | Off | The signed-in password form asks only for the new password. |
 | CAPTCHA | Off | No human-check box ships. |
-| Email confirmation template | Alethical `/confirm` link using Supabase `TokenHash` | Email scanners cannot spend the 1-use token before the reader presses Confirm email. |
-| Password reset template | Alethical `/reset` link using Supabase `TokenHash` | Opening the email reaches a safe gate before the 1-use token is spent. |
-| Password-changed security email | Off | The MVP success page does not claim or send a separate notice. |
+| Email confirmation template | Alethical `/confirm` link using Supabase `TokenHash`, with all private values after `#` | Email scanners cannot spend the 1-use token before the reader presses Confirm email, and the private values do not reach Vercel request logs. |
+| Password reset template | Alethical `/reset` link using Supabase `TokenHash`, with all private values after `#` | Opening the email reaches a safe gate before the 1-use token is spent, and the private values do not reach Vercel request logs. |
+| Password-changed security email | On | Adding or changing a password sends a warning with a direct route to Forgot password. The app does not claim delivery on its success screen. |
 | Custom SMTP through Resend | On | Alethical sends confirmation and reset messages from `ask@alethical.com`. |
 | Authentication email limit | 30 emails per hour | Supabase limits total confirmation and reset email volume. |
 | Sign-up and sign-in limit | 30 requests per 5 minutes per IP address | One internet address cannot make unlimited attempts. |
