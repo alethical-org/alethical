@@ -1,10 +1,10 @@
 """The read-path auth dependency must not write on every request (#108).
 
 `get_optional_current_user` runs as a dependency on read endpoints (GET
-/public/bills, GET /public/bills/{id}, GET /me, ...). It used to bump
-last_used_at/last_signed_in_at and db.commit() on EVERY authenticated request,
-so every signed-in GET issued a write. These tests pin the split: provisioning
-(first sign-in) still writes; a repeated authenticated read writes nothing.
+/public/bills, GET /public/bills/{id}, GET /me, ...). It used to bump the two
+identity-link timestamps and db.commit() on EVERY authenticated request, so every
+signed-in GET issued a write. These tests pin the split: provisioning a new
+identity still writes; a repeated authenticated read writes nothing.
 """
 
 from __future__ import annotations
@@ -38,11 +38,19 @@ def _read_identity(provider_subject: str):
         user = db.scalar(select(UserAccount).where(UserAccount.id == identity.user_id))
         return {
             "identity_updated_at": identity.updated_at,
-            "identity_last_used_at": identity.last_used_at,
+            "identity_linked_at": identity.linked_at,
             "user_id": user.id,
             "user_updated_at": user.updated_at,
-            "user_last_signed_in_at": user.last_signed_in_at,
+            "user_last_identity_linked_at": user.last_identity_linked_at,
         }
+
+
+def test_account_timestamp_names_describe_identity_linking():
+    """The model must not promise login activity that Alethical does not record."""
+    assert hasattr(UserAccount, "last_identity_linked_at")
+    assert not hasattr(UserAccount, "last_signed_in_at")
+    assert hasattr(AuthIdentity, "linked_at")
+    assert not hasattr(AuthIdentity, "last_used_at")
 
 
 def test_repeated_authenticated_read_does_not_write(client, auth_headers):
@@ -70,8 +78,10 @@ def test_repeated_authenticated_read_does_not_write(client, auth_headers):
     # updated_at has onupdate=func.now(), so an unchanged value proves no UPDATE.
     assert after["identity_updated_at"] == before["identity_updated_at"]
     assert after["user_updated_at"] == before["user_updated_at"]
-    assert after["identity_last_used_at"] == before["identity_last_used_at"]
-    assert after["user_last_signed_in_at"] == before["user_last_signed_in_at"]
+    assert after["identity_linked_at"] == before["identity_linked_at"]
+    assert (
+        after["user_last_identity_linked_at"] == before["user_last_identity_linked_at"]
+    )
 
 
 def test_first_sign_in_provisions_and_writes():
@@ -118,5 +128,5 @@ def test_first_sign_in_provisions_and_writes():
 
     provisioned = _read_identity(subject)
     assert provisioned is not None
-    assert provisioned["user_last_signed_in_at"] is not None
-    assert provisioned["identity_last_used_at"] is not None
+    assert provisioned["user_last_identity_linked_at"] is not None
+    assert provisioned["identity_linked_at"] is not None

@@ -45,8 +45,8 @@ recommendation with no owner:
 Policy) · [#1042](https://github.com/alethical-org/alethical/issues/1042) (drop the nine
 dead columns) · [#1043](https://github.com/alethical-org/alethical/issues/1043) (the
 unwired "active" switch) ·
-[#1045](https://github.com/alethical-org/alethical/issues/1045) (the timestamp whose name
-lies) · [#1046](https://github.com/alethical-org/alethical/issues/1046) (make production
+[#1045](https://github.com/alethical-org/alethical/issues/1045) (give the identity-link
+timestamps honest names) · [#1046](https://github.com/alethical-org/alethical/issues/1046) (make production
 logs readable, now built) · [#1047](https://github.com/alethical-org/alethical/issues/1047) (backup retention
 and the leftover test account).
 
@@ -72,8 +72,9 @@ the job that queues them is not wired into anything yet (§2.5).
 ### 2.1 The account itself
 
 **What it holds.** A display name, a switch marked "active", the moment the account was
-first created, the last time the reader opened their tracked-bills page, and — only once
-the sign-in service has confirmed it — an email address.
+first created, the most recent time it gained a new sign-in method, the last time the
+reader opened their tracked-bills page, and — only once the sign-in service has
+confirmed it — an email address.
 
 **Why "only once confirmed".** `user_account.primary_email` is the address one sign-in
 method uses to find and join an account another sign-in method already made, so it is a
@@ -121,14 +122,20 @@ All 6 accounts in production are active, and none has ever been set inactive (ch
 is left as the snapshot it says it is, but one account has been added since, so read §1
 as history rather than as today's numbers.
 
-**One timestamp does not mean what its name says.** `last_signed_in_at` reads like "the
-last time this person signed in." Since [#990](https://github.com/alethical-org/alethical/pull/990)
-merged on 5 August 2026 it is written only when an account gains a _new_ sign-in method
-— not when someone signs in, and not on any request. The values sitting in production
-today were written by the older behaviour, which updated it on every single request, so
-from today onward they are frozen and misleading. Nothing reads the column, so nothing
-is currently wrong; the moment a support question makes someone read it, it will be.
-Same story for `auth_identity.last_used_at`. Tracked as [#1045](https://github.com/alethical-org/alethical/issues/1045).
+**The 2 identity-link timestamps now say what they record.**
+`user_account.last_identity_linked_at` records when the account most recently gained a
+sign-in identity, and `auth_identity.linked_at` records when that identity was attached.
+Both are set in the same provisioning step and stay unchanged on ordinary sign-ins and
+requests. Alethical does not record login events. [Issue
+#991](https://github.com/alethical-org/alethical/issues/991) owns that work only if a
+real screen, report, or security feature later needs it.
+
+The rename kept every existing value exactly. That creates 1 known limit: values written
+before [#990](https://github.com/alethical-org/alethical/pull/990) merged on 5 August 2026
+may be the time of the last authenticated request under the old behaviour, not the true
+time the identity was linked. The original link time cannot be reconstructed. No product
+feature reads either field today, so old rows remain an explicitly limited historical
+record rather than being cleared or presented as exact.
 
 **Retention: as long as the account exists.** This row _is_ the account — everything else
 a reader has hangs off it — so it lasts exactly as long as the account does. Note that an
@@ -138,8 +145,9 @@ sign-in is matched on the Google-link row, which never looks at the email.
 ### 2.2 The link to Google
 
 **What it holds.** Which sign-in service was used, the permanent id that service gave
-us for this person, their email address as that service reported it, and when the
-address was confirmed.
+us for this person, their email address as that service reported it, when the identity
+was linked, and when the address was confirmed. The pre-5 August 2026 limit on old link
+dates is recorded in §2.1.
 
 **Why it is a separate table from the account.** So we can change how people sign in
 without rewriting the product. Today it is Google through Supabase; if that ever
@@ -525,13 +533,15 @@ in the change that adds this document.
 now read on every authenticated request, so it locks the account it claimed to lock. See
 §2.1.
 
-**Deliberately kept even though nothing reads them.** `user_account.last_signed_in_at`,
-`auth_identity.last_used_at`, and `auth_identity.email_verified_at`. Unlike a latitude
-we could recompute from a live lookup, a timestamp cannot be reconstructed after the
-fact — once you did not write it down, it is gone. All three have obvious future
-readers: answering "when did this person last use the account" (once [#1045](https://github.com/alethical-org/alethical/issues/1045) makes that true), investigating abuse, and
-knowing whether an address was ever confirmed. They keep the account's retention period.
-The naming problem in §2.1 is a separate fix.
+**Deliberately kept even though nothing reads them.**
+`user_account.last_identity_linked_at`, `auth_identity.linked_at`, and
+`auth_identity.email_verified_at`. Unlike a latitude we could recompute from a live
+lookup, a timestamp cannot be reconstructed after the fact — once you did not write it
+down, it is gone. Their honest future readers are an account's sign-in-method history,
+an abuse investigation, and proof that an address was confirmed. They keep the
+account's retention period. They do not answer when someone last signed in; [issue
+#991](https://github.com/alethical-org/alethical/issues/991) owns a separate login-event
+write path if a real product need appears.
 
 ---
 

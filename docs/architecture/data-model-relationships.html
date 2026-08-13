@@ -629,7 +629,7 @@
       user_account: {
         group: 'users',
         summary: 'Alethical application user.',
-        fields: ['id', 'display_name', 'primary_email', 'is_active', 'last_signed_in_at'],
+        fields: ['id', 'display_name', 'primary_email', 'is_active', 'last_identity_linked_at'],
         notes: ['Auth identities, tracked bills, saved places, notification prefs, and chats attach here.'],
         relations: [
           ['user_account.id', 'auth_identity.user_id', '1 to many'],
@@ -642,7 +642,7 @@
       auth_identity: {
         group: 'users',
         summary: 'External auth provider identity mapped to a user.',
-        fields: ['id', 'user_id', 'provider', 'provider_subject', 'email', 'email_verified_at', 'last_used_at'],
+        fields: ['id', 'user_id', 'provider', 'provider_subject', 'email', 'email_verified_at', 'linked_at'],
         notes: ['Created or updated from Supabase auth principal.'],
         relations: [
           ['auth_identity.user_id', 'user_account.id', 'many to 1']
