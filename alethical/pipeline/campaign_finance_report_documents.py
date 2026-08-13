@@ -360,6 +360,10 @@ def schedules_from_lines(lines: list[str]) -> ReportDocument:
     document = ReportDocument()
     document.line_count = len(lines)
     if not lines:
+        # A real reader failure, and the one case that must not be softened below. The
+        # Board serves some reports as scanned images -- filer 13481's 2025 year-end is
+        # 1.5 MB for a single page and yields no text at all -- and for those we cannot
+        # tell an empty filing from a file we could not read.
         document.errors.append("the document opened and carried no text at all")
         return document
 
@@ -408,10 +412,15 @@ def schedules_from_lines(lines: list[str]) -> ReportDocument:
                     f"schedule {code}'s non-itemized total is not money: {stripped!r}"
                 )
     close_block()
-    if not document.schedules and not document.errors:
-        document.errors.append(
-            "no schedule in this document printed an itemized and a non-itemized total"
-        )
+    # **A document with text and no schedules is a reading of zero, not an error**, and
+    # this is where an earlier version got it exactly backwards. A committee that took in
+    # and spent nothing files a report with no schedule sections at all: filer 12328's
+    # 2025 year-end prints "Sch. A1 - IND 0.00" on its own summary and carries no
+    # schedules, and the Board's totals route reports $0.00 for all 5 contributor types.
+    # Calling that a reader failure withheld **216 of 1,278** committee-years on the
+    # first full 2025 run, almost all of them committees that genuinely named nobody.
+    # Whether reading nothing is right is not a question this function can answer; the
+    # self-test answers it, by comparing that zero against figures we already trust.
     return document
 
 

@@ -306,13 +306,15 @@ def test_a_reader_that_finds_nothing_fails_rather_than_reporting_an_empty_filing
     source. So an **absent** schedule is compared against its stored figure exactly as a
     present one is, and a reader that reads nothing cannot pass its own test.
     """
-    # A document the reader found no totals in at all reports itself broken outright.
+    # A document with text and no schedules at all is a reading of zero, and the
+    # self-test is what decides whether zero is right. Here the Board says there was
+    # money, so it is not.
     empty = documents.schedules_from_lines(["Certification", "Page 1"])
     stated, errors = documents.stated_contributions(
         empty, Kind.candidate_committee, FIGURES
     )
-    assert stated is None
-    assert any("no schedule" in error for error in errors)
+    assert errors == []
+    assert stated.self_test is documents.SelfTest.failed
 
     # And the subtler one: the reader found other schedules and missed the
     # contribution blocks, so nothing looks wrong until its figures are compared.
@@ -329,6 +331,53 @@ def test_a_reader_that_finds_nothing_fails_rather_than_reporting_an_empty_filing
     assert errors == []
     assert stated.self_test is documents.SelfTest.failed
     assert "A1 - IND" in stated.self_test_detail
+
+
+def test_a_committee_that_named_nobody_files_a_report_with_no_schedules_at_all() -> (
+    None
+):
+    """216 of 1,278 committee-years were withheld for this on the first full 2025 run.
+
+    A committee that took in and spent nothing files a report with no schedule sections:
+    filer 12328's 2025 year-end prints "Sch. A1 - IND 0.00" on its own summary page and
+    carries no schedules, and the Board's totals route reports $0.00 for all 5
+    contributor types. Reading nothing there is the correct reading, and only the
+    self-test can say so.
+    """
+    document = documents.schedules_from_lines(
+        [
+            "Campaign Finance And Public Disclosure Board",
+            "Committee Transaction Summary",
+            "2 Individual Contributions Sch. A1 - IND 0.00 0.00 0.00",
+            "3 Lobbyist Contributions Sch. A1 - LOB 0.00 0.00 0.00",
+            "Certification",
+        ]
+    )
+    stated, errors = documents.stated_contributions(
+        document,
+        Kind.candidate_committee,
+        dict.fromkeys(FIGURES, Decimal("0")),
+    )
+    assert errors == []
+    assert stated.self_test is documents.SelfTest.passed
+    assert stated.itemized == Decimal("0")
+
+
+def test_a_document_we_could_not_read_at_all_is_never_a_reading_of_zero() -> None:
+    """The one case that must not be softened.
+
+    The Board serves some reports as scanned images -- filer 13481's 2025 year-end is
+    1.5 MB for a single page and yields no text -- and there we cannot tell an empty
+    filing from a file we failed to read.
+    """
+    document = documents.schedules_from_lines([])
+    stated, errors = documents.stated_contributions(
+        document,
+        Kind.candidate_committee,
+        dict.fromkeys(FIGURES, Decimal("0")),
+    )
+    assert stated is None
+    assert any("no text at all" in error for error in errors)
 
 
 def test_an_absent_schedule_is_a_real_zero_when_the_board_agrees_it_is() -> None:
