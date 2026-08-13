@@ -660,6 +660,7 @@ def build_legislator_index(
             LegislatorServicePeriod.chamber_id == chamber_id,
             LegislatorServicePeriod.session_id == session_id,
         )
+        .distinct()
     ).all()
     index: dict[tuple[str, tuple[str, ...]], list[Any]] = {}
     for row in rows:
