@@ -498,14 +498,45 @@ would otherwise produce a confident wrong answer:
    are a part of the year rather than the year: filer 19207's 2025 figure is $0.00
    against $7,000.00 of real itemized payments, all of them in the special series.
 
-**One half is still not run, and it is the dangerous half.** Recorded as
-`reported_itemized_split_matches_ours` with its reason and
-[#1433](https://github.com/alethical-org/alethical/issues/1433). What runs today
-catches our rows being *too big* for a committee's own total. Nothing yet catches them
-being too *small*, because a payment we are missing does not vanish — it moves into the
-derived "not itemized" figure and reads as ordinary small-donor money. Seeing it needs
-each filing's own stated itemized subtotal, which the Board publishes only inside the
-report document.
+**The dangerous half now runs too, as a separate command**
+([#1433](https://github.com/alethical-org/alethical/issues/1433)). The checks above
+catch our rows being *too big* for a committee's own total. A payment we are *missing*
+is invisible to them, because it still fits inside the total: it moves into the derived
+"not itemized" figure and reads as ordinary small-donor money. Seeing it needs each
+filing's own stated itemized subtotal, which the Board publishes only inside the report
+document — one document per committee per year, so it is its own pass rather than part
+of the download:
+
+```bash
+just check-campaign-finance-stated-split production false 2025
+```
+
+Four things about it that are not obvious:
+
+- **It never blocks a release.** Eugene ruled on 12 Aug 2026 that where 2 of
+  Minnesota's own publications disagree and we cannot derive the truth, we show both
+  figures and say plainly that they disagree. So it answers per committee-year: one
+  committee whose figures contradict each other withholds its own split while every
+  other committee publishes normally. The loader's check reports `reported` rather than
+  `failed` for exactly that reason, and names the committee-years so a page can
+  withhold those and only those.
+- **It cannot cover everything, and it says so.** The Board serves no report document
+  before 2023, serves none for several report kinds inside the years it does cover, and
+  answers HTTP 200 to every one of those refusals. Those committee-years read
+  `not_checked`, never passed.
+- **The reader proves itself before it may accuse anyone.** Every contributor-type
+  figure the Board's totals route publishes equals the matching schedule's itemized plus
+  non-itemized cash, so the reader is checked against numbers we already trust. When it
+  fails, the committee-year reads `reader_unproven`, which says our reader is wrong and
+  makes no claim about the data.
+- **Nothing is rebuilt from the document.** Two subtotals are read per schedule and the
+  payments themselves still come from the bulk download
+  ([`campaign-finance-system-design.md`](../architecture/campaign-finance-system-design.md)
+  §2.3).
+
+Until that command runs over a record set, its check reports "not run" and names the
+command, which is the honest state of a database holding payments nobody has compared
+against their own filings.
 
 **A person-confirmed legislator-committee link is re-checked on every run too**
 ([#1398](https://github.com/alethical-org/alethical/issues/1398)). A person confirms

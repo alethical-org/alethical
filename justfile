@@ -171,6 +171,18 @@ mirror-raw-files target="production" dry="true":
 load-campaign-finance-filings target="local" dry="true" filers="":
   uv run python scripts/load_campaign_finance_filings.py --target {{target}} {{ if dry == "true" { "--dry-run" } else { "" } }} {{ if filers != "" { "--only-filers " + filers } else { "" } }}
 
+# Read each committee's own filed money report and compare the donations it says it
+# named against the donations we actually hold (#1433). This is the ONLY way to see
+# that we are MISSING donations Minnesota named -- the other checks catch our records
+# being too big, and a missing donation still fits inside a committee's total, so it
+# lands in the "donors too small to name" figure and becomes a false claim under a
+# real politician's name. It never blocks a release: it answers per committee-year.
+# ONE YEAR IS ABOUT 1,300 REQUESTS AND ROUGHLY 20 MINUTES, so check a few first:
+#   just check-campaign-finance-stated-split local true 2025 "18488 20010"
+#   just check-campaign-finance-stated-split production false 2025
+check-campaign-finance-stated-split target="local" dry="true" years="" filers="":
+  uv run python scripts/check_campaign_finance_stated_split.py --target {{target}} {{ if dry == "true" { "--dry-run" } else { "" } }} {{ if years != "" { "--years " + years } else { "" } }} {{ if filers != "" { "--only-filers " + filers } else { "" } }}
+
 # Reconcile current legislator membership against the official roster PDF.
 # Dry-run by default (no writes); pass apply=true to deactivate departed members.
 # Set ALETHICAL_DATABASE_TARGET=production to run against prod.
