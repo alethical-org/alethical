@@ -1,3 +1,5 @@
+import type { LinkState, MoneyBlockState, SplitState } from '../lib/legislatorCampaignMoney';
+
 export type Chamber = 'House' | 'Senate';
 export type Party = 'DFL' | 'R' | 'I';
 export type ChatSubjectType = 'bill' | 'legislator' | 'general';
@@ -554,4 +556,64 @@ export interface AskCitation {
   sectionTopic: string;
   /** Whether this exact section still exists in the bill's current version. */
   sectionAvailable?: boolean;
+}
+
+/**
+ * One committee's campaign money for one year, as
+ * `GET /api/v1/legislators/{id}/campaign-finance` reports it (#1329).
+ *
+ * Amounts arrive as strings, deliberately. They are decimals in Postgres and JSON
+ * numbers are doubles, so parsing every one into a float here would round cents on
+ * figures in the millions — and a figure a reader cannot check against Minnesota's
+ * own filing is the one thing this page cannot ship
+ * (`.claude/rules/grounded-answers.md` rule 12).
+ */
+export interface CampaignCommitteeMoney {
+  registrationNumber: string;
+  /** The committee's name as the reviewer read it when they confirmed the link. */
+  committeeNameAsReviewed: string;
+  /** The name the current download carries. Can legitimately differ from the above:
+   *  the Board publishes a committee's current name against all of its history. */
+  committeeName: string | null;
+  /** Which office the committee is for. Keeps a race for another office off this
+   *  page, which no filing supports putting here. */
+  office: string | null;
+  moneyIn: {
+    state: MoneyBlockState;
+    itemizedContributionTotal: string | null;
+    itemizedContributionPayments: number | null;
+    otherReceipts: { receiptType: string; total: string; payments: number }[];
+    sourceUrl: string | null;
+  } | null;
+  moneyOut: {
+    state: MoneyBlockState;
+    itemizedPaymentTotal: string | null;
+    itemizedPayments: number | null;
+    byType: { type: string; total: string; payments: number }[];
+    sourceUrl: string | null;
+  } | null;
+  /** How much of the year's money carried a donor's name and how much did not.
+   *  `state` decides whether the numbers may be drawn at all. */
+  split: {
+    state: SplitState;
+    reportedTotal: string | null;
+    reportedThrough: string | null;
+    namedTotal: string | null;
+    namedPayments: number | null;
+    unnamedTotal: string | null;
+    firstPaymentOn: string | null;
+    lastPaymentOn: string | null;
+  };
+}
+
+/** A legislator's own campaign money for one year. Read `linkState` before
+ *  `committees`: an empty list is never on its own a statement about the person. */
+export interface LegislatorCampaignMoney {
+  legislatorId: string;
+  year: number;
+  linkState: LinkState;
+  /** The day we downloaded Minnesota's files. Not the period the money covers,
+   *  which is per committee and always earlier. */
+  fetchedAt: string | null;
+  committees: CampaignCommitteeMoney[];
 }

@@ -1,0 +1,274 @@
+/**
+ * What a legislator's campaign money tab is allowed to say (#1329).
+ *
+ * Framework-free on purpose, in the same style as `lib/billDetail.ts`: every
+ * sentence and every figure on that tab is decided here, so each one can be pinned
+ * by a test rather than read off a screenshot. The components below this file
+ * choose layout and nothing else.
+ *
+ * The rules these functions exist to keep are `.claude/rules/grounded-answers.md`
+ * rule 12 and `docs/architecture/campaign-finance-system-design.md` §7. Three of
+ * them shape almost everything here:
+ *
+ * 1. **Two numbers, both correct.** Minnesota names a donor only once their giving
+ *    passes $200 in aggregate within a calendar year, so the donations we can list
+ *    never add up to what a campaign raised. Measured across sitting legislators'
+ *    committees, the unnamed share is 36.5% of the 2024 total and 41.3% of 2025.
+ *    Showing either number alone understates or overstates while looking
+ *    authoritative, so both appear and the gap between them is explained.
+ * 2. **A missing figure and a real zero are different facts.** "Not reported" and
+ *    "$0" are never interchangeable, because a member who genuinely raised nothing
+ *    is not a member whose filing we do not hold.
+ * 3. **The threshold is on the donor's yearly total, never on one payment.**
+ *    327,759 of the 583,152 published donation rows are individually under $200 and
+ *    are named anyway, because that donor's yearly total had already passed it. So
+ *    no sentence here may say small gifts go unnamed.
+ */
+
+/** The years this tab covers, newest first. Scope of #1329. */
+export const CAMPAIGN_MONEY_YEARS = [2026, 2025] as const;
+
+export type CampaignMoneyYear = (typeof CAMPAIGN_MONEY_YEARS)[number];
+
+/** Whether a block of figures may be read at all, from the server's own vocabulary. */
+export type MoneyBlockState = 'reported' | 'not_reported' | 'unavailable';
+
+/** Why a split may or may not be drawn, from the server's own vocabulary. */
+export type SplitState =
+  | 'shown'
+  | 'no_reported_total'
+  | 'sources_disagree'
+  | 'periods_differ'
+  | 'no_named_payments';
+
+/** Whether anyone has confirmed which committees belong to this legislator. */
+export type LinkState = 'unconfirmed' | 'reviewed_none_confirmed' | 'confirmed';
+
+/**
+ * The year a reader asked for, or this tab's default.
+ *
+ * Anything unparseable falls back rather than erroring: a URL is something people
+ * type and edit, and a mistyped year should land on a real page.
+ */
+export function campaignMoneyYear(raw: string | number | undefined): CampaignMoneyYear {
+  const parsed = typeof raw === 'string' ? Number.parseInt(raw, 10) : raw;
+  const match = CAMPAIGN_MONEY_YEARS.find((year) => year === parsed);
+  return match ?? CAMPAIGN_MONEY_YEARS[0];
+}
+
+/**
+ * A money amount as a reader would check it against the filing.
+ *
+ * Cents are always shown, including on figures in the millions. The whole promise
+ * of this tab is that any number on it can be traced to Minnesota's own publication,
+ * and $1,747,196.69 rounded to $1.7M cannot be. Returns `null` for a value that is
+ * absent, so a caller has to decide what absence means rather than being handed a
+ * "$0" it did not ask for.
+ */
+export function formatMoney(value: number | string | null | undefined): string | null {
+  if (value === null || value === undefined || value === '') return null;
+  const amount = typeof value === 'string' ? Number(value) : value;
+  if (!Number.isFinite(amount)) return null;
+  const negative = amount < 0;
+  const body = Math.abs(amount).toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  return `${negative ? '-' : ''}$${body}`;
+}
+
+/** "1 payment" / "272 payments", with the count spelled out rather than bare. */
+export function paymentCountLabel(count: number | null | undefined): string | null {
+  if (count === null || count === undefined || !Number.isFinite(count)) return null;
+  return `${count.toLocaleString('en-US')} ${count === 1 ? 'payment' : 'payments'}`;
+}
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/**
+ * An ISO date as "20 Jul 2026", or `null` if it is not one.
+ *
+ * Split on the string rather than parsed through `Date`, because `new Date('2026-07-20')`
+ * is UTC midnight and prints as the 19th anywhere west of Greenwich — which is
+ * everywhere this product is read. A date that is off by one on a filing period is
+ * the kind of wrong number nobody notices.
+ */
+export function formatDay(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value);
+  if (!match) return null;
+  const month = MONTHS[Number(match[2]) - 1];
+  if (!month) return null;
+  return `${Number(match[3])} ${month} ${match[1]}`;
+}
+
+/**
+ * The dates of the payments we hold, never a coverage period.
+ *
+ * §7 forbids any surface hardcoding 1 January as a period start, and no source we
+ * store states a filing's own start, so this says what it can stand behind: when the
+ * payments on this page were made. The wording deliberately reads "payments dated"
+ * rather than "covering", because a reader who takes the second one has been told
+ * something we did not check.
+ */
+export function paymentDateRangeLabel(
+  firstOn: string | null | undefined,
+  lastOn: string | null | undefined,
+): string | null {
+  const first = formatDay(firstOn);
+  const last = formatDay(lastOn);
+  if (!first && !last) return null;
+  if (!first || !last) return `Payments dated ${first ?? last}`;
+  if (first === last) return `Payment dated ${first}`;
+  return `Payments dated ${first} to ${last}`;
+}
+
+/** "The committee's own report, covering through 31 Dec 2025". */
+export function reportedThroughLabel(through: string | null | undefined): string | null {
+  const day = formatDay(through);
+  return day ? `The committee's own report to the state, covering through ${day}` : null;
+}
+
+/**
+ * How much of the money had no donor's name, as a share, when there is one to state.
+ *
+ * Honest here in a way a share of a *listed* set would not be, because both inputs
+ * are complete official figures rather than samples: the committee's own reported
+ * total, and the state's own published list of the donations that had to be named.
+ * Rounded to whole percent, because the precision a reader needs is "about 4 dollars
+ * in 10", and the exact dollars are on the same card.
+ */
+export function unnamedShareLabel(
+  unnamed: number | string | null | undefined,
+  reported: number | string | null | undefined,
+): string | null {
+  const top = typeof unnamed === 'string' ? Number(unnamed) : unnamed;
+  const bottom = typeof reported === 'string' ? Number(reported) : reported;
+  if (!Number.isFinite(top) || !Number.isFinite(bottom)) return null;
+  if (!bottom || (bottom as number) <= 0) return null;
+  const share = Math.round(((top as number) / (bottom as number)) * 100);
+  if (share < 0 || share > 100) return null;
+  return `${share}% of the money raised`;
+}
+
+/**
+ * The sentence explaining why the two figures differ.
+ *
+ * The wording is fixed here and never assembled from a figure, because rule 12 is
+ * specific about it: the threshold is a test on the donor's yearly total and never on
+ * the size of a gift, and 327,759 of the 583,152 published rows are individually
+ * under $200 and named anyway. "Candidates" rather than "committees", because a
+ * ballot-question committee's threshold is $500.
+ */
+export const UNNAMED_MONEY_EXPLANATION =
+  'Minnesota only makes candidates name a donor once that donor has given more than ' +
+  '$200 in total for the year. Donors who gave $200 or less in total are never named, ' +
+  'so their money is counted here but nobody knows who they are.';
+
+/** What the page says instead of a figure, per state, and why. */
+export type FigureText = { text: string; isFigure: boolean };
+
+/**
+ * A money figure, or the words that stand in for it.
+ *
+ * `isFigure` lets a component style a real number differently from a stand-in
+ * sentence without re-deciding which it got, and stops "Not reported" from ever
+ * being set in the size reserved for an amount.
+ */
+export function moneyFigure(
+  state: MoneyBlockState,
+  value: number | string | null | undefined,
+): FigureText {
+  if (state === 'unavailable') {
+    return { text: "We couldn't load this", isFigure: false };
+  }
+  if (state === 'not_reported') {
+    return { text: 'Not reported', isFigure: false };
+  }
+  const money = formatMoney(value);
+  return money ? { text: money, isFigure: true } : { text: 'Not reported', isFigure: false };
+}
+
+/**
+ * Why this committee-year shows no split, in words a reader learns something from.
+ *
+ * `null` for `shown`, which is the state that draws figures instead of a sentence.
+ * Every one of these says what we do not know and whose gap it is, because the
+ * failure rule 12 exists to prevent is a page that quietly fills a gap with a number.
+ */
+export function splitExplanation(state: SplitState): string | null {
+  switch (state) {
+    case 'shown':
+      return null;
+    case 'no_reported_total':
+      return (
+        'The state has not published a report for this committee covering this year, ' +
+        'so there is no official total to compare these donations against. What is ' +
+        'listed here is only the donations Minnesota required this committee to name.'
+      );
+    case 'sources_disagree':
+      return (
+        'Minnesota publishes these two figures separately, and for this committee and ' +
+        'year they do not agree: the donations the state lists add up to more than the ' +
+        'committee itself reported raising. We show both and work out neither, because ' +
+        'we cannot tell which one is right.'
+      );
+    case 'periods_differ':
+      return (
+        'These two figures cover different stretches of time. The committee’s own ' +
+        'report stops earlier than the donation list does, so subtracting one from the ' +
+        'other would not tell you anything about donors.'
+      );
+    case 'no_named_payments':
+      return (
+        'This committee reported raising money, and the state’s donation list names ' +
+        'none of it for this year. We cannot tell whether every donor stayed under the ' +
+        'naming threshold or whether donations are missing from the list, so we do not ' +
+        'say either.'
+      );
+    default:
+      return null;
+  }
+}
+
+/**
+ * What the page says when nobody has confirmed which committee is this member's.
+ *
+ * The state every one of the 200 sitting members is in on the day this ships, so it
+ * is the tab rather than an edge case. Three things §7 pins about this wording, all
+ * of which a shorter sentence gets wrong:
+ *
+ * - It never says no committee is registered for them. All 200 sitting members appear
+ *   in the Board's own list of registered filers, so that sentence is false for every
+ *   one of them.
+ * - It says whose job is unfinished, because it is ours and not theirs.
+ * - It says nothing about the other 199. "No figures are on any profile" is true today
+ *   and false the moment the first confirmation lands, and a sentence with an expiry
+ *   date built into it is one somebody has to remember to change.
+ */
+export const LINK_UNCONFIRMED_EXPLANATION =
+  'Minnesota registers campaign committees by number and never records which person ' +
+  'each one belongs to. This member’s committees are on file with the state, and we ' +
+  'have not yet confirmed which of them is theirs, so we are not showing figures here ' +
+  'yet. Matching a committee to the wrong person is the worst mistake this page could ' +
+  'make, so a person checks every match by hand.';
+
+/** Whether the tab should show the unconfirmed explanation instead of figures. */
+export function showsUnconfirmedState(state: LinkState, committeeCount: number): boolean {
+  return state !== 'confirmed' || committeeCount === 0;
+}
+
+/**
+ * The line telling a reader when new money appears, so a July figure under today's
+ * date does not read as a fault.
+ *
+ * Minnesota publishes on a filing schedule rather than continuously: nothing new is
+ * published between 21 July and 26 October 2026. A page that says "updated today"
+ * over figures that stop in July, with no explanation, teaches a reader that we are
+ * broken (`.claude/rules/grounded-answers.md` rules 6 and 7).
+ */
+export const FILING_SCHEDULE_NOTE =
+  'Minnesota publishes campaign money on a filing schedule, not day by day. Members ' +
+  'on the 2026 ballot filed on 27 July for money raised through 20 July, and file ' +
+  'again on 26 October. Members not on the ballot do not report their 2026 money until ' +
+  '1 February 2027.';
