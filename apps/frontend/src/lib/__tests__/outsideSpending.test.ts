@@ -172,7 +172,11 @@ describe('outsideSpendingPeriod', () => {
 
   it('collapses a single day rather than repeating it', () => {
     expect(
-      outsideSpendingPeriod({ ...REPORTED, firstPaymentOn: '2025-06-01', lastPaymentOn: '2025-06-01' }),
+      outsideSpendingPeriod({
+        ...REPORTED,
+        firstPaymentOn: '2025-06-01',
+        lastPaymentOn: '2025-06-01',
+      }),
     ).toBe('Jun 1, 2025');
   });
 

@@ -504,8 +504,7 @@ def _totals_by_committee(
             func.count(),
             func.min(CampaignFinanceIndependentExpenditureRow.transaction_date),
             func.max(CampaignFinanceIndependentExpenditureRow.transaction_date),
-            func.count()
-            - func.count(CampaignFinanceIndependentExpenditureRow.amount),
+            func.count() - func.count(CampaignFinanceIndependentExpenditureRow.amount),
         )
         .where(
             CampaignFinanceIndependentExpenditureRow.snapshot_id == snapshot_id,
@@ -597,5 +596,7 @@ def _committee_spending(
         first_payment_on=min(
             _dates(*(b.first_payment_on for b in buckets)), default=None
         ),
-        last_payment_on=max(_dates(*(b.last_payment_on for b in buckets)), default=None),
+        last_payment_on=max(
+            _dates(*(b.last_payment_on for b in buckets)), default=None
+        ),
     )

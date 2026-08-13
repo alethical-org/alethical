@@ -272,7 +272,7 @@ def test_a_blank_direction_joins_neither_side(db, legislator):
 
 
 def test_a_year_the_download_does_not_reach_is_not_a_zero(db, legislator):
-    """"Nobody spent anything in 2027" is a claim about a year nobody has filed for.
+    """ "Nobody spent anything in 2027" is a claim about a year nobody has filed for.
 
     The files stop at the present and the route accepts years to 2100, so a page
     defaulting to "this year" reaches an uncovered year on 1 January and would print
@@ -355,11 +355,11 @@ def test_the_three_figures_account_for_every_row(db, legislator):
     db.commit()
     _confirm(db, legislator, SENATE_COMMITTEE)
     result = independent_spending_for_legislator(db, legislator.id, year=2025)
-    every_figure = (
-        result.supporting + result.opposing + result.direction_not_recorded
-    )
+    every_figure = result.supporting + result.opposing + result.direction_not_recorded
     assert every_figure == sum(Decimal(a) for a in published.values())
-    assert result.payment_count + result.direction_not_recorded_payments == len(published)
+    assert result.payment_count + result.direction_not_recorded_payments == len(
+        published
+    )
     (committee,) = result.committees
     assert committee.last_payment_on == date(2025, 6, 1)
 

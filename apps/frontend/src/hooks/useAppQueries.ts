@@ -236,9 +236,7 @@ export function useLegislatorOutsideSpending(legislatorId: string, years: number
   return useQuery({
     queryKey: ['legislator-outside-spending', legislatorId, years],
     queryFn: () =>
-      Promise.all(
-        years.map((year) => getLegislatorOutsideSpendingFromApi(legislatorId, year)),
-      ),
+      Promise.all(years.map((year) => getLegislatorOutsideSpendingFromApi(legislatorId, year))),
     enabled: Boolean(legislatorId),
     retry: false,
   });

@@ -66,9 +66,9 @@ export function OutsideSpendingCard({
         {HEADING}
       </Text>
       <Text style={styles.explainer}>
-        Money that other groups spent to support or oppose this legislator. It does not go
-        to their campaign and appears nowhere in the reports their campaign files, so
-        reading only those reports leaves this money out.
+        Money that other groups spent to support or oppose this legislator. It does not go to their
+        campaign and appears nowhere in the reports their campaign files, so reading only those
+        reports leaves this money out.
       </Text>
       {isLoading ? (
         <View style={styles.loading}>
@@ -78,8 +78,8 @@ export function OutsideSpendingCard({
         // A failed request is our problem, and saying nothing at all would leave the
         // reader thinking the figures were 0.
         <Text style={styles.note}>
-          We could not load this right now. This is a problem at our end and says nothing
-          about what was spent.
+          We could not load this right now. This is a problem at our end and says nothing about what
+          was spent.
         </Text>
       ) : sharedReason ? (
         <Text style={[styles.note, styles.sharedReason]}>{sharedReason}</Text>
@@ -97,7 +97,9 @@ export function OutsideSpendingCard({
             href={sourceUrl}
             onPress={() => onOpenSource(sourceUrl)}
           />
-          {fetchedOn ? <Text style={styles.fetched}>Copied from the state on {fetchedOn}</Text> : null}
+          {fetchedOn ? (
+            <Text style={styles.fetched}>Copied from the state on {fetchedOn}</Text>
+          ) : null}
         </View>
       ) : null}
     </View>
@@ -121,8 +123,8 @@ function YearBlock({ year }: { year: OutsideSpendingYear }) {
         // the year, and no group filed a payment. That is a checked finding, so it is
         // stated as one instead of being drawn as an empty figure.
         <Text style={styles.note}>
-          No outside group reported spending anything to support or oppose this legislator
-          in {year.year}.
+          No outside group reported spending anything to support or oppose this legislator in{' '}
+          {year.year}.
         </Text>
       ) : (
         <>
