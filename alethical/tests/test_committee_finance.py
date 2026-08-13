@@ -246,6 +246,7 @@ def _independent(
     year=2025,
     name="Fateh, Omar for Minneapolis  Mayor",
 ):
+    """``amount=None`` is a row whose amount the file leaves blank."""
     db.add(
         models.CampaignFinanceIndependentExpenditureRow(
             snapshot_id=snapshot.id,
@@ -257,7 +258,7 @@ def _independent(
             for_against=direction,
             year=year,
             transaction_date=date(year, 6, 1),
-            amount=Decimal(amount),
+            amount=None if amount is None else Decimal(amount),
         )
     )
     db.flush()
@@ -647,6 +648,50 @@ def test_no_independent_spending_about_a_committee_is_a_measured_zero(db):
     assert finance.independent_spending.spending is not None
     assert finance.independent_spending.spending.supporting == Decimal(0)
     assert finance.independent_spending.spending.opposing == Decimal(0)
+
+
+def test_unclassifiable_spending_about_a_committee_gets_its_own_figure(db):
+    """The count of money we cannot classify reaches this route too (#1454).
+
+    One query serves a legislator's page and a committee's page, deliberately, so a
+    figure that only surfaced on one of them would leave the other with the old
+    silent omission. Before #1442 this was reachable for 0 legislators; it is now
+    reachable for every committee in Minnesota by number.
+    """
+    published = Published(db)
+    _independent(db, published.independent, reg_num=LOCAL_CANDIDATE, amount="900.00")
+    _independent(
+        db,
+        published.independent,
+        reg_num=LOCAL_CANDIDATE,
+        amount="45.00",
+        direction=None,
+    )
+    db.commit()
+    finance = _finance(db, LOCAL_CANDIDATE)
+    assert finance is not None
+    assert finance.independent_spending.state == REPORTED
+    spending = finance.independent_spending.spending
+    assert spending is not None
+    assert spending.supporting == Decimal("900.00")
+    assert spending.direction_not_recorded == Decimal("45.00")
+    assert spending.direction_not_recorded_payments == 1
+
+
+def test_spending_about_a_committee_we_cannot_total_is_withheld(db):
+    """A blank amount withholds this block rather than publishing a short figure.
+
+    This block is the one place on the page where an empty answer is a real 0, so a
+    figure short by an unknown amount reads as a published finding about a named
+    organisation rather than as a gap in our copy.
+    """
+    published = Published(db)
+    _independent(db, published.independent, reg_num=LOCAL_CANDIDATE, amount=None)
+    db.commit()
+    finance = _finance(db, LOCAL_CANDIDATE)
+    assert finance is not None
+    assert finance.independent_spending.state == UNAVAILABLE
+    assert finance.independent_spending.spending is None
 
 
 def test_a_stale_independent_snapshot_is_not_a_zero(db):

@@ -2698,16 +2698,25 @@ def legislator_independent_spending(
     ``state`` is the field to read first, because only ``reported`` carries
     figures a page may print:
 
-    * ``unavailable`` -- we hold no usable release. A fact about us, and never
-      rendered as a figure about a named person.
+    * ``unavailable`` -- we hold no usable release, or we hold rows about this
+      member that we cannot add up because their amount is blank. Both are facts
+      about us, and neither is ever rendered as a figure about a named person.
     * ``link_unconfirmed`` -- we have not yet confirmed which registered
       committee is theirs, so no payment can be attributed to them.
-    * ``reported`` -- ``supporting`` and ``opposing`` are real, and a 0 is a
-      measured 0.
+    * ``reported`` -- the figures are real, and a 0 is a measured 0.
 
-    There are deliberately two figures and never a third: every row in the
-    source records "For" or "Against" and none is blank
+    Three figures, and they account between them for every row we hold:
+    ``supporting``, ``opposing``, and ``direction_not_recorded`` for money whose
+    "For" or "Against" is unreadable. The third is 0 for every committee in the
+    current release, because all 41,130 rows record one or the other, so a surface
+    shows it only when it is not 0 rather than reserving space for it. It exists so
+    that a row the Board starts publishing differently gets a figure of its own
+    instead of vanishing from the total
     (``alethical/api/services/independent_spending.py``).
+
+    ``payment_count`` counts only the payments behind ``supporting`` and
+    ``opposing``. A payment with no readable direction is in
+    ``direction_not_recorded_payments`` instead, so print both or neither.
     """
     legislator = get_legislator_by_id(db, legislator_id)
     spending = independent_spending_for_legislator(db, legislator.id, year=year)
@@ -2718,7 +2727,9 @@ def legislator_independent_spending(
             "state": spending.state,
             "supporting": spending.supporting,
             "opposing": spending.opposing,
+            "direction_not_recorded": spending.direction_not_recorded,
             "payment_count": spending.payment_count,
+            "direction_not_recorded_payments": spending.direction_not_recorded_payments,
             "source_url": spending.source_url,
             "fetched_at": spending.fetched_at,
             "committees": [
@@ -2728,8 +2739,12 @@ def legislator_independent_spending(
                     "office": committee.office,
                     "supporting": committee.supporting,
                     "opposing": committee.opposing,
+                    "direction_not_recorded": committee.direction_not_recorded,
                     "supporting_payments": committee.supporting_payments,
                     "opposing_payments": committee.opposing_payments,
+                    "direction_not_recorded_payments": (
+                        committee.direction_not_recorded_payments
+                    ),
                     "first_payment_on": committee.first_payment_on,
                     "last_payment_on": committee.last_payment_on,
                 }
@@ -2791,7 +2806,11 @@ def committee_finance_for_year(
     ``independent_spending`` is money others spent supporting or opposing this
     committee, and it is the one block where a committee with no rows reads as a
     measured ``0``: nobody filed an independent expenditure over $200 about them,
-    which is a finding rather than a gap.
+    which is a finding rather than a gap. It carries a third figure,
+    ``direction_not_recorded``, for money whose "For" or "Against" cannot be read --
+    0 for every committee in the current release, and its own figure rather than a
+    silent omission for the day that changes. ``unavailable`` on this block also
+    covers rows we hold about the committee and cannot add up.
 
     404 means this registration number appears nowhere in the current release. That
     is a statement about our records: the Board's registered-filer directory decides
@@ -2879,11 +2898,21 @@ def committee_finance_for_year(
                     spending.spending.supporting if spending.spending else None
                 ),
                 "opposing": spending.spending.opposing if spending.spending else None,
+                "direction_not_recorded": (
+                    spending.spending.direction_not_recorded
+                    if spending.spending
+                    else None
+                ),
                 "supporting_payments": (
                     spending.spending.supporting_payments if spending.spending else None
                 ),
                 "opposing_payments": (
                     spending.spending.opposing_payments if spending.spending else None
+                ),
+                "direction_not_recorded_payments": (
+                    spending.spending.direction_not_recorded_payments
+                    if spending.spending
+                    else None
                 ),
                 "first_payment_on": (
                     spending.spending.first_payment_on if spending.spending else None
