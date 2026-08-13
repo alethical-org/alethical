@@ -15,6 +15,7 @@ from alethical.tests.database_name import (
     abandoned_test_databases,
     worktree_database_url,
 )
+from alethical.tests.empty_data_tables import empty_data_tables
 from alethical.tests.local_database_guard import assert_local_database
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -167,6 +168,11 @@ def seed_database() -> None:
             raise RuntimeError(
                 f"alembic upgrade head failed after a reset:\n{result.stderr}"
             )
+    # Before seeding, never after: the seeder is idempotent per row but cannot
+    # remove rows it did not create, so without this every run inherited whatever
+    # the last one committed and never cleaned up (#1490 -- full account in
+    # alethical/tests/empty_data_tables.py).
+    empty_data_tables(DATABASE_URL)
     seed = _run([sys.executable, "scripts/load_sample_data.py"])
     if seed.returncode != 0:
         raise RuntimeError(f"load_sample_data.py failed:\n{seed.stderr}")
