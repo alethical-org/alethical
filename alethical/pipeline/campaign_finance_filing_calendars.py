@@ -436,12 +436,20 @@ def classify(
     office: Optional[str],
     termination_date: Optional[date],
     as_of: date,
+    evidence_read_on: date,
 ) -> Determination:
     """Which calendar this committee is on for ``year``, and what it owes next.
 
     Pure: no database, no network, no clock. ``as_of`` is a parameter because the answer
     genuinely depends on the day it is asked -- "the next report due" changes the moment
     a deadline passes -- which is also why this is computed on read and never stored.
+
+    **``evidence_read_on`` is the day ``catalogued`` was read from the Board, and it is
+    what decides whether absence means anything.** The 2 dates are separate because they
+    answer separate questions: ``as_of`` picks which report is next, while
+    ``evidence_read_on`` says whether the Board had yet scheduled the reports we are
+    reasoning from the absence of. Collapsing them into one date is a live bug rather
+    than a tidy simplification -- see the absence test below.
 
     The order of the tests is load-bearing. Termination first, because a closed
     registration owes nothing whatever else its catalogue holds. Then the
@@ -511,15 +519,23 @@ def classify(
                 "which schedule this committee is on is not known"
             ),
         )
-    if as_of <= opened:
+    # **Absence is proof only if the reports we did not find had been scheduled by the
+    # time we looked.** So this tests ``evidence_read_on``, not ``as_of``. Testing
+    # ``as_of`` is what an earlier version did, and it was wrong in a way that produced a
+    # confident false date: filings read on 1 July, before that year's pre-primary was
+    # catalogued for anybody, asked about on 12 August, would find no election report,
+    # see that the 27 July deadline had passed, and conclude the committee was not on the
+    # ballot -- for a committee whose pre-general is due 26 October. Found by a review bot
+    # on [#1481](https://github.com/alethical-org/alethical/pull/1481).
+    if evidence_read_on <= opened:
         return Determination(
             registration_number=registration_number,
             year=year,
             schedule_class=ScheduleClass.unknown,
             reason=(
-                f"the first {year} pre-election report was not due until {opened}, so "
-                "this committee having none yet does not establish whether it is on "
-                f"the {year} ballot"
+                f"the filings we hold were read on {evidence_read_on}, before the first "
+                f"{year} pre-election report was due on {opened}, so this committee "
+                f"having none does not establish whether it is on the {year} ballot"
             ),
         )
 

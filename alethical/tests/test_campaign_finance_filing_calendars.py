@@ -53,6 +53,10 @@ def place(**overrides):
         office="House",
         termination_date=None,
         as_of=AS_OF,
+        # Read on the day it is asked about, which is the ordinary case: a page renders
+        # from a snapshot taken today. The 2 dates are separate arguments because
+        # ``evidence_read_on`` alone decides whether absence proves anything.
+        evidence_read_on=AS_OF,
     )
     kwargs.update(overrides)
     return classify(**kwargs)
@@ -248,11 +252,16 @@ def test_absence_is_not_readable_before_the_years_first_election_report_is_due()
     committee with no 2026 election report yet proves nothing -- the state had not
     scheduled anybody's -- so this must be unknown and carry no date, not "not on the
     ballot, nothing due until February"."""
-    placed = place(catalogued=[YEAR_END_2025], as_of=date(2026, 3, 1))
+    placed = place(
+        catalogued=[YEAR_END_2025],
+        as_of=date(2026, 3, 1),
+        evidence_read_on=date(2026, 3, 1),
+    )
     assert placed.schedule_class is ScheduleClass.unknown
     assert placed.next_report is None
     assert placed.calendar is None
-    assert "not due until 2026-07-27" in placed.reason
+    assert "read on 2026-03-01" in placed.reason
+    assert "due on 2026-07-27" in placed.reason
 
 
 def test_a_terminated_registration_owes_nothing_further_and_is_not_read_as_unknown() -> (
@@ -563,3 +572,55 @@ def test_the_as_of_default_is_utc_so_a_fresh_snapshot_does_not_refuse_itself(
     answer = service.filing_schedule(db, "17500", year=2026)
     assert answer.schedule_class is ScheduleClass.not_filing_for_office
     assert service._utc_today() == date(2026, 8, 13)
+
+
+def test_evidence_read_before_the_deadline_never_proves_absence_however_late_the_question() -> (
+    None
+):
+    """The mirror of the guard above, and the one that produced a confident false date.
+
+    Filings read on 1 July -- before that year's pre-primary was catalogued for anybody --
+    asked about on 12 August, find no election report and see that the 27 July deadline
+    has passed. Turning on ``as_of`` alone, that reads as "not on the ballot, nothing due
+    until 1 Feb 2027", for a committee whose pre-general is due 26 October. The evidence
+    is what has to postdate the deadline, not the question.
+
+    Found by a review bot on #1481.
+    """
+    stale = place(
+        catalogued=[YEAR_END_2025],
+        as_of=date(2026, 8, 12),
+        evidence_read_on=date(2026, 7, 1),
+    )
+    assert stale.schedule_class is ScheduleClass.unknown
+    assert stale.next_report is None
+    assert "read on 2026-07-01" in stale.reason
+
+    # Read one day after the deadline, the same absence is proof, and the honest date
+    # appears. This pair is the whole rule.
+    fresh = place(
+        catalogued=[YEAR_END_2025],
+        as_of=date(2026, 8, 12),
+        evidence_read_on=date(2026, 7, 28),
+    )
+    assert fresh.schedule_class is ScheduleClass.not_filing_for_office
+    assert fresh.next_report is not None
+    assert fresh.next_report.due_date == date(2027, 2, 1)
+
+
+def test_a_stale_snapshot_does_not_place_a_committee_off_the_ballot_in_bulk(db) -> None:
+    """The same defect through the database, since ``schedule_coverage`` sweeps a whole
+    population and would misclassify all of them together."""
+    _publish_snapshot(
+        db,
+        filers=[("17500", "House", None), ("13262", "Senate", None)],
+        reports=[("17500", 2025, "2025 Year-End Report", False)],
+        fetched_at=datetime(2026, 7, 1, 12, 0, tzinfo=UTC),
+    )
+    coverage = service.schedule_coverage(
+        db, ["17500", "13262"], year=2026, as_of=date(2026, 8, 12)
+    )
+    assert coverage.not_filing_for_office == 0
+    assert coverage.unknown == 2
+    assert coverage.with_next_due_date == 0
+    assert all("read on 2026-07-01" in why for _, why in coverage.unknown_reasons)

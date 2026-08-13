@@ -170,6 +170,7 @@ def filing_schedule(
         office=office,
         termination_date=termination_date,
         as_of=as_of,
+        evidence_read_on=fetched_on,
     )
 
 
@@ -356,6 +357,7 @@ def schedule_coverage(
             office=office,
             termination_date=termination,
             as_of=as_of,
+            evidence_read_on=fetched_on,
         )
         counts[determination.schedule_class] += 1
         if determination.has_next_report:
