@@ -9,6 +9,15 @@ oppose them.
 You do not need an account. Open any legislator's profile
 (`/legislators/<name>`) and scroll to the block below their chief-authored bills.
 
+> **This guide is temporary and folds into another one.**
+> [#1329](https://github.com/alethical-org/alethical/issues/1329) is building a Campaign
+> money tab on the same profile page, and its guide
+> ([legislator-campaign-money-guide.md](legislator-campaign-money-guide.md), unmerged as of
+> 13 Aug 2026) already reserves a section for this block. When that tab lands and this card
+> moves into it, everything below belongs in that guide's **Outside spending** section and
+> this file should be deleted. It exists separately only because this block is live on the
+> profile page now and that tab is not, and one guide per surface beats two.
+
 ---
 
 ## 1. Why this money gets its own block
