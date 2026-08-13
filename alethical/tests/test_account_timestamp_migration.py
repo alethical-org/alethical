@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -17,15 +18,18 @@ from scripts.check_schema_drift import ScratchDatabase, _local_base_url
 ROOT = Path(__file__).resolve().parents[2]
 PARENT_REVISION = "0033_bill_short_title"
 TARGET_REVISION = "0034_auth_identity_linked_at"
+CLEANUP_REVISION = "0035_drop_legacy_auth_times"
 
 
-def _migrate(url: sa.URL, direction: str, revision: str) -> None:
+def _run_migration(
+    url: sa.URL, direction: str, revision: str
+) -> subprocess.CompletedProcess[str]:
     env = {
         **os.environ,
         "DATABASE_URL": url.render_as_string(hide_password=False),
     }
     env.pop("ALETHICAL_DATABASE_TARGET", None)
-    result = subprocess.run(
+    return subprocess.run(
         [sys.executable, "-m", "alembic", "-c", "alembic.ini", direction, revision],
         cwd=ROOT,
         env=env,
@@ -33,6 +37,10 @@ def _migrate(url: sa.URL, direction: str, revision: str) -> None:
         text=True,
         check=False,
     )
+
+
+def _migrate(url: sa.URL, direction: str, revision: str) -> None:
+    result = _run_migration(url, direction, revision)
     assert result.returncode == 0, result.stdout + result.stderr
 
 
@@ -412,5 +420,315 @@ def test_account_timestamp_transition_round_trip_preserves_values() -> None:
                     account_value=account_value,
                     identity_value=identity_value,
                 )
+        finally:
+            engine.dispose()
+
+
+def test_account_timestamp_cleanup_round_trip_preserves_values() -> None:
+    account_id = uuid.uuid4()
+    identity_id = uuid.uuid4()
+    account_value = datetime(2024, 10, 11, 12, 13, 14, tzinfo=timezone.utc)
+    identity_value = datetime(2025, 11, 12, 13, 14, 15, tzinfo=timezone.utc)
+
+    with ScratchDatabase(_local_base_url(), "account_timestamp_cleanup") as scratch:
+        _migrate(scratch.url, "upgrade", TARGET_REVISION)
+        engine = scratch.engine()
+        try:
+            with engine.begin() as connection:
+                connection.execute(
+                    sa.text(
+                        """
+                        INSERT INTO user_account
+                            (id, display_name, is_active, last_identity_linked_at)
+                        VALUES
+                            (:id, 'Cleanup proof', true, :saved_at)
+                        """
+                    ),
+                    {"id": account_id, "saved_at": account_value},
+                )
+                connection.execute(
+                    sa.text(
+                        """
+                        INSERT INTO auth_identity
+                            (id, user_id, provider, provider_subject, linked_at)
+                        VALUES
+                            (:id, :user_id, 'cleanup-proof', :subject, :saved_at)
+                        """
+                    ),
+                    {
+                        "id": identity_id,
+                        "user_id": account_id,
+                        "subject": str(identity_id),
+                        "saved_at": identity_value,
+                    },
+                )
+
+            _migrate(scratch.url, "upgrade", CLEANUP_REVISION)
+            assert "last_identity_linked_at" in _columns(engine, "user_account")
+            assert "last_signed_in_at" not in _columns(engine, "user_account")
+            assert "linked_at" in _columns(engine, "auth_identity")
+            assert "last_used_at" not in _columns(engine, "auth_identity")
+            _assert_values(
+                engine,
+                account_column="last_identity_linked_at",
+                identity_column="linked_at",
+                account_id=account_id,
+                identity_id=identity_id,
+                account_value=account_value,
+                identity_value=identity_value,
+            )
+
+            _migrate(scratch.url, "downgrade", TARGET_REVISION)
+            assert "last_signed_in_at" in _columns(engine, "user_account")
+            assert "last_used_at" in _columns(engine, "auth_identity")
+            for account_column, identity_column in (
+                ("last_signed_in_at", "last_used_at"),
+                ("last_identity_linked_at", "linked_at"),
+            ):
+                _assert_values(
+                    engine,
+                    account_column=account_column,
+                    identity_column=identity_column,
+                    account_id=account_id,
+                    identity_id=identity_id,
+                    account_value=account_value,
+                    identity_value=identity_value,
+                )
+
+            _migrate(scratch.url, "upgrade", CLEANUP_REVISION)
+            assert "last_signed_in_at" not in _columns(engine, "user_account")
+            assert "last_used_at" not in _columns(engine, "auth_identity")
+            _assert_values(
+                engine,
+                account_column="last_identity_linked_at",
+                identity_column="linked_at",
+                account_id=account_id,
+                identity_id=identity_id,
+                account_value=account_value,
+                identity_value=identity_value,
+            )
+        finally:
+            engine.dispose()
+
+
+@pytest.mark.parametrize(
+    ("first_table", "second_table"),
+    (
+        ("user_account", "auth_identity"),
+        ("auth_identity", "user_account"),
+    ),
+)
+@pytest.mark.parametrize(
+    ("direction", "starting_revision", "ending_revision"),
+    (
+        ("upgrade", TARGET_REVISION, CLEANUP_REVISION),
+        ("downgrade", CLEANUP_REVISION, TARGET_REVISION),
+    ),
+)
+def test_cleanup_and_rollback_retry_without_blocking_application_table_orders(
+    first_table: str,
+    second_table: str,
+    direction: str,
+    starting_revision: str,
+    ending_revision: str,
+) -> None:
+    account_id = uuid.uuid4()
+    identity_id = uuid.uuid4()
+
+    with ScratchDatabase(
+        _local_base_url(), f"account_cleanup_lock_order_{direction}_{first_table}"
+    ) as scratch:
+        _migrate(scratch.url, "upgrade", starting_revision)
+        engine = scratch.engine()
+        migration: subprocess.Popen[str] | None = None
+        sign_in = engine.connect()
+        sign_in_transaction = sign_in.begin()
+        try:
+            with engine.begin() as connection:
+                connection.execute(
+                    sa.text(
+                        """
+                        INSERT INTO user_account (id, display_name, is_active)
+                        VALUES (:id, 'Lock order proof', true)
+                        """
+                    ),
+                    {"id": account_id},
+                )
+                connection.execute(
+                    sa.text(
+                        """
+                        INSERT INTO auth_identity
+                            (id, user_id, provider, provider_subject)
+                        VALUES (:id, :user_id, 'lock-proof', :subject)
+                        """
+                    ),
+                    {
+                        "id": identity_id,
+                        "user_id": account_id,
+                        "subject": str(identity_id),
+                    },
+                )
+
+            row_ids = {
+                "user_account": account_id,
+                "auth_identity": identity_id,
+            }
+            # Model either application order after its first table access but
+            # before it reaches the second table.
+            sign_in.execute(
+                sa.text(f"UPDATE {first_table} SET id = id WHERE id = :id"),
+                {"id": row_ids[first_table]},
+            )
+            env = {
+                **os.environ,
+                "DATABASE_URL": scratch.url.render_as_string(hide_password=False),
+            }
+            env.pop("ALETHICAL_DATABASE_TARGET", None)
+            migration = subprocess.Popen(
+                [
+                    sys.executable,
+                    "-m",
+                    "alembic",
+                    "-c",
+                    "alembic.ini",
+                    direction,
+                    ending_revision,
+                ],
+                cwd=ROOT,
+                env=env,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+
+            deadline = time.monotonic() + 10
+            cleanup_is_retrying = False
+            while time.monotonic() < deadline:
+                with engine.connect() as observer:
+                    cleanup_is_retrying = bool(
+                        observer.execute(
+                            sa.text(
+                                """
+                                SELECT EXISTS (
+                                    SELECT 1
+                                    FROM pg_stat_activity
+                                    WHERE datname = current_database()
+                                      AND pid <> pg_backend_pid()
+                                      AND state = 'active'
+                                      AND query LIKE '%LOCK TABLE user_account, auth_identity%'
+                                )
+                                """
+                            )
+                        ).scalar_one()
+                    )
+                if cleanup_is_retrying:
+                    break
+                time.sleep(0.05)
+            assert cleanup_is_retrying, "cleanup never entered its lock retry"
+
+            # The cleanup must release the other table between attempts. Holding
+            # it would make this application transaction time out or deadlock.
+            sign_in.execute(sa.text("SET LOCAL lock_timeout = '2s'"))
+            sign_in.execute(
+                sa.text(f"UPDATE {second_table} SET id = id WHERE id = :id"),
+                {"id": row_ids[second_table]},
+            )
+            sign_in_transaction.commit()
+
+            stdout, stderr = migration.communicate(timeout=10)
+            assert migration.returncode == 0, stdout + stderr
+            old_columns_should_exist = direction == "downgrade"
+            assert (
+                "last_signed_in_at" in _columns(engine, "user_account")
+            ) is old_columns_should_exist
+            assert (
+                "last_used_at" in _columns(engine, "auth_identity")
+            ) is old_columns_should_exist
+        finally:
+            if migration is not None and migration.poll() is None:
+                migration.terminate()
+                migration.communicate(timeout=5)
+            if sign_in_transaction.is_active:
+                sign_in_transaction.rollback()
+            sign_in.close()
+            engine.dispose()
+
+
+@pytest.mark.parametrize(
+    ("table", "trigger", "old_column", "new_column"),
+    (
+        (
+            "user_account",
+            "sync_user_account_identity_link_timestamps",
+            "last_signed_in_at",
+            "last_identity_linked_at",
+        ),
+        (
+            "auth_identity",
+            "sync_auth_identity_link_timestamps",
+            "last_used_at",
+            "linked_at",
+        ),
+    ),
+)
+def test_cleanup_refuses_to_choose_between_unequal_values(
+    table: str, trigger: str, old_column: str, new_column: str
+) -> None:
+    account_id = uuid.uuid4()
+    identity_id = uuid.uuid4()
+    first = datetime(2024, 1, 2, 3, 4, 5, tzinfo=timezone.utc)
+    second = datetime(2025, 2, 3, 4, 5, 6, tzinfo=timezone.utc)
+
+    with ScratchDatabase(
+        _local_base_url(), f"account_cleanup_refusal_{table}"
+    ) as scratch:
+        _migrate(scratch.url, "upgrade", TARGET_REVISION)
+        engine = scratch.engine()
+        try:
+            with engine.begin() as connection:
+                connection.execute(
+                    sa.text(
+                        """
+                        INSERT INTO user_account
+                            (id, display_name, is_active, last_identity_linked_at)
+                        VALUES
+                            (:id, 'Refusal proof', true, :saved_at)
+                        """
+                    ),
+                    {"id": account_id, "saved_at": first},
+                )
+                connection.execute(
+                    sa.text(
+                        """
+                        INSERT INTO auth_identity
+                            (id, user_id, provider, provider_subject, linked_at)
+                        VALUES
+                            (:id, :user_id, 'refusal-proof', :subject, :saved_at)
+                        """
+                    ),
+                    {
+                        "id": identity_id,
+                        "user_id": account_id,
+                        "subject": str(identity_id),
+                        "saved_at": first,
+                    },
+                )
+                row_id = account_id if table == "user_account" else identity_id
+                connection.execute(
+                    sa.text(f"ALTER TABLE {table} DISABLE TRIGGER {trigger}")
+                )
+                connection.execute(
+                    sa.text(
+                        f"UPDATE {table} SET {old_column} = :saved_at WHERE id = :id"
+                    ),
+                    {"id": row_id, "saved_at": second},
+                )
+
+            result = _run_migration(scratch.url, "upgrade", CLEANUP_REVISION)
+
+            assert result.returncode != 0
+            assert "timestamps do not match" in result.stderr
+            assert old_column in _columns(engine, table)
+            assert new_column in _columns(engine, table)
         finally:
             engine.dispose()

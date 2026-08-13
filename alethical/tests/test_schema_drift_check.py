@@ -25,8 +25,6 @@ from scripts.check_schema_drift import (
     MIGRATION_ONLY_INDEXES,
     OWNED_EXTENSIONS,
     Snapshot,
-    TRANSITIONAL_MIGRATION_ONLY_COLUMNS,
-    _filter_transitional_model_gaps,
     diff_snapshots,
     run_migrations_vs_models,
 )
@@ -158,75 +156,6 @@ def test_the_ignore_sets_stay_small_and_deliberate() -> None:
     # A gin_trgm_ops index cannot move onto the models without pg_trgm existing
     # before create_all runs, which is why that whole group sits in this set.
     assert len(MIGRATION_ONLY_INDEXES) == 9
-    assert TRANSITIONAL_MIGRATION_ONLY_COLUMNS == {
-        "auth_identity.last_used_at": "timestamp with time zone NULL",
-        "user_account.last_signed_in_at": "timestamp with time zone NULL",
-    }
-
-
-def test_only_the_exact_transition_columns_are_filtered() -> None:
-    differences = [
-        check_schema_drift.Difference(
-            "column",
-            "auth_identity.last_used_at",
-            "timestamp with time zone NULL",
-            None,
-        ),
-        check_schema_drift.Difference(
-            "column",
-            "bill.unexpected",
-            "text NULL",
-            None,
-        ),
-        check_schema_drift.Difference(
-            "column",
-            "user_account.last_signed_in_at",
-            None,
-            "timestamp with time zone NULL",
-        ),
-        check_schema_drift.Difference(
-            "column",
-            "user_account.last_signed_in_at",
-            "text NULL",
-            None,
-        ),
-        check_schema_drift.Difference(
-            "column",
-            "user_account.last_signed_in_at",
-            "timestamp with time zone NOT NULL",
-            None,
-        ),
-        check_schema_drift.Difference(
-            "column",
-            "user_account.last_signed_in_at",
-            "timestamp with time zone NULL DEFAULT now()",
-            None,
-        ),
-    ]
-
-    filtered = _filter_transitional_model_gaps(differences)
-
-    assert [
-        (difference.key, difference.left, difference.right) for difference in filtered
-    ] == [
-        ("bill.unexpected", "text NULL", None),
-        (
-            "user_account.last_signed_in_at",
-            None,
-            "timestamp with time zone NULL",
-        ),
-        ("user_account.last_signed_in_at", "text NULL", None),
-        (
-            "user_account.last_signed_in_at",
-            "timestamp with time zone NOT NULL",
-            None,
-        ),
-        (
-            "user_account.last_signed_in_at",
-            "timestamp with time zone NULL DEFAULT now()",
-            None,
-        ),
-    ]
 
 
 @pytest.mark.parametrize(
