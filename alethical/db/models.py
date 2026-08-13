@@ -2316,6 +2316,112 @@ class CampaignFinanceFilingFigure(Base):
     amount: Mapped[Decimal] = mapped_column(Numeric(18, 4), nullable=False)
 
 
+class CampaignFinanceStatedSplitStatus(enum.Enum):
+    """Whether one committee-year's own filing agrees with the payments we hold.
+
+    Four values, and the last two are both "no verdict" for reasons that must never be
+    collapsed: one is Minnesota's gap and one is ours. A page that renders them the same
+    would let a broken reader of ours silently withhold a working committee's figures,
+    or accuse a named politician's filing of contradicting itself when the fault is
+    entirely on our side (#1433).
+    """
+
+    # The filing's own stated itemized figure equals the payment rows we hold, so the
+    # derived "money with no donor named" figure is honest and a split may be drawn.
+    agrees = "agrees"
+    # They differ. Money we are missing would otherwise land inside the derived figure
+    # and become a positive claim that money had no donor, which is the one thing
+    # `.claude/rules/grounded-answers.md` rule 12 exists to prevent. Eugene ruled on 12
+    # Aug 2026 that where 2 official sources disagree we show both and say so.
+    disagrees = "disagrees"
+    # The comparison could not be made. The Board serves no report document before
+    # 2023, serves none for several report kinds even inside the years it covers, and
+    # answers HTTP 200 to every one of those refusals. Recorded as not checked rather
+    # than as passed, which is what §9.9 exists to enforce.
+    not_checked = "not_checked"
+    # A document was served and read, and our own reader disagreed with figures we
+    # already trust. The reader is wrong, so no claim is made about the data at all.
+    reader_unproven = "reader_unproven"
+
+
+class CampaignFinanceStatedSplit(Base):
+    """One committee-year's filing compared against the payment rows we hold.
+
+    **This is the only half of the reconciliation that can see our rows being short.**
+    The other half compares our rows against the committee's reported *total* and so
+    catches them being too big; a shortfall still fits inside a total and publishes
+    silently. Only the filing's own statement of how much it itemized can see it, and
+    that statement exists nowhere but inside the report document (§9.4).
+
+    Keyed on the contributions snapshot because the verdict is about *those* rows. A new
+    download replaces the rows, so every verdict about the old ones is void and goes
+    with them -- which is what the cascade does. Nothing here is a fact about the
+    committee that outlives our copy of its payments.
+
+    Nothing is rebuilt from the document (§2.3). Two subtotals are read per schedule and
+    the payments themselves still come from the bulk download.
+    """
+
+    __tablename__ = "cf_stated_split"
+
+    snapshot_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("cf_snapshot.id", ondelete="CASCADE"), primary_key=True
+    )
+    registration_number: Mapped[str] = mapped_column(String(20), primary_key=True)
+    filing_year: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+    # Which run of the Board's totals service proved the reader for this document.
+    # Nullable, and NULL means the reader could not be proved here rather than that it
+    # failed -- see ``self_test``.
+    filings_snapshot_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("cf_filing_snapshot.id", ondelete="SET NULL")
+    )
+    status: Mapped[CampaignFinanceStatedSplitStatus] = mapped_column(
+        SQLEnum(CampaignFinanceStatedSplitStatus, name="cf_stated_split_status"),
+        nullable=False,
+    )
+    # Always populated, including on success, and written for a person to act on. The
+    # reader-facing wording belongs to the page (`.claude/rules/grounded-answers.md`
+    # rule 3); this is the developer-facing one.
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    # ``passed``, ``failed`` or ``not_available``. The third is real and is not a weak
+    # pass: the Board's totals route serves no 2025 block at all for filer 18488, whose
+    # 2025 report itemizes $2,300.00, so that document has nothing already-trusted to
+    # be proved against.
+    self_test: Mapped[Optional[str]] = mapped_column(String(20))
+
+    # Which document was read, so a figure traces to one filing rather than to a year.
+    report_type: Mapped[Optional[str]] = mapped_column(String(8))
+    amendment_index: Mapped[Optional[int]] = mapped_column(Integer)
+    # The period the stated figure runs to, which is what our rows are bounded by. A
+    # year-end report and the calendar year coincide; a mid-year report does not, and
+    # comparing a whole year of rows against a part-year filing would invent a gap.
+    cut_off_date: Mapped[Optional[date]] = mapped_column(Date)
+    document_hash: Mapped[Optional[str]] = mapped_column(String(64))
+    document_byte_size: Mapped[Optional[int]] = mapped_column(Integer)
+
+    # The filing's own figures. ``stated_itemized`` is the total column, cash plus
+    # in-kind, because that is what our payment rows sum to; the cash column is kept
+    # beside it because the self-test can only prove cash and because the two can be
+    # short by different amounts -- filer 17709's 2025 filing is short $3,640.15 of cash
+    # and $492.21 of in-kind.
+    stated_itemized: Mapped[Optional[Decimal]] = mapped_column(Numeric(18, 4))
+    stated_itemized_cash: Mapped[Optional[Decimal]] = mapped_column(Numeric(18, 4))
+    stated_non_itemized: Mapped[Optional[Decimal]] = mapped_column(Numeric(18, 4))
+    # Ours, bounded by ``cut_off_date``. A committee we hold no rows for is stored as
+    # ``0`` rather than left NULL, because "the filing named $2,300.00 and we hold
+    # nothing" is the sharpest case this check exists for and an absent number would
+    # read as a year nobody looked at.
+    ours_itemized: Mapped[Optional[Decimal]] = mapped_column(Numeric(18, 4))
+    ours_itemized_cash: Mapped[Optional[Decimal]] = mapped_column(Numeric(18, 4))
+
+    checked_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+    __table_args__ = (Index("ix_cf_stated_split_status", "snapshot_id", "status"),)
+
+
 def bill_detail_stmt(
     bill_id: uuid.UUID,
     user_id: Optional[uuid.UUID] = None,

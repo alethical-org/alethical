@@ -96,6 +96,7 @@ from sqlalchemy.orm import Session
 
 from alethical.db import models as schema
 from alethical.pipeline.campaign_finance_filings import filings_context
+from alethical.pipeline.campaign_finance_stated_split import stated_split_coverage
 from alethical.pipeline.http_text import response_text
 from alethical.pipeline.legislator_committee_match import (
     ConfirmedLink,
@@ -377,7 +378,12 @@ YEAR_ROW_LOSS_FLOOR = 25
 @dataclass
 class Check:
     name: str
-    status: str  # "passed" | "failed" | "not_run" | "overridden"
+    # "passed" | "failed" | "not_run" | "overridden" | "reported".
+    # "reported" is a check that ran and answers per filer-year rather than for the
+    # whole load, so it never blocks: #1433's split comparison is the only one, and
+    # Eugene ruled on 12 Aug 2026 that a committee whose 2 official figures disagree
+    # withholds its own split while every other committee publishes.
+    status: str
     detail: str
     # The filer-years this check found fault with, as "<registration>:<year>". Recorded
     # separately from the prose because a surface has to act on it: §7 says a
@@ -544,23 +550,42 @@ class LoadReport:
         released set that reads as fully checked is worse than one that says where it
         stops.
         """
-        found = next(
-            (
-                check
-                for outcome in self.outcomes
-                for check in outcome.checks
-                if check.name == "reported_totals_reconcile"
-            ),
-            None,
-        )
+        found = self._check("reported_totals_reconcile")
         if found is None or found.status == "not_run":
             return "not reconciled against Minnesota's own figures: " + (
                 found.detail if found else "the check did not run"
             )
         return (
-            f"reconciled against Minnesota's own figures ({found.detail}), but not "
-            "against each filing's own itemized subtotal (#1433) — so our rows being "
-            "SHORT for a filer would still read as small-donor money"
+            f"reconciled against Minnesota's own figures ({found.detail}). "
+            + self._stated_split_line()
+        )
+
+    def _stated_split_line(self) -> str:
+        """Whether the half that catches our rows being SHORT has run on these records.
+
+        Named separately because it is the gap this line used to state unconditionally,
+        and #1433 built the thing that closes it. The gap is now conditional: it is open
+        until someone runs the comparison over this record set, and it is genuinely
+        closed after that.
+        """
+        split = self._check("reported_itemized_split_matches_ours")
+        if split is None or split.status == "not_run":
+            return (
+                "Not yet compared against each filing's own itemized subtotal, so our "
+                "rows being SHORT for a committee would still read as small-donor "
+                "money: " + (split.detail if split else "the check did not run")
+            )
+        return f"Compared against each filing's own itemized subtotal: {split.detail}"
+
+    def _check(self, name: str) -> Optional[Check]:
+        return next(
+            (
+                check
+                for outcome in self.outcomes
+                for check in outcome.checks
+                if check.name == name
+            ),
+            None,
         )
 
     def summary(self) -> str:
@@ -587,7 +612,12 @@ class LoadReport:
             )
             lines.append(f"      bytes   {outcome.fetched.content_hash}")
             for check in outcome.checks:
-                if check.status in ("failed", "not_run", "overridden"):
+                if check.status in (
+                    "failed",
+                    "not_run",
+                    "overridden",
+                    "reported",
+                ):
                     lines.append(f"      {check.status}: {check.name} — {check.detail}")
         if self.refusal:
             lines.append(f"  refused: {self.refusal}")
@@ -1129,6 +1159,7 @@ def validate(
     *,
     operator_approved: bool,
     filings: Optional[Any] = None,
+    stated_split: Optional[Any] = None,
 ) -> list[Check]:
     """Compare a candidate against the live release's snapshot for the same file.
 
@@ -1140,6 +1171,12 @@ def validate(
     directory (a ``FilingsContext`` from ``campaign_finance_filings``). Without it the
     2 checks that need the Board's own statements report themselves as not run, with
     the command that fixes that.
+
+    ``stated_split`` is what a previous run of #1433's comparison found for *these*
+    records (a ``StatedSplitCoverage``). It is looked up by record-set hash rather than
+    recomputed, so it is only present when the same records have already been compared
+    against their own filings. Without it that check reports itself not run, with the
+    command that fixes that.
 
     ``operator_approved`` waives the comparison checks only, for an operator who
     has named the exact hashes they reviewed. It never waives a structural check:
@@ -1248,21 +1285,69 @@ def validate(
             spec, measured, filings, operator_approved=operator_approved
         )
     )
-    # And the one this repo still cannot run. Recorded as not run with its reason,
-    # never as passed.
-    checks.append(
-        Check(
-            "reported_itemized_split_matches_ours",
+    # And the half that catches our rows being SHORT, which is the direction nothing
+    # announces (#1433). It reads a separate pass's stored answers rather than running
+    # one here, because one pass is about 1,300 report documents.
+    checks.append(_reported_itemized_split(spec, stated_split))
+    return checks
+
+
+def _reported_itemized_split(spec: DatasetSpec, coverage: Optional[Any]) -> Check:
+    """Did each committee's own filing agree with the payment rows we hold for it?
+
+    **This never blocks a release, and that is a ruling rather than a convenience**
+    (Eugene, 12 Aug 2026): where 2 of Minnesota's own publications disagree and we
+    cannot derive the truth, we show both figures and say plainly that they disagree.
+    So a committee-year that disagrees withholds its own split while every other
+    committee publishes normally, and a million verified payments are not withheld
+    because 1 committee contradicts itself. The status is ``reported`` rather than
+    ``failed`` for exactly that reason, and the filer-years are named so a surface can
+    withhold those and only those.
+
+    ``not_run`` stays honest for a set nobody has checked yet. The comparison is a
+    separate command over about 1,300 report documents, so a freshly downloaded set has
+    no answers until someone runs it, and the reason names the command.
+    """
+    name = "reported_itemized_split_matches_ours"
+    if spec.dataset is not Dataset.contributions:
+        return Check(
+            name,
             "not_run",
-            "needs each filing's own stated itemized and non-itemized subtotals, "
-            "which the Board publishes only inside the report document and not on any "
-            "route that carries figures. That is the half of the reconciliation that "
-            "catches our rows being SHORT, which is the direction nothing announces: "
-            "the missing money lands in the derived non-itemized figure and reads as "
-            "ordinary small-donor money. Tracked as #1433",
+            "this check compares itemized contributions against a filing's own stated "
+            "itemized contributions figure, and this file carries neither",
+        )
+    if coverage is None:
+        return Check(
+            name,
+            "not_run",
+            "no committee-year of this record set has been compared against its own "
+            "filing yet. That comparison reads about 1,300 report documents and is a "
+            "separate pass: run scripts/check_campaign_finance_stated_split.py. Until "
+            "it does, a committee whose filing names money we are missing would show "
+            "that money as having had no donor (#1433)",
+        )
+    detail = (
+        f"{coverage.agrees:,} of {coverage.total:,} committee-years agree with their "
+        f"own filing, {coverage.disagrees:,} disagree, {coverage.not_checked:,} could "
+        "not be checked because the Board serves no document for them, and "
+        f"{coverage.reader_unproven:,} were read by a reader that could not prove "
+        "itself. Checked "
+        + (
+            coverage.checked_at.isoformat()
+            if coverage.checked_at
+            else "at an unknown time"
         )
     )
-    return checks
+    if coverage.disagrees:
+        return Check(
+            name,
+            "reported",
+            detail
+            + ". The filer-years above must not publish a split; they are a display "
+            "state and not a release fault",
+            coverage.disagreeing_filer_years,
+        )
+    return Check(name, "passed", detail)
 
 
 # Money on both sides is numeric(18,4) and the Board prints 2 decimal places, so a
@@ -1554,6 +1639,23 @@ def gzip_to(source_path: str, destination_path: str) -> tuple[str, int]:
 
 def object_key(spec: DatasetSpec, content_hash: str) -> str:
     return f"campaign-finance/{spec.key}/{content_hash}.csv.gz"
+
+
+def stated_split_for(db: Session, outcome: DatasetOutcome) -> Optional[Any]:
+    """What #1433's comparison found for *these* records, if it has run on them.
+
+    Keyed through ``find_snapshot``, which matches on the record-set hash rather than on
+    the bytes. That is the whole reason this can ever be present: a re-download of an
+    unchanged file arrives with different bytes and the same records, so the verdicts
+    stored against those records still describe them. A genuinely new record set has
+    none, and the check says so rather than carrying the previous set's answers over.
+    """
+    if outcome.spec.dataset is not Dataset.contributions:
+        return None
+    snapshot = find_snapshot(db, outcome)
+    if snapshot is None:
+        return None
+    return stated_split_coverage(db, snapshot.id)
 
 
 def find_snapshot(db: Session, outcome: DatasetOutcome) -> Optional[Any]:
@@ -1928,6 +2030,7 @@ def publish(
                 and measured.record_set_hash in (approved_hashes or set())
             ),
             filings=filings,
+            stated_split=stated_split_for(db, outcome),
         )
         failed = [check for check in rechecked if check.blocks_publication]
         if failed:
@@ -2479,6 +2582,7 @@ def load_campaign_finance(
                     measured is not None and measured.record_set_hash in approved
                 ),
                 filings=filings,
+                stated_split=stated_split_for(db, outcome),
             )
 
         blocked = [outcome for outcome in report.outcomes if outcome.blocked]

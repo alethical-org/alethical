@@ -54,6 +54,14 @@ dependencies = [
   # it reaches us today only because boto3 happens to require it (#701).
   "boto3>=1.43.69",
   "botocore>=1.43.69",
+  # The only half of the campaign-finance reconciliation that can catch our payment
+  # rows being SHORT lives inside each committee's filed report document, which the
+  # Board publishes as a PDF and nowhere else (#1433). pypdf reads the text out of
+  # one; it is pure Python with no system libraries behind it, so it adds nothing to
+  # the deployed image beyond itself. Nothing is rebuilt from those documents -- one
+  # stated subtotal is read per schedule and the payment rows keep coming from the
+  # bulk download (§2.3).
+  "pypdf>=6.15.0",
 ]
 
 [tool.uv]

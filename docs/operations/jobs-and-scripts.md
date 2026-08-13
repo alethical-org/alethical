@@ -47,7 +47,7 @@ the site running, which this page doesn't cover.
 
 ## 3. Only runs when someone types a command
 
-There are 37 separate command-line tools in this project (33 in the `scripts`
+There are 38 separate command-line tools in this project (34 in the `scripts`
 folder, plus 4 that live in `alethical/pipeline` and are commonly run directly).
 None of them run on their own; a person has to start each one. Grouped by what
 they're for, so the right one can be found without reading every file:
@@ -68,6 +68,7 @@ they're for, so the right one can be found without reading every file:
 |---|---|---|
 | `scripts/check_bill_section_gaps.py` | Finds a bill whose saved text is missing pieces the state actually published (also runs on the daily clock above) | No |
 | `scripts/check_rag_coverage.py` | Finds a bill that's saved but invisible to search (also runs on the daily clock above) | No |
+| `scripts/check_campaign_finance_stated_split.py` | Reads each committee's own filed money report and compares the donations it says it named against the donations we actually hold. It is the only way to see that we are *missing* donations Minnesota named: a missing donation would otherwise be shown on a page as money that came from donors too small to name, which is a false statement under a real politician's name. Roughly 1,300 requests to the state's free website and about 20 minutes for one year | No |
 | `scripts/check_home_hero_card_literals.py` | Checks the homepage's stated facts against the official record (also runs on the monthly clock above) | No |
 | `scripts/check_schema_drift.py` | Checks that the database's actual structure matches what the code expects | No |
 | `scripts/check_declared_dependencies.py` | Checks the code isn't secretly relying on an outside package it never officially listed | No |
@@ -137,6 +138,9 @@ directly. The ones worth knowing by name:
   and other jobs from a waiting list instead of one at a time by hand.
 - `campaign_finance.py`, `campaign_finance_filings.py`, `campaign_finance_reader.py` —
   the campaign-money importing code the `load_campaign_finance*` tools above call.
+- `campaign_finance_report_documents.py` and `campaign_finance_stated_split.py` — the
+  code behind `check_campaign_finance_stated_split.py` above: one fetches and reads a
+  committee's filed report, the other compares it to the donations we hold.
 
 ## 4. Which ones spend money
 
