@@ -7,7 +7,9 @@ import {
   outsideSpendingFigures,
   outsideSpendingPaymentCount,
   outsideSpendingPeriod,
+  outsideSpendingSharedReason,
   outsideSpendingUnavailableReason,
+  outsideSpendingYears,
   type OutsideSpendingYear,
 } from '../outsideSpending';
 
@@ -177,6 +179,44 @@ describe('outsideSpendingPeriod', () => {
   it('invents no range when no payment carries a date', () => {
     expect(outsideSpendingPeriod({ ...REPORTED, firstPaymentOn: null })).toBeNull();
     expect(outsideSpendingPeriod({ ...EMPTY, state: 'link_unconfirmed' })).toBeNull();
+  });
+});
+
+describe('outsideSpendingSharedReason', () => {
+  const unconfirmed = { ...EMPTY, state: 'link_unconfirmed' as const };
+
+  it('says it once when every year gives the same answer', () => {
+    // The launch-day case for all 206 members. Two year headings over one repeated
+    // paragraph would imply the years were the question; the reason is about the
+    // person and holds for every year.
+    const shared = outsideSpendingSharedReason([
+      { ...unconfirmed, year: 2026 },
+      { ...unconfirmed, year: 2025 },
+    ]);
+    expect(shared).toBe(outsideSpendingUnavailableReason(unconfirmed));
+  });
+
+  it('stays silent when the years disagree, so a different year keeps its own line', () => {
+    expect(
+      outsideSpendingSharedReason([
+        { ...unconfirmed, year: 2026 },
+        { ...EMPTY, year: 2025, state: 'unavailable' },
+      ]),
+    ).toBeNull();
+  });
+
+  it('stays silent when any year has real figures to show', () => {
+    expect(outsideSpendingSharedReason([{ ...unconfirmed, year: 2026 }, REPORTED])).toBeNull();
+    expect(outsideSpendingSharedReason([])).toBeNull();
+  });
+});
+
+describe('outsideSpendingYears', () => {
+  it('follows the calendar instead of naming a year that goes stale', () => {
+    // A hardcoded 2025 and 2026 would still be on the page in 2028 and nothing would
+    // have complained.
+    expect(outsideSpendingYears(new Date('2026-08-13T00:00:00Z'))).toEqual([2026, 2025]);
+    expect(outsideSpendingYears(new Date('2028-03-01T00:00:00Z'))).toEqual([2028, 2027]);
   });
 });
 

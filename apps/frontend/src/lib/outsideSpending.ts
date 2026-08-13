@@ -162,6 +162,23 @@ export function outsideSpendingUnavailableReason(year: OutsideSpendingYear): str
 }
 
 /**
+ * One reason covering every year, or null when the years differ.
+ *
+ * Today every legislator has no confirmed committee link, so both years carry the
+ * same sentence and printing it twice under 2 year headings says nothing the first
+ * one did not. It is also misleading in shape: 2 headings imply the answer is about
+ * the years, when the reason is about the person and holds for every year there will
+ * ever be. Null the moment the years disagree, so a year that really is different
+ * keeps its own line.
+ */
+export function outsideSpendingSharedReason(years: OutsideSpendingYear[]): string | null {
+  if (years.length === 0) return null;
+  const reasons = years.map((year) => outsideSpendingUnavailableReason(year));
+  if (reasons.some((reason) => reason === null)) return null;
+  return reasons.every((reason) => reason === reasons[0]) ? reasons[0] : null;
+}
+
+/**
  * The span the year's payments fall in, e.g. `Feb 3, 2025 to Oct 28, 2025`.
  *
  * Rule 12 asks every total to state the period it covers, and this is the filing's
@@ -185,6 +202,19 @@ export function outsideSpendingPeriod(year: OutsideSpendingYear): string | null 
 export function outsideSpendingFetchedOn(years: OutsideSpendingYear[]): string | null {
   const stamped = years.find((year) => year.fetchedAt);
   return stamped?.fetchedAt ? formatNiceDate(stamped.fetchedAt) : null;
+}
+
+/**
+ * The 2 calendar years the block asks about: this one and the one before.
+ *
+ * Derived rather than written down, because a hardcoded pair goes stale in silence.
+ * The downloads reach 2015 to the present, so on 1 January the newer year is one the
+ * files do not hold yet — which the server answers as a gap rather than as a zero, so
+ * the honest answer arrives on its own instead of needing a rule here.
+ */
+export function outsideSpendingYears(today: Date): number[] {
+  const year = today.getFullYear();
+  return [year, year - 1];
 }
 
 /** The source link, whichever year carries it. */

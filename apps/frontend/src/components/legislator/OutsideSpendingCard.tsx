@@ -1,6 +1,7 @@
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { theme as t } from '../../theme/tokens';
+import { useResponsive } from '../../hooks/useResponsive';
 import { externalLinkProps } from '../../navigation/links';
 import { LinkArrow } from '../LinkArrow';
 import { useHover } from '../billDetail/interactions';
@@ -11,6 +12,7 @@ import {
   outsideSpendingFigures,
   outsideSpendingPaymentCount,
   outsideSpendingPeriod,
+  outsideSpendingSharedReason,
   outsideSpendingSourceUrl,
   outsideSpendingUnavailableReason,
   type OutsideSpendingYear,
@@ -48,11 +50,19 @@ export function OutsideSpendingCard({
   isError: boolean;
   onOpenSource: (url: string) => void;
 }) {
+  const { isMobile } = useResponsive();
   const sourceUrl = outsideSpendingSourceUrl(years);
   const fetchedOn = outsideSpendingFetchedOn(years);
+  // Today every legislator hits this: no committee link is confirmed, so both years
+  // give the same answer and 2 year headings would imply the years were the question.
+  const sharedReason = outsideSpendingSharedReason(years);
   return (
-    <View style={styles.card}>
-      <Text accessibilityRole="header" aria-level={2} style={styles.heading}>
+    <View style={[styles.card, isMobile && styles.cardMobile]}>
+      <Text
+        accessibilityRole="header"
+        aria-level={2}
+        style={[styles.heading, isMobile && styles.headingMobile]}
+      >
         {HEADING}
       </Text>
       <Text style={styles.explainer}>
@@ -71,6 +81,8 @@ export function OutsideSpendingCard({
           We could not load this right now. This is a problem at our end and says nothing
           about what was spent.
         </Text>
+      ) : sharedReason ? (
+        <Text style={[styles.note, styles.sharedReason]}>{sharedReason}</Text>
       ) : (
         <View style={styles.yearStack}>
           {years.map((year) => (
@@ -167,6 +179,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 34,
     ...(t.shadows.card as object),
   },
+  cardMobile: { borderRadius: 18, paddingVertical: 22, paddingHorizontal: 22 },
+  // Web's own section heading is 30; the phone layout's is the h3 token, so the one
+  // card matches whichever screen it is sitting in rather than importing web's scale
+  // onto a 375px column.
   heading: {
     fontFamily: t.typography.title,
     fontSize: 30,
@@ -174,6 +190,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.6,
     color: t.colors.text.primary,
   },
+  headingMobile: { fontSize: t.fontSizes.h3, letterSpacing: -0.22 },
   explainer: {
     marginTop: 12,
     fontFamily: t.typography.body,
@@ -218,6 +235,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     color: t.colors.text.muted,
   },
+  sharedReason: { marginTop: 18 },
   sourceRow: { marginTop: 24, gap: 6 },
   sourceLinkRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   sourceLink: {

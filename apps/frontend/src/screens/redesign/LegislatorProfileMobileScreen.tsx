@@ -31,9 +31,12 @@ import { externalLinkProps, linkProps, pressInsideLink, routePath } from '../../
 import {
   useLegislator,
   useLegislatorBills,
+  useLegislatorOutsideSpending,
   useLegislatorVotes,
   useSessions,
 } from '../../hooks/useAppQueries';
+import { OutsideSpendingCard } from '../../components/legislator/OutsideSpendingCard';
+import { outsideSpendingYears } from '../../lib/outsideSpending';
 import { Bill, Legislator } from '../../data/types';
 import { formatLegislatureLabel } from '../../lib/sessionLabel';
 import { BillTrackButton } from '../../components/billDetail/BillTrackButton';
@@ -366,6 +369,11 @@ export function LegislatorProfileMobileScreen() {
   const legQuery = useLegislator(legislatorId);
   const billsQuery = useLegislatorBills(legislatorId, { limit: 100, role: 'chief_author' });
   const votesQuery = useLegislatorVotes(legislatorId, 1);
+  // This year and last: the current election cycle, derived so it cannot go stale.
+  const outsideSpendingQuery = useLegislatorOutsideSpending(
+    legislatorId,
+    outsideSpendingYears(new Date()),
+  );
   const sessionsQuery = useSessions();
 
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
@@ -746,6 +754,18 @@ export function LegislatorProfileMobileScreen() {
                     ) : null}
                   </View>
                 )}
+              </View>
+            </View>
+
+            {/* SPENDING BY OUTSIDE GROUPS (#1332) */}
+            <View style={styles.section}>
+              <View style={styles.column}>
+                <OutsideSpendingCard
+                  years={outsideSpendingQuery.data ?? []}
+                  isLoading={outsideSpendingQuery.isLoading}
+                  isError={outsideSpendingQuery.isError}
+                  onOpenSource={openExternal}
+                />
               </View>
             </View>
 
