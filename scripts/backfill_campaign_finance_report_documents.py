@@ -343,6 +343,7 @@ def main() -> int:
             report = backfill(
                 session,
                 keeper,
+                limit=args.limit,
                 progress=lambda message: print(message, file=sys.stderr, flush=True),
             )
     print("\n" + report.summary())
