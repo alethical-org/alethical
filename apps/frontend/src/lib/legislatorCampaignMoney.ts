@@ -165,6 +165,31 @@ export const UNNAMED_MONEY_EXPLANATION =
   '$200 in total for the year. Donors who gave $200 or less in total are never named, ' +
   'so their money is counted here but nobody knows who they are.';
 
+/**
+ * What the spending figure means, which is a different sentence when there is none.
+ *
+ * Minnesota publishes no official total for a committee's spending, so unlike money
+ * in there is no second number here and no split. Under "Not reported" the
+ * no-bigger-number sentence would explain a figure that is not on the screen, and a
+ * reader would take the absence as a spending of zero, which is the exact
+ * missing-versus-zero failure rule 12 exists to stop.
+ */
+export function spendingNote(state: MoneyBlockState): string {
+  if (state === 'reported') {
+    return (
+      'Minnesota only publishes payments over $200, and publishes no official total ' +
+      'for a committee’s spending, so there is no bigger number to compare this against.'
+    );
+  }
+  if (state === 'unavailable') {
+    return 'We could not read this committee’s payments out of our copy of Minnesota’s file.';
+  }
+  return (
+    'Minnesota only publishes a committee’s payments over $200, and it published none ' +
+    'for this committee this year. That does not mean the committee spent nothing.'
+  );
+}
+
 /** What the page says instead of a figure, per state, and why. */
 export type FigureText = { text: string; isFigure: boolean };
 

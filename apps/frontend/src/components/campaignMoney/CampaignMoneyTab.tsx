@@ -35,6 +35,7 @@ import {
   paymentDateRangeLabel,
   reportedThroughLabel,
   showsUnconfirmedState,
+  spendingNote,
   splitExplanation,
   unnamedShareLabel,
 } from '../../lib/legislatorCampaignMoney';
@@ -46,6 +47,16 @@ import { theme as t } from '../../theme/tokens';
 
 /** The Board's own page, which is where every figure on this tab comes from. */
 const BOARD_URL = 'https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/';
+/**
+ * Where a reader looks this committee's own filed reports up.
+ *
+ * The Board's viewer takes a search rather than an address per committee, so this is
+ * the page and the registration number is printed beside the committee's name for
+ * the reader to type in. Deliberately not a guessed deep link: an address that
+ * quietly lands on the wrong committee is worse than one extra step.
+ */
+const BOARD_CANDIDATE_VIEWER =
+  'https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/candidates/';
 
 type Props = {
   legislatorName: string;
@@ -137,7 +148,7 @@ function YearControl({
   onSelect: (year: CampaignMoneyYear) => void;
 }) {
   return (
-    <View style={styles.years} accessibilityRole="group" aria-label="Choose a year">
+    <View style={styles.years} role="group" aria-label="Choose a year">
       {CAMPAIGN_MONEY_YEARS.map((option) => {
         const active = option === year;
         return (
@@ -195,7 +206,7 @@ function CommitteeCard({
     <View style={styles.card}>
       <Text style={styles.eyebrow}>
         {committee.office ? `${committee.office} · ` : ''}
-        {year}
+        {year} · REGISTRATION {committee.registrationNumber}
       </Text>
       <Text accessibilityRole="header" aria-level={3} style={styles.h3}>
         {name}
@@ -227,12 +238,22 @@ function MoneyIn({
       </Text>
 
       {reported ? (
-        <Figure
-          label="Raised in total"
-          value={reported}
-          note={reportedThroughLabel(split.reportedThrough)}
-          isDesktop={isDesktop}
-        />
+        <>
+          <Figure
+            // "Reported to the state", never "Raised in total". The two are the
+            // same only when the report covers the whole year, and on a member whose
+            // report stops in March the second label would be false while the first
+            // stays true beside its own coverage date.
+            label="Total this committee reported to the state"
+            value={reported}
+            note={reportedThroughLabel(split.reportedThrough)}
+            isDesktop={isDesktop}
+          />
+          <SourceLink
+            label="This committee’s filed reports, on the state’s own site"
+            url={BOARD_CANDIDATE_VIEWER}
+          />
+        </>
       ) : null}
 
       {named ? (
@@ -309,13 +330,11 @@ function MoneyOut({
         note={paymentCountLabel(moneyOut.itemizedPayments)}
         isDesktop={isDesktop}
       />
-      {/* Minnesota publishes no official spending total to set beside this one, so
-          unlike money in there is no second number and no split. Saying so is the
-          honest version of a card that would otherwise look simply smaller. */}
-      <Text style={styles.explain}>
-        Minnesota only publishes payments over $200, and publishes no official total for a
-        committee’s spending, so there is no bigger number to compare this against.
-      </Text>
+      {/* Two different sentences, because "here is a figure and there is no bigger
+          one" and "here is no figure" are two different things to explain. Under
+          "Not reported" the first sentence would be explaining a number that is not
+          on the screen, and a reader would take the absence as a spending of zero. */}
+      <Text style={styles.explain}>{spendingNote(moneyOut.state)}</Text>
       {moneyOut.byType.length ? (
         <View style={styles.rows}>
           {moneyOut.byType.map((entry) => (

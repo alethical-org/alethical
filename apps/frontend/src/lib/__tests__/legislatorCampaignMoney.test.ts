@@ -25,6 +25,7 @@ import {
   paymentDateRangeLabel,
   reportedThroughLabel,
   showsUnconfirmedState,
+  spendingNote,
   splitExplanation,
   unnamedShareLabel,
 } from '../legislatorCampaignMoney';
@@ -146,6 +147,25 @@ describe('splitExplanation', () => {
     ] as const) {
       expect(splitExplanation(state)).not.toMatch(/hid|conceal|refus|failed to (report|file)/i);
     }
+  });
+});
+
+describe('spendingNote', () => {
+  it('says there is no bigger number, beside a real figure', () => {
+    expect(spendingNote('reported')).toContain('no bigger number');
+  });
+
+  it('says an absent figure is not a spending of zero', () => {
+    // The sentence beside a figure would be explaining a number that is not on the
+    // screen, and a reader takes the absence as zero. This is the same
+    // missing-versus-zero failure as a "$0", one step further out.
+    const text = spendingNote('not_reported');
+    expect(text).toContain('does not mean the committee spent nothing');
+    expect(text).not.toContain('no bigger number');
+  });
+
+  it('says a load failed rather than blaming the committee', () => {
+    expect(spendingNote('unavailable')).toMatch(/our copy/);
   });
 });
 
