@@ -272,18 +272,29 @@ def backfill(
     return report
 
 
-def describe(db: Session) -> BackfillReport:
-    """What a real run would ask for. No requests, no writes."""
+def describe(db: Session, *, limit: int | None = None) -> BackfillReport:
+    """What a real run would ask for. No requests, no writes.
+
+    ``limit`` is the operator's own bound and must be applied here too. A preview
+    that reports the whole pending population while the run it previews would stop
+    at 50 is a dry run describing a different run, which is the one thing a dry run
+    cannot be allowed to do.
+    """
     report = BackfillReport(no_kind=missing_kinds(db))
     kept = stored_document_hashes(db)
     wanted = wanted_documents(db)
     todo = [item for item in wanted if item.document_hash not in kept]
     report.already_kept = len(wanted) - len(todo)
+    pending = len(todo)
+    if limit is not None:
+        todo = todo[:limit]
     print(
         f"\n{len(todo):,} document(s) would be asked for, "
         f"{sum(item.document_byte_size for item in todo):,} bytes as originally read.\n"
         f"{report.already_kept:,} already kept."
     )
+    if limit is not None and pending > len(todo):
+        print(f"--limit {limit} holds back {pending - len(todo):,} of {pending:,} pending.")
     if report.no_kind:
         print(
             f"{len(report.no_kind)} verdict(s) name no filer kind and cannot be "
@@ -334,7 +345,7 @@ def main() -> int:
             )
             return 1
         if args.dry_run:
-            describe(session)
+            describe(session, limit=args.limit)
             return 0
         store = raw_file_store_from_env()
         print(f"keeping documents in: {store.bucket}", flush=True)
