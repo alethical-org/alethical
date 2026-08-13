@@ -105,8 +105,10 @@ later runs — **emptying every table before it re-seeds**, so run two starts fr
 the data run one started from. Databases whose worktree has been deleted are dropped
 automatically at the start of the next run, so they do not pile up.
 
-**Why the emptying is there** ([#1490](https://github.com/alethical-org/alethical/issues/1490),
-[#1491](https://github.com/alethical-org/alethical/issues/1491)). `scripts/load_sample_data.py`
+**Why the emptying is there** —
+[#1490, backend tests fail on the second local run](https://github.com/alethical-org/alethical/issues/1490)
+and [#1491, a service-history test fails for good past 20 legislators](https://github.com/alethical-org/alethical/issues/1491).
+`scripts/load_sample_data.py`
 inserts what is missing and updates what it finds, so it is idempotent per row but cannot
 remove rows it did not create. Tests commit legislators, bills and sessions into the seeded
 data and leave them there, so the database used to grow every run — 7 legislators after a
