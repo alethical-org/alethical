@@ -63,6 +63,7 @@ from alethical.api.services.independent_spending import (
     independent_spending_for_legislator,
 )
 from alethical.api.services.issue_bills import MIN_ISSUE_LENGTH, matched_issue_bill_ids
+from alethical.api.services.legislator_finance import legislator_finance
 from alethical.api.services.representative_lookup import (
     DistrictMatch,
     RepresentativeLookupChoices,
@@ -3179,6 +3180,174 @@ def payments_under_one_printed_name(
             "role": role,
             "year": year,
             **_payment_page_payload(page),
+        }
+    )
+
+
+@router.get(
+    "/legislators/{legislator_id}/campaign-finance",
+    response_model=DetailResponse,
+)
+def legislator_campaign_finance(
+    legislator_id: str,
+    year: int = Query(ge=2015, le=2100),
+    db: Session = Depends(get_db),
+):
+    """One legislator's own campaign money for one year, per committee.
+
+    Money others spent about them is a separate question with a separate answer, and
+    it lives on ``/legislators/{legislator_id}/independent-spending``. The two are
+    drawn together on the profile and are kept apart here because a committee's own
+    receipts and a third party's spending are different records that must never be
+    added (``docs/architecture/campaign-finance-system-design.md`` §3).
+
+    **Read ``link_state`` before reading ``committees``, always.** An empty
+    ``committees`` list is not a statement about this person:
+
+    * ``unconfirmed`` -- nobody has yet checked which registered committee is theirs.
+      Minnesota publishes no link between a committee and a human, so a person
+      confirms each one by hand (§5, Identity). On the day this shipped every sitting
+      member was in this state, so it is the ordinary state rather than an edge case.
+    * ``reviewed_none_confirmed`` -- someone read this member's candidate committees
+      and confirmed none of them. Kept apart from the above because "we looked" and
+      "nobody has looked" are different facts, but **a reader-facing surface words the
+      two the same way**: all 200 sitting members do appear in the Board's
+      registered-filer directory, so on a sitting member's profile this means their
+      committee exists and we failed to surface it, never that none is registered
+      (§7).
+    * ``confirmed`` -- at least one committee is confirmed as theirs. A committee whose
+      reviewed period does not cover ``year`` is still correctly absent from
+      ``committees``, which is how a race for an office they no longer hold stays off
+      the page.
+
+    Every committee carries a ``split``: how much of the year's money reached this
+    committee with a donor's name attached and how much did not. **Read
+    ``split.state`` before its numbers**, because the split is derived and is withheld
+    whenever the derivation cannot be honest:
+
+    * ``shown`` -- ``unnamed_total`` is real. It is the committee's own reported total
+      minus the named payments we hold, and it is usually large: Minnesota names a
+      donor only once their giving passes $200 in aggregate within a calendar year, so
+      roughly 4 dollars in 10 have no name on a typical filing.
+    * ``no_reported_total`` -- no official total this page may print for this year, so
+      there is no whole to divide. The named payments stand alone, labelled as named
+      payments.
+    * ``periods_differ`` -- the reported total and our named payments cover different
+      periods, so their difference is not a fact about donors. Measured on the live
+      release, 36 of 835 committee-years for 2026.
+    * ``sources_disagree`` -- Minnesota's own report and Minnesota's own spreadsheet
+      contradict each other for this committee-year. Both figures are shown and
+      neither is subtracted from the other.
+    * ``no_named_payments`` -- the filing reports money and we hold no named payment
+      of it. Never rendered as "this money had no names", which is the claim it would
+      silently become.
+
+    ``first_payment_on`` and ``last_payment_on`` describe the payments we hold and are
+    **not** a coverage period. No surface may turn them into one, or assume a period
+    starts on 1 January: filer 19223 reports from 11 July 2025 (§9.5).
+
+    503 means we hold no usable release at all, which is a fact about us and never a
+    figure about a named person.
+    """
+    # First statement in the transaction, exactly as the committee route does: this
+    # request reads 3 datasets plus the filings snapshot, and 2 publishes landing
+    # between its statements would otherwise take the named release's rows away
+    # halfway through.
+    pin_campaign_finance_to_one_view(db)
+    legislator = get_legislator_by_id(db, legislator_id)
+    unusable = HTTPException(
+        status_code=503,
+        detail=(
+            "no usable campaign-finance release is published; "
+            "this says nothing about any legislator"
+        ),
+    )
+    try:
+        release = current_campaign_finance_release(db)
+        if release is None:
+            raise unusable
+        finance = legislator_finance(
+            db, release, legislator_id=legislator.id, year=year
+        )
+    except ReleaseNoLongerHeld:
+        raise unusable from None
+    return DetailResponse(
+        data={
+            "legislator_id": str(legislator.id),
+            "year": finance.year,
+            "link_state": finance.link_state,
+            "release_id": str(release.id),
+            "fetched_at": release.fetched_at,
+            "committees": [
+                {
+                    "registration_number": entry.registration_number,
+                    # What the reviewer read when they confirmed the link, and what the
+                    # release names the same number today. They can legitimately
+                    # differ: the Board publishes a committee's *current* name against
+                    # all of its history, so a rename is a thing to notice rather than
+                    # a contradiction (§5.1).
+                    "committee_name_as_reviewed": entry.committee_name_as_reviewed,
+                    "committee_name": (
+                        entry.finance.committee.name if entry.finance else None
+                    ),
+                    "office": entry.office_as_reviewed,
+                    "money_in": (
+                        {
+                            "state": entry.finance.money_in.state,
+                            "itemized_contribution_total": (
+                                entry.finance.money_in.itemized_contribution_total
+                            ),
+                            "itemized_contribution_payments": (
+                                entry.finance.money_in.itemized_contribution_payments
+                            ),
+                            "other_receipts": [
+                                {
+                                    "receipt_type": receipt.receipt_type,
+                                    "total": receipt.total,
+                                    "payments": receipt.payments,
+                                }
+                                for receipt in entry.finance.money_in.other_receipts
+                            ],
+                            "source_url": entry.finance.money_in.source_url,
+                        }
+                        if entry.finance
+                        else None
+                    ),
+                    "money_out": (
+                        {
+                            "state": entry.finance.money_out.state,
+                            "itemized_payment_total": (
+                                entry.finance.money_out.itemized_payment_total
+                            ),
+                            "itemized_payments": (
+                                entry.finance.money_out.itemized_payments
+                            ),
+                            "by_type": [
+                                {
+                                    "type": bucket.expenditure_type,
+                                    "total": bucket.total,
+                                    "payments": bucket.payments,
+                                }
+                                for bucket in entry.finance.money_out.by_type
+                            ],
+                            "source_url": entry.finance.money_out.source_url,
+                        }
+                        if entry.finance
+                        else None
+                    ),
+                    "split": {
+                        "state": entry.split.state,
+                        "reported_total": entry.split.reported_total,
+                        "reported_through": entry.split.reported_through,
+                        "named_total": entry.split.named_total,
+                        "named_payments": entry.split.named_payments,
+                        "unnamed_total": entry.split.unnamed_total,
+                        "first_payment_on": entry.split.first_payment_on,
+                        "last_payment_on": entry.split.last_payment_on,
+                    },
+                }
+                for entry in finance.committees
+            ],
         }
     )
 
