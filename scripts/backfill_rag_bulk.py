@@ -106,8 +106,8 @@ def params() -> dict[str, str]:
 
 def load_local_payloads(
     local_engine: Any, bill_keys: list[str]
-) -> dict[str, tuple[Any, list[dict[str, Any]]]]:
-    loaded: dict[str, tuple[Any, list[dict[str, Any]]]] = {}
+) -> dict[str, list[dict[str, Any]]]:
+    loaded: dict[str, list[dict[str, Any]]] = {}
     with Session(local_engine) as db:
         for bill_key in bill_keys:
             bill = db.scalar(
@@ -131,17 +131,14 @@ def load_local_payloads(
                 .where(schema.BillVersionSection.bill_version_id == version.id)
                 .order_by(schema.BillVersionSection.source_order.asc())
             ).all()
-            loaded[bill_key] = (
-                bill,
-                [
-                    # source_order rides along so the target section can be
-                    # matched on the column the database actually keys on. See
-                    # load_prod_section_map for why that matters.
-                    _chunk_payloads(str(bill.file_type), bill.file_number, section)
-                    | {"source_order": section.source_order}
-                    for section in sections
-                ],
-            )
+            loaded[bill_key] = [
+                # source_order rides along so the target section can be
+                # matched on the column the database actually keys on. See
+                # load_prod_section_map for why that matters.
+                _chunk_payloads(str(bill.file_type), bill.file_number, section)
+                | {"source_order": section.source_order}
+                for section in sections
+            ]
     return loaded
 
 
@@ -194,12 +191,11 @@ def upsert_batch(
         skipped = 0
 
         for bill_key in bill_keys:
-            local_bill_payload = local_payloads.get(bill_key)
+            local_sections = local_payloads.get(bill_key)
             prod_bill = prod_map.get(bill_key)
-            if local_bill_payload is None or prod_bill is None:
+            if local_sections is None or prod_bill is None:
                 skipped += 1
                 continue
-            _bill, local_sections = local_bill_payload
             for section in local_sections:
                 prod_section_id = prod_bill["sections"].get(section["source_order"])
                 if prod_section_id is None:
