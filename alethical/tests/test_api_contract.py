@@ -1549,26 +1549,32 @@ def test_legislator_detail_returns_ordered_service_history(client):
     (issue #486), not just current_service: one chamber-qualified election line
     per tenure in chronological order, with the term counting the current
     chamber alone. The sample data seeds a multi-chamber (House → Senate) member
-    and a single-chamber House member."""
-    directory = client.get(
-        "/api/v1/legislators", params={"session": "94-2025-regular"}
-    ).json()["data"]
+    and a single-chamber House member.
 
-    histories = []
-    for item in directory:
+    Each member is addressed by the slug `scripts/load_sample_data.py` gives it,
+    rather than searched for in the directory listing (#1491, #1490). That
+    listing defaults to `limit=20` ordered by `sort_name`, so the two members
+    this test is about fall off the first page as soon as the database holds 20
+    legislators sorting ahead of them -- and then the test failed for good, with
+    a message that reads like a real regression in a feature nobody touched.
+    """
+
+    def service_history(slug: str) -> dict:
         payload = client.get(
-            f"/api/v1/legislators/{item['id']}",
+            f"/api/v1/legislators/{slug}",
             params={"session": "94-2025-regular", "include": "service_history"},
         ).json()["data"]
-        if "service_history" in payload:
-            histories.append(payload["service_history"])
+        assert "service_history" in payload, f"expected service history for {slug}"
+        return payload["service_history"]
 
-    multi = [h for h in histories if len(h["periods"]) == 2]
-    single = [h for h in histories if len(h["periods"]) == 1]
-    assert multi, "expected at least one multi-chamber member"
-    assert single, "expected at least one single-chamber member"
+    # ingest_election_history() in scripts/load_sample_data.py: the Senate member
+    # gets the House → Senate history, the House member a single tenure.
+    house_then_senate = service_history("senator-jim-abeler")
+    only_house = service_history("rep-michael-howard")
 
-    house_then_senate = multi[0]
+    assert len(house_then_senate["periods"]) == 2, "expected a multi-chamber member"
+    assert len(only_house["periods"]) == 1, "expected a single-chamber member"
+
     assert [p["chamber"] for p in house_then_senate["periods"]] == ["house", "senate"]
     house_period, senate_period = house_then_senate["periods"]
     assert house_period["initial_year"] == 2012
@@ -1579,7 +1585,6 @@ def test_legislator_detail_returns_ordered_service_history(client):
     # summed in.
     assert house_then_senate["term"] == 1
 
-    only_house = single[0]
     assert only_house["periods"][0]["chamber"] == "house"
     assert only_house["term"] == 2
 
