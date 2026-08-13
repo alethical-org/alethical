@@ -1668,8 +1668,12 @@ def _current_version_sections(
     return [(r[0], r[1]) for r in rows]
 
 
-def _citation_section_topics(db: Session, bill_row) -> dict[str, str]:
-    """section_id_text -> short chip topic, for the current version's sections.
+def _citation_section_topics(
+    db: Session,
+    bill_row,
+    section_orders: dict[tuple[str, str], int] | None = None,
+) -> dict[str | tuple[str, str], str]:
+    """Citation key -> short chip topic, for the current version's sections.
 
     Fills in the "· Topic" half of the Summary tab's citation chips at request time,
     so every already-enriched bill gets one rather than only the bills a future
@@ -1680,7 +1684,13 @@ def _citation_section_topics(db: Session, bill_row) -> dict[str, str]:
     reads this table for the effective-date schedule, and citations only render on
     this endpoint (the list serializer passes no official_url, so it emits none).
 
-    An id naming MORE THAN ONE section resolves to no topic. `section_id_text` is
+    A placed citation is keyed by the same (section id, quote) pair that resolved
+    its section position. That lets repeated ids name the heading of the section the
+    quote actually matched (#869), rather than discarding the resolved position and
+    guessing from the shared id again.
+
+    The id-only entries remain as the safe fallback. An id naming MORE THAN ONE
+    section resolves to no topic. `section_id_text` is
     not unique within a version — 66 (version, id) pairs in production name several
     sections, and on HF 1134 the single id "laws.0.1.0" covers three: "Sec. 126. OAK
     GROVE; COMPREHENSIVE PLAN.", "Sec. 46. NOWTHEN; COMPREHENSIVE PLAN." and a bare
@@ -1700,15 +1710,20 @@ def _citation_section_topics(db: Session, bill_row) -> dict[str, str]:
     rows = db.execute(
         select(
             BillVersionSection.section_id_text,
+            BillVersionSection.source_order,
             BillVersionSection.section_heading,
             BillVersionSection.cite_heading,
         ).where(BillVersionSection.bill_version_id == current.id)
     ).all()
-    topics: dict[str, str] = {}
+    topics: dict[str | tuple[str, str], str] = {}
+    topics_by_order: dict[int, str] = {}
     seen: set[str] = set()
-    for section_id_text, section_heading, cite_heading in rows:
+    for section_id_text, source_order, section_heading, cite_heading in rows:
         if not section_id_text:
             continue
+        topic = section_chip_topic(section_heading, cite_heading)
+        if topic:
+            topics_by_order[source_order] = topic
         if section_id_text in seen:
             # A second section answering to the same id. Neither can be trusted as
             # the one cited, so the id resolves to nothing. Counting a heading-less
@@ -1717,9 +1732,11 @@ def _citation_section_topics(db: Session, bill_row) -> dict[str, str]:
             topics.pop(section_id_text, None)
             continue
         seen.add(section_id_text)
-        topic = section_chip_topic(section_heading, cite_heading)
         if topic:
             topics[section_id_text] = topic
+    for citation_key, source_order in (section_orders or {}).items():
+        if topic := topics_by_order.get(source_order):
+            topics[citation_key] = topic
     return topics
 
 
@@ -2207,6 +2224,8 @@ def bill_detail(
     # Both effective-date fields come from ONE resolve so the rail's value and the
     # timeline's rows can never disagree, and the sections load only once.
     schedule = effective_schedule_payload(db, row)
+    citation_section_orders = _citation_section_orders(db, row, ai_enrichment)
+    citation_section_topics = _citation_section_topics(db, row, citation_section_orders)
     # Resolved once for the whole response, not per sponsor: the sponsor payloads
     # fall back to a same-Legislature session when the bill's own session has no
     # service period, which is every special-session bill (#1104).
@@ -2283,8 +2302,8 @@ def bill_detail(
         "ai_analysis": ai_analysis_payload_for_enrichment(
             ai_enrichment,
             row.official_url,
-            _citation_section_topics(db, row),
-            _citation_section_orders(db, row, ai_enrichment),
+            citation_section_topics,
+            citation_section_orders,
         ),
         "ai_summary": ai_enrichment.content_json if ai_enrichment else None,
     }
