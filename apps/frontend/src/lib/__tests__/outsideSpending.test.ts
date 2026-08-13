@@ -5,6 +5,7 @@ import {
   isMeasuredZero,
   outsideSpendingFetchedOn,
   outsideSpendingFigures,
+  outsideSpendingLoadFailure,
   outsideSpendingPaymentCount,
   outsideSpendingPeriod,
   outsideSpendingSharedReason,
@@ -56,6 +57,47 @@ describe('formatSpendingAmount', () => {
   it('drops cents only when they are zero', () => {
     expect(formatSpendingAmount(2650)).toBe('$2,650');
     expect(formatSpendingAmount(0)).toBe('$0');
+  });
+
+  it('carries into the dollars when the cents round up to a whole one', () => {
+    // The source column holds 4 decimal places, so these are values a filing can
+    // really carry. Rounding the fraction on its own and leaving the whole-dollar part
+    // alone printed `$1.100`, a malformed number over a figure a reader is meant to be
+    // able to check. Found by an automated review on #1332.
+    expect(formatSpendingAmount(1.9999)).toBe('$2');
+    expect(formatSpendingAmount(0.999)).toBe('$1');
+    expect(formatSpendingAmount(2.995)).toBe('$3');
+    expect(formatSpendingAmount(1234.9999)).toBe('$1,235');
+    // A carry that crosses a thousands separator still groups.
+    expect(formatSpendingAmount(999.9999)).toBe('$1,000');
+  });
+});
+
+describe('outsideSpendingLoadFailure', () => {
+  it('lets one year fail without taking the other year down with it', () => {
+    // With one combined promise, either year failing threw away the other year's real
+    // figures and replaced them with a whole-card error: a year we could answer,
+    // silently turned into a year we could not. Found by an automated review on #1332.
+    const failed = outsideSpendingLoadFailure(2026);
+    expect(failed.year).toBe(2026);
+    expect(failed.state).toBe('load_failed');
+    expect(outsideSpendingFigures(failed)).toEqual([]);
+    expect(outsideSpendingPaymentCount(failed)).toBeNull();
+    expect(isMeasuredZero(failed)).toBe(false);
+    // And it does not merge with a genuinely different answer, so the good year keeps
+    // its own line rather than being covered by one shared sentence.
+    expect(
+      outsideSpendingSharedReason([failed, { ...EMPTY, year: 2025, state: 'link_unconfirmed' }]),
+    ).toBeNull();
+  });
+
+  it('says the request failed, not that our copy of the filings is stale', () => {
+    // Two different facts. Telling a reader the state filings are out of date because
+    // our network dropped is a claim we cannot support.
+    const reason = outsideSpendingUnavailableReason(outsideSpendingLoadFailure(2026));
+    expect(reason).toContain('problem at our end');
+    expect(reason).not.toMatch(/out of date|cannot add up|committee/i);
+    expect(reason).not.toMatch(/\$0|\bzero\b/i);
   });
 });
 

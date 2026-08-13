@@ -25,8 +25,16 @@ import { formatNiceDate } from './billDetail';
 // * **Never chain transfers.** Nothing here follows money from one account into
 //   another, because money is fungible and no filing says which dollar went out.
 
-/** Which of the 3 answers the server gave. Read this before any figure. */
-export type OutsideSpendingState = 'reported' | 'link_unconfirmed' | 'unavailable';
+/**
+ * Which answer this year carries. Read it before any figure.
+ *
+ * The first 3 are the server's own. `load_failed` never comes from the server: it is
+ * what a year gets when its request did not arrive, so one year failing cannot delete
+ * the other year's real figures. Its own sentence, because a request that failed is a
+ * different fact from a download of ours that is stale, and telling a reader the
+ * filings are out of date when the network dropped would be a claim we cannot support.
+ */
+export type OutsideSpendingState = 'reported' | 'link_unconfirmed' | 'unavailable' | 'load_failed';
 
 export interface OutsideSpendingYear {
   year: number;
@@ -66,8 +74,14 @@ export interface OutsideSpendingFigure {
  * the number a reader could check against the filing.
  */
 export function formatSpendingAmount(value: number): string {
-  const whole = Math.trunc(Math.abs(value));
-  const cents = Math.round((Math.abs(value) - whole) * 100);
+  // Rounded to whole cents FIRST, then split. Rounding the fraction on its own and
+  // keeping the whole-dollar part untouched loses the carry: the source column holds
+  // 4 decimal places, so a filing of 1.9999 rounds to 100 cents and printed as
+  // `$1.100` -- a malformed number, over a figure a reader is meant to be able to
+  // check against the filing. Found by an automated review on #1332.
+  const roundedCents = Math.round(Math.abs(value) * 100);
+  const whole = Math.floor(roundedCents / 100);
+  const cents = roundedCents % 100;
   const grouped = String(whole).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   const sign = value < 0 ? '-' : '';
   return cents === 0
@@ -146,6 +160,12 @@ export function isMeasuredZero(year: OutsideSpendingYear): boolean {
  */
 export function outsideSpendingUnavailableReason(year: OutsideSpendingYear): string | null {
   if (year.state === 'reported') return null;
+  if (year.state === 'load_failed') {
+    return (
+      'We could not load this year. That is a problem at our end and says nothing ' +
+      'about what was spent.'
+    );
+  }
   if (year.state === 'link_unconfirmed') {
     return (
       'Minnesota records this spending against a campaign committee and never against ' +
@@ -202,6 +222,31 @@ export function outsideSpendingPeriod(year: OutsideSpendingYear): string | null 
 export function outsideSpendingFetchedOn(years: OutsideSpendingYear[]): string | null {
   const stamped = years.find((year) => year.fetchedAt);
   return stamped?.fetchedAt ? formatNiceDate(stamped.fetchedAt) : null;
+}
+
+/**
+ * The placeholder for a year whose request did not arrive.
+ *
+ * Every figure null, so nothing can be printed for it, and its own state so its
+ * sentence says what actually happened. Exists because the 2 years are 2 requests: with
+ * one combined promise, either year failing threw away the other year's real figures
+ * and replaced them with a whole-card error. Found by an automated review on #1332.
+ */
+export function outsideSpendingLoadFailure(year: number): OutsideSpendingYear {
+  return {
+    year,
+    state: 'load_failed',
+    supporting: null,
+    opposing: null,
+    directionNotRecorded: null,
+    supportingPayments: null,
+    opposingPayments: null,
+    directionNotRecordedPayments: null,
+    firstPaymentOn: null,
+    lastPaymentOn: null,
+    sourceUrl: null,
+    fetchedAt: null,
+  };
 }
 
 /**

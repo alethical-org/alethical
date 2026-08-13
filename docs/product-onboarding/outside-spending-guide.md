@@ -123,7 +123,10 @@ unreadable payment withholds the whole block, including for a legislator who hol
 committees where only one is affected, because the figures shown are sums across all of
 them.
 
-If the request itself fails, the block says so and says the failure is at our end.
+If loading a year fails, that year says so and says the failure is at our end. The 2 years
+are 2 separate requests, so a year that loaded keeps its figures rather than being wiped by
+the other year's failure, and the failed year never borrows the stale-copy wording — a
+dropped request and an out-of-date copy are different facts.
 
 ---
 
