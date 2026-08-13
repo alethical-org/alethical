@@ -1,4 +1,4 @@
-<!-- describes: apps/frontend/public/index.html, apps/frontend/App.tsx, apps/frontend/src/components/AppErrorBoundary.tsx, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, apps/frontend/src/lib/authRestore.ts, apps/frontend/src/lib/publicRead.ts, apps/frontend/src/providers/AuthProvider.tsx, apps/frontend/public/robots.txt, api/page.ts, api/sitemap.ts, alethical/logging.py, railway.json, vercel.json -->
+<!-- describes: apps/frontend/public/index.html, apps/frontend/App.tsx, apps/frontend/src/components/AppErrorBoundary.tsx, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, apps/frontend/src/lib/authRestore.ts, apps/frontend/src/lib/publicRead.ts, apps/frontend/src/providers/AuthProvider.tsx, apps/frontend/public/robots.txt, api/page.ts, api/sitemap.ts, alethical/api/main.py, alethical/logging.py, railway.json, vercel.json -->
 
 # Deployment
 
@@ -52,12 +52,22 @@ DATABASE_URL=postgresql://...
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 ALETHICAL_CORS_ORIGINS=https://your-vercel-domain.vercel.app,http://localhost:8081,http://127.0.0.1:8081,http://localhost:19006,http://127.0.0.1:19006
+ALETHICAL_CORS_ORIGIN_REGEX=^https://alethical-[a-z0-9]{9}-alethical\.vercel\.app$
 ALETHICAL_EMAIL_ENABLED=true
 ALETHICAL_EMAIL_TRANSPORT=resend
 ALETHICAL_EMAIL_FROM=Alethical <ask@alethical.com>
 RESEND_API_KEY=re_...
 ALETHICAL_CONTACT_RATE_PER_MIN=5
 ```
+
+Keep permanent frontend addresses in `ALETHICAL_CORS_ORIGINS`. The optional
+`ALETHICAL_CORS_ORIGIN_REGEX` is only for Alethical's changing Vercel commit previews. Its
+production value is exactly
+`^https://alethical-[a-z0-9]{9}-alethical\.vercel\.app$`: HTTPS, project `alethical`, exactly
+9 lowercase letters or digits, team `alethical`, and the escaped `.vercel.app` hostname.
+The anchors are deliberate. Do not replace it with a pattern for every `vercel.app` site.
+This grants a matching browser permission to read API responses. It does not bypass Vercel's
+preview sign-in, make the API private, or grant a caller a sign-in token.
 
 Contact us stays safely unavailable unless the live switch, `resend` transport, and
 provider key are all present. Before enabling it, verify `alethical.com` in Resend and
@@ -100,6 +110,35 @@ After deployment, verify:
 ```bash
 curl https://alethical-api-production.up.railway.app/healthz
 ```
+
+For a release that changes the preview rule, set `ALETHICAL_CORS_ORIGIN_REGEX` in Railway
+before merging the code. The old API ignores the new setting, so this order is safe. After the
+new API is live, verify both a normal public read and its preflight from a real protected
+preview origin. The origin below was measured from
+[#1407](https://github.com/alethical-org/alethical/pull/1407) on 2026-08-11:
+
+```bash
+curl -sS -D - -o /dev/null \
+  -H 'Origin: https://alethical-lv8nmskcq-alethical.vercel.app' \
+  https://alethical-api-production.up.railway.app/api/v1/bills/94-2026-HF4301
+
+curl -sS -D - -o /dev/null -X OPTIONS \
+  -H 'Origin: https://alethical-lv8nmskcq-alethical.vercel.app' \
+  -H 'Access-Control-Request-Method: GET' \
+  -H 'Access-Control-Request-Headers: authorization' \
+  https://alethical-api-production.up.railway.app/api/v1/bills/94-2026-HF4301
+```
+
+Both responses must include
+`access-control-allow-origin: https://alethical-lv8nmskcq-alethical.vercel.app`; the preflight
+must answer 200. Repeat the preflight with
+`https://alethical-lv8nmskcq-wrong.vercel.app`; it must answer 400 with no
+`access-control-allow-origin` header. Then load the protected preview in a browser and confirm
+its bill and legislator pages keep their records after the app starts.
+
+Rollback: remove `ALETHICAL_CORS_ORIGIN_REGEX` from Railway and redeploy the API. The exact
+production and local addresses in `ALETHICAL_CORS_ORIGINS` keep working; changing commit
+previews return to browser-blocked API reads.
 
 ## Frontend on Vercel
 

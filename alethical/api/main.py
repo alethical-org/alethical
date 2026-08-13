@@ -35,11 +35,15 @@ def create_app() -> FastAPI:
         "ALETHICAL_CORS_ORIGINS",
         "http://localhost:19006,http://127.0.0.1:19006,http://localhost:8081,http://127.0.0.1:8081",
     )
+    cors_origin_regex = (
+        os.environ.get("ALETHICAL_CORS_ORIGIN_REGEX", "").strip() or None
+    )
     app.add_middleware(
         CORSMiddleware,
         allow_origins=[
             origin.strip() for origin in cors_origins.split(",") if origin.strip()
         ],
+        allow_origin_regex=cors_origin_regex,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
