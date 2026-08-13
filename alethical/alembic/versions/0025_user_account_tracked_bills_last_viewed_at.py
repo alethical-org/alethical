@@ -16,8 +16,8 @@ the read-path writes, so it is now set only when an identity is first provisione
 The conclusion is unchanged and the migration is unaffected — the note is corrected
 here rather than rewritten away, because an applied revision is a record of what was
 believed when it ran. Revision 0034 later adds ``last_identity_linked_at`` beside
-this old name so the application can switch safely; a later cleanup removes the
-old name only after every Railway copy uses the honest one.)
+this old name so the application can switch safely; revision 0035 removes the old
+name after every Railway copy uses the honest one.)
 
 Additive and reversible: one nullable timestamptz on an existing table, with no
 default, no backfill, no index and no constraint. Every existing row keeps NULL,
