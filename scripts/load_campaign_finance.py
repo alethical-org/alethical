@@ -129,9 +129,17 @@ def _file_committee_link_alert(contradictions: list[str]) -> None:
             text=True,
             timeout=30,
         )
-        number = existing.stdout.strip() if existing.returncode == 0 else ""
+        if existing.returncode != 0:
+            print(
+                "note: could not check for an existing GitHub alert issue "
+                f"(gh issue list exited {existing.returncode}): "
+                f"{existing.stderr.strip()}",
+                file=sys.stderr,
+            )
+            return
+        number = existing.stdout.strip()
         if number:
-            subprocess.run(
+            commented = subprocess.run(
                 [
                     "gh",
                     "issue",
@@ -144,6 +152,14 @@ def _file_committee_link_alert(contradictions: list[str]) -> None:
                 text=True,
                 timeout=30,
             )
+            if commented.returncode != 0:
+                print(
+                    f"note: could not comment on alert issue #{number} "
+                    f"(gh issue comment exited {commented.returncode}): "
+                    f"{commented.stderr.strip()}",
+                    file=sys.stderr,
+                )
+                return
             print(f"note: commented on existing alert issue #{number}", file=sys.stderr)
             return
         body = (
@@ -161,7 +177,7 @@ def _file_committee_link_alert(contradictions: list[str]) -> None:
             "Background: `docs/architecture/campaign-finance-system-design.md` §5.1. "
             "Auto-filed by `scripts/load_campaign_finance.py` (#1398)."
         )
-        subprocess.run(
+        created = subprocess.run(
             [
                 "gh",
                 "issue",
@@ -177,7 +193,17 @@ def _file_committee_link_alert(contradictions: list[str]) -> None:
             text=True,
             timeout=30,
         )
-        print("note: filed a new alert issue", file=sys.stderr)
+        if created.returncode != 0:
+            print(
+                "note: could not file a new GitHub alert issue "
+                f"(gh issue create exited {created.returncode}): "
+                f"{created.stderr.strip()}",
+                file=sys.stderr,
+            )
+            return
+        print(
+            f"note: filed a new alert issue: {created.stdout.strip()}", file=sys.stderr
+        )
     except (subprocess.SubprocessError, OSError) as error:
         print(
             f"note: could not file/update the GitHub alert issue: {error}",
