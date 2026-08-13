@@ -65,6 +65,14 @@ migration is exactly that disagreement. **This check could not have existed befo
 mutation rather than assumed — the same invented column on `models.py` reports no drift
 against the old baseline and one difference against the new one.
 
+There is 1 temporary, exact exception while [issue #1045](https://github.com/alethical-org/alethical/issues/1045)
+renames 2 account dates across 3 live releases. The first release adds
+`user_account.last_identity_linked_at` and `auth_identity.linked_at` beside the old
+names before the code reads them. The check allows only those 2 columns, only on the
+migration side, and only as optional timestamps with no automatic value. A wrong type,
+a required value, an automatic value, or the opposite direction still fails. The final
+release removes both old columns and this exception.
+
 **What runs after every schema deploy, and what a person runs by hand:**
 
 ```bash
@@ -123,7 +131,7 @@ of the findings below.
 
 ### What the comparison ignores, and why
 
-Four groups, each a decision rather than a blind spot, each listed by name in the script
+Five groups, each a decision rather than a blind spot, each listed by name in the script
 so a new exception has to be added deliberately:
 
 - **Oban's objects** — three tables (`oban_jobs`, `oban_leaders`, `oban_producers`) and
@@ -142,6 +150,11 @@ so a new exception has to be added deliberately:
   them there is a deliberate choice, because a `gin_trgm_ops` index on a model would
   need `pg_trgm` to exist before `create_all` runs, and because it keeps the `0001`
   rewrite a transcription.
+- **The 2 temporary account-date columns for issue #1045:**
+  `user_account.last_identity_linked_at` and `auth_identity.linked_at`, with their exact
+  optional timestamp shape pinned. They exist beside the old names so the database can
+  change before Railway does without breaking signed-in pages. This exception exists
+  only for the 3-release rename above and is removed with the old columns.
 - **Row-level security**, reported and never failed. Finding D10.
 
 ## The findings
