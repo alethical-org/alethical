@@ -63,6 +63,7 @@ things work in practice and are the place to start if you're new.
 
 ## Operations
 
+- [Branching, drawn](operations/git-branching-guide.html) — visual companion to `CONTRIBUTING.md` "Branch & PR workflow", for onboarding: 2 commit graphs, one measuring this repo's real branch shape and one showing the dev/staging/production reference flow, plus the habits and commands behind each
 - [Deployment](operations/deployment.md) — the 8 GitHub Actions workflows, Railway (backend), Vercel (frontend), Supabase auth URLs
 - [What runs, when, and what it costs](operations/jobs-and-scripts.md) — every automatic job, every command-line tool, and the 2 things anywhere in the project that spend money
 - [Repo and service settings](operations/repo-and-service-settings.md) — every setting that controls the project but doesn't live in the repo, and its intended value
