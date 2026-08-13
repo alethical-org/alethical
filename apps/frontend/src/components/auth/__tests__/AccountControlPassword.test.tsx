@@ -104,4 +104,20 @@ describe('signed-in set or change password', () => {
     expect(SOURCE).toContain('emailPasswordEnabled ?');
     expect(drawer).not.toContain('Set or change password');
   });
+
+  it('keeps sign out visible while the release switch hides password actions', () => {
+    const desktop = SOURCE.slice(
+      SOURCE.indexOf("role: 'region', 'aria-label': 'Account'"),
+      SOURCE.indexOf('/** Phone top bar'),
+    );
+    const phone = SOURCE.slice(
+      SOURCE.indexOf('export function AccountAvatarButton'),
+      SOURCE.indexOf('/** Phone drawer footer'),
+    );
+
+    expect(desktop.match(/emailPasswordEnabled \?/g)).toHaveLength(1);
+    expect(desktop).toContain('<Text style={styles.menuItemText}>Sign out</Text>');
+    expect(phone.match(/emailPasswordEnabled \?/g)).toHaveLength(1);
+    expect(phone).toContain('<Text style={styles.sheetButtonText}>Sign out</Text>');
+  });
 });

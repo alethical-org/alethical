@@ -370,19 +370,17 @@ export function AccountNavButton() {
                 <Text style={styles.menuItemText}>Set or change password</Text>
               </Pressable>
             ) : null}
-            {emailPasswordEnabled ? (
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => {
-                  setOpen(false);
-                  void signOut();
-                }}
-                style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
-              >
-                <SignOutIcon color={t.colors.text.faint} />
-                <Text style={styles.menuItemText}>Sign out</Text>
-              </Pressable>
-            ) : null}
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => {
+                setOpen(false);
+                void signOut();
+              }}
+              style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
+            >
+              <SignOutIcon color={t.colors.text.faint} />
+              <Text style={styles.menuItemText}>Sign out</Text>
+            </Pressable>
           </View>
         ) : null}
       </View>
@@ -426,17 +424,19 @@ export function AccountAvatarButton() {
           >
             <View style={styles.grabHandle} />
             <Identity name={name} email={user?.email ?? ''} avatar={48} />
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => {
-                setOpen(false);
-                setPasswordOpen(true);
-              }}
-              style={({ pressed }) => [styles.sheetButton, pressed && styles.sheetButtonPressed]}
-            >
-              <PasswordIcon color={t.colors.text.primary} />
-              <Text style={styles.sheetButtonText}>Set or change password</Text>
-            </Pressable>
+            {emailPasswordEnabled ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  setOpen(false);
+                  setPasswordOpen(true);
+                }}
+                style={({ pressed }) => [styles.sheetButton, pressed && styles.sheetButtonPressed]}
+              >
+                <PasswordIcon color={t.colors.text.primary} />
+                <Text style={styles.sheetButtonText}>Set or change password</Text>
+              </Pressable>
+            ) : null}
             <Pressable
               accessibilityRole="button"
               onPress={() => {
