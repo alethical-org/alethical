@@ -57,11 +57,7 @@ export type MoneyBlockState = 'reported' | 'not_reported' | 'unavailable';
 
 /** Why a split may or may not be drawn, from the server's own vocabulary. */
 export type SplitState =
-  | 'shown'
-  | 'no_reported_total'
-  | 'sources_disagree'
-  | 'periods_differ'
-  | 'no_named_payments';
+  'shown' | 'no_reported_total' | 'sources_disagree' | 'periods_differ' | 'no_named_payments';
 
 /** Whether anyone has confirmed which committees belong to this legislator. */
 export type LinkState = 'unconfirmed' | 'reviewed_none_confirmed' | 'confirmed';
