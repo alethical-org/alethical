@@ -792,13 +792,18 @@ def test_a_registered_filer_that_has_filed_nothing_is_ordinary(board, shape) -> 
     assert reports == []
 
 
-def test_reports_the_board_has_noticed_but_nobody_filed_are_not_counted_as_filings(
+def test_the_notices_collection_is_never_counted_as_a_filed_report(
     board,
 ) -> None:
-    """One real filer carries an empty filed list beside 2 noticed reports.
+    """One real filer carries an empty filed-report list beside 2 ``notices`` rows.
 
-    A noticed report is one the Board says is due. Counting it would invent a filing,
-    and a page could then say a committee reported in a period it never reported in.
+    A notice is a next-business-day report of a large contribution, not a periodic report
+    (measured for #1375; mechanics in ``parse_catalogue_payload``). Counting one would let
+    a page say a committee reported in a period it never reported in.
+
+    Renamed from ``..._the_board_has_noticed_but_nobody_filed_...``: that name asserted
+    the notices were unfiled, and 60 of 60 rows across 38 legislator committees turn out
+    to be filed documents. The behaviour it pins is unchanged and still right.
     """
     board.no_reports_with_notices.add("11880")
     payload = board.catalogue_payload("11880", (2024, 2025))
