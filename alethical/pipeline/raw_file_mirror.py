@@ -31,6 +31,22 @@ a daily run flat as the store grows past the 7 to 10 GB a year §4.5 projects,
 instead of re-reading the whole store every night. Re-proving the *whole* store, and
 proving a restore actually works, is
 `#802 <https://github.com/alethical-org/alethical/issues/802>`_, not this job.
+
+**Which tables hold a stored body is read out of the schema, never listed here
+(#1501).** This job was written for ``cf_snapshot_body`` and named it directly, and
+by the time anybody looked, two other tables held stored bodies: the totals
+archives on ``cf_filing_snapshot`` had been copied to the second store by the
+bucket walk above and had **0 of 2 rows recording it**, and #1433's report
+documents were not being kept at all. Neither is a mistake anybody made twice --
+they are what happens when covering a new kind of body depends on somebody
+remembering that this file exists.
+
+So the work list is every mapped table carrying all 3 of ``object_key``,
+``compressed_hash`` and ``mirrored_at``. A future fourth kind of stored body is
+covered the day its table ships, with no edit here, and
+``test_raw_file_mirror.py`` fails if a table gains an ``object_key`` without the
+other two columns -- which is the one way this discovery could silently miss
+something.
 """
 
 from __future__ import annotations
@@ -38,7 +54,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from typing import Any, Callable, Optional
+from typing import Any, Callable
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -54,6 +70,44 @@ CONFIRMED = "confirmed"
 ALREADY_MIRRORED = "already-mirrored"
 ALREADY_PRESENT = "already-present"
 FAILED = "failed"
+
+# The 3 columns a table needs before this job can protect what it points at: where the
+# object is, what it should hash to, and somewhere to record that a copy was proved.
+BODY_COLUMNS = ("object_key", "compressed_hash", "mirrored_at")
+
+
+def body_tables() -> list[Any]:
+    """Every mapped class that records a stored object, read out of the schema.
+
+    Deliberately discovery rather than a list. A list is a promise that whoever adds
+    the next kind of stored body will also find and edit this file, and #1501 is the
+    record of that promise failing twice in one week.
+    """
+    found = [
+        mapper.class_
+        for mapper in schema.Base.registry.mappers
+        if all(column in mapper.class_.__table__.columns for column in BODY_COLUMNS)
+    ]
+    return sorted(found, key=lambda model: model.__tablename__)
+
+
+def rows_by_object_key(db: Session) -> dict[str, list[Any]]:
+    """Every row in every body-bearing table, keyed on the object it names.
+
+    A list per key rather than one row, because two tables naming one object is
+    storable even though the content-addressed prefixes make it unlikely, and the
+    honest response is to stamp both rather than to pick one and leave the other
+    reading "never copied" forever. A row whose ``object_key`` is NULL names nothing
+    yet -- ``cf_filing_snapshot`` allows that for a run whose archive is still being
+    written -- so it is skipped rather than treated as a gap.
+    """
+    rows: dict[str, list[Any]] = {}
+    for model in body_tables():
+        for row in db.scalars(select(model)):
+            key = row.object_key
+            if key:
+                rows.setdefault(key, []).append(row)
+    return rows
 
 
 @dataclass
@@ -97,39 +151,38 @@ def mirror_raw_files(
     is worse than no store at all, because it is trusted. Every failure is collected
     and the caller exits non-zero on them.
     """
-    bodies = {
-        body.object_key: body
-        for body in db.scalars(select(schema.CampaignFinanceSnapshotBody))
-    }
+    bodies = rows_by_object_key(db)
     objects = source.list_objects()
     report = MirrorReport(
         unrecorded_keys=sorted(key for key in objects if key not in bodies)
     )
     log(
         f"{len(objects)} object(s) in the source store, "
-        f"{len(objects) - len(report.unrecorded_keys)} named by a row in this database"
+        f"{len(objects) - len(report.unrecorded_keys)} named by a row in this database, "
+        f"across {len(body_tables())} table(s) that hold a stored body"
     )
 
     for key in sorted(objects):
         size = objects[key]
-        body = bodies.get(key)
-        if body is not None and body.mirrored_at is not None:
+        rows = bodies.get(key, [])
+        if rows and all(row.mirrored_at is not None for row in rows):
             report.outcomes.append(ObjectOutcome(key, ALREADY_MIRRORED, size))
             continue
         try:
-            action = _mirror_one(source, mirror, key, size, body, directory)
+            action = _mirror_one(source, mirror, key, size, rows, directory)
         except Exception as error:  # noqa: BLE001 - reported, never swallowed
             report.outcomes.append(ObjectOutcome(key, FAILED, size, str(error)))
             log(f"  FAILED {key}: {error}")
             continue
         report.outcomes.append(ObjectOutcome(key, action, size))
         log(f"  {action} {key} ({size:,} bytes)")
-        if body is not None and action != ALREADY_PRESENT:
+        if rows and action != ALREADY_PRESENT:
             # Stamped only after the read-back above, so this column means "read
             # back out of the second copy and confirmed", never "the upload
             # returned 200". Committed per object so a later failure cannot undo
             # copies that genuinely happened.
-            body.mirrored_at = datetime.now(timezone.utc)
+            for row in rows:
+                row.mirrored_at = datetime.now(timezone.utc)
             db.commit()
     return report
 
@@ -139,7 +192,7 @@ def _mirror_one(
     mirror: Any,
     key: str,
     size: int,
-    body: Optional[Any],
+    rows: list[Any],
     directory: str,
 ) -> str:
     """Copy one object, or confirm the copy already there. Returns what it did."""
@@ -156,7 +209,7 @@ def _mirror_one(
             "record of what the Board published that day. Compare the compression "
             "recorded on the snapshot row before removing anything."
         )
-    if mirrored_size is not None and body is None:
+    if mirrored_size is not None and not rows:
         # Already copied by an earlier run, which verified it by hash at the time.
         # Nothing in this database claims anything about it, so there is nothing to
         # earn by re-reading it — see the module docstring on run cost.
@@ -166,13 +219,19 @@ def _mirror_one(
     try:
         source.get(key, path)
         digest = sha256_of_file(path)
-        if body is not None and digest != body.compressed_hash:
-            raise RuntimeError(
-                f"{key} came out of the source store hashing to {digest}, but its "
-                f"snapshot row records {body.compressed_hash}. The primary copy is "
-                "not the file the database says it is, so copying it would only make "
-                "a second wrong copy. Nothing has been written to the second store."
-            )
+        for row in rows:
+            # A row may name an object and record no hash for it: cf_filing_snapshot's
+            # hash column is nullable. Nothing already-trusted can prove such an object,
+            # so it is copied and verified against the bytes we just read rather than
+            # being refused — the alternative leaves it with one copy forever.
+            if row.compressed_hash and digest != row.compressed_hash:
+                raise RuntimeError(
+                    f"{key} came out of the source store hashing to {digest}, but its "
+                    f"{row.__tablename__} row records {row.compressed_hash}. The primary "
+                    "copy is not the file the database says it is, so copying it would "
+                    "only make a second wrong copy. Nothing has been written to the "
+                    "second store."
+                )
         # Uploads when absent, and in every case reads the object back out of the
         # second store and hashes it before returning. That read-back is what the
         # word "verified" means here.

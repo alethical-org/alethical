@@ -39,8 +39,13 @@ A full year is roughly 1,300 requests at 0.25 seconds apart, so about 20 minutes
 needs a published payments release and a published filings snapshot; run
 ``scripts/load_campaign_finance.py`` and ``scripts/load_campaign_finance_filings.py``
 first. ``--target production`` needs ``SUPABASE_PROJECT_URL`` and
-``SUPABASE_DB_PASSWORD`` from the gitignored ``.env`` at the repository root. No file
-store is used: the document's own sha256 is recorded and the bytes are not kept.
+``SUPABASE_DB_PASSWORD`` from the environment settings file at the repository root.
+
+**Every document read is kept** (#1501), in the store §4.5 defines, which needs the 4
+``SUPABASE_STORAGE_S3_*`` credentials as well. It has to be: the Board publishes no
+archive and refuses most documents older than 2023, so a document read and dropped is
+the evidence behind a published figure, gone. ``--dry-run`` and ``--keep-no-documents``
+both keep nothing.
 
 Design: ``docs/architecture/campaign-finance-system-design.md`` §9.4 (Report PDFs are a
 fallback, not a route).
@@ -51,6 +56,7 @@ from __future__ import annotations
 import argparse
 import os
 import sys
+import tempfile
 from datetime import datetime
 from pathlib import Path
 
@@ -69,10 +75,14 @@ from alethical.db.session import (  # noqa: E402
     database_url_for_target,
     normalize_database_url,
 )
+from alethical.pipeline.campaign_finance_report_document_store import (  # noqa: E402
+    DocumentKeeper,
+)
 from alethical.pipeline.campaign_finance_stated_split import (  # noqa: E402
     StatedSplitRun,
     run_stated_split_check,
 )
+from alethical.pipeline.raw_file_store import raw_file_store_from_env  # noqa: E402
 
 
 def summary(run: StatedSplitRun) -> str:
@@ -157,6 +167,13 @@ def main() -> int:
         help="Check only these registration numbers. Turns a 20-minute run into "
         "seconds, which is what makes a scoped live check possible before a full one.",
     )
+    parser.add_argument(
+        "--keep-no-documents",
+        action="store_true",
+        help="Read each document and keep none of its bytes. Only for a machine with "
+        "no file-store credentials: the Board serves no archive, so a document read "
+        "and dropped is gone (#1501).",
+    )
     args = parser.parse_args()
 
     this_year = datetime.now().year
@@ -168,13 +185,25 @@ def main() -> int:
     engine = create_engine(
         database_url, echo=False, connect_args=NO_PREPARED_STATEMENTS
     )
-    with Session(engine) as session:
+    # A dry run keeps nothing either, because a run that writes to the file store while
+    # reporting that it wrote nothing is the opposite of what --dry-run promises.
+    keep_documents = not args.keep_no_documents and not args.dry_run
+    with (
+        Session(engine) as session,
+        tempfile.TemporaryDirectory(prefix="cf-report-document-") as directory,
+    ):
+        keeper = None
+        if keep_documents:
+            keeper = DocumentKeeper(
+                db=session, store=raw_file_store_from_env(), directory=directory
+            )
         try:
             run = run_stated_split_check(
                 session,
                 years=years,
                 only_filers=args.only_filers,
                 write=not args.dry_run,
+                keeper=keeper,
                 progress=lambda message: print(message, file=sys.stderr),
             )
         except RuntimeError as refusal:
@@ -182,9 +211,18 @@ def main() -> int:
             return 1
 
     print(summary(run))
-    # Always 0. A committee-year whose figures disagree is a finding to display, not a
-    # failure to stop a pipeline with, and exiting non-zero here would invite exactly
+    if keeper is not None:
+        print("\n" + keeper.report.summary())
+    # A committee-year whose figures disagree exits 0. That is a finding to display, not
+    # a failure to stop a pipeline with, and exiting non-zero on it would invite exactly
     # the release-wide refusal Eugene ruled against on 12 Aug 2026.
+    #
+    # A document we could not KEEP is the one thing here that does exit non-zero. The
+    # verdicts are already written by this point, so nothing is lost by saying so, and
+    # the Board serves no archive — a document read and not kept is unrecoverable, which
+    # is worth somebody's attention rather than a line in a log.
+    if keeper is not None and keeper.report.failures:
+        return 1
     return 0
 
 

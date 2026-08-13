@@ -2443,6 +2443,57 @@ class CampaignFinanceStatedSplit(Base):
     __table_args__ = (Index("ix_cf_stated_split_status", "snapshot_id", "status"),)
 
 
+class CampaignFinanceReportDocument(TimestampMixin, Base):
+    """One report document the Board served us, and where its bytes are kept.
+
+    ``cf_stated_split`` records a document's sha256 and byte size and nothing else, so
+    until this table existed the evidence behind a $1.5M disagreement was a hash of
+    bytes nobody had. The Board answers HTTP 200 with an HTML page for the documents it
+    will not serve and serves almost nothing before 2023 (§9.4), so a document read
+    today may be unavailable tomorrow: keeping it is the only way a figure stays
+    traceable (#1501).
+
+    **Keyed on the document's own sha256, not on the filing it belongs to.** The key in
+    the store is a content address, so a re-run that fetches the same document writes
+    nothing, and an amendment that changes the bytes is a different row rather than an
+    overwrite. Both are properties this table gets for free from that choice.
+
+    The 4 provenance columns are what the object could not otherwise say about itself.
+    They are deliberately duplicated from ``cf_stated_split`` rather than joined,
+    because a verdict is keyed on the contributions snapshot and dies with it when a new
+    download replaces those rows (§4.5 retains every body indefinitely, so the body must
+    outlive the verdict). Should two filings ever serve byte-identical documents, this
+    keeps the first one's provenance and the second's verdict still resolves by hash.
+    """
+
+    __tablename__ = "cf_report_document"
+
+    # sha256 of the raw document bytes, which is exactly what cf_stated_split.
+    # document_hash records, so a verdict resolves to its stored body by equality.
+    document_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    object_key: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    byte_size: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    # Hash and size of the compressed object as stored, so the store can be audited
+    # without decompressing. Same pair, same reason, as cf_snapshot_body.
+    compressed_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    compressed_byte_size: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    compression: Mapped[str] = mapped_column(String(20), nullable=False, default="gzip")
+    mirrored_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+    registration_number: Mapped[str] = mapped_column(String(20), nullable=False)
+    filing_year: Mapped[int] = mapped_column(Integer, nullable=False)
+    report_type: Mapped[Optional[str]] = mapped_column(String(8))
+    amendment_index: Mapped[Optional[int]] = mapped_column(Integer)
+
+    __table_args__ = (
+        Index(
+            "ix_cf_report_document_filer_year",
+            "registration_number",
+            "filing_year",
+        ),
+    )
+
+
 def bill_detail_stmt(
     bill_id: uuid.UUID,
     user_id: Optional[uuid.UUID] = None,
