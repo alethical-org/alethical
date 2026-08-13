@@ -728,27 +728,46 @@ a defaulted year would silently answer about a different period than the caller 
 `supporting` without branching on it will print "$0 spent against Senator X" out of an absent
 release:**
 
-- `unavailable` — no usable published release. A fact about us, never a figure about a person.
-  Also covers the stale case in `docs/product-onboarding/data-ingestion-onboarding.md` section H,
-  where a release id held across 2 publishes finds no rows.
+- `unavailable` — a gap of ours, never a figure about a person. Two ways to reach it: no usable
+  published release, including the stale case in
+  `docs/product-onboarding/data-ingestion-onboarding.md` section H where a release id held across
+  2 publishes finds no rows; or we hold a row about one of this member's committees whose amount
+  is blank, so every total is short by an unknown amount and all of them are withheld rather than
+  one being published short
+  ([#1454](https://github.com/alethical-org/alethical/issues/1454)). One committee is enough,
+  because the figures are sums across all of them.
 - `link_unconfirmed` — no human-confirmed link between this legislator and a campaign
   committee, so no payment can be attributed to them. **Today this is every legislator**:
   `legislator_campaign_committee` holds 0 rows in production (measured 12 Aug 2026), and it
   drains as [#1354](https://github.com/alethical-org/alethical/issues/1354)'s review lands.
 - `reported` — real figures, and here a **0 is a measured 0**.
 
-`supporting`, `opposing` and `payment_count` are `null` in every state except `reported`.
+Every money field and every count is `null` in every state except `reported`.
 
-There are exactly 2 money figures and never a third: all 41,130 rows of the live release record
-"For" or "Against" and none is blank, so an "unrecorded target" figure would read 0 forever and
-imply the source leaves the question open. A row whose direction cannot be read joins neither.
+**Three money figures, and between them they hold every row this endpoint reads.**
+`supporting`, `opposing`, and `direction_not_recorded` for money whose "For" or "Against" cannot
+be read — defined as the complement of the other two, so nothing can fall between them. All
+41,130 rows of the live release record one or the other and none is blank, so the third figure is
+0 for every committee today and **a surface renders it only when it is not**; reserving permanent
+space for it would imply the source leaves the question open. It exists because the alternatives
+are both worse: attributing an unreadable row to a side invents a claim about a person, and
+dropping it (what the code did until
+[#1454](https://github.com/alethical-org/alethical/issues/1454)) leaves the total short while the
+answer still reads as complete.
 
-Returns `legislator_id`, `year`, `state`, `supporting`, `opposing`, `payment_count`,
-`source_url`, `fetched_at`, and `committees[]`. Each committee carries `registration_number`,
-`committee_name`, `office`, its own `supporting` / `opposing`, `supporting_payments`,
-`opposing_payments`, `first_payment_on`, `last_payment_on` — because a member can hold several
-committees at once and §7 of `docs/architecture/campaign-finance-system-design.md` (Display
-rules) requires a figure to say which committee it belongs to rather than only which year.
+`payment_count` counts the payments behind `supporting` and `opposing` **only**; a payment with
+no readable direction is in `direction_not_recorded_payments`. A client prints both counts or
+neither, because printing the first alone beside a non-zero third figure describes more money in
+fewer payments than it names.
+
+Returns `legislator_id`, `year`, `state`, `supporting`, `opposing`, `direction_not_recorded`,
+`payment_count`, `direction_not_recorded_payments`, `source_url`, `fetched_at`, and
+`committees[]`. Each committee carries `registration_number`, `committee_name`, `office`, its own
+`supporting` / `opposing` / `direction_not_recorded`, `supporting_payments`,
+`opposing_payments`, `direction_not_recorded_payments`, `first_payment_on`, `last_payment_on` —
+because a member can hold several committees at once and §7 of
+`docs/architecture/campaign-finance-system-design.md` (Display rules) requires a figure to say
+which committee it belongs to rather than only which year.
 
 **Not wired to any client yet.** No file under `apps/frontend/src` references it; the display
 belongs to [#1329](https://github.com/alethical-org/alethical/issues/1329)'s campaign money tab.
@@ -866,7 +885,19 @@ download's `Amount` is the filing's *total* column and a row can be unpaid.
 [#1332](https://github.com/alethical-org/alethical/issues/1332)'s query
 (`alethical/api/services/independent_spending.py`) with the registration number handed in
 directly. It is the one block where a committee with no rows reads as a measured **0**: nobody
-filed an independent expenditure over $200 about them, which is a finding rather than a gap.
+filed an independent expenditure about them at all, which is a finding rather than a gap.
+**Not "none over $200".** That qualifier was here and was false: the $200 in
+`.claude/rules/grounded-answers.md` rule 12 is a *donor's* yearly aggregate on the
+**contributions** file and is not a floor on this one — 17,194 of this file's 41,130 rows are
+under $200, 13,393 under $100, minimum $0.00 (measured 13 Aug 2026). So a surface may not
+describe these figures as only the large payments.
+It carries the same 3 figures as the legislator endpoint above, including
+`direction_not_recorded` and `direction_not_recorded_payments`, because both pages read one query
+rather than two — a figure surfacing on only one of them would leave the other with the silent
+omission [#1454](https://github.com/alethical-org/alethical/issues/1454) closed. That the empty
+answer here is a published finding is exactly why the blank-amount refusal matters most on this
+block: a figure short by an unknown amount would read as a measured result about a named
+organisation.
 
 **No date on a figure is one this layer invented.** The period a total covers is
 `reported_through`, the filing's own answer. An earlier version derived a range from the span of

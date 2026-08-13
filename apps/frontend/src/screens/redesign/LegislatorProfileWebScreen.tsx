@@ -23,9 +23,12 @@ import { useResponsive } from '../../hooks/useResponsive';
 import {
   useLegislator,
   useLegislatorBills,
+  useLegislatorOutsideSpending,
   useLegislatorVotes,
   useSessions,
 } from '../../hooks/useAppQueries';
+import { OutsideSpendingCard } from '../../components/legislator/OutsideSpendingCard';
+import { outsideSpendingYears } from '../../lib/outsideSpending';
 import {
   billStage,
   coAuthorCount,
@@ -112,6 +115,11 @@ export function LegislatorProfileWebScreen() {
   // full chief-author list on the Revisor (the official source).
   const billsQuery = useLegislatorBills(legislatorId, { role: 'chief_author', limit: 2 });
   const votesQuery = useLegislatorVotes(legislatorId, 1);
+  // This year and last: the current election cycle, derived so it cannot go stale.
+  const outsideSpendingQuery = useLegislatorOutsideSpending(
+    legislatorId,
+    outsideSpendingYears(new Date()),
+  );
   const sessionsQuery = useSessions();
   const currentSession =
     sessionsQuery.data?.find((session) => session.isCurrent) ?? sessionsQuery.data?.[0];
@@ -294,6 +302,13 @@ export function LegislatorProfileWebScreen() {
             )}
           </View>
         </View>
+
+        <OutsideSpendingCard
+          years={outsideSpendingQuery.data ?? []}
+          isLoading={outsideSpendingQuery.isLoading}
+          isError={outsideSpendingQuery.isError}
+          onOpenSource={openUrl}
+        />
 
         <RoadmapZone legislatorName={displayName} vote={previewVote} />
       </View>

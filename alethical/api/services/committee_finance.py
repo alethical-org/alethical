@@ -539,17 +539,20 @@ def independent_spending_about(
     # nobody has filed for.
     if not _covers_year(db, release, Dataset.independent_expenditures, year):
         return IndependentSpendingAbout(UNAVAILABLE, None, source_url)
-    return IndependentSpendingAbout(
-        REPORTED,
-        spending_for_committee(
-            db,
-            registration_number=committee.registration_number,
-            committee_name=committee.name,
-            year=year,
-            snapshot_id=release.independent_expenditures.snapshot_id,
-        ),
-        source_url,
+    spending = spending_for_committee(
+        db,
+        registration_number=committee.registration_number,
+        committee_name=committee.name,
+        year=year,
+        snapshot_id=release.independent_expenditures.snapshot_id,
     )
+    if spending.rows_missing_an_amount:
+        # Rows we hold about this committee and cannot total: our gap, not a finding
+        # about the committee. The same refusal `money_in` and `money_out` make, and
+        # it matters more here, because this is the one block whose empty answer is a
+        # real 0 -- so a short figure would read as a published finding (#1454).
+        return IndependentSpendingAbout(UNAVAILABLE, None, source_url)
+    return IndependentSpendingAbout(REPORTED, spending, source_url)
 
 
 def committee_finance(

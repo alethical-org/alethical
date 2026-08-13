@@ -14,6 +14,11 @@ import { publicReadResponse } from '../lib/publicRead';
 import { normalizeLegislativeYearRanges } from '../lib/sessionLabel';
 import { legislativeServiceFromHistory } from '../lib/legislatorProfile';
 import {
+  outsideSpendingLoadFailure,
+  type OutsideSpendingState,
+  type OutsideSpendingYear,
+} from '../lib/outsideSpending';
+import {
   AskAnswer,
   AskAnswerBill,
   Bill,
@@ -2262,4 +2267,111 @@ export async function setTrackedBillFromApi(
     },
     accessToken,
   );
+}
+
+// --- Outside spending about one legislator (#1332) ---------------------------
+
+interface ApiOutsideSpendingPayload {
+  year: number;
+  state: string;
+  snapshot_id?: string | null;
+  supporting?: string | null;
+  opposing?: string | null;
+  direction_not_recorded?: string | null;
+  supporting_payments?: number | null;
+  opposing_payments?: number | null;
+  direction_not_recorded_payments?: number | null;
+  source_url?: string | null;
+  fetched_at?: string | null;
+  committees?: Array<{
+    registration_number?: string | null;
+    committee_name?: string | null;
+    office?: string | null;
+    first_payment_on?: string | null;
+    last_payment_on?: string | null;
+  }> | null;
+}
+
+/**
+ * Whether a `reported` year arrived with every count a figure needs.
+ *
+ * Each figure prints its own payment count, so a response missing any of them cannot be
+ * drawn. Checked rather than defaulted, because defaulting to 0 turns a missing count
+ * into a checked zero -- the exact missing-versus-zero failure rule 12 forbids.
+ */
+function hasEveryPaymentCount(data: ApiOutsideSpendingPayload): boolean {
+  return (
+    typeof data.supporting_payments === 'number' &&
+    typeof data.opposing_payments === 'number' &&
+    typeof data.direction_not_recorded_payments === 'number'
+  );
+}
+
+// Money is served as a string because the column carries 4 decimal places and a
+// JSON number would round them. Parsed here rather than in the display layer so
+// only one place ever turns the filing's text into arithmetic.
+function spendingAmount(value: string | null | undefined): number | null {
+  if (value == null) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+/**
+ * One legislator's outside spending for one calendar year.
+ *
+ * `state` is the field the display reads first: only `reported` carries figures,
+ * and there a 0 is a measured 0. Every other state is a gap in our own records and
+ * must never be drawn as a zero (`.claude/rules/grounded-answers.md` rule 12).
+ */
+export async function getLegislatorOutsideSpendingFromApi(
+  legislatorId: string,
+  year: number,
+): Promise<OutsideSpendingYear> {
+  const params = new URLSearchParams({ year: String(year) });
+  const response = await publicApiRequest<DetailResponse<ApiOutsideSpendingPayload>>(
+    `/legislators/${encodeURIComponent(legislatorId)}/independent-spending?${params.toString()}`,
+  );
+  const data = response.data;
+  let state: OutsideSpendingState =
+    data.state === 'reported' || data.state === 'link_unconfirmed' ? data.state : 'unavailable';
+  // A `reported` year must arrive with all 3 payment counts, or no figure may be drawn
+  // from it. The frontend and the API deploy separately, so this page can briefly meet a
+  // server that predates the split counts; defaulting those to 0 made every figure look
+  // like a checked zero and printed "nobody spent anything" over real money. Treated as a
+  // failed load instead, which is what it is.
+  if (state === 'reported' && !hasEveryPaymentCount(data)) {
+    state = 'load_failed';
+  }
+  if (state === 'load_failed') return outsideSpendingLoadFailure(data.year ?? year);
+  const committees = data.committees ?? [];
+  // A member can hold several committees at once, so the block's period is the span
+  // across all of them rather than any one committee's.
+  const firstDates = committees
+    .map((committee) => committee.first_payment_on)
+    .filter((value): value is string => Boolean(value))
+    .sort();
+  const lastDates = committees
+    .map((committee) => committee.last_payment_on)
+    .filter((value): value is string => Boolean(value))
+    .sort();
+  return {
+    year: data.year,
+    state,
+    snapshotId: data.snapshot_id ?? null,
+    committees: committees.map((committee) => ({
+      registrationNumber: committee.registration_number ?? '',
+      name: committee.committee_name ?? '',
+      office: committee.office ?? null,
+    })),
+    supporting: spendingAmount(data.supporting),
+    opposing: spendingAmount(data.opposing),
+    directionNotRecorded: spendingAmount(data.direction_not_recorded),
+    supportingPayments: data.supporting_payments ?? null,
+    opposingPayments: data.opposing_payments ?? null,
+    directionNotRecordedPayments: data.direction_not_recorded_payments ?? null,
+    firstPaymentOn: firstDates[0] ?? null,
+    lastPaymentOn: lastDates[lastDates.length - 1] ?? null,
+    sourceUrl: data.source_url ?? null,
+    fetchedAt: data.fetched_at ?? null,
+  };
 }

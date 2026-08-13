@@ -90,6 +90,12 @@ It matters because **it never appears in a candidate's own report**. Someone rea
 report is missing part of the picture. On a legislator's page we show three plain figures:
 spent supporting them, spent opposing them, and spent where the filing does not say which.
 
+**Built.** It is on every legislator's profile now, and it says plainly that nobody has yet
+confirmed which campaign committee belongs to which person, so no figure can be attributed to
+anyone until the review in number 2 lands. The third figure appears only when there is money in
+it, which today there never is. Full explanation:
+[Spending by Outside Groups](outside-spending-guide.md).
+
 ---
 
 ## Second priority

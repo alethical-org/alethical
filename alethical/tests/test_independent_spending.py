@@ -11,9 +11,11 @@ prevents. The three that matter most:
   10 "Fateh, Omar for Minneapolis Mayor" committees in 2025 while sitting Senator
   Omar Fateh's own Senate committee has none, so matching on a name would put a
   city mayoral race on a state senator's profile.
-* **There are two figures and never a third.** Every row in the source records
-  "For" or "Against"; a permanently-empty third figure would tell a reader the
-  source leaves the question open when it does not.
+* **Three figures, and between them they hold every row.** Every row in the source
+  records "For" or "Against", so the third figure is 0 today and a surface shows it
+  only when it is not. It exists because a row nothing can classify has to land
+  somewhere visible: guessing a side invents a claim about a person, and dropping it
+  leaves a total short while the answer still reads as complete (#1454).
 
 Needs the local Postgres on port 54329.
 """
@@ -128,6 +130,11 @@ def _publish(db, *, independent: models.CampaignFinanceSnapshot):
 
 
 def _row(db, snapshot, *, reg_num, direction, amount, year=2025, row_number=None):
+    """One published payment. ``amount=None`` is a row the file leaves blank.
+
+    The column is nullable and the loader stores a blank as missing rather than
+    inventing a 0, so a test can produce the row the source has not published yet.
+    """
     db.add(
         models.CampaignFinanceIndependentExpenditureRow(
             snapshot_id=snapshot.id,
@@ -141,7 +148,7 @@ def _row(db, snapshot, *, reg_num, direction, amount, year=2025, row_number=None
             for_against=direction,
             year=year,
             transaction_date=date(year, 6, 1),
-            amount=Decimal(amount),
+            amount=None if amount is None else Decimal(amount),
         )
     )
     db.flush()
@@ -264,6 +271,176 @@ def test_a_blank_direction_joins_neither_side(db, legislator):
     assert result.payment_count == 1
 
 
+def test_a_year_the_download_does_not_reach_is_not_a_zero(db, legislator):
+    """ "Nobody spent anything in 2027" is a claim about a year nobody has filed for.
+
+    The files stop at the present and the route accepts years to 2100, so a page
+    defaulting to "this year" reaches an uncovered year on 1 January and would print
+    a confident 0 with nothing to mark it. The committee route closed this hole in
+    #1442; this route still had it.
+    """
+    snapshot = _snapshot(db, Dataset.independent_expenditures)
+    _publish(db, independent=snapshot)
+    _row(db, snapshot, reg_num=SENATE_COMMITTEE, direction="For", amount="800.00")
+    db.commit()
+    _confirm(db, legislator, SENATE_COMMITTEE)
+    covered = independent_spending_for_legislator(db, legislator.id, year=2025)
+    assert covered.state == REPORTED
+    beyond = independent_spending_for_legislator(db, legislator.id, year=2027)
+    assert beyond.state == UNAVAILABLE
+    assert beyond.supporting is None
+
+
+def test_a_covered_year_with_no_rows_for_this_member_is_still_a_zero(db, legislator):
+    """The distinction the test above turns on, from the other side.
+
+    Somebody else filed in 2025, so the year is covered and this member's empty
+    result is a checked finding rather than a gap. Collapsing the two would either
+    print a zero over an uncovered year or refuse to print a real one.
+    """
+    snapshot = _snapshot(db, Dataset.independent_expenditures)
+    _publish(db, independent=snapshot)
+    _row(db, snapshot, reg_num="19999", direction="For", amount="800.00")
+    db.commit()
+    _confirm(db, legislator, SENATE_COMMITTEE)
+    result = independent_spending_for_legislator(db, legislator.id, year=2025)
+    assert result.state == REPORTED
+    assert result.supporting == Decimal(0)
+
+
+def test_a_blank_direction_gets_a_figure_of_its_own(db, legislator):
+    """The other half of the test above: neither side, and not gone either (#1454).
+
+    Joining neither side is the right refusal and was the whole fix; leaving the
+    money out of the answer entirely was the unfinished half. A page reading only
+    the two directional figures was told $100 with nothing to say $1,665 more had
+    been spent and could not be classified.
+    """
+    snapshot = _snapshot(db, Dataset.independent_expenditures)
+    _publish(db, independent=snapshot)
+    _row(db, snapshot, reg_num=SENATE_COMMITTEE, direction="For", amount="100.00")
+    _row(db, snapshot, reg_num=SENATE_COMMITTEE, direction=None, amount="777.00")
+    _row(db, snapshot, reg_num=SENATE_COMMITTEE, direction="Undecided", amount="888.00")
+    db.commit()
+    _confirm(db, legislator, SENATE_COMMITTEE)
+    result = independent_spending_for_legislator(db, legislator.id, year=2025)
+    assert result.state == REPORTED
+    # Both unreadable spellings merge into one figure rather than becoming two.
+    assert result.direction_not_recorded == Decimal("1665.00")
+    assert result.direction_not_recorded_payments == 2
+    (committee,) = result.committees
+    assert committee.direction_not_recorded == Decimal("1665.00")
+    assert committee.direction_not_recorded_payments == 2
+
+
+def test_the_three_figures_account_for_every_row(db, legislator):
+    """Nothing can fall between the figures, because the third is defined as the rest.
+
+    The failure this closes is not a wrong number, it is a *complete-looking* one:
+    the money went missing and the answer still read as whole. So the check is
+    arithmetic rather than a spot value -- every payment held is in exactly one
+    figure, and the 3 add up to what the file says.
+    """
+    snapshot = _snapshot(db, Dataset.independent_expenditures)
+    _publish(db, independent=snapshot)
+    published = {"For": "1000.00", "Against": "250.00", "": "40.00", "Sideways": "5.00"}
+    for direction, amount in published.items():
+        _row(
+            db,
+            snapshot,
+            reg_num=SENATE_COMMITTEE,
+            direction=direction or None,
+            amount=amount,
+        )
+    db.commit()
+    _confirm(db, legislator, SENATE_COMMITTEE)
+    result = independent_spending_for_legislator(db, legislator.id, year=2025)
+    every_figure = result.supporting + result.opposing + result.direction_not_recorded
+    assert every_figure == sum(Decimal(a) for a in published.values())
+    assert result.payment_count + result.direction_not_recorded_payments == len(
+        published
+    )
+    (committee,) = result.committees
+    assert committee.last_payment_on == date(2025, 6, 1)
+
+
+def test_a_blank_amount_is_never_a_verified_zero(db, legislator):
+    """A payment with no amount is our gap, not a finding that nothing was spent.
+
+    ``sum`` skips a row whose amount is blank while ``count(*)`` counts it, so
+    unguarded this committee reported ``reported``, $0 supporting, over a payment
+    the file plainly contains -- the exact sentence rule 12 forbids. 0 of the live
+    release's 41,130 rows are like this, and the loader stores a blank as missing
+    rather than inventing a value, so the day one is published there would be
+    nothing on the page to say so (#1454).
+    """
+    snapshot = _snapshot(db, Dataset.independent_expenditures)
+    _publish(db, independent=snapshot)
+    _row(db, snapshot, reg_num=SENATE_COMMITTEE, direction="For", amount=None)
+    db.commit()
+    _confirm(db, legislator, SENATE_COMMITTEE)
+    result = independent_spending_for_legislator(db, legislator.id, year=2025)
+    assert result.state == UNAVAILABLE
+    assert result.supporting is None
+    assert result.payment_count is None
+
+
+def test_a_blank_amount_withholds_a_total_it_would_understate(db, legislator):
+    """One blank beside a real payment withholds the figure instead of shortening it.
+
+    Harder than the test above and the reason the guard is a count rather than a
+    "did we get nothing" check: $1,000 is a true sum of the rows we could read and
+    a false statement about what was spent, and nothing on the page would mark the
+    difference.
+    """
+    snapshot = _snapshot(db, Dataset.independent_expenditures)
+    _publish(db, independent=snapshot)
+    _row(db, snapshot, reg_num=SENATE_COMMITTEE, direction="For", amount="1000.00")
+    _row(db, snapshot, reg_num=SENATE_COMMITTEE, direction="For", amount=None)
+    db.commit()
+    _confirm(db, legislator, SENATE_COMMITTEE)
+    result = independent_spending_for_legislator(db, legislator.id, year=2025)
+    assert result.state == UNAVAILABLE
+    assert result.supporting is None
+
+
+def test_a_blank_amount_in_the_third_figure_withholds_it_too(db, legislator):
+    """The new figure is held to the same rule as the two it sits beside.
+
+    A row can be unreadable twice over -- no direction and no amount -- and the
+    third figure must not become a place where an untotallable row is quietly
+    accepted because it was already set aside once.
+    """
+    snapshot = _snapshot(db, Dataset.independent_expenditures)
+    _publish(db, independent=snapshot)
+    _row(db, snapshot, reg_num=SENATE_COMMITTEE, direction="For", amount="600.00")
+    _row(db, snapshot, reg_num=SENATE_COMMITTEE, direction=None, amount=None)
+    db.commit()
+    _confirm(db, legislator, SENATE_COMMITTEE)
+    result = independent_spending_for_legislator(db, legislator.id, year=2025)
+    assert result.state == UNAVAILABLE
+    assert result.direction_not_recorded is None
+
+
+def test_one_untotallable_committee_withholds_the_whole_figure(db, legislator):
+    """A member holding 2 committees gets no figure when either one cannot be totalled.
+
+    The figures a page prints are sums across every confirmed committee, so a
+    good committee beside a bad one still produces a page total that is short by
+    an unknown amount while reading as complete.
+    """
+    snapshot = _snapshot(db, Dataset.independent_expenditures)
+    _publish(db, independent=snapshot)
+    _row(db, snapshot, reg_num="18488", direction="For", amount="300.00")
+    _row(db, snapshot, reg_num="19205", direction="Against", amount=None)
+    db.commit()
+    _confirm(db, legislator, "18488")
+    _confirm(db, legislator, "19205")
+    result = independent_spending_for_legislator(db, legislator.id, year=2025)
+    assert result.state == UNAVAILABLE
+    assert result.committees == ()
+
+
 def test_another_office_never_joins_the_total(db, legislator):
     """The Omar Fateh case, from the live release.
 
@@ -357,6 +534,12 @@ def test_a_different_year_is_left_out(db, legislator):
         amount="500.00",
         year=2024,
     )
+    # Somebody else's 2025 payment, so 2025 is a year the download covers and this
+    # member's empty 2025 is a finding rather than a gap. Added when the year-coverage
+    # check landed: without it this fixture is a snapshot holding one year, which the
+    # real file never is, and the assertion below would have passed for the wrong
+    # reason -- an uncovered year rather than money that stayed in its own year.
+    _row(db, snapshot, reg_num="19999", direction="For", amount="1.00", year=2025)
     db.commit()
     _confirm(db, legislator, SENATE_COMMITTEE)
     result = independent_spending_for_legislator(db, legislator.id, year=2025)
@@ -412,3 +595,88 @@ def test_the_route_serves_the_same_states(client, db, legislator):
     assert body["state"] == UNAVAILABLE
     assert body["supporting"] is None
     assert body["committees"] == []
+
+
+def test_each_figure_carries_its_own_payment_count(client, db, legislator):
+    """The counts are served split, not only combined.
+
+    A page has 3 figures and needs a count under each. Handed only the combined
+    number it would print "3 payments" beneath both sides, saying the same payments
+    produced each of them. The 3 counts here are deliberately all different, so a
+    figure reading the wrong one cannot look right by coincidence.
+    """
+    snapshot = _snapshot(db, Dataset.independent_expenditures)
+    _publish(db, independent=snapshot)
+    for amount in ("10.00", "20.00", "30.00"):
+        _row(db, snapshot, reg_num=SENATE_COMMITTEE, direction="For", amount=amount)
+    for amount in ("40.00", "50.00"):
+        _row(db, snapshot, reg_num=SENATE_COMMITTEE, direction="Against", amount=amount)
+    _row(db, snapshot, reg_num=SENATE_COMMITTEE, direction="Unclear", amount="60.00")
+    db.commit()
+    _confirm(db, legislator, SENATE_COMMITTEE)
+    response = client.get(
+        f"/api/v1/legislators/{legislator.slug}/independent-spending",
+        params={"year": 2025},
+    )
+    body = response.json()["data"]
+    assert body["supporting_payments"] == 3
+    assert body["opposing_payments"] == 2
+    assert body["direction_not_recorded_payments"] == 1
+    # The combined count stays the 2 directional figures only, unchanged.
+    assert body["payment_count"] == 5
+
+
+def test_every_answer_names_the_download_it_came_from(client, db, legislator):
+    """A page asking about 2 years makes 2 requests, so it has to be able to compare.
+
+    Each request resolves the live release on its own, so a publish landing between them
+    pairs one year's money with another year's freshness date -- section H's forbidden
+    case, reached by a race rather than a bad query. Served in every state, including the
+    ones carrying no figure, because a page cannot compare what it was not told.
+    """
+    snapshot = _snapshot(db, Dataset.independent_expenditures)
+    _publish(db, independent=snapshot)
+    _row(db, snapshot, reg_num=SENATE_COMMITTEE, direction="For", amount="700.00")
+    db.commit()
+    unconfirmed = client.get(
+        f"/api/v1/legislators/{legislator.slug}/independent-spending",
+        params={"year": 2025},
+    ).json()["data"]
+    assert unconfirmed["state"] == LINK_UNCONFIRMED
+    assert unconfirmed["snapshot_id"] == str(snapshot.id)
+    _confirm(db, legislator, SENATE_COMMITTEE)
+    reported = client.get(
+        f"/api/v1/legislators/{legislator.slug}/independent-spending",
+        params={"year": 2025},
+    ).json()["data"]
+    assert reported["state"] == REPORTED
+    assert reported["snapshot_id"] == str(snapshot.id)
+
+
+def test_the_route_serves_the_third_figure(client, db, legislator):
+    """The count of unclassifiable money reaches the page, not only the service.
+
+    A count the service keeps to itself is the same silent omission with an extra
+    step, so the route is pinned separately from the query (#1454).
+    """
+    snapshot = _snapshot(db, Dataset.independent_expenditures)
+    _publish(db, independent=snapshot)
+    _row(db, snapshot, reg_num=SENATE_COMMITTEE, direction="For", amount="120.00")
+    _row(db, snapshot, reg_num=SENATE_COMMITTEE, direction="Unclear", amount="55.00")
+    db.commit()
+    _confirm(db, legislator, SENATE_COMMITTEE)
+    response = client.get(
+        f"/api/v1/legislators/{legislator.slug}/independent-spending",
+        params={"year": 2025},
+    )
+    assert response.status_code == 200
+    body = response.json()["data"]
+    assert body["state"] == REPORTED
+    # Serialized as a string, because the column carries 4 decimal places and JSON
+    # numbers would round them. Compared as money rather than as text.
+    assert Decimal(body["direction_not_recorded"]) == Decimal("55.00")
+    assert body["direction_not_recorded_payments"] == 1
+    assert body["payment_count"] == 1
+    (committee,) = body["committees"]
+    assert Decimal(committee["direction_not_recorded"]) == Decimal("55.00")
+    assert committee["direction_not_recorded_payments"] == 1

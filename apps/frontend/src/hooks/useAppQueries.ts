@@ -14,6 +14,7 @@ import {
   getLegislatorBillsFromApi,
   getMetaFromApi,
   getLegislatorFromApi,
+  getLegislatorOutsideSpendingFromApi,
   getLegislatorVotesFromApi,
   ListPagination,
   LegislatorListFilters,
@@ -34,6 +35,7 @@ import {
   updateNotificationPreference,
 } from '../data/mockData';
 import { NotificationPreference, RepresentativeLookupInput } from '../data/types';
+import { outsideSpendingLoadFailure } from '../lib/outsideSpending';
 import { trackState, TrackState } from '../lib/trackedState';
 import { useAuth } from '../providers/AuthProvider';
 
@@ -220,6 +222,35 @@ export function useLegislator(legislatorId: string) {
   return useQuery({
     queryKey: ['legislator', legislatorId],
     queryFn: () => getLegislatorFromApi(legislatorId),
+    retry: false,
+  });
+}
+
+/**
+ * Outside spending about one legislator, one request per calendar year (#1332).
+ *
+ * A year is its own request because the endpoint answers one year at a time and each
+ * year carries its own state: a year our download does not reach must be able to say
+ * so without blanking a year it does.
+ *
+ * `allSettled`, not `all`, and that is the whole point of this comment. With `all`, one
+ * year's request failing rejected the combined query, so the other year's real figures
+ * were thrown away and replaced by a whole-card error -- a year we could answer, silently
+ * turned into a year we could not. A failed year now becomes its own placeholder that
+ * says only what happened to it. Found by an automated review on #1332.
+ */
+export function useLegislatorOutsideSpending(legislatorId: string, years: number[]) {
+  return useQuery({
+    queryKey: ['legislator-outside-spending', legislatorId, years],
+    queryFn: async () => {
+      const settled = await Promise.allSettled(
+        years.map((year) => getLegislatorOutsideSpendingFromApi(legislatorId, year)),
+      );
+      return settled.map((result, index) =>
+        result.status === 'fulfilled' ? result.value : outsideSpendingLoadFailure(years[index]),
+      );
+    },
+    enabled: Boolean(legislatorId),
     retry: false,
   });
 }
