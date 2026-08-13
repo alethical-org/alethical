@@ -520,13 +520,27 @@ def parse_catalogue_payload(
     therefore read as zero reports; a **non-empty** list stays an error, because that
     would be a shape nothing here has ever seen.
 
-    ``notices`` and ``disclosure`` are deliberately not read. Filer 41430's catalogue
-    carries an empty ``pdfs`` beside a populated ``notices`` holding 2 reports the Board
-    has noticed as due, one of them with no ``amendments`` key at all. Those are reports
-    that have not been filed, and this table records filings, so counting them would
-    invent reports. They are the likelier home of a "this report is late" signal than a
-    null ``amendments`` array, which matters to whoever builds that
-    ([#1375](https://github.com/alethical-org/alethical/issues/1375)).
+    ``notices`` and ``disclosure`` are deliberately not read, and **not for the reason an
+    earlier version of this docstring gave.** It said ``notices`` held reports the Board
+    had noticed as due, on the strength of filer 41430's empty ``pdfs`` beside 2
+    ``notices`` rows, and offered it as the likelier home of a "this report is late"
+    signal. Measured for
+    [#1375](https://github.com/alethical-org/alethical/issues/1375), it is neither.
+
+    ``notices`` holds a filer's **next-business-day notices of large contributions**, a
+    separate filing the Board's disclosure calendars print for candidates and for
+    committees and funds. Across the 38 sitting-legislator committees with no 2026 report,
+    **60 of 60 rows carry a machine filename and** ``amendments: ['0']`` -- all filed
+    documents, every one from an election year between 2010 and 2024, and not one about the
+    current year. 41430's own first row is filed too (``41430_260723_155752.pdf``). A
+    placeholder for a notice period nothing was filed in repeats the report's name where
+    the filename belongs and carries no ``amendments`` key; every row of either shape
+    carries ``CutOffDate: null``, which is the tell that none of them is a due report.
+
+    So the reason to skip them is unchanged -- this table records periodic reports and a
+    notice is not one -- but reading ``notices`` as "late" would have printed *late*
+    against 16-year-old filings. Mechanics in
+    ``docs/product-onboarding/data-ingestion-onboarding.md``.
     """
     errors: list[str] = []
     if not isinstance(payload, dict):

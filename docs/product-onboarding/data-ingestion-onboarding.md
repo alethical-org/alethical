@@ -718,13 +718,38 @@ figures correctly. So an empty list means zero reports, and a **non-empty** list
 an error, because that is a shape nothing here has seen and reading it as "none" would
 discard real filings in silence.
 
-**Reports the Board has only noticed as due are not counted as filings.** Filer 41430
-returns an empty filed-report list beside a `notices` collection holding 2 reports the
-Board says are due and nobody has filed, one of them carrying no amendment record at all.
-Counting those would let a page say a committee reported in a period it never reported in.
-It is also the likelier home of a "this report is late" signal than a missing amendment
-record inside the filed list, which matters to
-[#1375](https://github.com/alethical-org/alethical/issues/1375).
+**The `notices` collection is a different kind of filing, and it is not counted as a
+report.** It holds a filer's **next-business-day notices of large contributions** — a
+separate thing a filer sends within a day of taking a big donation, which the Board's own
+disclosure calendars print for candidates and for committees and funds, and not for party
+units. Counting one as a report would let a page say a committee reported in a period it
+never reported in.
+
+Two row shapes live in there, told apart by the filename, and the distinction matters
+because only one of them is a document:
+
+- A **filed** notice carries a machine filename — `41430_260723_155752.pdf`, or
+  `18337S181029_145851.pdf` where the `S` marks a special election — and `amendments:
+  ['0']`. Measured across the 38 sitting-legislator committees with no 2026 report:
+  **60 of 60 rows are this**, every one from an election year between 2010 and 2024.
+- A **placeholder** for a notice period nothing was filed in repeats the report's own name
+  where the filename belongs (`fileName: "2026 Pre-General Report"`) and carries **no
+  `amendments` key at all**.
+
+**This corrects an earlier reading of the same response, and the correction is the point
+rather than the tidying.** Filer 41430's 2 rows were read here as "2 reports the Board
+says are due and nobody has filed", and as the likelier home of a "this report is late"
+signal. Measured for [#1375](https://github.com/alethical-org/alethical/issues/1375), it
+is neither. The first of those 2 rows is a **genuinely filed** notice —
+`41430_260723_155752.pdf`, `amendments: ['0']` — so the collection is not a list of things
+nobody filed; and across 38 legislator committees not one `notices` row is about the
+current year at all, so a build reading it as "late" would have printed *late* against
+16-year-old filings. What the collection does carry, on every row, is `CutOffDate: null`,
+which is the tell: a due report has a cut-off date and these do not.
+
+The Board's separate `disclosure` collection is where the placeholder shape appears for
+*periodic* reports, with a real `CutOffDate` beside it. Neither collection is read by the
+loader, and both are deliberately left alone.
 
 **The label set is a contract in code, measured across the whole population rather than
 sampled.** An unknown, missing or repeated label stops a release, so the set has to be
