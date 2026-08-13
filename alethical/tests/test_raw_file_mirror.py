@@ -406,7 +406,9 @@ def test_a_stored_body_missing_a_mirror_column_fails_this_test_by_name() -> None
         if "object_key" not in table.columns:
             continue
         missing = [
-            column for column in mirror_module.BODY_COLUMNS if column not in table.columns
+            column
+            for column in mirror_module.BODY_COLUMNS
+            if column not in table.columns
         ]
         if missing:
             incomplete.append(f"{table.name} is missing {', '.join(missing)}")
@@ -436,7 +438,9 @@ def add_report_document(session, key: str, data: bytes) -> None:
     session.commit()
 
 
-def add_filing_archive(session, key: str, data: bytes, *, with_hash: bool = True) -> None:
+def add_filing_archive(
+    session, key: str, data: bytes, *, with_hash: bool = True
+) -> None:
     """Record one totals archive, whose hash column is nullable."""
     session.execute(
         text(

@@ -294,7 +294,8 @@ interface ApiBillActionPayload {
   first_seen_at?: string | null;
   roll_call_text?: string | null;
   cross_references?:
-    { code: string; id: string; title?: string | null; status_key?: string | null }[] | null;
+    | { code: string; id: string; title?: string | null; status_key?: string | null }[]
+    | null;
 }
 
 interface ApiDistrictPayload {

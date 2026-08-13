@@ -521,7 +521,7 @@ of the download:
 just check-campaign-finance-stated-split production false 2025
 ```
 
-Four things about it that are not obvious:
+Five things about it that are not obvious:
 
 - **It never blocks a release.** Eugene ruled on 12 Aug 2026 that where 2 of
   Minnesota's own publications disagree and we cannot derive the truth, we show both
@@ -543,6 +543,17 @@ Four things about it that are not obvious:
   payments themselves still come from the bulk download
   ([`campaign-finance-system-design.md`](../architecture/campaign-finance-system-design.md)
   §2.3).
+- **Every document it reads is kept**
+  ([#1501](https://github.com/alethical-org/alethical/issues/1501)). It used to record a
+  document's sha256 and let the bytes go, which left the evidence behind a $4,098,534
+  disagreement as a hash of a file nobody held. Now each one is stored in the same bucket
+  the downloads use, under `campaign-finance/report-document/<sha256>.pdf.gz`, and
+  recorded in `cf_report_document`. **Stored before it is parsed and whatever the parse
+  finds**, because a document our reader cannot read is the one most worth keeping and
+  the Board will not serve it again on request. A document that cannot be stored is
+  counted and the run exits non-zero, but its verdict is still written: the verdict came
+  from bytes we genuinely received, and throwing away a real finding about real money
+  over a storage fault would be the wrong trade.
 
 Until that command runs over a record set, its check reports "not run" and names the
 command, which is the honest state of a database holding payments nobody has compared
@@ -576,14 +587,14 @@ documentation says database backups "do not include objects you store via the
 Storage API", so nothing that protects the database protects that bucket
 ([#1402](https://github.com/alethical-org/alethical/issues/1402)). A daily job
 (`.github/workflows/mirror-raw-files.yml`) copies anything not already there, reads
-each object back out and hashes it, and only then records the time on
-`cf_snapshot_body.mirrored_at` — so that column means "read back and confirmed",
-never "the upload returned 200". Run it by hand with `just mirror-raw-files`
+each object back out and hashes it, and only then records the time in that object's
+own row — so `mirrored_at` means "read back and confirmed", never "the upload
+returned 200". Run it by hand with `just mirror-raw-files`
 (dry-run by default). It needs the 4 `CLOUDFLARE_R2_*` values on top of the Storage
 ones. Free at our sizes: R2 includes the first 10 GB then charges $0.015 per GB,
 and pulling data back out is free so a restore costs nothing.
 
-**Two things about that copy that are not obvious.**
+**Three things about that copy that are not obvious.**
 
 1. **The bucket is the work list, not the database.** One bucket serves every
    database, so a run against a local database writes its downloads beside
@@ -597,6 +608,18 @@ and pulling data back out is free so a restore costs nothing.
    straight after it took 2 seconds and moved nothing. Re-proving the *whole* store
    and proving that a restore actually works is a separate job
    ([#802](https://github.com/alethical-org/alethical/issues/802)).
+3. **Which tables hold a stored body is read out of the schema, never listed in the
+   job** ([#1501](https://github.com/alethical-org/alethical/issues/1501)). The job was
+   written for `cf_snapshot_body` and named it directly, and by the time anybody checked,
+   2 other tables held bodies: `cf_filing_snapshot`'s totals archives had been copied by
+   the bucket walk above with **0 of 2 rows recording it**, and `cf_report_document` did
+   not exist because the documents were not being kept at all. So the work list is now
+   every mapped table carrying all 3 of `object_key`, `compressed_hash` and
+   `mirrored_at`. **That is all a fourth kind of stored body needs** — name those 3
+   columns the same way and the daily job protects it from the day it ships. A table that
+   gains an `object_key` without the other two fails
+   `alethical/tests/test_raw_file_mirror.py` by name, because a body the job cannot see
+   is the failure that reads as success.
 
 **What is lost if both copies are lost, stated plainly**, because it bounds how much
 this is worth building: every parsed row and every file hash live in Postgres and
@@ -823,7 +846,10 @@ JSON Lines object** in the same private bucket the downloads use, each line carr
 response's own sha256 and its exact bytes. Every stored figure names the line it came
 from, so a published number traces back to a response we still hold. One object rather
 than 4,800, because 4,800 tiny objects would cost more to store and audit than the
-evidence is worth.
+evidence is worth. Those archives get a second copy on Cloudflare R2 like everything else
+in the bucket, recorded on `cf_filing_snapshot.mirrored_at` — which read 0 of 2 for the
+first week the archives existed, because the copying job named one table
+([#1501](https://github.com/alethical-org/alethical/issues/1501); section **H**, point 3).
 
 **The second run is the one that publishes, and that is where line numbers can go
 wrong.** A first run quarantines for want of anything to compare against, so the run
@@ -946,7 +972,8 @@ just pipeline local --write --allow-writes     # commit after review
 | `uv run python -m alethical.pipeline.votes`                                              | Vote backfill (debug)                                                                                                                                                                                           |
 | `uv run python scripts/repair_incomplete_vote_records.py --target production`            | Preview the narrow repair that adds only member votes proven missing by a complete official House list. Writing requires both `--write` and `--backup-path`                                                     |
 | `uv run python scripts/repair_vote_roster_identities.py --target production`             | Preview the one-time repair for official House vote names and a missing House service period. Writing requires both `--write` and `--backup-path`                                                               |
-| `just mirror-raw-files [target=production] [dry=true]`                                   | Copy every stored campaign-finance file to Cloudflare R2 and read each copy back to check it arrived whole. Dry-run by default. Only ever adds; a second run copies nothing. The daily job `.github/workflows/mirror-raw-files.yml` does this already — section **H**   |
+| `just mirror-raw-files [target=production] [dry=true]`                                   | Copy every stored campaign-finance file to Cloudflare R2 and read each copy back to check it arrived whole. Covers all 3 kinds of stored body (downloads, totals archives, report documents), discovered from the schema. Dry-run by default. Only ever adds; a second run copies nothing. The daily job `.github/workflows/mirror-raw-files.yml` does this already — section **H**   |
+| `just backfill-campaign-finance-report-documents [target=production] [dry=true] [limit=""]` | Re-fetch and keep the report documents behind verdicts written before #1501, and report how many the Board would no longer serve. Dry-run by default (asks for nothing); `limit` for a scoped check first. Safe to re-run and safe to interrupt — section **H2**            |
 | `uv run python scripts/show_party_and_caucus_money.py --target production`                | Print the money in and out of the state parties and the 4 caucuses from the published set. Reads only, never writes (`--reg-num`, `--years`, `--transfers`) — section **H**                                       |
 | `uv run python -m alethical.pipeline.ai_enrichment {prepare\|submit\|status\|apply} ...` | Direct OpenAI Batch control. Four modes, not the two listed here: `prepare` builds the JSONL batch file and `apply` writes results back, which are the two you actually need to run a batch end to end.         |
 

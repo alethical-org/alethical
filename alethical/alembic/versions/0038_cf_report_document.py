@@ -40,9 +40,10 @@ def upgrade() -> None:
         sa.Column("byte_size", sa.BigInteger(), nullable=False),
         sa.Column("compressed_hash", sa.String(length=64), nullable=False),
         sa.Column("compressed_byte_size", sa.BigInteger(), nullable=False),
-        sa.Column(
-            "compression", sa.String(length=20), nullable=False, server_default="gzip"
-        ),
+        # No server default, matching cf_snapshot_body and cf_filing_snapshot: the
+        # model's ``default="gzip"`` is the one writer, so a second default in the
+        # database would be a second answer nobody consults.
+        sa.Column("compression", sa.String(length=20), nullable=False),
         # NULL until the object has been read back out of the second store and hashed.
         # The name of this column on this table is what makes the copy job cover it --
         # that job discovers its work from the schema (object_key + compressed_hash +
@@ -80,7 +81,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index(
-        "ix_cf_report_document_filer_year", table_name="cf_report_document"
-    )
+    op.drop_index("ix_cf_report_document_filer_year", table_name="cf_report_document")
     op.drop_table("cf_report_document")

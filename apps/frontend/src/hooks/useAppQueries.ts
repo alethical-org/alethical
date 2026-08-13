@@ -65,8 +65,8 @@ export function useAskAnswer(question?: string, identity?: SuggestedAnswerIdenti
   const trimmed = question?.trim();
   const validIdentity = Boolean(
     identity?.billId &&
-    Number.isSafeInteger(identity.suggestionIndex) &&
-    identity.suggestionIndex >= 0,
+      Number.isSafeInteger(identity.suggestionIndex) &&
+      identity.suggestionIndex >= 0,
   );
   const savedQuery = useQuery({
     queryKey: validIdentity ? suggestedAnswerQueryKey(identity!) : ['saved-ask-suggestion', 'none'],

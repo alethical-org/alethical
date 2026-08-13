@@ -321,6 +321,18 @@ def main() -> int:
         connect_args=NO_PREPARED_STATEMENTS,
     )
     with Session(engine) as session:
+        # Said plainly rather than as a traceback. On a database whose migrations have
+        # not run yet this is the whole story, and the first thing anybody sees.
+        if not session.execute(
+            text("SELECT to_regclass('cf_report_document')")
+        ).scalar():
+            print(
+                "refused: this database has no cf_report_document table, so there is "
+                "nowhere to record a kept document. Apply the migrations (alembic "
+                "upgrade head).",
+                file=sys.stderr,
+            )
+            return 1
         if args.dry_run:
             describe(session)
             return 0

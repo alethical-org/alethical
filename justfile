@@ -197,6 +197,18 @@ load-campaign-finance-filings target="local" dry="true" filers="":
 check-campaign-finance-stated-split target="local" dry="true" years="" filers="":
   uv run python scripts/check_campaign_finance_stated_split.py --target {{target}} {{ if dry == "true" { "--dry-run" } else { "" } }} {{ if years != "" { "--years " + years } else { "" } }} {{ if filers != "" { "--only-filers " + filers } else { "" } }}
 
+# Ask Minnesota again for each committee report the check above read BEFORE we started
+# keeping them, and keep it this time (#1501). The state publishes no library of past
+# reports and refuses most reports older than 2023, so the ones it will no longer hand
+# over are the measurement showing why keeping them matters -- they are reported as a
+# number, not as a failure. Safe to re-run and safe to interrupt: each report is saved
+# as it lands and one already saved is skipped without asking the state for it.
+# ABOUT 1,300 REQUESTS AND ROUGHLY 25 MINUTES, so check a few first:
+#   just backfill-campaign-finance-report-documents production true      # ask for nothing
+#   just backfill-campaign-finance-report-documents production false 20  # 20 for real
+backfill-campaign-finance-report-documents target="production" dry="true" limit="":
+  ALETHICAL_DATABASE_TARGET={{target}} PYTHONPATH=. uv run python scripts/backfill_campaign_finance_report_documents.py --target {{target}} {{ if dry == "true" { "--dry-run" } else { "" } }} {{ if limit != "" { "--limit " + limit } else { "" } }}
+
 # Reconcile current legislator membership against the official roster PDF.
 # Dry-run by default (no writes); pass apply=true to deactivate departed members.
 # Set ALETHICAL_DATABASE_TARGET=production to run against prod.
