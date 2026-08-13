@@ -61,6 +61,8 @@ export type RootStackParamList = {
   Terms: undefined;
   AboutUs: undefined;
   ContactUs: undefined;
+  ConfirmEmail: undefined;
+  ResetPassword: undefined;
   NotFound: { path: string };
   VoteDetail: { billId: string; voteEventId: string };
   ChatSession: {

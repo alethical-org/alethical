@@ -340,6 +340,10 @@ async function contentFor(
       return headOnly(STATIC_PAGE_METADATA["/about"]);
     case "contactUs":
       return headOnly(STATIC_PAGE_METADATA["/about/contact"]);
+    case "confirmEmail":
+      return headOnly(STATIC_PAGE_METADATA["/confirm"]);
+    case "resetPassword":
+      return headOnly(STATIC_PAGE_METADATA["/reset"]);
     case "chatSession":
       return headOnly(homePageMetadata());
     case "notFound":
@@ -371,6 +375,21 @@ async function pageShell(): Promise<string> {
   return html;
 }
 
+const EMAIL_LINK_BOOTSTRAP = `<meta name="referrer" content="no-referrer" />
+<meta name="robots" content="noindex,nofollow" />
+<script id="alethical-email-link-bootstrap">(function(){var search=new URLSearchParams(window.location.search);var hash=new URLSearchParams(window.location.hash.replace(/^#/,''));var read=function(name){return search.get(name)||hash.get(name)};window.__alethicalEmailLink=Object.freeze({tokenHash:read('token_hash'),type:read('type'),pendingReference:read('pending')});['token_hash','type','pending','redirect_to','auth_action'].forEach(function(name){search.delete(name);hash.delete(name)});var clean=window.location.pathname+(search.toString()?'?'+search.toString():'')+(hash.toString()?'#'+hash.toString():'');window.history.replaceState(null,'',clean)})();</script>`;
+
+/**
+ * Email-link pages remove their one-use secrets before the app or an outside
+ * resource can start. The link data lives only in this page's memory.
+ */
+function protectedEmailLinkShell(html: string): string {
+  const withoutExternalResources = html
+    .replace(/<link\b[^>]*\bhref=["']https:\/\/[^>]+>\s*/gi, "")
+    .replace(/<script\b[^>]*\bsrc=["']https:\/\/[^>]*><\/script>\s*/gi, "");
+  return withoutExternalResources.replace("<head>", `<head>\n${EMAIL_LINK_BOOTSTRAP}`);
+}
+
 const NOT_FOUND_SNAPSHOT = renderPageSnapshot({
   heading: NOT_FOUND_HEADING,
   subheading: "",
@@ -390,6 +409,8 @@ export default async function handler(
   response: ResponseLike,
 ) {
   const query = request.query ?? {};
+  const requestedPath = one(query.path) || "/";
+  const isEmailLinkPage = requestedPath === "/confirm" || requestedPath === "/reset";
 
   let content: PageContent;
   let status = 200;
@@ -415,6 +436,9 @@ export default async function handler(
   let html: string;
   try {
     html = injectPageHead(await pageShell(), content.metadata);
+    if (isEmailLinkPage) {
+      html = protectedEmailLinkShell(html);
+    }
   } catch {
     response.setHeader("Content-Type", "text/plain; charset=utf-8");
     response.setHeader("Cache-Control", "no-store");
@@ -438,6 +462,13 @@ export default async function handler(
   }
 
   response.setHeader("Content-Type", "text/html; charset=utf-8");
+  if (isEmailLinkPage) {
+    response.setHeader("Cache-Control", "no-store");
+    response.setHeader("Referrer-Policy", "no-referrer");
+    response.setHeader("X-Robots-Tag", "noindex, nofollow");
+    response.status(status).send(html);
+    return;
+  }
   response.setHeader(
     "Cache-Control",
     status === 404 ? NOT_FOUND_CACHE : OK_CACHE,

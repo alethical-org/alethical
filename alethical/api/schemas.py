@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import (
@@ -433,6 +433,31 @@ class TrackedBillPayload(BaseModel):
     alerts_enabled: bool
     note: str | None = None
     bill: BillListItem | None = None
+
+
+class PendingActionCreateRequest(BaseModel):
+    action: Literal["track_bill"]
+    bill_id: str = Field(min_length=1, max_length=100)
+    return_path: str = Field(min_length=1, max_length=500)
+
+    @field_validator("return_path")
+    @classmethod
+    def require_safe_internal_path(cls, value: str) -> str:
+        if (
+            not value.startswith("/")
+            or value.startswith("//")
+            or any(
+                character == "\\" or ord(character) < 0x20 or ord(character) == 0x7F
+                for character in value
+            )
+        ):
+            raise ValueError("return_path must be a safe internal path")
+        return value
+
+
+class PendingActionCompleteRequest(BaseModel):
+    action: Literal["track_bill"]
+    reference: str = Field(min_length=32, max_length=256)
 
 
 class NotificationPreferenceWriteRequest(BaseModel):

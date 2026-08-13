@@ -20,6 +20,8 @@ type WebRouteTarget =
   | { kind: 'terms' }
   | { kind: 'aboutUs' }
   | { kind: 'contactUs' }
+  | { kind: 'confirmEmail' }
+  | { kind: 'resetPassword' }
   | { kind: 'chatSession'; params: RootStackParamList['ChatSession'] }
   | { kind: 'ask'; params: RootStackParamList['Ask'] }
   | { kind: 'notFound'; path: string };
@@ -116,6 +118,12 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
     }
     if (segments[0] === 'about') {
       return { kind: 'aboutUs' };
+    }
+    if (segments[0] === 'confirm') {
+      return { kind: 'confirmEmail' };
+    }
+    if (segments[0] === 'reset') {
+      return { kind: 'resetPassword' };
     }
     // Find My Legislator resolves to its own screen: the home page's Find field
     // and the Search menu both send visitors there, so the address bar has to
@@ -305,6 +313,10 @@ export function pathForRoute(activeRoute: {
       return '/about';
     case 'ContactUs':
       return '/about/contact';
+    case 'ConfirmEmail':
+      return '/confirm';
+    case 'ResetPassword':
+      return '/reset';
     case 'NotFound': {
       const path = String(activeRoute.params?.path ?? '');
       return path.startsWith('/') ? path : '/';
@@ -432,6 +444,16 @@ export function stateFromPathname(pathname: string): WebNavigationState {
       return {
         routes: [homeTabs, { name: 'ContactUs' }],
         index: 1,
+      };
+    case 'confirmEmail':
+      return {
+        routes: [{ name: 'ConfirmEmail' }],
+        index: 0,
+      };
+    case 'resetPassword':
+      return {
+        routes: [{ name: 'ResetPassword' }],
+        index: 0,
       };
     case 'chatSession':
       return {

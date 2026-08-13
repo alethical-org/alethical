@@ -26,6 +26,7 @@ things work in practice and are the place to start if you're new.
 - [MVP redesign plan](product-onboarding/mvp-redesign-plan.md) — IA + green-aesthetic redesign tracker; locked decisions and the route registry
 - [Bill search screen spec](product-onboarding/bill-search-screen-spec.md) — the bill search screen (`/bills`)
 - [Bill tracking interaction spec](product-onboarding/bill-tracking-spec.md) — how Track behaves on every page, through sign-in, and inside full-card links
+- [How sign-in works](product-onboarding/sign-in-guide.md) — Google and password sign-in, email links, account matching, password rules, and release settings
 - [Bill Text tab spec](product-onboarding/bill-text-tab-spec.md) — how a bill's official text is parsed, marked up, and rendered, plus the section-index rail and citation anchors
 - [Answer quality bar](product-onboarding/answer-quality-bar.md) — what a good generated answer is, how the eval measures it, and the judge calibration behind the scores
 - [Campaign finance roadmap](product-onboarding/campaign-finance-roadmap.md) — plain-language plan for putting Minnesota campaign money on the site: what we are building, in what order, and the one rule that shapes it

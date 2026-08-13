@@ -9,6 +9,11 @@ const clientUrl = supabaseUrl || 'http://localhost:54321';
 const clientKey = supabasePublishableKey || 'missing-publishable-key';
 const baseUrl = new URL(`${clientUrl.replace(/\/+$/, '')}/`);
 
+export const supabaseAuthConfig = {
+  url: clientUrl,
+  publishableKey: clientKey,
+} as const;
+
 export const supabase = {
   auth: new AuthClient({
     url: new URL('auth/v1', baseUrl).toString(),

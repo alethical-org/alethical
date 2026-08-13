@@ -326,6 +326,20 @@ export function askPageMetadata(question?: string | null): PageMetadata {
 
 /** Pages whose wording never varies. */
 export const STATIC_PAGE_METADATA: Record<string, PageMetadata> = {
+  '/confirm': pageMetadata({
+    title: titleFor('Confirm email'),
+    socialTitle: 'Confirm email',
+    description: 'Confirm the email address from this message.',
+    canonicalPath: '/confirm',
+    noindex: true,
+  }),
+  '/reset': pageMetadata({
+    title: titleFor('Reset password'),
+    socialTitle: 'Reset password',
+    description: 'Check this reset link and choose a new password.',
+    canonicalPath: '/reset',
+    noindex: true,
+  }),
   '/find-my-legislator': pageMetadata({
     title: titleFor('Find my legislator'),
     socialTitle: 'Find my legislator',

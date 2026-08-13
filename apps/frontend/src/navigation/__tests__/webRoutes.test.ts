@@ -93,6 +93,23 @@ describe('addresses with no page behind them', () => {
 });
 
 describe('live URLs still resolve to themselves', () => {
+  it('round-trips the 2 private email-link pages without keeping their secrets in navigation', () => {
+    expect(
+      targetFromPathname('/confirm?token_hash=private-confirmation&type=signup&pending=opaque'),
+    ).toEqual({ kind: 'confirmEmail' });
+    expect(targetFromPathname('/reset?token_hash=private-reset&type=recovery')).toEqual({
+      kind: 'resetPassword',
+    });
+    expect(pathForRoute({ name: 'ConfirmEmail' })).toBe('/confirm');
+    expect(pathForRoute({ name: 'ResetPassword' })).toBe('/reset');
+    expect(stateFromPathname('/confirm')).toMatchObject({
+      routes: expect.arrayContaining([{ name: 'ConfirmEmail' }]),
+    });
+    expect(stateFromPathname('/reset')).toMatchObject({
+      routes: expect.arrayContaining([{ name: 'ResetPassword' }]),
+    });
+  });
+
   it('keeps an answer question and its safe fallback parent through reload or sharing', () => {
     expect(targetFromPathname('/ask?q=Which+bills%3F&legislator=erin-murphy')).toEqual({
       kind: 'ask',

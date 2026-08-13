@@ -22,18 +22,20 @@ and the tracked-bills list. Every surface uses the same states and behavior.
 - Closing the dialog changes nothing. The page, scroll position, and `+ Track` state stay
   as they were, with no error notice.
 
-## Returning from Google
+## Returning from sign-in
 
-Google replaces the page during sign-in, so the Track request is saved before leaving.
-The saved request includes the bill id, the exact local path with query and fragment, and
-the current vertical scroll position. The same return URL is sent through the OAuth state.
-Component memory is not relied on.
+Before Google replaces the page or Alethical sends a confirmation email, the app asks the
+server for a random, single-use pending-action reference. The server row contains only the
+bill id, a checked Alethical return path, and an expiration time. It is not attached to an
+account before sign-in. The browser may also hold the current scroll position for the Google
+return, but it never holds the only copy of an email-confirmation Track request.
 
-After a successful return, the app restores that exact page and scroll position and sends
-an idempotent request to save the bill. Successful cache refreshes make every copy of its
-button read `✓ Tracked`; the reader never has to press Track a second time. Old incoming
-`?track=1` links remain accepted for compatibility, but new Track requests do not create
-them or redirect to a bill page.
+After a successful return or email confirmation, the server saves the bill and consumes the
+reference in one database operation. A retry or second tab cannot save it twice. The app
+restores the safe return page and, for Google in the same browser, its scroll position.
+Successful cache refreshes make every copy of the button read `✓ Tracked`; the reader never
+has to press Track a second time. Old incoming `?track=1` links remain accepted for
+compatibility, but new Track requests do not create them or redirect to a bill page.
 
 The app waits for its saved-session check before deciding whether a Google return error is
 still real. A valid signed-in session wins over an old or repeated return error, and the

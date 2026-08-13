@@ -15,6 +15,8 @@ from __future__ import annotations
 import os
 import time
 from collections import deque
+from collections.abc import Callable
+from ipaddress import ip_address
 from math import ceil
 
 from fastapi import Request
@@ -25,6 +27,7 @@ DEFAULT_ASK_PER_MINUTE = 20
 DEFAULT_LOOKUP_PER_MINUTE = 10
 DEFAULT_ADDRESS_SUGGESTIONS_PER_MINUTE = 60
 DEFAULT_CONTACT_PER_MINUTE = 5
+DEFAULT_PENDING_ACTION_PER_MINUTE = 20
 _WINDOW_SECONDS = 60.0
 
 
@@ -97,13 +100,37 @@ def client_ip(request: Request) -> str:
     return client.host if client else "unknown"
 
 
-def rate_limit(state_attr: str, scope: str):
+def trusted_client_ip(request: Request) -> str:
+    """A client address that a caller cannot rotate with forwarding headers.
+
+    Railway's public edge supplies ``X-Real-IP`` as the client's remote address.
+    We trust that platform-owned value only when Railway's own environment marker
+    is present. Everywhere else, including local development, forwarding headers
+    are untrusted and the socket peer is the only usable identity.
+    """
+    if os.environ.get("RAILWAY_ENVIRONMENT_NAME"):
+        real_ip = request.headers.get("x-real-ip", "").strip()
+        try:
+            return str(ip_address(real_ip))
+        except ValueError:
+            # One fixed bucket, not a caller-controlled fallback. A broken or
+            # missing platform header therefore fails toward less traffic.
+            return "railway-unknown"
+    client = request.client
+    return client.host if client else "unknown"
+
+
+def rate_limit(
+    state_attr: str,
+    scope: str,
+    client_identity: Callable[[Request], str] = client_ip,
+):
     """FastAPI dependency that enforces the limiter stored at
     ``request.app.state.<state_attr>`` (per-app so tests get fresh state)."""
 
     def dependency(request: Request) -> None:
         limiter: SlidingWindowLimiter = getattr(request.app.state, state_attr)
-        key = f"{scope}:{client_ip(request)}"
+        key = f"{scope}:{client_identity(request)}"
         now = time.monotonic()
         if not limiter.allow(key, now):
             retry_after = limiter.retry_after_seconds(key, now) or 1

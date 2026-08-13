@@ -103,6 +103,27 @@ Hand-run fallback
 then released the same commit successfully without the old fake author. The 2
 `VERCEL_GIT_AUTHOR_*` secrets were deleted after that proof.
 
+## Supabase sign-in
+
+Set under **Authentication** in the Alethical Supabase project. Verified 2026-08-13.
+
+| Setting | Intended | Why |
+| --- | --- | --- |
+| Email provider | On | Supports email and password after the release flag is enabled. |
+| Google provider | On | Keeps the existing Google sign-in. |
+| Confirm email | On | A password account cannot claim an address before proving it. |
+| Manual identity linking | Off | Matching confirmed emails use Supabase's automatic account match; no second linking flow ships. |
+| Minimum password length | 15 | Matches Alethical's passphrase wording and browser check. |
+| Required character groups | None | A long passphrase works without forced capitals, digits, or symbols. |
+| Prevent leaked passwords | On | Rejects passwords known to have been stolen elsewhere. |
+| Secure password change | Off | No fresh-proof email-code field ships. |
+| Require current password | Off | The signed-in password form asks only for the new password. |
+| CAPTCHA | Off | No human-check box ships. |
+| Email confirmation template | Alethical `/confirm` link using Supabase `TokenHash` | Email scanners cannot spend the 1-use token before the reader presses Confirm email. |
+| Password reset template | Alethical `/reset` link using Supabase `TokenHash` | Opening the email reaches a safe gate before the 1-use token is spent. |
+| Password-changed security email | Off | The success page does not claim a notice was sent. Enable after custom SMTP is live. |
+| Built-in email limit | 2 emails per hour | Too small for launch. Keep email/password controls off until Resend custom SMTP is connected. |
+
 ## Settings documented elsewhere
 
 Linked rather than duplicated:

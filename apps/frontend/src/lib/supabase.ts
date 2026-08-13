@@ -11,20 +11,21 @@ const supabasePublishableKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY 
 
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabasePublishableKey);
 
-export const supabase = createClient(
-  supabaseUrl || 'http://localhost:54321',
-  supabasePublishableKey || 'missing-publishable-key',
-  {
-    auth: {
-      ...(Platform.OS !== 'web' ? { storage: AsyncStorage } : {}),
-      autoRefreshToken: true,
-      persistSession: true,
-      detectSessionInUrl: Platform.OS === 'web',
-      flowType: 'pkce',
-      lock: processLock,
-    },
+export const supabaseAuthConfig = {
+  url: supabaseUrl || 'http://localhost:54321',
+  publishableKey: supabasePublishableKey || 'missing-publishable-key',
+} as const;
+
+export const supabase = createClient(supabaseAuthConfig.url, supabaseAuthConfig.publishableKey, {
+  auth: {
+    ...(Platform.OS !== 'web' ? { storage: AsyncStorage } : {}),
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: Platform.OS === 'web',
+    flowType: 'pkce',
+    lock: processLock,
   },
-);
+});
 
 if (Platform.OS !== 'web') {
   AppState.addEventListener('change', (state) => {

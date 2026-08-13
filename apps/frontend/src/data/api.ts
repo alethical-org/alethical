@@ -1535,6 +1535,55 @@ export async function getCurrentUserFromApi(
   };
 }
 
+export interface PendingTrackAction {
+  reference: string;
+  expiresAt: string;
+}
+
+export interface CompletedPendingTrackAction {
+  action: 'track_bill';
+  billId: string;
+  returnPath: string;
+}
+
+/** Save one signed-out Track press without attaching it to any account yet. */
+export async function createPendingTrackActionFromApi(
+  billId: string,
+  returnPath: string,
+): Promise<PendingTrackAction> {
+  const response = await publicApiPost<DetailResponse<{ reference: string; expires_at: string }>>(
+    '/pending-actions',
+    {
+      action: 'track_bill',
+      bill_id: billId,
+      return_path: returnPath,
+    },
+  );
+  return { reference: response.data.reference, expiresAt: response.data.expires_at };
+}
+
+/** Perform a saved Track press once, then consume its random reference. */
+export async function completePendingTrackActionFromApi(
+  accessToken: string,
+  reference: string,
+): Promise<CompletedPendingTrackAction> {
+  const response = await apiRequest<
+    DetailResponse<{ action: 'track_bill'; bill_id: string; return_path: string }>
+  >(
+    '/me/pending-actions/complete',
+    {
+      method: 'POST',
+      body: JSON.stringify({ action: 'track_bill', reference }),
+    },
+    accessToken,
+  );
+  return {
+    action: response.data.action,
+    billId: response.data.bill_id,
+    returnPath: response.data.return_path,
+  };
+}
+
 export async function listChatSessionsFromApi(accessToken: string): Promise<ChatSession[]> {
   const response = await apiRequest<CollectionResponse<ApiChatSessionPayload>>(
     '/me/chat-sessions',
