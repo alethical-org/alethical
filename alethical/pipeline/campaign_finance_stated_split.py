@@ -172,7 +172,11 @@ class Target:
 # route lags the catalogue -- filer 18336's 2026 figures run through 31 March while its
 # catalogue lists reports cut off 31 May and 20 July, and picking the newest catalogued
 # report would compare against a period the stored figure does not cover.
-_TARGETS_SQL = """
+# One definition of the population, shared by the run that checks it and by the check
+# that reports how much of it was covered. Written once because the two disagreeing is
+# exactly how a scoped run comes to read as a clean sweep. ``:years`` NULL means every
+# year, which is what the coverage report asks for.
+_POPULATION_CTE = """
 WITH wanted AS (
     SELECT unnest(CAST(:years AS int[])) AS filing_year
 ), ours AS (
@@ -180,19 +184,20 @@ WITH wanted AS (
       FROM cf_contribution_row
      WHERE snapshot_id = :contributions
        AND recipient_reg_num IS NOT NULL
-       AND year IN (SELECT filing_year FROM wanted)
+       AND year IS NOT NULL
+       AND (:years IS NULL OR year IN (SELECT filing_year FROM wanted))
        AND receipt_type = :contribution
      GROUP BY 1, 2
 ), theirs AS (
     SELECT registration_number, filing_year
       FROM cf_filing
      WHERE snapshot_id = :filings
-       AND filing_year IN (SELECT filing_year FROM wanted)
+       AND (:years IS NULL OR filing_year IN (SELECT filing_year FROM wanted))
 ), catalogued AS (
     SELECT registration_number, filing_year
       FROM cf_filing_report
      WHERE snapshot_id = :filings
-       AND filing_year IN (SELECT filing_year FROM wanted)
+       AND (:years IS NULL OR filing_year IN (SELECT filing_year FROM wanted))
      GROUP BY 1, 2
 ), population AS (
     SELECT registration_number, filing_year FROM ours
@@ -201,6 +206,13 @@ WITH wanted AS (
     UNION
     SELECT registration_number, filing_year FROM catalogued
 )
+"""
+
+_POPULATION_COUNT_SQL = _POPULATION_CTE + "SELECT count(*) FROM population"
+
+_TARGETS_SQL = (
+    _POPULATION_CTE
+    + """
 SELECT p.registration_number,
        p.filing_year,
        f.kind,
@@ -238,6 +250,7 @@ SELECT p.registration_number,
   ) special ON true
  ORDER BY p.registration_number, p.filing_year
 """
+)
 
 
 def targets(
@@ -776,10 +789,23 @@ def store_verdicts(
 
 @dataclass(frozen=True)
 class StatedSplitCoverage:
-    """This release's stored verdicts, in the shape the loader's check needs.
+    """This release's stored verdicts, measured against the population they should cover.
 
     Read once per load rather than queried per committee, because the check sweeps the
     whole population and has no use for a single committee-year.
+
+    ``population`` is the whole set of committee-years this release *could* be checked
+    for, across every year, and it is the reason this type exists rather than a bare
+    count of rows. **A verdict count alone cannot tell a clean sweep from a scoped run.**
+    Check one committee with ``--only-filers``, have it agree, and a coverage built from
+    stored rows reports 1 of 1 agreeing -- which a loader then prints as the whole record
+    set checked and clean, with 1,402 committee-years never looked at. Found by an
+    automated review (Greptile) on
+    [#1495](https://github.com/alethical-org/alethical/pull/1495), one turn after the
+    same class of failure was fixed a level further out.
+
+    ``None`` for ``population`` means it could not be established, which is not zero and
+    must never read as a full sweep.
     """
 
     checked_at: Optional[datetime]
@@ -788,10 +814,35 @@ class StatedSplitCoverage:
     not_checked: int
     reader_unproven: int
     disagreeing_filer_years: tuple[str, ...]
+    population: Optional[int] = None
 
     @property
     def total(self) -> int:
+        """How many committee-years carry a verdict of any kind."""
         return self.agrees + self.disagrees + self.not_checked + self.reader_unproven
+
+    @property
+    def without_a_verdict(self) -> Optional[int]:
+        """How many of the population nobody has looked at, or None when unknown."""
+        if self.population is None:
+            return None
+        return max(self.population - self.total, 0)
+
+    @property
+    def is_a_clean_sweep(self) -> bool:
+        """Every committee-year of the population has a verdict, and all of them agree.
+
+        Deliberately strict, and in practice **unreachable on the real corpus**: our
+        payment rows reach back to 2015 and the Board serves no report document before
+        2023, so a release always carries committee-years that cannot be checked. That is
+        the honest state of this check rather than a defect in it -- ``§9.9`` exists
+        precisely so an unreachable population reads as unreachable.
+        """
+        return (
+            self.population is not None
+            and self.total == self.population
+            and self.agrees == self.total
+        )
 
 
 def stated_split_coverage(
@@ -823,6 +874,7 @@ def stated_split_coverage(
         {"snapshot": contributions_snapshot_id},
     ).all()
     return StatedSplitCoverage(
+        population=population_size(db, contributions_snapshot_id),
         checked_at=latest,
         agrees=counts.get(Status.agrees.value, 0),
         disagrees=counts.get(Status.disagrees.value, 0),
@@ -831,6 +883,29 @@ def stated_split_coverage(
         disagreeing_filer_years=tuple(
             f"{registration}:{year}" for registration, year in disagreeing
         ),
+    )
+
+
+def population_size(db: Session, contributions_snapshot_id: uuid.UUID) -> Optional[int]:
+    """How many committee-years this release could be checked for, across every year.
+
+    ``None`` when no filings snapshot is published, because 2 of the 3 sources that
+    define the population live in it. Unknown is not zero.
+    """
+    filings = _live_filings_snapshot_id(db)
+    if filings is None:
+        return None
+    return int(
+        db.execute(
+            text(_POPULATION_COUNT_SQL),
+            {
+                "years": None,
+                "contributions": contributions_snapshot_id,
+                "filings": filings,
+                "contribution": CONTRIBUTION_RECEIPT_TYPE,
+            },
+        ).scalar()
+        or 0
     )
 
 
@@ -847,6 +922,7 @@ __all__ = [
     "check_one",
     "ours_itemized",
     "run_stated_split_check",
+    "population_size",
     "stated_split_coverage",
     "store_verdicts",
     "targets",

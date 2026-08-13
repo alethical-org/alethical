@@ -857,23 +857,48 @@ def test_the_loader_reports_a_disagreement_and_does_not_block_the_release(
     )
 
 
-def test_the_loader_passes_the_check_when_every_committee_year_agrees(
-    db, board, store
-) -> None:
+def every_committee_year(db, release, filings_snapshot_id) -> list[tuple[str, int]]:
+    """The whole population, read the same way the run and the check both read it."""
+    years = [
+        int(year)
+        for (year,) in db.execute(
+            text(
+                "SELECT DISTINCT year FROM cf_contribution_row "
+                " WHERE snapshot_id = :snapshot AND year IS NOT NULL "
+                " UNION "
+                "SELECT DISTINCT filing_year FROM cf_filing_report "
+                " WHERE snapshot_id = :filings"
+            ),
+            {
+                "snapshot": release.contributions_snapshot_id,
+                "filings": filings_snapshot_id,
+            },
+        ).all()
+    ]
+    resolved = reader.live_release(db)
+    return [
+        (target.registration_number, target.filing_year)
+        for target in split.targets(db, resolved, filings_snapshot_id, years)
+    ]
+
+
+def test_the_loader_passes_the_check_only_on_a_full_sweep(db, board, store) -> None:
+    """Passed means every committee-year of the population has a verdict and all agree."""
     seed_filings_snapshot(db, reported={("19200", 2025): "2000.00"})
     published = publish_first(db, board, store)
     release = db.get(models.CampaignFinanceRelease, published.release_id)
+    filings = split._live_filings_snapshot_id(db)
+    population = every_committee_year(db, release, filings)
+    assert len(population) == split.population_size(
+        db, release.contributions_snapshot_id
+    )
     split.store_verdicts(
         db,
         release.contributions_snapshot_id,
-        split._live_filings_snapshot_id(db),
+        filings,
         [
-            split.Verdict(
-                registration_number="19200",
-                filing_year=2025,
-                status=Status.agrees,
-                reason="matches",
-            )
+            split.Verdict(registration, year, Status.agrees, "matches")
+            for registration, year in population
         ],
     )
     again = cf.load_campaign_finance(
@@ -886,6 +911,40 @@ def test_the_loader_passes_the_check_when_every_committee_year_agrees(
     check = contributions_checks(again)["reported_itemized_split_matches_ours"]
     assert check.status == "passed"
     assert check.filer_years == ()
+
+
+def test_a_scoped_run_does_not_make_the_whole_release_read_as_checked(
+    db, board, store
+) -> None:
+    """Found by an automated review, one turn after the same failure a level out.
+
+    Check a single committee with --only-filers, have it agree, and a coverage counted
+    from stored rows reads 1 of 1 agreeing — which the loader then printed as the whole
+    record set checked and clean, with every other committee-year never looked at.
+    """
+    seed_filings_snapshot(db, reported={("19200", 2025): "2000.00"})
+    published = publish_first(db, board, store)
+    release = db.get(models.CampaignFinanceRelease, published.release_id)
+    filings = split._live_filings_snapshot_id(db)
+    population = every_committee_year(db, release, filings)
+    assert len(population) > 1
+    split.store_verdicts(
+        db,
+        release.contributions_snapshot_id,
+        filings,
+        [split.Verdict(population[0][0], population[0][1], Status.agrees, "matches")],
+    )
+    again = cf.load_campaign_finance(
+        db,
+        landing_page=board.landing_page,
+        store=store,
+        dry_run=True,
+        log=lambda message: None,
+    )
+    check = contributions_checks(again)["reported_itemized_split_matches_ours"]
+    assert check.status == "reported"
+    assert check.blocks_publication is False
+    assert "NO verdict at all" in check.detail
 
 
 def test_a_run_that_reached_almost_nothing_does_not_read_as_passed(

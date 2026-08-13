@@ -1315,6 +1315,15 @@ def _reported_itemized_split(spec: DatasetSpec, coverage: Optional[Any]) -> Chec
     failure ``docs/architecture/campaign-finance-system-design.md`` §9.9 exists to
     prevent, arriving from the check meant to enforce it. Found by an automated review
     (Greptile) on [#1495](https://github.com/alethical-org/alethical/pull/1495).
+
+    **And a clean sweep is measured against the population, not against the verdicts on
+    file.** The same review found the version after that one: check a single committee
+    with ``--only-filers``, have it agree, and a coverage counted from stored rows reads
+    1 of 1 agreeing -- which this printed as the whole record set checked and clean while
+    1,402 committee-years had never been looked at. In practice ``passed`` is therefore
+    unreachable on the real corpus, because our payment rows reach back to 2015 and the
+    Board serves no report document before 2023. That is the honest answer rather than a
+    defect: §9.9 exists so an unreachable population reads as unreachable.
     """
     name = "reported_itemized_split_matches_ours"
     if spec.dataset is not Dataset.contributions:
@@ -1334,25 +1343,41 @@ def _reported_itemized_split(spec: DatasetSpec, coverage: Optional[Any]) -> Chec
             "it does, a committee whose filing names money we are missing would show "
             "that money as having had no donor (#1433)",
         )
+    population = (
+        f"{coverage.population:,}"
+        if coverage.population is not None
+        else "an unknown number of"
+    )
     detail = (
-        f"{coverage.agrees:,} of {coverage.total:,} committee-years agree with their "
-        f"own filing, {coverage.disagrees:,} disagree, {coverage.not_checked:,} could "
-        "not be checked because the Board serves no document for them, and "
-        f"{coverage.reader_unproven:,} were read by a reader that could not prove "
-        "itself. Checked "
+        f"of {population} committee-years this release could be checked for, "
+        f"{coverage.agrees:,} agree with their own filing, {coverage.disagrees:,} "
+        f"disagree, {coverage.not_checked:,} could not be checked because the Board "
+        f"serves no document for them, and {coverage.reader_unproven:,} were read by a "
+        "reader that could not prove itself. Checked "
         + (
             coverage.checked_at.isoformat()
             if coverage.checked_at
             else "at an unknown time"
         )
     )
-    if coverage.agrees == coverage.total:
+    if coverage.is_a_clean_sweep:
         return Check(name, "passed", detail)
     unfinished = []
     if coverage.disagrees:
         unfinished.append(
             "the filer-years named on this check must not publish a split; they are a "
             "display state and not a release fault"
+        )
+    unchecked = coverage.without_a_verdict
+    if unchecked:
+        unfinished.append(
+            f"{unchecked:,} committee-years have NO verdict at all, because no run has "
+            "covered them yet"
+        )
+    elif unchecked is None:
+        unfinished.append(
+            "how many committee-years this release could be checked for could not be "
+            "established, so this is not a full sweep"
         )
     if coverage.not_checked:
         unfinished.append(
