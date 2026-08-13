@@ -79,10 +79,10 @@ function browserHandlesClick(event: GestureResponderEvent | undefined) {
   }
   return Boolean(
     click.metaKey ||
-      click.ctrlKey ||
-      click.shiftKey ||
-      click.altKey ||
-      (typeof click.button === 'number' && click.button !== 0),
+    click.ctrlKey ||
+    click.shiftKey ||
+    click.altKey ||
+    (typeof click.button === 'number' && click.button !== 0),
   );
 }
 

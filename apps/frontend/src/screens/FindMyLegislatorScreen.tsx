@@ -242,9 +242,9 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   const displayedResult = retainedMapResult ?? settledResult;
   const alignRepresentativeSections = Boolean(
     !isMobile &&
-      displayedResult?.status === 'found' &&
-      displayedResult.senateLegislator &&
-      displayedResult.houseLegislator,
+    displayedResult?.status === 'found' &&
+    displayedResult.senateLegislator &&
+    displayedResult.houseLegislator,
   );
   const lookupChoices =
     settledResult?.status === 'address-choice' && !choiceClosed
