@@ -856,6 +856,43 @@ def test_the_loader_passes_the_check_when_every_committee_year_agrees(
     assert check.filer_years == ()
 
 
+def test_a_run_that_reached_almost_nothing_does_not_read_as_passed(
+    db, board, store
+) -> None:
+    """ "We could not look" must never print as "we looked and it was fine".
+
+    Found by an automated review: an earlier version returned "passed" whenever nothing
+    disagreed, so a run the Board served no documents for read as a release fully
+    checked against Minnesota's own filings. That is the exact failure §9.9 exists to
+    prevent, arriving from the check meant to enforce it.
+    """
+    seed_filings_snapshot(db, reported={("19200", 2025): "2000.00"})
+    published = publish_first(db, board, store)
+    release = db.get(models.CampaignFinanceRelease, published.release_id)
+    split.store_verdicts(
+        db,
+        release.contributions_snapshot_id,
+        split._live_filings_snapshot_id(db),
+        [
+            split.Verdict("19200", 2025, Status.agrees, "matches"),
+            split.Verdict("40858", 2025, Status.not_checked, "no document is served"),
+            split.Verdict("19004", 2025, Status.reader_unproven, "our reader is wrong"),
+        ],
+    )
+    again = cf.load_campaign_finance(
+        db,
+        landing_page=board.landing_page,
+        store=store,
+        dry_run=True,
+        log=lambda message: None,
+    )
+    check = contributions_checks(again)["reported_itemized_split_matches_ours"]
+    assert check.status == "reported"
+    assert check.blocks_publication is False
+    assert "NOT checked" in check.detail
+    assert "failed its own" in check.detail
+
+
 def test_a_run_with_nowhere_to_write_refuses_before_it_asks_the_board(
     db, board, store
 ) -> None:

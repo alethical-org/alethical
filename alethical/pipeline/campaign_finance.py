@@ -1307,6 +1307,14 @@ def _reported_itemized_split(spec: DatasetSpec, coverage: Optional[Any]) -> Chec
     ``not_run`` stays honest for a set nobody has checked yet. The comparison is a
     separate command over about 1,300 report documents, so a freshly downloaded set has
     no answers until someone runs it, and the reason names the command.
+
+    **And ``passed`` needs a clean sweep, not merely no disagreements.** An earlier
+    version returned ``passed`` whenever nothing disagreed, which made a run that reached
+    almost nothing read as a release fully checked against Minnesota's own filings --
+    "we could not look" printed as "we looked and it was fine", which is the exact
+    failure ``docs/architecture/campaign-finance-system-design.md`` §9.9 exists to
+    prevent, arriving from the check meant to enforce it. Found by an automated review
+    (Greptile) on [#1495](https://github.com/alethical-org/alethical/pull/1495).
     """
     name = "reported_itemized_split_matches_ours"
     if spec.dataset is not Dataset.contributions:
@@ -1338,16 +1346,30 @@ def _reported_itemized_split(spec: DatasetSpec, coverage: Optional[Any]) -> Chec
             else "at an unknown time"
         )
     )
+    if coverage.agrees == coverage.total:
+        return Check(name, "passed", detail)
+    unfinished = []
     if coverage.disagrees:
-        return Check(
-            name,
-            "reported",
-            detail
-            + ". The filer-years above must not publish a split; they are a display "
-            "state and not a release fault",
-            coverage.disagreeing_filer_years,
+        unfinished.append(
+            "the filer-years named on this check must not publish a split; they are a "
+            "display state and not a release fault"
         )
-    return Check(name, "passed", detail)
+    if coverage.not_checked:
+        unfinished.append(
+            f"{coverage.not_checked:,} committee-years were NOT checked, which is not "
+            "the same as checked and clean"
+        )
+    if coverage.reader_unproven:
+        unfinished.append(
+            f"{coverage.reader_unproven:,} were read by a reader that failed its own "
+            "test, so nothing is claimed about their data"
+        )
+    return Check(
+        name,
+        "reported",
+        detail + ". " + "; ".join(unfinished),
+        coverage.disagreeing_filer_years,
+    )
 
 
 # Money on both sides is numeric(18,4) and the Board prints 2 decimal places, so a
