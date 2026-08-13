@@ -108,7 +108,10 @@ Same vocabulary as ``committee_finance.py``, imported rather than restated:
 * ``not_reported`` -- we hold none. **Never a zero.** Only donors passing $200 in
   aggregate for the calendar year are named at all, so absence on a committee is silence;
   and absence under a name means that exact spelling matched nothing, never that the
-  person gave nothing.
+  person gave nothing. It is also **not** an answer about a registration number we have
+  never seen: no rows is no rows either way, so a caller keyed on a number resolves it
+  first (``committee_finance.find_committee``, which the route does) rather than
+  attributing silence to a committee we hold no record of.
 * ``unavailable`` -- our own gap. Either the release's rows have been replaced out from
   under it, or the download does not reach the year asked for. The downloads cover 2015
   to 2026 while the routes accept later years, and a confident empty list for 2027 would
@@ -123,7 +126,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Optional, Sequence
+from typing import Callable, Optional, Sequence
 from uuid import UUID
 
 from sqlalchemy import text
@@ -518,7 +521,9 @@ class _Download:
     table: str
     columns: str
     date_column: str
-    build: object
+    build: Callable[
+        [Sequence], ContributionPayment | ExpenditurePayment | IndependentPayment
+    ]
 
 
 _CONTRIBUTIONS = _Download(

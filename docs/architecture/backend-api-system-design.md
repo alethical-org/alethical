@@ -971,9 +971,18 @@ one other, in 6,464 groups, and one group holds 119 identical rows. Nothing dedu
 (§4.2). `release_id` comes back on every page so a client can see when a later page came from a
 different day's data.
 
-- **200 with `state: "not_reported"`** — no row carries this exact spelling. Deliberately not a
-  404: the Board's directory decides whether a *committee* exists and nothing decides whether a
-  *person* does, so all we know is that the string matched nothing.
+- **200 with `state: "not_reported"`** on the name route — no row carries this exact spelling.
+  Deliberately not a 404: the Board's directory decides whether a *committee* exists and nothing
+  decides whether a *person* does, so all we know is that the string matched nothing.
+- **404 on the committee route** — this registration number appears in no dataset of the current
+  release, resolved with the same `find_committee` the `finance` route uses so the 2 cannot
+  disagree about whether a committee exists. Without it an unknown number reads as
+  `not_reported`, which invents a committee and then reports its silence: the reader sees no rows
+  either way and cannot tell the 2 apart. Live case, found by an automated review: `30161`
+  circulates as "Alliance for a Better MN" and is in no dataset of the release (the Alliance's
+  committees are 41360 and 80024). The 404 is a statement about **our records**, never about the
+  Board's. A **stale** release does not 404, because denying a committee's existence on the
+  strength of our own pruning is the same failure one level up; it reads `unavailable`.
 - **422** — a `direction` or `role` we do not serve, never a silent fallback to a different
   question.
 - **503** — no usable release at all. A fact about us.

@@ -56,6 +56,7 @@ from alethical.api.services.committee_finance import (
     ReleaseNoLongerHeld,
     committee_finance,
     current_release as current_campaign_finance_release,
+    find_committee,
     pin_to_one_view as pin_campaign_finance_to_one_view,
 )
 from alethical.api.services.independent_spending import (
@@ -2948,6 +2949,48 @@ def _resolve_campaign_finance_release(db: Session):
     return release
 
 
+def _refuse_a_committee_we_hold_no_record_of(
+    db: Session, release, registration_number: str
+) -> None:
+    """404 a registration number we hold nothing about, rather than reporting its silence.
+
+    "This committee reported no itemized payments" and "we have never seen this
+    registration number" are different facts, and the payment reader cannot tell them
+    apart: both come back as no rows, which it correctly calls ``not_reported``. Serving
+    that for an unknown number invents a subject and then attributes silence to it, which
+    is `.claude/rules/grounded-answers.md` rule 12's missing-versus-zero failure with the
+    committee itself as the missing value. Found by an automated review (Greptile).
+
+    Live case: ``30161`` circulates as "Alliance for a Better MN" and appears in no dataset
+    of the current release (its real committees are 41360 and 80024), so a page asking for
+    its payments would have printed "reported no payments received" about a committee we
+    hold no record of.
+
+    Resolved with ``find_committee``, the same answer the aggregate ``/finance`` route
+    gives, so 2 routes about one committee cannot disagree about whether it exists. Like
+    that route, the 404 is a statement about **our records**: the Board's registered-filer
+    directory decides whether a committee exists and nothing here reads it yet (§9.7).
+
+    A stale release deliberately does **not** 404. When the rows have been replaced out
+    from under this release, ``find_committee`` cannot say whether we hold this committee,
+    and denying its existence on the strength of our own pruning is the same failure one
+    level up. The read that follows reports ``unavailable`` instead, which is a fact about
+    us.
+    """
+    try:
+        if find_committee(db, release, registration_number) is not None:
+            return
+    except ReleaseNoLongerHeld:
+        return
+    raise HTTPException(
+        status_code=404,
+        detail=(
+            "no records for this registration number in the current "
+            "campaign-finance release"
+        ),
+    )
+
+
 @router.get(
     "/committees/{registration_number}/payments",
     response_model=DetailResponse,
@@ -2991,10 +3034,15 @@ def committee_payments(
     this release also holds as a filer. Only those may be rendered as links: 912 lobbyist
     numbers arrive on contribution rows and none of them is a committee.
 
-    Omit ``year`` for every year the download holds, which is 2015 to 2026 today. 503
-    means we hold no usable release, which is a statement about us.
+    Omit ``year`` for every year the download holds, which is 2015 to 2026 today.
+
+    404 means this registration number appears in no dataset of the current release, which
+    is a statement about our records rather than about Minnesota's: without it an unknown
+    number would come back as ``not_reported``, inventing a committee and then reporting
+    its silence. 503 means we hold no usable release, also a fact about us.
     """
     release = _resolve_campaign_finance_release(db)
+    _refuse_a_committee_we_hold_no_record_of(db, release, registration_number)
     reader_for = {
         "received": payments_received,
         "made": payments_made,

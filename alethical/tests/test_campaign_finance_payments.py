@@ -1051,3 +1051,77 @@ def test_the_routes_refuse_a_direction_or_role_they_do_not_serve(db, client):
         ).status_code
         == 422
     )
+
+
+def test_the_route_refuses_a_registration_number_we_hold_no_record_of(db, client):
+    """404, not "this committee reported nothing".
+
+    The reader cannot tell an unknown number from a committee that filed nothing -- both
+    are no rows -- so without a check first, an unknown number comes back as
+    ``not_reported`` and the page invents a committee to attribute silence to. Live case:
+    30161 circulates as "Alliance for a Better MN" and appears in no dataset of the current
+    release, its real committees being 41360 and 80024. Found by an automated review
+    (Greptile) on the first version of this route.
+
+    The wording is about **our records**: the Board's registered-filer directory decides
+    whether a committee exists and nothing here reads it yet.
+    """
+    # `published_rows=0` on purpose: a snapshot that published rows and holds none is the
+    # *stale* case, which the test below covers and which must not 404.
+    published = Published(db)
+    _receipt(db, published.contributions, reg_num=CANDIDATE)
+    db.commit()
+
+    response = client.get(
+        "/api/v1/committees/30161/payments",
+        params={"direction": "received", "year": 2025},
+    )
+
+    assert response.status_code == 404
+    assert "registration number" in response.json()["detail"]
+    # The number we do hold still answers.
+    assert (
+        client.get(
+            f"/api/v1/committees/{CANDIDATE}/payments",
+            params={"direction": "received", "year": 2025},
+        ).status_code
+        == 200
+    )
+
+
+def test_a_committee_only_outside_spending_names_is_not_refused(db, client):
+    """The 341 target-only committees resolve, so the 404 above cannot swallow them.
+
+    They have no filings of their own, so a check that looked only at the 2 money files
+    would 404 every one of them -- including all 283 with a negative number -- and the
+    independent-spending rows about them are real records.
+    """
+    published = Published(db)
+    _independent(db, published.independent, affected=TARGET_ONLY)
+    db.commit()
+
+    response = client.get(
+        f"/api/v1/committees/{TARGET_ONLY}/payments",
+        params={"direction": "independent", "year": 2025},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["data"]["state"] == "reported"
+
+
+def test_a_stale_release_is_never_a_missing_committee(db, client):
+    """With the rows replaced, we cannot say whether we hold this committee -- so no 404.
+
+    Denying a committee's existence on the strength of our own pruning is the same
+    missing-versus-zero failure the 404 above prevents, one level up. The read reports
+    ``unavailable`` instead, which is a fact about us.
+    """
+    Published(db, published_rows=1000)
+
+    response = client.get(
+        f"/api/v1/committees/{CANDIDATE}/payments",
+        params={"direction": "received", "year": 2025},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["data"]["state"] == "unavailable"
