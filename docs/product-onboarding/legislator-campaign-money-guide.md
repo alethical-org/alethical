@@ -78,9 +78,17 @@ would say something about their legislative work that no filing supports.
 
 ### The year switch
 
-Two buttons, **2026** and **2025**, top right. Calendar years, because that is the unit
-Minnesota's own reports use. This is deliberately not the same control as the session
-pill on the Overview tab, which counts a two-year legislature.
+Two buttons, top right: **this calendar year and the one before it**. Today that reads
+2026 and 2025, and on 1 January 2027 it will read 2027 and 2026 without anyone editing
+anything. The years are read off the calendar deliberately, because a written-down pair
+would hide a new year from every reader and nothing would announce it.
+
+Calendar years, because that is the unit Minnesota's own reports use. This is not the
+same control as the session pill on the Overview tab, which counts a two-year
+legislature.
+
+Early in a year the newest option can be genuinely empty, and it says so rather than
+showing a zero.
 
 ### Money in
 

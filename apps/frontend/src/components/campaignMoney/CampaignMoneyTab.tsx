@@ -23,11 +23,11 @@ import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { CampaignCommitteeMoney, LegislatorCampaignMoney } from '../../data/types';
 import {
-  CAMPAIGN_MONEY_YEARS,
   FILING_SCHEDULE_NOTE,
   LINK_UNCONFIRMED_EXPLANATION,
   UNNAMED_MONEY_EXPLANATION,
   type CampaignMoneyYear,
+  campaignMoneyYears,
   formatDay,
   formatMoney,
   moneyFigure,
@@ -149,7 +149,7 @@ function YearControl({
 }) {
   return (
     <View style={styles.years} role="group" aria-label="Choose a year">
-      {CAMPAIGN_MONEY_YEARS.map((option) => {
+      {campaignMoneyYears().map((option) => {
         const active = option === year;
         return (
           <Pressable

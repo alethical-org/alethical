@@ -13,11 +13,12 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  CAMPAIGN_MONEY_YEARS,
+  EARLIEST_CAMPAIGN_MONEY_YEAR,
   FILING_SCHEDULE_NOTE,
   LINK_UNCONFIRMED_EXPLANATION,
   UNNAMED_MONEY_EXPLANATION,
   campaignMoneyYear,
+  campaignMoneyYears,
   formatDay,
   formatMoney,
   moneyFigure,
@@ -280,16 +281,33 @@ describe('the filing schedule note', () => {
   });
 });
 
+describe('the years the tab offers', () => {
+  it('reads them off the calendar rather than a written-down pair', () => {
+    // The failure this prevents is silent: a hardcoded 2026-and-2025 would hide 2027
+    // from every reader on 1 January 2027, and nothing would announce it.
+    expect(campaignMoneyYears(new Date('2026-08-13T12:00:00Z'))).toEqual([2026, 2025]);
+    expect(campaignMoneyYears(new Date('2027-01-01T12:00:00Z'))).toEqual([2027, 2026]);
+  });
+
+  it("never offers a year before Minnesota's downloads start", () => {
+    expect(campaignMoneyYears(new Date('2015-06-01T12:00:00Z'))).toEqual([
+      EARLIEST_CAMPAIGN_MONEY_YEAR,
+    ]);
+  });
+});
+
 describe('campaignMoneyYear', () => {
+  const on13Aug2026 = new Date('2026-08-13T12:00:00Z');
+
   it('takes the year a reader asked for', () => {
-    expect(campaignMoneyYear('2025')).toBe(2025);
-    expect(campaignMoneyYear(2026)).toBe(2026);
+    expect(campaignMoneyYear('2025', on13Aug2026)).toBe(2025);
+    expect(campaignMoneyYear(2026, on13Aug2026)).toBe(2026);
   });
 
   it('lands on a real page for a year we do not carry', () => {
     // A URL is something people type and edit, and a mistyped year should not 404.
-    expect(campaignMoneyYear('1999')).toBe(CAMPAIGN_MONEY_YEARS[0]);
-    expect(campaignMoneyYear('banana')).toBe(CAMPAIGN_MONEY_YEARS[0]);
-    expect(campaignMoneyYear(undefined)).toBe(CAMPAIGN_MONEY_YEARS[0]);
+    expect(campaignMoneyYear('1999', on13Aug2026)).toBe(2026);
+    expect(campaignMoneyYear('banana', on13Aug2026)).toBe(2026);
+    expect(campaignMoneyYear(undefined, on13Aug2026)).toBe(2026);
   });
 });
