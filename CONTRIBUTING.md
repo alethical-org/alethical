@@ -101,8 +101,23 @@ Every worktree shares the same local Postgres server on `:54329`, but since
 [#898](https://github.com/alethical-org/alethical/issues/898) each gets its **own
 database** on it, named after the worktree. Nothing to set up and nothing to remember:
 `uv run pytest` in a fresh worktree creates it, migrates it, seeds it, and reuses it on
-later runs. Databases whose worktree has been deleted are dropped automatically at the
-start of the next run, so they do not pile up.
+later runs — **emptying every table before it re-seeds**, so run two starts from exactly
+the data run one started from. Databases whose worktree has been deleted are dropped
+automatically at the start of the next run, so they do not pile up.
+
+**Why the emptying is there** —
+[#1490, backend tests fail on the second local run](https://github.com/alethical-org/alethical/issues/1490)
+and [#1491, a service-history test fails for good past 20 legislators](https://github.com/alethical-org/alethical/issues/1491).
+`scripts/load_sample_data.py`
+inserts what is missing and updates what it finds, so it is idempotent per row but cannot
+remove rows it did not create. Tests commit legislators, bills and sessions into the seeded
+data and leave them there, so the database used to grow every run — 7 legislators after a
+seed, 54 after one full run, 140 after three. Nothing asserted a row count, so that stayed
+invisible until a test read a paginated endpoint and found the sample rows pushed off the
+page it read. It then failed on every later run, in a file the session had not touched,
+and **CI could not reproduce it** because CI always starts from an empty database. Dropping
+your database by hand used to be the only way out; it is no longer needed. The guarantee is
+covered by `alethical/tests/test_empty_data_tables.py`, so removing it fails a named test.
 
 **What that fixed.** The suite runs `alembic upgrade head` and re-seeds at setup, against
 whatever database it is pointed at. One shared database therefore produced two failures
