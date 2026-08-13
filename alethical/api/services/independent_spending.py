@@ -183,6 +183,24 @@ class IndependentSpending:
         return sum(c.supporting_payments + c.opposing_payments for c in self.committees)
 
     @property
+    def supporting_payments(self) -> int | None:
+        """Payments behind ``supporting`` alone.
+
+        Served split as well as combined so a page can put a count beside each
+        figure. Without it a page printing ``payment_count`` under both figures
+        would say the same payments produced each of them.
+        """
+        if self.state != REPORTED:
+            return None
+        return sum(c.supporting_payments for c in self.committees)
+
+    @property
+    def opposing_payments(self) -> int | None:
+        if self.state != REPORTED:
+            return None
+        return sum(c.opposing_payments for c in self.committees)
+
+    @property
     def direction_not_recorded_payments(self) -> int | None:
         if self.state != REPORTED:
             return None
@@ -324,6 +342,17 @@ def independent_spending_for_legislator(
         )
         for link in sorted(links, key=lambda link: link.registration_number)
     )
+    if not totals and not _snapshot_covers_year(db, release.snapshot_id, year):
+        # Nothing for this member, in a year the download does not reach. The
+        # committee route fixed this same hole (#1442) and this route still had it:
+        # the files stop at the present while the route accepts 2100, so a page
+        # defaulting to "this year" reports "nobody spent anything about Senator X"
+        # about a year nobody has filed for -- on 1 January, without warning.
+        # Asked only when the member's own rows come back empty, so a populated
+        # request costs nothing extra.
+        return IndependentSpending(
+            UNAVAILABLE, year, (), release.source_url, release.fetched_at
+        )
     if any(committee.rows_missing_an_amount for committee in committees):
         # We hold rows for this member and cannot add them all up, so every total
         # here is short by an unknown amount. Withheld whole rather than published
@@ -408,6 +437,33 @@ class _Bucket:
 
 
 _EMPTY = _Bucket()
+
+
+def _snapshot_covers_year(db: Session, snapshot_id: UUID, year: int) -> bool:
+    """Whether the download holds any row at all for ``year``, from any committee.
+
+    Deliberately a question about the year rather than about one member, for the
+    same reason ``_snapshot_has_rows`` asks about the whole snapshot: a year the
+    files cover and a year they do not are different facts, and only the first
+    makes an empty answer a finding. Measured on the live release, every dataset
+    holds rows for 2015 through 2026 and none beyond.
+
+    ``committee_finance._covers_year`` asks the same question for all 3 downloads.
+    Kept separate rather than shared because that module imports this one, so the
+    dependency cannot run the other way; both are existence checks and neither
+    sums money.
+    """
+    return (
+        db.scalar(
+            select(CampaignFinanceIndependentExpenditureRow.row_number)
+            .where(
+                CampaignFinanceIndependentExpenditureRow.snapshot_id == snapshot_id,
+                CampaignFinanceIndependentExpenditureRow.year == year,
+            )
+            .limit(1)
+        )
+        is not None
+    )
 
 
 def _totals_by_committee(

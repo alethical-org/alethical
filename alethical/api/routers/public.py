@@ -2716,7 +2716,10 @@ def legislator_independent_spending(
 
     ``payment_count`` counts only the payments behind ``supporting`` and
     ``opposing``. A payment with no readable direction is in
-    ``direction_not_recorded_payments`` instead, so print both or neither.
+    ``direction_not_recorded_payments`` instead, so print both or neither. Each
+    figure's own count is served too (``supporting_payments``,
+    ``opposing_payments``), because a page putting the combined count under both
+    figures would say the same payments produced each of them.
     """
     legislator = get_legislator_by_id(db, legislator_id)
     spending = independent_spending_for_legislator(db, legislator.id, year=year)
@@ -2729,6 +2732,8 @@ def legislator_independent_spending(
             "opposing": spending.opposing,
             "direction_not_recorded": spending.direction_not_recorded,
             "payment_count": spending.payment_count,
+            "supporting_payments": spending.supporting_payments,
+            "opposing_payments": spending.opposing_payments,
             "direction_not_recorded_payments": spending.direction_not_recorded_payments,
             "source_url": spending.source_url,
             "fetched_at": spending.fetched_at,

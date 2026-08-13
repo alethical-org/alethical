@@ -271,6 +271,43 @@ def test_a_blank_direction_joins_neither_side(db, legislator):
     assert result.payment_count == 1
 
 
+def test_a_year_the_download_does_not_reach_is_not_a_zero(db, legislator):
+    """"Nobody spent anything in 2027" is a claim about a year nobody has filed for.
+
+    The files stop at the present and the route accepts years to 2100, so a page
+    defaulting to "this year" reaches an uncovered year on 1 January and would print
+    a confident 0 with nothing to mark it. The committee route closed this hole in
+    #1442; this route still had it.
+    """
+    snapshot = _snapshot(db, Dataset.independent_expenditures)
+    _publish(db, independent=snapshot)
+    _row(db, snapshot, reg_num=SENATE_COMMITTEE, direction="For", amount="800.00")
+    db.commit()
+    _confirm(db, legislator, SENATE_COMMITTEE)
+    covered = independent_spending_for_legislator(db, legislator.id, year=2025)
+    assert covered.state == REPORTED
+    beyond = independent_spending_for_legislator(db, legislator.id, year=2027)
+    assert beyond.state == UNAVAILABLE
+    assert beyond.supporting is None
+
+
+def test_a_covered_year_with_no_rows_for_this_member_is_still_a_zero(db, legislator):
+    """The distinction the test above turns on, from the other side.
+
+    Somebody else filed in 2025, so the year is covered and this member's empty
+    result is a checked finding rather than a gap. Collapsing the two would either
+    print a zero over an uncovered year or refuse to print a real one.
+    """
+    snapshot = _snapshot(db, Dataset.independent_expenditures)
+    _publish(db, independent=snapshot)
+    _row(db, snapshot, reg_num="19999", direction="For", amount="800.00")
+    db.commit()
+    _confirm(db, legislator, SENATE_COMMITTEE)
+    result = independent_spending_for_legislator(db, legislator.id, year=2025)
+    assert result.state == REPORTED
+    assert result.supporting == Decimal(0)
+
+
 def test_a_blank_direction_gets_a_figure_of_its_own(db, legislator):
     """The other half of the test above: neither side, and not gone either (#1454).
 
@@ -497,6 +534,12 @@ def test_a_different_year_is_left_out(db, legislator):
         amount="500.00",
         year=2024,
     )
+    # Somebody else's 2025 payment, so 2025 is a year the download covers and this
+    # member's empty 2025 is a finding rather than a gap. Added when the year-coverage
+    # check landed: without it this fixture is a snapshot holding one year, which the
+    # real file never is, and the assertion below would have passed for the wrong
+    # reason -- an uncovered year rather than money that stayed in its own year.
+    _row(db, snapshot, reg_num="19999", direction="For", amount="1.00", year=2025)
     db.commit()
     _confirm(db, legislator, SENATE_COMMITTEE)
     result = independent_spending_for_legislator(db, legislator.id, year=2025)

@@ -14,6 +14,7 @@ import {
   getLegislatorBillsFromApi,
   getMetaFromApi,
   getLegislatorFromApi,
+  getLegislatorOutsideSpendingFromApi,
   getLegislatorVotesFromApi,
   ListPagination,
   LegislatorListFilters,
@@ -220,6 +221,25 @@ export function useLegislator(legislatorId: string) {
   return useQuery({
     queryKey: ['legislator', legislatorId],
     queryFn: () => getLegislatorFromApi(legislatorId),
+    retry: false,
+  });
+}
+
+/**
+ * Outside spending about one legislator, one query per calendar year (#1332).
+ *
+ * A year is its own request because the endpoint answers one year at a time and each
+ * year carries its own state: a year our download does not reach must be able to say
+ * so without blanking a year it does.
+ */
+export function useLegislatorOutsideSpending(legislatorId: string, years: number[]) {
+  return useQuery({
+    queryKey: ['legislator-outside-spending', legislatorId, years],
+    queryFn: () =>
+      Promise.all(
+        years.map((year) => getLegislatorOutsideSpendingFromApi(legislatorId, year)),
+      ),
+    enabled: Boolean(legislatorId),
     retry: false,
   });
 }

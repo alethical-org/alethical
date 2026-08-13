@@ -13,6 +13,7 @@ import { LEGISLATOR_ROSTER_LIMIT } from '../lib/directoryPagination';
 import { publicReadResponse } from '../lib/publicRead';
 import { normalizeLegislativeYearRanges } from '../lib/sessionLabel';
 import { legislativeServiceFromHistory } from '../lib/legislatorProfile';
+import type { OutsideSpendingState, OutsideSpendingYear } from '../lib/outsideSpending';
 import {
   AskAnswer,
   AskAnswerBill,
@@ -2262,4 +2263,77 @@ export async function setTrackedBillFromApi(
     },
     accessToken,
   );
+}
+
+// --- Outside spending about one legislator (#1332) ---------------------------
+
+interface ApiOutsideSpendingPayload {
+  year: number;
+  state: string;
+  supporting?: string | null;
+  opposing?: string | null;
+  direction_not_recorded?: string | null;
+  supporting_payments?: number | null;
+  opposing_payments?: number | null;
+  direction_not_recorded_payments?: number | null;
+  source_url?: string | null;
+  fetched_at?: string | null;
+  committees?: Array<{
+    first_payment_on?: string | null;
+    last_payment_on?: string | null;
+  }> | null;
+}
+
+// Money is served as a string because the column carries 4 decimal places and a
+// JSON number would round them. Parsed here rather than in the display layer so
+// only one place ever turns the filing's text into arithmetic.
+function spendingAmount(value: string | null | undefined): number | null {
+  if (value == null) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+/**
+ * One legislator's outside spending for one calendar year.
+ *
+ * `state` is the field the display reads first: only `reported` carries figures,
+ * and there a 0 is a measured 0. Every other state is a gap in our own records and
+ * must never be drawn as a zero (`.claude/rules/grounded-answers.md` rule 12).
+ */
+export async function getLegislatorOutsideSpendingFromApi(
+  legislatorId: string,
+  year: number,
+): Promise<OutsideSpendingYear> {
+  const params = new URLSearchParams({ year: String(year) });
+  const response = await publicApiRequest<DetailResponse<ApiOutsideSpendingPayload>>(
+    `/legislators/${encodeURIComponent(legislatorId)}/independent-spending?${params.toString()}`,
+  );
+  const data = response.data;
+  const state: OutsideSpendingState =
+    data.state === 'reported' || data.state === 'link_unconfirmed' ? data.state : 'unavailable';
+  const committees = data.committees ?? [];
+  // A member can hold several committees at once, so the block's period is the span
+  // across all of them rather than any one committee's.
+  const firstDates = committees
+    .map((committee) => committee.first_payment_on)
+    .filter((value): value is string => Boolean(value))
+    .sort();
+  const lastDates = committees
+    .map((committee) => committee.last_payment_on)
+    .filter((value): value is string => Boolean(value))
+    .sort();
+  return {
+    year: data.year,
+    state,
+    supporting: spendingAmount(data.supporting),
+    opposing: spendingAmount(data.opposing),
+    directionNotRecorded: spendingAmount(data.direction_not_recorded),
+    supportingPayments: data.supporting_payments ?? null,
+    opposingPayments: data.opposing_payments ?? null,
+    directionNotRecordedPayments: data.direction_not_recorded_payments ?? null,
+    firstPaymentOn: firstDates[0] ?? null,
+    lastPaymentOn: lastDates[lastDates.length - 1] ?? null,
+    sourceUrl: data.source_url ?? null,
+    fetchedAt: data.fetched_at ?? null,
+  };
 }
