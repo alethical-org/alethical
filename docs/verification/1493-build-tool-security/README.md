@@ -26,7 +26,9 @@ package-release safety gate on 2026-08-13; EAS CLI 21.8.0 had been published onl
 The compatibility checks run on every pull request through
 `pnpm run check:build-tool-security`. They assert the exact fixed versions, the
 `ts-deepmerge` security behavior, and the narrow commands EAS CLI, Expo, and Xcode use.
-This prevents a future grouped dependency update from restoring a vulnerable release or
+They also start EAS CLI's configuration, build, and submit commands without sending a
+build, then load Alethical's public Expo configuration and its 3 EAS build profiles. This
+prevents a future grouped dependency update from restoring a vulnerable release or
 installing an incompatible one while still allowing installation to succeed.
 
 ## Remaining upstream exceptions
@@ -56,10 +58,10 @@ Completed locally on 2026-08-13:
 - `pnpm --dir apps/frontend run check:build-tool-security`: passed.
 - `pnpm --dir apps/frontend exec tsc --noEmit`: passed.
 - `pnpm --dir apps/frontend exec prettier --check .`: passed.
-- `pnpm --dir apps/frontend run test`: 98 files and 847 tests passed.
+- `pnpm --dir apps/frontend run test`: 104 files and 931 tests passed after the branch was updated with current `main`.
 - `pnpm --dir apps/frontend run build`: passed and produced the production website bundle.
 - `pnpm audit --json`: 0 critical, 2 high, 0 moderate, and 0 low warnings; both high warnings are the no-fix `image-size` exceptions above.
-- Separate read-only security and Expo 55 review: found that the first prevention check did not assert package versions; exact version checks were added and passed, with no other actionable finding.
+- Separate read-only security and Expo 55 reviews: added exact package-version checks, real EAS command startup checks, project-configuration loading, and the current test totals; no actionable finding remains.
 
 ## Release checklist
 
