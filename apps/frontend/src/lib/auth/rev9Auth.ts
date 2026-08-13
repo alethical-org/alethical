@@ -59,6 +59,14 @@ export interface PublicAuthError {
   message: string;
 }
 
+export type EmailLinkFailureScreen = 'gate' | 'deactivated' | 'match-failed';
+
+/** Serious verified-account results end the email-link flow instead of reopening its action. */
+export function emailLinkFailureScreen(kind: PublicAuthErrorKind): EmailLinkFailureScreen {
+  if (kind === 'deactivated' || kind === 'match-failed') return kind;
+  return 'gate';
+}
+
 const BAD_CREDENTIAL_CODES = new Set([
   'invalid_credentials',
   'user_not_found',

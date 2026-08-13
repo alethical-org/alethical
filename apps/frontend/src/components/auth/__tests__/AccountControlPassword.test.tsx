@@ -14,7 +14,12 @@ const auth = vi.hoisted(() => ({
 
 vi.mock('../../../providers/AuthProvider', () => ({
   useAuth: () => ({
-    user: { id: '1', name: 'Marissa Chen', email: 'marissa@example.com' },
+    user: {
+      id: '1',
+      name: 'Marissa Chen',
+      email: 'marissa@example.com',
+      signInMethods: { google: true, password: false },
+    },
     setPassword: auth.setPassword,
     signOut: auth.signOut,
   }),
@@ -55,12 +60,12 @@ const SOURCE = readFileSync(
 );
 
 describe('signed-in set or change password', () => {
-  it('shows only the 2 confirmed live states and the 15-character rule', () => {
+  it('shows the current Google-only Add state and the 15-character rule', () => {
     const html = renderToStaticMarkup(<SetPasswordDialog open onClose={vi.fn()} />);
 
-    expect(html).toContain('Set or change password');
+    expect(html).toContain('Add a password');
     expect(html).toContain(
-      'Use a password with this email as another way to sign in. It keeps the same Alethical account.',
+      'You sign in with Google. A password lets you sign in with marissa@example.com as well. You choose that password here, and your Google password doesn’t change.',
     );
     expect(html.match(/autocomplete="new-password"/gi)).toHaveLength(2);
     expect(html).toContain('NEW PASSWORD');
@@ -77,13 +82,11 @@ describe('signed-in set or change password', () => {
     expect(SOURCE).toContain('await setPassword(password)');
     expect(SOURCE).toContain('setSaved(true)');
     expect(SOURCE).toContain('busyLabel="Saving…"');
+    expect(SOURCE).toContain('onPress={onDone}');
   });
 
-  it('pins the honest done copy and omits disabled Supabase feature claims', () => {
-    expect(SOURCE).toContain('Password saved');
-    expect(SOURCE).toContain(
-      'You can now sign in with your email or with Google. It’s the same Alethical account.',
-    );
+  it('pins the method-specific helper and omits disabled Supabase feature claims', () => {
+    expect(SOURCE).toContain('passwordMethodCopy');
     expect(SOURCE).not.toContain('one-time-code');
     expect(SOURCE).not.toContain('current-password');
     expect(SOURCE).not.toContain('security notice');
@@ -91,18 +94,18 @@ describe('signed-in set or change password', () => {
     expect(SOURCE).toContain('REV9_AUTH_MESSAGES.leakedPassword');
   });
 
-  it('adds 1 ordinary action to both account surfaces and none to the phone drawer', () => {
+  it('adds 1 password action to both account surfaces and none to the phone drawer', () => {
     const drawer = SOURCE.slice(
       SOURCE.indexOf('export function AccountDrawerRow'),
       SOURCE.indexOf('const focusRingWeb'),
     );
 
-    expect(SOURCE.match(/Set or change password/g)).toHaveLength(3);
+    expect(SOURCE.match(/passwordCopy\.rowLabel/g)).toHaveLength(2);
     expect(SOURCE).not.toContain('accessibilityRole="menuitem"');
     expect(SOURCE).not.toContain('role="menu"');
     expect(SOURCE).toContain("role: 'region', 'aria-label': 'Account'");
     expect(SOURCE).toContain('emailPasswordEnabled ?');
-    expect(drawer).not.toContain('Set or change password');
+    expect(drawer).not.toContain('passwordCopy.rowLabel');
   });
 
   it('keeps sign out visible while the release switch hides password actions', () => {
@@ -116,8 +119,23 @@ describe('signed-in set or change password', () => {
     );
 
     expect(desktop.match(/emailPasswordEnabled \?/g)).toHaveLength(1);
-    expect(desktop).toContain('<Text style={styles.menuItemText}>Sign out</Text>');
+    expect(desktop).toContain('<DesktopSignOut flow={signOutFlow} />');
     expect(phone.match(/emailPasswordEnabled \?/g)).toHaveLength(1);
-    expect(phone).toContain('<Text style={styles.sheetButtonText}>Sign out</Text>');
+    expect(phone).toContain('<PhoneSignOut flow={signOutFlow} />');
+  });
+
+  it('keeps the other-device note in exactly the desktop panel and phone sheet', () => {
+    expect(SOURCE.match(/OTHER_DEVICE_NOTE}/g)).toHaveLength(2);
+    expect(SOURCE).toContain(
+      "const OTHER_DEVICE_NOTE = 'You may still be signed in on other devices';",
+    );
+    expect(SOURCE).toContain(
+      "const SIGN_OUT_FAILURE = 'We couldn’t sign you out. Check your connection and try again.';",
+    );
+  });
+
+  it('clears both password values as soon as the signed-in form closes', () => {
+    expect(SOURCE).toContain("setPasswordValue('');");
+    expect(SOURCE).toContain("setConfirmation('');");
   });
 });

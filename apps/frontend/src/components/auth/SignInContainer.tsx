@@ -22,7 +22,10 @@ function focusableChildren(node: HTMLElement | null): HTMLElement[] {
   const selector =
     'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [role="button"], [tabindex]:not([tabindex="-1"])';
   return Array.from(node.querySelectorAll<HTMLElement>(selector)).filter(
-    (element) => element.offsetParent !== null || element === document.activeElement,
+    (element) =>
+      element.tabIndex >= 0 &&
+      element.getAttribute('aria-disabled') !== 'true' &&
+      (element.getClientRects().length > 0 || element === document.activeElement),
   );
 }
 
@@ -90,17 +93,17 @@ export function SignInContainer({
         return;
       }
 
-      const first = focusables[0];
-      const last = focusables[focusables.length - 1];
       const active = document.activeElement as HTMLElement | null;
-      const inside = Boolean(active && card?.contains(active) && active !== card);
-      if (event.shiftKey && (!inside || active === first)) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && (!inside || active === last)) {
-        event.preventDefault();
-        first.focus();
-      }
+      const activeIndex = active ? focusables.indexOf(active) : -1;
+      const nextIndex = event.shiftKey
+        ? activeIndex <= 0
+          ? focusables.length - 1
+          : activeIndex - 1
+        : activeIndex < 0 || activeIndex === focusables.length - 1
+          ? 0
+          : activeIndex + 1;
+      event.preventDefault();
+      focusables[nextIndex].focus();
     };
 
     document.addEventListener('keydown', onKeyDown, true);

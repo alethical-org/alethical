@@ -12,6 +12,45 @@ export interface ParsedEmailLink {
   cleanPath: string;
 }
 
+export type EmailLinkRoute = 'confirm' | 'reset';
+export type RequestedSignInScreen = 'forgot' | 'sign-in';
+
+export interface RequestedSignInState {
+  screen: RequestedSignInScreen | undefined;
+  cleanHash: string;
+}
+
+/** A non-secret address fallback keeps the requested screen when storage is blocked. */
+export function requestedSignInState(
+  storedScreen: string | null,
+  hash: string,
+): RequestedSignInState {
+  const parameters = new URLSearchParams(hash.replace(/^#/, ''));
+  const hashScreen = parameters.get('auth_screen');
+  parameters.delete('auth_screen');
+  const requested = storedScreen ?? hashScreen;
+  return {
+    screen: requested === 'forgot' || requested === 'sign-in' ? requested : undefined,
+    cleanHash: parameters.size ? `#${parameters.toString()}` : '',
+  };
+}
+
+/**
+ * Keep every email-link value after `#`. Browser fragments never leave the
+ * device in the request sent to Alethical or Vercel.
+ */
+export function buildEmailLinkRedirectUrl(
+  origin: string,
+  route: EmailLinkRoute,
+  pendingReference?: string,
+): string {
+  const url = new URL(`/${route}`, origin);
+  const fragment = new URLSearchParams({ auth_action: route });
+  if (pendingReference) fragment.set('pending', pendingReference);
+  url.hash = fragment.toString();
+  return url.toString();
+}
+
 const AUTH_ADDRESS_KEYS = [
   'token_hash',
   'token',
@@ -53,8 +92,10 @@ export function parseEmailLinkUrl(href: string, expectedOrigin: string): ParsedE
     hashParameters !== null &&
     !rawHash.includes('?') &&
     AUTH_ADDRESS_KEYS.some((key) => hashParameters.has(key));
-  const tokenHash = url.searchParams.get('token_hash') ?? hashParameters?.get('token_hash') ?? '';
-  const rawType = url.searchParams.get('type') ?? hashParameters?.get('type') ?? '';
+  // Query values have already reached the web server and its logs. Scrub them,
+  // but accept a one-use token only from the private browser fragment.
+  const tokenHash = hashParameters?.get('token_hash') ?? '';
+  const rawType = hashParameters?.get('type') ?? '';
   const type: EmailLinkVerificationType | null =
     rawType === 'signup' || rawType === 'email' || rawType === 'recovery' ? rawType : null;
 

@@ -7,6 +7,7 @@ export interface AuthUser {
   id: string;
   name: string;
   email: string;
+  signInMethods: { google: boolean; password: boolean } | null;
 }
 
 export type AuthOperationResult<T = undefined> =

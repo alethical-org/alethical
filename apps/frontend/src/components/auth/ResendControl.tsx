@@ -4,7 +4,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import { theme as t } from '../../theme/tokens';
 import { LoadingButton } from './LoadingButton';
 
-export type ResendStatus = 'ready' | 'sending' | 'sent' | 'waiting';
+export type ResendStatus = 'ready' | 'sending' | 'sent' | 'waiting' | 'rate-limited';
 
 function waitSentence(seconds: number) {
   return `You can resend in ${seconds} ${seconds === 1 ? 'second' : 'seconds'}.`;
@@ -55,14 +55,16 @@ export function ResendControl({
 
   return (
     <View style={styles.wrap}>
-      <View
-        {...({ role: 'status' } as object)}
-        accessibilityLiveRegion="polite"
-        style={styles.notice}
-      >
-        <Text style={styles.noticeText}>{sentMessage}</Text>
-      </View>
-      {status === 'waiting' ? (
+      {status !== 'rate-limited' ? (
+        <View
+          {...({ role: 'status' } as object)}
+          accessibilityLiveRegion="polite"
+          style={styles.notice}
+        >
+          <Text style={styles.noticeText}>{sentMessage}</Text>
+        </View>
+      ) : null}
+      {status === 'waiting' || status === 'rate-limited' ? (
         <Text {...({ 'aria-live': 'off' } as object)} style={styles.waitText}>
           {waitSentence(Math.max(0, Math.ceil(secondsRemaining)))}
         </Text>

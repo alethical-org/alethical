@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   REV9_AUTH_MESSAGES,
   createValidRequestGate,
+  emailLinkFailureScreen,
   isSafeInternalPath,
   mapProviderAuthError,
   normalizeEmail,
@@ -102,6 +103,12 @@ describe('rev 9 provider error copy', () => {
       message:
         'We couldn’t safely match this sign-in to your account. Sign in with the method you used before.',
     });
+  });
+
+  it('ends a verified email-link flow for deactivated and unsafe accounts', () => {
+    expect(emailLinkFailureScreen('deactivated')).toBe('deactivated');
+    expect(emailLinkFailureScreen('match-failed')).toBe('match-failed');
+    expect(emailLinkFailureScreen('request-failure')).toBe('gate');
   });
 });
 

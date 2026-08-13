@@ -2766,6 +2766,7 @@ def test_signed_in_bill_tracking_and_notification_preferences(client, auth_heade
     me_response = client.get("/api/v1/me", headers=auth_headers)
     assert me_response.status_code == 200
     assert me_response.json()["data"]["primary_email"] == "ada@example.com"
+    assert me_response.json()["data"]["sign_in_methods"] is None
 
     tracked_response = client.get("/api/v1/me/tracked-bills", headers=auth_headers)
     assert tracked_response.status_code == 200

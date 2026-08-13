@@ -11,7 +11,7 @@ import {
   validatePassword,
   validatePasswordMatch,
 } from '../../lib/auth/rev9Auth';
-import { signInCopy } from '../../lib/signIn';
+import { signInCopy, type SignInErrorKind } from '../../lib/signIn';
 import { externalLinkProps, routePath } from '../../navigation/links';
 import { GoogleButton } from '../../theme/primitives';
 import { theme as t } from '../../theme/tokens';
@@ -44,6 +44,7 @@ export interface SignInDialogProps {
   initialScreen?: SignInDialogScreen;
   initialEmail?: string;
   errorMessage?: string | null;
+  errorKind?: SignInErrorKind | null;
   busyAction?: 'google' | 'sign-in' | 'create' | 'resend' | 'forgot' | null;
   emailPasswordEnabled: boolean;
   /** The launch value recorded from Supabase. The 60-second drawing was not a specification. */
@@ -54,12 +55,19 @@ export interface SignInDialogProps {
   onCreateAccount: (email: string, password: string) => Promise<SignInDialogActionResult>;
   onResendConfirmation: (email: string) => Promise<SignInDialogActionResult>;
   onForgotPassword: (email: string) => Promise<SignInDialogActionResult>;
+  onBackFromOutcome?: () => void;
 }
 
 type FieldErrors = { email?: string; password?: string; confirmation?: string };
 type CheckEmailMode = 'create' | 'unconfirmed';
 
-function IntentIcon({ icon, size }: { icon: 'brand' | 'bell' | 'mail' | 'lock'; size: number }) {
+function IntentIcon({
+  icon,
+  size,
+}: {
+  icon: 'brand' | 'bell' | 'mail' | 'lock' | 'shield';
+  size: number;
+}) {
   const glyph = Math.round(size * 0.5);
   const ink = t.colors.text.primary;
   return (
@@ -96,6 +104,14 @@ function IntentIcon({ icon, size }: { icon: 'brand' | 'bell' | 'mail' | 'lock'; 
             <Path d="M6 10 H18 V21 H6 Z" stroke={ink} strokeWidth={2} />
             <Path d="M8.5 10 V7.5 A3.5 3.5 0 0 1 15.5 7.5 V10" stroke={ink} strokeWidth={2} />
           </>
+        ) : null}
+        {icon === 'shield' ? (
+          <Path
+            d="M12 3 L20 6 V11 C20 16 16.8 19.4 12 21 C7.2 19.4 4 16 4 11 V6 Z"
+            stroke={ink}
+            strokeWidth={2}
+            strokeLinejoin="round"
+          />
         ) : null}
       </Svg>
     </View>
@@ -187,6 +203,7 @@ export function SignInDialog({
   initialScreen = 'sign-in',
   initialEmail = '',
   errorMessage = null,
+  errorKind = null,
   busyAction = null,
   emailPasswordEnabled,
   resendWaitSeconds,
@@ -196,6 +213,7 @@ export function SignInDialog({
   onCreateAccount,
   onResendConfirmation,
   onForgotPassword,
+  onBackFromOutcome,
 }: SignInDialogProps) {
   const { isMobile } = useResponsive();
   const [screen, setScreen] = useState<SignInDialogScreen>(initialScreen);
@@ -218,6 +236,11 @@ export function SignInDialog({
     if (!open) {
       wasOpen.current = false;
       requestGate.reset();
+      setEmail('');
+      setPassword('');
+      setConfirmation('');
+      setFieldErrors({});
+      setFormError(null);
       return;
     }
     if (wasOpen.current) return;
@@ -234,7 +257,7 @@ export function SignInDialog({
   }, [emailPasswordEnabled, initialEmail, initialScreen, open, requestGate]);
 
   useEffect(() => {
-    if (resendStatus !== 'waiting') return;
+    if (resendStatus !== 'waiting' && resendStatus !== 'rate-limited') return;
     const timer = setInterval(() => {
       setResendSeconds((seconds) => {
         if (seconds > 1) return seconds - 1;
@@ -271,13 +294,14 @@ export function SignInDialog({
       passwordRef.current?.focus?.();
       return;
     }
+    if (error.kind === 'bad-credentials') setPassword('');
     setFormError(error.message);
   };
 
-  const finishResend = () => {
+  const finishResend = (sent = true) => {
     const seconds = Math.max(0, Math.ceil(resendWaitSeconds));
     setResendSeconds(seconds);
-    setResendStatus(seconds > 0 ? 'waiting' : 'sent');
+    setResendStatus(seconds > 0 ? (sent ? 'waiting' : 'rate-limited') : sent ? 'sent' : 'ready');
   };
 
   const submitGoogle = async () => {
@@ -387,7 +411,10 @@ export function SignInDialog({
           ? await onForgotPassword(normalizeEmail(email))
           : await onResendConfirmation(normalizeEmail(email));
       if (result.ok) finishResend();
-      else showResultError(result.error);
+      else {
+        if (result.error.kind === 'too-many-attempts') finishResend(false);
+        showResultError(result.error);
+      }
     } catch {
       setFormError(REV9_AUTH_MESSAGES.requestFailure);
     } finally {
@@ -400,9 +427,18 @@ export function SignInDialog({
   const trackDescription = `Save ${trackObject} to your tracked bills and check where it stands whenever you come back.`;
   let title: string;
   let description: string;
-  let icon: 'brand' | 'bell' | 'mail' | 'lock';
+  let icon: 'brand' | 'bell' | 'mail' | 'lock' | 'shield';
 
-  if (screen === 'sign-in') {
+  const dedicatedOutcome = errorKind === 'deactivated' || errorKind === 'match-failed';
+
+  if (dedicatedOutcome) {
+    title =
+      errorKind === 'deactivated'
+        ? 'This account has been deactivated'
+        : 'We couldn’t match this sign-in';
+    description = errorMessage ?? '';
+    icon = 'shield';
+  } else if (screen === 'sign-in') {
     title = signInIntent.headline;
     description = intent === 'track' ? trackDescription : signInIntent.subcopy;
     icon = intent === 'track' ? 'bell' : 'brand';
@@ -410,9 +446,7 @@ export function SignInDialog({
     title =
       intent === 'track' ? 'Create an account to track this bill' : 'Create your Alethical account';
     description =
-      intent === 'track'
-        ? trackDescription
-        : 'You’ll use this email and password to sign in. Your tracked list is saved to your account.';
+      intent === 'track' ? trackDescription : 'Bills you track are saved to your account.';
     icon = intent === 'track' ? 'bell' : 'brand';
   } else if (screen === 'check-email') {
     title = checkEmailMode === 'unconfirmed' ? 'Confirm your email' : 'Check your email';
@@ -431,7 +465,7 @@ export function SignInDialog({
     description = `If an Alethical account can use that email, we’ll send password reset instructions to ${email}.`;
     icon = 'mail';
   }
-  const shownError = errorMessage ?? formError;
+  const shownError = dedicatedOutcome ? formError : (errorMessage ?? formError);
   const googleBusy = busyAction === 'google';
   const resendBusy =
     busyAction === 'resend' || (screen === 'forgot-sent' && busyAction === 'forgot');
@@ -457,7 +491,16 @@ export function SignInDialog({
   );
 
   let content;
-  if (screen === 'sign-in') {
+  if (dedicatedOutcome) {
+    content = (
+      <LoadingButton
+        label="Back to sign in"
+        busyLabel="Returning…"
+        tone="quiet"
+        onPress={() => onBackFromOutcome?.()}
+      />
+    );
+  } else if (screen === 'sign-in') {
     content = (
       <>
         {serverError}
@@ -575,7 +618,10 @@ export function SignInDialog({
             }
             onPress={submitCreate}
           />
-          <TextAction label="Sign in" disabled={anyBusy} onPress={() => moveTo('sign-in')} />
+        </View>
+        <View style={styles.switchRow}>
+          <Text style={styles.switchText}>Already have an account?</Text>
+          <TextAction label="Sign in" inline disabled={anyBusy} onPress={() => moveTo('sign-in')} />
         </View>
         <LegalCopy />
       </>

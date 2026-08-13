@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import { AuthClient, type Session } from '@supabase/auth-js';
 
@@ -7,16 +7,21 @@ import { EmailField } from '../../components/auth/EmailField';
 import { FormError } from '../../components/auth/FormError';
 import { LoadingButton } from '../../components/auth/LoadingButton';
 import { PasswordField } from '../../components/auth/PasswordField';
+import { ResendControl, type ResendStatus } from '../../components/auth/ResendControl';
 import { SignInContainer } from '../../components/auth/SignInContainer';
 import { ApiError, completePendingTrackActionFromApi } from '../../data/api';
 import { createTemporaryAuthClient } from '../../lib/auth/linkSession';
 import { validateAlethicalSession } from '../../lib/auth/operations';
+import { finishResetSignOuts, updatePasswordOnce } from '../../lib/auth/resetCleanup';
 import {
+  REV9_AUTH_MESSAGES,
+  emailLinkFailureScreen,
   mapProviderAuthError,
   validateEmail,
   validatePassword,
   validatePasswordMatch,
 } from '../../lib/auth/rev9Auth';
+import { SIGN_IN_ERROR_MESSAGES } from '../../lib/signIn';
 import { theme as t } from '../../theme/tokens';
 
 declare global {
@@ -35,6 +40,8 @@ type Screen =
   | 'checking'
   | 'dead'
   | 'dead-sent'
+  | 'deactivated'
+  | 'match-failed'
   | 'confirmed'
   | 'confirmed-other'
   | 'new-password'
@@ -50,6 +57,9 @@ interface OrdinaryAccount {
 
 const OPEN_SIGN_IN_KEY = 'alethical.openSignIn';
 const PASSWORD_NOTICE_KEY = 'alethical.passwordChangedNotice';
+const configuredResendWait = Number(process.env.EXPO_PUBLIC_AUTH_RESEND_WAIT_SECONDS);
+const RESEND_WAIT_SECONDS =
+  Number.isFinite(configuredResendWait) && configuredResendWait > 0 ? configuredResendWait : 60;
 
 function publicOrigin() {
   return Platform.OS === 'web' && typeof window !== 'undefined' ? window.location.origin : '';
@@ -57,8 +67,19 @@ function publicOrigin() {
 
 function goToAlethical(openSignIn = false) {
   if (typeof window === 'undefined') return;
-  if (openSignIn) window.sessionStorage.setItem(OPEN_SIGN_IN_KEY, 'sign-in');
+  if (openSignIn) {
+    try {
+      window.sessionStorage.setItem(OPEN_SIGN_IN_KEY, 'sign-in');
+    } catch {
+      // The destination still works when short-lived browser storage is unavailable.
+    }
+  }
   window.location.replace('/');
+}
+
+function goToForgotPassword() {
+  if (typeof window === 'undefined') return;
+  window.location.replace('/#auth_screen=forgot');
 }
 
 function publicSupabaseConfig() {
@@ -71,11 +92,18 @@ function publicSupabaseConfig() {
 async function ordinaryClientAndAccount(): Promise<{
   client: InstanceType<typeof AuthClient>;
   account: OrdinaryAccount | null;
+  clearStoredSession: () => void;
 }> {
   const module = await import('../../lib/supabase.web');
   const current = await module.supabase.auth.getSession();
   const session = current.data.session;
-  if (!session) return { client: module.supabase.auth, account: null };
+  if (!session) {
+    return {
+      client: module.supabase.auth,
+      account: null,
+      clearStoredSession: module.clearStoredSupabaseSession,
+    };
+  }
 
   const metadataName = session.user.user_metadata?.full_name ?? session.user.user_metadata?.name;
   const email = session.user.email ?? '';
@@ -90,6 +118,7 @@ async function ordinaryClientAndAccount(): Promise<{
           : email.split('@')[0] || 'Signed-in user',
       email,
     },
+    clearStoredSession: module.clearStoredSupabaseSession,
   };
 }
 
@@ -106,11 +135,26 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
   const [verifiedEmail, setVerifiedEmail] = useState('');
   const [ordinaryAccount, setOrdinaryAccount] = useState<OrdinaryAccount | null>(null);
   const [returnPath, setReturnPath] = useState('/');
+  const [deadResendStatus, setDeadResendStatus] = useState<ResendStatus>('ready');
+  const [deadResendSeconds, setDeadResendSeconds] = useState(0);
   const temporaryClient = useRef<InstanceType<typeof AuthClient> | null>(null);
   const temporarySession = useRef<Session | null>(null);
   const ordinaryClient = useRef<InstanceType<typeof AuthClient> | null>(null);
+  const clearOrdinarySession = useRef<(() => void) | null>(null);
   const ordinaryAccountRef = useRef<OrdinaryAccount | null>(null);
   const passwordWasChanged = useRef(false);
+
+  useEffect(() => {
+    if (deadResendStatus !== 'rate-limited') return;
+    const timer = setInterval(() => {
+      setDeadResendSeconds((seconds) => {
+        if (seconds > 1) return seconds - 1;
+        setDeadResendStatus('ready');
+        return 0;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [deadResendStatus]);
 
   const finishConfirmation = async (session: Session) => {
     if (memory?.pendingReference) {
@@ -183,13 +227,14 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
         temporarySession.current = null;
       }
       setError(safeAccount.error.message);
-      setScreen('gate');
+      setScreen(emailLinkFailureScreen(safeAccount.error.kind));
       return;
     }
     setVerifiedEmail(safeAccount.data.email || session.user.email || '');
 
     const ordinary = await ordinaryClientAndAccount();
     ordinaryClient.current = ordinary.client;
+    clearOrdinarySession.current = ordinary.clearStoredSession;
     ordinaryAccountRef.current = ordinary.account;
     setOrdinaryAccount(ordinary.account);
     if (kind === 'reset') {
@@ -240,19 +285,34 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
     const fieldFailure = validateEmail(email);
     setEmailError(fieldFailure ?? undefined);
     if (fieldFailure) return;
-    const config = publicSupabaseConfig();
-    const temporary = createTemporaryAuthClient(config.url, config.key);
-    const result = await temporary.resend({
-      type: 'signup',
-      email: email.trim().toLowerCase(),
-      options: { emailRedirectTo: `${publicOrigin()}/confirm?auth_action=confirm` },
-    });
-    if (result.error) {
-      setError(mapProviderAuthError(result.error, email).message);
-      return;
-    }
     setError(null);
-    setScreen('dead-sent');
+    setDeadResendStatus('sending');
+    try {
+      const config = publicSupabaseConfig();
+      const temporary = createTemporaryAuthClient(config.url, config.key);
+      const result = await temporary.resend({
+        type: 'signup',
+        email: email.trim().toLowerCase(),
+        options: {
+          emailRedirectTo: `${publicOrigin()}/confirm#auth_action=confirm`,
+        },
+      });
+      if (result.error) {
+        const failure = mapProviderAuthError(result.error, email);
+        setError(failure.message);
+        if (failure.kind === 'too-many-attempts') {
+          setDeadResendSeconds(RESEND_WAIT_SECONDS);
+          setDeadResendStatus('rate-limited');
+        } else {
+          setDeadResendStatus('ready');
+        }
+        return;
+      }
+      setScreen('dead-sent');
+    } catch {
+      setError(REV9_AUTH_MESSAGES.requestFailure);
+      setDeadResendStatus('ready');
+    }
   };
 
   const finishResetCleanup = async () => {
@@ -263,26 +323,33 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
       return;
     }
     setScreen('finishing');
-    const others = await temporary.signOut({ scope: 'others' });
-    if (others.error) {
-      setScreen('cleanup-failed');
-      return;
-    }
-
-    await temporary.signOut({ scope: 'local' });
     const relationship = !ordinaryAccount
       ? 'none'
       : ordinaryAccount.id === resetSession.user.id
         ? 'same'
         : 'different';
-    if (relationship === 'same') {
-      await ordinaryClient.current?.signOut({ scope: 'local' });
+    const cleanedUp = await finishResetSignOuts(
+      temporary,
+      ordinaryClient.current,
+      relationship,
+      clearOrdinarySession.current,
+    );
+    if (!cleanedUp) {
+      setScreen('cleanup-failed');
+      return;
     }
     if (relationship === 'different' && ordinaryAccount) {
-      window.sessionStorage.setItem(
-        PASSWORD_NOTICE_KEY,
-        `Password changed for ${verifiedEmail}. You’re still signed in as ${ordinaryAccount.email}.`,
-      );
+      try {
+        window.sessionStorage.setItem(
+          PASSWORD_NOTICE_KEY,
+          JSON.stringify({
+            resetEmail: verifiedEmail,
+            ordinaryEmail: ordinaryAccount.email,
+          }),
+        );
+      } catch {
+        // The password is changed even if its brief return notice cannot persist.
+      }
       goToAlethical(false);
       return;
     }
@@ -296,23 +363,23 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
     setConfirmationError(secondFailure ?? undefined);
     if (firstFailure || secondFailure || !temporaryClient.current) return;
 
-    if (!passwordWasChanged.current) {
-      const changed = await temporaryClient.current.updateUser({ password });
-      if (changed.error) {
-        const failure = mapProviderAuthError(changed.error, verifiedEmail);
-        setPasswordError(
-          failure.kind === 'weak-password' || failure.kind === 'leaked-password'
-            ? failure.message
-            : undefined,
-        );
-        setError(
-          failure.kind === 'weak-password' || failure.kind === 'leaked-password'
-            ? null
-            : failure.message,
-        );
-        return;
-      }
-      passwordWasChanged.current = true;
+    const temporary = temporaryClient.current;
+    const changed = await updatePasswordOnce(passwordWasChanged, () =>
+      temporary.updateUser({ password }),
+    );
+    if (changed.error) {
+      const failure = mapProviderAuthError(changed.error, verifiedEmail);
+      setPasswordError(
+        failure.kind === 'weak-password' || failure.kind === 'leaked-password'
+          ? failure.message
+          : undefined,
+      );
+      setError(
+        failure.kind === 'weak-password' || failure.kind === 'leaked-password'
+          ? null
+          : failure.message,
+      );
+      return;
     }
     await finishResetCleanup();
   };
@@ -337,10 +404,13 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
           {confirmationDead ? (
             <>
               <EmailField value={email} error={emailError} onChangeText={setEmail} />
-              <LoadingButton
-                label="Send a new confirmation email"
-                busyLabel="Sending…"
-                onPress={resendDeadConfirmation}
+              <ResendControl
+                status={deadResendStatus}
+                secondsRemaining={deadResendSeconds}
+                sentMessage="If this address can receive a confirmation email, we’ve sent one."
+                actionLabel="Send a new confirmation email"
+                sendingLabel="Sending…"
+                onResend={resendDeadConfirmation}
               />
               <LoadingButton
                 label="Continue"
@@ -354,10 +424,7 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
               <LoadingButton
                 label="Go to Forgot password"
                 busyLabel="Continuing…"
-                onPress={() => {
-                  window.sessionStorage.setItem(OPEN_SIGN_IN_KEY, 'forgot');
-                  goToAlethical(false);
-                }}
+                onPress={goToForgotPassword}
               />
               <LoadingButton
                 label="Continue"
@@ -382,6 +449,31 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
         <LoadingButton
           label="Continue"
           busyLabel="Continuing…"
+          onPress={() => goToAlethical(true)}
+        />
+      </SignInContainer>
+    );
+  }
+
+  if (screen === 'deactivated' || screen === 'match-failed') {
+    return (
+      <SignInContainer
+        variant="page"
+        title={
+          screen === 'deactivated'
+            ? 'This account has been deactivated'
+            : 'We couldn’t match this sign-in'
+        }
+        description={
+          screen === 'deactivated'
+            ? SIGN_IN_ERROR_MESSAGES.deactivated
+            : SIGN_IN_ERROR_MESSAGES['match-failed']
+        }
+      >
+        <LoadingButton
+          label="Back to sign in"
+          busyLabel="Returning…"
+          tone="quiet"
           onPress={() => goToAlethical(true)}
         />
       </SignInContainer>

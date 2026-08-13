@@ -152,6 +152,9 @@ def get_optional_current_user(
     except Exception as exc:
         raise problem_exception(401, "Unauthorized", str(exc)) from exc
 
+    request.state.auth_provider = principal.provider
+    request.state.auth_provider_subject = principal.provider_subject
+
     identity = db.scalar(
         select(AuthIdentity).where(
             AuthIdentity.provider == principal.provider,
