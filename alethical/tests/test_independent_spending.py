@@ -597,6 +597,35 @@ def test_the_route_serves_the_same_states(client, db, legislator):
     assert body["committees"] == []
 
 
+def test_each_figure_carries_its_own_payment_count(client, db, legislator):
+    """The counts are served split, not only combined.
+
+    A page has 3 figures and needs a count under each. Handed only the combined
+    number it would print "3 payments" beneath both sides, saying the same payments
+    produced each of them. The 3 counts here are deliberately all different, so a
+    figure reading the wrong one cannot look right by coincidence.
+    """
+    snapshot = _snapshot(db, Dataset.independent_expenditures)
+    _publish(db, independent=snapshot)
+    for amount in ("10.00", "20.00", "30.00"):
+        _row(db, snapshot, reg_num=SENATE_COMMITTEE, direction="For", amount=amount)
+    for amount in ("40.00", "50.00"):
+        _row(db, snapshot, reg_num=SENATE_COMMITTEE, direction="Against", amount=amount)
+    _row(db, snapshot, reg_num=SENATE_COMMITTEE, direction="Unclear", amount="60.00")
+    db.commit()
+    _confirm(db, legislator, SENATE_COMMITTEE)
+    response = client.get(
+        f"/api/v1/legislators/{legislator.slug}/independent-spending",
+        params={"year": 2025},
+    )
+    body = response.json()["data"]
+    assert body["supporting_payments"] == 3
+    assert body["opposing_payments"] == 2
+    assert body["direction_not_recorded_payments"] == 1
+    # The combined count stays the 2 directional figures only, unchanged.
+    assert body["payment_count"] == 5
+
+
 def test_the_route_serves_the_third_figure(client, db, legislator):
     """The count of unclassifiable money reaches the page, not only the service.
 
