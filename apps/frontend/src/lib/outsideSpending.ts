@@ -36,9 +36,25 @@ import { formatNiceDate } from './billDetail';
  */
 export type OutsideSpendingState = 'reported' | 'link_unconfirmed' | 'unavailable' | 'load_failed';
 
+export interface OutsideSpendingCommittee {
+  registrationNumber: string;
+  name: string;
+  /** The office the reviewer recorded, when they recorded one. */
+  office: string | null;
+}
+
 export interface OutsideSpendingYear {
   year: number;
   state: OutsideSpendingState;
+  /** Which download answered, so 2 years can be checked for agreeing on one. */
+  snapshotId: string | null;
+  /**
+   * The committees these figures cover, named. A member can hold several at once, and
+   * the figures are a sum across every one a person has confirmed -- so a page that
+   * does not name them says "spent about this legislator" over a total that may cover
+   * one committee out of several, or 2 races at once.
+   */
+  committees: OutsideSpendingCommittee[];
   /** Null in every state but `reported`, where a 0 is a measured 0. */
   supporting: number | null;
   opposing: number | null;
@@ -74,6 +90,11 @@ export interface OutsideSpendingFigure {
  * the number a reader could check against the filing.
  */
 export function formatSpendingAmount(value: number): string {
+  // Rounded to the cent, which is every value the source actually carries: the column
+  // holds 4 decimal places and 0 of the live release's 41,130 rows use the 3rd or 4th
+  // (measured 13 Aug 2026). An earlier version of this comment claimed no rounding at
+  // all, which the arithmetic below does not deliver.
+  //
   // Rounded to whole cents FIRST, then split. Rounding the fraction on its own and
   // keeping the whole-dollar part untouched loses the carry: the source column holds
   // 4 decimal places, so a filing of 1.9999 rounds to 100 cents and printed as
@@ -114,7 +135,13 @@ export function outsideSpendingFigures(year: OutsideSpendingYear): OutsideSpendi
       payments: year.opposingPayments ?? 0,
     },
   ];
-  if ((year.directionNotRecorded ?? 0) > 0) {
+  // Gated on the payment count, not the amount. A row can be held and total 0 or less
+  // -- 2 unreadable rows that cancel out, or a negative correction -- and gating on the
+  // money would then keep the payments in the page while the figure vanished, which is
+  // the same disappearance #1454 exists to stop. 0 of the live release's rows are
+  // negative (measured 13 Aug 2026), so this is the cheaper guard rather than a fix for
+  // something happening now.
+  if ((year.directionNotRecordedPayments ?? 0) > 0) {
     figures.push({
       key: 'directionNotRecorded',
       label: 'Spent where the filing does not say which',
@@ -220,8 +247,23 @@ export function outsideSpendingPeriod(year: OutsideSpendingYear): string | null 
  * two dates on one block would read as two separate fetches.
  */
 export function outsideSpendingFetchedOn(years: OutsideSpendingYear[]): string | null {
+  if (!yearsShareOneDownload(years)) return null;
   const stamped = years.find((year) => year.fetchedAt);
   return stamped?.fetchedAt ? formatNiceDate(stamped.fetchedAt) : null;
+}
+
+/**
+ * Whether every year that answered came from the same download.
+ *
+ * Each year is its own request and each resolves the live download on its own, so a
+ * publish landing between them pairs one year's money with another year's freshness
+ * date. Rather than print a date that is true of only one of the figures beneath it,
+ * the block prints none. Rare -- publishing is a person running an import -- and
+ * cheap to be right about.
+ */
+export function yearsShareOneDownload(years: OutsideSpendingYear[]): boolean {
+  const seen = years.map((year) => year.snapshotId).filter((id): id is string => Boolean(id));
+  return new Set(seen).size <= 1;
 }
 
 /**
@@ -236,6 +278,8 @@ export function outsideSpendingLoadFailure(year: number): OutsideSpendingYear {
   return {
     year,
     state: 'load_failed',
+    snapshotId: null,
+    committees: [],
     supporting: null,
     opposing: null,
     directionNotRecorded: null,
@@ -247,6 +291,33 @@ export function outsideSpendingLoadFailure(year: number): OutsideSpendingYear {
     sourceUrl: null,
     fetchedAt: null,
   };
+}
+
+/**
+ * The sentence naming which committees a year's figures cover, or null.
+ *
+ * Required, not decoration. The figures are a sum across every committee a person has
+ * confirmed, and 2 things follow that a bare total hides. A member can hold several
+ * committees while only 1 has been reviewed, so the total may cover a fraction of their
+ * money; and a member can hold committees for different offices, which the sum combines.
+ * Naming them makes the figures speak for exactly what they cover -- the same division of
+ * labour rule 11 sets, where the model describes records and the layout owns the scope.
+ *
+ * §7 of the campaign-finance design asks for this directly: a figure must say which
+ * committee it belongs to rather than only which year.
+ */
+export function outsideSpendingCoverage(year: OutsideSpendingYear): string | null {
+  if (year.state !== 'reported' || year.committees.length === 0) return null;
+  const named = year.committees.map((committee) =>
+    committee.office ? `${committee.name} (${committee.office})` : committee.name,
+  );
+  const list =
+    named.length === 1
+      ? named[0]
+      : `${named.slice(0, -1).join(', ')} and ${named[named.length - 1]}`;
+  return named.length === 1
+    ? `Covers the one committee somebody has confirmed is theirs: ${list}. Any committee of theirs nobody has checked yet is not in these figures.`
+    : `Covers the ${named.length} committees somebody has confirmed are theirs, added together: ${list}. Any committee of theirs nobody has checked yet is not in these figures.`;
 }
 
 /**

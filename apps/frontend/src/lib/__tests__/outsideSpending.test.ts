@@ -4,6 +4,7 @@ import {
   formatSpendingAmount,
   isMeasuredZero,
   outsideSpendingFetchedOn,
+  outsideSpendingCoverage,
   outsideSpendingFigures,
   outsideSpendingLoadFailure,
   outsideSpendingPaymentCount,
@@ -11,6 +12,7 @@ import {
   outsideSpendingSharedReason,
   outsideSpendingUnavailableReason,
   outsideSpendingYears,
+  yearsShareOneDownload,
   type OutsideSpendingYear,
 } from '../outsideSpending';
 
@@ -24,6 +26,10 @@ import {
 const REPORTED: OutsideSpendingYear = {
   year: 2025,
   state: 'reported',
+  snapshotId: 'snap-1',
+  committees: [
+    { registrationNumber: '18488', name: 'Fateh, Omar Senate Committee', office: 'State Senator' },
+  ],
   supporting: 487974.82,
   opposing: 162841.95,
   directionNotRecorded: 0,
@@ -116,6 +122,20 @@ describe('outsideSpendingFigures', () => {
     // All 41,130 rows of the live release read For or Against, so a permanently
     // visible third figure would tell a reader Minnesota leaves the question open.
     expect(outsideSpendingFigures(REPORTED)).toHaveLength(2);
+  });
+
+  it('shows the third figure when it holds payments, even if they total nothing', () => {
+    // Gated on the payment count, not the money. Two unreadable rows that cancel out, or
+    // a negative correction, would otherwise keep the payments in the page while the
+    // figure vanished -- the same disappearance #1454 exists to stop.
+    const figures = outsideSpendingFigures({
+      ...REPORTED,
+      directionNotRecorded: 0,
+      directionNotRecordedPayments: 2,
+    });
+    expect(figures).toHaveLength(3);
+    expect(figures[2].amount).toBe(0);
+    expect(figures[2].payments).toBe(2);
   });
 
   it('shows the third figure the moment money lands in it', () => {
@@ -254,6 +274,59 @@ describe('outsideSpendingSharedReason', () => {
   it('stays silent when any year has real figures to show', () => {
     expect(outsideSpendingSharedReason([{ ...unconfirmed, year: 2026 }, REPORTED])).toBeNull();
     expect(outsideSpendingSharedReason([])).toBeNull();
+  });
+});
+
+describe('outsideSpendingCoverage', () => {
+  it('names the one confirmed committee, and says an unchecked one is not counted', () => {
+    // A member can hold several committees while only 1 has been reviewed, so a bare
+    // total can be a fraction of their money presented as all of it.
+    const coverage = outsideSpendingCoverage(REPORTED);
+    expect(coverage).toContain('Fateh, Omar Senate Committee (State Senator)');
+    expect(coverage).toContain('nobody has checked yet is not in these figures');
+  });
+
+  it('names every committee when a total adds more than one together', () => {
+    // The service says a race for another office must never be summed into a
+    // legislative figure, and it sums every confirmed committee whose dates cover the
+    // year. So when 2 are added, the page has to say which 2.
+    const coverage = outsideSpendingCoverage({
+      ...REPORTED,
+      committees: [
+        { registrationNumber: '18488', name: 'Senate Committee', office: 'State Senator' },
+        { registrationNumber: '19205', name: 'House Committee', office: 'State Representative' },
+      ],
+    });
+    expect(coverage).toContain('2 committees');
+    expect(coverage).toContain('Senate Committee (State Senator)');
+    expect(coverage).toContain('House Committee (State Representative)');
+    expect(coverage).toContain('added together');
+  });
+
+  it('says nothing when there is no figure for it to scope', () => {
+    expect(outsideSpendingCoverage({ ...EMPTY, state: 'link_unconfirmed' })).toBeNull();
+    expect(outsideSpendingCoverage({ ...REPORTED, committees: [] })).toBeNull();
+  });
+});
+
+describe('yearsShareOneDownload', () => {
+  it('is false when 2 years came from 2 different downloads', () => {
+    // Each year is its own request and each resolves the live download on its own, so a
+    // publish landing between them pairs one year's money with another year's date.
+    expect(
+      yearsShareOneDownload([REPORTED, { ...REPORTED, year: 2026, snapshotId: 'snap-2' }]),
+    ).toBe(false);
+  });
+
+  it('is true when they agree, or when only one carries an identity', () => {
+    expect(yearsShareOneDownload([REPORTED, { ...REPORTED, year: 2026 }])).toBe(true);
+    expect(yearsShareOneDownload([REPORTED, outsideSpendingLoadFailure(2026)])).toBe(true);
+  });
+
+  it('withholds the freshness date rather than printing one true of only one figure', () => {
+    const mixed = [REPORTED, { ...REPORTED, year: 2026, snapshotId: 'snap-2' }];
+    expect(outsideSpendingFetchedOn(mixed)).toBeNull();
+    expect(outsideSpendingFetchedOn([REPORTED])).toBe('Aug 12, 2026');
   });
 });
 

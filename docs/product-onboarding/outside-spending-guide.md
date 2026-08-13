@@ -3,8 +3,12 @@
 <!-- describes: apps/frontend/src/components/legislator/OutsideSpendingCard.tsx, apps/frontend/src/lib/outsideSpending.ts, alethical/api/services/independent_spending.py -->
 
 **Spending by Outside Groups** is a block on every Minnesota legislator's profile page.
-It shows money that groups other than the legislator's own campaign spent to support or
-oppose them.
+It shows money that groups other than the legislator's own campaign have **told the state**
+they spent to support or oppose them.
+
+That wording is deliberate. These figures are the payments groups have reported, and nothing
+here can know about spending nobody filed, so the block never calls them all outside
+spending.
 
 You do not need an account. Open any legislator's profile
 (`/legislators/<name>`) and scroll to the block below their chief-authored bills.
@@ -50,6 +54,14 @@ Each figure carries **its own payment count**, because the payments behind one f
 not the payments behind another. Below them, the block states the span the payments
 actually fall in (for example *Payments made Feb 3, 2025 to Oct 28, 2025*) rather than
 assuming a year runs from 1 January, which a special-election filer's report does not.
+
+**And it names the committees the figures cover.** This is not decoration. The figures add
+up every committee somebody has confirmed belongs to this legislator, and 2 things follow
+that a bare total would hide. A member can hold several committees while only 1 has been
+reviewed, so the total can be a fraction of their money presented as all of it. And a member
+can hold committees for different offices, which the total combines. Naming them makes the
+figures speak for exactly what they cover, and the sentence says plainly that a committee
+nobody has checked yet is not in them.
 
 **The 2 sides are never added, subtracted, or netted against each other**, and they are
 never drawn as opposing halves of one shape. That a group spent money opposing a lawmaker
@@ -105,11 +117,12 @@ legislator the moment theirs lands.
 
 Read these as 4 different answers, never as 4 ways of saying zero.
 
-1. **Real figures.** We hold the payments and the numbers are exact.
+1. **Real figures.** We hold the payments, and each is shown to the cent — which is every
+   value the state's file actually carries, checked across all 41,130 of them.
 2. **A checked zero** — *No outside group reported spending anything to support or oppose
    this legislator in 2026.* The committee is confirmed, the download covers that year,
-   and no group filed a payment over $200 about them. This is a published finding, and it
-   is the only case where the block says nothing was spent.
+   and no group told the state it spent anything about them. This is a published finding,
+   and it is the only case where the block says nothing was spent.
 3. **No confirmed committee yet** — today's answer for everybody, explained in §3 above.
 4. **A gap in our own copy.** Either our snapshot of the state's files is out of date, or
    we hold a payment whose amount is blank and therefore cannot be added up, or the year
@@ -135,9 +148,17 @@ dropped request and an out-of-date copy are different facts.
 - **Source:** the Minnesota Campaign Finance and Public Disclosure Board's independent
   expenditure download (`cfb.mn.gov`). The block links straight to it.
 - **Freshness:** one date, shown as *Copied from the state on …*, for the whole block. One
-  date and not one per year, because both years come out of the same download.
-- **Coverage:** the download reaches 2015 through the present. Only payments over $200
-  are named, which is Minnesota law rather than a gap in our copy.
+  date and not one per year, because normally both years come out of the same download. The
+  2 years are 2 separate requests, though, so if a new download becomes current between them
+  the block shows **no** date rather than one that is true of only some of the figures under
+  it.
+- **Coverage:** the download reaches 2015 through the present. **There is no $200 floor
+  on this file**, and an earlier draft of this guide wrongly said there was: 17,194 of its
+  41,130 payments are under $200 and 13,393 are under $100, the smallest being $0.00
+  (measured 13 Aug 2026). The $200 that does exist in Minnesota law is a *donor's* yearly
+  total on a different file, the one recording money given **to** a campaign. What the
+  figures here hold is every payment groups have told the state about, which is why the
+  block says "told the state" rather than calling it all outside spending.
 - **Your data:** the block reads public records only. It sends nothing about you anywhere,
   needs no account, and stores nothing in your browser.
 

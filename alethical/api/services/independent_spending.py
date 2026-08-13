@@ -141,6 +141,9 @@ class IndependentSpending:
     committees: tuple[CommitteeSpending, ...]
     source_url: str | None
     fetched_at: datetime | None
+    #: Which download answered. A page comparing 2 years must refuse to print one
+    #: freshness date over figures that came from 2 different ones.
+    snapshot_id: str | None = None
 
     @property
     def supporting(self) -> Decimal | None:
@@ -218,6 +221,19 @@ class Release:
     snapshot_id: UUID
     source_url: str | None
     fetched_at: datetime | None
+
+    @property
+    def identity(self) -> str:
+        """Which snapshot answered, as text a caller can compare.
+
+        Served so a page asking about 2 years in 2 requests can tell whether both
+        answers came from the same download. Each request resolves the live release
+        independently, so a publish landing between them pairs one year's money with
+        another year's freshness date -- section H's forbidden case, arrived at by a
+        race rather than a bad query. The snapshot id is the right thing to compare
+        rather than the release id, because it is what the rows actually belong to.
+        """
+        return str(self.snapshot_id)
 
 
 def current_release(db: Session) -> Release | None:
@@ -312,10 +328,10 @@ def independent_spending_for_legislator(
     """
     release = release or current_release(db)
     if release is None:
-        return IndependentSpending(UNAVAILABLE, year, (), None, None)
+        return IndependentSpending(UNAVAILABLE, year, (), None, None, None)
 
     empty = IndependentSpending(
-        UNAVAILABLE, year, (), release.source_url, release.fetched_at
+        UNAVAILABLE, year, (), release.source_url, release.fetched_at, release.identity
     )
     if not _snapshot_has_rows(db, release.snapshot_id):
         # A release that exists but holds no rows is stale, not an answer.
@@ -324,7 +340,12 @@ def independent_spending_for_legislator(
     links = confirmed_committees(db, legislator_id, year=year)
     if not links:
         return IndependentSpending(
-            LINK_UNCONFIRMED, year, (), release.source_url, release.fetched_at
+            LINK_UNCONFIRMED,
+            year,
+            (),
+            release.source_url,
+            release.fetched_at,
+            release.identity,
         )
 
     totals = _totals_by_committee(
@@ -351,7 +372,12 @@ def independent_spending_for_legislator(
         # Asked only when the member's own rows come back empty, so a populated
         # request costs nothing extra.
         return IndependentSpending(
-            UNAVAILABLE, year, (), release.source_url, release.fetched_at
+            UNAVAILABLE,
+            year,
+            (),
+            release.source_url,
+            release.fetched_at,
+            release.identity,
         )
     if any(committee.rows_missing_an_amount for committee in committees):
         # We hold rows for this member and cannot add them all up, so every total
@@ -361,10 +387,20 @@ def independent_spending_for_legislator(
         # committee is enough, because the figures a page prints are sums across
         # all of them (#1454).
         return IndependentSpending(
-            UNAVAILABLE, year, (), release.source_url, release.fetched_at
+            UNAVAILABLE,
+            year,
+            (),
+            release.source_url,
+            release.fetched_at,
+            release.identity,
         )
     return IndependentSpending(
-        REPORTED, year, committees, release.source_url, release.fetched_at
+        REPORTED,
+        year,
+        committees,
+        release.source_url,
+        release.fetched_at,
+        release.identity,
     )
 
 

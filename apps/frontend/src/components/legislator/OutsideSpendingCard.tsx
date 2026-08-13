@@ -8,6 +8,7 @@ import { useHover } from '../billDetail/interactions';
 import {
   formatSpendingAmount,
   isMeasuredZero,
+  outsideSpendingCoverage,
   outsideSpendingFetchedOn,
   outsideSpendingFigures,
   outsideSpendingPaymentCount,
@@ -65,10 +66,13 @@ export function OutsideSpendingCard({
       >
         {HEADING}
       </Text>
+      {/* "have told the state they spent", not "spent": these figures are the payments
+          groups have reported, and nothing here can know about spending nobody filed. The
+          first wording read as a complete account of all outside spending. */}
       <Text style={styles.explainer}>
-        Money that other groups spent to support or oppose this legislator. It does not go to their
-        campaign and appears nowhere in the reports their campaign files, so reading only those
-        reports leaves this money out.
+        Money that groups other than this legislator&apos;s campaign have told the state they spent
+        to support or oppose them. It does not go to their campaign and appears nowhere in the
+        reports their campaign files, so reading only those reports leaves this money out.
       </Text>
       {isLoading ? (
         <View style={styles.loading}>
@@ -111,6 +115,10 @@ function YearBlock({ year }: { year: OutsideSpendingYear }) {
   const unavailable = outsideSpendingUnavailableReason(year);
   const period = outsideSpendingPeriod(year);
   const payments = outsideSpendingPaymentCount(year);
+  // Names the committees the figures add up, because the total covers only those a person
+  // has confirmed and can span 2 offices. Without it the block says "spent about this
+  // legislator" over a sum that may be a fraction of their money.
+  const coverage = outsideSpendingCoverage(year);
   return (
     <View style={styles.yearBlock}>
       <Text accessibilityRole="header" aria-level={3} style={styles.yearLabel}>
@@ -144,6 +152,7 @@ function YearBlock({ year }: { year: OutsideSpendingYear }) {
               {payments === 1 ? 'Payment made' : 'Payments made'} {period}
             </Text>
           ) : null}
+          {coverage ? <Text style={styles.coverage}>{coverage}</Text> : null}
         </>
       )}
     </View>
@@ -229,6 +238,12 @@ const styles = StyleSheet.create({
   figureMeta: {
     fontFamily: t.typography.body,
     fontSize: 15,
+    color: t.colors.text.muted,
+  },
+  coverage: {
+    fontFamily: t.typography.body,
+    fontSize: 14,
+    lineHeight: 21,
     color: t.colors.text.muted,
   },
   note: {

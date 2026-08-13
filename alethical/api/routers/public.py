@@ -2720,6 +2720,15 @@ def legislator_independent_spending(
     figure's own count is served too (``supporting_payments``,
     ``opposing_payments``), because a page putting the combined count under both
     figures would say the same payments produced each of them.
+
+    ``snapshot_id`` names the download that answered. **A page asking about several
+    years makes several requests, each resolving the live release on its own, so it
+    must compare this before printing one freshness date over all of them**: a publish
+    landing between 2 requests otherwise pairs one year's money with another year's
+    date. Every figure this route serves is a sum of the payments the state's file
+    records, and the file is not limited to large ones -- 17,194 of its 41,130 rows are
+    under $200 (measured 13 Aug 2026) -- so no caller may describe these as only the
+    payments above a threshold.
     """
     legislator = get_legislator_by_id(db, legislator_id)
     spending = independent_spending_for_legislator(db, legislator.id, year=year)
@@ -2728,6 +2737,7 @@ def legislator_independent_spending(
             "legislator_id": str(legislator.id),
             "year": spending.year,
             "state": spending.state,
+            "snapshot_id": spending.snapshot_id,
             "supporting": spending.supporting,
             "opposing": spending.opposing,
             "direction_not_recorded": spending.direction_not_recorded,
@@ -2810,8 +2820,12 @@ def committee_finance_for_year(
 
     ``independent_spending`` is money others spent supporting or opposing this
     committee, and it is the one block where a committee with no rows reads as a
-    measured ``0``: nobody filed an independent expenditure over $200 about them,
-    which is a finding rather than a gap. It carries a third figure,
+    measured ``0``: nobody filed an independent expenditure about them at all, which is
+    a finding rather than a gap. **Not "none over $200"** -- that qualifier was here and
+    was false. The $200 in `.claude/rules/grounded-answers.md` rule 12 is a *donor's*
+    yearly aggregate on the contributions file, not a floor on this one: 17,194 of the
+    independent-expenditure file's 41,130 rows are under $200 and 13,393 are under $100,
+    with a minimum of $0.00 (measured 13 Aug 2026). It carries a third figure,
     ``direction_not_recorded``, for money whose "For" or "Against" cannot be read --
     0 for every committee in the current release, and its own figure rather than a
     silent omission for the day that changes. ``unavailable`` on this block also

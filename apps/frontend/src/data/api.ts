@@ -13,7 +13,11 @@ import { LEGISLATOR_ROSTER_LIMIT } from '../lib/directoryPagination';
 import { publicReadResponse } from '../lib/publicRead';
 import { normalizeLegislativeYearRanges } from '../lib/sessionLabel';
 import { legislativeServiceFromHistory } from '../lib/legislatorProfile';
-import type { OutsideSpendingState, OutsideSpendingYear } from '../lib/outsideSpending';
+import {
+  outsideSpendingLoadFailure,
+  type OutsideSpendingState,
+  type OutsideSpendingYear,
+} from '../lib/outsideSpending';
 import {
   AskAnswer,
   AskAnswerBill,
@@ -2270,6 +2274,7 @@ export async function setTrackedBillFromApi(
 interface ApiOutsideSpendingPayload {
   year: number;
   state: string;
+  snapshot_id?: string | null;
   supporting?: string | null;
   opposing?: string | null;
   direction_not_recorded?: string | null;
@@ -2279,9 +2284,27 @@ interface ApiOutsideSpendingPayload {
   source_url?: string | null;
   fetched_at?: string | null;
   committees?: Array<{
+    registration_number?: string | null;
+    committee_name?: string | null;
+    office?: string | null;
     first_payment_on?: string | null;
     last_payment_on?: string | null;
   }> | null;
+}
+
+/**
+ * Whether a `reported` year arrived with every count a figure needs.
+ *
+ * Each figure prints its own payment count, so a response missing any of them cannot be
+ * drawn. Checked rather than defaulted, because defaulting to 0 turns a missing count
+ * into a checked zero -- the exact missing-versus-zero failure rule 12 forbids.
+ */
+function hasEveryPaymentCount(data: ApiOutsideSpendingPayload): boolean {
+  return (
+    typeof data.supporting_payments === 'number' &&
+    typeof data.opposing_payments === 'number' &&
+    typeof data.direction_not_recorded_payments === 'number'
+  );
 }
 
 // Money is served as a string because the column carries 4 decimal places and a
@@ -2309,8 +2332,17 @@ export async function getLegislatorOutsideSpendingFromApi(
     `/legislators/${encodeURIComponent(legislatorId)}/independent-spending?${params.toString()}`,
   );
   const data = response.data;
-  const state: OutsideSpendingState =
+  let state: OutsideSpendingState =
     data.state === 'reported' || data.state === 'link_unconfirmed' ? data.state : 'unavailable';
+  // A `reported` year must arrive with all 3 payment counts, or no figure may be drawn
+  // from it. The frontend and the API deploy separately, so this page can briefly meet a
+  // server that predates the split counts; defaulting those to 0 made every figure look
+  // like a checked zero and printed "nobody spent anything" over real money. Treated as a
+  // failed load instead, which is what it is.
+  if (state === 'reported' && !hasEveryPaymentCount(data)) {
+    state = 'load_failed';
+  }
+  if (state === 'load_failed') return outsideSpendingLoadFailure(data.year ?? year);
   const committees = data.committees ?? [];
   // A member can hold several committees at once, so the block's period is the span
   // across all of them rather than any one committee's.
@@ -2325,6 +2357,12 @@ export async function getLegislatorOutsideSpendingFromApi(
   return {
     year: data.year,
     state,
+    snapshotId: data.snapshot_id ?? null,
+    committees: committees.map((committee) => ({
+      registrationNumber: committee.registration_number ?? '',
+      name: committee.committee_name ?? '',
+      office: committee.office ?? null,
+    })),
     supporting: spendingAmount(data.supporting),
     opposing: spendingAmount(data.opposing),
     directionNotRecorded: spendingAmount(data.direction_not_recorded),

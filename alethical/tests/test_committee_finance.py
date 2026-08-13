@@ -634,7 +634,7 @@ def test_independent_spending_needs_no_confirmed_link(db):
 def test_no_independent_spending_about_a_committee_is_a_measured_zero(db):
     """Here absence really is a finding, unlike money in and money out.
 
-    Nobody filed an independent expenditure over $200 about this committee. That is
+    Nobody filed an independent expenditure about this committee at all. That is
     a fact about the file, where "we hold no contributions" is a fact about the $200
     threshold. The two states must not be collapsed.
     """

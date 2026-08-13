@@ -626,6 +626,33 @@ def test_each_figure_carries_its_own_payment_count(client, db, legislator):
     assert body["payment_count"] == 5
 
 
+def test_every_answer_names_the_download_it_came_from(client, db, legislator):
+    """A page asking about 2 years makes 2 requests, so it has to be able to compare.
+
+    Each request resolves the live release on its own, so a publish landing between them
+    pairs one year's money with another year's freshness date -- section H's forbidden
+    case, reached by a race rather than a bad query. Served in every state, including the
+    ones carrying no figure, because a page cannot compare what it was not told.
+    """
+    snapshot = _snapshot(db, Dataset.independent_expenditures)
+    _publish(db, independent=snapshot)
+    _row(db, snapshot, reg_num=SENATE_COMMITTEE, direction="For", amount="700.00")
+    db.commit()
+    unconfirmed = client.get(
+        f"/api/v1/legislators/{legislator.slug}/independent-spending",
+        params={"year": 2025},
+    ).json()["data"]
+    assert unconfirmed["state"] == LINK_UNCONFIRMED
+    assert unconfirmed["snapshot_id"] == str(snapshot.id)
+    _confirm(db, legislator, SENATE_COMMITTEE)
+    reported = client.get(
+        f"/api/v1/legislators/{legislator.slug}/independent-spending",
+        params={"year": 2025},
+    ).json()["data"]
+    assert reported["state"] == REPORTED
+    assert reported["snapshot_id"] == str(snapshot.id)
+
+
 def test_the_route_serves_the_third_figure(client, db, legislator):
     """The count of unclassifiable money reaches the page, not only the service.
 

@@ -885,7 +885,12 @@ download's `Amount` is the filing's *total* column and a row can be unpaid.
 [#1332](https://github.com/alethical-org/alethical/issues/1332)'s query
 (`alethical/api/services/independent_spending.py`) with the registration number handed in
 directly. It is the one block where a committee with no rows reads as a measured **0**: nobody
-filed an independent expenditure over $200 about them, which is a finding rather than a gap.
+filed an independent expenditure about them at all, which is a finding rather than a gap.
+**Not "none over $200".** That qualifier was here and was false: the $200 in
+`.claude/rules/grounded-answers.md` rule 12 is a *donor's* yearly aggregate on the
+**contributions** file and is not a floor on this one — 17,194 of this file's 41,130 rows are
+under $200, 13,393 under $100, minimum $0.00 (measured 13 Aug 2026). So a surface may not
+describe these figures as only the large payments.
 It carries the same 3 figures as the legislator endpoint above, including
 `direction_not_recorded` and `direction_not_recorded_payments`, because both pages read one query
 rather than two — a figure surfacing on only one of them would leave the other with the silent
