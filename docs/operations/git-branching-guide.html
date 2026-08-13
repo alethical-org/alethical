@@ -1,0 +1,1036 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Branching, drawn: how this repo branches today, and the flow to learn</title>
+<style>
+  /* ---- Tokens: light is the bare :root, so the un-stamped (system) state resolves. ---- */
+  :root {
+    color-scheme: light dark;
+
+    --ground:        #fbfcfd;
+    --surface:       #ffffff;
+    --surface-sunk:  #f4f5f7;
+    --plot:          #ffffff;
+
+    --ink:           #11150f;
+    --ink-soft:      #4b524b;
+    --ink-mute:      #656c66;
+
+    --rule:          #d3d7d3;
+    --rule-soft:     #e7eae7;
+
+    /* Lane colors. Each one means a thing; none is decoration. */
+    --trunk:         #0f7a45;   /* main / production */
+    --trunk-fill:    #e4f8ee;
+    --feature:       #375f96;   /* short-lived work */
+    --feature-fill:  #e6eef8;
+    --integrate:     #5b4a8f;   /* develop */
+    --integrate-fill:#ece8f6;
+    --staging:       #8f5a12;   /* release / staging */
+    --staging-fill:  #faefdc;
+    --hotfix:        #a7362e;   /* emergency path */
+    --hotfix-fill:   #fbe9e7;
+    --stale:         #767d76;   /* abandoned */
+
+    --shadow: 0 1px 2px rgba(10, 14, 12, .05), 0 12px 28px rgba(10, 14, 12, .05);
+
+    --sans: "Libre Franklin", "Helvetica Neue", Helvetica, Arial, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+
+  /* Dark for viewers on system-dark, unless they explicitly chose light. */
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground:        #0a0e0c;
+      --surface:       #11150f;
+      --surface-sunk:  #161b17;
+      --plot:          #0e1310;
+
+      --ink:           #eaf6ef;
+      --ink-soft:      #b3bdb6;
+      --ink-mute:      #8b948c;
+
+      --rule:          #2a322c;
+      --rule-soft:     #1d2420;
+
+      --trunk:         #2ed47e;
+      --trunk-fill:    #10291d;
+      --feature:       #8fb4e8;
+      --feature-fill:  #16202c;
+      --integrate:     #b3a3e6;
+      --integrate-fill:#1d1a2b;
+      --staging:       #e6b263;
+      --staging-fill:  #2a2114;
+      --hotfix:        #f0918a;
+      --hotfix-fill:   #2c1817;
+      --stale:         #8a938b;
+
+      --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 14px 32px rgba(0, 0, 0, .35);
+    }
+  }
+
+  /* And for viewers who explicitly chose dark. */
+  :root[data-theme="dark"] {
+    --ground:        #0a0e0c;
+    --surface:       #11150f;
+    --surface-sunk:  #161b17;
+    --plot:          #0e1310;
+
+    --ink:           #eaf6ef;
+    --ink-soft:      #b3bdb6;
+    --ink-mute:      #8b948c;
+
+    --rule:          #2a322c;
+    --rule-soft:     #1d2420;
+
+    --trunk:         #2ed47e;
+    --trunk-fill:    #10291d;
+    --feature:       #8fb4e8;
+    --feature-fill:  #16202c;
+    --integrate:     #b3a3e6;
+    --integrate-fill:#1d1a2b;
+    --staging:       #e6b263;
+    --staging-fill:  #2a2114;
+    --hotfix:        #f0918a;
+    --hotfix-fill:   #2c1817;
+    --stale:         #8a938b;
+
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 14px 32px rgba(0, 0, 0, .35);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 17px;
+    line-height: 1.62;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---- Layout: one reading column, with plots breaking out wider. ---- */
+  .page { max-width: 1120px; margin: 0 auto; padding: 0 24px 96px; }
+  .col  { max-width: 66ch; }
+
+  section { padding-top: 60px; }
+
+  /* ---- Type ---- */
+  h1, h2, h3 { text-wrap: balance; margin: 0; }
+
+  h1 {
+    font-size: clamp(2.1rem, 5.2vw, 3.4rem);
+    font-weight: 800;
+    letter-spacing: -0.028em;
+    line-height: 1.04;
+  }
+
+  h2 {
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1.12;
+    margin-bottom: 14px;
+  }
+
+  h3 {
+    font-size: 1.06rem;
+    font-weight: 700;
+    letter-spacing: -0.008em;
+    margin-bottom: 6px;
+  }
+
+  p { margin: 0 0 16px; }
+  .lede { font-size: 1.16rem; color: var(--ink-soft); }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: .72rem;
+    font-weight: 500;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    margin: 0 0 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .eyebrow::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--rule-soft);
+  }
+
+  code, .mono { font-family: var(--mono); font-size: .875em; }
+  code {
+    background: var(--surface-sunk);
+    border: 1px solid var(--rule-soft);
+    border-radius: 4px;
+    padding: .1em .34em;
+  }
+
+  a { color: var(--trunk); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible {
+    outline: 2px solid var(--trunk);
+    outline-offset: 3px;
+    border-radius: 3px;
+  }
+
+  /* ---- Masthead ---- */
+  header.masthead { padding: 72px 0 8px; }
+  header.masthead .col { max-width: 60ch; }
+  .stamp {
+    font-family: var(--mono);
+    font-size: .74rem;
+    color: var(--ink-mute);
+    margin-top: 22px;
+    padding-top: 14px;
+    border-top: 1px solid var(--rule-soft);
+    max-width: 66ch;
+  }
+
+  /* ---- Measured stat row ---- */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(158px, 1fr));
+    gap: 1px;
+    background: var(--rule-soft);
+    border: 1px solid var(--rule-soft);
+    border-radius: 8px;
+    overflow: hidden;
+    margin: 28px 0 32px;
+  }
+  .stat { background: var(--surface); padding: 15px 16px 16px; }
+  .stat b {
+    display: block;
+    font-family: var(--mono);
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+  }
+  /* Direct child only: a nested .mono span must stay inline. */
+  .stat > span {
+    display: block;
+    font-size: .8rem;
+    line-height: 1.35;
+    color: var(--ink-mute);
+    margin-top: 5px;
+  }
+  .stat .mono { font-size: .93em; }
+  .stat.good b { color: var(--trunk); }
+  .stat.warn b { color: var(--staging); }
+  .stat.bad  b { color: var(--hotfix); }
+
+  /* ---- Plot panel: the graph gets the full width. ---- */
+  figure.plot {
+    margin: 0 0 30px;
+    background: var(--plot);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    overflow: hidden;
+  }
+  .plot-scroll { overflow-x: auto; padding: 6px; }
+  .plot svg { display: block; min-width: 860px; width: 100%; height: auto; }
+  figure.plot figcaption {
+    border-top: 1px solid var(--rule-soft);
+    padding: 13px 18px 15px;
+    font-size: .84rem;
+    color: var(--ink-mute);
+    background: var(--surface);
+  }
+
+  /* SVG text inherits nothing useful by default; set it once here. */
+  .plot text { font-family: var(--mono); fill: var(--ink-soft); }
+  .plot .lane-name { font-size: 13px; font-weight: 700; fill: var(--ink); letter-spacing: -0.01em; }
+  .plot .lane-sub  { font-size: 10.5px; fill: var(--ink-mute); }
+  .plot .branch-label { font-size: 10.5px; }
+  .plot .tag-label { font-size: 11px; font-weight: 700; }
+  .plot .axis-label { font-size: 10.5px; fill: var(--ink-mute); letter-spacing: .08em; }
+
+  /* Lane text colors need 2 classes: a CSS `fill` beats an SVG fill="" attribute,
+     so setting the color per element as an attribute silently loses to the rules above. */
+  .plot .t-trunk     { fill: var(--trunk); }
+  .plot .t-feature   { fill: var(--feature); }
+  .plot .t-integrate { fill: var(--integrate); }
+  .plot .t-staging   { fill: var(--staging); }
+  .plot .t-hotfix    { fill: var(--hotfix); }
+  .plot .t-stale     { fill: var(--stale); }
+
+  /* ---- Legend ---- */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 22px;
+    padding: 0;
+    margin: 0 0 34px;
+    list-style: none;
+    font-size: .84rem;
+    color: var(--ink-soft);
+  }
+  .legend li { display: flex; align-items: center; gap: 8px; }
+  .legend svg { flex: none; }
+
+  /* ---- Two-column compare ---- */
+  .compare {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(272px, 1fr));
+    gap: 18px;
+    margin: 26px 0 10px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    padding: 20px 20px 8px;
+  }
+  .card.picked { border-color: var(--trunk); box-shadow: inset 3px 0 0 var(--trunk); }
+  .card .tag {
+    font-family: var(--mono);
+    font-size: .7rem;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    display: block;
+    margin-bottom: 8px;
+  }
+  .card ul { padding-left: 1.15em; margin: 0 0 14px; }
+  .card li { margin-bottom: 7px; font-size: .93rem; }
+
+  /* ---- Lane glossary ---- */
+  .lanes { display: grid; gap: 1px; background: var(--rule-soft); border: 1px solid var(--rule-soft); border-radius: 10px; overflow: hidden; margin: 26px 0 34px; }
+  .lane-row { background: var(--surface); padding: 16px 18px; display: grid; grid-template-columns: minmax(0, 175px) 1fr; gap: 4px 24px; }
+  .lane-row .who { display: flex; align-items: baseline; gap: 9px; }
+  .lane-row .chip {
+    font-family: var(--mono);
+    font-size: .8rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 5px;
+    white-space: nowrap;
+  }
+  .lane-row p { margin: 0; font-size: .93rem; color: var(--ink-soft); }
+  .lane-row .env {
+    font-family: var(--mono);
+    font-size: .72rem;
+    color: var(--ink-mute);
+    letter-spacing: .04em;
+  }
+  .c-feature   { color: var(--feature);   background: var(--feature-fill); }
+  .c-integrate { color: var(--integrate); background: var(--integrate-fill); }
+  .c-staging   { color: var(--staging);   background: var(--staging-fill); }
+  .c-trunk     { color: var(--trunk);     background: var(--trunk-fill); }
+  .c-hotfix    { color: var(--hotfix);    background: var(--hotfix-fill); }
+
+  /* ---- Numbered rules: order carries meaning here (each step depends on the one before). ---- */
+  ol.rules { counter-reset: r; list-style: none; padding: 0; margin: 22px 0 0; max-width: 66ch; }
+  ol.rules > li {
+    counter-increment: r;
+    position: relative;
+    padding: 0 0 22px 46px;
+    border-left: 1px solid var(--rule-soft);
+    margin-left: 13px;
+  }
+  ol.rules > li:last-child { border-left-color: transparent; padding-bottom: 4px; }
+  ol.rules > li::before {
+    content: counter(r);
+    position: absolute;
+    left: -13px;
+    top: 0;
+    width: 26px;
+    height: 26px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    color: var(--ink-soft);
+    font-family: var(--mono);
+    font-size: .78rem;
+    font-weight: 700;
+    display: grid;
+    place-items: center;
+  }
+  ol.rules p { margin: 0 0 8px; font-size: .95rem; color: var(--ink-soft); }
+
+  /* ---- Terminal blocks ---- */
+  pre {
+    font-family: var(--mono);
+    font-size: .82rem;
+    line-height: 1.75;
+    background: var(--surface-sunk);
+    border: 1px solid var(--rule-soft);
+    border-radius: 8px;
+    padding: 16px 18px;
+    overflow-x: auto;
+    margin: 0 0 20px;
+    color: var(--ink);
+  }
+  pre .cmt { color: var(--ink-mute); }
+
+  /* ---- Failure list ---- */
+  .fails { list-style: none; padding: 0; margin: 24px 0 0; max-width: 68ch; }
+  .fails > li {
+    border-top: 1px solid var(--rule-soft);
+    padding: 17px 0 3px;
+  }
+  .fails > li:last-child { border-bottom: 1px solid var(--rule-soft); }
+  .fails .sym { font-weight: 700; }
+  .fails p { margin: 5px 0 12px; font-size: .93rem; color: var(--ink-soft); }
+
+  footer {
+    margin-top: 64px;
+    padding-top: 22px;
+    border-top: 1px solid var(--rule);
+    font-size: .85rem;
+    color: var(--ink-mute);
+    max-width: 78ch;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <header class="masthead">
+    <div class="col">
+      <p class="eyebrow">Alethical engineering reference</p>
+      <h1>Branching, drawn.</h1>
+      <p class="lede">Two commit graphs. The first is the real shape of this
+        repository, measured, not imagined. The second is the flow with separate
+        dev, staging, and production branches, which is what most teams mean by
+        "good branching". Read them side by side: time runs left to right in both.</p>
+      <p class="stamp">Measured from <span class="mono">origin/main</span> on 13 August 2026 at commit
+        <span class="mono">bbbe433e</span>. Every number on this page came from the commands in the
+        footer, so you can re-run them and watch them change.</p>
+    </div>
+  </header>
+
+  <!-- ============================================================ 1 -->
+  <section>
+    <div class="col">
+      <p class="eyebrow">Part 1 &middot; measured today</p>
+      <h2>What this repository actually looks like</h2>
+      <p>There is exactly 1 branch that lives forever here: <code>main</code>. Everything
+        else is temporary. A branch is cut from <code>main</code>, gets one topic of work,
+        becomes a pull request, and is squashed back into <code>main</code> as a single
+        commit before being deleted. That pattern is called <b>trunk based</b>
+        development, and 971 pull requests have gone through it.</p>
+    </div>
+
+    <div class="stats">
+      <div class="stat good"><b>1</b><span>branch that lives forever (<span class="mono">main</span>)</span></div>
+      <div class="stat good"><b>971</b><span>pull requests merged into it</span></div>
+      <div class="stat good"><b>28</b><span>merged in the last 24 hours</span></div>
+      <div class="stat"><b>16</b><span>pull requests open right now</span></div>
+      <div class="stat bad"><b>53</b><span>shared branches that never came back</span></div>
+      <div class="stat warn"><b>178</b><span>finished branches still on this laptop</span></div>
+    </div>
+
+    <figure class="plot">
+      <div class="plot-scroll">
+        <svg viewBox="0 0 1000 470" role="img"
+             aria-label="Commit graph of this repository. A single green trunk branch named main runs left to right with ten commits. Three short blue branches fan above it and merge back in. One blue branch is still open and has not returned. Below the trunk, two grey branches leave main and stop without ever merging back.">
+          <defs>
+            <marker id="a-feature" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 1 L 9 5 L 0 9 z" fill="var(--feature)"></path>
+            </marker>
+            <marker id="a-trunk" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 1 L 9 5 L 0 9 z" fill="var(--trunk)"></path>
+            </marker>
+          </defs>
+
+          <!-- vertical "now" marker -->
+          <line x1="946" y1="46" x2="946" y2="452" stroke="var(--rule)" stroke-width="1" stroke-dasharray="2 4"></line>
+          <text class="axis-label" x="946" y="38" text-anchor="middle">NOW</text>
+
+          <!-- time axis hint -->
+          <text class="axis-label" x="170" y="38">OLDER COMMITS</text>
+
+          <!-- lane rail -->
+          <text class="lane-name t-feature" x="8" y="84">open work</text>
+          <text class="lane-sub"  x="8" y="99">not merged yet</text>
+
+          <text class="lane-name t-feature" x="8" y="174">feature</text>
+          <text class="lane-sub"  x="8" y="189">cut, merged, deleted</text>
+
+          <text class="lane-name t-trunk" x="8" y="258">main</text>
+          <text class="lane-sub"  x="8" y="273">production, protected</text>
+
+          <text class="lane-name t-stale" x="8" y="364">abandoned</text>
+          <text class="lane-sub"  x="8" y="379">left behind</text>
+
+          <!-- ================= main trunk ================= -->
+          <line x1="170" y1="260" x2="936" y2="260" stroke="var(--trunk)" stroke-width="3.5" stroke-linecap="round"></line>
+          <g fill="var(--trunk)">
+            <circle cx="200" cy="260" r="6"></circle>
+            <circle cx="280" cy="260" r="6"></circle>
+            <circle cx="360" cy="260" r="6"></circle>
+            <circle cx="440" cy="260" r="6"></circle>
+            <circle cx="520" cy="260" r="6"></circle>
+            <circle cx="600" cy="260" r="6"></circle>
+            <circle cx="680" cy="260" r="6"></circle>
+            <circle cx="760" cy="260" r="6"></circle>
+            <circle cx="840" cy="260" r="6"></circle>
+            <circle cx="920" cy="260" r="6"></circle>
+          </g>
+
+          <!-- ========== merged feature branch A ========== -->
+          <g fill="none" stroke="var(--feature)" stroke-width="2.2">
+            <path d="M 280 260 C 300 260 300 170 320 170"></path>
+            <path d="M 320 170 H 400"></path>
+            <path d="M 400 170 C 420 170 420 260 438 259" marker-end="url(#a-feature)"></path>
+          </g>
+          <g fill="var(--feature)">
+            <circle cx="336" cy="170" r="5"></circle>
+            <circle cx="376" cy="170" r="5"></circle>
+          </g>
+          <text class="branch-label" x="320" y="155">fix-second-test-run &middot; #1492</text>
+
+          <!-- ========== merged feature branch B ========== -->
+          <g fill="none" stroke="var(--feature)" stroke-width="2.2">
+            <path d="M 440 260 C 460 260 460 170 480 170"></path>
+            <path d="M 480 170 H 560"></path>
+            <path d="M 560 170 C 580 170 580 260 598 259" marker-end="url(#a-feature)"></path>
+          </g>
+          <g fill="var(--feature)">
+            <circle cx="496" cy="170" r="5"></circle>
+            <circle cx="536" cy="170" r="5"></circle>
+          </g>
+          <text class="branch-label" x="480" y="137">cf-filing-calendars &middot; #1481</text>
+
+          <!-- ========== merged feature branch C ========== -->
+          <g fill="none" stroke="var(--feature)" stroke-width="2.2">
+            <path d="M 600 260 C 620 260 620 170 640 170"></path>
+            <path d="M 640 170 H 720"></path>
+            <path d="M 720 170 C 740 170 740 260 758 259" marker-end="url(#a-feature)"></path>
+          </g>
+          <g fill="var(--feature)">
+            <circle cx="656" cy="170" r="5"></circle>
+            <circle cx="696" cy="170" r="5"></circle>
+          </g>
+          <text class="branch-label" x="640" y="155">cf-stated-split-check &middot; #1495</text>
+
+          <!-- ========== open branch, has not returned ========== -->
+          <g fill="none" stroke="var(--feature)" stroke-width="2.2">
+            <path d="M 840 260 C 860 260 860 82 880 82"></path>
+            <path d="M 880 82 H 932"></path>
+          </g>
+          <g fill="var(--feature)">
+            <circle cx="896" cy="82" r="5"></circle>
+            <circle cx="914" cy="82" r="5"></circle>
+          </g>
+          <circle cx="932" cy="82" r="6" fill="var(--plot)" stroke="var(--feature)" stroke-width="2.2"></circle>
+          <text class="branch-label" x="666" y="67">cf-retain-every-artifact &middot; PR #1502 &middot; open</text>
+
+          <!-- ========== abandoned branch 1 ========== -->
+          <g fill="none" stroke="var(--stale)" stroke-width="2.2">
+            <path d="M 200 260 C 220 260 220 362 240 362"></path>
+            <path d="M 240 362 H 268"></path>
+            <path d="M 268 362 H 588" stroke-dasharray="5 6"></path>
+          </g>
+          <circle cx="256" cy="362" r="5" fill="var(--stale)"></circle>
+          <g stroke="var(--stale)" stroke-width="2.2" stroke-linecap="round">
+            <line x1="594" y1="356" x2="606" y2="368"></line>
+            <line x1="606" y1="356" x2="594" y2="368"></line>
+          </g>
+          <text class="branch-label t-stale" x="330" y="347">feat/rag-chat &middot; 1 commit &middot; 3 months old</text>
+          <text class="branch-label t-stale" x="620" y="366">987 commits behind main</text>
+
+          <!-- ========== abandoned branch 2 ========== -->
+          <g fill="none" stroke="var(--stale)" stroke-width="2.2">
+            <path d="M 280 260 C 300 260 300 428 320 428"></path>
+            <path d="M 320 428 H 420"></path>
+            <path d="M 420 428 H 740" stroke-dasharray="5 6"></path>
+          </g>
+          <g fill="var(--stale)">
+            <circle cx="336" cy="428" r="5"></circle>
+            <circle cx="372" cy="428" r="5"></circle>
+            <circle cx="408" cy="428" r="5"></circle>
+          </g>
+          <g stroke="var(--stale)" stroke-width="2.2" stroke-linecap="round">
+            <line x1="746" y1="422" x2="758" y2="434"></line>
+            <line x1="758" y1="422" x2="746" y2="434"></line>
+          </g>
+          <text class="branch-label t-stale" x="340" y="413">joe/lc-integration &middot; PR #397 open since 19 July</text>
+          <text class="branch-label t-stale" x="772" y="432">732 behind</text>
+        </svg>
+      </div>
+      <figcaption>Drawn from real branches. The 3 blue arcs above the trunk are the healthy
+        pattern: leave, do one thing, come back within a day. The 2 grey lines below it left
+        and never returned, and the trunk has moved hundreds of commits since.</figcaption>
+    </figure>
+
+    <ul class="legend">
+      <li><svg width="16" height="16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="var(--trunk)"></circle></svg> a commit on <span class="mono">main</span></li>
+      <li><svg width="16" height="16" aria-hidden="true"><circle cx="8" cy="8" r="5" fill="var(--feature)"></circle></svg> a commit on a branch</li>
+      <li><svg width="16" height="16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="none" stroke="var(--feature)" stroke-width="2.2"></circle></svg> branch still open</li>
+      <li><svg width="16" height="16" aria-hidden="true"><line x1="3" y1="3" x2="13" y2="13" stroke="var(--stale)" stroke-width="2.2" stroke-linecap="round"></line><line x1="13" y1="3" x2="3" y2="13" stroke="var(--stale)" stroke-width="2.2" stroke-linecap="round"></line></svg> abandoned, never merged</li>
+    </ul>
+
+    <div class="col">
+      <h3>What is working</h3>
+      <p>Short branches. Work leaves <code>main</code> and comes back the same day, so
+        nobody spends an afternoon untangling 2 versions of the same file. 28 pull requests
+        merged in the last 24 hours, and the 3 newest open ones are 0 or 1 commits behind
+        <code>main</code>.</p>
+
+      <h3>What is not</h3>
+      <p>53 of the 64 shared branches never merged into <code>main</code> and never will.
+        The worst is <code>feat/rag-chat</code>, which sat still while <code>main</code>
+        moved 987 commits ahead of it. Anyone who opens that branch is reading a version of
+        this product from 3 months ago, and there is nothing on the branch to tell them so.</p>
+      <p>6 open pull requests are more than 240 commits behind <code>main</code>. A pull
+        request that far behind is not really a proposal any more: it is a guess about a
+        codebase that no longer exists. The fix is a habit, not a tool. Rebase it onto
+        current <code>main</code> and merge it, or close it and say why.</p>
+      <p>178 branches on this laptop have already been merged and can be deleted today.
+        They are noise in every branch list, every autocomplete, and every search for
+        "which branch was that on".</p>
+    </div>
+  </section>
+
+  <!-- ============================================================ 2 -->
+  <section>
+    <div class="col">
+      <p class="eyebrow">Part 2 &middot; the reference flow</p>
+      <h2>Dev, staging, production, and features</h2>
+      <p>Now the model to learn. Instead of 1 permanent branch there are 3, and each one
+        mirrors a running copy of the software. Code is only ever promoted upward, one
+        step at a time, so every change is exercised in a real environment before it
+        reaches a real person.</p>
+      <p>The point of the extra branches is not tidiness. It is that
+        <code>develop</code>, <code>release</code>, and <code>main</code> each have an
+        actual deployed website behind them, and a change has to survive each one before
+        it gets to the next.</p>
+    </div>
+
+    <figure class="plot">
+      <div class="plot-scroll">
+        <svg viewBox="0 0 1000 500" role="img"
+             aria-label="Commit graph of the reference branching flow. Five stacked lanes from top to bottom: feature branches, develop, release slash staging, hotfix, and main for production. Feature branches fork from develop and merge back into develop. Develop cuts a release branch. The release branch merges into main, which is tagged version 1.4.0, and also merges back into develop. A hotfix branch forks from main, merges back into main tagged 1.4.1, and is also merged back into develop so the fix is not lost.">
+          <defs>
+            <marker id="b-feature" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 1 L 9 5 L 0 9 z" fill="var(--feature)"></path>
+            </marker>
+            <marker id="b-integrate" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 1 L 9 5 L 0 9 z" fill="var(--integrate)"></path>
+            </marker>
+            <marker id="b-staging" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 1 L 9 5 L 0 9 z" fill="var(--staging)"></path>
+            </marker>
+            <marker id="b-hotfix" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+              <path d="M 0 1 L 9 5 L 0 9 z" fill="var(--hotfix)"></path>
+            </marker>
+          </defs>
+
+          <text class="axis-label" x="196" y="30">TIME</text>
+          <line x1="240" y1="26" x2="300" y2="26" stroke="var(--rule)" stroke-width="1"></line>
+          <path d="M 300 22 L 308 26 L 300 30 z" fill="var(--rule)"></path>
+
+          <!-- ============ lane rail ============ -->
+          <text class="lane-name t-feature" x="8" y="72" >feature/*</text>
+          <text class="lane-sub"  x="8" y="87">one topic each, short</text>
+
+          <text class="lane-name t-integrate" x="8" y="182">develop</text>
+          <text class="lane-sub"  x="8" y="197">dev site, auto deploy</text>
+
+          <text class="lane-name t-staging" x="8" y="287">release/1.4</text>
+          <text class="lane-sub"  x="8" y="302">staging site, QA here</text>
+
+          <text class="lane-name t-hotfix" x="8" y="357">hotfix/*</text>
+          <text class="lane-sub"  x="8" y="372">emergencies only</text>
+
+          <text class="lane-name t-trunk" x="8" y="427">main</text>
+          <text class="lane-sub"  x="8" y="442">production, tagged</text>
+
+          <!-- ============ develop trunk ============ -->
+          <line x1="180" y1="180" x2="930" y2="180" stroke="var(--integrate)" stroke-width="3.5" stroke-linecap="round"></line>
+          <g fill="var(--integrate)">
+            <circle cx="205" cy="180" r="6"></circle>
+            <circle cx="290" cy="180" r="6"></circle>
+            <circle cx="430" cy="180" r="6"></circle>
+            <circle cx="470" cy="180" r="6"></circle>
+            <circle cx="660" cy="180" r="6"></circle>
+            <circle cx="745" cy="180" r="6"></circle>
+            <circle cx="915" cy="180" r="6"></circle>
+          </g>
+
+          <!-- ============ main / production trunk ============ -->
+          <line x1="180" y1="425" x2="950" y2="425" stroke="var(--trunk)" stroke-width="3.5" stroke-linecap="round"></line>
+          <g fill="var(--trunk)">
+            <circle cx="205" cy="425" r="6"></circle>
+            <circle cx="740" cy="425" r="7"></circle>
+            <circle cx="900" cy="425" r="7"></circle>
+          </g>
+          <text class="tag-label t-trunk" x="740" y="459" text-anchor="middle">v1.4.0</text>
+          <text class="tag-label t-trunk" x="900" y="459" text-anchor="middle">v1.4.1</text>
+
+          <!-- develop is first cut from main -->
+          <path d="M 205 425 C 175 425 175 180 203 180" fill="none" stroke="var(--integrate)" stroke-width="2" stroke-dasharray="4 4"></path>
+
+          <!-- ============ feature A ============ -->
+          <g fill="none" stroke="var(--feature)" stroke-width="2.2">
+            <path d="M 290 180 C 310 180 310 78 330 78"></path>
+            <path d="M 330 78 H 390"></path>
+            <path d="M 390 78 C 410 78 410 180 428 179" marker-end="url(#b-feature)"></path>
+          </g>
+          <g fill="var(--feature)">
+            <circle cx="344" cy="78" r="5"></circle>
+            <circle cx="376" cy="78" r="5"></circle>
+          </g>
+          <text class="branch-label t-feature" x="272" y="63">feature/bill-search-filters</text>
+
+          <!-- ============ feature B ============ -->
+          <g fill="none" stroke="var(--feature)" stroke-width="2.2">
+            <path d="M 470 180 C 490 180 490 78 510 78"></path>
+            <path d="M 510 78 H 618"></path>
+            <path d="M 618 78 C 638 78 638 180 658 179" marker-end="url(#b-feature)"></path>
+          </g>
+          <g fill="var(--feature)">
+            <circle cx="524" cy="78" r="5"></circle>
+            <circle cx="560" cy="78" r="5"></circle>
+            <circle cx="596" cy="78" r="5"></circle>
+          </g>
+          <text class="branch-label t-feature" x="510" y="63">feature/vote-tallies</text>
+
+          <!-- ============ release cut from develop ============ -->
+          <path d="M 470 180 C 490 180 490 285 512 285" fill="none" stroke="var(--staging)" stroke-width="2.2" marker-end="url(#b-staging)"></path>
+          <line x1="512" y1="285" x2="700" y2="285" stroke="var(--staging)" stroke-width="3.5" stroke-linecap="round"></line>
+          <g fill="var(--staging)">
+            <circle cx="540" cy="285" r="6"></circle>
+            <circle cx="600" cy="285" r="6"></circle>
+          </g>
+          <text class="branch-label t-staging" x="512" y="270">cut when feature complete</text>
+          <text class="branch-label t-staging" x="512" y="307">bug fixes only</text>
+
+          <!-- release into production -->
+          <path d="M 700 285 C 720 285 720 425 738 425" fill="none" stroke="var(--staging)" stroke-width="2.2" marker-end="url(#b-staging)"></path>
+          <!-- release back into develop, so fixes are not lost -->
+          <path d="M 700 285 C 720 285 720 180 743 180" fill="none" stroke="var(--staging)" stroke-width="2.2" stroke-dasharray="5 5" marker-end="url(#b-staging)"></path>
+          <text class="branch-label t-staging" x="756" y="238">merge back down</text>
+
+          <!-- ============ hotfix ============ -->
+          <path d="M 806 425 C 826 425 826 355 846 355" fill="none" stroke="var(--hotfix)" stroke-width="2.2"></path>
+          <line x1="846" y1="355" x2="866" y2="355" stroke="var(--hotfix)" stroke-width="3.5" stroke-linecap="round"></line>
+          <circle cx="858" cy="355" r="6" fill="var(--hotfix)"></circle>
+          <path d="M 866 355 C 886 355 886 425 898 424" fill="none" stroke="var(--hotfix)" stroke-width="2.2" marker-end="url(#b-hotfix)"></path>
+          <path d="M 866 355 C 890 355 890 180 913 180" fill="none" stroke="var(--hotfix)" stroke-width="2.2" stroke-dasharray="5 5" marker-end="url(#b-hotfix)"></path>
+          <circle cx="806" cy="425" r="5" fill="var(--trunk)"></circle>
+          <text class="branch-label t-hotfix" x="858" y="487" text-anchor="middle">hotfix/1.4.1 cut from main</text>
+        </svg>
+      </div>
+      <figcaption>Solid arrows promote code upward toward production. Dashed arrows carry
+        it back down, which is the step teams forget: a fix made on staging or in an
+        emergency has to land on <span class="mono">develop</span> too, or the next release
+        quietly undoes it.</figcaption>
+    </figure>
+
+    <div class="lanes">
+      <div class="lane-row">
+        <div class="who">
+          <span class="chip c-feature">feature/*</span>
+        </div>
+        <div>
+          <p>One branch, one topic, cut from <code>develop</code> and merged back into
+            <code>develop</code>. Never cut a feature branch from another feature branch:
+            your pull request then contains someone else's unreviewed work.</p>
+          <p class="env">lives hours to a few days &middot; no environment of its own</p>
+        </div>
+      </div>
+      <div class="lane-row">
+        <div class="who">
+          <span class="chip c-integrate">develop</span>
+        </div>
+        <div>
+          <p>Where finished features meet each other for the first time. This is the branch
+            that answers "do these 6 changes still work together". It is expected to break
+            sometimes, and that is what it is for.</p>
+          <p class="env">permanent &middot; deploys to the dev site automatically</p>
+        </div>
+      </div>
+      <div class="lane-row">
+        <div class="who">
+          <span class="chip c-staging">release/1.4</span>
+        </div>
+        <div>
+          <p>Cut from <code>develop</code> when a release is feature complete. From that
+            moment it takes bug fixes only. New features keep landing on
+            <code>develop</code> for the release after this one, so nobody has to stop
+            working while testing happens.</p>
+          <p class="env">lives days to weeks &middot; deploys to staging, where QA signs off</p>
+        </div>
+      </div>
+      <div class="lane-row">
+        <div class="who">
+          <span class="chip c-trunk">main</span>
+        </div>
+        <div>
+          <p>Exactly what is live for real people, and nothing else. Nobody commits to it
+            directly. Every commit on it is a merge from a release or a hotfix, and every
+            one gets a version tag so you can name and roll back to any past release.</p>
+          <p class="env">permanent &middot; deploys to production &middot; tagged v1.4.0, v1.4.1</p>
+        </div>
+      </div>
+      <div class="lane-row">
+        <div class="who">
+          <span class="chip c-hotfix">hotfix/*</span>
+        </div>
+        <div>
+          <p>The only path that skips the queue, for when production is broken right now.
+            Cut from <code>main</code>, not from <code>develop</code>, so it carries the fix
+            and nothing else. Merge it into <code>main</code> and then into
+            <code>develop</code> as well.</p>
+          <p class="env">lives hours &middot; tests on staging before production if there is any time at all</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================ 3 -->
+  <section>
+    <div class="col">
+      <p class="eyebrow">Part 3 &middot; the honest comparison</p>
+      <h2>Which of the 2 should you use</h2>
+      <p>Both graphs above are correct practice. They solve different problems, and the
+        choice is really a question about your release rhythm, not about tidiness.</p>
+    </div>
+
+    <div class="compare">
+      <div class="card picked">
+        <span class="tag">what this repo runs today</span>
+        <h3>Trunk based</h3>
+        <ul>
+          <li>1 permanent branch. Short branches off it, squashed back in.</li>
+          <li>Nothing waits. 28 changes reached real people in the last 24 hours.</li>
+          <li>Branches live hours, so merge conflicts stay small.</li>
+          <li>Safety comes from automated checks and small changes, not from a staging queue.</li>
+          <li>Costs you this: there is no rehearsal environment holding a full release, so a
+            bad change reaches production and gets fixed forward.</li>
+        </ul>
+      </div>
+      <div class="card">
+        <span class="tag">the reference model above</span>
+        <h3>Dev, staging, production branches</h3>
+        <ul>
+          <li>3 permanent branches, each mirroring a deployed environment.</li>
+          <li>A human can sign off on a whole release on staging before anyone sees it.</li>
+          <li>Version tags make "roll back to last Tuesday" a real, 1 command answer.</li>
+          <li>Costs you this: a finished change can wait days for the next release.</li>
+          <li>And this: the same fix has to be merged in 2 or 3 places, which is the step
+            people forget and the reason fixes come back from the dead.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="col">
+      <p style="margin-top:22px">Pick the second one when a release needs human sign off,
+        when you ship on a schedule rather than continuously, or when a broken production
+        is expensive enough that a rehearsal is worth the delay. Pick the first when you can
+        make releasing boring enough to do 28 times a day. The mistake is running the second
+        model's branch names with none of its discipline: a <code>develop</code> branch that
+        nothing deploys, and a staging branch nobody tests, buy the delay without the
+        safety.</p>
+    </div>
+  </section>
+
+  <!-- ============================================================ 4 -->
+  <section>
+    <div class="col">
+      <p class="eyebrow">Part 4 &middot; habits</p>
+      <h2>The 5 habits that keep either graph clean</h2>
+      <p>These are in order on purpose. Each one only works if the one before it held.</p>
+
+      <ol class="rules">
+        <li>
+          <h3>Start from the branch you will merge back into</h3>
+          <p>The base is different in the 2 graphs, so name it every time rather than
+            trusting where your laptop is pointing. In this repository there is no
+            <code>develop</code>, so a feature branch is cut from <code>main</code>. In the
+            reference flow a feature branch is cut from <code>develop</code> and a hotfix
+            from <code>main</code>.</p>
+          <p>Cutting from wherever your laptop happened to be pointing is how someone else's
+            half finished work ends up inside your pull request.</p>
+        </li>
+        <li>
+          <h3>One topic per branch, named so a stranger can guess it</h3>
+          <p><code>feature/bill-search-filters</code> tells the next person what is in it.
+            <code>fix-stuff</code> and <code>my-branch-2</code> do not, and a branch nobody
+            can identify is a branch nobody dares delete. That is exactly how this repo
+            reached 53 abandoned ones.</p>
+        </li>
+        <li>
+          <h3>Bring the base to you every day, not once at the end</h3>
+          <p>Run <code>git fetch origin</code> and rebase onto your base branch daily.
+            Conflicts are cheap when they are 1 day wide and brutal when they are 987
+            commits wide. This single habit is the difference between the blue arcs and the
+            grey dead ends in the first graph.</p>
+        </li>
+        <li>
+          <h3>Re-run the checks after the base moves</h3>
+          <p>A green checkmark is a statement about the code your branch was tested against.
+            If the base branch moved since then, that statement has expired. Two changes can
+            each pass alone and fail together, and this has already happened here: a change
+            removed a database write while another added a test asserting that exact write.
+            No file conflicted, both were green, and the trunk broke.</p>
+        </li>
+        <li>
+          <h3>Delete the branch the moment it merges</h3>
+          <p>Its commits are safely on the base branch, so nothing is lost. Turn on the
+            repository setting that deletes the remote branch automatically, then prune your
+            own copies. 178 already merged branches are sitting on this laptop right now.</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ============================================================ 5 -->
+  <section>
+    <div class="col">
+      <p class="eyebrow">Part 5 &middot; the commands</p>
+      <h2>Doing it, in the reference flow</h2>
+      <p>Start a feature. Note that the base is named explicitly, so it does not matter
+        which branch you were on:</p>
+    </div>
+    <pre><span class="cmt"># 1. get the real state of the shared branches first</span>
+git fetch origin
+
+<span class="cmt"># 2. branch from develop, explicitly, and name the topic</span>
+git switch -c feature/bill-search-filters origin/develop
+
+<span class="cmt"># 3. work, committing in small pieces</span>
+git add -p
+git commit -m "Add chamber filter to bill search"
+
+<span class="cmt"># 4. every morning, bring develop to you</span>
+git fetch origin
+git rebase origin/develop
+
+<span class="cmt"># 5. push and open the pull request against develop</span>
+git push -u origin feature/bill-search-filters
+gh pr create --base develop</pre>
+
+    <div class="col">
+      <p>Promote a release. The release branch is cut once, then only ever receives fixes:</p>
+    </div>
+    <pre><span class="cmt"># cut staging from develop when the release is feature complete</span>
+git switch -c release/1.4 origin/develop
+git push -u origin release/1.4
+
+<span class="cmt"># QA finds a bug: fix it on the release branch, not on develop</span>
+git switch release/1.4
+git commit -m "Fix empty filter state on staging"
+
+<span class="cmt"># ship it: open the pull request into production, then actually merge it</span>
+gh pr create --base main --head release/1.4
+gh pr merge &lt;number&gt; --merge
+
+<span class="cmt"># only now does main point at the release, so only now is the tag correct</span>
+git switch main &amp;&amp; git pull
+git tag -a v1.4.0 -m "Release 1.4.0"
+git push origin v1.4.0
+
+<span class="cmt"># then merge back down, or the next release undoes the QA fixes</span>
+gh pr create --base develop --head release/1.4</pre>
+
+    <div class="col">
+      <p>The order in that block is the whole point. Opening a pull request does not merge
+        it, so tagging before the merge lands puts <code>v1.4.0</code> on the commit that was
+        live <em>before</em> the release, and the tag then names the wrong thing forever.
+        Tag only after <code>git pull</code> has actually moved <code>main</code>.</p>
+      <p>2 more things that bite here. Use a merge rather than a squash into
+        <code>main</code>, so production history keeps the release's commits. And keep
+        <code>release/1.4</code> alive until it has also been merged into
+        <code>develop</code>: a repository set to delete branches on merge will otherwise
+        remove it the moment it reaches production, taking the QA fixes with it.</p>
+    </div>
+
+    <div class="col">
+      <p>Clean up. Safe, because <code>--merged</code> only ever lists branches whose work
+        is already in the branch you name. Name the branch you actually merged into:
+        <code>origin/develop</code> for a feature in the reference flow, and
+        <code>origin/main</code> in this repository, which has no <code>develop</code>.
+        Checking a feature branch against <code>main</code> in the reference flow reports it
+        as unmerged for as long as the release is still in testing, which is one of the ways
+        finished branches quietly pile up:</p>
+    </div>
+    <pre><span class="cmt"># which local branches are already merged into their base, and so deletable</span>
+git branch --merged origin/develop
+
+<span class="cmt"># delete them (-d refuses anything unmerged, unlike -D)</span>
+<span class="cmt"># skip * (the branch you are on) and + (a branch checked out in another worktree)</span>
+git branch --merged origin/develop | grep -v '[*+]' | xargs -n 1 git branch -d
+
+<span class="cmt"># forget remote branches that no longer exist on the server</span>
+git fetch --prune</pre>
+  </section>
+
+  <!-- ============================================================ 6 -->
+  <section>
+    <div class="col">
+      <p class="eyebrow">Part 6 &middot; reading a repo yourself</p>
+      <h2>How the numbers on this page were measured</h2>
+      <p>Run these in any repository to see its real shape rather than its intended one.
+        Every figure above came from them. They name <code>origin/main</code> because that is
+        this repository's only long lived branch; on a team running the 3 branch model, ask
+        the same questions against <code>origin/develop</code> as well, since that is where
+        its feature branches are supposed to land.</p>
+    </div>
+    <pre><span class="cmt"># how many shared branches never came back (53 here)</span>
+git branch -r --no-merged origin/main | wc -l
+
+<span class="cmt"># how many of your local branches are finished and deletable (178 here)</span>
+git branch --merged origin/main | wc -l
+
+<span class="cmt"># how far behind the trunk each unmerged branch has drifted</span>
+for b in $(git branch -r --no-merged origin/main | grep -v HEAD); do
+  echo "$(git rev-list --count $b..origin/main) behind  $b"
+done | sort -rn | head
+
+<span class="cmt"># the shape of the trunk itself: linear, or a thicket</span>
+git log --graph --oneline -20 origin/main</pre>
+
+    <div class="col">
+      <ul class="fails">
+        <li>
+          <span class="sym">The number that tells you the most</span>
+          <p><b>How far behind the trunk your oldest open branch is.</b> Under 20 means the
+            team merges. In the hundreds means branches are being opened and forgotten, and
+            no amount of process will fix that until the habit changes.</p>
+        </li>
+        <li>
+          <span class="sym">The number that lies</span>
+          <p><b>Total branch count.</b> 408 branches on this laptop sounds alarming and
+            mostly is not: 178 are finished work awaiting cleanup, and none is older than
+            30 days. Split the count by merged and unmerged before drawing any conclusion
+            from it.</p>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>
+    <p>Measured on 13 August 2026 against <span class="mono">origin/main</span> at
+      <span class="mono">bbbe433e</span>: 1007 commits, 971 merged pull requests, 16 open,
+      64 shared branches, 408 local branches, 187 worktrees. This repository merges by
+      squash only, deletes branches on merge, requires 3 checks
+      (<span class="mono">changes</span>, <span class="mono">backend</span>,
+      <span class="mono">frontend</span>) plus a branch tested against current
+      <span class="mono">main</span>, and requires 0 approvals.</p>
+    <p>The written conventions this page illustrates live in
+      <span class="mono">CONTRIBUTING.md</span>, section "Branch &amp; PR workflow". Where
+      the 2 disagree, that file wins.</p>
+  </footer>
+
+</div>
+
+</body>
+</html>
