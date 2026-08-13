@@ -797,44 +797,54 @@ def test_a_truncated_list_says_so_and_pages_without_repeating_a_row(db):
     ``.claude/rules/grounded-answers.md`` rule 11 forbids of a generated answer, arriving
     here through a limit instead.
 
-    Paging orders by the row's date and then its record number, which is unique within a
-    snapshot. It must not order by contents: 15,786 contribution rows in the live release
-    share theirs with another row, so a content-keyed order could repeat or skip one.
+    Paging orders by the row's date, newest first, and then by its record number, which is
+    unique within a snapshot. It must not order by contents: 15,786 contribution rows in
+    the live release share theirs with another row, so a content-keyed order could repeat
+    or skip one.
+
+    The 5 rows are laid out so the dates and the amounts disagree, and so 2 of them share a
+    date. Ordered any other plausible way -- by amount, by date ascending, or by date with
+    no tie-breaker -- the pages below come back in a different sequence.
     """
     published = Published(db)
-    for index in range(5):
+    # (amount, date). Deliberately not in step: sorting by amount puts 104 first while
+    # sorting by date puts 100 first, and records 3 and 4 tie on the date so only the
+    # record-number tie-breaker decides which of them a page shows.
+    laid_out = (
+        ("100", date(2025, 6, 5)),
+        ("101", date(2025, 6, 1)),
+        ("102", date(2025, 6, 3)),
+        ("103", date(2025, 6, 3)),
+        ("104", date(2025, 6, 2)),
+    )
+    for amount, on in laid_out:
         _receipt(
             db,
             published.contributions,
             contributor="Messinger, Alida",
-            amount=str(100 + index),
-            on=date(2025, 6, 1 + index),
+            amount=amount,
+            on=on,
         )
     db.commit()
     release = _release(db)
 
-    first = payments_from_contributor(
-        db, release, contributor="Messinger, Alida", limit=2
-    )
-    second = payments_from_contributor(
-        db, release, contributor="Messinger, Alida", limit=2, offset=2
-    )
-    last = payments_from_contributor(
-        db, release, contributor="Messinger, Alida", limit=2, offset=4
-    )
-
-    assert first.has_more is True
-    assert second.has_more is True
-    assert last.has_more is False
-    seen = [
-        payment.record_number
-        for page in (first, second, last)
-        for payment in page.payments
+    pages = [
+        payments_from_contributor(
+            db, release, contributor="Messinger, Alida", limit=2, offset=offset
+        )
+        for offset in (0, 2, 4)
     ]
+
+    assert [page.has_more for page in pages] == [True, True, False]
+    seen = [payment.record_number for page in pages for payment in page.payments]
     assert len(seen) == len(set(seen)) == 5
-    assert [payment.amount for payment in first.payments] == [
-        Decimal("104"),
+    # Newest date first; the same-date pair ordered by the later record number first.
+    assert [payment.amount for page in pages for payment in page.payments] == [
+        Decimal("100"),
         Decimal("103"),
+        Decimal("102"),
+        Decimal("104"),
+        Decimal("101"),
     ]
 
 
@@ -940,7 +950,7 @@ def test_the_route_serves_a_committees_rows_with_its_citation(db, client):
     assert len(body["payments"]) == 2
     assert body["linkable_registration_numbers"] == [STATE_PARTY]
     assert body["source_url"].endswith("contributions.csv")
-    assert body["has_more"] is False
+    assert body["page"]["has_more"] is False
     assert body["payments"][0]["record_number"] >= 1
     # No total anywhere in the payload, because every figure a page may print comes from
     # /committees/{n}/finance where the source's traps are enforced.

@@ -2899,6 +2899,15 @@ def committee_finance_for_year(
 def _payment_page_payload(page: PaymentPage) -> dict:
     """One block of payments, over HTTP.
 
+    A detail envelope rather than a collection envelope, deliberately. ``state`` decides
+    whether ``payments`` may be read at all -- an empty list is 3 different facts and only
+    2 of them are about the record -- and a top-level ``data: []`` invites a client to
+    render the list without reading the state, which is the missing-versus-zero failure
+    ``.claude/rules/grounded-answers.md`` rule 12 forbids. So ``state`` is a sibling of
+    ``payments`` and the paging keys keep the names and the place
+    ``docs/architecture/backend-api-system-design.md`` (Pagination -- offset, deliberately)
+    already gives them.
+
     ``asdict`` rather than a hand-written mapping per payment shape: the 3 shapes are the
     3 downloads' own columns, and a hand-written mapping is where a column quietly stops
     being served after the source gains one.
@@ -2906,9 +2915,11 @@ def _payment_page_payload(page: PaymentPage) -> dict:
     return {
         "state": page.state,
         "payments": [asdict(payment) for payment in page.payments],
-        "has_more": page.has_more,
-        "limit": page.limit,
-        "offset": page.offset,
+        "page": {
+            "limit": page.limit,
+            "offset": page.offset,
+            "has_more": page.has_more,
+        },
         "linkable_registration_numbers": sorted(page.linkable_registration_numbers),
         "dataset": page.dataset.value,
         "source_url": page.source_url,

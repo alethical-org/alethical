@@ -440,247 +440,179 @@ def _fetch(
     return list(rows[:limit]), len(rows) > limit
 
 
-_CONTRIBUTION_COLUMNS = (
-    "recipient_reg_num, recipient, recipient_type, contributor, contrib_reg_num, "
-    "contrib_type, contrib_employer_name, amount, receipt_date, year, receipt_type, "
-    "in_kind, in_kind_descr, row_number"
-)
+# --- One driver over 3 downloads ---------------------------------------------
+#
+# The scaffolding is shared deliberately rather than written once per download. Its
+# subtlety is the order inside `_empty_state` -- staleness before coverage -- and 3 copies
+# of that is 3 places for it to drift, where only one would get fixed.
 
 
-def _contribution_payments(
-    db: Session,
-    release: Release,
-    *,
-    key_column: str,
-    key_value: str,
-    year: Optional[int],
-    limit: int,
-    offset: int,
-    link_column: Optional[str],
-) -> PaymentPage:
-    """A page of contribution rows found by one column, with no figure computed.
+def _contribution_from_row(row) -> ContributionPayment:
+    return ContributionPayment(
+        recipient_registration_number=row[0],
+        recipient_name=row[1],
+        recipient_type=row[2],
+        contributor=row[3],
+        contributor_registration_number=_clean_registration_number(row[4]),
+        contributor_type=row[5],
+        employer=row[6],
+        amount=row[7],
+        received_on=row[8],
+        year=int(row[9]) if row[9] is not None else None,
+        receipt_type=row[10],
+        in_kind=row[11],
+        in_kind_description=row[12],
+        record_number=int(row[13]),
+    )
 
-    Every ``Receipt type`` is listed and each row carries its own. Nothing is filtered to
-    ``Contribution``, because that filter exists to keep a *total* honest and there is no
-    total here: dropping the other 3 types would instead lose real money the Board
-    published -- a candidate's loan to her own campaign, most often -- from a list of what
-    the record says.
 
-    ``link_column`` names which end of the row carries a counterparty number worth
-    resolving, or ``None`` where the counterparty is a bare name.
+def _expenditure_from_row(row) -> ExpenditurePayment:
+    return ExpenditurePayment(
+        committee_registration_number=row[0],
+        committee_name=row[1],
+        vendor_name=row[2],
+        vendor_city=row[3],
+        vendor_state=row[4],
+        affected_committee_name=row[5],
+        affected_committee_registration_number=_clean_registration_number(row[6]),
+        amount=row[7],
+        unpaid_amount=row[8],
+        paid_on=row[9],
+        year=int(row[10]) if row[10] is not None else None,
+        expenditure_type=row[11],
+        purpose=row[12],
+        in_kind=row[13],
+        in_kind_description=row[14],
+        record_number=int(row[15]),
+    )
+
+
+def _independent_from_row(row) -> IndependentPayment:
+    return IndependentPayment(
+        spender=row[0],
+        spender_registration_number=row[1],
+        affected_committee_name=row[2],
+        affected_committee_registration_number=_clean_registration_number(row[3]),
+        stance=row[4],
+        vendor_name=row[5],
+        amount=row[6],
+        unpaid_amount=row[7],
+        paid_on=row[8],
+        year=int(row[9]) if row[9] is not None else None,
+        expenditure_type=row[10],
+        purpose=row[11],
+        record_number=int(row[12]),
+    )
+
+
+@dataclass(frozen=True)
+class _Download:
+    """Which download a lookup reads, and how to turn one of its rows into a payment.
+
+    ``columns`` is this module's own constant and mirrors the download's own column order,
+    which is what the row-building functions above index into. A column added here without
+    being added there shifts every field after it, which is why the 2 sit side by side.
     """
-    try:
-        rows, has_more = _fetch(
-            db,
-            columns=_CONTRIBUTION_COLUMNS,
-            table="cf_contribution_row",
-            key_column=key_column,
-            key_value=key_value,
-            date_column="receipt_date",
-            snapshot_id=release.contributions.snapshot_id,
-            year=year,
-            limit=limit,
-            offset=offset,
-        )
-        if not rows:
-            state = _empty_state(db, release, Dataset.contributions, year)
-            return _page(
-                state=state,
-                payments=(),
-                has_more=False,
-                limit=limit,
-                offset=offset,
-                linkable=frozenset(),
-                release=release,
-                dataset=Dataset.contributions,
-            )
-    except ReleaseNoLongerHeld:
-        return _unavailable(release, Dataset.contributions, limit=limit, offset=offset)
 
-    payments = tuple(
-        ContributionPayment(
-            recipient_registration_number=row[0],
-            recipient_name=row[1],
-            recipient_type=row[2],
-            contributor=row[3],
-            contributor_registration_number=_clean_registration_number(row[4]),
-            contributor_type=row[5],
-            employer=row[6],
-            amount=row[7],
-            received_on=row[8],
-            year=int(row[9]) if row[9] is not None else None,
-            receipt_type=row[10],
-            in_kind=row[11],
-            in_kind_description=row[12],
-            record_number=int(row[13]),
-        )
-        for row in rows
-    )
-    linkable: frozenset[str] = frozenset()
-    if link_column == "contrib_reg_num":
-        linkable = linkable_committees(
-            db,
-            release,
-            [
-                payment.contributor_registration_number
-                for payment in payments
-                if payment.contributor_registration_number
-            ],
-        )
-    elif link_column == "recipient_reg_num":
-        # The recipient is a filer by construction -- these rows are its own filing --
-        # so the number resolves without asking. Stated rather than queried so nobody
-        # reads the empty set below as "nothing is linkable here".
-        linkable = frozenset(
-            payment.recipient_registration_number
-            for payment in payments
-            if payment.recipient_registration_number
-        )
-    return _page(
-        state=REPORTED,
-        payments=payments,
-        has_more=has_more,
-        limit=limit,
-        offset=offset,
-        linkable=linkable,
-        release=release,
-        dataset=Dataset.contributions,
-    )
+    dataset: Dataset
+    table: str
+    columns: str
+    date_column: str
+    build: object
 
 
-_EXPENDITURE_COLUMNS = (
-    "committee_reg_num, committee_name, vendor_name, vendor_city, vendor_state, "
-    "affected_committee_name, affected_committee_reg_num, amount, unpaid_amount, "
-    "transaction_date, year, type, purpose, in_kind, in_kind_descr, row_number"
+_CONTRIBUTIONS = _Download(
+    dataset=Dataset.contributions,
+    table="cf_contribution_row",
+    columns=(
+        "recipient_reg_num, recipient, recipient_type, contributor, contrib_reg_num, "
+        "contrib_type, contrib_employer_name, amount, receipt_date, year, receipt_type, "
+        "in_kind, in_kind_descr, row_number"
+    ),
+    date_column="receipt_date",
+    build=_contribution_from_row,
+)
+
+_EXPENDITURES = _Download(
+    dataset=Dataset.expenditures,
+    table="cf_expenditure_row",
+    columns=(
+        "committee_reg_num, committee_name, vendor_name, vendor_city, vendor_state, "
+        "affected_committee_name, affected_committee_reg_num, amount, unpaid_amount, "
+        "transaction_date, year, type, purpose, in_kind, in_kind_descr, row_number"
+    ),
+    date_column="transaction_date",
+    build=_expenditure_from_row,
+)
+
+_INDEPENDENT = _Download(
+    dataset=Dataset.independent_expenditures,
+    table="cf_independent_expenditure_row",
+    columns=(
+        "spender, spender_reg_num, affected_committee_name, affected_committee_reg_num, "
+        "for_against, vendor_name, amount, unpaid_amount, transaction_date, year, type, "
+        "purpose, row_number"
+    ),
+    date_column="transaction_date",
+    build=_independent_from_row,
 )
 
 
-def _expenditure_payments(
+def _numbers(payments: tuple, attributes: Sequence[str]) -> list[str]:
+    """The registration numbers these payments carry under the named fields."""
+    return [
+        number
+        for payment in payments
+        for number in (getattr(payment, attribute) for attribute in attributes)
+        if number
+    ]
+
+
+def _payments(
     db: Session,
     release: Release,
+    download: _Download,
     *,
     key_column: str,
     key_value: str,
     year: Optional[int],
     limit: int,
     offset: int,
-    link_column: Optional[str],
+    numbers_that_are_filers_here: Sequence[str] = (),
+    numbers_to_check: Sequence[str] = (),
 ) -> PaymentPage:
-    """A page of expenditure rows found by one column, with no figure computed."""
+    """One page of one download's rows, found by one column, with no figure computed.
+
+    Nothing is filtered by the source's own labels. Every ``Receipt type`` and every
+    expenditure ``Type`` is listed and each row carries its own, because those filters
+    exist to keep a *total* honest and there is no total here -- dropping a label would
+    instead lose real money the Board published from a list of what the record says.
+
+    The 2 number arguments are the fields whose registration numbers a surface might
+    follow, and they are separate because the claims differ in strength.
+    ``numbers_that_are_filers_here`` are filers by construction: these rows *are* those
+    committees' own filings, so no lookup is needed and stating it beats an empty set a
+    reader would misread as "nothing is linkable". ``numbers_to_check`` arrive on somebody
+    else's filing, where a number can be a lobbyist's or a local candidate's, so each one
+    is resolved against the filers we hold.
+    """
+    dataset = download.dataset
     try:
         rows, has_more = _fetch(
             db,
-            columns=_EXPENDITURE_COLUMNS,
-            table="cf_expenditure_row",
+            columns=download.columns,
+            table=download.table,
             key_column=key_column,
             key_value=key_value,
-            date_column="transaction_date",
-            snapshot_id=release.expenditures.snapshot_id,
+            date_column=download.date_column,
+            snapshot_id=release.file_for(dataset).snapshot_id,
             year=year,
             limit=limit,
             offset=offset,
         )
         if not rows:
-            state = _empty_state(db, release, Dataset.expenditures, year)
             return _page(
-                state=state,
-                payments=(),
-                has_more=False,
-                limit=limit,
-                offset=offset,
-                linkable=frozenset(),
-                release=release,
-                dataset=Dataset.expenditures,
-            )
-    except ReleaseNoLongerHeld:
-        return _unavailable(release, Dataset.expenditures, limit=limit, offset=offset)
-
-    payments = tuple(
-        ExpenditurePayment(
-            committee_registration_number=row[0],
-            committee_name=row[1],
-            vendor_name=row[2],
-            vendor_city=row[3],
-            vendor_state=row[4],
-            affected_committee_name=row[5],
-            affected_committee_registration_number=_clean_registration_number(row[6]),
-            amount=row[7],
-            unpaid_amount=row[8],
-            paid_on=row[9],
-            year=int(row[10]) if row[10] is not None else None,
-            expenditure_type=row[11],
-            purpose=row[12],
-            in_kind=row[13],
-            in_kind_description=row[14],
-            record_number=int(row[15]),
-        )
-        for row in rows
-    )
-    linkable: frozenset[str] = frozenset()
-    if link_column == "affected_committee_reg_num":
-        linkable = linkable_committees(
-            db,
-            release,
-            [
-                payment.affected_committee_registration_number
-                for payment in payments
-                if payment.affected_committee_registration_number
-            ],
-        )
-    elif link_column == "committee_reg_num":
-        linkable = frozenset(
-            payment.committee_registration_number
-            for payment in payments
-            if payment.committee_registration_number
-        )
-    return _page(
-        state=REPORTED,
-        payments=payments,
-        has_more=has_more,
-        limit=limit,
-        offset=offset,
-        linkable=linkable,
-        release=release,
-        dataset=Dataset.expenditures,
-    )
-
-
-_INDEPENDENT_COLUMNS = (
-    "spender, spender_reg_num, affected_committee_name, affected_committee_reg_num, "
-    "for_against, vendor_name, amount, unpaid_amount, transaction_date, year, type, "
-    "purpose, row_number"
-)
-
-
-def _independent_payments(
-    db: Session,
-    release: Release,
-    *,
-    key_column: str,
-    key_value: str,
-    year: Optional[int],
-    limit: int,
-    offset: int,
-) -> PaymentPage:
-    """A page of independent-expenditure rows found by one column."""
-    dataset = Dataset.independent_expenditures
-    try:
-        rows, has_more = _fetch(
-            db,
-            columns=_INDEPENDENT_COLUMNS,
-            table="cf_independent_expenditure_row",
-            key_column=key_column,
-            key_value=key_value,
-            date_column="transaction_date",
-            snapshot_id=release.independent_expenditures.snapshot_id,
-            year=year,
-            limit=limit,
-            offset=offset,
-        )
-        if not rows:
-            state = _empty_state(db, release, dataset, year)
-            return _page(
-                state=state,
+                state=_empty_state(db, release, dataset, year),
                 payments=(),
                 has_more=False,
                 limit=limit,
@@ -692,40 +624,15 @@ def _independent_payments(
     except ReleaseNoLongerHeld:
         return _unavailable(release, dataset, limit=limit, offset=offset)
 
-    payments = tuple(
-        IndependentPayment(
-            spender=row[0],
-            spender_registration_number=row[1],
-            affected_committee_name=row[2],
-            affected_committee_registration_number=_clean_registration_number(row[3]),
-            stance=row[4],
-            vendor_name=row[5],
-            amount=row[6],
-            unpaid_amount=row[7],
-            paid_on=row[8],
-            year=int(row[9]) if row[9] is not None else None,
-            expenditure_type=row[10],
-            purpose=row[11],
-            record_number=int(row[12]),
-        )
-        for row in rows
-    )
-    numbers = [
-        number
-        for payment in payments
-        for number in (
-            payment.spender_registration_number,
-            payment.affected_committee_registration_number,
-        )
-        if number
-    ]
+    payments = tuple(download.build(row) for row in rows)
     return _page(
         state=REPORTED,
         payments=payments,
         has_more=has_more,
         limit=limit,
         offset=offset,
-        linkable=linkable_committees(db, release, numbers),
+        linkable=frozenset(_numbers(payments, numbers_that_are_filers_here))
+        | linkable_committees(db, release, _numbers(payments, numbers_to_check)),
         release=release,
         dataset=dataset,
     )
@@ -751,15 +658,16 @@ def payments_received(
     text, which is what §5 requires and what the measurements in this module's docstring
     make necessary.
     """
-    return _contribution_payments(
+    return _payments(
         db,
         release,
+        _CONTRIBUTIONS,
         key_column="recipient_reg_num",
         key_value=registration_number,
         year=year,
         limit=limit,
         offset=offset,
-        link_column="contrib_reg_num",
+        numbers_to_check=("contributor_registration_number",),
     )
 
 
@@ -779,15 +687,16 @@ def payments_made(
     registration number. Both are here because both are money out, and the row's own
     ``expenditure_type`` is what tells them apart.
     """
-    return _expenditure_payments(
+    return _payments(
         db,
         release,
+        _EXPENDITURES,
         key_column="committee_reg_num",
         key_value=registration_number,
         year=year,
         limit=limit,
         offset=offset,
-        link_column="affected_committee_reg_num",
+        numbers_to_check=("affected_committee_registration_number",),
     )
 
 
@@ -810,14 +719,19 @@ def independent_payments_about(
     than to silence, and saying which is ``committee_finance.independent_spending_about``'s
     job; this returns the rows behind whatever that reports.
     """
-    return _independent_payments(
+    return _payments(
         db,
         release,
+        _INDEPENDENT,
         key_column="affected_committee_reg_num",
         key_value=registration_number,
         year=year,
         limit=limit,
         offset=offset,
+        numbers_to_check=(
+            "spender_registration_number",
+            "affected_committee_registration_number",
+        ),
     )
 
 
@@ -845,15 +759,16 @@ def payments_from_contributor(
     ``recipient_registration_number``, and each of those numbers is linkable because
     these are those committees' own filings.
     """
-    return _contribution_payments(
+    return _payments(
         db,
         release,
+        _CONTRIBUTIONS,
         key_column="contributor",
         key_value=contributor,
         year=year,
         limit=limit,
         offset=offset,
-        link_column="recipient_reg_num",
+        numbers_that_are_filers_here=("recipient_registration_number",),
     )
 
 
@@ -873,15 +788,16 @@ def payments_to_vendor(
     491 of its rows share a spender, vendor, amount and date with an expenditure row and
     adding the 2 lists would decide, without evidence, that those are 2 payments.
     """
-    return _expenditure_payments(
+    return _payments(
         db,
         release,
+        _EXPENDITURES,
         key_column="vendor_name",
         key_value=vendor,
         year=year,
         limit=limit,
         offset=offset,
-        link_column="committee_reg_num",
+        numbers_that_are_filers_here=("committee_registration_number",),
     )
 
 
@@ -895,14 +811,19 @@ def independent_payments_to_vendor(
     offset: int = 0,
 ) -> PaymentPage:
     """Every independent-expenditure payment recorded under exactly this vendor string."""
-    return _independent_payments(
+    return _payments(
         db,
         release,
+        _INDEPENDENT,
         key_column="vendor_name",
         key_value=vendor,
         year=year,
         limit=limit,
         offset=offset,
+        numbers_to_check=(
+            "spender_registration_number",
+            "affected_committee_registration_number",
+        ),
     )
 
 
@@ -924,15 +845,16 @@ def payments_from_donors_typing(
     of anybody's employees. 87,419 rows carry nothing here at all, which is why an empty
     result says only that no row carries this exact string.
     """
-    return _contribution_payments(
+    return _payments(
         db,
         release,
+        _CONTRIBUTIONS,
         key_column="contrib_employer_name",
         key_value=employer,
         year=year,
         limit=limit,
         offset=offset,
-        link_column="recipient_reg_num",
+        numbers_that_are_filers_here=("recipient_registration_number",),
     )
 
 
