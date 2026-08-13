@@ -940,9 +940,12 @@ def test_a_row_with_no_amount_withholds_the_figure_instead_of_inventing_zero(db)
     db.commit()
     finance = _finance(db, CANDIDATE)
     assert finance is not None
-    assert finance.money_in.state == NOT_REPORTED
+    # UNAVAILABLE, not NOT_REPORTED. We hold this committee's rows and cannot add them
+    # up, so the gap is in our copy; saying "not reported" would tell a reader the
+    # committee reported nothing when it plainly reported these rows.
+    assert finance.money_in.state == UNAVAILABLE
     assert finance.money_in.itemized_contribution_total is None
-    assert finance.money_out.state == NOT_REPORTED
+    assert finance.money_out.state == UNAVAILABLE
     assert finance.money_out.itemized_payment_total is None
 
 
@@ -958,7 +961,7 @@ def test_one_blank_amount_beside_a_real_one_withholds_the_whole_figure(db):
     db.commit()
     finance = _finance(db, CANDIDATE)
     assert finance is not None
-    assert finance.money_in.state == NOT_REPORTED
+    assert finance.money_in.state == UNAVAILABLE
     assert finance.money_in.itemized_contribution_total is None
 
 

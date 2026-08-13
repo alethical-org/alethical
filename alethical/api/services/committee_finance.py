@@ -419,7 +419,23 @@ def money_in(
         for bucket in found.other_receipts
     )
     contributions = found.contributions
-    if contributions.rows == 0 or contributions.rows_missing_an_amount:
+    if contributions.rows_missing_an_amount:
+        # We hold this committee's rows and cannot add them up, which is a gap in our
+        # copy rather than silence from the committee. `_empty_state` would call it
+        # `NOT_REPORTED`, because the year is plainly covered -- by these very rows --
+        # and a page would then say this committee reported no itemized contributions
+        # when it did. Found by an automated review (Greptile) after the code and this
+        # module's own docstring had disagreed about it.
+        return MoneyIn(
+            UNAVAILABLE,
+            None,
+            None,
+            others,
+            reported_total,
+            reported_through,
+            source_url,
+        )
+    if contributions.rows == 0:
         return MoneyIn(
             _empty_state(db, release, Dataset.contributions, year),
             None,
@@ -476,7 +492,12 @@ def money_out(
         return MoneyOut(UNAVAILABLE, None, None, (), source_url)
 
     found = next((entry for entry in years if entry.year == year), None)
-    if found is None or any(bucket.rows_missing_an_amount for bucket in found.by_label):
+    if found is not None and any(
+        bucket.rows_missing_an_amount for bucket in found.by_label
+    ):
+        # Rows we hold and cannot total: our gap, not the committee's silence.
+        return MoneyOut(UNAVAILABLE, None, None, (), source_url)
+    if found is None:
         return MoneyOut(
             _empty_state(db, release, Dataset.expenditures, year),
             None,
