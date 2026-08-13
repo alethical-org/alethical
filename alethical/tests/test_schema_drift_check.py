@@ -159,8 +159,8 @@ def test_the_ignore_sets_stay_small_and_deliberate() -> None:
     # before create_all runs, which is why that whole group sits in this set.
     assert len(MIGRATION_ONLY_INDEXES) == 9
     assert TRANSITIONAL_MIGRATION_ONLY_COLUMNS == {
-        "auth_identity.linked_at": "timestamp with time zone NULL",
-        "user_account.last_identity_linked_at": "timestamp with time zone NULL",
+        "auth_identity.last_used_at": "timestamp with time zone NULL",
+        "user_account.last_signed_in_at": "timestamp with time zone NULL",
     }
 
 
@@ -168,7 +168,7 @@ def test_only_the_exact_transition_columns_are_filtered() -> None:
     differences = [
         check_schema_drift.Difference(
             "column",
-            "auth_identity.linked_at",
+            "auth_identity.last_used_at",
             "timestamp with time zone NULL",
             None,
         ),
@@ -180,25 +180,25 @@ def test_only_the_exact_transition_columns_are_filtered() -> None:
         ),
         check_schema_drift.Difference(
             "column",
-            "user_account.last_identity_linked_at",
+            "user_account.last_signed_in_at",
             None,
             "timestamp with time zone NULL",
         ),
         check_schema_drift.Difference(
             "column",
-            "user_account.last_identity_linked_at",
+            "user_account.last_signed_in_at",
             "text NULL",
             None,
         ),
         check_schema_drift.Difference(
             "column",
-            "user_account.last_identity_linked_at",
+            "user_account.last_signed_in_at",
             "timestamp with time zone NOT NULL",
             None,
         ),
         check_schema_drift.Difference(
             "column",
-            "user_account.last_identity_linked_at",
+            "user_account.last_signed_in_at",
             "timestamp with time zone NULL DEFAULT now()",
             None,
         ),
@@ -211,18 +211,18 @@ def test_only_the_exact_transition_columns_are_filtered() -> None:
     ] == [
         ("bill.unexpected", "text NULL", None),
         (
-            "user_account.last_identity_linked_at",
+            "user_account.last_signed_in_at",
             None,
             "timestamp with time zone NULL",
         ),
-        ("user_account.last_identity_linked_at", "text NULL", None),
+        ("user_account.last_signed_in_at", "text NULL", None),
         (
-            "user_account.last_identity_linked_at",
+            "user_account.last_signed_in_at",
             "timestamp with time zone NOT NULL",
             None,
         ),
         (
-            "user_account.last_identity_linked_at",
+            "user_account.last_signed_in_at",
             "timestamp with time zone NULL DEFAULT now()",
             None,
         ),

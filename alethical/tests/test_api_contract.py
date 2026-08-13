@@ -2934,11 +2934,10 @@ def test_tracked_bills_last_visit_is_read_once_then_advanced(client, auth_header
     or a retry, be handed a mark the first had just written, and the page would
     report that nothing had moved.
 
-    Also pinned here: this is a column of its own, NOT ``last_signed_in_at``.
-    ``alethical/api/auth.py`` rewrites that on every authenticated request, so by
-    the time any page rendered it would already read "just now" and nothing could
-    ever be newer than it. An ordinary authenticated GET must leave the new column
-    exactly where it was.
+    Also pinned here: this is a column of its own, NOT
+    ``last_identity_linked_at``. That account date records when a sign-in identity
+    was added, not when someone looked at their tracked list. An ordinary
+    authenticated GET must leave both dates exactly where they were.
     """
     schema = load_schema()
     with Session(get_engine()) as db:
@@ -2972,43 +2971,40 @@ def test_tracked_bills_last_visit_is_read_once_then_advanced(client, auth_header
         assert first_mark
 
         # An ordinary authenticated read must not touch the mark. This is the
-        # last_signed_in_at trap: that column WOULD have moved here.
+        # The identity-link date is independent from this tracked-list visit.
         me_before = client.get("/api/v1/me", headers=auth_headers)
         assert me_before.status_code == 200
         client.get("/api/v1/me/tracked-bills", headers=auth_headers)
         with Session(get_engine()) as db:
-            unchanged, signed_in = db.execute(
+            unchanged, identity_linked = db.execute(
                 select(
                     schema.UserAccount.tracked_bills_last_viewed_at,
-                    schema.UserAccount.last_signed_in_at,
+                    schema.UserAccount.last_identity_linked_at,
                 ).where(schema.UserAccount.id == user_id)
             ).one()
         assert unchanged is not None
         assert unchanged.isoformat() == first_mark
-        # ``last_signed_in_at`` is NOT the tracked-bills mark and cannot stand in for
-        # it. This assertion used to prove that by the opposite fact -- that the read
-        # path rewrote it on every authenticated request, so it always read "just
-        # now". #990 stopped those writes (#108), so it is now set only when an
-        # identity is first provisioned. Both facts rule it out, for opposite
-        # reasons: it used to be always-now, and it is now effectively fixed at
-        # sign-up. What matters either way is that it does not track *looking at your
-        # tracked list*, so the two must move independently.
-        assert signed_in != unchanged, (
-            "last_signed_in_at and the tracked-bills mark must be distinct values -- "
+        # ``last_identity_linked_at`` is NOT the tracked-bills mark and cannot
+        # stand in for it. It changes only when an identity is added, so the two
+        # dates must move independently.
+        assert identity_linked != unchanged, (
+            "last_identity_linked_at and the tracked-bills mark must be distinct "
+            "values -- "
             "if they ever coincide, one is standing in for the other"
         )
-        signed_in_before_more_reads = signed_in
+        identity_linked_before_more_reads = identity_linked
         client.get("/api/v1/me", headers=auth_headers)
         client.get("/api/v1/me/tracked-bills", headers=auth_headers)
         with Session(get_engine()) as db:
-            signed_in_after = db.scalar(
-                select(schema.UserAccount.last_signed_in_at).where(
+            identity_linked_after = db.scalar(
+                select(schema.UserAccount.last_identity_linked_at).where(
                     schema.UserAccount.id == user_id
                 )
             )
-        assert signed_in_after == signed_in_before_more_reads, (
-            "ordinary authenticated reads must not write last_signed_in_at (#108); "
-            "if this fails, the read path has started writing again"
+        assert identity_linked_after == identity_linked_before_more_reads, (
+            "ordinary authenticated reads must not write "
+            "last_identity_linked_at (#108); if this fails, the read path has "
+            "started writing again"
         )
 
         # The second visit is handed the FIRST visit's mark, and moves it on.

@@ -69,7 +69,7 @@ they're for, so the right one can be found without reading every file:
 | `scripts/check_bill_section_gaps.py` | Finds a bill whose saved text is missing pieces the state actually published (also runs on the daily clock above) | No |
 | `scripts/check_rag_coverage.py` | Finds a bill that's saved but invisible to search (also runs on the daily clock above) | No |
 | `scripts/check_home_hero_card_literals.py` | Checks the homepage's stated facts against the official record (also runs on the monthly clock above) | No |
-| `scripts/check_schema_drift.py` | Checks that the database's actual structure matches what the code expects. During issue #1045's 3-release account-date rename, it allows only the 2 exact extra columns that keep old and new Railway copies working together; the final release removes that allowance | No |
+| `scripts/check_schema_drift.py` | Checks that the database's actual structure matches what the code expects. During issue #1045's 3-release account-date rename, it allows only the 2 exact old-name columns that keep old and new Railway copies working together; the final release removes those columns and the allowance | No |
 | `scripts/check_declared_dependencies.py` | Checks the code isn't secretly relying on an outside package it never officially listed | No |
 | `scripts/check_doc_references.py` | Checks every link from one page of notes to another actually goes somewhere real | No |
 | `scripts/check_doc_sync.py` | Checks a code change was checked against the plain-language guide that describes it | No |

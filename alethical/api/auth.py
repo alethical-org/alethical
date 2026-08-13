@@ -178,9 +178,8 @@ def get_optional_current_user(
         return user
 
     # Provisioning path (first sign-in for this identity): create the user
-    # and/or identity and commit once. last_used_at / last_signed_in_at are set
-    # here rather than per request -- nothing reads them, and per-request bumps
-    # were the read-path write this dependency used to do on every call.
+    # and/or identity and commit once. The two link timestamps describe this
+    # event and are never login or request activity markers (#1045).
     #
     # The join is on the *confirmed* address only. An unconfirmed one falls
     # through to a brand-new account with no primary_email, which is recoverable
@@ -215,11 +214,11 @@ def get_optional_current_user(
         provider_subject=principal.provider_subject,
         email=principal.email.lower() if principal.email else None,
         email_verified_at=now if principal.email_verified else None,
-        last_used_at=now,
+        linked_at=now,
     )
     db.add(identity)
     _reconcile_identity_fields(db, user, identity, principal)
-    user.last_signed_in_at = now
+    user.last_identity_linked_at = now
     db.commit()
     db.refresh(user)
     return user

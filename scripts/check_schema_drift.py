@@ -116,13 +116,13 @@ MIGRATION_ONLY_INDEXES = frozenset(
 )
 
 # Issue #1045 has to rename live columns across separate database and Railway
-# releases. The first release adds the honest names beside the old names while
-# the application still maps only the old names. Ignore only those exact extra
-# migration columns, only when they are absent from models.py, and remove this
-# set after the application switch and old-column cleanup are both live.
+# releases. The application now maps the honest names while the migration keeps
+# the old names beside them for overlapping Railway copies. Ignore only those
+# exact extra migration columns, only when they are absent from models.py, and
+# remove this set with the old-column cleanup release.
 TRANSITIONAL_MIGRATION_ONLY_COLUMNS = {
-    "auth_identity.linked_at": "timestamp with time zone NULL",
-    "user_account.last_identity_linked_at": "timestamp with time zone NULL",
+    "auth_identity.last_used_at": "timestamp with time zone NULL",
+    "user_account.last_signed_in_at": "timestamp with time zone NULL",
 }
 
 # Row-level security is on for every production table with zero policies, and off
