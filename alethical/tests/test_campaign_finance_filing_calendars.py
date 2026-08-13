@@ -543,3 +543,23 @@ def test_the_day_the_filings_were_read_is_answered(db) -> None:
     )
     answer = service.filing_schedule(db, "17500", year=2026, as_of=date(2026, 8, 12))
     assert answer.schedule_class is ScheduleClass.not_filing_for_office
+
+
+def test_the_as_of_default_is_utc_so_a_fresh_snapshot_does_not_refuse_itself(
+    db, monkeypatch
+) -> None:
+    """A snapshot's fetch time is stored in UTC. With a local ``date.today()`` default,
+    every snapshot fetched just after midnight UTC would refuse itself for the hours
+    until the local date caught up, blanking the page rather than answering.
+    """
+    _publish_snapshot(
+        db,
+        filers=[("17500", "House", None)],
+        reports=[("17500", 2025, "2025 Year-End Report", False)],
+        fetched_at=datetime(2026, 8, 13, 0, 30, tzinfo=UTC),
+    )
+    # Local clocks behind UTC read this instant as 12 Aug; the guard must not.
+    monkeypatch.setattr(service, "_utc_today", lambda: date(2026, 8, 13))
+    answer = service.filing_schedule(db, "17500", year=2026)
+    assert answer.schedule_class is ScheduleClass.not_filing_for_office
+    assert service._utc_today() == date(2026, 8, 13)

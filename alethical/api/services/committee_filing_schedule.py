@@ -39,7 +39,7 @@ surface never has to invent wording for a missing date.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import UTC, date, datetime
 from typing import Iterable, Optional
 
 from sqlalchemy import select
@@ -62,6 +62,11 @@ NO_SNAPSHOT = "no_snapshot"
 FILER_NOT_IN_SNAPSHOT = "filer_not_in_snapshot"
 #: ``as_of`` predates the evidence. Refused rather than answered: see ``filing_schedule``.
 AS_OF_PREDATES_THE_EVIDENCE = "as_of_predates_the_evidence"
+
+
+def _utc_today() -> date:
+    """Today in UTC, matching how a snapshot's fetch window is stored."""
+    return datetime.now(UTC).date()
 
 
 @dataclass(frozen=True)
@@ -93,6 +98,13 @@ def filing_schedule(
     rather than whatever the clock says. It is the *only* clock in this path; the pure
     logic never reads one.
 
+    **It is a UTC calendar date, and the default is UTC rather than local.** Both sides of
+    the guard below have to be measured the same way: a snapshot's fetch time is stored in
+    UTC, so a local ``date.today()`` sits a day *behind* the fetch date for the hours
+    either side of midnight UTC, and every fresh snapshot would refuse itself until the
+    local date caught up -- blanking the page for hours on the safe side of a wrong
+    answer, which is still wrong.
+
     **It cannot reconstruct a past answer, so it refuses to try.** An earlier draft of
     this docstring claimed a caller could ask what a page said last week, and that was
     false: the evidence is the *live* snapshot, and the catalogue only grows within a
@@ -105,7 +117,7 @@ def filing_schedule(
     So an ``as_of`` before the live snapshot's fetch window opened is refused. Found by a
     review bot on [#1481](https://github.com/alethical-org/alethical/pull/1481).
     """
-    as_of = as_of or date.today()
+    as_of = as_of or _utc_today()
     snapshot = live_filings_snapshot(db)
     if snapshot is None:
         return ScheduleUnavailable(
@@ -250,7 +262,7 @@ def schedule_coverage(
     caller sweeps every sitting legislator's committee and a per-committee read would
     be 200 round trips to answer one question.
     """
-    as_of = as_of or date.today()
+    as_of = as_of or _utc_today()
     wanted = list(dict.fromkeys(registration_numbers))
     counts = {member: 0 for member in ScheduleClass}
     with_date = 0
