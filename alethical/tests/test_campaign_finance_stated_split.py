@@ -504,6 +504,38 @@ def test_a_year_the_board_serves_no_document_for_is_not_checked(
     assert all("serves no report document for 2022" in t.skip_reason for t in found)
 
 
+def test_a_report_with_no_served_cut_off_is_not_checked(db, board, store) -> None:
+    """Bounding our rows to the wrong period is how an ordinary filing invents a gap.
+
+    Assuming 31 December would compare a whole year of payments against a filing that
+    may end in July, and the difference would read as money we are missing.
+    """
+    snapshot = seed_filings_snapshot(db, reported={("19200", 2025): "2000.00"})
+    # Both, because a report with no cut-off can only be *chosen* for a committee-year
+    # the Board's totals service is also silent about — otherwise the choice is made by
+    # matching the served coverage end and a null cut-off simply never matches.
+    db.execute(
+        text(
+            "UPDATE cf_filing_report SET cut_off_date = NULL "
+            " WHERE snapshot_id = :snapshot"
+        ),
+        {"snapshot": snapshot.id},
+    )
+    db.execute(
+        text(
+            "UPDATE cf_filing SET reported_through = NULL WHERE snapshot_id = :snapshot"
+        ),
+        {"snapshot": snapshot.id},
+    )
+    db.commit()
+    publish_first(db, board, store)
+    found = {
+        t.registration_number: t
+        for t in split.targets(db, live(db), snapshot.id, [2025])
+    }
+    assert "no cut-off date" in found["19200"].skip_reason
+
+
 def test_a_special_election_year_is_not_checked_and_says_why(db, board, store) -> None:
     """That filer files a second series covering part of the year (§9.5)."""
     snapshot = seed_filings_snapshot(

@@ -158,8 +158,10 @@ def classify_document(status_code: int, body: bytes) -> tuple[DocumentOutcome, s
         )
     return (
         DocumentOutcome.error_page,
-        f"the Board answered 200 with a {len(body):,}-byte page that is not a "
-        "document, which is how it reports a document it does not serve",
+        # The size goes at the END. A run tallies these reasons by their opening
+        # characters, and a size at the front made one cause count as many.
+        "the Board answered 200 with a page that is not a document, which is how it "
+        f"reports a document it does not serve ({len(body):,} bytes)",
     )
 
 

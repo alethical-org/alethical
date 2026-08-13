@@ -287,6 +287,7 @@ def targets(
                     kind=kind,
                     report_type=report_type,
                     amendment_index=amendment_index,
+                    cut_off_date=cut_off_date,
                     special_election=bool(special_election),
                 ),
             )
@@ -306,6 +307,7 @@ def _skip_reason(
     kind,
     report_type: Optional[str],
     amendment_index: Optional[int],
+    cut_off_date: Optional[date],
     special_election: bool,
 ) -> Optional[str]:
     """Why this committee-year cannot be checked, in words an operator can act on."""
@@ -337,6 +339,13 @@ def _skip_reason(
             f"the catalogue carries no amendment record for this {report_type} report, "
             "so we cannot ask for a specific version and asking for the wrong one "
             "would compare against a superseded filing"
+        )
+    if cut_off_date is None:
+        return (
+            f"the catalogue serves no cut-off date for this {report_type} report, so "
+            "our rows cannot be bounded to the period the filing covers. Assuming 31 "
+            "December would compare a whole year against a filing that may end in July "
+            "and call the difference a gap"
         )
     return None
 
@@ -508,7 +517,11 @@ def check_one(
             ),
             True,
         )
-    cut_off = target.cut_off_date or date(target.filing_year, 12, 31)
+    # Guaranteed present: a target with no served cut-off is skipped above, because
+    # bounding our rows to the wrong period is what turns an ordinary mid-year filing
+    # into an invented gap.
+    assert target.cut_off_date is not None
+    cut_off = target.cut_off_date
     held, held_cash, rows_held = ours_itemized(
         db,
         release,
@@ -662,7 +675,7 @@ def run_stated_split_check(
         )
         run.verdicts.append(verdict)
         if verdict.status is Status.not_checked:
-            key = verdict.reason.split(";")[0][:90]
+            key = verdict.reason.split(";")[0][:60]
             run.not_checked_reasons[key] = run.not_checked_reasons.get(key, 0) + 1
         if asked:
             run.requests_made += 1
