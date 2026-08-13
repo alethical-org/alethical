@@ -47,10 +47,10 @@ the site running, which this page doesn't cover.
 
 ## 3. Only runs when someone types a command
 
-There are 38 separate command-line tools in this project (34 in the `scripts`
-folder, plus 4 that live in `alethical/pipeline` and are commonly run directly).
-None of them run on their own; a person has to start each one. Grouped by what
-they're for, so the right one can be found without reading every file:
+There are 38 separate command-line tools in the `scripts` folder. The shared
+`alethical/pipeline` folder also has modules that people commonly run directly.
+None of them run on their own; a person has to start each one. They are grouped
+below by what they do, so the right one can be found without reading every file:
 
 **Bringing in official records for the first time**
 
@@ -98,6 +98,7 @@ they're for, so the right one can be found without reading every file:
 | `scripts/repair_companion_links.py` | Fixes companion-bill links that crossed a session boundary wrongly | No |
 | `scripts/repair_missing_bill_sections.py` | Restores bill text lost to a specific past ingestion bug | No |
 | `scripts/repair_mojibake_text.py` | Fixes text that was saved with the wrong character encoding, showing as garbled symbols | No |
+| `scripts/repair_vote_roster_identities.py` | Restores official abbreviated lawmaker names used by House vote records and a missing House service period. It previews by default and requires a backup before it can write | No |
 | `scripts/reanchor_rag_to_current_version.py` | Re-points a bill's search index at the correct, current version of its text | No |
 | `scripts/dump_evidence_document.py` | Saves, restores, or compares a backup of one specific database table, as an undo tool for a past incident | No |
 

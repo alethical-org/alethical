@@ -44,6 +44,7 @@ from alethical.pipeline.minnesota import (
     parse_bill_text_html,
     parse_bill_xml,
     parse_datetime,
+    parse_senate_profile,
     parse_section_blocks,
     select_current_bill_action,
 )
@@ -239,7 +240,7 @@ def test_roster_only_member_can_be_ingested(seed_database: None) -> None:
             session.scalar(
                 select(Legislator.full_name).where(Legislator.id == legislator.id)
             )
-            == "Rep. Example Roster"
+            == "Example Roster"
         )
         assert service_period is not None
         assert service_period.profile_url == "https://example.test/representatives/60b"
@@ -379,8 +380,70 @@ def test_replace_sponsorships_attaches_to_existing_roster(seed_database: None) -
             session.scalar(
                 select(Legislator.full_name).where(Legislator.id == roster.id)
             )
-            == "Rep. Canonical One"
+            == "Canonical One"
         )
+        assert (
+            session.scalar(
+                select(Legislator.sort_name).where(Legislator.id == roster.id)
+            )
+            == "One, C."
+        )
+
+
+def test_parse_senate_profile_removes_title_from_member_name() -> None:
+    profile = parse_senate_profile(
+        """
+        <h1 class='mb-0'>Senator Amanda H. Hemmingsen-Jaeger (47, DFL)</h1>
+        """,
+        "https://www.senate.mn/members/member_bio.html?mem_id=1278",
+    )
+
+    assert profile["name"] == "Amanda H. Hemmingsen-Jaeger"
+
+
+def test_upsert_service_period_preserves_prior_chamber_in_same_session(
+    seed_database: None,
+) -> None:
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        house = refs["chambers"]["house"]
+        senate = refs["chambers"]["senate"]
+        house_legislator = pipeline.ingest_member_profile(
+            refs,
+            {
+                "chamber": "house",
+                "display_name": "Amanda H. Hemmingsen-Jaeger",
+                "district": "47A",
+                "profile_url": "https://www.house.mn.gov/members/profile/15620",
+            },
+        )
+        senate_legislator = pipeline.ingest_member_profile(
+            refs,
+            {
+                "chamber": "senate",
+                "display_name": "Senator Amanda H. Hemmingsen-Jaeger",
+                "district": "47",
+                "profile_url": (
+                    "http://www.senate.leg.state.mn.us/members/"
+                    "member_bio.php?leg_id=15620"
+                ),
+            },
+        )
+        session.flush()
+
+        assert senate_legislator.id == house_legislator.id
+
+        periods = session.scalars(
+            select(LegislatorServicePeriod)
+            .where(LegislatorServicePeriod.legislator_id == house_legislator.id)
+            .order_by(LegislatorServicePeriod.period_sequence)
+        ).all()
+        assert [(row.chamber_id, row.is_current) for row in periods] == [
+            (house.id, False),
+            (senate.id, True),
+        ]
+        assert [row.period_sequence for row in periods] == [1, 2]
 
 
 def test_ingest_member_profile_folds_in_prior_bill_author_placeholder(

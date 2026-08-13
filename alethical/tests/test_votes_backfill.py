@@ -263,6 +263,56 @@ def test_build_legislator_index_includes_departed_session_members(
         assert resolve_name("Current", index) is not None
 
 
+def test_official_house_initials_resolve_same_first_initial_members(
+    seed_database: None,
+) -> None:
+    with Session(get_engine()) as db:
+        pipeline = MinnesotaIngestionPipeline(db)
+        refs = pipeline.seed_reference_data()
+        house = refs["chambers"]["house"]
+
+        expected: dict[str, str] = {}
+        for full_name, sort_name, district_code in [
+            ("Paul Anderson", "Anderson, P. H.", "12A"),
+            ("Patti Anderson", "Anderson, P. E.", "33A"),
+            ("Liz Lee", "Lee, K.", "67A"),
+        ]:
+            legislator = Legislator(
+                jurisdiction_id=refs["jurisdiction"].id,
+                slug=f"{full_name.lower().replace(' ', '-')}-{uuid.uuid4().hex[:6]}",
+                external_key=f"key-{uuid.uuid4().hex}",
+                full_name=full_name,
+                sort_name=sort_name,
+            )
+            db.add(legislator)
+            db.flush()
+            expected[sort_name] = str(legislator.id)
+            district = pipeline.upsert_district(refs, house, district_code)
+            db.add(
+                LegislatorServicePeriod(
+                    legislator_id=legislator.id,
+                    session_id=refs["session"].id,
+                    chamber_id=house.id,
+                    district_id=district.id,
+                    period_sequence=1,
+                    is_current=True,
+                )
+            )
+        db.flush()
+
+        index = build_legislator_index(db, house.id, refs["session"].id)
+
+        assert (
+            str(resolve_name("Anderson, P. H.", index).id)
+            == expected["Anderson, P. H."]
+        )
+        assert (
+            str(resolve_name("Anderson, P. E.", index).id)
+            == expected["Anderson, P. E."]
+        )
+        assert str(resolve_name("Lee, K.", index).id) == expected["Lee, K."]
+
+
 def _vote_reconciliation_fixture(
     db: Session,
 ) -> tuple[Bill, BillAction, list[Legislator]]:
