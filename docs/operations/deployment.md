@@ -149,7 +149,18 @@ Required Vercel environment variables:
 EXPO_PUBLIC_API_URL=https://alethical-api-production.up.railway.app
 EXPO_PUBLIC_SUPABASE_URL=https://your-project.supabase.co
 EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
+EXPO_PUBLIC_EMAIL_PASSWORD_SIGN_IN_ENABLED=false
+EXPO_PUBLIC_AUTH_RESEND_WAIT_SECONDS=60
 ```
+
+`EXPO_PUBLIC_AUTH_RESEND_WAIT_SECONDS` must equal Supabase Auth's real email resend cooldown.
+It controls the visible wait after a confirmation or reset email. Read the project setting before
+changing it; the number shown in a design file is not a product setting.
+
+Keep `EXPO_PUBLIC_EMAIL_PASSWORD_SIGN_IN_ENABLED=false` until Supabase custom SMTP is connected
+to Resend and confirmation, resend, reset, and password-change emails have all arrived. Change it
+to `true` only in the same release that passes those checks. Google remains available while it is
+false.
 
 Set `EXPO_PUBLIC_API_URL` for both Production and Preview. Without the Preview value, the server's
 first-response text still works but the loaded preview app cannot read any record and replaces that

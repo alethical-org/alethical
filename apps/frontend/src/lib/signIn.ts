@@ -15,7 +15,7 @@ export type SignInIntent = 'nav' | 'track';
 export type SignInStatus = 'idle' | 'connecting' | 'error';
 
 /** Why sign-in failed, which picks the message. */
-export type SignInErrorKind = 'cancelled' | 'failed' | 'deactivated';
+export type SignInErrorKind = 'cancelled' | 'failed' | 'deactivated' | 'match-failed';
 
 export interface SignInRequest {
   intent: SignInIntent;
@@ -27,6 +27,10 @@ export interface SignInRequest {
   billCode?: string;
   /** Exact web scroll position to restore after the redirect. */
   scrollY?: number;
+  /** Random one-use server reference for a signed-out Track press. */
+  pendingReference?: string;
+  /** Which verified auth path is allowed to consume the pending reference. */
+  pendingCompletion?: 'ordinary' | 'email-link';
 }
 
 interface IntentConfig {
@@ -69,6 +73,8 @@ export const SIGN_IN_ERROR_MESSAGES: Record<SignInErrorKind, string> = {
   // and who to ask rather than inviting another attempt (#1092).
   deactivated:
     'This account has been deactivated, so we’ve signed you out. Bills, votes and legislators are all still here to read. Contact us at ask@alethical.com if you think this is a mistake.',
+  'match-failed':
+    'We couldn’t safely match this sign-in to your account. Sign in with the method you used before.',
 };
 
 export const SIGN_IN_BUTTON_LABEL = 'Continue with Google';
@@ -120,6 +126,8 @@ export interface SignInDialogState {
   billId?: string;
   billCode?: string;
   scrollY?: number;
+  pendingReference?: string;
+  pendingCompletion?: 'ordinary' | 'email-link';
   status: SignInStatus;
   errorKind: SignInErrorKind | null;
 }
@@ -149,6 +157,8 @@ export function signInReducer(state: SignInDialogState, action: SignInAction): S
         billId: action.request.billId,
         billCode: action.request.billCode,
         scrollY: action.request.scrollY,
+        pendingReference: action.request.pendingReference,
+        pendingCompletion: action.request.pendingCompletion,
         status: 'idle',
         errorKind: null,
       };
@@ -160,6 +170,8 @@ export function signInReducer(state: SignInDialogState, action: SignInAction): S
         billId: action.request.billId,
         billCode: action.request.billCode,
         scrollY: action.request.scrollY,
+        pendingReference: action.request.pendingReference,
+        pendingCompletion: action.request.pendingCompletion,
         status: 'error',
         errorKind: action.kind,
       };

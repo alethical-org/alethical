@@ -196,6 +196,13 @@ Target query plan:
 - join to `rag_section_document`
 - optional join to `bill`, `bill_version`, and `legislator`
 
+### 8. Pending signed-out actions
+
+The `pending_action` table holds a hashed, short-lived reference for a Track press made before
+an account exists. It stores only the bill id, a checked internal return path, and expiration
+time. Completing it locks the row, saves the tracked bill, and deletes the row in one transaction.
+The raw reference and a user id are never stored on the pending row.
+
 ## Proposed Table Groups
 
 ### 1. Reference Tables

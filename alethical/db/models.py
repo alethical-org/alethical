@@ -1017,6 +1017,34 @@ class TrackedBill(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __table_args__ = (UniqueConstraint("user_id", "bill_id"),)
 
 
+class PendingAction(Base):
+    """One signed-out product action waiting for a completed sign-in.
+
+    The browser receives the random reference. Only its digest reaches this
+    table, and there is deliberately no user foreign key: the action cannot
+    belong to an account until authentication has established that account.
+    """
+
+    __tablename__ = "pending_action"
+
+    reference_digest: Mapped[str] = mapped_column(String(64), primary_key=True)
+    action_kind: Mapped[str] = mapped_column(String(50), nullable=False)
+    bill_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("bill.id"), nullable=False)
+    return_path: Mapped[str] = mapped_column(String(500), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+    bill: Mapped["Bill"] = relationship()
+
+    __table_args__ = (
+        CheckConstraint(
+            "action_kind = 'track_bill'", name="pending_action_kind_track_bill"
+        ),
+        Index("ix_pending_action_expires_at", "expires_at"),
+    )
+
+
 class NotificationEvent(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     """A pending (or delivered) notification for a user about a tracked bill.
 

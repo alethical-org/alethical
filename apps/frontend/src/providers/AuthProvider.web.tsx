@@ -5,20 +5,23 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import type { Session } from '@supabase/auth-js';
 
 import { onAccountDeactivated } from '../data/api';
+import {
+  AuthOperationResult,
+  AuthUser,
+  authFailure,
+  authSuccess,
+  validateAlethicalSession,
+} from '../lib/auth/operations';
+import { normalizeEmail } from '../lib/auth/rev9Auth';
 import { restoreAuthSession } from '../lib/authRestore';
 import { SIGN_IN_ERROR_MESSAGES, SignInErrorKind } from '../lib/signIn';
 import { isSupabaseConfigured, supabase } from '../lib/supabase';
-
-interface AuthUser {
-  id: string;
-  name: string;
-  email: string;
-}
 
 interface AuthContextValue {
   isLoading: boolean;
@@ -28,30 +31,20 @@ interface AuthContextValue {
   accessToken: string | null;
   authError: string | null;
   authErrorKind: SignInErrorKind | null;
-  signInWithGoogle: (returnTo?: string) => Promise<void>;
-  signOut: () => Promise<void>;
+  signInWithGoogle: (returnTo?: string) => Promise<AuthOperationResult<unknown>>;
+  signInWithPassword: (email: string, password: string) => Promise<AuthOperationResult<unknown>>;
+  createAccount: (
+    email: string,
+    password: string,
+    confirmationUrl: string,
+  ) => Promise<AuthOperationResult<{ signedIn: boolean }>>;
+  resendConfirmation: (email: string, confirmationUrl: string) => Promise<AuthOperationResult>;
+  sendPasswordReset: (email: string, resetUrl: string) => Promise<AuthOperationResult>;
+  setPassword: (password: string) => Promise<AuthOperationResult>;
+  signOut: () => Promise<AuthOperationResult>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
-
-function userFromSession(session: Session | null): AuthUser | null {
-  const user = session?.user;
-  if (!user) {
-    return null;
-  }
-
-  const metadataName = user.user_metadata?.full_name ?? user.user_metadata?.name;
-  const email = user.email ?? '';
-
-  return {
-    id: user.id,
-    name:
-      typeof metadataName === 'string' && metadataName.trim()
-        ? metadataName
-        : email.split('@')[0] || 'Signed-in user',
-    email,
-  };
-}
 
 function getRedirectTo(returnTo?: string) {
   return new URL(
@@ -60,11 +53,20 @@ function getRedirectTo(returnTo?: string) {
   ).toString();
 }
 
+function publicErrorKind(kind: string): SignInErrorKind {
+  if (kind === 'deactivated') return 'deactivated';
+  if (kind === 'match-failed') return 'match-failed';
+  return 'failed';
+}
+
 export function AuthProvider({ children }: PropsWithChildren) {
   const [isLoading, setIsLoading] = useState(true);
   const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [authErrorKind, setAuthErrorKind] = useState<SignInErrorKind | null>(null);
+  const validations = useRef(new Map<string, Promise<AuthOperationResult<AuthUser>>>());
+  const validationGeneration = useRef(0);
 
   const failWith = useCallback((message: string, kind: SignInErrorKind = 'failed') => {
     setAuthError(message);
@@ -76,11 +78,43 @@ export function AuthProvider({ children }: PropsWithChildren) {
     setAuthErrorKind(null);
   }, []);
 
+  const acceptSession = useCallback(
+    async (candidate: Session): Promise<AuthOperationResult<AuthUser>> => {
+      const generation = ++validationGeneration.current;
+      setIsLoading(true);
+      let validation = validations.current.get(candidate.access_token);
+      if (!validation) {
+        validation = validateAlethicalSession(candidate);
+        validations.current.set(candidate.access_token, validation);
+      }
+      const result = await validation;
+      validations.current.delete(candidate.access_token);
+      if (generation !== validationGeneration.current) return authFailure(null);
+      if (result.ok) {
+        setSession(candidate);
+        setUser(result.data);
+        clearAuthError();
+        setIsLoading(false);
+        return result;
+      }
+
+      await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
+      setSession(null);
+      setUser(null);
+      failWith(result.error.message, publicErrorKind(result.error.kind));
+      setIsLoading(false);
+      return result;
+    },
+    [clearAuthError, failWith],
+  );
+
   useEffect(
     () =>
       onAccountDeactivated(() => {
-        void supabase.auth.signOut().finally(() => {
+        validationGeneration.current += 1;
+        void supabase.auth.signOut({ scope: 'local' }).finally(() => {
           setSession(null);
+          setUser(null);
           failWith(SIGN_IN_ERROR_MESSAGES.deactivated, 'deactivated');
         });
       }),
@@ -91,81 +125,133 @@ export function AuthProvider({ children }: PropsWithChildren) {
     let mounted = true;
 
     void restoreAuthSession<Session>(() => supabase.auth.getSession())
-      .then(({ session: restoredSession, errorMessage }) => {
-        if (!mounted) {
+      .then(async ({ session: restoredSession, errorMessage }) => {
+        if (!mounted) return;
+        if (errorMessage) {
+          failWith(SIGN_IN_ERROR_MESSAGES.failed);
           return;
         }
-        setSession(restoredSession);
-        if (errorMessage) {
-          failWith(errorMessage);
+        if (restoredSession) {
+          await acceptSession(restoredSession);
         }
       })
-      .catch((error) => {
+      .catch(() => {
         if (mounted) {
           setSession(null);
-          failWith(error instanceof Error ? error.message : 'Sign-in could not be restored.');
+          setUser(null);
+          failWith(SIGN_IN_ERROR_MESSAGES.failed);
         }
       })
       .finally(() => {
-        if (mounted) {
-          setIsLoading(false);
-        }
+        if (mounted) setIsLoading(false);
       });
 
     const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
-      setIsLoading(false);
-      if (nextSession) {
-        clearAuthError();
+      if (!nextSession) {
+        validationGeneration.current += 1;
+        setSession(null);
+        setUser(null);
+        setIsLoading(false);
+        return;
       }
+      void acceptSession(nextSession);
     });
 
     return () => {
       mounted = false;
       data.subscription.unsubscribe();
     };
-  }, [clearAuthError, failWith]);
+  }, [acceptSession, failWith]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
       isLoading,
-      isSignedIn: Boolean(session?.access_token),
+      isSignedIn: Boolean(session?.access_token && user),
       mode: 'supabase',
-      user: userFromSession(session),
+      user,
       accessToken: session?.access_token ?? null,
       authError,
       authErrorKind,
       signInWithGoogle: async (returnTo?: string) => {
         clearAuthError();
-
         if (!isSupabaseConfigured) {
-          failWith('Supabase is not configured for this app environment.');
-          return;
+          failWith(SIGN_IN_ERROR_MESSAGES.failed);
+          return authFailure(null);
         }
-
         const { error } = await supabase.auth.signInWithOAuth({
           provider: 'google',
-          options: {
-            redirectTo: getRedirectTo(returnTo),
-            skipBrowserRedirect: false,
-          },
+          options: { redirectTo: getRedirectTo(returnTo), skipBrowserRedirect: false },
         });
-
         if (error) {
-          failWith(error.message);
+          const failure = authFailure(error);
+          failWith(SIGN_IN_ERROR_MESSAGES.failed);
+          return failure;
         }
+        return authSuccess();
+      },
+      signInWithPassword: async (email: string, password: string) => {
+        clearAuthError();
+        if (!isSupabaseConfigured) return authFailure(null);
+        const normalized = normalizeEmail(email);
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: normalized,
+          password,
+        });
+        if (error || !data.session) return authFailure(error, normalized);
+        return acceptSession(data.session);
+      },
+      createAccount: async (email: string, password: string, confirmationUrl: string) => {
+        clearAuthError();
+        if (!isSupabaseConfigured) return authFailure(null);
+        const normalized = normalizeEmail(email);
+        const { data, error } = await supabase.auth.signUp({
+          email: normalized,
+          password,
+          options: { emailRedirectTo: confirmationUrl },
+        });
+        if (error) return authFailure(error, normalized);
+        if (data.session) {
+          const accepted = await acceptSession(data.session);
+          if (!accepted.ok) return accepted;
+        }
+        return authSuccess({ signedIn: Boolean(data.session) });
+      },
+      resendConfirmation: async (email: string, confirmationUrl: string) => {
+        const normalized = normalizeEmail(email);
+        const { error } = await supabase.auth.resend({
+          type: 'signup',
+          email: normalized,
+          options: { emailRedirectTo: confirmationUrl },
+        });
+        return error ? authFailure(error, normalized) : authSuccess();
+      },
+      sendPasswordReset: async (email: string, resetUrl: string) => {
+        const normalized = normalizeEmail(email);
+        const { error } = await supabase.auth.resetPasswordForEmail(normalized, {
+          redirectTo: resetUrl,
+        });
+        return error ? authFailure(error, normalized) : authSuccess();
+      },
+      setPassword: async (password: string) => {
+        const { error } = await supabase.auth.updateUser({ password });
+        return error ? authFailure(error, user?.email) : authSuccess();
       },
       signOut: async () => {
         clearAuthError();
-        const { error } = await supabase.auth.signOut();
-        if (error) {
-          failWith(error.message);
-          return;
+        validationGeneration.current += 1;
+        const { error } = await supabase.auth.signOut({ scope: 'local' });
+        const restored = error ? null : await supabase.auth.getSession();
+        if (error || restored?.error || restored?.data.session) {
+          const failure = authFailure(error ?? restored?.error ?? null);
+          failWith(SIGN_IN_ERROR_MESSAGES.failed);
+          return failure;
         }
         setSession(null);
+        setUser(null);
+        return authSuccess();
       },
     }),
-    [authError, authErrorKind, clearAuthError, failWith, isLoading, session],
+    [acceptSession, authError, authErrorKind, clearAuthError, failWith, isLoading, session, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -173,9 +259,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
-
+  if (!context) throw new Error('useAuth must be used within AuthProvider');
   return context;
 }

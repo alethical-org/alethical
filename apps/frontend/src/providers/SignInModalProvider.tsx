@@ -1,9 +1,18 @@
-import { PropsWithChildren, useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
+import {
+  PropsWithChildren,
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from 'react';
 import { Platform } from 'react-native';
 
 import { SignInDialog } from '../components/auth/SignInDialog';
 import {
   SignInRequest,
+  SIGN_IN_ERROR_MESSAGES,
   authErrorReturnDecision,
   createSignInAttemptGate,
   initialSignInState,
@@ -13,10 +22,15 @@ import {
   urlWithoutAuthError,
 } from '../lib/signIn';
 import { pendingSignInRequest } from '../lib/trackIntent';
+import {
+  ApiError,
+  completePendingTrackActionFromApi,
+  createPendingTrackActionFromApi,
+} from '../data/api';
+import type { SignInDialogActionResult, SignInDialogScreen } from '../components/auth/SignInDialog';
 import { SignInModalContext } from './signInModalContext';
 import { signInHeldConnecting } from '../lib/devSignInHold';
 import { useAuth } from './AuthProvider';
-import { useTrackedBillWrite } from './trackedBillWriteContext';
 
 // One dialog for the whole app. Any button anywhere calls `openSignIn(...)` with
 // why it is asking; nothing re-implements a sign-in box per screen.
@@ -28,6 +42,11 @@ import { useTrackedBillWrite } from './trackedBillWriteContext';
 
 const isWeb = Platform.OS === 'web';
 const PENDING_KEY = 'alethical.pendingSignIn';
+const OPEN_SIGN_IN_KEY = 'alethical.openSignIn';
+const EMAIL_PASSWORD_ENABLED = process.env.EXPO_PUBLIC_EMAIL_PASSWORD_SIGN_IN_ENABLED === 'true';
+const configuredResendWait = Number(process.env.EXPO_PUBLIC_AUTH_RESEND_WAIT_SECONDS);
+const RESEND_WAIT_SECONDS =
+  Number.isFinite(configuredResendWait) && configuredResendWait > 0 ? configuredResendWait : 60;
 
 function stashPendingSignIn(request: SignInRequest) {
   if (!isWeb || typeof window === 'undefined') return;
@@ -57,6 +76,32 @@ function clearPendingSignIn() {
   }
 }
 
+function readRequestedScreen(): SignInDialogScreen | undefined {
+  if (!isWeb || typeof window === 'undefined') return undefined;
+  try {
+    const screen = window.sessionStorage.getItem(OPEN_SIGN_IN_KEY);
+    window.sessionStorage.removeItem(OPEN_SIGN_IN_KEY);
+    return screen === 'forgot' ? 'forgot' : screen === 'sign-in' ? 'sign-in' : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function confirmationUrl(pendingReference?: string) {
+  if (!isWeb || typeof window === 'undefined') return 'alethical://confirm?auth_action=confirm';
+  const url = new URL('/confirm', window.location.origin);
+  url.searchParams.set('auth_action', 'confirm');
+  if (pendingReference) url.searchParams.set('pending', pendingReference);
+  return url.toString();
+}
+
+function resetUrl() {
+  if (!isWeb || typeof window === 'undefined') return 'alethical://reset?auth_action=reset';
+  const url = new URL('/reset', window.location.origin);
+  url.searchParams.set('auth_action', 'reset');
+  return url.toString();
+}
+
 function restoreScrollPosition(scrollY?: number) {
   if (!isWeb || typeof window === 'undefined' || !scrollY) return () => {};
   const startedAt = Date.now();
@@ -72,17 +117,36 @@ function restoreScrollPosition(scrollY?: number) {
 }
 
 export function SignInModalProvider({ children }: PropsWithChildren) {
-  const { isLoading, isSignedIn, authError, authErrorKind, signInWithGoogle } = useAuth();
-  const { setTrackedBill } = useTrackedBillWrite();
+  const {
+    isLoading,
+    isSignedIn,
+    accessToken,
+    authError,
+    authErrorKind,
+    signInWithGoogle,
+    signInWithPassword,
+    createAccount,
+    resendConfirmation,
+    sendPasswordReset,
+  } = useAuth();
   const [state, dispatch] = useReducer(signInReducer, initialSignInState);
   const pendingRequest = useRef<SignInRequest | null>(readPendingSignIn());
   const signInAttemptGate = useRef(createSignInAttemptGate()).current;
+  const requestedScreen = useRef(readRequestedScreen());
+  const [initialScreen, setInitialScreen] = useState<SignInDialogScreen | undefined>(
+    requestedScreen.current,
+  );
+  const [busyAction, setBusyAction] = useState<
+    'google' | 'sign-in' | 'create' | 'resend' | 'forgot' | null
+  >(null);
 
   const openSignIn = useCallback(
     (request: SignInRequest) => {
       // Already signed in: the design's "you're already signed in" panel is a
       // step in the way, so we just let the caller's action proceed.
       if (isSignedIn) return;
+      pendingRequest.current = { ...request };
+      setInitialScreen('sign-in');
       dispatch({ type: 'open', request });
     },
     [isSignedIn],
@@ -93,15 +157,34 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
     pendingRequest.current = null;
     clearPendingSignIn();
     dispatch({ type: 'close' });
+    setBusyAction(null);
   }, [signInAttemptGate]);
 
-  const onContinue = useCallback(() => {
+  const ensurePendingReference = useCallback(async (completion: 'ordinary' | 'email-link') => {
+    const existing = pendingRequest.current;
+    if (!existing || existing.intent !== 'track' || !existing.billId) return undefined;
+    if (existing.pendingReference && existing.pendingCompletion === completion) {
+      return existing.pendingReference;
+    }
+    const created = await createPendingTrackActionFromApi(
+      existing.billId,
+      existing.returnTo ?? '/',
+    );
+    existing.pendingReference = created.reference;
+    existing.pendingCompletion = completion;
+    stashPendingSignIn(existing);
+    return created.reference;
+  }, []);
+
+  const onContinue = useCallback(async () => {
     if (!signInAttemptGate.begin()) return;
+    setBusyAction('google');
     dispatch({ type: 'connect' });
     // Development builds only: stop here so the connecting state can be looked at
     // (lib/devSignInHold.ts). Nothing is stashed because nothing is coming back.
     if (signInHeldConnecting()) {
       signInAttemptGate.reset();
+      setBusyAction(null);
       return;
     }
     const request: SignInRequest = {
@@ -112,12 +195,21 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
       scrollY: state.scrollY,
     };
     pendingRequest.current = request;
-    stashPendingSignIn(request);
-    void signInWithGoogle(state.returnTo).catch(() => {
+    try {
+      await ensurePendingReference('ordinary');
+      stashPendingSignIn(request);
+      const result = await signInWithGoogle(state.returnTo);
+      if (!result.ok) {
+        signInAttemptGate.reset();
+        setBusyAction(null);
+      }
+    } catch {
       signInAttemptGate.reset();
+      setBusyAction(null);
       dispatch({ type: 'fail', kind: 'failed' });
-    });
+    }
   }, [
+    ensurePendingReference,
     signInAttemptGate,
     signInWithGoogle,
     state.billCode,
@@ -127,6 +219,79 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
     state.scrollY,
   ]);
 
+  const completeOrdinaryPending = useCallback(async (token: string | null) => {
+    const request = pendingRequest.current;
+    if (!token || !request?.pendingReference || request.pendingCompletion !== 'ordinary') {
+      return;
+    }
+    await completePendingTrackActionFromApi(token, request.pendingReference);
+  }, []);
+
+  const onPasswordSignIn = useCallback(
+    async (email: string, password: string): Promise<SignInDialogActionResult> => {
+      setBusyAction('sign-in');
+      try {
+        await ensurePendingReference('ordinary');
+        const result = await signInWithPassword(email, password);
+        if (!result.ok) return result;
+        return { ok: true };
+      } finally {
+        setBusyAction(null);
+      }
+    },
+    [ensurePendingReference, signInWithPassword],
+  );
+
+  const onCreateAccount = useCallback(
+    async (email: string, password: string): Promise<SignInDialogActionResult> => {
+      setBusyAction('create');
+      try {
+        const pendingReference = await ensurePendingReference('email-link');
+        const result = await createAccount(email, password, confirmationUrl(pendingReference));
+        if (!result.ok) return result;
+        return { ok: true };
+      } catch {
+        return {
+          ok: false,
+          error: {
+            kind: 'request-failure',
+            message: 'We couldn’t complete that request. Check your connection and try again.',
+          },
+        };
+      } finally {
+        setBusyAction(null);
+      }
+    },
+    [createAccount, ensurePendingReference],
+  );
+
+  const onResendConfirmation = useCallback(
+    async (email: string): Promise<SignInDialogActionResult> => {
+      setBusyAction('resend');
+      try {
+        const pendingReference = await ensurePendingReference('email-link');
+        const result = await resendConfirmation(email, confirmationUrl(pendingReference));
+        return result.ok ? { ok: true } : result;
+      } finally {
+        setBusyAction(null);
+      }
+    },
+    [ensurePendingReference, resendConfirmation],
+  );
+
+  const onForgotPassword = useCallback(
+    async (email: string): Promise<SignInDialogActionResult> => {
+      setBusyAction('forgot');
+      try {
+        const result = await sendPasswordReset(email, resetUrl());
+        return result.ok ? { ok: true } : result;
+      } finally {
+        setBusyAction(null);
+      }
+    },
+    [sendPasswordReset],
+  );
+
   // Signing in anywhere — including a second tab — closes the dialog. When this
   // tab came back from a Track request, finish that exact idempotent write first.
   const authWasSignedIn = useRef(isSignedIn);
@@ -135,22 +300,33 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
     authWasSignedIn.current = isSignedIn;
     if (!isSignedIn || (!justSignedIn && !pendingRequest.current)) return;
     signInAttemptGate.reset();
+    setBusyAction(null);
     const request = pendingRequest.current;
-    pendingRequest.current = null;
-    clearPendingSignIn();
-    const stopRestoringScroll = restoreScrollPosition(request?.scrollY);
-    if (request?.intent === 'track' && request.billId) {
-      setTrackedBill(request.billId, true);
-    }
-    dispatch({ type: 'close' });
-    return stopRestoringScroll;
-  }, [isSignedIn, setTrackedBill, signInAttemptGate]);
+    const finishSignedInRequest = () => {
+      pendingRequest.current = null;
+      clearPendingSignIn();
+      const stopRestoringScroll = restoreScrollPosition(request?.scrollY);
+      dispatch({ type: 'close' });
+      return stopRestoringScroll;
+    };
+    if (request?.pendingCompletion === 'email-link') return finishSignedInRequest();
+    void completeOrdinaryPending(accessToken)
+      .then(finishSignedInRequest)
+      .catch((error) => {
+        if (error instanceof ApiError && error.status === 410) {
+          finishSignedInRequest();
+          return;
+        }
+        dispatch({ type: 'fail', kind: 'failed' });
+      });
+  }, [accessToken, completeOrdinaryPending, isSignedIn, signInAttemptGate]);
 
   // A failure we can see live: the native Google sheet being dismissed, or
   // Supabase refusing before any redirect happens.
   useEffect(() => {
     if (authError && state.status === 'connecting') {
       signInAttemptGate.reset();
+      setBusyAction(null);
       dispatch({ type: 'fail', kind: authErrorKind ?? 'failed' });
     }
   }, [authError, authErrorKind, signInAttemptGate, state.status]);
@@ -172,6 +348,7 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
     window.history.replaceState(null, '', urlWithoutAuthError(window.location.href));
     if (decision === 'keep-success') return;
     signInAttemptGate.reset();
+    setBusyAction(null);
     const pending = pendingRequest.current;
     pendingRequest.current = null;
     clearPendingSignIn();
@@ -184,10 +361,31 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
 
   const value = useMemo(() => ({ openSignIn }), [openSignIn]);
 
+  useEffect(() => {
+    if (!requestedScreen.current || isLoading || isSignedIn || state.open) return;
+    requestedScreen.current = undefined;
+    dispatch({ type: 'open', request: { intent: 'nav' } });
+  }, [isLoading, isSignedIn, state.open]);
+
   return (
     <SignInModalContext.Provider value={value}>
       {children}
-      <SignInDialog state={state} onClose={close} onContinue={onContinue} />
+      <SignInDialog
+        open={state.open}
+        intent={state.intent}
+        billCode={state.billCode}
+        initialScreen={initialScreen}
+        errorMessage={state.errorKind ? SIGN_IN_ERROR_MESSAGES[state.errorKind] : null}
+        busyAction={busyAction}
+        emailPasswordEnabled={EMAIL_PASSWORD_ENABLED}
+        resendWaitSeconds={RESEND_WAIT_SECONDS}
+        onClose={close}
+        onGoogle={onContinue}
+        onPasswordSignIn={onPasswordSignIn}
+        onCreateAccount={onCreateAccount}
+        onResendConfirmation={onResendConfirmation}
+        onForgotPassword={onForgotPassword}
+      />
     </SignInModalContext.Provider>
   );
 }

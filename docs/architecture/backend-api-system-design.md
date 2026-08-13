@@ -1179,6 +1179,21 @@ Real, and undocumented here until the Aug 3 2026 audit.
 
 ## Authenticated User API
 
+### Pending signed-out actions
+
+#### `POST /api/v1/pending-actions`
+
+Creates a random, short-lived reference for a signed-out Track press. The request contains
+`action: "track_bill"`, `bill_id`, and a checked internal `return_path`. The response returns
+the opaque reference and expiration time. The raw reference is never stored, the row is not
+attached to an account, and creation is limited per internet address.
+
+#### `POST /api/v1/me/pending-actions/complete`
+
+After sign-in, atomically saves the tracked bill and consumes the reference. A used or expired
+reference returns `410 pending-action-unavailable`. A failed save rolls back both changes so a
+safe retry remains possible.
+
 ### Current User
 
 #### `GET /api/v1/me`

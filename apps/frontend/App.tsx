@@ -5,8 +5,17 @@ import { AppProviders } from './src/providers/AppProviders';
 import { AppErrorBoundary } from './src/components/AppErrorBoundary';
 import { unregisterServiceWorkers } from './src/lib/serviceWorkerCleanup';
 import { RootNavigator } from './src/navigation/RootNavigator';
+import { EmailLinkPage } from './src/screens/auth/EmailLinkPage';
 
 export default function App() {
+  const emailLinkKind =
+    Platform.OS === 'web' && typeof window !== 'undefined'
+      ? window.location.pathname === '/confirm'
+        ? 'confirm'
+        : window.location.pathname === '/reset'
+          ? 'reset'
+          : null
+      : null;
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof window === 'undefined') {
       return;
@@ -75,9 +84,13 @@ export default function App() {
   return (
     <AppErrorBoundary>
       <View style={styles.app}>
-        <AppProviders>
-          <RootNavigator />
-        </AppProviders>
+        {emailLinkKind ? (
+          <EmailLinkPage kind={emailLinkKind} />
+        ) : (
+          <AppProviders>
+            <RootNavigator />
+          </AppProviders>
+        )}
       </View>
     </AppErrorBoundary>
   );

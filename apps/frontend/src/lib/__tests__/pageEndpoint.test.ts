@@ -19,6 +19,9 @@ const SHELL = [
   '<title>Alethical</title>',
   '<!--/alethical:page-head-->',
   '<link rel="stylesheet" href="/fonts.css" />',
+  '<link rel="preconnect" href="https://api.alethical.com" crossorigin />',
+  '<link rel="preconnect" href="https://fonts.googleapis.com" />',
+  '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin" />',
   '</head><body><div id="root"><!--alethical:page-snapshot--><p>Home snapshot from shell</p><!--/alethical:page-snapshot--></div>',
   '<script src="/_expo/static/js/web/index-abc.js"></script></body></html>',
 ].join('\n');
@@ -77,6 +80,39 @@ async function serve(query: Record<string, string>) {
   await handler({ query }, recorder.response);
   return recorder.read();
 }
+
+describe('private email-link page shell', () => {
+  it.each([
+    ['/confirm', 'private-confirmation', 'signup'],
+    ['/reset', 'private-reset', 'recovery'],
+  ])('protects the one-use secret before the app starts on %s', async (path, tokenHash, type) => {
+    stubNetwork(() => ({ status: 500 }));
+
+    const { body, headers, status } = await serve({
+      path,
+      token_hash: tokenHash,
+      type,
+      pending: 'opaque-pending-action',
+    });
+
+    expect(status).toBe(200);
+    expect(headers.get('Cache-Control')).toBe('no-store');
+    expect(headers.get('Referrer-Policy')).toBe('no-referrer');
+    expect(headers.get('X-Robots-Tag')).toBe('noindex, nofollow');
+    expect(body).toContain('window.__alethicalEmailLink');
+    expect(body).toContain('window.history.replaceState');
+    expect(body).toContain('token_hash');
+    expect(body).toContain('pending');
+    expect(body.indexOf('window.__alethicalEmailLink')).toBeLessThan(
+      body.indexOf('/_expo/static/js/web/index-abc.js'),
+    );
+    expect(body).not.toContain(tokenHash);
+    expect(body).not.toContain('opaque-pending-action');
+    expect(body).not.toContain('https://api.alethical.com');
+    expect(body).not.toContain('https://fonts.googleapis.com');
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+});
 
 describe('first-response page tags', () => {
   it('gives a bill its own title and leaves the app body intact', async () => {
