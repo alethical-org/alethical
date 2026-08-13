@@ -512,6 +512,17 @@ therefore surfaces when the evidence shifts rather than waiting for somebody to 
 It reports and never repairs: a contradiction wants a person's eyes, and a rename is reported as
 what changed rather than as a mistake.
 
+**`verify` runs on its own account, whether or not anything is confirmed to check
+([#1398](https://github.com/alethical-org/alethical/issues/1398)).** It has no schedule of its
+own — it rides inside the campaign-finance load (#1328's `load_campaign_finance`), every time
+that load runs, reading the contributions file that run already downloaded and the
+registered-filer directory (§9.7) that run's sibling filings pipeline (#1408) already holds in
+`cf_filer`, so it never triggers a second fetch of either. It never blocks that load: the money
+data a run publishes is correct whether or not a committee's identity changed, so a contradiction
+is filed or updated as a GitHub issue instead, using the same alerting `gh` already does for the
+sibling ingestion jobs. Zero confirmed links — true of every database until the first review
+sitting lands — is a pass, not a failure.
+
 **One legislator holds several committees, so the link is one-to-many** (§7, Display rules, has
 the counts). A legislator whose second committee were refused would show one year of money and
 silently drop the rest.

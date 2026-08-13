@@ -90,13 +90,20 @@ from decimal import Decimal, InvalidOperation
 from typing import Any, Iterable, Optional
 
 import requests
-from sqlalchemy import delete, func, select, text
+from sqlalchemy import delete, func, inspect, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from alethical.db import models as schema
 from alethical.pipeline.campaign_finance_filings import filings_context
 from alethical.pipeline.http_text import response_text
+from alethical.pipeline.legislator_committee_match import (
+    ConfirmedLink,
+    FilerRecord,
+    RosterMember,
+    read_contributions_csv,
+    recheck_confirmed_links,
+)
 from alethical.pipeline.raw_file_store import sha256_of_file
 
 Dataset = schema.CampaignFinanceDataset
@@ -519,6 +526,11 @@ class LoadReport:
     pruned_snapshots: int = 0
     pruned_rows: int = 0
     refusal: Optional[str] = None
+    # A person-confirmed legislator-to-committee link (#1354) that no longer agrees with
+    # the Board's own data, one already-formatted line each. Never blocks this load and
+    # never repairs anything -- a contradiction wants a person's eyes (#1398). Empty on
+    # every run until a link is actually confirmed, which is a pass, not a failure.
+    committee_link_contradictions: list[str] = field(default_factory=list)
 
     @property
     def quarantined(self) -> list[DatasetOutcome]:
@@ -597,6 +609,21 @@ class LoadReport:
             lines.append(f"  {self.reconciliation_line()}")
         else:
             lines.append("  nothing published")
+        if self.committee_link_contradictions:
+            # Deliberately never gated on `self.refusal`/`self.published` above: a
+            # contradiction here says nothing about whether the money data this run
+            # published is correct, and it must never be read as the load having failed.
+            # It is set apart with its own banner precisely so it is not one more line
+            # lost among the ones above it (#1398).
+            lines.append("")
+            lines.append("=" * 70)
+            lines.append(
+                f"NEEDS A PERSON: {len(self.committee_link_contradictions)} confirmed "
+                "legislator-to-committee link(s) no longer agree with the Board's own "
+                "data. Nothing was changed automatically."
+            )
+            lines.extend(f"  {line}" for line in self.committee_link_contradictions)
+            lines.append("=" * 70)
         return "\n".join(lines)
 
 
@@ -2093,6 +2120,188 @@ def quarantine(db: Session, outcome: DatasetOutcome) -> None:
 # --- The whole cycle --------------------------------------------------------
 
 
+# --- Re-checking confirmed committee links, on every load (#1398) -----------
+#
+# `scripts/review_legislator_campaign_committees.py verify` does this same check by hand.
+# This is that check wired into the load itself, so a link stops being re-read only when
+# someone remembers to run the script -- it runs every time this loader runs, using data
+# already in hand rather than a second fetch of anything: the contributions file this run
+# just downloaded, and (when a filings snapshot is published) the Board's registered-filer
+# directory that run's sibling pipeline (#1408) already holds in ``cf_filer``.
+#
+# `legislator_committee_match.py` states its own rule not to touch: it stays free of
+# network calls and database access so every rule in it is testable from plain values.
+# The 2 small readers below are the seam that keeps that rule intact -- they build the
+# same `RosterMember` / `FilerRecord` values `scripts/review_legislator_campaign_committees.py`
+# builds from its own engine and its own network call, but from this run's already-open
+# session and already-published snapshot instead.
+
+
+def _read_current_roster(db: Session) -> list[RosterMember]:
+    """Sitting legislators as `legislator_committee_match.RosterMember`.
+
+    Same shape as `read_roster()` in `scripts/review_legislator_campaign_committees.py`,
+    minus the current-session-years it also returns -- `recheck_confirmed_links` has no
+    use for those, only `propose_all` does. Queries this run's own open session rather
+    than opening a second connection, because a legislator id only means anything in the
+    database this session is already reading and writing.
+    """
+    rows = db.execute(
+        select(
+            schema.Legislator.id,
+            schema.Legislator.full_name,
+            schema.Legislator.first_name,
+            schema.Legislator.last_name,
+            schema.Chamber.slug,
+            schema.District.code,
+            schema.LegislatorServicePeriod.party,
+        )
+        .join(
+            schema.LegislatorServicePeriod,
+            schema.LegislatorServicePeriod.legislator_id == schema.Legislator.id,
+        )
+        .join(
+            schema.Chamber,
+            schema.Chamber.id == schema.LegislatorServicePeriod.chamber_id,
+        )
+        .join(
+            schema.District,
+            schema.District.id == schema.LegislatorServicePeriod.district_id,
+        )
+        .where(schema.LegislatorServicePeriod.is_current.is_(True))
+    ).all()
+    return [
+        RosterMember(
+            legislator_id=str(row.id),
+            full_name=row.full_name,
+            chamber_slug=row.slug,
+            first_name=row.first_name,
+            last_name=row.last_name,
+            district=row.code,
+            party=row.party,
+        )
+        for row in rows
+    ]
+
+
+def _read_filer_directory(
+    db: Session, snapshot_id: uuid.UUID
+) -> dict[str, FilerRecord]:
+    """The Board's registered-filer directory, read out of this run's own filings
+    snapshot (#1408) rather than fetched again from the Board.
+    """
+    rows = db.scalars(
+        select(schema.CampaignFinanceFiler).where(
+            schema.CampaignFinanceFiler.snapshot_id == snapshot_id
+        )
+    ).all()
+    return {
+        row.registration_number: FilerRecord(
+            registration_number=row.registration_number,
+            committee_name=row.name,
+            candidate_name=row.candidate_name or "",
+            office=row.office,
+            district=row.district,
+            party=row.party,
+            is_incumbent=row.is_incumbent,
+            is_terminated=row.termination_date is not None,
+        )
+        for row in rows
+    }
+
+
+def verify_confirmed_committee_links(
+    db: Session,
+    contributions_path: str,
+    filings: Optional[Any],
+    *,
+    log=print,
+) -> list[str]:
+    """Re-check every person-confirmed legislator-committee link (#1354), on this load.
+
+    **Why this exists.** A confirmed link is what puts money on a legislator's page, and
+    a wrong one publishes another person's money under a real politician's name -- the
+    worst error this product can make, and one nothing downstream would ever catch on its
+    own (`docs/architecture/campaign-finance-system-design.md` §5.1: the financial totals
+    route carries no registration number, no committee name and no filer identifier of
+    any kind). A committee can rename or close after a person confirmed it, so the check
+    has to run again later, not just once.
+
+    **What it checks and what it does not.** Compares every *confirmed* link against the
+    Board's registered-filer directory, which party's units pay the committee, and the
+    committee's own published name. It reports and never repairs: a rename or closure is
+    a legitimate event, not necessarily a mistake, and deciding which stays a person's
+    job. It never blocks this load and never touches `report.refusal` -- the money data
+    this run publishes is correct whether or not a committee got renamed, and refusing to
+    publish real payment rows over an unrelated identity question would be the wrong
+    trade. Zero confirmed links (true for every run until the first review sitting lands)
+    is a pass: there is nothing yet for a person to have gotten wrong.
+
+    Returns already-formatted lines, one per contradiction, empty when every confirmed
+    link still agrees or there is nothing to check. The caller is responsible for making
+    a non-empty result reach a person -- printing it here is not that (see
+    `scripts/load_campaign_finance.py`).
+    """
+    if not inspect(db.get_bind()).has_table(
+        schema.LegislatorCampaignCommittee.__tablename__
+    ):
+        return []
+    rows = db.scalars(
+        select(schema.LegislatorCampaignCommittee).where(
+            schema.LegislatorCampaignCommittee.decision
+            == schema.CommitteeLinkReviewDecision.confirmed
+        )
+    ).all()
+    if not rows:
+        log("committee links: no confirmed links yet, so there is nothing to re-check.")
+        return []
+
+    members_by_id = {
+        member.legislator_id: member for member in _read_current_roster(db)
+    }
+    committees, party_by_registration = read_contributions_csv(contributions_path)
+    committees_by_registration = {
+        committee.registration_number: committee for committee in committees
+    }
+    filers_by_registration = (
+        _read_filer_directory(db, filings.snapshot_id) if filings is not None else {}
+    )
+
+    problems = recheck_confirmed_links(
+        [
+            ConfirmedLink(
+                legislator_id=str(row.legislator_id),
+                registration_number=row.registration_number,
+                committee_name_as_reviewed=row.committee_name_as_reviewed,
+                reviewed_by=row.reviewed_by,
+            )
+            for row in rows
+        ],
+        members_by_id,
+        committees_by_registration,
+        party_by_registration=party_by_registration,
+        filers_by_registration=filers_by_registration,
+    )
+    log(
+        f"committee links: re-checked {len(rows)} confirmed link(s) against the "
+        "Board's registered-filer directory, which party's money pays each committee, "
+        "and each committee's own published name."
+    )
+    if not problems:
+        log("committee links: every one still agrees with both sources.")
+        return []
+
+    names = {
+        member.legislator_id: member.full_name for member in members_by_id.values()
+    }
+    return [
+        f"{names.get(link.legislator_id, link.legislator_id)} -- "
+        f"{link.registration_number} {link.committee_name_as_reviewed!r} / {problem} / "
+        f"confirmed by {link.reviewed_by}"
+        for link, problem in problems
+    ]
+
+
 def load_campaign_finance(
     db: Session,
     *,
@@ -2118,6 +2327,11 @@ def load_campaign_finance(
     quarantined, which is what §4.3 asks for. The trade buys not keeping 7 to 10 GB a
     year of reshuffled copies of identical data, and the irreplaceable case, a
     published set, is always stored before it is published.
+
+    Also re-checks every person-confirmed legislator-committee link (#1354) against
+    this run's own data, whether or not this run ends up publishing anything new — see
+    ``verify_confirmed_committee_links``. A contradiction never blocks this load and is
+    reported on ``LoadReport.committee_link_contradictions``, never in ``refusal``.
     """
     http = http or _http_session()
     approved = {value.strip().lower() for value in (publish_hashes or []) if value}
@@ -2188,6 +2402,35 @@ def load_campaign_finance(
                 f"{measured.distinct_row_count:,} distinct, "
                 f"{measured.malformed_quote_record_count} with the source's quote "
                 f"escape, records {measured.record_set_hash[:12] or 'unparsed'}"
+            )
+
+        # Re-check every person-confirmed legislator-committee link (#1354) against this
+        # run's own data, whatever else this run goes on to decide about the money. Placed
+        # here rather than after publish because it runs on *every* load, not only ones
+        # that end up publishing something new -- the data it needs is already in hand the
+        # moment the contributions file parses, and a legislator no longer sitting is a
+        # fact about our own roster, not about whether the Board's file changed (#1398).
+        contributions_outcome = next(
+            (
+                outcome
+                for outcome in report.outcomes
+                if outcome.spec.dataset is Dataset.contributions
+            ),
+            None,
+        )
+        if (
+            contributions_outcome is not None
+            and contributions_outcome.fetched.content_error is None
+            and contributions_outcome.measurements is not None
+            and not contributions_outcome.measurements.errors
+        ):
+            report.committee_link_contradictions = verify_confirmed_committee_links(
+                db, contributions_outcome.fetched.path, filings, log=log
+            )
+        else:
+            log(
+                "committee links: the contributions download did not parse, so "
+                "confirmed links were not re-checked this run."
             )
 
         if not dry_run:

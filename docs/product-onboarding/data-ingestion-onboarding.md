@@ -507,6 +507,17 @@ derived "not itemized" figure and reads as ordinary small-donor money. Seeing it
 each filing's own stated itemized subtotal, which the Board publishes only inside the
 report document.
 
+**A person-confirmed legislator-committee link is re-checked on every run too**
+([#1398](https://github.com/alethical-org/alethical/issues/1398)). A person confirms
+which state-registered committee belongs to which legislator by hand
+([#1354](https://github.com/alethical-org/alethical/issues/1354), 0 confirmed as of
+this writing); a committee can rename or close after that, so the load re-checks every
+confirmed link against the contributions file it just downloaded and the registered-
+filer directory its sibling pipeline already holds, and reports a contradiction rather
+than fixing it. It never blocks the load and it is on no schedule of its own — see
+[`campaign-finance-system-design.md`](../architecture/campaign-finance-system-design.md)
+§5.1.
+
 **Where the bytes go, and why it is a correctness requirement rather than
 housekeeping.** The Board publishes no archive: the download links never change and
 the file behind each one is replaced as it grows, so a file we fail to keep is not
