@@ -2,8 +2,9 @@
 
 # How sign-in works
 
-Alethical offers Google and email plus password. Supabase Auth checks both methods and
-stores passwords. Alethical never receives or stores a password.
+Alethical offers Google and email plus password. The website holds a typed password only
+long enough to send it directly to Supabase Auth through an encrypted connection. Alethical's
+server and database never receive or store it.
 
 ## What a reader can do
 
@@ -14,8 +15,77 @@ stores passwords. Alethical never receives or stores a password.
 - Set or change a password while signed in.
 - Sign out only from the browser or device they are using.
 
-Passwords must have at least 15 characters. Spaces are allowed, so a few words work well.
-Alethical does not require a capital letter, number, or symbol.
+## Password policy and why
+
+Email and password sign-in has no required second sign-in step. This is called single-factor
+sign-in because the password is the only proof required. Two-factor authentication, or 2FA,
+would require a second proof after the password, such as a code from an authenticator app.
+
+Alethical bases this password policy on the July 2025
+[NIST Digital Identity Guidelines](https://pages.nist.gov/800-63-4/sp800-63b.html#passwordver).
+NIST is the U.S. Department of Commerce agency that develops technical standards used by
+government and industry. Its guidance is not a law for Alethical, but it is the modern security
+benchmark we use. It requires at least 15 characters when a password is the only sign-in factor
+and permits an 8-character minimum only when another factor is required.
+
+The policy is:
+
+- Require at least 15 characters.
+- Allow spaces, paste, password-manager autofill, and long passphrases made from several words.
+- Do not require a capital letter, number, or symbol. These are called composition rules.
+- Reject passwords found in known data leaks.
+- Limit repeated sign-in attempts so an attacker cannot make unlimited guesses quickly.
+- Do not force routine password changes. Change a password when the reader asks or when there is
+  evidence that it may have been exposed.
+
+Composition rules often produce predictable changes such as `Password1!`, while adding length
+makes the attacker guess more. NIST therefore says not to force character types. It pairs length
+with a refused-password list, limited attempts, and safe password storage instead.
+
+### What leaked-password blocking means
+
+A blocklist is a list of passwords the service refuses. [Supabase Password Security](https://supabase.com/docs/guides/auth/password-security)
+checks new and changed passwords against [Have I Been Pwned](https://haveibeenpwned.com/Passwords),
+a service built from passwords exposed in known data leaks. This catches known stolen passwords,
+including many common choices. It is not a complete list of every predictable password or words
+connected to Alethical.
+
+The plain password is not sent to Have I Been Pwned. Supabase makes a temporary SHA-1 fingerprint
+only for this lookup. SHA-1 is not used to store the password. Supabase sends only the first 5
+characters of the fingerprint, receives many possible matches, and checks the full fingerprint on
+its own side. This privacy method is called k-anonymity.
+
+Alethical does not add a second custom list today. A check in Alethical's server would make more of
+our code handle the plain password. The 15-character minimum, Have I Been Pwned check, and attempt
+limit cover the main risk without widening that sensitive path. Reconsider this if Supabase adds a
+safe built-in check for common or Alethical-related words, or if real evidence shows a gap.
+
+### How salted bcrypt protects stored passwords
+
+Password hashing is one-way scrambling for storage. It is not a second sign-in step, and a reader
+does not have to do anything extra. Supabase uses a password-hashing method called bcrypt:
+
+1. Supabase makes a new random value for the password. This is the salt.
+2. Bcrypt mixes the password and salt and deliberately repeats slow work to produce a stored
+   result called a hash.
+3. Supabase stores the salt and hash, not the plain password.
+4. At sign-in, Supabase repeats the check with the submitted password and accepts it only if the
+   result matches.
+
+The salt does not need to be secret. Its job is to make the same password produce a different
+stored result for each account, which defeats ready-made lookup tables. Bcrypt's deliberate delay
+makes every stolen-database guess cost more time. Hashing still cannot make a short or reused
+password safe, or protect a reader who is tricked into revealing it. The other protections remain
+necessary.
+
+If Alethical ever takes over password storage from Supabase, use Argon2id with a unique random salt
+instead. Argon2id makes every guess use both time and memory, which makes large guessing machines
+more expensive to run. OWASP is a nonprofit foundation that publishes free software-security
+guidance. Its [Password Storage Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html)
+starts Argon2id at 19 MiB of working memory, about 20 MB, with 2 passes through that memory and 1
+processing lane, meaning 1 thread of work. Do not move password storage into Alethical only to
+replace Supabase's bcrypt. Owning that sensitive system would add more risk than the algorithm
+change removes.
 
 ## Why Google and password open 1 account
 
