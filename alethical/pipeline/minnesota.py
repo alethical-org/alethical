@@ -1132,6 +1132,9 @@ class MinnesotaIngestionPipeline:
         definition = session_definition(session_code)
         existing = self._existing_reference_data(definition.slug)
         if existing is not None:
+            # The lock-free refresh path must heal old or damaged date rows too.
+            existing["session"].start_date = definition.start_date
+            existing["session"].end_date = definition.end_date
             return existing
         # A reference row is missing — seed under the lock. The body below
         # re-checks every row, so it stays race-safe while the lock is held.

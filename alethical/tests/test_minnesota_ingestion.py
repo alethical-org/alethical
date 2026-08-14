@@ -282,6 +282,28 @@ def test_seed_reference_data_gives_the_special_session_its_own_row(
         )
 
 
+def test_seed_reference_data_repairs_missing_dates_on_an_existing_session(
+    seed_database: None,
+) -> None:
+    """A normal refresh restores the official date range instead of returning early."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        legislative_session = pipeline.seed_reference_data()["session"]
+        expected_start = legislative_session.start_date
+        expected_end = legislative_session.end_date
+        assert expected_start is not None
+        assert expected_end is not None
+
+        legislative_session.start_date = None
+        legislative_session.end_date = None
+        session.flush()
+
+        repaired = pipeline.seed_reference_data()["session"]
+
+        assert repaired.start_date == expected_start
+        assert repaired.end_date == expected_end
+
+
 def test_refresh_legislator_stats_scopes_to_given_ids(seed_database: None) -> None:
     """#257: refresh_legislator_stats(refs, legislator_ids=...) recomputes only the
     given legislators, so concurrent bill-sync chunk workers don't all rewrite every
