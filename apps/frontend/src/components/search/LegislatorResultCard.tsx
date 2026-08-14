@@ -18,8 +18,8 @@ import { theme as t } from '../../theme/tokens';
 
 const isWeb = Platform.OS === 'web';
 
-// Legislator card for the redesigned Search Legislators screen
-// (docs/mockups/search-legislators). The whole card links to the profile. There
+// Legislator card for the Search Legislators screen
+// (docs/architecture/frontend-screen-system-design.md §7). The whole card links to the profile. There
 // is NO follow/track action on this screen (follow-a-legislator is #151, v2).
 
 type LegislatorCardData = Pick<

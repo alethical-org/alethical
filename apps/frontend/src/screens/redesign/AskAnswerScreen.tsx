@@ -63,8 +63,7 @@ const isWeb = Platform.OS === 'web';
 
 // The chip-reached Ask answer page. Spec of record:
 // docs/product-onboarding/grounded-ask-spec.md §9.5 (The chip-reached answer page —
-// decided web design), which supersedes §9.1–§9.2 for the bill_text state; design
-// handoff in docs/mockups/answer-web/.
+// decided web design), which supersedes §9.1–§9.2 for the bill_text state.
 //
 // The bill-text state uses the two-column passage design from §9.5. The issue
 // state is the separate full-width, sortable bill-list design from §9.6. Both

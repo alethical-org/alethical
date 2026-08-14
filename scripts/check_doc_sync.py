@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Make a PR explain affected docs and edits to frozen design records.
+"""Make a PR explain affected docs and edits to the temporary sign-in record.
 
 The problem this exists for: a code change silently makes a doc sentence false.
 Every instance found in the Jul 29 2026 audit of
@@ -74,16 +74,15 @@ The cost of closing the hole is one sentence on a PR that both changes described
 code and edits its doc. That is a real cost and it is worth paying: the hole cost
 two PRs and a self-contradicting page in a public repo.
 
-**Frozen design bundles use a separate acknowledgement.** Files under
-``docs/mockups/**`` are accepted design records, so they deliberately do not
-declare live code through ``describes:`` comments. That also used to let an
-implementation PR rewrite the requirement it was meant to build without saying
-so. A PR that edits one of those files now needs its own nonempty line::
+**The temporary sign-in design record uses a separate acknowledgement.** New
+design working files no longer land under ``docs/``. The active sign-in redesign
+is the one temporary exception, so a PR that edits ``docs/mockups/sign-in/**``
+still needs its own nonempty line::
 
     Design change: restored the vote column required by the accepted handoff
 
 This is independent from ``Docs check:``. A PR that changes both described code
-and a frozen design bundle needs both lines because they answer different review
+and the temporary sign-in design record needs both lines because they answer different review
 questions.
 """
 
@@ -112,7 +111,7 @@ FENCE = re.compile(r"^[ \t]*(`{3,}|~{3,}).*?(?:^[ \t]*\1[ \t]*$|\Z)", re.S | re.
 # The acknowledgement line a PR body needs. Matched case-insensitively and
 # anywhere in the body, so it can sit under a heading or in a checklist item.
 ACK = re.compile(r"docs\s*check\s*:", re.IGNORECASE)
-# Frozen design records need their own explicit, nonempty line. It must start a
+# The temporary sign-in design record needs its own explicit, nonempty line. It must start a
 # line so mentioning the phrase in prose does not silently approve a design edit.
 DESIGN_ACK = re.compile(
     r"^[ \t]*design\s+change\s*:[ \t]*\S.*$", re.IGNORECASE | re.MULTILINE
@@ -172,7 +171,9 @@ def main() -> int:
     if not changed:
         return 0
 
-    design_changes = [path for path in changed if path.startswith("docs/mockups/")]
+    design_changes = [
+        path for path in changed if path.startswith("docs/mockups/sign-in/")
+    ]
 
     couplings = declared_couplings()
     # Which declared docs describe something this PR touched. Editing the doc is
@@ -223,12 +224,12 @@ def main() -> int:
         print("    to get a run that sees the new body.\n")
 
     if design_changes and DESIGN_ACK.search(body):
-        print("Design change acknowledged in the PR body. Bundle files changed:")
+        print("Design change acknowledged in the PR body. Sign-in design files changed:")
         for path in sorted(design_changes):
             print(f"  {path}")
     elif design_changes:
         failed = True
-        print("This PR changes frozen design bundle files, but its body has no")
+        print("This PR changes the temporary sign-in design record, but its body has no")
         print(
             "nonempty line starting 'Design change:' that names what changed and why.\n"
         )
@@ -239,7 +240,7 @@ def main() -> int:
         print("  Design change: restored the vote column required by the handoff\n")
         print("If a designed element is being removed because its data seems missing,")
         print("first prove that fact exists nowhere in the Alethical API. The removal")
-        print("is Eugene's call, not the bundle's.")
+        print("is Eugene's call, not the preview's.")
 
     return 1 if failed else 0
 

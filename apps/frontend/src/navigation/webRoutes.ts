@@ -156,7 +156,7 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
   }
 
   // Bill detail and legislator detail resolve to their redesigned profile
-  // screens (docs/mockups/bill-detail-*, legislator-profile-web). Chat sessions
+  // screens (docs/product-onboarding/bill-detail-guide.md and legislator-profile-guide.md). Chat sessions
   // are still old-design — redirect those to Home.
   if (segments.length === 2 && segments[0] === 'bills') {
     return {

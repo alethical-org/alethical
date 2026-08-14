@@ -71,7 +71,7 @@ function FindMyLegislatorLink({ mobile, onPress }: { mobile?: boolean; onPress: 
   );
 }
 
-// Search Legislators (docs/mockups/search-legislators). Name search over the
+// Search Legislators (docs/architecture/frontend-screen-system-design.md §7). Name search over the
 // current session with chamber + party + session filters and a
 // browsable 2-column card grid. No follow/track, no sign-in modal, no toast.
 

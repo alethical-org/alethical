@@ -155,7 +155,7 @@ The runner is **Vitest** (`apps/frontend`, pinned exact). It runs plain TypeScri
 
 Prefer a fixture of **real** data over invented strings: `src/lib/__tests__/fixtures/` holds real bill sections pulled from the production API, and its `README.md` explains what each one is there to catch and how to add more. Two of the bugs these tests pin were found by measuring against real text and would not have been caught by an example someone made up.
 
-**Format the frontend only with `just format`** (Prettier from the lockfile-pinned toolchain — `3.4.2`, config in `apps/frontend/.prettierrc.json`; run `pnpm install --frozen-lockfile` first if deps look stale). The workspace Prettier is **safe**: if it produces a large diff, the file was genuinely non-conformant — **keep** the formatting, don't reset it. Only a **global or ad-hoc `prettier`** binary (a different version, or run where it can't find the config) reflows spuriously — never use that. CI's format step is `prettier --check .` run **with `working-directory: apps/frontend`** (`.github/workflows/ci.yml`), so its `.` is the frontend package, **not the repo root**: a frontend PR fails if *any* file under `apps/frontend` is non-conformant, even ones you didn't touch — but Markdown and other files outside that directory are not gated. Don't run `prettier --check .` from the repo root and conclude CI is failing: as of Jul 2026 that reports ~74 non-conformant files across `docs/`, `pnpm-lock.yaml` and the mockup HTML, none of which CI checks. If `just format` reformats files unrelated to your change, that's pre-existing debt — format it in a separate `chore/format-*` PR first, then rebase your change on top so its diff stays surgical. A dev-server "expected versions of the packages" warning means your `node_modules` drifted from the lockfile; reinstall before formatting.
+**Format the frontend only with `just format`** (Prettier from the lockfile-pinned toolchain — `3.4.2`, config in `apps/frontend/.prettierrc.json`; run `pnpm install --frozen-lockfile` first if deps look stale). The workspace Prettier is **safe**: if it produces a large diff, the file was genuinely non-conformant — **keep** the formatting, don't reset it. Only a **global or ad-hoc `prettier`** binary (a different version, or run where it can't find the config) reflows spuriously — never use that. CI's format step is `prettier --check .` run **with `working-directory: apps/frontend`** (`.github/workflows/ci.yml`), so its `.` is the frontend package, **not the repo root**: a frontend PR fails if *any* file under `apps/frontend` is non-conformant, even ones you didn't touch — but Markdown and other files outside that directory are not gated. Don't run `prettier --check .` from the repo root and conclude CI is failing: the repo root also includes docs and lockfiles outside that frontend check. If `just format` reformats files unrelated to your change, that's pre-existing debt — format it in a separate `chore/format-*` PR first, then rebase your change on top so its diff stays surgical. A dev-server "expected versions of the packages" warning means your `node_modules` drifted from the lockfile; reinstall before formatting.
 
 ## Branch & PR workflow
 
@@ -349,12 +349,12 @@ single home. What CI enforces on your PR:
   the check forces a *look*, never an edit. Editing the doc does not exempt you — read
   the whole doc, then say what you concluded, and search for the claim your change made
   false, not for the name of the thing you changed.
-- **If your PR changes any file under `docs/mockups/`, its body also needs a nonempty
-  `Design change:` line** naming the requirement that changed and why. The two lines do
-  not replace each other; a PR that triggers both checks needs both. To remove a
-  designed element because its data seems unavailable, first prove that fact exists
-  nowhere in Alethical's API — Eugene decides whether to remove the requirement;
-  editing the design bundle does not make that decision.
+- **Design previews do not land under `docs/`.** Keep HTML previews, screenshots, copied
+  assets, and handoff notes with the active task or pull request. Before merging, move
+  lasting behavior and copy into the feature guide under `docs/product-onboarding/`,
+  shared visual rules into `docs/design/design-principles.md`, and exact values into code.
+  `docs/mockups/sign-in/` is the temporary final exception while that redesign is active;
+  changing it still needs a nonempty `Design change:` line naming what changed and why.
 - Selected live guides carry `<!-- check-quoted-code: true -->`: exact labels, colours,
   and settings they quote must still appear in their declared code
   (`scripts/check_doc_quotes.py`), or carry a narrow explained exception
@@ -362,8 +362,8 @@ single home. What CI enforces on your PR:
   at a time, classifying every warning first.
 
 If you write or inherit a doc that describes how something behaves, give it a
-`describes:` comment — joining the check is one line. Frozen records (mockup handoffs,
-dated audits, design intent) deliberately declare nothing.
+`describes:` comment — joining the check is one line. Dated research and audits that
+do not claim current behavior deliberately declare nothing.
 
 ## Writing cross-references
 

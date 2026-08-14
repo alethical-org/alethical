@@ -23,18 +23,14 @@ roadmap noted for direction.
 - **MVP surface:** Ask AI; Search → Bills, Legislators ("Find My Legislator");
   Track → Bills; About → About Us, Trust & Integrity, Contact Us; Sign in.
   Everything else in the menus is roadmap.
-- **Aesthetic:** green / rounded / bold-sans / soft-shadow. Loose and non-binding
-  until firmed; final visual mockups handled separately in Claude design.
-- **Final designs land one page at a time, superseding the seven comps per page:**
-  the seven HTML comps under `docs/mockups/` on the design-system branch
-  ([#67](https://github.com/alethical-org/alethical/pull/67)) were *aesthetic
-  direction*; the actual per-page UI arrives as refined Claude-design mockup
-  screenshots, and once a page's final design exists it supersedes that page's comp
-  as the visual reference (the comp stays as provenance for the tokens). First final
-  design: home signed-out (2026-07-09 refinement — full page + the three nav-dropdown
-  states). The tokens + primitives foundation extracted from the comps persists;
-  each page build tops it up with whatever new tokens/components its final design
-  needs.
+- **Aesthetic:** green / rounded / bold-sans / soft-shadow. Shared intent lives in
+  `docs/design/design-principles.md`; exact values live in the frontend theme.
+- **Final designs land one page at a time:** accepted previews are temporary build aids.
+  Lasting screen behavior moves into the feature guide under `docs/product-onboarding/`,
+  shared visual rules move into `docs/design/design-principles.md`, and exact values move
+  into `apps/frontend/src/theme/tokens.ts` and the built components. Preview HTML,
+  screenshots, copied assets, and handoff notes do not stay under `docs/`; Git history and
+  the pull request preserve the point-in-time artifact without making it current guidance.
 - **Roadmap items in menus = curated, greyed "ON THE ROADMAP" group (resolves O5):**
   the v2 home design shows the Search and Track dropdowns with a greyed, non-navigable
   **ON THE ROADMAP** group beneath the live entries, rather than hiding all roadmap
@@ -44,21 +40,18 @@ roadmap noted for direction.
   Other roadmap registry entries stay hidden. Live
   entries keep icon + one-line description — **Search:** Bills (with a **"Grounded Ask"**
   badge) · Search Legislators · Find My Legislator; **Track:** Bills.
-- **Mockups → frontend handoff (no HTML conversion step):** when the Claude-design
-  mockups finalize, they hand off to implementation as three artifacts, in value order:
-  1. **Final screenshots per screen and state** — shared via Drive for human review.
-     (Anything embedded in this public repo instead must be vetted first — mock
-     screenshots pair real legislator names with fabricated records.)
+- **Design → frontend handoff (no HTML conversion step):** when a design preview is
+  accepted, it hands off to implementation as three inputs, in value order:
+  1. **Final screenshots per screen and state** — kept with the active design task or pull
+     request for human review, not stored as permanent documentation. Screenshots that pair
+     real names with sample records must never enter the public repo.
   2. **Design tokens** — exact colors, type scale, spacing, radii per component —
-     landing as code in `apps/frontend/src/theme/tokens.ts` on the design-system
-     branch ([#67](https://github.com/alethical-org/alethical/pull/67), which also
-     keeps the raw HTML comps under `docs/mockups/` as the versioned visual
-     reference). `tokens.ts` is itself the token sheet; don't hand-maintain a
+     landing as code in `apps/frontend/src/theme/tokens.ts`. `tokens.ts` is itself the token sheet; don't hand-maintain a
      parallel human-readable one — generate it from the file if ever needed.
   3. **Final copy strings verbatim** — for the Ask surface these live in
      `docs/product-onboarding/grounded-ask-spec.md` §9.4 (layout-owned fixed copy), kept in sync as
-     mocks refine. When mock copy and the spec diverge, reconcile the spec
-     deliberately — the spec is the source of truth, not the mock.
+     previews refine. When preview copy and the spec diverge, reconcile the spec
+     deliberately. The spec is the source of truth, not the preview.
 
   There is deliberately **no HTML-to-frontend conversion step**: the frontend is a
   shared Expo/React Native codebase, and RN doesn't render HTML/CSS — converted

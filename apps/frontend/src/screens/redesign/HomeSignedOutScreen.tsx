@@ -582,7 +582,7 @@ function ProgressSteps({ filled, vetoed }: { filled: number; vetoed?: boolean })
 
 // --- The screen ---
 
-// Route entry. Mobile is an intentional redesign (docs/mockups/home-signed-out-mobile),
+// Route entry. Mobile is an intentional separate layout (docs/product-onboarding/home-screen-guide.md),
 // not a reflow of the desktop layout, so it renders as its own component. Switching
 // on a whole component (rather than an early return inside one) keeps each layout's
 // hook order stable across a resize that crosses the breakpoint.
@@ -611,8 +611,8 @@ export function HomeSignedOutScreen() {
   );
 }
 
-// Editorially flagged "🔥 Hot issue" bills (NEXT-home-spec §Bill Activity — Card
-// chrome, web). A card carries the flag only when its bill is in the shared set
+// Editorially flagged "🔥 Hot issue" bills (docs/product-onboarding/home-screen-guide.md).
+// A card carries the flag only when its bill is in the shared set
 // (../../lib/hotIssues). The desktop feed is recency-driven (not curated), so a
 // flagged bill shows the pill when it happens to appear in the top-2 passed /
 // top-3 introduced.
@@ -631,7 +631,7 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
   const isFocused = useIsFocused();
   // Bill Activity — real, date-ordered data (#342: the section previously showed
   // fabricated bills under real legislators' names). Mirrors the mobile home feed
-  // (#341); web shows more per NEXT-home-spec (§"Bill Activity"): 2 passed, 3
+  // (#341); web shows more per home-screen-guide.md §Bill activity: 2 passed, 3
   // introduced. "Recently Passed" = enacted (signed_into_law) by latest action;
   // "Recently Introduced" = real introduction date desc.
   const recentlyPassed = useBills(
@@ -951,7 +951,7 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
 }
 
 // ============================================================================
-// MOBILE HOME (v3) — docs/mockups/home-signed-out-mobile. An intentional redesign
+// MOBILE HOME — docs/product-onboarding/home-screen-guide.md. An intentional redesign
 // for mobile web (a separate web redesign follows), so it's a distinct single-
 // column composition, not a reflow of the desktop layout above. Everything here
 // is wired to REAL data (no static marketing cards):
@@ -963,7 +963,7 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
 // ============================================================================
 
 // Editorial "In the News" pins — keys verified against production 2026-07-15.
-// Inclusion + order are editorial (docs/mockups/home-signed-out-mobile/NEXT-home-spec.md);
+// Inclusion + order are editorial (docs/product-onboarding/home-screen-guide.md);
 // each card shows that bill's real data. HF 4138 is the enacted social-media law
 // the design's card 1 depicts (the mock labeled it "SF 3933", which is a different
 // bill in our corpus). SF 856 is the enacted Office of the Inspector General bill.
@@ -1042,7 +1042,7 @@ function NewsCardMobile({
   );
 }
 
-// Card meta line freshness treatment (#329, NEXT-home-spec.md §"Card meta line").
+// Card meta line freshness treatment (#329, home-screen-guide.md §Bill activity).
 // updatedAt arrives as "YYYY-MM-DD" (formatUpdatedAt) or the "Unknown" sentinel
 // when a bill still has no dated action; render it as a plain "Mon D, YYYY".
 const META_MONTHS = [

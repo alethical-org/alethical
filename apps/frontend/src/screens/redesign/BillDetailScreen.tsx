@@ -82,8 +82,8 @@ import { FullTextTab } from '../../components/billDetail/FullTextTab';
 import { SuggestedQuestionChip } from '../../components/billDetail/CitationCard';
 import { BillDetailWebScreen } from './BillDetailWebScreen';
 
-// Bill Detail — mobile-first, single scrolling page (docs/mockups/bill-detail-mobile).
-// Re-expressed in RN from the .dc.html literal values; support.js not ported.
+// Bill Detail — mobile-first, single scrolling page
+// (docs/product-onboarding/bill-detail-guide.md).
 //
 // Data honesty (grounded-answers.md rules 1/4): the mock hardcodes party rosters
 // and fabricates per-member votes; this build shows only what the record truthfully
@@ -2565,7 +2565,7 @@ const styles = StyleSheet.create({
   // Plain-language key — one definition per line (mobile is a single column), and
   // separated from the timeline by WHITESPACE rather than the web tab's hairline:
   // a border here collides with the vertical timeline line running down beside it
-  // (NEXT-bill-detail-spec.md §Actions).
+  // (docs/product-onboarding/bill-detail-guide.md §Actions).
   actionKeyBox: { marginTop: 18 },
   actionKeyLabel: {
     fontFamily: t.typography.mono,

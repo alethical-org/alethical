@@ -30,10 +30,10 @@ import { useUnavailableControl } from '../billDetail/interactions';
 import { useHistoryScrollRestoration } from '../../hooks/useHistoryScrollRestoration';
 import { linkProps } from '../../navigation/links';
 
-// Shared building blocks for the redesigned Search Bills / Search Legislators
-// screens (docs/mockups/search-bills + search-legislators). The two screens
+// Shared building blocks for Search Bills / Search Legislators
+// (docs/product-onboarding/bill-search-screen-spec.md and frontend-screen-system-design.md §7). The two screens
 // compose these; the per-page cards live in BillResultCard/LegislatorResultCard.
-// High-fidelity: literal hex/px come from the .dc.html references.
+// Exact values come from theme/tokens.ts and docs/design/design-principles.md.
 
 const isWeb = Platform.OS === 'web';
 const t = theme;

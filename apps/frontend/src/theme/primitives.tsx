@@ -33,7 +33,7 @@ import {
 } from '../components/auth/AccountControl';
 
 // Reusable primitives for the redesign, built on the green token system
-// (see theme/tokens.ts, extracted from docs/mockups/*.html). Web-first.
+// (see theme/tokens.ts and docs/design/design-principles.md). Web-first.
 
 const isWeb = Platform.OS === 'web';
 const t = theme;
@@ -182,7 +182,7 @@ function Logo({
   );
 }
 
-// --- v2 nav dropdowns (docs/mockups/home-signed-out-v2) ---
+// --- Shared navigation dropdowns (docs/product-onboarding/mvp-redesign-plan.md) ---
 
 /** Dropdown-row icon tiles — inline SVGs lifted from the DC source. */
 function MenuRowIcon({ itemId, disabled }: { itemId: string; disabled?: boolean }) {

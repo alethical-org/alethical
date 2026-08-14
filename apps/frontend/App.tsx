@@ -57,8 +57,8 @@ export default function App() {
     // without touching each component. :focus-visible = keyboard focus only, so
     // the ring never flashes on mouse click. Text fields are excluded — they
     // carry their own purple focus ring (see theme/fieldFocus.ts), so an outline
-    // would double it. Spec: docs/mockups/search-bills-v2/README.md, "Reusable
-    // conventions" (2px solid #7c5cff, offset 2px).
+    // would double it. Rule: docs/design/design-principles.md §3, keyboard focus
+    // (2px solid #7c5cff, offset 2px).
     const ensureFocusStyles = () => {
       if (document.getElementById('alethical-focus-visible')) {
         return;

@@ -5,7 +5,7 @@
 Status: shipped, [#740](https://github.com/alethical-org/alethical/pull/740) (`5379a88`). Covers the **Bill Text
 tab** of Bill Detail on web (`/bills/:billId?tab=text`) and the `sec-fulltext` block of the mobile
 single-scroll page — one component, `FullTextTab.tsx`, serves both. Companion to
-`docs/mockups/bill-detail-mobile/NEXT-bill-detail-spec.md` (the rest of Bill Detail). Durable
+`docs/product-onboarding/bill-detail-guide.md` (the rest of Bill Detail). Durable
 citation/neutrality invariants live in `.claude/rules/grounded-answers.md`.
 
 ## Goal

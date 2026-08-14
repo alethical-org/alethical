@@ -6,8 +6,9 @@
 declared, measured each one against the real repo, and are **not making any of them a CI
 gate**. The declared-coupling check remains the right mechanism for live guides; the gap it has
 is a **missing declaration**, and writing one is a one-line edit per doc. A later, separate
-[#1469](https://github.com/alethical-org/alethical/issues/1469) guard covers edits to frozen
-design bundles, which do not declare live code. Two of the four alternatives measured here
+[#1469](https://github.com/alethical-org/alethical/issues/1469) guard covered frozen design
+bundles. Issue [#1534](https://github.com/alethical-org/alethical/issues/1534) retired those
+bundles and left the guard only on the temporary sign-in record. Two of the four alternatives measured here
 cannot see plain-English guides at all, one costs money in CI on a graph we can't keep current,
 and the closest near-miss would newly fire on 20% of PRs with at least 36% of its new prompts
 triggered by plumbing — and a check people route around is worse than no check.
@@ -75,18 +76,22 @@ The 2 misses were a tab list written as unquoted prose and a larger settings exa
 wrong inner value also appeared legitimately for other models. Expanding the extractor to catch
 either would increase current false warnings, so both stay outside this exact-string check.
 
-### The separate frozen-design guard
+### Design working files stay temporary
 
-Files under `docs/mockups/` are accepted design records rather than live behaviour guides, so
-they deliberately carry no `describes:` declaration. After [#1450](https://github.com/alethical-org/alethical/pull/1450)
-quietly removed 5 accepted homepage elements while rewriting the bundle to agree, #1469 added
-an independent rule to the same script and CI step: a PR that edits any frozen design file
-needs a nonempty line beginning `Design change:` that names what requirement changed and why.
+Accepted previews used to live under `docs/mockups/` without a `describes:` declaration. That
+made point-in-time HTML, screenshots, sample records, and handoff notes look like current product
+guidance. It also allowed an implementation and its old preview to disagree after either one
+changed.
 
-That sentence is separate from `Docs check:` because the two checks answer different questions.
-The checker does not judge the sentence beyond requiring text after the colon. Its failure names
-every changed bundle file and states the product boundary: missing data must first be proven
-absent from Alethical's API, and Eugene decides whether the accepted requirement is removed.
+Issue [#1534](https://github.com/alethical-org/alethical/issues/1534) reversed that storage rule.
+Preview files now stay with the active task or pull request. Before a build lands, lasting behavior
+and copy move into the feature guide under `docs/product-onboarding/`, shared visual rules move
+into `docs/design/design-principles.md`, and exact values move into code. Those permanent guides
+use the normal `describes:` and `Docs check:` path.
+
+`docs/mockups/sign-in/` remains as a temporary exception while the separate sign-in redesign is
+active. The existing `Design change:` check is limited to that folder until its lasting rules are
+reconciled into `docs/product-onboarding/sign-in-guide.md` and the folder is removed.
 
 **Two things about that line trip people up, and the second costs a wasted CI cycle**
 ([#1008](https://github.com/alethical-org/alethical/pull/1008), 2026-08-05, hit both):

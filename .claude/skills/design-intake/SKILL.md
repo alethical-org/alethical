@@ -17,7 +17,7 @@ One gate, once: for design tasks this skill **is** the intake step — don't sta
 
 ## 1. Self-answer from the repo first (never ask what you can check)
 
-- Is the page's design bundle already in `docs/mockups/<page>/`? It usually is — you rarely need assets re-handed.
+- Is the accepted preview attached to the task or already downloaded? Identify the exact file and state before asking for it again. Design bundles are temporary working inputs and do not live under `docs/`.
 - Is this a **regression**? `git log` / blame the component or area; a recent change often *is* the cause.
 - Which screen / route / component owns it? (`navigation/ia.ts`, `navigation/webRoutes.ts`, the screen file, `theme/primitives.tsx`.)
 - **Screen-local fix, or shared token/primitive?** A fix that can only be made by editing a shared token (`theme/tokens.ts`), a theme helper, or `theme/primitives.tsx` changes *every* surface that consumes it — its blast radius is app-wide even when the task named one screen. If shared: name the other affected surfaces up front, add at least one to the manual-QA set, and plan a PR tradeoff callout. (Flagship: the #194 contrast fix darkened shared faint/muted tokens site-wide, not just the signed-out home.)
@@ -43,7 +43,7 @@ Put the genuine unknowns to the user in one `AskUserQuestion` call (≤ 4 questi
 
 ## 4. Restate, then hand off
 
-State the sharpened task in one line — scope · deliverable · acceptance · assets needed (usually none; they're in-repo) — then continue with `design-build` (build/change) or `systematic-debugging` (bug).
+State the sharpened task in one line — scope · deliverable · acceptance · assets needed — then continue with `design-build` (build/change) or `systematic-debugging` (bug).
 
 ## Anti-patterns
 
