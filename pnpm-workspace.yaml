@@ -44,7 +44,7 @@ overrides:
   "js-yaml@4": 4.3.1 # @expo/xcpretty — quadratic-complexity DoS
   "minimatch@5": 5.1.8 # eas-cli, filelist — three ReDoS advisories
   "minimatch@3.1.5>brace-expansion": 2.1.4 # the 2.x line of the same DoS
-  nanoid: 3.3.17 # React Navigation and build tools — infinite loops on invalid sizes
+  nanoid: 3.3.18 # React Navigation and build tools — infinite loop when a generator size is 0 (GHSA-2v37-7h3g-55p8)
   node-forge: 1.4.0 # eas-cli held 1.3.1; dedupes onto the copy already present
   postcss: 8.5.23 # @expo/metro-config — source-map arbitrary file read
   shell-quote: 1.9.0 # react-devtools-core — the CVE-2026-9277 critical
