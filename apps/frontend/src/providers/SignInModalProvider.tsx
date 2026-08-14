@@ -235,8 +235,17 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
     await completePendingTrackActionFromApi(token, request.pendingReference);
   }, []);
 
+  // A fresh submission owns the screen: drop any error the dialog reopened
+  // with, so a stale banner (e.g. the unverified-Google result) cannot mask
+  // the new attempt's real outcome (#1533).
+  const clearReopenedError = useCallback(() => {
+    dismissAuthError();
+    dispatch({ type: 'clearError' });
+  }, [dismissAuthError]);
+
   const onPasswordSignIn = useCallback(
     async (email: string, password: string): Promise<SignInDialogActionResult> => {
+      clearReopenedError();
       setBusyAction('sign-in');
       try {
         await ensurePendingReference('ordinary');
@@ -251,11 +260,12 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
         setBusyAction(null);
       }
     },
-    [ensurePendingReference, signInWithPassword],
+    [clearReopenedError, ensurePendingReference, signInWithPassword],
   );
 
   const onCreateAccount = useCallback(
     async (email: string, password: string): Promise<SignInDialogActionResult> => {
+      clearReopenedError();
       setBusyAction('create');
       try {
         const pendingReference = await ensurePendingReference('email-link');
@@ -278,11 +288,12 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
         setBusyAction(null);
       }
     },
-    [createAccount, ensurePendingReference],
+    [clearReopenedError, createAccount, ensurePendingReference],
   );
 
   const onResendConfirmation = useCallback(
     async (email: string): Promise<SignInDialogActionResult> => {
+      clearReopenedError();
       setBusyAction('resend');
       try {
         const pendingReference = await ensurePendingReference('email-link');
@@ -292,11 +303,12 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
         setBusyAction(null);
       }
     },
-    [ensurePendingReference, resendConfirmation],
+    [clearReopenedError, ensurePendingReference, resendConfirmation],
   );
 
   const onForgotPassword = useCallback(
     async (email: string): Promise<SignInDialogActionResult> => {
+      clearReopenedError();
       setBusyAction('forgot');
       try {
         const result = await sendPasswordReset(email, resetUrl());
@@ -305,7 +317,7 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
         setBusyAction(null);
       }
     },
-    [sendPasswordReset],
+    [clearReopenedError, sendPasswordReset],
   );
 
   // Signing in anywhere — including a second tab — closes the dialog. When this

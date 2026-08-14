@@ -158,6 +158,8 @@ export type SignInAction =
   | { type: 'reopenWithError'; request: SignInRequest; kind: SignInErrorKind }
   | { type: 'connect' }
   | { type: 'fail'; kind: SignInErrorKind }
+  /** A fresh form submission owns the screen: any reopened error is stale now. */
+  | { type: 'clearError' }
   | { type: 'close' };
 
 export const initialSignInState: SignInDialogState = {
@@ -206,6 +208,11 @@ export function signInReducer(state: SignInDialogState, action: SignInAction): S
         return state;
       }
       return { ...state, status: 'error', errorKind: action.kind };
+    case 'clearError':
+      if (!state.open || state.status !== 'error') {
+        return state;
+      }
+      return { ...state, status: 'idle', errorKind: null };
     case 'close':
       return initialSignInState;
   }

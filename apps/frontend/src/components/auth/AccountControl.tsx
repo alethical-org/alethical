@@ -578,6 +578,19 @@ export function AccountAvatarButton() {
     if (isWeb) (avatarRef.current as unknown as HTMLElement | null)?.focus?.();
   };
 
+  // RN-Web's Modal does not close on Escape by itself (verified in-browser),
+  // so the sheet listens for it directly while open.
+  useEffect(() => {
+    if (!isWeb || !open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || signOutFlow.state === 'busy') return;
+      setOpen(false);
+      (avatarRef.current as unknown as HTMLElement | null)?.focus?.();
+    };
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => document.removeEventListener('keydown', onKeyDown, true);
+  }, [open, signOutFlow.state]);
+
   return (
     <>
       <Pressable

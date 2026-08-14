@@ -180,6 +180,19 @@ describe('dialog state machine', () => {
     });
   });
 
+  it('drops a reopened error when a fresh form submission starts', () => {
+    // A stale banner (e.g. the unverified-Google result) must not mask the
+    // new attempt's real outcome (#1533).
+    const reopened = signInReducer(initialSignInState, {
+      type: 'reopenWithError',
+      request: { intent: 'nav' },
+      kind: 'unverified-google',
+    });
+    const cleared = signInReducer(reopened, { type: 'clearError' });
+    expect(cleared).toMatchObject({ open: true, status: 'idle', errorKind: null });
+    expect(signInReducer(initialSignInState, { type: 'clearError' })).toBe(initialSignInState);
+  });
+
   it('clears the error when Try again starts the flow over', () => {
     const failed = signInReducer(signInReducer(openedOn('nav'), { type: 'connect' }), {
       type: 'fail',
