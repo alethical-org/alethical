@@ -25,7 +25,7 @@ type LegalDocumentContent = {
 
 const privacyContent: LegalDocumentContent = {
   title: 'Privacy Policy',
-  meta: 'Effective date: June 16, 2026 · Last updated: August 8, 2026',
+  meta: 'Effective date: August 14, 2026 · Last updated: August 14, 2026',
   sections: [
     {
       blocks: [
@@ -41,13 +41,18 @@ const privacyContent: LegalDocumentContent = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'When you sign in with Google, we receive basic profile information from your Google Account, limited to what you authorize:',
+          text: 'When you sign in with Google, we receive basic profile information from your Google Account, limited to what you authorize. We also keep what you do in the Service. Here is the whole list:',
         },
         {
           kind: 'list',
           items: [
             'Account information — your name, email address, and profile picture.',
+            'A display name we make for you — you never type it. We take the part of your email address before the “@” and use that as your display name.',
             'Authentication data — identifiers used to create and maintain your secure session.',
+            'Bills you follow — which bills you chose to follow, and any note you write on one.',
+            'Alert settings — a saved switch for whether a bill you follow should alert you. We are not sending those alerts yet.',
+            'Questions and messages you type in a conversation about a bill — your questions, and the answers we gave, kept with your account.',
+            'Questions you type into the Ask box — we do not save these to your account, but we do send them to the AI providers named below to answer them, and they appear in the page address.',
             'Usage data — information about how you interact with the Service, such as features used and general device and log information.',
             'Contact messages — the name and phone number you choose to provide, your email address, subject, and message.',
           ],
@@ -106,6 +111,9 @@ const privacyContent: LegalDocumentContent = {
           kind: 'list',
           items: [
             'Service providers who help us operate the Service under contractual confidentiality obligations — including Supabase (authentication and database) and Google (sign-in).',
+            'Vercel, which hosts our website. Its request logs record the address of every page you open, including anything carried inside that address.',
+            'Cloudflare, which sits in front of the Service and passes every request through to it.',
+            'Railway, which runs the part of the Service that answers those requests. Its logs record the paths requested. We strip email addresses and anything carried inside a web address out of every line we write.',
             'AI providers who generate answers and summaries — Anthropic and OpenAI. When you ask a question, the question text and the bill passages it is answered from are sent to them. We do not send your name, email address, or account identifier with it.',
             'The United States Census Bureau, when you look up your legislators by address. The address you type is sent to its public geocoding service to find your district. We do not store it.',
             'The Minnesota Geospatial Information Office, while we show Minnesota address suggestions and when the Census Bureau cannot match a Minnesota address. We send only the house number and street name entered so far to its public address list, not the city or ZIP. We do not store it.',
@@ -113,6 +121,10 @@ const privacyContent: LegalDocumentContent = {
             'Legal authorities when required by law, regulation, or valid legal process.',
             'A successor entity in connection with a merger, acquisition, or sale of assets, subject to this Policy.',
           ],
+        },
+        {
+          kind: 'paragraph',
+          text: 'One thing worth knowing about questions: when you ask one, the question is carried inside the address of the answer page, so the answer has a link you can share (for example, /ask?q=your question). That means your question can be saved in your browser history, and it can appear in the request logs of the companies that host the site. We chose the shareable link on purpose, and we would rather you read that here than discover it later.',
         },
       ],
     },
@@ -122,7 +134,20 @@ const privacyContent: LegalDocumentContent = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'We retain your information for as long as your account is active or as needed to provide the Service. We delete or anonymize it when it is no longer required, unless a longer retention period is required by law.',
+          text: 'How long we keep something depends on what it is.',
+        },
+        {
+          kind: 'list',
+          items: [
+            'Your account, your name and email address, the bills you follow, the notes on them, and your alert settings — as long as your account exists.',
+            'Conversations about a bill, and every message in them — no longer than 24 months after the last message in that conversation, whether or not your account is still active. Text you typed is the most sensitive thing we hold, so it does not simply live forever alongside the account.',
+            'Alerts we have sent you — 90 days after we send them. An alert waiting to go out stays until it is sent.',
+            'Contact us messages — we do not save them in our database at all. Copies stay in our email inbox and with the company that delivers our email, under their own terms.',
+          ],
+        },
+        {
+          kind: 'paragraph',
+          text: 'We delete or anonymize information when it is no longer required, unless a longer retention period is required by law. When we delete something, it can still sit inside our database provider’s automatic backups for a while, and it ages out on their backup schedule.',
         },
       ],
     },
@@ -142,7 +167,11 @@ const privacyContent: LegalDocumentContent = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'Depending on your location, you may have the right to access, correct, export, or delete your personal information, and to withdraw consent. To exercise these rights, contact us at the address below. You can also revoke Alethical’s access at any time from your Google Account permissions page.',
+          text: 'Two things you can do yourself, right now: stop following any bill, using the same Track button you used to follow it, and take away Alethical’s access to your Google Account from your Google Account permissions page.',
+        },
+        {
+          kind: 'paragraph',
+          text: 'Everything else is done by hand, and we would rather say so than pretend otherwise. There is no button yet for deleting your account, deleting a single conversation, or downloading a copy of your information. Email us at ask@alethical.com and a person will do it for you. Depending on where you live, you may also have the right to see or correct your personal information, or to withdraw consent; ask at the same address and we will handle it the same way.',
         },
       ],
     },

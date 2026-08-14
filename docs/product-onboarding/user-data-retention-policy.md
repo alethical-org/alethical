@@ -4,9 +4,9 @@
 
 **Net.** The bills are public. The people reading them are not. This says exactly what
 Alethical stores about a reader, why each piece exists, how long we keep it, and what
-happens when someone asks us to delete their account. It also says the two things that
-are not true yet: there is no way to delete an account, and the published Privacy Policy
-does not yet explain everything we collect or every host that can see it.
+happens when someone asks us to delete their account. It also says the thing that is not
+true yet: there is no way for a reader to delete an account, so we do it by hand. The
+published Privacy Policy was brought in line with this document on 14 August 2026 (§7).
 
 **Why this doc exists.** Google sign-in went live on 5 August 2026. Before that, an
 account was a thing we had designed but almost nobody had. Now real people have real
@@ -42,7 +42,7 @@ yet, which makes this the cheapest possible moment to adopt one.
 recommendation with no owner:
 [#1040](https://github.com/alethical-org/alethical/issues/1040) (build deletion) ·
 [#1041](https://github.com/alethical-org/alethical/issues/1041) (fix the public Privacy
-Policy) · [#1042](https://github.com/alethical-org/alethical/issues/1042) (drop the nine
+Policy, now done) · [#1042](https://github.com/alethical-org/alethical/issues/1042) (drop the nine
 dead columns) · [#1043](https://github.com/alethical-org/alethical/issues/1043) (the
 unwired "active" switch) ·
 [#1045](https://github.com/alethical-org/alethical/issues/1045) (give the identity-link
@@ -300,8 +300,9 @@ the published Privacy Policy.
 | **Anthropic**                               | **A reader-written question, word for word; or public suggestion text** | Every reader-written Ask and chat message when configured; the first uncached public suggestion only | **Yes**                      |
 | **US Census Bureau**                        | **The full street address, with surrounding spaces removed**            | Every Find My Legislator address search                                                              | **Yes**                      |
 | **Minnesota Geospatial Information Office** | **The house number and street-name prefix, without city or ZIP**        | While suggestions are open; also after Census retries find no match                                  | **Yes**                      |
-| Vercel                                      | Hosts the web app, so its request logs see every page address (§7)      | Every page load                                                                                      | No, and it should be         |
-| Cloudflare                                  | Sits in front of the API                                                | Every API call                                                                                       | No, and it should be         |
+| Vercel                                      | Hosts the web app, so its request logs see every page address (§7)      | Every page load                                                                                      | Yes                          |
+| Cloudflare                                  | Sits in front of the API                                                | Every API call                                                                                       | Yes                          |
+| Railway                                     | Runs the API and captures its log stream (§7)                           | Every API call                                                                                       | Yes                          |
 | Resend                                      | Contact name, email, phone, subject, and message                        | Every Contact us send                                                                                | Yes                          |
 | Google Workspace                            | Alethical's delivered copy of the same contact message                  | Every Contact us send                                                                                | Yes, through the Resend line |
 
@@ -318,10 +319,10 @@ sent to the Minnesota Legislative Coordinating Commission.
 The lookup endpoint does not require sign-in and never reads the caller's account.
 
 **The bad half.** A reader's typed question leaves our systems on every single Ask and
-every chat message. The Privacy Policy now names the AI and government services that
-receive question or location data, but it still does not name the hosting layers that
-see requests or explain every category we collect. Closing the remaining gap is
-[#1041](https://github.com/alethical-org/alethical/issues/1041).
+every chat message. The Privacy Policy names every recipient in the table above, including
+the hosting layers, as of 14 August 2026
+([#1041](https://github.com/alethical-org/alethical/issues/1041)). Naming them does not
+make the question stop travelling; it makes the reader able to see that it does.
 
 ---
 
@@ -447,20 +448,31 @@ delete their data, honouring it means someone hand-writing SQL against productio
 nothing to check their work against. **Everything in §6 above is a proposal, not a
 description.** Building it is [#1040](https://github.com/alethical-org/alethical/issues/1040).
 
-**The published Privacy Policy is narrower than what we collect.** The live page
-(`apps/frontend/src/screens/LegalScreens.tsx`, effective 16 June 2026, updated 7 August 2026) says under
-_Information We Collect_ that we collect Google profile information, authentication
-data, and usage data. It does not mention the questions people type, the bills they
-follow, their alert settings, or a saved address. Under _How We Share Information_ it
-names Supabase, Google, OpenAI, Anthropic, the US Census Bureau, the Minnesota
-Geospatial Information Office. It no longer names the Minnesota Legislative
-Coordinating Commission because the commission no longer receives a reader's location
-during a lookup; the map itself still credits the commission as its source. The page
-still does not name Vercel or Cloudflare (§4). Under _Data Retention_ it says we keep
-things "as long as your account is active," which is a real answer but not a
-per-category one. Under _Your Rights_ it
-offers access, correction, export and deletion on request, which is a promise we
-currently have no mechanism to keep. Bringing the page in line is [#1041](https://github.com/alethical-org/alethical/issues/1041).
+**The published Privacy Policy now matches this document** (`apps/frontend/src/screens/LegalScreens.tsx`,
+effective and updated 14 August 2026, [#1041](https://github.com/alethical-org/alethical/issues/1041)).
+_Information We Collect_ lists every category in §2 that a reader can actually reach: the
+manufactured display name, followed bills and their notes, the alert switch, messages typed
+into a bill conversation, and Ask questions. Under _How We Share Information_ it names
+Supabase, Google, OpenAI, Anthropic, the US Census Bureau, the Minnesota Geospatial
+Information Office, Resend, and now Vercel, Cloudflare, and Railway (§4). It no longer names
+the Minnesota Legislative Coordinating Commission because the commission no longer receives a
+reader's location during a lookup; the map itself still credits the commission as its source.
+_Data Retention_ carries the per-category periods from §9 rather than one blanket sentence,
+and _Your Rights_ says plainly that deletion and export are done by hand because no button
+exists.
+
+**Two deliberate omissions from the page, both for the same reason: it may only describe
+what a reader can reach.** A saved home address is not mentioned, because nothing in the app
+can save one (§2.3) — the page would be describing a feature that does not exist. No
+analytics tool is mentioned, because none is installed; the tool and its disclosure ship
+together or not at all.
+
+**The page does not claim an automatic sweeper, because there is none.** §9's periods are
+stated on the page as limits we keep to. Nothing enforces the 24-month conversation limit or
+the 90-day sent-alert limit in code, and nothing has reached either yet — the oldest message
+was 129 days old on 5 August 2026, and no alert has ever been sent (§2.6). Enforcing them
+falls out of [#1040](https://github.com/alethical-org/alethical/issues/1040), which builds
+the deletion path they would run on.
 
 **Server-side logs are readable in Railway.** The API keeps its rotating local file and,
 when Railway's own environment marker is present, also writes to the log stream Railway
@@ -572,8 +584,10 @@ write path if a real product need appears.
   before it is switched on.
 - **Any new column on a user table.** Comes with an answer to "what reads this?" at the
   moment it is added. §8 is what happens when that question goes unasked for a year.
-- **The public Privacy Policy.** Should be brought in line with §2 and §4. It is the
-  version of this document that readers actually see, and right now the two disagree.
+- **The public Privacy Policy.** It is the version of this document that readers actually
+  see, and since 14 August 2026 the two agree (§7). Any change to what we collect, who
+  receives it, or how long we keep it updates both in the same change, or they drift apart
+  again.
 
 ---
 
