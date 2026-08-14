@@ -1,24 +1,21 @@
 # AGENTS.md — start here
 
-Orientation for every coding agent working in this repository — Claude Code, Codex
-CLI, Cursor, and anything else. **This file is the canonical copy; `CLAUDE.md` is a
-symlink to it**, so every tool reads the same words and the two files can never
-drift apart again.
+Minnesota publishes everything its legislature does, in a format almost no one can
+read. **Alethical** turns that record — bills, votes, legislators, campaign money —
+into plain language, so anyone can see what their government is doing and check
+every word against the official source.
 
-This file is a **map, not a copy**. Everything below points at the document that owns
+This file orients every coding agent working in this repository — Claude Code, Codex
+CLI, Cursor, and anything else. **It is the canonical copy; `CLAUDE.md` is a symlink
+to it**, so every tool reads the same words and the two files can never drift apart
+again. It is a **map, not a copy**: everything below points at the document that owns
 the subject, so there is nothing here to keep in sync.
 
-## What this is
-
-Alethical makes Minnesota legislative records understandable: bills, votes, and
-legislators, in plain language, with every claim traceable to an official source.
-
 **Read [`docs/philosophy.md`](docs/philosophy.md) before you build anything.** It is
-the *why* beneath Alethical: what the product is, the problem it actually solves
-(legibility, not secrecy), who we assume is reading, and the ten principles every
-screen and sentence answers to. The rules below are *how* we work; that file is
-*what we are working toward*, and it is the tie-breaker when a tactic and an
-intent disagree.
+the *why* beneath Alethical: the problem the product actually solves (legibility,
+not secrecy), who we assume is reading, and the ten principles every screen and
+sentence answers to. The rules below are *how* we work; that file is *what we are
+working toward*, and it is the tie-breaker when a tactic and an intent disagree.
 
 ## Read before you change anything
 
