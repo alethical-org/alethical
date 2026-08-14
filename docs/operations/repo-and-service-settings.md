@@ -113,9 +113,9 @@ Set under **Authentication** in the Alethical Supabase project. Verified 2026-08
 | Google provider | On | Keeps the existing Google sign-in. |
 | Confirm email | On | A password account cannot claim an address before proving it. |
 | Manual identity linking | Off | Matching confirmed emails use Supabase's automatic account match; no second linking flow ships. |
-| Minimum password length | 15 | Matches Alethical's passphrase wording and browser check. |
-| Required character groups | None | A long passphrase works without forced capitals, digits, or symbols. |
-| Prevent leaked passwords | On | Rejects passwords known to have been stolen elsewhere. |
+| Minimum password length | 15 | Email and password sign-in has no required second factor, so the [July 2025 NIST guidance](https://pages.nist.gov/800-63-4/sp800-63b.html#passwordver) sets the minimum at 15. |
+| Required character groups | None | NIST says not to force capitals, digits, or symbols because people satisfy those rules in predictable ways; length does more useful work. |
+| Prevent leaked passwords | On | [Supabase Password Security](https://supabase.com/docs/guides/auth/password-security) checks Have I Been Pwned. This catches known exposed passwords, including many common choices, but is not a custom Alethical list. |
 | Secure password change | Off | No fresh-proof email-code field ships. |
 | Require current password | Off | The signed-in password form asks only for the new password. |
 | CAPTCHA | Off | No human-check box ships. |
@@ -124,7 +124,12 @@ Set under **Authentication** in the Alethical Supabase project. Verified 2026-08
 | Password-changed security email | On | Adding or changing a password sends a warning with a direct route to Forgot password. The app does not claim delivery on its success screen. |
 | Custom SMTP through Resend | On | Alethical sends confirmation and reset messages from `ask@alethical.com`. |
 | Authentication email limit | 30 emails per hour | Supabase limits total confirmation and reset email volume. |
-| Sign-up and sign-in limit | 30 requests per 5 minutes per IP address | One internet address cannot make unlimited attempts. |
+| Sign-up and sign-in limit | 30 requests per 5 minutes per IP address | One internet address cannot make unlimited password guesses quickly. |
+
+Password storage is a Supabase-managed behavior, not a dashboard setting. Supabase currently uses
+salted bcrypt. [sign-in-guide.md](../product-onboarding/sign-in-guide.md) explains in beginner terms
+how hashing, a unique salt, leaked-password blocking, 2FA, the decision not to add a custom list,
+and the future Argon2id choice work.
 
 ## Settings documented elsewhere
 
