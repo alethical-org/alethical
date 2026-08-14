@@ -50,7 +50,7 @@ Drive states through the DOM, not pixels. Interact by **element ref** (`read_pag
 
 **A press-only state needs the drag-off test.** RN-Web won't accept a synthetic `pointerdown` from `javascript_tool` (its press responder only reacts to trusted events), and the browser's one press gesture, `left_click`, always co-fires hover — so reading the element mid-press can't prove the *press* lit it rather than the hover. Use **`left_click_drag`** from the element's centre to empty space just outside it: that fires a real press-in and releases off-element. While the design's pulse-minimum keeps the glow lit after release, read `getComputedStyle` **and** assert `element.contains(document.elementFromPoint(releaseX, releaseY)) === false` in the same breath — glow lit *plus* pointer not over it proves the press caused it. Generally: to prove state X comes from trigger A and not co-trigger B, engineer an end position where B is false but A's effect persists, then assert the effect and the isolation together. Don't downgrade to "the code mirrors the shipped component, trust it." A navigating element can't be screenshotted mid-glow at all — dispatch press-in without release to freeze it, or screenshot after a paint.
 
-## Surface, don't guess (`.claude/rules/coding-discipline.md` rule 1)
+## Surface, don't guess (`.claude/rules/workflow.md` rule 14, think before coding)
 
 Ask when: a filter/data the design shows isn't backed by today's API; a mockup's copy conflicts with `docs/design/ui-copy-guide.md`; a page's nav/behavior diverges from the `ia.ts` registry; sample content's grounding is ambiguous.
 

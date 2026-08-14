@@ -51,4 +51,4 @@ Interrogating for repo-discoverable facts · asking low-value questions · gatin
 
 ## References
 
-`.claude/skills/design-build/SKILL.md` (the build workflow this feeds) · `.claude/skills/design-review/SKILL.md` (the pre-build mockup evaluation that precedes intake) · `.claude/rules/coding-discipline.md` rule 1 (surface real ambiguity; don't gate routine work) · `docs/product-onboarding/mvp-redesign-plan.md`. Origin: retro on the nav-dropdown hover fix ([#171](https://github.com/alethical-org/alethical/pull/171)).
+`.claude/skills/design-build/SKILL.md` (the build workflow this feeds) · `.claude/skills/design-review/SKILL.md` (the pre-build mockup evaluation that precedes intake) · `.claude/rules/workflow.md` rule 14 (surface real ambiguity; don't gate routine work) · `docs/product-onboarding/mvp-redesign-plan.md`. Origin: retro on the nav-dropdown hover fix ([#171](https://github.com/alethical-org/alethical/pull/171)).
