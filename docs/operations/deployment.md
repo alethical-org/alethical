@@ -117,6 +117,34 @@ Create the Vercel project from the repository root so the root `pnpm-lock.yaml` 
   Home temporarily so those planned features can later return
 - `trailingSlash: false`, which redirects slash-terminated forms to the 1 address used for the record
 - rewrites sending `/sitemap.xml` and `/sitemaps/*.xml` to `api/sitemap.ts`
+- browser safety headers on every response: outside programs, frames, plug-ins,
+  cameras, microphones, payment access, and unreviewed network connections are
+  blocked; current-location access stays available for **Find My Legislator**
+
+### Frontend browser boundaries
+
+The `Content-Security-Policy` in `vercel.json` starts with everything blocked and
+opens only the connections the shipped website uses:
+
+- Alethical's own files and API at `api.alethical.com`
+- Supabase sign-in at `naakzorbkqqgbsreulqi.supabase.co`
+- Google Fonts styles and font files
+- HTTPS images, which covers official legislator photos and OpenStreetMap tiles
+- inline styles, because React Native Web creates them while rendering
+
+Inline programs are not broadly allowed. The release-recovery program and the 2
+email-link safety programs are allowed only by a fingerprint of their exact text.
+Changing even 1 character changes that fingerprint. The focused frontend test reports
+the new fingerprint, and the production build checks the program that actually ships:
+
+```bash
+pnpm --dir apps/frontend exec vitest run src/lib/__tests__/webSecurityHeaders.test.ts
+pnpm --dir apps/frontend run build
+```
+
+Review the changed program before replacing its fingerprint in `vercel.json`. Never
+add `unsafe-inline` or `unsafe-eval` to `script-src`; either would let an injected
+program read the saved Supabase sign-in session and send it away.
 
 The Vercel Git connection automatically releases relevant commits on `main`.
 `.github/workflows/vercel-deploy.yml` is a hand-run fallback when GitHub Actions is
