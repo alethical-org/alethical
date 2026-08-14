@@ -1,6 +1,7 @@
 # How Search works on Alethical (plain-English guide)
 
 <!-- describes: apps/frontend/src/screens/redesign/SearchBillsScreen.tsx, apps/frontend/src/components/search/BillResultCard.tsx, apps/frontend/src/components/VoteCountLinkChip.tsx, apps/frontend/src/components/search/searchPieces.tsx, apps/frontend/src/hooks/useDebouncedSearchCommit.ts, apps/frontend/src/lib/billDetail.ts, apps/frontend/src/lib/sessionLabel.ts, apps/frontend/src/navigation/links.ts, alethical/api/routers/public.py, alethical/api/services/issue_bills.py, alethical/api/issue_taxonomy.py, alethical/api/serializers.py, alethical/pipeline/policy_area_counts.py, alethical/pipeline/sessions.py -->
+<!-- check-quoted-code: true -->
 
 A quick, non-technical walkthrough of the **Search Bills** page — what you type, what
 you can narrow by, and what each result shows. This is the "browse the library" page:
@@ -122,6 +123,7 @@ Above the list you always see:
 - **An "OMNIBUS" tag** when the bill is one of the big bundled bills.
 - **Chief author** — the lead legislator, clickable to their profile.
 - **The latest action and its date** — e.g. "Referred to Ways and Means · Mar 12, 2026".
+  <!-- quote-check-ignore: Referred to Ways and Means · Mar 12, 2026 | illustrative record data assembled at runtime -->
 - **Effective date** — for bills that became law, when the law takes effect.
 - **Issue tags** for the bill.
 - **An outlined votes link** when there were recorded votes. It shows the count, such as

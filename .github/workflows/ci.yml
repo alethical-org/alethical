@@ -85,6 +85,8 @@ jobs:
       # skip. Pure stdlib, so the Python setup above is the only dependency.
       - name: Check doc references resolve
         run: python scripts/check_doc_references.py
+      - name: Check quoted doc claims still exist
+        run: python scripts/check_doc_quotes.py
 
       # A NUL byte makes git and grep treat a file as binary, hiding its code
       # from searches and diffs. This guard is cheap enough to always run.

@@ -411,6 +411,18 @@ its data seems unavailable, first prove that fact exists nowhere in Alethical's
 API. Eugene decides whether to remove the requirement; editing the design bundle
 does not make that decision.
 
+Selected live guides also carry `<!-- check-quoted-code: true -->`. The free
+`scripts/check_doc_quotes.py` check then confirms that exact labels, colours, and
+settings quoted by that guide still appear in its declared code. A deliberately
+historical or made-up value needs a narrow, explained exception beside it:
+
+```
+<!-- quote-check-ignore: exact wording | reason it does not belong in live code -->
+```
+
+Add guides one at a time. Classify every warning first, and do not enable the next
+guide while any warning is unexplained.
+
 Three things worth knowing:
 
 - **"None needed" is a first-class answer and always will be.** The check forces a

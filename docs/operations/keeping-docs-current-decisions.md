@@ -39,6 +39,42 @@ draft of this section used `SearchBillsScreen.tsx` and did exactly that.
 `Docs check:` line in the body saying what the author concluded. "None needed" passes — the
 check forces the *look*, not an edit.
 
+### Exact quoted claims in selected live guides
+
+The separate `scripts/check_doc_quotes.py` check catches a smaller, provable class of drift:
+an exact label, colour, function call, or setting quoted by a guide no longer appears in the
+code that guide declares. It checks only a guide carrying this marker:
+
+```
+<!-- check-quoted-code: true -->
+```
+
+Ordinary prose, example searches, bill numbers, and fenced examples are excluded. A
+deliberately historical or made-up value may be excluded only with its exact text and a reason:
+
+```
+<!-- quote-check-ignore: exact wording | reason it does not belong in live code -->
+```
+
+This starts with `docs/product-onboarding/search-bills-guide.md`. Widen it one guide at a time,
+after every current warning has been classified and every harmless warning has a narrow,
+reasoned exception. An unexplained warning blocks widening. The check runs in the existing
+free docs job, without an AI call or a separate job.
+
+Measured across all 26 docs that declare code on 2026-08-13, the narrow extractor found 329
+candidate quotes and 215 missing exact matches. Manual review classified all 215 as unsafe to
+fail automatically, so enabling the check everywhere would have a 65.3% operational
+false-positive rate. The largest sources were web addresses with values filled in at runtime,
+labels assembled from several code strings, function names written with `()`, settings whose
+source file was outside that doc's declaration, and historical examples. That is why the launch
+is opt-in instead of repository-wide.
+
+The same extractor was also run against the parent commits of PRs #935, #936, #939, and #942.
+It flagged 6 of the 8 real stale quotes listed in issue #943, clearing the 5-of-8 proof bar.
+The 2 misses were a tab list written as unquoted prose and a larger settings example whose
+wrong inner value also appeared legitimately for other models. Expanding the extractor to catch
+either would increase current false warnings, so both stay outside this exact-string check.
+
 ### The separate frozen-design guard
 
 Files under `docs/mockups/` are accepted design records rather than live behaviour guides, so
