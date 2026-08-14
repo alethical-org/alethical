@@ -163,51 +163,28 @@ Prefer a fixture of **real** data over invented strings: `src/lib/__tests__/fixt
 **Never commit directly to `main`.** Pushing to `main` triggers a production
 deploy (see below), so all changes go through pull requests.
 
+The workflow's single home is [`.claude/rules/workflow.md`](.claude/rules/workflow.md) —
+ten bullets of shape at the top, then the numbered rules. The short version:
+
+1. **Branch off `origin/main` in your own worktree** (`just worktree <branch>`), one
+   topic per branch, named literally with a topic prefix (`feat/`, `fix/`, `docs/`,
+   `chore/`, `refactor/` — `docs/env-onboarding`, not `docs/ripple-sweep-habit`).
+   Before you branch, skim the open PRs and issues for overlapping work — with
+   parallel agent sessions, the same idea can be in flight twice.
+2. **Commit** small, focused changes with a clear imperative subject line.
+3. **Push and open a PR into `main`** (`gh pr create --base main`). CI runs
+   automatically; fill in the template's **`Closes #<issue>`** line so the issue
+   closes on merge (no issue? delete the line and say why in "What").
+4. **Merge** once the checks pass on the current head (squash-merge keeps `main` to
+   one commit per topic), then delete the branch and remove the worktree
+   (`just worktree-rm <branch>`).
+
+Hand work between people and tools as branches or PRs, never as file copies —
+a copy outside git has no history, so nobody can cheaply tell whether it still
+matches the branch (workflow.md rule 3).
+
 New to branching? [The visual branching guide](docs/operations/git-branching-guide.html)
 draws this workflow as commit graphs, with the habits and commands behind each step.
-
-1. **Start each change from `main`, one topic per branch:**
-   ```bash
-   git fetch origin
-   git switch -c <type>/<short-name> origin/main
-   ```
-   Branch off `main` — not off another feature branch — so your PR contains only
-   your change. Use a prefix that describes the topic: `feat/`, `fix/`, `docs/`,
-   `chore/`, `refactor/`. Example: `docs/env-onboarding`. Name the rest
-   literally, in words a newcomer could guess the meaning of
-   (`docs/update-issues-on-scope-change`, not `docs/ripple-sweep-habit`) — and
-   the same for PR titles, filenames, and headings. Metaphors and coined names
-   make the repo harder to learn.
-
-   Before you branch, skim the open PRs (`gh pr list`) for overlapping work —
-   especially with parallel agent sessions, the same idea can be in flight
-   twice. If a PR already touches your files or topic, build on that branch
-   (or wait for it) instead of duplicating it.
-
-2. **Commit** small, focused changes with a clear imperative subject line
-   (e.g. `Add .env.example and fix README env setup`).
-
-3. **Push and open a PR into `main`:**
-   ```bash
-   git push -u origin <branch>
-   gh pr create --base main
-   ```
-   CI runs automatically on the PR. The PR description is pre-filled from
-   `.github/PULL_REQUEST_TEMPLATE.md` — fill in the **`Closes #<issue>`** line so
-   the issue closes automatically on merge. If there's no issue, delete that line
-   and say why in the "What" section.
-
-4. **Merge** once CI is green (squash-merge keeps `main` to one commit per topic),
-   then delete the branch.
-
-Keeping one topic per branch makes PRs small and reviewable, keeps `main`'s
-history readable, and lets any single change be reverted cleanly.
-
-**Share branches, not file copies.** When handing work between tools, sessions,
-or people, push the branch and point at it (or at the PR) rather than exporting
-a file to Downloads or a desktop. A copy outside git has no history, so nobody
-can cheaply tell whether it matches the branch or has silently drifted — and
-reconciling that later costs more than the export ever saved.
 
 ## What CI checks
 
@@ -361,111 +338,37 @@ title.
 
 ## Keeping docs current
 
-The problem this section exists for: **a code change quietly makes a sentence in a
-doc false.** Nobody is careless when it happens — the doc that described the old
-behaviour simply isn't in front of the person changing the code. So one part of
-this is automated, and the rest is on you.
+The problem: **a code change quietly makes a sentence in a doc false.** The full rules —
+the trigger, the every-notable-feature-gets-a-guide requirement, screenshots and
+diagrams — live in [`.claude/rules/workflow.md`](.claude/rules/workflow.md) rule 6, the
+single home. What CI enforces on your PR:
 
-### Every notable feature gets its own guide
+- A doc that describes behaviour names the code it describes in a hidden comment near
+  its top: `<!-- describes: <paths> -->`. **If your PR changes a file some doc
+  declares, the PR body needs one `Docs check:` line saying what you concluded**
+  (`scripts/check_doc_sync.py`). "Docs check: none needed — internal refactor" passes:
+  the check forces a *look*, never an edit. Editing the doc does not exempt you — read
+  the whole doc, then say what you concluded, and search for the claim your change made
+  false, not for the name of the thing you changed.
+- **If your PR changes any file under `docs/mockups/`, its body also needs a nonempty
+  `Design change:` line** naming the requirement that changed and why. The two lines do
+  not replace each other; a PR that triggers both checks needs both. To remove a
+  designed element because its data seems unavailable, first prove that fact exists
+  nowhere in Alethical's API — Eugene decides whether to remove the requirement;
+  editing the design bundle does not make that decision.
+- Selected live guides carry `<!-- check-quoted-code: true -->`: exact labels, colours,
+  and settings they quote must still appear in their declared code
+  (`scripts/check_doc_quotes.py`), or carry a narrow explained exception
+  (`<!-- quote-check-ignore: exact wording | reason -->`) beside them. Add guides one
+  at a time, classifying every warning first.
 
-A feature that has its own page or named place in navigation is not finished until it
-has a dedicated plain-English guide in `docs/product-onboarding/`. This applies to a
-destination where a reader completes a product task; legal pages and passive status
-pages are not feature guides.
-
-A system design, build spec, mockup, or code comment does not count. The guide must:
-
-- explain what the feature is for and every way a reader can enter it;
-- explain its controls, results, loading, empty, and error states;
-- state its important limits, data sources, and what happens to reader data;
-- include a `<!-- describes: -->` declaration and an entry in `docs/README.md`; and
-- change in the same PR whenever the feature's visible behaviour changes.
-
-### The part CI enforces
-
-A doc that describes behaviour names the code it describes, in its own text, as a
-hidden HTML comment near the top:
-
-```
-<!-- describes: apps/frontend/src/lib/billText.ts, apps/frontend/src/components/billDetail/FullTextTab.tsx -->
-```
-
-`scripts/check_doc_sync.py` reads those declarations. **If your PR changes a file
-some doc declares, your PR body needs one `Docs check:` line saying what you
-concluded.** Any of these pass:
-
-```
-Docs check: none needed — internal refactor, no user-visible change
-Docs check: updated search-bills-guide.md for the new sort labels
-Docs check: reread ai-models-and-billing.md §4 and §4.1; fixed §4
-```
-
-Frozen design records use a separate line. **If your PR changes any file under
-`docs/mockups/`, its body also needs a nonempty `Design change:` line naming the
-requirement that changed and why:**
-
-```
-Design change: restored the vote column required by the accepted handoff
-```
-
-`Docs check:` and `Design change:` do not replace each other. A PR that triggers
-both checks needs both lines. If you want to remove a designed element because
-its data seems unavailable, first prove that fact exists nowhere in Alethical's
-API. Eugene decides whether to remove the requirement; editing the design bundle
-does not make that decision.
-
-Selected live guides also carry `<!-- check-quoted-code: true -->`. The free
-`scripts/check_doc_quotes.py` check then confirms that exact labels, colours, and
-settings quoted by that guide still appear in its declared code. A deliberately
-historical or made-up value needs a narrow, explained exception beside it:
-
-```
-<!-- quote-check-ignore: exact wording | reason it does not belong in live code -->
-```
-
-Add guides one at a time. Classify every warning first, and do not enable the next
-guide while any warning is unexplained.
-
-Three things worth knowing:
-
-- **"None needed" is a first-class answer and always will be.** The check forces a
-  *look*, never an edit. Requiring an edit would mean padding docs to please CI, and
-  CI would deserve to be ignored.
-- **Editing the doc does not exempt you from the line.** It used to. Two PRs an hour
-  apart each edited one subsection of `docs/product-onboarding/ai-models-and-billing.md`,
-  each passed on the strength of that edit, and each left the section above it
-  describing a system that took neither of two discounts we had just added. The page
-  contradicted itself for a day. Read the whole doc, then say what you concluded.
-- **Search for the claim your change made false, not for the name of the thing you
-  changed.** That is how the same incident slipped a manual sweep too: searching for
-  "cache" found nothing stale, because the false sentences never mentioned caching —
-  they asserted a price ("pays full list price"). No search finds that. Reading the
-  section does.
-
-**Adding a live doc to the check is one line.** If you write or inherit a doc that
-describes how something behaves, give it a `describes:` comment. Frozen records
-(mockup handoffs, dated audits, design intent) deliberately declare nothing. A
-frozen mockup edit is covered by the separate `Design change:` line instead.
-
-### The part CI cannot enforce
-
-Docs carry screenshots and diagrams, and those go stale silently — `grep`
-can't see inside an image, so a review won't catch it. When you change
-something a doc's visual depicts (UI copy, layout, the states a mock shows),
-refresh that image in the **same PR**, so the doc's picture and its words never
-disagree. This covers any doc with embedded visuals — build specs, onboarding
-guides, READMEs — not just files named `*-spec.md`.
-
-The machine-facing form of everything above is `.claude/rules/workflow.md` rule 6,
-and the reasoning behind the check lives in `scripts/check_doc_sync.py`'s own
-docstring, including the incidents that shaped it.
+If you write or inherit a doc that describes how something behaves, give it a
+`describes:` comment — joining the check is one line. Frozen records (mockup handoffs,
+dated audits, design intent) deliberately declare nothing.
 
 ## Writing cross-references
 
-When you cite a spec section anywhere — a doc, an issue, a PR body or comment —
-give the full file name and say what the section covers:
-"`docs/product-onboarding/grounded-ask-spec.md` §9 (Answer page UI — v1 states)", not "the spec §9".
-Someone new reading the sentence in isolation should know exactly what's being
-referred to without opening anything. Once the full form has appeared, later
-mentions in the same document can shorten. Likewise, link issues and PRs with
-their titles or a short gloss rather than dropping a bare number.
+Cite a spec section with its full file name plus what the section covers —
+"`docs/product-onboarding/grounded-ask-spec.md` §9 (Answer page UI — v1 states)", never
+"the spec §9" — and link issues and PRs with their titles or a short gloss, never a
+bare number. Full rule: [`.claude/rules/workflow.md`](.claude/rules/workflow.md) rule 8.

@@ -19,16 +19,15 @@ working toward*, and it is the tie-breaker when a tactic and an intent disagree.
 
 ## Read before you change anything
 
-- [`.claude/rules/coding-discipline.md`](.claude/rules/coding-discipline.md) — how to
-  approach a change: think first, ship the minimum, keep the diff surgical, define a
-  verifiable goal.
 - [`.claude/rules/grounded-answers.md`](.claude/rules/grounded-answers.md) — the
   product invariants for anything that generates, displays, or advertises an answer.
   **Cite or refuse** is the one that governs everything else.
-- [`.claude/rules/workflow.md`](.claude/rules/workflow.md) — branch and PR conventions,
-  where decisions get recorded, and the checks a change has to clear.
-- [`CONTRIBUTING.md`](CONTRIBUTING.md) — setup, the commands, and the human-facing
-  version of the same conventions.
+- [`.claude/rules/workflow.md`](.claude/rules/workflow.md) — the single home of how
+  work moves: a ten-bullet shape up top, then the numbered rules — branch and PR
+  conventions, where decisions get recorded, the checks a change must clear, and how
+  to write a change with discipline (rule 14: think first, ship the minimum, keep the
+  diff surgical, define a verifiable goal).
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — setup, the commands, and the CI reference.
 - [`docs/README.md`](docs/README.md) — index of every spec. Specs describe intent;
   **GitHub issues and the Roadmap board carry sequencing**, so never read a milestone
   in prose as a reason work is off-limits.
