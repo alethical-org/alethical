@@ -397,6 +397,20 @@ Docs check: updated search-bills-guide.md for the new sort labels
 Docs check: reread ai-models-and-billing.md §4 and §4.1; fixed §4
 ```
 
+Frozen design records use a separate line. **If your PR changes any file under
+`docs/mockups/`, its body also needs a nonempty `Design change:` line naming the
+requirement that changed and why:**
+
+```
+Design change: restored the vote column required by the accepted handoff
+```
+
+`Docs check:` and `Design change:` do not replace each other. A PR that triggers
+both checks needs both lines. If you want to remove a designed element because
+its data seems unavailable, first prove that fact exists nowhere in Alethical's
+API. Eugene decides whether to remove the requirement; editing the design bundle
+does not make that decision.
+
 Three things worth knowing:
 
 - **"None needed" is a first-class answer and always will be.** The check forces a
@@ -413,10 +427,10 @@ Three things worth knowing:
   they asserted a price ("pays full list price"). No search finds that. Reading the
   section does.
 
-**Adding a doc to the check is one line.** If you write or inherit a doc that
+**Adding a live doc to the check is one line.** If you write or inherit a doc that
 describes how something behaves, give it a `describes:` comment. Frozen records
-(mockup handoffs, dated audits, design intent) deliberately declare nothing — they
-describe a moment, not current behaviour, so they cannot go stale.
+(mockup handoffs, dated audits, design intent) deliberately declare nothing. A
+frozen mockup edit is covered by the separate `Design change:` line instead.
 
 ### The part CI cannot enforce
 
