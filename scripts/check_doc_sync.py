@@ -224,12 +224,16 @@ def main() -> int:
         print("    to get a run that sees the new body.\n")
 
     if design_changes and DESIGN_ACK.search(body):
-        print("Design change acknowledged in the PR body. Sign-in design files changed:")
+        print(
+            "Design change acknowledged in the PR body. Sign-in design files changed:"
+        )
         for path in sorted(design_changes):
             print(f"  {path}")
     elif design_changes:
         failed = True
-        print("This PR changes the temporary sign-in design record, but its body has no")
+        print(
+            "This PR changes the temporary sign-in design record, but its body has no"
+        )
         print(
             "nonempty line starting 'Design change:' that names what changed and why.\n"
         )
