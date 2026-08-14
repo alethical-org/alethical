@@ -32,7 +32,7 @@ storage. It belongs to a different folder (`tool-settings`), not to Alethical.
 
 ## 2. Runs when code is pushed or merged
 
-These 4 jobs fire automatically the moment someone's code change is accepted into
+These 3 actions fire automatically the moment someone's code change is accepted into
 the project (called "merging"), or in one case on every proposed change before
 it's accepted. None of them cost money to run themselves; the cost, if any, is
 whatever the hosting companies (Railway and Vercel) already charge for keeping
@@ -41,11 +41,19 @@ the site running, which this page doesn't cover.
 | Job | What it does | What starts it | Can someone stop it once it's running? |
 |---|---|---|---|
 | Run all the automatic checks (`.github/workflows/ci.yml`) | Runs the tests and code-quality checks that decide whether a proposed change is safe to accept | Every proposed change, and every change accepted into the main version | Yes, from GitHub's website. Stopping it just means the change isn't approved yet; nothing on the live site is touched |
-| Update the database's structure (`.github/workflows/migrate.yml`) | **Applies structural changes to the live database** (adding a new column, a new table, and so on) the moment matching code is accepted | A change that touches the database's structure being accepted into the main version | Yes, from GitHub's website, but stopping it partway can leave the database structure half-changed, which is riskier than letting it finish. It's built to also open a warning automatically if it fails |
-| Deploy the backend (`.github/workflows/railway-deploy.yml`) | Publishes the newest backend code (the part that answers requests and talks to the database) to the company that hosts it (Railway) | A change to the backend code being accepted into the main version | Yes, from GitHub's website, before it finishes. Once it finishes, the previous version is still available to restore from Railway directly |
-| Deploy the website (`.github/workflows/vercel-deploy.yml`) | Publishes the newest website code to the company that hosts it (Vercel) | Only when someone runs it by hand from GitHub's website. **Normal website releases already happen automatically through Vercel's own connection to this project's code — this job is a manual backup path, kept separate so it can't accidentally publish the same release twice** | Yes, the same way as the backend one above |
+| Deploy the backend (Railway's Git connection) | Railway updates the live database first, then publishes the newest backend code only if the update succeeds | A change accepted into the main version | Yes, from Railway's website before it finishes. A failed database update or readiness check keeps the previous version serving |
+| Deploy the website (Vercel's Git connection) | Vercel publishes the newest website code | A website change accepted into the main version | Yes, from Vercel's website before it finishes. Vercel keeps the previous release available to restore |
 
 ## 3. Only runs when someone types a command
+
+Three release fallbacks run only when someone starts them from GitHub:
+
+- `.github/workflows/migrate.yml` applies outstanding database changes, reports a
+  failure, and checks whether the live database matches the migration history.
+- `.github/workflows/railway-deploy.yml` uploads the API to Railway.
+- `.github/workflows/vercel-deploy.yml` uploads the website to Vercel.
+
+Normal releases use Railway's and Vercel's own Git connections instead.
 
 There are 39 separate command-line tools in the `scripts` folder. The shared
 `alethical/pipeline` folder also has modules that people commonly run directly.

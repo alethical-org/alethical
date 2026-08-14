@@ -27,6 +27,10 @@ def test_health_and_meta_endpoints(client):
     assert health_response.status_code == 200
     assert health_response.json() == {"status": "ok"}
 
+    ready_response = client.get("/readyz")
+    assert ready_response.status_code == 200
+    assert ready_response.json() == {"status": "ready"}
+
     meta_response = client.get("/api/v1/meta")
     assert meta_response.status_code == 200
     payload = meta_response.json()

@@ -92,8 +92,8 @@ model we use produces (`VECTOR_DIMENSIONS` in `alethical/pipeline/rag_ingest.py`
 - Which database a command talks to is chosen by one setting
   (`ALETHICAL_DATABASE_TARGET`, `local` or `production`), and there is a guard that stops
   tests writing to production (`alethical/tests/local_database_guard.py`).
-- Structure changes go through Alembic, 29 change files as of Aug 10 2026. Merging one to
-  `main` applies it to production automatically through the `migrate.yml` workflow.
+- Structure changes go through Alembic. Railway applies them before it starts the new API,
+  and refuses the release if the migration fails (`railway.json`).
 
 ## 4. Sign-in
 
@@ -161,11 +161,13 @@ response headers rather than assumed.
 ## 8. Hosting and release
 
 - One Railway service runs the API. It restarts on failure, up to 10 times, and Railway
-  checks it is alive by calling `/healthz` (`railway.json`).
+  calls `/readyz` before switching traffic. That check requires the database schema the
+  new code expects (`railway.json`).
 - The build runs `uv sync --frozen`, which installs exactly the locked versions and fails
   rather than quietly resolving something newer.
-- Pushing to `main` triggers the deploy (`railway-deploy.yml`). A push that touches database
-  structure separately triggers the migration (`migrate.yml`).
+- Railway's Git connection watches `main`. Railway runs the migration inside that release
+  before the new API starts. `railway-deploy.yml` remains a hand-run release fallback;
+  `migrate.yml` remains a hand-run migration fallback and production drift check.
 - The frontend deploys separately to Vercel, so a backend release and a frontend release are
   two independent events.
 
