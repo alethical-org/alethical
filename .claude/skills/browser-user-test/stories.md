@@ -54,7 +54,19 @@ write-actions (sign-in, track) are never performed against production.
   Back returns to the bill with its state intact; nothing assumes a visit started at home.
 - Spec: not yet.
 
-## 6. Find your legislator by address
+## 6. Hit a genuine miss and read what the site says
+
+- Persona: searches for something the corpus genuinely has nothing on (a gibberish
+  word, or an out-of-state topic like "California earthquake retrofit").
+- Steps: search bills and legislators for a no-match term → try asking the same thing
+  in the ask box → read every empty state reached.
+- Passes when: each miss says honestly that nothing matched — no made-up results, no
+  blank or broken screen, no confident answer stretched from unrelated data; the page
+  offers a sensible next step. (Origin: the first live test run, Aug 14 2026, never hit
+  a miss, so this path had been verified by nobody.)
+- Spec: not yet.
+
+## 7. Find your legislator by address
 
 - Persona: doesn't know their district; wants their own representatives.
 - Steps: open Search legislators → use "Find your legislator by address" → enter a
