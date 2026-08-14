@@ -19,9 +19,11 @@ import {
 } from '../signIn';
 
 describe('serious account outcomes', () => {
-  it('routes only deactivated and unsafe-match results to dedicated screens', () => {
+  it('routes only a deactivated result to a dedicated screen', () => {
+    // The match-failure screen was removed in rev 15 as verified unreachable
+    // (#1533); an unverified Google return is a banner, not a dead end.
     expect(dedicatedSignInOutcome('deactivated')).toBe('deactivated');
-    expect(dedicatedSignInOutcome('match-failed')).toBe('match-failed');
+    expect(dedicatedSignInOutcome('unverified-google')).toBeNull();
     expect(dedicatedSignInOutcome('request-failure')).toBeNull();
     expect(dedicatedSignInOutcome('bad-credentials')).toBeNull();
   });
@@ -92,6 +94,9 @@ describe('no sign-in copy promises a notification', () => {
     'inbox',
     'subscribe',
   ];
+  // An error message may NAME an email (the unverified-Google banner must, in
+  // arrival-neutral wording, #1533) but may never claim one was sent.
+  const SEND_CLAIMS = ['we’ve sent', 'we sent', 'is on the way', 'we’ll send', 'we will send'];
 
   it('says nothing about email or alerts in the track copy', () => {
     const { headline, subcopy } = signInCopy('track', 'HF 4138');
@@ -101,13 +106,12 @@ describe('no sign-in copy promises a notification', () => {
     }
   });
 
-  it('says nothing about email or alerts in any intent, or in the error copy', () => {
+  it('says nothing about email or alerts in any intent or button label', () => {
     const strings = [
       ...ALL_INTENTS.flatMap((intent) => {
         const { headline, subcopy } = signInCopy(intent, 'HF 4138');
         return [headline, subcopy];
       }),
-      ...Object.values(SIGN_IN_ERROR_MESSAGES),
       SIGN_IN_BUTTON_LABEL,
       SIGN_IN_RETRY_LABEL,
     ];
@@ -116,6 +120,17 @@ describe('no sign-in copy promises a notification', () => {
         expect(value.toLowerCase()).not.toContain(promise);
       }
     }
+  });
+
+  it('never claims a send in any error message — arrival-neutral only', () => {
+    for (const value of Object.values(SIGN_IN_ERROR_MESSAGES)) {
+      for (const claim of SEND_CLAIMS) {
+        expect(value.toLowerCase()).not.toContain(claim);
+      }
+    }
+    expect(SIGN_IN_ERROR_MESSAGES['unverified-google']).toBe(
+      'Sign-in couldn’t finish because the email address needs confirmation. If a confirmation email arrives, open the newest one.',
+    );
   });
 
   it('states the payoff we can actually deliver: a saved list', () => {
@@ -231,13 +246,26 @@ describe('reading a failure off the return URL', () => {
 
   it('treats backing out of Google as cancelled, everything else as a failure', () => {
     expect(signInErrorKind('access_denied')).toBe('cancelled');
+    expect(signInErrorKind('access_denied', 'provider_access_denied')).toBe('cancelled');
     expect(signInErrorKind('server_error')).toBe('failed');
     expect(signInErrorKind(null)).toBe('failed');
+  });
+
+  it('tells an unverified Google email apart from a cancel behind the same error param', () => {
+    // Supabase reuses error=access_denied for callback failures and puts the
+    // real reason in error_code — reading only the first param made this
+    // result close the dialog silently (#1533).
+    expect(signInErrorKind('access_denied', 'provider_email_needs_verification')).toBe(
+      'unverified-google',
+    );
+    expect(signInErrorKind('provider_email_needs_verification')).toBe('unverified-google');
+    expect(signInErrorKind('access_denied', 'signup_disabled')).toBe('failed');
   });
 
   it('finds the error in the query string', () => {
     expect(parseAuthError('?error=access_denied&error_description=User+said+no', '')).toEqual({
       code: 'access_denied',
+      errorCode: null,
       description: 'User said no',
     });
   });
@@ -245,7 +273,18 @@ describe('reading a failure off the return URL', () => {
   it('finds the error in the hash, which is where the implicit flow puts it', () => {
     expect(parseAuthError('', '#error=server_error&error_description=Boom')).toEqual({
       code: 'server_error',
+      errorCode: null,
       description: 'Boom',
+    });
+  });
+
+  it('surfaces the specific error_code beside the generic error param', () => {
+    expect(
+      parseAuthError('?error=access_denied&error_code=provider_email_needs_verification', ''),
+    ).toEqual({
+      code: 'access_denied',
+      errorCode: 'provider_email_needs_verification',
+      description: null,
     });
   });
 

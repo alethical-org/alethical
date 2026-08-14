@@ -15,7 +15,7 @@ export type SignInIntent = 'nav' | 'track';
 export type SignInStatus = 'idle' | 'connecting' | 'error';
 
 /** Why sign-in failed, which picks the message. */
-export type SignInErrorKind = 'cancelled' | 'failed' | 'deactivated' | 'match-failed';
+export type SignInErrorKind = 'cancelled' | 'failed' | 'deactivated' | 'unverified-google';
 
 export interface SignInRequest {
   intent: SignInIntent;
@@ -72,8 +72,11 @@ export const SIGN_IN_ERROR_MESSAGES: Record<SignInErrorKind, string> = {
   // and who to ask rather than inviting another attempt (#1092).
   deactivated:
     'This account has been deactivated, so we’ve signed you out. Bills, votes and legislators are all still here to read. Contact us at ask@alethical.com if you think this is a mistake.',
-  'match-failed':
-    'We couldn’t safely match this sign-in to your account. Sign in with the method you used before.',
+  // A Google return whose email address Supabase has not confirmed. Shown as a
+  // banner on the ordinary sign-in screen — the Google button stays on the card,
+  // and the wording is arrival-neutral because no send is observable (#1533).
+  'unverified-google':
+    'Sign-in couldn’t finish because the email address needs confirmation. If a confirmation email arrives, open the newest one.',
 };
 
 export const SIGN_IN_BUTTON_LABEL = 'Continue with Google';
@@ -84,18 +87,29 @@ export function signInButtonLabel(status: SignInStatus): string {
 }
 
 /**
- * Google/Supabase report a person closing the consent screen as `access_denied`.
- * Everything else — a network failure, a misconfigured client — is the generic
- * failure, because we cannot tell those apart from the outside.
+ * Google/Supabase report a person closing the consent screen as `access_denied`,
+ * and Supabase reuses that same `error` value for callback failures it explains
+ * further in `error_code` — so the specific code is checked first. Everything
+ * else — a network failure, a misconfigured client — is the generic failure,
+ * because we cannot tell those apart from the outside.
  */
-export function signInErrorKind(code: string | null | undefined): SignInErrorKind {
+export function signInErrorKind(
+  code: string | null | undefined,
+  errorCode?: string | null,
+): SignInErrorKind {
+  if (
+    code === 'provider_email_needs_verification' ||
+    errorCode === 'provider_email_needs_verification'
+  ) {
+    return 'unverified-google';
+  }
+  if (errorCode && errorCode !== 'provider_access_denied') return 'failed';
   return code === 'access_denied' ? 'cancelled' : 'failed';
 }
 
 /** Serious account results replace the ordinary form instead of appearing as a field error. */
 export function dedicatedSignInOutcome(kind: string): SignInErrorKind | null {
-  if (kind === 'deactivated' || kind === 'match-failed') return kind;
-  return null;
+  return kind === 'deactivated' ? kind : null;
 }
 
 export type AuthErrorReturnDecision = 'wait-for-session' | 'keep-success' | 'show-error';
@@ -200,12 +214,19 @@ export function signInReducer(state: SignInDialogState, action: SignInAction): S
 export function parseAuthError(
   search: string,
   hash: string,
-): { code: string; description: string | null } | null {
+): { code: string; errorCode: string | null; description: string | null } | null {
   for (const raw of [search, hash]) {
     const params = new URLSearchParams(raw.replace(/^[?#]/, ''));
     const code = params.get('error') ?? params.get('error_code');
     if (code) {
-      return { code, description: params.get('error_description') };
+      return {
+        code,
+        // Supabase reuses `error=access_denied` for most callback failures and
+        // puts the specific reason here, so both are needed to tell a person
+        // closing Google's screen apart from an unconfirmed provider email.
+        errorCode: params.get('error_code'),
+        description: params.get('error_description'),
+      };
     }
   }
   return null;

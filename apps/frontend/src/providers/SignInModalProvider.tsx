@@ -388,7 +388,8 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
     signInAttemptGate.reset();
     setBusyAction(null);
     const pending = pendingRequest.current;
-    if (signInErrorKind(failure.code) === 'cancelled') {
+    const failureKind = signInErrorKind(failure.code, failure.errorCode);
+    if (failureKind === 'cancelled') {
       close();
       return;
     }
@@ -397,7 +398,7 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
     dispatch({
       type: 'reopenWithError',
       request: pending ?? { intent: 'nav' },
-      kind: signInErrorKind(failure.code),
+      kind: failureKind,
     });
   }, [close, isLoading, isSignedIn, signInAttemptGate]);
 

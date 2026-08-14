@@ -14,6 +14,7 @@ vi.mock('react-native-svg', () => ({
 }));
 
 vi.mock('../SignInContainer', () => ({
+  descriptionTextStyle: {},
   SignInContainer: ({
     title,
     description,
@@ -134,50 +135,73 @@ describe('rev 9 sign-in dialog', () => {
     expect(html).not.toContain('You’ll use this email and password');
   });
 
-  it('shows the neutral confirmation destination and its 3 safe actions', () => {
+  it('shows the arrival-neutral confirmation screen with a working Google button', () => {
     const html = render({ initialScreen: 'check-email', initialEmail: 'jordan@example.com' });
 
     expect(html).toContain('Check your email');
+    // Arrival-neutral and unaddressed: every accepted create lands here — new
+    // address, taken address or Google-first account — and resend measurably
+    // reports success without sending for a confirmed address (#1533).
     expect(html).toContain(
-      'If this address can create an Alethical account, a confirmation link is on the way to jordan@example.com.',
+      'If a confirmation email arrives, open the newest one. Otherwise, sign in.',
     );
+    expect(html).not.toContain('on the way');
+    // The Google button is the one control that works for all three
+    // populations (rev 12), and the primary is renamed Sign in (rev 15).
+    expect(html).toContain('Continue with Google');
     expect(html).toContain('Resend email');
-    expect(html).toContain('Sign in after confirming');
+    expect(html).toContain('>Sign in<');
+    expect(html).not.toContain('Sign in after confirming');
     expect(html).toContain('Change email');
   });
 
-  it('uses neutral reset wording before and after sending', () => {
+  it('uses arrival-neutral reset wording, with the real Google button and no fake help line', () => {
     const forgot = render({ initialScreen: 'forgot', initialEmail: 'jordan@example.com' });
     const sent = render({ initialScreen: 'forgot-sent', initialEmail: 'jordan@example.com' });
 
     expect(forgot).toContain('Reset your password');
     expect(forgot).toContain('Send reset instructions');
     expect(forgot).toContain('Back to sign in');
-    expect(sent).toContain(
-      'If an Alethical account can use that email, we’ll send password reset instructions to jordan@example.com.',
-    );
+    // Rev 12: the button is the sentence — 9 of 10 live accounts are
+    // Google-only, and the bolded plain-text "continue with Google" looked
+    // pressable and was not.
+    expect(forgot).toContain('Continue with Google');
+    expect(forgot).not.toContain('If you first used Google');
+    expect(sent).toContain('If a reset email arrives, open the newest one.');
+    expect(sent).not.toContain('we’ll send password reset instructions to');
+    expect(sent).toContain('Continue with Google');
+    expect(sent).not.toContain('If you first used Google');
     expect(sent).toContain('Resend email');
     expect(sent).toContain('Change email');
   });
 
-  it('uses dedicated deactivated and unsafe-match outcomes without a sign-in form', () => {
+  it('uses the dedicated deactivated outcome without a sign-in form, with a mail link', () => {
     const deactivated = render({
       errorKind: 'deactivated',
       errorMessage:
         'This account has been deactivated, so we’ve signed you out. Bills, votes and legislators are all still here to read. Contact us at ask@alethical.com if you think this is a mistake.',
     });
-    const unsafe = render({
-      errorKind: 'match-failed',
-      errorMessage:
-        'We couldn’t safely match this sign-in to your account. Sign in with the method you used before.',
-    });
 
     expect(deactivated).toContain('This account has been deactivated');
     expect(deactivated).toContain('Back to sign in');
     expect(deactivated).not.toContain('Continue with Google');
-    expect(unsafe).toContain('We couldn’t match this sign-in');
-    expect(unsafe).toContain('Back to sign in');
-    expect(unsafe).not.toContain('EMAIL');
+    expect(deactivated).toContain('mailto:ask@alethical.com');
+  });
+
+  it('shows the unverified-Google result as a banner on the ordinary sign-in screen', () => {
+    // The retired match-failure screen's one reachable trigger: a Google
+    // return whose address Supabase has not confirmed. The form and the
+    // Google button stay on the card — never a dead end (#1533).
+    const html = render({
+      errorKind: 'unverified-google',
+      errorMessage:
+        'Sign-in couldn’t finish because the email address needs confirmation. If a confirmation email arrives, open the newest one.',
+    });
+
+    expect(html).toContain('Sign-in couldn’t finish because the email address needs confirmation.');
+    expect(html).toContain('Continue with Google');
+    expect(html).toContain('Sign in to Alethical');
+    expect(html).not.toContain('We couldn’t match this sign-in');
   });
 
   it('uses shared validation, first-press locking, and the supplied resend wait', () => {

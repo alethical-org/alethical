@@ -48,7 +48,7 @@ export async function signOutLocallyAndVerify(
  * person's Alethical data until validation succeeds.
  */
 export function validationFailureRevokesSession(kind: PublicAuthErrorKind): boolean {
-  return kind === 'deactivated' || kind === 'match-failed';
+  return kind === 'deactivated';
 }
 
 /** Remove both durable Supabase browser/device records after an unsafe session. */

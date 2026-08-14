@@ -18,7 +18,11 @@ import {
   authSuccess,
   validateAlethicalSession,
 } from '../lib/auth/operations';
-import { normalizeEmail } from '../lib/auth/rev9Auth';
+import {
+  isUncertainPasswordSave,
+  normalizeEmail,
+  uncertainPasswordSaveMessage,
+} from '../lib/auth/rev9Auth';
 import {
   signOutLocallyAndVerify,
   validationFailureRevokesSession,
@@ -60,7 +64,7 @@ function getRedirectTo(returnTo?: string) {
 
 function publicErrorKind(kind: string): SignInErrorKind {
   if (kind === 'deactivated') return 'deactivated';
-  if (kind === 'match-failed') return 'match-failed';
+  if (kind === 'unverified-google') return 'unverified-google';
   return 'failed';
 }
 
@@ -243,8 +247,26 @@ export function AuthProvider({ children }: PropsWithChildren) {
         return error ? authFailure(error, normalized) : authSuccess();
       },
       setPassword: async (password: string) => {
-        const { error } = await supabase.auth.updateUser({ password });
-        if (error) return authFailure(error, user?.email);
+        let updateError: unknown;
+        try {
+          ({ error: updateError } = await supabase.auth.updateUser({ password }));
+        } catch (thrown) {
+          updateError = thrown;
+        }
+        if (updateError) {
+          // A lost reply may have saved the password server-side; the form must
+          // stop rather than offer the save again (rev 17 REQUEST FAILURE carve-out).
+          if (isUncertainPasswordSave(updateError)) {
+            return {
+              ok: false as const,
+              error: {
+                kind: 'uncertain-password-save' as const,
+                message: uncertainPasswordSaveMessage(user?.email ?? 'this account'),
+              },
+            };
+          }
+          return authFailure(updateError, user?.email, { passwordSave: true });
+        }
         if (user?.signInMethods) {
           setUser({
             ...user,

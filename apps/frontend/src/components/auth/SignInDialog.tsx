@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { ReactNode, useEffect, useRef, useState } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
@@ -15,18 +15,22 @@ import { signInCopy, type SignInErrorKind } from '../../lib/signIn';
 import { externalLinkProps, routePath } from '../../navigation/links';
 import { GoogleButton } from '../../theme/primitives';
 import { theme as t } from '../../theme/tokens';
+import { ContactMailText } from './ContactMailText';
 import { EmailField } from './EmailField';
 import { FormError } from './FormError';
 import { LoadingButton } from './LoadingButton';
 import { PasswordField } from './PasswordField';
 import { ResendControl, ResendStatus } from './ResendControl';
-import { SignInContainer } from './SignInContainer';
+import { SignInContainer, descriptionTextStyle } from './SignInContainer';
 
 const isWeb = Platform.OS === 'web';
 const TERMS_URL = 'https://www.alethical.com/terms';
 const PRIVACY_URL = 'https://www.alethical.com/privacy';
-const CONFIRMATION_SENT = 'If this address can receive a confirmation email, we’ve sent one.';
-const RESET_SENT = 'If an Alethical account can use that email, we’ve sent new instructions.';
+// Arrival-neutral by rule: no screen claims a send happened — Supabase measurably
+// reports success without sending for an already-confirmed address, and a claim
+// the screen cannot see is barred (rev 17 sign-in bundle, #1533).
+const CONFIRMATION_SENT = 'If a confirmation email arrives, open the newest one.';
+const RESET_SENT = 'If a reset email arrives, open the newest one.';
 
 export type SignInDialogScreen = 'sign-in' | 'create' | 'check-email' | 'forgot' | 'forgot-sent';
 
@@ -426,17 +430,16 @@ export function SignInDialog({
   const trackObject = billCode || 'this bill';
   const trackDescription = `Save ${trackObject} to your tracked bills and check where it stands whenever you come back.`;
   let title: string;
-  let description: string;
+  let description: ReactNode;
   let icon: 'brand' | 'bell' | 'mail' | 'lock' | 'shield';
 
-  const dedicatedOutcome = errorKind === 'deactivated' || errorKind === 'match-failed';
+  // The deactivated state is the one reachable stop state (the match-failure
+  // screen was removed in rev 15 as verified unreachable, #1533).
+  const dedicatedOutcome = errorKind === 'deactivated';
 
   if (dedicatedOutcome) {
-    title =
-      errorKind === 'deactivated'
-        ? 'This account has been deactivated'
-        : 'We couldn’t match this sign-in';
-    description = errorMessage ?? '';
+    title = 'This account has been deactivated';
+    description = <ContactMailText text={errorMessage ?? ''} style={descriptionTextStyle} />;
     icon = 'shield';
   } else if (screen === 'sign-in') {
     title = signInIntent.headline;
@@ -450,10 +453,13 @@ export function SignInDialog({
     icon = intent === 'track' ? 'bell' : 'brand';
   } else if (screen === 'check-email') {
     title = checkEmailMode === 'unconfirmed' ? 'Confirm your email' : 'Check your email';
+    // Every accepted create lands here — new address, taken address or
+    // Google-first account, identical response and shape — so the copy names
+    // no address and claims no send.
     description =
       checkEmailMode === 'unconfirmed'
         ? `Confirm ${email} before signing in.`
-        : `If this address can create an Alethical account, a confirmation link is on the way to ${email}.`;
+        : 'If a confirmation email arrives, open the newest one. Otherwise, sign in.';
     icon = 'mail';
   } else if (screen === 'forgot') {
     title = 'Reset your password';
@@ -462,7 +468,7 @@ export function SignInDialog({
     icon = 'lock';
   } else {
     title = 'Check your email';
-    description = `If an Alethical account can use that email, we’ll send password reset instructions to ${email}.`;
+    description = RESET_SENT;
     icon = 'mail';
   }
   const shownError = dedicatedOutcome ? formError : (errorMessage ?? formError);
@@ -477,15 +483,18 @@ export function SignInDialog({
     </View>
   ) : null;
 
+  const googleButton = (
+    <GoogleButton
+      onPress={anyBusy && !googleBusy ? undefined : () => void submitGoogle()}
+      label="Continue with Google"
+      busy={googleBusy}
+      busyLabel="Continuing with Google…"
+      size={isMobile ? 'lg' : 'md'}
+    />
+  );
   const googleChoice = (
     <>
-      <GoogleButton
-        onPress={anyBusy && !googleBusy ? undefined : () => void submitGoogle()}
-        label="Continue with Google"
-        busy={googleBusy}
-        busyLabel="Continuing with Google…"
-        size={isMobile ? 'lg' : 'md'}
-      />
+      {googleButton}
       {emailPasswordEnabled ? <Divider /> : null}
     </>
   );
@@ -504,6 +513,7 @@ export function SignInDialog({
     content = (
       <>
         {serverError}
+        {shownError === REV9_AUTH_MESSAGES.badCredentials ? <GoogleHelp /> : null}
         {googleChoice}
         {emailPasswordEnabled ? (
           <>
@@ -532,7 +542,6 @@ export function SignInDialog({
                 onSubmitEditing={() => void submitSignIn()}
               />
             </View>
-            {shownError === REV9_AUTH_MESSAGES.badCredentials ? <GoogleHelp /> : null}
             <View style={styles.actionStack}>
               <LoadingButton
                 label="Sign in"
@@ -565,6 +574,7 @@ export function SignInDialog({
     content = (
       <>
         {serverError}
+        <GoogleHelp create />
         {googleChoice}
         <View style={styles.fields}>
           <EmailField
@@ -607,7 +617,6 @@ export function SignInDialog({
             onSubmitEditing={() => void submitCreate()}
           />
         </View>
-        <GoogleHelp create />
         <View style={styles.actionStack}>
           <LoadingButton
             label="Create account"
@@ -627,9 +636,16 @@ export function SignInDialog({
       </>
     );
   } else if (screen === 'check-email') {
+    // The Google button is on the card for the create outcome (rev 12): for a
+    // taken address or a Google-first account every other control here is inert,
+    // and the button reveals nothing because everyone sees it. The unconfirmed
+    // outcome deliberately has no Google button — this screen already knows the
+    // password is correct, and an unconfirmed email must never be invited to
+    // claim an existing account through Google.
     content = (
       <>
         {serverError}
+        {checkEmailMode === 'create' ? <View style={styles.googleSolo}>{googleButton}</View> : null}
         <View style={styles.actionStackNoTop}>
           <ResendControl
             status={shownResendStatus}
@@ -641,7 +657,7 @@ export function SignInDialog({
             onResend={submitResend}
           />
           <LoadingButton
-            label="Sign in after confirming"
+            label={checkEmailMode === 'unconfirmed' ? 'Sign in after confirming' : 'Sign in'}
             busyLabel="Opening sign in…"
             disabled={anyBusy}
             onPress={() => moveTo('sign-in')}
@@ -655,9 +671,12 @@ export function SignInDialog({
       </>
     );
   } else if (screen === 'forgot') {
+    // Rev 12: the Google button is on the card and the Google help sentence is
+    // gone — the button is the sentence.
     content = (
       <>
         {serverError}
+        {googleChoice}
         <EmailField
           inputRef={emailRef}
           value={email}
@@ -670,7 +689,6 @@ export function SignInDialog({
           }}
           onSubmitEditing={() => void submitForgot()}
         />
-        <GoogleHelp />
         <View style={styles.actionStack}>
           <LoadingButton
             label="Send reset instructions"
@@ -691,7 +709,7 @@ export function SignInDialog({
     content = (
       <>
         {serverError}
-        <GoogleHelp />
+        <View style={styles.googleSolo}>{googleButton}</View>
         <View style={styles.actionStackNoTop}>
           <ResendControl
             status={shownResendStatus}
@@ -768,6 +786,7 @@ const styles = StyleSheet.create({
   googleHelpStrong: { fontWeight: t.fontWeights.bold, color: t.colors.text.primary },
   actionStack: { marginTop: 20, gap: 12 },
   actionStackNoTop: { gap: 12 },
+  googleSolo: { marginBottom: 12 },
   textAction: {
     width: '100%',
     minHeight: 44,

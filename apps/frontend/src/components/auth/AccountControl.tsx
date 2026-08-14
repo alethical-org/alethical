@@ -143,6 +143,7 @@ export function SetPasswordDialog({
   const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [uncertainMessage, setUncertainMessage] = useState<string | null>(null);
   const currentCopy = useMemo(
     () => passwordMethodCopy(user?.signInMethods ?? null, user?.email ?? 'your email'),
     [user?.email, user?.signInMethods?.google, user?.signInMethods?.password],
@@ -173,6 +174,7 @@ export function SetPasswordDialog({
     setFormError(null);
     setBusy(false);
     setSaved(false);
+    setUncertainMessage(null);
     setFlowCopy(currentCopy);
   }, [currentCopy, open, requestGate]);
 
@@ -196,12 +198,24 @@ export function SetPasswordDialog({
         setConfirmation('');
         return;
       }
-      if (result.error.kind === 'weak-password' || result.error.kind === 'leaked-password') {
-        setPasswordError(
-          result.error.kind === 'leaked-password'
-            ? REV9_AUTH_MESSAGES.leakedPassword
-            : REV9_AUTH_MESSAGES.passwordTooShort,
-        );
+      // A lost reply may have saved the password server-side: clear the typed
+      // password and never offer the save again — Done keeps the account
+      // signed in (rev 17 REQUEST FAILURE carve-out, #1533).
+      if (result.error.kind === 'uncertain-password-save') {
+        setPasswordValue('');
+        setConfirmation('');
+        setPasswordError(undefined);
+        setConfirmationError(undefined);
+        setUncertainMessage(result.error.message);
+        return;
+      }
+      if (
+        result.error.kind === 'weak-password' ||
+        result.error.kind === 'leaked-password' ||
+        result.error.kind === 'same-password' ||
+        result.error.kind === 'password-too-long'
+      ) {
+        setPasswordError(result.error.message);
         passwordRef.current?.focus?.();
         return;
       }
@@ -234,6 +248,13 @@ export function SetPasswordDialog({
     >
       {saved ? (
         <LoadingButton label="Done" busyLabel="Done" onPress={onDone} />
+      ) : uncertainMessage ? (
+        <>
+          <View style={styles.passwordFormError}>
+            <FormError variant="banner" message={uncertainMessage} />
+          </View>
+          <LoadingButton label="Done" busyLabel="Done" onPress={onDone} />
+        </>
       ) : (
         <>
           {formError ? (
@@ -286,6 +307,19 @@ export function SetPasswordDialog({
         </>
       )}
     </SignInContainer>
+  );
+}
+
+function CloseIcon() {
+  return (
+    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <Path
+        d="M6 6 L18 18 M18 6 L6 18"
+        stroke={t.colors.text.faint}
+        strokeWidth={2.2}
+        strokeLinecap="round"
+      />
+    </Svg>
   );
 }
 
@@ -530,13 +564,24 @@ export function AccountAvatarButton() {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
+  const [closeFocused, setCloseFocused] = useState(false);
+  const avatarRef = useRef<View>(null);
   const name = displayName(user?.name, user?.email);
   const passwordCopy = passwordMethodCopy(user?.signInMethods ?? null, user?.email ?? 'your email');
   const signOutFlow = useAccountSignOut();
 
+  // The sheet always closes three ways — the Close button, the scrim, Escape —
+  // and focus returns to the control that opened it (rev 15/17, #1533).
+  const closeSheet = () => {
+    if (signOutFlow.state === 'busy') return;
+    setOpen(false);
+    if (isWeb) (avatarRef.current as unknown as HTMLElement | null)?.focus?.();
+  };
+
   return (
     <>
       <Pressable
+        ref={avatarRef}
         accessibilityRole="button"
         accessibilityLabel="Account menu"
         aria-haspopup="dialog"
@@ -550,16 +595,15 @@ export function AccountAvatarButton() {
         visible={open}
         transparent
         animationType={reduceMotion ? 'none' : 'slide'}
-        onRequestClose={() => {
-          if (signOutFlow.state !== 'busy') setOpen(false);
-        }}
+        onRequestClose={closeSheet}
       >
         <View style={styles.sheetScrim}>
           <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Close account menu"
+            accessible={false}
+            focusable={false}
+            {...(isWeb ? ({ 'aria-hidden': true } as object) : null)}
             disabled={signOutFlow.state === 'busy'}
-            onPress={() => setOpen(false)}
+            onPress={closeSheet}
             style={StyleSheet.absoluteFill}
           />
           <View
@@ -568,7 +612,24 @@ export function AccountAvatarButton() {
             accessibilityViewIsModal
             accessibilityLabel="Account"
           >
-            <View style={styles.grabHandle} />
+            <View style={styles.sheetHeader}>
+              <View style={styles.grabHandle} />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Close"
+                disabled={signOutFlow.state === 'busy'}
+                onBlur={() => setCloseFocused(false)}
+                onFocus={() => setCloseFocused(true)}
+                onPress={closeSheet}
+                style={({ pressed }) => [
+                  styles.sheetClose,
+                  closeFocused && focusRingWeb,
+                  pressed && styles.sheetButtonPressed,
+                ]}
+              >
+                <CloseIcon />
+              </Pressable>
+            </View>
             <Identity name={name} email={user?.email ?? ''} avatar={48} />
             {emailPasswordEnabled ? (
               <Pressable
@@ -763,7 +824,23 @@ const styles = StyleSheet.create({
     borderRadius: t.radii.pill,
     backgroundColor: t.colors.borders.base,
     alignSelf: 'center',
-    marginBottom: 18,
+  },
+  sheetHeader: {
+    minHeight: 44,
+    marginBottom: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sheetClose: {
+    position: 'absolute',
+    top: 0,
+    right: -12,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
+    backgroundColor: t.colors.surfaces.s300,
   },
   sheetButton: {
     marginTop: 20,

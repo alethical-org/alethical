@@ -3,12 +3,13 @@ import { Platform, StyleSheet, Text, View } from 'react-native';
 import { AuthClient, type Session } from '@supabase/auth-js';
 
 import { AccountCard } from '../../components/auth/AccountCard';
+import { ContactMailText } from '../../components/auth/ContactMailText';
 import { EmailField } from '../../components/auth/EmailField';
 import { FormError } from '../../components/auth/FormError';
 import { LoadingButton } from '../../components/auth/LoadingButton';
 import { PasswordField } from '../../components/auth/PasswordField';
 import { ResendControl, type ResendStatus } from '../../components/auth/ResendControl';
-import { SignInContainer } from '../../components/auth/SignInContainer';
+import { SignInContainer, descriptionTextStyle } from '../../components/auth/SignInContainer';
 import { ApiError, completePendingTrackActionFromApi } from '../../data/api';
 import { createTemporaryAuthClient } from '../../lib/auth/linkSession';
 import { validateAlethicalSession } from '../../lib/auth/operations';
@@ -16,7 +17,9 @@ import { finishResetSignOuts, updatePasswordOnce } from '../../lib/auth/resetCle
 import {
   REV9_AUTH_MESSAGES,
   emailLinkFailureScreen,
+  isUncertainPasswordSave,
   mapProviderAuthError,
+  uncertainPasswordSaveMessage,
   validateEmail,
   validatePassword,
   validatePasswordMatch,
@@ -38,15 +41,15 @@ type LinkKind = 'confirm' | 'reset';
 type Screen =
   | 'gate'
   | 'checking'
+  | 'link-fail'
   | 'dead'
   | 'dead-sent'
   | 'deactivated'
-  | 'match-failed'
   | 'confirmed'
   | 'confirmed-other'
   | 'new-password'
-  | 'finishing'
-  | 'cleanup-failed';
+  | 'uncertain-save'
+  | 'finishing';
 
 interface OrdinaryAccount {
   session: Session;
@@ -166,8 +169,7 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
         setReturnPath(completed.returnPath);
       } catch (completionError) {
         if (!(completionError instanceof ApiError && completionError.status === 410)) {
-          setError('We couldn’t complete that request. Check your connection and try again.');
-          setScreen('gate');
+          setScreen('link-fail');
           return;
         }
       }
@@ -182,8 +184,7 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
     const ordinary = ordinaryClient.current;
     const temporary = temporaryClient.current;
     if (!ordinary || !temporary) {
-      setError('We couldn’t complete that request. Check your connection and try again.');
-      setScreen('gate');
+      setScreen('link-fail');
       return;
     }
 
@@ -193,8 +194,7 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
         refresh_token: session.refresh_token,
       });
       if (handed.error) {
-        setError('We couldn’t complete that request. Check your connection and try again.');
-        setScreen('gate');
+        setScreen('link-fail');
         return;
       }
       setScreen('confirmed');
@@ -216,18 +216,17 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
   const continueVerifiedSession = async (session: Session) => {
     const temporary = temporaryClient.current;
     if (!temporary) {
-      setError('We couldn’t complete that request. Check your connection and try again.');
-      setScreen('gate');
+      setScreen('link-fail');
       return;
     }
     const safeAccount = await validateAlethicalSession(session);
     if (!safeAccount.ok) {
-      if (safeAccount.error.kind !== 'request-failure') {
+      const failureScreen = emailLinkFailureScreen(safeAccount.error.kind);
+      if (failureScreen === 'deactivated') {
         await temporary.signOut({ scope: 'local' });
         temporarySession.current = null;
       }
-      setError(safeAccount.error.message);
-      setScreen(emailLinkFailureScreen(safeAccount.error.kind));
+      setScreen(failureScreen === 'deactivated' ? 'deactivated' : 'link-fail');
       return;
     }
     setVerifiedEmail(safeAccount.data.email || session.user.email || '');
@@ -259,8 +258,7 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
     setError(null);
     const config = publicSupabaseConfig();
     if (!config.url || !config.key) {
-      setError('We couldn’t complete that request. Check your connection and try again.');
-      setScreen('gate');
+      setScreen('link-fail');
       return;
     }
 
@@ -272,8 +270,9 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
     });
     if (verified.error || !verified.data.session) {
       const failure = mapProviderAuthError(verified.error);
-      setError(failure.message);
-      setScreen(failure.kind === 'expired-or-used-link' ? 'dead' : 'gate');
+      // A spent or expired token has its own page; every other failure gets the
+      // shared floor — the same retry, a human contact, and a way out (#1533).
+      setScreen(failure.kind === 'expired-or-used-link' ? 'dead' : 'link-fail');
       return;
     }
 
@@ -315,6 +314,13 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
     }
   };
 
+  const resetRelationship = () => {
+    const resetSession = temporarySession.current;
+    if (!ordinaryAccount) return 'none' as const;
+    if (resetSession && ordinaryAccount.id === resetSession.user.id) return 'same' as const;
+    return 'different' as const;
+  };
+
   const finishResetCleanup = async () => {
     const temporary = temporaryClient.current;
     const resetSession = temporarySession.current;
@@ -323,21 +329,17 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
       return;
     }
     setScreen('finishing');
-    const relationship = !ordinaryAccount
-      ? 'none'
-      : ordinaryAccount.id === resetSession.user.id
-        ? 'same'
-        : 'different';
-    const cleanedUp = await finishResetSignOuts(
+    // The password save itself already revoked the account's other sessions —
+    // Supabase's UpdatePassword runs LogoutAllExceptMe inside the same
+    // transaction — so the client's only remaining work is its two local
+    // clears, and there is no cleanup failure left to report (#1533).
+    const relationship = resetRelationship();
+    await finishResetSignOuts(
       temporary,
       ordinaryClient.current,
       relationship,
       clearOrdinarySession.current,
     );
-    if (!cleanedUp) {
-      setScreen('cleanup-failed');
-      return;
-    }
     if (relationship === 'different' && ordinaryAccount) {
       try {
         window.sessionStorage.setItem(
@@ -356,6 +358,23 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
     goToAlethical(true);
   };
 
+  // The uncertain-save exit: the save may or may not have finished server-side,
+  // so this skips the "Password changed" screen and notice entirely — success
+  // is unknown, and no surface may claim it (rev 17 REQUEST FAILURE carve-out).
+  const continueAfterUncertainSave = async () => {
+    const temporary = temporaryClient.current;
+    const relationship = resetRelationship();
+    if (temporary) {
+      await finishResetSignOuts(
+        temporary,
+        ordinaryClient.current,
+        relationship,
+        clearOrdinarySession.current,
+      );
+    }
+    goToAlethical(relationship !== 'different');
+  };
+
   const changePassword = async () => {
     const firstFailure = validatePassword(password);
     const secondFailure = validatePasswordMatch(password, confirmation);
@@ -368,21 +387,61 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
       temporary.updateUser({ password }),
     );
     if (changed.error) {
-      const failure = mapProviderAuthError(changed.error, verifiedEmail);
-      setPasswordError(
-        failure.kind === 'weak-password' || failure.kind === 'leaked-password'
-          ? failure.message
-          : undefined,
-      );
-      setError(
-        failure.kind === 'weak-password' || failure.kind === 'leaked-password'
-          ? null
-          : failure.message,
-      );
+      // A lost reply may have saved the password server-side. Clear the typed
+      // password and never offer the save again — a blind retry could change
+      // the password twice, which the checks forbid.
+      if (isUncertainPasswordSave(changed.error)) {
+        setPassword('');
+        setConfirmation('');
+        setPasswordError(undefined);
+        setConfirmationError(undefined);
+        setError(null);
+        setScreen('uncertain-save');
+        return;
+      }
+      const failure = mapProviderAuthError(changed.error, verifiedEmail, { passwordSave: true });
+      const fieldError =
+        failure.kind === 'weak-password' ||
+        failure.kind === 'leaked-password' ||
+        failure.kind === 'same-password' ||
+        failure.kind === 'password-too-long';
+      setPasswordError(fieldError ? failure.message : undefined);
+      setError(fieldError ? null : failure.message);
       return;
     }
     await finishResetCleanup();
   };
+
+  if (screen === 'link-fail') {
+    // The floor for a persistent service failure: the same retry (resolved by
+    // the current link kind), a human contact, and a way out — never a
+    // one-button loop. The banner claims nothing about server state: a reply
+    // lost after the server commits leaves a changed account behind this
+    // screen, so "your account has not changed" would be false (#1533).
+    return (
+      <SignInContainer
+        variant="page"
+        title="We couldn’t check that link"
+        description={
+          <ContactMailText
+            text="Try once more. If it keeps failing, contact us at ask@alethical.com and we’ll help."
+            style={descriptionTextStyle}
+          />
+        }
+      >
+        <View style={styles.stack}>
+          <FormError variant="banner" message="Something went wrong checking this link." />
+          <LoadingButton label="Try again" busyLabel="Checking…" onPress={verifyLink} />
+          <LoadingButton
+            label="Continue to Alethical"
+            busyLabel="Continuing…"
+            tone="quiet"
+            onPress={() => goToAlethical(true)}
+          />
+        </View>
+      </SignInContainer>
+    );
+  }
 
   if (screen === 'dead') {
     const confirmationDead = kind === 'confirm';
@@ -392,7 +451,7 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
         title="That link can’t be used"
         description={
           confirmationDead
-            ? 'Enter your email address and we’ll send another confirmation link.'
+            ? 'Enter your email address to request another confirmation link.'
             : 'Start the Forgot password flow again and open the newest email.'
         }
       >
@@ -407,13 +466,13 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
               <ResendControl
                 status={deadResendStatus}
                 secondsRemaining={deadResendSeconds}
-                sentMessage="If this address can receive a confirmation email, we’ve sent one."
+                sentMessage="If a confirmation email arrives, open the newest one."
                 actionLabel="Send a new confirmation email"
                 sendingLabel="Sending…"
                 onResend={resendDeadConfirmation}
               />
               <LoadingButton
-                label="Continue"
+                label="Continue to sign in"
                 busyLabel="Continuing…"
                 tone="quiet"
                 onPress={() => goToAlethical(true)}
@@ -444,10 +503,10 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
       <SignInContainer
         variant="page"
         title="Check your email"
-        description="If this address can receive a confirmation email, we’ve sent one."
+        description="If a confirmation email arrives, open the newest one."
       >
         <LoadingButton
-          label="Continue"
+          label="Continue to sign in"
           busyLabel="Continuing…"
           onPress={() => goToAlethical(true)}
         />
@@ -455,19 +514,13 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
     );
   }
 
-  if (screen === 'deactivated' || screen === 'match-failed') {
+  if (screen === 'deactivated') {
     return (
       <SignInContainer
         variant="page"
-        title={
-          screen === 'deactivated'
-            ? 'This account has been deactivated'
-            : 'We couldn’t match this sign-in'
-        }
+        title="This account has been deactivated"
         description={
-          screen === 'deactivated'
-            ? SIGN_IN_ERROR_MESSAGES.deactivated
-            : SIGN_IN_ERROR_MESSAGES['match-failed']
+          <ContactMailText text={SIGN_IN_ERROR_MESSAGES.deactivated} style={descriptionTextStyle} />
         }
       >
         <LoadingButton
@@ -481,13 +534,16 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
   }
 
   if (screen === 'confirmed' || screen === 'confirmed-other') {
+    // The page moves only when the button is pressed, so the copy narrates no
+    // action, and the button itself promises its destination (goal 6: the
+    // original intent survives the detour).
     return (
       <SignInContainer
         variant="page"
         title="Email confirmed"
         description={
           screen === 'confirmed'
-            ? 'You’re signed in. Taking you back to what you were doing.'
+            ? 'You’re signed in.'
             : 'That address is confirmed. Nothing about the account open here has changed.'
         }
       >
@@ -505,7 +561,11 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
             </>
           ) : null}
           <LoadingButton
-            label={screen === 'confirmed-other' ? 'Continue to Alethical' : 'Continue'}
+            label={
+              screen === 'confirmed-other'
+                ? 'Continue to Alethical'
+                : 'Continue to what you were doing'
+            }
             busyLabel="Continuing…"
             onPress={() => window.location.replace(returnPath)}
           />
@@ -550,42 +610,54 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
             error={confirmationError}
             onChangeText={setConfirmation}
           />
-          {different ? (
-            <Text style={styles.note}>
-              Only other sessions for {verifiedEmail} will be signed out.
-            </Text>
-          ) : null}
           <LoadingButton label="Change password" busyLabel="Saving…" onPress={changePassword} />
         </View>
       </SignInContainer>
     );
   }
 
-  if (screen === 'finishing' || screen === 'cleanup-failed') {
+  if (screen === 'uncertain-save') {
+    // The REQUEST FAILURE carve-out: success is unknown, so this skips the
+    // "Password changed" screen and notice, and never re-offers the save.
+    const differentOpen =
+      ordinaryAccount && ordinaryAccount.id !== temporarySession.current?.user.id;
+    return (
+      <SignInContainer
+        variant="page"
+        title="Choose a new password"
+        description={`For ${verifiedEmail}.`}
+      >
+        <View style={styles.stack}>
+          <FormError variant="banner" message={uncertainPasswordSaveMessage(verifiedEmail)} />
+          {differentOpen && ordinaryAccount ? (
+            <AccountCard
+              label="This browser will stay signed in as:"
+              name={ordinaryAccount.name}
+              email={ordinaryAccount.email}
+            />
+          ) : null}
+          <LoadingButton
+            label={differentOpen ? 'Continue to Alethical' : 'Continue'}
+            busyLabel="Continuing…"
+            onPress={continueAfterUncertainSave}
+          />
+        </View>
+      </SignInContainer>
+    );
+  }
+
+  if (screen === 'finishing') {
+    // Claims only the work this client is doing: its own two local clears.
+    // Other sessions were revoked inside the password save itself, and a
+    // device's already-issued access pass may keep working until it expires —
+    // so no wording here may say other devices are already signed out.
     return (
       <SignInContainer
         variant="page"
         title="Password changed"
-        description={
-          screen === 'finishing'
-            ? 'Finishing up — signing out your other devices and closing this reset session.'
-            : 'Your new password already works.'
-        }
+        description="Finishing up — closing this reset session."
       >
-        <View style={styles.stack}>
-          {screen === 'cleanup-failed' ? (
-            <FormError
-              variant="banner"
-              message="Your password changed, but we couldn’t finish signing you out on other devices. Check your connection and try again."
-            />
-          ) : null}
-          <LoadingButton
-            label="Try again"
-            busyLabel="Finishing up…"
-            busy={screen === 'finishing'}
-            onPress={finishResetCleanup}
-          />
-        </View>
+        <LoadingButton label="Finishing up…" busyLabel="Finishing up…" busy onPress={undefined} />
       </SignInContainer>
     );
   }
