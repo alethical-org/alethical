@@ -1,5 +1,7 @@
 # Grounded-answer invariants
 
+**Product-behavior rules — these govern what Alethical's shipped surfaces do, not how you work or talk.** They bind anything you build or change that generates, displays, or advertises an answer to a reader. They do not govern your own conversation, analysis, commit messages, or code comments: a chat reply needs no citations, and cite-or-refuse is a product contract, not a chat style. The working-process rules live in `.claude/rules/workflow.md`.
+
 Standing rules for any surface that generates, displays, or advertises answers. These outlive any single build — current implementation spec: `docs/product-onboarding/grounded-ask-spec.md`.
 
 **Why these exist.** They are `docs/philosophy.md` made checkable — principle 1 (truth before voice), 2 (uncover, don't translate), 4 (say only what we can do) and 5 (meet people in their own words), turned into things a test or a reviewer can fail a PR on. Read the philosophy when a rule below feels arbitrary, or when you hit a case it doesn't name; read the rule when you need the line that actually decides.
