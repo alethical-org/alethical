@@ -276,7 +276,7 @@ this document is history. If someone disables them, this document is a forecast.
 There are two of them and they fail differently, which is the whole point. The
 pull-request check answers *"do our own migrations still build what our own models
 declare?"* and **breaks the build**, because there is a right answer and the author can
-fix it before merging. The post-deploy check answers *"does the live database still look
+fix it before merging. The hand-run live check answers *"does the live database still look
 the way we think?"* and **only files an issue**, because when those two part company
 neither side is automatically wrong — six of the eleven findings above went production's
 way, and a check that failed the deploy on those would have been telling us to make

@@ -34,7 +34,7 @@ first and follow the link for the part you need.
 | Making bill text searchable by meaning | OpenAI embeddings | `alethical/pipeline/rag_ingest.py` |
 | Sending email | Resend | `alethical/api/services/contact.py` |
 | Hosting | Railway, one service | `railway.json` |
-| Releasing | GitHub Actions | `.github/workflows/` |
+| Releasing | Railway and Vercel Git connections, with hand-run GitHub backups | `railway.json`, `vercel.json`, `.github/workflows/` |
 | Tests | pytest | `alethical/tests/` |
 
 ## 1. Language and packages

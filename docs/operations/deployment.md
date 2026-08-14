@@ -9,8 +9,8 @@ Alethical deploys as two services:
 
 ## Workflows at a glance
 
-Eight GitHub Actions workflows live in `.github/workflows/`. Which ones a PR can
-prove matters: 7 of them never run on a PR, so a change to them is only verified
+Ten GitHub Actions workflows live in `.github/workflows/`. Which ones a PR can
+prove matters: 8 of them never run on a PR, so a change to them is only verified
 after merge.
 
 | Workflow                | Runs when                                                                  | Does                                                                                   | Provable on a PR?                |
@@ -22,6 +22,8 @@ after merge.
 | `vote-backfill.yml`     | daily at 09:00 UTC, or by hand                                             | Pulls newly recorded roll-call votes into production                                   | No — dispatch it by hand to test |
 | `bill-section-gaps.yml` | daily at 11:00 UTC, or by hand                                             | Read-only check that no bill is missing sections its page published; opens an alert issue | No — dispatch it by hand to test |
 | `rag-coverage-gaps.yml` | daily at 12:00 UTC, or by hand                                             | Read-only check that every stored bill can be found by Grounded Ask; opens an alert issue | No — dispatch it by hand to test |
+| `mirror-raw-files.yml`  | daily at 13:00 UTC, or by hand                                             | Copies stored campaign-finance source files from Supabase to Cloudflare                 | No — dispatch it by hand to test |
+| `home-hero-card-facts.yml` | monthly, by hand, and relevant pull requests                           | Checks the homepage's 5 claims against official sources                                | Yes, when the homepage changes   |
 | `legislator-city-backfill.yml` | by hand                                                            | Previews or fills missing legislator residence cities from official sources              | No — preview 1 person by hand    |
 
 `bill-section-gaps.yml` is a schedule rather than a PR check for a structural
