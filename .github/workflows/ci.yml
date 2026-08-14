@@ -92,8 +92,9 @@ jobs:
         run: python scripts/check_no_nul_bytes.py
 
       # Only meaningful on a PR: it compares against the merge base and reads
-      # the PR body. On a push to main there is no body to read, so skip it.
-      - name: Check docs describing changed code were looked at
+      # the PR body. It checks both docs that describe changed code and frozen
+      # design-bundle edits. On a push to main there is no body, so skip it.
+      - name: Check doc and design changes were explained
         if: github.event_name == 'pull_request'
         env:
           BASE_REF: ${{ github.base_ref }}

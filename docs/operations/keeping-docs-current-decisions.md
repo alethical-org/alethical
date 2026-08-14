@@ -2,14 +2,15 @@
 
 # Keeping docs current — what we decided and why
 
-**Net:** We looked at four ways to automatically catch a doc that describes code it never
+**Net:** We looked at four ways to automatically catch a live doc that describes code it never
 declared, measured each one against the real repo, and are **not making any of them a CI
-gate**. The declared-coupling check we already have (`scripts/check_doc_sync.py`) stays as-is;
-the gap it has is a **missing declaration**, and writing one is a one-line edit per doc. Two of
-the four alternatives cannot see plain-English guides at all, one costs money in CI on a graph
-we can't keep current, and the closest near-miss would newly fire on 20% of PRs with at least
-36% of its new prompts triggered by plumbing — and a check people route around is worse than no
-check.
+gate**. The declared-coupling check remains the right mechanism for live guides; the gap it has
+is a **missing declaration**, and writing one is a one-line edit per doc. A later, separate
+[#1469](https://github.com/alethical-org/alethical/issues/1469) guard covers edits to frozen
+design bundles, which do not declare live code. Two of the four alternatives measured here
+cannot see plain-English guides at all, one costs money in CI on a graph we can't keep current,
+and the closest near-miss would newly fire on 20% of PRs with at least 36% of its new prompts
+triggered by plumbing — and a check people route around is worse than no check.
 
 **One option is deliberately left open rather than rejected: running that near-miss as a
 non-blocking report instead of a gate.** We never measured that mode, and it is the strongest
@@ -37,6 +38,19 @@ draft of this section used `SearchBillsScreen.tsx` and did exactly that.
 `scripts/check_doc_sync.py` then fails any PR that changes a declared file without one
 `Docs check:` line in the body saying what the author concluded. "None needed" passes — the
 check forces the *look*, not an edit.
+
+### The separate frozen-design guard
+
+Files under `docs/mockups/` are accepted design records rather than live behaviour guides, so
+they deliberately carry no `describes:` declaration. After [#1450](https://github.com/alethical-org/alethical/pull/1450)
+quietly removed 5 accepted homepage elements while rewriting the bundle to agree, #1469 added
+an independent rule to the same script and CI step: a PR that edits any frozen design file
+needs a nonempty line beginning `Design change:` that names what requirement changed and why.
+
+That sentence is separate from `Docs check:` because the two checks answer different questions.
+The checker does not judge the sentence beyond requiring text after the colon. Its failure names
+every changed bundle file and states the product boundary: missing data must first be proven
+absent from Alethical's API, and Eugene decides whether the accepted requirement is removed.
 
 **Two things about that line trip people up, and the second costs a wasted CI cycle**
 ([#1008](https://github.com/alethical-org/alethical/pull/1008), 2026-08-05, hit both):
