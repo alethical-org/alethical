@@ -64,7 +64,7 @@ import {
   CARD_LINK_LAYER,
 } from '../../lib/billCardControlLayers';
 
-// Web Legislator Profile (docs/mockups/legislator-profile-web). Aggregates a
+// Web Legislator Profile (docs/product-onboarding/legislator-profile-guide.md). Aggregates a
 // member's public record — identity, committees (with leadership), chief-authored
 // bills, contact — with a link back to the official source, plus a clearly-labeled
 // "On the roadmap" zone. Chamber-parameterized from member data; the two design

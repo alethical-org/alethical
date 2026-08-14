@@ -27,6 +27,9 @@ things work in practice and are the place to start if you're new.
 - [Bill search screen spec](product-onboarding/bill-search-screen-spec.md) — the bill search screen (`/bills`)
 - [Bill tracking interaction spec](product-onboarding/bill-tracking-spec.md) — how Track behaves on every page, through sign-in, and inside full-card links
 - [How sign-in works](product-onboarding/sign-in-guide.md) — Google and password sign-in, email links, account matching, password rules, and release settings
+- [How Home works](product-onboarding/home-screen-guide.md) — the signed-out and signed-in opening sections, bill activity, editorial news picks, and phone layout
+- [How Bill Detail works](product-onboarding/bill-detail-guide.md) — the summary, actions, votes, versions, Bill Text, source line, and phone order
+- [How legislator profiles work](product-onboarding/legislator-profile-guide.md) — identity, committees, bills, service history, public money records, and planned features
 - [Bill Text tab spec](product-onboarding/bill-text-tab-spec.md) — how a bill's official text is parsed, marked up, and rendered, plus the section-index rail and citation anchors
 - [Answer quality bar](product-onboarding/answer-quality-bar.md) — what a good generated answer is, how the eval measures it, and the judge calibration behind the scores
 - [Campaign finance roadmap](product-onboarding/campaign-finance-roadmap.md) — plain-language plan for putting Minnesota campaign money on the site: what we are building, in what order, and the one rule that shapes it
@@ -79,4 +82,4 @@ things work in practice and are the place to start if you're new.
 ## About this folder
 
 - [How `docs/` is organized](folder-structure.md) — the folder layout and where a new doc goes
-- **How these are kept current** — see "Keeping docs current" in [`CONTRIBUTING.md`](../CONTRIBUTING.md). Short version: a doc that describes behaviour names the code it describes in a `<!-- describes: -->` comment, and CI then fails any PR that changes that code without one `Docs check:` line saying what the author concluded. Selected guides also opt into a free check that exact quoted labels, colours, and settings still appear in that code. If you write a doc that describes how something behaves, give it that comment. Frozen records deliberately do not have one, but editing anything under `docs/mockups/` requires a separate nonempty `Design change:` line naming what requirement changed and why.
+- **How these are kept current** — see "Keeping docs current" in [`CONTRIBUTING.md`](../CONTRIBUTING.md). Short version: a doc that describes behaviour names the code it describes in a `<!-- describes: -->` comment, and CI then fails any PR that changes that code without one `Docs check:` line saying what the author concluded. Selected guides also opt into a free check that exact quoted labels, colours, and settings still appear in that code. If you write a doc that describes how something behaves, give it that comment. Design working files stay outside `docs/`; the temporary sign-in record is the only exception.

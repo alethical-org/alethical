@@ -6,7 +6,7 @@
 > the product should feel like, and the visual/interaction rules that get it there. It is the
 > single source of truth for the green system, which replaced the earlier Newsprint identity.
 >
-> **Two jobs.** (1) A **brief to hand to Claude Design** at the start of any mockup so its output
+> **2 jobs.** (1) A **brief to hand to the design tool** at the start of any preview so its output
 > starts on-brand instead of drifting to a generic default. (2) A **reference for building and
 > reviewing** screens in the RN/Expo codebase.
 >
@@ -17,8 +17,8 @@
 > `docs/product-onboarding/mvp-redesign-plan.md`, generate a value sheet from the file if one is ever needed).
 >
 > **Sources of truth:** `apps/frontend/src/theme/tokens.ts` + `theme/primitives.tsx` (implemented
-> system) · `docs/mockups/home-signed-out-v2/README.md` (first shipped page's values/states/copy) ·
-> `docs/product-onboarding/mvp-redesign-plan.md` (redesign decisions). MVP is **responsive web** (desktop + mobile
+> system) · this guide (shared visual and interaction rules) · the feature guides under
+> `docs/product-onboarding/` (screen behavior and copy). MVP is **responsive web** (desktop + mobile
 > web); native is deferred ([#91](https://github.com/alethical-org/alethical/issues/91)).
 
 ## 1. What Alethical should feel like
@@ -302,17 +302,18 @@ The generic "make it striking" instinct pulls the wrong way for a civic-records 
 - **No color as opinion** — never use red/green weighting to imply a bill or legislator is bad/good.
 - **No maximal density** — resist cramming; if a screen feels busy, cut, don't shrink.
 
-## 5. Using this with Claude Design
+## 5. Using this with a design tool
 
-- **At mockup time (generation):** paste §1–§4 into the Claude Design prompt as the standing brief,
-  then describe the specific page. This gives Claude Design the editorial direction it otherwise
+- **At preview time (generation):** paste §1–§4 into the design tool prompt as the standing brief,
+  then describe the specific page. This gives the design tool the editorial direction it otherwise
   averages away. Keep prompts definitive (state the design, don't ask it to decide scope).
 - **Structural option:** the same intent can be pushed to a claude.ai/design *design-system project*
   (via the `DesignSync` tool) so Claude Design generates against our real tokens + primitives rather
   than a prose description. Prose brief is the lightweight path; the synced system is the durable one.
-- **At build time (implementation):** this doc plus `tokens.ts`/`primitives.tsx` is the reference;
-  the per-page `README.md` under `docs/mockups/<page>/` is the literal spec. See the
-  `design-build` skill for the build/route/QA sequence.
+- **At build time (implementation):** this guide plus `tokens.ts`/`primitives.tsx` is the shared
+  reference; the feature guide under `docs/product-onboarding/` owns the lasting screen behavior.
+  Use the accepted preview only as a temporary visual reference. See the `design-build` skill for
+  the build, route, and review sequence.
 - **At review time:** §3 is the checklist. Audit the rendered web output against it before shipping.
 
 ## References
@@ -320,7 +321,7 @@ The generic "make it striking" instinct pulls the wrong way for a civic-records 
 `apps/frontend/src/theme/tokens.ts` · `apps/frontend/src/theme/primitives.tsx` ·
 `docs/product-onboarding/mvp-redesign-plan.md` (redesign decisions) · `docs/design/ui-copy-guide.md` (voice/copy) ·
 `.claude/rules/grounded-answers.md` (what a surface may claim) · `docs/product-onboarding/grounded-ask-spec.md`
-(Ask surfaces) · `docs/mockups/home-signed-out-v2/README.md` (first shipped page).
+(Ask surfaces) · `docs/product-onboarding/home-screen-guide.md` (Home behavior).
 
 ---
 

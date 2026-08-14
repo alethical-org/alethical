@@ -64,7 +64,7 @@ import {
 // Placeholder card rows shown while the first page of bills loads.
 const SKELETON_ROWS = [0, 1, 2, 3, 4];
 
-// Search Bills (docs/mockups/search-bills). Server-paginated bill discovery over
+// Search Bills (docs/product-onboarding/bill-search-screen-spec.md). Server-paginated bill discovery over
 // the current Legislature with chamber / status / session / omnibus filters + Issue
 // pills, ordered by legislative progress (sort=progress, #292), with auth-gated
 // per-bill tracking.
