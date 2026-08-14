@@ -26,11 +26,11 @@ import { LoadingButton } from './LoadingButton';
 import { PasswordField } from './PasswordField';
 import { SignInContainer } from './SignInContainer';
 
-// What replaces the "Sign in" button once you're in (docs/mockups/sign-in,
-// ACCOUNT CONTROL band). Three placements, one identity: a pill with a dropdown
-// on desktop, an avatar opening a sheet on the phone top bar, and a row in the
-// phone drawer's footer. The panel and sheet offer the built account actions;
-// the drawer footer stays compact and keeps only Sign out.
+// What replaces the "Sign in" button once you're in
+// (docs/product-onboarding/sign-in-guide.md). Three placements, one identity: a
+// pill with a dropdown on desktop, an avatar opening a sheet on the phone top
+// bar, and a row in the phone drawer's footer. The panel and sheet offer the
+// built account actions; the drawer footer stays compact and keeps only Sign out.
 
 const isWeb = Platform.OS === 'web';
 const emailPasswordEnabled = process.env.EXPO_PUBLIC_EMAIL_PASSWORD_SIGN_IN_ENABLED === 'true';

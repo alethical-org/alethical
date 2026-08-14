@@ -2,8 +2,9 @@
 
 <!-- describes: apps/frontend/src/components/billDetail/BillTrackButton.tsx, apps/frontend/src/components/billDetail/TrackedListUnavailableNotice.tsx, apps/frontend/src/components/search/BillResultCard.tsx, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, apps/frontend/src/hooks/useBillTracking.ts, apps/frontend/src/lib/billCardControlLayers.ts, apps/frontend/src/lib/signIn.ts, apps/frontend/src/lib/trackIntent.ts, apps/frontend/src/lib/trackReturn.ts, apps/frontend/src/navigation/types.ts, apps/frontend/src/providers/SignInModalProvider.tsx, apps/frontend/src/providers/TrackedBillWriteProvider.tsx, apps/frontend/src/providers/trackedBillWriteContext.ts, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileWebScreen.tsx -->
 
-Status: shipped behavior. The sign-in dialog's visual design remains in
-`docs/mockups/sign-in/`; this document owns the Track interaction that opens it.
+Status: shipped behavior. The sign-in dialog's flows, states and copy are documented in
+`docs/product-onboarding/sign-in-guide.md`; this document owns the Track interaction that
+opens it.
 
 ## One behavior on every surface
 

@@ -38,6 +38,13 @@ Functional auth controls (**Sign In / Log In**) keep plain functional labels. Th
 ## Signed-in state
 "This is yours. This transparency serves you." Use *command center*, possessive agency framing (Your representatives, Your district, Your vote record). Data feels like access granted, not info retrieved.
 
+## A screen claims only what it directly knows
+Ratified with the rev 17 sign-in redesign ([#1533](https://github.com/alethical-org/alethical/issues/1533)). A screen may state what it did itself; anything **another system** does — email delivery above all — uses conditional or arrival-neutral wording, because the screen cannot see it happen.
+
+- **Arrival-neutral, not softened:** "If a confirmation email arrives, open the newest one." — never "we've sent one" or "one is on the way". The trigger case was measured, not hypothetical: the sign-in service reports success without sending anything when a confirmed address asks for another confirmation email.
+- The rule covers claims about **server state** too: a failure screen may not say "your account has not changed" when a lost reply can leave a changed account behind it, and no reset screen says other devices are "already signed out" when their access passes can outlive the change.
+- Silence is permitted; a dead end is not. Declining to say what happened never excuses leaving nothing to press.
+
 ## Test for any copy
 Does this deliver a sovereignty recognition moment, or is it just a label? If just a label, rewrite.
 

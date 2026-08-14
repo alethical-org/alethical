@@ -1,6 +1,7 @@
 // The sign-in dialog's copy and state machine, kept out of the component so both
-// are plain data a test can read (docs/mockups/sign-in). One config drives every
-// surface, so the web overlay and the phone sheet cannot say different things.
+// are plain data a test can read (docs/product-onboarding/sign-in-guide.md). One
+// config drives every surface, so the web overlay and the phone sheet cannot say
+// different things.
 //
 // Honesty rules this file carries (.claude/rules/grounded-answers.md):
 //  - rule 6: no copy may promise an email or a push alert. Sending is not built
@@ -42,7 +43,7 @@ interface IntentConfig {
 }
 
 // The generic copy is shared by every plain Sign in button. Only a Track action
-// gets a different reason and glyph (docs/mockups/sign-in).
+// gets a different reason and glyph (docs/product-onboarding/sign-in-guide.md).
 const GENERIC_HEADLINE = 'Sign in to Alethical';
 const GENERIC_SUBCOPY = 'Bills you track are saved to your account.';
 

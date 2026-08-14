@@ -52,7 +52,6 @@ docs/
 │   ├── repo-and-service-settings.md
 │   └── keeping-docs-current-decisions.md
 │
-├── mockups/sign-in/       Temporary exception while the sign-in redesign is active
 └── research/              Research findings
 ```
 
@@ -74,9 +73,11 @@ Five placements aren't obvious, so they're stated:
   and acceptance. A design preview is a temporary build aid, not a lasting product record.
 - **`legislator-roster-canonical-membership-spec.md` is architecture** — it specifies a
   pipeline module (`roster_pdf.py`) and its reconciliation.
-- **`mockups/sign-in/` is temporary** — the active sign-in redesign is the final exception.
-  Once its lasting rules are in `product-onboarding/sign-in-guide.md`, remove it. New design
-  previews do not land anywhere under `docs/`.
+- **There is no `mockups/` folder anymore** — design previews are working files that stay
+  with their task, pull request, or temporary storage, never under `docs/`. Its final
+  temporary occupant, the sign-in bundle, was reconciled into
+  `product-onboarding/sign-in-guide.md` and removed with the rev 17 sign-in build
+  ([#1533](https://github.com/alethical-org/alethical/issues/1533)).
 - **`user-data-retention-policy.md` is product, not operations** — it reads like an ops
   concern because it names tables and third-party services, but the question it answers is
   *what does the product keep about the people who read it, and what do we promise them*.
