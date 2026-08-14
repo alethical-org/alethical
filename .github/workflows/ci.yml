@@ -72,13 +72,15 @@ jobs:
 
       # Free backstop for private-repo secret scanning. It checks only the new
       # commits in this push or PR and fails for a confirmed live credential or
-      # a credential whose live check could not complete. Pin both the action
-      # code and scanner image so a future upstream release cannot change CI.
+      # a credential whose live check could not complete. Alethical has no Lob
+      # account or code, and Lob's key shape collides with ordinary pytest names
+      # (`test_` plus 35 characters), so exclude only that detector. Pin both the
+      # action code and scanner image so a future upstream release cannot change CI.
       - name: Check new commits for live secrets
         uses: trufflesecurity/trufflehog@6f3c981e7b77f235fd2702dd74af25fc4b72bf11 # v3.96.0
         with:
           version: "3.96.0"
-          extra_args: --results=verified,unknown --fail-on-scan-errors
+          extra_args: --results=verified,unknown --fail-on-scan-errors --exclude-detectors=lob
 
       # Runs on every event: a broken document reference is usually introduced
       # by a docs-only or rules-only change, which the backend and frontend jobs
