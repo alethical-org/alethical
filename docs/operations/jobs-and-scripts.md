@@ -73,6 +73,7 @@ below by what they do, so the right one can be found without reading every file:
 | `scripts/check_schema_drift.py` | Checks that the database's actual structure matches what the code expects | No |
 | `scripts/check_declared_dependencies.py` | Checks the code isn't secretly relying on an outside package it never officially listed | No |
 | `scripts/check_doc_references.py` | Checks every link from one page of notes to another actually goes somewhere real | No |
+| `scripts/check_doc_quotes.py` | Checks that exact labels, colours, and settings quoted by opted-in guides still appear in the code those guides describe | No |
 | `scripts/check_doc_sync.py` | Checks a code change was checked against the plain-language guide that describes it, and requires an explanation when a frozen design bundle changes | No |
 | `scripts/check_no_nul_bytes.py` | Checks no saved file contains a hidden character that makes searches blind to it | No |
 
