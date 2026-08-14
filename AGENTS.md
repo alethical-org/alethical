@@ -152,10 +152,9 @@ startup update script refreshes dependencies only (`uv sync` + `pnpm install
   (which builds the app and configures logging) can't open it. Run it as
   `ALETHICAL_LOG_DIR=/tmp/alethical-logs uv run pytest`. Lint doesn't need this. Note
   pytest seeds `scripts/load_sample_data.py` into the *local* Postgres it points at.
-- **`just lint` uses UNPINNED `uvx ruff`/`uvx ty`** and pulls newer versions than CI,
-  reporting hundreds of false errors. Reproduce CI (`.github/workflows/ci.yml`) with
-  the pinned versions: `uvx ruff@0.15.0 check alethical scripts`,
-  `uvx ruff@0.15.0 format --check alethical scripts`, `uvx ty@0.0.63 check alethical/db`.
+- **`just lint` pins the same `ruff`/`ty` versions CI runs** (`ruff@0.15.0`,
+  `ty@0.0.63`). If you call `uvx ruff`/`uvx ty` by hand, pin those versions —
+  unpinned runs pull newer releases that report hundreds of errors CI never sees.
   Frontend lint (`pnpm --dir apps/frontend exec tsc --noEmit`, and
   `prettier --check .` run from `apps/frontend`) is unaffected.
 - **Keep `OPENAI_API_KEY` unset in `.env` for keyless local dev.** The `.env.example`

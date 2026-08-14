@@ -88,12 +88,11 @@ needs no configuration. See `.env.example` for what each variable does.
 
 Run `just lint`, `just format`, `uv run pytest`, and `just test-frontend` before opening a PR — CI runs the same checks, **plus a `prettier --check` over `apps/frontend` that `just lint` does not cover** (so `just lint` passing is not enough — run `just format` too).
 
-**Format with the pinned versions CI uses, not the unpinned ones `just lint` reaches for.**
-`just lint` and `just format` call `uvx ruff` and `uvx ty` with no version, so they pull
-whatever is newest and can format a file differently from CI or report errors CI never
-sees. To reproduce CI exactly: `uvx ruff@0.15.0 check alethical scripts`,
-`uvx ruff@0.15.0 format alethical scripts`, `uvx ty@0.0.63 check alethical/db`. Two PRs
-failed on this in one night, each on a file `just format` had already formatted.
+**`just lint` and `just format` pin the same tool versions CI runs** (`ruff@0.15.0`,
+`ty@0.0.63` — see the justfile and `.github/workflows/ci.yml`). If you ever call
+`uvx ruff` or `uvx ty` by hand, pin those same versions: an unpinned run pulls whatever
+is newest and can format a file differently from CI or report errors CI never sees —
+2 PRs failed that way in one night before the pins landed.
 
 ### One local Postgres, one database per worktree
 
