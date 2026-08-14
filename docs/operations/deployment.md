@@ -9,19 +9,21 @@ Alethical deploys as two services:
 
 ## Workflows at a glance
 
-Eight GitHub Actions workflows live in `.github/workflows/`. Which ones a PR can
-prove matters: 7 of them never run on a PR, so a change to them is only verified
+Ten GitHub Actions workflows live in `.github/workflows/`. Which ones a PR can
+prove matters: 8 of them never run on a PR, so a change to them is only verified
 after merge.
 
 | Workflow                | Runs when                                                                  | Does                                                                                   | Provable on a PR?                |
 | ----------------------- | -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------- |
 | `ci.yml`                | every PR, and pushes to `main`                                             | Backend and frontend checks, plus doc references                                       | Yes                              |
-| `migrate.yml`           | push to `main` touching migrations, models, `alembic.ini`, deps, or itself | Applies Alembic migrations to the production database; opens an alert issue on failure | No                               |
-| `railway-deploy.yml`    | push to `main` touching backend paths or itself                            | Deploys the API to Railway production                                                  | No                               |
+| `migrate.yml`           | by hand                                                                    | Manual migration fallback, followed by the production schema-drift check               | No                               |
+| `railway-deploy.yml`    | by hand                                                                    | Emergency fallback that deploys the API to Railway production                           | No                               |
 | `vercel-deploy.yml`     | by hand from the current `main` commit                                     | Emergency fallback that deploys the web frontend to Vercel production                  | No                               |
 | `vote-backfill.yml`     | daily at 09:00 UTC, or by hand                                             | Pulls newly recorded roll-call votes into production                                   | No — dispatch it by hand to test |
 | `bill-section-gaps.yml` | daily at 11:00 UTC, or by hand                                             | Read-only check that no bill is missing sections its page published; opens an alert issue | No — dispatch it by hand to test |
 | `rag-coverage-gaps.yml` | daily at 12:00 UTC, or by hand                                             | Read-only check that every stored bill can be found by Grounded Ask; opens an alert issue | No — dispatch it by hand to test |
+| `mirror-raw-files.yml`  | daily at 13:00 UTC, or by hand                                             | Copies stored campaign-finance source files from Supabase to Cloudflare                 | No — dispatch it by hand to test |
+| `home-hero-card-facts.yml` | monthly, by hand, and relevant pull requests                           | Checks the homepage's 5 claims against official sources                                | Yes, when the homepage changes   |
 | `legislator-city-backfill.yml` | by hand                                                            | Previews or fills missing legislator residence cities from official sources              | No — preview 1 person by hand    |
 
 `bill-section-gaps.yml` is a schedule rather than a PR check for a structural
@@ -33,17 +35,25 @@ ingested hours before [#763](https://github.com/alethical-org/alethical/issues/7
 fix landed. It costs one query, and it files an issue only when a gap exists,
 commenting on the open one rather than filing a second.
 
-The database and Railway workflows list their own files in their `push` paths,
-so changing either one triggers it on merge. Vercel instead watches `main`
-through its Git connection. For why the borrowed steps inside the GitHub jobs
+Railway and Vercel watch `main` through their Git connections. Their old GitHub deploy
+workflows remain hand-run fallbacks, so an older duplicate release cannot finish last.
+For why the borrowed steps inside the GitHub jobs
 need periodic bumping, see [`CONTRIBUTING.md`](../../CONTRIBUTING.md) § "Keeping
 the workflow actions current".
 
 ## Backend on Railway
 
-Use the repository `railway.json` config from the repo root. It configures a service named `alethical-api` using the RAILPACK builder, with a healthcheck against `/healthz` and an automatic restart policy.
+Use the repository `railway.json` config from the repo root. It configures a service named `alethical-api` using the RAILPACK builder. Railway runs Alembic before starting the new API, then checks `/readyz`; that endpoint returns success only when the database is reachable and is at the migration version the code expects. A failed migration or readiness check leaves the previous API serving.
 
-Deploys run automatically via the `.github/workflows/railway-deploy.yml` GitHub Actions workflow, which uses the `@railway/cli` to deploy to the `production` environment on every push to `main` that touches `railway.json`, `alethical/**`, or related paths. `.railwayignore` excludes `apps/frontend`, `docs`, and other paths that aren't part of the backend build.
+Railway watches the repository's `main` branch and starts the production release itself.
+`.github/workflows/railway-deploy.yml` uses the Railway command-line tool as a hand-run
+fallback. Keeping that workflow manual prevents 2 automatic releases of the same commit.
+`.railwayignore` excludes `apps/frontend`, `docs`, and other paths that are not part of
+the backend build when the fallback uploads a release.
+
+`.github/workflows/migrate.yml` is the hand-run fallback. It can apply the same
+migrations directly and then compare production with the migration history, but it no
+longer races Railway on every merge.
 
 Required Railway environment variables:
 
@@ -91,14 +101,14 @@ The service start command starts Uvicorn:
 uv run uvicorn alethical.api.main:create_app --factory --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips='*'
 ```
 
-Database changes are applied by the separate `Migrate database` GitHub job, not by the
-Railway start command. The database and service release jobs run separately, so code that
-uses a new table must remain safe while those jobs finish.
+Database changes are applied by Railway's before-deploy command. If a migration fails,
+Railway does not start the new API. The separate `Migrate database` GitHub job remains a
+hand-run recovery and drift-check path.
 
 After deployment, verify:
 
 ```bash
-curl https://alethical-api-production.up.railway.app/healthz
+curl https://alethical-api-production.up.railway.app/readyz
 ```
 
 ## Frontend on Vercel

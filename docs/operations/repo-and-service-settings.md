@@ -103,6 +103,18 @@ Hand-run fallback
 then released the same commit successfully without the old fake author. The 2
 `VERCEL_GIT_AUTHOR_*` secrets were deleted after that proof.
 
+## Railway project
+
+Set under **Settings** for the `alethical-api` service in the production environment.
+Verified 2026-08-14.
+
+| Setting | Intended | Why |
+| --- | --- | --- |
+| Git repository | `alethical-org/alethical`, production branch `main`, automatic releases **on** | Railway's Git connection is the single normal API release path. The GitHub workflow is a manual fallback only. |
+| Wait for CI | **Off** | A GitHub job-runner outage must not stop Railway from applying the database change that its own release needs. |
+| Before-deploy command | The `preDeployCommand` in `railway.json` | Railway applies every database migration before it starts the new API. A failed migration stops the release and leaves the prior API serving. |
+| Healthcheck path | `/readyz`, from `railway.json` | Railway switches traffic only after the new API can reach the database and sees the exact schema version its code expects. |
+
 ## Supabase sign-in
 
 Set under **Authentication** in the Alethical Supabase project. Verified 2026-08-13.

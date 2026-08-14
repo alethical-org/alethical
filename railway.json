@@ -5,8 +5,9 @@
     "buildCommand": "uv sync --frozen"
   },
   "deploy": {
+    "preDeployCommand": "uv run python -m alembic -c alembic.ini upgrade head",
     "startCommand": "uv run uvicorn alethical.api.main:create_app --factory --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips='*'",
-    "healthcheckPath": "/healthz",
+    "healthcheckPath": "/readyz",
     "healthcheckTimeout": 300,
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10,

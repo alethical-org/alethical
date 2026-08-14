@@ -10,11 +10,11 @@ wrong** — so rebuilding the database from `models.py` would have made things w
 better. Re-measured **Aug 3 2026**: one finding has been fixed, no new finding has
 appeared, and every number below reproduced exactly.
 
-The cause is now removed and two checks now watch for its return — one on every backend
-pull request, one after every deploy that touches the schema. **Re-measured Aug 5 2026:
-no drift at all.** Production and this repository describe the same 33 tables and 359
-columns, with nothing left over. Every finding below is closed; the section at the end
-records how each one went.
+The cause is now removed and two checks watch for its return — one on every backend
+pull request, plus a live comparison in the hand-run migration recovery workflow.
+**Re-measured Aug 5 2026: no drift at all.** Production and this repository describe the
+same 33 tables and 359 columns, with nothing left over. Every finding below is closed;
+the section at the end records how each one went.
 
 *Every date in this document is UTC*, matching the merge timestamps it cites. A
 measurement stamped Aug 5 was taken on the evening of Aug 4 in US time.
@@ -65,7 +65,7 @@ migration is exactly that disagreement. **This check could not have existed befo
 mutation rather than assumed — the same invented column on `models.py` reports no drift
 against the old baseline and one difference against the new one.
 
-**What runs after every schema deploy, and what a person runs by hand:**
+**What a person runs against production:**
 
 ```bash
 ALETHICAL_DATABASE_TARGET=production uv run python scripts/check_schema_drift.py --against-production
@@ -79,24 +79,21 @@ went production's way.
 **This one answers the question the pull-request check cannot.** That check compares two
 throwaway databases and never reads production, so a change applied to production *by
 hand* is invisible to it — which is exactly how findings D3 and D4 below happened, and
-they went unnoticed for about seven weeks. So it also runs as its own job in
-`.github/workflows/migrate.yml`, after that workflow applies migrations to production,
-and opens a GitHub issue if it finds anything. That workflow is the one place that
-legitimately holds production credentials, which is why the check lives there and not in
-`ci.yml`: **CI at pull-request time has no production credentials and must never be given
-any.** Cost is zero — no new secret, no schedule, no paid call.
+they went unnoticed for about seven weeks. So it also runs as its own job in the
+hand-run `.github/workflows/migrate.yml`, after that workflow applies migrations to
+production, and opens a GitHub issue if it finds anything. That workflow legitimately
+holds production credentials, which is why the check lives there and not in `ci.yml`:
+**CI at pull-request time has no production credentials and must never be given any.**
+Cost is zero — no new secret, no schedule, no paid call.
 
 Three limits worth knowing rather than discovering.
 
-**It is not "after every deploy" — it is after every deploy that touches the schema.**
-`migrate.yml` fires only when a merge to `main` changes `alethical/alembic/**`,
-`alethical/db/models.py`, `alembic.ini`, `pyproject.toml`, `uv.lock` or that workflow, so
-a merge of app code alone runs neither the migration nor this check. A hand-edit made to
-production therefore waits for the next schema merge, or for someone to press Run on the
-workflow (`workflow_dispatch`), before anything notices. Widening the trigger would mean
-running `alembic upgrade head` against production on every merge, which is a bigger
-change to how deploys work than this check is worth; the honest description is here
-instead.
+**It is not automatic.** Railway applies migrations inside each API release, but this
+live comparison also needs a throwaway second database and production credentials, so it
+stays in the hand-run `migrate.yml` recovery workflow. A change made directly in
+production waits until someone presses Run on that workflow before this check notices.
+The pull-request check still compares models with the migration history on every backend
+change; this manual check is the separate proof against the live database.
 
 **A cancelled migration produces no check and no alert.** The job requires the migration
 to have succeeded, which is deliberate: if migrations did not finish, production is
@@ -220,11 +217,11 @@ Landed with this document:
   when `models.py` and the migration history stop agreeing — the recurrence guard, per
   `docs/philosophy.md` principle 9 ("Prevent, don't just fix").
 
-- The same script also runs as its own job in `.github/workflows/migrate.yml`, after
-  every deploy that touches the schema, comparing live production against the migration
+- The same script also runs as its own job in the hand-run
+  `.github/workflows/migrate.yml`, comparing live production against the migration
   history and filing an issue if they part company. That is the half the pull-request
-  check cannot cover, because it never looks at production. Its coverage limits are
-  spelled out under "What runs after every schema deploy" above.
+  check cannot cover, because it never looks at production. Its manual timing is
+  spelled out under "What a person runs against production" above.
 
 **One sentence in the Jul 30 draft of this document was not true when it was written.**
 It said findings were kept from recurring by `scripts/check_schema_drift.py`, "run by CI
@@ -279,7 +276,7 @@ this document is history. If someone disables them, this document is a forecast.
 There are two of them and they fail differently, which is the whole point. The
 pull-request check answers *"do our own migrations still build what our own models
 declare?"* and **breaks the build**, because there is a right answer and the author can
-fix it before merging. The post-deploy check answers *"does the live database still look
+fix it before merging. The hand-run live check answers *"does the live database still look
 the way we think?"* and **only files an issue**, because when those two part company
 neither side is automatically wrong — six of the eleven findings above went production's
 way, and a check that failed the deploy on those would have been telling us to make
