@@ -1,6 +1,6 @@
 # Alethical UI Copy Guide: Sovereignty Restoration
 
-**Positioning:** A sovereignty restoration engine, not a civic info tool. The product delivers the moment a citizen recognizes the government was always theirs to read. *The awakening is the product.*
+**Positioning:** A sovereignty restoration engine, not a civic info tool. The product delivers the moment a citizen recognizes the government was always theirs to read.
 
 **Core hero line:** "We hold these truths to be self-evident. Alethical makes them accessible."
 **Anchor:** TRUTH, UNCONCEALED.
