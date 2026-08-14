@@ -66,6 +66,8 @@ $230.59/month.
 
 The free version is now implemented in `ci.yml`. TruffleHog checks every PR and
 `main` push for confirmed live credentials and candidates it could not verify.
+Only its Lob check is off: Alethical has no Lob account or code, and Lob's key
+shape also matches ordinary Python test names. Every other check stays on.
 A separate full-history scan checked 1,298 revisions and about 74 MB, finding 0
 verified secrets. Its 297 warnings were all package-download hashes in `uv.lock`.
 
