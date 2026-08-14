@@ -163,6 +163,9 @@ Prefer a fixture of **real** data over invented strings: `src/lib/__tests__/fixt
 **Never commit directly to `main`.** Pushing to `main` triggers a production
 deploy (see below), so all changes go through pull requests.
 
+New to branching? [The visual branching guide](docs/operations/git-branching-guide.html)
+draws this workflow as commit graphs, with the habits and commands behind each step.
+
 1. **Start each change from `main`, one topic per branch:**
    ```bash
    git fetch origin
@@ -177,7 +180,7 @@ deploy (see below), so all changes go through pull requests.
    make the repo harder to learn.
 
    Before you branch, skim the open PRs (`gh pr list`) for overlapping work —
-   especially with parallel Claude sessions, the same idea can be in flight
+   especially with parallel agent sessions, the same idea can be in flight
    twice. If a PR already touches your files or topic, build on that branch
    (or wait for it) instead of duplicating it.
 

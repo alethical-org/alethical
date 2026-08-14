@@ -1,9 +1,9 @@
-# AGENTS.md
+# AGENTS.md — start here
 
-Orientation for any coding agent working in this repository (Codex CLI, Cursor, and
-anything else that reads `AGENTS.md`). Claude Code reads `.claude/rules/` directly and
-does not need this file; it is here so every other agent starts from the same place
-instead of guessing.
+Orientation for every coding agent working in this repository — Claude Code, Codex
+CLI, Cursor, and anything else. **This file is the canonical copy; `CLAUDE.md` is a
+symlink to it**, so every tool reads the same words and the two files can never
+drift apart again.
 
 This file is a **map, not a copy**. Everything below points at the document that owns
 the subject, so there is nothing here to keep in sync.
@@ -12,8 +12,13 @@ the subject, so there is nothing here to keep in sync.
 
 Alethical makes Minnesota legislative records understandable: bills, votes, and
 legislators, in plain language, with every claim traceable to an official source.
-Read [`docs/philosophy.md`](docs/philosophy.md) first — it explains why most of the
-rules below exist.
+
+**Read [`docs/philosophy.md`](docs/philosophy.md) before you build anything.** It is
+the *why* beneath Alethical: what the product is, the problem it actually solves
+(legibility, not secrecy), who we assume is reading, and the ten principles every
+screen and sentence answers to. The rules below are *how* we work; that file is
+*what we are working toward*, and it is the tie-breaker when a tactic and an
+intent disagree.
 
 ## Read before you change anything
 
@@ -30,6 +35,9 @@ rules below exist.
 - [`docs/README.md`](docs/README.md) — index of every spec. Specs describe intent;
   **GitHub issues and the Roadmap board carry sequencing**, so never read a milestone
   in prose as a reason work is off-limits.
+
+Tool note: Claude Code loads this file and everything in `.claude/rules/` into every
+session automatically; every other agent must open them itself.
 
 ## Layout
 
