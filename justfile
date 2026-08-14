@@ -98,6 +98,15 @@ lint:
 test-frontend:
   pnpm --dir apps/frontend run test
 
+# On-demand end-to-end browser checks (Playwright, apps/frontend/e2e/; the program
+# lives in .claude/skills/browser-user-test/). Deliberately not in CI yet.
+# One-time per machine: pnpm --dir apps/frontend exec playwright install
+# Target host: E2E_BASE_URL (default http://localhost:19006 — run `just up` first,
+# or point at production for the read-only specs: E2E_BASE_URL=https://alethical.com).
+# Pick an engine: just e2e / just e2e firefox / just e2e webkit
+e2e browser="chromium":
+  pnpm --dir apps/frontend exec playwright test --project={{browser}}
+
 migrate:
   docker compose up -d db
   uv run python -m alembic -c alembic.ini upgrade head

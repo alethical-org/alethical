@@ -40,3 +40,7 @@ yarn-error.*
 /ios
 /android
 .vercel
+
+# Playwright artifacts (just e2e)
+test-results/
+playwright-report/
