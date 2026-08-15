@@ -98,7 +98,7 @@ needs no configuration. See `.env.example` for what each variable does.
 Run `just lint`, `just format`, `uv run pytest`, and `just test-frontend` before opening a PR — CI runs the same checks, **plus a `prettier --check` over `apps/frontend` that `just lint` does not cover** (so `just lint` passing is not enough — run `just format` too).
 
 **`just lint` and `just format` pin the same tool versions CI runs** (`ruff@0.15.0`,
-`ty@0.0.63` — see the justfile and `.github/workflows/ci.yml`). If you ever call
+`ty@0.0.72` — see the justfile and `.github/workflows/ci.yml`). If you ever call
 `uvx ruff` or `uvx ty` by hand, pin those same versions: an unpinned run pulls whatever
 is newest and can format a file differently from CI or report errors CI never sees —
 2 PRs failed that way in one night before the pins landed.

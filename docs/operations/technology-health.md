@@ -21,6 +21,12 @@ the newest major release is never automatic.
 - The monthly technology check reads public package lists and runs on GitHub's free
   standard computer. It uses no AI, paid API, or larger paid computer.
 
+## What checks each development Mac
+
+Run `just doctor` after setup changes or when a newly pulled branch will not start.
+It checks Docker, uv, just, Node.js, pnpm, and the project's Python version without
+changing the Mac. Use `just doctor ios` or `just doctor android` before phone work.
+
 ## What needs human judgment every 3 months
 
 Review official release notes for Node.js, Python, PostgreSQL, Expo, React Native,
@@ -66,7 +72,7 @@ warning. The full evidence lives in
   could silently change the production deployment tool on any run.
 - Ruff 0.16 remains deferred because it changes the active rules and reports hundreds
   of findings against code Ruff 0.15 accepts; that is a lint migration, not an update.
-- Ty 0.0.72 passes the current database-code check and should replace 0.0.63 in the
-  next current-main change that also keeps local and automatic checks identical.
+- Ty 0.0.72 passes the current database-code check and replaces 0.0.63 in local and
+  automatic checks together.
 - pnpm 11 and Vercel 59 are major candidates; test them after the Expo 57 work settles
   the frontend package family and before changing either production path.
