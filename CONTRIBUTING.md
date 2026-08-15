@@ -219,9 +219,11 @@ nothing broke only because GitHub was temporarily forcing the steps onto Node 24
 and it was caught by someone reading a warning in a run log.
 
 `.github/dependabot.yml` now checks monthly and opens one grouped PR per
-ecosystem — the workflow steps (labeled `ci`), the Python dependencies
-(`backend`), and the JavaScript dependencies (`frontend`). It only opens PRs —
-normal CI still gates them. When one arrives:
+ecosystem — the workflow steps (labeled `ci`), Python dependencies (`backend`),
+JavaScript dependencies (`frontend`), and container images (`ops`). Small updates
+are grouped; major updates arrive separately so one large compatibility change
+cannot block safer updates. It only opens PRs — normal CI still gates them. When
+one arrives:
 
 - **Read the release notes for every major bump before merging.** A major version
   can change a default without failing. Two of ours did: `astral-sh/setup-uv` v9
@@ -259,6 +261,13 @@ and ignore that schedule entirely.
   a person still clicks merge.
 - One caveat: GitHub only raises alerts for actions referenced by version number,
   not by commit hash. All six of ours use version numbers.
+
+The free monthly whole-system check (`.github/workflows/technology-health.yml`) is
+the backstop outside ordinary package files. It checks duplicated tool versions,
+unversioned commands, Python and JavaScript security reports, support deadlines,
+and whether the 3-month major-tool review is overdue. Its current support dates,
+exceptions, and review checklist live in
+[`docs/operations/technology-health.md`](docs/operations/technology-health.md).
 
 ## Deployment — why PRs matter
 

@@ -71,6 +71,7 @@ things work in practice and are the place to start if you're new.
 - [Production setup and recovery](operations/deployment.md) — rebuild order, setting owners, Railway and Vercel releases, and Supabase callbacks
 - [What runs, when, and what it costs](operations/jobs-and-scripts.md) — all 11 GitHub workflows, every command-line tool, and every job-driven AI cost
 - [Repo and service settings](operations/repo-and-service-settings.md) — every setting that controls the project but doesn't live in the repo, and its intended value
+- [Keeping every tool supported and useful](operations/technology-health.md) — the free monthly checks, 3-month major-tool review, support dates, and recorded exceptions
 - [Private repository cost outlook](operations/private-repository-cost-outlook.md) — the 2026-08-11 cost, security, access, job-limit, and Vercel-seat decision for making Alethical private
 - [API CDN setup](operations/api-cdn-setup.md) — Cloudflare in front of the API, plus email authentication records
 - [Page-load performance decisions](operations/page-load-performance-decisions.md): measured safe speed work, remaining tradeoffs, and the proof required before release

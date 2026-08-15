@@ -27,5 +27,7 @@ jobs:
       - name: Check Railway token
         run: ': "${RAILWAY_TOKEN:?Missing RAILWAY_TOKEN secret}"'
 
+      # Keep the deployment command fixed until a reviewed change moves it. An
+      # unversioned npx command silently changed production tooling on every run.
       - name: Deploy production to Railway
-        run: npx --yes @railway/cli up --ci --service alethical-api --environment production
+        run: npx --yes @railway/cli@5.41.2 up --ci --service alethical-api --environment production
