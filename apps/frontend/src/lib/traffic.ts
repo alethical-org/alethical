@@ -8,10 +8,6 @@ export type TrafficTotals = {
   teamExclusionConfigured: boolean;
 };
 
-const METHOD_START =
-  'How we count: No cookies or names. Vercel filters known automated traffic. Search terms and page-address details are removed before counting.';
-const TEAM_EXCLUSION = 'Team account visits are excluded.';
-
 export function redactTrafficUrl(value: string): string {
   try {
     const url = new URL(value);
@@ -23,10 +19,13 @@ export function redactTrafficUrl(value: string): string {
   }
 }
 
-export function trafficMethodNote(teamExclusionConfigured: boolean): string {
-  return [METHOD_START, teamExclusionConfigured ? TEAM_EXCLUSION : null]
-    .filter((part): part is string => Boolean(part))
-    .join(' ');
+export function formatTrafficWindowEnd(iso: string): string {
+  const time = new Intl.DateTimeFormat('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: 'America/Chicago',
+  }).format(new Date(iso));
+  return `${time} CT`;
 }
 
 function nonNegativeInteger(value: unknown): value is number {

@@ -1,10 +1,9 @@
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useResponsive } from '../hooks/useResponsive';
-import { isTrafficTotals, trafficMethodNote, type TrafficTotals } from '../lib/traffic';
-import { linkProps, routePath } from '../navigation/links';
+import { formatTrafficWindowEnd, isTrafficTotals, type TrafficTotals } from '../lib/traffic';
 import { useDocumentTitle } from '../navigation/documentTitle';
 import { RootStackParamList } from '../navigation/types';
 import { Container, Footer, PageBackground, TopNav } from '../theme/primitives';
@@ -27,15 +26,6 @@ function formatDate(iso: string) {
     day: 'numeric',
     year: 'numeric',
     timeZone: 'UTC',
-  }).format(new Date(iso));
-}
-
-function formatWindowEnd(iso: string) {
-  return new Intl.DateTimeFormat('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-    timeZone: 'UTC',
-    timeZoneName: 'short',
   }).format(new Date(iso));
 }
 
@@ -185,41 +175,24 @@ export function TrafficScreen() {
           >
             Traffic
           </Text>
-          <Text style={styles.purpose}>
-            Public totals about how Alethical is used, with nothing about individual readers.
-          </Text>
+          <Text style={styles.purpose}>Public totals about how Alethical is used</Text>
 
           <View style={styles.totalsRegion}>
             <TrafficCards state={state} />
             {totals ? (
               <View style={styles.sourceCluster}>
                 <Text style={styles.source}>
-                  Counted by Vercel · Through {formatWindowEnd(totals.windowEndedAt)} · Checked{' '}
-                  {fetchedMinutesAgo(totals.fetchedAt, now)} minutes ago
+                  Counted by Vercel · Through {formatTrafficWindowEnd(totals.windowEndedAt)} ·
+                  Checked {fetchedMinutesAgo(totals.fetchedAt, now)} minutes ago
                 </Text>
                 {collecting ? (
                   <Text style={styles.collecting}>
-                    Collecting since {formatDate(totals.countingStartedAt)}. Longer totals are still
-                    filling in.
+                    Collecting since {formatDate(totals.countingStartedAt)}
                   </Text>
                 ) : null}
               </View>
             ) : null}
           </View>
-
-          <View style={styles.rule} />
-          <Text style={styles.method}>
-            {trafficMethodNote(totals?.teamExclusionConfigured ?? false)}
-          </Text>
-          <Pressable
-            {...linkProps(routePath.privacy(), () => navigation.navigate('Privacy'))}
-            style={({ pressed }) => [
-              styles.privacyLinkTarget,
-              pressed && styles.privacyLinkPressed,
-            ]}
-          >
-            <Text style={styles.privacyLink}>Privacy policy</Text>
-          </Pressable>
         </Container>
         <Footer
           onPrivacy={() => navigation.navigate('Privacy')}
@@ -325,32 +298,10 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   collecting: {
-    marginTop: 6,
+    marginTop: 10,
     color: theme.colors.mutedInk,
     fontFamily: theme.typography.body,
     fontSize: 13.5,
     lineHeight: 20,
-  },
-  rule: { height: 1, marginTop: 30, backgroundColor: theme.colors.border },
-  method: {
-    marginTop: 24,
-    color: theme.colors.mutedInk,
-    fontFamily: theme.typography.body,
-    fontSize: 15,
-    lineHeight: 24,
-  },
-  privacyLinkTarget: {
-    minHeight: 44,
-    alignSelf: 'flex-start',
-    justifyContent: 'center',
-    marginTop: 8,
-  },
-  privacyLinkPressed: { opacity: 0.72 },
-  privacyLink: {
-    color: theme.colors.text.greenOnLight,
-    fontFamily: theme.typography.ui,
-    fontSize: 15,
-    fontWeight: '700',
-    textDecorationLine: 'underline',
   },
 });
