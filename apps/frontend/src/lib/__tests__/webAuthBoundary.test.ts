@@ -50,6 +50,7 @@ describe('the web authentication boundary', () => {
     expect(phoneProvider).toContain("from 'expo-web-browser'");
     expect(phoneProvider).toContain('WebBrowser.openAuthSessionAsync');
     expect(phoneProvider).toContain('supabase.auth.exchangeCodeForSession');
+    expect(phoneProvider).toContain('signInErrorKindFromCallback(result.url)');
     expect(phoneClient).toContain("from '@react-native-async-storage/async-storage'");
     expect(phoneClient).toContain("import 'react-native-url-polyfill/auto'");
     expect(phoneClient).toContain('WebBrowser.maybeCompleteAuthSession()');

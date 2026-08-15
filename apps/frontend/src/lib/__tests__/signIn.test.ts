@@ -13,6 +13,7 @@ import {
   signInButtonLabel,
   signInCopy,
   dedicatedSignInOutcome,
+  signInErrorKindFromCallback,
   signInErrorKind,
   signInReducer,
   urlWithoutAuthError,
@@ -273,6 +274,20 @@ describe('reading a failure off the return URL', () => {
     );
     expect(signInErrorKind('provider_email_needs_verification')).toBe('unverified-google');
     expect(signInErrorKind('access_denied', 'signup_disabled')).toBe('failed');
+  });
+
+  it('keeps the specific unverified-email result from a phone Google return', () => {
+    expect(
+      signInErrorKindFromCallback(
+        'alethical://auth/callback?error=access_denied&error_code=provider_email_needs_verification',
+      ),
+    ).toBe('unverified-google');
+    expect(
+      signInErrorKindFromCallback(
+        'alethical://auth/callback?error=access_denied&error_code=provider_access_denied',
+      ),
+    ).toBe('cancelled');
+    expect(signInErrorKindFromCallback('alethical://auth/callback?code=one-use-code')).toBeNull();
   });
 
   it('finds the error in the query string', () => {

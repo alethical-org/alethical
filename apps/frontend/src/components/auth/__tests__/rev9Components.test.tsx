@@ -178,9 +178,13 @@ describe('rev 9 shared sign-in components', () => {
     expect(container).not.toContain('element.offsetParent !== null');
     expect(container).toContain("element.getAttribute('aria-disabled') !== 'true'");
     expect(container).toContain('focusables[nextIndex].focus()');
+    expect(container).toContain('const closeRef = useRef<View>(null)');
+    expect(container).toContain('ref={closeRef}');
+    expect(container).toContain('close?.focus()');
     expect(container).toContain("card.setAttribute('tabindex', '-1')");
     expect(container).toContain("card.removeAttribute('tabindex')");
     expect(container).toContain("event.key === 'Escape'");
+    expect(container).toContain('focusKey');
     expect(container).toContain('minHeight: 44');
   });
 

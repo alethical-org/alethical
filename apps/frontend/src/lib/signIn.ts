@@ -108,6 +108,28 @@ export function signInErrorKind(
   return code === 'access_denied' ? 'cancelled' : 'failed';
 }
 
+/** Read and classify a Google failure from the phone browser's return URL. */
+export function signInErrorKindFromCallback(callbackUrl: string): SignInErrorKind | null {
+  let search = '';
+  let hash = '';
+  try {
+    const url = new URL(callbackUrl);
+    search = url.search;
+    hash = url.hash;
+  } catch {
+    const hashIndex = callbackUrl.indexOf('#');
+    const searchIndex = callbackUrl.indexOf('?');
+    const searchEnd = hashIndex >= 0 ? hashIndex : callbackUrl.length;
+    if (searchIndex >= 0 && searchIndex < searchEnd) {
+      search = callbackUrl.slice(searchIndex, searchEnd);
+    }
+    if (hashIndex >= 0) hash = callbackUrl.slice(hashIndex);
+  }
+
+  const failure = parseAuthError(search, hash);
+  return failure ? signInErrorKind(failure.code, failure.errorCode) : null;
+}
+
 /** Serious account results replace the ordinary form instead of appearing as a field error. */
 export function dedicatedSignInOutcome(kind: string): SignInErrorKind | null {
   return kind === 'deactivated' ? kind : null;

@@ -31,7 +31,11 @@ import {
   validationFailureRevokesSession,
 } from '../lib/auth/sessionSafety';
 import { restoreAuthSession } from '../lib/authRestore';
-import { SIGN_IN_ERROR_MESSAGES, SignInErrorKind, signInErrorKind } from '../lib/signIn';
+import {
+  SIGN_IN_ERROR_MESSAGES,
+  SignInErrorKind,
+  signInErrorKindFromCallback,
+} from '../lib/signIn';
 import { clearStoredSupabaseSession, isSupabaseConfigured, supabase } from '../lib/supabase';
 
 interface AuthContextValue {
@@ -220,14 +224,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
             error: { kind: 'request-failure', message: SIGN_IN_ERROR_MESSAGES.cancelled },
           };
         }
-        const callbackError =
-          getCallbackParam(result.url, 'error_description') ??
-          getCallbackParam(result.url, 'error');
-        if (callbackError) {
-          failWith(
-            SIGN_IN_ERROR_MESSAGES[signInErrorKind(getCallbackParam(result.url, 'error'))],
-            signInErrorKind(getCallbackParam(result.url, 'error')),
-          );
+        const callbackKind = signInErrorKindFromCallback(result.url);
+        if (callbackKind) {
+          failWith(SIGN_IN_ERROR_MESSAGES[callbackKind], callbackKind);
           return authFailure(null);
         }
         const authCode = getCallbackParam(result.url, 'code');

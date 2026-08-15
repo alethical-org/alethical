@@ -70,6 +70,23 @@ describe('rev 9 sign-in integration guards', () => {
     expect(emailLinkPage).toContain("deadResendStatus !== 'rate-limited'");
   });
 
+  it('focuses the first invalid email-link field after a submit', () => {
+    const emailLinkPage = source('../../screens/auth/EmailLinkPage.tsx');
+
+    expect(emailLinkPage).toContain('const emailRef = useRef<any>(null)');
+    expect(emailLinkPage).toContain('const passwordRef = useRef<any>(null)');
+    expect(emailLinkPage).toContain('const confirmationRef = useRef<any>(null)');
+    expect(emailLinkPage).toMatch(
+      /if \(fieldFailure\) \{[\s\S]*?emailRef\.current\?\.focus\?\.\(\);[\s\S]*?return;[\s\S]*?\}/,
+    );
+    expect(emailLinkPage).toContain(
+      '(firstFailure ? passwordRef : confirmationRef).current?.focus?.();',
+    );
+    expect(emailLinkPage).toContain('inputRef={emailRef}');
+    expect(emailLinkPage).toContain('inputRef={passwordRef}');
+    expect(emailLinkPage).toContain('inputRef={confirmationRef}');
+  });
+
   it('reaches Forgot password even when short-lived browser storage is unavailable', () => {
     const emailLinkPage = source('../../screens/auth/EmailLinkPage.tsx');
 
