@@ -87,11 +87,16 @@ roadmap noted for direction.
   `useSignInModal().openSignIn({ intent, returnTo, billId, scrollY })`. The three previously
   inert nav "Sign in" buttons now open it; so does a signed-out Track tap, which returns
   to the exact page and scroll position and finishes the track with no second click
-  (`docs/product-onboarding/bill-tracking-spec.md`). Design and
-  deviations: `docs/mockups/sign-in/`. Gate scope is **bill tracking only**. Vote records
-  are public, so there is no legislator-votes sign-in intent.
-  No copy anywhere mentions an email or push alert: sending is not built
-  ([#36](https://github.com/alethical-org/alethical/issues/36)).
+  (`docs/product-onboarding/bill-tracking-spec.md`). Google and email-plus-password are
+  both live; every flow, state and string is documented in
+  `docs/product-onboarding/sign-in-guide.md` (revised to the rev 17 design,
+  [#1533](https://github.com/alethical-org/alethical/issues/1533), which also retired the
+  Google-only design bundle that used to live under `docs/`). Gate scope is
+  **bill tracking only**. Vote records are public, so there is no legislator-votes
+  sign-in intent. No copy anywhere claims an email was sent or promises a push alert:
+  sending alerts is not built
+  ([#36](https://github.com/alethical-org/alethical/issues/36)), and "sent" wording is
+  arrival-neutral by rule (`docs/design/ui-copy-guide.md`).
 - **Sign-out UX / account menu (SHIPPED, revised Aug 2026):** the "Sign in" button is
   *replaced* by an account control when signed in — not a Sign-in→Sign-out toggle. Three
   placements: an avatar + first name pill with a dropdown on desktop, an avatar opening a

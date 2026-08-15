@@ -8,12 +8,27 @@ server and database never receive or store it.
 
 ## What a reader can do
 
-- Continue with Google.
+- Continue with Google — including from the check-email and reset waiting screens, where the
+  Google button is the one control that works for every reader who can land there.
 - Create an account with an email and a password.
 - Confirm a new email address before the first password sign-in.
-- Reset a forgotten password through an email link.
-- Set or change a password while signed in.
+- Reset a forgotten password through an email link. This works for Google-only readers too:
+  Supabase sends the recovery email per user, not per password identity (measured on
+  production, 14 August 2026), and finishing the link leaves them holding a password.
+- Add or change a password while signed in. The row is labelled **Add a password** when the
+  account has none and **Change password** when it has one, with a neutral **Password**
+  fallback when the read fails.
 - Sign out only from the browser or device they are using.
+
+## What no screen may claim
+
+A screen reports only what it did itself, never what another system will do later. Email
+delivery is the rule's main case: Supabase measurably reports success without sending
+anything when an already-confirmed address asks for another confirmation email, so every
+"check your email" screen uses arrival-neutral wording — "If a confirmation email arrives,
+open the newest one." — and no success screen ever says a security email was sent. The one
+screen that keeps "Sign in after confirming" is the unconfirmed-account screen, where the
+resend genuinely sends.
 
 ## Password policy and why
 
@@ -33,6 +48,14 @@ The policy is:
 - Require at least 15 characters.
 - Allow spaces, paste, password-manager autofill, and long passphrases made from several words.
 - Do not require a capital letter, number, or symbol. These are called composition rules.
+- State no maximum length anywhere. Supabase measures storage size rather than characters, so
+  any stated character ceiling can be false for emoji or accented text. When Supabase refuses
+  a password, the form shows one of 2 pinned messages beside the password field: **"Choose a
+  different password."** (the new password equals the old one, Supabase code `same_password`)
+  and **"This password is too long. Use a shorter one."** (over the storage limit, Supabase
+  code `validation_failed` on a password save). Before this build, the first wrongly blamed
+  the reader's connection and the second asked for a complete email address on a screen with
+  no email field.
 - Reject passwords found in known data leaks.
 - Limit repeated sign-in attempts so an attacker cannot make unlimited guesses quickly.
 - Do not force routine password changes. Change a password when the reader asks or when there is
@@ -91,11 +114,24 @@ change removes.
 
 Supabase joins sign-in methods when both methods prove the same confirmed email address.
 Alethical then checks the Supabase user against its own account before showing the person
-as signed in. A Google-first reader can use **Set or change password** in the account menu.
+as signed in. A Google-first reader can use **Add a password** in the account menu.
 The password becomes another door into the same account, not a second account.
 
+**The password row's label comes from Alethical's own server, never from Supabase's
+client-side provider list.** The `/me` response carries a `sign_in_methods` field that
+Alethical's backend reads directly from the sign-in service's database
+(`alethical/api/services/sign_in_methods.py`). Supabase has an open bug in its public
+provider list: a password added to a Google-first account can work for signing in while
+being missing from that list, so a label driven by it would tell the reader to "add" a
+password they already have. When the read fails, the row falls back to the neutral
+**Password** label rather than guessing.
+
 The release checks prove that both doors show the same tracked bills, alerts, saved places,
-and account settings. An unconfirmed email is never allowed to claim an existing account.
+and account settings. An unconfirmed email is never allowed to claim an existing account —
+and a Google sign-in whose address Supabase has not confirmed does not open a dead-end
+screen: the ordinary sign-in card shows a banner ("Sign-in couldn’t finish because the email
+address needs confirmation. If a confirmation email arrives, open the newest one.") with the
+Google button still on the card.
 
 ## Confirmation and reset links
 
@@ -107,9 +143,47 @@ The link page uses a separate, short-lived Supabase connection. It never replace
 already open in the browser. If Jordan's reset link opens while Marissa is signed in, Jordan's
 password changes and Marissa stays signed in.
 
-After a password reset, Alethical signs the reset account out on other devices first. It then
-closes the temporary reset session in this browser. A failed first step can be retried without
-changing the password twice.
+When checking a link fails for any reason other than a spent or expired token, the page shows
+a floor rather than a loop: **Try again** (which retries the same kind of link), a real mail
+link to ask@alethical.com, and **Continue to Alethical**. The banner makes no claim about the
+account's state — a reply lost after the server finishes its work leaves a changed account
+behind that screen, so "your account has not changed" would be false.
+
+## What a password reset actually cleans up
+
+**The password save is the cleanup.** Supabase's password update revokes the account's other
+sessions inside the same database transaction as the save itself, unconditionally — verified
+in Supabase's source at pin `0fb56ca9` (`internal/api/user.go` wraps `user.UpdatePassword` in
+`db.Transaction`, and `internal/models/user.go` runs `LogoutAllExceptMe` on that same
+transaction) and proven live on this project with a throwaway account: with 2 signed-in
+sessions, changing the password left the second session unable to renew. The precise truth a
+screen may state: revoked sessions can never renew, but a device's already-issued access pass
+can keep working until it expires — so no screen says other devices are "already signed out."
+
+Alethical's remaining work after the save is 2 local clears, then a hard page load: it closes
+this browser's own temporary reset session, and — when the same account was also signed in
+normally in this browser — it clears that saved session too, because the browser restores
+saved sessions on load and an uncleared one would come back looking signed in until its access
+pass expires. A different account's session is left untouched, and that account stays signed
+in after the reset, with a brief password-changed notice.
+
+**The password is never changed twice**, by 2 separate halves: the update itself runs behind a
+once-guard, and an uncertain save is never retried. Uncertain means the request timed out or
+its reply was lost — not a clear rejection — so the save may have finished on the server. In
+that case the form clears both password fields, removes the Save button, and says: "We
+couldn’t confirm whether the password for {email} was saved. If you sign in with email, try
+the password you entered. If it doesn’t work, reset your password." The 4 exits, exactly:
+
+- Signed-in Add, Change, or fallback: **Done** closes the form and keeps that account signed in.
+- Reset with no ordinary account open: the temporary reset sign-in is cleared, then **Continue**
+  loads the full sign-in flow.
+- Reset with the same ordinary account open: that saved sign-in is cleared too, then
+  **Continue** loads the full sign-in flow.
+- Reset with a different ordinary account open: that account is preserved, only the temporary
+  reset sign-in is cleared, and **Continue** returns to Alethical signed in as that account.
+
+Every uncertain reset skips the "Password changed" screen and its notice — success is unknown,
+so no surface may claim it.
 
 ## Saving a Track press through sign-in
 
@@ -129,6 +203,10 @@ the same sentence: **Email or password is incorrect.** This stops the form from 
 an email address has an account.
 
 A deactivated account is signed out locally. Public bills, votes, and legislators remain readable.
+Everywhere the deactivated message appears, ask@alethical.com is a real mail link. There is no
+match-failure screen: its only reachable trigger (a Google return with an unconfirmed address)
+shows the banner described above on the ordinary sign-in card, and the 2 remaining triggers
+require manual identity linking, which is switched off.
 
 ## Live Supabase settings
 

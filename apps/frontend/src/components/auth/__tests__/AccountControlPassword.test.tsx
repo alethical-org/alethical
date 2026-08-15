@@ -64,8 +64,10 @@ describe('signed-in set or change password', () => {
     const html = renderToStaticMarkup(<SetPasswordDialog open onClose={vi.fn()} />);
 
     expect(html).toContain('Add a password');
+    // The one-door warning (rev 12/15, #1533): a Google-only account is one
+    // lost Google account away from losing Alethical.
     expect(html).toContain(
-      'You sign in with Google. A password lets you sign in with marissa@example.com as well. You choose that password here, and your Google password doesn’t change.',
+      'You sign in with Google. A password lets you sign in with marissa@example.com as well — and still works if you ever lose access to Google.',
     );
     expect(html.match(/autocomplete="new-password"/gi)).toHaveLength(2);
     expect(html).toContain('NEW PASSWORD');
@@ -91,7 +93,18 @@ describe('signed-in set or change password', () => {
     expect(SOURCE).not.toContain('current-password');
     expect(SOURCE).not.toContain('security notice');
     expect(SOURCE).not.toContain('fresh proof');
-    expect(SOURCE).toContain('REV9_AUTH_MESSAGES.leakedPassword');
+    // Field rejections show the mapped message directly, covering the two
+    // pinned Supabase rejections beside the weak/leaked pair (#1533).
+    expect(SOURCE).toContain("result.error.kind === 'same-password'");
+    expect(SOURCE).toContain("result.error.kind === 'password-too-long'");
+  });
+
+  it('stops an uncertain save without re-offering it, and Done keeps the account signed in', () => {
+    // The REQUEST FAILURE carve-out (#1533): a lost reply may have saved the
+    // password server-side, and a blind retry could change it twice.
+    expect(SOURCE).toContain("result.error.kind === 'uncertain-password-save'");
+    expect(SOURCE).toContain('setUncertainMessage(result.error.message)');
+    expect(SOURCE).toContain('uncertainMessage ? (');
   });
 
   it('adds 1 password action to both account surfaces and none to the phone drawer', () => {

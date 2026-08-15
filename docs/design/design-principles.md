@@ -287,6 +287,16 @@ one: see the box below before writing one.**
 - **Destructive actions confirm** (confirmation or undo window) — never fire immediately.
 - **Respect reduced-motion:** honor the OS "reduce motion" setting; entrances and transitions
   degrade to instant.
+- **Every screen carries a control that works for everyone who can reach it.** A control that is
+  inert for some of the people who land on a screen is a broken promise, and instructing anyone
+  to wait for an event that cannot occur is a dead end. Where the screen cannot tell which case
+  the reader is in, breadth substitutes: a route shown to everyone reveals nothing about anyone.
+  (From the rev 17 sign-in audit, [#1533](https://github.com/alethical-org/alethical/issues/1533).)
+- **Dialogs always close** — a visible Close control (≥44×44 on touch), the Escape key, and a
+  scrim/outside click all work, and focus returns to the control that opened them.
+- **Loading states keep visible words.** A busy control shows its words ("Saving…",
+  "Continuing with Google…") beside any spinner, the accessible name is those same visible
+  words, and under reduced motion the spinner disappears while the words carry the state alone.
 
 ## 4. What to avoid (directionally wrong for Alethical)
 

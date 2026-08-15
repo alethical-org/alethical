@@ -55,8 +55,9 @@ describe('Alethical session validation failures', () => {
   });
 
   it('revokes identities that Alethical proved unsafe to use', () => {
+    // Deactivation is the one validation answer that proves the session unsafe;
+    // the old match-failed answer was removed as unreachable (#1533).
     expect(validationFailureRevokesSession('deactivated')).toBe(true);
-    expect(validationFailureRevokesSession('match-failed')).toBe(true);
   });
 });
 

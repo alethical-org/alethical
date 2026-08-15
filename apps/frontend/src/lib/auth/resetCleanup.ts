@@ -1,32 +1,39 @@
 export type ResetAccountRelationship = 'none' | 'same' | 'different';
 
 export interface ResetSignOutClient {
-  signOut(options: { scope: 'others' | 'local' }): Promise<{ error: unknown | null }>;
+  signOut(options: { scope: 'local' }): Promise<{ error: unknown | null }>;
 }
 
 /**
- * A reset session is removed only after the provider has handled its other
- * sessions. Any provider or local failure leaves the page on its retry screen.
+ * The password save IS the cleanup: Supabase's UpdatePassword runs
+ * LogoutAllExceptMe inside the same transaction, unconditionally, so the reset
+ * account's other sessions are already revoked and can never renew (verified at
+ * supabase/auth pin 0fb56ca9 — internal/api/user.go L206–220 wraps
+ * user.UpdatePassword in db.Transaction, internal/models/user.go L434–463 runs
+ * LogoutAllExceptMe on that same tx; proven live on this project, #1533).
+ *
+ * The client's remaining work is two local clears, and nothing here can fail in
+ * a way worth a screen: this browser's own reset session, and — for a
+ * SAME-account reset — the stored ordinary session too, because production
+ * saves sessions to storage and restores them on load, so an uncleared
+ * same-account session would come back looking signed in until its access pass
+ * expires. A different account's session is untouched.
  */
 export async function finishResetSignOuts(
   temporary: ResetSignOutClient,
   ordinary: ResetSignOutClient | null,
   relationship: ResetAccountRelationship,
   clearOrdinarySession: (() => void | Promise<void>) | null = null,
-): Promise<boolean> {
-  try {
-    const others = await temporary.signOut({ scope: 'others' });
-    if (others.error) return false;
-  } catch {
-    return false;
-  }
-
-  // The link-only client never persists its session, so a hard load clears it
+): Promise<void> {
+  // The link-only client never persists its session, so the hard load clears it
   // even when the provider cannot acknowledge this best-effort local close.
   await temporary.signOut({ scope: 'local' }).catch(() => undefined);
 
   if (relationship === 'same') {
-    if (!ordinary) return false;
+    if (!ordinary) {
+      await clearOrdinarySession?.();
+      return;
+    }
     try {
       const local = await ordinary.signOut({ scope: 'local' });
       if (local.error) await clearOrdinarySession?.();
@@ -34,7 +41,6 @@ export async function finishResetSignOuts(
       await clearOrdinarySession?.();
     }
   }
-  return true;
 }
 
 /** A successful password change is never sent to the provider a second time. */

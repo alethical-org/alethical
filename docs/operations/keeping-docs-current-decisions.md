@@ -89,9 +89,12 @@ and copy move into the feature guide under `docs/product-onboarding/`, shared vi
 into `docs/design/design-principles.md`, and exact values move into code. Those permanent guides
 use the normal `describes:` and `Docs check:` path.
 
-`docs/mockups/sign-in/` remains as a temporary exception while the separate sign-in redesign is
-active. The existing `Design change:` check is limited to that folder until its lasting rules are
-reconciled into `docs/product-onboarding/sign-in-guide.md` and the folder is removed.
+`docs/mockups/sign-in/` was the one temporary exception while the separate sign-in redesign was
+active, and the rev 17 build ([#1533](https://github.com/alethical-org/alethical/issues/1533))
+closed it out: its lasting rules were reconciled into
+`docs/product-onboarding/sign-in-guide.md` and the folder was removed, along with the
+`Design change:` gate in `scripts/check_doc_sync.py` and its tests — with no design files
+under `docs/` there is nothing left for that gate to watch.
 
 **Two things about that line trip people up, and the second costs a wasted CI cycle**
 ([#1008](https://github.com/alethical-org/alethical/pull/1008), 2026-08-05, hit both):

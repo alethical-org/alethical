@@ -44,16 +44,22 @@ describe('rev 9 sign-in integration guards', () => {
 
     expect(emailLinkPage).toContain('if (temporarySession.current)');
     expect(emailLinkPage).toContain('continueVerifiedSession(temporarySession.current)');
-    expect(emailLinkPage).toContain("safeAccount.error.kind !== 'request-failure'");
+    // Only a deactivation ends the temporary session; a request failure keeps
+    // it so the link-fail screen's Try again can resume without a new token.
+    expect(emailLinkPage).toContain("if (failureScreen === 'deactivated')");
   });
 
-  it('ends a verified email-link flow after a deactivated or unsafe account result', () => {
+  it('ends a verified email-link flow only after a deactivated account result', () => {
     const emailLinkPage = source('../../screens/auth/EmailLinkPage.tsx');
 
-    expect(emailLinkPage).toContain('setScreen(emailLinkFailureScreen(safeAccount.error.kind))');
-    expect(emailLinkPage).toContain("if (screen === 'deactivated' || screen === 'match-failed')");
+    expect(emailLinkPage).toContain('emailLinkFailureScreen(safeAccount.error.kind)');
+    expect(emailLinkPage).toContain("if (screen === 'deactivated')");
     expect(emailLinkPage).toContain('This account has been deactivated');
-    expect(emailLinkPage).toContain('We couldn’t match this sign-in');
+    // The match-failure screen was removed as verified unreachable (#1533);
+    // every remaining check failure gets the shared link-fail floor instead.
+    expect(emailLinkPage).not.toContain('match-failed');
+    expect(emailLinkPage).toContain("if (screen === 'link-fail')");
+    expect(emailLinkPage).toContain('We couldn’t check that link');
   });
 
   it('keeps an expired-link resend disabled after the provider rate-limits it', () => {

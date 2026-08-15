@@ -23,6 +23,7 @@ import { useUnavailableControl } from '../components/billDetail/interactions';
 import { IaItem, MenuKey, MENUS, mobileNavRoadmapLabels, navDropdownItems } from '../navigation/ia';
 import { externalLinkProps, linkProps, routePath } from '../navigation/links';
 import { navigateTopNavItem } from '../navigation/topNavRoutes';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useResponsive } from '../hooks/useResponsive';
 import { useAuth } from '../providers/AuthProvider';
 import { useSignInModal } from '../providers/signInModalContext';
@@ -765,14 +766,16 @@ function GoogleG({ size = 20 }: { size?: number }) {
 /**
  * The one "Continue with Google" button. `label` carries the sign-in dialog's
  * "Try again" state; `busy` is the redirect in progress — the button goes inert
- * and shows a spinner in place of its label, or `busyLabel` when the person has
- * asked for less motion and a spinner would be wrong.
+ * and shows a spinner beside its visible busy words. The accessible name is
+ * those same visible words, never a diverging label, so the two cannot drift
+ * apart again; under reduced motion the spinner is hidden entirely and the
+ * words carry the state alone (rev 17 sign-in bundle, #1533).
  */
 export function GoogleButton({
   onPress,
   label = 'Continue with Google',
   busy = false,
-  busyLabel,
+  busyLabel = 'Continuing with Google…',
   size = 'md',
 }: {
   onPress?: () => void;
@@ -782,6 +785,7 @@ export function GoogleButton({
   size?: 'md' | 'lg';
 }) {
   const [hovered, hoverProps] = useHover();
+  const reduceMotion = useReducedMotion();
   // accessibilityState alone renders NOTHING on RN-Web, and this button has no
   // `disabled` prop to fall back on — it gates by swapping onPress for undefined. So
   // until #1025 the connecting state announced as an ordinary pressable button and
@@ -793,7 +797,7 @@ export function GoogleButton({
     <Pressable
       ref={busyRef}
       accessibilityRole="button"
-      accessibilityLabel={busy ? 'Signing in with Google' : label}
+      accessibilityLabel={busy ? busyLabel : label}
       accessibilityState={{ busy, disabled: busy }}
       onPress={busy ? undefined : onPress}
       {...hoverProps}
@@ -805,11 +809,18 @@ export function GoogleButton({
       ]}
     >
       {busy ? (
-        busyLabel ? (
+        <>
+          {!reduceMotion ? (
+            <View
+              aria-hidden
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+            >
+              <ActivityIndicator size="small" color={t.colors.brand.graphics} />
+            </View>
+          ) : null}
           <Text style={styles.googleBtnText}>{busyLabel}</Text>
-        ) : (
-          <ActivityIndicator size="small" color={t.colors.brand.graphics} />
-        )
+        </>
       ) : (
         <>
           <GoogleG size={22} />

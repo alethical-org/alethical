@@ -10,8 +10,10 @@ describe('signed-in password wording', () => {
       kind: 'add',
       rowLabel: 'Add a password',
       title: 'Add a password',
+      // The one-door warning (rev 12/15, #1533): a Google-only account is one
+      // lost Google account away from losing Alethical.
       description:
-        'You sign in with Google. A password lets you sign in with jordan@example.com as well. You choose that password here, and your Google password doesn’t change.',
+        'You sign in with Google. A password lets you sign in with jordan@example.com as well — and still works if you ever lose access to Google.',
       doneTitle: 'Password added',
       doneDescription:
         'You can now sign in with jordan@example.com and this password, or with Google. It’s the same Alethical account.',

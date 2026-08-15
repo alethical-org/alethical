@@ -272,6 +272,14 @@ const focusRingWeb = isWeb
     } as object)
   : null;
 
+/** Exported so node descriptions (e.g. ones carrying a mail link) match plain ones. */
+export const descriptionTextStyle = {
+  fontFamily: t.typography.body,
+  fontSize: t.fontSizes.bodyLg,
+  lineHeight: 24,
+  color: t.colors.text.muted,
+} as const;
+
 const styles = StyleSheet.create({
   scrim: { flex: 1, backgroundColor: 'rgba(10,14,12,0.55)' },
   scrimCentered: { alignItems: 'center', justifyContent: 'center', padding: 28 },
@@ -358,11 +366,6 @@ const styles = StyleSheet.create({
   },
   titleSheet: { fontSize: 23, lineHeight: 30 },
   descriptionWrap: { marginTop: 9 },
-  description: {
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.bodyLg,
-    lineHeight: 24,
-    color: t.colors.text.muted,
-  },
+  description: descriptionTextStyle,
   children: { marginTop: 22 },
 });

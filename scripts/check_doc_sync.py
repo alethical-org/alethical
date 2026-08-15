@@ -74,16 +74,11 @@ The cost of closing the hole is one sentence on a PR that both changes described
 code and edits its doc. That is a real cost and it is worth paying: the hole cost
 two PRs and a self-contradicting page in a public repo.
 
-**The temporary sign-in design record uses a separate acknowledgement.** New
-design working files no longer land under ``docs/``. The active sign-in redesign
-is the one temporary exception, so a PR that edits ``docs/mockups/sign-in/**``
-still needs its own nonempty line::
-
-    Design change: restored the vote column required by the accepted handoff
-
-This is independent from ``Docs check:``. A PR that changes both described code
-and the temporary sign-in design record needs both lines because they answer different review
-questions.
+A separate ``Design change:`` acknowledgement used to gate edits to the one
+temporary design bundle under ``docs/`` (``docs/mockups/sign-in/``, #1469). The
+rev 17 sign-in build (#1533) reconciled that bundle into the feature guides and
+removed the folder, so the gate went with it — design working files no longer
+land under ``docs/`` at all (#1534).
 """
 
 from __future__ import annotations
@@ -111,11 +106,6 @@ FENCE = re.compile(r"^[ \t]*(`{3,}|~{3,}).*?(?:^[ \t]*\1[ \t]*$|\Z)", re.S | re.
 # The acknowledgement line a PR body needs. Matched case-insensitively and
 # anywhere in the body, so it can sit under a heading or in a checklist item.
 ACK = re.compile(r"docs\s*check\s*:", re.IGNORECASE)
-# The temporary sign-in design record needs its own explicit, nonempty line. It must start a
-# line so mentioning the phrase in prose does not silently approve a design edit.
-DESIGN_ACK = re.compile(
-    r"^[ \t]*design\s+change\s*:[ \t]*\S.*$", re.IGNORECASE | re.MULTILINE
-)
 
 
 def declared_couplings() -> dict[str, list[str]]:
@@ -171,10 +161,6 @@ def main() -> int:
     if not changed:
         return 0
 
-    design_changes = [
-        path for path in changed if path.startswith("docs/mockups/sign-in/")
-    ]
-
     couplings = declared_couplings()
     # Which declared docs describe something this PR touched. Editing the doc is
     # deliberately NOT an exemption — see the module docstring: a partial edit
@@ -222,29 +208,6 @@ def main() -> int:
         print("    reads the body from the event that started it, and re-running a job")
         print("    replays that same event. Push a commit, or close and reopen the PR,")
         print("    to get a run that sees the new body.\n")
-
-    if design_changes and DESIGN_ACK.search(body):
-        print(
-            "Design change acknowledged in the PR body. Sign-in design files changed:"
-        )
-        for path in sorted(design_changes):
-            print(f"  {path}")
-    elif design_changes:
-        failed = True
-        print(
-            "This PR changes the temporary sign-in design record, but its body has no"
-        )
-        print(
-            "nonempty line starting 'Design change:' that names what changed and why.\n"
-        )
-        for path in sorted(design_changes):
-            print(f"  {path}")
-        print()
-        print("Add one line to the PR body, for example:\n")
-        print("  Design change: restored the vote column required by the handoff\n")
-        print("If a designed element is being removed because its data seems missing,")
-        print("first prove that fact exists nowhere in the Alethical API. The removal")
-        print("is Eugene's call, not the preview's.")
 
     return 1 if failed else 0
 

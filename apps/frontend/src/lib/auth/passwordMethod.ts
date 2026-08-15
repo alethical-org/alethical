@@ -22,8 +22,11 @@ export function passwordMethodCopy(
     return {
       kind: 'add',
       rowLabel: 'Add a password',
+      // The one-door warning: a Google-only account is one lost Google account
+      // away from losing Alethical, and this is the only surface candid enough
+      // to hold that (rev 12/15, #1533).
+      description: `You sign in with Google. A password lets you sign in with ${email} as well — and still works if you ever lose access to Google.`,
       title: 'Add a password',
-      description: `You sign in with Google. A password lets you sign in with ${email} as well. You choose that password here, and your Google password doesn’t change.`,
       doneTitle: 'Password added',
       doneDescription: `You can now sign in with ${email} and this password, or with Google. It’s the same Alethical account.`,
     };
