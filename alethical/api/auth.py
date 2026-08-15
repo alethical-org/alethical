@@ -39,7 +39,9 @@ def _confirmed_email(principal) -> str | None:
     return None
 
 
-def _resolve_confirmed_email(auth_service, token: str, principal):
+def _resolve_confirmed_email(
+    auth_service, token: str, principal, request: Request | None = None
+):
     """Ask the provider only while Alethical still lacks trusted confirmation."""
     if principal.email_verified:
         return principal
@@ -49,6 +51,8 @@ def _resolve_confirmed_email(auth_service, token: str, principal):
     try:
         return resolver(token, principal)
     except RuntimeError as exc:
+        if request is not None:
+            request.state.failure_area = "auth"
         raise problem_exception(
             503,
             "Service Unavailable",
@@ -137,6 +141,7 @@ def get_optional_current_user(
         raise problem_exception(401, "Unauthorized", "Bearer token required")
     token = authorization.removeprefix("Bearer ").strip()
     if auth_service is None:
+        request.state.failure_area = "auth"
         raise problem_exception(
             503,
             "Service Unavailable",
@@ -146,6 +151,7 @@ def get_optional_current_user(
     try:
         principal = auth_service.authenticate(token)
     except RuntimeError as exc:
+        request.state.failure_area = "auth"
         raise problem_exception(
             503, "Service Unavailable", str(exc), type_slug="service-unavailable"
         ) from exc
@@ -175,7 +181,9 @@ def get_optional_current_user(
             _mark_deactivated(request)
             return None
         if identity.email_verified_at is None:
-            principal = _resolve_confirmed_email(auth_service, token, principal)
+            principal = _resolve_confirmed_email(
+                auth_service, token, principal, request=request
+            )
         if _reconcile_identity_fields(db, user, identity, principal):
             db.commit()
         return user
@@ -188,7 +196,9 @@ def get_optional_current_user(
     # through to a brand-new account with no primary_email, which is recoverable
     # (the accounts can be merged later) where a refusal would leave a real
     # person stuck behind provider state they cannot see or fix (#1039).
-    principal = _resolve_confirmed_email(auth_service, token, principal)
+    principal = _resolve_confirmed_email(
+        auth_service, token, principal, request=request
+    )
     confirmed_email = _confirmed_email(principal)
     user = None
     if confirmed_email:

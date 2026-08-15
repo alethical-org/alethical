@@ -1,4 +1,4 @@
-<!-- describes: apps/frontend/public/index.html, apps/frontend/App.tsx, apps/frontend/src/components/AppErrorBoundary.tsx, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, apps/frontend/src/lib/authRestore.ts, apps/frontend/src/lib/publicRead.ts, apps/frontend/src/providers/AuthProvider.tsx, api/page.ts, alethical/api/routers/me.py, alethical/api/services/ask_router.py, alethical/pipeline/rag_ingest.py, railway.json, vercel.json -->
+<!-- describes: apps/frontend/public/index.html, apps/frontend/App.tsx, apps/frontend/src/components/AppErrorBoundary.tsx, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, apps/frontend/src/lib/authRestore.ts, apps/frontend/src/lib/publicRead.ts, apps/frontend/src/providers/AuthProvider.tsx, api/page.ts, alethical/api/routers/me.py, alethical/api/services/ask_router.py, alethical/pipeline/rag_ingest.py, alethical/logging.py, alethical/monitoring.py, railway.json, vercel.json -->
 
 # Production setup and recovery
 
@@ -76,6 +76,19 @@ writes answers unless `OPENAI_RAG_CHAT_MODEL` names an Anthropic model; that cho
 also needs `ANTHROPIC_API_KEY`. These calls spend money for each reader question.
 [What runs, when, and what it costs](jobs-and-scripts.md) separates those live
 costs from scheduled jobs and batch work.
+
+To enable error alerts, add:
+
+```bash
+SENTRY_DSN=https://public-key@o0.ingest.sentry.io/project-id
+```
+
+`SENTRY_DSN` is the private Railway setting that turns error alerts on. It is safe to
+omit locally. The value identifies the Sentry project but does not grant access to read
+its events. Sentry receives only deliberately sent failures; request bodies, reader
+questions and messages, account details, log lines, performance traces, and local
+variables stay off. The complete setup, one-event proof, incident steps, and shutoff are
+in [`docs/operations/error-monitoring.md`](error-monitoring.md).
 
 Contact email is optional and safely off without its live switch and Resend key.
 [How Contact us works](../product-onboarding/contact-us-guide.md) explains the

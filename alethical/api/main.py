@@ -8,7 +8,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.responses import JSONResponse
 
-from alethical.api.problems import http_exception_handler, validation_exception_handler
+from alethical.api.problems import (
+    http_exception_handler,
+    unexpected_exception_handler,
+    validation_exception_handler,
+)
 from alethical.api.rate_limit import (
     DEFAULT_ADDRESS_SUGGESTIONS_PER_MINUTE,
     DEFAULT_ASK_PER_MINUTE,
@@ -70,6 +74,7 @@ def create_app() -> FastAPI:
     app.add_exception_handler(HTTPException, http_exception_handler)
     app.add_exception_handler(StarletteHTTPException, http_exception_handler)
     app.add_exception_handler(RequestValidationError, validation_exception_handler)
+    app.add_exception_handler(Exception, unexpected_exception_handler)
 
     # Per-endpoint rate limiters for the paid/third-party call paths (#98).
     # Held on app.state so each app (and each test) gets isolated state.

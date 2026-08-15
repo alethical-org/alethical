@@ -98,6 +98,16 @@ concrete model the provider reported, request ID and timestamp, citation-validat
 result, and answer-or-refusal outcome. A public model alias is not a pinned version.
 Detail: [#801](https://github.com/alethical-org/alethical/issues/801).
 
+**H. Buy error grouping and alerts from Sentry; keep the privacy boundary in our
+code.** Railway already keeps readable log lines, but it does not turn application
+failures into grouped, emailed work. Building that ourselves would mean a new error
+store, duplicate grouping, an alert sender, a dashboard, retention work, and an operator.
+Sentry's free plan supplies those ordinary parts. Alethical decides which failures leave
+the server and strips request data, reader text, account details, exception messages,
+log lines, traces, and local variables before they do. This is operating error reporting,
+not model tracing or answer evaluation. Detail:
+[`docs/operations/error-monitoring.md`](../operations/error-monitoring.md).
+
 ## 3. Hold — adopt only on a named trigger
 
 **A multi-provider gateway.** Not an architecture decision; a future optimization
@@ -116,9 +126,10 @@ generation calls); pilot on intent classification only, because it has a labeled
 test set, a bounded output and a deterministic fallback; **never place a gateway in
 front of the embedding call.**
 
-**Managed evaluation or observability tooling.** Adopt when maintaining experiment
-history, traces or datasets exceeds roughly 2–4 hours a month — not when correctness
-*definition* becomes hard, which stays ours.
+**Managed AI evaluation or model-trace tooling.** Adopt when maintaining experiment
+history, model traces or datasets exceeds roughly 2–4 hours a month — not when
+correctness *definition* becomes hard, which stays ours. This does not include ordinary
+server-error alerts, which Sentry now supplies under §2H.
 
 **An embedding-model migration.** Do not migrate speculatively. Keep the dual-index
 path safe and reversible, and migrate only against a named retrieval problem, a

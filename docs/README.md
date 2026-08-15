@@ -70,6 +70,7 @@ things work in practice and are the place to start if you're new.
 - [Branching, drawn](operations/git-branching-guide.html) — visual companion to `CONTRIBUTING.md` "Branch & PR workflow", for onboarding: 2 commit graphs, one measuring this repo's real branch shape and one showing the dev/staging/production reference flow, plus the habits and commands behind each
 - [Production setup and recovery](operations/deployment.md) — rebuild order, setting owners, Railway and Vercel releases, and Supabase callbacks
 - [What runs, when, and what it costs](operations/jobs-and-scripts.md) — all 13 GitHub workflows, every command-line tool, and every job-driven AI cost
+- [Error monitoring](operations/error-monitoring.md) — which server failures alert through Sentry, the privacy limits, setup, incident checks, and why Alethical buys this instead of building it
 - [Repo and service settings](operations/repo-and-service-settings.md) — every setting that controls the project but doesn't live in the repo, and its intended value
 - [Keeping every tool supported and useful](operations/technology-health.md) — the free monthly checks, 3-month major-tool review, support dates, and recorded exceptions
 - [Private repository cost outlook](operations/private-repository-cost-outlook.md) — the 2026-08-11 cost, security, access, job-limit, and Vercel-seat decision for making Alethical private

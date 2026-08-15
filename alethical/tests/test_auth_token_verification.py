@@ -476,7 +476,15 @@ def test_a_rejected_token_is_unauthorized_rather_than_a_server_error():
     assert response.json()["title"] == "Unauthorized"
 
 
-def test_a_temporary_trusted_user_lookup_failure_is_service_unavailable():
+def test_a_temporary_trusted_user_lookup_failure_is_service_unavailable(monkeypatch):
+    from alethical.api import problems
+
+    captured = []
+    monkeypatch.setattr(
+        problems,
+        "capture_operational_error",
+        lambda exception, **kwargs: captured.append((exception, kwargs)),
+    )
     response = _client_with_real_verification(
         {"claims": {"sub": "temporary-failure", "email": "later@example.com"}},
         user_error=AuthRetryableError("Supabase is temporarily unavailable", 503),
@@ -484,6 +492,8 @@ def test_a_temporary_trusted_user_lookup_failure_is_service_unavailable():
 
     assert response.status_code == 503
     assert response.json()["title"] == "Service Unavailable"
+    assert captured[0][1]["area"] == "auth"
+    assert captured[0][1]["operation"] == "http-503"
 
 
 def test_a_verified_token_reaches_the_account_it_names(client, auth_headers):

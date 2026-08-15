@@ -1,4 +1,4 @@
-<!-- describes: alethical/db/models.py, alethical/api/auth.py, alethical/api/routers/me.py, alethical/api/routers/contact.py, alethical/api/services/auth.py, alethical/api/services/contact.py, alethical/api/services/representative_lookup.py, alethical/logging.py, apps/frontend/src/screens/LegalScreens.tsx -->
+<!-- describes: alethical/db/models.py, alethical/api/auth.py, alethical/api/routers/me.py, alethical/api/routers/contact.py, alethical/api/services/auth.py, alethical/api/services/contact.py, alethical/api/services/representative_lookup.py, alethical/logging.py, alethical/monitoring.py, apps/frontend/src/screens/LegalScreens.tsx -->
 
 # What we keep about readers, and for how long
 
@@ -303,6 +303,7 @@ the published Privacy Policy.
 | Vercel                                      | Hosts the web app, so its request logs see every page address (§7)      | Every page load                                                                                      | Yes                          |
 | Cloudflare                                  | Sits in front of the API                                                | Every API call                                                                                       | Yes                          |
 | Railway                                     | Runs the API and captures its log stream (§7)                           | Every API call                                                                                       | Yes                          |
+| Sentry                                      | Error class, code stack, safe route pattern, and public operating labels; **no reader data** | Only when an import, sign-in service, answer provider, or API request fails                           | Yes                          |
 | Resend                                      | Contact name, email, phone, subject, and message                        | Every Contact us send                                                                                | Yes                          |
 | Google Workspace                            | Alethical's delivered copy of the same contact message                  | Every Contact us send                                                                                | Yes, through the Resend line |
 
@@ -449,23 +450,22 @@ nothing to check their work against. **Everything in §6 above is a proposal, no
 description.** Building it is [#1040](https://github.com/alethical-org/alethical/issues/1040).
 
 **The published Privacy Policy now matches this document** (`apps/frontend/src/screens/LegalScreens.tsx`,
-effective and updated 14 August 2026, [#1041](https://github.com/alethical-org/alethical/issues/1041)).
+effective and updated 15 August 2026, [#1041](https://github.com/alethical-org/alethical/issues/1041)).
 _Information We Collect_ lists every category in §2 that a reader can actually reach: the
 manufactured display name, followed bills and their notes, the alert switch, messages typed
 into a bill conversation, and Ask questions. Under _How We Share Information_ it names
 Supabase, Google, OpenAI, Anthropic, the US Census Bureau, the Minnesota Geospatial
-Information Office, Resend, and now Vercel, Cloudflare, and Railway (§4). It no longer names
+Information Office, Resend, Vercel, Cloudflare, Railway, and Sentry (§4). It no longer names
 the Minnesota Legislative Coordinating Commission because the commission no longer receives a
 reader's location during a lookup; the map itself still credits the commission as its source.
 _Data Retention_ carries the per-category periods from §9 rather than one blanket sentence,
 and _Your Rights_ says plainly that deletion and export are done by hand because no button
 exists.
 
-**Two deliberate omissions from the page, both for the same reason: it may only describe
-what a reader can reach.** A saved home address is not mentioned, because nothing in the app
+**One deliberate omission from the page follows the rule that it may only describe what a
+reader can reach.** A saved home address is not mentioned, because nothing in the app
 can save one (§2.3) — the page would be describing a feature that does not exist. No
-analytics tool is mentioned, because none is installed; the tool and its disclosure ship
-together or not at all.
+saved-address promise ships before the feature that can write one.
 
 **The page does not claim an automatic sweeper, because there is none.** §9's periods are
 stated on the page as limits we keep to. Nothing enforces the 24-month conversation limit or
@@ -500,6 +500,15 @@ The account's internal id is deliberately allowed: it is a random identifier tha
 nothing outside our own database, it is what makes a bug report actionable, and it
 disappears when the account is deleted. The formatter is a final safety net, not
 permission for new code to log a request body, address, location, or question.
+
+**Sentry error alerts follow a narrower rule than Railway logs.** Sentry receives an
+error class and code stack, the release and environment, a route pattern with real ids
+removed, and a small set of public operating labels such as a bill key or provider name.
+It receives no request, request body, web-address query, log line, exception message,
+local variable, performance trace, account id, name, email address, typed address,
+location, question, message, or answer. Sentry's automatic framework and logging hooks
+are off; Alethical sends only the failures named in
+[`docs/operations/error-monitoring.md`](../operations/error-monitoring.md).
 
 **Reader questions travel in the page address, by design.** `/ask?q=<the question>` puts typed text
 into a shareable URL. An old `/chat/new?prompt=<the question>` address now redirects Home, but its
@@ -580,6 +589,7 @@ write path if a real product need appears.
 | Conversations and messages                           | **24 months from the last message**, then deleted whether or not the account is active | Matches the two-year biennium the record is organised by                                                  |
 | Contact us message                                   | No Alethical database copy; inbox and provider copies follow §2.8                      | The message exists only to answer the person and keep the support record                                  |
 | Server logs                                          | Whatever the host keeps; no reader data in them at all (§7 rule)                       | Redaction beats retention — the cheapest data to keep safe is data you never wrote                        |
+| Sentry error events                                  | 30 days on Sentry's free plan; no reader data in them (§7)                             | Enough time to fix a failure without creating another copy of anything a reader supplied                   |
 | Anonymous counts                                     | Indefinitely                                                                           | Nothing in them points at a person                                                                        |
 
 ---

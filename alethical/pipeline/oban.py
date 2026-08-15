@@ -19,6 +19,7 @@ from alethical.db.session import (
     get_database_url,
     normalize_database_url,
 )
+from alethical.monitoring import capture_operational_error
 from alethical.pipeline.sessions import CURRENT_SESSION_SLUG, DEFAULT_SESSION_CODE
 from alethical.pipeline.oban_workers import (
     AiBatchApplyWorker,
@@ -37,6 +38,27 @@ from alethical.pipeline.oban_workers import (
 )
 
 ACTIVE_STATES = ("available", "scheduled", "retryable", "executing", "completed")
+
+
+class ObanDrainFailure(RuntimeError):
+    """One queue drain finished with jobs still failed or discarded."""
+
+
+def report_drain_failures(queue: str, result: dict[str, int]) -> None:
+    retryable = int(result.get("retryable", 0))
+    discarded = int(result.get("discarded", 0))
+    if retryable == 0 and discarded == 0:
+        return
+    capture_operational_error(
+        ObanDrainFailure("Queued ingestion jobs failed"),
+        area="ingestion",
+        operation="queue-drain-failed",
+        tags={
+            "ingestion.discarded": str(discarded),
+            "ingestion.queue": queue,
+            "ingestion.retryable": str(retryable),
+        },
+    )
 
 
 WORKERS = {
@@ -336,6 +358,7 @@ async def drain(args: argparse.Namespace) -> None:
             }
     finally:
         await pool.close()
+    report_drain_failures(args.queue, result)
     print(json.dumps(result, indent=2))
 
 
