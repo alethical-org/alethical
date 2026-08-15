@@ -75,24 +75,35 @@ describe('signed-in set or change password', () => {
     expect(html).toContain('Use at least 15 characters. A few words with spaces works well.');
     expect(html).toContain('Save password');
     expect(html).toContain('Cancel');
+    expect(html).not.toContain('CODE');
   });
 
   it('uses the signed-in account request, local checks, and first-press lock', () => {
     expect(SOURCE).toContain('validatePassword(password)');
     expect(SOURCE).toContain('validatePasswordMatch(password, confirmation)');
     expect(SOURCE).toContain('createValidRequestGate()');
-    expect(SOURCE).toContain('await setPassword(password)');
+    expect(SOURCE).toContain('await setPassword(password, proofCode || undefined)');
     expect(SOURCE).toContain('setSaved(true)');
     expect(SOURCE).toContain('busyLabel="Saving…"');
     expect(SOURCE).toContain('onPress={onDone}');
   });
 
-  it('pins the method-specific helper and omits disabled Supabase feature claims', () => {
-    expect(SOURCE).toContain('passwordMethodCopy');
-    expect(SOURCE).not.toContain('one-time-code');
-    expect(SOURCE).not.toContain('current-password');
-    expect(SOURCE).not.toContain('security notice');
-    expect(SOURCE).not.toContain('fresh proof');
+  it('pins the method-specific helper and keeps fresh proof inside this form', () => {
+    const passwordDialog = SOURCE.slice(
+      SOURCE.indexOf('export function SetPasswordDialog'),
+      SOURCE.indexOf('function CloseIcon'),
+    );
+
+    expect(passwordDialog).toContain('passwordMethodCopy');
+    expect(passwordDialog).not.toContain('current-password');
+    expect(passwordDialog).not.toContain('security notice');
+    expect(passwordDialog).toContain("result.error.kind === 'fresh-proof'");
+    expect(passwordDialog).toContain('autoComplete="one-time-code"');
+    expect(passwordDialog).toContain('accessibilityLabel="CODE"');
+    expect(passwordDialog).toContain(
+      "aria-describedby={freshProofMessage ? 'fresh-proof-code-help'",
+    );
+    expect(passwordDialog).toContain('setPassword(password, proofCode || undefined)');
     // Field rejections show the mapped message directly, covering the two
     // pinned Supabase rejections beside the weak/leaked pair (#1533).
     expect(SOURCE).toContain("result.error.kind === 'same-password'");

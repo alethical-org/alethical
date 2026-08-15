@@ -21,11 +21,8 @@ import {
   authSuccess,
   validateAlethicalSession,
 } from '../lib/auth/operations';
-import {
-  isUncertainPasswordSave,
-  normalizeEmail,
-  uncertainPasswordSaveMessage,
-} from '../lib/auth/rev9Auth';
+import { savePasswordWithFreshProof } from '../lib/auth/passwordFreshProof';
+import { normalizeEmail } from '../lib/auth/rev9Auth';
 import {
   signOutLocallyAndVerify,
   validationFailureRevokesSession,
@@ -56,7 +53,7 @@ interface AuthContextValue {
   ) => Promise<AuthOperationResult<{ signedIn: boolean }>>;
   resendConfirmation: (email: string, confirmationUrl: string) => Promise<AuthOperationResult>;
   sendPasswordReset: (email: string, resetUrl: string) => Promise<AuthOperationResult>;
-  setPassword: (password: string) => Promise<AuthOperationResult>;
+  setPassword: (password: string, freshProofCode?: string) => Promise<AuthOperationResult>;
   signOut: () => Promise<AuthOperationResult>;
 }
 
@@ -280,34 +277,21 @@ export function AuthProvider({ children }: PropsWithChildren) {
         });
         return error ? authFailure(error, normalized) : authSuccess();
       },
-      setPassword: async (password: string) => {
-        let updateError: unknown;
-        try {
-          ({ error: updateError } = await supabase.auth.updateUser({ password }));
-        } catch (thrown) {
-          updateError = thrown;
-        }
-        if (updateError) {
-          // A lost reply may have saved the password server-side; the form must
-          // stop rather than offer the save again (rev 17 REQUEST FAILURE carve-out).
-          if (isUncertainPasswordSave(updateError)) {
-            return {
-              ok: false as const,
-              error: {
-                kind: 'uncertain-password-save' as const,
-                message: uncertainPasswordSaveMessage(user?.email ?? 'this account'),
-              },
-            };
-          }
-          return authFailure(updateError, user?.email, { passwordSave: true });
-        }
+      setPassword: async (password: string, freshProofCode?: string) => {
+        const result = await savePasswordWithFreshProof(
+          supabase.auth,
+          password,
+          freshProofCode,
+          user?.email,
+        );
+        if (!result.ok) return result;
         if (user?.signInMethods) {
           setUser({
             ...user,
             signInMethods: { ...user.signInMethods, password: true },
           });
         }
-        return authSuccess();
+        return result;
       },
       signOut: async () => {
         clearAuthError();

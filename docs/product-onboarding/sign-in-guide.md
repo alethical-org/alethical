@@ -18,6 +18,9 @@ server and database never receive or store it.
 - Add or change a password while signed in. The row is labelled **Add a password** when the
   account has none and **Change password** when it has one, with a neutral **Password**
   fallback when the read fails.
+- If Supabase asks for fresh proof before saving a password, the same form sends a code and adds
+  a **Code** field below the 2 password fields. The reader enters that code and presses **Save
+  password** again. There is no separate proof screen.
 - Sign out only from the browser or device they are using.
 
 ## What no screen may claim
@@ -220,7 +223,7 @@ must not guess them from a drawing.
 | Email provider | On | Email and password controls are live |
 | Google provider | On | Continue with Google stays available |
 | Confirm email | On | New email accounts must prove the address |
-| Secure password change | Off | No fresh-proof code field is shipped |
+| Secure password change | Off | The built-in code step stays dormant unless Supabase asks for fresh proof |
 | Require current password | Off | The signed-in password form needs only the new password |
 | Leaked-password protection | On | Known stolen passwords are rejected with an inline message |
 | CAPTCHA | Off | No human-check box is shown |
