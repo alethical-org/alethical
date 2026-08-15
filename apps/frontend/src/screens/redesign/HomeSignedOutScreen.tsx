@@ -738,10 +738,7 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
           {/* HERO WRAPPER */}
           <View style={[styles.heroWrap, heroGradientWeb]}>
             {dotVisibility.hero ? (
-              <View
-                pointerEvents="none"
-                style={[StyleSheet.absoluteFillObject as object, heroDotsWeb]}
-              />
+              <View pointerEvents="none" style={[StyleSheet.absoluteFill as object, heroDotsWeb]} />
             ) : null}
 
             <TopNav
@@ -909,7 +906,7 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
             {dotVisibility.finder ? (
               <View
                 pointerEvents="none"
-                style={[StyleSheet.absoluteFillObject as object, finderDotsWeb]}
+                style={[StyleSheet.absoluteFill as object, finderDotsWeb]}
               />
             ) : null}
             <Container>
@@ -1324,10 +1321,7 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
               phones use the plain background. */}
           <View style={m.heroWrap}>
             {dotVisibility.hero ? (
-              <View
-                pointerEvents="none"
-                style={[StyleSheet.absoluteFillObject as object, heroDotsWeb]}
-              />
+              <View pointerEvents="none" style={[StyleSheet.absoluteFill as object, heroDotsWeb]} />
             ) : null}
             <TopNav
               onNavigate={(item: IaItem) => {
@@ -1561,7 +1555,7 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
               {dotVisibility.finder ? (
                 <View
                   pointerEvents="none"
-                  style={[StyleSheet.absoluteFillObject as object, finderDotsWeb]}
+                  style={[StyleSheet.absoluteFill as object, finderDotsWeb]}
                 />
               ) : null}
               <Container style={[m.section, m.lastSectionBottom]}>
@@ -2073,7 +2067,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   answerCardMobile: { paddingVertical: 24, paddingHorizontal: 22 },
-  answerOverlay: { ...StyleSheet.absoluteFillObject, borderRadius: 20, zIndex: 5 },
+  answerOverlay: { ...StyleSheet.absoluteFill, borderRadius: 20, zIndex: 5 },
   askedQuestion: {
     fontFamily: t.typography.ui,
     fontSize: t.fontSizes.subheadLg,

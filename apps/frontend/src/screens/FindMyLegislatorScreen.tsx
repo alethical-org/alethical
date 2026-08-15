@@ -1124,7 +1124,7 @@ const styles = StyleSheet.create({
   },
   foundWrap: { gap: 20, position: 'relative' },
   mapUpdatingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 1,
     alignItems: 'center',
     justifyContent: 'center',

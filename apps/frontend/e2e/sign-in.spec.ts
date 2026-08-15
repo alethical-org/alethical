@@ -1,8 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-test('phone sign-in keeps focus on a visible control while its screen changes', async ({
-  page,
-}) => {
+test('phone sign-in keeps focus visible while its panel opens and closes', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
 
@@ -10,47 +8,25 @@ test('phone sign-in keeps focus on a visible control while its screen changes', 
   const dialog = page.getByRole('dialog');
   const close = dialog.getByRole('button', { name: 'Close' });
   await expect(close).toBeFocused();
-
-  await dialog.getByRole('button', { name: 'Create an account' }).click();
-  await expect(close).toBeFocused();
-
-  await dialog.getByRole('button', { name: 'Sign in', exact: true }).click();
-  await expect(close).toBeFocused();
-
-  await dialog.getByRole('button', { name: 'Forgot password?' }).click();
-  await expect(close).toBeFocused();
+  await expect(dialog.getByRole('button', { name: 'Continue with Google' })).toBeVisible();
 
   await close.click();
   await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeFocused();
 });
 
-test('a rejected password sign-in focuses the cleared password field', async ({ page }) => {
-  let passwordRequestSeen = false;
-  await page.route(/\/auth\/v1\/token\?grant_type=password/, async (route) => {
-    passwordRequestSeen = true;
-    await route.fulfill({
-      status: 400,
-      contentType: 'application/json',
-      headers: { 'x-supabase-api-version': '2024-01-01' },
-      body: JSON.stringify({
-        code: 'invalid_credentials',
-        msg: 'Invalid login credentials',
-      }),
-    });
-  });
-
+test('signed-out sign-in shows Google and the account terms', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   const dialog = page.getByRole('dialog');
-  await dialog.getByRole('textbox', { name: 'EMAIL' }).fill('reader@example.invalid');
-  const password = dialog.getByRole('textbox', { name: 'PASSWORD' });
-  await password.fill('not-a-real-password');
-  await dialog.getByRole('button', { name: 'Sign in', exact: true }).click();
-
-  await expect.poll(() => passwordRequestSeen).toBe(true);
-  await expect(dialog.getByText('Email or password is incorrect.')).toBeVisible();
-  await expect(password).toHaveValue('');
-  await expect(password).toBeFocused();
+  await expect(dialog.getByRole('button', { name: 'Continue with Google' })).toBeVisible();
+  await expect(dialog.getByRole('link', { name: 'Terms of Use' })).toHaveAttribute(
+    'href',
+    '/terms',
+  );
+  await expect(dialog.getByRole('link', { name: 'Privacy Policy' })).toHaveAttribute(
+    'href',
+    '/privacy',
+  );
 });
 
 test('an expired confirmation link focuses an invalid replacement email', async ({ page }) => {

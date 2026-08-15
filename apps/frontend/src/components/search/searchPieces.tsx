@@ -119,10 +119,7 @@ export function SearchPageShell({
               overlay it (rather than being painted under the white block). */}
           <View style={[styles.heroWrap, heroGradientWeb]}>
             {isWeb ? (
-              <View
-                pointerEvents="none"
-                style={[StyleSheet.absoluteFillObject as object, heroDotsWeb]}
-              />
+              <View pointerEvents="none" style={[StyleSheet.absoluteFill as object, heroDotsWeb]} />
             ) : null}
 
             <TopNav

@@ -12,6 +12,7 @@
     "build": "node ./scripts/check-traffic-production-env.mjs && node ./scripts/check-brand-assets.mjs && node ./scripts/start-expo.mjs export --platform web && node ./scripts/optimize-release-program.mjs && node ./scripts/check-release-assets.mjs && node ./scripts/check-icon-bundle.mjs",
     "brand:generate": "node ./scripts/generate-brand-assets.mjs",
     "brand:check": "node ./scripts/check-brand-assets.mjs",
+    "check:expo-packages": "node ./scripts/check-expo-packages.mjs",
     "check:build-tool-security": "node ./scripts/check-build-tool-security.mjs",
     "format": "prettier --write .",
     "test": "vitest run",
@@ -24,7 +25,8 @@
     "submit:ios:testflight": "node ./scripts/with-root-env.mjs eas submit --platform ios --profile production --latest"
   },
   "dependencies": {
-    "@expo/metro-runtime": "55.0.12",
+    "@expo/dom-webview": "57.0.1",
+    "@expo/metro-runtime": "57.0.8",
     "@react-native-async-storage/async-storage": "2.2.0",
     "@react-navigation/bottom-tabs": "7.15.11",
     "@react-navigation/elements": "2.9.15",
@@ -34,18 +36,19 @@
     "@supabase/supabase-js": "2.112.2",
     "@tanstack/react-query": "5.101.4",
     "@vercel/analytics": "2.0.1",
-    "expo": "55.0.28",
-    "expo-auth-session": "55.0.17",
-    "expo-clipboard": "~55.0.15",
-    "expo-linear-gradient": "55.0.16",
-    "expo-status-bar": "55.0.6",
-    "expo-web-browser": "55.0.18",
-    "react": "19.2.0",
-    "react-dom": "19.2.0",
-    "react-native": "0.83.10",
-    "react-native-safe-area-context": "5.6.2",
-    "react-native-screens": "4.23.0",
-    "react-native-svg": "15.15.3",
+    "expo": "57.0.11",
+    "expo-auth-session": "57.0.6",
+    "expo-clipboard": "~57.0.1",
+    "expo-linear-gradient": "57.0.1",
+    "expo-splash-screen": "57.0.5",
+    "expo-status-bar": "57.0.1",
+    "expo-web-browser": "57.0.2",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-native": "0.86.2",
+    "react-native-safe-area-context": "5.7.0",
+    "react-native-screens": "4.26.2",
+    "react-native-svg": "15.15.4",
     "react-native-url-polyfill": "4.0.0",
     "react-native-web": "0.21.2"
   },
@@ -57,8 +60,18 @@
     "pngjs": "7.0.0",
     "prettier": "3.9.6",
     "terser": "5.46.2",
-    "typescript": "5.9.3",
+    "typescript": "6.0.3",
     "vitest": "4.1.10"
+  },
+  "expo": {
+    "install": {
+      "exclude": [
+        "expo",
+        "@expo/metro-runtime",
+        "expo-auth-session",
+        "expo-splash-screen"
+      ]
+    }
   },
   "private": true,
   "packageManager": "pnpm@10.33.0",

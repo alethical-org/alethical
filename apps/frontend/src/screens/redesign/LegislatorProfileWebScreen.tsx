@@ -1256,7 +1256,7 @@ const styles = StyleSheet.create({
     color: t.colors.text.primary,
   },
   sessionBackdrop: {
-    ...(StyleSheet.absoluteFillObject as object),
+    ...(StyleSheet.absoluteFill as object),
     position: (isWeb ? 'fixed' : 'absolute') as 'absolute',
     top: -2000,
     left: -2000,

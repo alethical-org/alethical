@@ -53,9 +53,12 @@ try {
 
 const appConfig = JSON.parse(await readFile(resolve(projectRoot, 'app.json'), 'utf8'));
 const expo = appConfig.expo;
+const splashPlugin = expo.plugins?.find(
+  (plugin) => Array.isArray(plugin) && plugin[0] === 'expo-splash-screen',
+);
 if (expo.icon !== './assets/icon.png')
   errors.push('The iPhone app icon is not the generated brand icon');
-if (expo.splash?.image !== './assets/splash-icon.png')
+if (splashPlugin?.[1]?.image !== './assets/splash-icon.png')
   errors.push('The launch screen is not the generated brand mark');
 if (expo.web?.favicon !== './assets/favicon.png')
   errors.push('The browser tab icon is not the generated brand mark');
