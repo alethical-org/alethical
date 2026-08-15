@@ -102,7 +102,7 @@ class HostedSettingsTest(unittest.TestCase):
         with contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(settings.print_results(results), 1)
 
-    def test_unreadable_github_rows_are_not_reported_as_drift_or_match(self) -> None:
+    def test_unreadable_public_github_row_is_not_drift_or_match(self) -> None:
         fetch = FakeFetch(
             {
                 "/repos/alethical-org/alethical": settings.HttpResponse(
@@ -129,9 +129,39 @@ class HostedSettingsTest(unittest.TestCase):
                 "Automatically delete head branches",
             }
         ]
-        self.assertEqual(len(base_results), 5)
+        self.assertEqual(len(base_results), 1)
         self.assertTrue(
             all(result.state is settings.State.UNVERIFIED for result in base_results)
+        )
+
+    def test_github_admin_rows_stay_unchecked_without_admin_token(self) -> None:
+        fetch = FakeFetch(
+            {
+                "/repos/alethical-org/alethical": settings.HttpResponse(
+                    200, {"visibility": "public"}
+                )
+            }
+        )
+        results = settings.Checker(
+            self.rows,
+            env={"GITHUB_REPOSITORY": "alethical-org/alethical"},
+            fetch=fetch,
+        ).run()
+        merge_settings = {
+            "Allow squash merge",
+            "Allow merge commits",
+            "Allow rebase merge",
+            "Automatically delete head branches",
+        }
+        admin_results = [
+            result
+            for result in results
+            if result.provider == "GitHub repository"
+            and result.setting in merge_settings
+        ]
+        self.assertEqual(len(admin_results), 4)
+        self.assertTrue(
+            all(result.state is settings.State.UNCHECKED for result in admin_results)
         )
 
     def test_vercel_reads_names_and_targets_without_values(self) -> None:
@@ -207,6 +237,7 @@ class HostedSettingsTest(unittest.TestCase):
             row.setting: {"isSealed": True}
             for row in self.rows.values()
             if row.section == "Railway environment variables"
+            and settings._plain(row.intended).lower().startswith("present")
         }
         fetch = FakeFetch(
             {
@@ -261,8 +292,8 @@ class HostedSettingsTest(unittest.TestCase):
                                                 "checkSuites": False,
                                             },
                                             "deploy": {
-                                                "preDeployCommand": "uv run python -m alembic -c alembic.ini upgrade head",
-                                                "healthcheckPath": "/readyz",
+                                                "preDeployCommand": None,
+                                                "healthcheckPath": "/healthz",
                                             },
                                             "variables": variable_names,
                                         }
@@ -303,6 +334,34 @@ class HostedSettingsTest(unittest.TestCase):
         config_body = str(fetch.calls[1][3])
         self.assertIn("decryptVariables: false", config_body)
         self.assertNotIn("test-token", config_body)
+
+    def test_railway_absent_variable_is_checked_both_ways(self) -> None:
+        present_names = {
+            settings._plain(row.setting): {"isSealed": True}
+            for row in self.rows.values()
+            if row.section == "Railway environment variables"
+            and settings._plain(row.intended).lower().startswith("present")
+        }
+        checker = settings.Checker(self.rows, env={}, fetch=FakeFetch({}))
+        checker._check_railway_variables({"variables": present_names})
+        internal = next(
+            result
+            for result in checker.results
+            if result.setting == "INTERNAL_API_TOKEN"
+        )
+        self.assertIs(internal.state, settings.State.MATCH)
+
+        checker = settings.Checker(self.rows, env={}, fetch=FakeFetch({}))
+        checker._check_railway_variables(
+            {"variables": {**present_names, "INTERNAL_API_TOKEN": {"isSealed": True}}}
+        )
+        internal = next(
+            result
+            for result in checker.results
+            if result.setting == "INTERNAL_API_TOKEN"
+        )
+        self.assertIs(internal.state, settings.State.DRIFT)
+        self.assertIn("documented as absent", internal.detail)
 
     def test_explicit_access_gaps_are_visible_but_not_matches(self) -> None:
         gap = settings.Result(

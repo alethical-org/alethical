@@ -32,10 +32,10 @@ Set under **Settings** on `github.com/alethical-org/alethical`. Verified 2026-08
 | Secret scanning push protection | **On** | Blocks a found credential before it becomes public. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | Free secret scan in `ci.yml` | **On** | TruffleHog remains the free fallback if GitHub's public-repository protection changes. | Tracked file: `.github/workflows/ci.yml` |
 | Secret scanning validity checks | **Off** | GitHub accepted an enable request in July 2026 but kept this low-value switch disabled. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
-| Allow squash merge | **On** | This is the repository's merge style. | Live |
-| Allow merge commits | **Off** | Keeps the history to the 1 approved merge style. | Live |
-| Allow rebase merge | **Off** | Keeps the history to the 1 approved merge style. | Live |
-| Automatically delete head branches | **On** | Removes merged branches from parallel work. | Live |
+| Allow squash merge | **On** | This is the repository's merge style. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
+| Allow merge commits | **Off** | Keeps the history to the 1 approved merge style. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
+| Allow rebase merge | **Off** | Keeps the history to the 1 approved merge style. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
+| Automatically delete head branches | **On** | Removes merged branches from parallel work. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | Branch protection on `main` | **On** | A direct push could otherwise release both services and run production migrations without checks. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | Organization two-step login requirement | **Off** until 2 outside collaborators enroll | Turning it on now would remove `joelethical` and `Myahmyahmeow-cat`, who have not enabled it. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 
@@ -114,7 +114,7 @@ The live check reads names and release targets only. It never asks Vercel for va
 ## Railway project
 
 Set under **Settings** for the `alethical-api` service in production. Verified
-2026-08-14.
+2026-08-15.
 
 | Setting | Intended | Why | Automated check |
 | --- | --- | --- | --- |
@@ -124,8 +124,13 @@ Set under **Settings** for the `alethical-api` service in production. Verified
 | Production domain | `alethical-api-production.up.railway.app` | Names the direct production API address. | Live |
 | Git repository | `alethical-org/alethical`, production branch `main`, automatic releases **on** | Railway's Git connection is the normal API release path. | Live |
 | Wait for CI | **Off** | A GitHub runner outage must not stop Railway from applying a required database change. | Live |
-| Before-deploy command | The `preDeployCommand` in `railway.json` | Applies database changes before the new API starts. | Live |
-| Healthcheck path | The `healthcheckPath` in `railway.json` | Sends traffic only after the API can reach the database at the expected version. | Live |
+| Before-deploy command | The `preDeployCommand` in `railway.json` | Applies database changes before the new API starts. | Unchecked: needs a Railway deployment-details API field for the effective config-as-code value, readable with the existing `RAILWAY_TOKEN`; [#1572](https://github.com/alethical-org/alethical/issues/1572) |
+| Healthcheck path | The `healthcheckPath` in `railway.json` | Sends traffic only after the API can reach the database at the expected version. | Unchecked: needs a Railway deployment-details API field for the effective config-as-code value, readable with the existing `RAILWAY_TOKEN`; [#1572](https://github.com/alethical-org/alethical/issues/1572) |
+
+Railway's [config-as-code guide](https://docs.railway.com/config-as-code) says the
+values in `railway.json` override the dashboard without changing what the dashboard
+shows. Railway's current project API returns those dashboard values, not the effective
+values from a deployment, so treating them as live proof would create a false alarm.
 
 ### Railway environment variables
 
@@ -134,16 +139,24 @@ The live check reads names only with Railway's `decryptVariables: false` option.
 | Setting | Intended | Why | Automated check |
 | --- | --- | --- | --- |
 | `ALETHICAL_CONTACT_RATE_PER_MIN` | Present | Limits repeated Contact us requests. | Live |
+| `ALETHICAL_CORS_ORIGIN_REGEX` | Present until [#1573](https://github.com/alethical-org/alethical/issues/1573) removes it | Old unused setting kept visible until a separate production change removes it safely. | Live |
 | `ALETHICAL_CORS_ORIGINS` | Present | Limits which websites can call the API from a browser. | Live |
 | `ALETHICAL_EMAIL_ENABLED` | Present | Turns production Contact us delivery on. | Live |
 | `ALETHICAL_EMAIL_FROM` | Present | Sets the verified sender address. | Live |
 | `ALETHICAL_EMAIL_TRANSPORT` | Present | Sends production mail through Resend. | Live |
 | `DATABASE_URL` | Present | Connects the API to the production database. | Live |
-| `INTERNAL_API_TOKEN` | Present | Protects internal operations routes used by trusted jobs. | Live |
+| `INTERNAL_API_TOKEN` | Absent | No trusted job uses the internal routes; leaving the token unset makes every request fail closed. | Live |
 | `OPENAI_API_KEY` | Present | Powers live question sorting, answers, and search embeddings. | Live |
+| `PYTHON_VERSION` | Present | Pins the Python version Railway uses to build the API. | Live |
 | `RESEND_API_KEY` | Present | Authenticates production Contact us email. | Live |
+| `SUPABASE_ANON_KEY` | Present until [#1573](https://github.com/alethical-org/alethical/issues/1573) removes it | Keeps the old public-key alias visible until sign-in proves it is safe to remove. | Live |
+| `SUPABASE_DB_PASSWORD` | Present | Lets production maintenance commands build a database connection without copying a full address. | Live |
+| `SUPABASE_POOLER_HOST` | Present | Routes production maintenance commands through Supabase's reachable connection pool. | Live |
 | `SUPABASE_PUBLISHABLE_KEY` | Present | Lets the API make public Supabase requests. | Live |
+| `SUPABASE_PROJECT_REF` | Present | Names the Supabase database user for production maintenance commands. | Live |
+| `SUPABASE_PROJECT_URL` | Present | Targets the production Supabase project for maintenance commands. | Live |
 | `SUPABASE_URL` | Present | Points the API at the production Supabase project. | Live |
+| `UV_VERSION` | Present | Pins the package installer Railway uses to build the API. | Live |
 
 ## Supabase sign-in
 

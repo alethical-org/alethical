@@ -36,7 +36,6 @@ ROOT = Path(
     os.environ.get("HOSTED_SETTINGS_ROOT", Path(__file__).resolve().parents[1])
 ).resolve()
 DOC = ROOT / "docs/operations/repo-and-service-settings.md"
-RAILWAY_CONFIG = ROOT / "railway.json"
 
 GITHUB_API = "https://api.github.com"
 VERCEL_API = "https://api.vercel.com"
@@ -326,6 +325,13 @@ class Checker:
             "Allow rebase merge": "allow_rebase_merge",
             "Automatically delete head branches": "delete_branch_on_merge",
         }.items():
+            documented = self.rows.get(("GitHub repository", label))
+            if (
+                documented is not None
+                and "Live with" in _plain(documented.automation)
+                and not admin_token
+            ):
+                continue
             row = self.row("GitHub repository", label)
             actual = repo.get(field)
             if not isinstance(actual, bool):
@@ -990,26 +996,6 @@ class Checker:
         else:
             self.unavailable(ci_row, "Railway omitted source.checkSuites")
 
-        try:
-            repo_config = json.loads(RAILWAY_CONFIG.read_text())
-        except (OSError, json.JSONDecodeError) as exc:
-            for label in ("Before-deploy command", "Healthcheck path"):
-                self.unavailable(
-                    self.row("Railway project", label),
-                    f"railway.json is unreadable: {type(exc).__name__}",
-                )
-            repo_config = None
-        deploy = live.get("deploy") if isinstance(live.get("deploy"), dict) else {}
-        if repo_config is not None:
-            for label, live_field, repo_field in (
-                ("Before-deploy command", "preDeployCommand", "preDeployCommand"),
-                ("Healthcheck path", "healthcheckPath", "healthcheckPath"),
-            ):
-                row = self.row("Railway project", label)
-                expected = repo_config.get("deploy", {}).get(repo_field)
-                actual = deploy.get(live_field)
-                self.record(row, actual == expected, str(actual), str(expected))
-
         self._check_railway_domain(
             project_id, environment_id, str(service.get("id")), headers
         )
@@ -1069,19 +1055,37 @@ class Checker:
             self.unavailable_rows(rows, "Railway did not return variable names")
             return
         actual = set(variables)
-        expected = {_plain(row.setting) for row in rows}
+        documented = {_plain(row.setting) for row in rows}
         for row in rows:
             name = _plain(row.setting)
+            intended = _plain(row.intended).lower()
+            if intended.startswith("present"):
+                expected_present = True
+            elif intended.startswith("absent"):
+                expected_present = False
+            else:
+                self.handled.add(row.key)
+                self.unavailable(
+                    row, "intended value must start with Present or Absent"
+                )
+                continue
+            present = name in actual
             self.handled.add(row.key)
             self.results.append(
                 Result(
-                    State.MATCH if name in actual else State.DRIFT,
+                    State.MATCH if present is expected_present else State.DRIFT,
                     row.section,
                     name,
-                    "" if name in actual else "missing from the production service",
+                    ""
+                    if present is expected_present
+                    else (
+                        "present but documented as absent"
+                        if present
+                        else "missing from the production service"
+                    ),
                 )
             )
-        extras = sorted(actual - expected)
+        extras = sorted(actual - documented)
         if extras:
             self.results.append(
                 Result(
