@@ -1,0 +1,406 @@
+import { NavigationProp, useNavigation } from '@react-navigation/native';
+import { useEffect, useMemo, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+
+import { useResponsive } from '../hooks/useResponsive';
+import { isTrafficTotals, trafficMethodNote, type TrafficTotals } from '../lib/traffic';
+import { linkProps, routePath } from '../navigation/links';
+import { useDocumentTitle } from '../navigation/documentTitle';
+import { RootStackParamList } from '../navigation/types';
+import { Container, Footer, PageBackground, TopNav } from '../theme/primitives';
+import { theme } from '../theme/tokens';
+
+const REFRESH_MS = 5 * 60 * 1000;
+const MINUTE_MS = 60 * 1000;
+const DAY_MS = 24 * 60 * MINUTE_MS;
+
+type TrafficState =
+  { kind: 'loading' } | { kind: 'ready'; totals: TrafficTotals } | { kind: 'unavailable' };
+
+function formatNumber(value: number) {
+  return new Intl.NumberFormat('en-US').format(value);
+}
+
+function formatDate(iso: string) {
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).format(new Date(iso));
+}
+
+function fetchedMinutesAgo(fetchedAt: string, now: number) {
+  return Math.max(0, Math.floor((now - Date.parse(fetchedAt)) / MINUTE_MS));
+}
+
+function Metric({
+  label,
+  value,
+  description,
+}: {
+  label: string;
+  value: number;
+  description: string;
+}) {
+  return (
+    <View style={styles.metric}>
+      <Text style={styles.metricLabel}>{label}</Text>
+      <View style={styles.valueBox}>
+        <Text style={styles.value}>{formatNumber(value)}</Text>
+      </View>
+      <Text style={styles.metricDescription}>{description}</Text>
+    </View>
+  );
+}
+
+function LoadingMetric({ label }: { label: string }) {
+  return (
+    <View style={styles.metric}>
+      <Text style={styles.metricLabel}>{label}</Text>
+      <View style={styles.valueBox}>
+        <View
+          aria-hidden
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          style={styles.loadingBar}
+        />
+      </View>
+    </View>
+  );
+}
+
+function Card({ children, style }: { children: React.ReactNode; style?: object }) {
+  return <View style={[styles.card, style]}>{children}</View>;
+}
+
+function TrafficCards({ state }: { state: TrafficState }) {
+  const { isMobile, isTablet } = useResponsive();
+
+  if (state.kind === 'unavailable') {
+    return (
+      <>
+        <View accessibilityLiveRegion="polite" style={styles.unavailable}>
+          <Text style={styles.unavailableText}>Traffic data is temporarily unavailable.</Text>
+        </View>
+        <Text style={styles.source}>Counted by Vercel</Text>
+      </>
+    );
+  }
+
+  const loading = state.kind === 'loading';
+  const totals = state.kind === 'ready' ? state.totals : null;
+  const cardRowStyle = isMobile ? styles.cardsMobile : isTablet ? styles.cardsTablet : styles.cards;
+
+  return (
+    <>
+      {loading ? <Text style={styles.visuallyHidden}>Traffic totals are loading.</Text> : null}
+      <View accessibilityLiveRegion="polite" style={cardRowStyle}>
+        <Card style={[styles.card24, isTablet && styles.card24Tablet]}>
+          <Text style={styles.period}>LAST 24 HOURS</Text>
+          <View style={[styles.metricPair, isMobile && styles.metricPairMobile]}>
+            {loading ? (
+              <>
+                <LoadingMetric label="Estimated visitors" />
+                <View style={isMobile ? styles.metricDividerMobile : styles.metricDivider} />
+                <LoadingMetric label="Page views" />
+              </>
+            ) : (
+              <>
+                <Metric
+                  label="Estimated visitors"
+                  value={totals?.visitors24h ?? 0}
+                  description="Vercel’s anonymous estimate of separate visitors."
+                />
+                <View style={isMobile ? styles.metricDividerMobile : styles.metricDivider} />
+                <Metric
+                  label="Page views"
+                  value={totals?.pageViews24h ?? 0}
+                  description="Every page opened, including several pages opened by the same visitor."
+                />
+              </>
+            )}
+          </View>
+        </Card>
+
+        <Card style={isTablet ? styles.cardHalfTablet : undefined}>
+          <Text style={styles.period}>LAST 7 DAYS</Text>
+          {loading ? (
+            <LoadingMetric label="Page views" />
+          ) : (
+            <Metric
+              label="Page views"
+              value={totals?.pageViews7d ?? 0}
+              description="Every page opened during the trailing 7 days."
+            />
+          )}
+        </Card>
+
+        <Card style={isTablet ? styles.cardHalfTablet : undefined}>
+          <Text style={styles.period}>LAST 30 DAYS</Text>
+          {loading ? (
+            <LoadingMetric label="Page views" />
+          ) : (
+            <Metric
+              label="Page views"
+              value={totals?.pageViews30d ?? 0}
+              description="Every page opened during the trailing 30 days."
+            />
+          )}
+        </Card>
+      </View>
+    </>
+  );
+}
+
+export function TrafficScreen() {
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  const { isMobile } = useResponsive();
+  const [state, setState] = useState<TrafficState>({ kind: 'loading' });
+  const [now, setNow] = useState(Date.now());
+  useDocumentTitle('/traffic', 'Traffic | Alethical');
+
+  useEffect(() => {
+    let active = true;
+
+    const load = async () => {
+      try {
+        const response = await fetch('/api/traffic', { headers: { Accept: 'application/json' } });
+        const payload: unknown = response.ok ? await response.json() : null;
+        if (!active || !isTrafficTotals(payload)) {
+          if (active)
+            setState((current) => (current.kind === 'ready' ? current : { kind: 'unavailable' }));
+          return;
+        }
+        setState({ kind: 'ready', totals: payload });
+        setNow(Date.now());
+      } catch {
+        if (active)
+          setState((current) => (current.kind === 'ready' ? current : { kind: 'unavailable' }));
+      }
+    };
+
+    void load();
+    const refresh = setInterval(() => void load(), REFRESH_MS);
+    const clock = setInterval(() => setNow(Date.now()), MINUTE_MS);
+    return () => {
+      active = false;
+      clearInterval(refresh);
+      clearInterval(clock);
+    };
+  }, []);
+
+  const totals = state.kind === 'ready' ? state.totals : null;
+  const collecting = useMemo(
+    () =>
+      totals
+        ? Date.parse(totals.fetchedAt) - Date.parse(totals.countingStartedAt) < 30 * DAY_MS
+        : false,
+    [totals],
+  );
+
+  return (
+    <PageBackground>
+      <ScrollView contentContainerStyle={styles.page}>
+        <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
+        <Container style={[styles.main, isMobile && styles.mainMobile]}>
+          <Text
+            accessibilityRole="header"
+            aria-level={1}
+            style={[styles.title, isMobile && styles.titleMobile]}
+          >
+            Traffic
+          </Text>
+          <Text style={styles.purpose}>
+            Real numbers about how Alethical is used, from a named source, with nothing shown about
+            any individual reader.
+          </Text>
+
+          <View style={styles.totalsRegion}>
+            <TrafficCards state={state} />
+            {totals ? (
+              <View style={styles.sourceCluster}>
+                <Text style={styles.source}>
+                  Counted by Vercel · Fetched {fetchedMinutesAgo(totals.fetchedAt, now)} minutes ago
+                </Text>
+                <Text style={styles.clarifier}>Each total counts back from that fetch time.</Text>
+                {collecting ? (
+                  <Text style={styles.collecting}>
+                    Counting since {formatDate(totals.countingStartedAt)} — the 7-day and 30-day
+                    totals include only the days counted since then.
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
+          </View>
+
+          <View style={styles.rule} />
+          <Text style={styles.method}>
+            {trafficMethodNote(totals?.teamExclusionConfigured ?? false)}
+          </Text>
+          <Pressable
+            {...linkProps(routePath.privacy(), () => navigation.navigate('Privacy'))}
+            style={({ pressed }) => [
+              styles.privacyLinkTarget,
+              pressed && styles.privacyLinkPressed,
+            ]}
+          >
+            <Text style={styles.privacyLink}>Alethical’s privacy policy</Text>
+          </Pressable>
+        </Container>
+        <Footer
+          onPrivacy={() => navigation.navigate('Privacy')}
+          onTerms={() => navigation.navigate('Terms')}
+        />
+      </ScrollView>
+    </PageBackground>
+  );
+}
+
+const styles = StyleSheet.create({
+  page: { flexGrow: 1, backgroundColor: theme.colors.surface },
+  main: { width: '100%', maxWidth: 1184, alignSelf: 'center', paddingTop: 72, paddingBottom: 72 },
+  mainMobile: { paddingTop: 44, paddingBottom: 48 },
+  title: {
+    color: theme.colors.ink,
+    fontFamily: theme.typography.title,
+    fontSize: 44,
+    lineHeight: 48,
+    fontWeight: '800',
+    letterSpacing: -1.1,
+  },
+  titleMobile: { fontSize: 36, lineHeight: 40, letterSpacing: -0.8 },
+  purpose: {
+    maxWidth: 720,
+    marginTop: 14,
+    color: theme.colors.mutedInk,
+    fontFamily: theme.typography.body,
+    fontSize: 18,
+    lineHeight: 28,
+  },
+  totalsRegion: { marginTop: 40 },
+  cards: { flexDirection: 'row', gap: 16 },
+  cardsTablet: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
+  cardsMobile: { gap: 16 },
+  card: {
+    flex: 1,
+    minWidth: 0,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 16,
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 22,
+    shadowColor: theme.colors.ink,
+    shadowOpacity: 0.04,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 6 },
+  },
+  card24: { flex: 2 },
+  card24Tablet: { flexBasis: '100%' },
+  cardHalfTablet: { flexBasis: '45%' },
+  period: {
+    color: theme.colors.text.muted,
+    fontFamily: theme.typography.mono,
+    fontSize: 11,
+    lineHeight: 16,
+    fontWeight: '700',
+    letterSpacing: 1.3,
+  },
+  metricPair: { flexDirection: 'row', marginTop: 18 },
+  metricPairMobile: { flexDirection: 'column' },
+  metric: { flex: 1, minWidth: 0 },
+  metricDivider: { width: 1, marginHorizontal: 24, backgroundColor: theme.colors.border },
+  metricDividerMobile: { height: 1, marginVertical: 20, backgroundColor: theme.colors.border },
+  metricLabel: {
+    color: theme.colors.ink,
+    fontFamily: theme.typography.ui,
+    fontSize: 17,
+    lineHeight: 22,
+    fontWeight: '800',
+    letterSpacing: -0.15,
+  },
+  valueBox: { height: 46, justifyContent: 'center', marginTop: 8 },
+  value: {
+    color: theme.colors.ink,
+    fontFamily: theme.typography.mono,
+    fontSize: 38,
+    lineHeight: 46,
+    fontWeight: '700',
+    letterSpacing: -0.4,
+    fontVariant: ['tabular-nums'],
+  },
+  metricDescription: {
+    marginTop: 8,
+    color: theme.colors.mutedInk,
+    fontFamily: theme.typography.body,
+    fontSize: 14.5,
+    lineHeight: 22,
+  },
+  loadingBar: { width: 84, height: 24, borderRadius: 7, backgroundColor: theme.colors.surfaceAlt },
+  visuallyHidden: { position: 'absolute', width: 1, height: 1, opacity: 0 },
+  unavailable: {
+    minHeight: 150,
+    justifyContent: 'center',
+    marginTop: 0,
+    paddingHorizontal: 20,
+    paddingVertical: 26,
+    backgroundColor: theme.colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: theme.colors.border,
+    borderRadius: 14,
+  },
+  unavailableText: {
+    color: theme.colors.ink,
+    fontFamily: theme.typography.ui,
+    fontSize: 16,
+    lineHeight: 23,
+    fontWeight: '600',
+  },
+  sourceCluster: { marginTop: 12, paddingLeft: 17 },
+  source: {
+    marginTop: 12,
+    color: theme.colors.mutedInk,
+    fontFamily: theme.typography.mono,
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: '500',
+  },
+  clarifier: {
+    marginTop: 6,
+    color: theme.colors.text.muted,
+    fontFamily: theme.typography.body,
+    fontSize: 13.5,
+    lineHeight: 20,
+  },
+  collecting: {
+    marginTop: 6,
+    color: theme.colors.mutedInk,
+    fontFamily: theme.typography.body,
+    fontSize: 13.5,
+    lineHeight: 20,
+  },
+  rule: { height: 1, marginTop: 30, backgroundColor: theme.colors.border },
+  method: {
+    marginTop: 24,
+    color: theme.colors.mutedInk,
+    fontFamily: theme.typography.body,
+    fontSize: 15,
+    lineHeight: 24,
+  },
+  privacyLinkTarget: {
+    minHeight: 44,
+    alignSelf: 'flex-start',
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+  privacyLinkPressed: { opacity: 0.72 },
+  privacyLink: {
+    color: theme.colors.text.greenOnLight,
+    fontFamily: theme.typography.ui,
+    fontSize: 15,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
+  },
+});

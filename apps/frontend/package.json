@@ -33,6 +33,7 @@
     "@supabase/auth-js": "2.112.2",
     "@supabase/supabase-js": "2.112.2",
     "@tanstack/react-query": "5.101.4",
+    "@vercel/analytics": "2.0.1",
     "expo": "55.0.28",
     "expo-auth-session": "55.0.17",
     "expo-clipboard": "~55.0.15",

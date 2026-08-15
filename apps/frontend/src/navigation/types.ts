@@ -58,6 +58,7 @@ export type RootStackParamList = {
       }
     | undefined;
   Privacy: undefined;
+  Traffic: undefined;
   Terms: undefined;
   AboutUs: undefined;
   ContactUs: undefined;
