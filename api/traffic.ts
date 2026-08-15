@@ -580,15 +580,17 @@ export default async function handler(
       OK_CACHE,
     );
   } catch (error) {
-    console.error(
+    const diagnostic =
       error instanceof TrafficUnavailable
         ? error.message
-        : "Unexpected traffic handler failure",
-    );
+        : "Unexpected traffic handler failure";
+    console.error(diagnostic);
     sendJson(
       response,
       503,
-      { error: "Traffic data is temporarily unavailable." },
+      process.env.VERCEL_ENV === "preview"
+        ? { error: "Traffic data is temporarily unavailable.", diagnostic }
+        : { error: "Traffic data is temporarily unavailable." },
       "no-store",
     );
   }
