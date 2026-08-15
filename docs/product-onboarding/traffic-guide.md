@@ -59,11 +59,12 @@ those details. It publishes only sitewide speed scores after at least 50 measure
 Cloudflare Web Analytics uses no cookies, local storage, or fingerprinting.
 
 The team list uses stable Supabase account identifiers, not email addresses. Save the same
-comma-separated 4 identifiers in Vercel and Railway as `TRAFFIC_EXCLUDED_ACCOUNT_IDS` only
-after they are confirmed. Vercel then stops collecting signed-in team page loads, and Railway
-discards signed-in team actions before storage and removes team readers and watches from its
-totals. Anonymous history collected before the list is saved cannot be cleaned later. Reader
-and watch history can be recalculated after the list is saved.
+comma-separated identifiers in Vercel and Railway as `TRAFFIC_EXCLUDED_ACCOUNT_IDS` only
+after each one is confirmed. The live list contains 3 of the 4 team accounts; append the 4th
+identifier after it is confirmed. Vercel stops collecting signed-in page loads for accounts
+on the list, and Railway discards their signed-in actions before storage and removes their
+readers and watches from its totals. Anonymous history collected before an identifier is
+saved cannot be cleaned later. Reader and watch history can be recalculated after it is saved.
 
 ## Public and private routes
 
@@ -118,7 +119,7 @@ The server settings are:
 - `VERCEL_ANALYTICS_TEAM_ID`: the Vercel team identifier;
 - `TRAFFIC_COUNTING_STARTED_AT`: the exact UTC time counting was switched on;
 - `TRAFFIC_EXCLUDED_ACCOUNT_IDS`: comma-separated stable Supabase account identifiers,
-  required in Vercel and Railway once the 4 team identifiers are confirmed; and
+  required in Vercel and Railway and currently holding 3 of the 4 confirmed team accounts; and
 - `EXPO_PUBLIC_CHECKLY_STATUS_URL`: Checkly's public availability-detail address.
 
 Google Search Console settings:

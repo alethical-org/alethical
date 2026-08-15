@@ -111,6 +111,7 @@ The live check reads names and release targets only. It never asks Vercel for va
 | `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Production | Lets the web app use the public Supabase client. | Live |
 | `EXPO_PUBLIC_SUPABASE_URL` | Production | Points sign-in at the production Supabase project. | Live |
 | `TRAFFIC_COUNTING_STARTED_AT` | Production | Anchors the public traffic total. | Live |
+| `TRAFFIC_EXCLUDED_ACCOUNT_IDS` | Production | Stops signed-in page-view collection for the confirmed team accounts. | Live |
 | `VERCEL_ANALYTICS_ACCESS_TOKEN` | Production | Reads the production traffic total. | Live |
 | `VERCEL_ANALYTICS_PROJECT_ID` | Production | Targets the production traffic project. | Live |
 | `VERCEL_ANALYTICS_TEAM_ID` | Production | Targets Alethical's Vercel account for traffic reads. | Live |
@@ -129,9 +130,10 @@ The live check reads names and release targets only. It never asks Vercel for va
 | `CLOUDFLARE_ANALYTICS_API_TOKEN` | Production | Reads sitewide browser-speed totals. | Live |
 | `CLOUDFLARE_ACCOUNT_ID` | Production | Targets Alethical's Cloudflare account. | Live |
 
-Pending team exclusion: add `TRAFFIC_EXCLUDED_ACCOUNT_IDS` to Vercel and Railway after
-the 4 stable Supabase account identifiers are confirmed. Until then, `/api/traffic` and
-`/api/v1/site-metrics` both report `teamExclusionConfigured: false`.
+Team exclusion is active for 3 of the 4 team accounts. Append the 4th stable Supabase
+account identifier to `TRAFFIC_EXCLUDED_ACCOUNT_IDS` in Vercel and Railway after it is
+confirmed. Both live routes report `teamExclusionConfigured: true` while the list is
+nonempty; that answer does not mean all 4 accounts are present.
 
 ## Railway project
 
@@ -186,11 +188,13 @@ The live check reads names only with Railway's `decryptVariables: false` option.
 | `SUPABASE_PROJECT_REF` | Present | Names the Supabase database user for production maintenance commands. | Live |
 | `SUPABASE_PROJECT_URL` | Present | Targets the production Supabase project for maintenance commands. | Live |
 | `SUPABASE_URL` | Present | Points the API at the production Supabase project. | Live |
+| `TRAFFIC_EXCLUDED_ACCOUNT_IDS` | Present | Discards confirmed team actions and removes confirmed team readers and watches from public totals. | Live |
 | `UV_VERSION` | Present | Pins the package installer Railway uses to build the API. | Live |
 
-Pending team exclusion: add `TRAFFIC_EXCLUDED_ACCOUNT_IDS` to Vercel and Railway after
-the 4 stable Supabase account identifiers are confirmed. Until then, `/api/traffic` and
-`/api/v1/site-metrics` both report `teamExclusionConfigured: false`.
+Team exclusion is active for 3 of the 4 team accounts. Append the 4th stable Supabase
+account identifier to `TRAFFIC_EXCLUDED_ACCOUNT_IDS` in Vercel and Railway after it is
+confirmed. Both live routes report `teamExclusionConfigured: true` while the list is
+nonempty; that answer does not mean all 4 accounts are present.
 
 ## Sentry project
 
