@@ -12,8 +12,9 @@ own source:
   trigger, and cost.
 - [Data ingestion onboarding](../product-onboarding/data-ingestion-onboarding.md)
   explains the data sources, queues, and production write guards.
-- [`.env.example`](../../.env.example) owns the complete list of setting names and
-  safe local defaults.
+- [`.env.example`](../../.env.example) lists settings the code supports and their
+  safe local defaults. [Repo and service settings](repo-and-service-settings.md)
+  alone owns the intended live names and targets.
 
 ## Production map
 
@@ -34,12 +35,13 @@ own source:
    addresses below.
 3. Connect Railway service `alethical-api` to `alethical-org/alethical`, branch
    `main`, and environment `production`. Keep `railway.json` as the build and release
-   source. Add the Railway settings in the table below.
+   source. Add the intended live settings from
+   [Repo and service settings](repo-and-service-settings.md#railway-project).
 4. Put Cloudflare in front of the Railway origin as `api.alethical.com` by following
    [Putting a CDN in front of the API](api-cdn-setup.md).
 5. Connect Vercel project `alethical-web` to the same repository and branch, from the
-   repository root. Keep `vercel.json` as the build source. Add the Vercel settings
-   in the table below.
+   repository root. Keep `vercel.json` as the build source. Add the intended live
+   settings from [Repo and service settings](repo-and-service-settings.md#vercel-project).
 6. Run the needed ingestion only after both services pass the checks below. Public
    Minnesota records need no key. Paid batch summaries and batch search indexing run
    only through the deliberate commands listed in
@@ -47,26 +49,16 @@ own source:
 
 ## Settings and owners
 
-Never put a secret in an `EXPO_PUBLIC_*` setting. Those values ship to every browser.
+[Repo and service settings](repo-and-service-settings.md) owns every intended live
+GitHub secret name, Vercel name and target, Railway name, and Supabase sign-in value.
+Supabase supplies database and sign-in values. OpenAI, Anthropic, and Resend supply their
+own keys. A trusted computer keeps deliberate production-work values in an ignored
+`.env` file. Never put a secret in an `EXPO_PUBLIC_*` setting because those values ship
+to every browser.
 
-| Need | Setting names | Value comes from | Value lives in |
-| --- | --- | --- | --- |
-| Production database | `DATABASE_URL`, or `SUPABASE_PROJECT_URL` + `SUPABASE_DB_PASSWORD` | Supabase | Railway; a trusted computer's ignored `.env` for production ingestion |
-| Sign-in checks | `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` | Supabase API settings | Railway |
-| Browser sign-in | `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Same publishable Supabase values | Vercel Production; Preview only when testing sign-in |
-| Browser API | `EXPO_PUBLIC_API_URL=https://api.alethical.com` | This production map | Vercel Production and Preview; preview browser access is tracked in [#1413](https://github.com/alethical-org/alethical/issues/1413) |
-| Allowed websites | `ALETHICAL_CORS_ORIGINS=https://www.alethical.com,http://localhost:8081,http://127.0.0.1:8081,http://localhost:19006,http://127.0.0.1:19006` | This production map | Railway |
-| Internal operations routes | `INTERNAL_API_TOKEN` | A newly generated strong secret | Railway and the trusted caller |
-| Live Ask and search | `OPENAI_API_KEY`; `ANTHROPIC_API_KEY` only when `OPENAI_RAG_CHAT_MODEL` selects Anthropic | OpenAI or Anthropic | Railway; a trusted computer's ignored `.env` for deliberate paid batch work |
-| Email sign-in switch and wait | `EXPO_PUBLIC_EMAIL_PASSWORD_SIGN_IN_ENABLED`, `EXPO_PUBLIC_AUTH_RESEND_WAIT_SECONDS` | Supabase email setup and resend cooldown | Vercel |
-
-GitHub's database-backed jobs use `SUPABASE_PROJECT_URL` and
-`SUPABASE_DB_PASSWORD` as GitHub Actions secrets. The file-copy job also uses the
-Supabase Storage and Cloudflare R2 names in [`.env.example`](../../.env.example).
-The hand-run release jobs use the provider tokens listed in
-[Repo and service settings](repo-and-service-settings.md). Optional email, traffic,
-model, logging, and map settings stay in [`.env.example`](../../.env.example); add
-only the features the environment serves.
+[`.env.example`](../../.env.example) lists optional settings the code understands.
+Adding an optional setting to production also requires adding its intended live row to
+[Repo and service settings](repo-and-service-settings.md) in the same change.
 
 ## Backend on Railway
 
@@ -75,6 +67,10 @@ Use the repository `railway.json` config from the repo root. It configures a ser
 `.railwayignore` excludes `apps/frontend`, `docs`, and other paths that are not part of
 the backend build when the hand-run fallback uploads a release.
 
+The complete intended Railway variable-name list lives in
+[`repo-and-service-settings.md` § Railway environment variables](repo-and-service-settings.md#railway-environment-variables).
+Keep values only in Railway, never in this repository.
+
 `OPENAI_API_KEY` powers live Ask question sorting and search embeddings. It also
 writes answers unless `OPENAI_RAG_CHAT_MODEL` names an Anthropic model; that choice
 also needs `ANTHROPIC_API_KEY`. These calls spend money for each reader question.
@@ -82,8 +78,10 @@ also needs `ANTHROPIC_API_KEY`. These calls spend money for each reader question
 costs from scheduled jobs and batch work.
 
 Contact email is optional and safely off without its live switch and Resend key.
-[How Contact us works](../product-onboarding/contact-us-guide.md) owns its setting names,
-delivery checks, limits, and privacy rules.
+[How Contact us works](../product-onboarding/contact-us-guide.md) explains the
+supported email settings, delivery checks, limits, and privacy rules. The intended
+production name list stays in
+[`repo-and-service-settings.md` § Railway environment variables](repo-and-service-settings.md#railway-environment-variables).
 
 The build installs dependencies with:
 
@@ -139,6 +137,10 @@ The page function, missing-page responses, search tags, `robots.txt`, and sitema
 owned by [How sharing works](../product-onboarding/sharing-guide.md) and
 [What each page tells search engines and link previews](../architecture/page-metadata-for-search-and-sharing-decisions.md).
 
+The complete intended Vercel variable-name and release-target list lives in
+[`repo-and-service-settings.md` § Vercel environment variables](repo-and-service-settings.md#vercel-environment-variables).
+Keep values only in Vercel, never in this repository.
+
 `EXPO_PUBLIC_AUTH_RESEND_WAIT_SECONDS` must equal Supabase Auth's real email resend cooldown.
 It controls the visible wait after a confirmation or reset email. Read the project setting before
 changing it; the number shown in a design file is not a product setting.
@@ -182,17 +184,8 @@ program splitting or a service worker.
 
 ## Supabase sign-in callbacks
 
-In **Supabase > Authentication > URL Configuration**, set **Site URL** to
-`https://www.alethical.com`. Allow these callback addresses:
-
-```text
-https://www.alethical.com/**
-http://localhost:8081/**
-http://127.0.0.1:8081/**
-http://localhost:19006/**
-http://127.0.0.1:19006/**
-alethical://auth/callback
-```
+The complete intended site and redirect address list lives in
+[`repo-and-service-settings.md` § Supabase sign-in](repo-and-service-settings.md#supabase-sign-in).
 
 Add a preview address only while testing sign-in on that preview. Do not allow every
 Vercel preview by wildcard. [Repo and service settings](repo-and-service-settings.md)
