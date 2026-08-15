@@ -214,9 +214,13 @@ describe('public Site metrics page', () => {
     expect(SOURCE).toMatch(/metricRowValueAvailabilityMobile: \{ fontSize: 17/);
   });
 
-  it('reserves stable quiet verdict and measurement columns for every speed state', () => {
+  it('uses the numeric value treatment and column for every Building sample state', () => {
     expect(SOURCE).toMatch(/measurement:\s*totals\.lcpP75Ms == null \? null/);
-    expect(SOURCE).toContain("verdict: speedVerdict('lcp', totals.lcpP75Ms) ?? 'Building sample'");
+    expect(SOURCE).toContain("verdict: speedVerdict('lcp', totals.lcpP75Ms)");
+    expect(SOURCE).not.toContain(
+      "verdict: speedVerdict('lcp', totals.lcpP75Ms) ?? 'Building sample'",
+    );
+    expect(SOURCE.match(/\{row\.measurement \?\? 'Building sample'\}/g)).toHaveLength(2);
     expect(SOURCE).toMatch(
       /speedVerdict: \{[\s\S]*?minWidth: 126,[\s\S]*?color: theme\.colors\.text\.secondary,[\s\S]*?fontSize: 13\.5,[\s\S]*?fontWeight: '400'/,
     );
@@ -230,7 +234,7 @@ describe('public Site metrics page', () => {
     expect(SOURCE).toMatch(
       /speedVerdictMobile: \{ minWidth: 0, fontSize: 12\.5, lineHeight: 17 \}/,
     );
-    expect(SOURCE).toMatch(/speedValueMobile: \{ minWidth: 0, fontSize: 17/);
+    expect(SOURCE).toMatch(/speedValueMobile: \{ minWidth: 0, fontSize: 17, lineHeight: 22 \}/);
   });
 
   it('uses only the 2 accepted section rules and a 34px closing gap', () => {

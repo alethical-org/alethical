@@ -1029,17 +1029,17 @@ function PerformancePanel({
     {
       label: 'Main content appears',
       measurement: totals.lcpP75Ms == null ? null : `${formatMeasure(totals.lcpP75Ms / 1000, 2)} s`,
-      verdict: speedVerdict('lcp', totals.lcpP75Ms) ?? 'Building sample',
+      verdict: speedVerdict('lcp', totals.lcpP75Ms),
     },
     {
       label: 'Responds after an action',
       measurement: totals.inpP75Ms == null ? null : `${formatNumber(totals.inpP75Ms)} ms`,
-      verdict: speedVerdict('inp', totals.inpP75Ms) ?? 'Building sample',
+      verdict: speedVerdict('inp', totals.inpP75Ms),
     },
     {
       label: 'Layout stays still',
       measurement: totals.clsP75 == null ? null : formatMeasure(totals.clsP75, 3),
-      verdict: speedVerdict('cls', totals.clsP75) ?? 'Building sample',
+      verdict: speedVerdict('cls', totals.clsP75),
     },
   ];
   const buildingSample = rows.some((row) => row.measurement == null);
@@ -1066,28 +1066,28 @@ function PerformancePanel({
             >
               {isMobile ? (
                 <>
-                  {row.measurement ? (
+                  <Text
+                    testID={`site-metrics-speed-value-${index}`}
+                    style={[styles.speedValue, styles.speedValueMobile]}
+                  >
+                    {row.measurement ?? 'Building sample'}
+                  </Text>
+                  {row.verdict ? (
                     <Text
-                      testID={`site-metrics-speed-value-${index}`}
-                      style={[styles.speedValue, styles.speedValueMobile]}
+                      testID={`site-metrics-speed-verdict-${index}`}
+                      style={[styles.speedVerdict, styles.speedVerdictMobile]}
                     >
-                      {row.measurement}
+                      {row.verdict}
                     </Text>
                   ) : null}
-                  <Text
-                    testID={`site-metrics-speed-verdict-${index}`}
-                    style={[styles.speedVerdict, styles.speedVerdictMobile]}
-                  >
-                    {row.verdict}
-                  </Text>
                 </>
               ) : (
                 <>
                   <Text testID={`site-metrics-speed-verdict-${index}`} style={styles.speedVerdict}>
-                    {row.verdict}
+                    {row.verdict ?? ''}
                   </Text>
                   <Text testID={`site-metrics-speed-value-${index}`} style={styles.speedValue}>
-                    {row.measurement ?? ''}
+                    {row.measurement ?? 'Building sample'}
                   </Text>
                 </>
               )}
