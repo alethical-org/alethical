@@ -186,7 +186,7 @@ const privacyContent: LegalDocumentContent = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'We use cookies and similar technologies that are necessary to keep you signed in and to operate the Service. Vercel Web Analytics uses no cookies. Cloudflare Web Analytics uses no cookies, local storage, or fingerprinting. Before Vercel analytics starts for a signed-in visit, Alethical asks its own server whether that account should be excluded; the account identifier is not sent to Vercel. Alethical also discards fixed action records from a signed-in team account before storage and leaves that account out of reader and bill-watch totals. The same team exclusion does not apply to Cloudflare page-speed measurements. You can control cookies through your browser settings, though some features may not function without them.',
+          text: 'We use cookies and similar technologies that are necessary to keep you signed in and to operate the Service. Vercel Web Analytics uses no cookies. Cloudflare Web Analytics uses no cookies, local storage, or fingerprinting. Before Vercel analytics starts for a signed-in visit, Alethical asks its own server whether that account is on a private team list; the account identifier is not sent to Vercel. When the private team list is configured, Alethical does not start Vercel analytics for those team accounts, discards their fixed action records before storage, and leaves them out of reader and bill-watch totals. The same team list does not apply to Cloudflare page-speed measurements. You can control cookies through your browser settings, though some features may not function without them.',
         },
       ],
     },

@@ -37,6 +37,8 @@ describe('privacy copy', () => {
     expect(source).toContain('anything following “?” or “#” is removed');
     expect(source).toContain('uses no analytics cookies');
     expect(source).toContain('account identifier is not sent to Vercel');
+    expect(source).toContain('When the private team list is configured');
+    expect(source).not.toContain('Alethical also discards fixed action records');
   });
 
   it('names every new public Traffic source and the detail it receives', () => {

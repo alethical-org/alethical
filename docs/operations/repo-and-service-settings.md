@@ -129,6 +129,10 @@ The live check reads names and release targets only. It never asks Vercel for va
 | `CLOUDFLARE_ANALYTICS_API_TOKEN` | Production | Reads sitewide browser-speed totals. | Live |
 | `CLOUDFLARE_ACCOUNT_ID` | Production | Targets Alethical's Cloudflare account. | Live |
 
+Pending team exclusion: add `TRAFFIC_EXCLUDED_ACCOUNT_IDS` to Vercel and Railway after
+the 4 stable Supabase account identifiers are confirmed. Until then, `/api/traffic` and
+`/api/v1/site-metrics` both report `teamExclusionConfigured: false`.
+
 ## Railway project
 
 Set under **Settings** for the `alethical-api` service in production. Verified
@@ -183,6 +187,10 @@ The live check reads names only with Railway's `decryptVariables: false` option.
 | `SUPABASE_PROJECT_URL` | Present | Targets the production Supabase project for maintenance commands. | Live |
 | `SUPABASE_URL` | Present | Points the API at the production Supabase project. | Live |
 | `UV_VERSION` | Present | Pins the package installer Railway uses to build the API. | Live |
+
+Pending team exclusion: add `TRAFFIC_EXCLUDED_ACCOUNT_IDS` to Vercel and Railway after
+the 4 stable Supabase account identifiers are confirmed. Until then, `/api/traffic` and
+`/api/v1/site-metrics` both report `teamExclusionConfigured: false`.
 
 ## Sentry project
 
