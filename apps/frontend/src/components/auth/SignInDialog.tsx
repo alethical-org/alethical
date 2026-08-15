@@ -188,14 +188,18 @@ function TextAction({
 }
 
 function GoogleHelp({ create = false }: { create?: boolean }) {
+  if (create) {
+    return (
+      <Text style={[styles.googleHelp, styles.googleHelpCreate]}>
+        Already use Google with this email?
+      </Text>
+    );
+  }
+
   return (
     <Text style={styles.googleHelp}>
-      {create
-        ? 'Already use Google with this email? '
-        : 'If you first used Google and haven’t added a password, '}
-      <Text style={styles.googleHelpStrong}>
-        {create ? 'Continue with Google.' : 'continue with Google.'}
-      </Text>
+      If you first used Google and haven’t added a password,{' '}
+      <Text style={styles.googleHelpStrong}>continue with Google.</Text>
     </Text>
   );
 }
@@ -785,12 +789,13 @@ const styles = StyleSheet.create({
   },
   fields: { gap: 18 },
   googleHelp: {
-    marginTop: 10,
+    marginTop: t.spacing.sm,
     fontFamily: t.typography.body,
     fontSize: 13.5,
     lineHeight: 20,
     color: t.colors.text.secondary,
   },
+  googleHelpCreate: { marginBottom: t.spacing.md },
   googleHelpStrong: { fontWeight: t.fontWeights.bold, color: t.colors.text.primary },
   actionStack: { marginTop: 20, gap: 12 },
   actionStackNoTop: { gap: 12 },
