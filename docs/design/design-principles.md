@@ -158,6 +158,25 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
   Track/Tracking, Continue with Google) as soon as sign-in ships; they were skipped on the first
   sweep only because they are not on the live signed-out site
   ([#720](https://github.com/alethical-org/alethical/pull/720)).
+- **A corner close control is inset by its own button box, never by the ✕ inside it.** Give the
+  button at least 16px of clear space from every nearby surface edge, and use the same inset from
+  the top and side so its corner placement reads as deliberate. A phone sheet uses its own side
+  padding for both insets; a desktop dialog uses 20px from the top and right. Keep the button at its
+  existing size, fill, radius, and label. When a sheet has a grab handle, the handle stays above the
+  button's top edge. Make that room with a fixed-height header, not a smaller button or a button
+  outside the content padding, so validation, busy, success, and banner states cannot move it.
+  Current owners are the shared sign-in and password container
+  ([`SignInContainer.tsx`](https://github.com/alethical-org/alethical/blob/main/apps/frontend/src/components/auth/SignInContainer.tsx)),
+  the phone account sheet
+  ([`AccountControl.tsx`](https://github.com/alethical-org/alethical/blob/main/apps/frontend/src/components/auth/AccountControl.tsx)),
+  the phone menu drawer
+  ([`primitives.tsx`](https://github.com/alethical-org/alethical/blob/main/apps/frontend/src/theme/primitives.tsx)),
+  the phone share sheet
+  ([`MobileShareSheet.tsx`](https://github.com/alethical-org/alethical/blob/main/apps/frontend/src/components/share/MobileShareSheet.tsx)),
+  the desktop share popover
+  ([`SharePopover.tsx`](https://github.com/alethical-org/alethical/blob/main/apps/frontend/src/components/billDetail/SharePopover.tsx)),
+  and the chat citation panel
+  ([`ChatSessionScreen.tsx`](https://github.com/alethical-org/alethical/blob/main/apps/frontend/src/screens/ChatSessionScreen.tsx)).
 - **Elevation.** Soft, low-spread shadows for gentle lift — the page feels like paper with light
   depth, not a stack of floating glass. Reserve the heavy multi-layer shadow for true overlays
   (nav dropdown, modals).

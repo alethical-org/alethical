@@ -1219,10 +1219,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderBottomLeftRadius: 24,
     paddingHorizontal: 24,
-    // Match the nav row's top offset (navRow paddingTop 26) so the drawer's
-    // mark + close button open at the same center line as the nav's logo +
-    // hamburger — no vertical hop when the menu opens.
-    paddingTop: 28,
+    paddingTop: 24,
     paddingBottom: 28,
   },
   menuSheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
