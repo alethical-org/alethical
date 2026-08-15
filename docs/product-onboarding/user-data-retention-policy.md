@@ -292,20 +292,23 @@ no.
 Three kinds of reader data travel to third parties. Only one of the three is named in
 the published Privacy Policy.
 
-| Who gets it                                 | What they get                                                           | When                                                                                                 | Named in our Privacy Policy? |
-| ------------------------------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ---------------------------- |
-| Google (through Supabase)                   | Name, email address, profile picture, a sign-in id                      | Every sign-in                                                                                        | Yes                          |
-| Supabase                                    | The same, plus it hosts the whole database                              | Always                                                                                               | Yes                          |
-| **OpenAI**                                  | **A reader-written question, word for word; or public suggestion text** | Every reader-written Ask and chat message when configured; the first uncached public suggestion only | **Yes**                      |
-| **Anthropic**                               | **A reader-written question, word for word; or public suggestion text** | Every reader-written Ask and chat message when configured; the first uncached public suggestion only | **Yes**                      |
-| **US Census Bureau**                        | **The full street address, with surrounding spaces removed**            | Every Find My Legislator address search                                                              | **Yes**                      |
-| **Minnesota Geospatial Information Office** | **The house number and street-name prefix, without city or ZIP**        | While suggestions are open; also after Census retries find no match                                  | **Yes**                      |
-| Vercel                                      | Hosts the web app, so its request logs see every page address (§7)      | Every page load                                                                                      | Yes                          |
-| Cloudflare                                  | Sits in front of the API                                                | Every API call                                                                                       | Yes                          |
-| Railway                                     | Runs the API and captures its log stream (§7)                           | Every API call                                                                                       | Yes                          |
-| Sentry                                      | Error class, code stack, safe route pattern, and public operating labels; **no reader data** | Only when an import, sign-in service, answer provider, or API request fails                           | Yes                          |
-| Resend                                      | Contact name, email, phone, subject, and message                        | Every Contact us send                                                                                | Yes                          |
-| Google Workspace                            | Alethical's delivered copy of the same contact message                  | Every Contact us send                                                                                | Yes, through the Resend line |
+| Who gets it                                 | What they get                                                                                                         | When                                                                                                 | Named in our Privacy Policy? |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ---------------------------- |
+| Google (through Supabase)                   | Name, email address, profile picture, a sign-in id                                                                    | Every sign-in                                                                                        | Yes                          |
+| Supabase                                    | The same, plus it hosts the whole database                                                                            | Always                                                                                               | Yes                          |
+| **OpenAI**                                  | **A reader-written question, word for word; or public suggestion text**                                               | Every reader-written Ask and chat message when configured; the first uncached public suggestion only | **Yes**                      |
+| **Anthropic**                               | **A reader-written question, word for word; or public suggestion text**                                               | Every reader-written Ask and chat message when configured; the first uncached public suggestion only | **Yes**                      |
+| **US Census Bureau**                        | **The full street address, with surrounding spaces removed**                                                          | Every Find My Legislator address search                                                              | **Yes**                      |
+| **Minnesota Geospatial Information Office** | **The house number and street-name prefix, without city or ZIP**                                                      | While suggestions are open; also after Census retries find no match                                  | **Yes**                      |
+| Vercel                                      | Hosts the web app, so its request logs see every page address (§7)                                                    | Every page load                                                                                      | Yes                          |
+| Cloudflare                                  | Sits in front of the API; its Web Analytics script also receives page-speed and broad browser details                 | Every API call; every website visit after the script loads                                           | Yes                          |
+| Google Search Console                       | Sitewide search appearances and visits; Alethical publishes no search phrase, page, country, device, or person detail | When the public Traffic totals refresh                                                               | Yes                          |
+| Bing Webmaster Tools                        | The same sitewide search totals and the same public limits                                                            | When the public Traffic totals refresh                                                               | Yes                          |
+| Checkly                                     | The 3 public Alethical addresses it tests                                                                             | Every 2 minutes from North Virginia                                                                  | Yes                          |
+| Railway                                     | Runs the API and captures its log stream (§7)                                                                         | Every API call                                                                                       | Yes                          |
+| Sentry                                      | Error class, code stack, safe route pattern, and public operating labels; **no reader data**                          | Only when an import, sign-in service, answer provider, or API request fails                          | Yes                          |
+| Resend                                      | Contact name, email, phone, subject, and message                                                                      | Every Contact us send                                                                                | Yes                          |
+| Google Workspace                            | Alethical's delivered copy of the same contact message                                                                | Every Contact us send                                                                                | Yes, through the Resend line |
 
 **The good half.** No account identifier ever reaches a model. The prompt we send is
 built from the bill's identifier, the reader's question, and passages of bill text
@@ -455,17 +458,20 @@ _Information We Collect_ lists every category in §2 that a reader can actually 
 manufactured display name, followed bills and their notes, the alert switch, messages typed
 into a bill conversation, and Ask questions. Under _How We Share Information_ it names
 Supabase, Google, OpenAI, Anthropic, the US Census Bureau, the Minnesota Geospatial
-Information Office, Resend, Vercel, Cloudflare, Railway, and Sentry (§4). It no longer names
+Information Office, Resend, Vercel, Cloudflare, Railway, Sentry, Google Search Console,
+Bing Webmaster Tools, and Checkly (§4). It no longer names
 the Minnesota Legislative Coordinating Commission because the commission no longer receives a
 reader's location during a lookup; the map itself still credits the commission as its source.
 _Data Retention_ carries the per-category periods from §9 rather than one blanket sentence,
 and _Your Rights_ says plainly that deletion and export are done by hand because no button
 exists.
 
-**One deliberate omission from the page follows the rule that it may only describe what a
-reader can reach.** A saved home address is not mentioned, because nothing in the app
-can save one (§2.3) — the page would be describing a feature that does not exist. No
-saved-address promise ships before the feature that can write one.
+**One deliberate omission remains because the page may only describe what a reader can
+reach.** A saved home address is not mentioned, because nothing in the app can save one
+(§2.3). The page would be describing a feature that does not exist. No saved-address
+promise ships before the feature that can write one. The 4 installed
+analytics services and the outside availability check are named because their collection
+and disclosure ship together.
 
 **The page does not claim an automatic sweeper, because there is none.** §9's periods are
 stated on the page as limits we keep to. Nothing enforces the 24-month conversation limit or
@@ -533,6 +539,14 @@ list. If that decision cannot be read, analytics stays off for the signed-in vis
 identifier is never sent to Vercel. The lasting behavior and server settings are in
 `docs/product-onboarding/traffic-guide.md`.
 
+**Search discovery, availability, and speed stay combined.** Google Search Console and
+Bing Webmaster Tools feed only sitewide 28-day appearance and visit totals to the public
+Traffic page. Checkly opens only 3 public Alethical addresses. Cloudflare Web Analytics
+uses no cookies, local storage, or fingerprinting, but it receives speed measurements,
+cleaned page paths, referrers, broad place and browser facts, and some element or resource
+details. Alethical publishes only sitewide 28-day speed scores after 50 measured visits.
+No reader-level record from any of these sources is stored in Alethical's database.
+
 ---
 
 ## 8. Things nothing reads — drop them, do not write rules for them
@@ -589,7 +603,7 @@ write path if a real product need appears.
 | Conversations and messages                           | **24 months from the last message**, then deleted whether or not the account is active | Matches the two-year biennium the record is organised by                                                  |
 | Contact us message                                   | No Alethical database copy; inbox and provider copies follow §2.8                      | The message exists only to answer the person and keep the support record                                  |
 | Server logs                                          | Whatever the host keeps; no reader data in them at all (§7 rule)                       | Redaction beats retention — the cheapest data to keep safe is data you never wrote                        |
-| Sentry error events                                  | 30 days on Sentry's free plan; no reader data in them (§7)                             | Enough time to fix a failure without creating another copy of anything a reader supplied                   |
+| Sentry error events                                  | 30 days on Sentry's free plan; no reader data in them (§7)                             | Enough time to fix a failure without creating another copy of anything a reader supplied                  |
 | Anonymous counts                                     | Indefinitely                                                                           | Nothing in them points at a person                                                                        |
 
 ---

@@ -17,7 +17,7 @@
       "headers": [
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'none'; base-uri 'none'; connect-src 'self' https://api.alethical.com https://naakzorbkqqgbsreulqi.supabase.co; font-src 'self' data: https://fonts.gstatic.com; form-action 'self'; frame-ancestors 'none'; frame-src 'none'; img-src 'self' data: blob: https:; manifest-src 'self'; media-src 'none'; object-src 'none'; script-src 'self' 'sha256-rMVynaoDdIW2HnXvW4R4/MbGKcJbDlkRVMG0ocOlRRU=' 'sha256-dTKU7OAL0k4DXe1Gi13ZV6kG0bS2Do6PdE6xtTpcbJA=' 'sha256-JmGQUeFzeBU6cYRWLBe1wEzeRFoYAAsGG72Yqp9dhNw='; script-src-attr 'none'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; worker-src 'self' blob:; upgrade-insecure-requests"
+          "value": "default-src 'none'; base-uri 'none'; connect-src 'self' https://api.alethical.com https://naakzorbkqqgbsreulqi.supabase.co https://cloudflareinsights.com; font-src 'self' data: https://fonts.gstatic.com; form-action 'self'; frame-ancestors 'none'; frame-src 'none'; img-src 'self' data: blob: https:; manifest-src 'self'; media-src 'none'; object-src 'none'; script-src 'self' https://static.cloudflareinsights.com 'sha256-rMVynaoDdIW2HnXvW4R4/MbGKcJbDlkRVMG0ocOlRRU=' 'sha256-dTKU7OAL0k4DXe1Gi13ZV6kG0bS2Do6PdE6xtTpcbJA=' 'sha256-JmGQUeFzeBU6cYRWLBe1wEzeRFoYAAsGG72Yqp9dhNw='; script-src-attr 'none'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; worker-src 'self' blob:; upgrade-insecure-requests"
         },
         {
           "key": "Cross-Origin-Opener-Policy",

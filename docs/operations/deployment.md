@@ -18,12 +18,12 @@ own source:
 
 ## Production map
 
-| Part | Lives in | Public address | Normal release |
-| --- | --- | --- | --- |
-| Web app | Vercel project `alethical-web` | `https://www.alethical.com` | Vercel watches `main` |
-| API | Railway service `alethical-api`, `production` environment | `https://api.alethical.com` through Cloudflare; Railway origin `https://alethical-api-production.up.railway.app` | Railway watches `main` |
-| Database, sign-in, stored source files | Supabase project `naakzorbkqqgbsreulqi` | Supabase project URL | Settings and migrations, not a code release |
-| Ingestion | GitHub's vote refresh plus commands run from a trusted computer | Writes to Supabase | Automatic vote refresh or deliberate production command |
+| Part                                   | Lives in                                                        | Public address                                                                                                   | Normal release                                          |
+| -------------------------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| Web app                                | Vercel project `alethical-web`                                  | `https://www.alethical.com`                                                                                      | Vercel watches `main`                                   |
+| API                                    | Railway service `alethical-api`, `production` environment       | `https://api.alethical.com` through Cloudflare; Railway origin `https://alethical-api-production.up.railway.app` | Railway watches `main`                                  |
+| Database, sign-in, stored source files | Supabase project `naakzorbkqqgbsreulqi`                         | Supabase project URL                                                                                             | Settings and migrations, not a code release             |
+| Ingestion                              | GitHub's vote refresh plus commands run from a trusted computer | Writes to Supabase                                                                                               | Automatic vote refresh or deliberate production command |
 
 ## Rebuild order
 
@@ -121,6 +121,12 @@ Create the Vercel project from the repository root so the root `pnpm-lock.yaml` 
   cameras, microphones, payment access, and unreviewed network connections are
   blocked; current-location access stays available for **Find My Legislator**
 
+Google Search Console uses Vercel's team OIDC issuer. Google Cloud trusts only
+`owner:<Vercel team>:project:alethical-web:environment:production`. The dedicated service
+account has no Google Cloud project role. It has only Workload Identity User for that exact
+Vercel identity and Restricted access to the `sc-domain:alethical.com` Search Console
+property. Do not create a JSON key or enable Google Workspace domain-wide delegation.
+
 ### Frontend browser boundaries
 
 The `Content-Security-Policy` in `vercel.json` starts with everything blocked and
@@ -128,6 +134,8 @@ opens only the connections the shipped website uses:
 
 - Alethical's own files and API at `api.alethical.com`
 - Supabase sign-in at `naakzorbkqqgbsreulqi.supabase.co`
+- Cloudflare's page-speed program at `static.cloudflareinsights.com` and its measurement
+  receiver at `cloudflareinsights.com`
 - Google Fonts styles and font files
 - HTTPS images, which covers official legislator photos and OpenStreetMap tiles
 - inline styles, because React Native Web creates them while rendering

@@ -20,6 +20,7 @@ const directives = new Map(
     return [name, sources];
   }),
 );
+const pageShell = readFileSync(resolve(root, 'apps/frontend/public/index.html'), 'utf8');
 
 function inlineProgram(file: string, id: string): string {
   const source = readFileSync(resolve(root, file), 'utf8');
@@ -52,6 +53,7 @@ describe('web security response headers', () => {
       "'self'",
       'https://api.alethical.com',
       'https://naakzorbkqqgbsreulqi.supabase.co',
+      'https://cloudflareinsights.com',
     ]);
     expect(directives.get('font-src')).toEqual(["'self'", 'data:', 'https://fonts.gstatic.com']);
     expect(directives.get('frame-src')).toEqual(["'none'"]);
@@ -75,7 +77,16 @@ describe('web security response headers', () => {
       inlineProgram('api/page.ts', 'alethical-forgot-password-bootstrap'),
     ];
 
-    expect(directives.get('script-src')).toEqual(["'self'", ...programs.map(policyHash)]);
+    expect(directives.get('script-src')).toEqual([
+      "'self'",
+      'https://static.cloudflareinsights.com',
+      ...programs.map(policyHash),
+    ]);
     expect(directives.get('script-src-attr')).toEqual(["'none'"]);
+  });
+
+  it('loads only the public Cloudflare speed beacon configured for Alethical', () => {
+    expect(pageShell).toContain('src="https://static.cloudflareinsights.com/beacon.min.js"');
+    expect(pageShell).toContain(`data-cf-beacon='{"token": "2054b504329c4586a515de9083e6164e"}'`);
   });
 });
