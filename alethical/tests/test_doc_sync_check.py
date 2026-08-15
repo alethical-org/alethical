@@ -11,9 +11,9 @@ because two PRs an hour apart each edited one subsection of the billing guide,
 each passed on the strength of that edit, and each left the section above it
 false. See the script's own docstring for the incident.
 
-The #1469 cases pin the temporary sign-in design rule: any file below
-``docs/mockups/sign-in/`` needs a nonempty ``Design change:`` line, and that line
-cannot stand in for the existing ``Docs check:`` acknowledgement when both apply.
+(The #1469 ``Design change:`` rule and its cases were removed with the temporary
+sign-in design folder itself, #1533 — design working files no longer land under
+``docs/`` at all.)
 """
 
 from __future__ import annotations
@@ -95,93 +95,6 @@ def test_editing_the_doc_and_saying_so_passes(monkeypatch):
         )
         == 0
     )
-
-
-def test_sign_in_design_change_without_an_acknowledgement_fails(monkeypatch, capsys):
-    changed = ["docs/mockups/sign-in/HANDOFF.md"]
-
-    assert _run(monkeypatch, changed, "Docs check: reviewed the guide.") == 1
-
-    output = capsys.readouterr().out
-    assert changed[0] in output
-    assert "Design change:" in output
-    assert "Alethical API" in output
-    assert "Eugene's call" in output
-
-
-def test_empty_design_acknowledgement_fails(monkeypatch):
-    assert (
-        _run(
-            monkeypatch,
-            ["docs/mockups/sign-in/README.md"],
-            "Design change:   \n\nThe rest of the pull request body.",
-        )
-        == 1
-    )
-
-
-def test_nonempty_design_acknowledgement_passes(monkeypatch):
-    assert (
-        _run(
-            monkeypatch,
-            ["docs/mockups/sign-in/README.md"],
-            "Design change: restore the 3 quoted passages required by the handoff.",
-        )
-        == 0
-    )
-
-
-def test_design_acknowledgement_must_start_its_line(monkeypatch):
-    assert (
-        _run(
-            monkeypatch,
-            ["docs/mockups/sign-in/README.md"],
-            "Notes about the Design change: the smaller card is easier to build.",
-        )
-        == 1
-    )
-
-
-def test_docs_and_design_checks_each_need_their_own_line(monkeypatch):
-    changed = [
-        "apps/frontend/src/components/search/BillResultCard.tsx",
-        "docs/mockups/sign-in/README.md",
-    ]
-
-    assert (
-        _run(
-            monkeypatch,
-            changed,
-            "Design change: update the card example to show the restored label.",
-        )
-        == 1
-    )
-    assert (
-        _run(
-            monkeypatch,
-            changed,
-            "Docs check: reread the search guides; both remain correct.",
-        )
-        == 1
-    )
-    assert (
-        _run(
-            monkeypatch,
-            changed,
-            "Docs check: reread the search guides; both remain correct.\n"
-            "Design change: update the card example to show the restored label.",
-        )
-        == 0
-    )
-
-
-def test_normal_guide_change_does_not_need_a_design_acknowledgement(monkeypatch):
-    assert _run(monkeypatch, ["docs/product-onboarding/search-bills-guide.md"], "") == 0
-
-
-def test_retired_non_sign_in_mockup_path_is_ignored(monkeypatch):
-    retired_path = "/".join(("docs", "mockups", "search-bills", "README.md"))
-    assert _run(monkeypatch, [retired_path], "") == 0
 
 
 def test_code_no_doc_describes_is_ignored(monkeypatch):
