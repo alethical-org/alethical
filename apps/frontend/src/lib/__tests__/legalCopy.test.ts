@@ -38,4 +38,16 @@ describe('privacy copy', () => {
     expect(source).toContain('uses no analytics cookies');
     expect(source).toContain('account identifier is not sent to Vercel');
   });
+
+  it('names every new public Traffic source and the detail it receives', () => {
+    const source = readFileSync(join(__dirname, '..', '..', 'screens', 'LegalScreens.tsx'), 'utf8');
+
+    expect(source).toContain('Google Search Console');
+    expect(source).toContain('Bing Webmaster Tools');
+    expect(source).toContain('Checkly');
+    expect(source).toContain('Cloudflare Web Analytics');
+    expect(source).toContain('does not publish search phrases');
+    expect(source).toContain('public Alethical addresses');
+    expect(source).toContain('uses no cookies, local storage, or fingerprinting');
+  });
 });

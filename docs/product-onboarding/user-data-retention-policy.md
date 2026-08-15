@@ -301,7 +301,10 @@ the published Privacy Policy.
 | **US Census Bureau**                        | **The full street address, with surrounding spaces removed**            | Every Find My Legislator address search                                                              | **Yes**                      |
 | **Minnesota Geospatial Information Office** | **The house number and street-name prefix, without city or ZIP**        | While suggestions are open; also after Census retries find no match                                  | **Yes**                      |
 | Vercel                                      | Hosts the web app, so its request logs see every page address (§7)      | Every page load                                                                                      | Yes                          |
-| Cloudflare                                  | Sits in front of the API                                                | Every API call                                                                                       | Yes                          |
+| Cloudflare                                  | Sits in front of the API; its Web Analytics script also receives page-speed and broad browser details | Every API call; every website visit after the script loads | Yes |
+| Google Search Console                       | Sitewide search appearances and visits; Alethical publishes no search phrase, page, country, device, or person detail | When the public Traffic totals refresh | Yes |
+| Bing Webmaster Tools                        | The same sitewide search totals and the same public limits              | When the public Traffic totals refresh                                                              | Yes                          |
+| Checkly                                     | The 3 public Alethical addresses it tests                               | Every 2 minutes from North Virginia                                                                 | Yes                          |
 | Railway                                     | Runs the API and captures its log stream (§7)                           | Every API call                                                                                       | Yes                          |
 | Sentry                                      | Error class, code stack, safe route pattern, and public operating labels; **no reader data** | Only when an import, sign-in service, answer provider, or API request fails                           | Yes                          |
 | Resend                                      | Contact name, email, phone, subject, and message                        | Every Contact us send                                                                                | Yes                          |
@@ -455,17 +458,20 @@ _Information We Collect_ lists every category in §2 that a reader can actually 
 manufactured display name, followed bills and their notes, the alert switch, messages typed
 into a bill conversation, and Ask questions. Under _How We Share Information_ it names
 Supabase, Google, OpenAI, Anthropic, the US Census Bureau, the Minnesota Geospatial
-Information Office, Resend, Vercel, Cloudflare, Railway, and Sentry (§4). It no longer names
+Information Office, Resend, Vercel, Cloudflare, Railway, Sentry, Google Search Console,
+Bing Webmaster Tools, and Checkly (§4). It no longer names
 the Minnesota Legislative Coordinating Commission because the commission no longer receives a
 reader's location during a lookup; the map itself still credits the commission as its source.
 _Data Retention_ carries the per-category periods from §9 rather than one blanket sentence,
 and _Your Rights_ says plainly that deletion and export are done by hand because no button
 exists.
 
-**One deliberate omission from the page follows the rule that it may only describe what a
-reader can reach.** A saved home address is not mentioned, because nothing in the app
-can save one (§2.3) — the page would be describing a feature that does not exist. No
-saved-address promise ships before the feature that can write one.
+**One deliberate omission remains because the page may only describe what a reader can
+reach.** A saved home address is not mentioned, because nothing in the app can save one
+(§2.3). The page would be describing a feature that does not exist. No saved-address
+promise ships before the feature that can write one. The 4 installed
+analytics services and the outside availability check are named because their collection
+and disclosure ship together.
 
 **The page does not claim an automatic sweeper, because there is none.** §9's periods are
 stated on the page as limits we keep to. Nothing enforces the 24-month conversation limit or
@@ -532,6 +538,14 @@ Alethical server route that decides whether the account is on a server-only excl
 list. If that decision cannot be read, analytics stays off for the signed-in visit. The
 identifier is never sent to Vercel. The lasting behavior and server settings are in
 `docs/product-onboarding/traffic-guide.md`.
+
+**Search discovery, availability, and speed stay combined.** Google Search Console and
+Bing Webmaster Tools feed only sitewide 28-day appearance and visit totals to the public
+Traffic page. Checkly opens only 3 public Alethical addresses. Cloudflare Web Analytics
+uses no cookies, local storage, or fingerprinting, but it receives speed measurements,
+cleaned page paths, referrers, broad place and browser facts, and some element or resource
+details. Alethical publishes only sitewide 28-day speed scores after 50 measured visits.
+No reader-level record from any of these sources is stored in Alethical's database.
 
 ---
 

@@ -24,7 +24,7 @@ describe('public Traffic page', () => {
   it('keeps the public explanation short and puts freshness on 1 line', () => {
     expect(SOURCE).toContain('Public totals about how Alethical is used</Text>');
     expect(SOURCE).toContain('· Through {formatTrafficWindowEnd(totals.windowEndedAt)} ·');
-    expect(SOURCE).not.toContain('Fetched');
+    expect(SOURCE).not.toContain('Counted by Vercel · Fetched');
     expect(SOURCE).not.toContain('Each total ends at');
     expect(SOURCE).toContain('Collecting since {formatDate(totals.countingStartedAt)}');
     expect(SOURCE).not.toContain('Longer totals are still');
@@ -45,5 +45,23 @@ describe('public Traffic page', () => {
     expect(SOURCE).toContain('<TopNav');
     expect(SOURCE).toContain('<Footer');
     expect(SOURCE).toContain("onPrivacy={() => navigation.navigate('Privacy')}");
+  });
+
+  it('loads each outside source separately so 1 failure cannot erase the rest', () => {
+    expect(SOURCE).toContain("useTrafficSource('/api/traffic'");
+    expect(SOURCE).toContain("useTrafficSource('/api/traffic-google'");
+    expect(SOURCE).toContain("useTrafficSource('/api/traffic-bing'");
+    expect(SOURCE).toContain("useTrafficSource('/api/traffic-uptime'");
+    expect(SOURCE).toContain("useTrafficSource('/api/traffic-performance'");
+  });
+
+  it('names search discovery, availability, and real-reader speed in plain words', () => {
+    expect(SOURCE).toContain('Found in search');
+    expect(SOURCE).toContain('Can people reach Alethical?');
+    expect(SOURCE).toContain('Speed during real visits');
+    expect(SOURCE).toContain('Shown in Google results');
+    expect(SOURCE).toContain('Visits from Bing results');
+    expect(SOURCE).toContain('Main website available');
+    expect(SOURCE).toContain('Main content appeared');
   });
 });

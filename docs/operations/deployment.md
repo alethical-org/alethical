@@ -121,6 +121,12 @@ Create the Vercel project from the repository root so the root `pnpm-lock.yaml` 
   cameras, microphones, payment access, and unreviewed network connections are
   blocked; current-location access stays available for **Find My Legislator**
 
+Google Search Console uses Vercel's team OIDC issuer. Google Cloud trusts only
+`owner:<Vercel team>:project:alethical-web:environment:production`. The dedicated service
+account has no Google Cloud project role. It has only Workload Identity User for that exact
+Vercel identity and Restricted access to the `sc-domain:alethical.com` Search Console
+property. Do not create a JSON key or enable Google Workspace domain-wide delegation.
+
 ### Frontend browser boundaries
 
 The `Content-Security-Policy` in `vercel.json` starts with everything blocked and
