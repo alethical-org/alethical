@@ -42,7 +42,7 @@ things work in practice and are the place to start if you're new.
 - [Spending by Outside Groups (plain English)](product-onboarding/outside-spending-guide.md) — money spent about a legislator that never reaches their campaign: what each of the 3 figures means, why every profile says nothing today, and the 4 answers the block can give
 - [How sharing works](product-onboarding/sharing-guide.md) — what each page and destination receives, why Instagram has no direct button, and how link previews are built
 - [How Contact us works](product-onboarding/contact-us-guide.md) — the page, its 5 states, message delivery, and what reader data leaves Alethical
-- [How the Traffic page works](product-onboarding/traffic-guide.md) — the 4 public totals, Vercel source, privacy boundary, team-account exclusion, and page states
+- [How the Site metrics page works](product-onboarding/traffic-guide.md) — the 4 public totals, Vercel source, privacy boundary, team-account exclusion, and page states
 - [About Us page](product-onboarding/about-us-page-spec.md) — the public statement of Alethical’s name, beliefs, current features, roadmap, and correction policy
 
 ## Design

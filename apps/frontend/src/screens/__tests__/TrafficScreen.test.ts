@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 const SOURCE = readFileSync(join(__dirname, '..', 'TrafficScreen.tsx'), 'utf8');
 
-describe('public Traffic page', () => {
+describe('public Site metrics page', () => {
   it('shows only the 3 accurate page-view totals and their trailing periods', () => {
     expect(SOURCE).not.toContain('Estimated visitors');
     expect(SOURCE.match(/label="Page views"/g)).toHaveLength(6);
@@ -16,6 +16,8 @@ describe('public Traffic page', () => {
 
   it('has 1 top heading and the accepted loading and unavailable states', () => {
     expect(SOURCE.match(/aria-level=\{1\}/g)).toHaveLength(1);
+    expect(SOURCE).toContain('Site metrics');
+    expect(SOURCE).toContain("useDocumentTitle('/site-metrics', 'Site metrics | Alethical')");
     expect(SOURCE).toContain('Traffic totals are loading.');
     expect(SOURCE).toContain('Traffic totals are temporarily unavailable.');
     expect(SOURCE).toContain('Counted by Vercel');

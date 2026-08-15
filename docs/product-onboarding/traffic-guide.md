@@ -1,13 +1,13 @@
-# How the Traffic page works
+# How the Site metrics page works
 
 <!-- describes: api/traffic.ts, api/traffic-google.ts, api/traffic-bing.ts, api/traffic-uptime.ts, api/traffic-performance.ts, api/traffic-collection.ts, apps/frontend/src/components/TrafficAnalytics.tsx, apps/frontend/src/components/TrafficAnalytics.web.tsx, apps/frontend/src/lib/traffic.ts, apps/frontend/src/screens/TrafficScreen.tsx, apps/frontend/public/index.html, apps/frontend/scripts/check-traffic-production-env.mjs, apps/frontend/scripts/traffic-token-expiry.mjs, .github/workflows/traffic-token-expiry.yml -->
 
-The public `/traffic` page combines 5 independent sources:
+The public `/site-metrics` page combines 5 independent sources:
 
 - Vercel Web Analytics shows page views for 24 hours, 7 days, and 30 days;
 - Google Search Console shows sitewide appearances and visits for 28 finalized days;
 - Bing Webmaster Tools shows the same 2 sitewide search totals;
-- Checkly shows 30-day availability for the home page, Traffic page, and data service; and
+- Checkly shows 30-day availability for the home page, Site metrics page, and data service; and
 - Cloudflare Web Analytics shows 28-day page-speed scores from real Chromium visits.
 
 The page is the same for signed-in and signed-out readers. It is listed in the public
@@ -20,7 +20,7 @@ each source when a later refresh fails.
 ## What the numbers mean
 
 A page view is 1 page load. Opening several pages creates several views. Opening or
-reloading `/traffic` creates a view too. Refreshing only the numbers does not.
+reloading `/site-metrics` creates a view too. Refreshing only the numbers does not.
 
 Vercel counts without an analytics cookie and removes traffic it identifies as automated.
 
@@ -135,7 +135,7 @@ create a new Production deployment because an older deployment keeps its older s
 The current key expires on August 15, 2027. A free daily GitHub check opens 1 replacement
 issue 60 days before that date and adds 1 urgent note 14 days before it. If the issue is
 closed without changing the saved expiry date, the check reopens it. Missing the date makes
-only the public Traffic totals unavailable. The rest of Alethical stays up and new releases
+only the public Site metrics totals unavailable. The rest of Alethical stays up and new releases
 can continue.
 
 Before adding a second project to the Alethical Vercel team, replace or review this key. Its

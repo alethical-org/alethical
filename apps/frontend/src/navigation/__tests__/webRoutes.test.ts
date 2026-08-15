@@ -68,7 +68,7 @@ describe('old-design URLs land on a shipped page', () => {
 });
 
 describe('addresses with no page behind them', () => {
-  it.each(['/foo', '/Home', '/BILLS/94-2025-HF719'])('keeps %s out of the home page', (path) => {
+  it.each(['/foo', '/traffic', '/Home', '/BILLS/94-2025-HF719'])('keeps %s out of the home page', (path) => {
     expect(targetFromPathname(path)).toEqual({ kind: 'notFound', path });
   });
 
@@ -189,9 +189,9 @@ describe('live URLs still resolve to themselves', () => {
 
   it('resolves the pages that have no redesigned replacement', () => {
     expect(targetFromPathname('/privacy')).toEqual({ kind: 'privacy' });
-    expect(targetFromPathname('/traffic')).toEqual({ kind: 'traffic' });
+    expect(targetFromPathname('/site-metrics')).toEqual({ kind: 'siteMetrics' });
     expect(targetFromPathname('/terms')).toEqual({ kind: 'terms' });
-    expect(pathForRoute({ name: 'Traffic' })).toBe('/traffic');
+    expect(pathForRoute({ name: 'SiteMetrics' })).toBe('/site-metrics');
   });
 
   it('round-trips the Contact us page through its public URL', () => {

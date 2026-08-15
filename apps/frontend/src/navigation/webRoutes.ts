@@ -17,7 +17,7 @@ type WebRouteTarget =
   | { kind: 'legislators'; params: Record<string, string> }
   | { kind: 'findMyLegislator'; address?: string }
   | { kind: 'privacy' }
-  | { kind: 'traffic' }
+  | { kind: 'siteMetrics' }
   | { kind: 'terms' }
   | { kind: 'aboutUs' }
   | { kind: 'contactUs' }
@@ -114,8 +114,8 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
     if (segments[0] === 'privacy') {
       return { kind: 'privacy' };
     }
-    if (segments[0] === 'traffic') {
-      return { kind: 'traffic' };
+    if (segments[0] === 'site-metrics') {
+      return { kind: 'siteMetrics' };
     }
     if (segments[0] === 'terms') {
       return { kind: 'terms' };
@@ -311,8 +311,8 @@ export function pathForRoute(activeRoute: {
     }
     case 'Privacy':
       return '/privacy';
-    case 'Traffic':
-      return '/traffic';
+    case 'SiteMetrics':
+      return '/site-metrics';
     case 'Terms':
       return '/terms';
     case 'AboutUs':
@@ -436,9 +436,9 @@ export function stateFromPathname(pathname: string): WebNavigationState {
         routes: [homeTabs, { name: 'Privacy' }],
         index: 1,
       };
-    case 'traffic':
+    case 'siteMetrics':
       return {
-        routes: [homeTabs, { name: 'Traffic' }],
+        routes: [homeTabs, { name: 'SiteMetrics' }],
         index: 1,
       };
     case 'terms':

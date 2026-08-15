@@ -36,7 +36,7 @@ const FIXED_PAGES = [
   "/about",
   "/about/contact",
   "/privacy",
-  "/traffic",
+  "/site-metrics",
   "/terms",
 ];
 

@@ -438,7 +438,7 @@ export function TrafficScreen() {
   const uptime = useTrafficSource('/api/traffic-uptime', isUptimeTotals);
   const performance = useTrafficSource('/api/traffic-performance', isPerformanceTotals);
   const [now, setNow] = useState(Date.now());
-  useDocumentTitle('/traffic', 'Traffic | Alethical');
+  useDocumentTitle('/site-metrics', 'Site metrics | Alethical');
 
   useEffect(() => {
     const clock = setInterval(() => setNow(Date.now()), MINUTE_MS);
@@ -455,7 +455,7 @@ export function TrafficScreen() {
             aria-level={1}
             style={[styles.title, isMobile && styles.titleMobile]}
           >
-            Traffic
+            Site metrics
           </Text>
           <Text style={styles.purpose}>Public totals about how Alethical is used</Text>
 

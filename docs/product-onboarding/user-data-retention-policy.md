@@ -302,8 +302,8 @@ the published Privacy Policy.
 | **Minnesota Geospatial Information Office** | **The house number and street-name prefix, without city or ZIP**                                                      | While suggestions are open; also after Census retries find no match                                  | **Yes**                      |
 | Vercel                                      | Hosts the web app, so its request logs see every page address (§7)                                                    | Every page load                                                                                      | Yes                          |
 | Cloudflare                                  | Sits in front of the API; its Web Analytics script also receives page-speed and broad browser details                 | Every API call; every website visit after the script loads                                           | Yes                          |
-| Google Search Console                       | Sitewide search appearances and visits; Alethical publishes no search phrase, page, country, device, or person detail | When the public Traffic totals refresh                                                               | Yes                          |
-| Bing Webmaster Tools                        | The same sitewide search totals and the same public limits                                                            | When the public Traffic totals refresh                                                               | Yes                          |
+| Google Search Console                       | Sitewide search appearances and visits; Alethical publishes no search phrase, page, country, device, or person detail | When the public Site metrics totals refresh                                                          | Yes                          |
+| Bing Webmaster Tools                        | The same sitewide search totals and the same public limits                                                            | When the public Site metrics totals refresh                                                          | Yes                          |
 | Checkly                                     | The 3 public Alethical addresses it tests                                                                             | Every 2 minutes from North Virginia                                                                  | Yes                          |
 | Railway                                     | Runs the API and captures its log stream (§7)                                                                         | Every API call                                                                                       | Yes                          |
 | Sentry                                      | Error class, code stack, safe route pattern, and public operating labels; **no reader data**                          | Only when an import, sign-in service, answer provider, or API request fails                          | Yes                          |
@@ -529,7 +529,7 @@ in the Privacy Policy rather than discovered.
 name, email address, or account identifier. Before a page address is sent, everything
 after `?` or `#` is removed. No custom action events are installed. Vercel produces
 combined page-view counts and a daily anonymous visitor estimate; Alethical keeps no
-per-reader analytics record of its own. The public `/traffic` page reads only combined
+per-reader analytics record of its own. The public `/site-metrics` page reads only combined
 24-hour, 7-day, and 30-day totals through a server route whose Vercel access token never
 reaches the browser.
 
@@ -541,7 +541,7 @@ identifier is never sent to Vercel. The lasting behavior and server settings are
 
 **Search discovery, availability, and speed stay combined.** Google Search Console and
 Bing Webmaster Tools feed only sitewide 28-day appearance and visit totals to the public
-Traffic page. Checkly opens only 3 public Alethical addresses. Cloudflare Web Analytics
+Site metrics page. Checkly opens only 3 public Alethical addresses. Cloudflare Web Analytics
 uses no cookies, local storage, or fingerprinting, but it receives speed measurements,
 cleaned page paths, referrers, broad place and browser facts, and some element or resource
 details. Alethical publishes only sitewide 28-day speed scores after 50 measured visits.

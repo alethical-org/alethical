@@ -61,6 +61,7 @@ const NAV_ITEM_HREFS: Record<string, string> = {
   // capability it can't deliver (grounded-answers rule 2).
   'track-bills': routePath.tracked(),
   'about-us': routePath.aboutUs(),
+  'about-site-metrics': routePath.siteMetrics(),
   'about-contact': routePath.contactUs(),
 };
 
@@ -190,7 +191,7 @@ function MenuRowIcon({ itemId, disabled }: { itemId: string; disabled?: boolean 
   const c = disabled ? '#a4aba5' : t.colors.brand.graphics;
   return (
     <View style={[styles.menuRowIconTile, disabled && styles.menuRowIconTileDisabled]}>
-      <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+      <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" aria-hidden>
         {itemId === 'search-bills' || itemId === 'track-bills' ? (
           <>
             <Path
@@ -260,6 +261,13 @@ function MenuRowIcon({ itemId, disabled }: { itemId: string; disabled?: boolean 
               strokeLinecap="round"
             />
             <Path d="M18 13.9c2.4.5 4 2.7 4 5.6" stroke={c} strokeWidth={2} strokeLinecap="round" />
+          </>
+        ) : null}
+        {itemId === 'about-site-metrics' ? (
+          <>
+            <Path d="M7 18V14" stroke={c} strokeWidth={2} strokeLinecap="round" />
+            <Path d="M12 18V10.5" stroke={c} strokeWidth={2} strokeLinecap="round" />
+            <Path d="M17 18V7" stroke={c} strokeWidth={2} strokeLinecap="round" />
           </>
         ) : null}
         {itemId === 'about-contact' ? (
