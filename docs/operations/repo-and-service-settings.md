@@ -106,6 +106,7 @@ The live check reads names and release targets only. It never asks Vercel for va
 | --- | --- | --- | --- |
 | `EXPO_PUBLIC_API_URL` | Preview, Production | Points each released web app at the production API. | Live |
 | `EXPO_PUBLIC_AUTH_RESEND_WAIT_SECONDS` | Production | Matches Supabase's real email resend wait. | Live |
+| `EXPO_PUBLIC_CHECKLY_STATUS_URL` | Production | Gives every reader the public Checkly availability detail page. | Live |
 | `EXPO_PUBLIC_EMAIL_PASSWORD_SIGN_IN_ENABLED` | Production | Keeps the proven email and password option visible. | Live |
 | `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Production | Lets the web app use the public Supabase client. | Live |
 | `EXPO_PUBLIC_SUPABASE_URL` | Production | Points sign-in at the production Supabase project. | Live |

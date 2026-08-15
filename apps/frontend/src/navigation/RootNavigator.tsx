@@ -649,7 +649,7 @@ export function RootNavigator() {
             <Stack.Screen
               name="SiteMetrics"
               component={TrafficScreen}
-              options={{ headerShown: false, title: 'Site metrics' }}
+              options={{ headerShown: false, title: 'Site Metrics' }}
             />
             <Stack.Screen
               name="Terms"

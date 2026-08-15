@@ -371,7 +371,7 @@ describe('first-response page tags', () => {
       '<title>Privacy Policy | Alethical</title>',
     );
     expect((await serve({ path: '/site-metrics' })).body).toContain(
-      '<title>Site metrics | Alethical</title>',
+      '<title>Site Metrics | Alethical</title>',
     );
     expect((await serve({ path: '/privacy' })).body).toContain(
       '<div id="root"><!--alethical:page-snapshot--><!--/alethical:page-snapshot--></div>',

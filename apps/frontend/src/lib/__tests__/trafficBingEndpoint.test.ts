@@ -42,8 +42,8 @@ afterEach(() => {
 });
 
 describe('Bing search totals', () => {
-  it('returns 2 exact 28-day finalized windows without exposing the key', async () => {
-    const rows = isoDates('2026-06-18', 56).map((Date) => ({ Clicks: 2, Date, Impressions: 20 }));
+  it('returns 2 exact 30-day finalized windows without exposing the key', async () => {
+    const rows = isoDates('2026-06-14', 60).map((Date) => ({ Clicks: 2, Date, Impressions: 20 }));
     const fetchSpy = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ d: rows }) });
     vi.stubGlobal('fetch', fetchSpy);
     const recorder = responseRecorder();
@@ -53,14 +53,14 @@ describe('Bing search totals', () => {
     const result = recorder.read();
     expect(result.status).toBe(200);
     expect(result.body).toEqual({
-      clicks28d: 56,
-      impressions28d: 560,
-      previousClicks28d: 56,
-      previousImpressions28d: 560,
-      periodStartedOn: '2026-07-16',
+      clicks30d: 60,
+      impressions30d: 600,
+      previousClicks30d: 60,
+      previousImpressions30d: 600,
+      periodStartedOn: '2026-07-14',
       periodEndedOn: '2026-08-12',
-      previousPeriodStartedOn: '2026-06-18',
-      previousPeriodEndedOn: '2026-07-15',
+      previousPeriodStartedOn: '2026-06-14',
+      previousPeriodEndedOn: '2026-07-13',
       fetchedAt: '2026-08-15T12:00:00.000Z',
     });
     expect(JSON.stringify(result.body)).not.toContain('private-bing-key');

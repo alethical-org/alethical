@@ -106,9 +106,9 @@ export default async function handler(
 
     const today = new Date().toISOString().slice(0, 10);
     const periodEndedOn = moveDate(today, -3);
-    const periodStartedOn = moveDate(periodEndedOn, -27);
+    const periodStartedOn = moveDate(periodEndedOn, -29);
     const previousPeriodEndedOn = moveDate(periodStartedOn, -1);
-    const previousPeriodStartedOn = moveDate(previousPeriodEndedOn, -27);
+    const previousPeriodStartedOn = moveDate(previousPeriodEndedOn, -29);
     const sum = (
       start: string,
       end: string,
@@ -125,14 +125,14 @@ export default async function handler(
       response,
       200,
       {
-        clicks28d: sum(periodStartedOn, periodEndedOn, "clicks"),
-        impressions28d: sum(periodStartedOn, periodEndedOn, "impressions"),
-        previousClicks28d: sum(
+        clicks30d: sum(periodStartedOn, periodEndedOn, "clicks"),
+        impressions30d: sum(periodStartedOn, periodEndedOn, "impressions"),
+        previousClicks30d: sum(
           previousPeriodStartedOn,
           previousPeriodEndedOn,
           "clicks",
         ),
-        previousImpressions28d: sum(
+        previousImpressions30d: sum(
           previousPeriodStartedOn,
           previousPeriodEndedOn,
           "impressions",

@@ -1,29 +1,51 @@
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Svg, { Circle, Defs, LinearGradient, Path, RadialGradient, Stop } from 'react-native-svg';
 
+import { getSiteMetricRecordTotalsFromApi } from '../data/api';
+import { LinkArrow } from '../components/LinkArrow';
 import { useResponsive } from '../hooks/useResponsive';
 import {
   formatTrafficWindowEnd,
   isPerformanceTotals,
   isSearchTotals,
+  isSiteMetricRecordTotals,
   isTrafficTotals,
   isUptimeTotals,
   type PerformanceTotals,
   type SearchTotals,
+  type SiteMetricActions,
+  type SiteMetricRecordTotals,
+  type TrafficBreakdown,
   type TrafficTotals,
   type UptimeTotals,
 } from '../lib/traffic';
+import { externalLinkProps } from '../navigation/links';
 import { useDocumentTitle } from '../navigation/documentTitle';
 import { RootStackParamList } from '../navigation/types';
+import { useAuth } from '../providers/AuthProvider';
 import { Container, Footer, PageBackground, TopNav } from '../theme/primitives';
 import { theme } from '../theme/tokens';
 
 const REFRESH_MS = 5 * 60 * 1000;
 const MINUTE_MS = 60 * 1000;
 const DAY_MS = 24 * 60 * MINUTE_MS;
+const CHECKLY_PUBLIC_STATUS_URL = process.env.EXPO_PUBLIC_CHECKLY_STATUS_URL?.trim() ?? '';
 
-type SourceState<T> = { kind: 'loading' } | { kind: 'ready'; totals: T } | { kind: 'unavailable' };
+const STAFF_LINKS = {
+  vercel: 'https://vercel.com/dashboard',
+  google: 'https://search.google.com/search-console',
+  bing: 'https://www.bing.com/webmasters/',
+  checkly: 'https://app.checklyhq.com/',
+  cloudflare: 'https://dash.cloudflare.com/',
+};
+
+type ActivityRange = 7 | 30;
+type SourceState<T> =
+  | { kind: 'loading' }
+  | { kind: 'ready'; totals: T; stale: boolean }
+  | { kind: 'unavailable'; checkedAt: number };
 
 function useTrafficSource<T>(path: string, validate: (value: unknown) => value is T) {
   const [state, setState] = useState<SourceState<T>>({ kind: 'loading' });
@@ -35,14 +57,24 @@ function useTrafficSource<T>(path: string, validate: (value: unknown) => value i
         const response = await fetch(path, { headers: { Accept: 'application/json' } });
         const payload: unknown = response.ok ? await response.json() : null;
         if (!active || !validate(payload)) {
-          if (active)
-            setState((current) => (current.kind === 'ready' ? current : { kind: 'unavailable' }));
+          if (active) {
+            setState((current) =>
+              current.kind === 'ready'
+                ? { ...current, stale: true }
+                : { kind: 'unavailable', checkedAt: Date.now() },
+            );
+          }
           return;
         }
-        setState({ kind: 'ready', totals: payload });
+        setState({ kind: 'ready', totals: payload, stale: false });
       } catch {
-        if (active)
-          setState((current) => (current.kind === 'ready' ? current : { kind: 'unavailable' }));
+        if (active) {
+          setState((current) =>
+            current.kind === 'ready'
+              ? { ...current, stale: true }
+              : { kind: 'unavailable', checkedAt: Date.now() },
+          );
+        }
       }
     };
 
@@ -55,6 +87,84 @@ function useTrafficSource<T>(path: string, validate: (value: unknown) => value i
   }, [path, validate]);
 
   return state;
+}
+
+function useRecordTotals() {
+  const [state, setState] = useState<SourceState<SiteMetricRecordTotals>>({ kind: 'loading' });
+
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      try {
+        const payload: unknown = await getSiteMetricRecordTotalsFromApi();
+        if (!active || !isSiteMetricRecordTotals(payload)) {
+          if (active) {
+            setState((current) =>
+              current.kind === 'ready'
+                ? { ...current, stale: true }
+                : { kind: 'unavailable', checkedAt: Date.now() },
+            );
+          }
+          return;
+        }
+        setState({ kind: 'ready', totals: payload, stale: false });
+      } catch {
+        if (active) {
+          setState((current) =>
+            current.kind === 'ready'
+              ? { ...current, stale: true }
+              : { kind: 'unavailable', checkedAt: Date.now() },
+          );
+        }
+      }
+    };
+
+    void load();
+    const refresh = setInterval(() => void load(), REFRESH_MS);
+    return () => {
+      active = false;
+      clearInterval(refresh);
+    };
+  }, []);
+
+  return state;
+}
+
+function useTeamAccount() {
+  const { isLoading, isSignedIn, user } = useAuth();
+  const [teamAccount, setTeamAccount] = useState(false);
+
+  useEffect(() => {
+    if (isLoading) return;
+    if (!isSignedIn || !user) {
+      setTeamAccount(false);
+      return;
+    }
+    const controller = new AbortController();
+    setTeamAccount(false);
+    void fetch('/api/traffic-collection', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: user.id }),
+      signal: controller.signal,
+    })
+      .then(async (response) => (response.ok ? ((await response.json()) as unknown) : null))
+      .then((payload) => {
+        const value = payload as { teamAccount?: unknown } | null;
+        if (!controller.signal.aborted) setTeamAccount(value?.teamAccount === true);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setTeamAccount(false);
+      });
+    return () => controller.abort();
+  }, [isLoading, isSignedIn, user]);
+
+  return teamAccount;
+}
+
+function initialActivityRange(): ActivityRange {
+  if (Platform.OS !== 'web' || typeof window === 'undefined') return 7;
+  return new URLSearchParams(window.location.search).get('range') === '30' ? 30 : 7;
 }
 
 function formatNumber(value: number) {
@@ -70,91 +180,53 @@ function formatDate(iso: string) {
   }).format(new Date(iso));
 }
 
-function formatDateRange(start: string, end: string) {
-  return `${formatDate(start)} to ${formatDate(end)}`;
-}
-
-function fetchedMinutesAgo(fetchedAt: string, now: number) {
-  return Math.max(0, Math.floor((now - Date.parse(fetchedAt)) / MINUTE_MS));
-}
-
-function exactChange(current: number, previous: number) {
-  const change = current - previous;
-  if (change === 0) return 'Same as the prior 28 finalized days.';
-  return `${formatNumber(Math.abs(change))} ${change > 0 ? 'more' : 'fewer'} than the prior 28 finalized days.`;
-}
-
-function DisplayMetric({
-  label,
-  value,
-  description,
-}: {
-  label: string;
-  value: string;
-  description?: string;
-}) {
-  return (
-    <View style={styles.metric}>
-      <Text style={styles.metricLabel}>{label}</Text>
-      <View style={styles.valueBox}>
-        <Text style={styles.value}>{value}</Text>
-      </View>
-      {description ? <Text style={styles.metricDescription}>{description}</Text> : null}
-    </View>
+function ageText(timestamp: string | number, now: number) {
+  const ageMinutes = Math.max(
+    0,
+    Math.floor(
+      (now - (typeof timestamp === 'number' ? timestamp : Date.parse(timestamp))) / MINUTE_MS,
+    ),
   );
+  if (ageMinutes < 1) return 'just now';
+  if (ageMinutes < 60) return `${ageMinutes} ${ageMinutes === 1 ? 'minute' : 'minutes'} ago`;
+  const hours = Math.floor(ageMinutes / 60);
+  return `${hours} ${hours === 1 ? 'hour' : 'hours'} ago`;
 }
 
-function Metric({
-  label,
-  value,
-  description,
-}: {
-  label: string;
-  value: number;
-  description?: string;
-}) {
-  return <DisplayMetric label={label} value={formatNumber(value)} description={description} />;
+function percent(value: number) {
+  return `${value.toLocaleString('en-US', { maximumFractionDigits: 3 })}%`;
 }
 
-function LoadingMetric({ label }: { label: string }) {
-  return (
-    <View style={styles.metric}>
-      <Text style={styles.metricLabel}>{label}</Text>
-      <View style={styles.valueBox}>
-        <View
-          aria-hidden
-          accessibilityElementsHidden
-          importantForAccessibility="no-hide-descendants"
-          style={styles.loadingBar}
-        />
-      </View>
-    </View>
-  );
+function formatMeasure(value: number, maximumFractionDigits: number) {
+  return value.toLocaleString('en-US', { maximumFractionDigits });
 }
 
-function Card({ period, children }: { period: string; children: React.ReactNode }) {
-  return (
-    <View style={styles.card}>
-      <Text style={styles.period}>{period}</Text>
-      {children}
-    </View>
-  );
+function clicksPerHundredValue(clicks: number, impressions: number) {
+  return impressions === 0 ? null : (clicks / impressions) * 100;
 }
 
-function CardRow({ children }: { children: React.ReactNode }) {
-  const { isMobile } = useResponsive();
-  return <View style={isMobile ? styles.cardsMobile : styles.cards}>{children}</View>;
+function formatClicksPerHundred(value: number | null) {
+  if (value == null) return 'Not available';
+  return value.toLocaleString('en-US', {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  });
 }
 
-function Unavailable({ text, source }: { text: string; source: string }) {
-  return (
-    <>
-      <View accessibilityLiveRegion="polite" style={styles.unavailable}>
-        <Text style={styles.unavailableText}>{text}</Text>
-      </View>
-      <Text style={styles.source}>{source}</Text>
-    </>
-  );
+function searchComparisonText(current: number | null, previous: number | null) {
+  if (current == null || previous == null) {
+    return 'Prior 30-day comparison is not available';
+  }
+  if (current === previous) return 'Same as the previous 30 days';
+  return `${current > previous ? 'Up' : 'Down'} from ${formatClicksPerHundred(previous)} in the previous 30 days`;
+}
+
+function speedVerdict(kind: 'lcp' | 'inp' | 'cls', value: number | null) {
+  if (value == null) return null;
+  const [good, poor] = kind === 'lcp' ? [2500, 4000] : kind === 'inp' ? [200, 500] : [0.1, 0.25];
+  if (value <= good) return 'Good';
+  if (value <= poor) return 'Needs improvement';
+  return 'Poor';
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
@@ -165,267 +237,753 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
-function TrafficCards({ state, now }: { state: SourceState<TrafficTotals>; now: number }) {
-  if (state.kind === 'unavailable') {
+function PanelTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <Text accessibilityRole="header" aria-level={2} style={styles.eyebrow}>
+      {children}
+    </Text>
+  );
+}
+
+function InformationIcon() {
+  return (
+    <Svg aria-hidden width={19} height={19} viewBox="0 0 24 24" style={styles.infoIcon}>
+      <Circle cx={12} cy={12} r={9} stroke="#6f756f" strokeWidth={2} fill="none" />
+      <Path d="M12 7.5V13" stroke="#6f756f" strokeWidth={2} strokeLinecap="round" />
+      <Circle cx={12} cy={16.3} r={1.15} fill="#6f756f" />
+    </Svg>
+  );
+}
+
+function VendorLogo({ source, mobile }: { source: 'Google' | 'Bing'; mobile: boolean }) {
+  const size = mobile ? 18 : 20;
+  if (source === 'Google') {
     return (
-      <>
-        <View accessibilityLiveRegion="polite" style={styles.unavailable}>
-          <Text style={styles.unavailableText}>Traffic totals are temporarily unavailable.</Text>
-        </View>
-        <Text style={styles.source}>Counted by Vercel</Text>
-      </>
+      <Svg aria-hidden width={size} height={size} viewBox="0 0 24 24">
+        <Path
+          fill="#4285F4"
+          d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.58c2.08-1.92 3.27-4.74 3.27-8.09Z"
+        />
+        <Path
+          fill="#34A853"
+          d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.58-2.77c-.98.66-2.23 1.06-3.7 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23Z"
+        />
+        <Path
+          fill="#FBBC05"
+          d="M5.84 14.09A6.6 6.6 0 0 1 5.49 12c0-.73.13-1.43.35-2.09V7.07H2.18A11 11 0 0 0 1 12c0 1.77.42 3.44 1.18 4.93l2.85-2.22.81-.62Z"
+        />
+        <Path
+          fill="#EA4335"
+          d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15A10.56 10.56 0 0 0 12 1 11 11 0 0 0 2.18 7.07l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38Z"
+        />
+      </Svg>
     );
   }
+  return (
+    <Svg aria-hidden width={size} height={size} viewBox="0 0 24 24">
+      <Defs>
+        <RadialGradient id="bingA" cx="94%" cy="78%" r="144%">
+          <Stop offset="0" stopColor="#00CACC" />
+          <Stop offset="1" stopColor="#048FCE" />
+        </RadialGradient>
+        <RadialGradient id="bingB" cx="14%" cy="71%" r="149%">
+          <Stop offset="0" stopColor="#00BBEC" />
+          <Stop offset="1" stopColor="#2756A9" />
+        </RadialGradient>
+        <LinearGradient id="bingC" x1="50%" x2="50%" y1="0" y2="100%">
+          <Stop offset="0" stopColor="#00BBEC" />
+          <Stop offset="1" stopColor="#2756A9" />
+        </LinearGradient>
+      </Defs>
+      <Path
+        d="M11.97 7.569a.92.92 0 0 0-.805.863c-.013.195-.01.209.43 1.347 1 2.59 1.242 3.214 1.283 3.302.099.213.237.413.41.592.134.138.222.212.37.311.26.176.39.224 1.405.527.989.295 1.529.49 1.994.723.603.302 1.024.644 1.29 1.051.191.292.36.815.434 1.342.029.206.029.661 0 .847a2.491 2.491 0 0 1-.376 1.026c-.1.151-.065.126.081-.058.415-.52.838-1.408 1.054-2.213a6.728 6.728 0 0 0 .102-3.012 6.626 6.626 0 0 0-3.291-4.53 104.157 104.157 0 0 0-1.322-.698l-.254-.133a737.941 737.941 0 0 1-1.575-.827c-.548-.29-.78-.406-.846-.426a1.376 1.376 0 0 0-.29-.045l-.093.01Z"
+        fill="url(#bingA)"
+      />
+      <Path
+        d="M13.164 17.24a4.385 4.385 0 0 0-.202.125 511.45 511.45 0 0 0-1.795 1.115 163.087 163.087 0 0 1-.989.614l-.463.288a99.198 99.198 0 0 1-1.502.941c-.326.2-.704.334-1.09.387-.18.024-.52.024-.7 0a2.807 2.807 0 0 1-1.318-.538 3.665 3.665 0 0 1-.543-.545 2.837 2.837 0 0 1-.506-1.141 2.161 2.161 0 0 0-.041-.182c-.008-.008.006.138.032.33.027.199.085.487.147.733.482 1.907 1.85 3.457 3.705 4.195a6.31 6.31 0 0 0 1.658.412c.22.025.844.035 1.074.017 1.054-.08 1.972-.393 2.913-.992a325.28 325.28 0 0 1 .937-.596l.384-.244.684-.435.234-.149.009-.005.025-.017.013-.007.172-.11.597-.38c.76-.481.987-.65 1.34-.998.148-.146.37-.394.381-.425.002-.007.042-.068.088-.136a2.49 2.49 0 0 0 .373-1.023 4.181 4.181 0 0 0 0-.847 4.336 4.336 0 0 0-.318-1.137c-.224-.472-.7-.9-1.383-1.245a2.972 2.972 0 0 0-.406-.181c-.01 0-.646.392-1.413.87a7089.171 7089.171 0 0 0-1.658 1.031l-.439.274Z"
+        fill="url(#bingB)"
+      />
+      <Path
+        d="m4.003 14.946.004 3.33.042.193c.134.604.366 1.04.77 1.445a2.701 2.701 0 0 0 1.955.814c.536 0 1-.135 1.479-.43l.703-.435.556-.346V8.003c0-2.306-.004-3.675-.012-3.782a2.734 2.734 0 0 0-.797-1.765c-.145-.144-.268-.24-.637-.496A1780.102 1780.102 0 0 1 5.762.362C5.406.115 5.38.098 5.271.059a.943.943 0 0 0-1.254.696C4.003.818 4 1.659 4 6.223v5.394h0l.003 3.329Z"
+        fill="url(#bingC)"
+      />
+    </Svg>
+  );
+}
+
+function LoadingBar({ wide = false }: { wide?: boolean }) {
+  return (
+    <View
+      aria-hidden
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      style={[styles.loadingBar, wide && styles.loadingBarWide]}
+    />
+  );
+}
+
+function Panel({
+  children,
+  busy = false,
+  mobileTreatment = 'card',
+}: {
+  children: React.ReactNode;
+  busy?: boolean;
+  mobileTreatment?: 'card' | 'closing';
+}) {
+  const { isMobile } = useResponsive();
+  return (
+    <View
+      aria-busy={busy}
+      style={[
+        styles.panel,
+        isMobile && mobileTreatment === 'card' && styles.panelCardMobile,
+        isMobile && mobileTreatment === 'closing' && styles.panelClosingMobile,
+      ]}
+    >
+      {children}
+    </View>
+  );
+}
+
+function UnavailablePanel({
+  text,
+  title,
+  source,
+  checkedAt,
+  now,
+  mobileTreatment = 'card',
+}: {
+  text: string;
+  title?: string;
+  source?: string;
+  checkedAt?: number;
+  now?: number;
+  mobileTreatment?: 'card' | 'closing';
+}) {
+  return (
+    <Panel mobileTreatment={mobileTreatment}>
+      {title ? <PanelTitle>{title}</PanelTitle> : null}
+      <View style={styles.unavailableRow}>
+        <InformationIcon />
+        <Text accessibilityLiveRegion="polite" style={styles.unavailableText}>
+          {text}
+        </Text>
+      </View>
+      {source && checkedAt != null && now != null ? (
+        <Text style={styles.source}>
+          {source} · Checked {ageText(checkedAt, now)}
+        </Text>
+      ) : null}
+    </Panel>
+  );
+}
+
+function ActivityStatusPanel({
+  title,
+  loading,
+  unavailableText,
+}: {
+  title: string;
+  loading: boolean;
+  unavailableText: string;
+}) {
+  return (
+    <Panel busy={loading}>
+      <PanelTitle>{title}</PanelTitle>
+      {loading ? (
+        <>
+          <LoadingBar wide />
+          <LoadingBar wide />
+          <LoadingBar wide />
+        </>
+      ) : (
+        <Text accessibilityLiveRegion="polite" style={styles.unavailableText}>
+          {unavailableText}
+        </Text>
+      )}
+    </Panel>
+  );
+}
+
+function StaleNote({ stale, fetchedAt, now }: { stale: boolean; fetchedAt: string; now: number }) {
+  return stale ? (
+    <>
+      <Text style={styles.staleText}>A newer reading has not come through yet</Text>
+      <Text accessibilityLiveRegion="polite" style={styles.visuallyHidden}>
+        Site metrics are from {ageText(fetchedAt, now)}. A newer reading has not come through yet.
+      </Text>
+    </>
+  ) : null;
+}
+
+function StaffLink({ href, label, show }: { href: string; label: string; show: boolean }) {
+  if (!show) return null;
+  return (
+    <Pressable {...externalLinkProps(href)} style={styles.staffLinkTarget}>
+      <View style={styles.staffLinkContent}>
+        <Text style={styles.staffLink}>{label}</Text>
+        <LinkArrow color="#5b30d6" style={styles.staffLinkArrow} />
+      </View>
+    </Pressable>
+  );
+}
+
+function MetricRow({
+  label,
+  value,
+  last = false,
+  compactMobile = false,
+}: {
+  label: string;
+  value: string;
+  last?: boolean;
+  compactMobile?: boolean;
+}) {
+  const { isMobile } = useResponsive();
+  return (
+    <View
+      style={[
+        styles.metricRow,
+        last && styles.metricRowLast,
+        isMobile && compactMobile && styles.metricRowCompactMobile,
+      ]}
+    >
+      <Text style={styles.metricRowLabel}>{label}</Text>
+      <Text style={styles.metricRowValue}>{value}</Text>
+    </View>
+  );
+}
+
+function RecentTraffic({
+  state,
+  now,
+  teamAccount,
+}: {
+  state: SourceState<TrafficTotals>;
+  now: number;
+  teamAccount: boolean;
+}) {
+  if (state.kind === 'unavailable') {
+    return (
+      <UnavailablePanel
+        text="Recent traffic is temporarily unavailable."
+        source="Vercel"
+        checkedAt={state.checkedAt}
+        now={now}
+      />
+    );
+  }
+  const { isMobile } = useResponsive();
+  const cards = [
+    { period: 'LAST 24 HOURS', visitors: 'estimatedVisitors24h', views: 'pageViews24h' },
+    { period: 'LAST 7 DAYS', visitors: 'estimatedVisitors7d', views: 'pageViews7d' },
+    { period: 'LAST 30 DAYS', visitors: 'estimatedVisitors30d', views: 'pageViews30d' },
+  ] as const;
   const loading = state.kind === 'loading';
   const totals = state.kind === 'ready' ? state.totals : null;
+  const stale = state.kind === 'ready' && state.stale;
   const collecting = totals
     ? Date.parse(totals.windowEndedAt) - Date.parse(totals.countingStartedAt) < 30 * DAY_MS
     : false;
 
   return (
     <>
-      {loading ? <Text style={styles.visuallyHidden}>Traffic totals are loading.</Text> : null}
-      <View accessibilityLiveRegion="polite">
-        <CardRow>
-          <Card period="LAST 24 HOURS">
-            {loading ? (
-              <LoadingMetric label="Page views" />
-            ) : (
-              <Metric label="Page views" value={totals?.pageViews24h ?? 0} />
-            )}
-          </Card>
-          <Card period="LAST 7 DAYS">
-            {loading ? (
-              <LoadingMetric label="Page views" />
-            ) : (
-              <Metric label="Page views" value={totals?.pageViews7d ?? 0} />
-            )}
-          </Card>
-          <Card period="LAST 30 DAYS">
-            {loading ? (
-              <LoadingMetric label="Page views" />
-            ) : (
-              <Metric label="Page views" value={totals?.pageViews30d ?? 0} />
-            )}
-          </Card>
-        </CardRow>
+      <View style={styles.recentGrid}>
+        {cards.map((card) => (
+          <View
+            key={card.period}
+            aria-busy={loading}
+            style={[styles.recentCard, isMobile && styles.recentCardMobile]}
+          >
+            <Text style={styles.eyebrow}>{card.period}</Text>
+            <View style={isMobile && styles.recentMetricRowMobile}>
+              <View style={styles.recentMetric}>
+                <Text style={[styles.recentLabel, isMobile && styles.recentLabelMobile]}>
+                  Estimated visitors
+                </Text>
+                {loading ? (
+                  <LoadingBar wide />
+                ) : (
+                  <Text style={[styles.recentValue, isMobile && styles.recentValueMobile]}>
+                    {formatNumber(totals?.[card.visitors] ?? 0)}
+                  </Text>
+                )}
+              </View>
+              <View style={isMobile ? styles.recentMetricRight : undefined}>
+                <View style={isMobile ? undefined : styles.recentDivider} />
+                <Text style={[styles.recentLabel, isMobile && styles.recentLabelMobile]}>
+                  Page views
+                </Text>
+                {loading ? (
+                  <LoadingBar wide />
+                ) : (
+                  <Text style={[styles.recentValue, isMobile && styles.recentValueMobile]}>
+                    {formatNumber(totals?.[card.views] ?? 0)}
+                  </Text>
+                )}
+              </View>
+            </View>
+          </View>
+        ))}
       </View>
       {totals ? (
         <View style={styles.sourceCluster}>
-          <Text style={styles.source}>
-            Counted by Vercel · Through {formatTrafficWindowEnd(totals.windowEndedAt)} · Checked{' '}
-            {fetchedMinutesAgo(totals.fetchedAt, now)} minutes ago
-          </Text>
+          <View style={styles.recentSourceRow}>
+            <Text style={styles.sourceInline}>
+              Counted by Vercel · Through {formatTrafficWindowEnd(totals.windowEndedAt)} ·{' '}
+              {stale
+                ? `Last accepted ${ageText(totals.fetchedAt, now)}`
+                : `Checked ${ageText(totals.fetchedAt, now)}`}
+            </Text>
+            {collecting ? (
+              <Text style={styles.collecting}>
+                Collecting since {formatDate(totals.countingStartedAt)}
+              </Text>
+            ) : null}
+          </View>
           {collecting ? (
-            <Text style={styles.collecting}>
-              Collecting since {formatDate(totals.countingStartedAt)}
+            <Text style={styles.collectingDetail}>
+              The 7-day and 30-day totals cover only the days collected so far
             </Text>
           ) : null}
+          <Text style={styles.note}>
+            Estimated visitors may include the same person more than once across days or devices
+          </Text>
+          <StaleNote stale={stale} fetchedAt={totals.fetchedAt} now={now} />
+          <StaffLink href={STAFF_LINKS.vercel} label="OPEN VERCEL DASHBOARD" show={teamAccount} />
         </View>
       ) : null}
     </>
   );
 }
 
-function SearchCards({
-  state,
+const DESTINATIONS = [
+  ['home', 'Home'],
+  ['billSearch', 'Bill search'],
+  ['billProfiles', 'Bill profiles'],
+  ['legislatorSearch', 'Legislator search'],
+  ['legislatorProfiles', 'Legislator profiles'],
+  ['findMyLegislator', 'Find My Legislator'],
+  ['other', 'Other'],
+] as const;
+
+function DestinationPanel({ breakdown }: { breakdown: TrafficBreakdown }) {
+  const { isMobile } = useResponsive();
+  const total = Object.values(breakdown.destinationPageViews).reduce(
+    (sum, value) => sum + value,
+    0,
+  );
+  const row = ([key, label]: (typeof DESTINATIONS)[number]) => {
+    const share = (breakdown.destinationPageViews[key] / total) * 100;
+    return (
+      <View key={key} style={styles.destinationRowLine}>
+        <Text
+          style={[
+            styles.metricRowLabel,
+            styles.destinationName,
+            isMobile && styles.destinationNameMobile,
+          ]}
+        >
+          {label}
+        </Text>
+        <View aria-hidden style={[styles.barTrack, isMobile && styles.barTrackMobile]}>
+          <View style={[styles.barFill, { width: `${share}%` }]} />
+        </View>
+        <Text style={[styles.destinationPercent, isMobile && styles.destinationPercentMobile]}>
+          {Math.round(share)}%
+        </Text>
+      </View>
+    );
+  };
+  return (
+    <Panel>
+      <PanelTitle>WHERE PEOPLE GO</PanelTitle>
+      {total === 0 ? (
+        <Text style={styles.zeroText}>No page views in this range yet</Text>
+      ) : (
+        <>
+          <View style={styles.destinationRows}>
+            <View style={styles.destinationOuter}>{row(DESTINATIONS[0])}</View>
+            <View style={styles.destinationGroup}>
+              {row(DESTINATIONS[1])}
+              {row(DESTINATIONS[2])}
+            </View>
+            <View style={styles.destinationGroup}>
+              {row(DESTINATIONS[3])}
+              {row(DESTINATIONS[4])}
+              {row(DESTINATIONS[5])}
+            </View>
+            <View style={styles.destinationOuter}>{row(DESTINATIONS[6])}</View>
+          </View>
+          <Text style={styles.panelNote}>
+            Percentages show shares of page views, not visitors. Searches with results are counted
+            separately.
+          </Text>
+        </>
+      )}
+    </Panel>
+  );
+}
+
+function distinctValue(value: { count: number; capped: boolean }) {
+  return value.capped ? `${formatNumber(value.count)}+` : formatNumber(value.count);
+}
+
+function ExplorePanel({ breakdown }: { breakdown: TrafficBreakdown }) {
+  const capped =
+    breakdown.billProfiles.differentProfilesViewed.capped ||
+    breakdown.legislatorProfiles.differentProfilesViewed.capped;
+  return (
+    <Panel>
+      <PanelTitle>WHAT PEOPLE EXPLORE</PanelTitle>
+      <View role="table">
+        <View role="row" style={styles.tableHeader}>
+          <View style={styles.tableBlankHeader}>
+            <Text role="columnheader" style={styles.visuallyHidden}>
+              Section
+            </Text>
+          </View>
+          <Text role="columnheader" style={styles.tableLabel}>
+            Profile views
+          </Text>
+          <Text role="columnheader" style={styles.tableLabel}>
+            Different profiles
+          </Text>
+        </View>
+        {[
+          ['Bills', breakdown.billProfiles],
+          ['Legislators', breakdown.legislatorProfiles],
+        ].map(([label, totals], index) => {
+          const profile = totals as TrafficBreakdown['billProfiles'];
+          return (
+            <View
+              role="row"
+              key={label as string}
+              style={[styles.tableRow, index === 1 && styles.metricRowLast]}
+            >
+              <Text role="rowheader" style={[styles.metricRowLabel, styles.tableName]}>
+                {label as string}
+              </Text>
+              <Text role="cell" style={styles.tableValue}>
+                {formatNumber(profile.pageViews)}
+              </Text>
+              <Text role="cell" style={styles.tableValue}>
+                {distinctValue(profile.differentProfilesViewed)}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
+      <Text style={styles.panelNote}>
+        Profile views include repeat views. Each different profile is counted once.
+      </Text>
+      {capped ? (
+        <Text style={styles.panelNote}>
+          Shows 100+ when the source cannot list more different profiles
+        </Text>
+      ) : null}
+    </Panel>
+  );
+}
+
+function ActionsPanel({ actions }: { actions: SiteMetricActions }) {
+  const rows = [
+    ['Bill searches with results', actions.billSearchesWithResults],
+    ['Legislator searches with results', actions.legislatorSearchesWithResults],
+    ['Find My Legislator lookups with results', actions.findMyLegislatorWithResults],
+    ['Official source links opened', actions.officialSourceLinksOpened],
+    ['New bill watches', actions.newBillWatches],
+  ] as const;
+  return (
+    <Panel>
+      <PanelTitle>WHAT PEOPLE DO</PanelTitle>
+      <View style={styles.plainRows}>
+        {rows.map(([label, value], index) => (
+          <MetricRow
+            key={label}
+            label={label}
+            value={formatNumber(value)}
+            last={index === rows.length - 1}
+            compactMobile
+          />
+        ))}
+      </View>
+      <Text style={styles.panelNote}>
+        No search words, addresses, or districts are included in these analytics.
+      </Text>
+    </Panel>
+  );
+}
+
+function ReadersPanel({ totals }: { totals: SiteMetricRecordTotals['readers'] }) {
+  return (
+    <Panel>
+      <PanelTitle>READERS</PanelTitle>
+      <View style={styles.plainRows}>
+        <MetricRow
+          label="Registered readers"
+          value={formatNumber(totals.registeredReaders)}
+          compactMobile
+        />
+        <MetricRow
+          label="Current bill watches"
+          value={formatNumber(totals.currentBillWatches)}
+          compactMobile
+        />
+        <MetricRow
+          label="Different bills currently watched"
+          value={formatNumber(totals.differentBillsCurrentlyWatched)}
+          last
+          compactMobile
+        />
+      </View>
+      <Text style={styles.panelNote}>
+        Current totals; the date range does not apply. Bill watches count each reader&apos;s watch;
+        different bills count each bill once.
+      </Text>
+    </Panel>
+  );
+}
+
+function VendorHeading({ source }: { source: 'Google' | 'Bing' }) {
+  const { isMobile } = useResponsive();
+  return (
+    <View style={styles.vendorHeading}>
+      <VendorLogo source={source} mobile={isMobile} />
+      <Text style={[styles.vendorTitle, isMobile && styles.vendorTitleMobile]}>{source}</Text>
+    </View>
+  );
+}
+
+function SearchPanel({
   source,
+  state,
   now,
+  teamAccount,
 }: {
-  state: SourceState<SearchTotals>;
   source: 'Google' | 'Bing';
+  state: SourceState<SearchTotals>;
   now: number;
+  teamAccount: boolean;
+}) {
+  if (state.kind === 'unavailable') {
+    const sourceName = source === 'Google' ? 'Google Search Console' : 'Bing Webmaster Tools';
+    return (
+      <Panel>
+        <VendorHeading source={source} />
+        <View style={styles.unavailableRow}>
+          <InformationIcon />
+          <Text accessibilityLiveRegion="polite" style={styles.unavailableText}>
+            Search discovery from {source} is temporarily unavailable
+          </Text>
+        </View>
+        <Text style={styles.source}>
+          {sourceName} · Checked {ageText(state.checkedAt, now)}
+        </Text>
+      </Panel>
+    );
+  }
+  if (state.kind === 'loading') {
+    return (
+      <Panel busy>
+        <VendorHeading source={source} />
+        <LoadingBar wide />
+        <LoadingBar wide />
+        <LoadingBar />
+      </Panel>
+    );
+  }
+  const totals = state.totals;
+  const currentRate = clicksPerHundredValue(totals.clicks30d, totals.impressions30d);
+  const previousRate = clicksPerHundredValue(
+    totals.previousClicks30d,
+    totals.previousImpressions30d,
+  );
+  const sourceName = source === 'Google' ? 'Google Search Console' : 'Bing Webmaster Tools';
+  const dashboard = source === 'Google' ? STAFF_LINKS.google : STAFF_LINKS.bing;
+  return (
+    <Panel>
+      <VendorHeading source={source} />
+      <View style={styles.searchPair}>
+        <View style={styles.searchPairMetric}>
+          <Text style={styles.metricRowLabel}>Appearances</Text>
+          <Text style={styles.searchPairValue}>{formatNumber(totals.impressions30d)}</Text>
+        </View>
+        <View style={styles.searchPairMetric}>
+          <Text style={styles.metricRowLabel}>Clicks</Text>
+          <Text style={styles.searchPairValue}>{formatNumber(totals.clicks30d)}</Text>
+        </View>
+      </View>
+      <View style={styles.searchRate}>
+        <Text style={styles.searchRateValue}>{formatClicksPerHundred(currentRate)}</Text>
+        <Text style={styles.metricRowLabel}>clicks per 100 appearances</Text>
+      </View>
+      <Text style={styles.panelNote}>{searchComparisonText(currentRate, previousRate)}</Text>
+      <Text style={styles.source}>
+        {sourceName} · Through {formatDate(totals.periodEndedOn)}
+        {state.stale ? ` · Last accepted ${ageText(totals.fetchedAt, now)}` : ''}
+      </Text>
+      <StaleNote stale={state.stale} fetchedAt={totals.fetchedAt} now={now} />
+      <StaffLink href={dashboard} label={`OPEN ${sourceName.toUpperCase()}`} show={teamAccount} />
+    </Panel>
+  );
+}
+
+function AvailabilityPanel({
+  state,
+  now,
+  teamAccount,
+}: {
+  state: SourceState<UptimeTotals>;
+  now: number;
+  teamAccount: boolean;
 }) {
   if (state.kind === 'unavailable') {
     return (
-      <Unavailable
-        text={`${source} search data is temporarily unavailable.`}
-        source={source === 'Google' ? 'Google Search Console' : 'Bing Webmaster Tools'}
-      />
-    );
-  }
-  const loading = state.kind === 'loading';
-  const totals = state.kind === 'ready' ? state.totals : null;
-  const sourceName = source === 'Google' ? 'Google Search Console' : 'Bing Webmaster Tools';
-  const shownLabel = source === 'Google' ? 'Shown in Google results' : 'Shown in Bing results';
-  const visitsLabel =
-    source === 'Google' ? 'Visits from Google results' : 'Visits from Bing results';
-
-  return (
-    <>
-      <View accessibilityLiveRegion="polite">
-        <CardRow>
-          <Card period="28 FINALIZED DAYS">
-            {loading ? (
-              <LoadingMetric label={shownLabel} />
-            ) : (
-              <Metric
-                label={shownLabel}
-                value={totals?.impressions28d ?? 0}
-                description={exactChange(
-                  totals?.impressions28d ?? 0,
-                  totals?.previousImpressions28d ?? 0,
-                )}
-              />
-            )}
-          </Card>
-          <Card period="28 FINALIZED DAYS">
-            {loading ? (
-              <LoadingMetric label={visitsLabel} />
-            ) : (
-              <Metric
-                label={visitsLabel}
-                value={totals?.clicks28d ?? 0}
-                description={exactChange(totals?.clicks28d ?? 0, totals?.previousClicks28d ?? 0)}
-              />
-            )}
-          </Card>
-        </CardRow>
-      </View>
-      {totals ? (
-        <View style={styles.sourceCluster}>
-          <Text style={styles.source}>
-            {sourceName} · Fetched {fetchedMinutesAgo(totals.fetchedAt, now)} minutes ago
-          </Text>
-          <Text style={styles.clarifier}>
-            Finalized dates: {formatDateRange(totals.periodStartedOn, totals.periodEndedOn)}.
-          </Text>
-        </View>
-      ) : null}
-    </>
-  );
-}
-
-function UptimeCards({ state, now }: { state: SourceState<UptimeTotals>; now: number }) {
-  if (state.kind === 'unavailable') {
-    return (
-      <Unavailable
+      <UnavailablePanel
+        title="CAN PEOPLE REACH ALETHICAL?"
         text="Availability data is temporarily unavailable."
-        source="Checked from North Virginia by Checkly"
+        source="Checkly"
+        checkedAt={state.checkedAt}
+        now={now}
+        mobileTreatment="closing"
       />
     );
   }
-  const loading = state.kind === 'loading';
-  const totals = state.kind === 'ready' ? state.totals : null;
-  const percent = (value: number) =>
-    `${value.toLocaleString('en-US', { maximumFractionDigits: 3 })}%`;
-
+  if (state.kind === 'loading') {
+    return (
+      <Panel busy mobileTreatment="closing">
+        <PanelTitle>CAN PEOPLE REACH ALETHICAL?</PanelTitle>
+        <LoadingBar wide />
+        <LoadingBar wide />
+        <LoadingBar wide />
+      </Panel>
+    );
+  }
+  const totals = state.totals;
   return (
-    <>
-      <View accessibilityLiveRegion="polite">
-        <CardRow>
-          <Card period="LAST 30 DAYS">
-            {loading ? (
-              <LoadingMetric label="Main website available" />
-            ) : (
-              <DisplayMetric
-                label="Main website available"
-                value={percent(totals?.websiteAvailability30d ?? 0)}
-                description="The home page answered the outside check."
-              />
-            )}
-          </Card>
-          <Card period="LAST 30 DAYS">
-            {loading ? (
-              <LoadingMetric label="Traffic page available" />
-            ) : (
-              <DisplayMetric
-                label="Traffic page available"
-                value={percent(totals?.trafficPageAvailability30d ?? 0)}
-                description="This public page answered the outside check."
-              />
-            )}
-          </Card>
-          <Card period="LAST 30 DAYS">
-            {loading ? (
-              <LoadingMetric label="Data service ready" />
-            ) : (
-              <DisplayMetric
-                label="Data service ready"
-                value={percent(totals?.apiAvailability30d ?? 0)}
-                description="The service and its database answered the outside check."
-              />
-            )}
-          </Card>
-        </CardRow>
-      </View>
-      {totals ? (
-        <Text style={styles.source}>
-          Checked from North Virginia by Checkly · Fetched{' '}
-          {fetchedMinutesAgo(totals.fetchedAt, now)} minutes ago
-        </Text>
+    <Panel mobileTreatment="closing">
+      <PanelTitle>CAN PEOPLE REACH ALETHICAL?</PanelTitle>
+      <MetricRow label="Homepage" value={percent(totals.websiteAvailability30d)} />
+      <MetricRow label="Site Metrics page" value={percent(totals.trafficPageAvailability30d)} />
+      <MetricRow label="Data service" value={percent(totals.apiAvailability30d)} last />
+      <Text style={styles.panelNote}>
+        Percentages show how often Alethical passed automatic checks.
+      </Text>
+      <Text style={styles.source}>
+        Checked by Checkly · Last 30 days
+        {state.stale ? ` · Last accepted ${ageText(totals.fetchedAt, now)}` : ''}
+      </Text>
+      {CHECKLY_PUBLIC_STATUS_URL ? (
+        <Pressable
+          {...externalLinkProps(CHECKLY_PUBLIC_STATUS_URL)}
+          style={styles.publicLinkTarget}
+        >
+          <View style={styles.publicLinkContent}>
+            <Text style={styles.publicLink}>See detailed availability</Text>
+            <LinkArrow color="#0f7a45" style={styles.publicLinkArrow} />
+          </View>
+        </Pressable>
       ) : null}
-    </>
+      <StaleNote stale={state.stale} fetchedAt={totals.fetchedAt} now={now} />
+      <StaffLink href={STAFF_LINKS.checkly} label="OPEN CHECKLY DASHBOARD" show={teamAccount} />
+    </Panel>
   );
 }
 
-function PerformanceCards({ state, now }: { state: SourceState<PerformanceTotals>; now: number }) {
+function PerformancePanel({
+  state,
+  now,
+  teamAccount,
+}: {
+  state: SourceState<PerformanceTotals>;
+  now: number;
+  teamAccount: boolean;
+}) {
+  const { isMobile } = useResponsive();
   if (state.kind === 'unavailable') {
     return (
-      <Unavailable
-        text="Page speed data is temporarily unavailable."
-        source="Measured by Cloudflare Web Analytics"
+      <UnavailablePanel
+        title="SPEED AND STABILITY DURING REAL VISITS"
+        text="Speed and stability data is temporarily unavailable."
+        source="Cloudflare"
+        checkedAt={state.checkedAt}
+        now={now}
+        mobileTreatment="closing"
       />
     );
   }
-  const loading = state.kind === 'loading';
-  const totals = state.kind === 'ready' ? state.totals : null;
-  const pending = 'Building sample';
-
+  if (state.kind === 'loading') {
+    return (
+      <Panel busy mobileTreatment="closing">
+        <PanelTitle>SPEED AND STABILITY DURING REAL VISITS</PanelTitle>
+        <LoadingBar wide />
+        <LoadingBar wide />
+        <LoadingBar wide />
+      </Panel>
+    );
+  }
+  const totals = state.totals;
+  const rows = [
+    {
+      label: 'Main content appears',
+      value:
+        totals.lcpP75Ms == null
+          ? 'Building sample'
+          : `${formatMeasure(totals.lcpP75Ms / 1000, 2)} s`,
+      verdict: speedVerdict('lcp', totals.lcpP75Ms),
+    },
+    {
+      label: 'Responds after an action',
+      value: totals.inpP75Ms == null ? 'Building sample' : `${formatNumber(totals.inpP75Ms)} ms`,
+      verdict: speedVerdict('inp', totals.inpP75Ms),
+    },
+    {
+      label: 'Layout stays still',
+      value: totals.clsP75 == null ? 'Building sample' : formatMeasure(totals.clsP75, 3),
+      verdict: speedVerdict('cls', totals.clsP75),
+    },
+  ];
+  const buildingSample = rows.some((row) => row.verdict == null);
   return (
-    <>
-      <View accessibilityLiveRegion="polite">
-        <CardRow>
-          <Card period="28 DAYS · SLOWEST 1 IN 4">
-            {loading ? (
-              <LoadingMetric label="Main content appeared" />
-            ) : (
-              <DisplayMetric
-                label="Main content appeared"
-                value={
-                  totals?.lcpP75Ms == null ? pending : `${(totals.lcpP75Ms / 1000).toFixed(2)} s`
-                }
-                description="Time until the main content was visible. Lower is better."
-              />
-            )}
-          </Card>
-          <Card period="28 DAYS · SLOWEST 1 IN 4">
-            {loading ? (
-              <LoadingMetric label="Page reacted" />
-            ) : (
-              <DisplayMetric
-                label="Page reacted"
-                value={totals?.inpP75Ms == null ? pending : `${formatNumber(totals.inpP75Ms)} ms`}
-                description="Time from a click or tap until the page reacted. Lower is better."
-              />
-            )}
-          </Card>
-          <Card period="28 DAYS · SLOWEST 1 IN 4">
-            {loading ? (
-              <LoadingMetric label="Page stayed still" />
-            ) : (
-              <DisplayMetric
-                label="Page stayed still"
-                value={totals?.clsP75 == null ? pending : totals.clsP75.toFixed(3)}
-                description="How much content moved unexpectedly while loading. Lower is better."
-              />
-            )}
-          </Card>
-        </CardRow>
-      </View>
-      {totals ? (
-        <View style={styles.sourceCluster}>
-          <Text style={styles.source}>
-            Cloudflare browser sample, Chromium only · Fetched{' '}
-            {fetchedMinutesAgo(totals.fetchedAt, now)} minutes ago
-          </Text>
-          <Text style={styles.clarifier}>
-            {formatDateRange(totals.periodStartedOn, totals.periodEndedOn)}. A score appears after
-            50 measured visits.
-          </Text>
+    <Panel mobileTreatment="closing">
+      <PanelTitle>SPEED AND STABILITY DURING REAL VISITS</PanelTitle>
+      {rows.map((row, index) => (
+        <View
+          key={row.label}
+          style={[styles.speedRow, index === rows.length - 1 && styles.metricRowLast]}
+        >
+          <Text style={styles.metricRowLabel}>{row.label}</Text>
+          <View style={[styles.speedResult, !isMobile && styles.speedResultDesktop]}>
+            <Text style={styles.speedValue}>{row.value}</Text>
+            {row.verdict ? (
+              <Text style={[styles.speedVerdict, !isMobile && styles.speedVerdictDesktop]}>
+                {row.verdict}
+              </Text>
+            ) : null}
+          </View>
         </View>
+      ))}
+      {buildingSample ? null : (
+        <Text style={styles.panelNote}>
+          At least 75% of measured visits performed this well or better.
+        </Text>
+      )}
+      {buildingSample ? (
+        <Text style={styles.panelNote}>Not enough real visits have been measured yet</Text>
       ) : null}
-    </>
+      <Text style={styles.source}>
+        Measured by Cloudflare · Last 30 days
+        {state.stale ? ` · Last accepted ${ageText(totals.fetchedAt, now)}` : ''}
+      </Text>
+      <StaleNote stale={state.stale} fetchedAt={totals.fetchedAt} now={now} />
+      <StaffLink
+        href={STAFF_LINKS.cloudflare}
+        label="OPEN CLOUDFLARE DASHBOARD"
+        show={teamAccount}
+      />
+    </Panel>
   );
 }
 
@@ -433,52 +991,167 @@ export function TrafficScreen() {
   const navigation = useNavigation<NavigationProp<RootStackParamList>>();
   const { isMobile } = useResponsive();
   const traffic = useTrafficSource('/api/traffic', isTrafficTotals);
-  const google = useTrafficSource('/api/traffic-google', isSearchTotals);
+  const records = useRecordTotals();
+  const google = useTrafficSource('/api/traffic-google?window=30', isSearchTotals);
   const bing = useTrafficSource('/api/traffic-bing', isSearchTotals);
   const uptime = useTrafficSource('/api/traffic-uptime', isUptimeTotals);
   const performance = useTrafficSource('/api/traffic-performance', isPerformanceTotals);
+  const teamAccount = useTeamAccount();
+  const [range, setRange] = useState<ActivityRange>(initialActivityRange);
   const [now, setNow] = useState(Date.now());
-  useDocumentTitle('/site-metrics', 'Site metrics | Alethical');
+  useDocumentTitle('/site-metrics', 'Site Metrics | Alethical');
 
   useEffect(() => {
     const clock = setInterval(() => setNow(Date.now()), MINUTE_MS);
     return () => clearInterval(clock);
   }, []);
 
+  const selectRange = (next: ActivityRange) => {
+    setRange(next);
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      url.searchParams.set('range', String(next));
+      window.history.replaceState(window.history.state, '', url);
+    }
+  };
+
+  const breakdown =
+    traffic.kind === 'ready'
+      ? range === 7
+        ? traffic.totals.trafficBreakdown7d
+        : traffic.totals.trafficBreakdown30d
+      : null;
+  const actions =
+    records.kind === 'ready'
+      ? range === 7
+        ? records.totals.actions7d
+        : records.totals.actions30d
+      : null;
+  const loading = [traffic, records, google, bing, uptime, performance].some(
+    (state) => state.kind === 'loading',
+  );
+
   return (
     <PageBackground>
       <ScrollView contentContainerStyle={styles.page}>
         <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
-        <Container style={[styles.main, isMobile && styles.mainMobile]}>
+        <Container aria-busy={loading} style={[styles.main, isMobile && styles.mainMobile]}>
+          {loading ? (
+            <Text accessibilityLiveRegion="polite" style={styles.visuallyHidden}>
+              Loading site metrics.
+            </Text>
+          ) : null}
           <Text
             accessibilityRole="header"
             aria-level={1}
             style={[styles.title, isMobile && styles.titleMobile]}
           >
-            Site metrics
+            Site Metrics
           </Text>
-          <Text style={styles.purpose}>Public totals about how Alethical is used</Text>
+          <Text style={styles.purpose}>
+            How people find and use Alethical, and how well the site works
+          </Text>
 
-          <View style={styles.totalsRegion}>
-            <TrafficCards state={traffic} now={now} />
+          <View style={styles.sectionBlock}>
+            <SectionTitle>Recent traffic</SectionTitle>
+            <RecentTraffic state={traffic} now={now} teamAccount={teamAccount} />
           </View>
 
-          <View style={styles.section}>
-            <SectionTitle>Found in search</SectionTitle>
-            <Text style={styles.vendorTitle}>Google</Text>
-            <SearchCards state={google} source="Google" now={now} />
-            <Text style={[styles.vendorTitle, styles.vendorTitleSpaced]}>Bing</Text>
-            <SearchCards state={bing} source="Bing" now={now} />
+          <View style={styles.sectionRule} />
+          <View role="group" aria-label="Activity range" style={styles.rangeGroup}>
+            <Text style={styles.rangeLabel}>Activity range</Text>
+            <View style={[styles.rangeButtonsShell, isMobile && styles.rangeButtonsShellMobile]}>
+              <View style={[styles.rangeButtons, isMobile && styles.rangeButtonsMobile]}>
+                {[7, 30].map((value) => {
+                  const selected = range === value;
+                  return (
+                    <Pressable
+                      key={value}
+                      accessibilityRole="button"
+                      aria-pressed={selected}
+                      onPress={() => selectRange(value as ActivityRange)}
+                      style={[
+                        styles.rangeButton,
+                        isMobile && styles.rangeButtonMobile,
+                        selected && styles.rangeButtonSelected,
+                      ]}
+                    >
+                      <Text
+                        style={[styles.rangeButtonText, selected && styles.rangeButtonTextSelected]}
+                      >
+                        Last {value} days
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+            <Text accessibilityLiveRegion="polite" style={styles.visuallyHidden}>
+              Showing the last {range} days
+            </Text>
           </View>
 
-          <View style={styles.section}>
-            <SectionTitle>Can people reach Alethical?</SectionTitle>
-            <UptimeCards state={uptime} now={now} />
+          <View style={[styles.activityGrid, isMobile && styles.singleColumn]}>
+            <View style={!isMobile ? styles.destinationCell : undefined}>
+              {breakdown ? (
+                <DestinationPanel breakdown={breakdown} />
+              ) : (
+                <ActivityStatusPanel
+                  title="WHERE PEOPLE GO"
+                  loading={traffic.kind === 'loading'}
+                  unavailableText="Destination totals are temporarily unavailable."
+                />
+              )}
+            </View>
+            <View style={!isMobile ? styles.exploreCell : undefined}>
+              {breakdown ? (
+                <ExplorePanel breakdown={breakdown} />
+              ) : (
+                <ActivityStatusPanel
+                  title="WHAT PEOPLE EXPLORE"
+                  loading={traffic.kind === 'loading'}
+                  unavailableText="Profile totals are temporarily unavailable."
+                />
+              )}
+            </View>
+            <View style={!isMobile ? styles.actionsCell : undefined}>
+              {actions ? (
+                <ActionsPanel actions={actions} />
+              ) : (
+                <ActivityStatusPanel
+                  title="WHAT PEOPLE DO"
+                  loading={records.kind === 'loading'}
+                  unavailableText="Recorded actions are temporarily unavailable."
+                />
+              )}
+            </View>
+            <View style={!isMobile ? styles.readersCell : undefined}>
+              {records.kind === 'ready' ? (
+                <ReadersPanel totals={records.totals.readers} />
+              ) : (
+                <ActivityStatusPanel
+                  title="READERS"
+                  loading={records.kind === 'loading'}
+                  unavailableText="Reader totals are temporarily unavailable."
+                />
+              )}
+            </View>
+          </View>
+          {records.kind === 'ready' ? (
+            <StaleNote stale={records.stale} fetchedAt={records.totals.fetchedAt} now={now} />
+          ) : null}
+
+          <View style={styles.sectionRule} />
+          <SectionTitle>Found in search · Last 30 days</SectionTitle>
+          <View style={[styles.pairedGrid, isMobile && styles.singleColumn]}>
+            <SearchPanel source="Google" state={google} now={now} teamAccount={teamAccount} />
+            <SearchPanel source="Bing" state={bing} now={now} teamAccount={teamAccount} />
           </View>
 
-          <View style={styles.section}>
-            <SectionTitle>Speed during real visits</SectionTitle>
-            <PerformanceCards state={performance} now={now} />
+          <View style={styles.sectionRule} />
+          <View style={[styles.pairedGrid, isMobile && styles.singleColumn]}>
+            <AvailabilityPanel state={uptime} now={now} teamAccount={teamAccount} />
+            <PerformancePanel state={performance} now={now} teamAccount={teamAccount} />
           </View>
         </Container>
         <Footer
@@ -502,126 +1175,447 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: -1.1,
   },
-  titleMobile: { fontSize: 36, lineHeight: 40, letterSpacing: -0.8 },
+  titleMobile: { fontSize: 32, lineHeight: 38, letterSpacing: -0.8 },
   purpose: {
     marginTop: 14,
-    color: theme.colors.mutedInk,
+    color: '#4f5651',
     fontFamily: theme.typography.body,
     fontSize: 18,
     lineHeight: 28,
   },
-  totalsRegion: { marginTop: 40 },
-  section: { marginTop: 42 },
+  sectionBlock: { marginTop: 40 },
   sectionTitle: {
-    marginBottom: 18,
-    color: theme.colors.ink,
-    fontFamily: theme.typography.title,
-    fontSize: 25,
-    lineHeight: 32,
-    fontWeight: '800',
-    letterSpacing: -0.35,
-  },
-  vendorTitle: {
-    marginBottom: 10,
-    color: theme.colors.mutedInk,
-    fontFamily: theme.typography.ui,
-    fontSize: 15,
-    lineHeight: 22,
-    fontWeight: '700',
-  },
-  vendorTitleSpaced: { marginTop: 26 },
-  cards: { flexDirection: 'row', gap: 16 },
-  cardsMobile: { gap: 16 },
-  card: {
-    flex: 1,
-    minWidth: 0,
-    backgroundColor: theme.colors.surface,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: 16,
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 22,
-    shadowColor: theme.colors.ink,
-    shadowOpacity: 0.04,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 6 },
-  },
-  period: {
-    marginBottom: 8,
-    color: theme.colors.text.muted,
+    marginBottom: 16,
+    color: '#6f756f',
     fontFamily: theme.typography.mono,
     fontSize: 11,
     lineHeight: 16,
     fontWeight: '700',
-    letterSpacing: 1.3,
+    letterSpacing: 1.32,
+    textTransform: 'uppercase',
   },
-  metric: { flex: 1, minWidth: 0 },
-  metricLabel: {
-    color: theme.colors.ink,
+  sectionRule: {
+    height: 1,
+    marginTop: 40,
+    marginBottom: 30,
+    backgroundColor: 'rgba(17,21,15,0.1)',
+  },
+  recentGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
+  recentCard: {
+    flexGrow: 1,
+    flexBasis: 260,
+    minWidth: 0,
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: 'rgba(17,21,15,0.1)',
+    borderRadius: 16,
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 22,
+    boxShadow: '0 6px 18px rgba(17, 21, 15, 0.04)',
+  },
+  recentCardMobile: {
+    flexBasis: '100%',
+    borderRadius: 14,
+    paddingHorizontal: 18,
+    paddingTop: 16,
+    paddingBottom: 18,
+    boxShadow: '0 4px 14px rgba(17, 21, 15, 0.04)',
+  },
+  eyebrow: {
+    color: '#6f756f',
+    fontFamily: theme.typography.mono,
+    fontSize: 11,
+    lineHeight: 16,
+    fontWeight: '700',
+    letterSpacing: 1.32,
+  },
+  recentLabel: {
+    marginTop: 14,
+    color: '#4f5651',
     fontFamily: theme.typography.ui,
-    fontSize: 17,
-    lineHeight: 22,
-    fontWeight: '800',
-    letterSpacing: -0.15,
+    fontSize: 15,
+    lineHeight: 21,
+    fontWeight: '700',
   },
-  valueBox: { height: 46, justifyContent: 'center', marginTop: 8 },
-  value: {
-    color: theme.colors.brand.display,
+  recentLabelMobile: { marginTop: 0, fontSize: 14, lineHeight: 20 },
+  recentValue: {
+    marginTop: 5,
+    color: '#149d5b',
     fontFamily: theme.typography.ui,
     fontSize: 40,
-    lineHeight: 40,
+    lineHeight: 44,
     fontWeight: '800',
     letterSpacing: -1,
     fontVariant: ['tabular-nums'],
   },
-  metricDescription: {
+  recentDivider: { height: 1, marginTop: 12, backgroundColor: 'rgba(17,21,15,0.08)' },
+  note: {
     marginTop: 8,
-    color: theme.colors.mutedInk,
+    color: '#4f5651',
     fontFamily: theme.typography.body,
     fontSize: 14.5,
     lineHeight: 22,
   },
-  loadingBar: { width: 84, height: 24, borderRadius: 7, backgroundColor: theme.colors.surfaceAlt },
-  visuallyHidden: { position: 'absolute', width: 1, height: 1, opacity: 0 },
-  unavailable: {
-    minHeight: 118,
-    justifyContent: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 26,
-    backgroundColor: theme.colors.surfaceAlt,
-    borderWidth: 1,
-    borderColor: theme.colors.border,
-    borderRadius: 14,
+  sourceCluster: { marginTop: 18, paddingLeft: 16 },
+  recentSourceRow: {
+    minHeight: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
   },
-  unavailableText: {
-    color: theme.colors.ink,
-    fontFamily: theme.typography.ui,
-    fontSize: 16,
-    lineHeight: 23,
-    fontWeight: '600',
+  sourceInline: {
+    flexShrink: 1,
+    color: '#4f5651',
+    fontFamily: theme.typography.mono,
+    fontSize: 12,
+    lineHeight: 19,
+    fontWeight: '500',
   },
-  sourceCluster: { marginTop: 12, paddingLeft: 17 },
   source: {
-    marginTop: 12,
-    color: theme.colors.mutedInk,
+    marginTop: 10,
+    color: '#6f756f',
     fontFamily: theme.typography.mono,
     fontSize: 12,
     lineHeight: 18,
     fontWeight: '500',
   },
   collecting: {
+    marginLeft: 'auto',
+    color: '#8f5a12',
+    fontFamily: theme.typography.body,
+    fontSize: 13.5,
+    lineHeight: 20,
+  },
+  collectingDetail: {
+    marginTop: 7,
+    color: '#8f5a12',
+    fontFamily: theme.typography.body,
+    fontSize: 13.5,
+    lineHeight: 20,
+  },
+  staleText: {
+    marginTop: 7,
+    color: '#8f5a12',
+    fontFamily: theme.typography.body,
+    fontSize: 13.5,
+    lineHeight: 20,
+  },
+  rangeGroup: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 14 },
+  rangeLabel: {
+    color: '#11150f',
+    fontFamily: theme.typography.ui,
+    fontSize: 15,
+    lineHeight: 21,
+    fontWeight: '700',
+  },
+  rangeButtonsShell: {
+    padding: 3,
+    backgroundColor: '#f1f3f2',
+    borderWidth: 1,
+    borderColor: 'rgba(17,21,15,0.1)',
+    borderRadius: 11,
+  },
+  rangeButtonsShellMobile: { width: '100%', marginTop: 9 },
+  rangeButtons: { flexDirection: 'row', gap: 3, alignSelf: 'flex-start' },
+  rangeButtonsMobile: { width: '100%' },
+  rangeButton: {
+    minHeight: 40,
+    minWidth: 132,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 18,
+    borderWidth: 0,
+    borderRadius: 9,
+    backgroundColor: 'transparent',
+  },
+  rangeButtonMobile: { minHeight: 44, flex: 1 },
+  rangeButtonSelected: { backgroundColor: '#ffffff' },
+  rangeButtonText: {
+    color: '#2c322c',
+    fontFamily: theme.typography.ui,
+    fontSize: 14.5,
+    lineHeight: 20,
+    fontWeight: '700',
+  },
+  rangeButtonTextSelected: { color: '#11150f' },
+  activityGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
+    gap: 16,
+    marginTop: 24,
+    alignItems: 'stretch',
+  } as never,
+  destinationCell: { gridColumn: 1, gridRow: 1 } as never,
+  exploreCell: { gridColumn: 1, gridRow: 2 } as never,
+  actionsCell: { gridColumn: 2, gridRow: 1 } as never,
+  readersCell: { gridColumn: 2, gridRow: 2 } as never,
+  pairedGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
+    gap: 16,
+    alignItems: 'stretch',
+  } as never,
+  singleColumn: { display: 'flex', gap: 14 },
+  panel: {
+    flex: 1,
+    minWidth: 0,
+    backgroundColor: '#fbfcfb',
+    borderWidth: 1,
+    borderColor: 'rgba(17,21,15,0.09)',
+    borderRadius: 14,
+    paddingHorizontal: 20,
+    paddingTop: 18,
+    paddingBottom: 21,
+  },
+  panelCardMobile: {
+    borderRadius: 13,
+    paddingHorizontal: 16,
+    paddingTop: 15,
+    paddingBottom: 17,
+  },
+  panelClosingMobile: {
+    borderWidth: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(17,21,15,0.1)',
+    borderRadius: 0,
+    paddingHorizontal: 0,
+    paddingTop: 0,
+    paddingBottom: 24,
+    backgroundColor: 'transparent',
+    boxShadow: 'none',
+  },
+  plainRows: { marginTop: 8, paddingHorizontal: 14 },
+  metricRow: {
+    minHeight: 47,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(17,21,15,0.07)',
+  },
+  metricRowLast: { borderBottomWidth: 0 },
+  metricRowCompactMobile: { minHeight: 0, borderBottomWidth: 0, marginTop: 13 },
+  metricRowLabel: {
+    flexShrink: 1,
+    color: '#2c322c',
+    fontFamily: theme.typography.body,
+    fontSize: 14.5,
+    lineHeight: 21,
+  },
+  metricRowValue: {
+    color: '#11150f',
+    fontFamily: theme.typography.ui,
+    fontSize: 20,
+    lineHeight: 24,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
+  panelNote: {
     marginTop: 10,
-    color: theme.colors.mutedInk,
+    color: '#4f5651',
     fontFamily: theme.typography.body,
     fontSize: 13.5,
     lineHeight: 20,
   },
-  clarifier: {
-    marginTop: 6,
-    color: theme.colors.text.muted,
+  destinationRows: { marginTop: 18, gap: 15 },
+  destinationOuter: { paddingLeft: 14 },
+  destinationGroup: {
+    gap: 12,
+    paddingLeft: 12,
+    borderLeftWidth: 2,
+    borderLeftColor: '#dfe5e1',
+  },
+  destinationRowLine: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  destinationName: { width: 138, flexGrow: 0, flexShrink: 0 },
+  destinationNameMobile: { width: 118, fontSize: 13.5, lineHeight: 18 },
+  destinationPercent: {
+    width: 38,
+    flexGrow: 0,
+    flexShrink: 0,
+    textAlign: 'right',
+    color: '#11150f',
+    fontFamily: theme.typography.ui,
+    fontSize: 14.5,
+    lineHeight: 21,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
+  destinationPercentMobile: { width: 34, fontSize: 13, lineHeight: 18 },
+  barTrack: {
+    flex: 1,
+    height: 12,
+    overflow: 'hidden',
+    borderRadius: 3,
+    backgroundColor: '#e4e9e5',
+  },
+  barTrackMobile: { height: 9, borderRadius: 5 },
+  barFill: { height: '100%', borderRadius: 6, backgroundColor: '#149d5b' },
+  zeroText: {
+    marginTop: 14,
+    paddingHorizontal: 12,
+    color: '#2c322c',
+    fontFamily: theme.typography.body,
+    fontSize: 14.5,
+    lineHeight: 22,
+  },
+  tableHeader: {
+    minHeight: 42,
+    marginTop: 8,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(17,21,15,0.1)',
+  },
+  tableLabel: {
+    flex: 1,
+    paddingBottom: 8,
+    color: '#6f756f',
+    fontFamily: theme.typography.mono,
+    fontSize: 10.5,
+    lineHeight: 15,
+    fontWeight: '700',
+    textAlign: 'right',
+  },
+  tableName: { textAlign: 'left' },
+  tableBlankHeader: { flex: 1, paddingBottom: 8 },
+  tableRow: {
+    minHeight: 52,
+    paddingHorizontal: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(17,21,15,0.07)',
+  },
+  tableValue: {
+    flex: 1,
+    color: '#11150f',
+    fontFamily: theme.typography.ui,
+    fontSize: 22,
+    lineHeight: 26,
+    fontWeight: '800',
+    textAlign: 'right',
+    fontVariant: ['tabular-nums'],
+  },
+  vendorHeading: { flexDirection: 'row', alignItems: 'center', gap: 9 },
+  vendorTitle: {
+    color: '#11150f',
+    fontFamily: theme.typography.ui,
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: '800',
+  },
+  vendorTitleMobile: { fontSize: 14.5, lineHeight: 19 },
+  searchPair: { marginTop: 10, flexDirection: 'row', gap: 32 },
+  searchPairMetric: { minWidth: 0, flexShrink: 1 },
+  searchPairValue: {
+    marginTop: 4,
+    color: '#11150f',
+    fontFamily: theme.typography.ui,
+    fontSize: 24,
+    lineHeight: 28,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
+  searchRate: {
+    minHeight: 54,
+    marginTop: 4,
+    paddingTop: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    gap: 8,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(17,21,15,0.1)',
+  },
+  searchRateValue: {
+    color: '#11150f',
+    fontFamily: theme.typography.ui,
+    fontSize: 16,
+    lineHeight: 21,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
+  speedRow: {
+    minHeight: 64,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(17,21,15,0.07)',
+  },
+  speedResult: { alignItems: 'flex-end', flexShrink: 0 },
+  speedResultDesktop: { flexDirection: 'row-reverse', alignItems: 'baseline', gap: 12 },
+  speedVerdict: {
+    color: '#11150f',
     fontFamily: theme.typography.body,
     fontSize: 13.5,
-    lineHeight: 20,
+    lineHeight: 18,
+    fontWeight: '700',
   },
+  speedVerdictDesktop: { minWidth: 126, textAlign: 'right' },
+  speedValue: {
+    color: '#11150f',
+    fontFamily: theme.typography.ui,
+    fontSize: 18,
+    lineHeight: 23,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
+  publicLinkTarget: { minHeight: 44, alignSelf: 'flex-start', justifyContent: 'center' },
+  publicLinkContent: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  publicLinkArrow: { width: 16, height: 16, top: 0 },
+  publicLink: {
+    color: '#0f7a45',
+    fontFamily: theme.typography.ui,
+    fontSize: 14.5,
+    lineHeight: 20,
+    fontWeight: '700',
+  },
+  staffLinkTarget: { minHeight: 44, alignSelf: 'flex-start', justifyContent: 'center' },
+  staffLinkContent: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  staffLinkArrow: { width: 14, height: 14, top: 0 },
+  staffLink: {
+    color: '#5b30d6',
+    fontFamily: theme.typography.mono,
+    fontSize: 11,
+    lineHeight: 16,
+    fontWeight: '700',
+    letterSpacing: 0.8,
+  },
+  unavailableText: {
+    flex: 1,
+    color: '#11150f',
+    fontFamily: theme.typography.ui,
+    fontSize: 16,
+    lineHeight: 23,
+    fontWeight: '600',
+  },
+  unavailableRow: {
+    minHeight: 92,
+    marginTop: 14,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 11,
+  },
+  infoIcon: { marginTop: 1, flexShrink: 0 },
+  recentMetric: { minWidth: 0 },
+  recentMetricRowMobile: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    gap: 16,
+  },
+  recentMetricRight: { minWidth: 0, alignItems: 'flex-end' },
+  recentValueMobile: { fontSize: 33, lineHeight: 40 },
+  loadingBar: { width: 72, height: 18, marginTop: 16, borderRadius: 6, backgroundColor: '#e8ebe9' },
+  loadingBarWide: { width: 110, height: 22 },
+  visuallyHidden: { position: 'absolute', width: 1, height: 1, opacity: 0 },
 });

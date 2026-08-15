@@ -4,11 +4,33 @@ import {
   formatTrafficWindowEnd,
   isPerformanceTotals,
   isSearchTotals,
+  isSiteMetricRecordTotals,
+  isTrafficTotals,
   isUptimeTotals,
   redactTrafficUrl,
 } from '../traffic';
 
 describe('traffic display formatting and address redaction', () => {
+  const trafficBreakdown = {
+    destinationPageViews: {
+      home: 1,
+      billSearch: 2,
+      billProfiles: 3,
+      legislatorSearch: 4,
+      legislatorProfiles: 5,
+      findMyLegislator: 6,
+      other: 7,
+    },
+    billProfiles: {
+      pageViews: 3,
+      differentProfilesViewed: { count: 2, capped: false, cap: 100 },
+    },
+    legislatorProfiles: {
+      pageViews: 5,
+      differentProfilesViewed: { count: 2, capped: false, cap: 100 },
+    },
+  };
+
   it('removes everything after the page path before a view is sent', () => {
     expect(redactTrafficUrl('https://www.alethical.com/ask?q=private#answer')).toBe(
       'https://www.alethical.com/ask',
@@ -23,12 +45,54 @@ describe('traffic display formatting and address redaction', () => {
     expect(formatTrafficWindowEnd('2026-12-15T13:00:00.000Z')).toBe('7:00 AM CT');
   });
 
+  it('accepts the full privacy-safe reach and exploration answer only', () => {
+    const safe = {
+      pageViews24h: 8,
+      pageViews7d: 20,
+      pageViews30d: 40,
+      estimatedVisitors24h: 4,
+      estimatedVisitors7d: 10,
+      estimatedVisitors30d: 18,
+      trafficBreakdown7d: trafficBreakdown,
+      trafficBreakdown30d: trafficBreakdown,
+      fetchedAt: '2026-08-15T12:00:00.000Z',
+      windowEndedAt: '2026-08-15T12:00:00.000Z',
+      countingStartedAt: '2026-08-03T00:00:00.000Z',
+      teamExclusionConfigured: true,
+    };
+    expect(isTrafficTotals(safe)).toBe(true);
+    expect(isTrafficTotals({ ...safe, paths: ['/private'] })).toBe(false);
+  });
+
+  it('accepts only fixed anonymous actions and current reader totals', () => {
+    const actions = {
+      billSearchesWithResults: 1,
+      legislatorSearchesWithResults: 2,
+      findMyLegislatorWithResults: 3,
+      officialSourceLinksOpened: 4,
+      newBillWatches: 5,
+    };
+    const safe = {
+      actions7d: actions,
+      actions30d: actions,
+      readers: {
+        registeredReaders: 6,
+        currentBillWatches: 7,
+        differentBillsCurrentlyWatched: 8,
+      },
+      fetchedAt: '2026-08-15T12:00:00.000Z',
+      teamExclusionConfigured: false,
+    };
+    expect(isSiteMetricRecordTotals(safe)).toBe(true);
+    expect(isSiteMetricRecordTotals({ ...safe, accountIds: ['private'] })).toBe(false);
+  });
+
   it('accepts only safe combined search totals', () => {
     const safe = {
-      clicks28d: 3,
-      impressions28d: 40,
-      previousClicks28d: 1,
-      previousImpressions28d: 20,
+      clicks30d: 3,
+      impressions30d: 40,
+      previousClicks30d: 1,
+      previousImpressions30d: 20,
       periodStartedOn: '2026-07-16',
       periodEndedOn: '2026-08-12',
       previousPeriodStartedOn: '2026-06-18',
@@ -36,6 +100,8 @@ describe('traffic display formatting and address redaction', () => {
       fetchedAt: '2026-08-15T12:00:00.000Z',
     };
     expect(isSearchTotals(safe)).toBe(true);
+    expect(isSearchTotals({ ...safe, clicks30d: 3.5 })).toBe(true);
+    expect(isSearchTotals({ ...safe, clicks30d: Number.NaN })).toBe(false);
     expect(isSearchTotals({ ...safe, queries: ['private words'] })).toBe(false);
   });
 
