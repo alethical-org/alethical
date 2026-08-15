@@ -209,8 +209,8 @@ export function TrafficScreen() {
             Traffic
           </Text>
           <Text style={styles.purpose}>
-            Real numbers about how Alethical is used, from a named source, with nothing shown about
-            any individual reader.
+            Real numbers about how Alethical is used, with nothing shown about any individual
+            reader.
           </Text>
 
           <View style={styles.totalsRegion}>
@@ -271,7 +271,6 @@ const styles = StyleSheet.create({
   },
   titleMobile: { fontSize: 36, lineHeight: 40, letterSpacing: -0.8 },
   purpose: {
-    maxWidth: 720,
     marginTop: 14,
     color: theme.colors.mutedInk,
     fontFamily: theme.typography.body,
