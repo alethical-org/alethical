@@ -1022,7 +1022,7 @@ export function Footer({
             </View>
             <View style={[styles.footerLinks, isMobile && styles.footerLinksMobile]}>
               <FooterLink
-                label="Contact us"
+                label="Contact Us"
                 href={routePath.contactUs()}
                 onPress={onContact ?? (() => navigation.navigate('ContactUs'))}
                 mobile={isMobile}
