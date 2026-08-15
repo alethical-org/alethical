@@ -96,7 +96,7 @@ format:
 
 lint:
   uvx ruff@0.15.0 check alethical scripts
-  uvx ty@0.0.63 check alethical/db
+  uvx ty@0.0.72 check alethical/db
   pnpm install --frozen-lockfile
   pnpm --dir apps/frontend exec tsc --noEmit
 

@@ -32,6 +32,9 @@ updates:
       interval: monthly
     groups:
       workflow-actions:
+        update-types:
+          - "minor"
+          - "patch"
         patterns:
           - "*"
       workflow-actions-security:
@@ -53,6 +56,9 @@ updates:
       interval: monthly
     groups:
       python-dependencies:
+        update-types:
+          - "minor"
+          - "patch"
         patterns:
           - "*"
       python-security:
@@ -130,6 +136,9 @@ updates:
           - "version-update:semver-minor"
     groups:
       javascript-dependencies:
+        update-types:
+          - "minor"
+          - "patch"
         patterns:
           - "*"
       javascript-security:
@@ -141,3 +150,47 @@ updates:
       prefix: chore
     labels:
       - frontend
+
+  # Container images sit outside Python and JavaScript package files. Without
+  # these 2 entries, their security and support updates stay invisible.
+  - package-ecosystem: docker
+    directory: "/"
+    schedule:
+      interval: monthly
+    groups:
+      container-images:
+        update-types:
+          - "minor"
+          - "patch"
+        patterns:
+          - "*"
+      container-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: chore
+    labels:
+      - dependencies
+
+  - package-ecosystem: docker-compose
+    directory: "/"
+    schedule:
+      interval: monthly
+    groups:
+      compose-images:
+        update-types:
+          - "minor"
+          - "patch"
+        patterns:
+          - "*"
+      compose-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+    open-pull-requests-limit: 2
+    commit-message:
+      prefix: chore
+    labels:
+      - dependencies

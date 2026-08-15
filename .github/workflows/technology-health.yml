@@ -1,0 +1,49 @@
+name: Review technology health
+
+# Free monthly backstop for the parts a normal package update cannot judge:
+# duplicated version pins, untracked command-line tools, support deadlines, and
+# the 3-month decision about major releases or useful new capabilities.
+on:
+  schedule:
+    - cron: "17 13 1 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PIP_AUDIT_VERSION: "2.10.1"
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          enable-cache: true
+          prune-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version-file: ".python-version"
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 10.33.0
+
+      - name: Set up Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+
+      - name: Review versions, support, and known security problems
+        run: >
+          python scripts/check_technology_health.py --online
+          --report "$GITHUB_STEP_SUMMARY"
