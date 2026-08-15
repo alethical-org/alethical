@@ -45,13 +45,46 @@ brief must contain **no implementation detail**: no file names, no diff summary,
 - the target host (see below) and the reporting format.
 
 Report format the brief must ask for: for each problem — what the tester was trying to
-do, what happened instead, the exact URL, how bad it is (blocks the task / confusing /
-cosmetic), and what a fix would look like from the user's side. Plus a one-line verdict
-per story: passed / failed / passed-with-friction.
+do, what happened instead, the exact URL for an ordinary page, how bad it is (blocks the
+task / confusing / cosmetic), and what a fix would look like from the user's side. An
+authentication return never includes an exact URL; use the safe report below. Plus a
+one-line verdict per story: passed / failed / passed-with-friction.
 
 **Judging correctness:** an honest "no matches" or a refusal to answer is CORRECT
 behavior when the data isn't there (`.claude/rules/grounded-answers.md` rule 1) — the
 tester reports it as friction only if a real user would be misled, not as a bug per se.
+
+## Sign-in safety hard line
+
+- **A redirect allow-list check never completes sign-in.** Read the saved Supabase
+  redirect list, or stop at the Google provider page before selecting an account. A
+  successful OAuth return proves more than the allow-list and creates a real session,
+  so it is the wrong test.
+- **A real sign-in check proves the browser identity first.** Continue only in a fresh
+  isolated browser profile with no signed-in Google account, or after the account chooser
+  visibly names the saved Alethical test account (`alethicaldev@gmail.com`). Stop before
+  selecting an account when neither fact can be proved. Never use a personal account.
+- **The full authentication return address never enters task or tool output.** Do not ask
+  a browser tool for the current URL after sign-in. Do not print, copy, paste, save, or
+  type its query or fragment into a command. Cleaning it after retrieval is too late.
+  Only clearly fake callback values inside the focused automated tests are exempt.
+- **Code-driven browser checks report through the tested helper.** Import
+  `safeAuthCallbackReport` from
+  `apps/frontend/scripts/safe-auth-callback-report.mjs`, call it on the address in memory,
+  and log only its result. It returns the origin, path, and booleans for private fields in
+  the query and fragment. It recognizes `access_token`, `refresh_token`, `provider_token`,
+  `provider_refresh_token`, `id_token`, `token_hash`, `token`, `code`, `code_verifier`,
+  `state`, `nonce`, `otp`, `device_code`, `user_code`, `session_state`, and similarly
+  named one-use values. It never returns any query, fragment, field name, or field value.
+- **Interactive browser control computes the same 4-field report inside the page.** If
+  the browser control cannot run page code without first returning the full address, stop
+  before the callback. The inability to report a callback safely is a failed test, not a
+  reason to expose it.
+
+[Issue 1600, Prevent browser sign-in tokens from entering task output](https://github.com/alethical-org/alethical/issues/1600)
+records why this is a hard line: on 2026-08-15, a redirect-list check completed Google
+OAuth in a browser that was already signed into a personal account, then the browser tool
+printed the full return address. No credential from that incident belongs in this file.
 
 ## Target hosts
 
