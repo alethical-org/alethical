@@ -20,6 +20,9 @@ the newest major release is never automatic.
   tool reviews.
 - The monthly technology check reads public package lists and runs on GitHub's free
   standard computer. It uses no AI, paid API, or larger paid computer.
+- Every GitHub job that installs `uv` saves 0.12.5, the release that passed the first
+  live technology check. The monthly check rejects a missing or different saved
+  version, and reports newer `uv` releases under the same monthly policy as other tools.
 
 ## What checks each development Mac
 

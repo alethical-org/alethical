@@ -239,7 +239,7 @@ and it was caught by someone reading a warning in a run log.
 
 `.github/dependabot.yml` now checks monthly and opens one grouped PR per
 ecosystem — the workflow steps (labeled `ci`), Python dependencies (`backend`),
-JavaScript dependencies (`frontend`), and container images (`ops`). Small updates
+JavaScript dependencies (`frontend`), and container images (`dependencies`). Small updates
 are grouped; major updates arrive separately so one large compatibility change
 cannot block safer updates. It only opens PRs — normal CI still gates them. When
 one arrives:
