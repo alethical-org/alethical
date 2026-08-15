@@ -30,6 +30,17 @@ function formatDate(iso: string) {
   }).format(new Date(iso));
 }
 
+function formatWindowEnd(iso: string) {
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'long',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone: 'UTC',
+    timeZoneName: 'short',
+  }).format(new Date(iso));
+}
+
 function fetchedMinutesAgo(fetchedAt: string, now: number) {
   return Math.max(0, Math.floor((now - Date.parse(fetchedAt)) / MINUTE_MS));
 }
@@ -70,12 +81,12 @@ function LoadingMetric({ label }: { label: string }) {
   );
 }
 
-function Card({ children, style }: { children: React.ReactNode; style?: object }) {
-  return <View style={[styles.card, style]}>{children}</View>;
+function Card({ children }: { children: React.ReactNode }) {
+  return <View style={styles.card}>{children}</View>;
 }
 
 function TrafficCards({ state }: { state: TrafficState }) {
-  const { isMobile, isTablet } = useResponsive();
+  const { isMobile } = useResponsive();
 
   if (state.kind === 'unavailable') {
     return (
@@ -90,40 +101,26 @@ function TrafficCards({ state }: { state: TrafficState }) {
 
   const loading = state.kind === 'loading';
   const totals = state.kind === 'ready' ? state.totals : null;
-  const cardRowStyle = isMobile ? styles.cardsMobile : isTablet ? styles.cardsTablet : styles.cards;
+  const cardRowStyle = isMobile ? styles.cardsMobile : styles.cards;
 
   return (
     <>
       {loading ? <Text style={styles.visuallyHidden}>Traffic totals are loading.</Text> : null}
       <View accessibilityLiveRegion="polite" style={cardRowStyle}>
-        <Card style={[styles.card24, isTablet && styles.card24Tablet]}>
+        <Card>
           <Text style={styles.period}>LAST 24 HOURS</Text>
-          <View style={[styles.metricPair, isMobile && styles.metricPairMobile]}>
-            {loading ? (
-              <>
-                <LoadingMetric label="Estimated visitors" />
-                <View style={isMobile ? styles.metricDividerMobile : styles.metricDivider} />
-                <LoadingMetric label="Page views" />
-              </>
-            ) : (
-              <>
-                <Metric
-                  label="Estimated visitors"
-                  value={totals?.visitors24h ?? 0}
-                  description="Vercel’s anonymous estimate of separate visitors."
-                />
-                <View style={isMobile ? styles.metricDividerMobile : styles.metricDivider} />
-                <Metric
-                  label="Page views"
-                  value={totals?.pageViews24h ?? 0}
-                  description="Every page opened, including several pages opened by the same visitor."
-                />
-              </>
-            )}
-          </View>
+          {loading ? (
+            <LoadingMetric label="Page views" />
+          ) : (
+            <Metric
+              label="Page views"
+              value={totals?.pageViews24h ?? 0}
+              description="Every page opened during the last 24 complete hours."
+            />
+          )}
         </Card>
 
-        <Card style={isTablet ? styles.cardHalfTablet : undefined}>
+        <Card>
           <Text style={styles.period}>LAST 7 DAYS</Text>
           {loading ? (
             <LoadingMetric label="Page views" />
@@ -131,12 +128,12 @@ function TrafficCards({ state }: { state: TrafficState }) {
             <Metric
               label="Page views"
               value={totals?.pageViews7d ?? 0}
-              description="Every page opened during the trailing 7 days."
+              description="Every page opened during the last 168 complete hours."
             />
           )}
         </Card>
 
-        <Card style={isTablet ? styles.cardHalfTablet : undefined}>
+        <Card>
           <Text style={styles.period}>LAST 30 DAYS</Text>
           {loading ? (
             <LoadingMetric label="Page views" />
@@ -144,7 +141,7 @@ function TrafficCards({ state }: { state: TrafficState }) {
             <Metric
               label="Page views"
               value={totals?.pageViews30d ?? 0}
-              description="Every page opened during the trailing 30 days."
+              description="Every page opened during the last 720 complete hours."
             />
           )}
         </Card>
@@ -194,7 +191,7 @@ export function TrafficScreen() {
   const collecting = useMemo(
     () =>
       totals
-        ? Date.parse(totals.fetchedAt) - Date.parse(totals.countingStartedAt) < 30 * DAY_MS
+        ? Date.parse(totals.windowEndedAt) - Date.parse(totals.countingStartedAt) < 30 * DAY_MS
         : false,
     [totals],
   );
@@ -223,11 +220,14 @@ export function TrafficScreen() {
                 <Text style={styles.source}>
                   Counted by Vercel · Fetched {fetchedMinutesAgo(totals.fetchedAt, now)} minutes ago
                 </Text>
-                <Text style={styles.clarifier}>Each total counts back from that fetch time.</Text>
+                <Text style={styles.clarifier}>
+                  Each total ends at {formatWindowEnd(totals.windowEndedAt)}, after the last
+                  complete hour.
+                </Text>
                 {collecting ? (
                   <Text style={styles.collecting}>
                     Counting since {formatDate(totals.countingStartedAt)} — the 7-day and 30-day
-                    totals include only the days counted since then.
+                    totals include only the hours counted since then.
                   </Text>
                 ) : null}
               </View>
@@ -280,7 +280,6 @@ const styles = StyleSheet.create({
   },
   totalsRegion: { marginTop: 40 },
   cards: { flexDirection: 'row', gap: 16 },
-  cardsTablet: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
   cardsMobile: { gap: 16 },
   card: {
     flex: 1,
@@ -297,9 +296,6 @@ const styles = StyleSheet.create({
     shadowRadius: 18,
     shadowOffset: { width: 0, height: 6 },
   },
-  card24: { flex: 2 },
-  card24Tablet: { flexBasis: '100%' },
-  cardHalfTablet: { flexBasis: '45%' },
   period: {
     color: theme.colors.text.muted,
     fontFamily: theme.typography.mono,
@@ -308,11 +304,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 1.3,
   },
-  metricPair: { flexDirection: 'row', marginTop: 18 },
-  metricPairMobile: { flexDirection: 'column' },
   metric: { flex: 1, minWidth: 0 },
-  metricDivider: { width: 1, marginHorizontal: 24, backgroundColor: theme.colors.border },
-  metricDividerMobile: { height: 1, marginVertical: 20, backgroundColor: theme.colors.border },
   metricLabel: {
     color: theme.colors.ink,
     fontFamily: theme.typography.ui,

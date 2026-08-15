@@ -5,8 +5,8 @@ import { describe, expect, it } from 'vitest';
 const SOURCE = readFileSync(join(__dirname, '..', 'TrafficScreen.tsx'), 'utf8');
 
 describe('public Traffic page', () => {
-  it('shows only the 4 accepted totals and explains their periods', () => {
-    expect(SOURCE).toContain('Estimated visitors');
+  it('shows only the 3 accurate page-view totals and explains their periods', () => {
+    expect(SOURCE).not.toContain('Estimated visitors');
     expect(SOURCE.match(/label="Page views"/g)).toHaveLength(6);
     expect(SOURCE).toContain('LAST 24 HOURS');
     expect(SOURCE).toContain('LAST 7 DAYS');

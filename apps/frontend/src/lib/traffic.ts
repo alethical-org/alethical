@@ -1,15 +1,15 @@
 export type TrafficTotals = {
-  visitors24h: number;
   pageViews24h: number;
   pageViews7d: number;
   pageViews30d: number;
   fetchedAt: string;
+  windowEndedAt: string;
   countingStartedAt: string;
   teamExclusionConfigured: boolean;
 };
 
 const METHOD_START =
-  'How we count: Vercel anonymously counts page loads without cookies or names. Its visitor estimate resets each day, so the same person may count again on another day; 1 person using 2 devices may also count twice. Vercel filters traffic it identifies as automated. Anything after ? or # in a page address is removed before counting.';
+  'How we count: Vercel anonymously counts page loads without cookies or names. Vercel filters traffic it identifies as automated. Anything after ? or # in a page address is removed before counting.';
 const TEAM_EXCLUSION = 'Browsing while signed into Alethical team accounts is not counted.';
 const METHOD_END = 'Numbers refresh every few minutes.';
 
@@ -42,11 +42,11 @@ export function isTrafficTotals(value: unknown): value is TrafficTotals {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const totals = value as Partial<TrafficTotals>;
   return (
-    nonNegativeInteger(totals.visitors24h) &&
     nonNegativeInteger(totals.pageViews24h) &&
     nonNegativeInteger(totals.pageViews7d) &&
     nonNegativeInteger(totals.pageViews30d) &&
     validDate(totals.fetchedAt) &&
+    validDate(totals.windowEndedAt) &&
     validDate(totals.countingStartedAt) &&
     typeof totals.teamExclusionConfigured === 'boolean'
   );

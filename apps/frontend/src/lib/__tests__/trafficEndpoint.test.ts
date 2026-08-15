@@ -30,17 +30,16 @@ function responseRecorder() {
   };
 }
 
-function successfulCount(urlValue: string) {
+function successfulAggregate(urlValue: string) {
   const url = new URL(urlValue);
   const since = Number(url.searchParams.get('since'));
-  const until = Number(url.searchParams.get('until'));
-  const days = Math.round((until - since) / (24 * 60 * 60 * 1000));
-  const totals =
-    days === 1
-      ? { pageviews: 168, visitors: 52 }
-      : days === 7
-        ? { pageviews: 746, visitors: 221 }
-        : { pageviews: 2604, visitors: 608 };
+  const until = Number(url.searchParams.get('until')) + 1;
+  const hourMs = 60 * 60 * 1000;
+  const rows = Array.from({ length: (until - since) / hourMs }, (_, index) => ({
+    timestamp: new Date(since + index * hourMs).toISOString(),
+    pageviews: 1,
+    visitors: 1,
+  }));
   return {
     ok: true,
     json: async () => ({
@@ -49,7 +48,7 @@ function successfulCount(urlValue: string) {
         since: new Date(since).toISOString(),
         until: new Date(until).toISOString(),
       },
-      data: totals,
+      data: rows,
     }),
   };
 }
@@ -71,9 +70,9 @@ afterEach(() => {
 });
 
 describe('public traffic totals', () => {
-  it('returns only the 4 combined totals and public counting facts', async () => {
+  it('returns exact page views for the last 24 hours, 7 days, and 30 days', async () => {
     const fetchSpy = vi.fn((input: string | URL | Request, _init?: RequestInit) =>
-      Promise.resolve(successfulCount(String(input))),
+      Promise.resolve(successfulAggregate(String(input))),
     );
     vi.stubGlobal('fetch', fetchSpy);
     const recorder = responseRecorder();
@@ -83,26 +82,32 @@ describe('public traffic totals', () => {
     const { body, headers, status } = recorder.read();
     expect(status).toBe(200);
     expect(body).toEqual({
-      visitors24h: 52,
-      pageViews24h: 168,
-      pageViews7d: 746,
-      pageViews30d: 2604,
+      pageViews24h: 24,
+      pageViews7d: 168,
+      pageViews30d: 720,
       fetchedAt: '2026-08-14T20:00:00.000Z',
+      windowEndedAt: '2026-08-14T20:00:00.000Z',
       countingStartedAt: '2026-08-03T00:00:00.000Z',
       teamExclusionConfigured: false,
     });
     expect(headers.get('Cache-Control')).toBe(
       'public, max-age=0, s-maxage=300, stale-while-revalidate=60',
     );
-    expect(fetchSpy).toHaveBeenCalledTimes(3);
+    expect(fetchSpy).toHaveBeenCalledTimes(5);
     for (const call of fetchSpy.mock.calls) {
       const [input, init] = call;
       const url = new URL(String(input));
       expect(url.origin + url.pathname).toBe(
-        'https://api.vercel.com/v1/query/web-analytics/visits/count',
+        'https://api.vercel.com/v1/query/web-analytics/visits/aggregate',
       );
       expect(url.searchParams.get('projectId')).toBe('prj_test');
       expect(url.searchParams.get('teamId')).toBe('team_test');
+      expect(url.searchParams.get('by')).toBe('hour');
+      expect(url.searchParams.get('limit')).toBe('100');
+      expect(
+        (Number(url.searchParams.get('until')) + 1 - Number(url.searchParams.get('since'))) /
+          (60 * 60 * 1000),
+      ).toBeLessThanOrEqual(168);
       expect(init).toMatchObject({
         headers: { Authorization: 'Bearer private-test-token', Accept: 'application/json' },
       });
@@ -113,10 +118,10 @@ describe('public traffic totals', () => {
     vi.stubGlobal(
       'fetch',
       vi.fn((input: string | URL | Request) => {
-        const response = successfulCount(String(input));
+        const response = successfulAggregate(String(input));
         return Promise.resolve({
           ...response,
-          json: async () => ({ ...(await response.json()), data: { pageviews: 0, visitors: 0 } }),
+          json: async () => ({ ...(await response.json()), data: [] }),
         });
       }),
     );
@@ -127,7 +132,6 @@ describe('public traffic totals', () => {
     const { body, status } = recorder.read();
     expect(status).toBe(200);
     expect(body).toMatchObject({
-      visitors24h: 0,
       pageViews24h: 0,
       pageViews7d: 0,
       pageViews30d: 0,
@@ -139,17 +143,20 @@ describe('public traffic totals', () => {
     [
       'Vercel omits a number',
       (input: string | URL | Request) => {
-        const response = successfulCount(String(input));
+        const response = successfulAggregate(String(input));
         return Promise.resolve({
           ...response,
-          json: async () => ({ ...(await response.json()), data: { visitors: 1 } }),
+          json: async () => {
+            const payload = await response.json();
+            return { ...payload, data: [{ timestamp: payload.data[0].timestamp }] };
+          },
         });
       },
     ],
     [
       'Vercel reports a materially different range',
       (input: string | URL | Request) => {
-        const response = successfulCount(String(input));
+        const response = successfulAggregate(String(input));
         return Promise.resolve({
           ...response,
           json: async () => {

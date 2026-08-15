@@ -5,16 +5,18 @@ type ResponseLike = {
   send: (body: string) => void;
 };
 
-type CountPayload = {
+type AggregatePayload = {
   query?: { since?: unknown; until?: unknown };
-  data?: { pageviews?: unknown; visitors?: unknown };
+  data?: unknown;
 };
 
-type CountResult = { pageviews: number; visitors: number };
+type AggregateRow = { timestamp?: unknown; pageviews?: unknown };
 
-const COUNT_ENDPOINT =
-  "https://api.vercel.com/v1/query/web-analytics/visits/count";
-const DAY_MS = 24 * 60 * 60 * 1000;
+const AGGREGATE_ENDPOINT =
+  "https://api.vercel.com/v1/query/web-analytics/visits/aggregate";
+const HOUR_MS = 60 * 60 * 1000;
+const MAX_HOURS_PER_QUERY = 168;
+const THIRTY_DAYS_IN_HOURS = 30 * 24;
 const RANGE_TOLERANCE_MS = 60 * 1000;
 const OK_CACHE = "public, max-age=0, s-maxage=300, stale-while-revalidate=60";
 
@@ -42,40 +44,45 @@ function parsedDate(value: unknown): number | null {
 }
 
 function rangeMatches(
-  payload: CountPayload,
+  payload: AggregatePayload,
   requestedSince: number,
-  requestedUntil: number,
-  countingStartedAt: number,
+  requestedUntilExclusive: number,
 ) {
   const actualSince = parsedDate(payload.query?.since);
   const actualUntil = parsedDate(payload.query?.until);
   if (actualSince === null || actualUntil === null) return false;
 
-  // Vercel may echo the requested start or clamp it to the date collection
-  // began. Both are honest during the first 30 days; anything outside that
-  // known interval means the totals do not describe the period on the page.
-  const latestHonestSince = Math.max(requestedSince, countingStartedAt);
   return (
-    actualSince >= requestedSince - RANGE_TOLERANCE_MS &&
-    actualSince <= latestHonestSince + RANGE_TOLERANCE_MS &&
-    Math.abs(actualUntil - requestedUntil) <= RANGE_TOLERANCE_MS
+    Math.abs(actualSince - requestedSince) <= RANGE_TOLERANCE_MS &&
+    Math.abs(actualUntil - requestedUntilExclusive) <= RANGE_TOLERANCE_MS
   );
 }
 
-async function countWindow(
-  days: number,
-  fetchedAt: number,
-  countingStartedAt: number,
+async function aggregatePageViewHours(
+  since: number,
+  untilExclusive: number,
   token: string,
   projectId: string,
   teamId: string,
-): Promise<CountResult> {
-  const since = fetchedAt - days * DAY_MS;
-  const url = new URL(COUNT_ENDPOINT);
+): Promise<number[]> {
+  const expectedRows = (untilExclusive - since) / HOUR_MS;
+  if (
+    !Number.isInteger(expectedRows) ||
+    expectedRows < 1 ||
+    expectedRows > MAX_HOURS_PER_QUERY
+  ) {
+    throw new TrafficUnavailable("Invalid traffic time range");
+  }
+
+  const url = new URL(AGGREGATE_ENDPOINT);
   url.searchParams.set("projectId", projectId);
   url.searchParams.set("teamId", teamId);
   url.searchParams.set("since", String(since));
-  url.searchParams.set("until", String(fetchedAt));
+  // Vercel treats `until` as inclusive. One millisecond before the boundary
+  // keeps the response to completed hours and makes its echoed end exclusive.
+  url.searchParams.set("until", String(untilExclusive - 1));
+  url.searchParams.set("by", "hour");
+  url.searchParams.set("limit", "100");
 
   let result: Response;
   try {
@@ -93,24 +100,61 @@ async function countWindow(
     throw new TrafficUnavailable(`Vercel returned ${result.status}`);
   }
 
-  let payload: CountPayload;
+  let payload: AggregatePayload;
   try {
-    payload = (await result.json()) as CountPayload;
+    payload = (await result.json()) as AggregatePayload;
   } catch {
     throw new TrafficUnavailable("Vercel returned unreadable data");
   }
+
   if (
-    !nonNegativeInteger(payload.data?.pageviews) ||
-    !nonNegativeInteger(payload.data?.visitors) ||
-    !rangeMatches(payload, since, fetchedAt, countingStartedAt)
+    !Array.isArray(payload.data) ||
+    !rangeMatches(payload, since, untilExclusive)
   ) {
     throw new TrafficUnavailable("Vercel returned incomplete traffic data");
   }
 
-  return {
-    pageviews: payload.data.pageviews,
-    visitors: payload.data.visitors,
-  };
+  const pageViews = Array<number>(expectedRows).fill(0);
+  const seenHours = new Set<number>();
+  for (const row of payload.data as AggregateRow[]) {
+    const timestamp = parsedDate(row.timestamp);
+    const index = timestamp === null ? -1 : (timestamp - since) / HOUR_MS;
+    if (
+      !Number.isInteger(index) ||
+      index < 0 ||
+      index >= expectedRows ||
+      seenHours.has(index) ||
+      !nonNegativeInteger(row.pageviews)
+    ) {
+      throw new TrafficUnavailable("Vercel returned incomplete traffic data");
+    }
+    seenHours.add(index);
+    pageViews[index] = row.pageviews;
+  }
+
+  return pageViews;
+}
+
+function chunkedHourRanges(since: number, untilExclusive: number) {
+  const ranges: Array<{ since: number; untilExclusive: number }> = [];
+  for (
+    let start = since;
+    start < untilExclusive;
+    start += MAX_HOURS_PER_QUERY * HOUR_MS
+  ) {
+    ranges.push({
+      since: start,
+      untilExclusive: Math.min(
+        start + MAX_HOURS_PER_QUERY * HOUR_MS,
+        untilExclusive,
+      ),
+    });
+  }
+  return ranges;
+}
+
+function sumLast(values: number[], hours: number) {
+  return values.slice(-hours).reduce((total, value) => total + value, 0);
 }
 
 function hasTeamExclusion() {
@@ -157,21 +201,36 @@ export default async function handler(
   }
 
   try {
-    const [last24Hours, last7Days, last30Days] = await Promise.all([
-      countWindow(1, fetchedAt, countingStartedAt, token, projectId, teamId),
-      countWindow(7, fetchedAt, countingStartedAt, token, projectId, teamId),
-      countWindow(30, fetchedAt, countingStartedAt, token, projectId, teamId),
-    ]);
+    const windowEndedAt = Math.floor(fetchedAt / HOUR_MS) * HOUR_MS;
+    const windowStartedAt = windowEndedAt - THIRTY_DAYS_IN_HOURS * HOUR_MS;
+    const ranges = chunkedHourRanges(windowStartedAt, windowEndedAt);
+    const pageViewsByHour = (
+      await Promise.all(
+        ranges.map((range) =>
+          aggregatePageViewHours(
+            range.since,
+            range.untilExclusive,
+            token,
+            projectId,
+            teamId,
+          ),
+        ),
+      )
+    ).flat();
+
+    if (pageViewsByHour.length !== THIRTY_DAYS_IN_HOURS) {
+      throw new TrafficUnavailable("Vercel returned incomplete traffic data");
+    }
 
     sendJson(
       response,
       200,
       {
-        visitors24h: last24Hours.visitors,
-        pageViews24h: last24Hours.pageviews,
-        pageViews7d: last7Days.pageviews,
-        pageViews30d: last30Days.pageviews,
+        pageViews24h: sumLast(pageViewsByHour, 24),
+        pageViews7d: sumLast(pageViewsByHour, 7 * 24),
+        pageViews30d: sumLast(pageViewsByHour, THIRTY_DAYS_IN_HOURS),
         fetchedAt: new Date(fetchedAt).toISOString(),
+        windowEndedAt: new Date(windowEndedAt).toISOString(),
         countingStartedAt: new Date(countingStartedAt).toISOString(),
         teamExclusionConfigured: hasTeamExclusion(),
       },
