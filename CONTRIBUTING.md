@@ -15,7 +15,7 @@ Install these once:
 - **Docker** + Docker Compose — runs Postgres, the backend, and the web frontend
 - **[uv](https://docs.astral.sh/uv/)** — Python dependency manager
 - **[just](https://github.com/casey/just)** — command runner (the recipes below)
-- **Node 22** + **corepack** — for the frontend (`corepack enable` activates pnpm 10.33.0)
+- **Node 22** + **corepack** — for the frontend (`corepack enable` activates pnpm 10.33.0). The project records its exact Node version for [Volta](https://volta.sh/), a free tool that switches Node versions by project without removing the versions other projects use.
 - **Python 3.12** — pinned in `.python-version`
 
 ## First-time setup
@@ -36,6 +36,25 @@ are ready. It reads the versions from the project itself: `.python-version`,
 stops your work. Use `just doctor ios` before iPhone work or `just doctor
 android` before Android work to also check Xcode or Java; web work does not need
 either one.
+
+### Keeping Node 22 beside other Node versions
+
+Alethical records Node 22.23.2 in `package.json`. If your computer also uses a
+different Node version for other projects, install Volta once and it will choose
+Alethical's Node 22 only while you work here:
+
+```bash
+brew install volta
+volta setup
+volta install node@22.23.2
+# Optional: keep Node 25 as the default outside Alethical.
+volta install node@25
+```
+
+Close and reopen your terminal after `volta setup`. Then `node --version` and
+`just doctor` run from this folder use Node 22, while other folders keep Volta's
+default Node version. You can use another version manager instead; activate Node
+22 before running Alethical commands.
 
 **`just install-hooks` is not optional if anyone else works in this clone.** It
 points git at this repo's tracked hooks (`.githooks`), and the one hook there locks
