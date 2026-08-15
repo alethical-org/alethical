@@ -29,7 +29,9 @@ def test_site_metric_events_store_only_an_allowed_name(client, auth_headers):
 
     with get_session_factory()() as db:
         event = db.scalars(
-            select(schema.SiteMetricEvent).order_by(schema.SiteMetricEvent.created_at.desc())
+            select(schema.SiteMetricEvent).order_by(
+                schema.SiteMetricEvent.created_at.desc()
+            )
         ).first()
         assert event is not None
         assert event.event_kind == "bill_search_with_results"
