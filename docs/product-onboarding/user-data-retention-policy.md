@@ -527,7 +527,7 @@ in the Privacy Policy rather than discovered.
 
 **Vercel Web Analytics counts page loads.** It uses no analytics cookie and receives no
 name, email address, or account identifier. Before a page address is sent, everything
-after `?` or `#` is removed. No custom action events are installed. Vercel produces
+after `?` or `#` is removed. Vercel receives no custom action events. Vercel produces
 combined page-view counts and a daily anonymous visitor estimate; Alethical keeps no
 per-reader analytics record of its own. The public `/site-metrics` page reads only combined
 24-hour, 7-day, and 30-day totals through a server route whose Vercel access token never
@@ -540,11 +540,11 @@ identifier is never sent to Vercel. The lasting behavior and server settings are
 `docs/product-onboarding/traffic-guide.md`.
 
 **Search discovery, availability, and speed stay combined.** Google Search Console and
-Bing Webmaster Tools feed only sitewide 28-day appearance and visit totals to the public
+Bing Webmaster Tools feed only sitewide 30-day appearance and visit totals to the public
 Site metrics page. Checkly opens only 3 public Alethical addresses. Cloudflare Web Analytics
 uses no cookies, local storage, or fingerprinting, but it receives speed measurements,
 cleaned page paths, referrers, broad place and browser facts, and some element or resource
-details. Alethical publishes only sitewide 28-day speed scores after 50 measured visits.
+details. Alethical publishes only sitewide 30-day speed scores after 50 measured visits.
 No reader-level record from any of these sources is stored in Alethical's database.
 
 ---

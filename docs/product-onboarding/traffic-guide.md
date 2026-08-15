@@ -114,7 +114,7 @@ The server settings are:
   its projects, used by this route only to read `alethical-web` totals;
 - `VERCEL_ANALYTICS_PROJECT_ID`: the Vercel website identifier;
 - `VERCEL_ANALYTICS_TEAM_ID`: the Vercel team identifier;
-- `TRAFFIC_COUNTING_STARTED_AT`: the exact UTC time counting was switched on; and
+- `TRAFFIC_COUNTING_STARTED_AT`: the exact UTC time counting was switched on;
 - `TRAFFIC_EXCLUDED_ACCOUNT_IDS`: comma-separated stable Supabase account identifiers,
   required in Vercel and Railway once the 4 team identifiers are confirmed; and
 - `EXPO_PUBLIC_CHECKLY_STATUS_URL`: Checkly's public availability-detail address.
