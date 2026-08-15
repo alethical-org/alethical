@@ -32,8 +32,6 @@ function formatDate(iso: string) {
 
 function formatWindowEnd(iso: string) {
   return new Intl.DateTimeFormat('en-US', {
-    month: 'long',
-    day: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
     timeZone: 'UTC',
@@ -45,22 +43,13 @@ function fetchedMinutesAgo(fetchedAt: string, now: number) {
   return Math.max(0, Math.floor((now - Date.parse(fetchedAt)) / MINUTE_MS));
 }
 
-function Metric({
-  label,
-  value,
-  description,
-}: {
-  label: string;
-  value: number;
-  description: string;
-}) {
+function Metric({ label, value }: { label: string; value: number }) {
   return (
     <View style={styles.metric}>
       <Text style={styles.metricLabel}>{label}</Text>
       <View style={styles.valueBox}>
         <Text style={styles.value}>{formatNumber(value)}</Text>
       </View>
-      <Text style={styles.metricDescription}>{description}</Text>
     </View>
   );
 }
@@ -92,7 +81,7 @@ function TrafficCards({ state }: { state: TrafficState }) {
     return (
       <>
         <View accessibilityLiveRegion="polite" style={styles.unavailable}>
-          <Text style={styles.unavailableText}>Traffic data is temporarily unavailable.</Text>
+          <Text style={styles.unavailableText}>Traffic totals are temporarily unavailable.</Text>
         </View>
         <Text style={styles.source}>Counted by Vercel</Text>
       </>
@@ -112,11 +101,7 @@ function TrafficCards({ state }: { state: TrafficState }) {
           {loading ? (
             <LoadingMetric label="Page views" />
           ) : (
-            <Metric
-              label="Page views"
-              value={totals?.pageViews24h ?? 0}
-              description="Every page opened during the last 24 complete hours."
-            />
+            <Metric label="Page views" value={totals?.pageViews24h ?? 0} />
           )}
         </Card>
 
@@ -125,11 +110,7 @@ function TrafficCards({ state }: { state: TrafficState }) {
           {loading ? (
             <LoadingMetric label="Page views" />
           ) : (
-            <Metric
-              label="Page views"
-              value={totals?.pageViews7d ?? 0}
-              description="Every page opened during the last 168 complete hours."
-            />
+            <Metric label="Page views" value={totals?.pageViews7d ?? 0} />
           )}
         </Card>
 
@@ -138,11 +119,7 @@ function TrafficCards({ state }: { state: TrafficState }) {
           {loading ? (
             <LoadingMetric label="Page views" />
           ) : (
-            <Metric
-              label="Page views"
-              value={totals?.pageViews30d ?? 0}
-              description="Every page opened during the last 720 complete hours."
-            />
+            <Metric label="Page views" value={totals?.pageViews30d ?? 0} />
           )}
         </Card>
       </View>
@@ -209,8 +186,7 @@ export function TrafficScreen() {
             Traffic
           </Text>
           <Text style={styles.purpose}>
-            Real numbers about how Alethical is used, with nothing shown about any individual
-            reader.
+            Public totals about how Alethical is used, with nothing about individual readers.
           </Text>
 
           <View style={styles.totalsRegion}>
@@ -218,16 +194,13 @@ export function TrafficScreen() {
             {totals ? (
               <View style={styles.sourceCluster}>
                 <Text style={styles.source}>
-                  Counted by Vercel · Fetched {fetchedMinutesAgo(totals.fetchedAt, now)} minutes ago
-                </Text>
-                <Text style={styles.clarifier}>
-                  Each total ends at {formatWindowEnd(totals.windowEndedAt)}, after the last
-                  complete hour.
+                  Counted by Vercel · Through {formatWindowEnd(totals.windowEndedAt)} · Checked{' '}
+                  {fetchedMinutesAgo(totals.fetchedAt, now)} minutes ago
                 </Text>
                 {collecting ? (
                   <Text style={styles.collecting}>
-                    Counting since {formatDate(totals.countingStartedAt)} — the 7-day and 30-day
-                    totals include only the hours counted since then.
+                    Collecting since {formatDate(totals.countingStartedAt)}. Longer totals are still
+                    filling in.
                   </Text>
                 ) : null}
               </View>
@@ -245,7 +218,7 @@ export function TrafficScreen() {
               pressed && styles.privacyLinkPressed,
             ]}
           >
-            <Text style={styles.privacyLink}>Alethical’s privacy policy</Text>
+            <Text style={styles.privacyLink}>Privacy policy</Text>
           </Pressable>
         </Container>
         <Footer
@@ -314,20 +287,13 @@ const styles = StyleSheet.create({
   },
   valueBox: { height: 46, justifyContent: 'center', marginTop: 8 },
   value: {
-    color: theme.colors.ink,
-    fontFamily: theme.typography.mono,
-    fontSize: 38,
-    lineHeight: 46,
-    fontWeight: '700',
-    letterSpacing: -0.4,
+    color: theme.colors.brand.display,
+    fontFamily: theme.typography.ui,
+    fontSize: 40,
+    lineHeight: 40,
+    fontWeight: '800',
+    letterSpacing: -1,
     fontVariant: ['tabular-nums'],
-  },
-  metricDescription: {
-    marginTop: 8,
-    color: theme.colors.mutedInk,
-    fontFamily: theme.typography.body,
-    fontSize: 14.5,
-    lineHeight: 22,
   },
   loadingBar: { width: 84, height: 24, borderRadius: 7, backgroundColor: theme.colors.surfaceAlt },
   visuallyHidden: { position: 'absolute', width: 1, height: 1, opacity: 0 },
@@ -357,13 +323,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
     fontWeight: '500',
-  },
-  clarifier: {
-    marginTop: 6,
-    color: theme.colors.text.muted,
-    fontFamily: theme.typography.body,
-    fontSize: 13.5,
-    lineHeight: 20,
   },
   collecting: {
     marginTop: 6,

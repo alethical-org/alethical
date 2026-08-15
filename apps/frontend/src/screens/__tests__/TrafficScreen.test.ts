@@ -5,19 +5,38 @@ import { describe, expect, it } from 'vitest';
 const SOURCE = readFileSync(join(__dirname, '..', 'TrafficScreen.tsx'), 'utf8');
 
 describe('public Traffic page', () => {
-  it('shows only the 3 accurate page-view totals and explains their periods', () => {
+  it('shows only the 3 accurate page-view totals and their trailing periods', () => {
     expect(SOURCE).not.toContain('Estimated visitors');
     expect(SOURCE.match(/label="Page views"/g)).toHaveLength(6);
     expect(SOURCE).toContain('LAST 24 HOURS');
     expect(SOURCE).toContain('LAST 7 DAYS');
     expect(SOURCE).toContain('LAST 30 DAYS');
+    expect(SOURCE).not.toContain('Every page opened during');
   });
 
   it('has 1 top heading and the accepted loading and unavailable states', () => {
     expect(SOURCE.match(/aria-level=\{1\}/g)).toHaveLength(1);
     expect(SOURCE).toContain('Traffic totals are loading.');
-    expect(SOURCE).toContain('Traffic data is temporarily unavailable.');
+    expect(SOURCE).toContain('Traffic totals are temporarily unavailable.');
     expect(SOURCE).toContain('Counted by Vercel');
+  });
+
+  it('keeps the public explanation short and puts freshness on 1 line', () => {
+    expect(SOURCE).toContain(
+      'Public totals about how Alethical is used, with nothing about individual readers.',
+    );
+    expect(SOURCE).toContain('· Through {formatWindowEnd(totals.windowEndedAt)} · Checked');
+    expect(SOURCE).not.toContain('Fetched');
+    expect(SOURCE).not.toContain('Each total ends at');
+    expect(SOURCE).toContain('Longer totals are still');
+    expect(SOURCE).toContain('<Text style={styles.privacyLink}>Privacy policy</Text>');
+  });
+
+  it('uses the interface face and display-green token for every numeric total', () => {
+    expect(SOURCE).toMatch(
+      /value: \{[\s\S]*?color: theme\.colors\.brand\.display,[\s\S]*?fontFamily: theme\.typography\.ui,[\s\S]*?fontSize: 40,[\s\S]*?lineHeight: 40,[\s\S]*?fontWeight: '800',[\s\S]*?letterSpacing: -1,[\s\S]*?fontVariant: \['tabular-nums'\],[\s\S]*?\}/,
+    );
+    expect(SOURCE).toContain('valueBox: { height: 46');
   });
 
   it('uses the shared shell and keeps the privacy link in the same tab', () => {

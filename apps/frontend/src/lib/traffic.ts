@@ -9,9 +9,8 @@ export type TrafficTotals = {
 };
 
 const METHOD_START =
-  'How we count: Vercel anonymously counts page loads without cookies or names. Vercel filters traffic it identifies as automated. Anything after ? or # in a page address is removed before counting.';
-const TEAM_EXCLUSION = 'Browsing while signed into Alethical team accounts is not counted.';
-const METHOD_END = 'Numbers refresh every few minutes.';
+  'How we count: No cookies or names. Vercel filters known automated traffic. Search terms and page-address details are removed before counting.';
+const TEAM_EXCLUSION = 'Team account visits are excluded.';
 
 export function redactTrafficUrl(value: string): string {
   try {
@@ -25,7 +24,7 @@ export function redactTrafficUrl(value: string): string {
 }
 
 export function trafficMethodNote(teamExclusionConfigured: boolean): string {
-  return [METHOD_START, teamExclusionConfigured ? TEAM_EXCLUSION : null, METHOD_END]
+  return [METHOD_START, teamExclusionConfigured ? TEAM_EXCLUSION : null]
     .filter((part): part is string => Boolean(part))
     .join(' ');
 }
