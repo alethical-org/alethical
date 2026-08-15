@@ -74,8 +74,6 @@ jobs:
       SUPABASE_OAUTH_CLIENT_ID: ${{ secrets.SUPABASE_OAUTH_CLIENT_ID }}
       SUPABASE_OAUTH_CLIENT_SECRET: ${{ secrets.SUPABASE_OAUTH_CLIENT_SECRET }}
       SUPABASE_OAUTH_BOOTSTRAP_REFRESH_TOKEN: ${{ secrets.SUPABASE_OAUTH_REFRESH_TOKEN }}
-      SUPABASE_OAUTH_REFRESH_TOKEN_FILE: ${{ runner.temp }}/supabase-refresh-token
-      SUPABASE_OAUTH_NEXT_REFRESH_TOKEN_FILE: ${{ runner.temp }}/supabase-next-refresh-token
       SUPABASE_PROJECT_REF: naakzorbkqqgbsreulqi
     steps:
       - name: Check out the trusted checker from the target branch
@@ -93,6 +91,12 @@ jobs:
             docs/operations/repo-and-service-settings.md
             railway.json
             vercel.json
+
+      - name: Set the rotating Supabase grant paths
+        shell: bash
+        run: |
+          echo "SUPABASE_OAUTH_REFRESH_TOKEN_FILE=$RUNNER_TEMP/supabase-refresh-token" >> "$GITHUB_ENV"
+          echo "SUPABASE_OAUTH_NEXT_REFRESH_TOKEN_FILE=$RUNNER_TEMP/supabase-next-refresh-token" >> "$GITHUB_ENV"
 
       - name: Restore the encrypted rotating Supabase grant
         env:
@@ -202,13 +206,17 @@ jobs:
       SUPABASE_OAUTH_CLIENT_ID: ${{ secrets.SUPABASE_OAUTH_CLIENT_ID }}
       SUPABASE_OAUTH_CLIENT_SECRET: ${{ secrets.SUPABASE_OAUTH_CLIENT_SECRET }}
       SUPABASE_OAUTH_BOOTSTRAP_REFRESH_TOKEN: ${{ secrets.SUPABASE_OAUTH_REFRESH_TOKEN }}
-      SUPABASE_OAUTH_REFRESH_TOKEN_FILE: ${{ runner.temp }}/supabase-refresh-token
-      SUPABASE_OAUTH_NEXT_REFRESH_TOKEN_FILE: ${{ runner.temp }}/supabase-next-refresh-token
       SUPABASE_PROJECT_REF: naakzorbkqqgbsreulqi
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
+
+      - name: Set the rotating Supabase grant paths
+        shell: bash
+        run: |
+          echo "SUPABASE_OAUTH_REFRESH_TOKEN_FILE=$RUNNER_TEMP/supabase-refresh-token" >> "$GITHUB_ENV"
+          echo "SUPABASE_OAUTH_NEXT_REFRESH_TOKEN_FILE=$RUNNER_TEMP/supabase-next-refresh-token" >> "$GITHUB_ENV"
 
       - name: Test the checker
         run: |
