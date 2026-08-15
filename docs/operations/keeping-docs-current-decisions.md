@@ -17,6 +17,10 @@ triggered by plumbing — and a check people route around is worse than no check
 non-blocking report instead of a gate.** We never measured that mode, and it is the strongest
 remaining candidate. See "What we did not measure" below.
 
+A later [code-only map trial](https://github.com/alethical-org/alethical/issues/1549) tested a
+different job: helping a coding session find the reach of a change. That trial also failed its
+keep bar. Its measured result is recorded below.
+
 Evaluated [#917](https://github.com/alethical-org/alethical/issues/917), 2026-08-03. The
 convention this serves is `.claude/rules/workflow.md` rule 6 (search for everything that still
 describes the old behaviour); the human-facing version is "Keeping docs current" in
@@ -362,6 +366,89 @@ going stale first. See "The by-hand pass, as run" above.
 
 The "roughly 20 of 47" trigger is closer than it was: that pass took declaring docs from 9 to
 10, and more than doubled the globs they carry (52 → 90 firings over 60 PRs).
+
+## The separate code-only map trial ([#1549](https://github.com/alethical-org/alethical/issues/1549), 2026-08-15)
+
+**Net: do not save or automatically refresh an Alethical code map.** A current code-only map
+explained direct calls well, but it returned a smaller complete change list in **0 of 10**
+finished-change trials. It found only **2 of the required 3** clearly useful changed callers or
+tests that the first exact text search missed. An old map that was 388 main-branch changes behind
+still answered without a freshness warning.
+
+This tested only code relationships. It made no model call, sent no Alethical source outside the
+machine, and did not reopen the written-guidance gate decision above.
+
+### What was built
+
+- Graphify 0.9.43 read 535 code files in one pass in about 9 seconds. The raw result held 7,413
+  named code items and 20,792 links.
+- Local grouping found 308 code groups without naming them through a model. The saved map held
+  18,707 links after duplicate endpoint links were folded together.
+- A second build split the website, server, and scripts into 3 maps, then joined them. It held
+  18,054 links, which is 2,738 fewer than the one-pass raw map. The split build excluded 14 root
+  and automatic-job files, and could not resolve relationships between folders while reading
+  each folder alone.
+- This coding session blocked Graphify from starting extra worker processes. Reading with 1 worker
+  succeeded. That affected build speed only, not the result.
+
+### The 10 finished changes
+
+The first search was an exact repository-wide text search for the starting name (`rg -l -F`).
+The map result used reverse impact lookup at depth 2 (`graphify affected --depth 2`). "Known code"
+means code files changed by the finished pull request and still present on main. A row passes only
+when the map result is smaller than the text result and contains all known code.
+
+| Finished change | Starting name | Text files | Map files | Known code found | Result |
+| --- | --- | ---: | ---: | ---: | --- |
+| [#1543](https://github.com/alethical-org/alethical/pull/1543), Traffic release settings | `assertTrafficProductionEnv` | 2 | 2 | 2/2 | Fail: complete, but no smaller. |
+| [#1475](https://github.com/alethical-org/alethical/pull/1475), stale bill refresh | `shouldRefreshBillQuery` | 3 | 5 | 5/6 | Fail: 2 useful finds, 1 known screen missed, and larger. |
+| [#1465](https://github.com/alethical-org/alethical/pull/1465), repeated Google sign-in return | `authErrorReturnDecision` | 3 | 4 | 3/3 | Fail: complete, but larger. |
+| [#1427](https://github.com/alethical-org/alethical/pull/1427), phone background dots | `getHomeDotVisibility` | 3 | 4 | 3/3 | Fail: complete, but larger. |
+| [#1515](https://github.com/alethical-org/alethical/pull/1515), missing session dates | `seed_reference_data` | 7 | 1 | 1/2 | Fail: smaller, but the matching test was missed. |
+| [#1511](https://github.com/alethical-org/alethical/pull/1511), missing House votes | `repair_incomplete_vote_records` | 6 | 3 | 3/4 | Fail: smaller, but the command-level test was missed. |
+| [#1508](https://github.com/alethical-org/alethical/pull/1508), citation chip names | `_citation_section_topics` | 2 | 2 | 2/3 | Fail: the serializer change was missed, and no smaller. |
+| [#1485](https://github.com/alethical-org/alethical/pull/1485), campaign payments | `payments_received` | 3 | 7 | 3/3 | Fail: complete, but 4 unrelated router checks made it larger. |
+| [#1498](https://github.com/alethical-org/alethical/pull/1498), outside spending | `OutsideSpendingCard` | 4 | 4 | 3/13 | Fail: the server request and data path were missed. |
+| [#1468](https://github.com/alethical-org/alethical/pull/1468), Home hero fact check | `check_record_agrees` | 1 | 1 | 1/4 | Fail: the website, its check, and its automatic job were missed. |
+
+The 2 clear additions were `appQueryClient.test.ts` and `AppProviders.tsx` in #1475. Other depth-2
+additions were broad parents or checks for unrelated routes, so they do not count toward the
+3-useful-find bar.
+
+### What worked
+
+- 9 of 10 known caller-to-called routes were found. All 10 reverse checks refused to invent a
+  backward route.
+- Direct explanations named the relationship, source file, line, and whether Graphify read the
+  link directly or inferred it.
+- The map made a whole-code question about 12 times smaller than reading every code file, using
+  Graphify's own token estimate. This is useful only after the right starting name is already
+  known.
+
+### What failed
+
+- Exact text search matched or beat the map for the focused names in all 10 trials.
+- The default impact lookup omits the `method` relationship. Adding it found the missing
+  `seed_reference_data` test, but widened that answer from 1 file to many unrelated ingestion
+  checks.
+- The map did not connect website requests to their Python routes, React component use written as
+  JSX, a Python fact checker to the website text it checks, or a package command to its command
+  test. Those are 4 ordinary Alethical change shapes.
+- The live pull-request report grouped 17 open pull requests into very broad code groups. It
+  showed many overlaps, but did not replace exact changed-file checks or the live Codex task list.
+- Freshness is not stored or enforced by the map. The 388-changes-behind map answered as if it
+  were current.
+
+### Decision
+
+- Do not commit a generated map, add a GitHub Actions refresh, install a repository hook, or add
+  map instructions to every coding session.
+- Keep exact text search, code reading, focused checks, changed-file comparison, the existing
+  `describes:` links, and live GitHub pull-request checks as the normal path.
+- Graphify may still be built temporarily for a hard caller-route question. Its route is evidence
+  to inspect, not a safety verdict, and the generated files are removed after the question.
+- Re-run this trial only if Graphify records and enforces the source commit, connects React JSX and
+  HTTP request paths, and can return method callers without widening to a whole subsystem.
 
 ## What we did not measure
 
