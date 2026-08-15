@@ -73,7 +73,10 @@ describe('Bing search totals', () => {
   });
 
   it('treats malformed vendor data as unavailable, not zero', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ d: [{}] }) }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, json: async () => ({ d: [{}] }) }),
+    );
     const recorder = responseRecorder();
 
     await handler({ method: 'GET' }, recorder.response);

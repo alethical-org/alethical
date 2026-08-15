@@ -77,7 +77,9 @@ function validCalendarDate(value: unknown): value is string {
 
 function exactKeys(value: object, keys: string[]) {
   const actual = Object.keys(value).sort();
-  return actual.length === keys.length && actual.every((key, index) => key === [...keys].sort()[index]);
+  return (
+    actual.length === keys.length && actual.every((key, index) => key === [...keys].sort()[index])
+  );
 }
 
 function validPercentage(value: unknown): value is number {

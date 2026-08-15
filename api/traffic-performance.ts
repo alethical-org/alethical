@@ -55,8 +55,14 @@ function finiteNonNegative(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0;
 }
 
-function enough(value: unknown, count: number, transform: (value: number) => number) {
-  return count >= MIN_SAMPLES && finiteNonNegative(value) ? transform(value) : null;
+function enough(
+  value: unknown,
+  count: number,
+  transform: (value: number) => number,
+) {
+  return count >= MIN_SAMPLES && finiteNonNegative(value)
+    ? transform(value)
+    : null;
 }
 
 export default async function handler(
@@ -118,7 +124,8 @@ export default async function handler(
       data?: { viewer?: { accounts?: Array<{ vitals?: VitalsGroup[] }> } };
       errors?: unknown;
     };
-    if (payload.errors) throw new PerformanceUnavailable("Cloudflare returned errors");
+    if (payload.errors)
+      throw new PerformanceUnavailable("Cloudflare returned errors");
     const group = payload.data?.viewer?.accounts?.[0]?.vitals?.[0];
     const lcpSamples = Number(group?.sum?.lcpTotal);
     const inpSamples = Number(group?.sum?.inpTotal);

@@ -39,7 +39,8 @@ function isoDateParts(now: Date, timeZone: string) {
     day: "2-digit",
     timeZone,
   }).formatToParts(now);
-  const value = (type: string) => parts.find((part) => part.type === type)?.value;
+  const value = (type: string) =>
+    parts.find((part) => part.type === type)?.value;
   return `${value("year")}-${value("month")}-${value("day")}`;
 }
 
@@ -103,7 +104,8 @@ export default async function handler(
     if (!client) throw new SearchUnavailable("Google identity was unavailable");
     client.scopes = [READ_ONLY_SCOPE];
     const access = await client.getAccessToken();
-    if (!access.token) throw new SearchUnavailable("Google token was unavailable");
+    if (!access.token)
+      throw new SearchUnavailable("Google token was unavailable");
 
     const pacificToday = isoDateParts(new Date(), "America/Los_Angeles");
     const requestedEnd = moveDate(pacificToday, -1);
@@ -132,7 +134,8 @@ export default async function handler(
     } catch {
       throw new SearchUnavailable("Google could not be reached");
     }
-    if (!result.ok) throw new SearchUnavailable(`Google returned ${result.status}`);
+    if (!result.ok)
+      throw new SearchUnavailable(`Google returned ${result.status}`);
     const payload = (await result.json()) as SearchPayload;
     if (payload.rows !== undefined && !Array.isArray(payload.rows)) {
       throw new SearchUnavailable("Google returned incomplete data");
@@ -163,7 +166,11 @@ export default async function handler(
       });
     }
 
-    const sum = (start: string, end: string, field: "clicks" | "impressions") => {
+    const sum = (
+      start: string,
+      end: string,
+      field: "clicks" | "impressions",
+    ) => {
       let total = 0;
       for (let date = start; date <= end; date = moveDate(date, 1)) {
         total += totals.get(date)?.[field] ?? 0;

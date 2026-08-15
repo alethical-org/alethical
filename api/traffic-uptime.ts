@@ -51,16 +51,14 @@ function availabilityValues(value: unknown, available = false): number[] {
   return Object.entries(object).flatMap(([key, entry]) =>
     availabilityValues(
       entry,
-      available || identifiesAvailability || key.toLowerCase().includes("availability"),
+      available ||
+        identifiesAvailability ||
+        key.toLowerCase().includes("availability"),
     ),
   );
 }
 
-async function getAvailability(
-  id: string,
-  apiKey: string,
-  accountId: string,
-) {
+async function getAvailability(id: string, apiKey: string, accountId: string) {
   const url = new URL(`${ENDPOINT}/${encodeURIComponent(id)}`);
   url.searchParams.set("quickRange", "last30Days");
   url.searchParams.set("metrics", "availability");
@@ -78,7 +76,8 @@ async function getAvailability(
   } catch {
     throw new UptimeUnavailable("Checkly could not be reached");
   }
-  if (!result.ok) throw new UptimeUnavailable(`Checkly returned ${result.status}`);
+  if (!result.ok)
+    throw new UptimeUnavailable(`Checkly returned ${result.status}`);
   const values = availabilityValues(await result.json());
   if (values.length !== 1) {
     throw new UptimeUnavailable("Checkly returned incomplete data");
@@ -111,12 +110,15 @@ export default async function handler(
   }
 
   try {
-    const [websiteAvailability30d, trafficPageAvailability30d, apiAvailability30d] =
-      await Promise.all([
-        getAvailability(webId, apiKey, accountId),
-        getAvailability(trafficId, apiKey, accountId),
-        getAvailability(apiId, apiKey, accountId),
-      ]);
+    const [
+      websiteAvailability30d,
+      trafficPageAvailability30d,
+      apiAvailability30d,
+    ] = await Promise.all([
+      getAvailability(webId, apiKey, accountId),
+      getAvailability(trafficId, apiKey, accountId),
+      getAvailability(apiId, apiKey, accountId),
+    ]);
     sendJson(
       response,
       200,

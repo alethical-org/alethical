@@ -23,10 +23,7 @@ const REFRESH_MS = 5 * 60 * 1000;
 const MINUTE_MS = 60 * 1000;
 const DAY_MS = 24 * 60 * MINUTE_MS;
 
-type SourceState<T> =
-  | { kind: 'loading' }
-  | { kind: 'ready'; totals: T }
-  | { kind: 'unavailable' };
+type SourceState<T> = { kind: 'loading' } | { kind: 'ready'; totals: T } | { kind: 'unavailable' };
 
 function useTrafficSource<T>(path: string, validate: (value: unknown) => value is T) {
   const [state, setState] = useState<SourceState<T>>({ kind: 'loading' });
@@ -107,7 +104,15 @@ function DisplayMetric({
   );
 }
 
-function Metric({ label, value, description }: { label: string; value: number; description?: string }) {
+function Metric({
+  label,
+  value,
+  description,
+}: {
+  label: string;
+  value: number;
+  description?: string;
+}) {
   return <DisplayMetric label={label} value={formatNumber(value)} description={description} />;
 }
 
@@ -302,7 +307,8 @@ function UptimeCards({ state, now }: { state: SourceState<UptimeTotals>; now: nu
   }
   const loading = state.kind === 'loading';
   const totals = state.kind === 'ready' ? state.totals : null;
-  const percent = (value: number) => `${value.toLocaleString('en-US', { maximumFractionDigits: 3 })}%`;
+  const percent = (value: number) =>
+    `${value.toLocaleString('en-US', { maximumFractionDigits: 3 })}%`;
 
   return (
     <>
@@ -376,7 +382,9 @@ function PerformanceCards({ state, now }: { state: SourceState<PerformanceTotals
             ) : (
               <DisplayMetric
                 label="Main content appeared"
-                value={totals?.lcpP75Ms == null ? pending : `${(totals.lcpP75Ms / 1000).toFixed(2)} s`}
+                value={
+                  totals?.lcpP75Ms == null ? pending : `${(totals.lcpP75Ms / 1000).toFixed(2)} s`
+                }
                 description="Time until the main content was visible. Lower is better."
               />
             )}
@@ -412,8 +420,8 @@ function PerformanceCards({ state, now }: { state: SourceState<PerformanceTotals
             {fetchedMinutesAgo(totals.fetchedAt, now)} minutes ago
           </Text>
           <Text style={styles.clarifier}>
-            {formatDateRange(totals.periodStartedOn, totals.periodEndedOn)}. A score appears after 50
-            measured visits.
+            {formatDateRange(totals.periodStartedOn, totals.periodEndedOn)}. A score appears after
+            50 measured visits.
           </Text>
         </View>
       ) : null}

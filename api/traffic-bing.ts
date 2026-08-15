@@ -80,7 +80,8 @@ export default async function handler(
     } catch {
       throw new SearchUnavailable("Bing could not be reached");
     }
-    if (!result.ok) throw new SearchUnavailable(`Bing returned ${result.status}`);
+    if (!result.ok)
+      throw new SearchUnavailable(`Bing returned ${result.status}`);
     const payload = (await result.json()) as BingPayload;
     if (!Array.isArray(payload.d)) {
       throw new SearchUnavailable("Bing returned incomplete data");
@@ -97,7 +98,10 @@ export default async function handler(
       ) {
         throw new SearchUnavailable("Bing returned invalid data");
       }
-      totals.set(date, { clicks: rawRow.Clicks, impressions: rawRow.Impressions });
+      totals.set(date, {
+        clicks: rawRow.Clicks,
+        impressions: rawRow.Impressions,
+      });
     }
 
     const today = new Date().toISOString().slice(0, 10);
@@ -105,7 +109,11 @@ export default async function handler(
     const periodStartedOn = moveDate(periodEndedOn, -27);
     const previousPeriodEndedOn = moveDate(periodStartedOn, -1);
     const previousPeriodStartedOn = moveDate(previousPeriodEndedOn, -27);
-    const sum = (start: string, end: string, field: "clicks" | "impressions") => {
+    const sum = (
+      start: string,
+      end: string,
+      field: "clicks" | "impressions",
+    ) => {
       let total = 0;
       for (let date = start; date <= end; date = moveDate(date, 1)) {
         total += totals.get(date)?.[field] ?? 0;
