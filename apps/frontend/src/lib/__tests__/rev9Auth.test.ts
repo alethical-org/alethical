@@ -51,7 +51,7 @@ describe('rev 9 provider error copy', () => {
         code: 'invalid_credentials',
         message: 'User not found. Internal provider detail.',
       }),
-    ).toEqual({ kind: 'bad-credentials', message: 'Email or password is incorrect.' });
+    ).toEqual({ kind: 'bad-credentials', message: 'Email or password is incorrect' });
   });
 
   it('maps an unconfirmed email without exposing provider wording', () => {
@@ -62,14 +62,14 @@ describe('rev 9 provider error copy', () => {
       ),
     ).toEqual({
       kind: 'email-not-confirmed',
-      message: 'Confirm jordan@example.com before signing in.',
+      message: 'Confirm jordan@example.com before signing in',
     });
   });
 
   it('maps known breached passwords separately from other weak passwords', () => {
     expect(mapProviderAuthError({ code: 'weak_password', reasons: ['pwned'] })).toEqual({
       kind: 'leaked-password',
-      message: 'Choose a password that hasn’t appeared in a known data breach.',
+      message: 'Choose a password that hasn’t appeared in a known data breach',
     });
     expect(mapProviderAuthError({ code: 'weak_password', reasons: ['length'] })).toEqual({
       kind: 'weak-password',
@@ -94,7 +94,7 @@ describe('rev 9 provider error copy', () => {
     for (const code of ['otp_expired', 'flow_state_expired', 'refresh_token_already_used']) {
       expect(mapProviderAuthError({ code })).toEqual({
         kind: 'expired-or-used-link',
-        message: 'This link has expired or has already been used.',
+        message: 'This link has expired or has already been used',
       });
     }
   });
@@ -125,7 +125,7 @@ describe('rev 9 provider error copy', () => {
     // screen with no email field.
     expect(mapProviderAuthError({ code: 'same_password', status: 422 })).toEqual({
       kind: 'same-password',
-      message: 'Choose a different password.',
+      message: 'Choose a different password',
     });
     expect(
       mapProviderAuthError({ code: 'validation_failed', status: 422 }, undefined, {
@@ -138,7 +138,7 @@ describe('rev 9 provider error copy', () => {
     // Outside a password save, validation_failed still means a malformed email.
     expect(mapProviderAuthError({ code: 'validation_failed', status: 422 })).toEqual({
       kind: 'invalid-email',
-      message: 'Enter a complete email address, like name@example.com.',
+      message: 'Enter a complete email address, like name@example.com',
     });
   });
 

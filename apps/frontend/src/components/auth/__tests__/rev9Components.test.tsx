@@ -138,10 +138,10 @@ describe('rev 9 shared sign-in components', () => {
 
     expect(waiting).toContain('role="status"');
     expect(waiting).toContain('aria-live="off"');
-    expect(waiting).toContain('You can resend in 37 seconds.');
+    expect(waiting).toContain('You can resend in 37 seconds');
     expect(sending).toContain('aria-busy="true"');
     expect(sending).toContain('Resending…');
-    expect(rateLimited).toContain('You can resend in 37 seconds.');
+    expect(rateLimited).toContain('You can resend in 37 seconds');
     expect(rateLimited).not.toContain('We’ve sent one.');
   });
 

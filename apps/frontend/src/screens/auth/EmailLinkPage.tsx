@@ -441,7 +441,7 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
         }
       >
         <View style={styles.stack}>
-          <FormError variant="banner" message="Something went wrong checking this link." />
+          <FormError variant="banner" message="Something went wrong checking this link" />
           <LoadingButton label="Try again" busyLabel="Checking…" onPress={verifyLink} />
           <LoadingButton
             label="Continue to Alethical"
@@ -462,13 +462,13 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
         title="That link can’t be used"
         description={
           confirmationDead
-            ? 'Enter your email address to request another confirmation link.'
-            : 'Start the Forgot password flow again and open the newest email.'
+            ? 'Enter your email address to request another confirmation link'
+            : 'Start the Forgot password flow again and open the newest email'
         }
       >
         <View style={styles.stack}>
-          <FormError variant="banner" message="This link has expired or has already been used." />
-          {error && error !== 'This link has expired or has already been used.' ? (
+          <FormError variant="banner" message="This link has expired or has already been used" />
+          {error && error !== 'This link has expired or has already been used' ? (
             <FormError variant="banner" message={error} />
           ) : null}
           {confirmationDead ? (
@@ -482,7 +482,7 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
               <ResendControl
                 status={deadResendStatus}
                 secondsRemaining={deadResendSeconds}
-                sentMessage="If a confirmation email arrives, open the newest one."
+                sentMessage="If a confirmation email arrives, open the newest one"
                 actionLabel="Send a new confirmation email"
                 sendingLabel="Sending…"
                 onResend={resendDeadConfirmation}
@@ -519,7 +519,7 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
       <SignInContainer
         variant="page"
         title="Check your email"
-        description="If a confirmation email arrives, open the newest one."
+        description="If a confirmation email arrives, open the newest one"
       >
         <LoadingButton
           label="Continue to sign in"
@@ -559,7 +559,7 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
         title="Email confirmed"
         description={
           screen === 'confirmed'
-            ? 'You’re signed in.'
+            ? 'You’re signed in'
             : 'That address is confirmed. Nothing about the account open here has changed.'
         }
       >
@@ -572,7 +572,7 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
                 email={ordinaryAccount.email}
               />
               <Text style={styles.note}>
-                To switch accounts later, sign out from the normal account menu.
+                To switch accounts later, sign out from the normal account menu
               </Text>
             </>
           ) : null}
@@ -599,7 +599,7 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
         description={
           different
             ? `Change the password for ${verifiedEmail}. The account open in this browser will stay signed in.`
-            : `For ${verifiedEmail}.`
+            : `For ${verifiedEmail}`
         }
       >
         <View style={styles.stack}>
@@ -643,7 +643,7 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
       <SignInContainer
         variant="page"
         title="Choose a new password"
-        description={`For ${verifiedEmail}.`}
+        description={`For ${verifiedEmail}`}
       >
         <View style={styles.stack}>
           <FormError variant="banner" message={uncertainPasswordSaveMessage(verifiedEmail)} />
@@ -686,8 +686,8 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
       title={kind === 'confirm' ? 'Confirm your email' : 'Reset your password'}
       description={
         kind === 'confirm'
-          ? 'Press the button to confirm the email address from this message.'
-          : 'Press the button to check this reset link and choose a new password.'
+          ? 'Press the button to confirm the email address from this message'
+          : 'Press the button to check this reset link and choose a new password'
       }
     >
       <View style={styles.stack}>

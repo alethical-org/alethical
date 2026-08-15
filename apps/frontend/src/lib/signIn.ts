@@ -45,7 +45,7 @@ interface IntentConfig {
 // The generic copy is shared by every plain Sign in button. Only a Track action
 // gets a different reason and glyph (docs/product-onboarding/sign-in-guide.md).
 const GENERIC_HEADLINE = 'Sign in to Alethical';
-const GENERIC_SUBCOPY = 'Bills you track are saved to your account.';
+const GENERIC_SUBCOPY = 'Bills you track are saved to your account';
 
 export const SIGN_IN_INTENTS: Record<SignInIntent, IntentConfig> = {
   nav: {

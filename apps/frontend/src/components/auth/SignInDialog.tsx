@@ -29,8 +29,8 @@ const PRIVACY_URL = 'https://www.alethical.com/privacy';
 // Arrival-neutral by rule: no screen claims a send happened — Supabase measurably
 // reports success without sending for an already-confirmed address, and a claim
 // the screen cannot see is barred (rev 17 sign-in bundle, #1533).
-const CONFIRMATION_SENT = 'If a confirmation email arrives, open the newest one.';
-const RESET_SENT = 'If a reset email arrives, open the newest one.';
+const CONFIRMATION_SENT = 'If a confirmation email arrives, open the newest one';
+const RESET_SENT = 'If a reset email arrives, open the newest one';
 
 export type SignInDialogScreen = 'sign-in' | 'create' | 'check-email' | 'forgot' | 'forgot-sent';
 
@@ -439,7 +439,7 @@ export function SignInDialog({
 
   const signInIntent = signInCopy(intent, billCode);
   const trackObject = billCode || 'this bill';
-  const trackDescription = `Save ${trackObject} to your tracked bills and check where it stands whenever you come back.`;
+  const trackDescription = `Save ${trackObject} to your tracked bills and check where it stands whenever you come back`;
   let title: string;
   let description: ReactNode;
   let icon: 'brand' | 'bell' | 'mail' | 'lock' | 'shield';
@@ -460,7 +460,7 @@ export function SignInDialog({
     title =
       intent === 'track' ? 'Create an account to track this bill' : 'Create your Alethical account';
     description =
-      intent === 'track' ? trackDescription : 'Bills you track are saved to your account.';
+      intent === 'track' ? trackDescription : 'Bills you track are saved to your account';
     icon = intent === 'track' ? 'bell' : 'brand';
   } else if (screen === 'check-email') {
     title = checkEmailMode === 'unconfirmed' ? 'Confirm your email' : 'Check your email';
@@ -469,13 +469,13 @@ export function SignInDialog({
     // no address and claims no send.
     description =
       checkEmailMode === 'unconfirmed'
-        ? `Confirm ${email} before signing in.`
+        ? `Confirm ${email} before signing in`
         : 'If a confirmation email arrives, open the newest one. If none does, sign in — you may already have an account.';
     icon = 'mail';
   } else if (screen === 'forgot') {
     title = 'Reset your password';
     description =
-      'Enter the email you use for Alethical and we’ll send password reset instructions.';
+      'Enter the email you use for Alethical and we’ll send password reset instructions';
     icon = 'lock';
   } else {
     title = 'Check your email';

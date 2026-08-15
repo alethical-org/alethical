@@ -108,7 +108,7 @@ describe('rev 9 sign-in dialog', () => {
 
     expect(html).toContain('Sign in to track this bill');
     expect(html).toContain(
-      'Save HF 4138 to your tracked bills and check where it stands whenever you come back.',
+      'Save HF 4138 to your tracked bills and check where it stands whenever you come back',
     );
   });
 
@@ -116,7 +116,7 @@ describe('rev 9 sign-in dialog', () => {
     const html = render({ initialScreen: 'create', initialEmail: 'jordan@example.com' });
 
     expect(html).toContain('Create your Alethical account');
-    expect(html).toContain('Bills you track are saved to your account.');
+    expect(html).toContain('Bills you track are saved to your account');
     expect(html.match(/autocomplete="new-password"/gi)).toHaveLength(2);
     expect(html).toContain('CONFIRM PASSWORD');
     expect(html).toContain('Use at least 15 characters. A few words with spaces works well.');
@@ -132,13 +132,13 @@ describe('rev 9 sign-in dialog', () => {
 
     expect(html).toContain('Create an account to track this bill');
     expect(html).toContain(
-      'Save SF 10 to your tracked bills and check where it stands whenever you come back.',
+      'Save SF 10 to your tracked bills and check where it stands whenever you come back',
     );
     expect(html).not.toContain('You’ll use this email and password');
   });
 
   it('keeps the wrong-password Google help unchanged', () => {
-    const html = render({ errorMessage: 'Email or password is incorrect.' });
+    const html = render({ errorMessage: 'Email or password is incorrect' });
 
     expect(html).toContain('If you first used Google and haven’t added a password,');
     expect(html).toContain('continue with Google.</span>');
@@ -178,7 +178,7 @@ describe('rev 9 sign-in dialog', () => {
     // pressable and was not.
     expect(forgot).toContain('Continue with Google');
     expect(forgot).not.toContain('If you first used Google');
-    expect(sent).toContain('If a reset email arrives, open the newest one.');
+    expect(sent).toContain('If a reset email arrives, open the newest one');
     expect(sent).not.toContain('we’ll send password reset instructions to');
     expect(sent).toContain('Continue with Google');
     expect(sent).not.toContain('If you first used Google');

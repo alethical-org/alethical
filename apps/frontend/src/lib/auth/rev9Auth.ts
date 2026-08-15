@@ -1,16 +1,16 @@
 export const MIN_PASSWORD_LENGTH = 15;
 
 export const REV9_AUTH_MESSAGES = {
-  badCredentials: 'Email or password is incorrect.',
-  invalidEmail: 'Enter a complete email address, like name@example.com.',
+  badCredentials: 'Email or password is incorrect',
+  invalidEmail: 'Enter a complete email address, like name@example.com',
   passwordTooShort: 'Use at least 15 characters. A few words with spaces works well.',
-  passwordMismatch: 'Passwords do not match.',
-  leakedPassword: 'Choose a password that hasn’t appeared in a known data breach.',
-  samePassword: 'Choose a different password.',
+  passwordMismatch: 'Passwords do not match',
+  leakedPassword: 'Choose a password that hasn’t appeared in a known data breach',
+  samePassword: 'Choose a different password',
   passwordTooLong: 'This password is too long. Use a shorter one.',
   tooManyAttempts: 'Too many attempts. Wait a while, then try again.',
   requestFailure: 'We couldn’t complete that request. Check your connection and try again.',
-  expiredOrUsedLink: 'This link has expired or has already been used.',
+  expiredOrUsedLink: 'This link has expired or has already been used',
   unverifiedGoogle:
     'Sign-in couldn’t finish because the email address needs confirmation. If a confirmation email arrives, open the newest one.',
   humanCheck: 'One more step — confirm you’re human, then press the button again.',
@@ -132,8 +132,8 @@ export function mapProviderAuthError(
     return {
       kind: 'email-not-confirmed',
       message: safeEmail
-        ? `Confirm ${safeEmail} before signing in.`
-        : 'Confirm your email before signing in.',
+        ? `Confirm ${safeEmail} before signing in`
+        : 'Confirm your email before signing in',
     };
   }
   if (code === 'validation_failed' && options?.passwordSave) {

@@ -41,7 +41,7 @@ export function passwordMethodCopy(
         ? `You sign in with Google or with ${email} and a password. This changes only that password — your Google sign-in stays as it is.`
         : `You sign in with ${email} and a password. Your next sign-in uses the new one.`,
       doneTitle: 'Password changed',
-      doneDescription: `Use the new password the next time you sign in with ${email}.`,
+      doneDescription: `Use the new password the next time you sign in with ${email}`,
     };
   }
 
@@ -49,7 +49,7 @@ export function passwordMethodCopy(
     kind: 'fallback',
     rowLabel: 'Password',
     title: 'Set or change password',
-    description: `Choose a password for ${email}.`,
+    description: `Choose a password for ${email}`,
     doneTitle: 'Password saved',
     doneDescription: `Use the new password the next time you sign in with ${email}. Other sign-in options, if you have them, are unchanged.`,
   };

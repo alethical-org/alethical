@@ -29,7 +29,7 @@ A screen reports only what it did itself, never what another system will do late
 delivery is the rule's main case: Supabase measurably reports success without sending
 anything when an already-confirmed address asks for another confirmation email, so every
 "check your email" screen uses arrival-neutral wording — "If a confirmation email arrives,
-open the newest one." — and no success screen ever says a security email was sent. The one
+open the newest one" — and no success screen ever says a security email was sent. The one
 screen that keeps "Sign in after confirming" is the unconfirmed-account screen, where the
 resend genuinely sends. After an account-creation request, the screen adds: "If none does,
 sign in — you may already have an account." Its controls appear in the order most likely to
@@ -56,7 +56,7 @@ The policy is:
 - State no maximum length anywhere. Supabase measures storage size rather than characters, so
   any stated character ceiling can be false for emoji or accented text. When Supabase refuses
   a password, the form shows one of 2 pinned messages beside the password field: **"Choose a
-  different password."** (the new password equals the old one, Supabase code `same_password`)
+  different password"** (the new password equals the old one, Supabase code `same_password`)
   and **"This password is too long. Use a shorter one."** (over the storage limit, Supabase
   code `validation_failed` on a password save). Before this build, the first wrongly blamed
   the reader's connection and the second asked for a complete email address on a screen with
@@ -204,7 +204,7 @@ website addresses are rejected, and expired or used references cannot be replaye
 
 Alethical turns Supabase errors into a small fixed set of messages. It never places a provider's
 raw error on the page. A wrong email, wrong password, missing password, or locked account all use
-the same sentence: **Email or password is incorrect.** This stops the form from revealing whether
+the same sentence: **Email or password is incorrect**. This stops the form from revealing whether
 an email address has an account.
 
 A deactivated account is signed out locally. Public bills, votes, and legislators remain readable.
