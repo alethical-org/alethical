@@ -25,7 +25,7 @@ type LegalDocumentContent = {
 
 const privacyContent: LegalDocumentContent = {
   title: 'Privacy Policy',
-  meta: 'Effective date: August 14, 2026 · Last updated: August 14, 2026',
+  meta: 'Effective date: August 15, 2026 · Last updated: August 15, 2026',
   sections: [
     {
       blocks: [
@@ -114,6 +114,7 @@ const privacyContent: LegalDocumentContent = {
             'Vercel, which hosts our website. Its hosting request logs record the address of every page you open, including anything carried inside that address. Separately, Vercel Web Analytics receives a cleaned page path with anything following “?” or “#” removed, then counts the page load without an analytics cookie or a name.',
             'Cloudflare, which sits in front of the Service and passes every request through to it.',
             'Railway, which runs the part of the Service that answers those requests. Its logs record the paths requested. We strip email addresses and anything carried inside a web address out of every line we write.',
+            'Sentry, which alerts us when the Service or a data import fails. It receives the error type, the place in our code that failed, the software release, a route pattern with real identifiers removed, and public operating labels such as a bill number or provider name. We do not send Sentry request bodies, questions, messages, account details, log lines, or the error sentence itself.',
             'AI providers who generate answers and summaries — Anthropic and OpenAI. When you ask a question, the question text and the bill passages it is answered from are sent to them. We do not send your name, email address, or account identifier with it.',
             'The United States Census Bureau, when you look up your legislators by address. The address you type is sent to its public geocoding service to find your district. We do not store it.',
             'The Minnesota Geospatial Information Office, while we show Minnesota address suggestions and when the Census Bureau cannot match a Minnesota address. We send only the house number and street name entered so far to its public address list, not the city or ZIP. We do not store it.',

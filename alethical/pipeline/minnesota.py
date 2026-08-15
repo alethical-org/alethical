@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from alethical.pipeline.http_text import response_text
 from alethical.db.schema import load_schema
+from alethical.monitoring import capture_operational_error
 from alethical.pipeline.roster_pdf import (
     ReconcileReport,
     RosterMember,
@@ -1237,6 +1238,16 @@ class MinnesotaIngestionPipeline:
         run.finished_at = datetime.now(UTC)
         run.stats = stats or {}
         run.error_text = str(error)
+        capture_operational_error(
+            error,
+            area="ingestion",
+            operation="run-failed",
+            tags={
+                "ingestion.adapter": str(run.adapter),
+                "ingestion.target_key": str(run.target_key or "none"),
+                "ingestion.target_type": str(run.target_type),
+            },
+        )
 
     def record_artifact(
         self,

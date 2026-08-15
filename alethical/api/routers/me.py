@@ -36,6 +36,7 @@ from alethical.pipeline.rag_ingest import (
     _build_embeddings,
     effective_embedding_model,
 )
+from alethical.monitoring import capture_operational_error
 
 schema = load_schema()
 Bill = schema.Bill
@@ -614,6 +615,12 @@ def synthesize_grounded_answer(
                 text_value = narrow_bill_absence_claims(text_value)
             return strip_list_completeness_claims(text_value)
     except requests.RequestException as exc:
+        capture_operational_error(
+            exc,
+            area="chat",
+            operation="provider-request",
+            tags={"bill_key": bill_key, "provider": provider},
+        )
         raise HTTPException(
             status_code=502, detail=f"{label} RAG chat synthesis failed"
         ) from exc

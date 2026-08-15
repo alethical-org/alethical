@@ -8,8 +8,8 @@ The web service is FastAPI on Uvicorn, hosted on Railway. The database is Postgr
 `pgvector` add-on, hosted by Supabase in production and in a container locally. Supabase also
 handles sign-in. The jobs run through a Postgres-backed queue (`oban`) and are started by a
 person or by a scheduled GitHub Actions run, never by a worker that sits running all day.
-Outside paid services are exactly three: Anthropic and OpenAI for AI text and search, and
-Resend for outbound email.
+Outside services are Anthropic and OpenAI for AI text and search, Resend for outbound
+email, and Sentry for alerts when the server fails. Sentry starts on its free plan.
 
 This is the map. Every part has a deeper doc, listed in
 [Where each part is documented](#where-each-part-is-documented) at the bottom; read this page
@@ -33,6 +33,7 @@ first and follow the link for the part you need.
 | Writing bill summaries | Anthropic (Claude) | `alethical/pipeline/anthropic_enrichment.py` |
 | Making bill text searchable by meaning | OpenAI embeddings | `alethical/pipeline/rag_ingest.py` |
 | Sending email | Resend | `alethical/api/services/contact.py` |
+| Alerting on server failures | Sentry, with no request or reader data | `alethical/monitoring.py` |
 | Hosting | Railway, one service | `railway.json` |
 | Releasing | Railway and Vercel Git connections, with hand-run GitHub backups | `railway.json`, `vercel.json`, `.github/workflows/` |
 | Tests | pytest | `alethical/tests/` |
@@ -158,7 +159,21 @@ startup which of those is missing, so a misconfigured key shows up in the log in
 silently lost mail. The free plan's daily and monthly caps are read back from Resend's own
 response headers rather than assumed.
 
-## 8. Hosting and release
+## 8. Error alerts
+
+Sentry groups and emails the failures a maintainer needs to act on: failed Minnesota
+imports, Supabase sign-in service outages, Anthropic or OpenAI answer failures, and
+unexpected API errors. Expected client mistakes such as a bad sign-in token stay quiet.
+
+Alethical sends each failure itself. Sentry's automatic framework, log, request,
+performance, and local-variable collection are all off. An event contains the error
+class, code stack, release, environment, a route pattern such as
+`/api/v1/bills/{bill_id}`, and a few public operating labels. It never contains a real
+route value, request body, question, message, name, email address, account id, or log
+line. Setup, verification, incident use, cost, and the buy-versus-build decision are in
+[`docs/operations/error-monitoring.md`](../operations/error-monitoring.md).
+
+## 9. Hosting and release
 
 - One Railway service runs the API. It restarts on failure, up to 10 times, and Railway
   calls `/readyz` before switching traffic. That check requires the database schema the
@@ -171,7 +186,7 @@ response headers rather than assumed.
 - The frontend deploys separately to Vercel, so a backend release and a frontend release are
   two independent events.
 
-## 9. Tests
+## 10. Tests
 
 pytest, 36 test files under `alethical/tests/`. Two groups matter more than the rest:
 
