@@ -98,6 +98,7 @@ describe('rev 9 sign-in integration guards', () => {
       'If a confirmation email arrives, open the newest one',
       'You’re signed in',
       'To switch accounts later, sign out from the normal account menu',
+      'Finishing up — closing this reset session',
       'Press the button to confirm the email address from this message',
       'Press the button to check this reset link and choose a new password',
     ]) {
