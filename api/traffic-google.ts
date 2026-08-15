@@ -21,11 +21,30 @@ const DAY_MS = 86_400_000;
 
 class SearchUnavailable extends Error {}
 type SearchFailureStage =
+  | "vercel-oidc-token"
   | "identity-client"
   | "access-token"
+  | "google-token-exchange"
+  | "service-account-token"
   | "search-console-request"
   | "search-console-response"
   | "search-console-data";
+
+function accessTokenFailureStage(error: unknown): SearchFailureStage {
+  if (!error || typeof error !== "object") return "access-token";
+  const config = (error as { config?: unknown }).config;
+  if (!config || typeof config !== "object") return "access-token";
+  const value = (config as { url?: unknown }).url;
+  const url =
+    typeof value === "string" ? value : value instanceof URL ? value.href : "";
+  if (url.startsWith("https://sts.googleapis.com/")) {
+    return "google-token-exchange";
+  }
+  if (url.startsWith("https://iamcredentials.googleapis.com/")) {
+    return "service-account-token";
+  }
+  return "access-token";
+}
 
 function sendJson(
   response: ResponseLike,
@@ -98,20 +117,33 @@ export default async function handler(
     return;
   }
 
-  let failureStage: SearchFailureStage = "identity-client";
+  let failureStage: SearchFailureStage = "vercel-oidc-token";
   try {
+    const vercelOidcToken = await getVercelOidcToken();
+    if (!vercelOidcToken) {
+      throw new SearchUnavailable("Vercel identity was unavailable");
+    }
+    failureStage = "identity-client";
     const client = ExternalAccountClient.fromJSON({
       type: "external_account",
       audience: `//iam.googleapis.com/projects/${projectNumber}/locations/global/workloadIdentityPools/${poolId}/providers/${providerId}`,
       subject_token_type: "urn:ietf:params:oauth:token-type:jwt",
       token_url: "https://sts.googleapis.com/v1/token",
       service_account_impersonation_url: `https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/${serviceAccount}:generateAccessToken`,
-      subject_token_supplier: { getSubjectToken: getVercelOidcToken },
+      subject_token_supplier: {
+        getSubjectToken: async () => vercelOidcToken,
+      },
     });
     if (!client) throw new SearchUnavailable("Google identity was unavailable");
     failureStage = "access-token";
     client.scopes = [READ_ONLY_SCOPE];
-    const access = await client.getAccessToken();
+    let access: { token?: string | null };
+    try {
+      access = await client.getAccessToken();
+    } catch (error) {
+      failureStage = accessTokenFailureStage(error);
+      throw error;
+    }
     if (!access.token)
       throw new SearchUnavailable("Google token was unavailable");
 
