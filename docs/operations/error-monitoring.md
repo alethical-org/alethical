@@ -45,7 +45,9 @@ evidence trail remain inside Alethical. Stale-data prevention is separate work i
 
 ## First setup
 
-1. Create 1 Python project in Sentry named `alethical-api` on the Developer plan.
+1. Sign into Sentry through Google with `alethicaldev@gmail.com`. Use organization
+   `Alethical`, United States storage, the Developer plan, and 1 FastAPI project named
+   `alethical-api`. Never connect a maintainer's personal Google or GitHub account.
 2. Keep the project's default alert rule on. Sentry creates projects with email on every new issue unless that default is turned off.
 3. Copy the project's client address from **Project Settings → Client Keys (DSN)**.
 4. Add it to the Railway `alethical-api` service as `SENTRY_DSN`.

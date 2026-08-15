@@ -157,6 +157,7 @@ The live check reads names only with Railway's `decryptVariables: false` option.
 | `OPENAI_API_KEY` | Present | Powers live question sorting, answers, and search embeddings. | Live |
 | `PYTHON_VERSION` | Present | Pins the Python version Railway uses to build the API. | Live |
 | `RESEND_API_KEY` | Present | Authenticates production Contact us email. | Live |
+| `SENTRY_DSN` | Present | Sends deliberately limited server failures to Alethical's Sentry project. | Live |
 | `SUPABASE_DB_PASSWORD` | Present | Lets production maintenance commands build a database connection without copying a full address. | Live |
 | `SUPABASE_POOLER_HOST` | Present | Routes production maintenance commands through Supabase's reachable connection pool. | Live |
 | `SUPABASE_PUBLISHABLE_KEY` | Present | Lets the API make public Supabase requests. | Live |
