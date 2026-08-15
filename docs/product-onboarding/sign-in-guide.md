@@ -28,7 +28,9 @@ anything when an already-confirmed address asks for another confirmation email, 
 "check your email" screen uses arrival-neutral wording — "If a confirmation email arrives,
 open the newest one." — and no success screen ever says a security email was sent. The one
 screen that keeps "Sign in after confirming" is the unconfirmed-account screen, where the
-resend genuinely sends.
+resend genuinely sends. After an account-creation request, the screen adds: "If none does,
+sign in — you may already have an account." Its controls appear in the order most likely to
+work for that reader: Google, Sign in, Resend email, then Change email.
 
 ## Password policy and why
 
