@@ -673,7 +673,7 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
       <SignInContainer
         variant="page"
         title="Password changed"
-        description="Finishing up — closing this reset session."
+        description="Finishing up — closing this reset session"
       >
         <LoadingButton label="Finishing up…" busyLabel="Finishing up…" busy onPress={undefined} />
       </SignInContainer>

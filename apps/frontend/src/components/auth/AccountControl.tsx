@@ -37,7 +37,7 @@ import { SignInContainer } from './SignInContainer';
 const isWeb = Platform.OS === 'web';
 const emailPasswordEnabled = process.env.EXPO_PUBLIC_EMAIL_PASSWORD_SIGN_IN_ENABLED === 'true';
 const SIGN_OUT_FAILURE = 'We couldn’t sign you out. Check your connection and try again.';
-const OTHER_DEVICE_NOTE = 'You may still be signed in on other devices.';
+const OTHER_DEVICE_NOTE = 'You may still be signed in on other devices';
 
 function displayName(name: string | undefined, email: string | undefined) {
   const trimmed = (name ?? '').trim();

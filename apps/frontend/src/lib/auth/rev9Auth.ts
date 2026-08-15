@@ -13,7 +13,7 @@ export const REV9_AUTH_MESSAGES = {
   expiredOrUsedLink: 'This link has expired or has already been used',
   unverifiedGoogle:
     'Sign-in couldn’t finish because the email address needs confirmation. If a confirmation email arrives, open the newest one.',
-  humanCheck: 'One more step — confirm you’re human, then press the button again.',
+  humanCheck: 'One more step — confirm you’re human, then press the button again',
 } as const;
 
 const COMPLETE_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -171,16 +171,16 @@ export function mapProviderAuthError(
     return {
       kind: 'fresh-proof',
       message: safeEmail
-        ? `Enter the code we sent to ${safeEmail} to confirm it’s you.`
-        : 'Enter the code we sent to confirm it’s you.',
+        ? `Enter the code we sent to ${safeEmail} to confirm it’s you`
+        : 'Enter the code we sent to confirm it’s you',
     };
   }
   if (code === 'email_exists' || code === 'user_already_exists') {
     return {
       kind: 'check-email',
       message: safeEmail
-        ? `If this address can create an Alethical account, a confirmation link is on the way to ${safeEmail}.`
-        : 'If this address can create an Alethical account, a confirmation link is on the way.',
+        ? `If this address can create an Alethical account, a confirmation link is on the way to ${safeEmail}`
+        : 'If this address can create an Alethical account, a confirmation link is on the way',
     };
   }
   return { kind: 'request-failure', message: REV9_AUTH_MESSAGES.requestFailure };

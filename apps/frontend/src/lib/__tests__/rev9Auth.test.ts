@@ -142,6 +142,20 @@ describe('rev 9 provider error copy', () => {
     });
   });
 
+  it('omits the final period from short 1-step provider messages', () => {
+    expect(REV9_AUTH_MESSAGES.humanCheck).toBe(
+      'One more step — confirm you’re human, then press the button again',
+    );
+    expect(mapProviderAuthError({ code: 'reauthentication_needed' })).toEqual({
+      kind: 'fresh-proof',
+      message: 'Enter the code we sent to confirm it’s you',
+    });
+    expect(mapProviderAuthError({ code: 'user_already_exists' })).toEqual({
+      kind: 'check-email',
+      message: 'If this address can create an Alethical account, a confirmation link is on the way',
+    });
+  });
+
   it('ends a verified email-link flow only for a deactivated account', () => {
     expect(emailLinkFailureScreen('deactivated')).toBe('deactivated');
     expect(emailLinkFailureScreen('request-failure')).toBe('link-fail');

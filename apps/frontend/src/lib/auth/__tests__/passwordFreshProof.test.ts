@@ -24,7 +24,7 @@ describe('fresh proof during a password save', () => {
       ok: false,
       error: {
         kind: 'fresh-proof',
-        message: 'Enter the code we sent to marissa@example.com to confirm it’s you.',
+        message: 'Enter the code we sent to marissa@example.com to confirm it’s you',
       },
     });
     expect(updateUser).toHaveBeenNthCalledWith(1, {
