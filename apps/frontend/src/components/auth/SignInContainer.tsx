@@ -68,6 +68,10 @@ export function SignInContainer({
   const descriptionId = description ? `auth-description-${generatedDescriptionId}` : undefined;
   const cardRef = useRef<View>(null);
   const closeRef = useRef<View>(null);
+  // Android shrinks the visual viewport when its keyboard opens. That rebuilds
+  // parent callbacks, but it must not make an already-open dialog focus Close.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   const [closeFocused, setCloseFocused] = useState(false);
   const isPage = variant === 'page';
   const asSheet = !isPage && isMobile;
@@ -85,9 +89,9 @@ export function SignInContainer({
     }
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && onClose) {
+      if (event.key === 'Escape' && onCloseRef.current) {
         event.preventDefault();
-        onClose();
+        onCloseRef.current?.();
         return;
       }
       if (event.key !== 'Tab') return;
@@ -116,7 +120,7 @@ export function SignInContainer({
       document.removeEventListener('keydown', onKeyDown, true);
       opener?.focus?.();
     };
-  }, [focusKey, isPage, onClose, open]);
+  }, [focusKey, isPage, open]);
 
   if (!open) return null;
 
