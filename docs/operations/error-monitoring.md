@@ -48,13 +48,17 @@ evidence trail remain inside Alethical. Stale-data prevention is separate work i
 1. Sign into Sentry through Google with `alethicaldev@gmail.com`. Use organization
    `Alethical`, United States storage, the Developer plan, and 1 FastAPI project named
    `alethical-api`. Never connect a maintainer's personal Google or GitHub account.
-2. Keep the project's default alert rule on. Sentry creates projects with email on every new issue unless that default is turned off.
-3. Copy the project's client address from **Project Settings → Client Keys (DSN)**.
-4. Add it to the Railway `alethical-api` service as `SENTRY_DSN`.
-5. Let Railway release the current `main` commit again.
-6. In a Railway shell for `alethical-api`, run `uv run python -m alethical.monitoring`.
-7. Confirm 1 `monitoring / verification` event appears in Sentry and its email arrives.
-8. Open the event and confirm it has no **Request**, **User**, **Breadcrumbs**, or local-variable values.
+2. Keep error monitoring, spike protection, server-side scrubbing, default scrubbers,
+   and **Prevent Storing of IP Addresses** on. Keep logs, tracing, profiling, metrics,
+   JavaScript source fetching, and source-code connections off.
+3. Keep the project's default alert rule on. Sentry creates projects with email on every new issue unless that default is turned off.
+4. Copy the project's client address from **Project Settings → Client Keys (DSN)**.
+5. Add it to the Railway `alethical-api` service as `SENTRY_DSN`.
+6. Let Railway release the current `main` commit again.
+7. In a Railway shell for `alethical-api`, run `uv run python -m alethical.monitoring`.
+8. Confirm 1 `monitoring / verification` event appears in Sentry and its email arrives.
+9. Open the event and confirm it has 0 users and no **Request**, **User**,
+   **Breadcrumbs**, network location, or local-variable values.
 
 The client address can send events into that one Sentry project. It cannot read events,
 change settings, or open the Sentry account. Keep it in Railway rather than the shipped

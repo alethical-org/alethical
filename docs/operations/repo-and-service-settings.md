@@ -180,6 +180,23 @@ The live check reads names only with Railway's `decryptVariables: false` option.
 | `SUPABASE_URL` | Present | Points the API at the production Supabase project. | Live |
 | `UV_VERSION` | Present | Pins the package installer Railway uses to build the API. | Live |
 
+## Sentry project
+
+Set under **Settings** in Sentry organization `Alethical`. Verified 2026-08-15.
+
+| Setting | Intended | Why | Automated check |
+| --- | --- | --- | --- |
+| Account | Google sign-in with `alethicaldev@gmail.com` | Keeps Alethical's vendor access out of a maintainer's personal accounts. | Manual |
+| Data location | United States | Matches Alethical's Minnesota service and Railway's US server. | Manual |
+| Plan | Developer | Supplies the needed grouping, 30-day view, and email for $0. | Manual |
+| Project | `alethical-api`, FastAPI | Keeps server failures separate and clearly named. | Manual |
+| Products | Error monitoring on; logs, tracing, profiling, and metrics off | Sends only the deliberately captured failures. | Manual |
+| Data scrubbing | Server-side scrubber and default scrubbers on | Adds a second barrier if a future caller sends a sensitive field. | Manual |
+| IP address storage | Prevented | Stops Sentry from turning a server or reader network address into a stored location. | Manual |
+| Source access | No connected repository; JavaScript source fetching and source-code context off | Prevents Sentry from copying source beyond the stack locations sent with an event. | Manual |
+| Spike protection | On | Keeps one failure storm from consuming the free allowance. | Manual |
+| New-issue alert | Email `alethicaldev@gmail.com` | Makes a grouped failure visible without someone checking a dashboard. | Verified by production event `ALETHICAL-API-1` on 2026-08-15 |
+
 ## Supabase sign-in
 
 Set under **Authentication** in the Alethical Supabase project. Verified 2026-08-13.
