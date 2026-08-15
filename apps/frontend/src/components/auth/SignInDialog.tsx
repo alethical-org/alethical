@@ -272,6 +272,11 @@ export function SignInDialog({
     return () => clearInterval(timer);
   }, [resendStatus]);
 
+  useEffect(() => {
+    if (anyBusy || formError !== REV9_AUTH_MESSAGES.badCredentials || password) return;
+    passwordRef.current?.focus?.();
+  }, [anyBusy, formError, password]);
+
   const clearMessages = () => {
     setFieldErrors({});
     setFormError(null);
@@ -298,7 +303,9 @@ export function SignInDialog({
       passwordRef.current?.focus?.();
       return;
     }
-    if (error.kind === 'bad-credentials') setPassword('');
+    if (error.kind === 'bad-credentials') {
+      setPassword('');
+    }
     setFormError(error.message);
   };
 
@@ -735,6 +742,7 @@ export function SignInDialog({
   return (
     <SignInContainer
       open={open}
+      focusKey={dedicatedOutcome ? 'deactivated' : screen}
       title={title}
       description={description}
       icon={<IntentIcon icon={icon} size={isMobile ? 56 : 52} />}

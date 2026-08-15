@@ -146,6 +146,9 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
   const clearOrdinarySession = useRef<(() => void) | null>(null);
   const ordinaryAccountRef = useRef<OrdinaryAccount | null>(null);
   const passwordWasChanged = useRef(false);
+  const emailRef = useRef<any>(null);
+  const passwordRef = useRef<any>(null);
+  const confirmationRef = useRef<any>(null);
 
   useEffect(() => {
     if (deadResendStatus !== 'rate-limited') return;
@@ -283,7 +286,10 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
   const resendDeadConfirmation = async () => {
     const fieldFailure = validateEmail(email);
     setEmailError(fieldFailure ?? undefined);
-    if (fieldFailure) return;
+    if (fieldFailure) {
+      emailRef.current?.focus?.();
+      return;
+    }
     setError(null);
     setDeadResendStatus('sending');
     try {
@@ -380,7 +386,11 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
     const secondFailure = validatePasswordMatch(password, confirmation);
     setPasswordError(firstFailure ?? undefined);
     setConfirmationError(secondFailure ?? undefined);
-    if (firstFailure || secondFailure || !temporaryClient.current) return;
+    if (firstFailure || secondFailure) {
+      (firstFailure ? passwordRef : confirmationRef).current?.focus?.();
+      return;
+    }
+    if (!temporaryClient.current) return;
 
     const temporary = temporaryClient.current;
     const changed = await updatePasswordOnce(passwordWasChanged, () =>
@@ -407,6 +417,7 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
         failure.kind === 'password-too-long';
       setPasswordError(fieldError ? failure.message : undefined);
       setError(fieldError ? null : failure.message);
+      if (fieldError) passwordRef.current?.focus?.();
       return;
     }
     await finishResetCleanup();
@@ -462,7 +473,12 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
           ) : null}
           {confirmationDead ? (
             <>
-              <EmailField value={email} error={emailError} onChangeText={setEmail} />
+              <EmailField
+                inputRef={emailRef}
+                value={email}
+                error={emailError}
+                onChangeText={setEmail}
+              />
               <ResendControl
                 status={deadResendStatus}
                 secondsRemaining={deadResendSeconds}
@@ -596,6 +612,7 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
           ) : null}
           {error ? <FormError variant="banner" message={error} /> : null}
           <PasswordField
+            inputRef={passwordRef}
             label="NEW PASSWORD"
             value={password}
             autoComplete="new-password"
@@ -604,6 +621,7 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
             onChangeText={setPassword}
           />
           <PasswordField
+            inputRef={confirmationRef}
             label="CONFIRM PASSWORD"
             value={confirmation}
             autoComplete="new-password"

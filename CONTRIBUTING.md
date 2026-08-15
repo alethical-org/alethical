@@ -353,8 +353,6 @@ single home. What CI enforces on your PR:
   assets, and handoff notes with the active task or pull request. Before merging, move
   lasting behavior and copy into the feature guide under `docs/product-onboarding/`,
   shared visual rules into `docs/design/design-principles.md`, and exact values into code.
-  `docs/mockups/sign-in/` is the temporary final exception while that redesign is active;
-  changing it still needs a nonempty `Design change:` line naming what changed and why.
 - Selected live guides carry `<!-- check-quoted-code: true -->`: exact labels, colours,
   and settings they quote must still appear in their declared code
   (`scripts/check_doc_quotes.py`), or carry a narrow explained exception

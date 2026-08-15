@@ -44,6 +44,7 @@ function CloseIcon() {
 
 export function SignInContainer({
   open = true,
+  focusKey,
   variant = 'flow',
   title,
   description,
@@ -52,6 +53,7 @@ export function SignInContainer({
   onClose,
 }: {
   open?: boolean;
+  focusKey?: string;
   variant?: 'flow' | 'page';
   title: string;
   description?: ReactNode;
@@ -65,6 +67,7 @@ export function SignInContainer({
   const generatedDescriptionId = useId();
   const descriptionId = description ? `auth-description-${generatedDescriptionId}` : undefined;
   const cardRef = useRef<View>(null);
+  const closeRef = useRef<View>(null);
   const [closeFocused, setCloseFocused] = useState(false);
   const isPage = variant === 'page';
   const asSheet = !isPage && isMobile;
@@ -73,7 +76,9 @@ export function SignInContainer({
     if (!isWeb || !open || isPage || typeof document === 'undefined') return;
     const opener = document.activeElement as HTMLElement | null;
     const card = cardRef.current as unknown as HTMLElement | null;
-    if (card) {
+    const close = closeRef.current as unknown as HTMLElement | null;
+    close?.focus();
+    if (!close && card) {
       card.setAttribute('tabindex', '-1');
       card.focus();
       card.removeAttribute('tabindex');
@@ -111,7 +116,7 @@ export function SignInContainer({
       document.removeEventListener('keydown', onKeyDown, true);
       opener?.focus?.();
     };
-  }, [isPage, onClose, open]);
+  }, [focusKey, isPage, onClose, open]);
 
   if (!open) return null;
 
@@ -214,6 +219,7 @@ export function SignInContainer({
               <View style={styles.grabHandle} />
               {onClose ? (
                 <Pressable
+                  ref={closeRef}
                   accessibilityRole="button"
                   accessibilityLabel="Close"
                   onBlur={() => setCloseFocused(false)}
@@ -231,6 +237,7 @@ export function SignInContainer({
             </View>
           ) : onClose ? (
             <Pressable
+              ref={closeRef}
               accessibilityRole="button"
               accessibilityLabel="Close"
               onBlur={() => setCloseFocused(false)}

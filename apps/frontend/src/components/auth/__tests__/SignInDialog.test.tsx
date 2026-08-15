@@ -211,7 +211,13 @@ describe('rev 9 sign-in dialog', () => {
     expect(SOURCE).toContain('createValidRequestGate()');
     expect(SOURCE).toContain("result.error.kind === 'email-not-confirmed'");
     expect(SOURCE).toContain("result.error.kind === 'check-email'");
-    expect(SOURCE).toContain("if (error.kind === 'bad-credentials') setPassword('')");
+    expect(SOURCE).toMatch(
+      /if \(error\.kind === 'bad-credentials'\) \{[\s\S]*?setPassword\(''\);[\s\S]*?\}/,
+    );
+    expect(SOURCE).toMatch(
+      /useEffect\(\(\) => \{[\s\S]*?formError !== REV9_AUTH_MESSAGES\.badCredentials[\s\S]*?passwordRef\.current\?\.focus\?\.\(\);[\s\S]*?\}, \[anyBusy, formError, password\]\);/,
+    );
+    expect(SOURCE).toContain("focusKey={dedicatedOutcome ? 'deactivated' : screen}");
     expect(SOURCE).toContain('Math.ceil(resendWaitSeconds)');
     expect(SOURCE).not.toMatch(/resendWaitSeconds\s*=\s*60/);
     expect(SOURCE).not.toContain('maxlength');
