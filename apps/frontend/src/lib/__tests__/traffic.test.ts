@@ -11,13 +11,15 @@ describe('traffic privacy wording and address redaction', () => {
 
   it('does not claim team traffic is excluded before the account list exists', () => {
     const note = trafficMethodNote(false);
-    expect(note).not.toContain('Alethical team accounts');
-    expect(note).toContain('Numbers refresh every few minutes.');
+    expect(note).not.toContain('Team account visits are excluded.');
+    expect(note).toBe(
+      'How we count: No cookies or names. Vercel filters known automated traffic. Search terms and page-address details are removed before counting.',
+    );
   });
 
   it('adds the narrow signed-in exclusion claim after the account list exists', () => {
-    expect(trafficMethodNote(true)).toContain(
-      'Browsing while signed into Alethical team accounts is not counted.',
+    expect(trafficMethodNote(true)).toBe(
+      'How we count: No cookies or names. Vercel filters known automated traffic. Search terms and page-address details are removed before counting. Team account visits are excluded.',
     );
   });
 });
