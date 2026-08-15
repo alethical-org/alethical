@@ -33,6 +33,81 @@ def test_unpinned_deployment_command_is_reported(tmp_path: Path) -> None:
     ]
 
 
+def test_unversioned_uv_install_is_reported(tmp_path: Path) -> None:
+    workflow = tmp_path / ".github" / "workflows"
+    workflow.mkdir(parents=True)
+    (workflow / "check.yaml").write_text(
+        """steps:
+  - uses: astral-sh/setup-uv@v9.0.0
+    with:
+      enable-cache: true
+""",
+        encoding="utf-8",
+    )
+
+    assert check_technology_health.check_uv_versions(tmp_path) == [
+        ".github/workflows/check.yaml:2: uv has no saved version"
+    ]
+
+
+def test_mismatched_uv_versions_are_reported(tmp_path: Path) -> None:
+    workflow = tmp_path / ".github" / "workflows"
+    workflow.mkdir(parents=True)
+    (workflow / "check.yml").write_text(
+        """steps:
+  - uses: astral-sh/setup-uv@v9.0.0
+    with:
+      version: 0.12.5
+  - uses: astral-sh/setup-uv@v9.0.0
+    with:
+      version: 0.12.6
+""",
+        encoding="utf-8",
+    )
+
+    problems = check_technology_health.check_uv_versions(tmp_path)
+
+    assert len(problems) == 1
+    assert "uv has 2 different saved versions" in problems[0]
+    assert "0.12.5" in problems[0]
+    assert "0.12.6" in problems[0]
+
+
+def test_uv_public_release_follows_monthly_update_policy(
+    monkeypatch, tmp_path: Path
+) -> None:
+    workflow = tmp_path / ".github" / "workflows"
+    workflow.mkdir(parents=True)
+    (workflow / "technology-health.yml").write_text(
+        """steps:
+  - uses: astral-sh/setup-uv@v9.0.0
+    with:
+      version: 0.12.5
+""",
+        encoding="utf-8",
+    )
+    uv_pin = next(
+        pin for pin in check_technology_health.REGISTRY_PINS if pin.name == "uv"
+    )
+    monkeypatch.setattr(
+        check_technology_health, "_latest_registry_version", lambda pin: "0.12.6"
+    )
+
+    routine, major = check_technology_health.check_registry_versions(tmp_path)
+
+    assert "uv: 0.12.5 saved, 0.12.6 available" in routine
+    assert not any(item.startswith("uv:") for item in major)
+    assert uv_pin.registry == "github-release"
+
+    monkeypatch.setattr(
+        check_technology_health, "_latest_registry_version", lambda pin: "0.13.0"
+    )
+    routine, major = check_technology_health.check_registry_versions(tmp_path)
+
+    assert not any(item.startswith("uv:") for item in routine)
+    assert "uv: 0.12.5 saved, 0.13.0 available" in major
+
+
 def test_inconsistent_pnpm_versions_are_reported(tmp_path: Path) -> None:
     (tmp_path / "package.json").write_text(
         json.dumps({"packageManager": "pnpm@10.33.0"}), encoding="utf-8"

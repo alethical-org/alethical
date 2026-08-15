@@ -159,6 +159,15 @@ SUPPORT_WINDOWS = (
 
 REGISTRY_PINS = (
     RegistryPin(
+        "uv",
+        VersionSource(
+            ".github/workflows/technology-health.yml",
+            r"uses:\s*astral-sh/setup-uv@[^\s]+\s*\n\s*with:\s*\n\s*version:\s*[\"']?([0-9.]+)",
+        ),
+        "github-release",
+        "astral-sh/uv",
+    ),
+    RegistryPin(
         "pnpm",
         VersionSource("package.json", r'"packageManager"\s*:\s*"pnpm@([^"\s]+)"'),
         "npm",
@@ -282,6 +291,52 @@ def find_unpinned_commands(root: Path) -> list[str]:
     return problems
 
 
+def saved_uv_versions(root: Path) -> list[tuple[str, int, str | None]]:
+    """Return every setup-uv use with its line number and explicit uv version."""
+    versions = []
+    workflows = root / ".github" / "workflows"
+    if not workflows.exists():
+        return versions
+    for path in sorted((*workflows.glob("*.yml"), *workflows.glob("*.yaml"))):
+        lines = path.read_text(encoding="utf-8").splitlines()
+        for index, line in enumerate(lines):
+            if "uses: astral-sh/setup-uv@" not in line:
+                continue
+            indent = len(line) - len(line.lstrip())
+            version = None
+            for candidate in lines[index + 1 :]:
+                candidate_indent = len(candidate) - len(candidate.lstrip())
+                if candidate.lstrip().startswith("- ") and candidate_indent <= indent:
+                    break
+                match = re.match(r"\s*version:\s*[\"']?([0-9.]+)", candidate)
+                if match:
+                    version = match.group(1)
+                    break
+            versions.append((str(path.relative_to(root)), index + 1, version))
+    return versions
+
+
+def check_uv_versions(root: Path) -> list[str]:
+    found = saved_uv_versions(root)
+    problems = [
+        f"{path}:{line}: uv has no saved version"
+        for path, line, version in found
+        if version is None
+    ]
+    versions = sorted({version for _, _, version in found if version is not None})
+    if len(versions) > 1:
+        details = ", ".join(
+            f"{path}:{line}={version}"
+            for path, line, version in found
+            if version is not None
+        )
+        problems.append(
+            f"uv has {len(versions)} different saved versions "
+            f"({'; '.join(versions)}): {details}"
+        )
+    return problems
+
+
 def check_dependabot_coverage(root: Path) -> list[str]:
     path = root / ".github" / "dependabot.yml"
     if not path.exists():
@@ -328,6 +383,7 @@ def find_local_problems(root: Path, *, today: date | None = None) -> list[str]:
     for group in VERSION_GROUPS:
         problems.extend(check_version_group(root, group, require_all=True))
     problems.extend(find_unpinned_commands(root))
+    problems.extend(check_uv_versions(root))
     problems.extend(check_dependabot_coverage(root))
     for pin in REGISTRY_PINS:
         if not _source_versions(root, pin.source):
@@ -466,11 +522,17 @@ def _latest_registry_version(pin: RegistryPin) -> str:
     if pin.registry == "npm":
         package = urllib.parse.quote(pin.package, safe="@")
         url = f"https://registry.npmjs.org/{package}/latest"
+    elif pin.registry == "github-release":
+        url = f"https://api.github.com/repos/{pin.package}/releases/latest"
     else:
         url = f"https://pypi.org/pypi/{pin.package}/json"
     with urllib.request.urlopen(url, timeout=20) as response:
         payload = json.load(response)
-    return payload["version"] if pin.registry == "npm" else payload["info"]["version"]
+    if pin.registry == "npm":
+        return payload["version"]
+    if pin.registry == "github-release":
+        return payload["tag_name"].removeprefix("v")
+    return payload["info"]["version"]
 
 
 def check_registry_versions(root: Path) -> tuple[list[str], list[str]]:
