@@ -123,6 +123,28 @@ describe('Google search totals', () => {
     expect(JSON.stringify(result.body)).not.toMatch(/query|page|country|device|position/i);
   });
 
+  it('logs only the safe failed stage when Google identity exchange fails', async () => {
+    googleAuth.getAccessToken.mockRejectedValue(
+      new Error('private Google response that must never be logged'),
+    );
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const recorder = responseRecorder();
+
+    await handler({ method: 'GET' }, recorder.response);
+
+    expect(recorder.read()).toMatchObject({
+      status: 503,
+      body: { error: 'Google search data is temporarily unavailable.' },
+    });
+    expect(errorSpy).toHaveBeenCalledOnce();
+    expect(errorSpy).toHaveBeenCalledWith('traffic-google unavailable', {
+      stage: 'access-token',
+    });
+    expect(JSON.stringify(errorSpy.mock.calls)).not.toMatch(
+      /private Google response|short-lived-token|traffic-reader|492188995407|alethical\.com/i,
+    );
+  });
+
   it('shows a successful empty Google period as a real zero', async () => {
     vi.stubGlobal(
       'fetch',
