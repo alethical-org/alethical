@@ -72,10 +72,17 @@ describe('public Site metrics page', () => {
     expect(SOURCE).toContain("useTrafficSource('/api/traffic-performance'");
   });
 
-  it('names search discovery, availability, and real-reader speed in plain words', () => {
-    expect(SOURCE).toContain('Found in search · Last 30 days');
-    expect(SOURCE).toContain('CAN PEOPLE REACH ALETHICAL?');
-    expect(SOURCE).toContain('SPEED AND STABILITY DURING REAL VISITS');
+  it('names the 4 accepted sections and their panels in plain words', () => {
+    expect(SOURCE).toContain('<SectionTitle>Recent traffic</SectionTitle>');
+    expect(SOURCE).toContain('<SectionTitle>How people use Alethical</SectionTitle>');
+    expect(SOURCE).toContain(
+      '<SectionTitle qualifier="LAST 30 DAYS">Found in search</SectionTitle>',
+    );
+    expect(SOURCE).toContain(
+      '<SectionTitle qualifier="LAST 30 DAYS">How well the site works</SectionTitle>',
+    );
+    expect(SOURCE).toContain('Can people reach Alethical?');
+    expect(SOURCE).toContain('Speed and stability during real visits');
     expect(SOURCE).toContain("source: 'Google'");
     expect(SOURCE).toContain('<SearchPanel source="Bing"');
     expect(SOURCE).toContain('Appearances');
@@ -84,18 +91,19 @@ describe('public Site metrics page', () => {
   });
 
   it('includes the accepted activity groups and privacy limits', () => {
-    expect(SOURCE).toContain('WHERE PEOPLE GO');
-    expect(SOURCE).toContain('WHAT PEOPLE DO');
-    expect(SOURCE).toContain('WHAT PEOPLE EXPLORE');
-    expect(SOURCE).toContain('READERS');
+    expect(SOURCE).toContain('Where people go');
+    expect(SOURCE).toContain('What people do');
+    expect(SOURCE).toContain('What people explore');
+    expect(SOURCE).toContain('Readers');
     expect(SOURCE).toContain('No search words, addresses, or districts');
     expect(SOURCE).toContain('Find My Legislator lookups with results');
     expect(SOURCE).toContain('Official source links opened');
-    expect(SOURCE.match(/aria-level=\{2\}/g)?.length).toBeGreaterThanOrEqual(2);
-    expect(SOURCE).toContain('<PanelTitle>WHERE PEOPLE GO</PanelTitle>');
-    expect(SOURCE).toContain('<PanelTitle>WHAT PEOPLE EXPLORE</PanelTitle>');
-    expect(SOURCE).toContain('<PanelTitle>WHAT PEOPLE DO</PanelTitle>');
-    expect(SOURCE).toContain('<PanelTitle>READERS</PanelTitle>');
+    expect(SOURCE).toContain('aria-level={2}');
+    expect(SOURCE).toContain('aria-level={3}');
+    expect(SOURCE).toContain('<PanelTitle>Where people go</PanelTitle>');
+    expect(SOURCE).toContain('<PanelTitle>What people explore</PanelTitle>');
+    expect(SOURCE).toContain('<PanelTitle>What people do</PanelTitle>');
+    expect(SOURCE).toContain('<PanelTitle>Readers</PanelTitle>');
   });
 
   it('keeps the 7 and 30 day activity choices in the address', () => {
@@ -124,13 +132,9 @@ describe('public Site metrics page', () => {
     expect(SOURCE).toContain('in the previous 30 days');
   });
 
-  it('keeps phone activity and search cards while flattening only the closing pair', () => {
-    expect(SOURCE).toContain("mobileTreatment = 'card'");
-    expect(SOURCE).toContain("mobileTreatment === 'closing'");
-    expect(SOURCE).toMatch(
-      /panelClosingMobile: \{[\s\S]*?borderWidth: 0,[\s\S]*?borderBottomWidth: 1/,
-    );
-    expect(SOURCE).toContain('<Panel mobileTreatment="closing"');
+  it('keeps every phone panel on the accepted tinted card surface', () => {
+    expect(SOURCE).toContain('isMobile && styles.panelCardMobile');
+    expect(SOURCE).not.toContain('mobileTreatment="closing"');
   });
 
   it('matches the accepted phone and destination layouts', () => {
@@ -149,9 +153,11 @@ describe('public Site metrics page', () => {
     expect(SOURCE).toMatch(/searchRateValue: \{[\s\S]*?fontSize: 16/);
   });
 
-  it('uses the accepted closing-panel copy and sample rules', () => {
-    expect(SOURCE).toContain('Checked by Checkly · Last 30 days');
-    expect(SOURCE).toContain('Measured by Cloudflare · Last 30 days');
+  it('puts the shared 30-day window in the health heading and keeps the sample rules', () => {
+    expect(SOURCE).toContain('Checked by Checkly');
+    expect(SOURCE).toContain('Measured by Cloudflare');
+    expect(SOURCE).not.toContain('Checked by Checkly · Last 30 days');
+    expect(SOURCE).not.toContain('Measured by Cloudflare · Last 30 days');
     expect(SOURCE).toContain('Percentages show how often Alethical passed automatic checks');
     expect(SOURCE).not.toContain('Percentages show how often Alethical passed automatic checks.');
     expect(SOURCE).toContain('OPEN VERCEL DASHBOARD');
@@ -205,7 +211,7 @@ describe('public Site metrics page', () => {
     expect(SOURCE).toMatch(
       /panelSearch: \{ paddingTop: 16, paddingHorizontal: 20, paddingBottom: 18 \}/,
     );
-    expect(SOURCE.match(/mobileTreatment="closing"[\s\S]*?surface="search"/g)).toHaveLength(3);
+    expect(SOURCE).not.toContain('mobileTreatment="closing"');
     expect(SOURCE).toMatch(
       /metricRowCompactMobile: \{ paddingVertical: 0, borderBottomWidth: 0 \}/,
     );
@@ -237,9 +243,22 @@ describe('public Site metrics page', () => {
     expect(SOURCE).toMatch(/speedValueMobile: \{ minWidth: 0, fontSize: 17, lineHeight: 22 \}/);
   });
 
-  it('uses only the 2 accepted section rules and a 34px closing gap', () => {
-    expect(SOURCE.match(/<View style=\{styles\.sectionRule\} \/>/g)).toHaveLength(2);
-    expect(SOURCE).toContain('style={[styles.pairedGrid, styles.closingGrid');
-    expect(SOURCE).toMatch(/closingGrid: \{ marginTop: 34 \}/);
+  it('uses 4 sections, 3 rules, and the accepted heading hierarchy', () => {
+    expect(SOURCE.match(/<View style=\{\[styles\.sectionRule/g)).toHaveLength(3);
+    expect(SOURCE).toMatch(
+      /sectionTitle: \{[\s\S]*?color: '#2b6377',[\s\S]*?fontFamily: theme\.typography\.ui,[\s\S]*?fontSize: 20,[\s\S]*?fontWeight: '800'/,
+    );
+    expect(SOURCE).toMatch(/sectionTitleMobile: \{ fontSize: 18/);
+    expect(SOURCE).toMatch(
+      /sectionQualifier: \{[\s\S]*?fontFamily: theme\.typography\.mono,[\s\S]*?fontSize: 12,[\s\S]*?fontWeight: '500'/,
+    );
+    expect(SOURCE).toMatch(/panelTitle: \{[\s\S]*?fontSize: 15\.5,[\s\S]*?fontWeight: '700'/);
+    expect(SOURCE).toMatch(/panelTitleMobile: \{ fontSize: 15/);
+  });
+
+  it('shows only the 2 public availability checks selected by the accepted design', () => {
+    expect(SOURCE).toContain('label="Homepage"');
+    expect(SOURCE).toContain('label="Data service"');
+    expect(SOURCE).not.toContain('label="Site Metrics page"');
   });
 });
