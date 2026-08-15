@@ -112,6 +112,52 @@ describe('Google search totals', () => {
     });
   });
 
+  it('returns 2 exact 30-day windows for the Site metrics contract', async () => {
+    const rows = isoDates('2026-06-14', 60).map((date) => ({
+      keys: [date],
+      clicks: 1,
+      impressions: 10,
+    }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ rows, metadata: { first_incomplete_date: '2026-08-13' } }),
+      }),
+    );
+    const recorder = responseRecorder();
+
+    await handler({ method: 'GET', url: '/api/traffic-google?window=30' }, recorder.response);
+
+    expect(recorder.read()).toMatchObject({
+      status: 200,
+      body: {
+        clicks30d: 30,
+        impressions30d: 300,
+        previousClicks30d: 30,
+        previousImpressions30d: 300,
+        periodStartedOn: '2026-07-14',
+        periodEndedOn: '2026-08-12',
+        previousPeriodStartedOn: '2026-06-14',
+        previousPeriodEndedOn: '2026-07-13',
+        fetchedAt: '2026-08-15T12:00:00.000Z',
+      },
+    });
+    expect(Object.keys(recorder.read().body).sort()).toEqual(
+      [
+        'clicks30d',
+        'fetchedAt',
+        'impressions30d',
+        'periodEndedOn',
+        'periodStartedOn',
+        'previousClicks30d',
+        'previousImpressions30d',
+        'previousPeriodEndedOn',
+        'previousPeriodStartedOn',
+      ].sort(),
+    );
+  });
+
   it('fails closed without settings and never returns a Google detail dimension', async () => {
     vi.stubEnv('GOOGLE_SEARCH_CONSOLE_GCP_PROJECT_NUMBER', '');
     const recorder = responseRecorder();
