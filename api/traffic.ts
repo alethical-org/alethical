@@ -19,10 +19,14 @@ type AggregatePayload = {
 type AggregateRow = {
   timestamp?: unknown;
   requestPath?: unknown;
+  environment?: unknown;
   pageviews?: unknown;
+  visitors?: unknown;
 };
 
-type VisitCount = { pageviews: number; visitors: number };
+type HourlyTraffic = { pageViews: number[] };
+type PageViewCount = { pageviews: number };
+type VisitorCount = { visitors: number };
 type ProfileTotals = {
   pageViews: number;
   differentProfilesViewed: { count: number; capped: boolean; cap: number };
@@ -30,8 +34,6 @@ type ProfileTotals = {
 
 const AGGREGATE_ENDPOINT =
   "https://api.vercel.com/v1/query/web-analytics/visits/aggregate";
-const COUNT_ENDPOINT =
-  "https://api.vercel.com/v1/query/web-analytics/visits/count";
 const HOUR_MS = 60 * 60 * 1000;
 const MAX_HOURS_PER_QUERY = 168;
 const THIRTY_DAYS_IN_HOURS = 30 * 24;
@@ -45,6 +47,7 @@ const LEGISLATORS_FILTER =
   "requestPath eq '/legislators' or startswith(requestPath, '/legislators/')";
 const BILL_PROFILE_FILTER = "startswith(requestPath, '/bills/')";
 const LEGISLATOR_PROFILE_FILTER = "startswith(requestPath, '/legislators/')";
+const PRODUCTION_FILTER = "environment eq 'production'";
 
 class TrafficUnavailable extends Error {}
 
@@ -162,7 +165,7 @@ async function aggregatePageViewHours(
   token: string,
   projectId: string,
   teamId: string,
-): Promise<number[]> {
+): Promise<HourlyTraffic> {
   const expectedRows = (untilExclusive - since) / HOUR_MS;
   if (
     !Number.isInteger(expectedRows) ||
@@ -209,68 +212,104 @@ async function aggregatePageViewHours(
     pageViews[index] = row.pageviews;
   }
 
-  return pageViews;
+  return { pageViews };
 }
 
-async function countVisits(
+async function aggregatePeriodVisitors(
   since: number,
   untilExclusive: number,
   token: string,
   projectId: string,
   teamId: string,
-  filter?: string,
-): Promise<VisitCount> {
+): Promise<VisitorCount> {
   const url = analyticsUrl(
-    COUNT_ENDPOINT,
+    AGGREGATE_ENDPOINT,
     since,
     untilExclusive,
     projectId,
     teamId,
   );
-  if (filter) url.searchParams.set("filter", filter);
+  url.searchParams.set("by", "environment");
+  url.searchParams.set("limit", "1");
+  url.searchParams.set("filter", PRODUCTION_FILTER);
 
   const payload = await fetchVercel(url, token);
-  const actualSince = parsedDate(payload.query?.since);
-  const actualUntil = parsedDate(payload.query?.until);
-  if (actualSince === null || actualUntil === null) {
-    throw new TrafficUnavailable("Vercel returned an unreadable count range");
-  }
-  const sinceDifference = actualSince - since;
-  const untilDifference = actualUntil - untilExclusive;
   if (
-    Math.abs(sinceDifference) > RANGE_TOLERANCE_MS ||
-    Math.abs(untilDifference) > RANGE_TOLERANCE_MS
+    !Array.isArray(payload.data) ||
+    payload.data.length > 1 ||
+    !queryMatches(payload, since, untilExclusive, PRODUCTION_FILTER) ||
+    !Array.isArray(payload.query?.groupBy) ||
+    !payload.query.groupBy.includes("environment") ||
+    payload.query?.limit !== 1
   ) {
-    throw new TrafficUnavailable(
-      `Vercel changed the count range by ${sinceDifference}ms/${untilDifference}ms`,
-    );
-  }
-  const filterMatches =
-    filter === undefined
-      ? payload.query?.filter === undefined
-      : payload.query?.filter === filter;
-  if (!filterMatches) {
-    throw new TrafficUnavailable("Vercel returned a different count filter");
-  }
-  if (
-    !payload.data ||
-    typeof payload.data !== "object" ||
-    Array.isArray(payload.data)
-  ) {
-    throw new TrafficUnavailable("Vercel returned no count totals");
+    throw new TrafficUnavailable("Vercel returned incomplete traffic data");
   }
 
-  const data = payload.data as { pageviews?: unknown; visitors?: unknown };
-  if (!nonNegativeInteger(data.pageviews)) {
-    throw new TrafficUnavailable("Vercel returned an invalid page-view total");
+  if (payload.data.length === 0) return { visitors: 0 };
+
+  const row = payload.data[0] as AggregateRow;
+  if (
+    row.environment !== "production" ||
+    !nonNegativeInteger(row.pageviews) ||
+    !nonNegativeInteger(row.visitors) ||
+    row.visitors > row.pageviews
+  ) {
+    throw new TrafficUnavailable("Vercel returned incomplete traffic data");
   }
-  if (!nonNegativeInteger(data.visitors)) {
-    throw new TrafficUnavailable("Vercel returned an invalid visitor total");
+
+  return { visitors: row.visitors };
+}
+
+async function aggregateFilteredPageViews(
+  since: number,
+  untilExclusive: number,
+  token: string,
+  projectId: string,
+  teamId: string,
+  filter: string,
+  pathMatchesFilter: (path: string) => boolean,
+): Promise<PageViewCount> {
+  const url = analyticsUrl(
+    AGGREGATE_ENDPOINT,
+    since,
+    untilExclusive,
+    projectId,
+    teamId,
+  );
+  url.searchParams.set("by", "requestPath");
+  url.searchParams.set("limit", "1");
+  url.searchParams.set("filter", filter);
+
+  const payload = await fetchVercel(url, token);
+  if (
+    !Array.isArray(payload.data) ||
+    !queryMatches(payload, since, untilExclusive, filter) ||
+    !Array.isArray(payload.query?.groupBy) ||
+    !payload.query.groupBy.includes("requestPath") ||
+    payload.query?.limit !== 1
+  ) {
+    throw new TrafficUnavailable("Vercel returned incomplete traffic data");
   }
-  if (data.visitors > data.pageviews) {
-    throw new TrafficUnavailable("Vercel returned inconsistent count totals");
+
+  const seenPaths = new Set<string>();
+  let pageviews = 0;
+  for (const row of payload.data as AggregateRow[]) {
+    if (
+      typeof row.requestPath !== "string" ||
+      seenPaths.has(row.requestPath) ||
+      !nonNegativeInteger(row.pageviews) ||
+      (row.requestPath !== "Others" && !pathMatchesFilter(row.requestPath))
+    ) {
+      throw new TrafficUnavailable("Vercel returned incomplete traffic data");
+    }
+    seenPaths.add(row.requestPath);
+    pageviews += row.pageviews;
+    if (!Number.isSafeInteger(pageviews)) {
+      throw new TrafficUnavailable("Vercel returned incomplete traffic data");
+    }
   }
-  return { pageviews: data.pageviews, visitors: data.visitors };
+
+  return { pageviews };
 }
 
 async function aggregateProfilePaths(
@@ -373,9 +412,9 @@ function sumLast(values: number[], hours: number) {
 
 function trafficBreakdown(
   totalPageViews: number,
-  home: VisitCount,
-  bills: VisitCount,
-  legislators: VisitCount,
+  home: PageViewCount,
+  bills: PageViewCount,
+  legislators: PageViewCount,
   billProfiles: ProfileTotals,
   legislatorProfiles: ProfileTotals,
 ) {
@@ -451,10 +490,10 @@ export default async function handler(
     const oneDayStartedAt = windowEndedAt - 24 * HOUR_MS;
     const ranges = chunkedHourRanges(windowStartedAt, windowEndedAt);
     const [
-      pageViewsByHourParts,
-      visits24h,
-      visits7d,
-      visits30d,
+      trafficByHourParts,
+      visitors24h,
+      visitors7d,
+      visitors30d,
       home7d,
       bills7d,
       legislators7d,
@@ -469,7 +508,7 @@ export default async function handler(
       Promise.all(
         ranges.map((range, index) =>
           atStage(
-            `hourly page views ${index + 1}`,
+            `hourly traffic ${index + 1}`,
             aggregatePageViewHours(
               range.since,
               range.untilExclusive,
@@ -482,11 +521,17 @@ export default async function handler(
       ),
       atStage(
         "24-hour visitor total",
-        countVisits(oneDayStartedAt, windowEndedAt, token, projectId, teamId),
+        aggregatePeriodVisitors(
+          oneDayStartedAt,
+          windowEndedAt,
+          token,
+          projectId,
+          teamId,
+        ),
       ),
       atStage(
         "7-day visitor total",
-        countVisits(
+        aggregatePeriodVisitors(
           sevenDaysStartedAt,
           windowEndedAt,
           token,
@@ -496,39 +541,48 @@ export default async function handler(
       ),
       atStage(
         "30-day visitor total",
-        countVisits(windowStartedAt, windowEndedAt, token, projectId, teamId),
+        aggregatePeriodVisitors(
+          windowStartedAt,
+          windowEndedAt,
+          token,
+          projectId,
+          teamId,
+        ),
       ),
       atStage(
         "7-day home total",
-        countVisits(
+        aggregateFilteredPageViews(
           sevenDaysStartedAt,
           windowEndedAt,
           token,
           projectId,
           teamId,
           HOME_FILTER,
+          (path) => path === "/",
         ),
       ),
       atStage(
         "7-day bills total",
-        countVisits(
+        aggregateFilteredPageViews(
           sevenDaysStartedAt,
           windowEndedAt,
           token,
           projectId,
           teamId,
           BILLS_FILTER,
+          (path) => path === "/bills" || path.startsWith("/bills/"),
         ),
       ),
       atStage(
         "7-day legislators total",
-        countVisits(
+        aggregateFilteredPageViews(
           sevenDaysStartedAt,
           windowEndedAt,
           token,
           projectId,
           teamId,
           LEGISLATORS_FILTER,
+          (path) => path === "/legislators" || path.startsWith("/legislators/"),
         ),
       ),
       atStage(
@@ -557,35 +611,38 @@ export default async function handler(
       ),
       atStage(
         "30-day home total",
-        countVisits(
+        aggregateFilteredPageViews(
           windowStartedAt,
           windowEndedAt,
           token,
           projectId,
           teamId,
           HOME_FILTER,
+          (path) => path === "/",
         ),
       ),
       atStage(
         "30-day bills total",
-        countVisits(
+        aggregateFilteredPageViews(
           windowStartedAt,
           windowEndedAt,
           token,
           projectId,
           teamId,
           BILLS_FILTER,
+          (path) => path === "/bills" || path.startsWith("/bills/"),
         ),
       ),
       atStage(
         "30-day legislators total",
-        countVisits(
+        aggregateFilteredPageViews(
           windowStartedAt,
           windowEndedAt,
           token,
           projectId,
           teamId,
           LEGISLATORS_FILTER,
+          (path) => path === "/legislators" || path.startsWith("/legislators/"),
         ),
       ),
       atStage(
@@ -613,7 +670,9 @@ export default async function handler(
         ),
       ),
     ]);
-    const pageViewsByHour = pageViewsByHourParts.flat();
+    const pageViewsByHour = trafficByHourParts.flatMap(
+      (traffic) => traffic.pageViews,
+    );
 
     if (pageViewsByHour.length !== THIRTY_DAYS_IN_HOURS) {
       throw new TrafficUnavailable("Vercel returned incomplete traffic data");
@@ -621,13 +680,9 @@ export default async function handler(
     const pageViews24h = sumLast(pageViewsByHour, 24);
     const pageViews7d = sumLast(pageViewsByHour, 7 * 24);
     const pageViews30d = sumLast(pageViewsByHour, THIRTY_DAYS_IN_HOURS);
-    if (
-      visits24h.pageviews !== pageViews24h ||
-      visits7d.pageviews !== pageViews7d ||
-      visits30d.pageviews !== pageViews30d
-    ) {
-      throw new TrafficUnavailable("Vercel returned inconsistent traffic data");
-    }
+    const estimatedVisitors24h = visitors24h.visitors;
+    const estimatedVisitors7d = visitors7d.visitors;
+    const estimatedVisitors30d = visitors30d.visitors;
 
     sendJson(
       response,
@@ -636,9 +691,9 @@ export default async function handler(
         pageViews24h,
         pageViews7d,
         pageViews30d,
-        estimatedVisitors24h: visits24h.visitors,
-        estimatedVisitors7d: visits7d.visitors,
-        estimatedVisitors30d: visits30d.visitors,
+        estimatedVisitors24h,
+        estimatedVisitors7d,
+        estimatedVisitors30d,
         trafficBreakdown7d: trafficBreakdown(
           pageViews7d,
           home7d,

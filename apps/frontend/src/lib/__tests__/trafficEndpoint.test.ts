@@ -7,6 +7,11 @@ type JsonBody = Record<string, unknown>;
 const HOUR_MS = 60 * 60 * 1000;
 const BILL_FILTER = "startswith(requestPath, '/bills/')";
 const LEGISLATOR_FILTER = "startswith(requestPath, '/legislators/')";
+const HOME_FILTER = "requestPath eq '/'";
+const BILLS_FILTER = "requestPath eq '/bills' or startswith(requestPath, '/bills/')";
+const LEGISLATORS_FILTER =
+  "requestPath eq '/legislators' or startswith(requestPath, '/legislators/')";
+const PRODUCTION_FILTER = "environment eq 'production'";
 
 function responseRecorder() {
   const headers = new Map<string, string>();
@@ -50,26 +55,47 @@ function successfulVercelResponse(urlValue: string) {
     ...(filter ? { filter } : {}),
   };
 
-  if (url.pathname.endsWith('/visits/count')) {
-    let pageviews = hours * 10;
-    if (filter === "requestPath eq '/'") pageviews = hours;
-    if (filter === "requestPath eq '/bills' or startswith(requestPath, '/bills/')") {
-      pageviews = hours * 4;
-    }
-    if (filter === "requestPath eq '/legislators' or startswith(requestPath, '/legislators/')") {
-      pageviews = hours * 3;
-    }
+  if (url.searchParams.get('by') === 'environment') {
+    const visitors = hours === 24 ? 7 : hours === 7 * 24 ? 19 : 43;
     return {
       ok: true,
       json: async () => ({
         version: 1,
-        query,
-        data: { pageviews, visitors: filter ? Math.floor(pageviews / 2) : Math.floor(hours / 2) },
+        query: { ...query, groupBy: ['environment'], limit: 1 },
+        data: [{ environment: 'production', pageviews: hours * 10, visitors }],
       }),
     };
   }
 
   if (url.searchParams.get('by') === 'requestPath') {
+    const limit = Number(url.searchParams.get('limit'));
+    if (limit === 1) {
+      let data: Array<{ requestPath: string; pageviews: number; visitors: number }> = [];
+      if (filter === HOME_FILTER) {
+        data = [{ requestPath: '/', pageviews: hours, visitors: 1 }];
+      }
+      if (filter === BILLS_FILTER) {
+        data = [
+          { requestPath: '/bills', pageviews: hours, visitors: 1 },
+          { requestPath: 'Others', pageviews: hours * 3, visitors: 1 },
+        ];
+      }
+      if (filter === LEGISLATORS_FILTER) {
+        data = [
+          { requestPath: '/legislators', pageviews: hours, visitors: 1 },
+          { requestPath: 'Others', pageviews: hours * 2, visitors: 1 },
+        ];
+      }
+      return {
+        ok: true,
+        json: async () => ({
+          version: 1,
+          query: { ...query, groupBy: ['requestPath'], limit },
+          data,
+        }),
+      };
+    }
+
     const prefix = filter === BILL_FILTER ? '/bills' : '/legislators';
     return {
       ok: true,
@@ -131,9 +157,9 @@ describe('public traffic totals', () => {
       pageViews24h: 240,
       pageViews7d: 1680,
       pageViews30d: 7200,
-      estimatedVisitors24h: 12,
-      estimatedVisitors7d: 84,
-      estimatedVisitors30d: 360,
+      estimatedVisitors24h: 7,
+      estimatedVisitors7d: 19,
+      estimatedVisitors30d: 43,
       trafficBreakdown7d: {
         sectionPageViews: { home: 168, bills: 672, legislators: 504, other: 336 },
         billProfiles: {
@@ -167,6 +193,18 @@ describe('public traffic totals', () => {
       'public, max-age=0, s-maxage=300, stale-while-revalidate=60',
     );
     expect(fetchSpy).toHaveBeenCalledTimes(18);
+    expect(fetchSpy.mock.calls.every(([input]) => !String(input).includes('/visits/count'))).toBe(
+      true,
+    );
+    expect(
+      fetchSpy.mock.calls.filter(([input]) => {
+        const url = new URL(String(input));
+        return (
+          url.searchParams.get('by') === 'environment' &&
+          url.searchParams.get('filter') === PRODUCTION_FILTER
+        );
+      }),
+    ).toHaveLength(3);
     for (const call of fetchSpy.mock.calls) {
       const [input, init] = call;
       const url = new URL(String(input));
@@ -222,13 +260,42 @@ describe('public traffic totals', () => {
     });
   });
 
+  it('uses one full-period visitor total instead of adding hourly visitor rows', async () => {
+    const fetchSpy = vi.fn((input: string | URL | Request) =>
+      Promise.resolve(successfulVercelResponse(String(input))),
+    );
+    vi.stubGlobal('fetch', fetchSpy);
+    const recorder = responseRecorder();
+
+    await handler({ method: 'GET' }, recorder.response);
+
+    const { body, status } = recorder.read();
+    expect(status).toBe(200);
+    expect(body).toMatchObject({
+      estimatedVisitors24h: 7,
+      estimatedVisitors7d: 19,
+      estimatedVisitors30d: 43,
+    });
+    const visitorRanges = fetchSpy.mock.calls
+      .map(([input]) => new URL(String(input)))
+      .filter((url) => url.searchParams.get('by') === 'environment')
+      .map((url) => requestedRange(url).hours)
+      .sort((left, right) => left - right);
+    expect(visitorRanges).toEqual([24, 168, 720]);
+  });
+
   it('marks profile breadth as capped when Vercel groups paths beyond its limit', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn((input: string | URL | Request) => {
         const url = new URL(String(input));
         const response = successfulVercelResponse(String(input));
-        if (url.searchParams.get('by') !== 'requestPath') return Promise.resolve(response);
+        if (
+          url.searchParams.get('by') !== 'requestPath' ||
+          url.searchParams.get('limit') !== '100'
+        ) {
+          return Promise.resolve(response);
+        }
         const { since, until } = requestedRange(url);
         const filter = url.searchParams.get('filter') ?? '';
         const prefix = filter === BILL_FILTER ? '/bills' : '/legislators';
@@ -297,18 +364,22 @@ describe('public traffic totals', () => {
       },
     ],
     [
-      'a visitor total is malformed',
+      'a full-period visitor total is malformed',
       (input: string | URL | Request) => {
         const url = new URL(String(input));
         const response = successfulVercelResponse(String(input));
-        if (!url.pathname.endsWith('/visits/count') || url.searchParams.has('filter')) {
+        if (url.searchParams.get('by') !== 'environment') {
           return Promise.resolve(response);
         }
         return Promise.resolve({
           ...response,
           json: async () => {
             const payload = await response.json();
-            return { ...payload, data: { ...payload.data, visitors: 'many' } };
+            const rows = payload.data as Array<Record<string, unknown>>;
+            return {
+              ...payload,
+              data: [{ ...rows[0], visitors: 'many' }],
+            };
           },
         });
       },
@@ -318,7 +389,12 @@ describe('public traffic totals', () => {
       (input: string | URL | Request) => {
         const url = new URL(String(input));
         const response = successfulVercelResponse(String(input));
-        if (url.searchParams.get('by') !== 'requestPath') return Promise.resolve(response);
+        if (
+          url.searchParams.get('by') !== 'requestPath' ||
+          url.searchParams.get('limit') !== '100'
+        ) {
+          return Promise.resolve(response);
+        }
         return Promise.resolve({
           ...response,
           json: async () => {
