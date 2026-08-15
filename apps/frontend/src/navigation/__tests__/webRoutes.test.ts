@@ -189,7 +189,9 @@ describe('live URLs still resolve to themselves', () => {
 
   it('resolves the pages that have no redesigned replacement', () => {
     expect(targetFromPathname('/privacy')).toEqual({ kind: 'privacy' });
+    expect(targetFromPathname('/traffic')).toEqual({ kind: 'traffic' });
     expect(targetFromPathname('/terms')).toEqual({ kind: 'terms' });
+    expect(pathForRoute({ name: 'Traffic' })).toBe('/traffic');
   });
 
   it('round-trips the Contact us page through its public URL', () => {

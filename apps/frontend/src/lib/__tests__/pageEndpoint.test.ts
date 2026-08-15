@@ -367,6 +367,9 @@ describe('first-response page tags', () => {
     expect((await serve({ path: '/privacy' })).body).toContain(
       '<title>Privacy Policy | Alethical</title>',
     );
+    expect((await serve({ path: '/traffic' })).body).toContain(
+      '<title>Traffic | Alethical</title>',
+    );
     expect((await serve({ path: '/privacy' })).body).toContain(
       '<div id="root"><!--alethical:page-snapshot--><!--/alethical:page-snapshot--></div>',
     );

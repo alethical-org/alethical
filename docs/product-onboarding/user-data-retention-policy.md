@@ -510,10 +510,19 @@ the text in the body, so nothing in front of the API ever sees it in an API URL.
 **The tension is real and the shareable link wins**, but the consequence should be named
 in the Privacy Policy rather than discovered.
 
-**No analytics of any kind are installed.** No Google Analytics, no PostHog, no Vercel
-Analytics, nothing. There is no analytics retention question to answer because there is
-no analytics. Worth recording, because the next person to add a product-metrics tool
-needs to know they are the first, and that §5 rule 3 applies to them.
+**Vercel Web Analytics counts page loads.** It uses no analytics cookie and receives no
+name, email address, or account identifier. Before a page address is sent, everything
+after `?` or `#` is removed. No custom action events are installed. Vercel produces
+combined page-view counts and a daily anonymous visitor estimate; Alethical keeps no
+per-reader analytics record of its own. The public `/traffic` page reads only combined
+24-hour, 7-day, and 30-day totals through a server route whose Vercel access token never
+reaches the browser.
+
+Analytics waits for the sign-in check. A signed-in account identifier goes only to an
+Alethical server route that decides whether the account is on a server-only exclusion
+list. If that decision cannot be read, analytics stays off for the signed-in visit. The
+identifier is never sent to Vercel. The lasting behavior and server settings are in
+`docs/product-onboarding/traffic-guide.md`.
 
 ---
 

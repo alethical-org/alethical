@@ -334,6 +334,8 @@ async function contentFor(
       };
     case "privacy":
       return headOnly(STATIC_PAGE_METADATA["/privacy"]);
+    case "traffic":
+      return headOnly(STATIC_PAGE_METADATA["/traffic"]);
     case "terms":
       return headOnly(STATIC_PAGE_METADATA["/terms"]);
     case "aboutUs":

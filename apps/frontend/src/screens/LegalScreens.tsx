@@ -53,7 +53,7 @@ const privacyContent: LegalDocumentContent = {
             'Alert settings — a saved switch for whether a bill you follow should alert you. We are not sending those alerts yet.',
             'Questions and messages you type in a conversation about a bill — your questions, and the answers we gave, kept with your account.',
             'Questions you type into the Ask box — we do not save these to your account, but we do send them to the AI providers named below to answer them, and they appear in the page address.',
-            'Usage data — information about how you interact with the Service, such as features used and general device and log information.',
+            'Anonymous page-use totals — Vercel Web Analytics receives the page path after anything following “?” or “#” is removed. It counts page loads and makes a daily anonymous visitor estimate. It uses no analytics cookies, and we do not send your name, email address, or account identifier with a page load.',
             'Contact messages — the name and phone number you choose to provide, your email address, subject, and message.',
           ],
         },
@@ -111,7 +111,7 @@ const privacyContent: LegalDocumentContent = {
           kind: 'list',
           items: [
             'Service providers who help us operate the Service under contractual confidentiality obligations — including Supabase (authentication and database) and Google (sign-in).',
-            'Vercel, which hosts our website. Its request logs record the address of every page you open, including anything carried inside that address.',
+            'Vercel, which hosts our website. Its hosting request logs record the address of every page you open, including anything carried inside that address. Separately, Vercel Web Analytics receives a cleaned page path with anything following “?” or “#” removed, then counts the page load without an analytics cookie or a name.',
             'Cloudflare, which sits in front of the Service and passes every request through to it.',
             'Railway, which runs the part of the Service that answers those requests. Its logs record the paths requested. We strip email addresses and anything carried inside a web address out of every line we write.',
             'AI providers who generate answers and summaries — Anthropic and OpenAI. When you ask a question, the question text and the bill passages it is answered from are sent to them. We do not send your name, email address, or account identifier with it.',
@@ -181,7 +181,7 @@ const privacyContent: LegalDocumentContent = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'We use cookies and similar technologies that are necessary to keep you signed in and to operate the Service. You can control cookies through your browser settings, though some features may not function without them.',
+          text: 'We use cookies and similar technologies that are necessary to keep you signed in and to operate the Service. Vercel Web Analytics uses no cookies. Before analytics starts for a signed-in visit, Alethical asks its own server whether that account should be excluded; the account identifier is not sent to Vercel. You can control cookies through your browser settings, though some features may not function without them.',
         },
       ],
     },

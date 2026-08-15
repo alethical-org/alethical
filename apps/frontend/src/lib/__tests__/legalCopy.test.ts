@@ -29,4 +29,13 @@ describe('privacy copy', () => {
     expect(source).toContain('Google Workspace inbox');
     expect(source).toContain('does not store the form in its database');
   });
+
+  it('names the anonymous page counter and its privacy limits', () => {
+    const source = readFileSync(join(__dirname, '..', '..', 'screens', 'LegalScreens.tsx'), 'utf8');
+
+    expect(source).toContain('Vercel Web Analytics receives the page path');
+    expect(source).toContain('anything following “?” or “#” is removed');
+    expect(source).toContain('uses no analytics cookies');
+    expect(source).toContain('account identifier is not sent to Vercel');
+  });
 });
