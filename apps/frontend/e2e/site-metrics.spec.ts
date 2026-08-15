@@ -175,7 +175,13 @@ test('Site Metrics matches the accepted desktop measurements', async ({ page }) 
   expect(await styleOf(page.getByTestId('site-metrics-speed-verdict-0'), 'min-width')).toBe(
     '126px',
   );
-  expect(await styleOf(page.getByTestId('site-metrics-speed-value-0'), 'min-width')).toBe('58px');
+  const buildingSample = page.getByTestId('site-metrics-speed-value-0');
+  await expect(buildingSample).toHaveText('Building sample');
+  await expect(buildingSample).toHaveCSS('min-width', '58px');
+  await expect(buildingSample).toHaveCSS('font-size', '18px');
+  await expect(buildingSample).toHaveCSS('font-weight', '800');
+  await expect(buildingSample).toHaveCSS('line-height', '23px');
+  await expect(buildingSample).toHaveCSS('text-align', 'right');
 });
 
 test('Site Metrics matches the accepted phone measurements', async ({ page }) => {
@@ -223,7 +229,10 @@ test('Site Metrics matches the accepted phone measurements', async ({ page }) =>
   await expect(speedRow).toHaveCSS('padding-top', '9px');
   const speedResult = page.getByTestId('site-metrics-speed-result-0');
   await expect(speedResult).toHaveCSS('flex-direction', 'column');
-  const buildingSample = page.getByTestId('site-metrics-speed-verdict-0');
-  await expect(buildingSample).toHaveCSS('font-size', '12.5px');
-  await expect(buildingSample).toHaveCSS('font-weight', '400');
+  const buildingSample = page.getByTestId('site-metrics-speed-value-0');
+  await expect(buildingSample).toHaveText('Building sample');
+  await expect(buildingSample).toHaveCSS('font-size', '17px');
+  await expect(buildingSample).toHaveCSS('font-weight', '800');
+  await expect(buildingSample).toHaveCSS('line-height', '22px');
+  await expect(buildingSample).toHaveCSS('text-align', 'right');
 });
