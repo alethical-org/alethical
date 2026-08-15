@@ -1,7 +1,7 @@
 import { getVercelOidcToken } from "@vercel/oidc";
 import { ExternalAccountClient } from "google-auth-library";
 
-type RequestLike = { method?: string };
+type RequestLike = { method?: string; url?: string };
 type ResponseLike = {
   status: (code: number) => ResponseLike;
   setHeader: (name: string, value: string) => void;
@@ -85,6 +85,16 @@ function validDate(value: unknown): value is string {
 
 function nonNegativeNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0;
+}
+
+function requestedWindowDays(request: RequestLike): 28 | 30 {
+  if (!request.url) return 28;
+  try {
+    const url = new URL(request.url, "https://alethical.invalid");
+    return url.searchParams.get("window") === "30" ? 30 : 28;
+  } catch {
+    return 28;
+  }
 }
 
 export default async function handler(
@@ -189,9 +199,13 @@ export default async function handler(
     const periodEndedOn = validDate(firstIncomplete)
       ? [safeDelayEnd, moveDate(firstIncomplete, -1)].sort()[0]
       : safeDelayEnd;
-    const periodStartedOn = moveDate(periodEndedOn, -27);
+    const windowDays = requestedWindowDays(request);
+    const periodStartedOn = moveDate(periodEndedOn, -(windowDays - 1));
     const previousPeriodEndedOn = moveDate(periodStartedOn, -1);
-    const previousPeriodStartedOn = moveDate(previousPeriodEndedOn, -27);
+    const previousPeriodStartedOn = moveDate(
+      previousPeriodEndedOn,
+      -(windowDays - 1),
+    );
     const totals = new Map<string, { clicks: number; impressions: number }>();
 
     for (const rawRow of (payload.rows ?? []) as SearchRow[]) {
@@ -221,22 +235,38 @@ export default async function handler(
       return total;
     };
 
+    const clicks = sum(periodStartedOn, periodEndedOn, "clicks");
+    const impressions = sum(periodStartedOn, periodEndedOn, "impressions");
+    const previousClicks = sum(
+      previousPeriodStartedOn,
+      previousPeriodEndedOn,
+      "clicks",
+    );
+    const previousImpressions = sum(
+      previousPeriodStartedOn,
+      previousPeriodEndedOn,
+      "impressions",
+    );
+    const windowTotals =
+      windowDays === 30
+        ? {
+            clicks30d: clicks,
+            impressions30d: impressions,
+            previousClicks30d: previousClicks,
+            previousImpressions30d: previousImpressions,
+          }
+        : {
+            clicks28d: clicks,
+            impressions28d: impressions,
+            previousClicks28d: previousClicks,
+            previousImpressions28d: previousImpressions,
+          };
+
     sendJson(
       response,
       200,
       {
-        clicks28d: sum(periodStartedOn, periodEndedOn, "clicks"),
-        impressions28d: sum(periodStartedOn, periodEndedOn, "impressions"),
-        previousClicks28d: sum(
-          previousPeriodStartedOn,
-          previousPeriodEndedOn,
-          "clicks",
-        ),
-        previousImpressions28d: sum(
-          previousPeriodStartedOn,
-          previousPeriodEndedOn,
-          "impressions",
-        ),
+        ...windowTotals,
         periodStartedOn,
         periodEndedOn,
         previousPeriodStartedOn,
