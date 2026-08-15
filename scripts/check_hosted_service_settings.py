@@ -996,10 +996,55 @@ class Checker:
         else:
             self.unavailable(ci_row, "Railway omitted source.checkSuites")
 
+        config_file_row = self.rows.get(("Railway project", "Configuration file"))
+        if config_file_row and _plain(config_file_row.automation).startswith("Live"):
+            self._check_railway_config_file(
+                environment_id, str(service.get("id")), headers
+            )
         self._check_railway_domain(
             project_id, environment_id, str(service.get("id")), headers
         )
         self._check_railway_variables(live)
+
+    def _check_railway_config_file(
+        self,
+        environment_id: str,
+        service_id: str,
+        headers: Mapping[str, str],
+    ) -> None:
+        row = self.row("Railway project", "Configuration file")
+        query = """
+        query RailwayConfigFile($environmentId: String!, $serviceId: String!) {
+          serviceInstance(environmentId: $environmentId, serviceId: $serviceId) {
+            railwayConfigFile
+          }
+        }
+        """
+        response = self.cached_fetch(
+            "railway-config-file",
+            "POST",
+            RAILWAY_API,
+            headers,
+            {
+                "query": query,
+                "variables": {
+                    "environmentId": environment_id,
+                    "serviceId": service_id,
+                },
+            },
+        )
+        data = self._graphql_data(response, row)
+        if data is None:
+            return
+        instance = data.get("serviceInstance")
+        if not isinstance(instance, dict):
+            self.unavailable(row, "Railway returned no production service instance")
+            return
+
+        configured = instance.get("railwayConfigFile")
+        actual = str(configured).strip().lstrip("/") if configured else "railway.json"
+        expected = _codes(row.intended)[0].lstrip("/")
+        self.record(row, actual == expected, actual, expected)
 
     def _check_railway_domain(
         self,

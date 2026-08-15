@@ -331,9 +331,111 @@ class HostedSettingsTest(unittest.TestCase):
         self.assertTrue(
             all(result.state is settings.State.MATCH for result in checker.results)
         )
+        self.assertFalse(
+            any(result.setting == "Configuration file" for result in checker.results)
+        )
+        self.assertEqual(len(fetch.calls), 3)
         config_body = str(fetch.calls[1][3])
         self.assertIn("decryptVariables: false", config_body)
         self.assertNotIn("test-token", config_body)
+
+    def test_railway_default_config_file_matches_root_railway_json(self) -> None:
+        fetch = FakeFetch(
+            {
+                "graphql/v2": settings.HttpResponse(
+                    200,
+                    {"data": {"serviceInstance": {"railwayConfigFile": None}}},
+                )
+            }
+        )
+        checker = settings.Checker(self.rows, env={}, fetch=fetch)
+
+        checker._check_railway_config_file(
+            "environment-id", "service-id", {"project-access-token": "test-token"}
+        )
+
+        result = next(
+            result
+            for result in checker.results
+            if result.setting == "Configuration file"
+        )
+        self.assertIs(result.state, settings.State.MATCH)
+        body = fetch.calls[0][3]
+        self.assertIsInstance(body, dict)
+        self.assertIn("railwayConfigFile", str(body))
+        self.assertEqual(
+            body["variables"],
+            {"environmentId": "environment-id", "serviceId": "service-id"},
+        )
+
+    def test_railway_config_file_waits_for_trusted_checker(self) -> None:
+        row = self.rows[("Railway project", "Configuration file")]
+        self.assertTrue(settings._plain(row.automation).startswith("Unchecked:"))
+
+    def test_railway_custom_config_file_is_reported_as_drift(self) -> None:
+        fetch = FakeFetch(
+            {
+                "graphql/v2": settings.HttpResponse(
+                    200,
+                    {
+                        "data": {
+                            "serviceInstance": {
+                                "railwayConfigFile": "/backend/railway.toml"
+                            }
+                        }
+                    },
+                )
+            }
+        )
+        checker = settings.Checker(self.rows, env={}, fetch=fetch)
+
+        checker._check_railway_config_file(
+            "environment-id", "service-id", {"project-access-token": "test-token"}
+        )
+
+        result = next(
+            result
+            for result in checker.results
+            if result.setting == "Configuration file"
+        )
+        self.assertIs(result.state, settings.State.DRIFT)
+        self.assertIn("backend/railway.toml", result.detail)
+
+    def test_railway_code_settings_name_the_exact_unchecked_read(self) -> None:
+        settings_from_code = {
+            "Build command",
+            "Before-deploy command",
+            "Start command",
+            "Healthcheck path",
+            "Healthcheck timeout",
+            "Restart policy",
+        }
+        rows = {
+            row.setting: row
+            for row in self.rows.values()
+            if row.section == "Railway project" and row.setting in settings_from_code
+        }
+        self.assertEqual(set(rows), settings_from_code)
+        self.assertTrue(
+            all(
+                "typed effective-deployment fields" in row.automation
+                and "RAILWAY_TOKEN" in row.automation
+                for row in rows.values()
+            )
+        )
+
+        checker = settings.Checker(self.rows, env={}, fetch=FakeFetch({}))
+        checker.classify_non_live_rows()
+        results = {
+            result.setting: result
+            for result in checker.results
+            if result.provider == "Railway project"
+            and result.setting in settings_from_code
+        }
+        self.assertEqual(set(results), settings_from_code)
+        self.assertTrue(
+            all(result.state is settings.State.UNCHECKED for result in results.values())
+        )
 
     def test_railway_absent_variable_is_checked_both_ways(self) -> None:
         present_names = {
