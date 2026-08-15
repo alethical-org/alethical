@@ -6,6 +6,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
@@ -19,6 +20,7 @@ import {
 import { passwordMethodCopy, type PasswordMethodCopy } from '../../lib/auth/passwordMethod';
 import { clearSignedInAuthDrafts } from '../../lib/auth/signOutCleanup';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
+import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fieldFocus';
 import { theme as t } from '../../theme/tokens';
 import { useAuth } from '../../providers/AuthProvider';
 import { FormError } from './FormError';
@@ -30,7 +32,7 @@ import { SignInContainer } from './SignInContainer';
 // (docs/product-onboarding/sign-in-guide.md). Three placements, one identity: a
 // pill with a dropdown on desktop, an avatar opening a sheet on the phone top
 // bar, and a row in the phone drawer's footer. The panel and sheet offer the
-// built account actions; the drawer footer stays compact and keeps only Sign out.
+// built account actions; the drawer footer stays compact and opens the phone sheet.
 
 const isWeb = Platform.OS === 'web';
 const emailPasswordEnabled = process.env.EXPO_PUBLIC_EMAIL_PASSWORD_SIGN_IN_ENABLED === 'true';
@@ -141,9 +143,13 @@ export function SetPasswordDialog({
   const [passwordError, setPasswordError] = useState<string | undefined>();
   const [confirmationError, setConfirmationError] = useState<string | undefined>();
   const [formError, setFormError] = useState<string | null>(null);
+  const [freshProofCode, setFreshProofCode] = useState('');
+  const [freshProofMessage, setFreshProofMessage] = useState<string | null>(null);
+  const [freshProofRequested, setFreshProofRequested] = useState(false);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   const [uncertainMessage, setUncertainMessage] = useState<string | null>(null);
+  const { focused: freshProofFocused, focusProps: freshProofFocusProps } = useFieldFocus();
   const currentCopy = useMemo(
     () => passwordMethodCopy(user?.signInMethods ?? null, user?.email ?? 'your email'),
     [user?.email, user?.signInMethods?.google, user?.signInMethods?.password],
@@ -151,6 +157,7 @@ export function SetPasswordDialog({
   const [flowCopy, setFlowCopy] = useState<PasswordMethodCopy>(currentCopy);
   const passwordRef = useRef<any>(null);
   const confirmationRef = useRef<any>(null);
+  const freshProofRef = useRef<any>(null);
   const requestGate = useRef(createValidRequestGate()).current;
   const wasOpen = useRef(false);
 
@@ -163,6 +170,9 @@ export function SetPasswordDialog({
       setPasswordError(undefined);
       setConfirmationError(undefined);
       setFormError(null);
+      setFreshProofCode('');
+      setFreshProofMessage(null);
+      setFreshProofRequested(false);
       return;
     }
     if (wasOpen.current) return;
@@ -172,11 +182,19 @@ export function SetPasswordDialog({
     setPasswordError(undefined);
     setConfirmationError(undefined);
     setFormError(null);
+    setFreshProofCode('');
+    setFreshProofMessage(null);
+    setFreshProofRequested(false);
     setBusy(false);
     setSaved(false);
     setUncertainMessage(null);
     setFlowCopy(currentCopy);
   }, [currentCopy, open, requestGate]);
+
+  useEffect(() => {
+    if (!open || !freshProofRequested || busy) return;
+    freshProofRef.current?.focus?.();
+  }, [busy, freshProofRequested, open]);
 
   const save = async () => {
     const nextPasswordError = validatePassword(password) ?? undefined;
@@ -187,11 +205,16 @@ export function SetPasswordDialog({
       (nextPasswordError ? passwordRef : confirmationRef).current?.focus?.();
       return;
     }
+    const proofCode = freshProofCode.trim();
+    if (freshProofRequested && !proofCode) {
+      freshProofRef.current?.focus?.();
+      return;
+    }
     if (!requestGate.tryStart(true)) return;
     setBusy(true);
     setFormError(null);
     try {
-      const result = await setPassword(password);
+      const result = await setPassword(password, proofCode || undefined);
       if (result.ok) {
         setSaved(true);
         setPasswordValue('');
@@ -207,6 +230,11 @@ export function SetPasswordDialog({
         setPasswordError(undefined);
         setConfirmationError(undefined);
         setUncertainMessage(result.error.message);
+        return;
+      }
+      if (result.error.kind === 'fresh-proof') {
+        setFreshProofRequested(true);
+        setFreshProofMessage(result.error.message);
         return;
       }
       if (
@@ -293,13 +321,54 @@ export function SetPasswordDialog({
               }}
               onSubmitEditing={() => void save()}
             />
+            {freshProofRequested ? (
+              <View style={styles.freshProofField}>
+                <Text nativeID="fresh-proof-code-label" style={styles.freshProofLabel}>
+                  CODE
+                </Text>
+                {freshProofMessage ? (
+                  <Text nativeID="fresh-proof-code-help" style={styles.freshProofMessage}>
+                    {freshProofMessage}
+                  </Text>
+                ) : null}
+                <TextInput
+                  ref={freshProofRef}
+                  nativeID="fresh-proof-code"
+                  accessibilityLabel="CODE"
+                  aria-describedby={freshProofMessage ? 'fresh-proof-code-help' : undefined}
+                  aria-labelledby="fresh-proof-code-label"
+                  autoCapitalize="none"
+                  autoComplete="one-time-code"
+                  autoCorrect={false}
+                  editable={!busy}
+                  inputMode="numeric"
+                  keyboardType="number-pad"
+                  returnKeyType="done"
+                  spellCheck={false}
+                  value={freshProofCode}
+                  onChangeText={(value) => {
+                    setFreshProofCode(value);
+                    setFormError(null);
+                  }}
+                  onSubmitEditing={() => void save()}
+                  {...freshProofFocusProps}
+                  style={[
+                    styles.freshProofInput,
+                    fieldOutlineReset,
+                    ...fieldFocusRing(freshProofFocused),
+                  ]}
+                />
+              </View>
+            ) : null}
           </View>
           <View style={styles.passwordActions}>
             <LoadingButton
               label="Save password"
               busyLabel="Saving…"
               busy={busy}
-              disabled={!password || !confirmation}
+              disabled={
+                !password || !confirmation || (freshProofRequested && !freshProofCode.trim())
+              }
               onPress={save}
             />
             <QuietButton label="Cancel" disabled={busy} onPress={onClose} />
@@ -855,6 +924,37 @@ const styles = StyleSheet.create({
   },
   passwordFormError: { marginBottom: 18 },
   passwordFields: { gap: 18 },
+  freshProofField: { width: '100%' },
+  freshProofLabel: {
+    marginBottom: 8,
+    fontFamily: t.typography.mono,
+    fontSize: t.fontSizes.caption,
+    lineHeight: 16,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 1.32,
+    color: t.colors.text.secondary,
+  },
+  freshProofMessage: {
+    marginBottom: 10,
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.small,
+    lineHeight: 20,
+    color: t.colors.text.secondary,
+  },
+  freshProofInput: {
+    width: '100%',
+    minHeight: 52,
+    borderWidth: 1,
+    borderColor: 'rgba(17,21,15,0.18)',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    backgroundColor: t.colors.surfaces.base,
+    fontFamily: t.typography.body,
+    fontSize: 17,
+    lineHeight: 22,
+    color: t.colors.text.primary,
+  },
   passwordActions: { marginTop: 20, gap: 12 },
   quietButton: {
     width: '100%',

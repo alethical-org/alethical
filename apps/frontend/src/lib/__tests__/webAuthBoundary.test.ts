@@ -102,12 +102,25 @@ describe('the web authentication boundary', () => {
       'signInWithOAuth',
       'exchangeCodeForSession',
       'resetPasswordForEmail',
+      'reauthenticate',
       'verifyOtp',
       'updateUser',
       'signOut',
     ] as const) {
       expect(typeof webAuth[method]).toBe('function');
       expect(typeof reference[method]).toBe('function');
+    }
+  });
+
+  it('keeps password fresh proof inside the shared provider contract', () => {
+    for (const provider of [
+      source('../../providers/AuthProvider.web.tsx'),
+      source('../../providers/AuthProvider.tsx'),
+    ]) {
+      expect(provider).toContain('setPassword: (password: string, freshProofCode?: string)');
+      expect(provider).toContain('savePasswordWithFreshProof(');
+      expect(provider).toContain('supabase.auth,');
+      expect(provider).toContain('freshProofCode,');
     }
   });
 });
