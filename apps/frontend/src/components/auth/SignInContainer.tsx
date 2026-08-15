@@ -317,14 +317,14 @@ const styles = StyleSheet.create({
   },
   sheetShadowWeb: { boxShadow: '0 -18px 50px rgba(10,14,12,0.28)' },
   sheetHeader: {
-    height: 56,
+    height: 84,
     flexShrink: 0,
     alignItems: 'center',
     justifyContent: 'flex-start',
     paddingTop: 12,
   },
   sheetScroll: { flexGrow: 0, flexShrink: 1 },
-  sheetBody: { paddingTop: 8, paddingHorizontal: 24, paddingBottom: 32 },
+  sheetBody: { paddingTop: 0, paddingHorizontal: 24, paddingBottom: 32 },
   grabHandle: {
     width: 40,
     height: 5,
@@ -333,8 +333,8 @@ const styles = StyleSheet.create({
   },
   close: {
     position: 'absolute',
-    top: 6,
-    right: 16,
+    top: 24,
+    right: 24,
     width: 44,
     minHeight: 44,
     alignItems: 'center',
@@ -343,7 +343,7 @@ const styles = StyleSheet.create({
     backgroundColor: t.colors.surfaces.s300,
     zIndex: 1,
   },
-  closeCard: { top: 16, right: 16, backgroundColor: 'transparent' },
+  closeCard: { top: 20, right: 20, backgroundColor: 'transparent' },
   closePressed: { backgroundColor: t.colors.surfaces.s400 },
   page: { flex: 1, backgroundColor: t.colors.surfaces.s100 },
   pageContent: {
