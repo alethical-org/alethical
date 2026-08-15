@@ -256,6 +256,28 @@ describe('public Site metrics page', () => {
     expect(SOURCE).toMatch(/panelTitleMobile: \{ fontSize: 15/);
   });
 
+  it('applies the accepted phone-only Site Metrics layout', () => {
+    expect(SOURCE).toContain(
+      '{isMobile ? null : <Text style={styles.rangeLabel}>Activity range</Text>}',
+    );
+    expect(SOURCE).toMatch(
+      /sectionHeadingActionRowMobile: \{ flexDirection: 'column', alignItems: 'stretch', gap: 16 \}/,
+    );
+    expect(SOURCE).toMatch(/rangeButtonsShellMobile: \{ width: '100%', marginTop: 0 \}/);
+    expect(SOURCE).toMatch(/sourceClusterMobile: \{ paddingLeft: 14, gap: 9 \}/);
+    expect(SOURCE).toMatch(
+      /recentSourceRowMobile: \{ flexDirection: 'column', alignItems: 'flex-start', gap: 9 \}/,
+    );
+    expect(SOURCE).toMatch(/sourceInlineMobile: \{ fontSize: 11\.5/);
+    expect(SOURCE).toMatch(/collectingMobile: \{ marginLeft: 0 \}/);
+    expect(SOURCE).toMatch(/noteMobile: \{ marginTop: 0, fontSize: 13\.5/);
+    expect(SOURCE).toMatch(/availabilityRowsMobile: \{ paddingHorizontal: 12 \}/);
+    expect(SOURCE).toMatch(/speedRowsMobile: \{ paddingHorizontal: 12 \}/);
+    expect(SOURCE).toMatch(/searchPairMobile: \{ gap: 14 \}/);
+    expect(SOURCE).toMatch(/searchPairMetricMobile: \{ flex: 1 \}/);
+    expect(SOURCE).toMatch(/searchPairMetricRightMobile: \{ alignItems: 'flex-end' \}/);
+  });
+
   it('shows only the 2 public availability checks selected by the accepted design', () => {
     expect(SOURCE).toContain('label="Homepage"');
     expect(SOURCE).toContain('label="Data service"');
