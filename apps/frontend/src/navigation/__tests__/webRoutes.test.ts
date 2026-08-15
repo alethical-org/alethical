@@ -68,9 +68,12 @@ describe('old-design URLs land on a shipped page', () => {
 });
 
 describe('addresses with no page behind them', () => {
-  it.each(['/foo', '/traffic', '/Home', '/BILLS/94-2025-HF719'])('keeps %s out of the home page', (path) => {
-    expect(targetFromPathname(path)).toEqual({ kind: 'notFound', path });
-  });
+  it.each(['/foo', '/traffic', '/Home', '/BILLS/94-2025-HF719'])(
+    'keeps %s out of the home page',
+    (path) => {
+      expect(targetFromPathname(path)).toEqual({ kind: 'notFound', path });
+    },
+  );
 
   it('keeps the mistyped address on the useful missing-page screen', () => {
     expect(stateFromPathname('/made-up/path')).toEqual({
