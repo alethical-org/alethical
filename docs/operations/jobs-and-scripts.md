@@ -43,7 +43,7 @@ owns the workflow count, triggers, and costs.
 
 ## Command-line tools
 
-The `scripts/` folder has 44 runnable files. GitHub jobs call 12 of them, and the
+The `scripts/` folder has 45 runnable files. GitHub jobs call 13 of them, and the
 Mac backup above calls 1. The complete list is grouped here so a new file cannot
 hide inside a total:
 
@@ -56,7 +56,7 @@ hide inside a total:
 | Review campaign-finance records | `review_legislator_campaign_committees.py`, `show_party_and_caucus_money.py` |
 | Measure AI answers and search | `answer_eval.py`, `retrieval_eval.py`, `try_queries.py`, `validate_query_rubric.py` |
 | Maintain search and stored files | `build_rag_hnsw_index.py`, `mirror_raw_files.py` |
-| Protect unfinished work | `back-up-uncommitted-worktree-work.sh` |
+| Protect unfinished work and rotating read grants | `back-up-uncommitted-worktree-work.sh`, `supabase_oauth_state.mjs` |
 
 Most of these commands use shared code in `alethical/pipeline/`. The queue in
 `alethical/pipeline/oban.py` and `alethical/pipeline/oban_workers.py` can run an
