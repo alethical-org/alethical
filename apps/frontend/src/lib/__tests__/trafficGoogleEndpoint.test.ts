@@ -5,8 +5,9 @@ const googleAuth = vi.hoisted(() => ({
   scopes: [] as string[],
 }));
 const fromJSON = vi.hoisted(() => vi.fn(() => googleAuth));
+const getVercelOidcToken = vi.hoisted(() => vi.fn());
 
-vi.mock('@vercel/oidc', () => ({ getVercelOidcToken: vi.fn() }));
+vi.mock('@vercel/oidc', () => ({ getVercelOidcToken }));
 vi.mock('google-auth-library', () => ({ ExternalAccountClient: { fromJSON } }));
 
 import handler from '../../../../../api/traffic-google';
@@ -48,6 +49,7 @@ beforeEach(() => {
   vi.stubEnv('GOOGLE_SEARCH_CONSOLE_WORKLOAD_IDENTITY_POOL_ID', 'vercel');
   vi.stubEnv('GOOGLE_SEARCH_CONSOLE_WORKLOAD_IDENTITY_PROVIDER_ID', 'vercel');
   vi.stubEnv('GOOGLE_SEARCH_CONSOLE_SITE_URL', 'sc-domain:alethical.com');
+  getVercelOidcToken.mockResolvedValue('vercel-oidc-token');
   googleAuth.getAccessToken.mockResolvedValue({ token: 'short-lived-token' });
   googleAuth.scopes = [];
 });
@@ -143,6 +145,45 @@ describe('Google search totals', () => {
     expect(JSON.stringify(errorSpy.mock.calls)).not.toMatch(
       /private Google response|short-lived-token|traffic-reader|492188995407|alethical\.com/i,
     );
+  });
+
+  it('separates a missing Vercel identity from Google token failures', async () => {
+    getVercelOidcToken.mockRejectedValue(
+      new Error('private Vercel token error that must never be logged'),
+    );
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const recorder = responseRecorder();
+
+    await handler({ method: 'GET' }, recorder.response);
+
+    expect(recorder.read().status).toBe(503);
+    expect(errorSpy).toHaveBeenCalledWith('traffic-google unavailable', {
+      stage: 'vercel-oidc-token',
+    });
+    expect(fromJSON).not.toHaveBeenCalled();
+    expect(JSON.stringify(errorSpy.mock.calls)).not.toContain('private Vercel token error');
+  });
+
+  it.each([
+    ['google-token-exchange', 'https://sts.googleapis.com/v1/token'],
+    [
+      'service-account-token',
+      'https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/private:generateAccessToken',
+    ],
+  ])('separates the safe %s stage without logging Google details', async (stage, url) => {
+    googleAuth.getAccessToken.mockRejectedValue(
+      Object.assign(new Error('private Google response that must never be logged'), {
+        config: { url },
+      }),
+    );
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const recorder = responseRecorder();
+
+    await handler({ method: 'GET' }, recorder.response);
+
+    expect(recorder.read().status).toBe(503);
+    expect(errorSpy).toHaveBeenCalledWith('traffic-google unavailable', { stage });
+    expect(JSON.stringify(errorSpy.mock.calls)).not.toMatch(/private|googleapis/i);
   });
 
   it('shows a successful empty Google period as a real zero', async () => {
