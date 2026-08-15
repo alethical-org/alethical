@@ -133,6 +133,31 @@ test('Site Metrics matches the accepted desktop measurements', async ({ page }) 
   await page.setViewportSize({ width: 1440, height: 1200 });
   await waitForMetrics(page);
 
+  const sectionHeadings = page.getByRole('heading', { level: 2 });
+  await expect(sectionHeadings).toHaveCount(4);
+  for (const name of [
+    'Recent traffic',
+    'How people use Alethical',
+    'Found in search',
+    'How well the site works',
+  ]) {
+    const heading = page.getByRole('heading', { name, level: 2, exact: true });
+    await expect(heading).toHaveCSS('font-size', '20px');
+    await expect(heading).toHaveCSS('font-weight', '800');
+    await expect(heading).toHaveCSS('color', 'rgb(43, 99, 119)');
+  }
+  const panelHeading = page.getByRole('heading', { name: 'Where people go', level: 3 });
+  await expect(panelHeading).toHaveCSS('font-size', '15.5px');
+  await expect(panelHeading).toHaveCSS('font-weight', '700');
+  for (const name of ['Found in search', 'How well the site works']) {
+    await expect(
+      page
+        .getByRole('heading', { name, level: 2, exact: true })
+        .locator('..')
+        .getByText('LAST 30 DAYS', { exact: true }),
+    ).toBeVisible();
+  }
+
   const exploreHeader = page.getByTestId('site-metrics-explore-views-header');
   const exploreValue = page.getByTestId('site-metrics-explore-bills-views');
   await expect(exploreHeader).toHaveCSS('font-size', '13px');
@@ -167,6 +192,9 @@ test('Site Metrics matches the accepted desktop measurements', async ({ page }) 
   await expect(actionRow).toHaveCSS('border-bottom-width', '1px');
   const availabilityRow = page.getByTestId('site-metrics-availability-row-0');
   await expect(availabilityRow).toHaveCSS('padding-top', '10px');
+  await expect(page.getByText('Site Metrics page')).toHaveCount(0);
+  await expect(page.getByText('Checked by Checkly', { exact: true })).toBeVisible();
+  await expect(page.getByText('Measured by Cloudflare', { exact: true })).toBeVisible();
 
   const speedRow = page.getByTestId('site-metrics-speed-row-0');
   await expect(speedRow).toHaveCSS('padding-top', '15px');
@@ -187,6 +215,20 @@ test('Site Metrics matches the accepted desktop measurements', async ({ page }) 
 test('Site Metrics matches the accepted phone measurements', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await waitForMetrics(page);
+
+  for (const name of [
+    'Recent traffic',
+    'How people use Alethical',
+    'Found in search',
+    'How well the site works',
+  ]) {
+    const heading = page.getByRole('heading', { name, level: 2, exact: true });
+    await expect(heading).toHaveCSS('font-size', '18px');
+    await expect(heading).toHaveCSS('font-weight', '800');
+  }
+  const panelHeading = page.getByRole('heading', { name: 'Where people go', level: 3 });
+  await expect(panelHeading).toHaveCSS('font-size', '15px');
+  await expect(panelHeading).toHaveCSS('font-weight', '700');
 
   await expect(page.getByTestId('site-metrics-explore-views-header')).toHaveCSS(
     'font-size',
@@ -217,12 +259,14 @@ test('Site Metrics matches the accepted phone measurements', async ({ page }) =>
   await expect(page.getByTestId('site-metrics-reader-row-0')).toHaveCSS('padding-top', '0px');
 
   const searchSection = page.getByTestId('site-metrics-search-google');
-  await expect(searchSection).toHaveCSS('padding', '0px 0px 24px');
-  await expect(searchSection).toHaveCSS('border-top-width', '0px');
-  await expect(searchSection).toHaveCSS('border-bottom-width', '1px');
+  await expect(searchSection).toHaveCSS('padding', '15px 16px 17px');
+  await expect(searchSection).toHaveCSS('border-top-width', '1px');
+  await expect(searchSection).toHaveCSS('border-radius', '13px');
 
   const availability = page.getByTestId('site-metrics-availability');
-  await expect(availability).toHaveCSS('border-top-width', '0px');
+  await expect(availability).toHaveCSS('padding', '15px 16px 17px');
+  await expect(availability).toHaveCSS('border-top-width', '1px');
+  await expect(availability).toHaveCSS('border-radius', '13px');
   await expect(page.getByTestId('site-metrics-availability-row-0')).toHaveCSS('padding-top', '9px');
 
   const speedRow = page.getByTestId('site-metrics-speed-row-0');

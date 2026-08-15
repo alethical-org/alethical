@@ -8,7 +8,7 @@ The public `/site-metrics` page combines 6 independent sources:
 - Alethical's own records show fixed action totals, registered readers, and bill watches;
 - Google Search Console shows sitewide appearances and visits for 30 finalized days;
 - Bing Webmaster Tools shows the same 2 sitewide search totals;
-- Checkly shows 30-day availability for the home page, Site metrics page, and data service; and
+- Checkly shows 30-day availability for the home page and data service; and
 - Cloudflare Web Analytics shows 30-day page-speed scores from real Chromium visits.
 
 The public totals are the same for signed-in and signed-out readers. The About menu links
@@ -95,10 +95,12 @@ read-only service-account token, so no permanent Google private key is stored.
 the same 2 finalized windows. It uses Bing's JSON service. The older SOAP and XML services
 retire on 31 August 2026; this route does not use them.
 
-`/api/traffic-uptime` reads 30-day availability from 3 Checkly URL monitors. Each monitor
-runs from North Virginia every 2 minutes. A missing or invalid percentage makes only this
-route unavailable. It never returns monitor addresses, run logs, check identifiers, the
-Checkly account identifier, or the key.
+`/api/traffic-uptime` reads 30-day availability from 3 Checkly URL monitors. The public page
+shows the home page and data service; Checkly continues checking the Site metrics page without
+using that page's own availability as a public measure of whether people can reach Alethical.
+Each monitor runs from North Virginia every 2 minutes. A missing or invalid percentage makes
+only this route unavailable. It never returns monitor addresses, run logs, check identifiers,
+the Checkly account identifier, or the key.
 
 `/api/traffic-performance` reads Cloudflare's sitewide Core Web Vitals for
 `www.alethical.com`. It publishes only the slowest 1 in 4 result for main-content paint,

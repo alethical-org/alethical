@@ -229,17 +229,34 @@ function speedVerdict(kind: 'lcp' | 'inp' | 'cls', value: number | null) {
   return 'Poor';
 }
 
-function SectionTitle({ children }: { children: React.ReactNode }) {
+function SectionTitle({ children, qualifier }: { children: React.ReactNode; qualifier?: string }) {
+  const { isMobile } = useResponsive();
   return (
-    <Text accessibilityRole="header" aria-level={2} style={styles.sectionTitle}>
-      {children}
-    </Text>
+    <View style={styles.sectionHeading}>
+      <Text
+        accessibilityRole="header"
+        aria-level={2}
+        style={[styles.sectionTitle, isMobile && styles.sectionTitleMobile]}
+      >
+        {children}
+      </Text>
+      {qualifier ? (
+        <Text style={[styles.sectionQualifier, isMobile && styles.sectionQualifierMobile]}>
+          {qualifier}
+        </Text>
+      ) : null}
+    </View>
   );
 }
 
 function PanelTitle({ children }: { children: React.ReactNode }) {
+  const { isMobile } = useResponsive();
   return (
-    <Text accessibilityRole="header" aria-level={2} style={styles.eyebrow}>
+    <Text
+      accessibilityRole="header"
+      aria-level={3}
+      style={[styles.panelTitle, isMobile && styles.panelTitleMobile]}
+    >
       {children}
     </Text>
   );
@@ -325,13 +342,11 @@ function LoadingBar({ wide = false }: { wide?: boolean }) {
 function Panel({
   children,
   busy = false,
-  mobileTreatment = 'card',
   surface = 'default',
   testID,
 }: {
   children: React.ReactNode;
   busy?: boolean;
-  mobileTreatment?: 'card' | 'closing';
   surface?: 'default' | 'search';
   testID?: string;
 }) {
@@ -343,8 +358,7 @@ function Panel({
       style={[
         styles.panel,
         surface === 'search' && styles.panelSearch,
-        isMobile && mobileTreatment === 'card' && styles.panelCardMobile,
-        isMobile && mobileTreatment === 'closing' && styles.panelClosingMobile,
+        isMobile && styles.panelCardMobile,
       ]}
     >
       {children}
@@ -358,17 +372,15 @@ function UnavailablePanel({
   source,
   checkedAt,
   now,
-  mobileTreatment = 'card',
 }: {
   text: string;
   title?: string;
   source?: string;
   checkedAt?: number;
   now?: number;
-  mobileTreatment?: 'card' | 'closing';
 }) {
   return (
-    <Panel mobileTreatment={mobileTreatment}>
+    <Panel>
       {title ? <PanelTitle>{title}</PanelTitle> : null}
       <View style={styles.unavailableRow}>
         <InformationIcon />
@@ -635,7 +647,7 @@ function DestinationPanel({ breakdown }: { breakdown: TrafficBreakdown }) {
   };
   return (
     <Panel testID="site-metrics-destinations">
-      <PanelTitle>WHERE PEOPLE GO</PanelTitle>
+      <PanelTitle>Where people go</PanelTitle>
       {total === 0 ? (
         <Text style={styles.zeroText}>No page views in this range yet</Text>
       ) : (
@@ -678,7 +690,7 @@ function ExplorePanel({ breakdown }: { breakdown: TrafficBreakdown }) {
     breakdown.legislatorProfiles.differentProfilesViewed.capped;
   return (
     <Panel testID="site-metrics-explore">
-      <PanelTitle>WHAT PEOPLE EXPLORE</PanelTitle>
+      <PanelTitle>What people explore</PanelTitle>
       <View role="table">
         <View role="row" style={[styles.tableHeader, isMobile && styles.tableHeaderMobile]}>
           <View style={styles.tableBlankHeader}>
@@ -760,7 +772,7 @@ function ActionsPanel({ actions }: { actions: SiteMetricActions }) {
   ] as const;
   return (
     <Panel>
-      <PanelTitle>WHAT PEOPLE DO</PanelTitle>
+      <PanelTitle>What people do</PanelTitle>
       <View style={[styles.plainRows, isMobile && styles.plainRowsMobile]}>
         {rows.map(([label, value], index) => (
           <MetricRow
@@ -785,7 +797,7 @@ function ReadersPanel({ totals }: { totals: SiteMetricRecordTotals['readers'] })
   const { isMobile } = useResponsive();
   return (
     <Panel>
-      <PanelTitle>READERS</PanelTitle>
+      <PanelTitle>Readers</PanelTitle>
       <View style={[styles.plainRows, isMobile && styles.plainRowsMobile]}>
         <MetricRow
           testID="site-metrics-reader-row-0"
@@ -839,11 +851,7 @@ function SearchPanel({
   if (state.kind === 'unavailable') {
     const sourceName = source === 'Google' ? 'Google Search Console' : 'Bing Webmaster Tools';
     return (
-      <Panel
-        mobileTreatment="closing"
-        surface="search"
-        testID={`site-metrics-search-${source.toLowerCase()}`}
-      >
+      <Panel surface="search" testID={`site-metrics-search-${source.toLowerCase()}`}>
         <VendorHeading source={source} />
         <View style={styles.unavailableRow}>
           <InformationIcon />
@@ -859,12 +867,7 @@ function SearchPanel({
   }
   if (state.kind === 'loading') {
     return (
-      <Panel
-        busy
-        mobileTreatment="closing"
-        surface="search"
-        testID={`site-metrics-search-${source.toLowerCase()}`}
-      >
+      <Panel busy surface="search" testID={`site-metrics-search-${source.toLowerCase()}`}>
         <VendorHeading source={source} />
         <LoadingBar wide />
         <LoadingBar wide />
@@ -881,11 +884,7 @@ function SearchPanel({
   const sourceName = source === 'Google' ? 'Google Search Console' : 'Bing Webmaster Tools';
   const dashboard = source === 'Google' ? STAFF_LINKS.google : STAFF_LINKS.bing;
   return (
-    <Panel
-      mobileTreatment="closing"
-      surface="search"
-      testID={`site-metrics-search-${source.toLowerCase()}`}
-    >
+    <Panel surface="search" testID={`site-metrics-search-${source.toLowerCase()}`}>
       <VendorHeading source={source} />
       <View style={styles.searchPair}>
         <View style={styles.searchPairMetric}>
@@ -924,20 +923,18 @@ function AvailabilityPanel({
   if (state.kind === 'unavailable') {
     return (
       <UnavailablePanel
-        title="CAN PEOPLE REACH ALETHICAL?"
+        title="Can people reach Alethical?"
         text="Availability data is temporarily unavailable."
         source="Checkly"
         checkedAt={state.checkedAt}
         now={now}
-        mobileTreatment="closing"
       />
     );
   }
   if (state.kind === 'loading') {
     return (
-      <Panel busy mobileTreatment="closing">
-        <PanelTitle>CAN PEOPLE REACH ALETHICAL?</PanelTitle>
-        <LoadingBar wide />
+      <Panel busy>
+        <PanelTitle>Can people reach Alethical?</PanelTitle>
         <LoadingBar wide />
         <LoadingBar wide />
       </Panel>
@@ -945,8 +942,8 @@ function AvailabilityPanel({
   }
   const totals = state.totals;
   return (
-    <Panel mobileTreatment="closing" testID="site-metrics-availability">
-      <PanelTitle>CAN PEOPLE REACH ALETHICAL?</PanelTitle>
+    <Panel testID="site-metrics-availability">
+      <PanelTitle>Can people reach Alethical?</PanelTitle>
       <View style={styles.availabilityRows}>
         <MetricRow
           testID="site-metrics-availability-row-0"
@@ -956,12 +953,6 @@ function AvailabilityPanel({
         />
         <MetricRow
           testID="site-metrics-availability-row-1"
-          label="Site Metrics page"
-          value={percent(totals.trafficPageAvailability30d)}
-          treatment="availability"
-        />
-        <MetricRow
-          testID="site-metrics-availability-row-2"
           label="Data service"
           value={percent(totals.apiAvailability30d)}
           treatment="availability"
@@ -972,7 +963,7 @@ function AvailabilityPanel({
         Percentages show how often Alethical passed automatic checks
       </Text>
       <Text style={styles.source}>
-        Checked by Checkly · Last 30 days
+        Checked by Checkly
         {state.stale ? ` · Last accepted ${ageText(totals.fetchedAt, now)}` : ''}
       </Text>
       {CHECKLY_PUBLIC_STATUS_URL ? (
@@ -1005,19 +996,18 @@ function PerformancePanel({
   if (state.kind === 'unavailable') {
     return (
       <UnavailablePanel
-        title="SPEED AND STABILITY DURING REAL VISITS"
+        title="Speed and stability during real visits"
         text="Speed and stability data is temporarily unavailable."
         source="Cloudflare"
         checkedAt={state.checkedAt}
         now={now}
-        mobileTreatment="closing"
       />
     );
   }
   if (state.kind === 'loading') {
     return (
-      <Panel busy mobileTreatment="closing">
-        <PanelTitle>SPEED AND STABILITY DURING REAL VISITS</PanelTitle>
+      <Panel busy>
+        <PanelTitle>Speed and stability during real visits</PanelTitle>
         <LoadingBar wide />
         <LoadingBar wide />
         <LoadingBar wide />
@@ -1044,8 +1034,8 @@ function PerformancePanel({
   ];
   const buildingSample = rows.some((row) => row.measurement == null);
   return (
-    <Panel mobileTreatment="closing" testID="site-metrics-performance">
-      <PanelTitle>SPEED AND STABILITY DURING REAL VISITS</PanelTitle>
+    <Panel testID="site-metrics-performance">
+      <PanelTitle>Speed and stability during real visits</PanelTitle>
       <View style={styles.speedRows}>
         {rows.map((row, index) => (
           <View
@@ -1104,7 +1094,7 @@ function PerformancePanel({
         <Text style={styles.panelNote}>Not enough real visits have been measured yet</Text>
       ) : null}
       <Text style={styles.source}>
-        Measured by Cloudflare · Last 30 days
+        Measured by Cloudflare
         {state.stale ? ` · Last accepted ${ageText(totals.fetchedAt, now)}` : ''}
       </Text>
       <StaleNote stale={state.stale} fetchedAt={totals.fetchedAt} now={now} />
@@ -1182,52 +1172,77 @@ export function TrafficScreen() {
             How people find and use Alethical, and how well the site works
           </Text>
 
-          <View style={styles.sectionBlock}>
+          <View style={[styles.sectionBlock, isMobile && styles.sectionBlockMobile]}>
             <SectionTitle>Recent traffic</SectionTitle>
-            <RecentTraffic state={traffic} now={now} teamAccount={teamAccount} />
-          </View>
-
-          <View style={styles.sectionRule} />
-          <View role="group" aria-label="Activity range" style={styles.rangeGroup}>
-            <Text style={styles.rangeLabel}>Activity range</Text>
-            <View style={[styles.rangeButtonsShell, isMobile && styles.rangeButtonsShellMobile]}>
-              <View style={[styles.rangeButtons, isMobile && styles.rangeButtonsMobile]}>
-                {[7, 30].map((value) => {
-                  const selected = range === value;
-                  return (
-                    <Pressable
-                      key={value}
-                      accessibilityRole="button"
-                      aria-pressed={selected}
-                      onPress={() => selectRange(value as ActivityRange)}
-                      style={[
-                        styles.rangeButton,
-                        isMobile && styles.rangeButtonMobile,
-                        selected && styles.rangeButtonSelected,
-                      ]}
-                    >
-                      <Text
-                        style={[styles.rangeButtonText, selected && styles.rangeButtonTextSelected]}
-                      >
-                        Last {value} days
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
+            <View style={[styles.sectionContent, isMobile && styles.sectionContentMobile]}>
+              <RecentTraffic state={traffic} now={now} teamAccount={teamAccount} />
             </View>
-            <Text accessibilityLiveRegion="polite" style={styles.visuallyHidden}>
-              Showing the last {range} days
-            </Text>
           </View>
 
-          <View style={[styles.activityGrid, isMobile && styles.singleColumn]}>
+          <View style={[styles.sectionRule, isMobile && styles.sectionRuleMobile]} />
+          <View
+            style={[
+              styles.sectionHeadingActionRow,
+              isMobile && styles.sectionHeadingActionRowMobile,
+            ]}
+          >
+            <SectionTitle>How people use Alethical</SectionTitle>
+            <View
+              role="group"
+              aria-label="Activity range"
+              style={[styles.rangeGroup, isMobile && styles.rangeGroupMobile]}
+            >
+              <Text style={[styles.rangeLabel, isMobile && styles.rangeLabelMobile]}>
+                Activity range
+              </Text>
+              <View style={[styles.rangeButtonsShell, isMobile && styles.rangeButtonsShellMobile]}>
+                <View style={[styles.rangeButtons, isMobile && styles.rangeButtonsMobile]}>
+                  {[7, 30].map((value) => {
+                    const selected = range === value;
+                    return (
+                      <Pressable
+                        key={value}
+                        accessibilityRole="button"
+                        aria-pressed={selected}
+                        onPress={() => selectRange(value as ActivityRange)}
+                        style={[
+                          styles.rangeButton,
+                          isMobile && styles.rangeButtonMobile,
+                          selected && styles.rangeButtonSelected,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.rangeButtonText,
+                            selected && styles.rangeButtonTextSelected,
+                          ]}
+                        >
+                          Last {value} days
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+              <Text accessibilityLiveRegion="polite" style={styles.visuallyHidden}>
+                Showing the last {range} days
+              </Text>
+            </View>
+          </View>
+
+          <View
+            style={[
+              styles.activityGrid,
+              isMobile && styles.activityGridMobile,
+              isMobile && styles.singleColumn,
+            ]}
+          >
             <View style={!isMobile ? styles.destinationCell : undefined}>
               {breakdown ? (
                 <DestinationPanel breakdown={breakdown} />
               ) : (
                 <ActivityStatusPanel
-                  title="WHERE PEOPLE GO"
+                  title="Where people go"
                   loading={traffic.kind === 'loading'}
                   unavailableText="Destination totals are temporarily unavailable."
                 />
@@ -1238,7 +1253,7 @@ export function TrafficScreen() {
                 <ExplorePanel breakdown={breakdown} />
               ) : (
                 <ActivityStatusPanel
-                  title="WHAT PEOPLE EXPLORE"
+                  title="What people explore"
                   loading={traffic.kind === 'loading'}
                   unavailableText="Profile totals are temporarily unavailable."
                 />
@@ -1249,7 +1264,7 @@ export function TrafficScreen() {
                 <ActionsPanel actions={actions} />
               ) : (
                 <ActivityStatusPanel
-                  title="WHAT PEOPLE DO"
+                  title="What people do"
                   loading={records.kind === 'loading'}
                   unavailableText="Recorded actions are temporarily unavailable."
                 />
@@ -1260,7 +1275,7 @@ export function TrafficScreen() {
                 <ReadersPanel totals={records.totals.readers} />
               ) : (
                 <ActivityStatusPanel
-                  title="READERS"
+                  title="Readers"
                   loading={records.kind === 'loading'}
                   unavailableText="Reader totals are temporarily unavailable."
                 />
@@ -1271,16 +1286,30 @@ export function TrafficScreen() {
             <StaleNote stale={records.stale} fetchedAt={records.totals.fetchedAt} now={now} />
           ) : null}
 
-          <View style={styles.sectionRule} />
-          <SectionTitle>Found in search · Last 30 days</SectionTitle>
-          <View style={[styles.pairedGrid, isMobile && styles.singleColumn]}>
+          <View style={[styles.sectionRule, isMobile && styles.sectionRuleMobile]} />
+          <SectionTitle qualifier="LAST 30 DAYS">Found in search</SectionTitle>
+          <View
+            style={[
+              styles.pairedGrid,
+              styles.sectionGrid,
+              isMobile && styles.sectionGridMobile,
+              isMobile && styles.singleColumn,
+            ]}
+          >
             <SearchPanel source="Google" state={google} now={now} teamAccount={teamAccount} />
             <SearchPanel source="Bing" state={bing} now={now} teamAccount={teamAccount} />
           </View>
 
+          <View style={[styles.sectionRule, isMobile && styles.sectionRuleMobile]} />
+          <SectionTitle qualifier="LAST 30 DAYS">How well the site works</SectionTitle>
           <View
             testID="site-metrics-closing-grid"
-            style={[styles.pairedGrid, styles.closingGrid, isMobile && styles.singleColumn]}
+            style={[
+              styles.pairedGrid,
+              styles.sectionGrid,
+              isMobile && styles.healthGridMobile,
+              isMobile && styles.singleColumn,
+            ]}
           >
             <AvailabilityPanel state={uptime} now={now} teamAccount={teamAccount} />
             <PerformancePanel state={performance} now={now} teamAccount={teamAccount} />
@@ -1315,23 +1344,44 @@ const styles = StyleSheet.create({
     fontSize: 18,
     lineHeight: 28,
   },
-  sectionBlock: { marginTop: 40 },
+  sectionBlock: { marginTop: 38 },
+  sectionBlockMobile: { marginTop: 24 },
+  sectionHeading: { flexDirection: 'row', alignItems: 'baseline', flexWrap: 'wrap', gap: 10 },
   sectionTitle: {
-    marginBottom: 16,
+    color: '#2b6377',
+    fontFamily: theme.typography.ui,
+    fontSize: 20,
+    lineHeight: 25,
+    fontWeight: '800',
+    letterSpacing: -0.24,
+  },
+  sectionTitleMobile: { fontSize: 18, lineHeight: 23, letterSpacing: -0.216 },
+  sectionQualifier: {
     color: '#6f756f',
     fontFamily: theme.typography.mono,
-    fontSize: 11,
-    lineHeight: 16,
-    fontWeight: '700',
-    letterSpacing: 1.32,
-    textTransform: 'uppercase',
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: '500',
+    letterSpacing: 0.72,
   },
+  sectionQualifierMobile: { fontSize: 11, lineHeight: 16, letterSpacing: 0.66 },
+  sectionContent: { marginTop: 12 },
+  sectionContentMobile: { marginTop: 10 },
+  sectionHeadingActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 24,
+  },
+  sectionHeadingActionRowMobile: { flexDirection: 'column', alignItems: 'stretch', gap: 14 },
   sectionRule: {
     height: 1,
     marginTop: 40,
     marginBottom: 30,
     backgroundColor: 'rgba(17,21,15,0.1)',
   },
+  sectionRuleMobile: { marginTop: 26, marginBottom: 22 },
   recentGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 },
   recentCard: {
     flexGrow: 1,
@@ -1362,6 +1412,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 1.32,
   },
+  panelTitle: {
+    color: theme.colors.text.primary,
+    fontFamily: theme.typography.ui,
+    fontSize: 15.5,
+    lineHeight: 21,
+    fontWeight: '700',
+  },
+  panelTitleMobile: { fontSize: 15, lineHeight: 20 },
   recentLabel: {
     marginTop: 14,
     color: '#4f5651',
@@ -1428,13 +1486,15 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   rangeGroup: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 14 },
+  rangeGroupMobile: { width: '100%' },
   rangeLabel: {
-    color: '#11150f',
+    color: theme.colors.text.secondary,
     fontFamily: theme.typography.ui,
     fontSize: 15,
     lineHeight: 21,
-    fontWeight: '700',
+    fontWeight: '600',
   },
+  rangeLabelMobile: { fontSize: 14.5, lineHeight: 20 },
   rangeButtonsShell: {
     padding: 3,
     backgroundColor: '#f1f3f2',
@@ -1458,7 +1518,7 @@ const styles = StyleSheet.create({
   rangeButtonMobile: { minHeight: 44, flex: 1 },
   rangeButtonSelected: { backgroundColor: '#ffffff' },
   rangeButtonText: {
-    color: '#2c322c',
+    color: theme.colors.text.secondary,
     fontFamily: theme.typography.ui,
     fontSize: 14.5,
     lineHeight: 20,
@@ -1472,6 +1532,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
     alignItems: 'stretch',
   } as never,
+  activityGridMobile: { marginTop: 20 },
   destinationCell: { gridColumn: 1, gridRow: 1 } as never,
   exploreCell: { gridColumn: 1, gridRow: 2 } as never,
   actionsCell: { gridColumn: 2, gridRow: 1 } as never,
@@ -1482,8 +1543,10 @@ const styles = StyleSheet.create({
     gap: 16,
     alignItems: 'stretch',
   } as never,
-  closingGrid: { marginTop: 34 },
-  singleColumn: { display: 'flex', gap: 14 },
+  sectionGrid: { marginTop: 12 },
+  sectionGridMobile: { marginTop: 10 },
+  healthGridMobile: { marginTop: 12 },
+  singleColumn: { display: 'flex', gap: 12 },
   panel: {
     flex: 1,
     minWidth: 0,
@@ -1501,17 +1564,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 15,
     paddingBottom: 17,
-  },
-  panelClosingMobile: {
-    borderWidth: 0,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(17,21,15,0.1)',
-    borderRadius: 0,
-    paddingHorizontal: 0,
-    paddingTop: 0,
-    paddingBottom: 24,
-    backgroundColor: 'transparent',
-    boxShadow: 'none',
   },
   plainRows: { marginTop: 12, paddingHorizontal: 14 },
   plainRowsMobile: { paddingHorizontal: 12, gap: 14 },
