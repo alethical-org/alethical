@@ -28,7 +28,7 @@ describe('signed-in password wording', () => {
       description:
         'You sign in with jordan@example.com and a password. Your next sign-in uses the new one.',
       doneTitle: 'Password changed',
-      doneDescription: 'Use the new password the next time you sign in with jordan@example.com.',
+      doneDescription: 'Use the new password the next time you sign in with jordan@example.com',
     });
   });
 
@@ -48,7 +48,7 @@ describe('signed-in password wording', () => {
         kind: 'fallback',
         rowLabel: 'Password',
         title: 'Set or change password',
-        description: 'Choose a password for jordan@example.com.',
+        description: 'Choose a password for jordan@example.com',
         doneTitle: 'Password saved',
         doneDescription:
           'Use the new password the next time you sign in with jordan@example.com. Other sign-in options, if you have them, are unchanged.',

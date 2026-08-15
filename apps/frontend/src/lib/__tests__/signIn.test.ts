@@ -50,13 +50,13 @@ describe('intent → copy', () => {
   });
 
   it('uses the shorter nav subcopy', () => {
-    expect(signInCopy('nav').subcopy).toBe('Bills you track are saved to your account.');
+    expect(signInCopy('nav').subcopy).toBe('Bills you track are saved to your account');
   });
 
   it('uses the approved Track-intent copy', () => {
     const { headline, subcopy } = signInCopy('track', 'HF 4138');
     expect(headline).toBe('Sign in to track this bill');
-    expect(subcopy).toBe('Bills you track are saved to your account.');
+    expect(subcopy).toBe('Bills you track are saved to your account');
   });
 
   it('uses the same Track-intent copy when only the id is known', () => {
@@ -136,7 +136,7 @@ describe('no sign-in copy promises a notification', () => {
 
   it('states the payoff we can actually deliver: a saved list', () => {
     expect(signInCopy('track', 'HF 4138').subcopy).toBe(
-      'Bills you track are saved to your account.',
+      'Bills you track are saved to your account',
     );
   });
 });

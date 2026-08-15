@@ -37,7 +37,7 @@ test('an expired confirmation link focuses an invalid replacement email', async 
   await page.getByRole('button', { name: 'Send a new confirmation email' }).click();
 
   await expect(
-    page.getByText('Enter a complete email address, like name@example.com.'),
+    page.getByText('Enter a complete email address, like name@example.com'),
   ).toBeVisible();
   await expect(email).toBeFocused();
 });

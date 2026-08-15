@@ -87,6 +87,25 @@ describe('rev 9 sign-in integration guards', () => {
     expect(emailLinkPage).toContain('inputRef={confirmationRef}');
   });
 
+  it('keeps short email-link messages free of final periods', () => {
+    const emailLinkPage = source('../../screens/auth/EmailLinkPage.tsx');
+
+    for (const message of [
+      'Something went wrong checking this link',
+      'Enter your email address to request another confirmation link',
+      'Start the Forgot password flow again and open the newest email',
+      'This link has expired or has already been used',
+      'If a confirmation email arrives, open the newest one',
+      'You’re signed in',
+      'To switch accounts later, sign out from the normal account menu',
+      'Press the button to confirm the email address from this message',
+      'Press the button to check this reset link and choose a new password',
+    ]) {
+      expect(emailLinkPage).toContain(message);
+      expect(emailLinkPage).not.toContain(`${message}.`);
+    }
+  });
+
   it('reaches Forgot password even when short-lived browser storage is unavailable', () => {
     const emailLinkPage = source('../../screens/auth/EmailLinkPage.tsx');
 

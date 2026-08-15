@@ -7,7 +7,7 @@ import { LoadingButton } from './LoadingButton';
 export type ResendStatus = 'ready' | 'sending' | 'sent' | 'waiting' | 'rate-limited';
 
 function waitSentence(seconds: number) {
-  return `You can resend in ${seconds} ${seconds === 1 ? 'second' : 'seconds'}.`;
+  return `You can resend in ${seconds} ${seconds === 1 ? 'second' : 'seconds'}`;
 }
 
 export function ResendControl({
@@ -46,7 +46,7 @@ export function ResendControl({
         />
         {announceReady ? (
           <Text accessibilityLiveRegion="polite" style={styles.screenReaderOnly}>
-            You can resend now.
+            You can resend now
           </Text>
         ) : null}
       </View>
