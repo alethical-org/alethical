@@ -1,4 +1,4 @@
-<!-- describes: apps/frontend/public/index.html, apps/frontend/App.tsx, apps/frontend/src/components/AppErrorBoundary.tsx, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, apps/frontend/src/lib/authRestore.ts, apps/frontend/src/lib/publicRead.ts, apps/frontend/src/providers/AuthProvider.tsx, apps/frontend/public/robots.txt, api/page.ts, api/sitemap.ts, alethical/logging.py, railway.json, vercel.json -->
+<!-- describes: apps/frontend/public/index.html, apps/frontend/App.tsx, apps/frontend/src/components/AppErrorBoundary.tsx, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, apps/frontend/src/lib/authRestore.ts, apps/frontend/src/lib/publicRead.ts, apps/frontend/src/providers/AuthProvider.tsx, apps/frontend/public/robots.txt, api/page.ts, api/sitemap.ts, alethical/api/routers/me.py, alethical/api/services/ask_router.py, alethical/pipeline/rag_ingest.py, alethical/logging.py, railway.json, vercel.json -->
 
 # Deployment
 
@@ -7,39 +7,8 @@ Alethical deploys as two services:
 - Frontend: Expo web static export on Vercel.
 - Backend: FastAPI web service on Railway.
 
-## Workflows at a glance
-
-Ten GitHub Actions workflows live in `.github/workflows/`. Which ones a PR can
-prove matters: 8 of them never run on a PR, so a change to them is only verified
-after merge.
-
-| Workflow                | Runs when                                                                  | Does                                                                                   | Provable on a PR?                |
-| ----------------------- | -------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------- |
-| `ci.yml`                | every PR, and pushes to `main`                                             | Backend and frontend checks, plus doc references                                       | Yes                              |
-| `migrate.yml`           | by hand                                                                    | Manual migration fallback, followed by the production schema-drift check               | No                               |
-| `railway-deploy.yml`    | by hand                                                                    | Emergency fallback that deploys the API to Railway production                           | No                               |
-| `vercel-deploy.yml`     | by hand from the current `main` commit                                     | Emergency fallback that deploys the web frontend to Vercel production                  | No                               |
-| `vote-backfill.yml`     | daily at 09:00 UTC, or by hand                                             | Pulls newly recorded roll-call votes into production                                   | No — dispatch it by hand to test |
-| `bill-section-gaps.yml` | daily at 11:00 UTC, or by hand                                             | Read-only check that no bill is missing sections its page published; opens an alert issue | No — dispatch it by hand to test |
-| `rag-coverage-gaps.yml` | daily at 12:00 UTC, or by hand                                             | Read-only check that every stored bill can be found by Grounded Ask; opens an alert issue | No — dispatch it by hand to test |
-| `mirror-raw-files.yml`  | daily at 13:00 UTC, or by hand                                             | Copies stored campaign-finance source files from Supabase to Cloudflare                 | No — dispatch it by hand to test |
-| `home-hero-card-facts.yml` | monthly, by hand, and relevant pull requests                           | Checks the homepage's 5 claims against official sources                                | Yes, when the homepage changes   |
-| `legislator-city-backfill.yml` | by hand                                                            | Previews or fills missing legislator residence cities from official sources              | No — preview 1 person by hand    |
-
-`bill-section-gaps.yml` is a schedule rather than a PR check for a structural
-reason: the damage it looks for is created by an **ingest**, and ingests are
-triggered by hand from a laptop, so no PR can be running when one happens. A bill
-ingested by a run that started before a pipeline fix merged banks the old bug
-silently — which is what happened to the 2025 special session on Jul 30 2026,
-ingested hours before [#763](https://github.com/alethical-org/alethical/issues/763)'s
-fix landed. It costs one query, and it files an issue only when a gap exists,
-commenting on the open one rather than filing a second.
-
-Railway and Vercel watch `main` through their Git connections. Their old GitHub deploy
-workflows remain hand-run fallbacks, so an older duplicate release cannot finish last.
-For why the borrowed steps inside the GitHub jobs
-need periodic bumping, see [`CONTRIBUTING.md`](../../CONTRIBUTING.md) § "Keeping
-the workflow actions current".
+[What runs, when, and what it costs](jobs-and-scripts.md) owns the complete list of
+GitHub workflows, their triggers, and their costs.
 
 ## Backend on Railway
 
@@ -55,13 +24,25 @@ the backend build when the fallback uploads a release.
 migrations directly and then compare production with the migration history, but it no
 longer races Railway on every merge.
 
-Required Railway environment variables:
+Core Railway environment variables:
 
 ```bash
 DATABASE_URL=postgresql://...
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 ALETHICAL_CORS_ORIGINS=https://your-vercel-domain.vercel.app,http://localhost:8081,http://127.0.0.1:8081,http://localhost:19006,http://127.0.0.1:19006
+OPENAI_API_KEY=sk-...
+```
+
+`OPENAI_API_KEY` powers live Ask question sorting and search embeddings. It also
+writes answers unless `OPENAI_RAG_CHAT_MODEL` names an Anthropic model; that choice
+also needs `ANTHROPIC_API_KEY`. These calls spend money for each reader question.
+[What runs, when, and what it costs](jobs-and-scripts.md) separates those live
+costs from scheduled jobs and batch work.
+
+To enable Contact us, add:
+
+```bash
 ALETHICAL_EMAIL_ENABLED=true
 ALETHICAL_EMAIL_TRANSPORT=resend
 ALETHICAL_EMAIL_FROM=Alethical <ask@alethical.com>
