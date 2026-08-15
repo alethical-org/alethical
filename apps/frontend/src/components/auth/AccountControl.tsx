@@ -166,7 +166,16 @@ export function SetPasswordDialog({
 
   const revealPasswordActions = useCallback(() => {
     if (!isWeb || !isMobile) return;
-    passwordActionsRef.current?.scrollIntoView?.({ block: 'end', inline: 'nearest' });
+    const actions = passwordActionsRef.current as HTMLElement | null;
+    actions?.scrollIntoView?.({ block: 'end', inline: 'nearest' });
+    let parent = actions?.parentElement ?? null;
+    while (parent) {
+      if (parent.scrollHeight > parent.clientHeight) {
+        parent.scrollTop = parent.scrollHeight;
+        return;
+      }
+      parent = parent.parentElement;
+    }
   }, [isMobile]);
 
   useEffect(() => {

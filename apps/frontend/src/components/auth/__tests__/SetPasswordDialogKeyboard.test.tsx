@@ -77,6 +77,34 @@ describe('phone password action visibility', () => {
 
     act(() => root.render(<SetPasswordDialog open onClose={vi.fn()} />));
 
+    const actions = [...document.querySelectorAll<HTMLElement>('div')].find(
+      (element) => element.textContent === 'Save passwordCancel' && element.children.length === 2,
+    );
+    if (!actions?.parentElement?.parentElement?.parentElement) {
+      throw new Error('Password sheet scroll parents were not rendered');
+    }
+    const formWrapper = actions.parentElement;
+    const contentWrapper = formWrapper.parentElement!;
+    const sheetScroller = contentWrapper.parentElement!;
+    for (const [element, clientHeight, scrollHeight] of [
+      [formWrapper, 355, 355],
+      [contentWrapper, 624, 624],
+      [sheetScroller, 422, 624],
+    ] as const) {
+      Object.defineProperties(element, {
+        clientHeight: { configurable: true, value: clientHeight },
+        scrollHeight: { configurable: true, value: scrollHeight },
+      });
+    }
+    let sheetScrollTop = 0;
+    Object.defineProperty(sheetScroller, 'scrollTop', {
+      configurable: true,
+      get: () => sheetScrollTop,
+      set: (value: number) => {
+        sheetScrollTop = Math.min(value, 624 - 422);
+      },
+    });
+
     const confirmation = document.querySelectorAll<HTMLInputElement>(
       'input[autocomplete="new-password"]',
     )[1];
@@ -89,6 +117,9 @@ describe('phone password action visibility', () => {
     expect((scrollIntoView.mock.instances[0] as HTMLElement).textContent).toContain(
       'Save passwordCancel',
     );
+    expect(formWrapper.scrollTop).toBe(0);
+    expect(contentWrapper.scrollTop).toBe(0);
+    expect(sheetScroller.scrollTop).toBe(202);
 
     scrollIntoView.mockClear();
     act(() => {
