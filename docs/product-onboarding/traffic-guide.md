@@ -47,9 +47,9 @@ cannot be removed later.
 ## Public and private routes
 
 `/api/traffic` is the only route the public page reads. The Vercel access token stays on the
-server. Vercel can limit this token to the Alethical team, but it does not offer a one-project
-token. The route uses the token only to read traffic totals. It asks Vercel for all 3 periods,
-checks that the returned periods and totals
+server. The token is limited to the `alethical-web` project and expires after 1 year. The
+route uses the token only to read traffic totals. It asks Vercel for all 3 periods, checks
+that the returned periods and totals
 are valid, and returns only the 4 numbers, the fetch time, the counting start time, and
 whether team exclusion is configured. A valid zero is shown as `0`. A missing or invalid
 answer is shown as unavailable, never as zero.
@@ -59,8 +59,8 @@ collection decision. Its answer is never stored in a public setting.
 
 The server settings are:
 
-- `VERCEL_ANALYTICS_ACCESS_TOKEN`: a secret Vercel token limited to the Alethical team and
-  used only to read this website's totals;
+- `VERCEL_ANALYTICS_ACCESS_TOKEN`: a secret Vercel token limited to the `alethical-web`
+  project and used only to read this website's totals;
 - `VERCEL_ANALYTICS_PROJECT_ID`: the Vercel website identifier;
 - `VERCEL_ANALYTICS_TEAM_ID`: the Vercel team identifier;
 - `TRAFFIC_COUNTING_STARTED_AT`: the exact UTC time counting was switched on; and
