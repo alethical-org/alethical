@@ -144,6 +144,18 @@ async function fetchVercel(url: URL, token: string): Promise<AggregatePayload> {
   }
 }
 
+async function atStage<T>(stage: string, request: Promise<T>): Promise<T> {
+  try {
+    return await request;
+  } catch (error) {
+    const reason =
+      error instanceof TrafficUnavailable
+        ? error.message
+        : "Unexpected failure";
+    throw new TrafficUnavailable(`${stage}: ${reason}`);
+  }
+}
+
 async function aggregatePageViewHours(
   since: number,
   untilExclusive: number,
@@ -432,102 +444,150 @@ export default async function handler(
       legislatorProfiles30d,
     ] = await Promise.all([
       Promise.all(
-        ranges.map((range) =>
-          aggregatePageViewHours(
-            range.since,
-            range.untilExclusive,
-            token,
-            projectId,
-            teamId,
+        ranges.map((range, index) =>
+          atStage(
+            `hourly page views ${index + 1}`,
+            aggregatePageViewHours(
+              range.since,
+              range.untilExclusive,
+              token,
+              projectId,
+              teamId,
+            ),
           ),
         ),
       ),
-      countVisits(oneDayStartedAt, windowEndedAt, token, projectId, teamId),
-      countVisits(sevenDaysStartedAt, windowEndedAt, token, projectId, teamId),
-      countVisits(windowStartedAt, windowEndedAt, token, projectId, teamId),
-      countVisits(
-        sevenDaysStartedAt,
-        windowEndedAt,
-        token,
-        projectId,
-        teamId,
-        HOME_FILTER,
+      atStage(
+        "24-hour visitor total",
+        countVisits(oneDayStartedAt, windowEndedAt, token, projectId, teamId),
       ),
-      countVisits(
-        sevenDaysStartedAt,
-        windowEndedAt,
-        token,
-        projectId,
-        teamId,
-        BILLS_FILTER,
+      atStage(
+        "7-day visitor total",
+        countVisits(
+          sevenDaysStartedAt,
+          windowEndedAt,
+          token,
+          projectId,
+          teamId,
+        ),
       ),
-      countVisits(
-        sevenDaysStartedAt,
-        windowEndedAt,
-        token,
-        projectId,
-        teamId,
-        LEGISLATORS_FILTER,
+      atStage(
+        "30-day visitor total",
+        countVisits(windowStartedAt, windowEndedAt, token, projectId, teamId),
       ),
-      aggregateProfilePaths(
-        sevenDaysStartedAt,
-        windowEndedAt,
-        token,
-        projectId,
-        teamId,
-        BILL_PROFILE_FILTER,
-        "/bills/",
+      atStage(
+        "7-day home total",
+        countVisits(
+          sevenDaysStartedAt,
+          windowEndedAt,
+          token,
+          projectId,
+          teamId,
+          HOME_FILTER,
+        ),
       ),
-      aggregateProfilePaths(
-        sevenDaysStartedAt,
-        windowEndedAt,
-        token,
-        projectId,
-        teamId,
-        LEGISLATOR_PROFILE_FILTER,
-        "/legislators/",
+      atStage(
+        "7-day bills total",
+        countVisits(
+          sevenDaysStartedAt,
+          windowEndedAt,
+          token,
+          projectId,
+          teamId,
+          BILLS_FILTER,
+        ),
       ),
-      countVisits(
-        windowStartedAt,
-        windowEndedAt,
-        token,
-        projectId,
-        teamId,
-        HOME_FILTER,
+      atStage(
+        "7-day legislators total",
+        countVisits(
+          sevenDaysStartedAt,
+          windowEndedAt,
+          token,
+          projectId,
+          teamId,
+          LEGISLATORS_FILTER,
+        ),
       ),
-      countVisits(
-        windowStartedAt,
-        windowEndedAt,
-        token,
-        projectId,
-        teamId,
-        BILLS_FILTER,
+      atStage(
+        "7-day bill profiles",
+        aggregateProfilePaths(
+          sevenDaysStartedAt,
+          windowEndedAt,
+          token,
+          projectId,
+          teamId,
+          BILL_PROFILE_FILTER,
+          "/bills/",
+        ),
       ),
-      countVisits(
-        windowStartedAt,
-        windowEndedAt,
-        token,
-        projectId,
-        teamId,
-        LEGISLATORS_FILTER,
+      atStage(
+        "7-day legislator profiles",
+        aggregateProfilePaths(
+          sevenDaysStartedAt,
+          windowEndedAt,
+          token,
+          projectId,
+          teamId,
+          LEGISLATOR_PROFILE_FILTER,
+          "/legislators/",
+        ),
       ),
-      aggregateProfilePaths(
-        windowStartedAt,
-        windowEndedAt,
-        token,
-        projectId,
-        teamId,
-        BILL_PROFILE_FILTER,
-        "/bills/",
+      atStage(
+        "30-day home total",
+        countVisits(
+          windowStartedAt,
+          windowEndedAt,
+          token,
+          projectId,
+          teamId,
+          HOME_FILTER,
+        ),
       ),
-      aggregateProfilePaths(
-        windowStartedAt,
-        windowEndedAt,
-        token,
-        projectId,
-        teamId,
-        LEGISLATOR_PROFILE_FILTER,
-        "/legislators/",
+      atStage(
+        "30-day bills total",
+        countVisits(
+          windowStartedAt,
+          windowEndedAt,
+          token,
+          projectId,
+          teamId,
+          BILLS_FILTER,
+        ),
+      ),
+      atStage(
+        "30-day legislators total",
+        countVisits(
+          windowStartedAt,
+          windowEndedAt,
+          token,
+          projectId,
+          teamId,
+          LEGISLATORS_FILTER,
+        ),
+      ),
+      atStage(
+        "30-day bill profiles",
+        aggregateProfilePaths(
+          windowStartedAt,
+          windowEndedAt,
+          token,
+          projectId,
+          teamId,
+          BILL_PROFILE_FILTER,
+          "/bills/",
+        ),
+      ),
+      atStage(
+        "30-day legislator profiles",
+        aggregateProfilePaths(
+          windowStartedAt,
+          windowEndedAt,
+          token,
+          projectId,
+          teamId,
+          LEGISLATOR_PROFILE_FILTER,
+          "/legislators/",
+        ),
       ),
     ]);
     const pageViewsByHour = pageViewsByHourParts.flat();
