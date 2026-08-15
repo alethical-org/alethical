@@ -152,6 +152,8 @@ describe('public Site metrics page', () => {
   it('uses the accepted closing-panel copy and sample rules', () => {
     expect(SOURCE).toContain('Checked by Checkly · Last 30 days');
     expect(SOURCE).toContain('Measured by Cloudflare · Last 30 days');
+    expect(SOURCE).toContain('Percentages show how often Alethical passed automatic checks');
+    expect(SOURCE).not.toContain('Percentages show how often Alethical passed automatic checks.');
     expect(SOURCE).toContain('OPEN VERCEL DASHBOARD');
     expect(SOURCE).toContain('OPEN CHECKLY DASHBOARD');
     expect(SOURCE).not.toContain('REAL VISITS · SLOWEST 1 IN 4');
@@ -175,6 +177,7 @@ describe('public Site metrics page', () => {
       /tableValue: \{[\s\S]*?fontSize: 24,[\s\S]*?fontWeight: '800',[\s\S]*?textAlign: 'right',[\s\S]*?fontVariant: \['tabular-nums'\]/,
     );
     expect(SOURCE).toMatch(/tableValueMobile: \{ fontSize: 22/);
+    expect(SOURCE).toMatch(/tableName: \{ flex: 1, textAlign: 'left' \}/);
     expect(SOURCE).toMatch(/tableRow: \{[\s\S]*?paddingLeft: 14,[\s\S]*?paddingRight: 0/);
     expect(SOURCE).toMatch(/tableRowMobile: \{[\s\S]*?paddingLeft: 12,[\s\S]*?paddingVertical: 11/);
   });

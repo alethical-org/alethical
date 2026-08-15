@@ -969,7 +969,7 @@ function AvailabilityPanel({
         />
       </View>
       <Text style={styles.panelNote}>
-        Percentages show how often Alethical passed automatic checks.
+        Percentages show how often Alethical passed automatic checks
       </Text>
       <Text style={styles.source}>
         Checked by Checkly · Last 30 days
@@ -1622,7 +1622,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   tableLabelMobile: { fontSize: 12, lineHeight: 17, paddingBottom: 8 },
-  tableName: { textAlign: 'left' },
+  tableName: { flex: 1, textAlign: 'left' },
   tableBlankHeader: { flex: 1, paddingBottom: 9 },
   tableRow: {
     paddingLeft: 14,
