@@ -58,7 +58,7 @@ export type RootStackParamList = {
       }
     | undefined;
   Privacy: undefined;
-  Traffic: undefined;
+  SiteMetrics: undefined;
   Terms: undefined;
   AboutUs: undefined;
   ContactUs: undefined;

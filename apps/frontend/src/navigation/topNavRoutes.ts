@@ -5,6 +5,7 @@ type TopNavNavigateArgs =
   | ['Legislators']
   | ['FindMyLegislator']
   | ['AboutUs']
+  | ['SiteMetrics']
   | ['ContactUs']
   | ['Tabs', { screen: 'Tracked' }];
 
@@ -46,6 +47,9 @@ export function navigateTopNavItem(
       return true;
     case 'about-us':
       navigation.navigate('AboutUs');
+      return true;
+    case 'about-site-metrics':
+      navigation.navigate('SiteMetrics');
       return true;
     case 'about-contact':
       navigation.navigate('ContactUs');

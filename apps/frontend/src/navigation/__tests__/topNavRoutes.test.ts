@@ -8,6 +8,7 @@ describe('top navigation routes', () => {
     ['search-legislators', ['Legislators']],
     ['search-find-my-legislator', ['FindMyLegislator']],
     ['about-us', ['AboutUs']],
+    ['about-site-metrics', ['SiteMetrics']],
     ['about-contact', ['ContactUs']],
   ] as const)('sends %s through the full app route', (itemId, expectedCall) => {
     const navigate = vi.fn();

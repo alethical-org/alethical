@@ -370,14 +370,25 @@ describe('first-response page tags', () => {
     expect((await serve({ path: '/privacy' })).body).toContain(
       '<title>Privacy Policy | Alethical</title>',
     );
-    expect((await serve({ path: '/traffic' })).body).toContain(
-      '<title>Traffic | Alethical</title>',
+    expect((await serve({ path: '/site-metrics' })).body).toContain(
+      '<title>Site metrics | Alethical</title>',
     );
     expect((await serve({ path: '/privacy' })).body).toContain(
       '<div id="root"><!--alethical:page-snapshot--><!--/alethical:page-snapshot--></div>',
     );
     expect(calls).toHaveLength(0);
     expect(readPageShell).toHaveBeenCalledTimes(1);
+  });
+
+  it('serves the normal missing-page response for the retired Traffic address', async () => {
+    stubNetwork(() => ({ status: 500 }));
+
+    const { body, headers, status } = await serve({ path: '/traffic' });
+
+    expect(status).toBe(404);
+    expect(headers.get('Location')).toBeUndefined();
+    expect(body).toContain('<title>Page not found | Alethical</title>');
+    expect(body).toContain('<h1>We couldn’t find that page</h1>');
   });
 
   it('serves the same fixed Find My Legislator introduction before the app loads', async () => {

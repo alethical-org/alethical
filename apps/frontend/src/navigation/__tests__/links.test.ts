@@ -44,7 +44,7 @@ describe('routePath builds the URL the router will land on', () => {
     expect(routePath.bills()).toBe('/bills');
     expect(routePath.legislators()).toBe('/legislators');
     expect(routePath.privacy()).toBe('/privacy');
-    expect(routePath.traffic()).toBe('/traffic');
+    expect(routePath.siteMetrics()).toBe('/site-metrics');
     expect(routePath.terms()).toBe('/terms');
     expect(routePath.bill('94-2025-SF334')).toBe('/bills/94-2025-SF334');
     expect(routePath.legislator('abc-123')).toBe('/legislators/abc-123');

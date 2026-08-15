@@ -48,7 +48,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
 type NavIcon = Icon;
-type RailRouteName = keyof MainTabParamList | 'FindMyLegislator' | 'NotFound' | 'Traffic';
+type RailRouteName = keyof MainTabParamList | 'FindMyLegislator' | 'NotFound' | 'SiteMetrics';
 const tabMeta: Record<keyof MainTabParamList, { label: string; Icon: NavIcon }> = {
   Home: { label: 'Home', Icon: Home },
   Tracked: { label: 'Tracked', Icon: BookmarkCheck },
@@ -294,8 +294,8 @@ function activeRailRouteFromRootState(state: any): RailRouteName | undefined {
   if (rootRoute?.name === 'NotFound') {
     return 'NotFound';
   }
-  if (rootRoute?.name === 'Traffic') {
-    return 'Traffic';
+  if (rootRoute?.name === 'SiteMetrics') {
+    return 'SiteMetrics';
   }
   if (rootRoute?.name === 'Tabs') {
     const tabState = rootRoute.state;
@@ -493,7 +493,7 @@ export function RootNavigator() {
     activeRailRoute === 'Tracked' ||
     activeRailRoute === 'FindMyLegislator' ||
     activeRailRoute === 'NotFound' ||
-    activeRailRoute === 'Traffic';
+    activeRailRoute === 'SiteMetrics';
 
   useEffect(() => {
     if (!isWeb) {
@@ -647,9 +647,9 @@ export function RootNavigator() {
               options={{ headerShown: false, title: 'Privacy Policy' }}
             />
             <Stack.Screen
-              name="Traffic"
+              name="SiteMetrics"
               component={TrafficScreen}
-              options={{ headerShown: false, title: 'Traffic' }}
+              options={{ headerShown: false, title: 'Site metrics' }}
             />
             <Stack.Screen
               name="Terms"

@@ -69,7 +69,7 @@ describe('sitemap endpoint', () => {
       '/about',
       '/about/contact',
       '/privacy',
-      '/traffic',
+      '/site-metrics',
       '/terms',
     ]) {
       expect(body).toContain(`<loc>https://www.alethical.com${path}</loc>`);
