@@ -579,7 +579,12 @@ export default async function handler(
       },
       OK_CACHE,
     );
-  } catch {
+  } catch (error) {
+    const diagnostic =
+      error instanceof TrafficUnavailable
+        ? error.message
+        : "Unexpected traffic handler failure";
+    console.error(diagnostic);
     sendJson(
       response,
       503,
