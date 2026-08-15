@@ -470,7 +470,7 @@ export function SignInDialog({
     description =
       checkEmailMode === 'unconfirmed'
         ? `Confirm ${email} before signing in.`
-        : 'If a confirmation email arrives, open the newest one. Otherwise, sign in.';
+        : 'If a confirmation email arrives, open the newest one. If none does, sign in — you may already have an account.';
     icon = 'mail';
   } else if (screen === 'forgot') {
     title = 'Reset your password';
@@ -653,26 +653,41 @@ export function SignInDialog({
     // outcome deliberately has no Google button — this screen already knows the
     // password is correct, and an unconfirmed email must never be invited to
     // claim an existing account through Google.
+    const resendConfirmationControl = (
+      <ResendControl
+        status={shownResendStatus}
+        secondsRemaining={resendSeconds}
+        sentMessage={CONFIRMATION_SENT}
+        actionLabel={
+          checkEmailMode === 'unconfirmed' ? 'Resend confirmation email' : 'Resend email'
+        }
+        onResend={submitResend}
+      />
+    );
+    const signInAfterEmailControl = (
+      <LoadingButton
+        label={checkEmailMode === 'unconfirmed' ? 'Sign in after confirming' : 'Sign in'}
+        busyLabel="Opening sign in…"
+        disabled={anyBusy}
+        onPress={() => moveTo('sign-in')}
+      />
+    );
     content = (
       <>
         {serverError}
         {checkEmailMode === 'create' ? <View style={styles.googleSolo}>{googleButton}</View> : null}
         <View style={styles.actionStackNoTop}>
-          <ResendControl
-            status={shownResendStatus}
-            secondsRemaining={resendSeconds}
-            sentMessage={CONFIRMATION_SENT}
-            actionLabel={
-              checkEmailMode === 'unconfirmed' ? 'Resend confirmation email' : 'Resend email'
-            }
-            onResend={submitResend}
-          />
-          <LoadingButton
-            label={checkEmailMode === 'unconfirmed' ? 'Sign in after confirming' : 'Sign in'}
-            busyLabel="Opening sign in…"
-            disabled={anyBusy}
-            onPress={() => moveTo('sign-in')}
-          />
+          {checkEmailMode === 'create' ? (
+            <>
+              {signInAfterEmailControl}
+              {resendConfirmationControl}
+            </>
+          ) : (
+            <>
+              {resendConfirmationControl}
+              {signInAfterEmailControl}
+            </>
+          )}
           <TextAction
             label="Change email"
             disabled={anyBusy}

@@ -152,16 +152,18 @@ describe('rev 9 sign-in dialog', () => {
     // address, taken address or Google-first account — and resend measurably
     // reports success without sending for a confirmed address (#1533).
     expect(html).toContain(
-      'If a confirmation email arrives, open the newest one. Otherwise, sign in.',
+      'If a confirmation email arrives, open the newest one. If none does, sign in — you may already have an account.',
     );
     expect(html).not.toContain('on the way');
     // The Google button is the one control that works for all three
-    // populations (rev 12), and the primary is renamed Sign in (rev 15).
-    expect(html).toContain('Continue with Google');
-    expect(html).toContain('Resend email');
-    expect(html).toContain('>Sign in<');
+    // populations (rev 12), and the working routes now precede Resend (#1581).
+    expect(html).toMatch(
+      /Continue with Google[\s\S]*?>Sign in<[\s\S]*?>Resend email<[\s\S]*?>Change email</,
+    );
     expect(html).not.toContain('Sign in after confirming');
-    expect(html).toContain('Change email');
+    expect(SOURCE).toMatch(
+      /checkEmailMode === 'create' \? \([\s\S]*?signInAfterEmailControl[\s\S]*?resendConfirmationControl[\s\S]*?\) : \([\s\S]*?resendConfirmationControl[\s\S]*?signInAfterEmailControl/,
+    );
   });
 
   it('uses arrival-neutral reset wording, with the real Google button and no fake help line', () => {
