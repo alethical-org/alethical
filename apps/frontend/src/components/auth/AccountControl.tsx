@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -20,6 +20,7 @@ import {
 import { passwordMethodCopy, type PasswordMethodCopy } from '../../lib/auth/passwordMethod';
 import { clearSignedInAuthDrafts } from '../../lib/auth/signOutCleanup';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
+import { useResponsive } from '../../hooks/useResponsive';
 import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fieldFocus';
 import { theme as t } from '../../theme/tokens';
 import { useAuth } from '../../providers/AuthProvider';
@@ -150,6 +151,7 @@ export function SetPasswordDialog({
   const [saved, setSaved] = useState(false);
   const [uncertainMessage, setUncertainMessage] = useState<string | null>(null);
   const { focused: freshProofFocused, focusProps: freshProofFocusProps } = useFieldFocus();
+  const { isMobile } = useResponsive();
   const currentCopy = useMemo(
     () => passwordMethodCopy(user?.signInMethods ?? null, user?.email ?? 'your email'),
     [user?.email, user?.signInMethods?.google, user?.signInMethods?.password],
@@ -158,8 +160,14 @@ export function SetPasswordDialog({
   const passwordRef = useRef<any>(null);
   const confirmationRef = useRef<any>(null);
   const freshProofRef = useRef<any>(null);
+  const passwordActionsRef = useRef<any>(null);
   const requestGate = useRef(createValidRequestGate()).current;
   const wasOpen = useRef(false);
+
+  const revealPasswordActions = useCallback(() => {
+    if (!isWeb || !isMobile) return;
+    passwordActionsRef.current?.scrollIntoView?.({ block: 'end', inline: 'nearest' });
+  }, [isMobile]);
 
   useEffect(() => {
     if (!open) {
@@ -195,6 +203,26 @@ export function SetPasswordDialog({
     if (!open || !freshProofRequested || busy) return;
     freshProofRef.current?.focus?.();
   }, [busy, freshProofRequested, open]);
+
+  useEffect(() => {
+    if (!open || !isWeb || !isMobile || typeof window === 'undefined') return;
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+    let previousHeight = viewport.height;
+    const revealAfterKeyboardOpens = () => {
+      const nextHeight = viewport.height;
+      if (
+        nextHeight < previousHeight &&
+        typeof document !== 'undefined' &&
+        document.activeElement === confirmationRef.current
+      ) {
+        revealPasswordActions();
+      }
+      previousHeight = nextHeight;
+    };
+    viewport.addEventListener('resize', revealAfterKeyboardOpens);
+    return () => viewport.removeEventListener('resize', revealAfterKeyboardOpens);
+  }, [isMobile, open, revealPasswordActions]);
 
   const save = async () => {
     const nextPasswordError = validatePassword(password) ?? undefined;
@@ -314,6 +342,7 @@ export function SetPasswordDialog({
               error={confirmationError}
               disabled={busy}
               autoComplete="new-password"
+              onFocus={revealPasswordActions}
               onChangeText={(value) => {
                 setConfirmation(value);
                 setConfirmationError(undefined);
@@ -361,7 +390,7 @@ export function SetPasswordDialog({
               </View>
             ) : null}
           </View>
-          <View style={styles.passwordActions}>
+          <View ref={passwordActionsRef} style={styles.passwordActions}>
             <LoadingButton
               label="Save password"
               busyLabel="Saving…"
