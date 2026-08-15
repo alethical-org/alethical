@@ -90,8 +90,8 @@ roadmap noted for direction.
   (`docs/product-onboarding/bill-tracking-spec.md`). Google and email-plus-password are
   both live; every flow, state and string is documented in
   `docs/product-onboarding/sign-in-guide.md` (revised to the rev 17 design,
-  [#1533](https://github.com/alethical-org/alethical/issues/1533); the retired
-  `docs/mockups/sign-in/` bundle described the Google-only first release). Gate scope is
+  [#1533](https://github.com/alethical-org/alethical/issues/1533), which also retired the
+  Google-only design bundle that used to live under `docs/`). Gate scope is
   **bill tracking only**. Vote records are public, so there is no legislator-votes
   sign-in intent. No copy anywhere claims an email was sent or promises a push alert:
   sending alerts is not built
