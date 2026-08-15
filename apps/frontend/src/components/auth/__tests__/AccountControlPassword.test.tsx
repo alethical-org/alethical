@@ -107,40 +107,44 @@ describe('signed-in set or change password', () => {
     expect(SOURCE).toContain('uncertainMessage ? (');
   });
 
-  it('adds 1 password action to both account surfaces and none to the phone drawer', () => {
-    const drawer = SOURCE.slice(
-      SOURCE.indexOf('export function AccountDrawerRow'),
-      SOURCE.indexOf('const focusRingWeb'),
-    );
-
+  it('uses 1 shared account-action component on desktop and phone', () => {
+    expect(SOURCE).toContain('function AccountSurfaceContent');
+    expect(SOURCE.match(/<AccountSurfaceContent/g)).toHaveLength(2);
+    expect(SOURCE.match(/const passwordCopy =/g)).toHaveLength(1);
     expect(SOURCE.match(/passwordCopy\.rowLabel/g)).toHaveLength(2);
     expect(SOURCE).not.toContain('accessibilityRole="menuitem"');
     expect(SOURCE).not.toContain('role="menu"');
     expect(SOURCE).toContain("role: 'region', 'aria-label': 'Account'");
     expect(SOURCE).toContain('emailPasswordEnabled ?');
-    expect(drawer).not.toContain('passwordCopy.rowLabel');
+  });
+
+  it('opens the shared phone account sheet from the full-width drawer account row', () => {
+    const drawer = SOURCE.slice(
+      SOURCE.indexOf('export function AccountDrawerRow'),
+      SOURCE.indexOf('const focusRingWeb'),
+    );
+
+    expect(SOURCE).toContain('function PhoneAccountControl');
+    expect(SOURCE.match(/<PhoneAccountControl/g)).toHaveLength(2);
+    expect(drawer).toContain('PhoneAccountControl trigger="drawer"');
+    expect(SOURCE).toMatch(/drawerAccountButton: \{[^}]*width: '100%',[^}]*minHeight: 44/s);
   });
 
   it('keeps sign out visible while the release switch hides password actions', () => {
-    const desktop = SOURCE.slice(
-      SOURCE.indexOf("role: 'region', 'aria-label': 'Account'"),
-      SOURCE.indexOf('/** Phone top bar'),
-    );
-    const phone = SOURCE.slice(
-      SOURCE.indexOf('export function AccountAvatarButton'),
-      SOURCE.indexOf('/** Phone drawer footer'),
+    const sharedSurface = SOURCE.slice(
+      SOURCE.indexOf('function AccountSurfaceContent'),
+      SOURCE.indexOf('/** Desktop top nav'),
     );
 
-    expect(desktop.match(/emailPasswordEnabled \?/g)).toHaveLength(1);
-    expect(desktop).toContain('<DesktopSignOut flow={signOutFlow} />');
-    expect(phone.match(/emailPasswordEnabled \?/g)).toHaveLength(1);
-    expect(phone).toContain('<PhoneSignOut flow={signOutFlow} />');
+    expect(sharedSurface.match(/emailPasswordEnabled \?/g)).toHaveLength(2);
+    expect(sharedSurface).toContain('<DesktopSignOut flow={signOutFlow} />');
+    expect(sharedSurface).toContain('<PhoneSignOut flow={signOutFlow} />');
   });
 
   it('keeps the other-device note in exactly the desktop panel and phone sheet', () => {
     expect(SOURCE.match(/OTHER_DEVICE_NOTE}/g)).toHaveLength(2);
     expect(SOURCE).toContain(
-      "const OTHER_DEVICE_NOTE = 'You may still be signed in on other devices';",
+      "const OTHER_DEVICE_NOTE = 'You may still be signed in on other devices.';",
     );
     expect(SOURCE).toContain(
       "const SIGN_OUT_FAILURE = 'We couldn’t sign you out. Check your connection and try again.';",

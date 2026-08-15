@@ -35,7 +35,7 @@ import { SignInContainer } from './SignInContainer';
 const isWeb = Platform.OS === 'web';
 const emailPasswordEnabled = process.env.EXPO_PUBLIC_EMAIL_PASSWORD_SIGN_IN_ENABLED === 'true';
 const SIGN_OUT_FAILURE = 'We couldn’t sign you out. Check your connection and try again.';
-const OTHER_DEVICE_NOTE = 'You may still be signed in on other devices';
+const OTHER_DEVICE_NOTE = 'You may still be signed in on other devices.';
 
 function displayName(name: string | undefined, email: string | undefined) {
   const trimmed = (name ?? '').trim();
@@ -467,6 +467,72 @@ function PhoneSignOut({ flow }: { flow: ReturnType<typeof useAccountSignOut> }) 
   );
 }
 
+function AccountSurfaceContent({
+  variant,
+  name,
+  email,
+  signInMethods,
+  signOutFlow,
+  onPasswordPress,
+}: {
+  variant: 'desktop' | 'phone';
+  name: string;
+  email: string;
+  signInMethods: Parameters<typeof passwordMethodCopy>[0];
+  signOutFlow: ReturnType<typeof useAccountSignOut>;
+  onPasswordPress: () => void;
+}) {
+  const passwordCopy = passwordMethodCopy(signInMethods, email || 'your email');
+
+  if (variant === 'desktop') {
+    return (
+      <>
+        <View style={styles.menuHeader}>
+          <Identity name={name} email={email} avatar={38} />
+        </View>
+        <View style={styles.menuDivider} />
+        {emailPasswordEnabled ? (
+          <>
+            <Pressable
+              accessibilityRole="button"
+              onPress={onPasswordPress}
+              style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
+            >
+              <PasswordIcon color={t.colors.text.faint} />
+              <Text style={styles.menuItemText}>{passwordCopy.rowLabel}</Text>
+            </Pressable>
+            <View style={styles.menuDivider} />
+          </>
+        ) : null}
+        <DesktopSignOut flow={signOutFlow} />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Identity name={name} email={email} avatar={48} />
+      {emailPasswordEnabled ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={onPasswordPress}
+          style={({ pressed }) => [
+            styles.sheetPasswordButton,
+            pressed && styles.sheetButtonPressed,
+          ]}
+        >
+          <PasswordIcon color={t.colors.text.primary} />
+          <Text style={[styles.sheetButtonText, styles.sheetPasswordText]}>
+            {passwordCopy.rowLabel}
+          </Text>
+          <ChevronRightIcon />
+        </Pressable>
+      ) : null}
+      <PhoneSignOut flow={signOutFlow} />
+    </>
+  );
+}
+
 /** Desktop top nav: avatar + first name + chevron, opening a right-aligned menu. */
 export function AccountNavButton() {
   const { user } = useAuth();
@@ -499,7 +565,6 @@ export function AccountNavButton() {
 
   const name = displayName(user?.name, user?.email);
   const firstName = name.split(' ')[0];
-  const passwordCopy = passwordMethodCopy(user?.signInMethods ?? null, user?.email ?? 'your email');
 
   return (
     <>
@@ -522,27 +587,17 @@ export function AccountNavButton() {
             {...({ role: 'region', 'aria-label': 'Account' } as object)}
             style={styles.menuPanel}
           >
-            <View style={styles.menuHeader}>
-              <Identity name={name} email={user?.email ?? ''} avatar={38} />
-            </View>
-            <View style={styles.menuDivider} />
-            {emailPasswordEnabled ? (
-              <>
-                <Pressable
-                  accessibilityRole="button"
-                  onPress={() => {
-                    setOpen(false);
-                    setPasswordOpen(true);
-                  }}
-                  style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
-                >
-                  <PasswordIcon color={t.colors.text.faint} />
-                  <Text style={styles.menuItemText}>{passwordCopy.rowLabel}</Text>
-                </Pressable>
-                <View style={styles.menuDivider} />
-              </>
-            ) : null}
-            <DesktopSignOut flow={signOutFlow} />
+            <AccountSurfaceContent
+              variant="desktop"
+              name={name}
+              email={user?.email ?? ''}
+              signInMethods={user?.signInMethods ?? null}
+              signOutFlow={signOutFlow}
+              onPasswordPress={() => {
+                setOpen(false);
+                setPasswordOpen(true);
+              }}
+            />
           </View>
         ) : null}
       </View>
@@ -558,8 +613,7 @@ export function AccountNavButton() {
   );
 }
 
-/** Phone top bar: a 44x44 avatar target that opens the account sheet. */
-export function AccountAvatarButton() {
+function PhoneAccountControl({ trigger }: { trigger: 'avatar' | 'drawer' }) {
   const reduceMotion = useReducedMotion();
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
@@ -567,7 +621,6 @@ export function AccountAvatarButton() {
   const [closeFocused, setCloseFocused] = useState(false);
   const avatarRef = useRef<View>(null);
   const name = displayName(user?.name, user?.email);
-  const passwordCopy = passwordMethodCopy(user?.signInMethods ?? null, user?.email ?? 'your email');
   const signOutFlow = useAccountSignOut();
 
   // The sheet always closes three ways — the Close button, the scrim, Escape —
@@ -596,13 +649,20 @@ export function AccountAvatarButton() {
       <Pressable
         ref={avatarRef}
         accessibilityRole="button"
-        accessibilityLabel="Account menu"
+        accessibilityLabel={trigger === 'avatar' ? 'Account menu' : `Account for ${name}`}
         aria-haspopup="dialog"
         aria-expanded={open}
         onPress={() => setOpen(true)}
-        style={styles.avatarButton}
+        style={({ pressed }) => [
+          trigger === 'avatar' ? styles.avatarButton : styles.drawerAccountButton,
+          trigger === 'drawer' && pressed && styles.drawerAccountButtonPressed,
+        ]}
       >
-        <Avatar label={name} size={34} />
+        {trigger === 'avatar' ? (
+          <Avatar label={name} size={34} />
+        ) : (
+          <Identity name={name} email={user?.email ?? ''} avatar={44} />
+        )}
       </Pressable>
       <Modal
         visible={open}
@@ -643,27 +703,17 @@ export function AccountAvatarButton() {
                 <CloseIcon />
               </Pressable>
             </View>
-            <Identity name={name} email={user?.email ?? ''} avatar={48} />
-            {emailPasswordEnabled ? (
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => {
-                  setOpen(false);
-                  setPasswordOpen(true);
-                }}
-                style={({ pressed }) => [
-                  styles.sheetPasswordButton,
-                  pressed && styles.sheetButtonPressed,
-                ]}
-              >
-                <PasswordIcon color={t.colors.text.primary} />
-                <Text style={[styles.sheetButtonText, styles.sheetPasswordText]}>
-                  {passwordCopy.rowLabel}
-                </Text>
-                <ChevronRightIcon />
-              </Pressable>
-            ) : null}
-            <PhoneSignOut flow={signOutFlow} />
+            <AccountSurfaceContent
+              variant="phone"
+              name={name}
+              email={user?.email ?? ''}
+              signInMethods={user?.signInMethods ?? null}
+              signOutFlow={signOutFlow}
+              onPasswordPress={() => {
+                setOpen(false);
+                setPasswordOpen(true);
+              }}
+            />
           </View>
         </View>
       </Modal>
@@ -679,12 +729,14 @@ export function AccountAvatarButton() {
   );
 }
 
-/** Phone drawer footer: identity only. Account actions live in the account sheet. */
-export function AccountDrawerRow() {
-  const { user } = useAuth();
-  const name = displayName(user?.name, user?.email);
+/** Phone top bar: a 44x44 avatar target that opens the account sheet. */
+export function AccountAvatarButton() {
+  return <PhoneAccountControl trigger="avatar" />;
+}
 
-  return <Identity name={name} email={user?.email ?? ''} avatar={44} />;
+/** Phone drawer footer: a full-width account target opening the same account sheet. */
+export function AccountDrawerRow() {
+  return <PhoneAccountControl trigger="drawer" />;
 }
 
 const focusRingWeb = isWeb
@@ -822,6 +874,14 @@ const styles = StyleSheet.create({
     color: '#6f756f',
   },
   avatarButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  drawerAccountButton: {
+    width: '100%',
+    minHeight: 44,
+    justifyContent: 'center',
+    borderRadius: 10,
+    paddingVertical: 4,
+  },
+  drawerAccountButtonPressed: { backgroundColor: t.colors.surfaces.s300 },
   sheetScrim: { flex: 1, backgroundColor: 'rgba(10,14,12,0.5)', justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: t.colors.surfaces.base,
