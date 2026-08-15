@@ -307,14 +307,6 @@ class HostedSettingsTest(unittest.TestCase):
                     200,
                     {
                         "data": {
-                            "serviceInstance": {"railwayConfigFile": None},
-                        }
-                    },
-                ),
-                settings.HttpResponse(
-                    200,
-                    {
-                        "data": {
                             "domains": {
                                 "serviceDomains": [
                                     {
@@ -339,24 +331,46 @@ class HostedSettingsTest(unittest.TestCase):
         self.assertTrue(
             all(result.state is settings.State.MATCH for result in checker.results)
         )
-        config_file = next(
-            result
-            for result in checker.results
-            if result.provider == "Railway project"
-            and result.setting == "Configuration file"
+        self.assertFalse(
+            any(result.setting == "Configuration file" for result in checker.results)
         )
-        self.assertIs(config_file.state, settings.State.MATCH)
-        self.assertEqual(len(fetch.calls), 4)
+        self.assertEqual(len(fetch.calls), 3)
         config_body = str(fetch.calls[1][3])
         self.assertIn("decryptVariables: false", config_body)
         self.assertNotIn("test-token", config_body)
-        config_file_body = fetch.calls[2][3]
-        self.assertIsInstance(config_file_body, dict)
-        self.assertIn("railwayConfigFile", str(config_file_body))
+
+    def test_railway_default_config_file_matches_root_railway_json(self) -> None:
+        fetch = FakeFetch(
+            {
+                "graphql/v2": settings.HttpResponse(
+                    200,
+                    {"data": {"serviceInstance": {"railwayConfigFile": None}}},
+                )
+            }
+        )
+        checker = settings.Checker(self.rows, env={}, fetch=fetch)
+
+        checker._check_railway_config_file(
+            "environment-id", "service-id", {"project-access-token": "test-token"}
+        )
+
+        result = next(
+            result
+            for result in checker.results
+            if result.setting == "Configuration file"
+        )
+        self.assertIs(result.state, settings.State.MATCH)
+        body = fetch.calls[0][3]
+        self.assertIsInstance(body, dict)
+        self.assertIn("railwayConfigFile", str(body))
         self.assertEqual(
-            config_file_body["variables"],
+            body["variables"],
             {"environmentId": "environment-id", "serviceId": "service-id"},
         )
+
+    def test_railway_config_file_waits_for_trusted_checker(self) -> None:
+        row = self.rows[("Railway project", "Configuration file")]
+        self.assertTrue(settings._plain(row.automation).startswith("Unchecked:"))
 
     def test_railway_custom_config_file_is_reported_as_drift(self) -> None:
         fetch = FakeFetch(

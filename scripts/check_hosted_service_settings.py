@@ -996,7 +996,11 @@ class Checker:
         else:
             self.unavailable(ci_row, "Railway omitted source.checkSuites")
 
-        self._check_railway_config_file(environment_id, str(service.get("id")), headers)
+        config_file_row = self.rows.get(("Railway project", "Configuration file"))
+        if config_file_row and _plain(config_file_row.automation).startswith("Live"):
+            self._check_railway_config_file(
+                environment_id, str(service.get("id")), headers
+            )
         self._check_railway_domain(
             project_id, environment_id, str(service.get("id")), headers
         )
