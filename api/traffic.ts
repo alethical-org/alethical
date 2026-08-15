@@ -588,9 +588,7 @@ export default async function handler(
     sendJson(
       response,
       503,
-      process.env.VERCEL_ENV === "preview"
-        ? { error: "Traffic data is temporarily unavailable.", diagnostic }
-        : { error: "Traffic data is temporarily unavailable." },
+      { error: "Traffic data is temporarily unavailable." },
       "no-store",
     );
   }
