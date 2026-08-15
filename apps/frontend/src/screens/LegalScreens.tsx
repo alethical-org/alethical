@@ -54,6 +54,7 @@ const privacyContent: LegalDocumentContent = {
             'Questions and messages you type in a conversation about a bill — your questions, and the answers we gave, kept with your account.',
             'Questions you type into the Ask box — we do not save these to your account, but we do send them to the AI providers named below to answer them, and they appear in the page address.',
             'Anonymous page-use totals — Vercel Web Analytics receives the page path after anything following “?” or “#” is removed. It counts page loads and makes a daily anonymous visitor estimate. It uses no analytics cookies, and we do not send your name, email address, or account identifier with a page load.',
+            'Anonymous action totals — Alethical stores only a fixed action name and time when a bill or legislator search returns results, Find My Legislator returns a match, or an official Minnesota source link is opened. These records contain no search words, page paths, addresses, districts, account identifiers, referrers, or person-level activity. New bill-watch totals come from the existing watch records.',
             'Anonymous page-speed measurements — Cloudflare Web Analytics receives the page path without the question text after “?”, timing measurements, the page element or resource tied to some speed measurements, the referring website, and broad place, device, and browser facts. It uses no cookies, local storage, or fingerprinting, and Alethical publishes only sitewide speed totals after at least 50 measured visits.',
             'Contact messages — the name and phone number you choose to provide, your email address, subject, and message.',
           ],
@@ -113,7 +114,7 @@ const privacyContent: LegalDocumentContent = {
           items: [
             'Service providers who help us operate the Service under contractual confidentiality obligations — including Supabase (authentication and database) and Google (sign-in and sitewide Search Console totals).',
             'Vercel, which hosts our website. Its hosting request logs record the address of every page you open, including anything carried inside that address. Separately, Vercel Web Analytics receives a cleaned page path with anything following “?” or “#” removed, then counts the page load without an analytics cookie or a name.',
-            'Cloudflare, which sits in front of the data service and passes those requests through. Cloudflare Web Analytics also measures page speed on the website as described above. Alethical publishes only sitewide 28-day speed scores and sample counts.',
+            'Cloudflare, which sits in front of the data service and passes those requests through. Cloudflare Web Analytics also measures page speed on the website as described above. Alethical publishes only sitewide 30-day speed scores and sample counts.',
             'Bing Webmaster Tools, which gives Alethical sitewide totals for how often pages appeared in Bing results and how many visits those results sent. Alethical does not publish search phrases, page addresses, devices, countries, or personal records from it.',
             'Checkly, which opens 3 public Alethical addresses from North Virginia every 2 minutes to confirm the website, this Site metrics page, and the data service are available. Checkly receives only those public Alethical addresses, not reader data.',
             'Railway, which runs the part of the Service that answers those requests. Its logs record the paths requested. We strip email addresses and anything carried inside a web address out of every line we write.',
@@ -185,7 +186,7 @@ const privacyContent: LegalDocumentContent = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'We use cookies and similar technologies that are necessary to keep you signed in and to operate the Service. Vercel Web Analytics uses no cookies. Cloudflare Web Analytics uses no cookies, local storage, or fingerprinting. Before Vercel analytics starts for a signed-in visit, Alethical asks its own server whether that account should be excluded; the account identifier is not sent to Vercel. The same team exclusion does not apply to Cloudflare page-speed measurements. You can control cookies through your browser settings, though some features may not function without them.',
+          text: 'We use cookies and similar technologies that are necessary to keep you signed in and to operate the Service. Vercel Web Analytics uses no cookies. Cloudflare Web Analytics uses no cookies, local storage, or fingerprinting. Before Vercel analytics starts for a signed-in visit, Alethical asks its own server whether that account should be excluded; the account identifier is not sent to Vercel. Alethical also discards fixed action records from a signed-in team account before storage and leaves that account out of reader and bill-watch totals. The same team exclusion does not apply to Cloudflare page-speed measurements. You can control cookies through your browser settings, though some features may not function without them.',
         },
       ],
     },

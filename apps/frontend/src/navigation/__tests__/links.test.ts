@@ -172,10 +172,12 @@ describe('externalLinkProps sends an official source to a new tab', () => {
     expect(props.hrefAttrs).toEqual({ target: '_blank', rel: 'noopener noreferrer' });
   });
 
-  it('drops the handler on web, so one click cannot open two tabs', () => {
-    // The native fallback (Linking.openURL) is passed in and deliberately ignored
-    // here: on web the anchor's own target="_blank" does the opening.
-    expect(externalLinkProps(url, vi.fn()).onPress).toBeUndefined();
+  it('keeps only the anonymous counter on web, so one click cannot open two tabs', () => {
+    const nativeOpen = vi.fn();
+    const props = externalLinkProps(url, nativeOpen);
+    expect(props.onPress).toBeTypeOf('function');
+    props.onPress?.(clickEvent() as unknown as GestureResponderEvent);
+    expect(nativeOpen).not.toHaveBeenCalled();
   });
 });
 

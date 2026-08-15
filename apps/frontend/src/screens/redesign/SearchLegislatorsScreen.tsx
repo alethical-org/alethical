@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
 import { theme as t } from '../../theme/tokens';
 import { IaItem, MenuKey } from '../../navigation/ia';
+import { recordSiteMetricEvent } from '../../lib/siteMetricEvents';
 import { useAuth } from '../../providers/AuthProvider';
 import { useResponsive } from '../../hooks/useResponsive';
 import { usePaginatedListScroll } from '../../hooks/usePaginatedListScroll';
@@ -149,6 +150,23 @@ export function SearchLegislatorsScreen() {
     rosterLoaded: rosterQuery.isSuccess,
   });
   const filtered = rosterHeader.displayedOfficeholders.slice().sort(compareLegislatorNames);
+  const recordedSearches = useRef(new Set<string>());
+
+  useEffect(() => {
+    const value = query.trim();
+    const key = `${apiSession ?? 'current'}:${value.toLocaleLowerCase('en-US')}`;
+    if (
+      !value ||
+      page !== 1 ||
+      !rosterQuery.isSuccess ||
+      matchingLegislators.length < 1 ||
+      recordedSearches.current.has(key)
+    ) {
+      return;
+    }
+    recordedSearches.current.add(key);
+    recordSiteMetricEvent('legislator_search_with_results');
+  }, [apiSession, matchingLegislators.length, page, query, rosterQuery.isSuccess]);
 
   const pagination = paginateLegislatorResults(filtered, page);
 

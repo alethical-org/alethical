@@ -11,6 +11,7 @@ const HOME_FILTER = "requestPath eq '/'";
 const BILLS_FILTER = "requestPath eq '/bills' or startswith(requestPath, '/bills/')";
 const LEGISLATORS_FILTER =
   "requestPath eq '/legislators' or startswith(requestPath, '/legislators/')";
+const FIND_MY_LEGISLATOR_FILTER = "requestPath eq '/find-my-legislator'";
 const PRODUCTION_FILTER = "environment eq 'production'";
 
 function responseRecorder() {
@@ -85,6 +86,9 @@ function successfulVercelResponse(urlValue: string) {
           { requestPath: '/legislators', pageviews: hours, visitors: 1 },
           { requestPath: 'Others', pageviews: hours * 2, visitors: 1 },
         ];
+      }
+      if (filter === FIND_MY_LEGISLATOR_FILTER) {
+        data = [{ requestPath: '/find-my-legislator', pageviews: hours / 2, visitors: 1 }];
       }
       return {
         ok: true,
@@ -161,7 +165,15 @@ describe('public traffic totals', () => {
       estimatedVisitors7d: 19,
       estimatedVisitors30d: 43,
       trafficBreakdown7d: {
-        sectionPageViews: { home: 168, bills: 672, legislators: 504, other: 336 },
+        destinationPageViews: {
+          home: 168,
+          billSearch: 168,
+          billProfiles: 504,
+          legislatorSearch: 0,
+          legislatorProfiles: 504,
+          findMyLegislator: 84,
+          other: 252,
+        },
         billProfiles: {
           pageViews: 504,
           differentProfilesViewed: { count: 2, capped: false, cap: 100 },
@@ -172,7 +184,15 @@ describe('public traffic totals', () => {
         },
       },
       trafficBreakdown30d: {
-        sectionPageViews: { home: 720, bills: 2880, legislators: 2160, other: 1440 },
+        destinationPageViews: {
+          home: 720,
+          billSearch: 720,
+          billProfiles: 2160,
+          legislatorSearch: 0,
+          legislatorProfiles: 2160,
+          findMyLegislator: 360,
+          other: 1080,
+        },
         billProfiles: {
           pageViews: 2160,
           differentProfilesViewed: { count: 2, capped: false, cap: 100 },
@@ -192,7 +212,7 @@ describe('public traffic totals', () => {
     expect(headers.get('Cache-Control')).toBe(
       'public, max-age=0, s-maxage=300, stale-while-revalidate=60',
     );
-    expect(fetchSpy).toHaveBeenCalledTimes(18);
+    expect(fetchSpy).toHaveBeenCalledTimes(20);
     expect(fetchSpy.mock.calls.every(([input]) => !String(input).includes('/visits/count'))).toBe(
       true,
     );
@@ -251,7 +271,15 @@ describe('public traffic totals', () => {
       estimatedVisitors7d: 0,
       estimatedVisitors30d: 0,
       trafficBreakdown7d: {
-        sectionPageViews: { home: 0, bills: 0, legislators: 0, other: 0 },
+        destinationPageViews: {
+          home: 0,
+          billSearch: 0,
+          billProfiles: 0,
+          legislatorSearch: 0,
+          legislatorProfiles: 0,
+          findMyLegislator: 0,
+          other: 0,
+        },
         billProfiles: {
           pageViews: 0,
           differentProfilesViewed: { count: 0, capped: false, cap: 100 },

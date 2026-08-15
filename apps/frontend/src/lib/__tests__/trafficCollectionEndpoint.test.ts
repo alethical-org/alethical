@@ -37,7 +37,7 @@ describe('traffic collection decision', () => {
 
     const { body, headers, status } = recorder.read();
     expect(status).toBe(200);
-    expect(body).toEqual({ collect: false, teamExclusionConfigured: true });
+    expect(body).toEqual({ collect: false, teamAccount: true, teamExclusionConfigured: true });
     expect(JSON.stringify(body)).not.toContain('account-1');
     expect(JSON.stringify(body)).not.toContain('account-2');
     expect(headers.get('Cache-Control')).toBe('private, no-store');
@@ -50,7 +50,7 @@ describe('traffic collection decision', () => {
     handler({ method: 'POST', body: { userId: 'reader-3' } }, recorder.response);
 
     expect(recorder.read()).toMatchObject({
-      body: { collect: true, teamExclusionConfigured: true },
+      body: { collect: true, teamAccount: false, teamExclusionConfigured: true },
       status: 200,
     });
   });
@@ -62,7 +62,7 @@ describe('traffic collection decision', () => {
     handler({ method: 'POST', body: { userId: 'reader-3' } }, recorder.response);
 
     expect(recorder.read()).toMatchObject({
-      body: { collect: true, teamExclusionConfigured: false },
+      body: { collect: true, teamAccount: false, teamExclusionConfigured: false },
       status: 200,
     });
   });

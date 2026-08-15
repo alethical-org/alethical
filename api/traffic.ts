@@ -45,6 +45,7 @@ const BILLS_FILTER =
   "requestPath eq '/bills' or startswith(requestPath, '/bills/')";
 const LEGISLATORS_FILTER =
   "requestPath eq '/legislators' or startswith(requestPath, '/legislators/')";
+const FIND_MY_LEGISLATOR_FILTER = "requestPath eq '/find-my-legislator'";
 const BILL_PROFILE_FILTER = "startswith(requestPath, '/bills/')";
 const LEGISLATOR_PROFILE_FILTER = "startswith(requestPath, '/legislators/')";
 const PRODUCTION_FILTER = "environment eq 'production'";
@@ -415,11 +416,12 @@ function trafficBreakdown(
   home: PageViewCount,
   bills: PageViewCount,
   legislators: PageViewCount,
+  findMyLegislator: PageViewCount,
   billProfiles: ProfileTotals,
   legislatorProfiles: ProfileTotals,
 ) {
   const namedPageViews =
-    home.pageviews + bills.pageviews + legislators.pageviews;
+    home.pageviews + bills.pageviews + legislators.pageviews + findMyLegislator.pageviews;
   if (
     !Number.isSafeInteger(namedPageViews) ||
     namedPageViews > totalPageViews ||
@@ -429,10 +431,13 @@ function trafficBreakdown(
     throw new TrafficUnavailable("Vercel returned inconsistent traffic data");
   }
   return {
-    sectionPageViews: {
+    destinationPageViews: {
       home: home.pageviews,
-      bills: bills.pageviews,
-      legislators: legislators.pageviews,
+      billSearch: bills.pageviews - billProfiles.pageViews,
+      billProfiles: billProfiles.pageViews,
+      legislatorSearch: legislators.pageviews - legislatorProfiles.pageViews,
+      legislatorProfiles: legislatorProfiles.pageViews,
+      findMyLegislator: findMyLegislator.pageviews,
       other: totalPageViews - namedPageViews,
     },
     billProfiles,
@@ -497,11 +502,13 @@ export default async function handler(
       home7d,
       bills7d,
       legislators7d,
+      findMyLegislator7d,
       billProfiles7d,
       legislatorProfiles7d,
       home30d,
       bills30d,
       legislators30d,
+      findMyLegislator30d,
       billProfiles30d,
       legislatorProfiles30d,
     ] = await Promise.all([
@@ -586,6 +593,18 @@ export default async function handler(
         ),
       ),
       atStage(
+        "7-day Find My Legislator total",
+        aggregateFilteredPageViews(
+          sevenDaysStartedAt,
+          windowEndedAt,
+          token,
+          projectId,
+          teamId,
+          FIND_MY_LEGISLATOR_FILTER,
+          (path) => path === "/find-my-legislator",
+        ),
+      ),
+      atStage(
         "7-day bill profiles",
         aggregateProfilePaths(
           sevenDaysStartedAt,
@@ -646,6 +665,18 @@ export default async function handler(
         ),
       ),
       atStage(
+        "30-day Find My Legislator total",
+        aggregateFilteredPageViews(
+          windowStartedAt,
+          windowEndedAt,
+          token,
+          projectId,
+          teamId,
+          FIND_MY_LEGISLATOR_FILTER,
+          (path) => path === "/find-my-legislator",
+        ),
+      ),
+      atStage(
         "30-day bill profiles",
         aggregateProfilePaths(
           windowStartedAt,
@@ -699,6 +730,7 @@ export default async function handler(
           home7d,
           bills7d,
           legislators7d,
+          findMyLegislator7d,
           billProfiles7d,
           legislatorProfiles7d,
         ),
@@ -707,6 +739,7 @@ export default async function handler(
           home30d,
           bills30d,
           legislators30d,
+          findMyLegislator30d,
           billProfiles30d,
           legislatorProfiles30d,
         ),

@@ -50,8 +50,10 @@ export default function handler(request: RequestLike, response: ResponseLike) {
   }
 
   const excluded = excludedAccountIds();
+  const teamAccount = excluded.has(userId);
   sendJson(response, 200, {
-    collect: !excluded.has(userId),
+    collect: !teamAccount,
+    teamAccount,
     teamExclusionConfigured: excluded.size > 0,
   });
 }
