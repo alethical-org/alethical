@@ -1,0 +1,108 @@
+name: Hosted service settings
+
+on:
+  pull_request:
+    paths:
+      - docs/operations/repo-and-service-settings.md
+      - docs/operations/deployment.md
+      - scripts/check_hosted_service_settings.py
+      - scripts/tests/test_hosted_service_settings.py
+      - .github/workflows/hosted-service-settings.yml
+      - railway.json
+      - vercel.json
+  pull_request_target:
+    paths:
+      - docs/operations/repo-and-service-settings.md
+      - railway.json
+      - vercel.json
+  push:
+    branches: [main]
+    paths:
+      - docs/operations/repo-and-service-settings.md
+      - docs/operations/deployment.md
+      - scripts/check_hosted_service_settings.py
+      - scripts/tests/test_hosted_service_settings.py
+      - .github/workflows/hosted-service-settings.yml
+      - railway.json
+      - vercel.json
+  schedule:
+    - cron: "30 9 1 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hosted-service-settings-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-proposed-checker:
+    if: github.event_name == 'pull_request'
+    name: Test the proposed checker without service credentials
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Test the checker
+        run: python3 -m unittest discover -s scripts/tests -p 'test_hosted_service_settings.py'
+
+  check-proposed-settings:
+    if: github.event_name == 'pull_request_target'
+    name: Compare proposed settings with live services
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GITHUB_READ_TOKEN: ${{ github.token }}
+      REPO_SETTINGS_TOKEN: ${{ secrets.REPO_SETTINGS_TOKEN }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+    steps:
+      - name: Check out the trusted checker from the target branch
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Read only the proposed settings data
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: proposed-settings
+          persist-credentials: false
+          sparse-checkout: |
+            docs/operations/repo-and-service-settings.md
+            railway.json
+            vercel.json
+
+      - name: Compare hosted settings
+        env:
+          HOSTED_SETTINGS_ROOT: ${{ github.workspace }}/proposed-settings
+        run: python3 scripts/check_hosted_service_settings.py
+
+  check-live-settings:
+    if: github.event_name != 'pull_request' && github.event_name != 'pull_request_target'
+    name: Compare documented and live settings
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GITHUB_READ_TOKEN: ${{ github.token }}
+      REPO_SETTINGS_TOKEN: ${{ secrets.REPO_SETTINGS_TOKEN }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Test the checker
+        run: python3 -m unittest discover -s scripts/tests -p 'test_hosted_service_settings.py'
+
+      - name: Compare hosted settings
+        run: python3 scripts/check_hosted_service_settings.py
