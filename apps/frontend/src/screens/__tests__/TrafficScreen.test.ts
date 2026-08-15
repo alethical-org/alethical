@@ -53,9 +53,9 @@ describe('public Site metrics page', () => {
 
   it('uses green only for the 3 recent traffic totals', () => {
     expect(SOURCE).toMatch(
-      /recentValue: \{[\s\S]*?color: '#149d5b',[\s\S]*?fontFamily: theme\.typography\.ui,[\s\S]*?fontSize: 40/,
+      /recentValue: \{[\s\S]*?color: theme\.colors\.brand\.display,[\s\S]*?fontFamily: theme\.typography\.ui,[\s\S]*?fontSize: 40/,
     );
-    expect(SOURCE).toMatch(/metricRowValue: \{[\s\S]*?color: '#11150f'/);
+    expect(SOURCE).toMatch(/metricRowValue: \{[\s\S]*?color: theme\.colors\.text\.primary/);
   });
 
   it('uses the shared shell and leaves the footer privacy route in place', () => {
@@ -164,5 +164,75 @@ describe('public Site metrics page', () => {
     expect(SOURCE).toContain('role="cell"');
     expect(SOURCE).toContain('const capped =');
     expect(SOURCE).toContain('{capped ? (');
+  });
+
+  it('keeps the accepted Explore table type, alignment, and right edge', () => {
+    expect(SOURCE).toMatch(
+      /tableLabel: \{[\s\S]*?fontFamily: theme\.typography\.ui,[\s\S]*?fontSize: 13,[\s\S]*?fontWeight: '600',[\s\S]*?textAlign: 'right'/,
+    );
+    expect(SOURCE).toMatch(/tableLabelMobile: \{ fontSize: 12/);
+    expect(SOURCE).toMatch(
+      /tableValue: \{[\s\S]*?fontSize: 24,[\s\S]*?fontWeight: '800',[\s\S]*?textAlign: 'right',[\s\S]*?fontVariant: \['tabular-nums'\]/,
+    );
+    expect(SOURCE).toMatch(/tableValueMobile: \{ fontSize: 22/);
+    expect(SOURCE).toMatch(/tableRow: \{[\s\S]*?paddingLeft: 14,[\s\S]*?paddingRight: 0/);
+    expect(SOURCE).toMatch(/tableRowMobile: \{[\s\S]*?paddingLeft: 12,[\s\S]*?paddingVertical: 11/);
+  });
+
+  it('keeps destination bars proportional with the accepted desktop and phone geometry', () => {
+    expect(SOURCE).toMatch(
+      /destinationPercent: \{[\s\S]*?width: 38,[\s\S]*?fontFamily: theme\.typography\.mono,[\s\S]*?fontSize: 14,[\s\S]*?fontWeight: '700'/,
+    );
+    expect(SOURCE).toMatch(
+      /barTrack: \{[\s\S]*?height: 12,[\s\S]*?borderRadius: 6,[\s\S]*?backgroundColor: '#e8ebe9'/,
+    );
+    expect(SOURCE).toMatch(/destinationRowLineMobile: \{ gap: 10 \}/);
+    expect(SOURCE).toMatch(
+      /destinationPercentMobile: \{ width: 34, fontSize: 13, lineHeight: 18 \}/,
+    );
+    expect(SOURCE).toMatch(/barTrackMobile: \{ height: 9, borderRadius: 5 \}/);
+    expect(SOURCE).toMatch(/barFillMobile: \{ borderRadius: 5 \}/);
+  });
+
+  it('keeps the accepted ledger rhythm and search-card surface', () => {
+    expect(SOURCE).toMatch(/metricRow: \{[\s\S]*?paddingVertical: 11/);
+    expect(SOURCE).toMatch(/metricRowAvailability: \{ paddingVertical: 10 \}/);
+    expect(SOURCE).toMatch(/metricRowValueAvailability: \{ fontSize: 18/);
+    expect(SOURCE).toMatch(/speedRow: \{[\s\S]*?paddingVertical: 15/);
+    expect(SOURCE).toMatch(
+      /panelSearch: \{ paddingTop: 16, paddingHorizontal: 20, paddingBottom: 18 \}/,
+    );
+    expect(SOURCE.match(/mobileTreatment="closing"[\s\S]*?surface="search"/g)).toHaveLength(3);
+    expect(SOURCE).toMatch(
+      /metricRowCompactMobile: \{ paddingVertical: 0, borderBottomWidth: 0 \}/,
+    );
+    expect(SOURCE).toMatch(/plainRowsMobile: \{ paddingHorizontal: 12, gap: 14 \}/);
+    expect(SOURCE).toMatch(/metricRowValueActionMobile: \{ fontSize: 19/);
+    expect(SOURCE).toMatch(/metricRowValueAvailabilityMobile: \{ fontSize: 17/);
+  });
+
+  it('reserves stable quiet verdict and measurement columns for every speed state', () => {
+    expect(SOURCE).toMatch(/measurement:\s*totals\.lcpP75Ms == null \? null/);
+    expect(SOURCE).toContain("verdict: speedVerdict('lcp', totals.lcpP75Ms) ?? 'Building sample'");
+    expect(SOURCE).toMatch(
+      /speedVerdict: \{[\s\S]*?minWidth: 126,[\s\S]*?color: theme\.colors\.text\.secondary,[\s\S]*?fontSize: 13\.5,[\s\S]*?fontWeight: '400'/,
+    );
+    expect(SOURCE).toMatch(
+      /speedValue: \{[\s\S]*?minWidth: 58,[\s\S]*?color: theme\.colors\.text\.primary,[\s\S]*?fontSize: 18,[\s\S]*?fontWeight: '800'/,
+    );
+    expect(SOURCE).toMatch(/speedRowMobile: \{ paddingVertical: 9, gap: 14 \}/);
+    expect(SOURCE).toMatch(
+      /speedResultMobile: \{ flexDirection: 'column', alignItems: 'flex-end', gap: 0 \}/,
+    );
+    expect(SOURCE).toMatch(
+      /speedVerdictMobile: \{ minWidth: 0, fontSize: 12\.5, lineHeight: 17 \}/,
+    );
+    expect(SOURCE).toMatch(/speedValueMobile: \{ minWidth: 0, fontSize: 17/);
+  });
+
+  it('uses only the 2 accepted section rules and a 34px closing gap', () => {
+    expect(SOURCE.match(/<View style=\{styles\.sectionRule\} \/>/g)).toHaveLength(2);
+    expect(SOURCE).toContain('style={[styles.pairedGrid, styles.closingGrid');
+    expect(SOURCE).toMatch(/closingGrid: \{ marginTop: 34 \}/);
   });
 });

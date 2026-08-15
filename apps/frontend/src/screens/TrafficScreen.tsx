@@ -326,17 +326,23 @@ function Panel({
   children,
   busy = false,
   mobileTreatment = 'card',
+  surface = 'default',
+  testID,
 }: {
   children: React.ReactNode;
   busy?: boolean;
   mobileTreatment?: 'card' | 'closing';
+  surface?: 'default' | 'search';
+  testID?: string;
 }) {
   const { isMobile } = useResponsive();
   return (
     <View
+      testID={testID}
       aria-busy={busy}
       style={[
         styles.panel,
+        surface === 'search' && styles.panelSearch,
         isMobile && mobileTreatment === 'card' && styles.panelCardMobile,
         isMobile && mobileTreatment === 'closing' && styles.panelClosingMobile,
       ]}
@@ -433,24 +439,51 @@ function MetricRow({
   label,
   value,
   last = false,
+  treatment = 'standard',
   compactMobile = false,
+  mobileValueSize = 20,
+  testID,
 }: {
   label: string;
   value: string;
   last?: boolean;
+  treatment?: 'standard' | 'availability';
   compactMobile?: boolean;
+  mobileValueSize?: 19 | 20;
+  testID?: string;
 }) {
   const { isMobile } = useResponsive();
   return (
     <View
+      testID={testID}
       style={[
         styles.metricRow,
-        last && styles.metricRowLast,
+        treatment === 'availability' && styles.metricRowAvailability,
+        isMobile && treatment === 'availability' && styles.metricRowAvailabilityMobile,
         isMobile && compactMobile && styles.metricRowCompactMobile,
+        last && styles.metricRowLast,
       ]}
     >
-      <Text style={styles.metricRowLabel}>{label}</Text>
-      <Text style={styles.metricRowValue}>{value}</Text>
+      <Text
+        style={[
+          styles.metricRowLabel,
+          isMobile &&
+            (compactMobile || treatment === 'availability') &&
+            styles.metricRowLabelMobile,
+        ]}
+      >
+        {label}
+      </Text>
+      <Text
+        style={[
+          styles.metricRowValue,
+          treatment === 'availability' && styles.metricRowValueAvailability,
+          isMobile && treatment === 'availability' && styles.metricRowValueAvailabilityMobile,
+          isMobile && compactMobile && mobileValueSize === 19 && styles.metricRowValueActionMobile,
+        ]}
+      >
+        {value}
+      </Text>
     </View>
   );
 }
@@ -572,7 +605,10 @@ function DestinationPanel({ breakdown }: { breakdown: TrafficBreakdown }) {
   const row = ([key, label]: (typeof DESTINATIONS)[number]) => {
     const share = (breakdown.destinationPageViews[key] / total) * 100;
     return (
-      <View key={key} style={styles.destinationRowLine}>
+      <View
+        key={key}
+        style={[styles.destinationRowLine, isMobile && styles.destinationRowLineMobile]}
+      >
         <Text
           style={[
             styles.metricRowLabel,
@@ -582,8 +618,14 @@ function DestinationPanel({ breakdown }: { breakdown: TrafficBreakdown }) {
         >
           {label}
         </Text>
-        <View aria-hidden style={[styles.barTrack, isMobile && styles.barTrackMobile]}>
-          <View style={[styles.barFill, { width: `${share}%` }]} />
+        <View
+          testID={`site-metrics-destination-${key}-bar`}
+          aria-hidden
+          style={[styles.barTrack, isMobile && styles.barTrackMobile]}
+        >
+          <View
+            style={[styles.barFill, isMobile && styles.barFillMobile, { width: `${share}%` }]}
+          />
         </View>
         <Text style={[styles.destinationPercent, isMobile && styles.destinationPercentMobile]}>
           {Math.round(share)}%
@@ -592,24 +634,28 @@ function DestinationPanel({ breakdown }: { breakdown: TrafficBreakdown }) {
     );
   };
   return (
-    <Panel>
+    <Panel testID="site-metrics-destinations">
       <PanelTitle>WHERE PEOPLE GO</PanelTitle>
       {total === 0 ? (
         <Text style={styles.zeroText}>No page views in this range yet</Text>
       ) : (
         <>
           <View style={styles.destinationRows}>
-            <View style={styles.destinationOuter}>{row(DESTINATIONS[0])}</View>
-            <View style={styles.destinationGroup}>
+            <View style={[styles.destinationOuter, isMobile && styles.destinationOuterMobile]}>
+              {row(DESTINATIONS[0])}
+            </View>
+            <View style={[styles.destinationGroup, isMobile && styles.destinationGroupMobile]}>
               {row(DESTINATIONS[1])}
               {row(DESTINATIONS[2])}
             </View>
-            <View style={styles.destinationGroup}>
+            <View style={[styles.destinationGroup, isMobile && styles.destinationGroupMobile]}>
               {row(DESTINATIONS[3])}
               {row(DESTINATIONS[4])}
               {row(DESTINATIONS[5])}
             </View>
-            <View style={styles.destinationOuter}>{row(DESTINATIONS[6])}</View>
+            <View style={[styles.destinationOuter, isMobile && styles.destinationOuterMobile]}>
+              {row(DESTINATIONS[6])}
+            </View>
           </View>
           <Text style={styles.panelNote}>
             Percentages show shares of page views, not visitors. Searches with results are counted
@@ -626,23 +672,32 @@ function distinctValue(value: { count: number; capped: boolean }) {
 }
 
 function ExplorePanel({ breakdown }: { breakdown: TrafficBreakdown }) {
+  const { isMobile } = useResponsive();
   const capped =
     breakdown.billProfiles.differentProfilesViewed.capped ||
     breakdown.legislatorProfiles.differentProfilesViewed.capped;
   return (
-    <Panel>
+    <Panel testID="site-metrics-explore">
       <PanelTitle>WHAT PEOPLE EXPLORE</PanelTitle>
       <View role="table">
-        <View role="row" style={styles.tableHeader}>
+        <View role="row" style={[styles.tableHeader, isMobile && styles.tableHeaderMobile]}>
           <View style={styles.tableBlankHeader}>
             <Text role="columnheader" style={styles.visuallyHidden}>
               Section
             </Text>
           </View>
-          <Text role="columnheader" style={styles.tableLabel}>
+          <Text
+            testID="site-metrics-explore-views-header"
+            role="columnheader"
+            style={[styles.tableLabel, isMobile && styles.tableLabelMobile]}
+          >
             Profile views
           </Text>
-          <Text role="columnheader" style={styles.tableLabel}>
+          <Text
+            testID="site-metrics-explore-different-header"
+            role="columnheader"
+            style={[styles.tableLabel, isMobile && styles.tableLabelMobile]}
+          >
             Different profiles
           </Text>
         </View>
@@ -655,15 +710,27 @@ function ExplorePanel({ breakdown }: { breakdown: TrafficBreakdown }) {
             <View
               role="row"
               key={label as string}
-              style={[styles.tableRow, index === 1 && styles.metricRowLast]}
+              style={[
+                styles.tableRow,
+                isMobile && styles.tableRowMobile,
+                index === 1 && styles.metricRowLast,
+              ]}
             >
               <Text role="rowheader" style={[styles.metricRowLabel, styles.tableName]}>
                 {label as string}
               </Text>
-              <Text role="cell" style={styles.tableValue}>
+              <Text
+                testID={`site-metrics-explore-${String(label).toLowerCase()}-views`}
+                role="cell"
+                style={[styles.tableValue, isMobile && styles.tableValueMobile]}
+              >
                 {formatNumber(profile.pageViews)}
               </Text>
-              <Text role="cell" style={styles.tableValue}>
+              <Text
+                testID={`site-metrics-explore-${String(label).toLowerCase()}-different`}
+                role="cell"
+                style={[styles.tableValue, isMobile && styles.tableValueMobile]}
+              >
                 {distinctValue(profile.differentProfilesViewed)}
               </Text>
             </View>
@@ -683,6 +750,7 @@ function ExplorePanel({ breakdown }: { breakdown: TrafficBreakdown }) {
 }
 
 function ActionsPanel({ actions }: { actions: SiteMetricActions }) {
+  const { isMobile } = useResponsive();
   const rows = [
     ['Bill searches with results', actions.billSearchesWithResults],
     ['Legislator searches with results', actions.legislatorSearchesWithResults],
@@ -693,14 +761,16 @@ function ActionsPanel({ actions }: { actions: SiteMetricActions }) {
   return (
     <Panel>
       <PanelTitle>WHAT PEOPLE DO</PanelTitle>
-      <View style={styles.plainRows}>
+      <View style={[styles.plainRows, isMobile && styles.plainRowsMobile]}>
         {rows.map(([label, value], index) => (
           <MetricRow
             key={label}
+            testID={`site-metrics-action-row-${index}`}
             label={label}
             value={formatNumber(value)}
             last={index === rows.length - 1}
             compactMobile
+            mobileValueSize={19}
           />
         ))}
       </View>
@@ -712,21 +782,25 @@ function ActionsPanel({ actions }: { actions: SiteMetricActions }) {
 }
 
 function ReadersPanel({ totals }: { totals: SiteMetricRecordTotals['readers'] }) {
+  const { isMobile } = useResponsive();
   return (
     <Panel>
       <PanelTitle>READERS</PanelTitle>
-      <View style={styles.plainRows}>
+      <View style={[styles.plainRows, isMobile && styles.plainRowsMobile]}>
         <MetricRow
+          testID="site-metrics-reader-row-0"
           label="Registered readers"
           value={formatNumber(totals.registeredReaders)}
           compactMobile
         />
         <MetricRow
+          testID="site-metrics-reader-row-1"
           label="Current bill watches"
           value={formatNumber(totals.currentBillWatches)}
           compactMobile
         />
         <MetricRow
+          testID="site-metrics-reader-row-2"
           label="Different bills currently watched"
           value={formatNumber(totals.differentBillsCurrentlyWatched)}
           last
@@ -765,7 +839,11 @@ function SearchPanel({
   if (state.kind === 'unavailable') {
     const sourceName = source === 'Google' ? 'Google Search Console' : 'Bing Webmaster Tools';
     return (
-      <Panel>
+      <Panel
+        mobileTreatment="closing"
+        surface="search"
+        testID={`site-metrics-search-${source.toLowerCase()}`}
+      >
         <VendorHeading source={source} />
         <View style={styles.unavailableRow}>
           <InformationIcon />
@@ -781,7 +859,12 @@ function SearchPanel({
   }
   if (state.kind === 'loading') {
     return (
-      <Panel busy>
+      <Panel
+        busy
+        mobileTreatment="closing"
+        surface="search"
+        testID={`site-metrics-search-${source.toLowerCase()}`}
+      >
         <VendorHeading source={source} />
         <LoadingBar wide />
         <LoadingBar wide />
@@ -798,7 +881,11 @@ function SearchPanel({
   const sourceName = source === 'Google' ? 'Google Search Console' : 'Bing Webmaster Tools';
   const dashboard = source === 'Google' ? STAFF_LINKS.google : STAFF_LINKS.bing;
   return (
-    <Panel>
+    <Panel
+      mobileTreatment="closing"
+      surface="search"
+      testID={`site-metrics-search-${source.toLowerCase()}`}
+    >
       <VendorHeading source={source} />
       <View style={styles.searchPair}>
         <View style={styles.searchPairMetric}>
@@ -858,11 +945,29 @@ function AvailabilityPanel({
   }
   const totals = state.totals;
   return (
-    <Panel mobileTreatment="closing">
+    <Panel mobileTreatment="closing" testID="site-metrics-availability">
       <PanelTitle>CAN PEOPLE REACH ALETHICAL?</PanelTitle>
-      <MetricRow label="Homepage" value={percent(totals.websiteAvailability30d)} />
-      <MetricRow label="Site Metrics page" value={percent(totals.trafficPageAvailability30d)} />
-      <MetricRow label="Data service" value={percent(totals.apiAvailability30d)} last />
+      <View style={styles.availabilityRows}>
+        <MetricRow
+          testID="site-metrics-availability-row-0"
+          label="Homepage"
+          value={percent(totals.websiteAvailability30d)}
+          treatment="availability"
+        />
+        <MetricRow
+          testID="site-metrics-availability-row-1"
+          label="Site Metrics page"
+          value={percent(totals.trafficPageAvailability30d)}
+          treatment="availability"
+        />
+        <MetricRow
+          testID="site-metrics-availability-row-2"
+          label="Data service"
+          value={percent(totals.apiAvailability30d)}
+          treatment="availability"
+          last
+        />
+      </View>
       <Text style={styles.panelNote}>
         Percentages show how often Alethical passed automatic checks.
       </Text>
@@ -923,43 +1028,73 @@ function PerformancePanel({
   const rows = [
     {
       label: 'Main content appears',
-      value:
-        totals.lcpP75Ms == null
-          ? 'Building sample'
-          : `${formatMeasure(totals.lcpP75Ms / 1000, 2)} s`,
-      verdict: speedVerdict('lcp', totals.lcpP75Ms),
+      measurement: totals.lcpP75Ms == null ? null : `${formatMeasure(totals.lcpP75Ms / 1000, 2)} s`,
+      verdict: speedVerdict('lcp', totals.lcpP75Ms) ?? 'Building sample',
     },
     {
       label: 'Responds after an action',
-      value: totals.inpP75Ms == null ? 'Building sample' : `${formatNumber(totals.inpP75Ms)} ms`,
-      verdict: speedVerdict('inp', totals.inpP75Ms),
+      measurement: totals.inpP75Ms == null ? null : `${formatNumber(totals.inpP75Ms)} ms`,
+      verdict: speedVerdict('inp', totals.inpP75Ms) ?? 'Building sample',
     },
     {
       label: 'Layout stays still',
-      value: totals.clsP75 == null ? 'Building sample' : formatMeasure(totals.clsP75, 3),
-      verdict: speedVerdict('cls', totals.clsP75),
+      measurement: totals.clsP75 == null ? null : formatMeasure(totals.clsP75, 3),
+      verdict: speedVerdict('cls', totals.clsP75) ?? 'Building sample',
     },
   ];
-  const buildingSample = rows.some((row) => row.verdict == null);
+  const buildingSample = rows.some((row) => row.measurement == null);
   return (
-    <Panel mobileTreatment="closing">
+    <Panel mobileTreatment="closing" testID="site-metrics-performance">
       <PanelTitle>SPEED AND STABILITY DURING REAL VISITS</PanelTitle>
-      {rows.map((row, index) => (
-        <View
-          key={row.label}
-          style={[styles.speedRow, index === rows.length - 1 && styles.metricRowLast]}
-        >
-          <Text style={styles.metricRowLabel}>{row.label}</Text>
-          <View style={[styles.speedResult, !isMobile && styles.speedResultDesktop]}>
-            <Text style={styles.speedValue}>{row.value}</Text>
-            {row.verdict ? (
-              <Text style={[styles.speedVerdict, !isMobile && styles.speedVerdictDesktop]}>
-                {row.verdict}
-              </Text>
-            ) : null}
+      <View style={styles.speedRows}>
+        {rows.map((row, index) => (
+          <View
+            key={row.label}
+            testID={`site-metrics-speed-row-${index}`}
+            style={[
+              styles.speedRow,
+              isMobile && styles.speedRowMobile,
+              index === rows.length - 1 && styles.metricRowLast,
+            ]}
+          >
+            <Text style={[styles.metricRowLabel, isMobile && styles.metricRowLabelMobile]}>
+              {row.label}
+            </Text>
+            <View
+              testID={`site-metrics-speed-result-${index}`}
+              style={[styles.speedResult, isMobile && styles.speedResultMobile]}
+            >
+              {isMobile ? (
+                <>
+                  {row.measurement ? (
+                    <Text
+                      testID={`site-metrics-speed-value-${index}`}
+                      style={[styles.speedValue, styles.speedValueMobile]}
+                    >
+                      {row.measurement}
+                    </Text>
+                  ) : null}
+                  <Text
+                    testID={`site-metrics-speed-verdict-${index}`}
+                    style={[styles.speedVerdict, styles.speedVerdictMobile]}
+                  >
+                    {row.verdict}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Text testID={`site-metrics-speed-verdict-${index}`} style={styles.speedVerdict}>
+                    {row.verdict}
+                  </Text>
+                  <Text testID={`site-metrics-speed-value-${index}`} style={styles.speedValue}>
+                    {row.measurement ?? ''}
+                  </Text>
+                </>
+              )}
+            </View>
           </View>
-        </View>
-      ))}
+        ))}
+      </View>
       {buildingSample ? null : (
         <Text style={styles.panelNote}>
           At least 75% of measured visits performed this well or better.
@@ -1143,8 +1278,10 @@ export function TrafficScreen() {
             <SearchPanel source="Bing" state={bing} now={now} teamAccount={teamAccount} />
           </View>
 
-          <View style={styles.sectionRule} />
-          <View style={[styles.pairedGrid, isMobile && styles.singleColumn]}>
+          <View
+            testID="site-metrics-closing-grid"
+            style={[styles.pairedGrid, styles.closingGrid, isMobile && styles.singleColumn]}
+          >
             <AvailabilityPanel state={uptime} now={now} teamAccount={teamAccount} />
             <PerformancePanel state={performance} now={now} teamAccount={teamAccount} />
           </View>
@@ -1236,7 +1373,7 @@ const styles = StyleSheet.create({
   recentLabelMobile: { marginTop: 0, fontSize: 14, lineHeight: 20 },
   recentValue: {
     marginTop: 5,
-    color: '#149d5b',
+    color: theme.colors.brand.display,
     fontFamily: theme.typography.ui,
     fontSize: 40,
     lineHeight: 44,
@@ -1278,7 +1415,7 @@ const styles = StyleSheet.create({
   },
   collecting: {
     marginLeft: 'auto',
-    color: '#8f5a12',
+    color: theme.colors.omnibus.text,
     fontFamily: theme.typography.body,
     fontSize: 13.5,
     lineHeight: 20,
@@ -1345,6 +1482,7 @@ const styles = StyleSheet.create({
     gap: 16,
     alignItems: 'stretch',
   } as never,
+  closingGrid: { marginTop: 34 },
   singleColumn: { display: 'flex', gap: 14 },
   panel: {
     flex: 1,
@@ -1355,8 +1493,9 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingHorizontal: 20,
     paddingTop: 18,
-    paddingBottom: 21,
+    paddingBottom: 20,
   },
+  panelSearch: { paddingTop: 16, paddingHorizontal: 20, paddingBottom: 18 },
   panelCardMobile: {
     borderRadius: 13,
     paddingHorizontal: 16,
@@ -1374,9 +1513,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'transparent',
     boxShadow: 'none',
   },
-  plainRows: { marginTop: 8, paddingHorizontal: 14 },
+  plainRows: { marginTop: 12, paddingHorizontal: 14 },
+  plainRowsMobile: { paddingHorizontal: 12, gap: 14 },
+  availabilityRows: { marginTop: 12 },
   metricRow: {
-    minHeight: 47,
+    paddingVertical: 11,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -1384,8 +1525,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(17,21,15,0.07)',
   },
+  metricRowAvailability: { paddingVertical: 10 },
+  metricRowAvailabilityMobile: { paddingVertical: 9, gap: 14 },
   metricRowLast: { borderBottomWidth: 0 },
-  metricRowCompactMobile: { minHeight: 0, borderBottomWidth: 0, marginTop: 13 },
+  metricRowCompactMobile: { paddingVertical: 0, borderBottomWidth: 0 },
   metricRowLabel: {
     flexShrink: 1,
     color: '#2c322c',
@@ -1393,14 +1536,18 @@ const styles = StyleSheet.create({
     fontSize: 14.5,
     lineHeight: 21,
   },
+  metricRowLabelMobile: { fontSize: 14, lineHeight: 20 },
   metricRowValue: {
-    color: '#11150f',
+    color: theme.colors.text.primary,
     fontFamily: theme.typography.ui,
     fontSize: 20,
     lineHeight: 24,
     fontWeight: '800',
     fontVariant: ['tabular-nums'],
   },
+  metricRowValueAvailability: { fontSize: 18, lineHeight: 23 },
+  metricRowValueAvailabilityMobile: { fontSize: 17, lineHeight: 22 },
+  metricRowValueActionMobile: { fontSize: 19, lineHeight: 23 },
   panelNote: {
     marginTop: 10,
     color: '#4f5651',
@@ -1416,7 +1563,10 @@ const styles = StyleSheet.create({
     borderLeftWidth: 2,
     borderLeftColor: '#dfe5e1',
   },
+  destinationOuterMobile: { paddingLeft: 12 },
+  destinationGroupMobile: { gap: 8, paddingLeft: 10 },
   destinationRowLine: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  destinationRowLineMobile: { gap: 10 },
   destinationName: { width: 138, flexGrow: 0, flexShrink: 0 },
   destinationNameMobile: { width: 118, fontSize: 13.5, lineHeight: 18 },
   destinationPercent: {
@@ -1424,11 +1574,11 @@ const styles = StyleSheet.create({
     flexGrow: 0,
     flexShrink: 0,
     textAlign: 'right',
-    color: '#11150f',
-    fontFamily: theme.typography.ui,
-    fontSize: 14.5,
+    color: theme.colors.text.primary,
+    fontFamily: theme.typography.mono,
+    fontSize: 14,
     lineHeight: 21,
-    fontWeight: '800',
+    fontWeight: '700',
     fontVariant: ['tabular-nums'],
   },
   destinationPercentMobile: { width: 34, fontSize: 13, lineHeight: 18 },
@@ -1436,11 +1586,12 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 12,
     overflow: 'hidden',
-    borderRadius: 3,
-    backgroundColor: '#e4e9e5',
+    borderRadius: 6,
+    backgroundColor: '#e8ebe9',
   },
   barTrackMobile: { height: 9, borderRadius: 5 },
-  barFill: { height: '100%', borderRadius: 6, backgroundColor: '#149d5b' },
+  barFill: { height: '100%', borderRadius: 6, backgroundColor: theme.colors.brand.display },
+  barFillMobile: { borderRadius: 5 },
   zeroText: {
     marginTop: 14,
     paddingHorizontal: 12,
@@ -1450,46 +1601,51 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   tableHeader: {
-    minHeight: 42,
-    marginTop: 8,
-    paddingHorizontal: 14,
+    marginTop: 16,
+    paddingLeft: 14,
+    paddingRight: 0,
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: 10,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(17,21,15,0.1)',
   },
+  tableHeaderMobile: { marginTop: 10, paddingLeft: 12 },
   tableLabel: {
     flex: 1,
-    paddingBottom: 8,
+    paddingBottom: 9,
     color: '#6f756f',
-    fontFamily: theme.typography.mono,
-    fontSize: 10.5,
-    lineHeight: 15,
-    fontWeight: '700',
+    fontFamily: theme.typography.ui,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: '600',
     textAlign: 'right',
   },
+  tableLabelMobile: { fontSize: 12, lineHeight: 17, paddingBottom: 8 },
   tableName: { textAlign: 'left' },
-  tableBlankHeader: { flex: 1, paddingBottom: 8 },
+  tableBlankHeader: { flex: 1, paddingBottom: 9 },
   tableRow: {
-    minHeight: 52,
-    paddingHorizontal: 14,
+    paddingLeft: 14,
+    paddingRight: 0,
+    paddingVertical: 18,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(17,21,15,0.07)',
   },
+  tableRowMobile: { paddingLeft: 12, paddingVertical: 11 },
   tableValue: {
     flex: 1,
-    color: '#11150f',
+    color: theme.colors.text.primary,
     fontFamily: theme.typography.ui,
-    fontSize: 22,
-    lineHeight: 26,
+    fontSize: 24,
+    lineHeight: 29,
     fontWeight: '800',
     textAlign: 'right',
     fontVariant: ['tabular-nums'],
   },
+  tableValueMobile: { fontSize: 22, lineHeight: 27 },
   vendorHeading: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   vendorTitle: {
     color: '#11150f',
@@ -1530,7 +1686,7 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   speedRow: {
-    minHeight: 64,
+    paddingVertical: 15,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -1538,24 +1694,31 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(17,21,15,0.07)',
   },
-  speedResult: { alignItems: 'flex-end', flexShrink: 0 },
-  speedResultDesktop: { flexDirection: 'row-reverse', alignItems: 'baseline', gap: 12 },
+  speedRowMobile: { paddingVertical: 9, gap: 14 },
+  speedRows: { marginTop: 12 },
+  speedResult: { flexDirection: 'row', alignItems: 'baseline', gap: 12, flexShrink: 0 },
+  speedResultMobile: { flexDirection: 'column', alignItems: 'flex-end', gap: 0 },
   speedVerdict: {
-    color: '#11150f',
+    minWidth: 126,
+    textAlign: 'right',
+    color: theme.colors.text.secondary,
     fontFamily: theme.typography.body,
     fontSize: 13.5,
     lineHeight: 18,
-    fontWeight: '700',
+    fontWeight: '400',
   },
-  speedVerdictDesktop: { minWidth: 126, textAlign: 'right' },
+  speedVerdictMobile: { minWidth: 0, fontSize: 12.5, lineHeight: 17 },
   speedValue: {
-    color: '#11150f',
+    minWidth: 58,
+    textAlign: 'right',
+    color: theme.colors.text.primary,
     fontFamily: theme.typography.ui,
     fontSize: 18,
     lineHeight: 23,
     fontWeight: '800',
     fontVariant: ['tabular-nums'],
   },
+  speedValueMobile: { minWidth: 0, fontSize: 17, lineHeight: 22 },
   publicLinkTarget: { minHeight: 44, alignSelf: 'flex-start', justifyContent: 'center' },
   publicLinkContent: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   publicLinkArrow: { width: 16, height: 16, top: 0 },
