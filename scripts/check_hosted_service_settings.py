@@ -20,6 +20,7 @@ No request writes a setting, decrypts a provider variable, or prints a credentia
 
 from __future__ import annotations
 
+import base64
 import json
 import os
 import re
@@ -40,6 +41,7 @@ DOC = ROOT / "docs/operations/repo-and-service-settings.md"
 GITHUB_API = "https://api.github.com"
 VERCEL_API = "https://api.vercel.com"
 RAILWAY_API = "https://backboard.railway.com/graphql/v2"
+SUPABASE_API = "https://api.supabase.com"
 
 GOVERNED_SECTIONS = {
     "GitHub repository",
@@ -171,8 +173,15 @@ def default_fetch(
     }
     encoded = None
     if body is not None:
-        encoded = json.dumps(body).encode()
-        request_headers["Content-Type"] = "application/json"
+        if request_headers.get("Content-Type") == "application/x-www-form-urlencoded":
+            if not isinstance(body, Mapping):
+                return HttpResponse(
+                    status=0, data=None, error="invalid form request body"
+                )
+            encoded = urllib.parse.urlencode(body).encode()
+        else:
+            encoded = json.dumps(body).encode()
+            request_headers["Content-Type"] = "application/json"
     request = urllib.request.Request(
         url, data=encoded, headers=request_headers, method=method
     )
@@ -1141,6 +1150,202 @@ class Checker:
                 )
             )
 
+    def check_supabase(self) -> None:
+        rows = [
+            row
+            for row in self.rows.values()
+            if row.section == "Supabase sign-in"
+            and _plain(row.automation).startswith("Live")
+        ]
+        credential_names = (
+            "SUPABASE_OAUTH_CLIENT_ID",
+            "SUPABASE_OAUTH_CLIENT_SECRET",
+            "SUPABASE_OAUTH_REFRESH_TOKEN",
+            "SUPABASE_PROJECT_REF",
+        )
+        missing = [name for name in credential_names if not self.env.get(name)]
+        required = self.env.get("SUPABASE_OAUTH_REQUIRED", "").lower() == "true"
+        if missing and not required and len(missing) == len(credential_names):
+            return
+        if missing:
+            self.unavailable_rows(rows, f"missing {', '.join(missing)}")
+            return
+
+        client_id = self.env["SUPABASE_OAUTH_CLIENT_ID"]
+        client_secret = self.env["SUPABASE_OAUTH_CLIENT_SECRET"]
+        refresh_token = self.env["SUPABASE_OAUTH_REFRESH_TOKEN"]
+        basic = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
+        token_response = self.cached_fetch(
+            "supabase-oauth-token",
+            "POST",
+            f"{SUPABASE_API}/v1/oauth/token",
+            {
+                "Authorization": f"Basic {basic}",
+                "Content-Type": "application/x-www-form-urlencoded",
+            },
+            {"grant_type": "refresh_token", "refresh_token": refresh_token},
+        )
+        token_data = token_response.data
+        access_token = (
+            token_data.get("access_token") if isinstance(token_data, dict) else None
+        )
+        token_type = (
+            token_data.get("token_type") if isinstance(token_data, dict) else None
+        )
+        if (
+            token_response.status != 200
+            or not isinstance(access_token, str)
+            or not access_token
+            or str(token_type).lower() != "bearer"
+        ):
+            self.unavailable_rows(
+                rows,
+                token_response.error or "Supabase OAuth grant could not be refreshed",
+            )
+            return
+
+        project_ref = urllib.parse.quote(self.env["SUPABASE_PROJECT_REF"], safe="")
+        representative = self.row("Supabase sign-in", "Site URL")
+        response = self.cached_fetch(
+            "supabase-auth-config",
+            "GET",
+            f"{SUPABASE_API}/v1/projects/{project_ref}/config/auth",
+            {"Authorization": f"Bearer {access_token}"},
+        )
+        config = self._json_object(response, representative)
+        if config is None:
+            self.unavailable_rows(
+                rows, response.error or "Supabase sign-in settings unreadable"
+            )
+            return
+
+        site_expected = _codes(representative.intended)[0]
+        site_actual = config.get("site_url")
+        self.record(
+            representative,
+            site_actual == site_expected,
+            str(site_actual),
+            site_expected,
+        )
+
+        redirects_row = self.row("Supabase sign-in", "Additional redirect URLs")
+        redirects_expected = sorted(_codes(redirects_row.intended))
+        redirects_value = config.get("uri_allow_list")
+        redirects_actual = sorted(
+            item.strip()
+            for item in str(redirects_value or "").split(",")
+            if item.strip()
+        )
+        self.record(
+            redirects_row,
+            redirects_actual == redirects_expected,
+            ", ".join(redirects_actual),
+            ", ".join(redirects_expected),
+        )
+
+        for label, field, inverted in (
+            ("Email provider", "external_email_enabled", False),
+            ("Google provider", "external_google_enabled", False),
+            ("Confirm email", "mailer_autoconfirm", True),
+            ("Manual identity linking", "security_manual_linking_enabled", False),
+            ("Prevent leaked passwords", "password_hibp_enabled", False),
+            (
+                "Secure password change",
+                "security_update_password_require_reauthentication",
+                False,
+            ),
+            ("CAPTCHA", "security_captcha_enabled", False),
+            (
+                "Password-changed security email",
+                "mailer_notifications_password_changed_enabled",
+                False,
+            ),
+        ):
+            row = self.row("Supabase sign-in", label)
+            value = config.get(field)
+            if not isinstance(value, bool):
+                self.unavailable(row, f"Supabase omitted {field}")
+                continue
+            actual = not value if inverted else value
+            self.record(row, actual is _intended_bool(row), _bool_word(actual))
+
+        for label, field in (
+            ("Minimum password length", "password_min_length"),
+            ("Authentication email limit", "rate_limit_email_sent"),
+            ("Sign-up and sign-in limit", "rate_limit_otp"),
+        ):
+            row = self.row("Supabase sign-in", label)
+            expected_codes = _codes(row.intended)
+            expected = int(
+                expected_codes[0] if expected_codes else _plain(row.intended)
+            )
+            actual = config.get(field)
+            self.record(row, actual == expected, str(actual), str(expected))
+
+        characters_row = self.row("Supabase sign-in", "Required character groups")
+        characters = config.get("password_required_characters")
+        expects_none = _plain(characters_row.intended).lower().startswith("none")
+        no_characters = characters is None or characters == ""
+        self.record(
+            characters_row,
+            no_characters is expects_none,
+            "none" if no_characters else "required groups are set",
+        )
+
+        for label, field, route in (
+            (
+                "Email confirmation template",
+                "mailer_templates_confirmation_content",
+                "/confirm",
+            ),
+            (
+                "Password reset template",
+                "mailer_templates_recovery_content",
+                "/reset",
+            ),
+        ):
+            row = self.row("Supabase sign-in", label)
+            template = config.get(field)
+            route_at = template.find(route) if isinstance(template, str) else -1
+            fragment_at = (
+                template.find("#", route_at) if isinstance(template, str) else -1
+            )
+            token_at = (
+                template.find(".TokenHash", fragment_at)
+                if isinstance(template, str)
+                else -1
+            )
+            safe_structure = (
+                route_at >= 0 and fragment_at > route_at and token_at > fragment_at
+            )
+            self.record(
+                row,
+                safe_structure,
+                "safe private-link structure"
+                if safe_structure
+                else "private-link structure does not match",
+            )
+
+        smtp_row = self.row("Supabase sign-in", "Custom SMTP through Resend")
+        smtp_expected = _codes(smtp_row.intended)
+        expected_host = smtp_expected[0]
+        expected_sender = smtp_expected[1]
+        smtp_host = config.get("smtp_host")
+        smtp_sender = config.get("smtp_admin_email")
+        smtp_password_set = bool(config.get("smtp_pass"))
+        smtp_ok = (
+            smtp_host == expected_host
+            and smtp_sender == expected_sender
+            and smtp_password_set
+        )
+        self.record(
+            smtp_row,
+            smtp_ok,
+            f"{smtp_host or 'off'}, sender {smtp_sender or 'missing'}, "
+            f"password {'set' if smtp_password_set else 'missing'}",
+            f"{expected_host}, sender {expected_sender}, password set",
+        )
+
     def classify_non_live_rows(self) -> None:
         for row in self.rows.values():
             if row.key in self.handled:
@@ -1187,6 +1392,7 @@ class Checker:
         self.check_github()
         self.check_vercel()
         self.check_railway()
+        self.check_supabase()
         self.classify_non_live_rows()
         return self.results
 

@@ -70,6 +70,9 @@ Set under **Settings, Secrets and variables, Actions**. The live check reads nam
 | `CLOUDFLARE_R2_ENDPOINT` | Present | `mirror-raw-files.yml` | Reaches the backup bucket. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | `CLOUDFLARE_R2_SECRET_ACCESS_KEY` | Present | `mirror-raw-files.yml` | Authenticates writes to the backup bucket. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | `RAILWAY_TOKEN` | Present | `railway-deploy.yml`, `hosted-service-settings.yml` | Targets the production Railway project for manual releases and read-only checks. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
+| `SUPABASE_OAUTH_CLIENT_ID` | Present | `hosted-service-settings.yml` | Names the Supabase OAuth app that can read sign-in settings only. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
+| `SUPABASE_OAUTH_CLIENT_SECRET` | Present | `hosted-service-settings.yml` | Authenticates the narrow Supabase OAuth app when it refreshes access. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
+| `SUPABASE_OAUTH_REFRESH_TOKEN` | Present | `hosted-service-settings.yml` | Gets a short-lived Supabase token limited to reading sign-in settings. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | `SUPABASE_DB_PASSWORD` | Present | database maintenance workflows | Builds the production database address. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | `SUPABASE_PROJECT_URL` | Present | database maintenance workflows | Targets the production Supabase project. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | `SUPABASE_STORAGE_S3_ACCESS_KEY_ID` | Present | `mirror-raw-files.yml` | Reads the main source-file store. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
@@ -199,32 +202,30 @@ Set under **Settings** in Sentry organization `Alethical`. Verified 2026-08-15.
 
 ## Supabase sign-in
 
-Set under **Authentication** in the Alethical Supabase project. Verified 2026-08-13.
-Supabase's personal access token has the same broad rights as its owner, so it is not a
-safe checker credential. A Supabase OAuth grant limited to `auth:read` would make these
-rows checkable without write access
-([#1558](https://github.com/alethical-org/alethical/issues/1558)).
+Set under **Authentication** in the Alethical Supabase project. Verified 2026-08-15.
+The monthly check uses a Supabase OAuth grant limited to `auth:read`. It cannot change a
+Supabase setting. No Supabase personal access token is stored.
 
 | Setting | Intended | Why | Automated check |
 | --- | --- | --- | --- |
-| Site URL | `https://www.alethical.com` | Sends production sign-in links to the public site. | Unchecked: Supabase OAuth `auth:read` grant; [#1558](https://github.com/alethical-org/alethical/issues/1558) |
-| Additional redirect URLs | `https://www.alethical.com/**`, `http://localhost:8081/**`, `http://127.0.0.1:8081/**`, `http://localhost:19006/**`, `http://127.0.0.1:19006/**`, `alethical://auth/callback` | Allows the production site, local web work, and the future phone app to finish sign-in. Preview addresses are added one at a time only while testing. | Unchecked: Supabase OAuth `auth:read` grant; [#1558](https://github.com/alethical-org/alethical/issues/1558) |
-| Email provider | **On** | Supports the live email and password option. | Unchecked: Supabase OAuth `auth:read` grant; [#1558](https://github.com/alethical-org/alethical/issues/1558) |
-| Google provider | **On** | Keeps Google sign-in available. | Unchecked: Supabase OAuth `auth:read` grant; [#1558](https://github.com/alethical-org/alethical/issues/1558) |
-| Confirm email | **On** | A password account cannot claim an address before proving it. | Unchecked: Supabase OAuth `auth:read` grant; [#1558](https://github.com/alethical-org/alethical/issues/1558) |
-| Manual identity linking | **Off** | Matching confirmed emails use Supabase's automatic account match. | Unchecked: Supabase OAuth `auth:read` grant; [#1558](https://github.com/alethical-org/alethical/issues/1558) |
-| Minimum password length | `15` | Email and password sign-in has no required second factor. | Unchecked: Supabase OAuth `auth:read` grant; [#1558](https://github.com/alethical-org/alethical/issues/1558) |
-| Required character groups | **None** | Length is safer than predictable capital, digit, or symbol rules. | Unchecked: Supabase OAuth `auth:read` grant; [#1558](https://github.com/alethical-org/alethical/issues/1558) |
-| Prevent leaked passwords | **On** | Supabase checks known exposed passwords through Have I Been Pwned. | Unchecked: Supabase OAuth `auth:read` grant; [#1558](https://github.com/alethical-org/alethical/issues/1558) |
-| Secure password change | **Off** | The password form still has a dormant email-code step, so enabling this later cannot strand a reader on a separate screen. | Unchecked: Supabase OAuth `auth:read` grant; [#1558](https://github.com/alethical-org/alethical/issues/1558) |
+| Site URL | `https://www.alethical.com` | Sends production sign-in links to the public site. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
+| Additional redirect URLs | `https://www.alethical.com/**`, `http://localhost:8081/**`, `http://127.0.0.1:8081/**`, `http://localhost:19006/**`, `http://127.0.0.1:19006/**`, `alethical://auth/callback` | Allows the production site, local web work, and the future phone app to finish sign-in. Preview addresses are added one at a time only while testing. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
+| Email provider | **On** | Supports the live email and password option. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
+| Google provider | **On** | Keeps Google sign-in available. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
+| Confirm email | **On** | A password account cannot claim an address before proving it. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
+| Manual identity linking | **Off** | Matching confirmed emails use Supabase's automatic account match. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
+| Minimum password length | `15` | Email and password sign-in has no required second factor. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
+| Required character groups | **None** | Length is safer than predictable capital, digit, or symbol rules. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
+| Prevent leaked passwords | **On** | Supabase checks known exposed passwords through Have I Been Pwned. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
+| Secure password change | **Off** | The password form still has a dormant email-code step, so enabling this later cannot strand a reader on a separate screen. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
 | Require current password | **Off** | The signed-in password form asks only for the new password. | Tracked file: `apps/frontend/src/components/auth/AccountControl.tsx` |
-| CAPTCHA | **Off** | No human-check box ships. | Unchecked: Supabase OAuth `auth:read` grant; [#1558](https://github.com/alethical-org/alethical/issues/1558) |
-| Email confirmation template | Alethical `/confirm` link using Supabase `TokenHash`, with private values after `#` | Email scanners cannot spend the 1-use token before the reader confirms. | Unchecked: Supabase OAuth `auth:read` grant; [#1558](https://github.com/alethical-org/alethical/issues/1558) |
-| Password reset template | Alethical `/reset` link using Supabase `TokenHash`, with private values after `#` | Opening the email reaches a safe page before the 1-use token is spent. | Unchecked: Supabase OAuth `auth:read` grant; [#1558](https://github.com/alethical-org/alethical/issues/1558) |
-| Password-changed security email | **On** | A changed password sends a warning with a route to Forgot password. | Unchecked: Supabase OAuth `auth:read` grant; [#1558](https://github.com/alethical-org/alethical/issues/1558) |
-| Custom SMTP through Resend | **On** | Sends confirmation and reset messages from `ask@alethical.com`. | Unchecked: Supabase OAuth `auth:read` grant; [#1558](https://github.com/alethical-org/alethical/issues/1558) |
-| Authentication email limit | `30` emails per hour | Limits total confirmation and reset email volume. | Unchecked: Supabase OAuth `auth:read` grant; [#1558](https://github.com/alethical-org/alethical/issues/1558) |
-| Sign-up and sign-in limit | `30` requests per 5 minutes per internet address | Limits rapid password guesses from 1 address. | Unchecked: Supabase OAuth `auth:read` grant; [#1558](https://github.com/alethical-org/alethical/issues/1558) |
+| CAPTCHA | **Off** | No human-check box ships. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
+| Email confirmation template | Alethical `/confirm` link using Supabase `TokenHash`, with private values after `#` | Email scanners cannot spend the 1-use token before the reader confirms. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
+| Password reset template | Alethical `/reset` link using Supabase `TokenHash`, with private values after `#` | Opening the email reaches a safe page before the 1-use token is spent. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
+| Password-changed security email | **On** | A changed password sends a warning with a route to Forgot password. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
+| Custom SMTP through Resend | **On** at `smtp.resend.com`, sender `ask@alethical.com` | Sends confirmation and reset messages from `ask@alethical.com`. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
+| Authentication email limit | `30` emails per hour | Limits total confirmation and reset email volume. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
+| Sign-up and sign-in limit | `30` requests per 5 minutes per internet address | Limits rapid password guesses from 1 address. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
 
 Supabase stores passwords with salted bcrypt. The intended product explanation remains in
 [`sign-in-guide.md`](../product-onboarding/sign-in-guide.md); it is not a second settings
@@ -250,7 +251,6 @@ files. This prevents changed pull-request code from reading Vercel's release tok
 Railway's project token.
 
 Drift and unreadable required services fail the workflow. Known access gaps stay yellow
-and are listed by name; they are never included in the matched total. The 3 open access
-gaps are [#1557](https://github.com/alethical-org/alethical/issues/1557),
-[#1558](https://github.com/alethical-org/alethical/issues/1558), and
+and are listed by name; they are never included in the matched total. The 2 open access
+gaps are [#1557](https://github.com/alethical-org/alethical/issues/1557) and
 [#1559](https://github.com/alethical-org/alethical/issues/1559).

@@ -62,6 +62,11 @@ jobs:
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
       RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      SUPABASE_OAUTH_REQUIRED: "true"
+      SUPABASE_OAUTH_CLIENT_ID: ${{ secrets.SUPABASE_OAUTH_CLIENT_ID }}
+      SUPABASE_OAUTH_CLIENT_SECRET: ${{ secrets.SUPABASE_OAUTH_CLIENT_SECRET }}
+      SUPABASE_OAUTH_REFRESH_TOKEN: ${{ secrets.SUPABASE_OAUTH_REFRESH_TOKEN }}
+      SUPABASE_PROJECT_REF: naakzorbkqqgbsreulqi
     steps:
       - name: Check out the trusted checker from the target branch
         uses: actions/checkout@v7
@@ -96,6 +101,11 @@ jobs:
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
       VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
       RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      SUPABASE_OAUTH_REQUIRED: "true"
+      SUPABASE_OAUTH_CLIENT_ID: ${{ secrets.SUPABASE_OAUTH_CLIENT_ID }}
+      SUPABASE_OAUTH_CLIENT_SECRET: ${{ secrets.SUPABASE_OAUTH_CLIENT_SECRET }}
+      SUPABASE_OAUTH_REFRESH_TOKEN: ${{ secrets.SUPABASE_OAUTH_REFRESH_TOKEN }}
+      SUPABASE_PROJECT_REF: naakzorbkqqgbsreulqi
     steps:
       - uses: actions/checkout@v7
         with:
