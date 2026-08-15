@@ -4,6 +4,7 @@ import contextlib
 import importlib.util
 import io
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -483,6 +484,240 @@ class HostedSettingsTest(unittest.TestCase):
         )
         self.assertIs(internal.state, settings.State.DRIFT)
         self.assertIn("documented as absent", internal.detail)
+
+    def test_supabase_refreshes_read_only_oauth_and_compares_auth_config(self) -> None:
+        fetch = FakeFetch(
+            {
+                "/v1/oauth/token": settings.HttpResponse(
+                    200,
+                    {
+                        "access_token": "short-lived-access-token",
+                        "refresh_token": "next-refresh-token",
+                        "expires_in": 3600,
+                        "token_type": "Bearer",
+                    },
+                ),
+                "/config/auth": settings.HttpResponse(
+                    200,
+                    {
+                        "site_url": "https://www.alethical.com",
+                        "uri_allow_list": ",".join(
+                            [
+                                "https://www.alethical.com/**",
+                                "http://localhost:8081/**",
+                                "http://127.0.0.1:8081/**",
+                                "http://localhost:19006/**",
+                                "http://127.0.0.1:19006/**",
+                                "alethical://auth/callback",
+                            ]
+                        ),
+                        "external_email_enabled": True,
+                        "external_google_enabled": True,
+                        "mailer_autoconfirm": False,
+                        "security_manual_linking_enabled": False,
+                        "password_min_length": 15,
+                        "password_required_characters": "",
+                        "password_hibp_enabled": True,
+                        "security_update_password_require_reauthentication": False,
+                        "security_captcha_enabled": False,
+                        "mailer_templates_confirmation_content": (
+                            '<a href="{{ .RedirectTo }}&amp;token_hash={{ .TokenHash }}'
+                            '&amp;type=email">Confirm</a>'
+                        ),
+                        "mailer_templates_recovery_content": (
+                            '<a href="{{ .RedirectTo }}&amp;token_hash={{ .TokenHash }}'
+                            '&amp;type=recovery">Reset</a>'
+                        ),
+                        "mailer_notifications_password_changed_enabled": True,
+                        "smtp_host": "smtp.resend.com",
+                        "smtp_admin_email": "ask@alethical.com",
+                        "smtp_pass": "private-smtp-password",
+                        "rate_limit_email_sent": 30,
+                        "rate_limit_otp": 30,
+                    },
+                ),
+            }
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            refresh_path = Path(directory) / "refresh-token"
+            next_refresh_path = Path(directory) / "next-refresh-token"
+            refresh_path.write_text("refresh-token")
+            checker = settings.Checker(
+                self.rows,
+                env={
+                    "SUPABASE_OAUTH_REQUIRED": "true",
+                    "SUPABASE_OAUTH_STATE_REQUIRED": "true",
+                    "SUPABASE_OAUTH_CLIENT_ID": "client-id",
+                    "SUPABASE_OAUTH_CLIENT_SECRET": "client-secret",
+                    "SUPABASE_OAUTH_REFRESH_TOKEN_FILE": str(refresh_path),
+                    "SUPABASE_OAUTH_NEXT_REFRESH_TOKEN_FILE": str(next_refresh_path),
+                    "SUPABASE_PROJECT_REF": "naakzorbkqqgbsreulqi",
+                },
+                fetch=fetch,
+            )
+
+            checker.check_supabase()
+            checker.classify_non_live_rows()
+            self.assertEqual(next_refresh_path.read_text(), "next-refresh-token")
+            self.assertEqual(next_refresh_path.stat().st_mode & 0o777, 0o600)
+
+        supabase_results = [
+            result
+            for result in checker.results
+            if result.provider == "Supabase sign-in"
+        ]
+        self.assertEqual(len(supabase_results), 17)
+        self.assertEqual(
+            sum(result.state is settings.State.MATCH for result in supabase_results), 16
+        )
+        unsupported = next(
+            result
+            for result in supabase_results
+            if result.setting == "Sign-up and sign-in limit"
+        )
+        self.assertIs(unsupported.state, settings.State.UNCHECKED)
+        self.assertEqual([call[0] for call in fetch.calls], ["POST", "GET"])
+        self.assertEqual(
+            fetch.calls[0][3],
+            {"grant_type": "refresh_token", "refresh_token": "refresh-token"},
+        )
+        self.assertIn("Basic ", fetch.calls[0][2]["Authorization"])
+        self.assertEqual(fetch.calls[1][3], None)
+        self.assertTrue(all(call[0] != "PATCH" for call in fetch.calls))
+
+    def test_missing_or_expired_supabase_grant_fails_as_unreadable(self) -> None:
+        checker = settings.Checker(
+            self.rows,
+            env={
+                "SUPABASE_OAUTH_REQUIRED": "true",
+                "SUPABASE_PROJECT_REF": "naakzorbkqqgbsreulqi",
+            },
+            fetch=FakeFetch({}),
+        )
+        checker.check_supabase()
+        missing_results = [
+            result
+            for result in checker.results
+            if result.provider == "Supabase sign-in"
+        ]
+        self.assertEqual(len(missing_results), 16)
+        self.assertTrue(
+            all(result.state is settings.State.UNVERIFIED for result in missing_results)
+        )
+
+        fetch = FakeFetch(
+            {"/v1/oauth/token": settings.HttpResponse(401, None, "HTTP 401")}
+        )
+        checker = settings.Checker(
+            self.rows,
+            env={
+                "SUPABASE_OAUTH_REQUIRED": "true",
+                "SUPABASE_OAUTH_CLIENT_ID": "client-id",
+                "SUPABASE_OAUTH_CLIENT_SECRET": "client-secret",
+                "SUPABASE_OAUTH_REFRESH_TOKEN": "expired-refresh-token",
+                "SUPABASE_PROJECT_REF": "naakzorbkqqgbsreulqi",
+            },
+            fetch=fetch,
+        )
+        checker.check_supabase()
+        expired_results = [
+            result
+            for result in checker.results
+            if result.provider == "Supabase sign-in"
+        ]
+        self.assertTrue(
+            all(result.state is settings.State.UNVERIFIED for result in expired_results)
+        )
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(settings.print_results(expired_results), 1)
+
+    def test_supabase_template_drift_never_prints_template_contents(self) -> None:
+        private_template = (
+            '<a href="https://wrong.example/confirm?token_hash=PRIVATE-VALUE">'
+            "Confirm</a>"
+        )
+        fetch = FakeFetch(
+            {
+                "/v1/oauth/token": settings.HttpResponse(
+                    200,
+                    {"access_token": "short-lived", "token_type": "Bearer"},
+                ),
+                "/config/auth": settings.HttpResponse(
+                    200,
+                    {
+                        "mailer_templates_confirmation_content": private_template,
+                    },
+                ),
+            }
+        )
+        checker = settings.Checker(
+            self.rows,
+            env={
+                "SUPABASE_OAUTH_REQUIRED": "true",
+                "SUPABASE_OAUTH_CLIENT_ID": "client-id",
+                "SUPABASE_OAUTH_CLIENT_SECRET": "client-secret",
+                "SUPABASE_OAUTH_REFRESH_TOKEN": "refresh-token",
+                "SUPABASE_PROJECT_REF": "naakzorbkqqgbsreulqi",
+            },
+            fetch=fetch,
+        )
+        checker.check_supabase()
+        template_result = next(
+            result
+            for result in checker.results
+            if result.setting == "Email confirmation template"
+        )
+        self.assertIs(template_result.state, settings.State.DRIFT)
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            settings.print_results(checker.results)
+        self.assertNotIn(private_template, output.getvalue())
+        self.assertNotIn("PRIVATE-VALUE", output.getvalue())
+
+    def test_supabase_does_not_consume_state_without_a_safe_output_file(self) -> None:
+        fetch = FakeFetch({})
+        checker = settings.Checker(
+            self.rows,
+            env={
+                "SUPABASE_OAUTH_REQUIRED": "true",
+                "SUPABASE_OAUTH_STATE_REQUIRED": "true",
+                "SUPABASE_OAUTH_CLIENT_ID": "client-id",
+                "SUPABASE_OAUTH_CLIENT_SECRET": "client-secret",
+                "SUPABASE_OAUTH_REFRESH_TOKEN": "refresh-token",
+                "SUPABASE_PROJECT_REF": "naakzorbkqqgbsreulqi",
+            },
+            fetch=fetch,
+        )
+
+        checker.check_supabase()
+
+        self.assertEqual(fetch.calls, [])
+        self.assertTrue(
+            all(result.state is settings.State.UNVERIFIED for result in checker.results)
+        )
+
+    def test_supabase_does_not_refresh_when_the_state_file_is_missing(self) -> None:
+        fetch = FakeFetch({})
+        checker = settings.Checker(
+            self.rows,
+            env={
+                "SUPABASE_OAUTH_REQUIRED": "true",
+                "SUPABASE_OAUTH_STATE_REQUIRED": "true",
+                "SUPABASE_OAUTH_CLIENT_ID": "client-id",
+                "SUPABASE_OAUTH_CLIENT_SECRET": "client-secret",
+                "SUPABASE_OAUTH_REFRESH_TOKEN_FILE": "/missing/refresh-token",
+                "SUPABASE_OAUTH_NEXT_REFRESH_TOKEN_FILE": "/tmp/next-refresh-token",
+                "SUPABASE_PROJECT_REF": "naakzorbkqqgbsreulqi",
+            },
+            fetch=fetch,
+        )
+
+        checker.check_supabase()
+
+        self.assertEqual(fetch.calls, [])
+        self.assertTrue(
+            all(result.state is settings.State.UNVERIFIED for result in checker.results)
+        )
 
     def test_explicit_access_gaps_are_visible_but_not_matches(self) -> None:
         gap = settings.Result(
