@@ -122,4 +122,27 @@ describe('Google search totals', () => {
     expect(result.body).toEqual({ error: 'Google search data is temporarily unavailable.' });
     expect(JSON.stringify(result.body)).not.toMatch(/query|page|country|device|position/i);
   });
+
+  it('shows a successful empty Google period as a real zero', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({ metadata: { first_incomplete_date: '2026-08-13' } }),
+      }),
+    );
+    const recorder = responseRecorder();
+
+    await handler({ method: 'GET' }, recorder.response);
+
+    expect(recorder.read()).toMatchObject({
+      status: 200,
+      body: {
+        clicks28d: 0,
+        impressions28d: 0,
+        previousClicks28d: 0,
+        previousImpressions28d: 0,
+      },
+    });
+  });
 });

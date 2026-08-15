@@ -110,6 +110,20 @@ The live check reads names and release targets only. It never asks Vercel for va
 | `VERCEL_ANALYTICS_ACCESS_TOKEN` | Production | Reads the production traffic total. | Live |
 | `VERCEL_ANALYTICS_PROJECT_ID` | Production | Targets the production traffic project. | Live |
 | `VERCEL_ANALYTICS_TEAM_ID` | Production | Targets Alethical's Vercel account for traffic reads. | Live |
+| `GOOGLE_SEARCH_CONSOLE_GCP_PROJECT_NUMBER` | Production | Names the Google Cloud project that exchanges Vercel's short-lived identity. | Live |
+| `GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_EMAIL` | Production | Names the read-only machine account for Google Search Console. | Live |
+| `GOOGLE_SEARCH_CONSOLE_WORKLOAD_IDENTITY_POOL_ID` | Production | Names the Google identity pool that trusts Vercel Production. | Live |
+| `GOOGLE_SEARCH_CONSOLE_WORKLOAD_IDENTITY_PROVIDER_ID` | Production | Names the Google identity provider for Vercel Production. | Live |
+| `GOOGLE_SEARCH_CONSOLE_SITE_URL` | Production | Targets the whole `alethical.com` Search Console property. | Live |
+| `BING_WEBMASTER_API_KEY` | Production | Reads Alethical's combined Bing discovery totals. | Live |
+| `BING_WEBMASTER_SITE_URL` | Production | Targets Alethical's verified Bing site. | Live |
+| `CHECKLY_API_KEY` | Production | Reads the 3 public availability checks. | Live |
+| `CHECKLY_ACCOUNT_ID` | Production | Targets Alethical's Checkly account. | Live |
+| `CHECKLY_WEB_CHECK_ID` | Production | Targets the main website availability check. | Live |
+| `CHECKLY_TRAFFIC_CHECK_ID` | Production | Targets the public Traffic page availability check. | Live |
+| `CHECKLY_API_READY_CHECK_ID` | Production | Targets the data service and database readiness check. | Live |
+| `CLOUDFLARE_ANALYTICS_API_TOKEN` | Production | Reads sitewide browser-speed totals. | Live |
+| `CLOUDFLARE_ACCOUNT_ID` | Production | Targets Alethical's Cloudflare account. | Live |
 
 ## Railway project
 

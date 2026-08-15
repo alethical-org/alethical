@@ -134,7 +134,7 @@ export default async function handler(
     }
     if (!result.ok) throw new SearchUnavailable(`Google returned ${result.status}`);
     const payload = (await result.json()) as SearchPayload;
-    if (!Array.isArray(payload.rows)) {
+    if (payload.rows !== undefined && !Array.isArray(payload.rows)) {
       throw new SearchUnavailable("Google returned incomplete data");
     }
 
@@ -148,7 +148,7 @@ export default async function handler(
     const previousPeriodStartedOn = moveDate(previousPeriodEndedOn, -27);
     const totals = new Map<string, { clicks: number; impressions: number }>();
 
-    for (const rawRow of payload.rows as SearchRow[]) {
+    for (const rawRow of (payload.rows ?? []) as SearchRow[]) {
       const date = Array.isArray(rawRow.keys) ? rawRow.keys[0] : null;
       if (
         !validDate(date) ||
