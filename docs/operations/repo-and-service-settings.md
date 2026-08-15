@@ -82,7 +82,7 @@ Set under **Settings, Secrets and variables, Actions**. The live check reads nam
 
 ## Vercel project
 
-Set under **Settings** for the `alethical-web` project. Verified 2026-08-11.
+Set under **Settings** for the `alethical-web` project. Verified 2026-08-15.
 
 | Setting | Intended | Why | Automated check |
 | --- | --- | --- | --- |
