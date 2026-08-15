@@ -89,6 +89,9 @@ Checkly account identifier, or the key.
 `www.alethical.com`. It publishes only the slowest 1 in 4 result for main-content paint,
 click response, and unexpected movement, plus the number of samples and date range. A score
 stays hidden until 50 measured visits exist. The Cloudflare token stays on the server.
+Because the website is served directly by Vercel, `apps/frontend/public/index.html` loads
+Cloudflare's public browser beacon with the public site token. The private account-read token
+never reaches the browser.
 
 The server settings are:
 

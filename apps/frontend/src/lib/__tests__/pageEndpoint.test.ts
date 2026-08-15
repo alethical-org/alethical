@@ -24,6 +24,7 @@ const SHELL = [
   '<link rel="preconnect" href="https://fonts.googleapis.com" />',
   '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin" />',
   '</head><body><div id="root"><!--alethical:page-snapshot--><p>Home snapshot from shell</p><!--/alethical:page-snapshot--></div>',
+  '<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon=\'{"token":"public-speed-token"}\'></script>',
   '<script src="/_expo/static/js/web/index-abc.js"></script></body></html>',
 ].join('\n');
 
@@ -164,6 +165,8 @@ describe('private email-link page shell', () => {
     expect(body).not.toContain('opaque-pending-action');
     expect(body).not.toContain('https://api.alethical.com');
     expect(body).not.toContain('https://fonts.googleapis.com');
+    expect(body).not.toContain('https://static.cloudflareinsights.com');
+    expect(body).not.toContain('public-speed-token');
     expect(vi.mocked(fetch)).not.toHaveBeenCalled();
   });
 
