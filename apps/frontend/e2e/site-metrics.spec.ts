@@ -230,6 +230,32 @@ test('Site Metrics matches the accepted phone measurements', async ({ page }) =>
   await expect(panelHeading).toHaveCSS('font-size', '15px');
   await expect(panelHeading).toHaveCSS('font-weight', '700');
 
+  await expect(page.getByText('Activity range', { exact: true })).toHaveCount(0);
+  const rangeGroup = page.getByRole('group', { name: 'Activity range' });
+  await expect(rangeGroup).toBeVisible();
+  const rangeButtons = rangeGroup.getByRole('button');
+  await expect(rangeButtons).toHaveCount(2);
+  const firstRangeBox = await rangeButtons.nth(0).boundingBox();
+  const secondRangeBox = await rangeButtons.nth(1).boundingBox();
+  expect(firstRangeBox?.height).toBe(44);
+  expect(secondRangeBox?.height).toBe(44);
+  expect(firstRangeBox?.width).toBeCloseTo(secondRangeBox?.width ?? 0, 1);
+
+  const recentSource = page.getByTestId('site-metrics-recent-source');
+  const recentCollecting = page.getByTestId('site-metrics-recent-collecting');
+  const recentVisitorNote = page.getByTestId('site-metrics-recent-visitor-note');
+  const sourceBox = await recentSource.boundingBox();
+  const collectingBox = await recentCollecting.boundingBox();
+  const visitorNoteBox = await recentVisitorNote.boundingBox();
+  expect(collectingBox?.x).toBeCloseTo(sourceBox?.x ?? 0, 1);
+  expect(visitorNoteBox?.x).toBeCloseTo(sourceBox?.x ?? 0, 1);
+  expect((collectingBox?.y ?? 0) - ((sourceBox?.y ?? 0) + (sourceBox?.height ?? 0))).toBe(9);
+  expect((visitorNoteBox?.y ?? 0) - ((collectingBox?.y ?? 0) + (collectingBox?.height ?? 0))).toBe(
+    9,
+  );
+  await expect(recentSource).toHaveCSS('font-size', '11.5px');
+  await expect(recentCollecting).toHaveCSS('color', 'rgb(143, 90, 18)');
+
   await expect(page.getByTestId('site-metrics-explore-views-header')).toHaveCSS(
     'font-size',
     '12px',
@@ -262,15 +288,34 @@ test('Site Metrics matches the accepted phone measurements', async ({ page }) =>
   await expect(searchSection).toHaveCSS('padding', '15px 16px 17px');
   await expect(searchSection).toHaveCSS('border-top-width', '1px');
   await expect(searchSection).toHaveCSS('border-radius', '13px');
+  const appearancesMetric = page.getByTestId('site-metrics-search-google-appearances');
+  const clicksMetric = page.getByTestId('site-metrics-search-google-clicks');
+  const appearancesBox = await appearancesMetric.boundingBox();
+  const clicksBox = await clicksMetric.boundingBox();
+  expect(appearancesBox?.width).toBeCloseTo(clicksBox?.width ?? 0, 1);
+  expect((clicksBox?.x ?? 0) - ((appearancesBox?.x ?? 0) + (appearancesBox?.width ?? 0))).toBe(14);
+  await expect(clicksMetric).toHaveCSS('align-items', 'flex-end');
 
   const availability = page.getByTestId('site-metrics-availability');
   await expect(availability).toHaveCSS('padding', '15px 16px 17px');
   await expect(availability).toHaveCSS('border-top-width', '1px');
   await expect(availability).toHaveCSS('border-radius', '13px');
   await expect(page.getByTestId('site-metrics-availability-row-0')).toHaveCSS('padding-top', '9px');
+  const availabilityHeadingBox = await page
+    .getByRole('heading', { name: 'Can people reach Alethical?', level: 3 })
+    .boundingBox();
+  const availabilityRowBox = await page
+    .getByTestId('site-metrics-availability-row-0')
+    .boundingBox();
+  expect((availabilityRowBox?.x ?? 0) - (availabilityHeadingBox?.x ?? 0)).toBe(12);
 
   const speedRow = page.getByTestId('site-metrics-speed-row-0');
   await expect(speedRow).toHaveCSS('padding-top', '9px');
+  const speedHeadingBox = await page
+    .getByRole('heading', { name: 'Speed and stability during real visits', level: 3 })
+    .boundingBox();
+  const speedRowBox = await speedRow.boundingBox();
+  expect((speedRowBox?.x ?? 0) - (speedHeadingBox?.x ?? 0)).toBe(12);
   const speedResult = page.getByTestId('site-metrics-speed-result-0');
   await expect(speedResult).toHaveCSS('flex-direction', 'column');
   const buildingSample = page.getByTestId('site-metrics-speed-value-0');

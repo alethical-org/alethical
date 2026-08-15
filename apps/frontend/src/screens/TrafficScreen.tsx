@@ -509,6 +509,7 @@ function RecentTraffic({
   now: number;
   teamAccount: boolean;
 }) {
+  const { isMobile } = useResponsive();
   if (state.kind === 'unavailable') {
     return (
       <UnavailablePanel
@@ -519,7 +520,6 @@ function RecentTraffic({
       />
     );
   }
-  const { isMobile } = useResponsive();
   const cards = [
     { period: 'LAST 24 HOURS', visitors: 'estimatedVisitors24h', views: 'pageViews24h' },
     { period: 'LAST 7 DAYS', visitors: 'estimatedVisitors7d', views: 'pageViews7d' },
@@ -573,21 +573,30 @@ function RecentTraffic({
         ))}
       </View>
       {totals ? (
-        <View style={styles.sourceCluster}>
-          <View style={styles.recentSourceRow}>
-            <Text style={styles.sourceInline}>
+        <View style={[styles.sourceCluster, isMobile && styles.sourceClusterMobile]}>
+          <View style={[styles.recentSourceRow, isMobile && styles.recentSourceRowMobile]}>
+            <Text
+              testID="site-metrics-recent-source"
+              style={[styles.sourceInline, isMobile && styles.sourceInlineMobile]}
+            >
               Counted by Vercel · Through {formatTrafficWindowEnd(totals.windowEndedAt)} ·{' '}
               {stale
                 ? `Last accepted ${ageText(totals.fetchedAt, now)}`
                 : `Checked ${ageText(totals.fetchedAt, now)}`}
             </Text>
             {collecting ? (
-              <Text style={styles.collecting}>
+              <Text
+                testID="site-metrics-recent-collecting"
+                style={[styles.collecting, isMobile && styles.collectingMobile]}
+              >
                 Collecting since {formatDate(totals.countingStartedAt)}
               </Text>
             ) : null}
           </View>
-          <Text style={styles.note}>
+          <Text
+            testID="site-metrics-recent-visitor-note"
+            style={[styles.note, isMobile && styles.noteMobile]}
+          >
             Estimated visitors may include the same person more than once across days or devices
           </Text>
           <StaleNote stale={stale} fetchedAt={totals.fetchedAt} now={now} />
@@ -848,6 +857,7 @@ function SearchPanel({
   now: number;
   teamAccount: boolean;
 }) {
+  const { isMobile } = useResponsive();
   if (state.kind === 'unavailable') {
     const sourceName = source === 'Google' ? 'Google Search Console' : 'Bing Webmaster Tools';
     return (
@@ -886,12 +896,22 @@ function SearchPanel({
   return (
     <Panel surface="search" testID={`site-metrics-search-${source.toLowerCase()}`}>
       <VendorHeading source={source} />
-      <View style={styles.searchPair}>
-        <View style={styles.searchPairMetric}>
+      <View style={[styles.searchPair, isMobile && styles.searchPairMobile]}>
+        <View
+          testID={`site-metrics-search-${source.toLowerCase()}-appearances`}
+          style={[styles.searchPairMetric, isMobile && styles.searchPairMetricMobile]}
+        >
           <Text style={styles.metricRowLabel}>Appearances</Text>
           <Text style={styles.searchPairValue}>{formatNumber(totals.impressions30d)}</Text>
         </View>
-        <View style={styles.searchPairMetric}>
+        <View
+          testID={`site-metrics-search-${source.toLowerCase()}-clicks`}
+          style={[
+            styles.searchPairMetric,
+            isMobile && styles.searchPairMetricMobile,
+            isMobile && styles.searchPairMetricRightMobile,
+          ]}
+        >
           <Text style={styles.metricRowLabel}>Clicks</Text>
           <Text style={styles.searchPairValue}>{formatNumber(totals.clicks30d)}</Text>
         </View>
@@ -920,6 +940,7 @@ function AvailabilityPanel({
   now: number;
   teamAccount: boolean;
 }) {
+  const { isMobile } = useResponsive();
   if (state.kind === 'unavailable') {
     return (
       <UnavailablePanel
@@ -935,8 +956,10 @@ function AvailabilityPanel({
     return (
       <Panel busy>
         <PanelTitle>Can people reach Alethical?</PanelTitle>
-        <LoadingBar wide />
-        <LoadingBar wide />
+        <View style={isMobile && styles.availabilityRowsMobile}>
+          <LoadingBar wide />
+          <LoadingBar wide />
+        </View>
       </Panel>
     );
   }
@@ -944,7 +967,7 @@ function AvailabilityPanel({
   return (
     <Panel testID="site-metrics-availability">
       <PanelTitle>Can people reach Alethical?</PanelTitle>
-      <View style={styles.availabilityRows}>
+      <View style={[styles.availabilityRows, isMobile && styles.availabilityRowsMobile]}>
         <MetricRow
           testID="site-metrics-availability-row-0"
           label="Homepage"
@@ -1008,9 +1031,11 @@ function PerformancePanel({
     return (
       <Panel busy>
         <PanelTitle>Speed and stability during real visits</PanelTitle>
-        <LoadingBar wide />
-        <LoadingBar wide />
-        <LoadingBar wide />
+        <View style={isMobile && styles.speedRowsMobile}>
+          <LoadingBar wide />
+          <LoadingBar wide />
+          <LoadingBar wide />
+        </View>
       </Panel>
     );
   }
@@ -1036,7 +1061,7 @@ function PerformancePanel({
   return (
     <Panel testID="site-metrics-performance">
       <PanelTitle>Speed and stability during real visits</PanelTitle>
-      <View style={styles.speedRows}>
+      <View style={[styles.speedRows, isMobile && styles.speedRowsMobile]}>
         {rows.map((row, index) => (
           <View
             key={row.label}
@@ -1192,9 +1217,7 @@ export function TrafficScreen() {
               aria-label="Activity range"
               style={[styles.rangeGroup, isMobile && styles.rangeGroupMobile]}
             >
-              <Text style={[styles.rangeLabel, isMobile && styles.rangeLabelMobile]}>
-                Activity range
-              </Text>
+              {isMobile ? null : <Text style={styles.rangeLabel}>Activity range</Text>}
               <View style={[styles.rangeButtonsShell, isMobile && styles.rangeButtonsShellMobile]}>
                 <View style={[styles.rangeButtons, isMobile && styles.rangeButtonsMobile]}>
                   {[7, 30].map((value) => {
@@ -1374,7 +1397,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 24,
   },
-  sectionHeadingActionRowMobile: { flexDirection: 'column', alignItems: 'stretch', gap: 14 },
+  sectionHeadingActionRowMobile: { flexDirection: 'column', alignItems: 'stretch', gap: 16 },
   sectionRule: {
     height: 1,
     marginTop: 40,
@@ -1448,6 +1471,7 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   sourceCluster: { marginTop: 18, paddingLeft: 16 },
+  sourceClusterMobile: { paddingLeft: 14, gap: 9 },
   recentSourceRow: {
     minHeight: 20,
     flexDirection: 'row',
@@ -1455,6 +1479,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
   },
+  recentSourceRowMobile: { flexDirection: 'column', alignItems: 'flex-start', gap: 9 },
   sourceInline: {
     flexShrink: 1,
     color: '#4f5651',
@@ -1463,6 +1488,7 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     fontWeight: '500',
   },
+  sourceInlineMobile: { fontSize: 11.5, lineHeight: 18 },
   source: {
     marginTop: 10,
     color: '#6f756f',
@@ -1478,6 +1504,8 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
     lineHeight: 20,
   },
+  collectingMobile: { marginLeft: 0 },
+  noteMobile: { marginTop: 0, fontSize: 13.5, lineHeight: 20 },
   staleText: {
     marginTop: 7,
     color: '#8f5a12',
@@ -1494,7 +1522,6 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     fontWeight: '600',
   },
-  rangeLabelMobile: { fontSize: 14.5, lineHeight: 20 },
   rangeButtonsShell: {
     padding: 3,
     backgroundColor: '#f1f3f2',
@@ -1502,7 +1529,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(17,21,15,0.1)',
     borderRadius: 11,
   },
-  rangeButtonsShellMobile: { width: '100%', marginTop: 9 },
+  rangeButtonsShellMobile: { width: '100%', marginTop: 0 },
   rangeButtons: { flexDirection: 'row', gap: 3, alignSelf: 'flex-start' },
   rangeButtonsMobile: { width: '100%' },
   rangeButton: {
@@ -1568,6 +1595,7 @@ const styles = StyleSheet.create({
   plainRows: { marginTop: 12, paddingHorizontal: 14 },
   plainRowsMobile: { paddingHorizontal: 12, gap: 14 },
   availabilityRows: { marginTop: 12 },
+  availabilityRowsMobile: { paddingHorizontal: 12 },
   metricRow: {
     paddingVertical: 11,
     flexDirection: 'row',
@@ -1709,6 +1737,9 @@ const styles = StyleSheet.create({
   vendorTitleMobile: { fontSize: 14.5, lineHeight: 19 },
   searchPair: { marginTop: 10, flexDirection: 'row', gap: 32 },
   searchPairMetric: { minWidth: 0, flexShrink: 1 },
+  searchPairMobile: { gap: 14 },
+  searchPairMetricMobile: { flex: 1 },
+  searchPairMetricRightMobile: { alignItems: 'flex-end' },
   searchPairValue: {
     marginTop: 4,
     color: '#11150f',
@@ -1748,6 +1779,7 @@ const styles = StyleSheet.create({
   },
   speedRowMobile: { paddingVertical: 9, gap: 14 },
   speedRows: { marginTop: 12 },
+  speedRowsMobile: { paddingHorizontal: 12 },
   speedResult: { flexDirection: 'row', alignItems: 'baseline', gap: 12, flexShrink: 0 },
   speedResultMobile: { flexDirection: 'column', alignItems: 'flex-end', gap: 0 },
   speedVerdict: {
