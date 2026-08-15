@@ -230,22 +230,33 @@ async function countVisits(
   if (filter) url.searchParams.set("filter", filter);
 
   const payload = await fetchVercel(url, token);
+  if (!rangeMatches(payload, since, untilExclusive)) {
+    throw new TrafficUnavailable("Vercel returned a different count range");
+  }
+  const filterMatches =
+    filter === undefined
+      ? payload.query?.filter === undefined
+      : payload.query?.filter === filter;
+  if (!filterMatches) {
+    throw new TrafficUnavailable("Vercel returned a different count filter");
+  }
   if (
-    !queryMatches(payload, since, untilExclusive, filter) ||
     !payload.data ||
     typeof payload.data !== "object" ||
     Array.isArray(payload.data)
   ) {
-    throw new TrafficUnavailable("Vercel returned incomplete traffic data");
+    throw new TrafficUnavailable("Vercel returned no count totals");
   }
 
   const data = payload.data as { pageviews?: unknown; visitors?: unknown };
-  if (
-    !nonNegativeInteger(data.pageviews) ||
-    !nonNegativeInteger(data.visitors) ||
-    data.visitors > data.pageviews
-  ) {
-    throw new TrafficUnavailable("Vercel returned incomplete traffic data");
+  if (!nonNegativeInteger(data.pageviews)) {
+    throw new TrafficUnavailable("Vercel returned an invalid page-view total");
+  }
+  if (!nonNegativeInteger(data.visitors)) {
+    throw new TrafficUnavailable("Vercel returned an invalid visitor total");
+  }
+  if (data.visitors > data.pageviews) {
+    throw new TrafficUnavailable("Vercel returned inconsistent count totals");
   }
   return { pageviews: data.pageviews, visitors: data.visitors };
 }
