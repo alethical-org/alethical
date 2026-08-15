@@ -124,13 +124,22 @@ Set under **Settings** for the `alethical-api` service in production. Verified
 | Production domain | `alethical-api-production.up.railway.app` | Names the direct production API address. | Live |
 | Git repository | `alethical-org/alethical`, production branch `main`, automatic releases **on** | Railway's Git connection is the normal API release path. | Live |
 | Wait for CI | **Off** | A GitHub runner outage must not stop Railway from applying a required database change. | Live |
-| Before-deploy command | The `preDeployCommand` in `railway.json` | Applies database changes before the new API starts. | Unchecked: needs a Railway deployment-details API field for the effective config-as-code value, readable with the existing `RAILWAY_TOKEN`; [#1572](https://github.com/alethical-org/alethical/issues/1572) |
-| Healthcheck path | The `healthcheckPath` in `railway.json` | Sends traffic only after the API can reach the database at the expected version. | Unchecked: needs a Railway deployment-details API field for the effective config-as-code value, readable with the existing `RAILWAY_TOKEN`; [#1572](https://github.com/alethical-org/alethical/issues/1572) |
+| Configuration file | Root `railway.json` | Keeps Railway pointed at the reviewed build and release settings in this repository. | Live |
+| Build command | The `buildCommand` in `railway.json` | Installs the exact saved package versions used to build the API. | Unchecked: needs typed effective-deployment fields in Railway's public API, readable with the existing `RAILWAY_TOKEN`; Railway's `Deployment.meta` is undocumented JSON and `ServiceInstance` returns dashboard values; [#1572](https://github.com/alethical-org/alethical/issues/1572) |
+| Before-deploy command | The `preDeployCommand` in `railway.json` | Applies database changes before the new API starts. | Unchecked: needs typed effective-deployment fields in Railway's public API, readable with the existing `RAILWAY_TOKEN`; Railway's `Deployment.meta` is undocumented JSON and `ServiceInstance` returns dashboard values; [#1572](https://github.com/alethical-org/alethical/issues/1572) |
+| Start command | The `startCommand` in `railway.json` | Starts the public API with the reviewed server settings. | Unchecked: needs typed effective-deployment fields in Railway's public API, readable with the existing `RAILWAY_TOKEN`; Railway's `Deployment.meta` is undocumented JSON and `ServiceInstance` returns dashboard values; [#1572](https://github.com/alethical-org/alethical/issues/1572) |
+| Healthcheck path | The `healthcheckPath` in `railway.json` | Sends traffic only after the API can reach the database at the expected version. | Unchecked: needs typed effective-deployment fields in Railway's public API, readable with the existing `RAILWAY_TOKEN`; Railway's `Deployment.meta` is undocumented JSON and `ServiceInstance` returns dashboard values; [#1572](https://github.com/alethical-org/alethical/issues/1572) |
+| Healthcheck timeout | The `healthcheckTimeout` in `railway.json` | Gives the API a limited time to become ready before a release fails. | Unchecked: needs typed effective-deployment fields in Railway's public API, readable with the existing `RAILWAY_TOKEN`; Railway's `Deployment.meta` is undocumented JSON and `ServiceInstance` returns dashboard values; [#1572](https://github.com/alethical-org/alethical/issues/1572) |
+| Restart policy | The `restartPolicyType` and `restartPolicyMaxRetries` in `railway.json` | Restarts the API after a failure without hiding a service that keeps crashing. | Unchecked: needs typed effective-deployment fields in Railway's public API, readable with the existing `RAILWAY_TOKEN`; Railway's `Deployment.meta` is undocumented JSON and `ServiceInstance` returns dashboard values; [#1572](https://github.com/alethical-org/alethical/issues/1572) |
 
 Railway's [config-as-code guide](https://docs.railway.com/config-as-code) says the
 values in `railway.json` override the dashboard without changing what the dashboard
-shows. Railway's current project API returns those dashboard values, not the effective
-values from a deployment, so treating them as live proof would create a false alarm.
+shows. Railway's public API and command-line tool return successful deployments with
+`Deployment.meta`, but Railway defines that value only as undocumented JSON. The typed
+`ServiceInstance` fields are the dashboard values, so treating either source as a stable
+read of the final deployment settings would create a false alarm. The live check confirms
+only the supported `railwayConfigFile` value until Railway adds typed fields for the final
+deployment settings.
 
 ### Railway environment variables
 
