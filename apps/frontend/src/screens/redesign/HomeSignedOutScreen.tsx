@@ -313,11 +313,10 @@ function HeroEntryButton({
         )}
       </Svg>
       <Text style={[styles.heroEntryLabel, searchBand && m.searchActionLabel]}>{label}</Text>
-      {searchBand ? (
-        <LinkArrow color={t.colors.text.green} style={m.searchActionArrow} />
-      ) : (
-        <Text style={styles.heroEntryArrow}>→</Text>
-      )}
+      <LinkArrow
+        color={searchBand ? t.colors.text.green : green}
+        style={searchBand ? m.searchActionArrow : styles.heroEntryArrow}
+      />
     </Pressable>
   );
 }
@@ -2043,10 +2042,9 @@ const styles = StyleSheet.create({
     color: t.colors.text.primary,
   },
   heroEntryArrow: {
-    fontFamily: t.typography.ui,
-    fontSize: 19,
-    fontWeight: t.fontWeights.regular,
-    color: t.colors.brand.graphics,
+    width: 19,
+    height: 19,
+    top: 0,
   },
   heroRight: { minWidth: 0 },
   heroRightDesktop: { flex: 1, alignItems: 'flex-end', marginTop: -10 },
