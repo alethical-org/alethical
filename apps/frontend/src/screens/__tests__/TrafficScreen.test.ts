@@ -34,11 +34,21 @@ describe('public Site metrics page', () => {
     expect(SOURCE).not.toContain('Counted by Vercel · Fetched');
     expect(SOURCE).not.toContain('Each total ends at');
     expect(SOURCE).toContain('Collecting since {formatDate(totals.countingStartedAt)}');
-    expect(SOURCE).toContain('The 7-day and 30-day totals cover only the days collected so far');
+    expect(SOURCE).not.toContain(
+      'The 7-day and 30-day totals cover only the days collected so far',
+    );
     expect(SOURCE).not.toContain('How we count');
     expect(SOURCE).not.toContain('Privacy policy');
     expect(SOURCE).not.toContain('styles.rule');
     expect(SOURCE).toContain('marginTop: 10');
+  });
+
+  it('shows Checkly percentages with no more than 2 decimal places', () => {
+    expect(SOURCE).toMatch(
+      /function percent\(value: number\) \{[\s\S]*?maximumFractionDigits: 2[\s\S]*?\}%/,
+    );
+    expect((97.973).toLocaleString('en-US', { maximumFractionDigits: 2 })).toBe('97.97');
+    expect((100).toLocaleString('en-US', { maximumFractionDigits: 2 })).toBe('100');
   });
 
   it('uses green only for the 3 recent traffic totals', () => {

@@ -194,7 +194,7 @@ function ageText(timestamp: string | number, now: number) {
 }
 
 function percent(value: number) {
-  return `${value.toLocaleString('en-US', { maximumFractionDigits: 3 })}%`;
+  return `${value.toLocaleString('en-US', { maximumFractionDigits: 2 })}%`;
 }
 
 function formatMeasure(value: number, maximumFractionDigits: number) {
@@ -542,11 +542,6 @@ function RecentTraffic({
               </Text>
             ) : null}
           </View>
-          {collecting ? (
-            <Text style={styles.collectingDetail}>
-              The 7-day and 30-day totals cover only the days collected so far
-            </Text>
-          ) : null}
           <Text style={styles.note}>
             Estimated visitors may include the same person more than once across days or devices
           </Text>
@@ -1283,13 +1278,6 @@ const styles = StyleSheet.create({
   },
   collecting: {
     marginLeft: 'auto',
-    color: '#8f5a12',
-    fontFamily: theme.typography.body,
-    fontSize: 13.5,
-    lineHeight: 20,
-  },
-  collectingDetail: {
-    marginTop: 7,
     color: '#8f5a12',
     fontFamily: theme.typography.body,
     fontSize: 13.5,
