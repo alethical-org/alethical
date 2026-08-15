@@ -22,14 +22,16 @@ describe('public Traffic page', () => {
   });
 
   it('keeps the public explanation short and puts freshness on 1 line', () => {
-    expect(SOURCE).toContain(
-      'Public totals about how Alethical is used, with nothing about individual readers.',
-    );
-    expect(SOURCE).toContain('· Through {formatWindowEnd(totals.windowEndedAt)} · Checked');
+    expect(SOURCE).toContain('Public totals about how Alethical is used</Text>');
+    expect(SOURCE).toContain('· Through {formatTrafficWindowEnd(totals.windowEndedAt)} ·');
     expect(SOURCE).not.toContain('Fetched');
     expect(SOURCE).not.toContain('Each total ends at');
-    expect(SOURCE).toContain('Longer totals are still');
-    expect(SOURCE).toContain('<Text style={styles.privacyLink}>Privacy policy</Text>');
+    expect(SOURCE).toContain('Collecting since {formatDate(totals.countingStartedAt)}');
+    expect(SOURCE).not.toContain('Longer totals are still');
+    expect(SOURCE).not.toContain('How we count');
+    expect(SOURCE).not.toContain('Privacy policy');
+    expect(SOURCE).not.toContain('styles.rule');
+    expect(SOURCE).toContain('marginTop: 10');
   });
 
   it('uses the interface face and display-green token for every numeric total', () => {
@@ -39,10 +41,9 @@ describe('public Traffic page', () => {
     expect(SOURCE).toContain('valueBox: { height: 46');
   });
 
-  it('uses the shared shell and keeps the privacy link in the same tab', () => {
+  it('uses the shared shell and leaves the footer privacy route in place', () => {
     expect(SOURCE).toContain('<TopNav');
     expect(SOURCE).toContain('<Footer');
-    expect(SOURCE).toContain('routePath.privacy()');
-    expect(SOURCE).toContain("navigation.navigate('Privacy')");
+    expect(SOURCE).toContain("onPrivacy={() => navigation.navigate('Privacy')}");
   });
 });

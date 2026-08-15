@@ -19,10 +19,10 @@ reloading `/traffic` creates a view too. Refreshing only the numbers does not.
 
 Vercel counts without an analytics cookie and removes traffic it identifies as automated.
 
-Every period trails backward from the most recent completed UTC hour. The 3 windows contain
-24, 168, and 720 complete hours. The page fetches a new combined result about every 5
-minutes. While fewer than 30 days have been collected, it names the counting start date and
-explains that the longer totals contain only the available hours.
+Every period trails backward from the most recent completed UTC hour. The page shows that
+ending hour in Minnesota's time zone, labeled `CT`. The 3 windows contain 24, 168, and 720
+complete hours. The page fetches a new combined result about every 5 minutes. While fewer
+than 30 days have been collected, it names the counting start date.
 
 ## Privacy boundary
 
@@ -38,9 +38,8 @@ receives the account identifier.
 
 The team list uses stable account identifiers, not email addresses. When the 4 team emails
 are supplied, resolve them to their Supabase account identifiers and save the comma-separated
-identifiers in `TRAFFIC_EXCLUDED_ACCOUNT_IDS`. The public method note claims team exclusion
-only after that list contains at least 1 identifier. Visits counted before the list is saved
-cannot be removed later.
+identifiers in `TRAFFIC_EXCLUDED_ACCOUNT_IDS`. Visits counted before the list is saved cannot
+be removed later.
 
 ## Public and private routes
 
@@ -83,7 +82,7 @@ as a sensitive Production setting. It must never be sent to the browser or writt
 ## Page states
 
 - Loading: the page says the totals are loading to screen readers and shows quiet placeholders.
-- Normal: all 3 exact totals, source, fetch age, and completed-hour note are shown.
+- Normal: all 3 exact totals, source, check age, and completed-hour time in `CT` are shown.
 - Collecting history: the counting start sentence appears until 30 complete days exist.
 - Unavailable: the whole totals area says the data is temporarily unavailable and still names Vercel.
 - Zero: a real zero is printed as `0`.
