@@ -37,7 +37,7 @@ So the edge caches public reads for 60 s (and serves a slightly-stale copy for
 up to 5 more minutes while it refreshes), and never caches a signed-in user's
 personalized response.
 
-## Current topology
+## Starting topology before 20 July 2026
 
 - Frontend: `alethical.com` / `www` on **Vercel**.
 - API: `alethical-api-production.up.railway.app` on **Railway** (no custom

@@ -68,8 +68,8 @@ things work in practice and are the place to start if you're new.
 ## Operations
 
 - [Branching, drawn](operations/git-branching-guide.html) — visual companion to `CONTRIBUTING.md` "Branch & PR workflow", for onboarding: 2 commit graphs, one measuring this repo's real branch shape and one showing the dev/staging/production reference flow, plus the habits and commands behind each
-- [Deployment](operations/deployment.md) — Railway and Vercel releases, fallbacks, service settings, and Supabase auth URLs
-- [What runs, when, and what it costs](operations/jobs-and-scripts.md) — all 10 GitHub workflows, every command-line tool, and every job-driven AI cost
+- [Production setup and recovery](operations/deployment.md) — rebuild order, setting owners, Railway and Vercel releases, and Supabase callbacks
+- [What runs, when, and what it costs](operations/jobs-and-scripts.md) — all 11 GitHub workflows, every command-line tool, and every job-driven AI cost
 - [Repo and service settings](operations/repo-and-service-settings.md) — every setting that controls the project but doesn't live in the repo, and its intended value
 - [Private repository cost outlook](operations/private-repository-cost-outlook.md) — the 2026-08-11 cost, security, access, job-limit, and Vercel-seat decision for making Alethical private
 - [API CDN setup](operations/api-cdn-setup.md) — Cloudflare in front of the API, plus email authentication records
