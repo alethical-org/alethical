@@ -1,6 +1,7 @@
 import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { useEffect, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import Svg, { Circle, Defs, LinearGradient, Path, RadialGradient, Stop } from 'react-native-svg';
 
 import { getSiteMetricRecordTotalsFromApi } from '../data/api';
 import { LinkArrow } from '../components/LinkArrow';
@@ -42,7 +43,9 @@ const STAFF_LINKS = {
 
 type ActivityRange = 7 | 30;
 type SourceState<T> =
-  { kind: 'loading' } | { kind: 'ready'; totals: T; stale: boolean } | { kind: 'unavailable' };
+  | { kind: 'loading' }
+  | { kind: 'ready'; totals: T; stale: boolean }
+  | { kind: 'unavailable'; checkedAt: number };
 
 function useTrafficSource<T>(path: string, validate: (value: unknown) => value is T) {
   const [state, setState] = useState<SourceState<T>>({ kind: 'loading' });
@@ -56,7 +59,9 @@ function useTrafficSource<T>(path: string, validate: (value: unknown) => value i
         if (!active || !validate(payload)) {
           if (active) {
             setState((current) =>
-              current.kind === 'ready' ? { ...current, stale: true } : { kind: 'unavailable' },
+              current.kind === 'ready'
+                ? { ...current, stale: true }
+                : { kind: 'unavailable', checkedAt: Date.now() },
             );
           }
           return;
@@ -65,7 +70,9 @@ function useTrafficSource<T>(path: string, validate: (value: unknown) => value i
       } catch {
         if (active) {
           setState((current) =>
-            current.kind === 'ready' ? { ...current, stale: true } : { kind: 'unavailable' },
+            current.kind === 'ready'
+              ? { ...current, stale: true }
+              : { kind: 'unavailable', checkedAt: Date.now() },
           );
         }
       }
@@ -93,7 +100,9 @@ function useRecordTotals() {
         if (!active || !isSiteMetricRecordTotals(payload)) {
           if (active) {
             setState((current) =>
-              current.kind === 'ready' ? { ...current, stale: true } : { kind: 'unavailable' },
+              current.kind === 'ready'
+                ? { ...current, stale: true }
+                : { kind: 'unavailable', checkedAt: Date.now() },
             );
           }
           return;
@@ -102,7 +111,9 @@ function useRecordTotals() {
       } catch {
         if (active) {
           setState((current) =>
-            current.kind === 'ready' ? { ...current, stale: true } : { kind: 'unavailable' },
+            current.kind === 'ready'
+              ? { ...current, stale: true }
+              : { kind: 'unavailable', checkedAt: Date.now() },
           );
         }
       }
@@ -169,16 +180,25 @@ function formatDate(iso: string) {
   }).format(new Date(iso));
 }
 
-function formatDateRange(start: string, end: string) {
-  return `${formatDate(start)} to ${formatDate(end)}`;
-}
-
-function fetchedMinutesAgo(fetchedAt: string, now: number) {
-  return Math.max(0, Math.floor((now - Date.parse(fetchedAt)) / MINUTE_MS));
+function ageText(timestamp: string | number, now: number) {
+  const ageMinutes = Math.max(
+    0,
+    Math.floor(
+      (now - (typeof timestamp === 'number' ? timestamp : Date.parse(timestamp))) / MINUTE_MS,
+    ),
+  );
+  if (ageMinutes < 1) return 'just now';
+  if (ageMinutes < 60) return `${ageMinutes} ${ageMinutes === 1 ? 'minute' : 'minutes'} ago`;
+  const hours = Math.floor(ageMinutes / 60);
+  return `${hours} ${hours === 1 ? 'hour' : 'hours'} ago`;
 }
 
 function percent(value: number) {
   return `${value.toLocaleString('en-US', { maximumFractionDigits: 3 })}%`;
+}
+
+function formatMeasure(value: number, maximumFractionDigits: number) {
+  return value.toLocaleString('en-US', { maximumFractionDigits });
 }
 
 function clicksPerHundredValue(clicks: number, impressions: number) {
@@ -225,6 +245,72 @@ function PanelTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
+function InformationIcon() {
+  return (
+    <Svg aria-hidden width={19} height={19} viewBox="0 0 24 24" style={styles.infoIcon}>
+      <Circle cx={12} cy={12} r={9} stroke="#6f756f" strokeWidth={2} fill="none" />
+      <Path d="M12 7.5V13" stroke="#6f756f" strokeWidth={2} strokeLinecap="round" />
+      <Circle cx={12} cy={16.3} r={1.15} fill="#6f756f" />
+    </Svg>
+  );
+}
+
+function VendorLogo({ source, mobile }: { source: 'Google' | 'Bing'; mobile: boolean }) {
+  const size = mobile ? 18 : 20;
+  if (source === 'Google') {
+    return (
+      <Svg aria-hidden width={size} height={size} viewBox="0 0 24 24">
+        <Path
+          fill="#4285F4"
+          d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.58c2.08-1.92 3.27-4.74 3.27-8.09Z"
+        />
+        <Path
+          fill="#34A853"
+          d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.58-2.77c-.98.66-2.23 1.06-3.7 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84A11 11 0 0 0 12 23Z"
+        />
+        <Path
+          fill="#FBBC05"
+          d="M5.84 14.09A6.6 6.6 0 0 1 5.49 12c0-.73.13-1.43.35-2.09V7.07H2.18A11 11 0 0 0 1 12c0 1.77.42 3.44 1.18 4.93l2.85-2.22.81-.62Z"
+        />
+        <Path
+          fill="#EA4335"
+          d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15A10.56 10.56 0 0 0 12 1 11 11 0 0 0 2.18 7.07l3.66 2.84C6.71 7.31 9.14 5.38 12 5.38Z"
+        />
+      </Svg>
+    );
+  }
+  return (
+    <Svg aria-hidden width={size} height={size} viewBox="0 0 24 24">
+      <Defs>
+        <RadialGradient id="bingA" cx="94%" cy="78%" r="144%">
+          <Stop offset="0" stopColor="#00CACC" />
+          <Stop offset="1" stopColor="#048FCE" />
+        </RadialGradient>
+        <RadialGradient id="bingB" cx="14%" cy="71%" r="149%">
+          <Stop offset="0" stopColor="#00BBEC" />
+          <Stop offset="1" stopColor="#2756A9" />
+        </RadialGradient>
+        <LinearGradient id="bingC" x1="50%" x2="50%" y1="0" y2="100%">
+          <Stop offset="0" stopColor="#00BBEC" />
+          <Stop offset="1" stopColor="#2756A9" />
+        </LinearGradient>
+      </Defs>
+      <Path
+        d="M11.97 7.569a.92.92 0 0 0-.805.863c-.013.195-.01.209.43 1.347 1 2.59 1.242 3.214 1.283 3.302.099.213.237.413.41.592.134.138.222.212.37.311.26.176.39.224 1.405.527.989.295 1.529.49 1.994.723.603.302 1.024.644 1.29 1.051.191.292.36.815.434 1.342.029.206.029.661 0 .847a2.491 2.491 0 0 1-.376 1.026c-.1.151-.065.126.081-.058.415-.52.838-1.408 1.054-2.213a6.728 6.728 0 0 0 .102-3.012 6.626 6.626 0 0 0-3.291-4.53 104.157 104.157 0 0 0-1.322-.698l-.254-.133a737.941 737.941 0 0 1-1.575-.827c-.548-.29-.78-.406-.846-.426a1.376 1.376 0 0 0-.29-.045l-.093.01Z"
+        fill="url(#bingA)"
+      />
+      <Path
+        d="M13.164 17.24a4.385 4.385 0 0 0-.202.125 511.45 511.45 0 0 0-1.795 1.115 163.087 163.087 0 0 1-.989.614l-.463.288a99.198 99.198 0 0 1-1.502.941c-.326.2-.704.334-1.09.387-.18.024-.52.024-.7 0a2.807 2.807 0 0 1-1.318-.538 3.665 3.665 0 0 1-.543-.545 2.837 2.837 0 0 1-.506-1.141 2.161 2.161 0 0 0-.041-.182c-.008-.008.006.138.032.33.027.199.085.487.147.733.482 1.907 1.85 3.457 3.705 4.195a6.31 6.31 0 0 0 1.658.412c.22.025.844.035 1.074.017 1.054-.08 1.972-.393 2.913-.992a325.28 325.28 0 0 1 .937-.596l.384-.244.684-.435.234-.149.009-.005.025-.017.013-.007.172-.11.597-.38c.76-.481.987-.65 1.34-.998.148-.146.37-.394.381-.425.002-.007.042-.068.088-.136a2.49 2.49 0 0 0 .373-1.023 4.181 4.181 0 0 0 0-.847 4.336 4.336 0 0 0-.318-1.137c-.224-.472-.7-.9-1.383-1.245a2.972 2.972 0 0 0-.406-.181c-.01 0-.646.392-1.413.87a7089.171 7089.171 0 0 0-1.658 1.031l-.439.274Z"
+        fill="url(#bingB)"
+      />
+      <Path
+        d="m4.003 14.946.004 3.33.042.193c.134.604.366 1.04.77 1.445a2.701 2.701 0 0 0 1.955.814c.536 0 1-.135 1.479-.43l.703-.435.556-.346V8.003c0-2.306-.004-3.675-.012-3.782a2.734 2.734 0 0 0-.797-1.765c-.145-.144-.268-.24-.637-.496A1780.102 1780.102 0 0 1 5.762.362C5.406.115 5.38.098 5.271.059a.943.943 0 0 0-1.254.696C4.003.818 4 1.659 4 6.223v5.394h0l.003 3.329Z"
+        fill="url(#bingC)"
+      />
+    </Svg>
+  );
+}
+
 function LoadingBar({ wide = false }: { wide?: boolean }) {
   return (
     <View
@@ -236,26 +322,59 @@ function LoadingBar({ wide = false }: { wide?: boolean }) {
   );
 }
 
-function Panel({ children, busy = false }: { children: React.ReactNode; busy?: boolean }) {
+function Panel({
+  children,
+  busy = false,
+  mobileTreatment = 'card',
+}: {
+  children: React.ReactNode;
+  busy?: boolean;
+  mobileTreatment?: 'card' | 'closing';
+}) {
   const { isMobile } = useResponsive();
   return (
-    <View aria-busy={busy} style={[styles.panel, isMobile && styles.panelMobile]}>
-      {busy ? (
-        <Text accessibilityLiveRegion="polite" style={styles.visuallyHidden}>
-          Site metrics are loading.
-        </Text>
-      ) : null}
+    <View
+      aria-busy={busy}
+      style={[
+        styles.panel,
+        isMobile && mobileTreatment === 'card' && styles.panelCardMobile,
+        isMobile && mobileTreatment === 'closing' && styles.panelClosingMobile,
+      ]}
+    >
       {children}
     </View>
   );
 }
 
-function UnavailablePanel({ text }: { text: string }) {
+function UnavailablePanel({
+  text,
+  title,
+  source,
+  checkedAt,
+  now,
+  mobileTreatment = 'card',
+}: {
+  text: string;
+  title?: string;
+  source?: string;
+  checkedAt?: number;
+  now?: number;
+  mobileTreatment?: 'card' | 'closing';
+}) {
   return (
-    <Panel>
-      <Text accessibilityLiveRegion="polite" style={styles.unavailableText}>
-        {text}
-      </Text>
+    <Panel mobileTreatment={mobileTreatment}>
+      {title ? <PanelTitle>{title}</PanelTitle> : null}
+      <View style={styles.unavailableRow}>
+        <InformationIcon />
+        <Text accessibilityLiveRegion="polite" style={styles.unavailableText}>
+          {text}
+        </Text>
+      </View>
+      {source && checkedAt != null && now != null ? (
+        <Text style={styles.source}>
+          {source} · Checked {ageText(checkedAt, now)}
+        </Text>
+      ) : null}
     </Panel>
   );
 }
@@ -287,11 +406,14 @@ function ActivityStatusPanel({
   );
 }
 
-function StaleNote({ stale }: { stale: boolean }) {
+function StaleNote({ stale, fetchedAt, now }: { stale: boolean; fetchedAt: string; now: number }) {
   return stale ? (
-    <Text accessibilityLiveRegion="polite" style={styles.staleText}>
-      A newer reading has not come through yet
-    </Text>
+    <>
+      <Text style={styles.staleText}>A newer reading has not come through yet</Text>
+      <Text accessibilityLiveRegion="polite" style={styles.visuallyHidden}>
+        Site metrics are from {ageText(fetchedAt, now)}. A newer reading has not come through yet.
+      </Text>
+    </>
   ) : null;
 }
 
@@ -299,7 +421,10 @@ function StaffLink({ href, label, show }: { href: string; label: string; show: b
   if (!show) return null;
   return (
     <Pressable {...externalLinkProps(href)} style={styles.staffLinkTarget}>
-      <Text style={styles.staffLink}>{label} ↗</Text>
+      <View style={styles.staffLinkContent}>
+        <Text style={styles.staffLink}>{label}</Text>
+        <LinkArrow color="#5b30d6" style={styles.staffLinkArrow} />
+      </View>
     </Pressable>
   );
 }
@@ -308,23 +433,48 @@ function MetricRow({
   label,
   value,
   last = false,
+  compactMobile = false,
 }: {
   label: string;
   value: string;
   last?: boolean;
+  compactMobile?: boolean;
 }) {
+  const { isMobile } = useResponsive();
   return (
-    <View style={[styles.metricRow, last && styles.metricRowLast]}>
+    <View
+      style={[
+        styles.metricRow,
+        last && styles.metricRowLast,
+        isMobile && compactMobile && styles.metricRowCompactMobile,
+      ]}
+    >
       <Text style={styles.metricRowLabel}>{label}</Text>
       <Text style={styles.metricRowValue}>{value}</Text>
     </View>
   );
 }
 
-function RecentTraffic({ state, now }: { state: SourceState<TrafficTotals>; now: number }) {
+function RecentTraffic({
+  state,
+  now,
+  teamAccount,
+}: {
+  state: SourceState<TrafficTotals>;
+  now: number;
+  teamAccount: boolean;
+}) {
   if (state.kind === 'unavailable') {
-    return <UnavailablePanel text="Recent traffic is temporarily unavailable." />;
+    return (
+      <UnavailablePanel
+        text="Recent traffic is temporarily unavailable."
+        source="Vercel"
+        checkedAt={state.checkedAt}
+        now={now}
+      />
+    );
   }
+  const { isMobile } = useResponsive();
   const cards = [
     { period: 'LAST 24 HOURS', visitors: 'estimatedVisitors24h', views: 'pageViews24h' },
     { period: 'LAST 7 DAYS', visitors: 'estimatedVisitors7d', views: 'pageViews7d' },
@@ -332,6 +482,7 @@ function RecentTraffic({ state, now }: { state: SourceState<TrafficTotals>; now:
   ] as const;
   const loading = state.kind === 'loading';
   const totals = state.kind === 'ready' ? state.totals : null;
+  const stale = state.kind === 'ready' && state.stale;
   const collecting = totals
     ? Date.parse(totals.windowEndedAt) - Date.parse(totals.countingStartedAt) < 30 * DAY_MS
     : false;
@@ -340,44 +491,67 @@ function RecentTraffic({ state, now }: { state: SourceState<TrafficTotals>; now:
     <>
       <View style={styles.recentGrid}>
         {cards.map((card) => (
-          <View key={card.period} aria-busy={loading} style={styles.recentCard}>
+          <View
+            key={card.period}
+            aria-busy={loading}
+            style={[styles.recentCard, isMobile && styles.recentCardMobile]}
+          >
             <Text style={styles.eyebrow}>{card.period}</Text>
-            <Text style={styles.recentLabel}>Estimated visitors</Text>
-            {loading ? (
-              <LoadingBar wide />
-            ) : (
-              <Text style={styles.recentValue}>{formatNumber(totals?.[card.visitors] ?? 0)}</Text>
-            )}
-            <View style={styles.recentDivider} />
-            <Text style={styles.recentLabel}>Page views</Text>
-            {loading ? (
-              <LoadingBar wide />
-            ) : (
-              <Text style={styles.recentValue}>{formatNumber(totals?.[card.views] ?? 0)}</Text>
-            )}
+            <View style={isMobile && styles.recentMetricRowMobile}>
+              <View style={styles.recentMetric}>
+                <Text style={[styles.recentLabel, isMobile && styles.recentLabelMobile]}>
+                  Estimated visitors
+                </Text>
+                {loading ? (
+                  <LoadingBar wide />
+                ) : (
+                  <Text style={[styles.recentValue, isMobile && styles.recentValueMobile]}>
+                    {formatNumber(totals?.[card.visitors] ?? 0)}
+                  </Text>
+                )}
+              </View>
+              <View style={isMobile ? styles.recentMetricRight : undefined}>
+                <View style={isMobile ? undefined : styles.recentDivider} />
+                <Text style={[styles.recentLabel, isMobile && styles.recentLabelMobile]}>
+                  Page views
+                </Text>
+                {loading ? (
+                  <LoadingBar wide />
+                ) : (
+                  <Text style={[styles.recentValue, isMobile && styles.recentValueMobile]}>
+                    {formatNumber(totals?.[card.views] ?? 0)}
+                  </Text>
+                )}
+              </View>
+            </View>
           </View>
         ))}
       </View>
-      {loading ? (
-        <Text accessibilityLiveRegion="polite" style={styles.visuallyHidden}>
-          Recent traffic is loading.
-        </Text>
-      ) : null}
-      <Text style={styles.note}>
-        Estimated visitors may include the same person more than once across days or devices
-      </Text>
       {totals ? (
         <View style={styles.sourceCluster}>
-          <Text style={styles.source}>
-            Counted by Vercel · Through {formatTrafficWindowEnd(totals.windowEndedAt)} · Checked{' '}
-            {fetchedMinutesAgo(totals.fetchedAt, now)} minutes ago
-          </Text>
+          <View style={styles.recentSourceRow}>
+            <Text style={styles.sourceInline}>
+              Counted by Vercel · Through {formatTrafficWindowEnd(totals.windowEndedAt)} ·{' '}
+              {stale
+                ? `Last accepted ${ageText(totals.fetchedAt, now)}`
+                : `Checked ${ageText(totals.fetchedAt, now)}`}
+            </Text>
+            {collecting ? (
+              <Text style={styles.collecting}>
+                Collecting since {formatDate(totals.countingStartedAt)}
+              </Text>
+            ) : null}
+          </View>
           {collecting ? (
-            <Text style={styles.collecting}>
-              Collecting since {formatDate(totals.countingStartedAt)}
+            <Text style={styles.collectingDetail}>
+              The 7-day and 30-day totals cover only the days collected so far
             </Text>
           ) : null}
-          <StaleNote stale={state.kind === 'ready' && state.stale} />
+          <Text style={styles.note}>
+            Estimated visitors may include the same person more than once across days or devices
+          </Text>
+          <StaleNote stale={stale} fetchedAt={totals.fetchedAt} now={now} />
+          <StaffLink href={STAFF_LINKS.vercel} label="OPEN VERCEL DASHBOARD" show={teamAccount} />
         </View>
       ) : null}
     </>
@@ -395,10 +569,33 @@ const DESTINATIONS = [
 ] as const;
 
 function DestinationPanel({ breakdown }: { breakdown: TrafficBreakdown }) {
+  const { isMobile } = useResponsive();
   const total = Object.values(breakdown.destinationPageViews).reduce(
     (sum, value) => sum + value,
     0,
   );
+  const row = ([key, label]: (typeof DESTINATIONS)[number]) => {
+    const share = (breakdown.destinationPageViews[key] / total) * 100;
+    return (
+      <View key={key} style={styles.destinationRowLine}>
+        <Text
+          style={[
+            styles.metricRowLabel,
+            styles.destinationName,
+            isMobile && styles.destinationNameMobile,
+          ]}
+        >
+          {label}
+        </Text>
+        <View aria-hidden style={[styles.barTrack, isMobile && styles.barTrackMobile]}>
+          <View style={[styles.barFill, { width: `${share}%` }]} />
+        </View>
+        <Text style={[styles.destinationPercent, isMobile && styles.destinationPercentMobile]}>
+          {Math.round(share)}%
+        </Text>
+      </View>
+    );
+  };
   return (
     <Panel>
       <PanelTitle>WHERE PEOPLE GO</PanelTitle>
@@ -407,20 +604,17 @@ function DestinationPanel({ breakdown }: { breakdown: TrafficBreakdown }) {
       ) : (
         <>
           <View style={styles.destinationRows}>
-            {DESTINATIONS.map(([key, label]) => {
-              const share = (breakdown.destinationPageViews[key] / total) * 100;
-              return (
-                <View key={key} style={styles.destinationRow}>
-                  <View style={styles.destinationLabelRow}>
-                    <Text style={styles.metricRowLabel}>{label}</Text>
-                    <Text style={styles.destinationPercent}>{Math.round(share)}%</Text>
-                  </View>
-                  <View aria-hidden style={styles.barTrack}>
-                    <View style={[styles.barFill, { width: `${share}%` }]} />
-                  </View>
-                </View>
-              );
-            })}
+            <View style={styles.destinationOuter}>{row(DESTINATIONS[0])}</View>
+            <View style={styles.destinationGroup}>
+              {row(DESTINATIONS[1])}
+              {row(DESTINATIONS[2])}
+            </View>
+            <View style={styles.destinationGroup}>
+              {row(DESTINATIONS[3])}
+              {row(DESTINATIONS[4])}
+              {row(DESTINATIONS[5])}
+            </View>
+            <View style={styles.destinationOuter}>{row(DESTINATIONS[6])}</View>
           </View>
           <Text style={styles.panelNote}>
             Percentages show shares of page views, not visitors. Searches with results are counted
@@ -437,46 +631,58 @@ function distinctValue(value: { count: number; capped: boolean }) {
 }
 
 function ExplorePanel({ breakdown }: { breakdown: TrafficBreakdown }) {
+  const capped =
+    breakdown.billProfiles.differentProfilesViewed.capped ||
+    breakdown.legislatorProfiles.differentProfilesViewed.capped;
   return (
     <Panel>
       <PanelTitle>WHAT PEOPLE EXPLORE</PanelTitle>
-      <View style={styles.tableHeader}>
-        <Text
-          style={[styles.tableLabel, styles.tableName]}
-          accessibilityRole="header"
-          aria-level={3}
-        >
-          Profiles
-        </Text>
-        <Text style={styles.tableLabel} accessibilityRole="header" aria-level={3}>
-          Profile views
-        </Text>
-        <Text style={styles.tableLabel} accessibilityRole="header" aria-level={3}>
-          Different profiles
-        </Text>
-      </View>
-      {[
-        ['Bills', breakdown.billProfiles],
-        ['Legislators', breakdown.legislatorProfiles],
-      ].map(([label, totals], index) => {
-        const profile = totals as TrafficBreakdown['billProfiles'];
-        return (
-          <View
-            key={label as string}
-            style={[styles.tableRow, index === 1 && styles.metricRowLast]}
-          >
-            <Text style={[styles.metricRowLabel, styles.tableName]}>{label as string}</Text>
-            <Text style={styles.tableValue}>{formatNumber(profile.pageViews)}</Text>
-            <Text style={styles.tableValue}>{distinctValue(profile.differentProfilesViewed)}</Text>
+      <View role="table">
+        <View role="row" style={styles.tableHeader}>
+          <View style={styles.tableBlankHeader}>
+            <Text role="columnheader" style={styles.visuallyHidden}>
+              Section
+            </Text>
           </View>
-        );
-      })}
+          <Text role="columnheader" style={styles.tableLabel}>
+            Profile views
+          </Text>
+          <Text role="columnheader" style={styles.tableLabel}>
+            Different profiles
+          </Text>
+        </View>
+        {[
+          ['Bills', breakdown.billProfiles],
+          ['Legislators', breakdown.legislatorProfiles],
+        ].map(([label, totals], index) => {
+          const profile = totals as TrafficBreakdown['billProfiles'];
+          return (
+            <View
+              role="row"
+              key={label as string}
+              style={[styles.tableRow, index === 1 && styles.metricRowLast]}
+            >
+              <Text role="rowheader" style={[styles.metricRowLabel, styles.tableName]}>
+                {label as string}
+              </Text>
+              <Text role="cell" style={styles.tableValue}>
+                {formatNumber(profile.pageViews)}
+              </Text>
+              <Text role="cell" style={styles.tableValue}>
+                {distinctValue(profile.differentProfilesViewed)}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
       <Text style={styles.panelNote}>
         Profile views include repeat views. Each different profile is counted once.
       </Text>
-      <Text style={styles.panelNote}>
-        Shows 100+ when the source cannot list more different profiles
-      </Text>
+      {capped ? (
+        <Text style={styles.panelNote}>
+          Shows 100+ when the source cannot list more different profiles
+        </Text>
+      ) : null}
     </Panel>
   );
 }
@@ -499,6 +705,7 @@ function ActionsPanel({ actions }: { actions: SiteMetricActions }) {
             label={label}
             value={formatNumber(value)}
             last={index === rows.length - 1}
+            compactMobile
           />
         ))}
       </View>
@@ -514,12 +721,21 @@ function ReadersPanel({ totals }: { totals: SiteMetricRecordTotals['readers'] })
     <Panel>
       <PanelTitle>READERS</PanelTitle>
       <View style={styles.plainRows}>
-        <MetricRow label="Registered readers" value={formatNumber(totals.registeredReaders)} />
-        <MetricRow label="Current bill watches" value={formatNumber(totals.currentBillWatches)} />
+        <MetricRow
+          label="Registered readers"
+          value={formatNumber(totals.registeredReaders)}
+          compactMobile
+        />
+        <MetricRow
+          label="Current bill watches"
+          value={formatNumber(totals.currentBillWatches)}
+          compactMobile
+        />
         <MetricRow
           label="Different bills currently watched"
           value={formatNumber(totals.differentBillsCurrentlyWatched)}
           last
+          compactMobile
         />
       </View>
       <Text style={styles.panelNote}>
@@ -527,6 +743,16 @@ function ReadersPanel({ totals }: { totals: SiteMetricRecordTotals['readers'] })
         different bills count each bill once.
       </Text>
     </Panel>
+  );
+}
+
+function VendorHeading({ source }: { source: 'Google' | 'Bing' }) {
+  const { isMobile } = useResponsive();
+  return (
+    <View style={styles.vendorHeading}>
+      <VendorLogo source={source} mobile={isMobile} />
+      <Text style={[styles.vendorTitle, isMobile && styles.vendorTitleMobile]}>{source}</Text>
+    </View>
   );
 }
 
@@ -542,11 +768,18 @@ function SearchPanel({
   teamAccount: boolean;
 }) {
   if (state.kind === 'unavailable') {
+    const sourceName = source === 'Google' ? 'Google Search Console' : 'Bing Webmaster Tools';
     return (
       <Panel>
-        <Text style={styles.vendorTitle}>{source}</Text>
-        <Text accessibilityLiveRegion="polite" style={styles.unavailableText}>
-          {source} search data is temporarily unavailable.
+        <VendorHeading source={source} />
+        <View style={styles.unavailableRow}>
+          <InformationIcon />
+          <Text accessibilityLiveRegion="polite" style={styles.unavailableText}>
+            Search discovery from {source} is temporarily unavailable
+          </Text>
+        </View>
+        <Text style={styles.source}>
+          {sourceName} · Checked {ageText(state.checkedAt, now)}
         </Text>
       </Panel>
     );
@@ -554,7 +787,7 @@ function SearchPanel({
   if (state.kind === 'loading') {
     return (
       <Panel busy>
-        <Text style={styles.vendorTitle}>{source}</Text>
+        <VendorHeading source={source} />
         <LoadingBar wide />
         <LoadingBar wide />
         <LoadingBar />
@@ -571,7 +804,7 @@ function SearchPanel({
   const dashboard = source === 'Google' ? STAFF_LINKS.google : STAFF_LINKS.bing;
   return (
     <Panel>
-      <Text style={styles.vendorTitle}>{source}</Text>
+      <VendorHeading source={source} />
       <View style={styles.searchPair}>
         <View style={styles.searchPairMetric}>
           <Text style={styles.metricRowLabel}>Appearances</Text>
@@ -588,10 +821,10 @@ function SearchPanel({
       </View>
       <Text style={styles.panelNote}>{searchComparisonText(currentRate, previousRate)}</Text>
       <Text style={styles.source}>
-        {sourceName} · {formatDateRange(totals.periodStartedOn, totals.periodEndedOn)} · Fetched{' '}
-        {fetchedMinutesAgo(totals.fetchedAt, now)} minutes ago
+        {sourceName} · Through {formatDate(totals.periodEndedOn)}
+        {state.stale ? ` · Last accepted ${ageText(totals.fetchedAt, now)}` : ''}
       </Text>
-      <StaleNote stale={state.stale} />
+      <StaleNote stale={state.stale} fetchedAt={totals.fetchedAt} now={now} />
       <StaffLink href={dashboard} label={`OPEN ${sourceName.toUpperCase()}`} show={teamAccount} />
     </Panel>
   );
@@ -607,11 +840,21 @@ function AvailabilityPanel({
   teamAccount: boolean;
 }) {
   if (state.kind === 'unavailable') {
-    return <UnavailablePanel text="Availability data is temporarily unavailable." />;
+    return (
+      <UnavailablePanel
+        title="CAN PEOPLE REACH ALETHICAL?"
+        text="Availability data is temporarily unavailable."
+        source="Checkly"
+        checkedAt={state.checkedAt}
+        now={now}
+        mobileTreatment="closing"
+      />
+    );
   }
   if (state.kind === 'loading') {
     return (
-      <Panel busy>
+      <Panel busy mobileTreatment="closing">
+        <PanelTitle>CAN PEOPLE REACH ALETHICAL?</PanelTitle>
         <LoadingBar wide />
         <LoadingBar wide />
         <LoadingBar wide />
@@ -620,13 +863,17 @@ function AvailabilityPanel({
   }
   const totals = state.totals;
   return (
-    <Panel>
-      <Text style={styles.eyebrow}>LAST 30 DAYS</Text>
+    <Panel mobileTreatment="closing">
+      <PanelTitle>CAN PEOPLE REACH ALETHICAL?</PanelTitle>
       <MetricRow label="Homepage" value={percent(totals.websiteAvailability30d)} />
       <MetricRow label="Site Metrics page" value={percent(totals.trafficPageAvailability30d)} />
       <MetricRow label="Data service" value={percent(totals.apiAvailability30d)} last />
       <Text style={styles.panelNote}>
         Percentages show how often Alethical passed automatic checks.
+      </Text>
+      <Text style={styles.source}>
+        Checked by Checkly · Last 30 days
+        {state.stale ? ` · Last accepted ${ageText(totals.fetchedAt, now)}` : ''}
       </Text>
       {CHECKLY_PUBLIC_STATUS_URL ? (
         <Pressable
@@ -639,11 +886,8 @@ function AvailabilityPanel({
           </View>
         </Pressable>
       ) : null}
-      <Text style={styles.source}>
-        Checkly · Fetched {fetchedMinutesAgo(totals.fetchedAt, now)} minutes ago
-      </Text>
-      <StaleNote stale={state.stale} />
-      <StaffLink href={STAFF_LINKS.checkly} label="OPEN CHECKLY" show={teamAccount} />
+      <StaleNote stale={state.stale} fetchedAt={totals.fetchedAt} now={now} />
+      <StaffLink href={STAFF_LINKS.checkly} label="OPEN CHECKLY DASHBOARD" show={teamAccount} />
     </Panel>
   );
 }
@@ -659,11 +903,21 @@ function PerformancePanel({
 }) {
   const { isMobile } = useResponsive();
   if (state.kind === 'unavailable') {
-    return <UnavailablePanel text="Speed and stability data is temporarily unavailable." />;
+    return (
+      <UnavailablePanel
+        title="SPEED AND STABILITY DURING REAL VISITS"
+        text="Speed and stability data is temporarily unavailable."
+        source="Cloudflare"
+        checkedAt={state.checkedAt}
+        now={now}
+        mobileTreatment="closing"
+      />
+    );
   }
   if (state.kind === 'loading') {
     return (
-      <Panel busy>
+      <Panel busy mobileTreatment="closing">
+        <PanelTitle>SPEED AND STABILITY DURING REAL VISITS</PanelTitle>
         <LoadingBar wide />
         <LoadingBar wide />
         <LoadingBar wide />
@@ -675,7 +929,9 @@ function PerformancePanel({
     {
       label: 'Main content appears',
       value:
-        totals.lcpP75Ms == null ? 'Building sample' : `${(totals.lcpP75Ms / 1000).toFixed(2)} s`,
+        totals.lcpP75Ms == null
+          ? 'Building sample'
+          : `${formatMeasure(totals.lcpP75Ms / 1000, 2)} s`,
       verdict: speedVerdict('lcp', totals.lcpP75Ms),
     },
     {
@@ -685,14 +941,14 @@ function PerformancePanel({
     },
     {
       label: 'Layout stays still',
-      value: totals.clsP75 == null ? 'Building sample' : totals.clsP75.toFixed(3),
+      value: totals.clsP75 == null ? 'Building sample' : formatMeasure(totals.clsP75, 3),
       verdict: speedVerdict('cls', totals.clsP75),
     },
   ];
   const buildingSample = rows.some((row) => row.verdict == null);
   return (
-    <Panel>
-      <Text style={styles.eyebrow}>REAL VISITS · SLOWEST 1 IN 4</Text>
+    <Panel mobileTreatment="closing">
+      <PanelTitle>SPEED AND STABILITY DURING REAL VISITS</PanelTitle>
       {rows.map((row, index) => (
         <View
           key={row.label}
@@ -709,18 +965,24 @@ function PerformancePanel({
           </View>
         </View>
       ))}
-      <Text style={styles.panelNote}>
-        At least 75% of measured visits performed this well or better.
-      </Text>
+      {buildingSample ? null : (
+        <Text style={styles.panelNote}>
+          At least 75% of measured visits performed this well or better.
+        </Text>
+      )}
       {buildingSample ? (
         <Text style={styles.panelNote}>Not enough real visits have been measured yet</Text>
       ) : null}
       <Text style={styles.source}>
-        Cloudflare browser sample · {formatDateRange(totals.periodStartedOn, totals.periodEndedOn)}{' '}
-        · Fetched {fetchedMinutesAgo(totals.fetchedAt, now)} minutes ago
+        Measured by Cloudflare · Last 30 days
+        {state.stale ? ` · Last accepted ${ageText(totals.fetchedAt, now)}` : ''}
       </Text>
-      <StaleNote stale={state.stale} />
-      <StaffLink href={STAFF_LINKS.cloudflare} label="OPEN CLOUDFLARE" show={teamAccount} />
+      <StaleNote stale={state.stale} fetchedAt={totals.fetchedAt} now={now} />
+      <StaffLink
+        href={STAFF_LINKS.cloudflare}
+        label="OPEN CLOUDFLARE DASHBOARD"
+        show={teamAccount}
+      />
     </Panel>
   );
 }
@@ -737,7 +999,7 @@ export function TrafficScreen() {
   const teamAccount = useTeamAccount();
   const [range, setRange] = useState<ActivityRange>(initialActivityRange);
   const [now, setNow] = useState(Date.now());
-  useDocumentTitle('/site-metrics', 'Site metrics | Alethical');
+  useDocumentTitle('/site-metrics', 'Site Metrics | Alethical');
 
   useEffect(() => {
     const clock = setInterval(() => setNow(Date.now()), MINUTE_MS);
@@ -765,57 +1027,64 @@ export function TrafficScreen() {
         ? records.totals.actions7d
         : records.totals.actions30d
       : null;
+  const loading = [traffic, records, google, bing, uptime, performance].some(
+    (state) => state.kind === 'loading',
+  );
 
   return (
     <PageBackground>
       <ScrollView contentContainerStyle={styles.page}>
         <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
-        <Container style={[styles.main, isMobile && styles.mainMobile]}>
+        <Container aria-busy={loading} style={[styles.main, isMobile && styles.mainMobile]}>
+          {loading ? (
+            <Text accessibilityLiveRegion="polite" style={styles.visuallyHidden}>
+              Loading site metrics.
+            </Text>
+          ) : null}
           <Text
             accessibilityRole="header"
             aria-level={1}
             style={[styles.title, isMobile && styles.titleMobile]}
           >
-            Site metrics
+            Site Metrics
           </Text>
-          <Text style={styles.purpose}>Public totals about how Alethical is used</Text>
+          <Text style={styles.purpose}>
+            How people find and use Alethical, and how well the site works
+          </Text>
 
           <View style={styles.sectionBlock}>
             <SectionTitle>Recent traffic</SectionTitle>
-            <RecentTraffic state={traffic} now={now} />
-            <StaffLink href={STAFF_LINKS.vercel} label="OPEN VERCEL" show={teamAccount} />
+            <RecentTraffic state={traffic} now={now} teamAccount={teamAccount} />
           </View>
 
           <View style={styles.sectionRule} />
-          <View
-            accessibilityRole="radiogroup"
-            aria-label="Activity range"
-            style={styles.rangeGroup}
-          >
+          <View role="group" aria-label="Activity range" style={styles.rangeGroup}>
             <Text style={styles.rangeLabel}>Activity range</Text>
-            <View style={[styles.rangeButtons, isMobile && styles.rangeButtonsMobile]}>
-              {[7, 30].map((value) => {
-                const selected = range === value;
-                return (
-                  <Pressable
-                    key={value}
-                    accessibilityRole="button"
-                    aria-pressed={selected}
-                    onPress={() => selectRange(value as ActivityRange)}
-                    style={[
-                      styles.rangeButton,
-                      isMobile && styles.rangeButtonMobile,
-                      selected && styles.rangeButtonSelected,
-                    ]}
-                  >
-                    <Text
-                      style={[styles.rangeButtonText, selected && styles.rangeButtonTextSelected]}
+            <View style={[styles.rangeButtonsShell, isMobile && styles.rangeButtonsShellMobile]}>
+              <View style={[styles.rangeButtons, isMobile && styles.rangeButtonsMobile]}>
+                {[7, 30].map((value) => {
+                  const selected = range === value;
+                  return (
+                    <Pressable
+                      key={value}
+                      accessibilityRole="button"
+                      aria-pressed={selected}
+                      onPress={() => selectRange(value as ActivityRange)}
+                      style={[
+                        styles.rangeButton,
+                        isMobile && styles.rangeButtonMobile,
+                        selected && styles.rangeButtonSelected,
+                      ]}
                     >
-                      Last {value} days
-                    </Text>
-                  </Pressable>
-                );
-              })}
+                      <Text
+                        style={[styles.rangeButtonText, selected && styles.rangeButtonTextSelected]}
+                      >
+                        Last {value} days
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
             </View>
             <Text accessibilityLiveRegion="polite" style={styles.visuallyHidden}>
               Showing the last {range} days
@@ -868,8 +1137,9 @@ export function TrafficScreen() {
               )}
             </View>
           </View>
-          {traffic.kind === 'ready' ? <StaleNote stale={traffic.stale} /> : null}
-          {records.kind === 'ready' ? <StaleNote stale={records.stale} /> : null}
+          {records.kind === 'ready' ? (
+            <StaleNote stale={records.stale} fetchedAt={records.totals.fetchedAt} now={now} />
+          ) : null}
 
           <View style={styles.sectionRule} />
           <SectionTitle>Found in search · Last 30 days</SectionTitle>
@@ -880,14 +1150,8 @@ export function TrafficScreen() {
 
           <View style={styles.sectionRule} />
           <View style={[styles.pairedGrid, isMobile && styles.singleColumn]}>
-            <View>
-              <SectionTitle>Can people reach Alethical?</SectionTitle>
-              <AvailabilityPanel state={uptime} now={now} teamAccount={teamAccount} />
-            </View>
-            <View>
-              <SectionTitle>Speed and stability during real visits</SectionTitle>
-              <PerformancePanel state={performance} now={now} teamAccount={teamAccount} />
-            </View>
+            <AvailabilityPanel state={uptime} now={now} teamAccount={teamAccount} />
+            <PerformancePanel state={performance} now={now} teamAccount={teamAccount} />
           </View>
         </Container>
         <Footer
@@ -911,7 +1175,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: -1.1,
   },
-  titleMobile: { fontSize: 36, lineHeight: 40, letterSpacing: -0.8 },
+  titleMobile: { fontSize: 32, lineHeight: 38, letterSpacing: -0.8 },
   purpose: {
     marginTop: 14,
     color: '#4f5651',
@@ -948,10 +1212,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 20,
     paddingBottom: 22,
-    shadowColor: theme.colors.ink,
-    shadowOpacity: 0.04,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: 6 },
+    boxShadow: '0 6px 18px rgba(17, 21, 15, 0.04)',
+  },
+  recentCardMobile: {
+    flexBasis: '100%',
+    borderRadius: 14,
+    paddingHorizontal: 18,
+    paddingTop: 16,
+    paddingBottom: 18,
+    boxShadow: '0 4px 14px rgba(17, 21, 15, 0.04)',
   },
   eyebrow: {
     color: '#6f756f',
@@ -969,6 +1238,7 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     fontWeight: '700',
   },
+  recentLabelMobile: { marginTop: 0, fontSize: 14, lineHeight: 20 },
   recentValue: {
     marginTop: 5,
     color: '#149d5b',
@@ -981,14 +1251,28 @@ const styles = StyleSheet.create({
   },
   recentDivider: { height: 1, marginTop: 12, backgroundColor: 'rgba(17,21,15,0.08)' },
   note: {
-    marginTop: 9,
-    paddingLeft: 16,
+    marginTop: 8,
     color: '#4f5651',
     fontFamily: theme.typography.body,
     fontSize: 14.5,
     lineHeight: 22,
   },
-  sourceCluster: { marginTop: 10, paddingLeft: 16 },
+  sourceCluster: { marginTop: 18, paddingLeft: 16 },
+  recentSourceRow: {
+    minHeight: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  sourceInline: {
+    flexShrink: 1,
+    color: '#4f5651',
+    fontFamily: theme.typography.mono,
+    fontSize: 12,
+    lineHeight: 19,
+    fontWeight: '500',
+  },
   source: {
     marginTop: 10,
     color: '#6f756f',
@@ -998,6 +1282,13 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   collecting: {
+    marginLeft: 'auto',
+    color: '#8f5a12',
+    fontFamily: theme.typography.body,
+    fontSize: 13.5,
+    lineHeight: 20,
+  },
+  collectingDetail: {
     marginTop: 7,
     color: '#8f5a12',
     fontFamily: theme.typography.body,
@@ -1011,7 +1302,7 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
     lineHeight: 20,
   },
-  rangeGroup: { gap: 12 },
+  rangeGroup: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 14 },
   rangeLabel: {
     color: '#11150f',
     fontFamily: theme.typography.ui,
@@ -1019,7 +1310,15 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     fontWeight: '700',
   },
-  rangeButtons: { flexDirection: 'row', gap: 8, alignSelf: 'flex-start' },
+  rangeButtonsShell: {
+    padding: 3,
+    backgroundColor: '#f1f3f2',
+    borderWidth: 1,
+    borderColor: 'rgba(17,21,15,0.1)',
+    borderRadius: 11,
+  },
+  rangeButtonsShellMobile: { width: '100%', marginTop: 9 },
+  rangeButtons: { flexDirection: 'row', gap: 3, alignSelf: 'flex-start' },
   rangeButtonsMobile: { width: '100%' },
   rangeButton: {
     minHeight: 40,
@@ -1027,13 +1326,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 18,
-    borderWidth: 1,
-    borderColor: 'rgba(17,21,15,0.16)',
-    borderRadius: 999,
-    backgroundColor: theme.colors.surface,
+    borderWidth: 0,
+    borderRadius: 9,
+    backgroundColor: 'transparent',
   },
   rangeButtonMobile: { minHeight: 44, flex: 1 },
-  rangeButtonSelected: { backgroundColor: '#11150f', borderColor: '#11150f' },
+  rangeButtonSelected: { backgroundColor: '#ffffff' },
   rangeButtonText: {
     color: '#2c322c',
     fontFamily: theme.typography.ui,
@@ -1041,7 +1339,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     fontWeight: '700',
   },
-  rangeButtonTextSelected: { color: '#ffffff' },
+  rangeButtonTextSelected: { color: '#11150f' },
   activityGrid: {
     display: 'grid',
     gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)',
@@ -1071,7 +1369,13 @@ const styles = StyleSheet.create({
     paddingTop: 18,
     paddingBottom: 21,
   },
-  panelMobile: {
+  panelCardMobile: {
+    borderRadius: 13,
+    paddingHorizontal: 16,
+    paddingTop: 15,
+    paddingBottom: 17,
+  },
+  panelClosingMobile: {
     borderWidth: 0,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(17,21,15,0.1)',
@@ -1080,7 +1384,7 @@ const styles = StyleSheet.create({
     paddingTop: 0,
     paddingBottom: 24,
     backgroundColor: 'transparent',
-    shadowOpacity: 0,
+    boxShadow: 'none',
   },
   plainRows: { marginTop: 8, paddingHorizontal: 14 },
   metricRow: {
@@ -1093,6 +1397,7 @@ const styles = StyleSheet.create({
     borderBottomColor: 'rgba(17,21,15,0.07)',
   },
   metricRowLast: { borderBottomWidth: 0 },
+  metricRowCompactMobile: { minHeight: 0, borderBottomWidth: 0, marginTop: 13 },
   metricRowLabel: {
     flexShrink: 1,
     color: '#2c322c',
@@ -1115,10 +1420,22 @@ const styles = StyleSheet.create({
     fontSize: 13.5,
     lineHeight: 20,
   },
-  destinationRows: { marginTop: 8, paddingHorizontal: 14 },
-  destinationRow: { marginBottom: 11 },
-  destinationLabelRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
+  destinationRows: { marginTop: 18, gap: 15 },
+  destinationOuter: { paddingLeft: 14 },
+  destinationGroup: {
+    gap: 12,
+    paddingLeft: 12,
+    borderLeftWidth: 2,
+    borderLeftColor: '#dfe5e1',
+  },
+  destinationRowLine: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  destinationName: { width: 138, flexGrow: 0, flexShrink: 0 },
+  destinationNameMobile: { width: 118, fontSize: 13.5, lineHeight: 18 },
   destinationPercent: {
+    width: 38,
+    flexGrow: 0,
+    flexShrink: 0,
+    textAlign: 'right',
     color: '#11150f',
     fontFamily: theme.typography.ui,
     fontSize: 14.5,
@@ -1126,14 +1443,16 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     fontVariant: ['tabular-nums'],
   },
+  destinationPercentMobile: { width: 34, fontSize: 13, lineHeight: 18 },
   barTrack: {
-    height: 5,
-    marginTop: 5,
+    flex: 1,
+    height: 12,
     overflow: 'hidden',
     borderRadius: 3,
     backgroundColor: '#e4e9e5',
   },
-  barFill: { height: 5, borderRadius: 3, backgroundColor: '#149d5b' },
+  barTrackMobile: { height: 9, borderRadius: 5 },
+  barFill: { height: '100%', borderRadius: 6, backgroundColor: '#149d5b' },
   zeroText: {
     marginTop: 14,
     paddingHorizontal: 12,
@@ -1163,6 +1482,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   tableName: { textAlign: 'left' },
+  tableBlankHeader: { flex: 1, paddingBottom: 8 },
   tableRow: {
     minHeight: 52,
     paddingHorizontal: 14,
@@ -1182,14 +1502,15 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     fontVariant: ['tabular-nums'],
   },
+  vendorHeading: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   vendorTitle: {
-    marginBottom: 8,
     color: '#11150f',
-    fontFamily: theme.typography.title,
-    fontSize: 22,
-    lineHeight: 28,
+    fontFamily: theme.typography.ui,
+    fontSize: 15,
+    lineHeight: 20,
     fontWeight: '800',
   },
+  vendorTitleMobile: { fontSize: 14.5, lineHeight: 19 },
   searchPair: { marginTop: 10, flexDirection: 'row', gap: 32 },
   searchPairMetric: { minWidth: 0, flexShrink: 1 },
   searchPairValue: {
@@ -1215,8 +1536,8 @@ const styles = StyleSheet.create({
   searchRateValue: {
     color: '#11150f',
     fontFamily: theme.typography.ui,
-    fontSize: 24,
-    lineHeight: 28,
+    fontSize: 16,
+    lineHeight: 21,
     fontWeight: '800',
     fontVariant: ['tabular-nums'],
   },
@@ -1258,6 +1579,8 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   staffLinkTarget: { minHeight: 44, alignSelf: 'flex-start', justifyContent: 'center' },
+  staffLinkContent: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  staffLinkArrow: { width: 14, height: 14, top: 0 },
   staffLink: {
     color: '#5b30d6',
     fontFamily: theme.typography.mono,
@@ -1267,14 +1590,31 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
   },
   unavailableText: {
-    minHeight: 92,
-    textAlignVertical: 'center',
+    flex: 1,
     color: '#11150f',
     fontFamily: theme.typography.ui,
     fontSize: 16,
     lineHeight: 23,
     fontWeight: '600',
   },
+  unavailableRow: {
+    minHeight: 92,
+    marginTop: 14,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 11,
+  },
+  infoIcon: { marginTop: 1, flexShrink: 0 },
+  recentMetric: { minWidth: 0 },
+  recentMetricRowMobile: {
+    marginTop: 12,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    gap: 16,
+  },
+  recentMetricRight: { minWidth: 0, alignItems: 'flex-end' },
+  recentValueMobile: { fontSize: 33, lineHeight: 40 },
   loadingBar: { width: 72, height: 18, marginTop: 16, borderRadius: 6, backgroundColor: '#e8ebe9' },
   loadingBarWide: { width: 110, height: 22 },
   visuallyHidden: { position: 'absolute', width: 1, height: 1, opacity: 0 },

@@ -16,21 +16,25 @@ describe('public Site metrics page', () => {
 
   it('has 1 top heading and the accepted loading and unavailable states', () => {
     expect(SOURCE.match(/aria-level=\{1\}/g)).toHaveLength(1);
-    expect(SOURCE).toContain('Site metrics');
-    expect(SOURCE).toContain("useDocumentTitle('/site-metrics', 'Site metrics | Alethical')");
-    expect(SOURCE).toContain('Site metrics are loading.');
+    expect(SOURCE).toContain('Site Metrics');
+    expect(SOURCE).toContain("useDocumentTitle('/site-metrics', 'Site Metrics | Alethical')");
+    expect(SOURCE).toContain('Loading site metrics.');
+    expect(SOURCE.match(/Loading site metrics\./g)).toHaveLength(1);
     expect(SOURCE).toContain('Recent traffic is temporarily unavailable.');
     expect(SOURCE).toContain('A newer reading has not come through yet');
+    expect(SOURCE).toContain('Last accepted');
     expect(SOURCE).toContain('Counted by Vercel');
   });
 
   it('keeps the public explanation short and puts freshness on 1 line', () => {
-    expect(SOURCE).toContain('Public totals about how Alethical is used</Text>');
+    expect(SOURCE).toMatch(
+      /How people find and use Alethical, and how well the site works\s*<\/Text>/,
+    );
     expect(SOURCE).toContain('· Through {formatTrafficWindowEnd(totals.windowEndedAt)} ·');
     expect(SOURCE).not.toContain('Counted by Vercel · Fetched');
     expect(SOURCE).not.toContain('Each total ends at');
     expect(SOURCE).toContain('Collecting since {formatDate(totals.countingStartedAt)}');
-    expect(SOURCE).not.toContain('Longer totals are still');
+    expect(SOURCE).toContain('The 7-day and 30-day totals cover only the days collected so far');
     expect(SOURCE).not.toContain('How we count');
     expect(SOURCE).not.toContain('Privacy policy');
     expect(SOURCE).not.toContain('styles.rule');
@@ -60,8 +64,8 @@ describe('public Site metrics page', () => {
 
   it('names search discovery, availability, and real-reader speed in plain words', () => {
     expect(SOURCE).toContain('Found in search · Last 30 days');
-    expect(SOURCE).toContain('Can people reach Alethical?');
-    expect(SOURCE).toContain('Speed and stability during real visits');
+    expect(SOURCE).toContain('CAN PEOPLE REACH ALETHICAL?');
+    expect(SOURCE).toContain('SPEED AND STABILITY DURING REAL VISITS');
     expect(SOURCE).toContain("source: 'Google'");
     expect(SOURCE).toContain('<SearchPanel source="Bing"');
     expect(SOURCE).toContain('Appearances');
@@ -89,6 +93,10 @@ describe('public Site metrics page', () => {
     expect(SOURCE).toContain("url.searchParams.set('range', String(next))");
     expect(SOURCE).toContain('Last {value} days');
     expect(SOURCE).toContain('aria-pressed={selected}');
+    expect(SOURCE).toContain('role="group"');
+    expect(SOURCE).not.toContain('accessibilityRole="radiogroup"');
+    expect(SOURCE).toContain('rangeButtonsShell');
+    expect(SOURCE).toContain("rangeButtonSelected: { backgroundColor: '#ffffff'");
   });
 
   it('keeps honest low-sample and zero states', () => {
@@ -106,8 +114,45 @@ describe('public Site metrics page', () => {
     expect(SOURCE).toContain('in the previous 30 days');
   });
 
-  it('turns phone panels into separated sections instead of cards', () => {
-    expect(SOURCE).toContain('isMobile && styles.panelMobile');
-    expect(SOURCE).toMatch(/panelMobile: \{[\s\S]*?borderWidth: 0,[\s\S]*?borderBottomWidth: 1/);
+  it('keeps phone activity and search cards while flattening only the closing pair', () => {
+    expect(SOURCE).toContain("mobileTreatment = 'card'");
+    expect(SOURCE).toContain("mobileTreatment === 'closing'");
+    expect(SOURCE).toMatch(
+      /panelClosingMobile: \{[\s\S]*?borderWidth: 0,[\s\S]*?borderBottomWidth: 1/,
+    );
+    expect(SOURCE).toContain('<Panel mobileTreatment="closing"');
+  });
+
+  it('matches the accepted phone and destination layouts', () => {
+    expect(SOURCE).toContain('isMobile && styles.recentMetricRowMobile');
+    expect(SOURCE).toContain('isMobile ? undefined : styles.recentDivider');
+    expect(SOURCE).toContain('styles.destinationGroup');
+    expect(SOURCE).toContain('styles.destinationRowLine');
+    expect(SOURCE).toContain('styles.barTrackMobile');
+  });
+
+  it('keeps the accepted search identities and compact supporting rate', () => {
+    expect(SOURCE).toContain('<VendorLogo source={source}');
+    expect(SOURCE).toContain('Search discovery from {source} is temporarily unavailable');
+    expect(SOURCE).toContain('{sourceName} · Through {formatDate(totals.periodEndedOn)}');
+    expect(SOURCE).toMatch(/vendorTitle: \{[\s\S]*?fontSize: 15/);
+    expect(SOURCE).toMatch(/searchRateValue: \{[\s\S]*?fontSize: 16/);
+  });
+
+  it('uses the accepted closing-panel copy and sample rules', () => {
+    expect(SOURCE).toContain('Checked by Checkly · Last 30 days');
+    expect(SOURCE).toContain('Measured by Cloudflare · Last 30 days');
+    expect(SOURCE).toContain('OPEN VERCEL DASHBOARD');
+    expect(SOURCE).toContain('OPEN CHECKLY DASHBOARD');
+    expect(SOURCE).not.toContain('REAL VISITS · SLOWEST 1 IN 4');
+    expect(SOURCE).toContain('buildingSample ? null : (');
+  });
+
+  it('hides the first table heading and explains a source cap only when it is reached', () => {
+    expect(SOURCE).toContain('role="columnheader"');
+    expect(SOURCE).toContain('role="rowheader"');
+    expect(SOURCE).toContain('role="cell"');
+    expect(SOURCE).toContain('const capped =');
+    expect(SOURCE).toContain('{capped ? (');
   });
 });

@@ -367,8 +367,8 @@ export const STATIC_PAGE_METADATA: Record<string, PageMetadata> = {
     canonicalPath: '/privacy',
   }),
   '/site-metrics': pageMetadata({
-    title: titleFor('Site metrics'),
-    socialTitle: 'Site metrics',
+    title: titleFor('Site Metrics'),
+    socialTitle: 'Site Metrics',
     description: 'Public totals about traffic, search discovery, availability, and speed.',
     canonicalPath: '/site-metrics',
   }),
