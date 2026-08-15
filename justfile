@@ -80,6 +80,11 @@ worktree-rm branch:
   -git branch -D {{branch}}
   @echo "🧹 Removed worktree ../alethical-wt-{{branch}}."
 
+# Read-only setup check. `just doctor ios` and `just doctor android` also check
+# the phone-only tool needed for that target.
+doctor target="web":
+  python3 scripts/check_local_env.py {{target}}
+
 # Pinned to the same ruff CI runs (.github/workflows/ci.yml). Unpinned, `uvx`
 # resolves the newest release: today that is ruff 0.16, which reports 778 findings
 # on a tree CI calls clean, and `just format` would have rewritten 611 of them into

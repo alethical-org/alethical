@@ -25,8 +25,17 @@ git clone https://github.com/alethical-org/alethical.git
 cd alethical
 just install-hooks          # one time, per clone — see the note below
 cp .env.example .env        # then fill in the secrets marked "SET THIS"
+just doctor                 # reports missing or wrong local tools before setup fails
 just up                     # starts Postgres + backend + web frontend
 ```
+
+`just doctor` is a fast, read-only check that tells
+you whether Docker, uv, just, Node, pnpm, and the Python this project will use
+are ready. It reads the versions from the project itself: `.python-version`,
+`docker-compose.yml`, and `package.json`. It only reports problems, so it never
+stops your work. Use `just doctor ios` before iPhone work or `just doctor
+android` before Android work to also check Xcode or Java; web work does not need
+either one.
 
 **`just install-hooks` is not optional if anyone else works in this clone.** It
 points git at this repo's tracked hooks (`.githooks`), and the one hook there locks
