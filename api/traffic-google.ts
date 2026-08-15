@@ -20,6 +20,12 @@ const OK_CACHE =
 const DAY_MS = 86_400_000;
 
 class SearchUnavailable extends Error {}
+type SearchFailureStage =
+  | "identity-client"
+  | "access-token"
+  | "search-console-request"
+  | "search-console-response"
+  | "search-console-data";
 
 function sendJson(
   response: ResponseLike,
@@ -92,6 +98,7 @@ export default async function handler(
     return;
   }
 
+  let failureStage: SearchFailureStage = "identity-client";
   try {
     const client = ExternalAccountClient.fromJSON({
       type: "external_account",
@@ -102,6 +109,7 @@ export default async function handler(
       subject_token_supplier: { getSubjectToken: getVercelOidcToken },
     });
     if (!client) throw new SearchUnavailable("Google identity was unavailable");
+    failureStage = "access-token";
     client.scopes = [READ_ONLY_SCOPE];
     const access = await client.getAccessToken();
     if (!access.token)
@@ -112,6 +120,7 @@ export default async function handler(
     const requestedStart = moveDate(requestedEnd, -69);
     const url = `https://www.googleapis.com/webmasters/v3/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`;
     let result: Response;
+    failureStage = "search-console-request";
     try {
       result = await fetch(url, {
         method: "POST",
@@ -134,8 +143,10 @@ export default async function handler(
     } catch {
       throw new SearchUnavailable("Google could not be reached");
     }
+    failureStage = "search-console-response";
     if (!result.ok)
       throw new SearchUnavailable(`Google returned ${result.status}`);
+    failureStage = "search-console-data";
     const payload = (await result.json()) as SearchPayload;
     if (payload.rows !== undefined && !Array.isArray(payload.rows)) {
       throw new SearchUnavailable("Google returned incomplete data");
@@ -203,6 +214,7 @@ export default async function handler(
       OK_CACHE,
     );
   } catch {
+    console.error("traffic-google unavailable", { stage: failureStage });
     sendJson(
       response,
       503,
