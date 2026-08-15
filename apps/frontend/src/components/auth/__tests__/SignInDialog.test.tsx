@@ -121,8 +121,10 @@ describe('rev 9 sign-in dialog', () => {
     expect(html).toContain('CONFIRM PASSWORD');
     expect(html).toContain('Use at least 15 characters. A few words with spaces works well.');
     expect(html).toContain('Already use Google with this email?');
-    expect(html).toContain('Continue with Google.');
+    expect(html).not.toContain('Continue with Google.');
+    expect(html.match(/Continue with Google/g)).toHaveLength(1);
     expect(html).toContain('Create account');
+    expect(SOURCE).toContain('googleHelpCreate: { marginBottom: t.spacing.md }');
   });
 
   it('pins the separate create-account Track wording', () => {
@@ -133,6 +135,13 @@ describe('rev 9 sign-in dialog', () => {
       'Save SF 10 to your tracked bills and check where it stands whenever you come back.',
     );
     expect(html).not.toContain('You’ll use this email and password');
+  });
+
+  it('keeps the wrong-password Google help unchanged', () => {
+    const html = render({ errorMessage: 'Email or password is incorrect.' });
+
+    expect(html).toContain('If you first used Google and haven’t added a password,');
+    expect(html).toContain('continue with Google.</span>');
   });
 
   it('shows the arrival-neutral confirmation screen with a working Google button', () => {
