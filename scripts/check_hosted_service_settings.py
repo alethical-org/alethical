@@ -31,6 +31,7 @@ import urllib.request
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from enum import Enum
+from html.parser import HTMLParser
 from pathlib import Path
 
 ROOT = Path(
@@ -87,6 +88,19 @@ class HttpResponse:
     status: int
     data: object | None
     error: str = ""
+
+
+class TemplateLinks(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.hrefs: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag != "a":
+            return
+        self.hrefs.extend(
+            value for name, value in attrs if name == "href" and value is not None
+        )
 
 
 Fetcher = Callable[[str, str, Mapping[str, str], object | None], HttpResponse]
@@ -1160,20 +1174,35 @@ class Checker:
         credential_names = (
             "SUPABASE_OAUTH_CLIENT_ID",
             "SUPABASE_OAUTH_CLIENT_SECRET",
-            "SUPABASE_OAUTH_REFRESH_TOKEN",
             "SUPABASE_PROJECT_REF",
         )
+        refresh_file = self.env.get("SUPABASE_OAUTH_REFRESH_TOKEN_FILE")
+        refresh_token = self.env.get("SUPABASE_OAUTH_REFRESH_TOKEN", "")
+        if refresh_file:
+            try:
+                refresh_token = Path(refresh_file).read_text().strip()
+            except OSError:
+                refresh_token = ""
         missing = [name for name in credential_names if not self.env.get(name)]
+        if not refresh_token:
+            missing.append("SUPABASE_OAUTH_REFRESH_TOKEN_FILE")
         required = self.env.get("SUPABASE_OAUTH_REQUIRED", "").lower() == "true"
-        if missing and not required and len(missing) == len(credential_names):
+        if missing and not required and len(missing) == len(credential_names) + 1:
             return
         if missing:
             self.unavailable_rows(rows, f"missing {', '.join(missing)}")
             return
 
+        state_required = (
+            self.env.get("SUPABASE_OAUTH_STATE_REQUIRED", "").lower() == "true"
+        )
+        next_refresh_file = self.env.get("SUPABASE_OAUTH_NEXT_REFRESH_TOKEN_FILE")
+        if state_required and not next_refresh_file:
+            self.unavailable_rows(rows, "missing rotating Supabase OAuth state output")
+            return
+
         client_id = self.env["SUPABASE_OAUTH_CLIENT_ID"]
         client_secret = self.env["SUPABASE_OAUTH_CLIENT_SECRET"]
-        refresh_token = self.env["SUPABASE_OAUTH_REFRESH_TOKEN"]
         basic = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
         token_response = self.cached_fetch(
             "supabase-oauth-token",
@@ -1192,17 +1221,33 @@ class Checker:
         token_type = (
             token_data.get("token_type") if isinstance(token_data, dict) else None
         )
+        next_refresh_token = (
+            token_data.get("refresh_token") if isinstance(token_data, dict) else None
+        )
         if (
             token_response.status != 200
             or not isinstance(access_token, str)
             or not access_token
             or str(token_type).lower() != "bearer"
+            or (state_required and not isinstance(next_refresh_token, str))
+            or (state_required and not next_refresh_token)
         ):
             self.unavailable_rows(
                 rows,
                 token_response.error or "Supabase OAuth grant could not be refreshed",
             )
             return
+
+        if next_refresh_file and isinstance(next_refresh_token, str):
+            try:
+                next_refresh_path = Path(next_refresh_file)
+                next_refresh_path.write_text(next_refresh_token)
+                next_refresh_path.chmod(0o600)
+            except OSError:
+                self.unavailable_rows(
+                    rows, "rotating Supabase OAuth state was not saved"
+                )
+                return
 
         project_ref = urllib.parse.quote(self.env["SUPABASE_PROJECT_REF"], safe="")
         representative = self.row("Supabase sign-in", "Site URL")
@@ -1236,9 +1281,10 @@ class Checker:
             for item in str(redirects_value or "").split(",")
             if item.strip()
         )
+        redirects_match = redirects_actual == redirects_expected
         self.record(
             redirects_row,
-            redirects_actual == redirects_expected,
+            redirects_match,
             ", ".join(redirects_actual),
             ", ".join(redirects_expected),
         )
@@ -1272,7 +1318,6 @@ class Checker:
         for label, field in (
             ("Minimum password length", "password_min_length"),
             ("Authentication email limit", "rate_limit_email_sent"),
-            ("Sign-up and sign-in limit", "rate_limit_otp"),
         ):
             row = self.row("Supabase sign-in", label)
             expected_codes = _codes(row.intended)
@@ -1292,38 +1337,36 @@ class Checker:
             "none" if no_characters else "required groups are set",
         )
 
-        for label, field, route in (
+        for label, field, email_type in (
             (
                 "Email confirmation template",
                 "mailer_templates_confirmation_content",
-                "/confirm",
+                "email",
             ),
             (
                 "Password reset template",
                 "mailer_templates_recovery_content",
-                "/reset",
+                "recovery",
             ),
         ):
             row = self.row("Supabase sign-in", label)
             template = config.get(field)
-            route_at = template.find(route) if isinstance(template, str) else -1
-            fragment_at = (
-                template.find("#", route_at) if isinstance(template, str) else -1
+            links = TemplateLinks()
+            if isinstance(template, str):
+                links.feed(template)
+            expected_prefix = (
+                f"{{{{.RedirectTo}}}}&token_hash={{{{.TokenHash}}}}&type={email_type}"
             )
-            token_at = (
-                template.find(".TokenHash", fragment_at)
-                if isinstance(template, str)
-                else -1
-            )
-            safe_structure = (
-                route_at >= 0 and fragment_at > route_at and token_at > fragment_at
+            safe_structure = redirects_match and any(
+                "".join(href.split()).startswith(expected_prefix)
+                for href in links.hrefs
             )
             self.record(
                 row,
                 safe_structure,
-                "safe private-link structure"
+                "safe RedirectTo fragment-token structure"
                 if safe_structure
-                else "private-link structure does not match",
+                else "RedirectTo fragment-token structure or allow-list does not match",
             )
 
         smtp_row = self.row("Supabase sign-in", "Custom SMTP through Resend")

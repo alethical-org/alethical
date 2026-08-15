@@ -72,7 +72,7 @@ Set under **Settings, Secrets and variables, Actions**. The live check reads nam
 | `RAILWAY_TOKEN` | Present | `railway-deploy.yml`, `hosted-service-settings.yml` | Targets the production Railway project for manual releases and read-only checks. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | `SUPABASE_OAUTH_CLIENT_ID` | Present | `hosted-service-settings.yml` | Names the Supabase OAuth app that can read sign-in settings only. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | `SUPABASE_OAUTH_CLIENT_SECRET` | Present | `hosted-service-settings.yml` | Authenticates the narrow Supabase OAuth app when it refreshes access. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
-| `SUPABASE_OAUTH_REFRESH_TOKEN` | Present | `hosted-service-settings.yml` | Gets a short-lived Supabase token limited to reading sign-in settings. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
+| `SUPABASE_OAUTH_REFRESH_TOKEN` | Present | `hosted-service-settings.yml` | Starts the first read-only Supabase check; each later rotating token comes from the encrypted workflow artifact. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | `SUPABASE_DB_PASSWORD` | Present | database maintenance workflows | Builds the production database address. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | `SUPABASE_PROJECT_URL` | Present | database maintenance workflows | Targets the production Supabase project. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | `SUPABASE_STORAGE_S3_ACCESS_KEY_ID` | Present | `mirror-raw-files.yml` | Reads the main source-file store. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
@@ -204,7 +204,11 @@ Set under **Settings** in Sentry organization `Alethical`. Verified 2026-08-15.
 
 Set under **Authentication** in the Alethical Supabase project. Verified 2026-08-15.
 The monthly check uses a Supabase OAuth grant limited to `auth:read`. It cannot change a
-Supabase setting. No Supabase personal access token is stored.
+Supabase setting. No Supabase personal access token is stored. Supabase replaces the
+refresh token after every use, so the workflow encrypts each replacement with the OAuth
+client secret and keeps 2 ciphertext-only GitHub Actions artifacts for 90 days. Runs wait
+for the prior run. Only artifacts made by this trusted workflow can be restored, and a
+missing, expired, corrupt, or unsaved replacement fails the check.
 
 | Setting | Intended | Why | Automated check |
 | --- | --- | --- | --- |
@@ -220,12 +224,12 @@ Supabase setting. No Supabase personal access token is stored.
 | Secure password change | **Off** | The password form still has a dormant email-code step, so enabling this later cannot strand a reader on a separate screen. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
 | Require current password | **Off** | The signed-in password form asks only for the new password. | Tracked file: `apps/frontend/src/components/auth/AccountControl.tsx` |
 | CAPTCHA | **Off** | No human-check box ships. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
-| Email confirmation template | Alethical `/confirm` link using Supabase `TokenHash`, with private values after `#` | Email scanners cannot spend the 1-use token before the reader confirms. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
-| Password reset template | Alethical `/reset` link using Supabase `TokenHash`, with private values after `#` | Opening the email reaches a safe page before the 1-use token is spent. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
+| Email confirmation template | Supabase `RedirectTo` followed by `TokenHash`; the app supplies Alethical `/confirm` with its private values after `#` | Email scanners cannot spend the 1-use token before the reader confirms. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
+| Password reset template | Supabase `RedirectTo` followed by `TokenHash`; the app supplies Alethical `/reset` with its private values after `#` | Opening the email reaches a safe page before the 1-use token is spent. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
 | Password-changed security email | **On** | A changed password sends a warning with a route to Forgot password. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
 | Custom SMTP through Resend | **On** at `smtp.resend.com`, sender `ask@alethical.com` | Sends confirmation and reset messages from `ask@alethical.com`. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
 | Authentication email limit | `30` emails per hour | Limits total confirmation and reset email volume. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
-| Sign-up and sign-in limit | `30` requests per 5 minutes per internet address | Limits rapid password guesses from 1 address. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
+| Sign-up and sign-in limit | `30` requests per 5 minutes per internet address | Limits rapid password guesses from 1 address. | Unchecked: Supabase's read-only hosted API exposes the project-wide email-code limit, not this per-address limit; [Supabase rate limits](https://supabase.com/docs/guides/auth/rate-limits) |
 
 Supabase stores passwords with salted bcrypt. The intended product explanation remains in
 [`sign-in-guide.md`](../product-onboarding/sign-in-guide.md); it is not a second settings
