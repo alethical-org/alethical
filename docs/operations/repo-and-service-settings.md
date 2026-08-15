@@ -139,7 +139,6 @@ The live check reads names only with Railway's `decryptVariables: false` option.
 | Setting | Intended | Why | Automated check |
 | --- | --- | --- | --- |
 | `ALETHICAL_CONTACT_RATE_PER_MIN` | Present | Limits repeated Contact us requests. | Live |
-| `ALETHICAL_CORS_ORIGIN_REGEX` | Present until [#1573](https://github.com/alethical-org/alethical/issues/1573) removes it | Old unused setting kept visible until a separate production change removes it safely. | Live |
 | `ALETHICAL_CORS_ORIGINS` | Present | Limits which websites can call the API from a browser. | Live |
 | `ALETHICAL_EMAIL_ENABLED` | Present | Turns production Contact us delivery on. | Live |
 | `ALETHICAL_EMAIL_FROM` | Present | Sets the verified sender address. | Live |
@@ -149,7 +148,6 @@ The live check reads names only with Railway's `decryptVariables: false` option.
 | `OPENAI_API_KEY` | Present | Powers live question sorting, answers, and search embeddings. | Live |
 | `PYTHON_VERSION` | Present | Pins the Python version Railway uses to build the API. | Live |
 | `RESEND_API_KEY` | Present | Authenticates production Contact us email. | Live |
-| `SUPABASE_ANON_KEY` | Present until [#1573](https://github.com/alethical-org/alethical/issues/1573) removes it | Keeps the old public-key alias visible until sign-in proves it is safe to remove. | Live |
 | `SUPABASE_DB_PASSWORD` | Present | Lets production maintenance commands build a database connection without copying a full address. | Live |
 | `SUPABASE_POOLER_HOST` | Present | Routes production maintenance commands through Supabase's reachable connection pool. | Live |
 | `SUPABASE_PUBLISHABLE_KEY` | Present | Lets the API make public Supabase requests. | Live |
