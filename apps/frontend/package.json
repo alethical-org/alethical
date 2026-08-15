@@ -9,7 +9,7 @@
     "android:sync-network": "node ./scripts/sync-android-dev-network-security.mjs",
     "ios": "node ./scripts/start-expo.mjs --ios",
     "web": "node ./scripts/start-expo.mjs --web",
-    "build": "node ./scripts/check-brand-assets.mjs && node ./scripts/start-expo.mjs export --platform web && node ./scripts/optimize-release-program.mjs && node ./scripts/check-release-assets.mjs && node ./scripts/check-icon-bundle.mjs",
+    "build": "node ./scripts/check-traffic-production-env.mjs && node ./scripts/check-brand-assets.mjs && node ./scripts/start-expo.mjs export --platform web && node ./scripts/optimize-release-program.mjs && node ./scripts/check-release-assets.mjs && node ./scripts/check-icon-bundle.mjs",
     "brand:generate": "node ./scripts/generate-brand-assets.mjs",
     "brand:check": "node ./scripts/check-brand-assets.mjs",
     "check:build-tool-security": "node ./scripts/check-build-tool-security.mjs",
