@@ -32,6 +32,9 @@ dependencies = [
   # become the reply path and the recipient of the sender's copy (#1274).
   "email-validator>=2.3.0",
   "pytest>=9.1.1",
+  # Starlette's test client now runs on httpx2. Keep plain httpx below for the
+  # production services and Supabase packages that still import it directly.
+  "httpx2>=2.0.0",
   "httpx>=0.28.1",
   "pytest-asyncio>=1.4.0",
   "supabase>=2.31.0",
