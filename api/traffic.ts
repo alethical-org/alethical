@@ -230,8 +230,20 @@ async function countVisits(
   if (filter) url.searchParams.set("filter", filter);
 
   const payload = await fetchVercel(url, token);
-  if (!rangeMatches(payload, since, untilExclusive)) {
-    throw new TrafficUnavailable("Vercel returned a different count range");
+  const actualSince = parsedDate(payload.query?.since);
+  const actualUntil = parsedDate(payload.query?.until);
+  if (actualSince === null || actualUntil === null) {
+    throw new TrafficUnavailable("Vercel returned an unreadable count range");
+  }
+  const sinceDifference = actualSince - since;
+  const untilDifference = actualUntil - untilExclusive;
+  if (
+    Math.abs(sinceDifference) > RANGE_TOLERANCE_MS ||
+    Math.abs(untilDifference) > RANGE_TOLERANCE_MS
+  ) {
+    throw new TrafficUnavailable(
+      `Vercel changed the count range by ${sinceDifference}ms/${untilDifference}ms`,
+    );
   }
   const filterMatches =
     filter === undefined
