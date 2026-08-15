@@ -141,6 +141,17 @@ test('Site Metrics matches the accepted desktop measurements', async ({ page }) 
   await expect(exploreValue).toHaveCSS('font-size', '24px');
   await expect(exploreValue).toHaveCSS('font-weight', '800');
   await expect(exploreValue).toHaveCSS('text-align', 'right');
+  const exploreViewsHeaderRight = await exploreHeader.evaluate(
+    (element) => element.getBoundingClientRect().right,
+  );
+  const exploreBillsViewsRight = await exploreValue.evaluate(
+    (element) => element.getBoundingClientRect().right,
+  );
+  const exploreLegislatorsViewsRight = await page
+    .getByTestId('site-metrics-explore-legislators-views')
+    .evaluate((element) => element.getBoundingClientRect().right);
+  expect(exploreBillsViewsRight).toBeCloseTo(exploreViewsHeaderRight, 1);
+  expect(exploreLegislatorsViewsRight).toBeCloseTo(exploreViewsHeaderRight, 1);
 
   const rail = page.getByTestId('site-metrics-destination-home-bar');
   await expect(rail).toHaveCSS('height', '12px');
@@ -176,6 +187,17 @@ test('Site Metrics matches the accepted phone measurements', async ({ page }) =>
     '12px',
   );
   await expect(page.getByTestId('site-metrics-explore-bills-views')).toHaveCSS('font-size', '22px');
+  const exploreViewsHeaderRight = await page
+    .getByTestId('site-metrics-explore-views-header')
+    .evaluate((element) => element.getBoundingClientRect().right);
+  const exploreBillsViewsRight = await page
+    .getByTestId('site-metrics-explore-bills-views')
+    .evaluate((element) => element.getBoundingClientRect().right);
+  const exploreLegislatorsViewsRight = await page
+    .getByTestId('site-metrics-explore-legislators-views')
+    .evaluate((element) => element.getBoundingClientRect().right);
+  expect(exploreBillsViewsRight).toBeCloseTo(exploreViewsHeaderRight, 1);
+  expect(exploreLegislatorsViewsRight).toBeCloseTo(exploreViewsHeaderRight, 1);
   const exploreRow = page.getByTestId('site-metrics-explore-bills-views').locator('..');
   await expect(exploreRow).toHaveCSS('padding-top', '11px');
 
