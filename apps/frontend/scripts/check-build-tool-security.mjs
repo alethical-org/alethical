@@ -104,7 +104,7 @@ for (const [args, expectedText, description] of [
   assert.match(runNodeCommand(easEntry, args, description), expectedText);
 }
 
-const expoEntry = require.resolve('@expo/cli/build/bin/cli');
+const expoEntry = require.resolve('expo/bin/cli');
 const expoConfigResult = spawnSync(
   process.execPath,
   [expoEntry, 'config', '--type', 'public', '--json'],

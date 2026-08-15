@@ -8,11 +8,6 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "description": "Plain-language legislative intelligence for people who care about what government is doing.",
-    "splash": {
-      "image": "./assets/splash-icon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#f5f1e8"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.alethical.app",
@@ -43,7 +38,16 @@
         {
           "experimentalLauncherActivity": false
         }
-      ]
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#f5f1e8"
+        }
+      ],
+      "expo-status-bar"
     ],
     "extra": {
       "eas": {

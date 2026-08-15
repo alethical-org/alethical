@@ -234,7 +234,7 @@ jobs:
       # package update can otherwise mix SDK releases and still install cleanly,
       # then fail only at type-check or build time (#1394).
       - name: Check Expo package compatibility
-        run: pnpm exec expo install --check
+        run: pnpm run check:expo-packages
 
       # Security fixes can cross package major versions while preserving only
       # the narrow commands EAS CLI and Xcode use. Exercise those commands so a
