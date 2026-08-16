@@ -99,14 +99,25 @@ def record_session(client):
     with Session(get_engine()) as db:
         # Pick a legislator who has >=1 sponsored bill that actually resolves to
         # an official URL, so cite-or-refuse has something real to resolve to.
+        # Restricted to a bill_key matching INLINE_BILL_KEY_PATTERN's real MN
+        # shape (e.g. "94-2025-HF17"): the shared sample-data fixture also seeds
+        # descriptively-named synthetic bills for other tests (e.g.
+        # "test-coauthor-count-fixture-HF7001"), and an unfiltered pick is
+        # non-deterministic across a full test-suite run -- occasionally
+        # landing on one of those, whose key the inline-strip test then
+        # expects to match a pattern it was never shaped for.
         legislator_id = db.scalar(
             select(Sponsorship.legislator_id)
             .join(Bill, Bill.id == Sponsorship.bill_id)
-            .where(Bill.official_url.is_not(None))
+            .where(
+                Bill.official_url.is_not(None),
+                Bill.bill_key.op("~")(r"^\d{2}-\d{4}-[A-Za-z]+\d+$"),
+            )
             .limit(1)
         )
         assert legislator_id is not None, (
-            "sample data must seed >=1 sponsorship with a resolvable bill"
+            "sample data must seed >=1 sponsorship with a resolvable, "
+            "real-shaped bill key"
         )
         bill_rows = db.execute(
             select(Bill.bill_key, Bill.official_url)
@@ -114,6 +125,7 @@ def record_session(client):
             .where(
                 Sponsorship.legislator_id == legislator_id,
                 Bill.official_url.is_not(None),
+                Bill.bill_key.op("~")(r"^\d{2}-\d{4}-[A-Za-z]+\d+$"),
             )
         ).all()
         record = {key: url for key, url in bill_rows}
