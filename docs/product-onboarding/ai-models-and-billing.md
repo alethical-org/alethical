@@ -59,6 +59,35 @@ topic tags at once), so they're funded together and can all use either billing r
 | **Semantic search / retrieval** — finding the right bill for a typed question | Embedding vectors | **Embedding** | ❌ **No — API-only** |
 | **Corpus status freshness** — keeping each bill's current status up to date | Re-scraped status/actions | Not AI (web scraping) | ✅ N/A (free HTTP) |
 
+### 3.1 The official provider library is plumbing, not a billing rail
+
+An official software development kit (SDK) is OpenAI's or Anthropic's maintained
+Python library for making requests. It prepares the provider's request shape, adds
+the key, reuses connections, names common errors, and reads normal replies.
+
+Using the official library does **not** change which account pays, which model runs,
+whether a call gets the 50% batch price, or what Alethical asks the model to write.
+It changes the plumbing between Alethical and the same provider endpoint.
+
+The accepted default is to use the official OpenAI and Anthropic libraries behind
+small Alethical-owned helpers. Library retries stay off (`max_retries=0`). Alethical
+still owns the reader's time limit, total tries, spending guard, schema and citation
+checks, saved progress, and honest failure message.
+
+That move has not shipped across every call yet:
+
+- [Issue 780](https://github.com/alethical-org/alethical/issues/780) owns live Ask
+  calls and OpenAI search embeddings.
+- [Issue 1520](https://github.com/alethical-org/alethical/issues/1520) owns offline
+  Anthropic summaries and Message Batches.
+- [Issue 998](https://github.com/alethical-org/alethical/issues/998) owns the dormant
+  OpenAI summary-batch fallback.
+- The Claude Code subscription path remains a separate command-line route because
+  it uses a personal subscription login rather than an API key.
+
+[How Alethical Calls OpenAI and Anthropic, and When It Retries](../architecture/ai-provider-calls-and-retries.md)
+owns the full boundary, failure rules, work order, and tradeoffs.
+
 **Key insight:** the enrichment cluster (first four rows) is text generation, so it
 can ride the subscription. **Retrieval is the outlier** — it's embeddings, so it can
 *never* use the subscription and always needs a paid embedding-API call.
@@ -127,7 +156,8 @@ The OpenAI path ([`ai_enrichment.py`](../../alethical/pipeline/ai_enrichment.py)
 always used its provider's half-price queue, which is why that one is cheap and slow.
 **The lesson to carry away is that "batch" in a command name never means "discount" by
 itself** — read whether the command *waits*. The full mode-and-tier comparison is
-worked through in [#457](https://github.com/alethical-org/alethical/issues/457).
+explained below; [issue 457](https://github.com/alethical-org/alethical/issues/457)
+now owns only the future automatic handoff for newly ingested bill text.
 
 ### 4.1 Where the 50% bulk discount comes from, and who can reach it
 
@@ -547,6 +577,9 @@ not have is the same mistake as rebuilding something that already works.
 
 ## Related
 
+- [How Alethical calls OpenAI and Anthropic, and when it retries](../architecture/ai-provider-calls-and-retries.md):
+  why official libraries are the default plumbing, what Alethical keeps under its
+  control, and which changes are only planned.
 - [Data ingestion onboarding guide](data-ingestion-onboarding.md) — where the bill
   text (that enrichment reads) and the embeddings (that retrieval uses) come from.
 - [RAG ingestion system design](../architecture/layer-2-rag-ingestion-system-design.md) — the embedding /

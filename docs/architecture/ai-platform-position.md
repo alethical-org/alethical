@@ -49,24 +49,29 @@ Claude Sonnet because #377 measured ~95% citation coverage at ~40% of Opus's cos
 the embedding model stayed OpenAI `text-embedding-3-small` because #400 measured no
 accuracy gain worth a migration.
 
-**B. One internal choke point, with per-job retry budgets.** Every provider call
-runs through one place that retries briefly and then degrades to an honest refusal
-rather than surfacing an error. **Retry policy is per job and per failure phase, not
-one universal rule** — a correction from outside review, which rightly rejected a
-blanket "never retry a timeout":
+**B. Make official provider libraries the default transport behind Alethical-owned
+call rules.** This is the accepted target, not a claim that every call has moved.
+OpenAI's and Anthropic's official Python libraries become the normal transport. Each client has
+automatic retries turned off (`max_retries=0`). A narrow Alethical helper then owns
+the whole-request clock, the total number of tries, the retryable failure list, the
+honest fallback, and the safe failure record. **Retry policy is per job and per
+failure phase, not 1 universal rule:**
 
 | Job | Policy |
 |---|---|
-| Intent classification | Short attempt, one retry, then the deterministic offline fallback |
-| Query embedding | Short retries of the identical request — idempotent and cheap |
-| Ask generation | Retry only if latency budget remains and no output began; never expose partial unsupported text |
-| Batch summaries | Resubmit only incomplete item IDs from a durable checkpoint |
+| Intent classification | At most 2 total tries inside the reader clock, then the deterministic offline fallback |
+| Query embedding | At most 2 total tries for a reader; keep the offline backfill's separate 4-try rule |
+| Ask generation | At most 2 total tries, only if the reader clock has room and no output was exposed |
+| Batch summary generation | At most 4 total tries across temporary failures and invalid output; restart only missing bills from saved checkpoints |
+| Paid batch creation | Exactly 1 try unless the provider documents and tests a safe repeated request identity |
+| Batch status and result reads | At most 4 total tries because these checks cannot create paid work |
 
-The deadline matters more than the retry count: a 30-second per-attempt timeout is
-already past a reader's patience, so per-attempt deadlines come down *before* any
-retry policy is meaningful. We call providers over plain HTTP rather than their
-SDKs, so there is no hidden SDK retry to multiply — if that changes, the choke point
-must own the total attempt budget explicitly.
+The deadline matters more than the retry count: today's separate limits can let 1
+Ask request last about 337 seconds. The planned 25-second whole-request limit is an
+emergency ceiling, not permission to loosen the 5-, 9-, and 15-second answer-speed
+targets. Most provider calls still use hand-built web requests today. The move to
+official libraries, its named exceptions, and the exact shipped-versus-planned boundary are recorded in
+[How Alethical Calls OpenAI and Anthropic, and When It Retries](ai-provider-calls-and-retries.md).
 
 **C. An automated correctness gate, tiered.** A fast suite on every pull request and
 a broader suite nightly or pre-release, measuring retrieval recall and ranking,
@@ -192,26 +197,38 @@ policy ahead of the retry fix (no dependency justifies delaying a live error pat
 and moving receipts ahead of freshness gating (diagnosis before prevention).
 Reopening the order needs a new dependency or new evidence, not a new preference.
 
-1. **Per-job retry budgets and honest degradation** —
+1. **Fix the wrong-question bill chooser:**
+   [#1622](https://github.com/alethical-org/alethical/issues/1622). Done when the
+   bill chooser receives the exact text the reader typed rather than a candidate
+   bill's saved AI record.
+2. **Per-job retry budgets and honest degradation:**
    [#780](https://github.com/alethical-org/alethical/issues/780). Done when
    simulated timeouts, rate limits and provider failures never produce an unhandled
-   error page.
-2. **Automate the correctness gate** —
+   error page or a false no-match result.
+3. **Automate the correctness gate:**
    [#399](https://github.com/alethical-org/alethical/issues/399). Cheapest item on
    the list: the scorer already exists. Done when a material regression cannot merge.
-3. **User-data retention and redaction policy** —
+4. **User-data retention and redaction policy:**
    [#803](https://github.com/alethical-org/alethical/issues/803). Done when every
    stored field has a purpose, a retention period and a deletion path.
-4. **Corpus freshness enforcement** —
+5. **Corpus freshness enforcement:**
    [#800](https://github.com/alethical-org/alethical/issues/800). Done when a missed
    refresh is detected automatically and stale-sensitive answers cannot present as
    current.
-5. **Per-answer evidence receipts** —
+6. **Per-answer evidence receipts:**
    [#801](https://github.com/alethical-org/alethical/issues/801). Done when an
    answer ID reconstructs exactly what source text the model saw.
-6. **Recovery drill and single-region decision** —
+7. **Recovery drill and single-region decision:**
    [#802](https://github.com/alethical-org/alethical/issues/802). Done when RPO and
    RTO are measured from a real restore and the risk is accepted in writing.
+
+The reader work above outranks offline provider cleanup. After #780, move the
+Anthropic summary and batch path to its official library under
+[#1520](https://github.com/alethical-org/alethical/issues/1520). Keep the dormant
+OpenAI summary fallback under [#998](https://github.com/alethical-org/alethical/issues/998),
+the spending-gated automatic handoff under
+[#457](https://github.com/alethical-org/alethical/issues/457), and the paid strict-JSON
+trial under [#1623](https://github.com/alethical-org/alethical/issues/1623).
 
 **Already done, and the precedent for rule 4:** prompt caching for batch summaries
 ([#779](https://github.com/alethical-org/alethical/issues/779), closed Jul 30 2026
@@ -232,6 +249,9 @@ remain grounded, current and reproducible.
 
 ## Related
 
+- [How Alethical calls OpenAI and Anthropic, and when it retries](ai-provider-calls-and-retries.md):
+  the accepted official-library boundary, total-try rules, failure states, issue
+  split, effort, and open questions.
 - [AI models & billing](../product-onboarding/ai-models-and-billing.md) — which jobs
   use which model, and the two billing rails that pay for them.
 - [`.claude/rules/grounded-answers.md`](../../.claude/rules/grounded-answers.md) —

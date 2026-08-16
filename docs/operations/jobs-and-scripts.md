@@ -81,12 +81,21 @@ The cost figures above are measurements and sizing rules, not provider price
 promises. [AI Models & Billing](../product-onboarding/ai-models-and-billing.md)
 owns the full evidence, account rules, model choices, and current pricing checks.
 
+Moving these calls to OpenAI's and Anthropic's official Python libraries does not
+add a paid job or change which account pays. It changes the request plumbing. The
+libraries will have automatic retries off, while Alethical keeps the total-try,
+deadline, checkpoint, and spending rules. The shipped-versus-planned boundary is
+in [How Alethical Calls OpenAI and Anthropic, and When It Retries](../architecture/ai-provider-calls-and-retries.md).
+
 Live web requests use API keys held by Railway. They cannot use a person's Claude
 or Codex subscription. Batch summary work can use a subscription or an API path;
 embedding work is API-only.
 
 ## Related
 
+- [How Alethical calls OpenAI and Anthropic, and when it retries](../architecture/ai-provider-calls-and-retries.md):
+  the official-library plan, attempt limits, honest failure state, issue split,
+  effort, and remaining unknowns.
 - [Deployment](deployment.md) explains Railway, Vercel, Supabase, release fallbacks,
   and the settings the live services need.
 - [AI Models & Billing](../product-onboarding/ai-models-and-billing.md) explains which
