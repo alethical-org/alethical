@@ -347,6 +347,7 @@ async function contentFor(
     case "resetPassword":
       return headOnly(STATIC_PAGE_METADATA["/reset"]);
     case "chatSession":
+    case "legislatorChat":
       return headOnly(homePageMetadata());
     case "notFound":
       throw new UnknownAddress(`unknown address ${path}`);
