@@ -9,18 +9,22 @@ name: Persona benchmark pilot (manual)
 #
 # The benchmark imports alethical/api/routers/legislator_chat.py, which does
 # not exist on `main` yet (it lives on PR #397 / branch joe/lc-integration).
-# BENCHMARK_REF below is a branch built on top of that PR's head and carries
-# both the persona-chat code and the benchmark itself.
+# BENCHMARK_REF below is a specific commit on a branch built on top of that
+# PR's head, carrying both the persona-chat code and the benchmark itself.
 #
-# BENCHMARK_REF is a hardcoded constant, not a workflow_dispatch input, on
-# purpose (Greptile P1, this PR): a free-text ref input would let anyone who
-# can dispatch this workflow point the checkout at arbitrary, unreviewed code
-# and have it run with OPENAI_API_KEY available job-wide -- a secret
-# exfiltration path. Changing what code this workflow runs with the key now
-# requires editing this file through a reviewed PR, the same bar as any other
-# change that touches a secret-bearing workflow.
+# BENCHMARK_REF is pinned to a commit SHA, not a branch name or a
+# workflow_dispatch input, on purpose (Greptile P1, addressed twice on this
+# PR). A free-text ref input would let anyone who can dispatch this workflow
+# point the checkout at arbitrary code; a branch NAME closes that but is
+# still mutable -- anyone who can push to persona-benchmark-ab-eval could
+# still change what code runs with OPENAI_API_KEY available job-wide. A
+# commit SHA cannot be moved, so this is the last step in that chain: what
+# runs with the key is exactly this commit, full stop. To benchmark a newer
+# commit, update this SHA through a reviewed PR to this file -- the same bar
+# as any other change that touches a secret-bearing workflow.
 env:
-  BENCHMARK_REF: persona-benchmark-ab-eval
+  # git rev-parse origin/persona-benchmark-ab-eval, captured 2026-08-16.
+  BENCHMARK_REF: 3c7d0cf0b331a29b5057bcf976a73b73d55c8418
 
 on:
   workflow_dispatch: {}
