@@ -149,7 +149,7 @@ def format_record_context(bills: list) -> str:
 # low-hundreds of bills; this focuses the prompt on the question while leaving
 # enough headroom for the persona to connect thematically related bills (the
 # grounding style the system prompt asks for). See
-# docs/persona-rag-chatbot-research.md Addendum (2026-07-16, Hybrid retrieval / RRF).
+# docs/research/persona/persona-rag-chatbot-research.md Addendum (2026-07-16, Hybrid retrieval / RRF).
 LEGISLATOR_RETRIEVAL_TOP_K = 8
 
 
@@ -191,7 +191,7 @@ def retrieve_relevant_bills(
     Vector-only, code-only v1 (no schema change, deferred RRF): embeds each bill's
     summary doc (``bill_embedding_text``) and the question at request time and
     ranks by cosine similarity. The corpus is small enough that per-request
-    embedding is acceptable — see docs/persona-rag-chatbot-research.md Addendum
+    embedding is acceptable — see docs/research/persona/persona-rag-chatbot-research.md Addendum
     (2026-07-16, Hybrid retrieval / RRF). Vector search alone can miss a pure
     lexical match (a bare bill number the summary text doesn't mention); that
     miss is the documented signal for whether the deferred keyword+RRF layer is
@@ -265,7 +265,7 @@ def parse_answer(raw_text: str, bill_by_key: dict) -> tuple[str, list[dict]]:
     return content, citations
 
 
-# Post-hoc citation verification (plan doc item 4; docs/persona-rag-chatbot-research.md
+# Post-hoc citation verification (plan doc item 4; docs/research/persona/persona-rag-chatbot-research.md
 # §5, "Citation accuracy is a structural problem"). The model self-reports a SOURCES line,
 # but citation-prose alignment is unreliable at the claim level — models cite the right
 # document yet not the right span. So we don't trust the linkage: for each cited bill we
@@ -594,7 +594,7 @@ def create_message(session_id: str, request: dict, db: Session = Depends(get_db)
     )
     answer_text, citations = parse_answer(raw_answer, bill_by_key)
     was_refusal = answer_text.strip() == LEGISLATOR_CHAT_REFUSAL
-    # Weak-grounding guard (structural, not prompt-only per persona-rag-chatbot-research.md
+    # Weak-grounding guard (structural, not prompt-only per docs/research/persona/persona-rag-chatbot-research.md
     # §5): a non-refusal answer that resolved no citation is ungrounded under cite-or-refuse
     # (.claude/rules/grounded-answers.md rule 1) — the model stated a position without a bill
     # in the record actually backing it (or cited a key that doesn't resolve). Fall back to

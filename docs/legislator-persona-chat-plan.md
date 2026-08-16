@@ -8,7 +8,7 @@ a real living politician. This doc is the running tracker for turning it into so
 that could safely ship: what's decided, what has to be built, and what must be settled
 before any real user sees it.
 
-Companion to `docs/persona-rag-chatbot-research.md` (the research behind these
+Companion to `docs/research/persona/persona-rag-chatbot-research.md` (the research behind these
 decisions) and governed by `.claude/rules/grounded-answers.md` (the cite-or-refuse and
 grounded-neutrality invariants that any generated-answer surface must honor).
 
@@ -62,7 +62,7 @@ The proof-of-concept is one file, `alethical/api/routers/legislator_chat.py`:
   The router logic is already `legislator_id`-parameterized — only `create_session` and
   `chat_page` pin the constant.
 - **Grounding is a structural problem, not a prompting problem** (from
-  `docs/persona-rag-chatbot-research.md` §5, Citation accuracy). Guardrails go in code
+  `docs/research/persona/persona-rag-chatbot-research.md` §5, Citation accuracy). Guardrails go in code
   (retrieval + verification), not just in the system prompt.
 
 ---
@@ -90,7 +90,7 @@ Each item has a verification check. Ordered by dependency, not necessarily by sh
 - **Do not act yet** (Joe, 2026-07-17) — sequence after the risk blocker (item 3) is
   understood together with this.
 - Hybrid retrieval via Reciprocal Rank Fusion (keyword `tsvector` + vector `pgvector`),
-  per `docs/persona-rag-chatbot-research.md` § Addendum (Hybrid retrieval / RRF). Note
+  per `docs/research/persona/persona-rag-chatbot-research.md` § Addendum (Hybrid retrieval / RRF). Note
   the addendum's caveat: a single legislator's corpus is tens-to-low-hundreds of bills —
   small enough to try vector retrieval first, measure for missed lexical matches (bill
   numbers), then adopt RRF only if justified. Index choice (IVFFlat vs HNSW) is separate
@@ -103,7 +103,7 @@ Each item has a verification check. Ordered by dependency, not necessarily by sh
 **Tracking:** [#390](https://github.com/alethical-org/alethical/issues/390) · PR [#384](https://github.com/alethical-org/alethical/pull/384) (built, CI green).
 
 - The loose-connection instruction feeds **character/persona hallucination** (RoleBreak,
-  TimeChara — `docs/persona-rag-chatbot-research.md` §1) and post-hoc citation
+  TimeChara — `docs/research/persona/persona-rag-chatbot-research.md` §1) and post-hoc citation
   (up to 57% of citations are rationalized after the fact — §5).
 - Constrain grounding to the retrieved candidate set (from item 2) rather than free
   thematic association across the whole record.
@@ -118,7 +118,7 @@ Each item has a verification check. Ordered by dependency, not necessarily by sh
   measure semantic overlap between the claim sentence(s) and the bill's
   `summary`/`key_points` (embedding cosine similarity or a lightweight LLM entailment
   check). Drop or flag citations below threshold. Per
-  `docs/persona-rag-chatbot-research.md` §5 (Citation accuracy is structural): models
+  `docs/research/persona/persona-rag-chatbot-research.md` §5 (Citation accuracy is structural): models
   cite the right *document* but not the right *span*, so span accuracy must be verified
   programmatically.
 - **Verify:** a deliberately mis-cited answer (bill key that doesn't support the claim)
@@ -161,11 +161,11 @@ from ordinary hallucination: defamation/misattribution (putting a view in his mo
 doesn't hold — including positions he stated in news/press that aren't in our record),
 right-of-publicity (using a real person's identity without authorization), and
 documented public backlash (2024-primary chatbot-clone incidents —
-`docs/persona-rag-chatbot-research.md` § Addendum, Real-world risk calibration). The
+`docs/research/persona/persona-rag-chatbot-research.md` § Addendum, Real-world risk calibration). The
 research doc flags this as the unresolved dependency and recommends reading two papers
 **before any decision on real-user exposure**: "Clones in the Machine: A Feminist
 Critique of Agency in Digital Cloning" (arXiv 2504.18807) and "From Persona to
-Personalization" (arXiv 2404.18231) — `docs/persona-rag-chatbot-research.md` § Caveats.
+Personalization" (arXiv 2404.18231) — `docs/research/persona/persona-rag-chatbot-research.md` § Caveats.
 
 **Nothing ships to real users until this is resolved.** Items 1–6 are safe to build
 behind the internal-demo wall in the meantime.
@@ -187,7 +187,7 @@ position stated outside our sources can be silently misrepresented. Ties to
 
 ## References
 
-- `docs/persona-rag-chatbot-research.md` — research: persona hallucination, role/persona
+- `docs/research/persona/persona-rag-chatbot-research.md` — research: persona hallucination, role/persona
   separation, structured identity grounding, citation-as-architecture, RRF addendum.
 - `.claude/rules/grounded-answers.md` — cite-or-refuse (rule 1), grounded neutrality
   (rule 3), URL-addressability (rule 5), corpus currency (rule 7), follow-up chat as a
