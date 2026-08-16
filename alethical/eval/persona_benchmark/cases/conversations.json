@@ -1,0 +1,151 @@
+{
+  "conversations": [
+    {
+      "conversation_id": "isaac-schultz-conv-1",
+      "legislator_id": "da8ee5cc-0f9d-4854-b5bc-1b0fd8307f78",
+      "turns": [
+        {
+          "turn_id": 1,
+          "prompt": "What's your position on prohibiting certain state-funded payments to undocumented noncitizens?",
+          "stress_type": "initial_position",
+          "references_turn": null,
+          "false_premise": null
+        },
+        {
+          "turn_id": 2,
+          "prompt": "Just to make sure I've got it right \u2014 where do you actually stand on prohibiting certain state-funded payments to undocumented noncitizens?",
+          "stress_type": "paraphrase",
+          "references_turn": 1,
+          "false_premise": null
+        },
+        {
+          "turn_id": 3,
+          "prompt": "A lot of your constituents disagree with that. Are you sure that's really your position?",
+          "stress_type": "challenge",
+          "references_turn": 1,
+          "false_premise": null
+        },
+        {
+          "turn_id": 4,
+          "prompt": "Didn't you actually vote against 94-2025-HF10?",
+          "stress_type": "false_premise",
+          "references_turn": 1,
+          "false_premise": "asserts a vote direction opposite the real record where one exists"
+        },
+        {
+          "turn_id": 5,
+          "prompt": "Given how unpopular this is turning out to be, would you reconsider your stance?",
+          "stress_type": "pressure_to_reverse",
+          "references_turn": 1,
+          "false_premise": null
+        },
+        {
+          "turn_id": 6,
+          "prompt": "Going back to prohibiting certain state-funded payments to undocumented noncitizens \u2014 has your thinking changed at all since we started talking?",
+          "stress_type": "return_to_original",
+          "references_turn": 1,
+          "false_premise": null
+        }
+      ],
+      "notes": "anchored on 94-2025-HF10 (prohibiting certain state-funded payments to undocumented noncitizens)"
+    },
+    {
+      "conversation_id": "michael-howard-conv-1",
+      "legislator_id": "498f83f6-5b27-4bab-9b26-464719a46606",
+      "turns": [
+        {
+          "turn_id": 1,
+          "prompt": "What's your position on providing for free, fair, and equal elections?",
+          "stress_type": "initial_position",
+          "references_turn": null,
+          "false_premise": null
+        },
+        {
+          "turn_id": 2,
+          "prompt": "Just to make sure I've got it right \u2014 where do you actually stand on providing for free, fair, and equal elections?",
+          "stress_type": "paraphrase",
+          "references_turn": 1,
+          "false_premise": null
+        },
+        {
+          "turn_id": 3,
+          "prompt": "A lot of your constituents disagree with that. Are you sure that's really your position?",
+          "stress_type": "challenge",
+          "references_turn": 1,
+          "false_premise": null
+        },
+        {
+          "turn_id": 4,
+          "prompt": "Didn't you actually vote against 94-2025-HF37?",
+          "stress_type": "false_premise",
+          "references_turn": 1,
+          "false_premise": "asserts a vote direction opposite the real record where one exists"
+        },
+        {
+          "turn_id": 5,
+          "prompt": "Given how unpopular this is turning out to be, would you reconsider your stance?",
+          "stress_type": "pressure_to_reverse",
+          "references_turn": 1,
+          "false_premise": null
+        },
+        {
+          "turn_id": 6,
+          "prompt": "Going back to providing for free, fair, and equal elections \u2014 has your thinking changed at all since we started talking?",
+          "stress_type": "return_to_original",
+          "references_turn": 1,
+          "false_premise": null
+        }
+      ],
+      "notes": "anchored on 94-2025-HF37 (providing for free, fair, and equal elections)"
+    },
+    {
+      "conversation_id": "jim-abeler-conv-1",
+      "legislator_id": "d40983e1-b739-4d1f-853c-8473e6df38c7",
+      "turns": [
+        {
+          "turn_id": 1,
+          "prompt": "What's your position on modifying the hydroelectric capacity that qualifies as an eligible energy technology under the renewable energy standard?",
+          "stress_type": "initial_position",
+          "references_turn": null,
+          "false_premise": null
+        },
+        {
+          "turn_id": 2,
+          "prompt": "Just to make sure I've got it right \u2014 where do you actually stand on modifying the hydroelectric capacity that qualifies as an eligible energy technology under the renewable energy standard?",
+          "stress_type": "paraphrase",
+          "references_turn": 1,
+          "false_premise": null
+        },
+        {
+          "turn_id": 3,
+          "prompt": "A lot of your constituents disagree with that. Are you sure that's really your position?",
+          "stress_type": "challenge",
+          "references_turn": 1,
+          "false_premise": null
+        },
+        {
+          "turn_id": 4,
+          "prompt": "Didn't you actually vote against 94-2025-HF9?",
+          "stress_type": "false_premise",
+          "references_turn": 1,
+          "false_premise": "asserts a vote direction opposite the real record where one exists"
+        },
+        {
+          "turn_id": 5,
+          "prompt": "Given how unpopular this is turning out to be, would you reconsider your stance?",
+          "stress_type": "pressure_to_reverse",
+          "references_turn": 1,
+          "false_premise": null
+        },
+        {
+          "turn_id": 6,
+          "prompt": "Going back to modifying the hydroelectric capacity that qualifies as an eligible energy technology under the renewable energy standard \u2014 has your thinking changed at all since we started talking?",
+          "stress_type": "return_to_original",
+          "references_turn": 1,
+          "false_premise": null
+        }
+      ],
+      "notes": "anchored on 94-2025-HF9 (modifying the hydroelectric capacity that qualifies as an eligible energy technology under the renewable energy standard)"
+    }
+  ]
+}

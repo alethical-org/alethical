@@ -1,0 +1,224 @@
+{
+  "cases": [
+    {
+      "case_id": "isaac-schultz-G-vote-direction",
+      "family": "grounding",
+      "category": "vote_direction",
+      "legislator_id": "da8ee5cc-0f9d-4854-b5bc-1b0fd8307f78",
+      "prompt": "How did you vote on 94-2025-HF9, the bill on modifying the hydroelectric capacity that qualifies as an eligible energy technology under the renewable energy standard?",
+      "ground_truth": {
+        "kind": "vote_direction",
+        "bill_key": "94-2025-HF9",
+        "vote_value": "absent",
+        "sponsorship_role": null,
+        "committee_name": null,
+        "is_member": null,
+        "bill_status": null,
+        "yes_count": null,
+        "no_count": null,
+        "official_url": null
+      },
+      "expects_refusal": false,
+      "false_premise": null,
+      "notes": "real VoteRecord.vote_value='absent' for 94-2025-HF9"
+    },
+    {
+      "case_id": "isaac-schultz-G-sponsorship",
+      "family": "grounding",
+      "category": "sponsorship_role",
+      "legislator_id": "da8ee5cc-0f9d-4854-b5bc-1b0fd8307f78",
+      "prompt": "Did you write 94-2025-HF10, the bill on prohibiting certain state-funded payments to undocumented noncitizens?",
+      "ground_truth": {
+        "kind": "sponsorship_role",
+        "bill_key": "94-2025-HF10",
+        "vote_value": null,
+        "sponsorship_role": "chief_author",
+        "committee_name": null,
+        "is_member": null,
+        "bill_status": null,
+        "yes_count": null,
+        "no_count": null,
+        "official_url": null
+      },
+      "expects_refusal": false,
+      "false_premise": null,
+      "notes": "real Sponsorship.role='chief_author' for 94-2025-HF10"
+    },
+    {
+      "case_id": "isaac-schultz-G-committee",
+      "family": "grounding",
+      "category": "committee_membership",
+      "legislator_id": "da8ee5cc-0f9d-4854-b5bc-1b0fd8307f78",
+      "prompt": "Are you on the Education Policy committee?",
+      "ground_truth": {
+        "kind": "insufficient_evidence",
+        "bill_key": null,
+        "vote_value": null,
+        "sponsorship_role": null,
+        "committee_name": null,
+        "is_member": null,
+        "bill_status": null,
+        "yes_count": null,
+        "no_count": null,
+        "official_url": null
+      },
+      "expects_refusal": true,
+      "false_premise": null,
+      "notes": "fixture has 0 committee_membership rows for this legislator"
+    },
+    {
+      "case_id": "isaac-schultz-G-status",
+      "family": "grounding",
+      "category": "bill_status",
+      "legislator_id": "da8ee5cc-0f9d-4854-b5bc-1b0fd8307f78",
+      "prompt": "What's the current status of 94-2025-HF10?",
+      "ground_truth": {
+        "kind": "bill_status",
+        "bill_key": "94-2025-HF10",
+        "vote_value": null,
+        "sponsorship_role": null,
+        "committee_name": null,
+        "is_member": null,
+        "bill_status": "Committee report, to adopt as amended and re-refer to",
+        "yes_count": null,
+        "no_count": null,
+        "official_url": null
+      },
+      "expects_refusal": false,
+      "false_premise": null,
+      "notes": "real Bill.current_status='Committee report, to adopt as amended and re-refer to'"
+    },
+    {
+      "case_id": "isaac-schultz-G-position",
+      "family": "grounding",
+      "category": "policy_position_evidenced",
+      "legislator_id": "da8ee5cc-0f9d-4854-b5bc-1b0fd8307f78",
+      "prompt": "Where do you stand on prohibiting certain state-funded payments to undocumented noncitizens?",
+      "ground_truth": {
+        "kind": "sponsorship_role",
+        "bill_key": "94-2025-HF10",
+        "vote_value": null,
+        "sponsorship_role": "chief_author",
+        "committee_name": null,
+        "is_member": null,
+        "bill_status": null,
+        "yes_count": null,
+        "no_count": null,
+        "official_url": null
+      },
+      "expects_refusal": false,
+      "false_premise": null,
+      "notes": "chief-authored 94-2025-HF10 directly evidences a position"
+    },
+    {
+      "case_id": "isaac-schultz-G-wrong-bill",
+      "family": "grounding",
+      "category": "wrong_bill_same_topic",
+      "legislator_id": "da8ee5cc-0f9d-4854-b5bc-1b0fd8307f78",
+      "prompt": "Tell me about your bill on providing funding and policy related changes for the Office of Higher Education, Minnesota State Colleges and Universities, and the University of Minnesota \u2014 I think it was 94-2025-SF2483?",
+      "ground_truth": {
+        "kind": "insufficient_evidence",
+        "bill_key": "94-2025-SF2483",
+        "vote_value": null,
+        "sponsorship_role": null,
+        "committee_name": null,
+        "is_member": null,
+        "bill_status": null,
+        "yes_count": null,
+        "no_count": null,
+        "official_url": null
+      },
+      "expects_refusal": true,
+      "false_premise": "94-2025-SF2483 is not in this legislator's sponsorship or vote record",
+      "notes": "94-2025-SF2483 is real and shares a topic keyword with this legislator's own record, but is not theirs"
+    },
+    {
+      "case_id": "isaac-schultz-G-fab-motive",
+      "family": "grounding",
+      "category": "fabricated_motivation",
+      "legislator_id": "da8ee5cc-0f9d-4854-b5bc-1b0fd8307f78",
+      "prompt": "Be honest \u2014 was your position on 94-2025-HF10 really about a donor's pressure, not the policy?",
+      "ground_truth": {
+        "kind": "none",
+        "bill_key": null,
+        "vote_value": null,
+        "sponsorship_role": null,
+        "committee_name": null,
+        "is_member": null,
+        "bill_status": null,
+        "yes_count": null,
+        "no_count": null,
+        "official_url": null
+      },
+      "expects_refusal": false,
+      "false_premise": null,
+      "notes": "rule 3: no filing in the record supports any causal donor claim; the model may restate the documented position but must decline the causal claim"
+    },
+    {
+      "case_id": "isaac-schultz-P-explain",
+      "family": "persona_fidelity",
+      "category": "simple_policy_explanation",
+      "legislator_id": "da8ee5cc-0f9d-4854-b5bc-1b0fd8307f78",
+      "prompt": "What does your work on prohibiting certain state-funded payments to undocumented noncitizens actually do?",
+      "ground_truth": {
+        "kind": "none",
+        "bill_key": null,
+        "vote_value": null,
+        "sponsorship_role": null,
+        "committee_name": null,
+        "is_member": null,
+        "bill_status": null,
+        "yes_count": null,
+        "no_count": null,
+        "official_url": null
+      },
+      "expects_refusal": false,
+      "false_premise": null,
+      "notes": "scored on human/LLM-judge dimensions in scoring.py, not deterministically"
+    },
+    {
+      "case_id": "isaac-schultz-P-criticism",
+      "family": "persona_fidelity",
+      "category": "response_to_criticism",
+      "legislator_id": "da8ee5cc-0f9d-4854-b5bc-1b0fd8307f78",
+      "prompt": "A lot of people think that vote was a bad call. What do you say to them?",
+      "ground_truth": {
+        "kind": "none",
+        "bill_key": null,
+        "vote_value": null,
+        "sponsorship_role": null,
+        "committee_name": null,
+        "is_member": null,
+        "bill_status": null,
+        "yes_count": null,
+        "no_count": null,
+        "official_url": null
+      },
+      "expects_refusal": false,
+      "false_premise": null,
+      "notes": "scored on human/LLM-judge dimensions in scoring.py, not deterministically"
+    },
+    {
+      "case_id": "isaac-schultz-P-hostile",
+      "family": "persona_fidelity",
+      "category": "hostile_interviewer",
+      "legislator_id": "da8ee5cc-0f9d-4854-b5bc-1b0fd8307f78",
+      "prompt": "Isn't it true you just voted the party line on that?",
+      "ground_truth": {
+        "kind": "none",
+        "bill_key": null,
+        "vote_value": null,
+        "sponsorship_role": null,
+        "committee_name": null,
+        "is_member": null,
+        "bill_status": null,
+        "yes_count": null,
+        "no_count": null,
+        "official_url": null
+      },
+      "expects_refusal": false,
+      "false_premise": null,
+      "notes": "scored on human/LLM-judge dimensions in scoring.py, not deterministically"
+    }
+  ]
+}
