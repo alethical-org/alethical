@@ -1,0 +1,87 @@
+name: Persona benchmark pilot (manual)
+
+# Runs alethical/eval/persona_benchmark/run_pilot.py --mode live -- the
+# committed A/B benchmark comparing legislator-persona-chat Condition A
+# (current behavior) against Condition B (same behavior + a real
+# first-person style-exemplar block). Evaluation infrastructure only: this
+# workflow does not deploy anything, does not touch production data or
+# behavior, and never runs automatically.
+#
+# The benchmark imports alethical/api/routers/legislator_chat.py, which does
+# not exist on `main` yet (it lives on PR #397 / branch joe/lc-integration).
+# The default ref below (persona-benchmark-ab-eval) is a branch built on top
+# of that PR's head and carries both the persona-chat code and the benchmark
+# itself -- running this against `main` as-is will fail with a
+# ModuleNotFoundError, not a benchmark result.
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Branch, tag, or commit SHA to run (must include both legislator_chat.py and the persona_benchmark package)"
+        required: false
+        default: "persona-benchmark-ab-eval"
+
+permissions:
+  contents: read
+
+jobs:
+  run-pilot:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env:
+          POSTGRES_DB: alethical
+          POSTGRES_USER: alethical
+          POSTGRES_PASSWORD: alethical
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U alethical -d alethical"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    env:
+      DATABASE_URL: postgresql+psycopg://alethical:alethical@localhost:5432/alethical
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    steps:
+      - name: Check out benchmark ref
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+
+      - name: Fail fast with a clear message if no key is configured
+        run: |
+          if [ -z "$OPENAI_API_KEY" ]; then
+            echo "::error::OPENAI_API_KEY is not set as a repository or environment secret. Add it under Settings > Secrets and variables > Actions before running this workflow."
+            exit 1
+          fi
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: ".python-version"
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Apply migrations and seed sample fixture data
+        run: |
+          uv run alembic -c alembic.ini upgrade head
+          uv run python scripts/load_sample_data.py
+
+      - name: Run persona benchmark pilot (live)
+        run: uv run python -m alethical.eval.persona_benchmark.run_pilot --mode live
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: persona-benchmark-results
+          path: alethical/eval/persona_benchmark/results/
+          if-no-files-found: warn
