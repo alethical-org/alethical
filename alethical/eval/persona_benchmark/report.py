@@ -9,7 +9,6 @@ harness sets up but cannot itself perform (see ``recognition.py``).
 from __future__ import annotations
 
 import json
-from dataclasses import asdict
 from pathlib import Path
 
 from alethical.eval.persona_benchmark.scoring import DeterministicScore, StyleLeakageFinding
