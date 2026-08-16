@@ -101,12 +101,21 @@ def _build_system_prompt(
 _current_legislator_id: list = [None]
 
 
-def _call_openai_live(system_prompt: str, history_messages: list[dict], question: str, cfg: ModelConfig) -> tuple[str, dict]:
+def _call_openai_live(
+    system_prompt: str, history_messages: list[dict], question: str, cfg: ModelConfig
+) -> tuple[str, dict]:
     api_key = os.environ["OPENAI_API_KEY"]
-    input_messages = [{"role": "system", "content": system_prompt}, *history_messages, {"role": "user", "content": question}]
+    input_messages = [
+        {"role": "system", "content": system_prompt},
+        *history_messages,
+        {"role": "user", "content": question},
+    ]
     response = requests.post(
         "https://api.openai.com/v1/responses",
-        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
         json={**cfg.params(), "input": input_messages},
         timeout=30,
     )
@@ -122,7 +131,15 @@ def _call_openai_live(system_prompt: str, history_messages: list[dict], question
     }
 
 
-def _call_mock(system_prompt: str, history_messages: list[dict], question: str, cfg: ModelConfig, *, condition: str, bill_by_key: dict) -> tuple[str, dict]:
+def _call_mock(
+    system_prompt: str,
+    history_messages: list[dict],
+    question: str,
+    cfg: ModelConfig,
+    *,
+    condition: str,
+    bill_by_key: dict,
+) -> tuple[str, dict]:
     """Deterministic stand-in so the harness is fully exercisable with no
     OPENAI_API_KEY. Grounds its stub answer in whatever the real
     ``record_context``/retrieval already narrowed things to -- it echoes the
@@ -173,11 +190,17 @@ def run_case(
     token_meta: dict = {}
     try:
         if mode == "live":
-            raw_answer, token_meta = _call_openai_live(system_prompt, history_messages, case.prompt, cfg)
+            raw_answer, token_meta = _call_openai_live(
+                system_prompt, history_messages, case.prompt, cfg
+            )
         elif mode == "mock":
             raw_answer, token_meta = _call_mock(
-                system_prompt, history_messages, case.prompt, cfg,
-                condition=condition, bill_by_key=bill_by_key,
+                system_prompt,
+                history_messages,
+                case.prompt,
+                cfg,
+                condition=condition,
+                bill_by_key=bill_by_key,
             )
         else:
             raise ValueError(f"unknown mode {mode!r}")
@@ -187,12 +210,21 @@ def run_case(
 
     if error is not None:
         return RunRecord(
-            condition=condition, case_id=case.case_id, legislator_id=case.legislator_id,
-            model=cfg.model, model_params=cfg.params(), prompt_version=PROMPT_VERSION,
+            condition=condition,
+            case_id=case.case_id,
+            legislator_id=case.legislator_id,
+            model=cfg.model,
+            model_params=cfg.params(),
+            prompt_version=PROMPT_VERSION,
             style_exemplars_used=exemplars_used,
             retrieved_bill_keys=tuple(b.bill_key for b in retrieved),
-            raw_response="", answer_text="", citations=(), dropped_citations=(),
-            was_refusal=False, latency_seconds=latency, error=error,
+            raw_response="",
+            answer_text="",
+            citations=(),
+            dropped_citations=(),
+            was_refusal=False,
+            latency_seconds=latency,
+            error=error,
         )
 
     answer_text, citations = parse_answer(raw_answer, bill_by_key)
@@ -213,20 +245,33 @@ def run_case(
             was_refusal = True
 
     return RunRecord(
-        condition=condition, case_id=case.case_id, legislator_id=case.legislator_id,
-        model=cfg.model, model_params=cfg.params(), prompt_version=PROMPT_VERSION,
+        condition=condition,
+        case_id=case.case_id,
+        legislator_id=case.legislator_id,
+        model=cfg.model,
+        model_params=cfg.params(),
+        prompt_version=PROMPT_VERSION,
         style_exemplars_used=exemplars_used,
         retrieved_bill_keys=tuple(b.bill_key for b in retrieved),
-        raw_response=raw_answer, answer_text=answer_text,
-        citations=tuple(citations), dropped_citations=tuple(dropped),
-        was_refusal=was_refusal, latency_seconds=latency,
-        input_tokens=token_meta.get("input_tokens"), output_tokens=token_meta.get("output_tokens"),
+        raw_response=raw_answer,
+        answer_text=answer_text,
+        citations=tuple(citations),
+        dropped_citations=tuple(dropped),
+        was_refusal=was_refusal,
+        latency_seconds=latency,
+        input_tokens=token_meta.get("input_tokens"),
+        output_tokens=token_meta.get("output_tokens"),
     )
 
 
 def run_conversation(
-    db, conversation: ConversationCase, condition: str, legislator_name: str,
-    *, mode: str = "mock", cfg: ModelConfig | None = None,
+    db,
+    conversation: ConversationCase,
+    condition: str,
+    legislator_name: str,
+    *,
+    mode: str = "mock",
+    cfg: ModelConfig | None = None,
 ) -> list[RunRecord]:
     """Runs every turn in order, threading real prior turns into ``history_messages``
     exactly as ``create_message`` does (user then assistant per turn), so
@@ -246,10 +291,17 @@ def run_conversation(
             false_premise=turn.false_premise,
         )
         record = run_case(
-            db, pseudo_case, condition, legislator_name,
-            mode=mode, cfg=cfg, history_messages=list(history_messages),
+            db,
+            pseudo_case,
+            condition,
+            legislator_name,
+            mode=mode,
+            cfg=cfg,
+            history_messages=list(history_messages),
         )
         records.append(record)
         history_messages.append({"role": "user", "content": turn.prompt})
-        history_messages.append({"role": "assistant", "content": record.answer_text or ""})
+        history_messages.append(
+            {"role": "assistant", "content": record.answer_text or ""}
+        )
     return records

@@ -99,15 +99,24 @@ def main() -> None:
 
                     if condition == "B":
                         all_leakage.append(
-                            detect_style_leakage(case, record, record.style_exemplars_used)
+                            detect_style_leakage(
+                                case, record, record.style_exemplars_used
+                            )
                         )
 
         conversations = load_conversations(cases_dir / "conversations.json")
         for conversation in conversations:
-            profile = next(p for p in PILOT_LEGISLATORS if str(p.id) == conversation.legislator_id)
+            profile = next(
+                p for p in PILOT_LEGISLATORS if str(p.id) == conversation.legislator_id
+            )
             for condition in ("A", "B"):
                 turn_records = run_conversation(
-                    db, conversation, condition, profile.full_name, mode=args.mode, cfg=cfg
+                    db,
+                    conversation,
+                    condition,
+                    profile.full_name,
+                    mode=args.mode,
+                    cfg=cfg,
                 )
                 conversation_records[condition].extend(turn_records)
                 all_run_records.extend(turn_records)
@@ -131,23 +140,33 @@ def main() -> None:
                     continue
                 try:
                     items, prompt = build_recognition_round(
-                        category, condition, cases_for_round, records_for_round, legislator_names
+                        category,
+                        condition,
+                        cases_for_round,
+                        records_for_round,
+                        legislator_names,
                     )
                 except ValueError as exc:
                     print(f"skipping recognition round {key}: {exc}")
                     continue
                 recognition_rounds.append((category, condition, items, prompt))
 
-        blinded_path, key_path = write_recognition_artifact(results_dir, recognition_rounds)
+        blinded_path, key_path = write_recognition_artifact(
+            results_dir, recognition_rounds
+        )
         print(f"recognition artifact: {blinded_path}")
         print(f"recognition answer key: {key_path}")
 
         human_likeness = {
             cond: aggregate_human_likeness(
                 {
-                    lid: [s for s in all_scores[cond] if s.case_id.startswith(
-                        profile.full_name.lower().replace(" ", "-").replace(".", "")
-                    )]
+                    lid: [
+                        s
+                        for s in all_scores[cond]
+                        if s.case_id.startswith(
+                            profile.full_name.lower().replace(" ", "-").replace(".", "")
+                        )
+                    ]
                     for profile in PILOT_LEGISLATORS
                     for lid in [str(profile.id)]
                 }
@@ -162,7 +181,9 @@ def main() -> None:
         payload = {
             "mode": args.mode,
             "model": args.model,
-            "grounding": {cond: aggregate_grounding(all_scores[cond]) for cond in ("A", "B")},
+            "grounding": {
+                cond: aggregate_grounding(all_scores[cond]) for cond in ("A", "B")
+            },
             "human_likeness": human_likeness,
             "repetition": repetition,
             "style_leakage": aggregate_style_leakage(all_leakage),

@@ -15,7 +15,9 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Literal
 
-Family = Literal["grounding", "persona_fidelity", "human_likeness", "interactive_consistency"]
+Family = Literal[
+    "grounding", "persona_fidelity", "human_likeness", "interactive_consistency"
+]
 Condition = Literal["A", "B"]
 
 
@@ -126,7 +128,9 @@ def save_cases(path: str | Path, cases: list[BenchmarkCase]) -> None:
 def save_conversations(path: str | Path, conversations: list[ConversationCase]) -> None:
     Path(path).write_text(
         json.dumps(
-            {"conversations": [c.to_dict() for c in conversations]}, indent=2, default=str
+            {"conversations": [c.to_dict() for c in conversations]},
+            indent=2,
+            default=str,
         )
     )
 

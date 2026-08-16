@@ -11,14 +11,21 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from alethical.eval.persona_benchmark.scoring import DeterministicScore, StyleLeakageFinding
+from alethical.eval.persona_benchmark.scoring import (
+    DeterministicScore,
+    StyleLeakageFinding,
+)
 
 
 def _rate(values: list[bool | None]) -> dict:
     known = [v for v in values if v is not None]
     if not known:
         return {"n": 0, "rate": None}
-    return {"n": len(known), "rate": round(sum(known) / len(known), 3), "undetectable": len(values) - len(known)}
+    return {
+        "n": len(known),
+        "rate": round(sum(known) / len(known), 3),
+        "undetectable": len(values) - len(known),
+    }
 
 
 def aggregate_grounding(scores: list[DeterministicScore]) -> dict:
@@ -27,13 +34,17 @@ def aggregate_grounding(scores: list[DeterministicScore]) -> dict:
         "fact_correct": _rate([s.fact_correct for s in scores]),
         "citation_correct": _rate([s.citation_correct for s in scores]),
         "corrects_false_premise": _rate([s.corrects_false_premise for s in scores]),
-        "unsupported_causal_claim_count": sum(1 for s in scores if s.unsupported_causal_claim),
+        "unsupported_causal_claim_count": sum(
+            1 for s in scores if s.unsupported_causal_claim
+        ),
         "run_errors": sum(1 for s in scores if s.notes.startswith("run error")),
         "n_cases": len(scores),
     }
 
 
-def aggregate_human_likeness(scores_by_legislator: dict[str, list[DeterministicScore]]) -> dict:
+def aggregate_human_likeness(
+    scores_by_legislator: dict[str, list[DeterministicScore]],
+) -> dict:
     """The only fully-automatic human-likeness signals: repetition and
     response length. Naturalness, engagingness, and everything else in this
     family need a human/LLM judge -- see the report's "still requires
@@ -42,7 +53,9 @@ def aggregate_human_likeness(scores_by_legislator: dict[str, list[DeterministicS
     for lid, scores in scores_by_legislator.items():
         lengths = [s.response_length_words for s in scores if s.response_length_words]
         out[lid] = {
-            "mean_response_length_words": round(sum(lengths) / len(lengths), 1) if lengths else None,
+            "mean_response_length_words": round(sum(lengths) / len(lengths), 1)
+            if lengths
+            else None,
             "n": len(scores),
         }
     return out
@@ -58,7 +71,9 @@ def aggregate_style_leakage(findings: list[StyleLeakageFinding]) -> dict:
         "motivation_leak_rate": round(sum(f.motivation_leak for f in findings) / n, 3),
         "anecdote_leak_rate": round(sum(f.anecdote_leak for f in findings) / n, 3),
         "position_leak_rate": round(sum(f.position_leak for f in findings) / n, 3),
-        "flagged_cases": [f.case_id for f in findings if f.fact_leak or f.motivation_leak],
+        "flagged_cases": [
+            f.case_id for f in findings if f.fact_leak or f.motivation_leak
+        ],
     }
 
 
@@ -88,11 +103,13 @@ def render_human_readable(
     lines.append("## 1. Grounding")
     for cond in ("A", "B"):
         g = payload["grounding"][cond]
-        lines.append(f"- Condition {cond}: refusal-correct {g['refusal_correct']}, "
-                      f"fact-correct {g['fact_correct']}, citation-correct {g['citation_correct']}, "
-                      f"false-premise-corrected {g['corrects_false_premise']}, "
-                      f"unsupported-causal-claims {g['unsupported_causal_claim_count']}, "
-                      f"run errors {g['run_errors']} / {g['n_cases']}")
+        lines.append(
+            f"- Condition {cond}: refusal-correct {g['refusal_correct']}, "
+            f"fact-correct {g['fact_correct']}, citation-correct {g['citation_correct']}, "
+            f"false-premise-corrected {g['corrects_false_premise']}, "
+            f"unsupported-causal-claims {g['unsupported_causal_claim_count']}, "
+            f"run errors {g['run_errors']} / {g['n_cases']}"
+        )
     lines.append("")
 
     lines.append("## 2. Persona fidelity")
@@ -105,12 +122,18 @@ def render_human_readable(
     lines.append("")
 
     lines.append("## 3. Human-likeness")
-    lines.append("Automatic signals only (repetition, response length); naturalness and "
-                  "engagingness require human/LLM-judge evaluation, not run here.")
+    lines.append(
+        "Automatic signals only (repetition, response length); naturalness and "
+        "engagingness require human/LLM-judge evaluation, not run here."
+    )
     for cond in ("A", "B"):
-        lines.append(f"- Condition {cond} repetition rate: {payload['repetition'][cond]}")
+        lines.append(
+            f"- Condition {cond} repetition rate: {payload['repetition'][cond]}"
+        )
         for lid, stats in payload["human_likeness"][cond].items():
-            lines.append(f"  - {lid}: mean response length {stats['mean_response_length_words']} words (n={stats['n']})")
+            lines.append(
+                f"  - {lid}: mean response length {stats['mean_response_length_words']} words (n={stats['n']})"
+            )
     lines.append("")
 
     lines.append("## 4. Interactive consistency")
@@ -124,8 +147,10 @@ def render_human_readable(
 
     lines.append("## 5. Style leakage (Variant B only)")
     sl = payload["style_leakage"]
-    lines.append(f"- n={sl.get('n', 0)}, fact-leak rate={sl.get('fact_leak_rate')}, "
-                  f"motivation-leak rate={sl.get('motivation_leak_rate')}")
+    lines.append(
+        f"- n={sl.get('n', 0)}, fact-leak rate={sl.get('fact_leak_rate')}, "
+        f"motivation-leak rate={sl.get('motivation_leak_rate')}"
+    )
     if sl.get("flagged_cases"):
         lines.append(f"- Flagged: {', '.join(sl['flagged_cases'])}")
     lines.append("")

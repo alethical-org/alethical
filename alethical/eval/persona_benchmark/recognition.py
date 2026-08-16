@@ -27,7 +27,11 @@ from pathlib import Path
 
 from alethical.eval.persona_benchmark.data_model import BenchmarkCase, RunRecord
 
-RECOGNITION_CATEGORIES = ("response_to_criticism", "hostile_interviewer", "concise_answer")
+RECOGNITION_CATEGORIES = (
+    "response_to_criticism",
+    "hostile_interviewer",
+    "concise_answer",
+)
 
 
 @dataclass
