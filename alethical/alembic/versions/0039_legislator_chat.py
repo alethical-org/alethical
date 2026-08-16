@@ -6,8 +6,8 @@ from alembic import op
 from alethical.db import models
 
 # revision identifiers, used by Alembic.
-revision = "0002_legislator_chat"
-down_revision = "0003_one_current_per_bill"
+revision = "0039_legislator_chat"
+down_revision = "0038_site_metric_event"
 branch_labels = None
 depends_on = None
 
