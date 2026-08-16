@@ -254,7 +254,7 @@ def parse_answer(raw_text: str, bill_by_key: dict) -> tuple[str, list[dict]]:
         for raw_key in keys_raw.split(","):
             key = raw_key.strip().strip("[]")
             bill = bill_by_key.get(key)
-            if bill is not None:
+            if bill is not None and bill.official_url:
                 citations.append(
                     {
                         "bill_key": bill.bill_key,
@@ -630,6 +630,7 @@ def create_message(session_id: str, request: dict, db: Session = Depends(get_db)
         citations=citations,
     )
     db.add(assistant_message)
+    db.flush()
     session_row.last_message_at = assistant_message.created_at
     db.commit()
     db.refresh(assistant_message)

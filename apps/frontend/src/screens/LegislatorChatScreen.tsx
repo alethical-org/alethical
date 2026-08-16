@@ -39,7 +39,7 @@ type DisplayMessage = {
 const AI_DISCLOSURE =
   'AI simulation — not the real person. Answers are grounded only in this legislator’s public sponsorships, votes, and bill summaries.';
 const INTRO_MESSAGE =
-  'I’m an AI simulation of this Minnesota legislator. Ask me anything — my answers are grounded in the public record: sponsorships, votes, and bill summaries.';
+  'I’m an AI simulation of this Minnesota legislator. Ask about this legislator’s public record: sponsorships, votes, and bill summaries.';
 
 export function LegislatorChatScreen() {
   const { width, height } = useWindowDimensions();
