@@ -168,17 +168,18 @@ regression gets shipped.
 
 ## 6. Ranked roadmap
 
-**The sequencing rule, so this order stops getting re-proposed.** Two outside
+**The sequencing rule, so this order stops getting re-proposed.** 2 outside
 reviews have now suggested different orderings, both reasonable, neither grounded in
 a stated rule. The rule is:
 
-1. **A true dependency forces order.** One is known **among the items identified
-   today**: the retention policy (#803) precedes evidence receipts (#801), because a
-   receipt can contain a reader's own question, and building the store first means
-   retrofitting it. This is a dependency *graph*, not a fixed count — implementation
-   may surface others, and new evidence is exactly the right reason to revise it.
+1. **A true dependency forces order.** The retention policy (#803) had to precede
+   evidence receipts (#801), because a receipt can contain a reader's own question
+   and building the store earlier would have meant retrofitting it. Issue #803 closed
+   on Aug 5, 2026, so that dependency is now satisfied. This is a dependency *graph*,
+   not a fixed count. Implementation may surface others, and new evidence is the
+   right reason to revise it.
 2. **Reader-visible failures outrank internal capability.** An error page a reader
-   hits today beats a policy document that blocks nothing but item 5.
+   hits today beats internal work that does not prevent that reader failure.
 3. **Prevention outranks diagnosis.** Freshness gating (#800) stops a confidently
    stale answer reaching a reader; receipts (#801) help explain one after the fact.
    `.claude/rules/grounded-answers.md` rule 7 calls the stale answer the sneakier
@@ -187,15 +188,20 @@ a stated rule. The rule is:
    carries enough of its own telemetry to prove its behaviour — for #780 that means
    the normalized failure type, attempts used, elapsed time, and which degradation
    path was taken, so "retries are absorbing rate limits" is distinguishable from
-   "every call burns three attempts and refuses." Shape of the failure only, never
-   reader-supplied text, until #803 is written.
+   "every call burns 3 attempts and refuses." Shape of the failure only, never
+   reader-supplied text, under [What We Keep About Readers](../product-onboarding/user-data-retention-policy.md).
 4. **Already-measured and bounded work runs in parallel**, not at the end of the
    queue.
 
-Two reorderings were proposed and declined on that basis: moving the retention
+2 reorderings were proposed and declined on that basis: moving the retention
 policy ahead of the retry fix (no dependency justifies delaying a live error path),
 and moving receipts ahead of freshness gating (diagnosis before prevention).
 Reopening the order needs a new dependency or new evidence, not a new preference.
+
+**Completed prerequisite:** [#803](https://github.com/alethical-org/alethical/issues/803)
+delivered [What We Keep About Readers](../product-onboarding/user-data-retention-policy.md)
+on Aug 5, 2026. Evidence receipts in #801 are no longer waiting for the project's
+reader-data retention, redaction, and deletion rules.
 
 1. **Fix the wrong-question bill chooser:**
    [#1622](https://github.com/alethical-org/alethical/issues/1622). Done when the
@@ -208,17 +214,14 @@ Reopening the order needs a new dependency or new evidence, not a new preference
 3. **Automate the correctness gate:**
    [#399](https://github.com/alethical-org/alethical/issues/399). Cheapest item on
    the list: the scorer already exists. Done when a material regression cannot merge.
-4. **User-data retention and redaction policy:**
-   [#803](https://github.com/alethical-org/alethical/issues/803). Done when every
-   stored field has a purpose, a retention period and a deletion path.
-5. **Corpus freshness enforcement:**
+4. **Corpus freshness enforcement:**
    [#800](https://github.com/alethical-org/alethical/issues/800). Done when a missed
    refresh is detected automatically and stale-sensitive answers cannot present as
    current.
-6. **Per-answer evidence receipts:**
+5. **Per-answer evidence receipts:**
    [#801](https://github.com/alethical-org/alethical/issues/801). Done when an
    answer ID reconstructs exactly what source text the model saw.
-7. **Recovery drill and single-region decision:**
+6. **Recovery drill and single-region decision:**
    [#802](https://github.com/alethical-org/alethical/issues/802). Done when RPO and
    RTO are measured from a real restore and the risk is accepted in writing.
 
