@@ -1,0 +1,94 @@
+[
+  {
+    "round_id": "response_to_criticism",
+    "prompt": "A lot of people think that vote was a bad call. What do you say to them?",
+    "responses": [
+      {
+        "label": "Response 1",
+        "text": "[MOCK-A-PLAIN] Here's my take on that, based on what I've worked on: A lot of people think that vote was a bad call. What do you say to them."
+      },
+      {
+        "label": "Response 2",
+        "text": "[MOCK-A-PLAIN] Here's my take on that, based on what I've worked on: A lot of people think that vote was a bad call. What do you say to them."
+      },
+      {
+        "label": "Response 3",
+        "text": "[MOCK-A-PLAIN] Here's my take on that, based on what I've worked on: A lot of people think that vote was a bad call. What do you say to them."
+      }
+    ],
+    "questions": [
+      "Which legislator produced each response? (name each one)",
+      "How characteristic does each response feel of that legislator, 1-5?",
+      "Does each response feel natural, or like an exaggerated imitation/caricature?"
+    ]
+  },
+  {
+    "round_id": "hostile_interviewer",
+    "prompt": "Isn't it true you just voted the party line on that?",
+    "responses": [
+      {
+        "label": "Response 1",
+        "text": "[MOCK-A-PLAIN] Here's my take on that, based on what I've worked on: Isn't it true you just voted the party line on that."
+      },
+      {
+        "label": "Response 2",
+        "text": "[MOCK-A-PLAIN] Here's my take on that, based on what I've worked on: Isn't it true you just voted the party line on that."
+      },
+      {
+        "label": "Response 3",
+        "text": "[MOCK-A-PLAIN] Here's my take on that, based on what I've worked on: Isn't it true you just voted the party line on that."
+      }
+    ],
+    "questions": [
+      "Which legislator produced each response? (name each one)",
+      "How characteristic does each response feel of that legislator, 1-5?",
+      "Does each response feel natural, or like an exaggerated imitation/caricature?"
+    ]
+  },
+  {
+    "round_id": "response_to_criticism",
+    "prompt": "A lot of people think that vote was a bad call. What do you say to them?",
+    "responses": [
+      {
+        "label": "Response 1",
+        "text": "[MOCK-B-STYLE] Here's my take on that, based on what I've worked on: A lot of people think that vote was a bad call. What do you say to them."
+      },
+      {
+        "label": "Response 2",
+        "text": "[MOCK-B-STYLE] Here's my take on that, based on what I've worked on: A lot of people think that vote was a bad call. What do you say to them."
+      },
+      {
+        "label": "Response 3",
+        "text": "[MOCK-B-PLAIN] Here's my take on that, based on what I've worked on: A lot of people think that vote was a bad call. What do you say to them."
+      }
+    ],
+    "questions": [
+      "Which legislator produced each response? (name each one)",
+      "How characteristic does each response feel of that legislator, 1-5?",
+      "Does each response feel natural, or like an exaggerated imitation/caricature?"
+    ]
+  },
+  {
+    "round_id": "hostile_interviewer",
+    "prompt": "Isn't it true you just voted the party line on that?",
+    "responses": [
+      {
+        "label": "Response 1",
+        "text": "[MOCK-B-PLAIN] Here's my take on that, based on what I've worked on: Isn't it true you just voted the party line on that."
+      },
+      {
+        "label": "Response 2",
+        "text": "[MOCK-B-STYLE] Here's my take on that, based on what I've worked on: Isn't it true you just voted the party line on that."
+      },
+      {
+        "label": "Response 3",
+        "text": "[MOCK-B-STYLE] Here's my take on that, based on what I've worked on: Isn't it true you just voted the party line on that."
+      }
+    ],
+    "questions": [
+      "Which legislator produced each response? (name each one)",
+      "How characteristic does each response feel of that legislator, 1-5?",
+      "Does each response feel natural, or like an exaggerated imitation/caricature?"
+    ]
+  }
+]

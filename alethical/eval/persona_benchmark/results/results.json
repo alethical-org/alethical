@@ -1,0 +1,99 @@
+{
+  "mode": "mock",
+  "model": "gpt-4o-mini",
+  "grounding": {
+    "A": {
+      "refusal_correct": {
+        "n": 30,
+        "rate": 0.8,
+        "undetectable": 0
+      },
+      "fact_correct": {
+        "n": 3,
+        "rate": 0.0,
+        "undetectable": 27
+      },
+      "citation_correct": {
+        "n": 30,
+        "rate": 1.0,
+        "undetectable": 0
+      },
+      "corrects_false_premise": {
+        "n": 0,
+        "rate": null
+      },
+      "unsupported_causal_claim_count": 0,
+      "run_errors": 0,
+      "n_cases": 30
+    },
+    "B": {
+      "refusal_correct": {
+        "n": 30,
+        "rate": 0.8,
+        "undetectable": 0
+      },
+      "fact_correct": {
+        "n": 3,
+        "rate": 0.0,
+        "undetectable": 27
+      },
+      "citation_correct": {
+        "n": 30,
+        "rate": 1.0,
+        "undetectable": 0
+      },
+      "corrects_false_premise": {
+        "n": 0,
+        "rate": null
+      },
+      "unsupported_causal_claim_count": 0,
+      "run_errors": 0,
+      "n_cases": 30
+    }
+  },
+  "human_likeness": {
+    "A": {
+      "da8ee5cc-0f9d-4854-b5bc-1b0fd8307f78": {
+        "mean_response_length_words": 27.5,
+        "n": 10
+      },
+      "498f83f6-5b27-4bab-9b26-464719a46606": {
+        "mean_response_length_words": 24.1,
+        "n": 10
+      },
+      "d40983e1-b739-4d1f-853c-8473e6df38c7": {
+        "mean_response_length_words": 24.1,
+        "n": 10
+      }
+    },
+    "B": {
+      "da8ee5cc-0f9d-4854-b5bc-1b0fd8307f78": {
+        "mean_response_length_words": 27.5,
+        "n": 10
+      },
+      "498f83f6-5b27-4bab-9b26-464719a46606": {
+        "mean_response_length_words": 24.1,
+        "n": 10
+      },
+      "d40983e1-b739-4d1f-853c-8473e6df38c7": {
+        "mean_response_length_words": 24.1,
+        "n": 10
+      }
+    }
+  },
+  "repetition": {
+    "A": 1.0,
+    "B": 1.0
+  },
+  "style_leakage": {
+    "n": 30,
+    "fact_leak_rate": 0.0,
+    "motivation_leak_rate": 0.0,
+    "anecdote_leak_rate": 0.0,
+    "position_leak_rate": 0.0,
+    "flagged_cases": []
+  },
+  "conversations": {
+    "n_conversations": 3
+  }
+}

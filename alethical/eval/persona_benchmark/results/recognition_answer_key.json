@@ -1,0 +1,98 @@
+[
+  {
+    "round_id": "response_to_criticism",
+    "condition": "A",
+    "answer": [
+      {
+        "label": "Response 1",
+        "legislator_id": "d40983e1-b739-4d1f-853c-8473e6df38c7",
+        "legislator_name": "Jim Abeler",
+        "case_id": "jim-abeler-P-criticism"
+      },
+      {
+        "label": "Response 2",
+        "legislator_id": "498f83f6-5b27-4bab-9b26-464719a46606",
+        "legislator_name": "Michael Howard",
+        "case_id": "michael-howard-P-criticism"
+      },
+      {
+        "label": "Response 3",
+        "legislator_id": "da8ee5cc-0f9d-4854-b5bc-1b0fd8307f78",
+        "legislator_name": "Isaac Schultz",
+        "case_id": "isaac-schultz-P-criticism"
+      }
+    ]
+  },
+  {
+    "round_id": "hostile_interviewer",
+    "condition": "A",
+    "answer": [
+      {
+        "label": "Response 1",
+        "legislator_id": "498f83f6-5b27-4bab-9b26-464719a46606",
+        "legislator_name": "Michael Howard",
+        "case_id": "michael-howard-P-hostile"
+      },
+      {
+        "label": "Response 2",
+        "legislator_id": "d40983e1-b739-4d1f-853c-8473e6df38c7",
+        "legislator_name": "Jim Abeler",
+        "case_id": "jim-abeler-P-hostile"
+      },
+      {
+        "label": "Response 3",
+        "legislator_id": "da8ee5cc-0f9d-4854-b5bc-1b0fd8307f78",
+        "legislator_name": "Isaac Schultz",
+        "case_id": "isaac-schultz-P-hostile"
+      }
+    ]
+  },
+  {
+    "round_id": "response_to_criticism",
+    "condition": "B",
+    "answer": [
+      {
+        "label": "Response 1",
+        "legislator_id": "da8ee5cc-0f9d-4854-b5bc-1b0fd8307f78",
+        "legislator_name": "Isaac Schultz",
+        "case_id": "isaac-schultz-P-criticism"
+      },
+      {
+        "label": "Response 2",
+        "legislator_id": "498f83f6-5b27-4bab-9b26-464719a46606",
+        "legislator_name": "Michael Howard",
+        "case_id": "michael-howard-P-criticism"
+      },
+      {
+        "label": "Response 3",
+        "legislator_id": "d40983e1-b739-4d1f-853c-8473e6df38c7",
+        "legislator_name": "Jim Abeler",
+        "case_id": "jim-abeler-P-criticism"
+      }
+    ]
+  },
+  {
+    "round_id": "hostile_interviewer",
+    "condition": "B",
+    "answer": [
+      {
+        "label": "Response 1",
+        "legislator_id": "d40983e1-b739-4d1f-853c-8473e6df38c7",
+        "legislator_name": "Jim Abeler",
+        "case_id": "jim-abeler-P-hostile"
+      },
+      {
+        "label": "Response 2",
+        "legislator_id": "498f83f6-5b27-4bab-9b26-464719a46606",
+        "legislator_name": "Michael Howard",
+        "case_id": "michael-howard-P-hostile"
+      },
+      {
+        "label": "Response 3",
+        "legislator_id": "da8ee5cc-0f9d-4854-b5bc-1b0fd8307f78",
+        "legislator_name": "Isaac Schultz",
+        "case_id": "isaac-schultz-P-hostile"
+      }
+    ]
+  }
+]
