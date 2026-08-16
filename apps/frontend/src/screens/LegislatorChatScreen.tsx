@@ -23,7 +23,7 @@ import {
 } from '../hooks/useAppQueries';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { theme } from '../theme/tokens';
-import { fieldFocusRing } from '../theme/fieldFocus';
+import { fieldFocusRing, fieldOutlineReset } from '../theme/fieldFocus';
 
 type DisplayMessage = {
   id: string;
@@ -33,8 +33,6 @@ type DisplayMessage = {
   wasRefusal?: boolean;
   isTyping?: boolean;
 };
-
-const webInputFocusReset = Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : null;
 
 // The persona is an AI simulation grounded only in the record; this framing is
 // fixed UI copy (grounded-answers.md rule 3), not model output.
@@ -240,7 +238,7 @@ export function LegislatorChatScreen() {
                 placeholderTextColor={theme.colors.mutedInk}
                 cursorColor={theme.colors.ink}
                 selectionColor={theme.colors.ink}
-                style={[styles.input, webInputFocusReset]}
+                style={[styles.input, fieldOutlineReset]}
                 value={draft}
                 onChangeText={setDraft}
                 onFocus={() => setComposerFocused(true)}
