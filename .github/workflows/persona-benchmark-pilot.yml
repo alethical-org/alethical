@@ -9,17 +9,21 @@ name: Persona benchmark pilot (manual)
 #
 # The benchmark imports alethical/api/routers/legislator_chat.py, which does
 # not exist on `main` yet (it lives on PR #397 / branch joe/lc-integration).
-# The default ref below (persona-benchmark-ab-eval) is a branch built on top
-# of that PR's head and carries both the persona-chat code and the benchmark
-# itself -- running this against `main` as-is will fail with a
-# ModuleNotFoundError, not a benchmark result.
+# BENCHMARK_REF below is a branch built on top of that PR's head and carries
+# both the persona-chat code and the benchmark itself.
+#
+# BENCHMARK_REF is a hardcoded constant, not a workflow_dispatch input, on
+# purpose (Greptile P1, this PR): a free-text ref input would let anyone who
+# can dispatch this workflow point the checkout at arbitrary, unreviewed code
+# and have it run with OPENAI_API_KEY available job-wide -- a secret
+# exfiltration path. Changing what code this workflow runs with the key now
+# requires editing this file through a reviewed PR, the same bar as any other
+# change that touches a secret-bearing workflow.
+env:
+  BENCHMARK_REF: persona-benchmark-ab-eval
+
 on:
-  workflow_dispatch:
-    inputs:
-      ref:
-        description: "Branch, tag, or commit SHA to run (must include both legislator_chat.py and the persona_benchmark package)"
-        required: false
-        default: "persona-benchmark-ab-eval"
+  workflow_dispatch: {}
 
 permissions:
   contents: read
@@ -46,9 +50,9 @@ jobs:
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
     steps:
       - name: Check out benchmark ref
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: ${{ inputs.ref }}
+          ref: ${{ env.BENCHMARK_REF }}
 
       - name: Fail fast with a clear message if no key is configured
         run: |
@@ -58,12 +62,12 @@ jobs:
           fi
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@e58605a9b6da7c637471fab8847a5e5a6b8df081 # v5
         with:
           enable-cache: true
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version-file: ".python-version"
 
@@ -80,7 +84,7 @@ jobs:
 
       - name: Upload benchmark results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: persona-benchmark-results
           path: alethical/eval/persona_benchmark/results/
