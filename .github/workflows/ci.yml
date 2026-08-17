@@ -8,8 +8,14 @@ name: CI
 # `dorny/paths-filter` — because a job skipped by `if:` reports `skipped`, which
 # GitHub counts as a passing required check. `changes` also runs the always-needed
 # documentation checks, so they share its one rounded runner minute.
+#
+# `merge_group:` is required for the merge queue (enabled Aug 17 2026): without it,
+# these required checks never run on the queue's speculative commits, and every PR
+# sits in the queue until it times out. `dorny/paths-filter` auto-detects the merge
+# group's base/head commits, so `backend`/`frontend` path filtering works unchanged.
 on:
   pull_request:
+  merge_group:
   push:
     branches:
       - main
