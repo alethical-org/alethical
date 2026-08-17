@@ -17,7 +17,9 @@ each vendor still requires its own sign-in.
 
 Each source has its own server route and page state. A Google problem hides only Google.
 A Checkly problem cannot erase Vercel visits. The browser keeps the last good answer from
-each source when a later refresh fails.
+each source when a later refresh fails. Vercel's delivery network also keeps the last valid
+Vercel traffic answer available for up to 24 hours when that source temporarily fails, so a
+reload does not immediately replace working traffic totals with an unavailable message.
 
 ## What the numbers mean
 

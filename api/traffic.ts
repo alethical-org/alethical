@@ -39,7 +39,8 @@ const MAX_HOURS_PER_QUERY = 168;
 const THIRTY_DAYS_IN_HOURS = 30 * 24;
 const PATH_LIMIT = 100;
 const RANGE_TOLERANCE_MS = 60 * 1000;
-const OK_CACHE = "public, max-age=0, s-maxage=300, stale-while-revalidate=60";
+const OK_CACHE =
+  "public, max-age=0, s-maxage=300, stale-while-revalidate=60, stale-if-error=86400";
 const HOME_FILTER = "requestPath eq '/'";
 const BILLS_FILTER =
   "requestPath eq '/bills' or startswith(requestPath, '/bills/')";
