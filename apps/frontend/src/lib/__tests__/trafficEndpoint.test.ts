@@ -210,7 +210,7 @@ describe('public traffic totals', () => {
     expect(JSON.stringify(body)).not.toContain('private-profile');
     expect(JSON.stringify(body)).not.toContain('requestPath');
     expect(headers.get('Cache-Control')).toBe(
-      'public, max-age=0, s-maxage=300, stale-while-revalidate=60',
+      'public, max-age=0, s-maxage=300, stale-while-revalidate=60, stale-if-error=86400',
     );
     expect(fetchSpy).toHaveBeenCalledTimes(20);
     expect(fetchSpy.mock.calls.every(([input]) => !String(input).includes('/visits/count'))).toBe(
