@@ -5,9 +5,6 @@ no one can read. Alethical turns that record — bills, votes, legislators, camp
 money — into plain language, so anyone can see what their government is doing and check
 every word against the official source.
 
-*(Draft wording — the final pitch is pending team sign-off. Improve the sentences, not
-the substance.)*
-
 ## What the app does
 
 1. **Every Minnesota bill, in plain language** — what it does, where it stands, and who
