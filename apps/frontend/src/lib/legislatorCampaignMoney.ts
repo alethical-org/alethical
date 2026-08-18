@@ -227,12 +227,16 @@ export function spendingNote(state: MoneyBlockState): string {
  * Two official sources can be added up correctly and still disagree, and only reading
  * the committee's own report catches the case where its filing itemizes money our copy
  * is missing entirely: that shortfall lands silently in the unnamed figure and becomes a
- * claim that money had no donor. 14 committee-years in the live release fail that check.
+ * claim that money had no donor. **76 committee-years in the live release fail that
+ * check**, measured 18 Aug 2026 (#1496): 33 where the filing names more than we hold and
+ * 43 where we hold more than it names. The count read 14 here until then, from a run that
+ * covered 2025 alone.
  *
- * The comparison costs a document request per filing. It has been run for 2025 and not
- * for 2026, so on the year a reader lands on the answer today is "not checked". The
- * figures are still the best evidence we have and are shown either way; what may not
- * happen is an unchecked figure reading exactly like a checked one.
+ * The comparison costs a document request per filing. It has now been run for 2024, 2025
+ * and 2026, so "not checked" on those years means the Board served no document rather
+ * than that nobody looked. The figures are still the best evidence we have and are shown
+ * either way; what may not happen is an unchecked figure reading exactly like a checked
+ * one.
  *
  * `null` when checked, because a page should not decorate the ordinary case.
  */
@@ -286,11 +290,17 @@ export function splitExplanation(state: SplitState): string | null {
         'is listed here is only the donations Minnesota required this committee to name.'
       );
     case 'sources_disagree':
+      // No direction, deliberately. This state is reached from both of them, and the
+      // sentence that stood here named only one: "the donations the state lists add up
+      // to more than the committee itself reported raising". Measured on the live
+      // release (#1496), 33 of the 76 disagreeing committee-years run the other way —
+      // the committee's own filed report names money the state's donation list does not
+      // hold — so that clause printed the opposite of the truth on 33 real pages, under
+      // a named person's photograph. Which figure is larger is never stated here.
       return (
         'Minnesota publishes these two figures separately, and for this committee and ' +
-        'year they do not agree: the donations the state lists add up to more than the ' +
-        'committee itself reported raising. We show both and work out neither, because ' +
-        'we cannot tell which one is right.'
+        'year they do not agree. We show both and work out neither, because we cannot ' +
+        'tell which one is right.'
       );
     case 'periods_differ':
       return (

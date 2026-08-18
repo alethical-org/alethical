@@ -334,8 +334,15 @@ def named_money_split(
         # one we hold. That is #1433's check, and it catches the direction the release
         # reconciliation cannot: a filing that itemizes money our rows are missing
         # entirely, which would otherwise land silently in the unnamed figure and become
-        # a positive claim that money had no donor. 14 committee-years in the live
-        # release, 3 of them candidate committees for 2025.
+        # a positive claim that money had no donor. **76 committee-years in the live
+        # release**, measured 18 Aug 2026 across 2024, 2025 and 2026 (#1496).
+        #
+        # It runs in both directions, which matters to the page and not to this branch:
+        # 33 of the 76 are the filing naming more than we hold and 43 are us holding more
+        # than it names. Both land here, so no wording downstream of this state may say
+        # which figure is the larger one (`splitExplanation` in
+        # `apps/frontend/src/lib/legislatorCampaignMoney.ts` said so until #1496 and was
+        # wrong on 33 pages).
         return NamedMoneySplit(
             state=SPLIT_SOURCES_DISAGREE,
             reported_total=reported_total,

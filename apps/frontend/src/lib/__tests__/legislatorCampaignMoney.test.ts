@@ -126,6 +126,19 @@ describe('splitExplanation', () => {
     expect(text).toMatch(/cannot tell which one is right/);
   });
 
+  it('never says which of the two figures is the larger one', () => {
+    // This state is reached from both directions and the sentence used to name only
+    // one of them: "the donations the state lists add up to more than the committee
+    // itself reported raising". Measured on the live release 18 Aug 2026 (#1496), 33
+    // of the 76 disagreeing committee-years run the other way — the committee's own
+    // filed report names money the state's donation list does not hold — so that
+    // clause printed the reverse of the truth on 33 pages, each under a named
+    // person's photograph. Filer 20010's 2025 is the plain case: its filing itemizes
+    // $1,493,418.08 and the donation list holds $1,488,168.08.
+    const text = splitExplanation('sources_disagree') ?? '';
+    expect(text).not.toMatch(/more than|larger|bigger|exceed|greater|less than|smaller/i);
+  });
+
   it('explains a period mismatch as time rather than as a disagreement', () => {
     // The House Republican Campaign Committee's 2026: our rows run to 20 July, its
     // report stops on 31 March. Calling that a contradiction blames Minnesota for
