@@ -223,12 +223,23 @@ says why.
 | What the reader sees | When | How common |
 | --- | --- | --- |
 | "These two figures cover different stretches of time." | The committee's own report stops earlier than the donation spreadsheet does | 28 of 446 candidate committees in 2026, 0 in 2025 |
-| "Minnesota publishes these two figures separately, and for this committee and year they do not agree." | The donations listed add up to more than the committee reported raising | 6 candidate committees in 2026, 10 in 2025 |
+| "Minnesota publishes these two figures separately, and for this committee and year they do not agree." | The two official figures differ, in **either** direction: the committee's own filed report can name money the donation spreadsheet does not hold, or the spreadsheet can hold more than the committee reported | 76 committee-years across 2024 to 2026, of which 33 are the filing naming more and 43 are the spreadsheet holding more |
 | "The state has not published a report for this committee covering this year." | No official total we can stand behind for that year | 14 candidate committees in 2025, 0 in 2026 |
 | "We cannot tell whether every donor stayed under the naming threshold or whether donations are missing from the list." | The committee reported money and the spreadsheet names none of it | 212 candidate committees in 2025, 28 in 2026 |
 
-Counts measured against the live release on 12 August 2026. They are evidence, not a
-requirement.
+Counts measured against the live release on 12 August 2026, except the disagreement row,
+re-measured on 18 August 2026 once the comparison had run for 2024 and 2026 as well as
+2025 ([#1496](https://github.com/alethical-org/alethical/issues/1496)). They are
+evidence, not a requirement.
+
+**The disagreement row used to name a direction and it was the wrong one on 33 of those
+76.** It said the listed donations "add up to more than the committee reported raising",
+which is true of one of the two ways a page reaches that sentence and the reverse of the
+truth on the other. The committee's own filed report naming money the spreadsheet does
+not hold is the more serious of the two, because that money would otherwise be counted as
+having no donor at all. Filer 20010's 2025 is the plain case: its filing itemizes
+$1,493,418.08 and the spreadsheet holds $1,488,168.08. The sentence on screen now names
+no direction, and a test pins that it never does again.
 
 The sharpest real case is the House Republican Campaign Committee's 2026: it reported
 $399,275.76 through 31 March, and the donation spreadsheet names $881,816.24 of
