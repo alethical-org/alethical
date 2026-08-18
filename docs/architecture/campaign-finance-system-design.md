@@ -111,13 +111,23 @@ Supabase Storage; another merged a display rule that a third had already measure
     and claimed the pen from an owner that merge had just replaced. Its branch predated the merge by
     minutes and nothing it could read said so. Not a session ignoring the rule: a session following
     it exactly.
-  - **1 never spoke to anybody, and this is the case that decides the shape of the check.**
-    [PR #1652](https://github.com/alethical-org/alethical/pull/1652) was written by a session that
-    read a measurement published in an issue comment and wrote it up — precisely what the bullet
-    below asks other sessions to do. Two sessions then held the same finding, one in a comment and
-    one in a pull request, having never met. **No amount of session-to-session messaging finds that.**
-    Asking "who has claimed the pen" gets the wrong answer; asking "what is changing this file" gets
-    the right one.
+  - **1 could not have been caught by this check at all, which is why it is a backstop and not
+    the first line of defence.** [PR #1649](https://github.com/alethical-org/alethical/pull/1649)
+    began from a measurement published in an issue comment, before #1644 existed, so no scan for
+    open pull requests against this file would have found it at the time it started. **The check
+    that would have prevented it is noticing 2 sessions working the same issue**: run
+    `gh issue view <n> --comments` and look at who is already measuring what, before you write up
+    a finding you read there. This bullet's scan catches the collision; the issue check prevents
+    the duplicated work.
+
+    **And contact is not the missing piece, which is the part worth knowing.** That session did
+    message the session named in the issue's own title before writing anything, and the duplicated
+    work happened anyway, because the wording it had read was landed by a **third** session while
+    both were still holding it. So "message the other session" is necessary and not sufficient: a
+    finding published in a comment can be picked up by anyone, and only the file itself records who
+    is actually changing it. A previous version of this bullet asserted that a session had written
+    up a comment's measurement without speaking to anyone; that was relayed second-hand, its
+    evidence collapsed on re-checking, and it is replaced rather than quietly dropped.
   - **1 was a week-old draft** ([#1335](https://github.com/alethical-org/alethical/pull/1335)) that
     nobody in that hour's traffic mentioned, because nobody was looking at the file.
 
