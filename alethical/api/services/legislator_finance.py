@@ -342,7 +342,9 @@ def named_money_split(
         # than it names. Both land here, so no wording downstream of this state may say
         # which figure is the larger one (`splitExplanation` in
         # `apps/frontend/src/lib/legislatorCampaignMoney.ts` said so until #1496 and was
-        # wrong on 33 pages).
+        # wrong for 33 of them — reached by no reader, because the money section needs a
+        # confirmed member-to-committee match and `legislator_campaign_committee` holds 0
+        # rows in production, but wrong in shipped code all the same).
         return NamedMoneySplit(
             state=SPLIT_SOURCES_DISAGREE,
             reported_total=reported_total,
