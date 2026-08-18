@@ -132,9 +132,11 @@ describe('splitExplanation', () => {
     // itself reported raising". Measured on the live release 18 Aug 2026 (#1496), 33
     // of the 76 disagreeing committee-years run the other way — the committee's own
     // filed report names money the state's donation list does not hold — so that
-    // clause printed the reverse of the truth on 33 pages, each under a named
-    // person's photograph. Filer 20010's 2025 is the plain case: its filing itemizes
-    // $1,493,418.08 and the donation list holds $1,488,168.08.
+    // clause stated the reverse of the truth for 33 committee-years. Filer 20010's
+    // 2025 is the plain case: its filing itemizes $1,493,418.08 and the donation list
+    // holds $1,488,168.08. No reader had seen it — the money section is gated on a
+    // confirmed member-to-committee match and there are 0 of those in production — so
+    // this test guards a sentence before it is ever drawn rather than after.
     const text = splitExplanation('sources_disagree') ?? '';
     expect(text).not.toMatch(/more than|larger|bigger|exceed|greater|less than|smaller/i);
   });

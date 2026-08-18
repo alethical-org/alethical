@@ -295,8 +295,16 @@ export function splitExplanation(state: SplitState): string | null {
       // to more than the committee itself reported raising". Measured on the live
       // release (#1496), 33 of the 76 disagreeing committee-years run the other way —
       // the committee's own filed report names money the state's donation list does not
-      // hold — so that clause printed the opposite of the truth on 33 real pages, under
-      // a named person's photograph. Which figure is larger is never stated here.
+      // hold — so that clause stated the opposite of the truth for 33 committee-years.
+      //
+      // **No reader had seen it**, and the first version of this comment wrongly said
+      // they had. Nothing reaches this sentence until a committee is confirmed as a
+      // member's, and `legislator_campaign_committee` holds **0 rows** in production, so
+      // every profile draws `UnconfirmedPanel` instead (#1354 is the confirmations).
+      // It was a defect waiting for the first confirmation, which is the cheapest moment
+      // to have caught it and not a reason to have understated it either.
+      //
+      // Which figure is larger is never stated here.
       return (
         'Minnesota publishes these two figures separately, and for this committee and ' +
         'year they do not agree. We show both and work out neither, because we cannot ' +

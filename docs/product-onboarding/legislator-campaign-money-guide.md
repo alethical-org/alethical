@@ -241,6 +241,16 @@ having no donor at all. Filer 20010's 2025 is the plain case: its filing itemize
 $1,493,418.08 and the spreadsheet holds $1,488,168.08. The sentence on screen now names
 no direction, and a test pins that it never does again.
 
+**Nobody had read it, and the first version of this paragraph wrongly implied they had.**
+This whole money section only draws once a person has confirmed which committee belongs to
+a member, and **no such confirmation exists yet** — the table holding them
+(`legislator_campaign_committee`) has 0 rows in production, so every member's tab currently
+shows the "nobody has confirmed which committee is theirs" panel and never reaches a split
+or its explanation. So this was a wrong sentence sitting in shipped code, fixed before the
+first confirmation made it visible, rather than a wrong sentence a reader saw. Recorded
+this way round because the difference is the whole distance between a near miss and a
+published falsehood, and the first telling of it took the credit for the wrong one.
+
 The sharpest real case is the House Republican Campaign Committee's 2026: it reported
 $399,275.76 through 31 March, and the donation spreadsheet names $881,816.24 of
 donations through 20 July. Subtracting one from the other prints **minus $482,540.48**
