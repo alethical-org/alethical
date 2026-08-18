@@ -44,6 +44,7 @@ describe('routePath builds the URL the router will land on', () => {
     expect(routePath.bills()).toBe('/bills');
     expect(routePath.legislators()).toBe('/legislators');
     expect(routePath.privacy()).toBe('/privacy');
+    expect(routePath.siteMetrics()).toBe('/site-metrics');
     expect(routePath.terms()).toBe('/terms');
     expect(routePath.bill('94-2025-SF334')).toBe('/bills/94-2025-SF334');
     expect(routePath.legislator('abc-123')).toBe('/legislators/abc-123');
@@ -171,10 +172,12 @@ describe('externalLinkProps sends an official source to a new tab', () => {
     expect(props.hrefAttrs).toEqual({ target: '_blank', rel: 'noopener noreferrer' });
   });
 
-  it('drops the handler on web, so one click cannot open two tabs', () => {
-    // The native fallback (Linking.openURL) is passed in and deliberately ignored
-    // here: on web the anchor's own target="_blank" does the opening.
-    expect(externalLinkProps(url, vi.fn()).onPress).toBeUndefined();
+  it('keeps only the anonymous counter on web, so one click cannot open two tabs', () => {
+    const nativeOpen = vi.fn();
+    const props = externalLinkProps(url, nativeOpen);
+    expect(props.onPress).toBeTypeOf('function');
+    props.onPress?.(clickEvent() as unknown as GestureResponderEvent);
+    expect(nativeOpen).not.toHaveBeenCalled();
   });
 });
 

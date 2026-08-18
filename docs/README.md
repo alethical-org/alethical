@@ -27,6 +27,9 @@ things work in practice and are the place to start if you're new.
 - [Bill search screen spec](product-onboarding/bill-search-screen-spec.md) — the bill search screen (`/bills`)
 - [Bill tracking interaction spec](product-onboarding/bill-tracking-spec.md) — how Track behaves on every page, through sign-in, and inside full-card links
 - [How sign-in works](product-onboarding/sign-in-guide.md) — Google and password sign-in, email links, account matching, password rules, and release settings
+- [How Home works](product-onboarding/home-screen-guide.md) — the signed-out and signed-in opening sections, bill activity, editorial news picks, and phone layout
+- [How Bill Detail works](product-onboarding/bill-detail-guide.md) — the summary, actions, votes, versions, Bill Text, source line, and phone order
+- [How legislator profiles work](product-onboarding/legislator-profile-guide.md) — identity, committees, bills, service history, public money records, and planned features
 - [Bill Text tab spec](product-onboarding/bill-text-tab-spec.md) — how a bill's official text is parsed, marked up, and rendered, plus the section-index rail and citation anchors
 - [Answer quality bar](product-onboarding/answer-quality-bar.md) — what a good generated answer is, how the eval measures it, and the judge calibration behind the scores
 - [Campaign finance roadmap](product-onboarding/campaign-finance-roadmap.md) — plain-language plan for putting Minnesota campaign money on the site: what we are building, in what order, and the one rule that shapes it
@@ -39,6 +42,7 @@ things work in practice and are the place to start if you're new.
 - [How the Campaign money tab works (plain English)](product-onboarding/legislator-campaign-money-guide.md) — what a legislator's campaign raised and spent, why roughly 4 dollars in 10 have no donor's name, and when the page shows two figures rather than working out the difference
 - [How sharing works](product-onboarding/sharing-guide.md) — what each page and destination receives, why Instagram has no direct button, and how link previews are built
 - [How Contact us works](product-onboarding/contact-us-guide.md) — the page, its 5 states, message delivery, and what reader data leaves Alethical
+- [How the Site metrics page works](product-onboarding/traffic-guide.md) — the 4 public totals, Vercel source, privacy boundary, team-account exclusion, and page states
 - [About Us page](product-onboarding/about-us-page-spec.md) — the public statement of Alethical’s name, beliefs, current features, roadmap, and correction policy
 
 ## Design
@@ -51,6 +55,7 @@ things work in practice and are the place to start if you're new.
 - [Backend stack](architecture/backend-stack.md) — **start here for the backend:** every piece of the running system in one page (language, web service, database, sign-in, job queue, AI providers, email, hosting, tests), what we deliberately don't run, and which doc covers each part in depth
 - [Bill refresh cadence decisions](architecture/bill-refresh-cadence-decisions.md) — how often to re-fetch bills and why: the measured activity data behind each interval, the four safety fixes that must land before anything is scheduled, and the alternatives that lost
 - [AI platform position](architecture/ai-platform-position.md) — what we buy direct, what we build ourselves, what we skip, and the trigger that would reverse each call
+- [How Alethical calls OpenAI and Anthropic, and when it retries](architecture/ai-provider-calls-and-retries.md): the accepted official-library plan, current failure risks, retry and deadline rules, honest reader states, work order, effort, and open questions
 - [Page metadata for search and sharing — decisions](architecture/page-metadata-for-search-and-sharing-decisions.md) — why every address serves search engines the same title today (link previews already work), the wording rule for each page type, robots/sitemap/structured-data calls, and the four ways to fix it with the recommended two-release plan (proposal, not built)
 - [Backend API system design](architecture/backend-api-system-design.md) — REST conventions, namespace layout, and the endpoint inventory
 - [Database schema system design](architecture/db-schema-system-design.md) — table groups, modeling decisions, and the query rubric
@@ -63,9 +68,12 @@ things work in practice and are the place to start if you're new.
 
 ## Operations
 
-- [Deployment](operations/deployment.md) — the 8 GitHub Actions workflows, Railway (backend), Vercel (frontend), Supabase auth URLs
-- [What runs, when, and what it costs](operations/jobs-and-scripts.md) — every automatic job, every command-line tool, and the 2 things anywhere in the project that spend money
+- [Branching, drawn](operations/git-branching-guide.html) — visual companion to `CONTRIBUTING.md` "Branch & PR workflow", for onboarding: 2 commit graphs, one measuring this repo's real branch shape and one showing the dev/staging/production reference flow, plus the habits and commands behind each
+- [Production setup and recovery](operations/deployment.md) — rebuild order, setting owners, Railway and Vercel releases, and Supabase callbacks
+- [What runs, when, and what it costs](operations/jobs-and-scripts.md) — all 13 GitHub workflows, every command-line tool, and every job-driven AI cost
+- [Error monitoring](operations/error-monitoring.md) — which server failures alert through Sentry, the privacy limits, setup, incident checks, and why Alethical buys this instead of building it
 - [Repo and service settings](operations/repo-and-service-settings.md) — every setting that controls the project but doesn't live in the repo, and its intended value
+- [Keeping every tool supported and useful](operations/technology-health.md) — the free monthly checks, 3-month major-tool review, support dates, and recorded exceptions
 - [Private repository cost outlook](operations/private-repository-cost-outlook.md) — the 2026-08-11 cost, security, access, job-limit, and Vercel-seat decision for making Alethical private
 - [API CDN setup](operations/api-cdn-setup.md) — Cloudflare in front of the API, plus email authentication records
 - [Page-load performance decisions](operations/page-load-performance-decisions.md): measured safe speed work, remaining tradeoffs, and the proof required before release
@@ -78,4 +86,4 @@ things work in practice and are the place to start if you're new.
 ## About this folder
 
 - [How `docs/` is organized](folder-structure.md) — the folder layout and where a new doc goes
-- **How these are kept current** — see "Keeping docs current" in [`CONTRIBUTING.md`](../CONTRIBUTING.md). Short version: a doc that describes behaviour names the code it describes in a `<!-- describes: -->` comment, and CI then fails any PR that changes that code without one `Docs check:` line saying what the author concluded. If you write a doc that describes how something behaves, give it that comment; frozen records deliberately don't have one.
+- **How these are kept current** — see "Keeping docs current" in [`CONTRIBUTING.md`](../CONTRIBUTING.md). Short version: a doc that describes behaviour names the code it describes in a `<!-- describes: -->` comment, and CI then fails any PR that changes that code without one `Docs check:` line saying what the author concluded. Selected guides also opt into a free check that exact quoted labels, colours, and settings still appear in that code. If you write a doc that describes how something behaves, give it that comment. Design working files stay outside `docs/`.

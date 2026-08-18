@@ -38,6 +38,7 @@ import {
   retryWaitSeconds,
   viewStateForLookup,
 } from '../lib/findMyLegislator';
+import { recordSiteMetricEvent } from '../lib/siteMetricEvents';
 import type { IaItem, MenuKey } from '../navigation/ia';
 import type { RootStackParamList } from '../navigation/types';
 import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../theme/fieldFocus';
@@ -231,6 +232,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   const autoRanFor = useRef<string | null>(null);
   const addressInputRef = useRef<TextInput | null>(null);
   const lastFoundResult = useRef<RepresentativeLookupResult | undefined>(undefined);
+  const recordedFoundResult = useRef<RepresentativeLookupResult | undefined>(undefined);
   const geolocation = browserGeolocation();
   const result = lookup.data ?? undefined;
   const settledResult = lookup.isPending ? undefined : result;
@@ -308,6 +310,10 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   useEffect(() => {
     if (settledResult?.status === 'found') {
       lastFoundResult.current = settledResult;
+      if (recordedFoundResult.current !== settledResult) {
+        recordedFoundResult.current = settledResult;
+        recordSiteMetricEvent('find_my_legislator_with_results');
+      }
     }
   }, [settledResult]);
 
@@ -1124,7 +1130,7 @@ const styles = StyleSheet.create({
   },
   foundWrap: { gap: 20, position: 'relative' },
   mapUpdatingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 1,
     alignItems: 'center',
     justifyContent: 'center',

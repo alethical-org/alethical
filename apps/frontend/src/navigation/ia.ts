@@ -238,6 +238,14 @@ export const IA: IaItem[] = [
     note: 'Mission, team, story.',
   },
   {
+    id: 'about-site-metrics',
+    label: 'Site Metrics',
+    path: '/site-metrics',
+    menu: 'about',
+    availability: 'mvp',
+    authGated: false,
+  },
+  {
     id: 'about-contact',
     label: 'Contact Us',
     path: '/about/contact',

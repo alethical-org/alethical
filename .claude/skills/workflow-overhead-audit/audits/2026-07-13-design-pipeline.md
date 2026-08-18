@@ -32,7 +32,8 @@ factual freshness rather than PR latency.
 
 1. Fixed the stale foundation-branch instruction in `implementing-design-handoffs`
    (step 2 + mistakes table) and the matching line in
-   `docs/mockups/home-signed-out-v2/README.md`'s repo-context note.
+   the then-current signed-out Home handoff's repo-context note. That temporary
+   bundle was retired under issue #1534 after its lasting rules moved into guides.
 2. Resolved the start-of-task double-gate: `design-task-intake` is now declared
    the one intake/brainstorm gate for design tasks.
 3. Created this skill and baseline record.

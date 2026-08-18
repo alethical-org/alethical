@@ -7,7 +7,7 @@ import { theme as t } from '../../theme/tokens';
 const isWeb = Platform.OS === 'web';
 
 // Dark "Now tracking {code}." confirmation toast for the Search Bills screen
-// (docs/mockups/search-bills, "RETURN-AFTER-SIGN-IN TOAST"). Auto-dismisses
+// (docs/product-onboarding/bill-tracking-spec.md, "Returning from sign-in"). Auto-dismisses
 // after ~3.6s. Bottom-left, pinned above the page. Bills-only.
 const TOAST_MS = 3600;
 

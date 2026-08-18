@@ -127,12 +127,22 @@ describe('rev 9 shared sign-in components', () => {
     const sending = renderToStaticMarkup(
       <ResendControl status="sending" sentMessage="Sent." onResend={vi.fn()} />,
     );
+    const rateLimited = renderToStaticMarkup(
+      <ResendControl
+        status="rate-limited"
+        secondsRemaining={37}
+        sentMessage="We’ve sent one."
+        onResend={vi.fn()}
+      />,
+    );
 
     expect(waiting).toContain('role="status"');
     expect(waiting).toContain('aria-live="off"');
-    expect(waiting).toContain('You can resend in 37 seconds.');
+    expect(waiting).toContain('You can resend in 37 seconds');
     expect(sending).toContain('aria-busy="true"');
     expect(sending).toContain('Resending…');
+    expect(rateLimited).toContain('You can resend in 37 seconds');
+    expect(rateLimited).not.toContain('We’ve sent one.');
   });
 
   it('names the other signed-in account without making the card interactive', () => {
@@ -159,13 +169,56 @@ describe('rev 9 shared sign-in components', () => {
     expect(container).toContain("maxHeight: '92dvh'");
     expect(container).toContain('accessibilityLabel={title}');
     expect(container).not.toContain("role: 'dialog'");
+    expect(container).not.toContain("'aria-modal': true");
     expect(container).toContain('accessible={false}');
     expect(container).toContain("'aria-hidden': true");
     expect(container).toContain('ScrollView');
     expect(container).toContain('focusableChildren');
+    expect(container).toContain('element.getClientRects().length > 0');
+    expect(container).not.toContain('element.offsetParent !== null');
+    expect(container).toContain("element.getAttribute('aria-disabled') !== 'true'");
+    expect(container).toContain('focusables[nextIndex].focus()');
+    expect(container).toContain('const closeRef = useRef<View>(null)');
+    expect(container).toContain('ref={closeRef}');
+    expect(container).toContain('close?.focus()');
     expect(container).toContain("card.setAttribute('tabindex', '-1')");
     expect(container).toContain("card.removeAttribute('tabindex')");
     expect(container).toContain("event.key === 'Escape'");
+    expect(container).toContain('focusKey');
     expect(container).toContain('minHeight: 44');
+  });
+
+  it('keeps the Google busy words visible and equal to the accessible name', () => {
+    // Rev 17 (#1533): both Google busy buttons show "Continuing with Google…"
+    // as visible words, the screen-reader name IS those words (the diverging
+    // "Signing in with Google" label is deleted so the two cannot drift), and
+    // reduced motion hides the spinner graphic entirely.
+    const primitives = readFileSync(
+      join(HERE, '..', '..', '..', 'theme', 'primitives.tsx'),
+      'utf8',
+    );
+
+    expect(primitives).toContain("busyLabel = 'Continuing with Google…'");
+    expect(primitives).toContain('accessibilityLabel={busy ? busyLabel : label}');
+    expect(primitives).not.toContain('Signing in with Google');
+    const googleButton = primitives.slice(
+      primitives.indexOf('export function GoogleButton'),
+      primitives.indexOf('// A `CityChip`'),
+    );
+    expect(googleButton).toContain('useReducedMotion()');
+    expect(googleButton).toContain('{!reduceMotion ? (');
+    expect(googleButton).toContain('<Text style={styles.googleBtnText}>{busyLabel}</Text>');
+  });
+
+  it('gives the phone account sheet a 44 by 44 Close that returns focus', () => {
+    // Rev 15 (#1533): the sheet previously closed only by scrim tap or the
+    // account control — no visible Close, no focus return.
+    const accountControl = source('AccountControl.tsx');
+
+    expect(accountControl).toContain('const closeSheet = ');
+    expect(accountControl).toContain('accessibilityLabel="Close"');
+    expect(accountControl).toContain('sheetClose: {');
+    expect(accountControl).toMatch(/sheetClose: \{[^}]*width: 44,[^}]*height: 44/s);
+    expect(accountControl).toContain('avatarRef.current as unknown as HTMLElement | null)?.focus');
   });
 });

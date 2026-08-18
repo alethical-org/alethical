@@ -37,6 +37,7 @@ export function PasswordField({
   returnKeyType = 'go',
   inputRef,
   onChangeText,
+  onFocus,
   onSubmitEditing,
 }: {
   id?: string;
@@ -50,6 +51,7 @@ export function PasswordField({
   returnKeyType?: 'next' | 'go' | 'done';
   inputRef?: Ref<PasswordInputHandle>;
   onChangeText: (value: string) => void;
+  onFocus?: () => void;
   onSubmitEditing?: () => void;
 }) {
   const generatedId = useId();
@@ -154,6 +156,7 @@ export function PasswordField({
         onFocus: () => {
           inputFocused.current = true;
           focusProps.onFocus();
+          onFocus?.();
         },
         onKeyDown: (event: { key: string; preventDefault: () => void }) => {
           if (event.key !== 'Enter' || !onSubmitEditing) return;
@@ -191,6 +194,7 @@ export function PasswordField({
         onFocus={() => {
           inputFocused.current = true;
           focusProps.onFocus();
+          onFocus?.();
         }}
         onSelectionChange={onNativeSelectionChange}
         onSubmitEditing={onSubmitEditing}

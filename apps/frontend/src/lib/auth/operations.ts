@@ -1,12 +1,13 @@
 import type { Session } from '@supabase/auth-js';
 
-import { ApiError, getCurrentUserFromApi, isAccountDeactivatedError } from '../../data/api';
+import { getCurrentUserFromApi, isAccountDeactivatedError } from '../../data/api';
 import { PublicAuthError, REV9_AUTH_MESSAGES, mapProviderAuthError } from './rev9Auth';
 
 export interface AuthUser {
   id: string;
   name: string;
   email: string;
+  signInMethods: { google: boolean; password: boolean } | null;
 }
 
 export type AuthOperationResult<T = undefined> =
@@ -16,8 +17,12 @@ export function authSuccess<T = undefined>(data?: T): AuthOperationResult<T> {
   return { ok: true, data: data as T };
 }
 
-export function authFailure(error: unknown, email?: string): AuthOperationResult<never> {
-  return { ok: false, error: mapProviderAuthError(error, email) };
+export function authFailure(
+  error: unknown,
+  email?: string,
+  options?: { passwordSave?: boolean },
+): AuthOperationResult<never> {
+  return { ok: false, error: mapProviderAuthError(error, email, options) };
 }
 
 /**
@@ -41,15 +46,9 @@ export async function validateAlethicalSession(
         },
       };
     }
-    if (
-      error instanceof ApiError &&
-      (error.problem === 'account-match-failed' || error.problem === 'unconfirmed-account-identity')
-    ) {
-      return {
-        ok: false,
-        error: { kind: 'match-failed', message: REV9_AUTH_MESSAGES.matchFailed },
-      };
-    }
+    // The backend has no match-failure answer today (rev 15 verified the old
+    // match-failed screen unreachable and #1533 removed it), so any refusal
+    // that is not a deactivation reads as the one shared request failure.
     return {
       ok: false,
       error: { kind: 'request-failure', message: REV9_AUTH_MESSAGES.requestFailure },

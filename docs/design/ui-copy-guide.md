@@ -1,6 +1,6 @@
 # Alethical UI Copy Guide: Sovereignty Restoration
 
-**Positioning:** A sovereignty restoration engine, not a civic info tool. The product delivers the moment a citizen recognizes the government was always theirs to read. *The awakening is the product.*
+**Positioning:** A sovereignty restoration engine, not a civic info tool. The product delivers the moment a citizen recognizes the government was always theirs to read.
 
 **Core hero line:** "We hold these truths to be self-evident. Alethical makes them accessible."
 **Anchor:** TRUTH, UNCONCEALED.
@@ -38,6 +38,13 @@ Functional auth controls (**Sign In / Log In**) keep plain functional labels. Th
 ## Signed-in state
 "This is yours. This transparency serves you." Use *command center*, possessive agency framing (Your representatives, Your district, Your vote record). Data feels like access granted, not info retrieved.
 
+## A screen claims only what it directly knows
+Ratified with the rev 17 sign-in redesign ([#1533](https://github.com/alethical-org/alethical/issues/1533)). A screen may state what it did itself; anything **another system** does — email delivery above all — uses conditional or arrival-neutral wording, because the screen cannot see it happen.
+
+- **Arrival-neutral, not softened:** "If a confirmation email arrives, open the newest one" — never "we've sent one" or "one is on the way". The trigger case was measured, not hypothetical: the sign-in service reports success without sending anything when a confirmed address asks for another confirmation email.
+- The rule covers claims about **server state** too: a failure screen may not say "your account has not changed" when a lost reply can leave a changed account behind it, and no reset screen says other devices are "already signed out" when their access passes can outlive the change.
+- Silence is permitted; a dead end is not. Declining to say what happened never excuses leaving nothing to press.
+
 ## Test for any copy
 Does this deliver a sovereignty recognition moment, or is it just a label? If just a label, rewrite.
 
@@ -55,6 +62,7 @@ Does this deliver a sovereignty recognition moment, or is it just a label? If ju
 
 ## Punctuation & typography
 Use typographer's punctuation in all user-facing copy. It is the quality-publishing default, and for a truth-and-records product the polish quietly reinforces credibility (ratified 2026-07-13).
+- **Short interface lines omit the final period.** A standalone helper, status, success, field error, or 1-step instruction reads as a label, so stop after the last word. Keep full punctuation in legal text, serious warnings, and any block with 2 or more sentences.
 - **Apostrophes — curly `’` (U+2019), never the straight typewriter `'`.** e.g. don’t, they’ve, Minnesota’s.
 - **Quotation marks — curly `“ ”` (U+201C / U+201D), never straight `"`.** Applies to quoted bill/statute language, pull-quotes, etc.
 - **Ellipsis — the single glyph `…` (U+2026), never three periods `...`** — for genuine omission inside a quotation and for loading/progress states ("Loading…"). **Do *not* trail input-field placeholders with `…`** — a placeholder states its prompt plainly (e.g. "Ask about bills or legislators by issue or name"). This deliberately overrides the generic "placeholders end with …" web guideline.

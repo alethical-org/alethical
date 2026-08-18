@@ -8,6 +8,7 @@
 > [layer-1-source-ingestion-system-design.md](../architecture/layer-1-source-ingestion-system-design.md),
 > [layer-2-rag-ingestion-system-design.md](../architecture/layer-2-rag-ingestion-system-design.md),
 > [db-schema-system-design.md](../architecture/db-schema-system-design.md).
+> The Anthropic and OpenAI sections were rechecked on 2026-08-15.
 
 ## TL;DR mental model
 
@@ -16,10 +17,11 @@ government sources** — there is no single vendor API and **no API keys are
 needed for any government source**. Bills come from the MN Revisor (XML + HTML),
 legislators from the joint Legislature roster + chamber profile pages, votes from
 chamber-specific journals/pages, and district lookup from US Census + Minnesota address
-points + local copies of official MN GIS boundaries. There are **two** credentialed dependencies: **Anthropic**
+points + local copies of official MN GIS boundaries. There are **2** credentialed AI dependencies: **Anthropic**
 (`alethical/pipeline/anthropic_enrichment.py` — where every production bill summary
-comes from today) and **OpenAI** (the batch summary backend + RAG chat). This guide
-named only OpenAI, which pointed a new engineer at the wrong one. Since #1328 a third
+comes from today, and an optional live Ask answer writer) and **OpenAI** (question
+sorting, search embeddings, an optional live Ask answer writer, and a dormant older
+summary-batch path). Since #1328 a third
 credential exists, and it is a different kind: campaign finance needs **no key to
 fetch** and Storage credentials to **keep** what it fetched, because the Board keeps
 no archive and our copy is the only record of what it published on a given date
@@ -53,8 +55,8 @@ flowchart LR
     ART[("source_artifact<br/>hash · URL · run id")]
     PARSE["Source-specific parsers<br/>XML · regex-HTML · PDF"]
     CANON[("Canonical tables<br/>bill · action · sponsor · version<br/>legislator · committee · vote")]
-    RAG["RAG chunk + embed<br/>embeddings = OpenAI + hash fallback"]
-    AIENR["AI summaries<br/>OpenAI Batch API"]
+    RAG["RAG chunk + embed<br/>OpenAI embeddings + local test fallback"]
+    AIENR["AI summaries<br/>Anthropic in production<br/>OpenAI + subscription alternatives"]
     DERIV[("Derived<br/>rag chunks · ai_enrichment")]
     DISC --> FETCH --> ART --> PARSE --> CANON
     CANON --> RAG --> DERIV
@@ -73,7 +75,7 @@ flowchart LR
   subgraph RT["Query-time external calls"]
     GEO["US Census geocoder"]
     AP["MN statewide<br/>address points"]
-    OAI["OpenAI Responses<br/>RAG chat synthesis"]
+    AIAPI["OpenAI + Anthropic APIs<br/>question sorting, search + answer writing"]
     OSM["OpenStreetMap tiles"]
   end
 
@@ -85,13 +87,17 @@ flowchart LR
   GEO -->|"matched point"| GIS
   GEO -->|"no match"| AP -->|"matched point"| GIS
   GIS -->|"districts"| API
-  API -->|"chat"| OAI
+  API -->|"Ask"| AIAPI
   CL -->|"map tiles"| OSM
 ```
 
 RAG embeddings use OpenAI `text-embedding-3-small` when `OPENAI_API_KEY` is set;
-offline (tests / no key) they fall back to a deterministic SHA-256 hash — see the
-**E & F — OpenAI** section. All flows are functional.
+offline (tests / no key) they fall back to a deterministic SHA-256 hash. Anthropic
+writes production bill summaries, while live answer writing can use OpenAI or
+Anthropic. See **E & F: Anthropic and OpenAI**. The production flows are functional.
+The older OpenAI summary fallback stays off until
+[#998](https://github.com/alethical-org/alethical/issues/998) closes its known
+truncation and validation gaps.
 
 > Downloadable version of this diagram (for slides / offline):
 > [SVG](../architecture/layers-1-2-ingestion-pipeline.svg).
@@ -111,8 +117,8 @@ operational guide doesn't repeat.
 - **Layer 2 — RAG ingestion** (canonical records → retrieval chunks for chat). Layer 2
   consumes layer 1's canonical bill text and turns it into cleaned, citation-safe chunks
   with embeddings. This guide covers only its operational edges — section-based chunking
-  (~220-word target), `text-embedding-3-small` with a hash fallback (see **E & F —
-  OpenAI**), the `bill-sync-chunk` worker, and `backfill_rag_bulk.py`. The parts it does
+  (~220-word target), `text-embedding-3-small` with a hash fallback (see **E & F:
+  Anthropic and OpenAI**), the `bill-sync-chunk` worker, and `backfill_rag_bulk.py`. The parts it does
   **not** cover — the cleaning transforms (amendment-marker rewriting, whitespace/table
   normalization), the fidelity/cleanliness/legibility quality gates, the validation report,
   and the HNSW retrieval index — live in
@@ -131,8 +137,8 @@ specifically the ingestion that _builds the retrieval corpus_ those depend on.
 | B   | Legislator roster & profiles, committees | Joint directory + House/Senate member pages                                            | HTTP `GET`, HTML (regex)                   | none             | [minnesota.py](../../alethical/pipeline/minnesota.py), [committee_memberships.py](../../alethical/pipeline/committee_memberships.py) |
 | C   | Roll-call votes                          | House vote pages + Senate journal API→PDF                                              | HTTP `GET`, HTML + JSON + PDF              | none             | [votes.py](../../alethical/pipeline/votes.py)                                                                                        |
 | D   | District lookup (Find My Legislator)     | US Census geocoder + MN statewide address points + bundled official LCC-GIS boundaries | HTTP `GET` JSON + local compressed GeoJSON | none             | [representative_lookup.py](../../alethical/api/services/representative_lookup.py)                                                    |
-| E   | AI bill summaries                        | OpenAI Batch API                                                                       | HTTPS, JSON                                | `OPENAI_API_KEY` | [ai_enrichment.py](../../alethical/pipeline/ai_enrichment.py)                                                                        |
-| F   | RAG chat synthesis                       | OpenAI Responses API                                                                   | HTTPS `POST`, JSON                         | `OPENAI_API_KEY` | [me.py](../../alethical/api/routers/me.py)                                                                                           |
+| E   | AI bill summaries                        | Anthropic Messages and Message Batches in production; OpenAI Batch and subscription command-line alternatives | HTTPS, JSON or a local command | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, or a subscription login | [anthropic_enrichment.py](../../alethical/pipeline/anthropic_enrichment.py), [ai_enrichment.py](../../alethical/pipeline/ai_enrichment.py), [codex_enrichment.py](../../alethical/pipeline/codex_enrichment.py) |
+| F   | Ask question sorting, search, and cited answer writing | OpenAI Responses and Embeddings; Anthropic Messages for an optional answer writer | HTTPS `POST`, JSON | `OPENAI_API_KEY` and, when selected, `ANTHROPIC_API_KEY` | [ask_router.py](../../alethical/api/services/ask_router.py), [ask.py](../../alethical/api/routers/ask.py), [me.py](../../alethical/api/routers/me.py) |
 | G   | Map tiles                                | OpenStreetMap                                                                          | HTTP tiles                                 | none             | frontend `MapPinPicker.tsx`                                                                                                          |
 | H   | Campaign finance (money in and out)      | MN Campaign Finance Board data downloads                                               | HTTP `GET`, 3 whole CSV files              | none to fetch; storage credentials to keep the files | [campaign_finance.py](../../alethical/pipeline/campaign_finance.py), [raw_file_store.py](../../alethical/pipeline/raw_file_store.py) |
 | H2  | What each committee itself reported, and Minnesota's registered-filer list | MN Campaign Finance Board per-filer services (undocumented) | HTTP `POST`, JSON — and money inside an HTML table inside JSON | none to fetch; storage credentials to keep the responses | [campaign_finance_filings.py](../../alethical/pipeline/campaign_finance_filings.py) |
@@ -317,6 +323,10 @@ this section exists to prevent.
   → **separate adapter** (the HTML differs).
 - **Committee memberships** are scraped from those same profile pages; a
   legislator with zero committees is valid (`committee_count = 0`).
+- The importer keeps the Legislature's exact abbreviated author name, such as
+  `Anderson, P. E.`, as the lawmaker's vote-matching name while keeping the friendly
+  full name for display. A move between the House and Senate keeps both service
+  periods under the same lawmaker when the official member number matches.
 - **Membership reconciliation (canonical PDF):** the HTML scrape only ever
   _adds/updates_ members, so a member who leaves mid-biennium lingers as
   `is_current`. The official printable roster PDF
@@ -822,13 +832,23 @@ nobody kept. When the figures are unchanged the run therefore rebuilds itself **
 archive that was kept** and re-checks that it still reproduces the recorded figures,
 which doubles as a full integrity check of the stored object.
 
-## E & F — the credentialed sources (Anthropic and OpenAI)
+## E & F: the credentialed AI sources (Anthropic and OpenAI)
 
-**E. AI bill summaries — Batch API** (base `https://api.openai.com/v1`):
-`POST /v1/files` (`purpose=batch`, JSONL) → `POST /v1/batches`
-(`endpoint=/v1/responses`, `completion_window=24h`) → poll `GET /v1/batches/{id}`
-→ download `GET /v1/files/{output_file_id}/content`. Output is structured JSON
-(`SUMMARY_SCHEMA`) written to `ai_enrichment`, one row per
+**E. AI bill summaries.** Every production summary currently comes from Anthropic
+([`anthropic_enrichment.py`](../../alethical/pipeline/anthropic_enrichment.py)). Its
+fast path sends ordinary Messages calls in parallel. Its lower-price path submits
+Message Batches, waits for Anthropic to finish, and then collects each result. A
+Claude Code command-line path can do the same writing through a subscription.
+
+The older OpenAI fallback
+([`ai_enrichment.py`](../../alethical/pipeline/ai_enrichment.py)) prepares a JSON
+Lines file, uploads it to OpenAI, creates a 24-hour Batch, checks its status, and
+downloads its result. Production does not use this fallback today. [Issue
+998](https://github.com/alethical-org/alethical/issues/998) owns the safety work
+required before anyone does.
+
+All summary paths produce JSON shaped by `SUMMARY_SCHEMA` and write to
+`ai_enrichment`, 1 row per
 `(bill_id, bill_version_id, enrichment_type, model_name, source_version_hash)`.
 Those five columns are the row's identity: `apply` upserts on them
 (`ON CONFLICT … DO UPDATE`), and a unique key spelt `NULLS NOT DISTINCT` makes the
@@ -837,11 +857,8 @@ database refuse a second row rather than trusting the writer to look first
 `is_current` is **not** part of that identity, and this guide used to say it was —
 it marks which of a bill's rows is the one on display, which
 `ix_ai_enrichment_bill_summary_current_unique` separately holds to one per bill.
-Two further backends write the same schema. A local **Codex CLI** runs on the
-`ai_codex` queue, touching prod only at `ai-apply`. And **Anthropic**
-(`anthropic_enrichment.py`, `ANTHROPIC_API_KEY`) is the one every production summary
-actually comes from — it was missing from this section, from the pipeline diagram, and
-from the stage table above.
+A local **Codex CLI** can also write the same schema on the `ai_codex` queue,
+touching production only at `ai-apply`.
 
 Before `ai-apply` makes a completed summary current, it checks that the manifest still names the
 bill's current version and derives the accepted hashes from its current official section text.
@@ -851,9 +868,19 @@ changed, missing or reordered text still fails. An outdated result is counted un
 skipped, so a long-running job cannot undo the ingest-time retirement after a later text change. It
 does not start or pay for a replacement run.
 
-**F. RAG chat synthesis:** `POST https://api.openai.com/v1/responses` with an
-"answer only from the provided bill text" system prompt over pgvector-retrieved
-chunks. Query-time, via `POST /api/v1/me/chat-sessions/{id}/messages`.
+**F. Ask question sorting, search, and cited answer writing.** OpenAI sorts a
+question and can choose 1 bill from likely matches. OpenAI
+`text-embedding-3-small` turns the question into search numbers. The final cited
+answer can use OpenAI Responses or Anthropic Messages, depending on the configured
+server setting. These calls happen while a reader waits, through `POST /api/v1/ask`
+and signed-in bill chat.
+
+Most calls still hand-build their provider web requests. The accepted plan is to
+use the official OpenAI and Anthropic Python libraries with their automatic retries
+off, while Alethical keeps the whole-request clock, total tries, answer checks, and
+truthful unavailable state. [How Alethical Calls OpenAI and Anthropic, and When It
+Retries](../architecture/ai-provider-calls-and-retries.md) separates shipped behavior
+from that plan.
 
 > ⚠️ **Model IDs are inconsistent in code.** The in-file constants
 > (`gpt-5.2`, `gpt-5.5`) are aspirational; the **effective defaults are the
@@ -917,6 +944,8 @@ just pipeline local --write --allow-writes     # commit after review
 | `uv run python scripts/backfill_rag_bulk.py`                                             | Threaded RAG backfill for current versions missing chunks                                                                                                                                                       |
 | `uv run python -m alethical.pipeline.committee_memberships --cleanup-orphans`            | Committee repair/backfill                                                                                                                                                                                       |
 | `uv run python -m alethical.pipeline.votes`                                              | Vote backfill (debug)                                                                                                                                                                                           |
+| `uv run python scripts/repair_incomplete_vote_records.py --target production`            | Preview the narrow repair that adds only member votes proven missing by a complete official House list. Writing requires both `--write` and `--backup-path`                                                     |
+| `uv run python scripts/repair_vote_roster_identities.py --target production`             | Preview the one-time repair for official House vote names and a missing House service period. Writing requires both `--write` and `--backup-path`                                                               |
 | `just mirror-raw-files [target=production] [dry=true]`                                   | Copy every stored campaign-finance file to Cloudflare R2 and read each copy back to check it arrived whole. Dry-run by default. Only ever adds; a second run copies nothing. The daily job `.github/workflows/mirror-raw-files.yml` does this already — section **H**   |
 | `uv run python scripts/show_party_and_caucus_money.py --target production`                | Print the money in and out of the state parties and the 4 caucuses from the published set. Reads only, never writes (`--reg-num`, `--years`, `--transfers`) — section **H**                                       |
 | `uv run python -m alethical.pipeline.ai_enrichment {prepare\|submit\|status\|apply} ...` | Direct OpenAI Batch control. Four modes, not the two listed here: `prepare` builds the JSONL batch file and `apply` writes results back, which are the two you actually need to run a batch end to end.         |
@@ -958,8 +987,10 @@ just pipeline local --write --allow-writes     # commit after review
 
 ## Environment & system prerequisites
 
-- **Secrets/env:** `OPENAI_API_KEY` is the credential for AI and chat, and all gov
-  scraping still works without it. It is no longer the only one: a real (non-dry)
+- **Secrets/env:** `OPENAI_API_KEY` pays for question sorting, search embeddings,
+  OpenAI answers, and the dormant OpenAI summary path. `ANTHROPIC_API_KEY` pays for
+  production bill summaries and Anthropic answers. All government scraping still
+  works without either AI key. A real (non-dry)
   campaign-finance load also needs the 4 `SUPABASE_STORAGE_S3_*` values, which keep
   each downloaded file's bytes (section **H**). Those are Storage-scoped on purpose
   and cannot reach the database. Copying those bytes to a second place needs the 4
@@ -974,8 +1005,8 @@ just pipeline local --write --allow-writes     # commit after review
 
 1. **RAG embeddings need `OPENAI_API_KEY`** — with the key set they use OpenAI
    `text-embedding-3-small`; without it (tests, local dev) they fall back to a
-   deterministic SHA-256 hash that is not semantically meaningful (see **E & F —
-   OpenAI**). The stored `embedding_model` column distinguishes the two, so a
+   deterministic SHA-256 hash that is not semantically meaningful (see **E & F:
+   Anthropic and OpenAI**). The stored `embedding_model` column distinguishes the 2, so a
    keyed backfill replaces fallback rows.
 2. **HTML parsing is regex-based, no schema validation** — an upstream template
    change yields _silently empty_ results, not a loud failure. Watch

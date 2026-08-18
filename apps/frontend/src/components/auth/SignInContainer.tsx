@@ -22,7 +22,10 @@ function focusableChildren(node: HTMLElement | null): HTMLElement[] {
   const selector =
     'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [role="button"], [tabindex]:not([tabindex="-1"])';
   return Array.from(node.querySelectorAll<HTMLElement>(selector)).filter(
-    (element) => element.offsetParent !== null || element === document.activeElement,
+    (element) =>
+      element.tabIndex >= 0 &&
+      element.getAttribute('aria-disabled') !== 'true' &&
+      (element.getClientRects().length > 0 || element === document.activeElement),
   );
 }
 
@@ -41,6 +44,7 @@ function CloseIcon() {
 
 export function SignInContainer({
   open = true,
+  focusKey,
   variant = 'flow',
   title,
   description,
@@ -49,6 +53,7 @@ export function SignInContainer({
   onClose,
 }: {
   open?: boolean;
+  focusKey?: string;
   variant?: 'flow' | 'page';
   title: string;
   description?: ReactNode;
@@ -62,6 +67,11 @@ export function SignInContainer({
   const generatedDescriptionId = useId();
   const descriptionId = description ? `auth-description-${generatedDescriptionId}` : undefined;
   const cardRef = useRef<View>(null);
+  const closeRef = useRef<View>(null);
+  // Android shrinks the visual viewport when its keyboard opens. That rebuilds
+  // parent callbacks, but it must not make an already-open dialog focus Close.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
   const [closeFocused, setCloseFocused] = useState(false);
   const isPage = variant === 'page';
   const asSheet = !isPage && isMobile;
@@ -70,16 +80,18 @@ export function SignInContainer({
     if (!isWeb || !open || isPage || typeof document === 'undefined') return;
     const opener = document.activeElement as HTMLElement | null;
     const card = cardRef.current as unknown as HTMLElement | null;
-    if (card) {
+    const close = closeRef.current as unknown as HTMLElement | null;
+    close?.focus();
+    if (!close && card) {
       card.setAttribute('tabindex', '-1');
       card.focus();
       card.removeAttribute('tabindex');
     }
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && onClose) {
+      if (event.key === 'Escape' && onCloseRef.current) {
         event.preventDefault();
-        onClose();
+        onCloseRef.current?.();
         return;
       }
       if (event.key !== 'Tab') return;
@@ -90,17 +102,17 @@ export function SignInContainer({
         return;
       }
 
-      const first = focusables[0];
-      const last = focusables[focusables.length - 1];
       const active = document.activeElement as HTMLElement | null;
-      const inside = Boolean(active && card?.contains(active) && active !== card);
-      if (event.shiftKey && (!inside || active === first)) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && (!inside || active === last)) {
-        event.preventDefault();
-        first.focus();
-      }
+      const activeIndex = active ? focusables.indexOf(active) : -1;
+      const nextIndex = event.shiftKey
+        ? activeIndex <= 0
+          ? focusables.length - 1
+          : activeIndex - 1
+        : activeIndex < 0 || activeIndex === focusables.length - 1
+          ? 0
+          : activeIndex + 1;
+      event.preventDefault();
+      focusables[nextIndex].focus();
     };
 
     document.addEventListener('keydown', onKeyDown, true);
@@ -108,7 +120,7 @@ export function SignInContainer({
       document.removeEventListener('keydown', onKeyDown, true);
       opener?.focus?.();
     };
-  }, [isPage, onClose, open]);
+  }, [focusKey, isPage, open]);
 
   if (!open) return null;
 
@@ -211,6 +223,7 @@ export function SignInContainer({
               <View style={styles.grabHandle} />
               {onClose ? (
                 <Pressable
+                  ref={closeRef}
                   accessibilityRole="button"
                   accessibilityLabel="Close"
                   onBlur={() => setCloseFocused(false)}
@@ -228,6 +241,7 @@ export function SignInContainer({
             </View>
           ) : onClose ? (
             <Pressable
+              ref={closeRef}
               accessibilityRole="button"
               accessibilityLabel="Close"
               onBlur={() => setCloseFocused(false)}
@@ -269,6 +283,14 @@ const focusRingWeb = isWeb
     } as object)
   : null;
 
+/** Exported so node descriptions (e.g. ones carrying a mail link) match plain ones. */
+export const descriptionTextStyle = {
+  fontFamily: t.typography.body,
+  fontSize: t.fontSizes.bodyLg,
+  lineHeight: 24,
+  color: t.colors.text.muted,
+} as const;
+
 const styles = StyleSheet.create({
   scrim: { flex: 1, backgroundColor: 'rgba(10,14,12,0.55)' },
   scrimCentered: { alignItems: 'center', justifyContent: 'center', padding: 28 },
@@ -295,14 +317,14 @@ const styles = StyleSheet.create({
   },
   sheetShadowWeb: { boxShadow: '0 -18px 50px rgba(10,14,12,0.28)' },
   sheetHeader: {
-    height: 56,
+    height: 84,
     flexShrink: 0,
     alignItems: 'center',
     justifyContent: 'flex-start',
     paddingTop: 12,
   },
   sheetScroll: { flexGrow: 0, flexShrink: 1 },
-  sheetBody: { paddingTop: 8, paddingHorizontal: 24, paddingBottom: 32 },
+  sheetBody: { paddingTop: 0, paddingHorizontal: 24, paddingBottom: 32 },
   grabHandle: {
     width: 40,
     height: 5,
@@ -311,8 +333,8 @@ const styles = StyleSheet.create({
   },
   close: {
     position: 'absolute',
-    top: 6,
-    right: 16,
+    top: 24,
+    right: 24,
     width: 44,
     minHeight: 44,
     alignItems: 'center',
@@ -321,7 +343,7 @@ const styles = StyleSheet.create({
     backgroundColor: t.colors.surfaces.s300,
     zIndex: 1,
   },
-  closeCard: { top: 16, right: 16, backgroundColor: 'transparent' },
+  closeCard: { top: 20, right: 20, backgroundColor: 'transparent' },
   closePressed: { backgroundColor: t.colors.surfaces.s400 },
   page: { flex: 1, backgroundColor: t.colors.surfaces.s100 },
   pageContent: {
@@ -355,11 +377,6 @@ const styles = StyleSheet.create({
   },
   titleSheet: { fontSize: 23, lineHeight: 30 },
   descriptionWrap: { marginTop: 9 },
-  description: {
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.bodyLg,
-    lineHeight: 24,
-    color: t.colors.text.muted,
-  },
+  description: descriptionTextStyle,
   children: { marginTop: 22 },
 });

@@ -366,6 +366,12 @@ export const STATIC_PAGE_METADATA: Record<string, PageMetadata> = {
     description: 'How information is collected, used, and protected on this site.',
     canonicalPath: '/privacy',
   }),
+  '/site-metrics': pageMetadata({
+    title: titleFor('Site Metrics'),
+    socialTitle: 'Site Metrics',
+    description: 'Public totals about traffic, search discovery, availability, and speed.',
+    canonicalPath: '/site-metrics',
+  }),
   '/terms': pageMetadata({
     title: titleFor('Terms of Service'),
     socialTitle: 'Terms of Service',

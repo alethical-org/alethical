@@ -25,7 +25,7 @@ type LegalDocumentContent = {
 
 const privacyContent: LegalDocumentContent = {
   title: 'Privacy Policy',
-  meta: 'Effective date: June 16, 2026 · Last updated: August 8, 2026',
+  meta: 'Effective date: August 15, 2026 · Last updated: August 15, 2026',
   sections: [
     {
       blocks: [
@@ -41,14 +41,21 @@ const privacyContent: LegalDocumentContent = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'When you sign in with Google, we receive basic profile information from your Google Account, limited to what you authorize:',
+          text: 'When you sign in with Google, we receive basic profile information from your Google Account, limited to what you authorize. We also keep what you do in the Service. Here is the whole list:',
         },
         {
           kind: 'list',
           items: [
             'Account information — your name, email address, and profile picture.',
+            'A display name we make for you — you never type it. We take the part of your email address before the “@” and use that as your display name.',
             'Authentication data — identifiers used to create and maintain your secure session.',
-            'Usage data — information about how you interact with the Service, such as features used and general device and log information.',
+            'Bills you follow — which bills you chose to follow, and any note you write on one.',
+            'Alert settings — a saved switch for whether a bill you follow should alert you. We are not sending those alerts yet.',
+            'Questions and messages you type in a conversation about a bill — your questions, and the answers we gave, kept with your account.',
+            'Questions you type into the Ask box — we do not save these to your account, but we do send them to the AI providers named below to answer them, and they appear in the page address.',
+            'Anonymous page-use totals — Vercel Web Analytics receives the page path after anything following “?” or “#” is removed. It counts page loads and makes a daily anonymous visitor estimate. It uses no analytics cookies, and we do not send your name, email address, or account identifier with a page load.',
+            'Anonymous action totals — Alethical stores only a fixed action name and time when a bill or legislator search returns results, Find My Legislator returns a match, or an official Minnesota source link is opened. These records contain no search words, page paths, addresses, districts, account identifiers, referrers, or person-level activity. New bill-watch totals come from the existing watch records.',
+            'Anonymous page-speed measurements — Cloudflare Web Analytics receives the page path without the question text after “?”, timing measurements, the page element or resource tied to some speed measurements, the referring website, and broad place, device, and browser facts. It uses no cookies, local storage, or fingerprinting, and Alethical publishes only sitewide speed totals after at least 50 measured visits.',
             'Contact messages — the name and phone number you choose to provide, your email address, subject, and message.',
           ],
         },
@@ -90,7 +97,7 @@ const privacyContent: LegalDocumentContent = {
         },
         {
           kind: 'paragraph',
-          text: 'We only request the minimum scopes needed to sign you in and identify your account. We do not sell Google user data, and we do not use it for advertising or any purpose unrelated to providing the Service.',
+          text: 'We request only the minimum permissions needed to sign you in and identify your account. Separately, a read-only machine account reads sitewide click and appearance totals from Google Search Console. That machine account is not connected to your Google sign-in, and Alethical does not publish search phrases, page addresses, devices, countries, or personal records from it. We do not sell Google user data or use it for advertising.',
         },
       ],
     },
@@ -105,7 +112,13 @@ const privacyContent: LegalDocumentContent = {
         {
           kind: 'list',
           items: [
-            'Service providers who help us operate the Service under contractual confidentiality obligations — including Supabase (authentication and database) and Google (sign-in).',
+            'Service providers who help us operate the Service under contractual confidentiality obligations — including Supabase (authentication and database) and Google (sign-in and sitewide Search Console totals).',
+            'Vercel, which hosts our website. Its hosting request logs record the address of every page you open, including anything carried inside that address. Separately, Vercel Web Analytics receives a cleaned page path with anything following “?” or “#” removed, then counts the page load without an analytics cookie or a name.',
+            'Cloudflare, which sits in front of the data service and passes those requests through. Cloudflare Web Analytics also measures page speed on the website as described above. Alethical publishes only sitewide 30-day speed scores and sample counts.',
+            'Bing Webmaster Tools, which gives Alethical sitewide totals for how often pages appeared in Bing results and how many visits those results sent. Alethical does not publish search phrases, page addresses, devices, countries, or personal records from it.',
+            'Checkly, which opens 3 public Alethical addresses from North Virginia every 2 minutes to confirm the website, this Site metrics page, and the data service are available. Checkly receives only those public Alethical addresses, not reader data.',
+            'Railway, which runs the part of the Service that answers those requests. Its logs record the paths requested. We strip email addresses and anything carried inside a web address out of every line we write.',
+            'Sentry, which alerts us when the Service or a data import fails. It receives the error type, the place in our code that failed, the software release, a route pattern with real identifiers removed, and public operating labels such as a bill number or provider name. We do not send Sentry request bodies, questions, messages, account details, log lines, or the error sentence itself.',
             'AI providers who generate answers and summaries — Anthropic and OpenAI. When you ask a question, the question text and the bill passages it is answered from are sent to them. We do not send your name, email address, or account identifier with it.',
             'The United States Census Bureau, when you look up your legislators by address. The address you type is sent to its public geocoding service to find your district. We do not store it.',
             'The Minnesota Geospatial Information Office, while we show Minnesota address suggestions and when the Census Bureau cannot match a Minnesota address. We send only the house number and street name entered so far to its public address list, not the city or ZIP. We do not store it.',
@@ -113,6 +126,10 @@ const privacyContent: LegalDocumentContent = {
             'Legal authorities when required by law, regulation, or valid legal process.',
             'A successor entity in connection with a merger, acquisition, or sale of assets, subject to this Policy.',
           ],
+        },
+        {
+          kind: 'paragraph',
+          text: 'One thing worth knowing about questions: when you ask one, the question is carried inside the address of the answer page, so the answer has a link you can share (for example, /ask?q=your question). That means your question can be saved in your browser history, and it can appear in the request logs of the companies that host the site. We chose the shareable link on purpose, and we would rather you read that here than discover it later.',
         },
       ],
     },
@@ -122,7 +139,20 @@ const privacyContent: LegalDocumentContent = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'We retain your information for as long as your account is active or as needed to provide the Service. We delete or anonymize it when it is no longer required, unless a longer retention period is required by law.',
+          text: 'How long we keep something depends on what it is.',
+        },
+        {
+          kind: 'list',
+          items: [
+            'Your account, your name and email address, the bills you follow, the notes on them, and your alert settings — as long as your account exists.',
+            'Conversations about a bill, and every message in them — no longer than 24 months after the last message in that conversation, whether or not your account is still active. Text you typed is the most sensitive thing we hold, so it does not simply live forever alongside the account.',
+            'Alerts we have sent you — 90 days after we send them. An alert waiting to go out stays until it is sent.',
+            'Contact us messages — we do not save them in our database at all. Copies stay in our email inbox and with the company that delivers our email, under their own terms.',
+          ],
+        },
+        {
+          kind: 'paragraph',
+          text: 'We delete or anonymize information when it is no longer required, unless a longer retention period is required by law. When we delete something, it can still sit inside our database provider’s automatic backups for a while, and it ages out on their backup schedule.',
         },
       ],
     },
@@ -142,7 +172,11 @@ const privacyContent: LegalDocumentContent = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'Depending on your location, you may have the right to access, correct, export, or delete your personal information, and to withdraw consent. To exercise these rights, contact us at the address below. You can also revoke Alethical’s access at any time from your Google Account permissions page.',
+          text: 'Two things you can do yourself, right now: stop following any bill, using the same Track button you used to follow it, and take away Alethical’s access to your Google Account from your Google Account permissions page.',
+        },
+        {
+          kind: 'paragraph',
+          text: 'Everything else is done by hand, and we would rather say so than pretend otherwise. There is no button yet for deleting your account, deleting a single conversation, or downloading a copy of your information. Email us at ask@alethical.com and a person will do it for you. Depending on where you live, you may also have the right to see or correct your personal information, or to withdraw consent; ask at the same address and we will handle it the same way.',
         },
       ],
     },
@@ -152,7 +186,7 @@ const privacyContent: LegalDocumentContent = {
       blocks: [
         {
           kind: 'paragraph',
-          text: 'We use cookies and similar technologies that are necessary to keep you signed in and to operate the Service. You can control cookies through your browser settings, though some features may not function without them.',
+          text: 'We use cookies and similar technologies that are necessary to keep you signed in and to operate the Service. Vercel Web Analytics uses no cookies. Cloudflare Web Analytics uses no cookies, local storage, or fingerprinting. Before Vercel analytics starts for a signed-in visit, Alethical asks its own server whether that account is on a private team list; the account identifier is not sent to Vercel. When the private team list is configured, Alethical does not start Vercel analytics for those team accounts, discards their fixed action records before storage, and leaves them out of reader and bill-watch totals. The same team list does not apply to Cloudflare page-speed measurements. You can control cookies through your browser settings, though some features may not function without them.',
         },
       ],
     },

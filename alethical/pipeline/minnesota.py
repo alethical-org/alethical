@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from alethical.pipeline.http_text import response_text
 from alethical.db.schema import load_schema
+from alethical.monitoring import capture_operational_error
 from alethical.pipeline.roster_pdf import (
     ReconcileReport,
     RosterMember,
@@ -1044,6 +1045,13 @@ def parse_house_profile(html_text: str, source_url: str) -> dict[str, object]:
     }
 
 
+def strip_legislative_title(name: str) -> str:
+    """Remove a role accidentally included in an official display name."""
+    return re.sub(
+        r"^(?:Rep\.?|Representative|Sen\.?|Senator)\s+", "", name, flags=re.I
+    ).strip()
+
+
 def parse_senate_profile(html_text: str, source_url: str) -> dict[str, object]:
     heading = extract(r"<h1 class='mb-0'>(.*?)</h1>", html_text, flags=re.S)
     email_form = extract(
@@ -1052,7 +1060,7 @@ def parse_senate_profile(html_text: str, source_url: str) -> dict[str, object]:
     return {
         "source_url": source_url,
         "chamber": "senate",
-        "name": extract(r"^(.*?)\s*\(", heading, flags=re.S),
+        "name": strip_legislative_title(extract(r"^(.*?)\s*\(", heading, flags=re.S)),
         "party": extract(r"\(\d+,\s*([A-Z]+)\)", heading, flags=re.S),
         "district": extract(r"\((\d+),", heading, flags=re.S),
         "office_block": extract(
@@ -1125,6 +1133,9 @@ class MinnesotaIngestionPipeline:
         definition = session_definition(session_code)
         existing = self._existing_reference_data(definition.slug)
         if existing is not None:
+            # The lock-free refresh path must heal old or damaged date rows too.
+            existing["session"].start_date = definition.start_date
+            existing["session"].end_date = definition.end_date
             return existing
         # A reference row is missing — seed under the lock. The body below
         # re-checks every row, so it stays race-safe while the lock is held.
@@ -1227,6 +1238,16 @@ class MinnesotaIngestionPipeline:
         run.finished_at = datetime.now(UTC)
         run.stats = stats or {}
         run.error_text = str(error)
+        capture_operational_error(
+            error,
+            area="ingestion",
+            operation="run-failed",
+            tags={
+                "ingestion.adapter": str(run.adapter),
+                "ingestion.target_key": str(run.target_key or "none"),
+                "ingestion.target_type": str(run.target_type),
+            },
+        )
 
     def record_artifact(
         self,
@@ -1296,6 +1317,7 @@ class MinnesotaIngestionPipeline:
     def upsert_legislator(
         self, refs: dict[str, Any], name: str, *, external_key: str | None = None
     ) -> Any:
+        name = strip_legislative_title(name)
         key = external_key or name
 
         def _lookup() -> Any:
@@ -1331,8 +1353,14 @@ class MinnesotaIngestionPipeline:
             self.db.add(legislator)
             self.db.flush()
         else:
+            old_full_name = legislator.full_name
             legislator.full_name = name
-            legislator.sort_name = name
+            # A bill's official author record can supply the exact sorted form
+            # used by House roll calls (for example "Anderson, P. H."). Keep
+            # that stronger identity when a later roster refresh supplies only
+            # the friendly display name ("Paul Anderson").
+            if not legislator.sort_name or legislator.sort_name == old_full_name:
+                legislator.sort_name = name
         return legislator
 
     @staticmethod
@@ -1429,6 +1457,8 @@ class MinnesotaIngestionPipeline:
         ``source``'s own service periods and stats; then deletes ``source``.
         Returns the number of sponsorships moved. Idempotent."""
         moved = 0
+        if "," in source.sort_name and "," not in target.sort_name:
+            target.sort_name = source.sort_name
         for table, column, dedup in self._LEGISLATOR_FK_REPOINTS:
             if not self._column_exists(table, column):
                 continue
@@ -1572,16 +1602,45 @@ class MinnesotaIngestionPipeline:
                 LegislatorServicePeriod.is_current.is_(True),
             )
         )
-        if service_period is None:
-            service_period = LegislatorServicePeriod(
-                legislator_id=legislator.id,
-                session_id=refs["session"].id,
-                chamber_id=chamber.id,
-                district_id=district.id,
-                period_sequence=1,
-                is_current=True,
+        same_seat = (
+            service_period is not None
+            and service_period.chamber_id == chamber.id
+            and service_period.district_id == district.id
+        )
+        if not same_seat:
+            if service_period is not None:
+                service_period.is_current = False
+                self.db.flush()
+            prior_period = self.db.scalar(
+                select(LegislatorServicePeriod).where(
+                    LegislatorServicePeriod.legislator_id == legislator.id,
+                    LegislatorServicePeriod.session_id == refs["session"].id,
+                    LegislatorServicePeriod.chamber_id == chamber.id,
+                    LegislatorServicePeriod.district_id == district.id,
+                )
             )
-            self.db.add(service_period)
+            if prior_period is not None:
+                service_period = prior_period
+                service_period.is_current = True
+            else:
+                next_sequence = (
+                    self.db.scalar(
+                        select(func.max(LegislatorServicePeriod.period_sequence)).where(
+                            LegislatorServicePeriod.legislator_id == legislator.id,
+                            LegislatorServicePeriod.session_id == refs["session"].id,
+                        )
+                    )
+                    or 0
+                ) + 1
+                service_period = LegislatorServicePeriod(
+                    legislator_id=legislator.id,
+                    session_id=refs["session"].id,
+                    chamber_id=chamber.id,
+                    district_id=district.id,
+                    period_sequence=next_sequence,
+                    is_current=True,
+                )
+                self.db.add(service_period)
             self.db.flush()
         service_period.chamber_id = chamber.id
         service_period.district_id = district.id
@@ -1650,11 +1709,24 @@ class MinnesotaIngestionPipeline:
         external_key = str(
             profile.get("source_url") or profile.get("profile_url") or name
         )
-        legislator = self.upsert_legislator(refs, name, external_key=external_key)
+        member_key = self._member_key(external_key)
+        legislator = self._find_canonical_roster(refs, member_key)
+        if legislator is None:
+            legislator = self.upsert_legislator(refs, name, external_key=external_key)
+        else:
+            clean_name = strip_legislative_title(name)
+            old_full_name = legislator.full_name
+            legislator.full_name = clean_name
+            if not legislator.sort_name or legislator.sort_name == old_full_name:
+                legislator.sort_name = clean_name
+            # House and Senate use different profile URL shapes for the same
+            # numeric member id. Follow the member to the current source without
+            # creating a second person when they change chambers.
+            legislator.external_key = external_key
         # Fold in any bill-author placeholder created before this roster row
         # existed (a bill ingested first), so there is one row per member (#302).
         placeholder = self._find_placeholder_author(
-            refs, self._member_key(external_key), exclude_id=legislator.id
+            refs, member_key, exclude_id=legislator.id
         )
         if placeholder is not None:
             self._merge_legislator(placeholder, legislator)
@@ -2516,6 +2588,11 @@ class MinnesotaIngestionPipeline:
                 ) or self.upsert_legislator(
                     refs, member_name, external_key=legislator_key
                 )
+                if "," in member_name:
+                    # MEMBER_NAME is the same official short form the House
+                    # voting system uses. It carries the disambiguating middle
+                    # initial that the friendly roster name can omit.
+                    legislator.sort_name = normalize_space(member_name)
                 self.db.add(
                     Sponsorship(
                         bill_id=bill.id,

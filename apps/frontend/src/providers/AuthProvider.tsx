@@ -21,10 +21,19 @@ import {
   authSuccess,
   validateAlethicalSession,
 } from '../lib/auth/operations';
+import { savePasswordWithFreshProof } from '../lib/auth/passwordFreshProof';
 import { normalizeEmail } from '../lib/auth/rev9Auth';
+import {
+  signOutLocallyAndVerify,
+  validationFailureRevokesSession,
+} from '../lib/auth/sessionSafety';
 import { restoreAuthSession } from '../lib/authRestore';
-import { SIGN_IN_ERROR_MESSAGES, SignInErrorKind, signInErrorKind } from '../lib/signIn';
-import { isSupabaseConfigured, supabase } from '../lib/supabase';
+import {
+  SIGN_IN_ERROR_MESSAGES,
+  SignInErrorKind,
+  signInErrorKindFromCallback,
+} from '../lib/signIn';
+import { clearStoredSupabaseSession, isSupabaseConfigured, supabase } from '../lib/supabase';
 
 interface AuthContextValue {
   isLoading: boolean;
@@ -34,6 +43,7 @@ interface AuthContextValue {
   accessToken: string | null;
   authError: string | null;
   authErrorKind: SignInErrorKind | null;
+  dismissAuthError: () => void;
   signInWithGoogle: (returnTo?: string) => Promise<AuthOperationResult<unknown>>;
   signInWithPassword: (email: string, password: string) => Promise<AuthOperationResult<unknown>>;
   createAccount: (
@@ -43,7 +53,7 @@ interface AuthContextValue {
   ) => Promise<AuthOperationResult<{ signedIn: boolean }>>;
   resendConfirmation: (email: string, confirmationUrl: string) => Promise<AuthOperationResult>;
   sendPasswordReset: (email: string, resetUrl: string) => Promise<AuthOperationResult>;
-  setPassword: (password: string) => Promise<AuthOperationResult>;
+  setPassword: (password: string, freshProofCode?: string) => Promise<AuthOperationResult>;
   signOut: () => Promise<AuthOperationResult>;
 }
 
@@ -70,7 +80,7 @@ function getCallbackParam(callbackUrl: string, paramName: string) {
 
 function publicErrorKind(kind: string): SignInErrorKind {
   if (kind === 'deactivated') return 'deactivated';
-  if (kind === 'match-failed') return 'match-failed';
+  if (kind === 'unverified-google') return 'unverified-google';
   return 'failed';
 }
 
@@ -111,7 +121,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
         setIsLoading(false);
         return result;
       }
-      await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
+      if (validationFailureRevokesSession(result.error.kind)) {
+        await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
+        await clearStoredSupabaseSession();
+      }
       setSession(null);
       setUser(null);
       failWith(result.error.message, publicErrorKind(result.error.kind));
@@ -126,6 +139,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       onAccountDeactivated(() => {
         validationGeneration.current += 1;
         void supabase.auth.signOut({ scope: 'local' }).finally(() => {
+          void clearStoredSupabaseSession();
           setSession(null);
           setUser(null);
           failWith(SIGN_IN_ERROR_MESSAGES.deactivated, 'deactivated');
@@ -177,6 +191,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       accessToken: session?.access_token ?? null,
       authError,
       authErrorKind,
+      dismissAuthError: clearAuthError,
       signInWithGoogle: async (returnTo?: string) => {
         clearAuthError();
         if (!isSupabaseConfigured) {
@@ -206,14 +221,9 @@ export function AuthProvider({ children }: PropsWithChildren) {
             error: { kind: 'request-failure', message: SIGN_IN_ERROR_MESSAGES.cancelled },
           };
         }
-        const callbackError =
-          getCallbackParam(result.url, 'error_description') ??
-          getCallbackParam(result.url, 'error');
-        if (callbackError) {
-          failWith(
-            SIGN_IN_ERROR_MESSAGES[signInErrorKind(getCallbackParam(result.url, 'error'))],
-            signInErrorKind(getCallbackParam(result.url, 'error')),
-          );
+        const callbackKind = signInErrorKindFromCallback(result.url);
+        if (callbackKind) {
+          failWith(SIGN_IN_ERROR_MESSAGES[callbackKind], callbackKind);
           return authFailure(null);
         }
         const authCode = getCallbackParam(result.url, 'code');
@@ -267,17 +277,28 @@ export function AuthProvider({ children }: PropsWithChildren) {
         });
         return error ? authFailure(error, normalized) : authSuccess();
       },
-      setPassword: async (password: string) => {
-        const { error } = await supabase.auth.updateUser({ password });
-        return error ? authFailure(error, user?.email) : authSuccess();
+      setPassword: async (password: string, freshProofCode?: string) => {
+        const result = await savePasswordWithFreshProof(
+          supabase.auth,
+          password,
+          freshProofCode,
+          user?.email,
+        );
+        if (!result.ok) return result;
+        if (user?.signInMethods) {
+          setUser({
+            ...user,
+            signInMethods: { ...user.signInMethods, password: true },
+          });
+        }
+        return result;
       },
       signOut: async () => {
         clearAuthError();
         validationGeneration.current += 1;
-        const { error } = await supabase.auth.signOut({ scope: 'local' });
-        const restored = error ? null : await supabase.auth.getSession();
-        if (error || restored?.error || restored?.data.session) {
-          const failure = authFailure(error ?? restored?.error ?? null);
+        const result = await signOutLocallyAndVerify(supabase.auth);
+        if (!result.signedOut) {
+          const failure = authFailure(result.error);
           failWith(SIGN_IN_ERROR_MESSAGES.failed);
           return failure;
         }

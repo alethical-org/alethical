@@ -6,8 +6,8 @@ teaser for one enacted law, HF 4138, and it writes that law's facts as literals:
 the signing date, the effective date, the chief author, both chamber vote
 totals, and three excerpts quoted from the enacted text. That is deliberate -
 the card's wording and its three quoted passages are editorial choices no API
-response can make (the design bundle is
-``docs/mockups/home-signed-out-hero-card/``).
+response can make (the lasting behavior is recorded in
+``docs/product-onboarding/home-screen-guide.md``).
 
 The risk a literal carries is silence: if the record is corrected, the homepage
 keeps stating the old fact and nothing in the product looks wrong (#1444). So

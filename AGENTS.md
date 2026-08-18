@@ -1,35 +1,39 @@
-# AGENTS.md
+# AGENTS.md — start here
 
-Orientation for any coding agent working in this repository (Codex CLI, Cursor, and
-anything else that reads `AGENTS.md`). Claude Code reads `.claude/rules/` directly and
-does not need this file; it is here so every other agent starts from the same place
-instead of guessing.
+Minnesota publishes everything its legislature does, in a format almost no one can
+read. **Alethical** turns that record — bills, votes, legislators, campaign money —
+into plain language, so anyone can see what their government is doing and check
+every word against the official source.
 
-This file is a **map, not a copy**. Everything below points at the document that owns
+This file orients every coding agent working in this repository — Claude Code, Codex
+CLI, Cursor, and anything else. **It is the canonical copy; `CLAUDE.md` is a symlink
+to it**, so every tool reads the same words and the two files can never drift apart
+again. It is a **map, not a copy**: everything below points at the document that owns
 the subject, so there is nothing here to keep in sync.
 
-## What this is
-
-Alethical makes Minnesota legislative records understandable: bills, votes, and
-legislators, in plain language, with every claim traceable to an official source.
-Read [`docs/philosophy.md`](docs/philosophy.md) first — it explains why most of the
-rules below exist.
+**Read [`docs/philosophy.md`](docs/philosophy.md) before you build anything.** It is
+the *why* beneath Alethical: the problem the product actually solves (legibility,
+not secrecy), who we assume is reading, and the ten principles every screen and
+sentence answers to. The rules below are *how* we work; that file is *what we are
+working toward*, and it is the tie-breaker when a tactic and an intent disagree.
 
 ## Read before you change anything
 
-- [`.claude/rules/coding-discipline.md`](.claude/rules/coding-discipline.md) — how to
-  approach a change: think first, ship the minimum, keep the diff surgical, define a
-  verifiable goal.
 - [`.claude/rules/grounded-answers.md`](.claude/rules/grounded-answers.md) — the
   product invariants for anything that generates, displays, or advertises an answer.
   **Cite or refuse** is the one that governs everything else.
-- [`.claude/rules/workflow.md`](.claude/rules/workflow.md) — branch and PR conventions,
-  where decisions get recorded, and the checks a change has to clear.
-- [`CONTRIBUTING.md`](CONTRIBUTING.md) — setup, the commands, and the human-facing
-  version of the same conventions.
+- [`.claude/rules/workflow.md`](.claude/rules/workflow.md) — the single home of how
+  work moves: a ten-bullet shape up top, then the numbered rules — branch and PR
+  conventions, where decisions get recorded, the checks a change must clear, and how
+  to write a change with discipline (rule 14: think first, ship the minimum, keep the
+  diff surgical, define a verifiable goal).
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — setup, the commands, and the CI reference.
 - [`docs/README.md`](docs/README.md) — index of every spec. Specs describe intent;
   **GitHub issues and the Roadmap board carry sequencing**, so never read a milestone
   in prose as a reason work is off-limits.
+
+Tool note: Claude Code loads this file and everything in `.claude/rules/` into every
+session automatically; every other agent must open them itself.
 
 ## Layout
 
@@ -61,6 +65,21 @@ the local Postgres that `just up` starts.
 - **Never fire an irreversible action to prove a change works** — a real send to real
   users, a paid run, or a destructive production data or schema change. Keep the live
   trigger behind config and verify with a dry run.
+- **Never complete OAuth only to prove that a return address is allowed.** Check the
+  saved redirect list instead, or stop at the provider page before choosing an account.
+  A real sign-in check may continue only after proving the browser is a fresh isolated
+  profile with no signed-in account, or that Google is using the saved Alethical test
+  account (`alethicaldev@gmail.com`). Never ask a browser tool for the full address after
+  sign-in. No task output, tool output, log, file, issue, or pull request may contain a
+  real authentication callback query or fragment. Clearly fake callback values may exist
+  only inside the focused tests that prove this protection. Code-driven browser checks
+  must inspect the address in memory with
+  [`safe-auth-callback-report.mjs`](apps/frontend/scripts/safe-auth-callback-report.mjs)
+  and report only the origin, path, and the 2 booleans saying whether private fields were
+  present. Interactive browser checks must compute that same report inside the page; if a
+  tool can only return the full address, stop before the callback. Never retrieve the full
+  address first and clean it afterward. [Issue 1600](https://github.com/alethical-org/alethical/issues/1600)
+  records the 2026-08-15 incident behind this rule without storing a credential.
 - **The danger is any write into the shared checkout, not just a git command.** Every
   rule below names a git command, and that framing has a hole: `cd /Users/eug/Code/Alethical`
   followed by `cat >> file`, `> file`, `sed -i`, `rm`, or a formatter is a write into
@@ -148,10 +167,9 @@ startup update script refreshes dependencies only (`uv sync` + `pnpm install
   (which builds the app and configures logging) can't open it. Run it as
   `ALETHICAL_LOG_DIR=/tmp/alethical-logs uv run pytest`. Lint doesn't need this. Note
   pytest seeds `scripts/load_sample_data.py` into the *local* Postgres it points at.
-- **`just lint` uses UNPINNED `uvx ruff`/`uvx ty`** and pulls newer versions than CI,
-  reporting hundreds of false errors. Reproduce CI (`.github/workflows/ci.yml`) with
-  the pinned versions: `uvx ruff@0.15.0 check alethical scripts`,
-  `uvx ruff@0.15.0 format --check alethical scripts`, `uvx ty@0.0.63 check alethical/db`.
+- **`just lint` pins the same `ruff`/`ty` versions CI runs** (`ruff@0.15.0`,
+  `ty@0.0.63`). If you call `uvx ruff`/`uvx ty` by hand, pin those versions —
+  unpinned runs pull newer releases that report hundreds of errors CI never sees.
   Frontend lint (`pnpm --dir apps/frontend exec tsc --noEmit`, and
   `prettier --check .` run from `apps/frontend`) is unaffected.
 - **Keep `OPENAI_API_KEY` unset in `.env` for keyless local dev.** The `.env.example`

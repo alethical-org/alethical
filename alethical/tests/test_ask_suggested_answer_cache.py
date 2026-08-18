@@ -20,9 +20,18 @@ schema = load_schema()
 AskSuggestedAnswerCache = schema.AskSuggestedAnswerCache
 
 
+@pytest.fixture(scope="module", autouse=True)
+def developer_openai_key_is_present():
+    """Reproduce a developer machine that has working OpenAI credentials."""
+    with pytest.MonkeyPatch.context() as monkeypatch:
+        monkeypatch.setenv("OPENAI_API_KEY", "test-developer-key-must-not-be-used")
+        yield
+
+
 @pytest.fixture(autouse=True)
-def empty_suggested_answer_cache(seed_database):
-    """Each case starts with no saved answer and leaves none for another case."""
+def empty_suggested_answer_cache(seed_database, monkeypatch):
+    """Each case uses the seeded offline vectors and an empty answer cache."""
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     with get_session_factory()() as db:
         db.execute(delete(AskSuggestedAnswerCache))
         db.commit()

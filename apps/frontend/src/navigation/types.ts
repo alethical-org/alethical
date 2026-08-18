@@ -63,6 +63,7 @@ export type RootStackParamList = {
       }
     | undefined;
   Privacy: undefined;
+  SiteMetrics: undefined;
   Terms: undefined;
   AboutUs: undefined;
   ContactUs: undefined;

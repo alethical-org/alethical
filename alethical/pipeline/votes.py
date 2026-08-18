@@ -111,6 +111,38 @@ class VoteReconciliationReport:
         }
 
 
+@dataclass(frozen=True)
+class IncompleteVoteRepairReport:
+    """Result of adding only proven omissions to existing House roll calls."""
+
+    updated: tuple[VoteReconciliationItem, ...] = ()
+    rejected: tuple[VoteReconciliationItem, ...] = ()
+    failed: tuple[VoteReconciliationItem, ...] = ()
+    records_added: int = 0
+
+    def to_dict(self) -> dict[str, Any]:
+        def item_dict(item: VoteReconciliationItem) -> dict[str, Any]:
+            return {
+                "bill_key": item.bill_key,
+                "vote_event_id": item.vote_event_id,
+                "action_number": item.action_number,
+                "outcome": item.outcome,
+                "reason": item.reason,
+            }
+
+        return {
+            "counts": {
+                "events_updated": len(self.updated),
+                "records_added": self.records_added,
+                "rejected": len(self.rejected),
+                "failed": len(self.failed),
+            },
+            "updated": [item_dict(item) for item in self.updated],
+            "rejected": [item_dict(item) for item in self.rejected],
+            "failed": [item_dict(item) for item in self.failed],
+        }
+
+
 def supabase_database_url() -> str | None:
     return _supabase_database_url()
 
@@ -660,6 +692,7 @@ def build_legislator_index(
             LegislatorServicePeriod.chamber_id == chamber_id,
             LegislatorServicePeriod.session_id == session_id,
         )
+        .distinct()
     ).all()
     index: dict[tuple[str, tuple[str, ...]], list[Any]] = {}
     for row in rows:
@@ -1259,6 +1292,278 @@ def reconcile_saved_votes(
         unchanged=tuple(groups["unchanged"]),
         rejected=tuple(groups["rejected"]),
         failed=tuple(groups["failed"]),
+    )
+
+
+def _incomplete_house_vote_work(
+    db: Session,
+    *,
+    max_missing: int = 4,
+    event_ids: Sequence[Any] | None = None,
+) -> list[tuple[Any, Any, Any, Any]]:
+    if max_missing < 1:
+        raise ValueError("max_missing must be at least 1")
+    saved_count = (
+        select(func.count(VoteRecord.id))
+        .where(VoteRecord.vote_event_id == VoteEvent.id)
+        .correlate(VoteEvent)
+        .scalar_subquery()
+    )
+    missing_count = VoteEvent.yes_count + VoteEvent.no_count - saved_count
+    work_query = (
+        select(Bill, BillAction, Chamber, VoteEvent)
+        .join(VoteEvent, VoteEvent.bill_id == Bill.id)
+        .join(BillAction, BillAction.id == VoteEvent.bill_action_id)
+        .join(Chamber, Chamber.id == VoteEvent.chamber_id)
+        .where(
+            Chamber.slug == "house",
+            missing_count >= 1,
+            missing_count <= max_missing,
+        )
+        .order_by(Bill.bill_key.asc(), BillAction.action_number.asc())
+    )
+    if event_ids is not None:
+        work_query = work_query.where(VoteEvent.id.in_(event_ids))
+    return list(db.execute(work_query).all())
+
+
+def backup_incomplete_vote_records(
+    db: Session,
+    *,
+    max_missing: int = 4,
+    event_ids: Sequence[Any] | None = None,
+) -> dict[str, object]:
+    """Capture every saved row the additive repair inspects before it writes."""
+    events = []
+    for bill, action, chamber, event in _incomplete_house_vote_work(
+        db,
+        max_missing=max_missing,
+        event_ids=event_ids,
+    ):
+        records = list(
+            db.scalars(
+                select(VoteRecord)
+                .where(VoteRecord.vote_event_id == event.id)
+                .order_by(VoteRecord.sort_order.asc())
+            ).all()
+        )
+        events.append(
+            {
+                "bill_key": bill.bill_key,
+                "action_number": action.action_number,
+                "chamber": chamber.slug,
+                "event": {
+                    "id": str(event.id),
+                    "yes_count": event.yes_count,
+                    "no_count": event.no_count,
+                    "records": [
+                        {
+                            "id": str(record.id),
+                            "legislator_id": str(record.legislator_id),
+                            "vote_value": record.vote_value.value,
+                            "sort_order": record.sort_order,
+                        }
+                        for record in records
+                    ],
+                },
+            }
+        )
+    return {"events": events, "max_missing": max_missing}
+
+
+def repair_incomplete_vote_records(
+    db: Session,
+    *,
+    dry_run: bool,
+    allowed_legislator_ids: set[Any],
+    source_session: Any | None = None,
+    max_missing: int = 4,
+    event_ids: Sequence[Any] | None = None,
+) -> IncompleteVoteRepairReport:
+    """Add only official, fully resolved omissions to existing House roll calls.
+
+    This deliberately cannot replace a roll call, change its tally, or touch a
+    saved member vote. It is the narrow production repair for #540's 4 missing
+    roster identities after the broad full-corpus rewrite was ruled out.
+    """
+    work = _incomplete_house_vote_work(
+        db,
+        max_missing=max_missing,
+        event_ids=event_ids,
+    )
+    groups: dict[str, list[VoteReconciliationItem]] = {
+        "updated": [],
+        "rejected": [],
+        "failed": [],
+    }
+    records_added = 0
+    house_cache: dict[str, list[ParsedVote]] = {}
+    legislator_indexes: dict[
+        tuple[Any, Any], dict[tuple[str, tuple[str, ...]], list[Any]]
+    ] = {}
+
+    for bill, action, chamber, event in work:
+        item_args = (bill.bill_key, str(event.id), action.action_number)
+        if leading_chamber(action.action_text) not in (None, chamber.slug):
+            groups["rejected"].append(
+                VoteReconciliationItem(
+                    *item_args,
+                    "rejected",
+                    "saved roll call belongs to a different acting chamber",
+                )
+            )
+            continue
+        try:
+            parsed_vote = _source_vote_for_action(
+                action,
+                bill,
+                chamber,
+                source_session=source_session,
+                house_cache=house_cache,
+                senate_cache={},
+                saved_event=event,
+            )
+        except Exception as exc:  # noqa: BLE001
+            groups["failed"].append(
+                VoteReconciliationItem(
+                    *item_args,
+                    "failed",
+                    f"source read failed: {type(exc).__name__}: {exc}",
+                )
+            )
+            continue
+        if parsed_vote is None:
+            groups["rejected"].append(
+                VoteReconciliationItem(
+                    *item_args,
+                    "rejected",
+                    "official roll call did not match uniquely",
+                )
+            )
+            continue
+        validated, rejection = _validate_complete_vote(
+            db,
+            parsed_vote=parsed_vote,
+            action=action,
+            bill=bill,
+            chamber=chamber,
+            legislator_indexes=legislator_indexes,
+        )
+        if validated is None:
+            groups["rejected"].append(
+                VoteReconciliationItem(*item_args, "rejected", rejection)
+            )
+            continue
+        if (event.yes_count, event.no_count) != (
+            validated.yes_count,
+            validated.no_count,
+        ):
+            groups["rejected"].append(
+                VoteReconciliationItem(
+                    *item_args,
+                    "rejected",
+                    "official tally differs; additive repair cannot change it",
+                )
+            )
+            continue
+
+        saved_records = list(
+            db.scalars(
+                select(VoteRecord)
+                .where(VoteRecord.vote_event_id == event.id)
+                .order_by(VoteRecord.sort_order.asc())
+            ).all()
+        )
+        official_by_legislator = {
+            legislator_id: (value, sort_order)
+            for legislator_id, value, sort_order in validated.records
+        }
+        conflict = next(
+            (
+                record
+                for record in saved_records
+                if record.legislator_id not in official_by_legislator
+                or official_by_legislator[record.legislator_id][0] != record.vote_value
+            ),
+            None,
+        )
+        if conflict is not None:
+            groups["rejected"].append(
+                VoteReconciliationItem(
+                    *item_args,
+                    "rejected",
+                    "a saved member vote conflicts with the complete official list",
+                )
+            )
+            continue
+        saved_legislator_ids = {record.legislator_id for record in saved_records}
+        additions = [
+            record
+            for record in validated.records
+            if record[0] not in saved_legislator_ids
+            and record[0] in allowed_legislator_ids
+        ]
+        if not additions:
+            continue
+        records_added += len(additions)
+        if dry_run:
+            groups["updated"].append(
+                VoteReconciliationItem(
+                    *item_args,
+                    "updated",
+                    f"dry run; would add {len(additions)} missing member votes",
+                )
+            )
+            continue
+
+        try:
+            with db.begin_nested():
+                next_sort_order = max(
+                    (record.sort_order for record in saved_records), default=0
+                )
+                for offset, (legislator_id, value, _official_order) in enumerate(
+                    additions, start=1
+                ):
+                    db.add(
+                        VoteRecord(
+                            vote_event_id=event.id,
+                            legislator_id=legislator_id,
+                            vote_value=value,
+                            sort_order=next_sort_order + offset,
+                        )
+                    )
+                db.flush()
+                _refresh_vote_counts(
+                    db,
+                    bill_id=bill.id,
+                    session_id=bill.session_id,
+                    affected_legislator_ids={row[0] for row in additions},
+                )
+            db.commit()
+        except Exception as exc:  # noqa: BLE001
+            db.rollback()
+            records_added -= len(additions)
+            groups["failed"].append(
+                VoteReconciliationItem(
+                    *item_args,
+                    "failed",
+                    f"atomic addition failed: {type(exc).__name__}: {exc}",
+                )
+            )
+            continue
+        groups["updated"].append(
+            VoteReconciliationItem(
+                *item_args,
+                "updated",
+                f"added {len(additions)} missing member votes",
+            )
+        )
+
+    return IncompleteVoteRepairReport(
+        updated=tuple(groups["updated"]),
+        rejected=tuple(groups["rejected"]),
+        failed=tuple(groups["failed"]),
+        records_added=records_added,
     )
 
 

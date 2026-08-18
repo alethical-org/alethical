@@ -50,6 +50,7 @@ describe('the web authentication boundary', () => {
     expect(phoneProvider).toContain("from 'expo-web-browser'");
     expect(phoneProvider).toContain('WebBrowser.openAuthSessionAsync');
     expect(phoneProvider).toContain('supabase.auth.exchangeCodeForSession');
+    expect(phoneProvider).toContain('signInErrorKindFromCallback(result.url)');
     expect(phoneClient).toContain("from '@react-native-async-storage/async-storage'");
     expect(phoneClient).toContain("import 'react-native-url-polyfill/auto'");
     expect(phoneClient).toContain('WebBrowser.maybeCompleteAuthSession()');
@@ -101,12 +102,25 @@ describe('the web authentication boundary', () => {
       'signInWithOAuth',
       'exchangeCodeForSession',
       'resetPasswordForEmail',
+      'reauthenticate',
       'verifyOtp',
       'updateUser',
       'signOut',
     ] as const) {
       expect(typeof webAuth[method]).toBe('function');
       expect(typeof reference[method]).toBe('function');
+    }
+  });
+
+  it('keeps password fresh proof inside the shared provider contract', () => {
+    for (const provider of [
+      source('../../providers/AuthProvider.web.tsx'),
+      source('../../providers/AuthProvider.tsx'),
+    ]) {
+      expect(provider).toContain('setPassword: (password: string, freshProofCode?: string)');
+      expect(provider).toContain('savePasswordWithFreshProof(');
+      expect(provider).toContain('supabase.auth,');
+      expect(provider).toContain('freshProofCode,');
     }
   });
 });

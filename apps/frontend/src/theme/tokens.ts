@@ -1,7 +1,7 @@
 import { Platform } from 'react-native';
 
-// Design tokens for the redesign, extracted verbatim from docs/mockups/*.html
-// (verified across all 7 screens). Existing key names are preserved so the
+// Design tokens for the redesign, now the exact implemented source of truth named
+// by docs/design/design-principles.md. Existing key names are preserved so the
 // current screens keep compiling; new ramps/groups are added for the primitives
 // and the new screens. Fonts (Libre Franklin, JetBrains Mono) are loaded on web
 // via the font <link> in the web entry; see the primitives/build for wiring.
@@ -53,7 +53,7 @@ const palette = {
   red600: '#c23c36',
   red800: '#5c2b2e',
   red900: '#2a1215',
-  // v2 home (docs/mockups/home-signed-out-v2): purple = AI / "Grounded Ask" / focus,
+  // Purple = AI / "Grounded Ask" / focus,
   // status colors for bill cards, dark footer surface
   purple: '#5b30d6',
   purpleTint: '#f0ebfc',
@@ -62,7 +62,7 @@ const palette = {
   vetoedStep: '#e5484d',
   amber: '#9a7b1f',
   progressEmpty: '#e2e5e4',
-  // omnibus indicator pill (docs/mockups/search-bills omnibus amber).
+  // Omnibus indicator pill (docs/product-onboarding/bill-search-screen-spec.md).
   // Text is #8f5a12 (not the mockup's #a76a1a) to clear WCAG AA: 5.77:1 on white /
   // 5.16:1 on the #fbf1e2 fill; #a76a1a was 3.98:1 on fill and 4.45:1 on white,
   // short of AA for small text (docs/design/design-principles.md §3, accessibility

@@ -32,7 +32,7 @@ import {
 
 const isWeb = Platform.OS === 'web';
 
-// Bill card for the redesigned Search Bills screen (docs/mockups/search-bills).
+// Bill card for Search Bills (docs/product-onboarding/bill-search-screen-spec.md).
 // The whole card links to the bill detail; Track / author / roll-calls sit above
 // the full-bleed anchor so they stay independently clickable.
 //
@@ -72,7 +72,7 @@ interface BillResultCardProps {
   // Toggle this bill's tracked state (or route a signed-out user to sign-in). When
   // omitted, the Track button is not rendered — a surface must opt in by wiring it.
   onToggleTrack?: () => void;
-  // Editorial "🔥 Hot issue" flag (NEXT-home-spec §Bill Activity — Card chrome).
+  // Editorial "🔥 Hot issue" flag (docs/product-onboarding/home-screen-guide.md).
   // Shown on both web (top-right, left of Track) and mobile (right of the identity
   // row). The editor marks which bills carry it via lib/hotIssues.ts; off by
   // default so nothing shows it unasked.

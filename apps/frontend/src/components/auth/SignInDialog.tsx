@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { ReactNode, useEffect, useRef, useState } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
@@ -11,22 +11,26 @@ import {
   validatePassword,
   validatePasswordMatch,
 } from '../../lib/auth/rev9Auth';
-import { signInCopy } from '../../lib/signIn';
+import { signInCopy, type SignInErrorKind } from '../../lib/signIn';
 import { externalLinkProps, routePath } from '../../navigation/links';
 import { GoogleButton } from '../../theme/primitives';
 import { theme as t } from '../../theme/tokens';
+import { ContactMailText } from './ContactMailText';
 import { EmailField } from './EmailField';
 import { FormError } from './FormError';
 import { LoadingButton } from './LoadingButton';
 import { PasswordField } from './PasswordField';
 import { ResendControl, ResendStatus } from './ResendControl';
-import { SignInContainer } from './SignInContainer';
+import { SignInContainer, descriptionTextStyle } from './SignInContainer';
 
 const isWeb = Platform.OS === 'web';
 const TERMS_URL = 'https://www.alethical.com/terms';
 const PRIVACY_URL = 'https://www.alethical.com/privacy';
-const CONFIRMATION_SENT = 'If this address can receive a confirmation email, we’ve sent one.';
-const RESET_SENT = 'If an Alethical account can use that email, we’ve sent new instructions.';
+// Arrival-neutral by rule: no screen claims a send happened — Supabase measurably
+// reports success without sending for an already-confirmed address, and a claim
+// the screen cannot see is barred (rev 17 sign-in bundle, #1533).
+const CONFIRMATION_SENT = 'If a confirmation email arrives, open the newest one';
+const RESET_SENT = 'If a reset email arrives, open the newest one';
 
 export type SignInDialogScreen = 'sign-in' | 'create' | 'check-email' | 'forgot' | 'forgot-sent';
 
@@ -44,6 +48,7 @@ export interface SignInDialogProps {
   initialScreen?: SignInDialogScreen;
   initialEmail?: string;
   errorMessage?: string | null;
+  errorKind?: SignInErrorKind | null;
   busyAction?: 'google' | 'sign-in' | 'create' | 'resend' | 'forgot' | null;
   emailPasswordEnabled: boolean;
   /** The launch value recorded from Supabase. The 60-second drawing was not a specification. */
@@ -54,12 +59,19 @@ export interface SignInDialogProps {
   onCreateAccount: (email: string, password: string) => Promise<SignInDialogActionResult>;
   onResendConfirmation: (email: string) => Promise<SignInDialogActionResult>;
   onForgotPassword: (email: string) => Promise<SignInDialogActionResult>;
+  onBackFromOutcome?: () => void;
 }
 
 type FieldErrors = { email?: string; password?: string; confirmation?: string };
 type CheckEmailMode = 'create' | 'unconfirmed';
 
-function IntentIcon({ icon, size }: { icon: 'brand' | 'bell' | 'mail' | 'lock'; size: number }) {
+function IntentIcon({
+  icon,
+  size,
+}: {
+  icon: 'brand' | 'bell' | 'mail' | 'lock' | 'shield';
+  size: number;
+}) {
   const glyph = Math.round(size * 0.5);
   const ink = t.colors.text.primary;
   return (
@@ -96,6 +108,14 @@ function IntentIcon({ icon, size }: { icon: 'brand' | 'bell' | 'mail' | 'lock'; 
             <Path d="M6 10 H18 V21 H6 Z" stroke={ink} strokeWidth={2} />
             <Path d="M8.5 10 V7.5 A3.5 3.5 0 0 1 15.5 7.5 V10" stroke={ink} strokeWidth={2} />
           </>
+        ) : null}
+        {icon === 'shield' ? (
+          <Path
+            d="M12 3 L20 6 V11 C20 16 16.8 19.4 12 21 C7.2 19.4 4 16 4 11 V6 Z"
+            stroke={ink}
+            strokeWidth={2}
+            strokeLinejoin="round"
+          />
         ) : null}
       </Svg>
     </View>
@@ -168,14 +188,18 @@ function TextAction({
 }
 
 function GoogleHelp({ create = false }: { create?: boolean }) {
+  if (create) {
+    return (
+      <Text style={[styles.googleHelp, styles.googleHelpCreate]}>
+        Already use Google with this email?
+      </Text>
+    );
+  }
+
   return (
     <Text style={styles.googleHelp}>
-      {create
-        ? 'Already use Google with this email? '
-        : 'If you first used Google and haven’t added a password, '}
-      <Text style={styles.googleHelpStrong}>
-        {create ? 'Continue with Google.' : 'continue with Google.'}
-      </Text>
+      If you first used Google and haven’t added a password,{' '}
+      <Text style={styles.googleHelpStrong}>continue with Google.</Text>
     </Text>
   );
 }
@@ -187,6 +211,7 @@ export function SignInDialog({
   initialScreen = 'sign-in',
   initialEmail = '',
   errorMessage = null,
+  errorKind = null,
   busyAction = null,
   emailPasswordEnabled,
   resendWaitSeconds,
@@ -196,6 +221,7 @@ export function SignInDialog({
   onCreateAccount,
   onResendConfirmation,
   onForgotPassword,
+  onBackFromOutcome,
 }: SignInDialogProps) {
   const { isMobile } = useResponsive();
   const [screen, setScreen] = useState<SignInDialogScreen>(initialScreen);
@@ -218,6 +244,11 @@ export function SignInDialog({
     if (!open) {
       wasOpen.current = false;
       requestGate.reset();
+      setEmail('');
+      setPassword('');
+      setConfirmation('');
+      setFieldErrors({});
+      setFormError(null);
       return;
     }
     if (wasOpen.current) return;
@@ -234,7 +265,7 @@ export function SignInDialog({
   }, [emailPasswordEnabled, initialEmail, initialScreen, open, requestGate]);
 
   useEffect(() => {
-    if (resendStatus !== 'waiting') return;
+    if (resendStatus !== 'waiting' && resendStatus !== 'rate-limited') return;
     const timer = setInterval(() => {
       setResendSeconds((seconds) => {
         if (seconds > 1) return seconds - 1;
@@ -244,6 +275,11 @@ export function SignInDialog({
     }, 1000);
     return () => clearInterval(timer);
   }, [resendStatus]);
+
+  useEffect(() => {
+    if (anyBusy || formError !== REV9_AUTH_MESSAGES.badCredentials || password) return;
+    passwordRef.current?.focus?.();
+  }, [anyBusy, formError, password]);
 
   const clearMessages = () => {
     setFieldErrors({});
@@ -271,13 +307,16 @@ export function SignInDialog({
       passwordRef.current?.focus?.();
       return;
     }
+    if (error.kind === 'bad-credentials') {
+      setPassword('');
+    }
     setFormError(error.message);
   };
 
-  const finishResend = () => {
+  const finishResend = (sent = true) => {
     const seconds = Math.max(0, Math.ceil(resendWaitSeconds));
     setResendSeconds(seconds);
-    setResendStatus(seconds > 0 ? 'waiting' : 'sent');
+    setResendStatus(seconds > 0 ? (sent ? 'waiting' : 'rate-limited') : sent ? 'sent' : 'ready');
   };
 
   const submitGoogle = async () => {
@@ -387,7 +426,10 @@ export function SignInDialog({
           ? await onForgotPassword(normalizeEmail(email))
           : await onResendConfirmation(normalizeEmail(email));
       if (result.ok) finishResend();
-      else showResultError(result.error);
+      else {
+        if (result.error.kind === 'too-many-attempts') finishResend(false);
+        showResultError(result.error);
+      }
     } catch {
       setFormError(REV9_AUTH_MESSAGES.requestFailure);
     } finally {
@@ -397,12 +439,20 @@ export function SignInDialog({
 
   const signInIntent = signInCopy(intent, billCode);
   const trackObject = billCode || 'this bill';
-  const trackDescription = `Save ${trackObject} to your tracked bills and check where it stands whenever you come back.`;
+  const trackDescription = `Save ${trackObject} to your tracked bills and check where it stands whenever you come back`;
   let title: string;
-  let description: string;
-  let icon: 'brand' | 'bell' | 'mail' | 'lock';
+  let description: ReactNode;
+  let icon: 'brand' | 'bell' | 'mail' | 'lock' | 'shield';
 
-  if (screen === 'sign-in') {
+  // The deactivated state is the one reachable stop state (the match-failure
+  // screen was removed in rev 15 as verified unreachable, #1533).
+  const dedicatedOutcome = errorKind === 'deactivated';
+
+  if (dedicatedOutcome) {
+    title = 'This account has been deactivated';
+    description = <ContactMailText text={errorMessage ?? ''} style={descriptionTextStyle} />;
+    icon = 'shield';
+  } else if (screen === 'sign-in') {
     title = signInIntent.headline;
     description = intent === 'track' ? trackDescription : signInIntent.subcopy;
     icon = intent === 'track' ? 'bell' : 'brand';
@@ -410,28 +460,29 @@ export function SignInDialog({
     title =
       intent === 'track' ? 'Create an account to track this bill' : 'Create your Alethical account';
     description =
-      intent === 'track'
-        ? trackDescription
-        : 'You’ll use this email and password to sign in. Your tracked list is saved to your account.';
+      intent === 'track' ? trackDescription : 'Bills you track are saved to your account';
     icon = intent === 'track' ? 'bell' : 'brand';
   } else if (screen === 'check-email') {
     title = checkEmailMode === 'unconfirmed' ? 'Confirm your email' : 'Check your email';
+    // Every accepted create lands here — new address, taken address or
+    // Google-first account, identical response and shape — so the copy names
+    // no address and claims no send.
     description =
       checkEmailMode === 'unconfirmed'
-        ? `Confirm ${email} before signing in.`
-        : `If this address can create an Alethical account, a confirmation link is on the way to ${email}.`;
+        ? `Confirm ${email} before signing in`
+        : 'If a confirmation email arrives, open the newest one. If none does, sign in — you may already have an account.';
     icon = 'mail';
   } else if (screen === 'forgot') {
     title = 'Reset your password';
     description =
-      'Enter the email you use for Alethical and we’ll send password reset instructions.';
+      'Enter the email you use for Alethical and we’ll send password reset instructions';
     icon = 'lock';
   } else {
     title = 'Check your email';
-    description = `If an Alethical account can use that email, we’ll send password reset instructions to ${email}.`;
+    description = RESET_SENT;
     icon = 'mail';
   }
-  const shownError = errorMessage ?? formError;
+  const shownError = dedicatedOutcome ? formError : (errorMessage ?? formError);
   const googleBusy = busyAction === 'google';
   const resendBusy =
     busyAction === 'resend' || (screen === 'forgot-sent' && busyAction === 'forgot');
@@ -443,24 +494,37 @@ export function SignInDialog({
     </View>
   ) : null;
 
+  const googleButton = (
+    <GoogleButton
+      onPress={anyBusy && !googleBusy ? undefined : () => void submitGoogle()}
+      label="Continue with Google"
+      busy={googleBusy}
+      busyLabel="Continuing with Google…"
+      size={isMobile ? 'lg' : 'md'}
+    />
+  );
   const googleChoice = (
     <>
-      <GoogleButton
-        onPress={anyBusy && !googleBusy ? undefined : () => void submitGoogle()}
-        label="Continue with Google"
-        busy={googleBusy}
-        busyLabel="Continuing with Google…"
-        size={isMobile ? 'lg' : 'md'}
-      />
+      {googleButton}
       {emailPasswordEnabled ? <Divider /> : null}
     </>
   );
 
   let content;
-  if (screen === 'sign-in') {
+  if (dedicatedOutcome) {
+    content = (
+      <LoadingButton
+        label="Back to sign in"
+        busyLabel="Returning…"
+        tone="quiet"
+        onPress={() => onBackFromOutcome?.()}
+      />
+    );
+  } else if (screen === 'sign-in') {
     content = (
       <>
         {serverError}
+        {shownError === REV9_AUTH_MESSAGES.badCredentials ? <GoogleHelp /> : null}
         {googleChoice}
         {emailPasswordEnabled ? (
           <>
@@ -489,7 +553,6 @@ export function SignInDialog({
                 onSubmitEditing={() => void submitSignIn()}
               />
             </View>
-            {shownError === REV9_AUTH_MESSAGES.badCredentials ? <GoogleHelp /> : null}
             <View style={styles.actionStack}>
               <LoadingButton
                 label="Sign in"
@@ -522,6 +585,7 @@ export function SignInDialog({
     content = (
       <>
         {serverError}
+        <GoogleHelp create />
         {googleChoice}
         <View style={styles.fields}>
           <EmailField
@@ -564,7 +628,6 @@ export function SignInDialog({
             onSubmitEditing={() => void submitCreate()}
           />
         </View>
-        <GoogleHelp create />
         <View style={styles.actionStack}>
           <LoadingButton
             label="Create account"
@@ -575,31 +638,56 @@ export function SignInDialog({
             }
             onPress={submitCreate}
           />
-          <TextAction label="Sign in" disabled={anyBusy} onPress={() => moveTo('sign-in')} />
+        </View>
+        <View style={styles.switchRow}>
+          <Text style={styles.switchText}>Already have an account?</Text>
+          <TextAction label="Sign in" inline disabled={anyBusy} onPress={() => moveTo('sign-in')} />
         </View>
         <LegalCopy />
       </>
     );
   } else if (screen === 'check-email') {
+    // The Google button is on the card for the create outcome (rev 12): for a
+    // taken address or a Google-first account every other control here is inert,
+    // and the button reveals nothing because everyone sees it. The unconfirmed
+    // outcome deliberately has no Google button — this screen already knows the
+    // password is correct, and an unconfirmed email must never be invited to
+    // claim an existing account through Google.
+    const resendConfirmationControl = (
+      <ResendControl
+        status={shownResendStatus}
+        secondsRemaining={resendSeconds}
+        sentMessage={CONFIRMATION_SENT}
+        actionLabel={
+          checkEmailMode === 'unconfirmed' ? 'Resend confirmation email' : 'Resend email'
+        }
+        onResend={submitResend}
+      />
+    );
+    const signInAfterEmailControl = (
+      <LoadingButton
+        label={checkEmailMode === 'unconfirmed' ? 'Sign in after confirming' : 'Sign in'}
+        busyLabel="Opening sign in…"
+        disabled={anyBusy}
+        onPress={() => moveTo('sign-in')}
+      />
+    );
     content = (
       <>
         {serverError}
+        {checkEmailMode === 'create' ? <View style={styles.googleSolo}>{googleButton}</View> : null}
         <View style={styles.actionStackNoTop}>
-          <ResendControl
-            status={shownResendStatus}
-            secondsRemaining={resendSeconds}
-            sentMessage={CONFIRMATION_SENT}
-            actionLabel={
-              checkEmailMode === 'unconfirmed' ? 'Resend confirmation email' : 'Resend email'
-            }
-            onResend={submitResend}
-          />
-          <LoadingButton
-            label="Sign in after confirming"
-            busyLabel="Opening sign in…"
-            disabled={anyBusy}
-            onPress={() => moveTo('sign-in')}
-          />
+          {checkEmailMode === 'create' ? (
+            <>
+              {signInAfterEmailControl}
+              {resendConfirmationControl}
+            </>
+          ) : (
+            <>
+              {resendConfirmationControl}
+              {signInAfterEmailControl}
+            </>
+          )}
           <TextAction
             label="Change email"
             disabled={anyBusy}
@@ -609,9 +697,12 @@ export function SignInDialog({
       </>
     );
   } else if (screen === 'forgot') {
+    // Rev 12: the Google button is on the card and the Google help sentence is
+    // gone — the button is the sentence.
     content = (
       <>
         {serverError}
+        {googleChoice}
         <EmailField
           inputRef={emailRef}
           value={email}
@@ -624,7 +715,6 @@ export function SignInDialog({
           }}
           onSubmitEditing={() => void submitForgot()}
         />
-        <GoogleHelp />
         <View style={styles.actionStack}>
           <LoadingButton
             label="Send reset instructions"
@@ -645,7 +735,7 @@ export function SignInDialog({
     content = (
       <>
         {serverError}
-        <GoogleHelp />
+        <View style={styles.googleSolo}>{googleButton}</View>
         <View style={styles.actionStackNoTop}>
           <ResendControl
             status={shownResendStatus}
@@ -671,6 +761,7 @@ export function SignInDialog({
   return (
     <SignInContainer
       open={open}
+      focusKey={dedicatedOutcome ? 'deactivated' : screen}
       title={title}
       description={description}
       icon={<IntentIcon icon={icon} size={isMobile ? 56 : 52} />}
@@ -713,15 +804,17 @@ const styles = StyleSheet.create({
   },
   fields: { gap: 18 },
   googleHelp: {
-    marginTop: 10,
+    marginTop: t.spacing.sm,
     fontFamily: t.typography.body,
     fontSize: 13.5,
     lineHeight: 20,
     color: t.colors.text.secondary,
   },
+  googleHelpCreate: { marginBottom: t.spacing.md },
   googleHelpStrong: { fontWeight: t.fontWeights.bold, color: t.colors.text.primary },
   actionStack: { marginTop: 20, gap: 12 },
   actionStackNoTop: { gap: 12 },
+  googleSolo: { marginBottom: 12 },
   textAction: {
     width: '100%',
     minHeight: 44,

@@ -1017,6 +1017,27 @@ class TrackedBill(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     __table_args__ = (UniqueConstraint("user_id", "bill_id"),)
 
 
+class SiteMetricEvent(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """One fixed action name, with no words, page, person, or account attached."""
+
+    __tablename__ = "site_metric_event"
+
+    event_kind: Mapped[str] = mapped_column(String(60), nullable=False)
+
+    __table_args__ = (
+        CheckConstraint(
+            "event_kind IN ("
+            "'bill_search_with_results', "
+            "'legislator_search_with_results', "
+            "'find_my_legislator_with_results', "
+            "'official_source_opened'"
+            ")",
+            name="event_kind_allowed",
+        ),
+        Index("ix_site_metric_event_kind_created", "event_kind", "created_at"),
+    )
+
+
 class PendingAction(Base):
     """One signed-out product action waiting for a completed sign-in.
 

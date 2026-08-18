@@ -7,6 +7,8 @@ import { createAppQueryClient } from '../lib/appQueryClient';
 import { AuthProvider } from './AuthProvider';
 import { SignInModalProvider } from './SignInModalProvider';
 import { TrackedBillWriteProvider } from './TrackedBillWriteProvider';
+import { PasswordChangedNotice } from '../components/auth/PasswordChangedNotice';
+import { TrafficAnalytics } from '../components/TrafficAnalytics';
 
 export function AppProviders({ children }: PropsWithChildren) {
   const [queryClient] = useState(createAppQueryClient);
@@ -20,7 +22,9 @@ export function AppProviders({ children }: PropsWithChildren) {
                 and above everything else so any button on any screen can open it. */}
             <SignInModalProvider>
               <StatusBar style="dark" />
+              <TrafficAnalytics />
               {children}
+              <PasswordChangedNotice />
             </SignInModalProvider>
           </TrackedBillWriteProvider>
         </AuthProvider>

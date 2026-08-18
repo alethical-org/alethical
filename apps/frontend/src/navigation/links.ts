@@ -24,6 +24,7 @@ import { Platform, type GestureResponderEvent } from 'react-native';
 import type { RootStackParamList } from './types';
 import { hasInAppBackEntry } from './webHistory';
 import { pathForRoute } from './webRoutes';
+import { recordOfficialSourceOpen } from '../lib/siteMetricEvents';
 
 const isWeb = Platform.OS === 'web';
 
@@ -48,6 +49,7 @@ export const routePath = {
     pathForRoute({ name: 'VoteDetail', params: { billId, voteEventId } }),
   findMyLegislator: () => pathForRoute({ name: 'FindMyLegislator' }),
   privacy: () => pathForRoute({ name: 'Privacy' }),
+  siteMetrics: () => pathForRoute({ name: 'SiteMetrics' }),
   terms: () => pathForRoute({ name: 'Terms' }),
   aboutUs: () => pathForRoute({ name: 'AboutUs' }),
   contactUs: () => pathForRoute({ name: 'ContactUs' }),
@@ -215,12 +217,19 @@ export function externalLinkProps(
   onPress?: (event: GestureResponderEvent) => void;
 } {
   if (!isWeb) {
-    return { accessibilityRole: 'link', onPress };
+    return {
+      accessibilityRole: 'link',
+      onPress: (event: GestureResponderEvent) => {
+        recordOfficialSourceOpen(url);
+        onPress?.(event);
+      },
+    };
   }
 
   return {
     accessibilityRole: 'link',
     href: url,
     hrefAttrs: { target: '_blank', rel: 'noopener noreferrer' },
+    onPress: () => recordOfficialSourceOpen(url),
   };
 }

@@ -10,6 +10,10 @@ They also pin the Jul 30 2026 tightening: editing a doc is no longer an exemptio
 because two PRs an hour apart each edited one subsection of the billing guide,
 each passed on the strength of that edit, and each left the section above it
 false. See the script's own docstring for the incident.
+
+(The #1469 ``Design change:`` rule and its cases were removed with the temporary
+sign-in design folder itself, #1533 — design working files no longer land under
+``docs/`` at all.)
 """
 
 from __future__ import annotations

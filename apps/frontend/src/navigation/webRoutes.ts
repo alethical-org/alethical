@@ -17,6 +17,7 @@ type WebRouteTarget =
   | { kind: 'legislators'; params: Record<string, string> }
   | { kind: 'findMyLegislator'; address?: string }
   | { kind: 'privacy' }
+  | { kind: 'siteMetrics' }
   | { kind: 'terms' }
   | { kind: 'aboutUs' }
   | { kind: 'contactUs' }
@@ -113,6 +114,9 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
     if (segments[0] === 'privacy') {
       return { kind: 'privacy' };
     }
+    if (segments[0] === 'site-metrics') {
+      return { kind: 'siteMetrics' };
+    }
     if (segments[0] === 'terms') {
       return { kind: 'terms' };
     }
@@ -156,7 +160,7 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
   }
 
   // Bill detail and legislator detail resolve to their redesigned profile
-  // screens (docs/mockups/bill-detail-*, legislator-profile-web). Chat sessions
+  // screens (docs/product-onboarding/bill-detail-guide.md and legislator-profile-guide.md). Chat sessions
   // are still old-design — redirect those to Home.
   if (segments.length === 2 && segments[0] === 'bills') {
     return {
@@ -325,6 +329,8 @@ export function pathForRoute(activeRoute: {
     }
     case 'Privacy':
       return '/privacy';
+    case 'SiteMetrics':
+      return '/site-metrics';
     case 'Terms':
       return '/terms';
     case 'AboutUs':
@@ -450,6 +456,11 @@ export function stateFromPathname(pathname: string): WebNavigationState {
     case 'privacy':
       return {
         routes: [homeTabs, { name: 'Privacy' }],
+        index: 1,
+      };
+    case 'siteMetrics':
+      return {
+        routes: [homeTabs, { name: 'SiteMetrics' }],
         index: 1,
       };
     case 'terms':

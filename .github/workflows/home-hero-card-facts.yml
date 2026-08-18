@@ -4,8 +4,8 @@ name: Check the Home hero card's stated facts
 # HF 4138, and it states that law's facts as literals in app code: signed date,
 # effective date, chief author, both chamber vote totals, and three passages
 # quoted from the enacted text. The wording and the choice of passages are
-# editorial (docs/mockups/home-signed-out-hero-card/), which is why they are not
-# read from an API response.
+# editorial (docs/product-onboarding/home-screen-guide.md), which is why they are
+# not read from an API response.
 #
 # The danger a literal carries is silence. If the record is corrected, the
 # homepage keeps stating the old fact and nothing in the product looks wrong -

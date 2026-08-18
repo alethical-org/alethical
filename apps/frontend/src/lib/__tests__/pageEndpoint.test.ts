@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { runInNewContext } from 'node:vm';
 
 const { readPageShell } = vi.hoisted(() => ({ readPageShell: vi.fn() }));
 
@@ -23,6 +24,7 @@ const SHELL = [
   '<link rel="preconnect" href="https://fonts.googleapis.com" />',
   '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin" />',
   '</head><body><div id="root"><!--alethical:page-snapshot--><p>Home snapshot from shell</p><!--/alethical:page-snapshot--></div>',
+  '<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon=\'{"token":"public-speed-token"}\'></script>',
   '<script src="/_expo/static/js/web/index-abc.js"></script></body></html>',
 ].join('\n');
 
@@ -81,6 +83,64 @@ async function serve(query: Record<string, string>) {
   return recorder.read();
 }
 
+function runEmailLinkBootstrap(body: string, address: string) {
+  const source = body.match(
+    /<script id="alethical-email-link-bootstrap">([\s\S]*?)<\/script>/,
+  )?.[1];
+  if (!source) throw new Error('email-link bootstrap was not found');
+
+  const parsed = new URL(address, 'https://www.alethical.com');
+  let cleanedAddress = '';
+  const pageWindow = {
+    location: {
+      pathname: parsed.pathname,
+      search: parsed.search,
+      hash: parsed.hash,
+    },
+    history: {
+      replaceState(_state: unknown, _title: string, nextAddress: string) {
+        cleanedAddress = nextAddress;
+      },
+    },
+    __alethicalEmailLink: undefined as
+      | Readonly<{
+          tokenHash: string | null;
+          type: string | null;
+          pendingReference: string | null;
+        }>
+      | undefined,
+  };
+
+  runInNewContext(source, { URLSearchParams, window: pageWindow });
+  return { cleanedAddress, memory: pageWindow.__alethicalEmailLink };
+}
+
+function runForgotPasswordBootstrap(body: string, storageThrows = false) {
+  const source = body.match(
+    /<script id="alethical-forgot-password-bootstrap">([\s\S]*?)<\/script>/,
+  )?.[1];
+  if (!source) throw new Error('forgot-password bootstrap was not found');
+
+  const storage = new Map<string, string>();
+  let replacedAddress = '';
+  runInNewContext(source, {
+    window: {
+      sessionStorage: {
+        setItem(key: string, value: string) {
+          if (storageThrows) throw new Error('storage unavailable');
+          storage.set(key, value);
+        },
+      },
+      location: {
+        replace(nextAddress: string) {
+          replacedAddress = nextAddress;
+        },
+      },
+    },
+  });
+  return { replacedAddress, storage };
+}
+
 describe('private email-link page shell', () => {
   it.each([
     ['/confirm', 'private-confirmation', 'signup'],
@@ -88,12 +148,7 @@ describe('private email-link page shell', () => {
   ])('protects the one-use secret before the app starts on %s', async (path, tokenHash, type) => {
     stubNetwork(() => ({ status: 500 }));
 
-    const { body, headers, status } = await serve({
-      path,
-      token_hash: tokenHash,
-      type,
-      pending: 'opaque-pending-action',
-    });
+    const { body, headers, status } = await serve({ path });
 
     expect(status).toBe(200);
     expect(headers.get('Cache-Control')).toBe('no-store');
@@ -110,7 +165,108 @@ describe('private email-link page shell', () => {
     expect(body).not.toContain('opaque-pending-action');
     expect(body).not.toContain('https://api.alethical.com');
     expect(body).not.toContain('https://fonts.googleapis.com');
+    expect(body).not.toContain('https://static.cloudflareinsights.com');
+    expect(body).not.toContain('public-speed-token');
     expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    {
+      name: 'one-use token hash',
+      address:
+        '/confirm?kept=query#token_hash=private-confirmation&type=signup&pending=opaque-pending&kept=hash',
+      cleanedAddress: '/confirm?kept=query#kept=hash',
+      memory: {
+        tokenHash: 'private-confirmation',
+        type: 'signup',
+        pendingReference: 'opaque-pending',
+      },
+    },
+    {
+      name: 'query-string token that has already reached the server',
+      address:
+        '/confirm?token_hash=private-query-token&type=signup&pending=private-query-pending&kept=query',
+      cleanedAddress: '/confirm?kept=query',
+      memory: { tokenHash: null, type: null, pendingReference: null },
+    },
+    {
+      name: 'PKCE code and verifier',
+      address: '/confirm?code=private-code&kept=query#code_verifier=private-verifier&kept=hash',
+      cleanedAddress: '/confirm?kept=query#kept=hash',
+      memory: { tokenHash: null, type: null, pendingReference: null },
+    },
+    {
+      name: 'implicit access and refresh tokens',
+      address:
+        '/reset#access_token=private-access&refresh_token=private-refresh&token_type=bearer&expires_in=3600&expires_at=999999&type=recovery',
+      cleanedAddress: '/reset',
+      memory: { tokenHash: null, type: 'recovery', pendingReference: null },
+    },
+    {
+      name: 'provider tokens',
+      address:
+        '/confirm?provider_token=private-provider&kept=query#provider_refresh_token=private-provider-refresh&kept=hash',
+      cleanedAddress: '/confirm?kept=query#kept=hash',
+      memory: { tokenHash: null, type: null, pendingReference: null },
+    },
+    {
+      name: 'provider error details',
+      address:
+        '/confirm?error=access_denied&error_code=otp_expired&kept=query#error_description=private-description&kept=hash',
+      cleanedAddress: '/confirm?kept=query#kept=hash',
+      memory: { tokenHash: null, type: null, pendingReference: null },
+    },
+  ])('removes $name from both address parts before the app runs', async (testCase) => {
+    stubNetwork(() => ({ status: 500 }));
+    const { body } = await serve({ path: testCase.address.split(/[?#]/, 1)[0] });
+
+    const result = runEmailLinkBootstrap(body, testCase.address);
+
+    expect(result.cleanedAddress).toBe(testCase.cleanedAddress);
+    expect(result.memory?.tokenHash).toBe(testCase.memory.tokenHash);
+    expect(result.memory?.type).toBe(testCase.memory.type);
+    expect(result.memory?.pendingReference).toBe(testCase.memory.pendingReference);
+  });
+
+  it('drops an unusual fragment when it contains a sign-in secret', async () => {
+    stubNetwork(() => ({ status: 500 }));
+    const { body } = await serve({ path: '/confirm' });
+
+    const result = runEmailLinkBootstrap(
+      body,
+      '/confirm?kept=query#section?%61ccess_token=private-access',
+    );
+
+    expect(result.cleanedAddress).toBe('/confirm?kept=query');
+  });
+});
+
+describe('retired forgot-password address', () => {
+  it('opens the existing Forgot password panel before the app starts', async () => {
+    stubNetwork(() => ({ status: 500 }));
+
+    const { body, headers, status } = await serve({ path: '/forgot-password' });
+    const result = runForgotPasswordBootstrap(body);
+
+    expect(status).toBe(200);
+    expect(headers.get('Cache-Control')).toBe('no-store');
+    expect(headers.get('X-Robots-Tag')).toBe('noindex, nofollow');
+    expect(body.indexOf('alethical-forgot-password-bootstrap')).toBeLessThan(
+      body.indexOf('/_expo/static/js/web/index-abc.js'),
+    );
+    expect(result.storage.get('alethical.openSignIn')).toBe('forgot');
+    expect(result.replacedAddress).toBe('/#auth_screen=forgot');
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+
+  it('keeps the Forgot password destination when browser storage rejects the write', async () => {
+    stubNetwork(() => ({ status: 500 }));
+
+    const { body } = await serve({ path: '/forgot-password' });
+    const result = runForgotPasswordBootstrap(body, true);
+
+    expect(result.storage.size).toBe(0);
+    expect(result.replacedAddress).toBe('/#auth_screen=forgot');
   });
 });
 
@@ -214,11 +370,25 @@ describe('first-response page tags', () => {
     expect((await serve({ path: '/privacy' })).body).toContain(
       '<title>Privacy Policy | Alethical</title>',
     );
+    expect((await serve({ path: '/site-metrics' })).body).toContain(
+      '<title>Site Metrics | Alethical</title>',
+    );
     expect((await serve({ path: '/privacy' })).body).toContain(
       '<div id="root"><!--alethical:page-snapshot--><!--/alethical:page-snapshot--></div>',
     );
     expect(calls).toHaveLength(0);
     expect(readPageShell).toHaveBeenCalledTimes(1);
+  });
+
+  it('serves the normal missing-page response for the retired Traffic address', async () => {
+    stubNetwork(() => ({ status: 500 }));
+
+    const { body, headers, status } = await serve({ path: '/traffic' });
+
+    expect(status).toBe(404);
+    expect(headers.get('Location')).toBeUndefined();
+    expect(body).toContain('<title>Page not found | Alethical</title>');
+    expect(body).toContain('<h1>We couldn’t find that page</h1>');
   });
 
   it('serves the same fixed Find My Legislator introduction before the app loads', async () => {

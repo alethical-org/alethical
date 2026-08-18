@@ -1,17 +1,19 @@
 export const MIN_PASSWORD_LENGTH = 15;
 
 export const REV9_AUTH_MESSAGES = {
-  badCredentials: 'Email or password is incorrect.',
-  invalidEmail: 'Enter a complete email address, like name@example.com.',
+  badCredentials: 'Email or password is incorrect',
+  invalidEmail: 'Enter a complete email address, like name@example.com',
   passwordTooShort: 'Use at least 15 characters. A few words with spaces works well.',
-  passwordMismatch: 'Passwords do not match.',
-  leakedPassword: 'Choose a password that hasn’t appeared in a known data breach.',
+  passwordMismatch: 'Passwords do not match',
+  leakedPassword: 'Choose a password that hasn’t appeared in a known data breach',
+  samePassword: 'Choose a different password',
+  passwordTooLong: 'This password is too long. Use a shorter one.',
   tooManyAttempts: 'Too many attempts. Wait a while, then try again.',
   requestFailure: 'We couldn’t complete that request. Check your connection and try again.',
-  expiredOrUsedLink: 'This link has expired or has already been used.',
-  matchFailed:
-    'We couldn’t safely match this sign-in to your account. Sign in with the method you used before.',
-  humanCheck: 'One more step — confirm you’re human, then press the button again.',
+  expiredOrUsedLink: 'This link has expired or has already been used',
+  unverifiedGoogle:
+    'Sign-in couldn’t finish because the email address needs confirmation. If a confirmation email arrives, open the newest one.',
+  humanCheck: 'One more step — confirm you’re human, then press the button again',
 } as const;
 
 const COMPLETE_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -45,9 +47,12 @@ export type PublicAuthErrorKind =
   | 'invalid-email'
   | 'weak-password'
   | 'leaked-password'
+  | 'same-password'
+  | 'password-too-long'
   | 'too-many-attempts'
   | 'expired-or-used-link'
-  | 'match-failed'
+  | 'unverified-google'
+  | 'uncertain-password-save'
   | 'deactivated'
   | 'human-check'
   | 'fresh-proof'
@@ -57,6 +62,13 @@ export type PublicAuthErrorKind =
 export interface PublicAuthError {
   kind: PublicAuthErrorKind;
   message: string;
+}
+
+export type EmailLinkFailureScreen = 'link-fail' | 'deactivated';
+
+/** A deactivated account ends the email-link flow; everything else keeps its retry floor. */
+export function emailLinkFailureScreen(kind: PublicAuthErrorKind): EmailLinkFailureScreen {
+  return kind === 'deactivated' ? 'deactivated' : 'link-fail';
 }
 
 const BAD_CREDENTIAL_CODES = new Set([
@@ -99,8 +111,17 @@ function weakPasswordReasons(error: unknown): string[] {
  * Turn provider failures into the fixed rev 9 messages. The provider's own
  * message is deliberately never read, so account details and internal errors
  * cannot reach the screen.
+ *
+ * `passwordSave` marks the two signed-in/reset password forms, where the same
+ * `validation_failed` code means the password broke Supabase's storage limit
+ * rather than a malformed email — the form has no email field at all, and the
+ * rev 9 build showed "Enter a complete email address" there (#1533).
  */
-export function mapProviderAuthError(error: unknown, email?: string): PublicAuthError {
+export function mapProviderAuthError(
+  error: unknown,
+  email?: string,
+  options?: { passwordSave?: boolean },
+): PublicAuthError {
   const code = errorCode(error);
   const safeEmail = email ? normalizeEmail(email) : '';
 
@@ -111,9 +132,12 @@ export function mapProviderAuthError(error: unknown, email?: string): PublicAuth
     return {
       kind: 'email-not-confirmed',
       message: safeEmail
-        ? `Confirm ${safeEmail} before signing in.`
-        : 'Confirm your email before signing in.',
+        ? `Confirm ${safeEmail} before signing in`
+        : 'Confirm your email before signing in',
     };
+  }
+  if (code === 'validation_failed' && options?.passwordSave) {
+    return { kind: 'password-too-long', message: REV9_AUTH_MESSAGES.passwordTooLong };
   }
   if (code === 'email_address_invalid' || code === 'validation_failed') {
     return { kind: 'invalid-email', message: REV9_AUTH_MESSAGES.invalidEmail };
@@ -123,18 +147,22 @@ export function mapProviderAuthError(error: unknown, email?: string): PublicAuth
       ? { kind: 'leaked-password', message: REV9_AUTH_MESSAGES.leakedPassword }
       : { kind: 'weak-password', message: REV9_AUTH_MESSAGES.passwordTooShort };
   }
+  if (code === 'same_password') {
+    return { kind: 'same-password', message: REV9_AUTH_MESSAGES.samePassword };
+  }
   if (code && RATE_LIMIT_CODES.has(code)) {
     return { kind: 'too-many-attempts', message: REV9_AUTH_MESSAGES.tooManyAttempts };
   }
   if (code && DEAD_LINK_CODES.has(code)) {
     return { kind: 'expired-or-used-link', message: REV9_AUTH_MESSAGES.expiredOrUsedLink };
   }
-  if (
-    code === 'provider_email_needs_verification' ||
-    code === 'identity_already_exists' ||
-    code === 'email_conflict_identity_not_deletable'
-  ) {
-    return { kind: 'match-failed', message: REV9_AUTH_MESSAGES.matchFailed };
+  if (code === 'provider_email_needs_verification') {
+    // A Google return whose address Supabase has not confirmed. Rendered as a
+    // banner on the ordinary sign-in screen, never a dedicated dead end — the
+    // match-failure screen was removed in rev 15 as verified unreachable, and
+    // the two manual-linking conflict codes below it cannot fire while manual
+    // linking is off, so they fall through to the shared request failure.
+    return { kind: 'unverified-google', message: REV9_AUTH_MESSAGES.unverifiedGoogle };
   }
   if (code === 'captcha_failed') {
     return { kind: 'human-check', message: REV9_AUTH_MESSAGES.humanCheck };
@@ -143,19 +171,45 @@ export function mapProviderAuthError(error: unknown, email?: string): PublicAuth
     return {
       kind: 'fresh-proof',
       message: safeEmail
-        ? `Enter the code we sent to ${safeEmail} to confirm it’s you.`
-        : 'Enter the code we sent to confirm it’s you.',
+        ? `Enter the code we sent to ${safeEmail} to confirm it’s you`
+        : 'Enter the code we sent to confirm it’s you',
     };
   }
   if (code === 'email_exists' || code === 'user_already_exists') {
     return {
       kind: 'check-email',
       message: safeEmail
-        ? `If this address can create an Alethical account, a confirmation link is on the way to ${safeEmail}.`
-        : 'If this address can create an Alethical account, a confirmation link is on the way.',
+        ? `If this address can create an Alethical account, a confirmation link is on the way to ${safeEmail}`
+        : 'If this address can create an Alethical account, a confirmation link is on the way',
     };
   }
   return { kind: 'request-failure', message: REV9_AUTH_MESSAGES.requestFailure };
+}
+
+/**
+ * The REQUEST FAILURE carve-out for password saves (#1533): a save whose reply
+ * is lost may have finished server-side, so retrying it could change the
+ * password twice. Only a clear rejection — an answered 4xx carrying a Supabase
+ * error code — proves the save did not happen. Everything else (a network
+ * failure, a timeout, a 5xx, an unreadable reply) is uncertain, and an
+ * uncertain save must never offer the Save action again.
+ */
+/** The uncertain-save banner. Wording pinned by the rev 17 bundle — never add a retry. */
+export function uncertainPasswordSaveMessage(email: string): string {
+  return `We couldn’t confirm whether the password for ${email} was saved. If you sign in with email, try the password you entered. If it doesn’t work, reset your password.`;
+}
+
+export function isUncertainPasswordSave(error: unknown): boolean {
+  if (!error || typeof error !== 'object') return true;
+  const code = (error as { code?: unknown }).code;
+  const status = (error as { status?: unknown }).status;
+  return !(
+    typeof code === 'string' &&
+    code.length > 0 &&
+    typeof status === 'number' &&
+    status >= 400 &&
+    status < 500
+  );
 }
 
 /** Lock before a framework redraw, but only after local validation passes. */

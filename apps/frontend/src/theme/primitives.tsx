@@ -23,6 +23,7 @@ import { useUnavailableControl } from '../components/billDetail/interactions';
 import { IaItem, MenuKey, MENUS, mobileNavRoadmapLabels, navDropdownItems } from '../navigation/ia';
 import { externalLinkProps, linkProps, routePath } from '../navigation/links';
 import { navigateTopNavItem } from '../navigation/topNavRoutes';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useResponsive } from '../hooks/useResponsive';
 import { useAuth } from '../providers/AuthProvider';
 import { useSignInModal } from '../providers/signInModalContext';
@@ -33,7 +34,7 @@ import {
 } from '../components/auth/AccountControl';
 
 // Reusable primitives for the redesign, built on the green token system
-// (see theme/tokens.ts, extracted from docs/mockups/*.html). Web-first.
+// (see theme/tokens.ts and docs/design/design-principles.md). Web-first.
 
 const isWeb = Platform.OS === 'web';
 const t = theme;
@@ -60,6 +61,7 @@ const NAV_ITEM_HREFS: Record<string, string> = {
   // capability it can't deliver (grounded-answers rule 2).
   'track-bills': routePath.tracked(),
   'about-us': routePath.aboutUs(),
+  'about-site-metrics': routePath.siteMetrics(),
   'about-contact': routePath.contactUs(),
 };
 
@@ -182,14 +184,14 @@ function Logo({
   );
 }
 
-// --- v2 nav dropdowns (docs/mockups/home-signed-out-v2) ---
+// --- Shared navigation dropdowns (docs/product-onboarding/mvp-redesign-plan.md) ---
 
 /** Dropdown-row icon tiles — inline SVGs lifted from the DC source. */
 function MenuRowIcon({ itemId, disabled }: { itemId: string; disabled?: boolean }) {
   const c = disabled ? '#a4aba5' : t.colors.brand.graphics;
   return (
     <View style={[styles.menuRowIconTile, disabled && styles.menuRowIconTileDisabled]}>
-      <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+      <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" aria-hidden>
         {itemId === 'search-bills' || itemId === 'track-bills' ? (
           <>
             <Path
@@ -259,6 +261,13 @@ function MenuRowIcon({ itemId, disabled }: { itemId: string; disabled?: boolean 
               strokeLinecap="round"
             />
             <Path d="M18 13.9c2.4.5 4 2.7 4 5.6" stroke={c} strokeWidth={2} strokeLinecap="round" />
+          </>
+        ) : null}
+        {itemId === 'about-site-metrics' ? (
+          <>
+            <Path d="M7 18V14" stroke={c} strokeWidth={2} strokeLinecap="round" />
+            <Path d="M12 18V10.5" stroke={c} strokeWidth={2} strokeLinecap="round" />
+            <Path d="M17 18V7" stroke={c} strokeWidth={2} strokeLinecap="round" />
           </>
         ) : null}
         {itemId === 'about-contact' ? (
@@ -681,7 +690,7 @@ export function TopNav({
             </ScrollView>
             <View style={styles.menuFooter}>
               {isSignedIn ? (
-                <AccountDrawerRow onSignedOut={() => setDrawerOpen(false)} />
+                <AccountDrawerRow />
               ) : (
                 <PrimaryButton
                   label="Sign in"
@@ -765,14 +774,16 @@ function GoogleG({ size = 20 }: { size?: number }) {
 /**
  * The one "Continue with Google" button. `label` carries the sign-in dialog's
  * "Try again" state; `busy` is the redirect in progress — the button goes inert
- * and shows a spinner in place of its label, or `busyLabel` when the person has
- * asked for less motion and a spinner would be wrong.
+ * and shows a spinner beside its visible busy words. The accessible name is
+ * those same visible words, never a diverging label, so the two cannot drift
+ * apart again; under reduced motion the spinner is hidden entirely and the
+ * words carry the state alone (rev 17 sign-in bundle, #1533).
  */
 export function GoogleButton({
   onPress,
   label = 'Continue with Google',
   busy = false,
-  busyLabel,
+  busyLabel = 'Continuing with Google…',
   size = 'md',
 }: {
   onPress?: () => void;
@@ -782,6 +793,7 @@ export function GoogleButton({
   size?: 'md' | 'lg';
 }) {
   const [hovered, hoverProps] = useHover();
+  const reduceMotion = useReducedMotion();
   // accessibilityState alone renders NOTHING on RN-Web, and this button has no
   // `disabled` prop to fall back on — it gates by swapping onPress for undefined. So
   // until #1025 the connecting state announced as an ordinary pressable button and
@@ -793,7 +805,7 @@ export function GoogleButton({
     <Pressable
       ref={busyRef}
       accessibilityRole="button"
-      accessibilityLabel={busy ? 'Signing in with Google' : label}
+      accessibilityLabel={busy ? busyLabel : label}
       accessibilityState={{ busy, disabled: busy }}
       onPress={busy ? undefined : onPress}
       {...hoverProps}
@@ -805,11 +817,18 @@ export function GoogleButton({
       ]}
     >
       {busy ? (
-        busyLabel ? (
+        <>
+          {!reduceMotion ? (
+            <View
+              aria-hidden
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+            >
+              <ActivityIndicator size="small" color={t.colors.brand.graphics} />
+            </View>
+          ) : null}
           <Text style={styles.googleBtnText}>{busyLabel}</Text>
-        ) : (
-          <ActivityIndicator size="small" color={t.colors.brand.graphics} />
-        )
+        </>
       ) : (
         <>
           <GoogleG size={22} />
@@ -1003,7 +1022,7 @@ export function Footer({
             </View>
             <View style={[styles.footerLinks, isMobile && styles.footerLinksMobile]}>
               <FooterLink
-                label="Contact us"
+                label="Contact Us"
                 href={routePath.contactUs()}
                 onPress={onContact ?? (() => navigation.navigate('ContactUs'))}
                 mobile={isMobile}
@@ -1200,10 +1219,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderBottomLeftRadius: 24,
     paddingHorizontal: 24,
-    // Match the nav row's top offset (navRow paddingTop 26) so the drawer's
-    // mark + close button open at the same center line as the nav's logo +
-    // hamburger — no vertical hop when the menu opens.
-    paddingTop: 28,
+    paddingTop: 24,
     paddingBottom: 28,
   },
   menuSheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },

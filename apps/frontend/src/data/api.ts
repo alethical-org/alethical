@@ -8,6 +8,7 @@ import {
   TRAILING_RETURN,
 } from '../lib/billDetail';
 import type { SourceBlock } from '../lib/billText';
+import type { SiteMetricEventName, SiteMetricRecordTotals } from '../lib/traffic';
 import { contactEmail, senateProfileUrl } from '../lib/findMyLegislator';
 import { LEGISLATOR_ROSTER_LIMIT } from '../lib/directoryPagination';
 import { publicReadResponse } from '../lib/publicRead';
@@ -89,6 +90,7 @@ interface ApiCurrentUserPayload {
   id: string;
   display_name?: string | null;
   primary_email?: string | null;
+  sign_in_methods?: { google: boolean; password: boolean } | null;
 }
 
 interface ApiSponsorPayload {
@@ -783,6 +785,33 @@ async function publicApiPost<T>(path: string, body: unknown): Promise<T> {
   }
 
   return (await response.json()) as T;
+}
+
+export async function getSiteMetricRecordTotalsFromApi(): Promise<SiteMetricRecordTotals> {
+  const response = await publicApiRequest<DetailResponse<SiteMetricRecordTotals>>('/site-metrics');
+  return response.data;
+}
+
+export async function recordSiteMetricEventFromApi(
+  event: SiteMetricEventName,
+  accessToken?: string | null,
+): Promise<void> {
+  const response = await fetch(publicApiUrl('/site-metrics/events'), {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : null),
+    },
+    body: JSON.stringify({ event }),
+  });
+  if (!response.ok) {
+    throw apiErrorFromBody(
+      response.status,
+      await response.text(),
+      response.headers.get('Retry-After'),
+    );
+  }
 }
 
 function toChamber(fileType: string): Bill['chamber'] {
@@ -1566,9 +1595,12 @@ function mapChatSessionPayload(
   };
 }
 
-export async function getCurrentUserFromApi(
-  accessToken: string,
-): Promise<{ id: string; name: string; email: string }> {
+export async function getCurrentUserFromApi(accessToken: string): Promise<{
+  id: string;
+  name: string;
+  email: string;
+  signInMethods: { google: boolean; password: boolean } | null;
+}> {
   const response = await apiRequest<DetailResponse<ApiCurrentUserPayload>>(
     '/me',
     { method: 'GET' },
@@ -1580,6 +1612,7 @@ export async function getCurrentUserFromApi(
     id: response.data.id,
     name: (response.data.display_name ?? email.split('@')[0]) || 'Signed-in user',
     email,
+    signInMethods: response.data.sign_in_methods ?? null,
   };
 }
 

@@ -334,6 +334,8 @@ async function contentFor(
       };
     case "privacy":
       return headOnly(STATIC_PAGE_METADATA["/privacy"]);
+    case "siteMetrics":
+      return headOnly(STATIC_PAGE_METADATA["/site-metrics"]);
     case "terms":
       return headOnly(STATIC_PAGE_METADATA["/terms"]);
     case "aboutUs":
@@ -377,7 +379,10 @@ async function pageShell(): Promise<string> {
 
 const EMAIL_LINK_BOOTSTRAP = `<meta name="referrer" content="no-referrer" />
 <meta name="robots" content="noindex,nofollow" />
-<script id="alethical-email-link-bootstrap">(function(){var search=new URLSearchParams(window.location.search);var hash=new URLSearchParams(window.location.hash.replace(/^#/,''));var read=function(name){return search.get(name)||hash.get(name)};window.__alethicalEmailLink=Object.freeze({tokenHash:read('token_hash'),type:read('type'),pendingReference:read('pending')});['token_hash','type','pending','redirect_to','auth_action'].forEach(function(name){search.delete(name);hash.delete(name)});var clean=window.location.pathname+(search.toString()?'?'+search.toString():'')+(hash.toString()?'#'+hash.toString():'');window.history.replaceState(null,'',clean)})();</script>`;
+<script id="alethical-email-link-bootstrap">(function(){var keys=['token_hash','token','type','code','code_verifier','access_token','refresh_token','provider_token','provider_refresh_token','error','error_code','error_description','error_uri','expires_in','expires_at','token_type','state','pending','redirect_to','auth_action'];var search=new URLSearchParams(window.location.search);var rawHash=window.location.hash.replace(/^#/,'');var hash=new URLSearchParams(rawHash);var question=rawHash.indexOf('?');var unusualHash=question===-1?null:new URLSearchParams(rawHash.slice(question+1));var read=function(name){return hash.get(name)};window.__alethicalEmailLink=Object.freeze({tokenHash:read('token_hash'),type:read('type'),pendingReference:read('pending')});var hashHasProtectedValue=keys.some(function(name){return hash.has(name)||(unusualHash&&unusualHash.has(name))});keys.forEach(function(name){search.delete(name);hash.delete(name)});var cleanHash=hashHasProtectedValue?(question!==-1?'':(hash.toString()?'#'+hash.toString():'')):window.location.hash;var clean=window.location.pathname+(search.toString()?'?'+search.toString():'')+cleanHash;window.history.replaceState(null,'',clean)})();</script>`;
+
+const FORGOT_PASSWORD_BOOTSTRAP = `<meta name="robots" content="noindex,nofollow" />
+<script id="alethical-forgot-password-bootstrap">(function(){try{window.sessionStorage.setItem('alethical.openSignIn','forgot')}catch(_error){}window.location.replace('/#auth_screen=forgot')})();</script>`;
 
 /**
  * Email-link pages remove their one-use secrets before the app or an outside
@@ -387,7 +392,14 @@ function protectedEmailLinkShell(html: string): string {
   const withoutExternalResources = html
     .replace(/<link\b[^>]*\bhref=["']https:\/\/[^>]+>\s*/gi, "")
     .replace(/<script\b[^>]*\bsrc=["']https:\/\/[^>]*><\/script>\s*/gi, "");
-  return withoutExternalResources.replace("<head>", `<head>\n${EMAIL_LINK_BOOTSTRAP}`);
+  return withoutExternalResources.replace(
+    "<head>",
+    `<head>\n${EMAIL_LINK_BOOTSTRAP}`,
+  );
+}
+
+function forgotPasswordBridgeShell(html: string): string {
+  return html.replace("<head>", `<head>\n${FORGOT_PASSWORD_BOOTSTRAP}`);
 }
 
 const NOT_FOUND_SNAPSHOT = renderPageSnapshot({
@@ -410,12 +422,16 @@ export default async function handler(
 ) {
   const query = request.query ?? {};
   const requestedPath = one(query.path) || "/";
-  const isEmailLinkPage = requestedPath === "/confirm" || requestedPath === "/reset";
+  const isEmailLinkPage =
+    requestedPath === "/confirm" || requestedPath === "/reset";
+  const isForgotPasswordBridge = requestedPath === "/forgot-password";
 
   let content: PageContent;
   let status = 200;
   try {
-    content = await contentFor(query);
+    content = isForgotPasswordBridge
+      ? headOnly(STATIC_PAGE_METADATA["/reset"])
+      : await contentFor(query);
   } catch (error) {
     if (error instanceof RecordNotFound) {
       content = {
@@ -438,6 +454,8 @@ export default async function handler(
     html = injectPageHead(await pageShell(), content.metadata);
     if (isEmailLinkPage) {
       html = protectedEmailLinkShell(html);
+    } else if (isForgotPasswordBridge) {
+      html = forgotPasswordBridgeShell(html);
     }
   } catch {
     response.setHeader("Content-Type", "text/plain; charset=utf-8");
@@ -462,7 +480,7 @@ export default async function handler(
   }
 
   response.setHeader("Content-Type", "text/html; charset=utf-8");
-  if (isEmailLinkPage) {
+  if (isEmailLinkPage || isForgotPasswordBridge) {
     response.setHeader("Cache-Control", "no-store");
     response.setHeader("Referrer-Policy", "no-referrer");
     response.setHeader("X-Robots-Tag", "noindex, nofollow");

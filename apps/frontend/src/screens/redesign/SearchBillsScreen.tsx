@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
 import { theme as t } from '../../theme/tokens';
 import { BillListFilters } from '../../data/api';
 import { titleCaseIssue } from '../../lib/issues';
+import { recordSiteMetricEvent } from '../../lib/siteMetricEvents';
 import { IaItem, MenuKey } from '../../navigation/ia';
 import { useAuth } from '../../providers/AuthProvider';
 import {
@@ -64,7 +65,7 @@ import {
 // Placeholder card rows shown while the first page of bills loads.
 const SKELETON_ROWS = [0, 1, 2, 3, 4];
 
-// Search Bills (docs/mockups/search-bills). Server-paginated bill discovery over
+// Search Bills (docs/product-onboarding/bill-search-screen-spec.md). Server-paginated bill discovery over
 // the current Legislature with chamber / status / session / omnibus filters + Issue
 // pills, ordered by legislative progress (sort=progress, #292), with auth-gated
 // per-bill tracking.
@@ -249,6 +250,23 @@ export function SearchBillsScreen() {
   const totalPages =
     total != null ? Math.max(1, Math.ceil(total / BILL_DIRECTORY_PAGE_SIZE)) : undefined;
   const resultCount = total ?? bills.length;
+  const recordedSearches = useRef(new Set<string>());
+
+  useEffect(() => {
+    const value = query.trim();
+    const key = `${apiSession ?? 'current'}:${value.toLocaleLowerCase('en-US')}`;
+    if (
+      !value ||
+      page !== 1 ||
+      !billsQuery.isSuccess ||
+      resultCount < 1 ||
+      recordedSearches.current.has(key)
+    ) {
+      return;
+    }
+    recordedSearches.current.add(key);
+    recordSiteMetricEvent('bill_search_with_results');
+  }, [apiSession, billsQuery.isSuccess, page, query, resultCount]);
 
   // The first response is already a real 404 for an unfiltered page beyond the
   // last result. Keep that same useful missing-page screen after React starts;

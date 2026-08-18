@@ -2,22 +2,42 @@ import { describe, expect, it } from 'vitest';
 
 import {
   TEMPORARY_AUTH_STORAGE_PREFIX,
+  buildEmailLinkRedirectUrl,
   buildTemporaryAuthClientOptions,
   decideTemporarySessionCleanup,
   parseEmailLinkUrl,
+  requestedSignInState,
 } from '../auth/linkSession';
 
 describe('email-link address handling', () => {
-  it('copies a confirmation token and type into memory data and removes them from the address', () => {
+  it('puts every generated email-link value in the browser-only fragment', () => {
+    expect(
+      buildEmailLinkRedirectUrl('https://www.alethical.com', 'confirm', 'opaque-pending'),
+    ).toBe('https://www.alethical.com/confirm#auth_action=confirm&pending=opaque-pending');
+    expect(buildEmailLinkRedirectUrl('https://www.alethical.com', 'reset')).toBe(
+      'https://www.alethical.com/reset#auth_action=reset',
+    );
+  });
+
+  it('copies a confirmation token and type from the fragment and removes them from the address', () => {
     expect(
       parseEmailLinkUrl(
-        'https://alethical.com/confirm?token_hash=secret-confirm&type=email&pending=opaque#section',
+        'https://alethical.com/confirm?pending=opaque#token_hash=secret-confirm&type=email',
         'https://alethical.com',
       ),
     ).toEqual({
       link: { tokenHash: 'secret-confirm', type: 'email' },
-      cleanPath: '/confirm?pending=opaque#section',
+      cleanPath: '/confirm?pending=opaque',
     });
+  });
+
+  it('scrubs a query-string token but refuses to verify with a value already sent to a server', () => {
+    expect(
+      parseEmailLinkUrl(
+        'https://alethical.com/confirm?token_hash=secret-confirm&type=email&pending=opaque',
+        'https://alethical.com',
+      ),
+    ).toEqual({ link: null, cleanPath: '/confirm?pending=opaque' });
   });
 
   it('copies a recovery token from a parameter-style hash and removes every auth secret', () => {
@@ -66,6 +86,22 @@ describe('email-link address handling', () => {
         'https://alethical.com',
       ).link,
     ).toBeNull();
+  });
+});
+
+describe('requested sign-in screen fallback', () => {
+  it('opens Forgot password from the address when browser storage was unavailable', () => {
+    expect(requestedSignInState(null, '#auth_screen=forgot')).toEqual({
+      screen: 'forgot',
+      cleanHash: '',
+    });
+  });
+
+  it('uses a saved screen first and preserves unrelated address state', () => {
+    expect(requestedSignInState('sign-in', '#auth_screen=forgot&section=details')).toEqual({
+      screen: 'sign-in',
+      cleanHash: '#section=details',
+    });
   });
 });
 

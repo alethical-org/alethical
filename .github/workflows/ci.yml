@@ -8,8 +8,14 @@ name: CI
 # `dorny/paths-filter` — because a job skipped by `if:` reports `skipped`, which
 # GitHub counts as a passing required check. `changes` also runs the always-needed
 # documentation checks, so they share its one rounded runner minute.
+#
+# `merge_group:` is required for the merge queue (enabled Aug 17 2026): without it,
+# these required checks never run on the queue's speculative commits, and every PR
+# sits in the queue until it times out. `dorny/paths-filter` auto-detects the merge
+# group's base/head commits, so `backend`/`frontend` path filtering works unchanged.
 on:
   pull_request:
+  merge_group:
   push:
     branches:
       - main
@@ -72,19 +78,23 @@ jobs:
 
       # Free backstop for private-repo secret scanning. It checks only the new
       # commits in this push or PR and fails for a confirmed live credential or
-      # a credential whose live check could not complete. Pin both the action
-      # code and scanner image so a future upstream release cannot change CI.
+      # a credential whose live check could not complete. Alethical has no Lob
+      # account or code, and Lob's key shape collides with ordinary pytest names
+      # (`test_` plus 35 characters), so exclude only that detector. Pin both the
+      # action code and scanner image so a future upstream release cannot change CI.
       - name: Check new commits for live secrets
         uses: trufflesecurity/trufflehog@6f3c981e7b77f235fd2702dd74af25fc4b72bf11 # v3.96.0
         with:
           version: "3.96.0"
-          extra_args: --results=verified,unknown --fail-on-scan-errors
+          extra_args: --results=verified,unknown --fail-on-scan-errors --exclude-detectors=lob
 
       # Runs on every event: a broken document reference is usually introduced
       # by a docs-only or rules-only change, which the backend and frontend jobs
       # skip. Pure stdlib, so the Python setup above is the only dependency.
       - name: Check doc references resolve
         run: python scripts/check_doc_references.py
+      - name: Check quoted doc claims still exist
+        run: python scripts/check_doc_quotes.py
 
       # A NUL byte makes git and grep treat a file as binary, hiding its code
       # from searches and diffs. This guard is cheap enough to always run.
@@ -92,8 +102,9 @@ jobs:
         run: python scripts/check_no_nul_bytes.py
 
       # Only meaningful on a PR: it compares against the merge base and reads
-      # the PR body. On a push to main there is no body to read, so skip it.
-      - name: Check docs describing changed code were looked at
+      # the PR body. It checks both docs that describe changed code and frozen
+      # design-bundle edits. On a push to main there is no body, so skip it.
+      - name: Check doc and design changes were explained
         if: github.event_name == 'pull_request'
         env:
           BASE_REF: ${{ github.base_ref }}
@@ -133,6 +144,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v9.0.0
         with:
+          version: 0.12.5
           enable-cache: true
           prune-cache: true
 
@@ -192,7 +204,7 @@ jobs:
       # pre-1.0 (changes fast), so an unpinned upgrade could break CI repo-wide
       # with no code change. Bump deliberately.
       - name: Type check backend
-        run: uvx ty@0.0.63 check alethical/db
+        run: uvx ty@0.0.72 check alethical/db
 
       - name: Test backend
         run: uv run pytest
@@ -228,7 +240,13 @@ jobs:
       # package update can otherwise mix SDK releases and still install cleanly,
       # then fail only at type-check or build time (#1394).
       - name: Check Expo package compatibility
-        run: pnpm exec expo install --check
+        run: pnpm run check:expo-packages
+
+      # Security fixes can cross package major versions while preserving only
+      # the narrow commands EAS CLI and Xcode use. Exercise those commands so a
+      # future grouped dependency update cannot silently break native builds.
+      - name: Check secured build-tool compatibility
+        run: pnpm run check:build-tool-security
 
       - name: Type check frontend
         run: pnpm exec tsc --noEmit

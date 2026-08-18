@@ -24,6 +24,7 @@ import { ChatSessionScreen } from '../screens/ChatSessionScreen';
 import { FindMyLegislatorScreen } from '../screens/FindMyLegislatorScreen';
 import { LegislatorProfileScreen } from '../screens/LegislatorProfileScreen';
 import { PrivacyScreen, TermsScreen } from '../screens/LegalScreens';
+import { TrafficScreen } from '../screens/TrafficScreen';
 import { VoteDetailScreen } from '../screens/VoteDetailScreen';
 import { AskAnswerScreen } from '../screens/redesign/AskAnswerScreen';
 import { AboutUsScreen } from '../screens/redesign/AboutUsScreen';
@@ -47,7 +48,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
 type NavIcon = Icon;
-type RailRouteName = keyof MainTabParamList | 'FindMyLegislator' | 'NotFound';
+type RailRouteName = keyof MainTabParamList | 'FindMyLegislator' | 'NotFound' | 'SiteMetrics';
 const tabMeta: Record<keyof MainTabParamList, { label: string; Icon: NavIcon }> = {
   Home: { label: 'Home', Icon: Home },
   Tracked: { label: 'Tracked', Icon: BookmarkCheck },
@@ -293,6 +294,9 @@ function activeRailRouteFromRootState(state: any): RailRouteName | undefined {
   if (rootRoute?.name === 'NotFound') {
     return 'NotFound';
   }
+  if (rootRoute?.name === 'SiteMetrics') {
+    return 'SiteMetrics';
+  }
   if (rootRoute?.name === 'Tabs') {
     const tabState = rootRoute.state;
     const tabRoute = tabState?.routes?.[tabState.index ?? 0];
@@ -488,7 +492,8 @@ export function RootNavigator() {
     isHome ||
     activeRailRoute === 'Tracked' ||
     activeRailRoute === 'FindMyLegislator' ||
-    activeRailRoute === 'NotFound';
+    activeRailRoute === 'NotFound' ||
+    activeRailRoute === 'SiteMetrics';
 
   useEffect(() => {
     if (!isWeb) {
@@ -640,6 +645,11 @@ export function RootNavigator() {
               name="Privacy"
               component={PrivacyScreen}
               options={{ headerShown: false, title: 'Privacy Policy' }}
+            />
+            <Stack.Screen
+              name="SiteMetrics"
+              component={TrafficScreen}
+              options={{ headerShown: false, title: 'Site Metrics' }}
             />
             <Stack.Screen
               name="Terms"

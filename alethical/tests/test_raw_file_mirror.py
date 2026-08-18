@@ -17,17 +17,6 @@ The two that matter most:
   200.
 
 Needs the local Postgres on port 54329.
-
-**Do not name a test ``test_`` plus exactly 35 more characters.** CI's secret
-scanner reads that shape as a Lob API key and fails the run reporting a *verified*
-live secret, which is alarming, entirely false, and names neither the file nor the
-string that caused it. One name in this file hit it on 12 August 2026 and failed the
-``changes`` check on
-`#1435 <https://github.com/alethical-org/alethical/pull/1435>`_; it is the test below
-about a copy already being present, at its earlier and shorter name. Reproducing that
-name here would trip the scanner again, which is why this note describes it instead.
-Narrowing the scanner is tracked separately — see
-`#1438 <https://github.com/alethical-org/alethical/issues/1438>`_.
 """
 
 from __future__ import annotations

@@ -4,6 +4,47 @@ from fastapi import HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from alethical.monitoring import capture_operational_error, error_was_reported
+
+
+class OperationalHTTPError(RuntimeError):
+    """A safe stand-in for a handled server error that has no exception cause."""
+
+
+def _route_template(request: Request) -> str:
+    route = request.scope.get("route")
+    path = getattr(route, "path", None)
+    return path if isinstance(path, str) else "unmatched"
+
+
+def _failure_area(request: Request) -> str:
+    named = getattr(request.state, "failure_area", None)
+    if isinstance(named, str):
+        return named
+    return "chat" if "/chat" in _route_template(request) else "server"
+
+
+def _report_server_error(request: Request, error: Exception, status: int) -> None:
+    cause = error.__cause__ if isinstance(error.__cause__, Exception) else None
+    if cause is not None and error_was_reported(cause):
+        return
+    if cause is not None:
+        reportable = cause
+    elif isinstance(error, HTTPException):
+        reportable = OperationalHTTPError(f"HTTP {status}")
+    else:
+        reportable = error
+    capture_operational_error(
+        reportable,
+        area=_failure_area(request),
+        operation=f"http-{status}",
+        tags={
+            "http.method": request.method,
+            "http.route": _route_template(request),
+            "http.status_code": str(status),
+        },
+    )
+
 
 def problem_payload(
     *,
@@ -48,6 +89,8 @@ def problem_exception(
 
 
 async def http_exception_handler(request: Request, exc: HTTPException):
+    if exc.status_code >= 500:
+        _report_server_error(request, exc, exc.status_code)
     detail = exc.detail
     if isinstance(detail, dict) and {"type", "title", "status", "detail"}.issubset(
         detail.keys()
@@ -86,3 +129,15 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         errors=errors,
     )
     return JSONResponse(status_code=422, content=payload)
+
+
+async def unexpected_exception_handler(request: Request, exc: Exception):
+    _report_server_error(request, exc, 500)
+    payload = problem_payload(
+        type_slug="unexpected-error",
+        title="Unexpected Error",
+        status=500,
+        detail="The service hit an unexpected error.",
+        instance=str(request.url.path),
+    )
+    return JSONResponse(status_code=500, content=payload)

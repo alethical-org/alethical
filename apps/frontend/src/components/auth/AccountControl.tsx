@@ -1,5 +1,14 @@
-import { useEffect, useRef, useState } from 'react';
-import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import {
@@ -8,6 +17,11 @@ import {
   validatePassword,
   validatePasswordMatch,
 } from '../../lib/auth/rev9Auth';
+import { passwordMethodCopy, type PasswordMethodCopy } from '../../lib/auth/passwordMethod';
+import { clearSignedInAuthDrafts } from '../../lib/auth/signOutCleanup';
+import { useReducedMotion } from '../../hooks/useReducedMotion';
+import { useResponsive } from '../../hooks/useResponsive';
+import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fieldFocus';
 import { theme as t } from '../../theme/tokens';
 import { useAuth } from '../../providers/AuthProvider';
 import { FormError } from './FormError';
@@ -15,14 +29,16 @@ import { LoadingButton } from './LoadingButton';
 import { PasswordField } from './PasswordField';
 import { SignInContainer } from './SignInContainer';
 
-// What replaces the "Sign in" button once you're in (docs/mockups/sign-in,
-// ACCOUNT CONTROL band). Three placements, one identity: a pill with a dropdown
-// on desktop, an avatar opening a sheet on the phone top bar, and a row in the
-// phone drawer's footer. The panel and sheet offer the built account actions;
-// the drawer footer stays compact and keeps only Sign out.
+// What replaces the "Sign in" button once you're in
+// (docs/product-onboarding/sign-in-guide.md). Three placements, one identity: a
+// pill with a dropdown on desktop, an avatar opening a sheet on the phone top
+// bar, and a row in the phone drawer's footer. The panel and sheet offer the
+// built account actions; the drawer footer stays compact and opens the phone sheet.
 
 const isWeb = Platform.OS === 'web';
 const emailPasswordEnabled = process.env.EXPO_PUBLIC_EMAIL_PASSWORD_SIGN_IN_ENABLED === 'true';
+const SIGN_OUT_FAILURE = 'We couldn’t sign you out. Check your connection and try again.';
+const OTHER_DEVICE_NOTE = 'You may still be signed in on other devices';
 
 function displayName(name: string | undefined, email: string | undefined) {
   const trimmed = (name ?? '').trim();
@@ -113,24 +129,67 @@ function QuietButton({
   );
 }
 
-export function SetPasswordDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { setPassword } = useAuth();
+export function SetPasswordDialog({
+  open,
+  onClose,
+  onDone = onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onDone?: () => void;
+}) {
+  const { setPassword, user } = useAuth();
   const [password, setPasswordValue] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [passwordError, setPasswordError] = useState<string | undefined>();
   const [confirmationError, setConfirmationError] = useState<string | undefined>();
   const [formError, setFormError] = useState<string | null>(null);
+  const [freshProofCode, setFreshProofCode] = useState('');
+  const [freshProofMessage, setFreshProofMessage] = useState<string | null>(null);
+  const [freshProofRequested, setFreshProofRequested] = useState(false);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [uncertainMessage, setUncertainMessage] = useState<string | null>(null);
+  const { focused: freshProofFocused, focusProps: freshProofFocusProps } = useFieldFocus();
+  const { isMobile } = useResponsive();
+  const currentCopy = useMemo(
+    () => passwordMethodCopy(user?.signInMethods ?? null, user?.email ?? 'your email'),
+    [user?.email, user?.signInMethods?.google, user?.signInMethods?.password],
+  );
+  const [flowCopy, setFlowCopy] = useState<PasswordMethodCopy>(currentCopy);
   const passwordRef = useRef<any>(null);
   const confirmationRef = useRef<any>(null);
+  const freshProofRef = useRef<any>(null);
+  const passwordActionsRef = useRef<any>(null);
   const requestGate = useRef(createValidRequestGate()).current;
   const wasOpen = useRef(false);
+
+  const revealPasswordActions = useCallback(() => {
+    if (!isWeb || !isMobile) return;
+    const actions = passwordActionsRef.current as HTMLElement | null;
+    actions?.scrollIntoView?.({ block: 'end', inline: 'nearest' });
+    let parent = actions?.parentElement ?? null;
+    while (parent) {
+      if (parent.scrollHeight > parent.clientHeight) {
+        parent.scrollTop = parent.scrollHeight;
+        return;
+      }
+      parent = parent.parentElement;
+    }
+  }, [isMobile]);
 
   useEffect(() => {
     if (!open) {
       wasOpen.current = false;
       requestGate.reset();
+      setPasswordValue('');
+      setConfirmation('');
+      setPasswordError(undefined);
+      setConfirmationError(undefined);
+      setFormError(null);
+      setFreshProofCode('');
+      setFreshProofMessage(null);
+      setFreshProofRequested(false);
       return;
     }
     if (wasOpen.current) return;
@@ -140,9 +199,39 @@ export function SetPasswordDialog({ open, onClose }: { open: boolean; onClose: (
     setPasswordError(undefined);
     setConfirmationError(undefined);
     setFormError(null);
+    setFreshProofCode('');
+    setFreshProofMessage(null);
+    setFreshProofRequested(false);
     setBusy(false);
     setSaved(false);
-  }, [open, requestGate]);
+    setUncertainMessage(null);
+    setFlowCopy(currentCopy);
+  }, [currentCopy, open, requestGate]);
+
+  useEffect(() => {
+    if (!open || !freshProofRequested || busy) return;
+    freshProofRef.current?.focus?.();
+  }, [busy, freshProofRequested, open]);
+
+  useEffect(() => {
+    if (!open || !isWeb || !isMobile || typeof window === 'undefined') return;
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+    let previousHeight = viewport.height;
+    const revealAfterKeyboardOpens = () => {
+      const nextHeight = viewport.height;
+      if (
+        nextHeight < previousHeight &&
+        typeof document !== 'undefined' &&
+        document.activeElement === confirmationRef.current
+      ) {
+        revealPasswordActions();
+      }
+      previousHeight = nextHeight;
+    };
+    viewport.addEventListener('resize', revealAfterKeyboardOpens);
+    return () => viewport.removeEventListener('resize', revealAfterKeyboardOpens);
+  }, [isMobile, open, revealPasswordActions]);
 
   const save = async () => {
     const nextPasswordError = validatePassword(password) ?? undefined;
@@ -153,23 +242,45 @@ export function SetPasswordDialog({ open, onClose }: { open: boolean; onClose: (
       (nextPasswordError ? passwordRef : confirmationRef).current?.focus?.();
       return;
     }
+    const proofCode = freshProofCode.trim();
+    if (freshProofRequested && !proofCode) {
+      freshProofRef.current?.focus?.();
+      return;
+    }
     if (!requestGate.tryStart(true)) return;
     setBusy(true);
     setFormError(null);
     try {
-      const result = await setPassword(password);
+      const result = await setPassword(password, proofCode || undefined);
       if (result.ok) {
         setSaved(true);
         setPasswordValue('');
         setConfirmation('');
         return;
       }
-      if (result.error.kind === 'weak-password' || result.error.kind === 'leaked-password') {
-        setPasswordError(
-          result.error.kind === 'leaked-password'
-            ? REV9_AUTH_MESSAGES.leakedPassword
-            : REV9_AUTH_MESSAGES.passwordTooShort,
-        );
+      // A lost reply may have saved the password server-side: clear the typed
+      // password and never offer the save again — Done keeps the account
+      // signed in (rev 17 REQUEST FAILURE carve-out, #1533).
+      if (result.error.kind === 'uncertain-password-save') {
+        setPasswordValue('');
+        setConfirmation('');
+        setPasswordError(undefined);
+        setConfirmationError(undefined);
+        setUncertainMessage(result.error.message);
+        return;
+      }
+      if (result.error.kind === 'fresh-proof') {
+        setFreshProofRequested(true);
+        setFreshProofMessage(result.error.message);
+        return;
+      }
+      if (
+        result.error.kind === 'weak-password' ||
+        result.error.kind === 'leaked-password' ||
+        result.error.kind === 'same-password' ||
+        result.error.kind === 'password-too-long'
+      ) {
+        setPasswordError(result.error.message);
         passwordRef.current?.focus?.();
         return;
       }
@@ -187,12 +298,8 @@ export function SetPasswordDialog({ open, onClose }: { open: boolean; onClose: (
   return (
     <SignInContainer
       open
-      title={saved ? 'Password saved' : 'Set or change password'}
-      description={
-        saved
-          ? 'You can now sign in with your email or with Google. It’s the same Alethical account.'
-          : 'Use a password with this email as another way to sign in. It keeps the same Alethical account.'
-      }
+      title={saved ? flowCopy.doneTitle : flowCopy.title}
+      description={saved ? flowCopy.doneDescription : flowCopy.description}
       icon={
         <View style={[styles.passwordTile, saved && styles.passwordTileDone]}>
           <PasswordIcon
@@ -205,7 +312,14 @@ export function SetPasswordDialog({ open, onClose }: { open: boolean; onClose: (
       onClose={busy ? undefined : onClose}
     >
       {saved ? (
-        <LoadingButton label="Done" busyLabel="Done" onPress={onClose} />
+        <LoadingButton label="Done" busyLabel="Done" onPress={onDone} />
+      ) : uncertainMessage ? (
+        <>
+          <View style={styles.passwordFormError}>
+            <FormError variant="banner" message={uncertainMessage} />
+          </View>
+          <LoadingButton label="Done" busyLabel="Done" onPress={onDone} />
+        </>
       ) : (
         <>
           {formError ? (
@@ -237,6 +351,7 @@ export function SetPasswordDialog({ open, onClose }: { open: boolean; onClose: (
               error={confirmationError}
               disabled={busy}
               autoComplete="new-password"
+              onFocus={revealPasswordActions}
               onChangeText={(value) => {
                 setConfirmation(value);
                 setConfirmationError(undefined);
@@ -244,13 +359,54 @@ export function SetPasswordDialog({ open, onClose }: { open: boolean; onClose: (
               }}
               onSubmitEditing={() => void save()}
             />
+            {freshProofRequested ? (
+              <View style={styles.freshProofField}>
+                <Text nativeID="fresh-proof-code-label" style={styles.freshProofLabel}>
+                  CODE
+                </Text>
+                {freshProofMessage ? (
+                  <Text nativeID="fresh-proof-code-help" style={styles.freshProofMessage}>
+                    {freshProofMessage}
+                  </Text>
+                ) : null}
+                <TextInput
+                  ref={freshProofRef}
+                  nativeID="fresh-proof-code"
+                  accessibilityLabel="CODE"
+                  aria-describedby={freshProofMessage ? 'fresh-proof-code-help' : undefined}
+                  aria-labelledby="fresh-proof-code-label"
+                  autoCapitalize="none"
+                  autoComplete="one-time-code"
+                  autoCorrect={false}
+                  editable={!busy}
+                  inputMode="numeric"
+                  keyboardType="number-pad"
+                  returnKeyType="done"
+                  spellCheck={false}
+                  value={freshProofCode}
+                  onChangeText={(value) => {
+                    setFreshProofCode(value);
+                    setFormError(null);
+                  }}
+                  onSubmitEditing={() => void save()}
+                  {...freshProofFocusProps}
+                  style={[
+                    styles.freshProofInput,
+                    fieldOutlineReset,
+                    ...fieldFocusRing(freshProofFocused),
+                  ]}
+                />
+              </View>
+            ) : null}
           </View>
-          <View style={styles.passwordActions}>
+          <View ref={passwordActionsRef} style={styles.passwordActions}>
             <LoadingButton
               label="Save password"
               busyLabel="Saving…"
               busy={busy}
-              disabled={!password || !confirmation}
+              disabled={
+                !password || !confirmation || (freshProofRequested && !freshProofCode.trim())
+              }
               onPress={save}
             />
             <QuietButton label="Cancel" disabled={busy} onPress={onClose} />
@@ -261,6 +417,19 @@ export function SetPasswordDialog({ open, onClose }: { open: boolean; onClose: (
   );
 }
 
+function CloseIcon() {
+  return (
+    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <Path
+        d="M6 6 L18 18 M18 6 L6 18"
+        stroke={t.colors.text.faint}
+        strokeWidth={2.2}
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
+}
+
 function ChevronIcon() {
   return (
     <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
@@ -268,6 +437,20 @@ function ChevronIcon() {
         d="M6 10 L12 16 L18 10"
         stroke={t.colors.text.faint}
         strokeWidth={2.2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+function ChevronRightIcon() {
+  return (
+    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <Path
+        d="M9 5 L16 12 L9 19"
+        stroke={t.colors.text.faint}
+        strokeWidth={2}
         strokeLinecap="round"
         strokeLinejoin="round"
       />
@@ -301,12 +484,169 @@ function Identity({ name, email, avatar }: { name: string; email: string; avatar
   );
 }
 
+type AccountSignOutState = 'idle' | 'busy' | 'failed';
+
+function useAccountSignOut(onSuccess?: () => void) {
+  const { signOut } = useAuth();
+  const [state, setState] = useState<AccountSignOutState>('idle');
+  const locked = useRef(false);
+
+  const press = async () => {
+    if (locked.current) return;
+    locked.current = true;
+    setState('busy');
+    try {
+      const result = await signOut();
+      if (result.ok) {
+        clearSignedInAuthDrafts();
+        onSuccess?.();
+        return;
+      }
+    } catch {
+      // The one public failure below covers both provider and connection errors.
+    }
+    locked.current = false;
+    setState('failed');
+  };
+
+  return {
+    state,
+    label: state === 'busy' ? 'Signing out…' : state === 'failed' ? 'Try again' : 'Sign out',
+    press,
+  };
+}
+
+function DesktopSignOut({ flow }: { flow: ReturnType<typeof useAccountSignOut> }) {
+  const reduceMotion = useReducedMotion();
+  return (
+    <>
+      {flow.state === 'failed' ? (
+        <View style={styles.desktopSignOutError}>
+          <FormError variant="banner" message={SIGN_OUT_FAILURE} />
+        </View>
+      ) : null}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ busy: flow.state === 'busy', disabled: flow.state === 'busy' }}
+        aria-busy={flow.state === 'busy' || undefined}
+        aria-disabled={flow.state === 'busy' || undefined}
+        onPress={() => void flow.press()}
+        style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
+      >
+        {flow.state === 'busy' && !reduceMotion ? (
+          <ActivityIndicator size="small" color={t.colors.brand.forest} />
+        ) : (
+          <SignOutIcon color={t.colors.text.faint} />
+        )}
+        <Text style={styles.menuItemText}>{flow.label}</Text>
+      </Pressable>
+      <Text style={styles.desktopSignOutNote}>{OTHER_DEVICE_NOTE}</Text>
+    </>
+  );
+}
+
+function PhoneSignOut({ flow }: { flow: ReturnType<typeof useAccountSignOut> }) {
+  const reduceMotion = useReducedMotion();
+  return (
+    <>
+      {flow.state === 'failed' ? (
+        <View style={styles.phoneSignOutError}>
+          <FormError variant="banner" message={SIGN_OUT_FAILURE} />
+        </View>
+      ) : null}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ busy: flow.state === 'busy', disabled: flow.state === 'busy' }}
+        aria-busy={flow.state === 'busy' || undefined}
+        aria-disabled={flow.state === 'busy' || undefined}
+        onPress={() => void flow.press()}
+        style={({ pressed }) => [styles.sheetButton, pressed && styles.sheetButtonPressed]}
+      >
+        {flow.state === 'busy' && !reduceMotion ? (
+          <ActivityIndicator size="small" color={t.colors.brand.forest} />
+        ) : (
+          <SignOutIcon color={t.colors.text.primary} />
+        )}
+        <Text style={styles.sheetButtonText}>{flow.label}</Text>
+      </Pressable>
+      <Text style={styles.phoneSignOutNote}>{OTHER_DEVICE_NOTE}</Text>
+    </>
+  );
+}
+
+function AccountSurfaceContent({
+  variant,
+  name,
+  email,
+  signInMethods,
+  signOutFlow,
+  onPasswordPress,
+}: {
+  variant: 'desktop' | 'phone';
+  name: string;
+  email: string;
+  signInMethods: Parameters<typeof passwordMethodCopy>[0];
+  signOutFlow: ReturnType<typeof useAccountSignOut>;
+  onPasswordPress: () => void;
+}) {
+  const passwordCopy = passwordMethodCopy(signInMethods, email || 'your email');
+
+  if (variant === 'desktop') {
+    return (
+      <>
+        <View style={styles.menuHeader}>
+          <Identity name={name} email={email} avatar={38} />
+        </View>
+        <View style={styles.menuDivider} />
+        {emailPasswordEnabled ? (
+          <>
+            <Pressable
+              accessibilityRole="button"
+              onPress={onPasswordPress}
+              style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
+            >
+              <PasswordIcon color={t.colors.text.faint} />
+              <Text style={styles.menuItemText}>{passwordCopy.rowLabel}</Text>
+            </Pressable>
+            <View style={styles.menuDivider} />
+          </>
+        ) : null}
+        <DesktopSignOut flow={signOutFlow} />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Identity name={name} email={email} avatar={48} />
+      {emailPasswordEnabled ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={onPasswordPress}
+          style={({ pressed }) => [
+            styles.sheetPasswordButton,
+            pressed && styles.sheetButtonPressed,
+          ]}
+        >
+          <PasswordIcon color={t.colors.text.primary} />
+          <Text style={[styles.sheetButtonText, styles.sheetPasswordText]}>
+            {passwordCopy.rowLabel}
+          </Text>
+          <ChevronRightIcon />
+        </Pressable>
+      ) : null}
+      <PhoneSignOut flow={signOutFlow} />
+    </>
+  );
+}
+
 /** Desktop top nav: avatar + first name + chevron, opening a right-aligned menu. */
 export function AccountNavButton() {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
   const wrapRef = useRef<View>(null);
+  const signOutFlow = useAccountSignOut();
 
   // Any click outside the button + panel closes the menu, matching how the nav's
   // own dropdowns behave (a full-screen overlay would swallow the panel's rows).
@@ -316,10 +656,11 @@ export function AccountNavButton() {
       const node = wrapRef.current as unknown as HTMLElement | null;
       const target = event.target as Node | null;
       if (node && target && node.contains(target)) return;
+      if (signOutFlow.state === 'busy') return;
       setOpen(false);
     };
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false);
+      if (event.key === 'Escape' && signOutFlow.state !== 'busy') setOpen(false);
     };
     document.addEventListener('pointerdown', handlePointerDown, true);
     document.addEventListener('keydown', handleKeyDown, true);
@@ -327,7 +668,7 @@ export function AccountNavButton() {
       document.removeEventListener('pointerdown', handlePointerDown, true);
       document.removeEventListener('keydown', handleKeyDown, true);
     };
-  }, [open]);
+  }, [open, signOutFlow.state]);
 
   const name = displayName(user?.name, user?.email);
   const firstName = name.split(' ')[0];
@@ -353,67 +694,96 @@ export function AccountNavButton() {
             {...({ role: 'region', 'aria-label': 'Account' } as object)}
             style={styles.menuPanel}
           >
-            <View style={styles.menuHeader}>
-              <Identity name={name} email={user?.email ?? ''} avatar={38} />
-            </View>
-            <View style={styles.menuDivider} />
-            {emailPasswordEnabled ? (
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => {
-                  setOpen(false);
-                  setPasswordOpen(true);
-                }}
-                style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
-              >
-                <PasswordIcon color={t.colors.text.faint} />
-                <Text style={styles.menuItemText}>Set or change password</Text>
-              </Pressable>
-            ) : null}
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => {
+            <AccountSurfaceContent
+              variant="desktop"
+              name={name}
+              email={user?.email ?? ''}
+              signInMethods={user?.signInMethods ?? null}
+              signOutFlow={signOutFlow}
+              onPasswordPress={() => {
                 setOpen(false);
-                void signOut();
+                setPasswordOpen(true);
               }}
-              style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
-            >
-              <SignOutIcon color={t.colors.text.faint} />
-              <Text style={styles.menuItemText}>Sign out</Text>
-            </Pressable>
+            />
           </View>
         ) : null}
       </View>
-      <SetPasswordDialog open={passwordOpen} onClose={() => setPasswordOpen(false)} />
+      <SetPasswordDialog
+        open={passwordOpen}
+        onClose={() => setPasswordOpen(false)}
+        onDone={() => {
+          setPasswordOpen(false);
+          setOpen(true);
+        }}
+      />
     </>
   );
 }
 
-/** Phone top bar: a 44x44 avatar target that opens the account sheet. */
-export function AccountAvatarButton() {
-  const { user, signOut } = useAuth();
+function PhoneAccountControl({ trigger }: { trigger: 'avatar' | 'drawer' }) {
+  const reduceMotion = useReducedMotion();
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [passwordOpen, setPasswordOpen] = useState(false);
+  const [closeFocused, setCloseFocused] = useState(false);
+  const avatarRef = useRef<View>(null);
   const name = displayName(user?.name, user?.email);
+  const signOutFlow = useAccountSignOut();
+
+  // The sheet always closes three ways — the Close button, the scrim, Escape —
+  // and focus returns to the control that opened it (rev 15/17, #1533).
+  const closeSheet = () => {
+    if (signOutFlow.state === 'busy') return;
+    setOpen(false);
+    if (isWeb) (avatarRef.current as unknown as HTMLElement | null)?.focus?.();
+  };
+
+  // RN-Web's Modal does not close on Escape by itself (verified in-browser),
+  // so the sheet listens for it directly while open.
+  useEffect(() => {
+    if (!isWeb || !open) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || signOutFlow.state === 'busy') return;
+      setOpen(false);
+      (avatarRef.current as unknown as HTMLElement | null)?.focus?.();
+    };
+    document.addEventListener('keydown', onKeyDown, true);
+    return () => document.removeEventListener('keydown', onKeyDown, true);
+  }, [open, signOutFlow.state]);
 
   return (
     <>
       <Pressable
+        ref={avatarRef}
         accessibilityRole="button"
-        accessibilityLabel="Account menu"
+        accessibilityLabel={trigger === 'avatar' ? 'Account menu' : `Account for ${name}`}
         aria-haspopup="dialog"
         aria-expanded={open}
         onPress={() => setOpen(true)}
-        style={styles.avatarButton}
+        style={({ pressed }) => [
+          trigger === 'avatar' ? styles.avatarButton : styles.drawerAccountButton,
+          trigger === 'drawer' && pressed && styles.drawerAccountButtonPressed,
+        ]}
       >
-        <Avatar label={name} size={34} />
+        {trigger === 'avatar' ? (
+          <Avatar label={name} size={34} />
+        ) : (
+          <Identity name={name} email={user?.email ?? ''} avatar={44} />
+        )}
       </Pressable>
-      <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
+      <Modal
+        visible={open}
+        transparent
+        animationType={reduceMotion ? 'none' : 'slide'}
+        onRequestClose={closeSheet}
+      >
         <View style={styles.sheetScrim}>
           <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Close account menu"
-            onPress={() => setOpen(false)}
+            accessible={false}
+            focusable={false}
+            {...(isWeb ? ({ 'aria-hidden': true } as object) : null)}
+            disabled={signOutFlow.state === 'busy'}
+            onPress={closeSheet}
             style={StyleSheet.absoluteFill}
           />
           <View
@@ -422,61 +792,58 @@ export function AccountAvatarButton() {
             accessibilityViewIsModal
             accessibilityLabel="Account"
           >
-            <View style={styles.grabHandle} />
-            <Identity name={name} email={user?.email ?? ''} avatar={48} />
-            {emailPasswordEnabled ? (
+            <View style={styles.sheetHeader}>
+              <View style={styles.grabHandle} />
               <Pressable
                 accessibilityRole="button"
-                onPress={() => {
-                  setOpen(false);
-                  setPasswordOpen(true);
-                }}
-                style={({ pressed }) => [styles.sheetButton, pressed && styles.sheetButtonPressed]}
+                accessibilityLabel="Close"
+                disabled={signOutFlow.state === 'busy'}
+                onBlur={() => setCloseFocused(false)}
+                onFocus={() => setCloseFocused(true)}
+                onPress={closeSheet}
+                style={({ pressed }) => [
+                  styles.sheetClose,
+                  closeFocused && focusRingWeb,
+                  pressed && styles.sheetButtonPressed,
+                ]}
               >
-                <PasswordIcon color={t.colors.text.primary} />
-                <Text style={styles.sheetButtonText}>Set or change password</Text>
+                <CloseIcon />
               </Pressable>
-            ) : null}
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => {
+            </View>
+            <AccountSurfaceContent
+              variant="phone"
+              name={name}
+              email={user?.email ?? ''}
+              signInMethods={user?.signInMethods ?? null}
+              signOutFlow={signOutFlow}
+              onPasswordPress={() => {
                 setOpen(false);
-                void signOut();
+                setPasswordOpen(true);
               }}
-              style={({ pressed }) => [styles.sheetButton, pressed && styles.sheetButtonPressed]}
-            >
-              <SignOutIcon color={t.colors.text.primary} />
-              <Text style={styles.sheetButtonText}>Sign out</Text>
-            </Pressable>
+            />
           </View>
         </View>
       </Modal>
-      <SetPasswordDialog open={passwordOpen} onClose={() => setPasswordOpen(false)} />
+      <SetPasswordDialog
+        open={passwordOpen}
+        onClose={() => setPasswordOpen(false)}
+        onDone={() => {
+          setPasswordOpen(false);
+          setOpen(true);
+        }}
+      />
     </>
   );
 }
 
-/** Phone drawer footer: who you are, and a way out. */
-export function AccountDrawerRow({ onSignedOut }: { onSignedOut?: () => void }) {
-  const { user, signOut } = useAuth();
-  const name = displayName(user?.name, user?.email);
+/** Phone top bar: a 44x44 avatar target that opens the account sheet. */
+export function AccountAvatarButton() {
+  return <PhoneAccountControl trigger="avatar" />;
+}
 
-  return (
-    <View>
-      <Identity name={name} email={user?.email ?? ''} avatar={44} />
-      <Pressable
-        accessibilityRole="button"
-        onPress={() => {
-          onSignedOut?.();
-          void signOut();
-        }}
-        style={({ pressed }) => [styles.drawerSignOut, pressed && styles.drawerSignOutPressed]}
-      >
-        <SignOutIcon color={t.colors.text.faint} />
-        <Text style={styles.drawerSignOutText}>Sign out</Text>
-      </Pressable>
-    </View>
-  );
+/** Phone drawer footer: a full-width account target opening the same account sheet. */
+export function AccountDrawerRow() {
+  return <PhoneAccountControl trigger="drawer" />;
 }
 
 const focusRingWeb = isWeb
@@ -516,7 +883,7 @@ const styles = StyleSheet.create({
     color: t.colors.text.muted,
   },
   // Sits above the page beneath it, the same way the nav's dropdown triggers do.
-  navWrap: { position: 'relative', zIndex: 60 },
+  navWrap: { position: 'relative', zIndex: 40 },
   navPill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -541,8 +908,8 @@ const styles = StyleSheet.create({
     top: '100%',
     right: 0,
     marginTop: 10,
-    width: 268,
-    zIndex: 60,
+    width: 288,
+    zIndex: 1,
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
     borderColor: t.colors.alpha.ink10,
@@ -556,8 +923,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    paddingVertical: 13,
-    paddingHorizontal: 15,
+    paddingTop: 13,
+    paddingRight: 15,
+    paddingBottom: 13,
+    paddingLeft: 12,
   },
   menuItemPressed: { backgroundColor: t.colors.surfaces.s300 },
   menuItemText: {
@@ -565,6 +934,17 @@ const styles = StyleSheet.create({
     fontSize: t.fontSizes.small,
     fontWeight: t.fontWeights.semibold,
     color: t.colors.text.primary,
+  },
+  desktopSignOutError: { marginTop: 12, marginHorizontal: 15 },
+  desktopSignOutNote: {
+    paddingTop: 2,
+    paddingRight: 15,
+    paddingBottom: 14,
+    paddingLeft: 15,
+    fontFamily: t.typography.body,
+    fontSize: 12,
+    lineHeight: 17,
+    color: t.colors.text.faint,
   },
   passwordTile: {
     width: 52,
@@ -582,6 +962,37 @@ const styles = StyleSheet.create({
   },
   passwordFormError: { marginBottom: 18 },
   passwordFields: { gap: 18 },
+  freshProofField: { width: '100%' },
+  freshProofLabel: {
+    marginBottom: 8,
+    fontFamily: t.typography.mono,
+    fontSize: t.fontSizes.caption,
+    lineHeight: 16,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 1.32,
+    color: t.colors.text.secondary,
+  },
+  freshProofMessage: {
+    marginBottom: 10,
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.small,
+    lineHeight: 20,
+    color: t.colors.text.secondary,
+  },
+  freshProofInput: {
+    width: '100%',
+    minHeight: 52,
+    borderWidth: 1,
+    borderColor: 'rgba(17,21,15,0.18)',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    backgroundColor: t.colors.surfaces.base,
+    fontFamily: t.typography.body,
+    fontSize: 17,
+    lineHeight: 22,
+    color: t.colors.text.primary,
+  },
   passwordActions: { marginTop: 20, gap: 12 },
   quietButton: {
     width: '100%',
@@ -601,12 +1012,20 @@ const styles = StyleSheet.create({
     color: '#6f756f',
   },
   avatarButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  drawerAccountButton: {
+    width: '100%',
+    minHeight: 44,
+    justifyContent: 'center',
+    borderRadius: 10,
+    paddingVertical: 4,
+  },
+  drawerAccountButtonPressed: { backgroundColor: t.colors.surfaces.s300 },
   sheetScrim: { flex: 1, backgroundColor: 'rgba(10,14,12,0.5)', justifyContent: 'flex-end' },
   sheet: {
     backgroundColor: t.colors.surfaces.base,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    paddingTop: 12,
+    paddingTop: 0,
     paddingHorizontal: 22,
     paddingBottom: 26,
   },
@@ -616,7 +1035,24 @@ const styles = StyleSheet.create({
     borderRadius: t.radii.pill,
     backgroundColor: t.colors.borders.base,
     alignSelf: 'center',
-    marginBottom: 18,
+  },
+  sheetHeader: {
+    height: 66,
+    marginBottom: 10,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: 12,
+  },
+  sheetClose: {
+    position: 'absolute',
+    top: 22,
+    right: 0,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
+    backgroundColor: t.colors.surfaces.s300,
   },
   sheetButton: {
     marginTop: 20,
@@ -631,6 +1067,20 @@ const styles = StyleSheet.create({
     borderRadius: 13,
     paddingVertical: 16,
   },
+  sheetPasswordButton: {
+    marginTop: 18,
+    width: '100%',
+    minHeight: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: t.colors.surfaces.base,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: t.colors.alpha.ink08,
+    paddingHorizontal: 2,
+  },
+  sheetPasswordText: { flex: 1, textAlign: 'left' },
   sheetButtonPressed: { backgroundColor: t.colors.surfaces.s300 },
   sheetButtonText: {
     fontFamily: t.typography.ui,
@@ -638,20 +1088,12 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.semibold,
     color: t.colors.text.primary,
   },
-  drawerSignOut: {
-    marginTop: 12,
-    minHeight: 44,
-    alignSelf: 'flex-start',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    paddingVertical: 8,
-  },
-  drawerSignOutPressed: { opacity: 0.7 },
-  drawerSignOutText: {
-    fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.bodyLg,
-    fontWeight: t.fontWeights.semibold,
-    color: t.colors.text.primary,
+  phoneSignOutError: { marginTop: 16 },
+  phoneSignOutNote: {
+    marginTop: 10,
+    fontFamily: t.typography.body,
+    fontSize: 13.5,
+    lineHeight: 20,
+    color: t.colors.text.faint,
   },
 });

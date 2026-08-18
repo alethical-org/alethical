@@ -13,7 +13,7 @@ import re
 from types import SimpleNamespace
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
@@ -34,6 +34,7 @@ from alethical.db.models import (
 from alethical.db.session import get_engine
 from alethical.pipeline.minnesota import MinnesotaIngestionPipeline
 from alethical.pipeline.votes import (
+    backup_incomplete_vote_records,
     build_legislator_index,
     leading_chamber,
     looks_like_bill_number,
@@ -42,6 +43,7 @@ from alethical.pipeline.votes import (
     parse_senate_votes_from_pdf,
     parse_senate_vote_scoped,
     reconcile_saved_votes,
+    repair_incomplete_vote_records,
     resolve_name,
     write_json_report,
 )
@@ -263,6 +265,56 @@ def test_build_legislator_index_includes_departed_session_members(
         assert resolve_name("Current", index) is not None
 
 
+def test_official_house_initials_resolve_same_first_initial_members(
+    seed_database: None,
+) -> None:
+    with Session(get_engine()) as db:
+        pipeline = MinnesotaIngestionPipeline(db)
+        refs = pipeline.seed_reference_data()
+        house = refs["chambers"]["house"]
+
+        expected: dict[str, str] = {}
+        for full_name, sort_name, district_code in [
+            ("Paul Anderson", "Anderson, P. H.", "12A"),
+            ("Patti Anderson", "Anderson, P. E.", "33A"),
+            ("Liz Lee", "Lee, K.", "67A"),
+        ]:
+            legislator = Legislator(
+                jurisdiction_id=refs["jurisdiction"].id,
+                slug=f"{full_name.lower().replace(' ', '-')}-{uuid.uuid4().hex[:6]}",
+                external_key=f"key-{uuid.uuid4().hex}",
+                full_name=full_name,
+                sort_name=sort_name,
+            )
+            db.add(legislator)
+            db.flush()
+            expected[sort_name] = str(legislator.id)
+            district = pipeline.upsert_district(refs, house, district_code)
+            db.add(
+                LegislatorServicePeriod(
+                    legislator_id=legislator.id,
+                    session_id=refs["session"].id,
+                    chamber_id=house.id,
+                    district_id=district.id,
+                    period_sequence=1,
+                    is_current=True,
+                )
+            )
+        db.flush()
+
+        index = build_legislator_index(db, house.id, refs["session"].id)
+
+        assert (
+            str(resolve_name("Anderson, P. H.", index).id)
+            == expected["Anderson, P. H."]
+        )
+        assert (
+            str(resolve_name("Anderson, P. E.", index).id)
+            == expected["Anderson, P. E."]
+        )
+        assert str(resolve_name("Lee, K.", index).id) == expected["Lee, K."]
+
+
 def _vote_reconciliation_fixture(
     db: Session,
 ) -> tuple[Bill, BillAction, list[Legislator]]:
@@ -444,6 +496,175 @@ def test_reconciliation_replaces_changed_event_and_member_votes_together(
             (legislators[2].id, VoteValue.yes),
             (legislators[1].id, VoteValue.no),
         ]
+
+
+def test_incomplete_vote_repair_only_adds_proven_missing_records(
+    seed_database: None,
+) -> None:
+    with Session(get_engine()) as db:
+        bill, action, legislators = _vote_reconciliation_fixture(db)
+        event = db.scalar(
+            select(VoteEvent).where(VoteEvent.bill_action_id == action.id)
+        )
+        assert event is not None
+        records = {
+            row.legislator_id: row
+            for row in db.scalars(
+                select(VoteRecord).where(VoteRecord.vote_event_id == event.id)
+            ).all()
+        }
+        records[legislators[1].id].vote_value = VoteValue.no
+        db.delete(records[legislators[2].id])
+        corrected_stats = db.scalar(
+            select(LegislatorStats).where(
+                LegislatorStats.legislator_id == legislators[2].id,
+                LegislatorStats.session_id == bill.session_id,
+            )
+        )
+        assert corrected_stats is not None
+        corrected_stats.vote_record_count = 0
+        db.commit()
+        source = _StaticSourceSession(_fixture_vote_html(bill, legislators))
+
+        excluded = repair_incomplete_vote_records(
+            db,
+            dry_run=True,
+            allowed_legislator_ids=set(),
+            source_session=source,
+            event_ids=[event.id],
+        )
+        assert excluded.records_added == 0
+        assert not excluded.updated
+
+        preview = repair_incomplete_vote_records(
+            db,
+            dry_run=True,
+            allowed_legislator_ids={legislators[2].id},
+            source_session=source,
+            event_ids=[event.id],
+        )
+
+        assert len(preview.updated) == 1
+        assert preview.records_added == 1
+        assert (
+            db.scalar(
+                select(func.count())
+                .select_from(VoteRecord)
+                .where(VoteRecord.vote_event_id == event.id)
+            )
+            == 2
+        )
+        backup = backup_incomplete_vote_records(db, event_ids=[event.id])
+        assert backup["max_missing"] == 4
+        assert len(backup["events"]) == 1
+        assert len(backup["events"][0]["event"]["records"]) == 2
+
+        applied = repair_incomplete_vote_records(
+            db,
+            dry_run=False,
+            allowed_legislator_ids={legislators[2].id},
+            source_session=source,
+            event_ids=[event.id],
+        )
+
+        assert len(applied.updated) == 1
+        assert applied.records_added == 1
+        assert not applied.rejected
+        assert not applied.failed
+        db.refresh(event)
+        assert event.motion_text == "Old motion"
+        assert event.official_url == "https://example.test/old"
+        repaired_records = db.scalars(
+            select(VoteRecord)
+            .where(VoteRecord.vote_event_id == event.id)
+            .order_by(VoteRecord.sort_order)
+        ).all()
+        assert {row.legislator_id: row.vote_value for row in repaired_records} == {
+            legislators[0].id: VoteValue.yes,
+            legislators[2].id: VoteValue.yes,
+            legislators[1].id: VoteValue.no,
+        }
+        db.refresh(corrected_stats)
+        assert corrected_stats.vote_record_count == 1
+
+        repeated = repair_incomplete_vote_records(
+            db,
+            dry_run=False,
+            allowed_legislator_ids={legislators[2].id},
+            source_session=source,
+            event_ids=[event.id],
+        )
+        assert repeated.records_added == 0
+        assert not repeated.updated
+
+
+def test_incomplete_vote_repair_refuses_conflicting_saved_vote(
+    seed_database: None,
+) -> None:
+    with Session(get_engine()) as db:
+        bill, action, legislators = _vote_reconciliation_fixture(db)
+        event = db.scalar(
+            select(VoteEvent).where(VoteEvent.bill_action_id == action.id)
+        )
+        assert event is not None
+        missing = db.scalar(
+            select(VoteRecord).where(
+                VoteRecord.vote_event_id == event.id,
+                VoteRecord.legislator_id == legislators[2].id,
+            )
+        )
+        assert missing is not None
+        db.delete(missing)
+        db.commit()
+
+        report = repair_incomplete_vote_records(
+            db,
+            dry_run=False,
+            allowed_legislator_ids={legislators[2].id},
+            source_session=_StaticSourceSession(_fixture_vote_html(bill, legislators)),
+            event_ids=[event.id],
+        )
+
+        assert not report.updated
+        assert report.records_added == 0
+        assert len(report.rejected) == 1
+        assert "conflicts" in (report.rejected[0].reason or "")
+        assert (
+            db.scalar(
+                select(func.count())
+                .select_from(VoteRecord)
+                .where(VoteRecord.vote_event_id == event.id)
+            )
+            == 2
+        )
+
+
+def test_incomplete_vote_repair_ignores_large_gaps(
+    seed_database: None,
+) -> None:
+    with Session(get_engine()) as db:
+        bill, action, _legislators = _vote_reconciliation_fixture(db)
+        event = db.scalar(
+            select(VoteEvent).where(VoteEvent.bill_action_id == action.id)
+        )
+        assert event is not None
+        db.query(VoteRecord).filter(VoteRecord.vote_event_id == event.id).delete()
+        db.commit()
+        source = _StaticSourceSession("")
+
+        report = repair_incomplete_vote_records(
+            db,
+            dry_run=False,
+            allowed_legislator_ids=set(),
+            source_session=source,
+            max_missing=2,
+            event_ids=[event.id],
+        )
+
+        assert not report.updated
+        assert not report.rejected
+        assert not report.failed
+        assert source.urls == []
 
 
 def test_reconciliation_finds_independent_tally_correction_by_vote_identity(

@@ -1,36 +1,41 @@
 # Alethical Philosophy
 
-**What this is.** The *why* beneath Alethical — the beliefs that should hold even as
-features, copy, and design change around them. It sits above the operational docs:
+**The pitch.** Minnesota publishes everything its legislature does, in a format almost
+no one can read. Alethical turns that record — bills, votes, legislators, campaign
+money — into plain language, so anyone can see what their government is doing and check
+every word against the official source.
+
+## What the app does
+
+1. **Every Minnesota bill, in plain language** — what it does, where it stands, and who
+   authored it, with the official text one click away.
+2. **Every roll-call vote** — how each legislator actually voted, linked to the
+   official record.
+3. **A profile for every legislator** — their bills, their votes, and the campaign
+   money around them, drawn from official filings.
+4. **Ask in your own words** — a question gets an answer built only from the official
+   record, with citations, or an honest "we can't answer that." Never a stretch.
+5. **Every page is a link worth sending** — arrive in the middle of the product from a
+   shared URL and it still makes sense, with the way back to the source in view.
+
+This list is the product's shape; what is shipped at any given moment is the
+[product scope](product-onboarding/product-scope.md)'s job to say, and the principle
+*say only what we can do* keeps every concrete promise honest.
+
+## What this file is
+
+The *why* beneath Alethical — the beliefs that should hold even as features, copy, and
+design change around them. It sits above the operational docs:
 [product scope](product-onboarding/product-scope.md) says *what we build and won't build*,
 [design principles](design/design-principles.md) says *how it looks and behaves*, and
 the [UI copy guide](design/ui-copy-guide.md) says *how it sounds*. Those are rules and
 tactics; this is the direction they answer to.
 
-**What this is not.** Not a feature spec. Nothing here describes a screen, a state, or a
-component. If a sentence would go stale the next time a screen changes, it belongs in a
-spec and not in this file — this one should still read true a year from now.
-
-These are principles, not a checklist. Where one seems to conflict with a concrete
-capability, the [grounded-answer invariants](../.claude/rules/grounded-answers.md) win:
-a thing must be *true* before it can be on-philosophy.
-
----
-
-## The north star
-
-**The awakening is the product.**
-
-The public record of a self-governing state was always the public's to read. Almost no
-one has ever been shown it in a form they can actually use — so it sits in plain sight
-and stays effectively hidden. Alethical exists to deliver the moment a person realizes
-the government's record was theirs all along, and that they can finally read it.
-
-That recognition — not any single feature — is what we are building toward. It is the
-horizon, not a claim about today. What we ship at any given moment is a reliable
-Minnesota legislative data and analysis product ([scope](product-onboarding/product-scope.md)); the
-philosophy points the compass, and the principle *say only what we can do* keeps every
-concrete promise honest.
+It is not a feature spec. Nothing here describes a screen, a state, or a component; if
+a sentence would go stale the next time a screen changes, it belongs in a spec, not
+here. And these are principles, not a checklist: where one seems to conflict with a
+concrete capability, the [grounded-answer invariants](../.claude/rules/grounded-answers.md)
+win — a thing must be *true* before it can be on-philosophy.
 
 ---
 
@@ -38,7 +43,8 @@ concrete promise honest.
 
 Minnesota already publishes all of it. Bill text, authorship, committee actions, roll
 calls, and enacted chapters are public, on official sites, updated while the session
-runs. There is no locked door, and nothing here was ever kept from anyone.
+runs. There is no locked door, and nothing here was ever kept from anyone. The record
+was always the public's to read.
 
 What exists instead is a format addressed to people who already know the system. A bill
 arrives as a number, a chain of procedural actions, and pages of amendatory text that
@@ -160,11 +166,6 @@ occasionally wrong. Depth over breadth: do one jurisdiction, one job, completely
 reaching for the next. Restraint is how a truth product earns the right to be believed.
 
 ### 9. Prevent, don't just fix
-
-> Intellectuals solve problems; geniuses prevent them.
->
-> — Widely attributed to Einstein, though no primary source records him saying it. We keep
-> the line because it is true, and keep the caveat because principle 1 applies to us too.
 
 A fix restores what was working. Prevention removes the reason it broke. So when something
 fails, the first question is not *how do we repair this* but *what would stop it happening

@@ -604,6 +604,39 @@ def test_ai_citation_payloads_uses_official_url_and_drops_without_one() -> None:
         ("1.1", 7),
         ("2.1", None),
     ]
+    # Repeated section ids need the same citation-pair key for their topics as for
+    # their positions. HF 1134 has one stored id for several real sections; the
+    # quote places each chip on its own section and its topic must come from that
+    # same section rather than from the shared id (#869).
+    repeated = {
+        "key_point_citations": [
+            {
+                "section_id": "laws.0.1.0",
+                "label": "Sec. 126",
+                "quote": "Oak Grove may adopt a comprehensive plan.",
+            },
+            {
+                "section_id": "laws.0.1.0",
+                "label": "Sec. 46",
+                "quote": "Nowthen may adopt a comprehensive plan.",
+            },
+        ]
+    }
+    repeated_orders = {
+        ("laws.0.1.0", "Oak Grove may adopt a comprehensive plan."): 3,
+        ("laws.0.1.0", "Nowthen may adopt a comprehensive plan."): 8,
+    }
+    repeated_topics = {
+        ("laws.0.1.0", "Oak Grove may adopt a comprehensive plan."): "Oak Grove",
+        ("laws.0.1.0", "Nowthen may adopt a comprehensive plan."): "Nowthen",
+    }
+    resolved_repeats = serializers.ai_citation_payloads(
+        repeated, url, repeated_topics, repeated_orders
+    )
+    assert [(c.section_order, c.section_topic) for c in resolved_repeats] == [
+        (3, "Oak Grove"),
+        (8, "Nowthen"),
+    ]
     # No resolvable official URL → no dead-link citations (grounded-answers rule 5).
     assert serializers.ai_citation_payloads(content, None) == []
     assert serializers.ai_citation_payloads({}, url) == []
@@ -737,13 +770,25 @@ def test_citation_section_topics_refuses_an_ambiguous_section_id() -> None:
     caption belonging to a different section."""
     from alethical.api.routers.public import _citation_section_topics
 
-    def topics(sections: list[tuple[str, str | None, str | None]]) -> dict[str, str]:
+    def topics(
+        sections: list[tuple[str, str | None, str | None]],
+        orders: dict[tuple[str, str], int] | None = None,
+    ) -> dict[str | tuple[str, str], str]:
         version = SimpleNamespace(id=1, is_current=True)
         bill = SimpleNamespace(versions=[version])
         db = SimpleNamespace(
-            execute=lambda _stmt: SimpleNamespace(all=lambda: sections)
+            execute=lambda _stmt: SimpleNamespace(
+                all=lambda: [
+                    (section_id, source_order, section_heading, cite_heading)
+                    for source_order, (
+                        section_id,
+                        section_heading,
+                        cite_heading,
+                    ) in enumerate(sections, 1)
+                ]
+            )
         )
-        return _citation_section_topics(db, bill)
+        return _citation_section_topics(db, bill, orders)
 
     # Unique ids resolve normally — the ordinary case, unchanged.
     assert topics(
@@ -765,6 +810,24 @@ def test_citation_section_topics_refuses_an_ambiguous_section_id() -> None:
         )
         == {}
     )
+
+    # Once the citation's own quote places the 2 repeated-id citations, each gets
+    # the topic from the section it opens. The heading-less section remains blank.
+    assert topics(
+        [
+            ("laws.0.1.0", "Sec. 126. OAK GROVE; COMPREHENSIVE PLAN.", None),
+            ("laws.0.1.0", "Sec. 46. NOWTHEN; COMPREHENSIVE PLAN.", None),
+            ("laws.0.1.0", "Section 1.", None),
+        ],
+        {
+            ("laws.0.1.0", "Oak Grove may adopt a comprehensive plan."): 1,
+            ("laws.0.1.0", "Nowthen may adopt a comprehensive plan."): 2,
+            ("laws.0.1.0", "A city may adopt a comprehensive plan."): 3,
+        },
+    ) == {
+        ("laws.0.1.0", "Oak Grove may adopt a comprehensive plan."): "Oak grove",
+        ("laws.0.1.0", "Nowthen may adopt a comprehensive plan."): "Nowthen",
+    }
 
     # A duplicate must not answer on behalf of a heading-less section that shares its
     # id — the heading-less row occupies the id too, so the pair is still ambiguous.
