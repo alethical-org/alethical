@@ -52,8 +52,10 @@ Verify data claims against what's **ingested and fresh**, not what's theoretical
 
 Each recommendation gets a plain-language **Net** (per `eugene-workflow-preferences`: lead with what you'd *see on screen*, no unglossed jargon).
 
+**Every observation ships in the deliverable, weighted — never withheld as an aside (Eugene, 18 Aug 2026).** A review's output is not only rule breaches: taste-level UX and copy improvements (a label whose voice drifted from a renamed sibling, a placeholder using our vocabulary instead of the reader's) go into the same relayed feedback, tagged by weight — *must fix* (breaks a rule or the data) versus *recommended polish* (better, Design may push back). The failure this prevents: a real improvement spotted during review, then parked in an "also found" note that never reaches Design (origin: the round-2 campaign-money review left the "vendor"-to-"payee" voice fix out of the relayed fix block after the lane it echoed had been renamed).
+
 **4. Produce two outputs.**
-- **A Claude Design prompt** — definitive changes only, obeying the `claude-design-prompt-rules` memory: no feasibility questions back to Design (feasibility is our call), no approval-dependent blocks, no export requests, no roadmap relabeling, no mock-realism policing; frames referenced by preview-band label; capabilities stated as settled facts.
+- **A Claude Design prompt** — obeying the `claude-design-prompt-rules` memory: no feasibility questions back to Design (feasibility is our call), no approval-dependent blocks, no export requests, no roadmap relabeling, no mock-realism policing; frames referenced by preview-band label; capabilities stated as settled facts. Must-fix items stated as settled changes; recommended-polish items included beneath them, labeled as recommendations.
 - **A decision list** — the scope/product calls that need a human owner (build the missing capability vs. cut the element vs. ship interim), each with a recommendation, effort, and Net.
 
 **5. Interview on genuine gaps only** — batched, ≤4, each with a recommended default (`design-intake` style). Only for gaps the repo/spec didn't answer.
