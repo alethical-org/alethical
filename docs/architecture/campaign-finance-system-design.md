@@ -1207,6 +1207,20 @@ per figure rather than per page.
 serves that report's document today (§9.6). So the population §7 most needs an empty state for is
 exactly the population this route answers with stale money.
 
+**The totals route can lag the report document by more than a week, so it does not always serve the
+effective version.** Filer 19086's 2026 pre-primary report was filed empty on 1 August 2026 and
+amended on 10 August to itemize $20,750.00. Read live on 18 August, the route still reported $0.00
+received, $0.00 spent and $1,472.95 at both ends, with its own "most recent report through" reading
+20 July 2026 — 8 days after the amendment was being served as a document. The bulk download already
+held the $20,750.00, matching the amended filing to the cent. **So a committee-year whose 2 official
+figures appear to contradict each other may only be a stale total**, and the 2 states must not be
+shown to a reader as the same thing: one is a fact about Minnesota's publishing, the other is a figure
+that will correct itself on the next load. The stated-split check already separates them without being
+told to — it read the document's $20,750.00 and recorded `reader_unproven`, because the route offered
+nothing to prove the reading against, which is a different verdict from `disagrees`. **§6 turns on
+knowing which version is effective, so read that rule with this one: the effective version is
+established from the report catalogue, never from this route's figure.**
+
 ### 9.2 What it costs, and how far back it reaches
 
 Median response 0.36 seconds over 20 timed calls. At the 0.25-second spacing used throughout
