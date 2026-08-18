@@ -50,6 +50,7 @@ from alethical.db.session import get_session_factory
 from alethical.pipeline import campaign_finance as cf
 from alethical.pipeline import campaign_finance_reader as reader
 from alethical.pipeline import campaign_finance_stated_split as split
+from alethical.pipeline import campaign_finance_report_document_store as document_store
 from alethical.pipeline import campaign_finance_report_documents as documents
 from alethical.tests.test_campaign_finance_load import (
     FakeBoard,
@@ -653,7 +654,7 @@ def _prepare(db, board, store, *, itemized: str, non_itemized: str, figure: str)
     return snapshot, pdf_of(lines)
 
 
-def _check(db, snapshot, base_url, registration="19200", year=2025):
+def _check(db, snapshot, base_url, registration="19200", year=2025, keeper=None):
     release = live(db)
     target = next(
         t
@@ -662,7 +663,9 @@ def _check(db, snapshot, base_url, registration="19200", year=2025):
     )
     session = requests.Session()
     try:
-        return split.check_one(db, session, release, snapshot.id, target, base_url)[0]
+        return split.check_one(
+            db, session, release, snapshot.id, target, base_url, keeper=keeper
+        )[0]
     finally:
         session.close()
 
@@ -754,6 +757,108 @@ def test_a_document_the_board_will_not_serve_is_not_checked(
     verdict = _check(db, snapshot, base_url)
     assert verdict.status is Status.not_checked
     assert "not found" in verdict.reason
+
+
+# --- Keeping the document the verdict was read from (#1501) --------------------
+
+
+def _keeper(db, store, tmp_path):
+    return document_store.DocumentKeeper(db=db, store=store, directory=str(tmp_path))
+
+
+def test_the_document_a_verdict_was_read_from_is_kept(
+    db, board, store, documents_server, tmp_path
+) -> None:
+    """A verdict recorded a hash of bytes nobody held. Now the bytes are held.
+
+    The Board publishes no archive and refuses most documents older than 2023, so this
+    is the only copy there will be of the evidence behind a published figure.
+    """
+    base_url, served = documents_server
+    snapshot, pdf = _prepare(
+        db, board, store, itemized="1,526.0578", non_itemized="473.94", figure="2000.00"
+    )
+    served["19200"] = pdf
+    keeper = _keeper(db, store, tmp_path)
+
+    verdict = _check(db, snapshot, base_url, keeper=keeper)
+
+    assert verdict.status is Status.agrees
+    assert keeper.report.stored == 1
+    kept = db.query(models.CampaignFinanceReportDocument).one()
+    assert kept.document_hash == verdict.document_hash
+    assert kept.byte_size == len(pdf)
+    assert kept.registration_number == "19200"
+    assert kept.filing_year == 2025
+    assert kept.object_key in store.objects
+
+
+def test_a_document_our_reader_cannot_prove_itself_on_is_kept_too(
+    db, board, store, documents_server, tmp_path
+) -> None:
+    """The most valuable document to keep is the one we could not read.
+
+    It is the evidence for fixing the reader, and the Board will not serve it again on
+    request. A store wired in after the parse would keep exactly the documents nobody
+    needs to re-examine.
+    """
+    base_url, served = documents_server
+    snapshot, pdf = _prepare(
+        db, board, store, itemized="1.00", non_itemized="1.00", figure="2000.00"
+    )
+    served["19200"] = pdf
+    keeper = _keeper(db, store, tmp_path)
+
+    verdict = _check(db, snapshot, base_url, keeper=keeper)
+
+    assert verdict.status is Status.reader_unproven
+    assert keeper.report.stored == 1
+    assert db.query(models.CampaignFinanceReportDocument).count() == 1
+
+
+def test_a_refusal_stores_nothing_because_there_is_no_document(
+    db, board, store, documents_server, tmp_path
+) -> None:
+    """HTTP 200 carrying "Requested file not found" is not a document to keep."""
+    base_url, _served = documents_server
+    snapshot, _pdf = _prepare(
+        db, board, store, itemized="1.00", non_itemized="1.00", figure="2000.00"
+    )
+    keeper = _keeper(db, store, tmp_path)
+
+    verdict = _check(db, snapshot, base_url, keeper=keeper)
+
+    assert verdict.status is Status.not_checked
+    assert keeper.report.stored == 0
+    assert db.query(models.CampaignFinanceReportDocument).count() == 0
+
+
+def test_a_document_that_cannot_be_stored_still_yields_its_verdict(
+    db, board, store, documents_server, tmp_path
+) -> None:
+    """A storage fault must not throw away a real finding about real money.
+
+    The verdict was read from bytes we genuinely received and it records their hash, so
+    it stands. The failure is counted and the run exits non-zero over it, which is how
+    somebody learns the bytes were lost.
+    """
+    base_url, served = documents_server
+    snapshot, pdf = _prepare(
+        db, board, store, itemized="1,526.0578", non_itemized="473.94", figure="2000.00"
+    )
+    served["19200"] = pdf
+
+    class RefusingStore(MemoryStore):
+        def put_and_verify(self, key, path, expected_sha256):
+            raise RuntimeError("the store refused this object")
+
+    keeper = _keeper(db, RefusingStore(), tmp_path)
+    verdict = _check(db, snapshot, base_url, keeper=keeper)
+
+    assert verdict.status is Status.agrees
+    assert len(keeper.report.failures) == 1
+    assert "19200:2025" in keeper.report.failures[0]
+    assert db.query(models.CampaignFinanceReportDocument).count() == 0
 
 
 # --- Storing and reading it ---------------------------------------------------

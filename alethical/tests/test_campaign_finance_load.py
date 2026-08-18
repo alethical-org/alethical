@@ -276,6 +276,10 @@ CF_TABLES = (
     "cf_independent_expenditure_row",
     "cf_fetch_observation",
     "cf_snapshot_body",
+    # Kept documents (#1501). No foreign key ties one to a snapshot -- a document
+    # outlives the payment rows it was compared against on purpose -- so nothing else
+    # would remove them and the next test would inherit them as already kept.
+    "cf_report_document",
 )
 # The filings tables too, because these tests now seed one to turn the 2 checks that
 # read Minnesota's own figures on. Leaving one behind would silently change what the

@@ -38,6 +38,7 @@ from alethical.pipeline.raw_file_mirror import (
     COPIED,
     CONFIRMED,
     FAILED,
+    body_tables,
     format_report,
     mirror_raw_files,
 )
@@ -108,6 +109,7 @@ def db(seed_database: None) -> Iterator:
 def _clear(session) -> None:
     session.rollback()
     session.execute(text("DELETE FROM cf_snapshot_body"))
+    session.execute(text("DELETE FROM cf_report_document"))
     session.execute(text("DELETE FROM cf_snapshot"))
     session.commit()
 
@@ -369,3 +371,171 @@ def test_the_failed_action_name_is_what_the_report_counts(db, tmp_path) -> None:
     """Guards the one string the scheduled job's alert depends on."""
     assert FAILED == "failed"
     assert mirror_module.FAILED == FAILED
+
+
+# --- Every table that holds a stored body, not just the first one (#1501) ------
+
+
+def test_every_table_holding_a_stored_body_is_found_by_the_schema_walk() -> None:
+    """The 3 kinds of body we keep today, discovered rather than listed.
+
+    This job was written for ``cf_snapshot_body`` alone. By the time anybody checked,
+    ``cf_filing_snapshot`` held 2 totals archives with 0 rows recording a second copy,
+    and ``cf_report_document``'s documents were not being kept at all. Naming tables in
+    the job is what let that happen, so the assertion here is that the *schema* is the
+    work list.
+    """
+    found = {model.__tablename__ for model in body_tables()}
+
+    assert found == {"cf_snapshot_body", "cf_filing_snapshot", "cf_report_document"}
+
+
+def test_a_stored_body_missing_a_mirror_column_fails_this_test_by_name() -> None:
+    """The one way the schema walk could silently miss a body: a differently-named column.
+
+    Discovery covers a future table for free, and only while its columns are named the
+    same. A table that gains an ``object_key`` and no ``mirrored_at`` would be invisible
+    to the copy job and to every count it prints, which is precisely the failure that
+    reads as success. So the guard is here rather than in a comment.
+    """
+    from alethical.db import models as models_module
+
+    incomplete = []
+    for mapper in models_module.Base.registry.mappers:
+        table = mapper.class_.__table__
+        if "object_key" not in table.columns:
+            continue
+        missing = [
+            column
+            for column in mirror_module.BODY_COLUMNS
+            if column not in table.columns
+        ]
+        if missing:
+            incomplete.append(f"{table.name} is missing {', '.join(missing)}")
+
+    assert incomplete == [], (
+        "these tables hold a stored object and cannot be copied to the second place: "
+        + "; ".join(incomplete)
+    )
+
+
+def add_report_document(session, key: str, data: bytes) -> None:
+    """Record one stored report document, the third kind of body."""
+    session.add(
+        schema.CampaignFinanceReportDocument(
+            document_hash=sha(data + b"-raw"),
+            object_key=key,
+            byte_size=len(data),
+            compressed_hash=sha(data),
+            compressed_byte_size=len(data),
+            compression="gzip",
+            registration_number="20010",
+            filing_year=2025,
+            report_type="B",
+            amendment_index=0,
+        )
+    )
+    session.commit()
+
+
+def add_filing_archive(
+    session, key: str, data: bytes, *, with_hash: bool = True
+) -> None:
+    """Record one totals archive, whose hash column is nullable."""
+    session.execute(
+        text(
+            "INSERT INTO cf_filing_snapshot (id, fetch_started_at, fetch_completed_at,"
+            " status, measurements, validation_json, compression, object_key,"
+            " compressed_hash, compressed_byte_size, created_at, updated_at)"
+            " VALUES (:id, now(), now(), 'loaded', '{}', '{}', 'gzip', :key, :hash,"
+            " :size, now(), now())"
+        ),
+        {
+            "id": uuid.uuid4(),
+            "key": key,
+            "hash": sha(data) if with_hash else None,
+            "size": len(data),
+        },
+    )
+    session.commit()
+
+
+def test_a_report_document_and_a_totals_archive_both_reach_the_second_copy(
+    db, tmp_path
+) -> None:
+    """The 2 kinds of body that were never copied, in one run with the kind that was.
+
+    Production on 13 August 2026: 3 bulk downloads recorded as copied, 2 totals archives
+    recorded as copied never, and 1,277 report documents that did not exist. All 3 kinds
+    are now one work list.
+    """
+    document_key = "campaign-finance/report-document/ddd.pdf.gz"
+    archive_key = "campaign-finance/filings/eee.jsonl.gz"
+    objects = {
+        **BODIES,
+        document_key: b"document bytes",
+        archive_key: b"archive bytes",
+    }
+    source = MemoryStore(objects)
+    mirror = MemoryStore()
+    for key, data in BODIES.items():
+        add_body(db, key, data)
+    add_report_document(db, document_key, b"document bytes")
+    add_filing_archive(db, archive_key, b"archive bytes")
+
+    report = run(db, source, mirror, tmp_path)
+
+    assert mirror.objects == objects
+    assert len(report.of(COPIED)) == 4
+    assert report.unrecorded_keys == []
+    assert not report.failures
+    db.expire_all()
+    document = db.query(schema.CampaignFinanceReportDocument).one()
+    assert document.mirrored_at is not None
+    assert db.execute(
+        text("SELECT mirrored_at IS NOT NULL FROM cf_filing_snapshot")
+    ).scalar()
+
+
+def test_an_archive_that_records_no_hash_is_still_copied(db, tmp_path) -> None:
+    """``cf_filing_snapshot.compressed_hash`` is nullable, and NULL is not a reason to skip.
+
+    Refusing a row that records no hash would leave that object with one copy forever,
+    which is the outcome this whole job exists to prevent. It is verified against the
+    bytes just read out of the primary store instead.
+    """
+    archive_key = "campaign-finance/filings/eee.jsonl.gz"
+    source = MemoryStore({archive_key: b"archive bytes"})
+    mirror = MemoryStore()
+    add_filing_archive(db, archive_key, b"archive bytes", with_hash=False)
+
+    report = run(db, source, mirror, tmp_path)
+
+    assert mirror.objects == {archive_key: b"archive bytes"}
+    assert len(report.of(COPIED)) == 1
+    assert not report.failures
+    assert db.execute(
+        text("SELECT mirrored_at IS NOT NULL FROM cf_filing_snapshot")
+    ).scalar()
+
+
+def test_a_row_naming_no_object_yet_is_not_counted_as_a_gap(db, tmp_path) -> None:
+    """A run whose archive is still being written has a NULL ``object_key``.
+
+    Reading that as an object to copy would fail every run with a key of ``None``, and
+    reading it as a missing backup would report a permanent false alarm.
+    """
+    db.execute(
+        text(
+            "INSERT INTO cf_filing_snapshot (id, fetch_started_at, fetch_completed_at,"
+            " status, measurements, validation_json, compression, created_at, updated_at)"
+            " VALUES (:id, now(), now(), 'fetched', '{}', '{}', 'gzip', now(), now())"
+        ),
+        {"id": uuid.uuid4()},
+    )
+    db.commit()
+
+    report = run(db, MemoryStore(), MemoryStore(), tmp_path)
+
+    assert report.outcomes == []
+    assert not report.failures

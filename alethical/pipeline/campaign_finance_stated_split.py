@@ -55,6 +55,7 @@ from alethical.pipeline.campaign_finance_filings import (
     REQUEST_SPACING_SECONDS,
     http_session,
 )
+from alethical.pipeline.campaign_finance_report_document_store import DocumentKeeper
 from alethical.pipeline.campaign_finance_report_documents import (
     TOLERANCE,
     DocumentOutcome,
@@ -454,8 +455,14 @@ def check_one(
     filings_snapshot_id: uuid.UUID,
     target: Target,
     base_url: str = BOARD_BASE_URL,
+    keeper: Optional[DocumentKeeper] = None,
 ) -> tuple[Verdict, bool]:
-    """Check one committee-year. Returns the verdict and whether a request was made."""
+    """Check one committee-year. Returns the verdict and whether a request was made.
+
+    ``keeper`` stores the document's bytes when one is served. ``None`` keeps nothing,
+    which is what a dry run does: the Board is asked either way, so a dry run that wrote
+    to the store would make "report without writing" untrue of half the writes.
+    """
     if target.skip_reason is not None:
         return (
             Verdict(
@@ -495,6 +502,18 @@ def check_one(
         )
     document_hash = response.content_hash
     document_byte_size = len(response.body)
+    # Stored before it is read, and stored whatever the reading finds. A document our
+    # reader cannot parse is the one most worth keeping: it is the evidence for fixing
+    # the reader, and re-fetching it later is not something the Board allows (#1501).
+    if keeper is not None:
+        keeper.keep(
+            document_hash=document_hash,
+            body=response.body,
+            registration_number=target.registration_number,
+            filing_year=target.filing_year,
+            report_type=target.report_type,
+            amendment_index=target.amendment_index,
+        )
     document = parse_report_document(response.body)
     figures = stored_figures(
         db, filings_snapshot_id, target.registration_number, target.filing_year
@@ -630,6 +649,7 @@ def run_stated_split_check(
     http: Optional[requests.Session] = None,
     spacing_seconds: float = REQUEST_SPACING_SECONDS,
     write: bool = True,
+    keeper: Optional[DocumentKeeper] = None,
     progress: Optional[Callable[[str], None]] = None,
 ) -> StatedSplitRun:
     """Check every committee-year a page could show for these years.
@@ -643,6 +663,10 @@ def run_stated_split_check(
     which is the pacing that drew no refusal across roughly 1,200 requests in 2 hours on
     11 August 2026. That is an observation about one day and not a rate limit the Board
     has published, so it stays conservative rather than being tuned down.
+
+    ``keeper`` keeps each served document's bytes. Without one the run behaves exactly as
+    it did before #1501 -- it reads a document, records its hash, and lets the bytes go --
+    so a caller that cannot reach the file store still gets its verdicts.
     """
     years = sorted({int(year) for year in years})
     run = StatedSplitRun(years=tuple(years), started_at=datetime.now(UTC))
@@ -664,11 +688,21 @@ def run_stated_split_check(
     # the Board over roughly 20 minutes, and the first write is the last thing it does,
     # so a missing table threw all of that away and asked the Board for it twice. Found
     # the hard way on the first production run, 13 Aug 2026.
-    if write and not _destination_exists(db):
+    if write and not _table_exists(db, "cf_stated_split"):
         raise RuntimeError(
             "this database has no cf_stated_split table to write answers into, so a "
             "20-minute run would be thrown away at its last step. Apply the migrations "
             "(alembic upgrade head), or pass --dry-run to report without writing."
+        )
+    # Same reasoning one table over. A missing destination here would turn every document
+    # into a counted failure and let the run finish looking almost fine, and the Board
+    # does not serve a document twice on request.
+    if keeper is not None and not _table_exists(db, "cf_report_document"):
+        raise RuntimeError(
+            "this database has no cf_report_document table, so every document this run "
+            "reads would be thrown away after being read -- and the Board serves no "
+            "archive, so they are not re-fetchable. Apply the migrations (alembic "
+            "upgrade head)."
         )
     wanted = {str(filer) for filer in only_filers} if only_filers else None
     population = [
@@ -684,7 +718,7 @@ def run_stated_split_check(
     session = http or http_session()
     for index, target in enumerate(population, start=1):
         verdict, asked = check_one(
-            db, session, release, snapshot, target, base_url=base_url
+            db, session, release, snapshot, target, base_url=base_url, keeper=keeper
         )
         run.verdicts.append(verdict)
         if verdict.status is Status.not_checked:
@@ -708,8 +742,12 @@ def _live_filings_snapshot_id(db: Session) -> Optional[uuid.UUID]:
     ).scalar()
 
 
-def _destination_exists(db: Session) -> bool:
-    return bool(db.execute(text("SELECT to_regclass('cf_stated_split')")).scalar())
+def _table_exists(db: Session, table_name: str) -> bool:
+    return bool(
+        db.execute(
+            text("SELECT to_regclass(:table_name)"), {"table_name": table_name}
+        ).scalar()
+    )
 
 
 def store_verdicts(
