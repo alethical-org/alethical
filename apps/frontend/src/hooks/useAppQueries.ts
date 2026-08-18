@@ -13,6 +13,7 @@ import {
   getCurrentUserFromApi,
   getLegislatorBillsFromApi,
   getMetaFromApi,
+  getLegislatorCampaignMoneyFromApi,
   getLegislatorFromApi,
   getLegislatorOutsideSpendingFromApi,
   getLegislatorVotesFromApi,
@@ -260,6 +261,26 @@ export function useLegislatorVotes(legislatorId: string, limit = 1) {
     queryKey: ['legislator-votes', legislatorId, limit],
     queryFn: () => getLegislatorVotesFromApi(legislatorId, limit),
     enabled: Boolean(legislatorId),
+    retry: false,
+  });
+}
+
+/**
+ * One legislator's own campaign money for one year (#1329).
+ *
+ * `enabled` gates on the tab being open rather than on the legislator existing,
+ * because the money tab is a second address on the same page and a reader who never
+ * opens it should never pay for the request.
+ */
+export function useLegislatorCampaignMoney(
+  legislatorId: string,
+  year: number,
+  options: { enabled?: boolean } = {},
+) {
+  return useQuery({
+    queryKey: ['legislator-campaign-money', legislatorId, year],
+    queryFn: () => getLegislatorCampaignMoneyFromApi(legislatorId, year),
+    enabled: Boolean(legislatorId) && (options.enabled ?? true),
     retry: false,
   });
 }

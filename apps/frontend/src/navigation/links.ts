@@ -41,8 +41,10 @@ export const routePath = {
   tracked: () => pathForRoute({ name: 'Tracked' }),
   bill: (billId: string, params?: Omit<RootStackParamList['BillDetail'], 'billId'>) =>
     pathForRoute({ name: 'BillDetail', params: { billId, ...params } }),
-  legislator: (legislatorId: string) =>
-    pathForRoute({ name: 'LegislatorProfile', params: { legislatorId } }),
+  legislator: (
+    legislatorId: string,
+    params?: Omit<RootStackParamList['LegislatorProfile'], 'legislatorId'>,
+  ) => pathForRoute({ name: 'LegislatorProfile', params: { legislatorId, ...params } }),
   vote: (billId: string, voteEventId: string) =>
     pathForRoute({ name: 'VoteDetail', params: { billId, voteEventId } }),
   findMyLegislator: () => pathForRoute({ name: 'FindMyLegislator' }),

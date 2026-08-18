@@ -535,6 +535,71 @@ def money_in(
     return result
 
 
+@dataclass(frozen=True)
+class ContributionCash:
+    """One filer-year's itemized contributions, **cash only**, with its row count.
+
+    The figure to subtract from a filer's own reported contributions total, and the
+    reason it exists apart from ``money_in``: **the Board's reported figure excludes
+    donated goods and services, and our rows include them.** Measured 12 Aug 2026 across
+    389 comparable filer-years, adding in-kind rows in makes our sum exceed the Board's
+    own figure on 24 of them against 15 on cash alone, so folding the two together
+    manufactures 9 disagreements out of a difference the filing itself reports
+    separately (``alethical/pipeline/campaign_finance.py``, ``Measurements``).
+
+    In the live release 2,346 of 125,374 named contribution rows for 2025 and 2026 are
+    in kind, spread across 400 committee-years, so this is an ordinary case rather than
+    a rarity. ``money_in`` deliberately keeps reporting the whole itemized figure: that
+    is what a committee actually received and what a page shows as named donations. Only
+    the *subtraction* needs cash.
+
+    ``in_kind`` is the source's own column and its truth test is the loader's:
+    ``'yes'``, case-folded. Every value in the live release is ``Yes`` or ``No``.
+    """
+
+    reg_num: str
+    year: int
+    total: Decimal
+    rows: int
+
+
+def contribution_cash(
+    db: Session,
+    release: Release,
+    reg_num: str,
+    years: Optional[Iterable[int]] = None,
+) -> list[ContributionCash]:
+    """Itemized **cash** contributions per year, for comparing against a reported total.
+
+    A year with no cash rows is absent rather than zero, for the same reason as
+    ``money_in``: absence in an itemized file is silence, never a measured nothing.
+    """
+    clause, year_values = _year_clause(years)
+    params: dict[str, object] = {
+        "snapshot": release.contributions.snapshot_id,
+        "reg_num": reg_num,
+        "contribution": CONTRIBUTION_RECEIPT,
+    }
+    if year_values:
+        params["years"] = year_values
+    rows = db.execute(
+        text(
+            "SELECT year, coalesce(sum(amount), 0), count(*) "
+            "  FROM cf_contribution_row "
+            " WHERE snapshot_id = :snapshot AND recipient_reg_num = :reg_num "
+            "   AND receipt_type = :contribution "
+            "   AND lower(coalesce(in_kind, '')) <> 'yes' "
+            "   AND year IS NOT NULL" + clause + " "
+            " GROUP BY year ORDER BY year"
+        ),
+        params,
+    ).all()
+    return [
+        ContributionCash(reg_num, int(year), total, int(count))
+        for year, total, count in rows
+    ]
+
+
 def filer_years_that_must_not_show_a_split(
     db: Session, release: Release
 ) -> frozenset[tuple[str, int]]:
@@ -1047,6 +1112,8 @@ __all__ = [
     "SourceFile",
     "TRANSFER_EXPENDITURE_TYPE",
     "Transfer",
+    "ContributionCash",
+    "contribution_cash",
     "independent_spending_by",
     "live_release",
     "money_in",

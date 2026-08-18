@@ -1,0 +1,389 @@
+/**
+ * What the campaign money tab is allowed to put on screen (#1329).
+ *
+ * These pin sentences as much as numbers, because on this tab the sentences are
+ * where a false claim would live. `.claude/rules/grounded-answers.md` rule 12 forbids
+ * three specific ones, and each has a test here that fails if the wording drifts back:
+ *
+ * - saying that small gifts go unnamed, when the threshold is on the donor's yearly
+ *   total and 327,759 of 583,152 published rows are individually under $200;
+ * - printing "$0" where we mean "we do not hold this";
+ * - turning the dates of the payments we hold into a claimed coverage period.
+ */
+import { describe, expect, it } from 'vitest';
+
+import {
+  EARLIEST_CAMPAIGN_MONEY_YEAR,
+  FILING_SCHEDULE_NOTE,
+  LINK_UNCONFIRMED_EXPLANATION,
+  UNNAMED_MONEY_EXPLANATION,
+  campaignMoneyYear,
+  campaignMoneyYears,
+  formatDay,
+  formatMoney,
+  moneyFigure,
+  otherOfficeNote,
+  paymentCountLabel,
+  paymentDateRangeLabel,
+  reportedThroughLabel,
+  confirmedElsewhereExplanation,
+  emptyStateFor,
+  statedSplitNote,
+  spendingNote,
+  splitExplanation,
+  unnamedShareLabel,
+} from '../legislatorCampaignMoney';
+
+describe('formatMoney', () => {
+  it('keeps cents on a figure in the millions', () => {
+    // The House Republican Campaign Committee's own reported 2025 total. Rounded to
+    // $1.7M a reader cannot check it against Minnesota's filing, which is the whole
+    // promise of this tab.
+    expect(formatMoney('1747196.69')).toBe('$1,747,196.69');
+  });
+
+  it('adds the cents a whole-dollar figure arrives without', () => {
+    expect(formatMoney('1000')).toBe('$1,000.00');
+  });
+
+  it('returns nothing at all for an absent value rather than a zero', () => {
+    // The single most important line in this file. A "$0" invented here would be a
+    // claim that a named person raised nothing.
+    expect(formatMoney(null)).toBeNull();
+    expect(formatMoney(undefined)).toBeNull();
+    expect(formatMoney('')).toBeNull();
+  });
+
+  it('prints a real zero as a zero', () => {
+    expect(formatMoney('0')).toBe('$0.00');
+  });
+});
+
+describe('moneyFigure', () => {
+  it('shows a figure only when the block says the figures are real', () => {
+    expect(moneyFigure('reported', '20552.62')).toEqual({
+      text: '$20,552.62',
+      isFigure: true,
+    });
+  });
+
+  it('says "Not reported" rather than showing a zero when we hold nothing', () => {
+    // Missing versus zero. A committee whose donors all stayed under the naming
+    // threshold is never itemized, so absence here is silence, not a zero.
+    expect(moneyFigure('not_reported', null)).toEqual({
+      text: 'Not reported',
+      isFigure: false,
+    });
+  });
+
+  it('says a load failed rather than letting it fall through to "Not reported"', () => {
+    // A fault on our side must never read as a named person having filed nothing.
+    expect(moneyFigure('unavailable', null).isFigure).toBe(false);
+    expect(moneyFigure('unavailable', null).text).not.toBe('Not reported');
+  });
+
+  it('never marks a stand-in sentence as a figure', () => {
+    // `isFigure` is what stops "Not reported" being set in the size reserved for
+    // money, where a reader would scan it as a number.
+    expect(moneyFigure('reported', null).isFigure).toBe(false);
+  });
+});
+
+describe('the sentence explaining money with no name on it', () => {
+  it('puts the $200 threshold on the donor’s yearly total, never on one gift', () => {
+    expect(UNNAMED_MONEY_EXPLANATION).toContain('more than $200 in total for the year');
+    expect(UNNAMED_MONEY_EXPLANATION).toContain('$200 or less in total');
+  });
+
+  it("says the state's file does not name them, not that nobody knows", () => {
+    // The source proves only what Minnesota published. The committee knows who gave it,
+    // and another record may say so, which makes "nobody knows" a claim about the world
+    // that this file cannot support.
+    expect(UNNAMED_MONEY_EXPLANATION).toContain('public file does not say who gave it');
+    expect(UNNAMED_MONEY_EXPLANATION).not.toContain('nobody knows');
+  });
+
+  it('never says that small donations go unnamed', () => {
+    // 327,759 of the 583,152 published rows are individually under $200 and are named
+    // anyway, because that donor's yearly total had already passed it.
+    expect(UNNAMED_MONEY_EXPLANATION).not.toMatch(/small (gift|donation|payment)/i);
+    expect(UNNAMED_MONEY_EXPLANATION).not.toMatch(/under \$200|below \$200|less than \$200/i);
+  });
+
+  it('says candidates, because a ballot-question committee’s threshold is $500', () => {
+    expect(UNNAMED_MONEY_EXPLANATION).toContain('candidates');
+  });
+});
+
+describe('splitExplanation', () => {
+  it('says nothing when the split is honest and the figures speak', () => {
+    expect(splitExplanation('shown')).toBeNull();
+  });
+
+  it('names the two sources disagreeing rather than picking one', () => {
+    const text = splitExplanation('sources_disagree') ?? '';
+    expect(text).toContain('do not agree');
+    expect(text).toMatch(/cannot tell which one is right/);
+  });
+
+  it('explains a period mismatch as time rather than as a disagreement', () => {
+    // The House Republican Campaign Committee's 2026: our rows run to 20 July, its
+    // report stops on 31 March. Calling that a contradiction blames Minnesota for
+    // our arithmetic.
+    const text = splitExplanation('periods_differ') ?? '';
+    expect(text).toContain('different stretches of time');
+    expect(text).not.toMatch(/do not agree|disagree/);
+  });
+
+  it('refuses to guess when we hold no named payment for reported money', () => {
+    // Never rendered as "this money had no names", which is the claim it silently
+    // becomes if the reported total is handed whole to the unnamed bucket.
+    const text = splitExplanation('no_named_payments') ?? '';
+    expect(text).toContain('cannot tell');
+    expect(text).toMatch(/missing from the list/);
+  });
+
+  it('labels a lone figure as only the donations that had to be named', () => {
+    const text = splitExplanation('no_reported_total') ?? '';
+    expect(text).toMatch(/only the donations/);
+    // Not "the state has not published a report": the same state is reached when we
+    // hold a report we cannot use, and blaming Minnesota for our gap is its own claim.
+    expect(text).not.toMatch(/state has not published/i);
+  });
+
+  it('never states a reason as a fact about the person', () => {
+    // Every withheld state is about the records or about us. None may read as a
+    // finding about the member whose photograph is at the top of the page.
+    for (const state of [
+      'no_reported_total',
+      'sources_disagree',
+      'periods_differ',
+      'no_named_payments',
+    ] as const) {
+      expect(splitExplanation(state)).not.toMatch(/hid|conceal|refus|failed to (report|file)/i);
+    }
+  });
+});
+
+describe('spendingNote', () => {
+  it('says there is no bigger number, beside a real figure', () => {
+    expect(spendingNote('reported')).toContain('no bigger number');
+  });
+
+  it('says an absent figure is not a spending of zero', () => {
+    // The sentence beside a figure would be explaining a number that is not on the
+    // screen, and a reader takes the absence as zero. This is the same
+    // missing-versus-zero failure as a "$0", one step further out.
+    const text = spendingNote('not_reported');
+    expect(text).toContain('does not mean the committee spent nothing');
+    expect(text).not.toContain('no bigger number');
+  });
+
+  it('says a load failed rather than blaming the committee', () => {
+    expect(spendingNote('unavailable')).toMatch(/our copy/);
+  });
+});
+
+describe('dates', () => {
+  it('reads an ISO date in local terms rather than through UTC midnight', () => {
+    // `new Date('2026-07-20')` is UTC midnight and prints as the 19th everywhere
+    // west of Greenwich, which is everywhere this is read. A filing period off by
+    // one day is the kind of wrong number nobody notices.
+    expect(formatDay('2026-07-20')).toBe('20 Jul 2026');
+    expect(formatDay('2025-01-04T00:00:00Z')).toBe('4 Jan 2025');
+  });
+
+  it('returns nothing for a value that is not a date', () => {
+    expect(formatDay(null)).toBeNull();
+    expect(formatDay('soon')).toBeNull();
+  });
+
+  it('says when payments were made and never that a period is covered', () => {
+    const label = paymentDateRangeLabel('2025-01-04', '2025-11-12') ?? '';
+    expect(label).toBe('Payments dated 4 Jan 2025 to 12 Nov 2025');
+    // The forbidden reading: no source we store states a filing's own start date,
+    // and one filer reports from 11 July rather than 1 January.
+    expect(label).not.toMatch(/cover|through|period/i);
+  });
+
+  it('does not print a range when both ends are the same day', () => {
+    expect(paymentDateRangeLabel('2025-06-01', '2025-06-01')).toBe('Payment dated 1 Jun 2025');
+  });
+
+  it('names the report a total comes from, with the day it runs to', () => {
+    expect(reportedThroughLabel('2026-03-31')).toBe(
+      "The committee's own report to the state, covering through 31 Mar 2026",
+    );
+  });
+
+  it('says nothing when there is no coverage date to state', () => {
+    expect(reportedThroughLabel(null)).toBeNull();
+  });
+});
+
+describe('paymentCountLabel', () => {
+  it('counts one payment in the singular', () => {
+    expect(paymentCountLabel(1)).toBe('1 payment');
+  });
+
+  it('groups the digits of a large count', () => {
+    expect(paymentCountLabel(1488)).toBe('1,488 payments');
+  });
+
+  it('says nothing rather than zero when there is no count', () => {
+    expect(paymentCountLabel(null)).toBeNull();
+  });
+});
+
+describe('unnamedShareLabel', () => {
+  it('states the share of the donations reported, not of "the money raised"', () => {
+    // Jim Nash's House committee, 2025: $10,072.32 of a reported $20,552.62. The
+    // reported figure sums the filing's contribution lines only and excludes public
+    // subsidy, loan income and miscellaneous income, so "the money raised" would be a
+    // share of a larger number than the one it came from.
+    expect(unnamedShareLabel('10072.32', '20552.62')).toBe(
+      '49% of the donations the committee reported',
+    );
+  });
+
+  it('states nothing when there is no whole to take a share of', () => {
+    expect(unnamedShareLabel('100', null)).toBeNull();
+    expect(unnamedShareLabel(null, '20552.62')).toBeNull();
+    expect(unnamedShareLabel('100', '0')).toBeNull();
+  });
+
+  it('states nothing rather than an impossible share', () => {
+    // A negative or over-100% share means the subtraction behind it was not honest,
+    // and the server withholds those. This is the second line of defence.
+    expect(unnamedShareLabel('-482540.48', '399275.76')).toBeNull();
+    expect(unnamedShareLabel('30000', '20000')).toBeNull();
+  });
+});
+
+describe('the unconfirmed state, which is every profile today', () => {
+  it('never says no committee is registered for the member', () => {
+    // All 200 sitting members appear in the Board's own list of registered filers,
+    // so that sentence is false for every one of them.
+    expect(LINK_UNCONFIRMED_EXPLANATION).not.toMatch(/no committee is registered/i);
+    expect(LINK_UNCONFIRMED_EXPLANATION).toContain('on file with the state');
+  });
+
+  it('says the unfinished work is ours', () => {
+    expect(LINK_UNCONFIRMED_EXPLANATION).toMatch(/we have not yet confirmed/i);
+  });
+
+  it('says nothing about the other members, at any count', () => {
+    // A sentence true at 0 confirmed and false at 1 is one somebody has to remember
+    // to change. This wording is equally true at 0, at 144 and at 199.
+    expect(LINK_UNCONFIRMED_EXPLANATION).not.toMatch(
+      /no figures are on any|every profile|all 200/i,
+    );
+  });
+
+  it('tells "nobody has looked" apart from "checked, but not this year"', () => {
+    // An earlier version collapsed the two, so a member whose committee IS checked and
+    // whose reviewed years simply do not reach the year on screen was told nobody had
+    // looked at them. That blames our unfinished work for something that is finished.
+    expect(emptyStateFor('unconfirmed', 0)).toBe('unconfirmed');
+    expect(emptyStateFor('reviewed_none_confirmed', 0)).toBe('unconfirmed');
+    expect(emptyStateFor('confirmed', 0)).toBe('confirmed-elsewhere');
+    expect(emptyStateFor('confirmed', 1)).toBeNull();
+  });
+
+  it('names the year a checked match does not cover, and blames no one', () => {
+    const text = confirmedElsewhereExplanation(2026);
+    expect(text).toContain('2026');
+    expect(text).toContain('not a gap in the record');
+    expect(text).not.toMatch(/have not yet confirmed|nobody has/i);
+  });
+});
+
+describe('otherOfficeNote', () => {
+  it('says nothing when nothing was left out', () => {
+    expect(otherOfficeNote(0)).toBeNull();
+    expect(otherOfficeNote(null)).toBeNull();
+  });
+
+  it('names that the money exists and reports not a dollar of it', () => {
+    // Leaving a member's run for Attorney General out in silence is its own small lie:
+    // a reader who knows about that campaign concludes we missed it.
+    const text = otherOfficeNote(1) ?? '';
+    expect(text).toContain('one other committee');
+    expect(text).toContain('not shown here');
+    expect(text).not.toMatch(/\$/);
+    // We check only that a committee exists for another race, never that it holds any
+    // money for the year on screen, so the sentence may not say money is there.
+    expect(text).not.toMatch(/that money is/i);
+  });
+
+  it('counts more than one', () => {
+    expect(otherOfficeNote(2)).toContain('2 other committees');
+  });
+
+  it('never suggests the member hid it', () => {
+    expect(otherOfficeNote(1)).not.toMatch(/hid|conceal|undisclosed|failed to/i);
+  });
+});
+
+describe('statedSplitNote', () => {
+  it("says nothing when the committee's own filed report was checked", () => {
+    expect(statedSplitNote('agrees')).toBeNull();
+  });
+
+  it('says an unchecked figure is unchecked, without accusing the committee', () => {
+    // The comparison costs a document request per filing and has been run for 2025 and
+    // not for 2026, so the year a reader lands on says "not checked" today. Blanking
+    // every 2026 profile would distort more than labelling the figure does.
+    const text = statedSplitNote('not_checked') ?? '';
+    expect(text).toContain('not yet compared');
+    expect(text).not.toMatch(/hid|conceal|failed to|refus/i);
+  });
+});
+
+describe('the filing schedule note', () => {
+  it('describes the schedule rather than asserting that members filed', () => {
+    // A filer's newest available report can still end on 31 March, so "members filed on
+    // 27 July" states something we did not check about every member.
+    expect(FILING_SCHEDULE_NOTE).toContain('required members on the ballot to file');
+    expect(FILING_SCHEDULE_NOTE).not.toMatch(/Members on the 2026 ballot filed on/);
+  });
+
+  it('names when new money next appears, so a July figure is not read as a fault', () => {
+    // Nothing new publishes between 21 July and 26 October 2026, and this ships in
+    // September, so without this line "checked today" over July figures reads as
+    // broken.
+    expect(FILING_SCHEDULE_NOTE).toContain('26 October');
+    expect(FILING_SCHEDULE_NOTE).toContain('1 February 2027');
+  });
+});
+
+describe('the years the tab offers', () => {
+  it('reads them off the calendar rather than a written-down pair', () => {
+    // The failure this prevents is silent: a hardcoded 2026-and-2025 would hide 2027
+    // from every reader on 1 January 2027, and nothing would announce it.
+    expect(campaignMoneyYears(new Date('2026-08-13T12:00:00Z'))).toEqual([2026, 2025]);
+    expect(campaignMoneyYears(new Date('2027-01-01T12:00:00Z'))).toEqual([2027, 2026]);
+  });
+
+  it("never offers a year before Minnesota's downloads start", () => {
+    expect(campaignMoneyYears(new Date('2015-06-01T12:00:00Z'))).toEqual([
+      EARLIEST_CAMPAIGN_MONEY_YEAR,
+    ]);
+  });
+});
+
+describe('campaignMoneyYear', () => {
+  const on13Aug2026 = new Date('2026-08-13T12:00:00Z');
+
+  it('takes the year a reader asked for', () => {
+    expect(campaignMoneyYear('2025', on13Aug2026)).toBe(2025);
+    expect(campaignMoneyYear(2026, on13Aug2026)).toBe(2026);
+  });
+
+  it('lands on a real page for a year we do not carry', () => {
+    // A URL is something people type and edit, and a mistyped year should not 404.
+    expect(campaignMoneyYear('1999', on13Aug2026)).toBe(2026);
+    expect(campaignMoneyYear('banana', on13Aug2026)).toBe(2026);
+    expect(campaignMoneyYear(undefined, on13Aug2026)).toBe(2026);
+  });
+});

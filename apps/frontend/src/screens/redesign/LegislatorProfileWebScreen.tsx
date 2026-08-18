@@ -23,12 +23,16 @@ import { useResponsive } from '../../hooks/useResponsive';
 import {
   useLegislator,
   useLegislatorBills,
-  useLegislatorOutsideSpending,
+  useLegislatorCampaignMoney,
   useLegislatorVotes,
   useSessions,
 } from '../../hooks/useAppQueries';
-import { OutsideSpendingCard } from '../../components/legislator/OutsideSpendingCard';
-import { outsideSpendingYears } from '../../lib/outsideSpending';
+import { CampaignMoneyTab } from '../../components/campaignMoney/CampaignMoneyTab';
+import {
+  LegislatorProfileTabs,
+  type ProfileTab,
+} from '../../components/campaignMoney/LegislatorProfileTabs';
+import { campaignMoneyYear, type CampaignMoneyYear } from '../../lib/legislatorCampaignMoney';
 import {
   billStage,
   coAuthorCount,
@@ -97,8 +101,23 @@ export function LegislatorProfileWebScreen() {
   const legislatorId = String(route.params?.legislatorId ?? '');
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
 
+  // The money lives on its own address so it can carry its own freshness date and
+  // its own year, neither of which the rest of the profile shares (#1329).
+  const activeTab: ProfileTab = route.params?.tab === 'money' ? 'money' : 'overview';
+  const moneyYear = campaignMoneyYear(route.params?.year);
+
   const legislatorQuery = useLegislator(legislatorId);
   const legislator = legislatorQuery.data;
+  const moneyQuery = useLegislatorCampaignMoney(legislatorId, moneyYear, {
+    enabled: activeTab === 'money',
+  });
+
+  const selectTab = (tab: ProfileTab) => {
+    navigation.setParams({ tab: tab === 'overview' ? undefined : tab });
+  };
+  const selectMoneyYear = (year: CampaignMoneyYear) => {
+    navigation.setParams({ tab: 'money', year: String(year) });
+  };
   // A person's name cannot be guessed from the address, so the tab keeps what
   // the server sent until the profile loads (#1325).
   useDocumentTitle(
@@ -115,11 +134,6 @@ export function LegislatorProfileWebScreen() {
   // full chief-author list on the Revisor (the official source).
   const billsQuery = useLegislatorBills(legislatorId, { role: 'chief_author', limit: 2 });
   const votesQuery = useLegislatorVotes(legislatorId, 1);
-  // This year and last: the current election cycle, derived so it cannot go stale.
-  const outsideSpendingQuery = useLegislatorOutsideSpending(
-    legislatorId,
-    outsideSpendingYears(new Date()),
-  );
   const sessionsQuery = useSessions();
   const currentSession =
     sessionsQuery.data?.find((session) => session.isCurrent) ?? sessionsQuery.data?.[0];
@@ -236,10 +250,32 @@ export function LegislatorProfileWebScreen() {
   // peel it off so it gets its own labeled row (never inlined into the address).
   const office = legislator.officeAddress ? splitOfficeAddress(legislator.officeAddress) : null;
 
-  const body = (
+  const overview = (
     <View style={[styles.grid, isDesktop && styles.gridDesktop]}>
       {/* LEFT COLUMN — the record */}
       <View style={styles.leftColumn}>
+        {/* A pointer to the money, with no figure on it. A number here would drag a
+            second freshness date onto this tab, which is the problem the tab split
+            solved (#1329). */}
+        <View style={styles.card}>
+          <Text accessibilityRole="header" aria-level={2} style={[styles.h2, styles.h2Spaced]}>
+            Campaign money
+          </Text>
+          <Text style={styles.emptyNote}>
+            What this member’s campaign raised and spent, and who is named as giving it, comes from
+            the Minnesota Campaign Finance Board rather than the Legislature.{' '}
+            <Text
+              style={styles.moneyTabLink}
+              {...linkProps(routePath.legislator(legislatorId, { tab: 'money' }), () =>
+                selectTab('money'),
+              )}
+            >
+              Open the Campaign money tab
+            </Text>
+            .
+          </Text>
+        </View>
+
         {bioText ? (
           <View style={styles.card}>
             <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
@@ -302,13 +338,6 @@ export function LegislatorProfileWebScreen() {
             )}
           </View>
         </View>
-
-        <OutsideSpendingCard
-          years={outsideSpendingQuery.data ?? []}
-          isLoading={outsideSpendingQuery.isLoading}
-          isError={outsideSpendingQuery.isError}
-          onOpenSource={openUrl}
-        />
 
         <RoadmapZone legislatorName={displayName} vote={previewVote} />
       </View>
@@ -375,6 +404,32 @@ export function LegislatorProfileWebScreen() {
 
         <AskCard chips={askChips} onAsk={openAsk} />
       </View>
+    </View>
+  );
+
+  const body = (
+    <View style={styles.tabbed}>
+      <LegislatorProfileTabs
+        legislatorId={legislatorId}
+        active={activeTab}
+        year={String(moneyYear)}
+        onSelect={selectTab}
+      />
+      {activeTab === 'money' ? (
+        <CampaignMoneyTab
+          legislatorName={displayName}
+          year={moneyYear}
+          onSelectYear={selectMoneyYear}
+          money={moneyQuery.data}
+          isLoading={moneyQuery.isLoading}
+          isError={moneyQuery.isError}
+          isDesktop={isDesktop}
+          legislatorId={legislatorId}
+          onOpenSource={openUrl}
+        />
+      ) : (
+        overview
+      )}
     </View>
   );
 
@@ -1060,6 +1115,8 @@ const styles = StyleSheet.create({
     color: t.colors.text.primary,
   },
   h2Spaced: { marginBottom: 20 },
+  tabbed: { gap: 24 },
+  moneyTabLink: { color: t.colors.brand.base, textDecorationLine: 'underline' },
   h3: {
     fontFamily: t.typography.title,
     fontSize: 26,

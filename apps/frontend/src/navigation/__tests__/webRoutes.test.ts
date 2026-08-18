@@ -155,6 +155,35 @@ describe('live URLs still resolve to themselves', () => {
     });
   });
 
+  it('keeps a legislator profile plain when no tab is asked for', () => {
+    expect(targetFromPathname('/legislators/aisha-gomez')).toMatchObject({
+      kind: 'legislator',
+      legislatorId: 'aisha-gomez',
+      tab: undefined,
+      year: undefined,
+    });
+    expect(
+      pathForRoute({ name: 'LegislatorProfile', params: { legislatorId: 'aisha-gomez' } }),
+    ).toBe('/legislators/aisha-gomez');
+  });
+
+  it('carries the campaign money tab and its year through reload or sharing', () => {
+    // A figure someone sends to somebody else has to arrive showing the year they
+    // were looking at (grounded-answers rule 5, #1329).
+    expect(targetFromPathname('/legislators/aisha-gomez?tab=money&year=2025')).toMatchObject({
+      kind: 'legislator',
+      legislatorId: 'aisha-gomez',
+      tab: 'money',
+      year: '2025',
+    });
+    expect(
+      pathForRoute({
+        name: 'LegislatorProfile',
+        params: { legislatorId: 'aisha-gomez', tab: 'money', year: '2025' },
+      }),
+    ).toBe('/legislators/aisha-gomez?tab=money&year=2025');
+  });
+
   it('keeps homepage bill-group filters through reload or sharing', () => {
     expect(targetFromPathname('/bills?status=signed_into_law&sort=action')).toEqual({
       kind: 'bills',

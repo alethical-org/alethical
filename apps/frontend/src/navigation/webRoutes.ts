@@ -12,7 +12,7 @@ type WebNavigationState = {
 type WebRouteTarget =
   | { kind: 'tab'; screen: keyof MainTabParamList }
   | { kind: 'bill'; billId: string; tab?: string; track?: boolean }
-  | { kind: 'legislator'; legislatorId: string }
+  | { kind: 'legislator'; legislatorId: string; tab?: string; year?: string }
   | { kind: 'bills'; params: Record<string, string> }
   | { kind: 'legislators'; params: Record<string, string> }
   | { kind: 'findMyLegislator'; address?: string }
@@ -172,7 +172,15 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
   }
 
   if (segments.length === 2 && segments[0] === 'legislators') {
-    return { kind: 'legislator', legislatorId: decodeURIComponent(segments[1]) };
+    return {
+      kind: 'legislator',
+      legislatorId: decodeURIComponent(segments[1]),
+      // Both are passed through as written and validated by the screen, which is
+      // how the bill page already handles an unknown `tab`. A year outside the
+      // years we hold has to land on a real page saying so, not on a 404.
+      tab: searchParams.get('tab') ?? undefined,
+      year: searchParams.get('year') ?? undefined,
+    };
   }
 
   if (segments.length === 3 && segments[0] === 'chat' && segments[1] === 'sessions') {
@@ -301,8 +309,18 @@ export function pathForRoute(activeRoute: {
       const query = params.toString();
       return query ? `${path}?${query}` : path;
     }
-    case 'LegislatorProfile':
-      return `/legislators/${encodeURIComponent(String(activeRoute.params?.legislatorId ?? ''))}`;
+    case 'LegislatorProfile': {
+      const path = `/legislators/${encodeURIComponent(String(activeRoute.params?.legislatorId ?? ''))}`;
+      const params = new URLSearchParams();
+      if (activeRoute.params?.tab) {
+        params.set('tab', String(activeRoute.params.tab));
+      }
+      if (activeRoute.params?.year) {
+        params.set('year', String(activeRoute.params.year));
+      }
+      const query = params.toString();
+      return query ? `${path}?${query}` : path;
+    }
     case 'FindMyLegislator': {
       const address = activeRoute.params?.address;
       return address
@@ -411,7 +429,11 @@ export function stateFromPathname(pathname: string): WebNavigationState {
           homeTabs,
           {
             name: 'LegislatorProfile',
-            params: { legislatorId: target.legislatorId },
+            params: {
+              legislatorId: target.legislatorId,
+              tab: target.tab,
+              year: target.year,
+            },
           },
         ],
         index: 1,

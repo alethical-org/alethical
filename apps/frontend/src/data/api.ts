@@ -30,6 +30,7 @@ import {
   Citation,
   LegislativeSession,
   Legislator,
+  LegislatorCampaignMoney,
   LegislatorVote,
   RepresentativeAddressChoice,
   RepresentativeLookupInput,
@@ -520,6 +521,48 @@ interface ApiBillVotePayload {
   occurred_at?: string | null;
   official_url?: string | null;
   records?: ApiBillVoteRecordPayload[] | null;
+}
+
+interface ApiLegislatorCampaignMoneyPayload {
+  legislator_id: string;
+  year: number;
+  link_state: LegislatorCampaignMoney['linkState'];
+  other_office_committees?: number;
+  release_id: string;
+  fetched_at?: string | null;
+  committees: {
+    registration_number: string;
+    committee_name_as_reviewed: string;
+    committee_name?: string | null;
+    office?: string | null;
+    money_in?: {
+      state: NonNullable<LegislatorCampaignMoney['committees'][number]['moneyIn']>['state'];
+      itemized_contribution_total?: string | null;
+      itemized_contribution_payments?: number | null;
+      other_receipts?: { receipt_type: string; total: string; payments: number }[];
+      source_url?: string | null;
+    } | null;
+    money_out?: {
+      state: NonNullable<LegislatorCampaignMoney['committees'][number]['moneyOut']>['state'];
+      itemized_payment_total?: string | null;
+      itemized_payments?: number | null;
+      by_type?: { type: string; total: string; payments: number }[];
+      source_url?: string | null;
+    } | null;
+    split: {
+      state: LegislatorCampaignMoney['committees'][number]['split']['state'];
+      reported_total?: string | null;
+      reported_through?: string | null;
+      named_total?: string | null;
+      named_payments?: number | null;
+      named_cash_total?: string | null;
+      named_in_kind_total?: string | null;
+      unnamed_total?: string | null;
+      stated_split_state?: string;
+      first_payment_on?: string | null;
+      last_payment_on?: string | null;
+    };
+  }[];
 }
 
 interface ApiLegislatorVotePayload {
@@ -2192,6 +2235,80 @@ export async function getLegislatorBillsFromApi(
       hasMore: response.page?.has_more ?? false,
       total: response.page?.total ?? null,
     },
+  };
+}
+
+/**
+ * One legislator's own campaign money for one year, per confirmed committee.
+ *
+ * Money others spent about them is a separate record with its own endpoint, and the
+ * two are never added: a committee's own receipts and a third party's spending are
+ * different things (`docs/architecture/campaign-finance-system-design.md` §3).
+ *
+ * Amounts are passed through as the strings the API sends. Turning them into
+ * JavaScript numbers here would round cents on a figure in the millions, and every
+ * number on this page has to survive being checked against Minnesota's own filing.
+ */
+export async function getLegislatorCampaignMoneyFromApi(
+  legislatorId: string,
+  year: number,
+): Promise<LegislatorCampaignMoney> {
+  const params = new URLSearchParams({ year: String(year) });
+  const response = await publicApiRequest<DetailResponse<ApiLegislatorCampaignMoneyPayload>>(
+    `/legislators/${encodeURIComponent(legislatorId)}/campaign-finance?${params.toString()}`,
+  );
+  const payload = response.data;
+  return {
+    legislatorId: payload.legislator_id,
+    year: payload.year,
+    linkState: payload.link_state,
+    fetchedAt: payload.fetched_at ?? null,
+    otherOfficeCommittees: payload.other_office_committees ?? 0,
+    committees: payload.committees.map((committee) => ({
+      registrationNumber: committee.registration_number,
+      committeeNameAsReviewed: committee.committee_name_as_reviewed,
+      committeeName: committee.committee_name ?? null,
+      office: committee.office ?? null,
+      moneyIn: committee.money_in
+        ? {
+            state: committee.money_in.state,
+            itemizedContributionTotal: committee.money_in.itemized_contribution_total ?? null,
+            itemizedContributionPayments: committee.money_in.itemized_contribution_payments ?? null,
+            otherReceipts: (committee.money_in.other_receipts ?? []).map((receipt) => ({
+              receiptType: receipt.receipt_type,
+              total: receipt.total,
+              payments: receipt.payments,
+            })),
+            sourceUrl: committee.money_in.source_url ?? null,
+          }
+        : null,
+      moneyOut: committee.money_out
+        ? {
+            state: committee.money_out.state,
+            itemizedPaymentTotal: committee.money_out.itemized_payment_total ?? null,
+            itemizedPayments: committee.money_out.itemized_payments ?? null,
+            byType: (committee.money_out.by_type ?? []).map((entry) => ({
+              type: entry.type,
+              total: entry.total,
+              payments: entry.payments,
+            })),
+            sourceUrl: committee.money_out.source_url ?? null,
+          }
+        : null,
+      split: {
+        state: committee.split.state,
+        reportedTotal: committee.split.reported_total ?? null,
+        reportedThrough: committee.split.reported_through ?? null,
+        namedTotal: committee.split.named_total ?? null,
+        namedPayments: committee.split.named_payments ?? null,
+        namedCashTotal: committee.split.named_cash_total ?? null,
+        namedInKindTotal: committee.split.named_in_kind_total ?? null,
+        unnamedTotal: committee.split.unnamed_total ?? null,
+        statedSplitState: committee.split.stated_split_state ?? 'not_checked',
+        firstPaymentOn: committee.split.first_payment_on ?? null,
+        lastPaymentOn: committee.split.last_payment_on ?? null,
+      },
+    })),
   };
 }
 

@@ -94,7 +94,8 @@ spent supporting them, spent opposing them, and spent where the filing does not 
 confirmed which campaign committee belongs to which person, so no figure can be attributed to
 anyone until the review in number 2 lands. The third figure appears only when there is money in
 it, which today there never is. Full explanation:
-[Spending by Outside Groups](outside-spending-guide.md).
+the *Spending by outside groups* section of
+[How the Campaign money tab works](legislator-campaign-money-guide.md).
 
 ---
 

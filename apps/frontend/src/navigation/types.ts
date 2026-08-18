@@ -41,7 +41,12 @@ export type RootStackParamList = {
     // return to their exact source page and no longer create this parameter.
     track?: boolean;
   };
-  LegislatorProfile: { legislatorId: string };
+  // `tab` is absent for the profile a reader lands on and only ever carries
+  // 'money', so the ordinary URL stays /legislators/<slug> with no query string.
+  // `year` rides in the URL for the same reason the tab does: a figure someone
+  // sends to somebody else has to arrive showing the year they were looking at
+  // (grounded-answers.md rule 5, "Anything linked to must be URL-addressable").
+  LegislatorProfile: { legislatorId: string; tab?: 'money'; year?: string };
   // The address to look up rides in the route (and the URL query) so the home
   // page's Find field can hand off what the visitor typed, and so the results
   // are reload-safe / shareable (grounded-answers.md rule 5). Absent = the
