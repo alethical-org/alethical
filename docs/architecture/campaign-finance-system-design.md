@@ -63,6 +63,69 @@ Supabase Storage; another merged a display rule that a third had already measure
   your measurement still contradicts what the file now says, and send it to them as a comment on
   your issue. Do not resolve the conflict in your own favour — that is the collision this section
   exists to prevent, arriving through the handover instead of around it.
+  - **That guard fired the same day it was written, and worked.** 18 Aug 2026: 2 sessions claimed
+    the pen within 18 minutes, [PR #1643](https://github.com/alethical-org/alethical/pull/1643) and
+    [PR #1644](https://github.com/alethical-org/alethical/pull/1644). #1643 merged first, #1644 hit
+    the conflict, took #1643's claim, and landed its own 3 findings with the ownership bullet
+    **byte-for-byte identical** to `main`'s. Nobody arbitrated. Recorded because a rule nobody has
+    watched work is the kind that gets quietly dropped.
+  - **The re-check half is not bookkeeping either, and it is the half that saves the document.**
+    The same day, [PR #1649](https://github.com/alethical-org/alethical/pull/1649) hit the conflict
+    and followed this clause literally. Re-checking its measurements against what the file now said,
+    it found **3 of its 4 findings already in `main`**, and — the part worth the paragraph — **2 of
+    its own numbers were the worse ones**: it had a filer's donors in "45 states" where `main`
+    correctly had **34 states and territories**, and "the same 11 payroll donors" where `main`
+    correctly had **9 of the 11**. Resolving that conflict in its own favour would have **overwritten
+    2 corrections with 2 errors**, silently, in a document later sessions treat as settled. It landed
+    at a third of its original size instead. So the instruction to take the other session's claim is
+    not politeness about who gets credit; it is what stops a merge from moving the document
+    backwards.
+- **Ask about the file, not about the sessions. Before you write anything, check whether a pull
+  request is already changing it.** The guard above catches a simultaneous claim, but only at merge
+  time, by which point the loser has already written an edit it must throw away. Two commands, 10
+  seconds:
+
+  ```bash
+  gh pr list --search "campaign-finance-system-design.md" --state open
+  gh pr list --state open --json number,headRefName,files \
+    --jq '.[]|select(.files[].path=="docs/architecture/campaign-finance-system-design.md")|.number'
+  ```
+
+  The first is a **text search and over-reports** — it matches any pull request that merely mentions
+  the filename. The second is exact, on files actually changed. Run the cheap one, and confirm a hit
+  with the second. Over-reporting is the safe direction here: a false hit costs you one `gh pr view`.
+
+  **If a pull request is changing this file, treat that as the pen being held** — the same answer
+  this section already gives for a live owner: send your wording as a comment on that pull request
+  rather than opening a second one. **A merged claim is the owner; an open one is an owner
+  mid-sentence**, and no task list can see the difference.
+
+  **Why it is the file and not the sessions**, measured 18 Aug 2026, when **5 pull requests changed
+  this file inside 1 hour** and a 6th had been sitting open for a week:
+
+  - **2 were a genuine simultaneous claim**, [#1643](https://github.com/alethical-org/alethical/pull/1643)
+    and [#1644](https://github.com/alethical-org/alethical/pull/1644), and git caught them. See the
+    sub-bullet above.
+  - **1 arrived 1 minute 53 seconds too late to know.**
+    [PR #1649](https://github.com/alethical-org/alethical/pull/1649) opened right after #1643 merged
+    and claimed the pen from an owner that merge had just replaced. Its branch predated the merge by
+    minutes and nothing it could read said so. Not a session ignoring the rule: a session following
+    it exactly.
+  - **1 never spoke to anybody, and this is the case that decides the shape of the check.**
+    [PR #1652](https://github.com/alethical-org/alethical/pull/1652) was written by a session that
+    read a measurement published in an issue comment and wrote it up — precisely what the bullet
+    below asks other sessions to do. Two sessions then held the same finding, one in a comment and
+    one in a pull request, having never met. **No amount of session-to-session messaging finds that.**
+    Asking "who has claimed the pen" gets the wrong answer; asking "what is changing this file" gets
+    the right one.
+  - **1 was a week-old draft** ([#1335](https://github.com/alethical-org/alethical/pull/1335)) that
+    nobody in that hour's traffic mentioned, because nobody was looking at the file.
+
+  The check earned itself 3 times in the 15 minutes after it was written: it found 2 open pull
+  requests nobody had mentioned, it caught a misattribution of #1652 to the wrong session, and it
+  caught an instruction to rescope #1649 onto wording #1652 had already taken — which would have
+  produced the exact duplicate that instruction was meant to prevent. None of the 3 was found by
+  sessions talking to each other ([#1651](https://github.com/alethical-org/alethical/issues/1651)).
 - **Why one editor still, with this much concurrency.** 41 worktrees in this repo carried a commit
   within the last few hours when this was checked (13 Aug 2026), against the 3 sessions whose
   collision produced the rule. The case for it is stronger than when it was written, which is why
