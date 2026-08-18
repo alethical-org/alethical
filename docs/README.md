@@ -65,7 +65,7 @@ things work in practice and are the place to start if you're new.
 - [Ingestion layer 2 — RAG ingestion](architecture/layer-2-rag-ingestion-system-design.md) — canonical records → retrieval chunks: cleaning, chunking, and the retrieval index
 - [Canonical legislator membership spec](architecture/legislator-roster-canonical-membership-spec.md) — reconciling the roster PDF into current-member state
 - [Campaign finance system design](architecture/campaign-finance-system-design.md) — Minnesota campaign-finance sources, whole-set snapshot ingestion, amendments, identity, and the display rules
-- [Research](research/) — retrieval-strategy and persona findings, plus what the retired Base44 campaign-finance build got wrong and why the replacement is designed differently
+- [Research](research/) — retrieval-strategy and persona findings, what the retired Base44 campaign-finance build got wrong and why the replacement is designed differently, and a plain-language reference to every entity in Minnesota campaign-finance and lobbying data ([minnesota-campaign-finance-entities.md](research/minnesota-campaign-finance-entities.md))
 
 ## Operations
 
