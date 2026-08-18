@@ -438,6 +438,20 @@ Cloudflare is already ours (`alethical.com`'s DNS, with a scoped token in the gi
 `.env`), R2 includes 10 GB free then $0.015 per GB, and egress is free so a restore costs
 nothing. Both stores speak S3, so the mirror is one copy step rather than a second integration.
 
+**Which tables hold a stored body is read out of the schema, never listed in the job**
+([#1501](https://github.com/alethical-org/alethical/issues/1501)). The job was written for
+`cf_snapshot_body` and named it directly, and within a week 2 more tables held bodies:
+`cf_filing_snapshot`'s totals archives (§9.3) had been passed over by the bucket walk with **0 of 2
+rows recording it**, and §9.4's report documents were not being kept at all. Neither is a
+mistake anybody made twice — both are what happens when covering a new kind of body depends on
+somebody remembering the mirror exists.
+
+So the work list is every mapped table carrying all 3 of `object_key`, `compressed_hash` and
+`mirrored_at`. **That is the whole contract for a fourth kind of stored body**: name those 3
+columns the same way and the daily job protects it from the day it ships. A table that gains an
+`object_key` without the other two fails `alethical/tests/test_raw_file_mirror.py` by name,
+because a body the job cannot see is the failure that reads as success.
+
 **What is lost if both copies are lost, stated plainly.** Every parsed row and every file hash
 live in Postgres and are covered by database backups, so no displayed figure disappears. What
 disappears is the ability to show the source bytes behind a figure and to diagnose a
@@ -456,6 +470,15 @@ replace rather than merge](https://github.com/alethical-org/alethical/issues/132
 summing the 3 row tables' live sets in production). An earlier 51 MB in this sentence counted one
 dataset rather than the set. Pruning successful bodies to save space would give up exactly
 the record this section exists to hold.
+
+**Three kinds of body, one store, one retention rule.** The 3 bulk downloads
+(`campaign-finance/<dataset>/<sha256>.csv.gz`), one archive per totals run
+(`campaign-finance/filings/<sha256>.jsonl.gz`, §9.3) and one object per report document
+(`campaign-finance/report-document/<sha256>.pdf.gz`, §9.4). All 3 are content-addressed, gzipped
+with `mtime=0` and `filename=""`, read back and hashed before the row that names them exists,
+kept indefinitely, and never deleted from either store. Measured 18 August 2026, after the #1501
+backfill: 3 download bodies (29 MB stored), 2 totals archives (19 MB stored), and 3,643 report
+documents (386 MB stored; 411 MB as originally read — PDFs barely compress).
 
 "Every body" means one per distinct set of records, not one per download. Because the export
 shuffles (§2.1), keeping every download would store the same data repeatedly in a different order;
@@ -1183,9 +1206,12 @@ labelled rows, about 4,325 characters. `No information found for Financial` come
 which is the one piece of good news here: 151 characters reading `Data not available` for each year,
 returned identically for id `99999` and for id `0`, and clearly distinguishable from a real answer.
 
-**Keep the raw response bytes for every accepted release**, in the store §4.5 defines. If the
-Board's HTML changes later, a published figure cannot otherwise be traced to the response that
-produced it.
+**Keep the raw response bytes for every accepted release**, in the store §4.5 defines, and
+covered by the second copy there like everything else in that store. If the Board's HTML changes
+later, a published figure cannot otherwise be traced to the response that produced it. The
+second copy was **not** happening for the first week these archives existed — the mirror named
+one table and this was not it, so `cf_filing_snapshot.mirrored_at` read 0 of 2 while the bytes
+sat in a single bucket that no database backup covers (#1501).
 
 **When the checks fail, keep publishing the last accepted totals with their existing freshness
 date and withhold the new ones.** There is no second bulk source to fall back to: the report
@@ -1322,6 +1348,46 @@ wholesale pre-election failures §9.4 records for candidates.
 **The amendment marker cannot be backfilled before 2023.** Superseded report documents are served
 for 2023 onward only, so an older figure carries no "previously reported as" marker. Its absence in
 an older year means the document is unavailable, never that the report was never amended.
+
+**Every document read is kept, and this is a correctness requirement rather than a courtesy**
+(#1501). The check recorded each document's sha256 and byte size and let the bytes go, which
+left the evidence behind a $4,098,534 disagreement across 14 committee-years as the hash of a
+file nobody held. This route is unreliable in exactly the way that makes keeping urgent: 27 of a
+random 110-report sample returned a document and 83 returned an HTML page carrying HTTP 200, and
+almost nothing before 2023 is served at all. So the copy taken at the moment of reading is the
+only copy there will be.
+
+- Stored in §4.5's store as `campaign-finance/report-document/<sha256>.pdf.gz`, recorded in
+  `cf_report_document`, keyed on the **document's own sha256** — which is what
+  `cf_stated_split.document_hash` already records, so a verdict resolves to its body by equality
+  with no foreign key. A re-run of an unchanged document writes nothing; an amendment that
+  changes the bytes is a new object rather than an overwrite of the one an earlier figure was
+  published from.
+- **Stored before the document is parsed, and whatever the parse finds.** A document our reader
+  cannot read is the one most worth keeping, because it is the evidence for fixing the reader and
+  the Board will not serve it again on request. A store wired in after the parse would keep
+  exactly the documents nobody needs to re-examine.
+- **The 4 provenance columns are duplicated from `cf_stated_split` rather than joined.** A
+  verdict is keyed on the contributions snapshot and dies with it when a new download replaces
+  those rows; a body is kept indefinitely, so it has to be able to say which filing it is on its
+  own.
+- **A document that cannot be stored is counted, and its verdict is still written.** The verdict
+  came from bytes we genuinely received and it records their hash, so refusing it would throw
+  away a real finding about real money over a storage fault. The run exits non-zero, which is how
+  somebody learns the bytes were lost.
+
+**What the backfill measured, which is the evidence this was needed.** By the time the backfill
+ran on 18 August 2026, the unkept population had grown from the 1,277 documents #1501 measured on
+13 August to 3,643, because the check kept running and wrote 2,366 more document-naming verdicts
+in between — five more days of reading documents and keeping none. Of those 3,643, the Board
+still served every one — **3,642 with the same bytes the check had read, and 1 with different
+bytes**, an amendment filed in the days between, which means the bytes that verdict was written
+against are permanently gone. Zero refusals is far better than this section's 27-of-110 sample
+predicted, and the difference is age: every verdict-naming document had been served within the
+previous week, while the sample drew on a catalogue going back years. The window for a free
+re-fetch is real but short, and the 1 amended document is the measurement in miniature: the only
+document not re-fetchable a few days later is the only one whose original bytes were not kept at
+read time.
 
 ### 9.5 The non-itemized figure, and where the route is not enough
 
