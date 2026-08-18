@@ -63,6 +63,79 @@ Supabase Storage; another merged a display rule that a third had already measure
   your measurement still contradicts what the file now says, and send it to them as a comment on
   your issue. Do not resolve the conflict in your own favour — that is the collision this section
   exists to prevent, arriving through the handover instead of around it.
+  - **That guard fired the same day it was written, and worked.** 18 Aug 2026: 2 sessions claimed
+    the pen within 18 minutes, [PR #1643](https://github.com/alethical-org/alethical/pull/1643) and
+    [PR #1644](https://github.com/alethical-org/alethical/pull/1644). #1643 merged first, #1644 hit
+    the conflict, took #1643's claim, and landed its own 3 findings with the ownership bullet
+    **byte-for-byte identical** to `main`'s. Nobody arbitrated. Recorded because a rule nobody has
+    watched work is the kind that gets quietly dropped.
+  - **The re-check half is not bookkeeping either, and it is the half that saves the document.**
+    The same day, [PR #1649](https://github.com/alethical-org/alethical/pull/1649) hit the conflict
+    and followed this clause literally. Re-checking its measurements against what the file now said,
+    it found **3 of its 4 findings already in `main`**, and — the part worth the paragraph — **2 of
+    its own numbers were the worse ones**: it had a filer's donors in "45 states" where `main`
+    correctly had **34 states and territories**, and "the same 11 payroll donors" where `main`
+    correctly had **9 of the 11**. Resolving that conflict in its own favour would have **overwritten
+    2 corrections with 2 errors**, silently, in a document later sessions treat as settled. It landed
+    at a third of its original size instead. So the instruction to take the other session's claim is
+    not politeness about who gets credit; it is what stops a merge from moving the document
+    backwards.
+- **Ask about the file, not about the sessions. Before you write anything, check whether a pull
+  request is already changing it.** The guard above catches a simultaneous claim, but only at merge
+  time, by which point the loser has already written an edit it must throw away. Two commands, 10
+  seconds:
+
+  ```bash
+  gh pr list --search "campaign-finance-system-design.md" --state open
+  gh pr list --state open --json number,headRefName,files \
+    --jq '.[]|select(.files[].path=="docs/architecture/campaign-finance-system-design.md")|.number'
+  ```
+
+  The first is a **text search and over-reports** — it matches any pull request that merely mentions
+  the filename. The second is exact, on files actually changed. Run the cheap one, and confirm a hit
+  with the second. Over-reporting is the safe direction here: a false hit costs you one `gh pr view`.
+
+  **If a pull request is changing this file, treat that as the pen being held** — the same answer
+  this section already gives for a live owner: send your wording as a comment on that pull request
+  rather than opening a second one. **A merged claim is the owner; an open one is an owner
+  mid-sentence**, and no task list can see the difference.
+
+  **Why it is the file and not the sessions**, measured 18 Aug 2026, when **5 pull requests changed
+  this file inside 1 hour** and a 6th had been sitting open for a week:
+
+  - **2 were a genuine simultaneous claim**, [#1643](https://github.com/alethical-org/alethical/pull/1643)
+    and [#1644](https://github.com/alethical-org/alethical/pull/1644), and git caught them. See the
+    sub-bullet above.
+  - **1 arrived 1 minute 53 seconds too late to know.**
+    [PR #1649](https://github.com/alethical-org/alethical/pull/1649) opened right after #1643 merged
+    and claimed the pen from an owner that merge had just replaced. Its branch predated the merge by
+    minutes and nothing it could read said so. Not a session ignoring the rule: a session following
+    it exactly.
+  - **1 could not have been caught by this check at all, which is why it is a backstop and not
+    the first line of defence.** [PR #1649](https://github.com/alethical-org/alethical/pull/1649)
+    began from a measurement published in an issue comment, before #1644 existed, so no scan for
+    open pull requests against this file would have found it at the time it started. **The check
+    that would have prevented it is noticing 2 sessions working the same issue**: run
+    `gh issue view <n> --comments` and look at who is already measuring what, before you write up
+    a finding you read there. This bullet's scan catches the collision; the issue check prevents
+    the duplicated work.
+
+    **And contact is not the missing piece, which is the part worth knowing.** That session did
+    message the session named in the issue's own title before writing anything, and the duplicated
+    work happened anyway, because the wording it had read was landed by a **third** session while
+    both were still holding it. So "message the other session" is necessary and not sufficient: a
+    finding published in a comment can be picked up by anyone, and only the file itself records who
+    is actually changing it. A previous version of this bullet asserted that a session had written
+    up a comment's measurement without speaking to anyone; that was relayed second-hand, its
+    evidence collapsed on re-checking, and it is replaced rather than quietly dropped.
+  - **1 was a week-old draft** ([#1335](https://github.com/alethical-org/alethical/pull/1335)) that
+    nobody in that hour's traffic mentioned, because nobody was looking at the file.
+
+  The check earned itself 3 times in the 15 minutes after it was written: it found 2 open pull
+  requests nobody had mentioned, it caught a misattribution of #1652 to the wrong session, and it
+  caught an instruction to rescope #1649 onto wording #1652 had already taken — which would have
+  produced the exact duplicate that instruction was meant to prevent. None of the 3 was found by
+  sessions talking to each other ([#1651](https://github.com/alethical-org/alethical/issues/1651)).
 - **Why one editor still, with this much concurrency.** 41 worktrees in this repo carried a commit
   within the last few hours when this was checked (13 Aug 2026), against the 3 sessions whose
   collision produced the rule. The case for it is stronger than when it was written, which is why
@@ -313,6 +386,30 @@ A caption covering the whole record says *candidates*, because ballot-question c
 sit at $500. This is written down because the wrong version was drafted for a real screen
 (Aug 2026) by someone reading the paragraph above, which stated the aggregate rule correctly
 but never gave the period or the wording to use.
+
+**On a report that covers part of a year, the threshold is reached as of that report's cut-off date,
+so the report and the bulk file name different sets of donors.** A donor whose giving passes $200
+only in October is not itemized on a report closing on 31 March, and that same donor's March payments
+*are* in the bulk file, because the file carries the whole year's itemization decision. So bounding
+our rows to the filing's period — which §9.4's check does — is necessary and **not sufficient**: the
+two figures still count different populations, and the difference is a definitional artefact rather
+than either publication being wrong. Measured on the live release 18 Aug 2026
+([#1496](https://github.com/alethical-org/alethical/issues/1496)): of the 76 committee-years whose
+figures disagree, **37 are mid-year reports where we hold more than the filing itemizes, $172,186.96
+in total**, and excluding donors whose in-period giving is $200 or less closes **$158,606.52 of that,
+92.1%**, reproducing the filing exactly to the cent on **20 of the 37**. Filer 19218's 2026
+pre-primary is the clean case: $8,787.00 apart, of which $6,587.00 sits with 59 donors under the
+threshold at 31 March, among them one at $194.00 whose year total is $304.00.
+
+**It cannot be turned into a rule we apply, because whether a committee names a sub-threshold donor
+anyway is the committee's own choice.** The statute sets a floor on who *must* be named and permits
+naming more. Filer 18135's 2026 pre-general itemizes 215 donors at or under $200 in the period,
+$10,136.05 of them, and reconciles to the cent **without** the exclusion; filer 18336's 2026
+pre-primary over-corrects by $9,713.50 **with** it. Against the 1,186 mid-year committee-years that
+currently reconcile, the exclusion is a no-op on 1,185 — every donor is already over the threshold —
+so the ambiguity is narrow and real rather than widespread. The consequence for §7 is that a mid-year
+"we hold more" difference must not be published as Minnesota's two publications disagreeing, which is
+[#1647](https://github.com/alethical-org/alethical/issues/1647).
 
 **The unnamed money is a single line on the filing, and the Board says so in its own words.**
 Its candidate handbook: "Contributions from donors who have given $200 or less, in total,
@@ -1645,8 +1742,24 @@ Recorded as not run, never as passed:
   worth **$21,940.32**, present in no version of its filing. Both unexplained gaps need the Board
   itself and sit with Eugene. Those two samples establish that the comparison works and the documents
   are there; they do **not** establish a failure rate for either kind, and HRCC is one hit rather than
-  a measured rate. The check has not run for any year before 2025, nor for any filer outside those
-  samples; the expenditure side has run for those 4 filers only and for no others.
+  a measured rate. ~~The check has not run for any year before 2025, nor for any filer outside those
+  samples~~ — **it has since run across every committee-year of 2024, 2025 and 2026**, which is the
+  bullet below; the expenditure side has run for those 4 filers only and for no others
+  ([#1650](https://github.com/alethical-org/alethical/issues/1650)). **And the 4th filer's gap is no
+  longer particular to one committee**: filer 18488's missing 2 years are 1 of 5 instances of the
+  whole-filer-year skip §2.1 measures. What no session can establish is **why** the Board's export
+  behaves any of these ways, and Eugene ruled on 12 Aug 2026 that we show both figures and say they
+  disagree rather than chase it.
+- ~~**The stated-split comparison has run for 2025 only.**~~ **Run for 2024, 2025 and 2026 since**,
+  and the count it produces is 5 times the one this document and 2 code comments carried
+  ([#1496](https://github.com/alethical-org/alethical/issues/1496), 18 Aug 2026). Against the live
+  release: **3,485 committee-years agree, 76 disagree, 325 are not checked because the Board serves
+  no document, and 82 read `reader_unproven`**, where a document was served and our own reader could
+  not prove itself against figures we already trust. The 76 run in both directions — 33 where the
+  filing names more than we hold and 43 where we hold more — and **37 of the 43 are the part-year
+  artefact §2.3 measures rather than a disagreement at all**
+  ([#1647](https://github.com/alethical-org/alethical/issues/1647)). Still not established: any year
+  before 2024, and the 82 `reader_unproven` committee-years one by one.
 - **The closed-committee count** (§7's fifth state) is 1 sitting member of the **162** resolvable by
   district plus surname, with 0 having closed one committee and opened another, read off one nightly
   directory snapshot. The 38 unresolved are that match failing, never members shown to hold no
