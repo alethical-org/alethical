@@ -51,8 +51,9 @@ through 1 guessed format.
 ## Public money records
 
 When available, a profile can show source-backed campaign and outside-spending records.
-The meaning and safe empty states for outside spending live in
-[`outside-spending-guide.md`](outside-spending-guide.md). Money figures never come from a
+Both live on the profile's **Campaign money** tab, and their meaning and safe empty states
+are in [`legislator-campaign-money-guide.md`](legislator-campaign-money-guide.md) (outside
+spending is its "Spending by outside groups" section). Money figures never come from a
 design sample.
 
 ## Share and planned features
