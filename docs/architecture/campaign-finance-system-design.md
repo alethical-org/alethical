@@ -174,7 +174,49 @@ For contributions specifically: Measured on 3 filers on 11 Aug
 filing exactly for HRCC (20010; 743 rows, $1,488,168.08) and for filer 19043 (35 rows, $14,250.00),
 and match it but for one extra row for filer 17709. It surfaces rarely because most amendments leave
 contributions alone: 85 of 202 sitting-legislator 2025 year-ends are amended and 82 still reconcile
-against the latest version. Whether the export ever incorporates an amendment is not established.
+against the latest version.
+
+**And the export handles the two versions inconsistently rather than lagging in one direction:
+sometimes it keeps only the superseded set, sometimes it keeps both and adds them together.** Filer
+19202's 2025 year-end itemizes $15,970.00 as originally filed and $16,428.84 as amended; we hold
+$32,398.84, which is the sum. The rows are what prove it: the report names 21 donors giving once
+each, and the download holds 45 rows in which 20 of them appear twice at the same date and amount,
+while the 21st — the $458.84 the amendment added — appears once. In the same snapshot filer 30654's
+2024 year-end shows the opposite, our $369,540.80 matching the original exactly against an effective
+$269,421.32. **Because the file carries no record identifier, a doubled contribution is
+indistinguishable from two real ones**, so this can only be caught by comparing against the filing,
+never by inspecting the rows. Exact duplicate rows alone prove nothing: the file holds 6,751
+duplicate groups worth $3,254,977.07, and filer 41297 has 1,848 of them in 2025 while reconciling to
+the cent.
+
+**For some funds the download carries only the donors with a Minnesota address, and the filed report
+names every donor.** Measured on 5 committee-years, where our rows equal the report's
+Minnesota-address subset to the cent and the shortfall equals its out-of-state subset to the cent:
+filer 41170's 2025 report itemizes $1,608,868.72 across 1,256 donors in 45 states, of whom 32 carry
+a Minnesota address totalling $41,700.00, which is exactly the 152 rows we hold; the same filer's
+2024 ($48,725.00 against $1,685,424.56), filer 41349's 2025 and 2024 ($24,705.00 against
+$807,330.51; $19,765.00 against $720,836.37) and filer 41122's 2025 ($19,005.00 against
+$1,154,418.63) behave identically. **This is not how the file behaves generally**, so it can never be
+assumed or corrected for: 117,959 of its 583,152 rows carry a non-Minnesota zip, and filers 41297,
+41262 and 40877 each reconcile to the cent with their out-of-state donors present ($160,666.92,
+$120,320.00 and $11,341.54 of them). **It is decided per filer-year and it changes**: filer 41122's
+2023 report itemizes $421,015.00, all of it from donors outside Minnesota, and the download holds
+every dollar; from 2024 its out-of-state rows stop. It is not the filing software either, since
+41122 and 41297 both file on NGP 8. What decides it is not observable from anything the Board
+publishes.
+
+**The download skips a filer's entire year, including years inside the span it otherwise covers for
+that filer.** Filer 40825 has rows every year from 2015 to 2024 and in 2026 — the same 11 payroll
+donors throughout — and none for 2025, against a report naming $9,963.50; filer 20471 has the same
+shape, and its one 2025 donor's name appears nowhere in the 583,152 rows; filer 19244 has 2026 only,
+against a 2025 report naming $533,295.01, and that candidate's own $20,000 to her committee is in
+the file under no recipient; filer 30331 has 2015, 2016 and 2022 only, against reports naming money
+in 2024, 2025 and 2026. Filer 18488's absence across 2024 and 2025, which earlier work treated as a
+case of its own, is this same shape. **A count of how often this happens cannot be read off the
+file**, because a committee may genuinely receive nothing nameable in a year: 1,003 filer-years
+across 463 committees sit inside a filer's own covered span with no rows, and only a comparison
+against that year's filed report distinguishes the gaps from the quiet years. That comparison is
+§9.4's check.
 
 **That 1.2% is not evenly spread, and it is heaviest exactly where it matters most.** Share of
 2025 rows that are not `Contribution`: candidate committees **0.36%**, committees and funds
