@@ -314,6 +314,30 @@ sit at $500. This is written down because the wrong version was drafted for a re
 (Aug 2026) by someone reading the paragraph above, which stated the aggregate rule correctly
 but never gave the period or the wording to use.
 
+**On a report that covers part of a year, the threshold is reached as of that report's cut-off date,
+so the report and the bulk file name different sets of donors.** A donor whose giving passes $200
+only in October is not itemized on a report closing on 31 March, and that same donor's March payments
+*are* in the bulk file, because the file carries the whole year's itemization decision. So bounding
+our rows to the filing's period — which §9.4's check does — is necessary and **not sufficient**: the
+two figures still count different populations, and the difference is a definitional artefact rather
+than either publication being wrong. Measured on the live release 18 Aug 2026
+([#1496](https://github.com/alethical-org/alethical/issues/1496)): of the 76 committee-years whose
+figures disagree, **37 are mid-year reports where we hold more than the filing itemizes, $172,186.96
+in total**, and excluding donors whose in-period giving is $200 or less closes **$158,606.52 of that,
+92.1%**, reproducing the filing exactly to the cent on **20 of the 37**. Filer 19218's 2026
+pre-primary is the clean case: $8,787.00 apart, of which $6,587.00 sits with 59 donors under the
+threshold at 31 March, among them one at $194.00 whose year total is $304.00.
+
+**It cannot be turned into a rule we apply, because whether a committee names a sub-threshold donor
+anyway is the committee's own choice.** The statute sets a floor on who *must* be named and permits
+naming more. Filer 18135's 2026 pre-general itemizes 215 donors at or under $200 in the period,
+$10,136.05 of them, and reconciles to the cent **without** the exclusion; filer 18336's 2026
+pre-primary over-corrects by $9,713.50 **with** it. Against the 1,186 mid-year committee-years that
+currently reconcile, the exclusion is a no-op on 1,185 — every donor is already over the threshold —
+so the ambiguity is narrow and real rather than widespread. The consequence for §7 is that a mid-year
+"we hold more" difference must not be published as Minnesota's two publications disagreeing, which is
+[#1647](https://github.com/alethical-org/alethical/issues/1647).
+
 **The unnamed money is a single line on the filing, and the Board says so in its own words.**
 Its candidate handbook: "Contributions from donors who have given $200 or less, in total,
 should be added together and listed as a lump sum on the committee report to the Board." That
@@ -1645,8 +1669,24 @@ Recorded as not run, never as passed:
   worth **$21,940.32**, present in no version of its filing. Both unexplained gaps need the Board
   itself and sit with Eugene. Those two samples establish that the comparison works and the documents
   are there; they do **not** establish a failure rate for either kind, and HRCC is one hit rather than
-  a measured rate. The check has not run for any year before 2025, nor for any filer outside those
-  samples; the expenditure side has run for those 4 filers only and for no others.
+  a measured rate. ~~The check has not run for any year before 2025, nor for any filer outside those
+  samples~~ — **it has since run across every committee-year of 2024, 2025 and 2026**, which is the
+  bullet below; the expenditure side has run for those 4 filers only and for no others
+  ([#1650](https://github.com/alethical-org/alethical/issues/1650)). **And the 4th filer's gap is no
+  longer particular to one committee**: filer 18488's missing 2 years are 1 of 5 instances of the
+  whole-filer-year skip §2.1 measures. What no session can establish is **why** the Board's export
+  behaves any of these ways, and Eugene ruled on 12 Aug 2026 that we show both figures and say they
+  disagree rather than chase it.
+- ~~**The stated-split comparison has run for 2025 only.**~~ **Run for 2024, 2025 and 2026 since**,
+  and the count it produces is 5 times the one this document and 2 code comments carried
+  ([#1496](https://github.com/alethical-org/alethical/issues/1496), 18 Aug 2026). Against the live
+  release: **3,485 committee-years agree, 76 disagree, 325 are not checked because the Board serves
+  no document, and 82 read `reader_unproven`**, where a document was served and our own reader could
+  not prove itself against figures we already trust. The 76 run in both directions — 33 where the
+  filing names more than we hold and 43 where we hold more — and **37 of the 43 are the part-year
+  artefact §2.3 measures rather than a disagreement at all**
+  ([#1647](https://github.com/alethical-org/alethical/issues/1647)). Still not established: any year
+  before 2024, and the 82 `reader_unproven` committee-years one by one.
 - **The closed-committee count** (§7's fifth state) is 1 sitting member of the **162** resolvable by
   district plus surname, with 0 having closed one committee and opened another, read off one nightly
   directory snapshot. The 38 unresolved are that match failing, never members shown to hold no
