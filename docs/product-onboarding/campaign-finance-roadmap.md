@@ -20,15 +20,26 @@ person can look up their representative and see both in one place.
 
 ## The one rule that shapes everything
 
-**We show what the filings record. We never say what the money meant.**
+**Record pages show what the filings record, and never say what the money meant. Our signed
+reports may name a pattern — only one a reader can recompute from the linked records.**
 
 That a group gave a legislator $5,000 is a fact, and we will show it with a link to the
-filing. That the $5,000 bought a vote is not a fact, and we will never say it, imply it with a
-diagram, or label it with a phrase like "pay to play". A reader can draw their own conclusion.
-We hand them the record, not the verdict.
+filing. That the $5,000 bought a vote is not a fact, and no surface of ours will ever say it,
+imply it with a diagram, or label it with a phrase like "pay to play". A reader can draw their
+own conclusion. We hand them the record, not the verdict.
 
-This is not caution for its own sake. Being trusted is the only thing this product has, and a
-claim we cannot back is the one thing that would end it.
+Between those two sits a third kind of claim: a pattern that really is in the records — for
+example, that two groups of candidates are funded in measurably different ways. Since
+18 Aug 2026 (Eugene's call), that kind of claim is allowed in exactly one place: a signed,
+dated research report on the money section's reports shelf, where the method is printed beside
+the words, every figure links to the record behind it, and the reader can redo the arithmetic
+and argue with the counting. What a report may do, and everything still banned there — motive
+and causation above all — is
+[`.claude/rules/grounded-answers.md` rule 13](../../.claude/rules/grounded-answers.md).
+
+This is not caution for its own sake. Being trusted is the only thing this product has. A
+record page that editorialized would spend that trust; a report that shows its working earns
+it.
 
 ---
 
@@ -97,6 +108,17 @@ it, which today there never is. Full explanation:
 the *Spending by outside groups* section of
 [How the Campaign money tab works](legislator-campaign-money-guide.md).
 
+### Also in the first wave: our own research reports (added 18 Aug 2026)
+
+Signed, dated reports on the money section's reports shelf: our research on the records we
+hold, what they show when added up, every figure linked back to the record behind it. This is
+the one surface allowed to add records up across members and to name a pattern, under the
+conditions in
+[`.claude/rules/grounded-answers.md` rule 13](../../.claude/rules/grounded-answers.md).
+The first report (funding patterns it names "insider" and "outsider") publishes once every
+figure in it recomputes from a pinned copy of our loaded data; its lobbying figure waits for
+the lobbying records (number 8 below) to be loaded first.
+
 ---
 
 ## Second priority
@@ -159,6 +181,13 @@ is no date. Every page says what it holds and stops there.
 
 Eugene's call, 12 Aug 2026. It replaces an earlier "deferred" wording on this list, which had
 started to read as a plan.
+
+**One exception, decided 18 Aug 2026: this is a record-page promise.** A signed research report
+(see "Our own research reports" above) may cite records filed with another body, named and
+linked at their source — the first report cites federal filings (FEC). A report's masthead names
+every filing body it used, so a reader always knows which promise applies to the page they are
+on. Record pages keep the rule above unchanged. Conditions:
+[`.claude/rules/grounded-answers.md` rule 13](../../.claude/rules/grounded-answers.md).
 
 ---
 

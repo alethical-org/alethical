@@ -116,6 +116,16 @@ who registered, which bill or issue a filing names, how much, and when. We do no
 proximity into proof. A disclosed relationship is a fact; motive, causation, and corruption
 are separate claims that require their own direct evidence.
 
+**Naming a pattern is uncovering too — in exactly one place.** Some truths in the record are
+visible only added up: no single filing says that two groups of candidates are funded in
+measurably different ways. Restating rows is translation; surfacing that structure is
+uncovering. So our signed research reports — and only they — may add the records up and name
+what the arithmetic shows, under the conditions in the
+[grounded-answer invariants](../.claude/rules/grounded-answers.md) (rule 13): the method
+printed beside the words, every figure recomputable from the linked records, motive and
+causation still out of bounds. The record surfaces stay conclusion-free; a report is where a
+conclusion goes to be checked.
+
 ### 3. The record is theirs, not ours
 
 Frame access as something restored, never as a favor we grant. *Your* representatives,
