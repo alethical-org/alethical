@@ -294,7 +294,9 @@ def describe(db: Session, *, limit: int | None = None) -> BackfillReport:
         f"{report.already_kept:,} already kept."
     )
     if limit is not None and pending > len(todo):
-        print(f"--limit {limit} holds back {pending - len(todo):,} of {pending:,} pending.")
+        print(
+            f"--limit {limit} holds back {pending - len(todo):,} of {pending:,} pending."
+        )
     if report.no_kind:
         print(
             f"{len(report.no_kind)} verdict(s) name no filer kind and cannot be "

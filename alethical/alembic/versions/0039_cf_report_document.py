@@ -15,15 +15,15 @@ upgrade against real Postgres.
 Design: docs/architecture/campaign-finance-system-design.md §4.5 (where the downloaded
 files live, and for how long) and §9.4 (report PDFs are a fallback, not a route).
 
-Revision ID: 0038_cf_report_document
-Revises: 0037_cf_stated_split
+Revision ID: 0039_cf_report_document
+Revises: 0038_site_metric_event
 """
 
 import sqlalchemy as sa
 from alembic import op
 
-revision = "0038_cf_report_document"
-down_revision = "0037_cf_stated_split"
+revision = "0039_cf_report_document"
+down_revision = "0038_site_metric_event"
 branch_labels = None
 depends_on = None
 
