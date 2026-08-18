@@ -34,11 +34,20 @@ decisions were taken against text which had already been replaced. One session r
 keeping downloaded files in the database an hour after its own merged work had settled on
 Supabase Storage; another merged a display rule that a third had already measured to be wrong.
 
-- **The owner today** is the session titled **`1328 Finish the campaign finance loader`**
-  (`e8c5a620-e1d7-417c-ac06-8273a0b416f3`), appointed by Eugene 13 Aug 2026. Copy a title
-  verbatim from the live task list; the first version of this line named a title that did not
-  exist, because the owner described its own role instead of reading its title, and 2 sessions
-  could not find it.
+- **The owner today** is the session working in the worktree
+  **`.claude/worktrees/elastic-jemison-ced6bb`** on branch `claude/elastic-jemison-ced6bb`, which
+  took the pen 18 Aug 2026 under the handover rule below. Its measurement came from
+  [#1415](https://github.com/alethical-org/alethical/issues/1415) by way of
+  [PR #1417](https://github.com/alethical-org/alethical/pull/1417).
+  - **Why a worktree and not a title.** The rule asks for a title copied verbatim from the live
+    task list, and a session cannot read its own title from inside itself — the list it can see
+    excludes it. Guessing one is what broke the first version of this line. A worktree path and a
+    branch are things the session can actually verify and another session can actually find, so
+    that is what is recorded. **If you hold the pen and can read your own title, use it**; fall
+    back to your worktree only if you cannot.
+  - The previous claim named the session `1328 Finish the campaign finance loader`
+    (`e8c5a620-e1d7-417c-ac06-8273a0b416f3`), appointed by Eugene 13 Aug 2026. It is in no live
+    task list as of 18 Aug 2026, which is what triggered the handover.
 - **The pen passes; it never lapses (Eugene, 13 Aug 2026).** The rule as first written said to ask
   Eugene when the named session is gone, and that is exactly what went wrong: `design IA` finished
   and 4 measured corrections then sat in issue comments where no builder reads them, including a
@@ -963,9 +972,18 @@ House 30B and his committee terminated **28 July 2026** with zero 2026 contribut
 payment dated 17 Nov 2025. So the page says the committee closed, and says when. **The year control
 makes it sharper**: his 2025 holds money and his 2026 holds none, so a reader switching years watches
 money disappear, and the explanation has to be on the screen they land on rather than inferable from
-the one they left. Population unsized — termination is not in the bulk downloads and costs one
-catalogue request per filer ([#1415](https://github.com/alethical-org/alethical/issues/1415)) — but
-one confirmed case in an election year is enough to require the wording.
+the one they left.
+
+**Sized since, and it is rare rather than theoretical: 1.** §9.7's registered-filer directory carries
+`TerminationDate` for every filer in a single request, so this cost 1 call rather than the one per
+filer this paragraph used to budget for. Novotny is the only closed committee among the 162 of 200
+sitting members the district-and-surname match could resolve; the other 38 are that match failing,
+not members shown to hold no committee. **Closed-one-then-opened-another is 0 today** — he holds
+exactly one committee, registered 2019-12-03 and terminated 2026-07-28, with no replacement — so
+this state is what it appears to be rather than a money-moved case wearing its clothes. Keep the two
+apart in the design regardless: 0 is not structurally impossible, 17 members hold more than one
+committee, and with no rule the two would render identically
+([#1415](https://github.com/alethical-org/alethical/issues/1415)).
 
 **Separate transfers, never a chain.** Money is fungible. That a party gave a caucus $100,000
 and the caucus later gave a candidate $5,000 are two documented facts. That the same dollars
