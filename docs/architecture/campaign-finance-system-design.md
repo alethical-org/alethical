@@ -192,7 +192,8 @@ the cent.
 **For some funds the download carries only the donors with a Minnesota address, and the filed report
 names every donor.** Measured on 5 committee-years, where our rows equal the report's
 Minnesota-address subset to the cent and the shortfall equals its out-of-state subset to the cent:
-filer 41170's 2025 report itemizes $1,608,868.72 across 1,256 donors in 45 states, of whom 32 carry
+filer 41170's 2025 report itemizes $1,608,868.72 across 1,256 donors in 34 states and territories
+(2 of them, DC and PR, are not states), of whom 32 carry
 a Minnesota address totalling $41,700.00, which is exactly the 152 rows we hold; the same filer's
 2024 ($48,725.00 against $1,685,424.56), filer 41349's 2025 and 2024 ($24,705.00 against
 $807,330.51; $19,765.00 against $720,836.37) and filer 41122's 2025 ($19,005.00 against
@@ -206,8 +207,9 @@ every dollar; from 2024 its out-of-state rows stop. It is not the filing softwar
 publishes.
 
 **The download skips a filer's entire year, including years inside the span it otherwise covers for
-that filer.** Filer 40825 has rows every year from 2015 to 2024 and in 2026 — the same 11 payroll
-donors throughout — and none for 2025, against a report naming $9,963.50; filer 20471 has the same
+that filer.** Filer 40825 has rows every year from 2015 to 2024 and in 2026 — 9 of the 11 donors
+its 2025 report names appear under that committee in other years, one of them in 11 separate
+years — and none for 2025, against a report naming $9,963.50; filer 20471 has the same
 shape, and its one 2025 donor's name appears nowhere in the 583,152 rows; filer 19244 has 2026 only,
 against a 2025 report naming $533,295.01, and that candidate's own $20,000 to her committee is in
 the file under no recipient; filer 30331 has 2015, 2016 and 2022 only, against reports naming money
