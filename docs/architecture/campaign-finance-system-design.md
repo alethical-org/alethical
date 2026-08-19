@@ -35,10 +35,18 @@ keeping downloaded files in the database an hour after its own merged work had s
 Supabase Storage; another merged a display rule that a third had already measured to be wrong.
 
 - **The owner today** is the session working in the worktree
-  **`.claude/worktrees/elastic-jemison-ced6bb`** on branch `claude/elastic-jemison-ced6bb`, which
-  took the pen 18 Aug 2026 under the handover rule below. Its measurement came from
-  [#1415](https://github.com/alethical-org/alethical/issues/1415) by way of
-  [PR #1417](https://github.com/alethical-org/alethical/pull/1417).
+  **`.claude/worktrees/clever-mclaren-6c4785`** (the campaign finance assessment and design-review
+  session), which took the pen 19 Aug 2026 under the handover rule below. Its content came from
+  Eugene's signed-reports decision of 18 Aug 2026, landed as
+  [PR #1659](https://github.com/alethical-org/alethical/pull/1659) and amended by
+  [PR #1665](https://github.com/alethical-org/alethical/pull/1665), written up here as §7.1.
+  - The previous claim named the worktree `.claude/worktrees/elastic-jemison-ced6bb`, appointed
+    18 Aug 2026 by way of [PR #1417](https://github.com/alethical-org/alethical/pull/1417). That
+    session confirmed in writing that it published nothing, discarded its in-progress edit, and
+    stopped, so the claim lapsed. The session briefed to pick it up
+    (`.claude/worktrees/nifty-mendel-9aaf82`) is paused by Eugene and declined the pen explicitly.
+    Both are recorded because a lapsed claim that nobody narrates is how this file ends up with two
+    editors who each believe the other is gone.
   - **Why a worktree and not a title.** The rule asks for a title copied verbatim from the live
     task list, and a session cannot read its own title from inside itself — the list it can see
     excludes it. Guessing one is what broke the first version of this line. A worktree path and a
@@ -1153,6 +1161,44 @@ committee, and with no rule the two would render identically
 and the caucus later gave a candidate $5,000 are two documented facts. That the same dollars
 travelled is not a fact and no filing establishes it. Show each transfer with its own amount,
 date and source. A network view may show the shape; it may not imply continuation.
+
+### 7.1 What a signed report page must do
+
+Everything above governs a **record** surface. A signed research report is the one surface
+allowed to add records up across members and to name a pattern, under the conditions in
+[`.claude/rules/grounded-answers.md`](../../.claude/rules/grounded-answers.md) rule 13
+(Eugene's decision, 18 Aug 2026). That rule carries the permissions and their conditions; this
+subsection carries the display half, and it describes **what a report page must do when a report
+is published on it**. None is published today: phase 1 builds the page and its shelf as an empty
+container, and publishing the first report is a separate decision (Eugene, 19 Aug 2026). The
+drawn design is `docs/design/handoff-campaign-money/Money report web.dc.html`.
+
+- **The masthead sits above the first claim** and names five things: that this is Alethical
+  research, its author, its publication date, the date its records run through, and every filing
+  body it used. A reader arriving from a search engine must be able to tell what they are reading
+  and which promise applies to it, without scrolling.
+- **The never-rank-members rule above has exactly one exception**, and it is this surface: a
+  signed report may total and compare across members. No record surface may, for the reason the
+  rest of §7 gives — two filing calendars make a side-by-side comparison of amounts a comparison
+  of schedules.
+- **A report is a snapshot of its records-through date, never silently edited.** When the Board
+  holds filings newer than that date, the page carries a dated newer-data notice. When a figure
+  itself is corrected, the prior figure stays readable, struck through and dated, and it leaves
+  the page's metadata entirely so a stale number cannot travel in a preview or a search result.
+- **Share previews carry the title and the two dates only** — never a claim, never a derived
+  label. **Ordinary search-engine snippets of the body stay on**: an earlier version of rule 13
+  suppressed them, and that clause was reversed the same day it shipped, because a snippet always
+  links to the page holding the method, and suppressing body text on a transparency product reads
+  as hiding the thing it publishes.
+- **Links run one way.** A report links out to the committee and member records it read. No record
+  page ever links back to a report. The record is what was filed; our reading of it belongs where
+  the byline is.
+- **A report names the committee it read.** A person's name attaches to a committee only through a
+  confirmed link (§5.1), on this surface exactly as on every other.
+- **The downloadable copy is the page, regenerated at each publish** — one current copy per
+  published version, never a second document maintained beside the page, because two copies of one
+  report and no way to tell which is current is the failure this product exists to avoid. It
+  carries the same two dates as the masthead.
 
 ---
 
