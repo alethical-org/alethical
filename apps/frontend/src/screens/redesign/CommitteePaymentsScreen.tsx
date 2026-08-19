@@ -260,6 +260,7 @@ export function CommitteePaymentsScreen({
                 </View>
               ) : (
                 <PaymentRows
+                  isMobile={isMobile}
                   tab={tab}
                   rows={rows}
                   total={total}
@@ -290,7 +291,9 @@ function PaymentRows({
   isFetchingNextPage,
   onMore,
   navigation,
+  isMobile,
 }: {
+  isMobile: boolean;
   tab: PaymentsTab;
   rows: (CommitteeReceivedPayment | CommitteeMadePayment)[];
   total: number | null;
@@ -367,9 +370,21 @@ function PaymentRows({
                   ) : null}
                 </View>
                 {row.meta ? <Text style={styles.listMeta}>{row.meta}</Text> : null}
+                {isMobile ? (
+                  <View style={styles.listBottomRow}>
+                    <Text style={styles.listDateMobile}>
+                      {row.date ? row.date.toUpperCase() : ''}
+                    </Text>
+                    <Text style={styles.listAmountMobile}>{row.amount ?? ''}</Text>
+                  </View>
+                ) : null}
               </View>
-              <Text style={styles.listDate}>{row.date ? row.date.toUpperCase() : ''}</Text>
-              <Text style={styles.listAmount}>{row.amount ?? ''}</Text>
+              {isMobile ? null : (
+                <>
+                  <Text style={styles.listDate}>{row.date ? row.date.toUpperCase() : ''}</Text>
+                  <Text style={styles.listAmount}>{row.amount ?? ''}</Text>
+                </>
+              )}
             </>
           );
           if (row.linkNumber) {
@@ -623,6 +638,26 @@ const styles = StyleSheet.create({
   listAmount: {
     width: 104,
     textAlign: 'right',
+    fontFamily: t.typography.mono,
+    fontSize: t.fontSizes.bodyLg,
+    fontWeight: t.fontWeights.bold,
+    color: t.colors.text.primary,
+  },
+  listBottomRow: {
+    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  listDateMobile: {
+    fontFamily: t.typography.mono,
+    fontSize: 12,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 0.4,
+    color: t.colors.text.muted,
+  },
+  listAmountMobile: {
     fontFamily: t.typography.mono,
     fontSize: t.fontSizes.bodyLg,
     fontWeight: t.fontWeights.bold,

@@ -7,6 +7,10 @@ import { describe, expect, it } from 'vitest';
 
 import {
   CAP_NOTE,
+  CLOSED_MONEY_OUT_WHY,
+  EMPTY_YEAR_MONEY_OUT_WHY,
+  NOT_IN_REGISTER_LINE,
+  ZERO_REPORTED_NOTE,
   capNextLabel,
   closedChipLabel,
   closedPeriodDetail,
@@ -23,6 +27,7 @@ import {
   madeRowMeta,
   MONEY_OUT_FIGURE_LABEL,
   moneyOutKindLabel,
+  moneyOutNote,
   notFoundBody,
   notFoundTitle,
   paymentsEyebrow,
@@ -177,9 +182,22 @@ describe('the not-found state', () => {
 describe('money out', () => {
   it('is never labelled spent, spending or expenses', () => {
     expect(MONEY_OUT_FIGURE_LABEL).toBe('Payments we can list');
-    expect(MONEY_OUT_FIGURE_LABEL.toLowerCase()).not.toContain('spent');
-    expect(MONEY_OUT_FIGURE_LABEL.toLowerCase()).not.toContain('spending');
-    expect(MONEY_OUT_FIGURE_LABEL.toLowerCase()).not.toContain('expense');
+    for (const sentence of [
+      MONEY_OUT_FIGURE_LABEL,
+      CLOSED_MONEY_OUT_WHY,
+      EMPTY_YEAR_MONEY_OUT_WHY,
+    ]) {
+      expect(sentence.toLowerCase()).not.toContain('spent');
+      expect(sentence.toLowerCase()).not.toContain('spending');
+      expect(sentence.toLowerCase()).not.toContain('expense');
+    }
+  });
+
+  it('its note drops every threshold figure on a ballot-question page', () => {
+    expect(moneyOutNote('reported', false)).toContain('$200');
+    expect(moneyOutNote('reported', true)).not.toContain('$200');
+    expect(moneyOutNote('not_reported', true)).not.toContain('$200');
+    expect(moneyOutNote('not_reported', true)).not.toContain('$500');
   });
 
   it('a Contribution-typed payment out is money given to another campaign', () => {
@@ -261,6 +279,17 @@ describe('payment rows', () => {
     expect(isInKind('Yes')).toBe(true);
     expect(isInKind('No')).toBe(false);
     expect(isInKind(null)).toBe(false);
+  });
+});
+
+describe('a verified zero and an unregistered number', () => {
+  it('a reported zero is the filing’s own zero, never a gap', () => {
+    expect(ZERO_REPORTED_NOTE).toContain('says it raised nothing');
+    expect(ZERO_REPORTED_NOTE).toContain('not a gap');
+  });
+
+  it('a number missing from our register copy is stated as our copy’s fact', () => {
+    expect(NOT_IN_REGISTER_LINE).toContain('our copy');
   });
 });
 

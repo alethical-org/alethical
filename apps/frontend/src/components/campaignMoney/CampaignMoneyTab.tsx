@@ -251,7 +251,9 @@ function MoneyIn({
   const named = moneyIn ? moneyFigure(moneyIn.state, split.namedTotal) : null;
   const reported = formatMoney(split.reportedTotal);
   const unnamed = formatMoney(split.unnamedTotal);
-  const inKind = formatMoney(split.namedInKindTotal);
+  // Only a real amount earns the goods-and-services line; a filed $0.00 of it is
+  // ordinary, not a caveat.
+  const inKind = Number(split.namedInKindTotal) > 0 ? formatMoney(split.namedInKindTotal) : null;
   const checkNote = statedSplitNote(split.statedSplitState);
 
   return (

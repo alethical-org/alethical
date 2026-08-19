@@ -289,7 +289,7 @@ export const CLOSED_MONEY_IN_WHY =
   'figures does not include it, so there is no total to show here.';
 
 export const CLOSED_MONEY_OUT_WHY =
-  'Spending is reported in that same final report, so it is unavailable here for the same reason.';
+  'Payments out are reported in that same final report, so they are unavailable here for the same reason.';
 
 export function emptyYearMoneyInWhy(year: number): string {
   return (
@@ -300,12 +300,24 @@ export function emptyYearMoneyInWhy(year: number): string {
 }
 
 export const EMPTY_YEAR_MONEY_OUT_WHY =
-  'Spending is reported in the same filings as contributions, so it is unavailable for this year for the same reason.';
+  'Payments out are reported in the same filings as contributions, so they are unavailable for this year for the same reason.';
 
 /** What the big-figure slot reads in each empty case. Never set in the size money
  *  is set in — the screens use the stand-in style for these. */
 export const CLOSED_EMPTY_VALUE = 'Not available';
 export const EMPTY_YEAR_VALUE = 'Not reported';
+
+/** A committee whose own report totals zero: a verified zero, drawn as the number
+ *  it is, with the sentence that stops it reading as a gap (rule 12). */
+export const ZERO_REPORTED_NOTE =
+  'The committee’s own report to the state says it raised nothing in this period, ' +
+  'and the state’s file names no donor for it. That is the filing’s own zero, not ' +
+  'a gap in our records.';
+
+/** The header line for a number our copy of the Board's register does not carry,
+ *  while the state's money files still hold rows under it. A fact about our copy
+ *  of the register, stated as ours. */
+export const NOT_IN_REGISTER_LINE = 'Not in our copy of the Board’s register';
 
 // --- The not-found state ------------------------------------------------------------
 
@@ -337,6 +349,29 @@ export function moneyOutKindLabel(expenditureType: string): string {
 /** Money out is never called "spent": 38% of it statewide is money given to other
  *  committees, so the neutral heading is fixed here where a test can hold it. */
 export const MONEY_OUT_FIGURE_LABEL = 'Payments we can list';
+
+/**
+ * The sentence under the money-out figure, per served state. A ballot-question
+ * filer's page prints no threshold figure in it — the same silence rule 12 sets
+ * for the donor side, because the statute's ballot-question figures and the
+ * Board's own handbook disagree and we assert neither.
+ */
+export function moneyOutNote(
+  state: 'reported' | 'not_reported' | 'unavailable',
+  isBallot: boolean,
+): string {
+  if (state === 'unavailable') {
+    return 'We could not read this committee’s payments out of our copy of Minnesota’s file.';
+  }
+  if (state === 'not_reported') {
+    return isBallot
+      ? 'Minnesota’s public file names only payments above a naming threshold, and it names none for this committee this year. That does not mean the committee paid out nothing.'
+      : 'Minnesota only publishes a committee’s payments over $200, and it published none for this committee this year. That does not mean the committee paid out nothing.';
+  }
+  return isBallot
+    ? 'Minnesota publishes no official total for a committee’s money out, so there is no bigger number to compare this against. Money out is not all spending: some of it is money given to other campaigns, listed below.'
+    : 'Minnesota only publishes payments over $200 and no official total for a committee’s money out, so there is no bigger number to compare this against. Money out is not all spending: some of it is money given to other campaigns, listed below.';
+}
 
 // --- The two lists and the payments view ----------------------------------------------
 

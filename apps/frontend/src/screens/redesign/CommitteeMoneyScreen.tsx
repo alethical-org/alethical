@@ -35,6 +35,7 @@ import {
   madeRowMeta,
   MONEY_OUT_FIGURE_LABEL,
   moneyOutKindLabel,
+  moneyOutNote,
   notFoundBody,
   notFoundTitle,
   PAYMENTS_TAB_LABELS,
@@ -46,10 +47,12 @@ import {
   registrationNumberFromSlug,
   showingLine,
   staleHoldNote,
+  NOT_IN_REGISTER_LINE,
   uncoveredPeriodDetail,
   uncoveredPeriodLine,
   unnamedMoneyExplanation,
   whoseCommitteeText,
+  ZERO_REPORTED_NOTE,
   type PaymentsTab,
 } from '../../lib/committeeMoney';
 import {
@@ -345,6 +348,9 @@ function CommitteeBody({
       <View style={styles.chipRow}>
         <Text style={styles.regChip}>REG {registrationNumber}</Text>
         {registeredFor ? <Text style={styles.registeredFor}>{registeredFor}</Text> : null}
+        {money.register.state === 'not_registered' ? (
+          <Text style={styles.registeredFor}>{NOT_IN_REGISTER_LINE}</Text>
+        ) : null}
         {closedChip ? <Text style={styles.closedChip}>{closedChip.toUpperCase()}</Text> : null}
       </View>
 
@@ -377,7 +383,7 @@ function CommitteeBody({
           otherYear={otherYear}
           onSelectYear={onSelectYear}
         />
-        <MoneyOutCard money={money} state={state} />
+        <MoneyOutCard money={money} state={state} isBallot={isBallot} />
       </View>
 
       <PaymentsSection
@@ -503,7 +509,13 @@ function MoneyInCard({
   const reported = formatMoney(split.reportedTotal);
   const named = moneyFigure(moneyIn.state, split.namedTotal);
   const unnamed = split.state === 'shown' ? formatMoney(split.unnamedTotal) : null;
-  const inKind = formatMoney(split.namedInKindTotal);
+  // Only a real amount earns the goods-and-services line; a filed $0.00 of it is
+  // ordinary, not a caveat.
+  const inKind = Number(split.namedInKindTotal) > 0 ? formatMoney(split.namedInKindTotal) : null;
+  // A reported zero is a verified zero: the total draws as $0.00 and its own
+  // sentence carries the story, with no named/unnamed division of nothing.
+  const reportedZero =
+    split.state === 'shown' && Number(split.reportedTotal) === 0 && split.namedTotal === null;
   const explanation = splitExplanation(split.state);
   const checkNote = statedSplitNote(split.statedSplitState);
 
@@ -535,12 +547,16 @@ function MoneyInCard({
         />
       )}
 
-      <Figure
-        label="Donations with a donor’s name"
-        value={named.text}
-        isFigure={named.isFigure}
-        note={paymentCountLabel(split.namedPayments)}
-      />
+      {reportedZero ? (
+        <Text style={styles.explain}>{ZERO_REPORTED_NOTE}</Text>
+      ) : (
+        <Figure
+          label="Donations with a donor’s name"
+          value={named.text}
+          isFigure={named.isFigure}
+          note={paymentCountLabel(split.namedPayments)}
+        />
+      )}
 
       {inKind ? (
         <Text style={styles.explain}>
@@ -549,8 +565,27 @@ function MoneyInCard({
         </Text>
       ) : null}
 
-      {split.state === 'shown' && unnamed !== null ? (
+      {split.state === 'shown' && unnamed !== null && !reportedZero ? (
         <>
+          <View style={styles.splitBar} aria-hidden>
+            <View
+              style={[
+                styles.splitBarFill,
+                {
+                  width: `${Math.min(
+                    100,
+                    Math.max(
+                      0,
+                      Math.round(
+                        (Number(split.namedCashTotal ?? 0) / Number(split.reportedTotal ?? 1)) *
+                          100,
+                      ),
+                    ),
+                  )}%`,
+                },
+              ]}
+            />
+          </View>
           <Figure label="Donations with nobody’s name on them" value={unnamed} />
           <Text style={styles.explain}>{unnamedMoneyExplanation(isBallot)}</Text>
           {checkNote ? <Text style={styles.explain}>{checkNote}</Text> : null}
@@ -590,9 +625,11 @@ function MoneyInCard({
 function MoneyOutCard({
   money,
   state,
+  isBallot,
 }: {
   money: CommitteeMoney;
   state: 'closed-empty' | 'empty-year' | 'figures';
+  isBallot: boolean;
 }) {
   const { moneyOut } = money;
   if (state !== 'figures') {
@@ -625,13 +662,7 @@ function MoneyOutCard({
         isFigure={total.isFigure}
         note={paymentCountLabel(moneyOut.itemizedPayments)}
       />
-      <Text style={styles.explain}>
-        {moneyOut.state === 'reported'
-          ? 'Minnesota only publishes payments over $200 and no official total for a committee’s money out, so there is no bigger number to compare this against. Money out is not all spending: some of it is money given to other campaigns, listed below.'
-          : moneyOut.state === 'unavailable'
-            ? 'We could not read this committee’s payments out of our copy of Minnesota’s file.'
-            : 'Minnesota only publishes a committee’s payments over $200, and it published none for this committee this year. That does not mean the committee paid out nothing.'}
-      </Text>
+      <Text style={styles.explain}>{moneyOutNote(moneyOut.state, isBallot)}</Text>
       {moneyOut.byType.length ? (
         <View style={styles.rows}>
           {moneyOut.byType.map((entry) => (
@@ -678,6 +709,7 @@ function PaymentsSection({
   onSelectTab: (tab: PaymentsTab) => void;
   navigation: RootScreenProps<'CommitteeMoney'>['navigation'];
 }) {
+  const { isMobile } = useResponsive();
   const received = useCommitteePaymentsReceived(registrationNumber, year, {
     limit: 6,
     enabled: tab === 'gave',
@@ -808,23 +840,27 @@ function PaymentsSection({
                     </View>
                     {row.meta ? <Text style={styles.listMeta}>{row.meta}</Text> : null}
                   </View>
-                  <View style={styles.listBar}>
-                    <View
-                      style={[
-                        styles.listBarFill,
-                        {
-                          width: `${
-                            largest > 0
-                              ? Math.round(
-                                  (Number(row.amount?.replace(/[$,]/g, '') ?? 0) / largest) * 100,
-                                )
-                              : 0
-                          }%`,
-                        },
-                      ]}
-                    />
-                  </View>
-                  <Text style={styles.listAmount}>{row.amount ?? ''}</Text>
+                  {isMobile ? null : (
+                    <View style={styles.listBar}>
+                      <View
+                        style={[
+                          styles.listBarFill,
+                          {
+                            width: `${
+                              largest > 0
+                                ? Math.round(
+                                    (Number(row.amount?.replace(/[$,]/g, '') ?? 0) / largest) * 100,
+                                  )
+                                : 0
+                            }%`,
+                          },
+                        ]}
+                      />
+                    </View>
+                  )}
+                  <Text style={[styles.listAmount, isMobile && styles.listAmountMobile]}>
+                    {row.amount ?? ''}
+                  </Text>
                 </>
               );
               if (row.linkNumber) {
@@ -1096,6 +1132,16 @@ const styles = StyleSheet.create({
     fontSize: t.fontSizes.meta,
     color: t.colors.text.muted,
   },
+  splitBar: {
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#e6e9e7',
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink08,
+    overflow: 'hidden',
+    flexDirection: 'row',
+  },
+  splitBarFill: { height: '100%', backgroundColor: t.colors.brand.graphics },
   row: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 },
   rowLabel: {
     fontFamily: t.typography.body,
@@ -1221,6 +1267,7 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.primary,
   },
+  listAmountMobile: { width: undefined, flexShrink: 0 },
   seeAll: {
     marginTop: 14,
     flexDirection: 'row',

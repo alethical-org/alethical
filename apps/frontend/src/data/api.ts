@@ -2713,7 +2713,9 @@ export async function getCommitteeFinanceFromApi(
   const register = payload.register ?? undefined;
   return {
     registrationNumber: payload.registration_number,
-    committeeName: payload.committee_name ?? null,
+    // The downloads spell a missing name as an empty string; a page must not
+    // render a heading out of it.
+    committeeName: payload.committee_name ? payload.committee_name : null,
     entityType: payload.entity_type ?? null,
     entitySubType: payload.entity_sub_type ?? null,
     year: payload.year,
