@@ -1,4 +1,4 @@
-<!-- describes: apps/frontend/src/screens/redesign/MoneyLandingScreen.tsx, apps/frontend/src/screens/redesign/MoneyReportsShelfScreen.tsx, apps/frontend/src/screens/redesign/MoneyReportScreen.tsx, apps/frontend/src/lib/moneyLanding.ts, apps/frontend/src/lib/moneyReports.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/webRoutes.ts -->
+<!-- describes: apps/frontend/src/screens/redesign/MoneyLandingScreen.tsx, apps/frontend/src/screens/redesign/MoneyReportsShelfScreen.tsx, apps/frontend/src/screens/redesign/MoneyReportScreen.tsx, apps/frontend/src/screens/redesign/CommitteeMoneyScreen.tsx, apps/frontend/src/screens/redesign/CommitteePaymentsScreen.tsx, apps/frontend/src/lib/moneyLanding.ts, apps/frontend/src/lib/moneyReports.ts, apps/frontend/src/lib/committeeMoney.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/webRoutes.ts -->
 
 # How the Campaign money section works
 
@@ -30,10 +30,12 @@ Top to bottom:
    PUBLISHED" honestly.
 4. **Three lane cards**: Legislators (links to the legislator directory — a member's money
    is a tab on the profile they already have), Committees, and Who got paid. The last two
-   have no pages yet, so their cards are visibly not clickable, carry a "NOT BUILT YET"
-   chip, and say "This page is not built yet." Every lane being visible — built or not —
-   is a deliberate decision (Eugene, 18 Aug 2026), so a reader sees the whole shape of the
-   section.
+   lanes' cards are visibly not clickable, carry a "NOT BUILT YET" chip, and say "This
+   page is not built yet.": each opens a *list* page that is not built yet (phase 3). Every
+   committee does have its own page already (below) — reached by address, not by browsing
+   — and the lane stays inert so it cannot promise a list that does not exist. Every lane
+   being visible — built or not — is a deliberate decision (Eugene, 18 Aug 2026), so a
+   reader sees the whole shape of the section.
 5. **What this record does not cover**: nothing before 2015; unions do not report to this
    board; and the exact sentence "Donors who gave $200 or less in total for the year are
    never named" (the $200 test is on a donor's yearly total, never on one gift's size).
@@ -63,6 +65,81 @@ served renders nothing rather than a number:
 
 While data loads, grey placeholder blocks pulse (the pulse stops for readers who asked
 their device for reduced motion, and a hidden "Loading" note tells screen readers).
+
+## A committee's page (`/money/committees/{name}-{number}`)
+
+One committee's money for one year, from Minnesota's own filings. The number at the end
+of the address is the committee's registration number with the state, and it is the only
+part that has to be right: committee names collide and numbers do not, so an old or
+misspelled name part still lands on the right page, and the address then quietly corrects
+itself to the current spelling. The chosen year and list ride in the address, so a shared
+link shows the receiver exactly what the sender saw.
+
+**Until the committees list and search ship (phase 3), these pages are reached only by
+typing or sharing an address** — the Committees lane on `/money` stays unclickable so it
+cannot promise a list that does not exist.
+
+Top to bottom:
+
+1. **The header, from the state's register of filers.** The kind line above the name is
+   the register's own vocabulary — Candidate committee, Party unit, or Political committee
+   or fund — never a finer kind we invented. The one exception is grounded in the Board's
+   own codes: a filer whose money rows carry the ballot-question code is headed Ballot
+   question committee (or fund). A candidate committee shows the office and district it
+   registered for; a closed committee carries a CLOSED chip with the register's own
+   termination date, on every year's view.
+2. **Whose committee it is — deliberately unanswered.** The filed name is the filer's own
+   wording, not a confirmation by anyone, so the page says the money is the committee's
+   own record and attaches it to no person. A party unit, caucus, fund, or ballot-question
+   committee gets its own sentence, because for those there is no person to attach.
+3. **A year switch** (this calendar year and the one before), each year its own address.
+4. **The period panel**: what the committee's own report covers, its end read off the
+   filing — no start is ever assumed — plus the one freshness date (the day we copied the
+   Board's files, printed as its Minnesota day). A party unit's panel says its calendar is
+   its own. If our own data service stops answering, the page keeps the figures it already
+   had and says they are held until it answers — never expiring on a timer.
+5. **Money in — two numbers, both correct.** The total the committee itself reported to
+   the state, and the donations we can list with a donor's name. The split into named and
+   unnamed money is decided by the server before the page ever sees it, and the page never
+   subtracts. When the split is safe, a bar shows it and the unnamed figure appears with
+   the sentence explaining it (donors at $200 or less in total for the year are never
+   named). In each case where a split would state something false — the two figures cover
+   different periods, the sources disagree, there are no named payments, or there is no
+   reported total — the page shows the figures it has and a plain sentence saying why it
+   will not divide them, never saying which figure is larger. A committee whose own report
+   says zero shows $0.00 with a sentence saying that is the filing's zero, not our gap.
+6. **Money out — never called "spending."** The figure is "Payments we can list" (there is
+   no official total to compare it against), broken down by the filing's own kinds, with
+   money given to other campaigns on its own plainly-labelled line — statewide, a large
+   share of money out is transfers to other committees, and for a caucus that is the
+   point.
+7. **Two lists — Who gave and Where it went** — the six largest payments, ranked largest
+   first (honest inside one committee; never across committees), each naming the filing's
+   own type. Donated goods and services carry a marker and stay inside the totals, because
+   that is how the state counts them. A name opens a page only when it carries a
+   registration number we hold as a filer; a private donor or a business stays plain text.
+8. **What this record covers**: filed with the Board, nothing before 2015, unions don't
+   report here — and the $200 donor sentence, except on a ballot-question committee's
+   page, which prints **no** threshold figure anywhere: the statute says $500 for ballot
+   questions, the Board's own handbook for those filers says $200, and we assert neither.
+
+Empty and edge states, each its own honest sentence: a year no report covers ("Not
+reported", never a zero, and never last year's money under this year's heading); a closed
+committee's empty year (it closed, when, and that its final report exists and is public
+even though our copy of the figures does not include it); a registration number in neither
+our copy of the register nor the state's money files (a fact about our records, never
+"this committee does not exist"); and loading placeholders that stop pulsing under reduced
+motion and announce themselves to screen readers.
+
+## Every payment (`/money/committees/{name}-{number}/payments`)
+
+The full list behind a committee's figures — every named payment, largest first, with each
+payment's own date. The Who gave / Where it went choice and the year are in the address.
+The page loads 250 at a time; the capped-list card says the cap is ours, not the filing's,
+offers the next 250, and links to the filing itself on the Board's site. "Showing X of Y"
+is a measured count served with the rows, never a guess. The same naming rules apply: a
+loan is labelled as reported on its own schedule rather than reading as a gift, transfers
+read "Money given to another campaign", and only registered filers' names open pages.
 
 ## The reports shelf (`/money/reports`)
 
