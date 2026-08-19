@@ -1,4 +1,10 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 
 import {
   askFromApi,
@@ -19,6 +25,9 @@ import {
   getLegislatorVotesFromApi,
   getCampaignFinanceFilingsFromApi,
   getCampaignFinanceSummaryFromApi,
+  getCommitteeFinanceFromApi,
+  getCommitteePaymentsMadeFromApi,
+  getCommitteePaymentsReceivedFromApi,
   ListPagination,
   LegislatorListFilters,
   listChatSessionsFromApi,
@@ -37,6 +46,11 @@ import {
   listSavedPlaces,
   updateNotificationPreference,
 } from '../data/mockData';
+import type {
+  CommitteeMadePayment,
+  CommitteePaymentsPage,
+  CommitteeReceivedPayment,
+} from '../data/types';
 import { NotificationPreference, RepresentativeLookupInput } from '../data/types';
 import { outsideSpendingLoadFailure } from '../lib/outsideSpending';
 import { trackState, TrackState } from '../lib/trackedState';
@@ -306,6 +320,104 @@ export function useCampaignFinanceFilings(limit = 5) {
     queryKey: ['campaign-finance-filings', limit],
     queryFn: () => getCampaignFinanceFilingsFromApi(limit),
     retry: false,
+  });
+}
+
+/**
+ * One committee's money for one year, keyed on its registration number. Resolves
+ * `null` on "in neither the register nor the downloads we hold", so the page can
+ * tell that fact about our records apart from a fault. When a refetch fails, the
+ * last accepted data stays in `data` and the screen labels it as held figures
+ * rather than blanking (design's service-unreachable state).
+ */
+export function useCommitteeMoney(registrationNumber: string | null, year: number) {
+  return useQuery({
+    queryKey: ['committee-money', registrationNumber, year],
+    queryFn: () => getCommitteeFinanceFromApi(registrationNumber ?? '', year),
+    enabled: Boolean(registrationNumber),
+    retry: false,
+  });
+}
+
+/** The largest payments into a committee for one year, for the page's short list. */
+export function useCommitteePaymentsReceived(
+  registrationNumber: string | null,
+  year: number,
+  options: { limit?: number; offset?: number; enabled?: boolean } = {},
+) {
+  const limit = options.limit ?? 6;
+  const offset = options.offset ?? 0;
+  return useQuery({
+    queryKey: ['committee-payments', registrationNumber, 'received', year, limit, offset],
+    queryFn: () =>
+      getCommitteePaymentsReceivedFromApi(registrationNumber ?? '', {
+        year,
+        sort: 'amount',
+        limit,
+        offset,
+      }),
+    enabled: Boolean(registrationNumber) && (options.enabled ?? true),
+    retry: false,
+    placeholderData: keepPreviousData,
+  });
+}
+
+/**
+ * The full-payments view's list: pages of 250, largest first, accumulated as the
+ * reader asks for more. 250 matches the served maximum, so "Show the next 250"
+ * is one request.
+ */
+export function useCommitteePaymentsList(
+  registrationNumber: string | null,
+  direction: 'received' | 'made',
+  year: number,
+) {
+  return useInfiniteQuery({
+    queryKey: ['committee-payments-list', registrationNumber, direction, year],
+    queryFn: ({
+      pageParam,
+    }): Promise<CommitteePaymentsPage<CommitteeReceivedPayment | CommitteeMadePayment> | null> =>
+      direction === 'received'
+        ? getCommitteePaymentsReceivedFromApi(registrationNumber ?? '', {
+            year,
+            sort: 'amount',
+            limit: 250,
+            offset: pageParam,
+          })
+        : getCommitteePaymentsMadeFromApi(registrationNumber ?? '', {
+            year,
+            sort: 'amount',
+            limit: 250,
+            offset: pageParam,
+          }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) =>
+      lastPage && lastPage.hasMore ? allPages.length * 250 : undefined,
+    enabled: Boolean(registrationNumber),
+    retry: false,
+  });
+}
+
+/** The largest payments out of a committee for one year. */
+export function useCommitteePaymentsMade(
+  registrationNumber: string | null,
+  year: number,
+  options: { limit?: number; offset?: number; enabled?: boolean } = {},
+) {
+  const limit = options.limit ?? 6;
+  const offset = options.offset ?? 0;
+  return useQuery({
+    queryKey: ['committee-payments', registrationNumber, 'made', year, limit, offset],
+    queryFn: () =>
+      getCommitteePaymentsMadeFromApi(registrationNumber ?? '', {
+        year,
+        sort: 'amount',
+        limit,
+        offset,
+      }),
+    enabled: Boolean(registrationNumber) && (options.enabled ?? true),
+    retry: false,
+    placeholderData: keepPreviousData,
   });
 }
 

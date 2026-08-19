@@ -161,7 +161,7 @@ export function CampaignMoneyTab({
  * two-year legislature, and this counts a calendar year, which is the unit
  * Minnesota's own reports use.
  */
-function YearControl({
+export function YearControl({
   year,
   onSelect,
 }: {

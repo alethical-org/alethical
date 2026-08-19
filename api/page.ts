@@ -35,6 +35,7 @@ import {
   injectPageHead,
   legislatorListPageMetadata,
   legislatorPageMetadata,
+  committeeMoneyPageMetadata,
   moneyReportPageMetadata,
   NOT_FOUND_DESCRIPTION,
   NOT_FOUND_HEADING,
@@ -345,6 +346,10 @@ async function contentFor(
       if (!report) throw new UnknownAddress(`no report ${target.slug}`);
       return headOnly(moneyReportPageMetadata(report));
     }
+    case "moneyCommittee":
+      return headOnly(committeeMoneyPageMetadata(target.slug, "page"));
+    case "moneyCommitteePayments":
+      return headOnly(committeeMoneyPageMetadata(target.slug, "payments"));
     case "privacy":
       return headOnly(STATIC_PAGE_METADATA["/privacy"]);
     case "siteMetrics":

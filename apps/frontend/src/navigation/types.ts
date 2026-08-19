@@ -69,6 +69,13 @@ export type RootStackParamList = {
   // One published research report. The slug resolves against the published-report
   // registry (lib/moneyReports.ts); an unknown slug lands on NotFound.
   MoneyReport: { slug: string };
+  // One committee's money page and its full-payments view. The slug's trailing
+  // registration number is the identity and the only part that resolves — names
+  // collide, numbers do not — so an old or misspelled name part still lands on
+  // the page. `tab` and `year` ride in the address so a shared link carries what
+  // the sender saw.
+  CommitteeMoney: { slug: string; tab?: string; year?: string };
+  CommitteePayments: { slug: string; tab?: string; year?: string };
   Privacy: undefined;
   SiteMetrics: undefined;
   Terms: undefined;

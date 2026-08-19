@@ -1,4 +1,5 @@
 import { plainBillSummary } from './billDetail';
+import { registrationNumberFromSlug } from './committeeMoney';
 import { directoryPagePath } from './directoryPagination';
 import { reportShareDescription } from './moneyReports';
 
@@ -29,7 +30,7 @@ const LEGISLATOR_LIST_SUBJECT = 'Minnesota House and Senate members';
 export const X_SHORT_LINK_LENGTH = 23;
 const X_TEXT_LENGTH = 280 - X_SHORT_LINK_LENGTH - 1;
 
-export type ShareSubject = 'bill' | 'legislator' | 'answer' | 'report';
+export type ShareSubject = 'bill' | 'legislator' | 'answer' | 'report' | 'committee';
 
 export interface ShareContent {
   subject: ShareSubject;
@@ -344,6 +345,38 @@ export function moneyReportPageMetadata(report: {
     socialTitle: report.title,
     description: reportShareDescription(report),
     canonicalPath,
+  });
+}
+
+/**
+ * A committee money page's metadata, from its address alone. The name part of the
+ * slug is whatever the link's author typed — canonical links carry the register's
+ * current name, but a misspelled one still resolves — so the tags name the
+ * committee by its registration number, the only part that is always right. The
+ * client puts the register's own name in the tab once the record loads.
+ */
+export function committeeMoneyPageMetadata(
+  slug: string,
+  view: 'page' | 'payments' = 'page',
+): PageMetadata {
+  const number = registrationNumberFromSlug(slug);
+  const label = number ? `Committee ${number}` : 'Committee';
+  const base = `/money/committees/${encodeURIComponent(slug)}`;
+  if (view === 'payments') {
+    return pageMetadata({
+      title: titleFor(`${label} — every payment named`),
+      socialTitle: `${label} — every payment named`,
+      description:
+        'Every named payment behind one committee’s figures, largest first, from Minnesota’s own campaign-finance filings.',
+      canonicalPath: `${base}/payments`,
+    });
+  }
+  return pageMetadata({
+    title: titleFor(`${label} — campaign money`),
+    socialTitle: `${label} — campaign money`,
+    description:
+      'One committee’s money in and money out, from Minnesota’s own campaign-finance filings.',
+    canonicalPath: base,
   });
 }
 

@@ -679,3 +679,111 @@ export interface LegislatorCampaignMoney {
    *  their member ran for something else is told the money exists and is not this. */
   otherOfficeCommittees: number;
 }
+
+/** One filer as our copy of the Board's registered-filer directory lists them.
+ *  `state` "not_registered" means our copy does not carry the number — a fact
+ *  about our copy, never "no such committee". `kind` is the register's own
+ *  vocabulary and the only kind label a page may print. */
+export interface CommitteeRegisterEntry {
+  state: 'reported' | 'not_registered' | 'unavailable';
+  kind: string | null;
+  name: string | null;
+  party: string | null;
+  office: string | null;
+  district: string | null;
+  registrationDate: string | null;
+  /** Set when the Board records the committee as terminated. Registration-level:
+   *  it makes a closed committee its own display state on every year's view. */
+  terminationDate: string | null;
+  /** The day our copy of the register was taken (ISO date). */
+  asOf: string | null;
+}
+
+/** One committee's money for one year (GET /committees/{n}/finance), keyed on the
+ *  registration number — the identity, since names collide and numbers do not. */
+export interface CommitteeMoney {
+  registrationNumber: string;
+  /** The name the current download carries (the filer's own wording). */
+  committeeName: string | null;
+  /** The Board's filer-kind code on the money rows (PCC / PTU / PCF). */
+  entityType: string | null;
+  /** The Board's sub-type code (CAU a caucus, BC/BF a ballot-question filer). */
+  entitySubType: string | null;
+  year: number;
+  /** ISO timestamp we last copied Minnesota's downloads — the page's one
+   *  freshness date, printed in Central time. Never the period money covers. */
+  fetchedAt: string | null;
+  register: CommitteeRegisterEntry;
+  moneyIn: {
+    state: MoneyBlockState;
+    itemizedContributionTotal: string | null;
+    itemizedContributionPayments: number | null;
+    otherReceipts: { receiptType: string; total: string; payments: number }[];
+    sourceUrl: string | null;
+  };
+  moneyOut: {
+    state: MoneyBlockState;
+    itemizedPaymentTotal: string | null;
+    itemizedPayments: number | null;
+    byType: { type: string; total: string; payments: number }[];
+    sourceUrl: string | null;
+  };
+  /** Served, never computed by the page: the 4 withheld states are each a way a
+   *  client-side subtraction would state something false (rule 12; design §7). */
+  split: {
+    state: SplitState;
+    reportedTotal: string | null;
+    reportedThrough: string | null;
+    namedTotal: string | null;
+    namedPayments: number | null;
+    namedCashTotal: string | null;
+    namedInKindTotal: string | null;
+    unnamedTotal: string | null;
+    statedSplitState: string;
+    firstPaymentOn: string | null;
+    lastPaymentOn: string | null;
+  };
+}
+
+/** One payment into a committee, as its own filing lists it. */
+export interface CommitteeReceivedPayment {
+  contributor: string | null;
+  contributorRegistrationNumber: string | null;
+  contributorType: string | null;
+  employer: string | null;
+  amount: string | null;
+  receivedOn: string | null;
+  receiptType: string | null;
+  inKind: string | null;
+}
+
+/** One payment out of a committee. A `Contribution`-typed row names another
+ *  committee (the affected fields); every other row names a supplier. */
+export interface CommitteeMadePayment {
+  vendorName: string | null;
+  vendorCity: string | null;
+  vendorState: string | null;
+  affectedCommitteeName: string | null;
+  affectedCommitteeRegistrationNumber: string | null;
+  amount: string | null;
+  paidOn: string | null;
+  expenditureType: string | null;
+  purpose: string | null;
+  inKind: string | null;
+}
+
+/** One page of a committee's payments (GET /committees/{n}/payments). Read
+ *  `state` before the rows: an empty list is 3 different facts. */
+export interface CommitteePaymentsPage<Payment> {
+  state: MoneyBlockState;
+  payments: Payment[];
+  hasMore: boolean;
+  /** Every matching row, counted with the same filter as the rows, so a capped
+   *  list can say what it is not showing. Null when no count is served. */
+  totalPayments: number | null;
+  /** Counterparty numbers on this page that this release holds as a filer — the
+   *  only names that may render as links. */
+  linkableRegistrationNumbers: string[];
+  sourceUrl: string | null;
+  fetchedAt: string | null;
+}

@@ -303,7 +303,9 @@ def test_the_split_is_served_and_never_computed_by_a_page(db, client, monkeypatc
 
     published = Published(db)
     _receipt(db, published.contributions, reg_num=CANDIDATE, amount="5100.00")
-    _receipt(db, published.contributions, reg_num=CANDIDATE, amount="250.00", in_kind="Yes")
+    _receipt(
+        db, published.contributions, reg_num=CANDIDATE, amount="250.00", in_kind="Yes"
+    )
     db.commit()
 
     def one_real_total(db_, reg_num, years=None):
@@ -340,7 +342,14 @@ def test_a_total_covering_another_year_withholds_the_split(db, client, monkeypat
     from alethical.pipeline import campaign_finance_reader as reader
 
     published = Published(db)
-    _receipt(db, published.contributions, reg_num=CANDIDATE, amount="100.00", year=2026, on=date(2026, 2, 1))
+    _receipt(
+        db,
+        published.contributions,
+        reg_num=CANDIDATE,
+        amount="100.00",
+        year=2026,
+        on=date(2026, 2, 1),
+    )
     db.commit()
 
     def an_earlier_years_answer(db_, reg_num, years=None):
@@ -374,9 +383,27 @@ def test_amount_sort_pages_largest_first_and_counts_the_population(db, client):
     fact about that committee (§7), and `total_payments` is counted with the same
     filter as the rows so "Showing 2 of 3" can never describe a different population."""
     published = Published(db)
-    _receipt(db, published.contributions, reg_num=CANDIDATE, amount="50.00", on=date(2025, 7, 1))
-    _receipt(db, published.contributions, reg_num=CANDIDATE, amount="900.00", on=date(2025, 1, 5))
-    _receipt(db, published.contributions, reg_num=CANDIDATE, amount="300.00", on=date(2025, 3, 3))
+    _receipt(
+        db,
+        published.contributions,
+        reg_num=CANDIDATE,
+        amount="50.00",
+        on=date(2025, 7, 1),
+    )
+    _receipt(
+        db,
+        published.contributions,
+        reg_num=CANDIDATE,
+        amount="900.00",
+        on=date(2025, 1, 5),
+    )
+    _receipt(
+        db,
+        published.contributions,
+        reg_num=CANDIDATE,
+        amount="300.00",
+        on=date(2025, 3, 3),
+    )
     db.commit()
 
     response = client.get(
