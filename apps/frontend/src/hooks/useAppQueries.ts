@@ -17,7 +17,8 @@ import {
   getLegislatorFromApi,
   getLegislatorOutsideSpendingFromApi,
   getLegislatorVotesFromApi,
-  getMoneyLandingFromApi,
+  getCampaignFinanceFilingsFromApi,
+  getCampaignFinanceSummaryFromApi,
   ListPagination,
   LegislatorListFilters,
   listChatSessionsFromApi,
@@ -287,14 +288,23 @@ export function useLegislatorCampaignMoney(
 }
 
 /**
- * The /money landing's data: freshness date, newest filings, live lane counts,
- * confirmation progress. One request for the page; every module treats an error
- * as "not served" and renders its designed absent state rather than a number.
+ * The /money landing's counts and dates (register, confirmations, freshness).
+ * Each block carries its own state; a block that is not served renders its
+ * designed absent state rather than a number.
  */
-export function useMoneyLanding() {
+export function useCampaignFinanceSummary() {
   return useQuery({
-    queryKey: ['money-landing'],
-    queryFn: getMoneyLandingFromApi,
+    queryKey: ['campaign-finance-summary'],
+    queryFn: getCampaignFinanceSummaryFromApi,
+    retry: false,
+  });
+}
+
+/** The landing's newest filed reports (no amounts, no filed date). */
+export function useCampaignFinanceFilings(limit = 5) {
+  return useQuery({
+    queryKey: ['campaign-finance-filings', limit],
+    queryFn: () => getCampaignFinanceFilingsFromApi(limit),
     retry: false,
   });
 }

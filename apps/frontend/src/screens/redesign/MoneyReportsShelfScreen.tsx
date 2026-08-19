@@ -107,9 +107,12 @@ export function MoneyReportsShelfScreen({ navigation }: RootScreenProps<'MoneyRe
           {reports.length === 0 ? (
             <View style={styles.emptyCard}>
               <Text style={styles.emptyTitle}>Nothing published yet.</Text>
+              {/* No promise of future reports — "an index promising work we have
+                  not done is the one claim here we could not link" (design rule;
+                  wording approved by the design-review session, 19 Aug 2026). */}
               <Text style={styles.emptyBody}>
-                Reports appear here when we publish them, each dated and carrying the date its
-                records run through.
+                When we publish research on these records, it appears here, dated and carrying the
+                date its records run through.
               </Text>
             </View>
           ) : (

@@ -3,16 +3,19 @@ import Svg, { Circle, Path } from 'react-native-svg';
 
 import { Skeleton } from '../../components/Skeleton';
 import { useResponsive } from '../../hooks/useResponsive';
-import { useMoneyLanding } from '../../hooks/useAppQueries';
+import { useCampaignFinanceFilings, useCampaignFinanceSummary } from '../../hooks/useAppQueries';
 import {
+  centralDateLabel,
   confirmationDateLine,
   confirmationLine,
-  filingFiledLine,
+  FILINGS_TIE_SENTENCE,
   filingPeriodLine,
   laneCountLine,
+  legislatorsLaneSentence,
+  orderingSentence,
   RECORD_DOES_NOT_COVER,
 } from '../../lib/moneyLanding';
-import { publishedReports, reportDateLabel, reportDatesLine } from '../../lib/moneyReports';
+import { publishedReports, reportDatesLine } from '../../lib/moneyReports';
 import { linkProps, routePath } from '../../navigation/links';
 import type { RootScreenProps } from '../../navigation/types';
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
@@ -26,9 +29,11 @@ import { theme as t } from '../../theme/tokens';
  *
  * What this page may never do (IA §04): no lane counts money, no top raisers,
  * no amount on any row that lists more than one member, and no count that is
- * not served by a live query. Data comes from one landing endpoint
- * (useMoneyLanding); each module treats "not served" as its designed absent
- * state, never as a zero.
+ * not served by a live query. Counts and dates come from
+ * /campaign-finance/summary and the filed reports from
+ * /campaign-finance/filings; each block carries its own state, and a block that
+ * is not served renders its designed absent state — never a zero. A served 0
+ * (0 of 200 committees confirmed) is a verified fact and renders as a number.
  */
 
 function ForwardArrow({ color }: { color: string }) {
@@ -104,12 +109,26 @@ function LaneCard({
 
 export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding'>) {
   const { isMobile } = useResponsive();
-  const landing = useMoneyLanding();
+  const summaryQuery = useCampaignFinanceSummary();
+  const filingsQuery = useCampaignFinanceFilings(5);
   const reports = publishedReports();
   const newestReport = reports[0];
 
-  const snapshot = landing.data;
-  const filings = snapshot?.latestFilings ?? [];
+  const summary = summaryQuery.data;
+  const register = summary?.register.state === 'reported' ? summary.register : null;
+  const confirmations =
+    summary?.confirmations.state === 'reported' &&
+    summary.confirmations.confirmedMemberCount !== null &&
+    summary.confirmations.sittingMemberCount !== null
+      ? {
+          confirmed: summary.confirmations.confirmedMemberCount,
+          total: summary.confirmations.sittingMemberCount,
+          newestConfirmationAt: summary.confirmations.newestConfirmationAt,
+        }
+      : null;
+  const filesLastCopied = summary?.freshness.downloadsFetchedAt ?? null;
+  const feed = filingsQuery.data;
+  const filings = feed?.state === 'reported' ? feed.filings : [];
 
   return (
     <PageBackground>
@@ -168,8 +187,8 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
                   Our own research on these records
                 </Text>
                 <Text style={styles.featuredDek}>
-                  Nothing is published yet. Reports appear on the shelf when we publish them, each
-                  dated and carrying the date its records run through.
+                  Nothing is published yet. When we publish research on these records, it appears on
+                  the shelf, dated and carrying the date its records run through.
                 </Text>
                 <Text style={styles.featuredDates}>0 REPORTS PUBLISHED</Text>
                 <View style={styles.featuredCta}>
@@ -186,24 +205,24 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
           <View style={[styles.laneRow, isMobile && styles.laneRowMobile]}>
             <LaneCard
               title="Legislators"
-              body="Their money is a tab on the profile they already have."
-              countLine={laneCountLine(snapshot?.laneCounts.sittingMembers ?? null, 'members')}
+              body={
+                'Their money is a tab on the profile they already have.' +
+                (confirmations ? ` ${legislatorsLaneSentence(confirmations)}` : '')
+              }
+              countLine={laneCountLine(confirmations?.total ?? null, 'members')}
               href={routePath.legislators()}
               onOpen={() => navigation.navigate('Legislators')}
             />
             <LaneCard
               title="Committees"
               body="Campaign committees, party units, and other registered funds."
-              countLine={laneCountLine(
-                snapshot?.laneCounts.registeredFilers ?? null,
-                'registered filers',
-              )}
+              countLine={laneCountLine(register?.filerCount ?? null, 'registered filers')}
               notBuiltLine="This page is not built yet."
             />
             <LaneCard
               title="Who got paid"
               body="Payments as filed, with no page per name."
-              countLine={laneCountLine(snapshot?.laneCounts.payeeNames ?? null, 'names as filed')}
+              countLine={null}
               notBuiltLine="This page is not built yet."
             />
           </View>
@@ -211,7 +230,7 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
           {/* The one freshness date this page shows — when we last copied new
               filings, never the period any money covers (rule 12). Rendered
               only when served. */}
-          {landing.isLoading ? (
+          {summaryQuery.isLoading ? (
             <View
               style={styles.freshnessBox}
               accessible
@@ -219,10 +238,10 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
             >
               <Skeleton width={220} height={16} />
             </View>
-          ) : snapshot?.filesLastCopied ? (
+          ) : filesLastCopied ? (
             <View style={styles.freshnessBox}>
               <Text style={styles.freshnessLabel}>FILES LAST COPIED</Text>
-              <Text style={styles.freshnessDate}>{reportDateLabel(snapshot.filesLastCopied)}</Text>
+              <Text style={styles.freshnessDate}>{centralDateLabel(filesLastCopied)}</Text>
               <Text style={styles.freshnessNote}>
                 When we last copied new filings from the Board. Not the period the money covers —
                 every figure carries its own period, and each one ends earlier than this date.
@@ -241,14 +260,12 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
                   {line}
                 </Text>
               ))}
-              {snapshot?.confirmation ? (
+              {confirmations ? (
                 <>
-                  <Text style={styles.notCoveredLine}>
-                    {confirmationLine(snapshot.confirmation)}
-                  </Text>
-                  {confirmationDateLine(snapshot.confirmation.newestConfirmationOn) ? (
+                  <Text style={styles.notCoveredLine}>{confirmationLine(confirmations)}</Text>
+                  {confirmationDateLine(confirmations.newestConfirmationAt) ? (
                     <Text style={styles.notCoveredFootnote}>
-                      {confirmationDateLine(snapshot.confirmation.newestConfirmationOn)}
+                      {confirmationDateLine(confirmations.newestConfirmationAt)}
                     </Text>
                   ) : null}
                 </>
@@ -256,12 +273,15 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
             </View>
           </View>
 
-          {/* Filings as they arrive: whose committee filed, which report, the
-              period it covers. Never an amount — five rows with five dollar
-              figures is a ranking whether we sort it or not. */}
-          {landing.isLoading ? (
-            <View style={styles.filingsBlock} accessible accessibilityLabel="Loading filings">
-              <Text style={styles.notCoveredLabel}>FILINGS AS THEY ARRIVE</Text>
+          {/* The most recent completed filing period — NOT "filings as they
+              arrive": the Board serves no filed date (issue #1670), the feed
+              orders by period end, and 1,200+ filers can share one period end
+              with the tie broken alphabetically, so the copy says exactly what
+              the rows are. Never an amount — five rows with five dollar figures
+              is a ranking whether we sort it or not. */}
+          {filingsQuery.isLoading ? (
+            <View style={styles.filingsBlock} accessible accessibilityLabel="Loading filed reports">
+              <Text style={styles.notCoveredLabel}>THE MOST RECENT COMPLETED FILING PERIOD</Text>
               <View style={styles.filingsList}>
                 {[0, 1, 2].map((i) => (
                   <Skeleton key={i} width="100%" height={56} radius={12} />
@@ -270,21 +290,23 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
             </View>
           ) : filings.length > 0 ? (
             <View style={styles.filingsBlock}>
-              <Text style={styles.notCoveredLabel}>FILINGS AS THEY ARRIVE</Text>
-              <Text style={styles.filingsSort}>
-                Newest first, by the date filed — never by amount
-              </Text>
+              <Text style={styles.notCoveredLabel}>THE MOST RECENT COMPLETED FILING PERIOD</Text>
+              {orderingSentence(feed?.orderedBy ?? '') ? (
+                <Text style={styles.filingsSort}>
+                  {orderingSentence(feed?.orderedBy ?? '')} — never by amount
+                </Text>
+              ) : null}
+              <Text style={styles.filingsSort}>{FILINGS_TIE_SENTENCE}</Text>
               <View style={styles.filingsList}>
                 {filings.map((filing, index) => (
                   <View key={index} style={styles.filingRow}>
                     <View style={styles.filingBody}>
-                      <Text style={styles.filingCommittee}>{filing.committeeName}</Text>
+                      <Text style={styles.filingCommittee}>{filing.filerName}</Text>
                       <Text style={styles.filingReport}>
                         {filing.reportName}
                         {filingPeriodLine(filing) ? ` · ${filingPeriodLine(filing)}` : ''}
                       </Text>
                     </View>
-                    <Text style={styles.filingFiled}>{filingFiledLine(filing)}</Text>
                   </View>
                 ))}
               </View>
@@ -548,12 +570,5 @@ const styles = StyleSheet.create({
     fontFamily: t.typography.body,
     fontSize: 14.5,
     lineHeight: 22,
-  },
-  filingFiled: {
-    color: t.colors.text.muted,
-    fontFamily: t.typography.mono,
-    fontSize: 10.5,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 0.8,
   },
 });

@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  centralDateLabel,
   confirmationDateLine,
   confirmationLine,
-  filingFiledLine,
   filingPeriodLine,
   formatCount,
   laneCountLine,
+  legislatorsLaneSentence,
+  orderingSentence,
   RECORD_DOES_NOT_COVER,
 } from '../moneyLanding';
 
@@ -60,8 +62,27 @@ describe('filing rows', () => {
     expect(filingPeriodLine({ periodStart: '2026-01-01', periodEnd: null })).toBeNull();
   });
 
-  it('labels the filed date', () => {
-    expect(filingFiledLine({ filedOn: '2026-07-27' })).toBe('FILED JUL 27, 2026');
+  // We hold no filing date for any report (the Board's catalogue serves none —
+  // issue #1670), so the printed ordering sentence derives from the feed's own
+  // ordered_by through one mapping, and an unknown value prints no sentence
+  // rather than a guess.
+  it('derives the ordering sentence from ordered_by, and stays silent on an unknown value', () => {
+    expect(orderingSentence('period_end')).toBe('Newest first, by the period each report covers');
+    expect(orderingSentence('filed_at')).toBeNull();
+    expect(orderingSentence('')).toBeNull();
+  });
+});
+
+describe('served instants print in Central time', () => {
+  // 02:54 UTC on Aug 12 is 21:54 on Aug 11 in Minnesota — the honest day for a
+  // Minnesotan reader is Aug 11 (ruled 19 Aug 2026).
+  it('prints the Minnesota day, not the UTC day', () => {
+    expect(centralDateLabel('2026-08-12T02:54:22.402100Z')).toBe('Aug 11, 2026');
+    expect(centralDateLabel('2026-08-12T21:34:26.606333Z')).toBe('Aug 12, 2026');
+  });
+
+  it('passes through a value it cannot parse rather than inventing a date', () => {
+    expect(centralDateLabel('unknown')).toBe('unknown');
   });
 });
 
@@ -75,8 +96,15 @@ describe('confirmation progress', () => {
 
   it('dates the line by the newest confirmation, and stays undated while there is none', () => {
     expect(confirmationDateLine(null)).toBeNull();
-    expect(confirmationDateLine('2026-08-19')).toBe(
+    expect(confirmationDateLine('2026-08-19T15:00:00Z')).toBe(
       'Read live from the confirmation log · newest confirmation Aug 19, 2026',
+    );
+  });
+
+  it('writes the Legislators lane sentence from both served numbers', () => {
+    expect(legislatorsLaneSentence({ confirmed: 0, total: 200 })).toBe(
+      "Confirmed for 0 of Minnesota's 200 sitting legislators — for the rest, no figures show " +
+        'on a profile.',
     );
   });
 });

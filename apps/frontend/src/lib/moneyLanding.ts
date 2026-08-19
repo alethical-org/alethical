@@ -15,7 +15,7 @@
  *   is on the donor's yearly total, never on the size of one gift.
  */
 
-import type { MoneyLandingFiling } from '../data/types';
+import type { MoneyFilingRow } from '../data/types';
 import { reportDateLabel } from './moneyReports';
 
 /** The three permanent gaps, shown above anything a reader might search for.
@@ -44,17 +44,69 @@ export function laneCountLine(count: number | null, unit: string): string | null
 /**
  * The period a filing covers, both ends read off the filing — never an assumed
  * January. Start unresolved → "covers through {end}". Neither end resolved →
- * null, and the row carries the report and the filing date with no period line.
+ * null, and the row carries the report name with no period line.
  */
-export function filingPeriodLine(filing: Pick<MoneyLandingFiling, 'periodStart' | 'periodEnd'>) {
+export function filingPeriodLine(filing: Pick<MoneyFilingRow, 'periodStart' | 'periodEnd'>) {
   if (!filing.periodEnd) return null;
   if (!filing.periodStart) return `covers through ${reportDateLabel(filing.periodEnd)}`;
   return `covers ${reportDateLabel(filing.periodStart)} – ${reportDateLabel(filing.periodEnd)}`;
 }
 
-/** "FILED JUL 27, 2026" */
-export function filingFiledLine(filing: Pick<MoneyLandingFiling, 'filedOn'>): string {
-  return `FILED ${reportDateLabel(filing.filedOn).toUpperCase()}`;
+/**
+ * The printed ordering sentence, derived from the feed's own `ordered_by`
+ * through this one mapping so the words and the order can never drift apart.
+ * There is deliberately no filed date anywhere: the Board's catalogue serves
+ * none (issue #1670), so the drawn "newest first, by the date filed" sentence
+ * would be false and does not ship. An `ordered_by` this mapping does not know
+ * prints no sentence rather than a guess.
+ */
+export function orderingSentence(orderedBy: string): string | null {
+  if (orderedBy === 'period_end') return 'Newest first, by the period each report covers';
+  return null;
+}
+
+/**
+ * Why the listed rows are these rows: over a thousand filers can share one
+ * period end (1,200+ share 20 Jul 2026), and the tie breaks alphabetically. Said
+ * plainly so a reader never takes the first rows for the newest or the largest.
+ * No count is printed because the feed serves none.
+ */
+export const FILINGS_TIE_SENTENCE =
+  'Every committee that filed for this period is listed alphabetically — the rows shown are the first by name, not the newest and not the largest.';
+
+/**
+ * One place that turns a served instant into the day a Minnesotan reads
+ * ("Aug 11, 2026"): the reader and the Board are both in Minnesota, so every
+ * timestamp on these pages prints in Central time (ruled 19 Aug 2026 — the
+ * served 2026-08-12T02:54:22Z is 21:54 on Aug 11 in Central, and Aug 11 is the
+ * honest day). Plain dates (a filing period's ends) carry no time and never
+ * pass through here.
+ */
+export function centralDateLabel(isoTimestamp: string): string {
+  const parsed = new Date(isoTimestamp);
+  if (Number.isNaN(parsed.getTime())) return isoTimestamp;
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Chicago',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  }).format(parsed);
+}
+
+/**
+ * The Legislators lane's own sentence — the lane is where the promise is made,
+ * so it carries the confirmed state in its own words, with both numbers served
+ * live (campaign money IA §01).
+ */
+export function legislatorsLaneSentence(confirmation: {
+  confirmed: number;
+  total: number;
+}): string {
+  return (
+    `Confirmed for ${formatCount(confirmation.confirmed)} of Minnesota's ` +
+    `${formatCount(confirmation.total)} sitting legislators — for the rest, no figures show ` +
+    `on a profile.`
+  );
 }
 
 /**
@@ -71,9 +123,10 @@ export function confirmationLine(confirmation: { confirmed: number; total: numbe
   );
 }
 
-/** Dated by the newest confirmation in the log; undated while there is none. */
-export function confirmationDateLine(newestConfirmationOn: string | null): string | null {
-  return newestConfirmationOn
-    ? `Read live from the confirmation log · newest confirmation ${reportDateLabel(newestConfirmationOn)}`
+/** Dated by the newest confirmation in the log (a served instant, printed in
+ *  Central time); undated while there is none. */
+export function confirmationDateLine(newestConfirmationAt: string | null): string | null {
+  return newestConfirmationAt
+    ? `Read live from the confirmation log · newest confirmation ${centralDateLabel(newestConfirmationAt)}`
     : null;
 }

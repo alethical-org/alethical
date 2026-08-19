@@ -5,7 +5,7 @@
 **Net.** `/money` is the public front door to Minnesota's campaign-money records, open to
 everyone with no sign-in. In this first release it shows the shape of the whole section —
 what exists, what is coming, and what the record does and does not cover — plus the shelf
-where our own signed research reports will be published. Nothing is published on that shelf
+where our own signed research reports appear once published. Nothing is published on that shelf
 yet, and it says so.
 
 ## Ways in
@@ -38,13 +38,30 @@ Top to bottom:
    board; and the exact sentence "Donors who gave $200 or less in total for the year are
    never named" (the $200 test is on a donor's yearly total, never on one gift's size).
 
-Three more pieces appear only once their data is served by the backend (they are absent
-today, never faked): the **files last copied** date (the page's one freshness date — when we
-last copied filings from the Board, not the period any money covers), the **newest filings**
-list (whose committee filed, which report, the period it covers — never an amount, because
-five rows with five dollar figures is a ranking), and the lanes' **live counts** (a count
-binds to a live query or does not appear; it is never pasted and never a made-up zero).
-While that data loads, grey placeholder blocks pulse (the pulse stops for readers who asked
+Three more pieces bind to live data (two public endpoints:
+`/api/v1/campaign-finance/summary` and `/api/v1/campaign-finance/filings`). Each data block
+carries its own served state, so one gap never blanks the others, and a block that is not
+served renders nothing rather than a number:
+
+- The **files last copied** date — the page's one freshness date: when we last copied
+  filings from the Board, not the period any money covers. Every served timestamp on these
+  pages prints as its Minnesota (Central time) day, so an instant recorded just after
+  midnight UTC reads as the evening it was in Minnesota.
+- The **most recent completed filing period** — the newest filed reports, ordered by the
+  period each report covers, never an amount and never a "filed on" date, because the
+  Board's catalogue serves no filing date (storing a real one is
+  [issue #1670](https://github.com/alethical-org/alethical/issues/1670)). More than a
+  thousand filers can share one period end and the tie breaks alphabetically, so the module
+  says plainly that its rows are the first by name, not the newest or the largest. The
+  ordering sentence is derived from the feed's own ordering field through one mapping, so
+  the words and the order cannot drift apart.
+- The lanes' **live counts**: registered filers on the Committees lane, and sitting members
+  on the Legislators lane, whose text also states how many members' committees a person has
+  confirmed (0 of 200 today — a verified zero, shown as the number it is, because the
+  confirmation log is ours and it is empty). A count that is not served does not appear; a
+  null is our gap and never renders as 0.
+
+While data loads, grey placeholder blocks pulse (the pulse stops for readers who asked
 their device for reduced motion, and a hidden "Loading" note tells screen readers).
 
 ## The reports shelf (`/money/reports`)

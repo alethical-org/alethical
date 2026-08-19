@@ -614,48 +614,54 @@ export interface CampaignCommitteeMoney {
   };
 }
 
-/** One row of the /money landing's "filings as they arrive" module: whose
- *  committee filed, which report, and the period it covers — never an amount
- *  (five rows with five dollar figures is a ranking whether we sort it or not,
- *  and the rows' periods differ by months). */
-export interface MoneyLandingFiling {
-  /** The committee's name exactly as filed. */
-  committeeName: string;
-  /** The report's name, e.g. "Pre-primary report". */
+/** One row of the /money landing's filed-reports module: whose committee filed,
+ *  which report, and the period it covers — never an amount, and never a filed
+ *  date, because the Board's catalogue serves none (storing a real one is
+ *  issue #1670; a period end relabelled "filed" would be a fabricated fact). */
+export interface MoneyFilingRow {
+  /** The filer's name exactly as registered. */
+  filerName: string;
+  /** The report's name, e.g. "2026 Pre-Primary Report". */
   reportName: string;
   /** ISO date the period starts, when the filing resolves one — never an
    *  assumed 1 January. */
   periodStart: string | null;
   /** ISO date the period ends (the filing's cutoff). */
   periodEnd: string | null;
-  /** ISO date the report was filed. */
-  filedOn: string;
 }
 
-/** What the /money landing shows that is data rather than copy. Every field is
- *  tolerant of absence: a module whose data is not served renders its designed
- *  empty state instead of a number (the endpoints land with the backend's
- *  campaign-money phase 1 work). */
-export interface MoneyLandingSnapshot {
-  /** ISO date we last copied new filings from the Board — the page's one
-   *  freshness date. Not the period any money covers. */
-  filesLastCopied: string | null;
-  /** Newest first, by the date filed. */
-  latestFilings: MoneyLandingFiling[];
-  /** Live register counts for the lane cards. Absent means "show no count",
-   *  never zero. */
-  laneCounts: {
-    registeredFilers: number | null;
-    payeeNames: number | null;
-    sittingMembers: number | null;
+/** The filed-reports feed (GET /campaign-finance/filings). `state`
+ *  "unavailable" means our gap, never that nobody filed. */
+export interface MoneyFilingsFeed {
+  state: 'reported' | 'unavailable';
+  /** What the feed is ordered by (e.g. "period_end"). The printed ordering
+   *  sentence derives from this through one mapping (lib/moneyLanding.ts), so
+   *  the words and the order cannot drift apart. */
+  orderedBy: string;
+  filings: MoneyFilingRow[];
+}
+
+/** The landing's counts and dates (GET /campaign-finance/summary). Three
+ *  independent blocks, each with its own state, so one gap cannot blank the
+ *  others. A null count is our gap and never renders as 0; a served 0 is a
+ *  verified zero and renders as the number it is. */
+export interface MoneyLandingSummary {
+  register: {
+    state: 'reported' | 'unavailable';
+    filerCount: number | null;
   };
-  /** Committee-confirmation progress, read live from the confirmation log. */
-  confirmation: {
-    confirmed: number;
-    total: number;
-    /** ISO date of the newest confirmation; null while there is none. */
-    newestConfirmationOn: string | null;
-  } | null;
+  confirmations: {
+    state: 'reported' | 'unavailable';
+    confirmedMemberCount: number | null;
+    sittingMemberCount: number | null;
+    /** ISO timestamp of the newest confirmation; null while there is none. */
+    newestConfirmationAt: string | null;
+  };
+  freshness: {
+    /** ISO timestamp we last copied new filings from the Board — the page's one
+     *  freshness date. Printed in Central time. */
+    downloadsFetchedAt: string | null;
+  };
 }
 
 /** A legislator's own campaign money for one year. Read `linkState` before

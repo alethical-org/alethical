@@ -32,7 +32,8 @@ import {
   Legislator,
   LegislatorCampaignMoney,
   LegislatorVote,
-  MoneyLandingSnapshot,
+  MoneyFilingsFeed,
+  MoneyLandingSummary,
   RepresentativeAddressChoice,
   RepresentativeLookupInput,
   RepresentativeLookupResult,
@@ -2313,65 +2314,98 @@ export async function getLegislatorCampaignMoneyFromApi(
   };
 }
 
-interface ApiMoneyLandingFilingPayload {
-  committee_name: string;
+interface ApiCampaignFinanceSummaryPayload {
+  register?: {
+    state?: string;
+    filer_count?: number | null;
+  } | null;
+  legislator_committee_confirmations?: {
+    state?: string;
+    confirmed_member_count?: number | null;
+    sitting_member_count?: number | null;
+    newest_confirmation_at?: string | null;
+  } | null;
+  freshness?: {
+    downloads_fetched_at?: string | null;
+  } | null;
+}
+
+interface ApiMoneyFilingPayload {
+  filer_name: string;
   report_name: string;
   period_start?: string | null;
   period_end?: string | null;
-  filed_on: string;
 }
 
-interface ApiMoneyLandingPayload {
-  files_last_copied?: string | null;
-  latest_filings?: ApiMoneyLandingFilingPayload[] | null;
-  lane_counts?: {
-    registered_filers?: number | null;
-    payee_names?: number | null;
-    sitting_members?: number | null;
-  } | null;
-  confirmation?: {
-    confirmed: number;
-    total: number;
-    newest_confirmation_on?: string | null;
-  } | null;
+interface ApiCampaignFinanceFilingsPayload {
+  state?: string;
+  ordered_by?: string;
+  filings?: ApiMoneyFilingPayload[] | null;
+}
+
+function blockState(state: string | undefined): 'reported' | 'unavailable' {
+  return state === 'reported' ? 'reported' : 'unavailable';
 }
 
 /**
- * Everything on the /money landing that is data rather than copy: the freshness
- * date, the newest filings (no amounts — the landing never ranks money), the
- * live lane counts, and committee-confirmation progress.
- *
- * The path is agreed with the backend's campaign-money phase 1 session; until
- * that endpoint deploys, this request fails and every module it feeds renders
- * its designed absent state — the landing binds no number it was not served
- * (grounded-answers.md rule 12; lane counts are live queries, never pasted).
+ * The /money landing's counts and dates. Three independent blocks, each with its
+ * own state, so one gap cannot blank the other lanes. A null count is our gap
+ * and never renders as 0; a served 0 (today's confirmed_member_count) is a
+ * verified zero and renders as the number it is (grounded-answers.md rule 12).
  */
-export async function getMoneyLandingFromApi(): Promise<MoneyLandingSnapshot> {
-  const response = await publicApiRequest<DetailResponse<ApiMoneyLandingPayload>>(
-    '/campaign-finance/landing',
+export async function getCampaignFinanceSummaryFromApi(): Promise<MoneyLandingSummary> {
+  const response = await publicApiRequest<DetailResponse<ApiCampaignFinanceSummaryPayload>>(
+    '/campaign-finance/summary',
+  );
+  const payload = response.data;
+  const register = payload.register ?? undefined;
+  const confirmations = payload.legislator_committee_confirmations ?? undefined;
+  return {
+    register: {
+      state: blockState(register?.state),
+      filerCount: register?.state === 'reported' ? (register?.filer_count ?? null) : null,
+    },
+    confirmations: {
+      state: blockState(confirmations?.state),
+      confirmedMemberCount:
+        confirmations?.state === 'reported'
+          ? (confirmations?.confirmed_member_count ?? null)
+          : null,
+      sittingMemberCount:
+        confirmations?.state === 'reported' ? (confirmations?.sitting_member_count ?? null) : null,
+      newestConfirmationAt: confirmations?.newest_confirmation_at ?? null,
+    },
+    freshness: {
+      downloadsFetchedAt: payload.freshness?.downloads_fetched_at ?? null,
+    },
+  };
+}
+
+/**
+ * The newest filed reports for the landing (no amounts and no filed date — the
+ * Board's catalogue serves no filing date, and a period end relabelled "filed"
+ * would be a fabricated fact; a real one is issue #1670). Ordered by the period
+ * each report covers; the printed ordering sentence derives from `ordered_by`
+ * through lib/moneyLanding.ts so the words and the order cannot drift apart.
+ */
+export async function getCampaignFinanceFilingsFromApi(limit = 5): Promise<MoneyFilingsFeed> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  const response = await publicApiRequest<DetailResponse<ApiCampaignFinanceFilingsPayload>>(
+    `/campaign-finance/filings?${params.toString()}`,
   );
   const payload = response.data;
   return {
-    filesLastCopied: payload.files_last_copied ?? null,
-    latestFilings: (payload.latest_filings ?? []).map((filing) => ({
-      committeeName: filing.committee_name,
-      reportName: filing.report_name,
-      periodStart: filing.period_start ?? null,
-      periodEnd: filing.period_end ?? null,
-      filedOn: filing.filed_on,
-    })),
-    laneCounts: {
-      registeredFilers: payload.lane_counts?.registered_filers ?? null,
-      payeeNames: payload.lane_counts?.payee_names ?? null,
-      sittingMembers: payload.lane_counts?.sitting_members ?? null,
-    },
-    confirmation: payload.confirmation
-      ? {
-          confirmed: payload.confirmation.confirmed,
-          total: payload.confirmation.total,
-          newestConfirmationOn: payload.confirmation.newest_confirmation_on ?? null,
-        }
-      : null,
+    state: blockState(payload.state),
+    orderedBy: payload.ordered_by ?? '',
+    filings:
+      payload.state === 'reported'
+        ? (payload.filings ?? []).map((filing) => ({
+            filerName: filing.filer_name,
+            reportName: filing.report_name,
+            periodStart: filing.period_start ?? null,
+            periodEnd: filing.period_end ?? null,
+          }))
+        : [],
   };
 }
 
