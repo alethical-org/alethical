@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  a{color:#0f7a45;}
+  a:hover{color:#11832b;}
+  a:focus-visible,button:focus-visible,input:focus-visible,[tabindex]:focus-visible{outline:2px solid #7c5cff !important;outline-offset:2px !important;}
+  @keyframes cardPop{from{opacity:0;transform:translateY(10px) scale(0.98);}to{opacity:1;transform:none;}}
+  @keyframes skelPulse{0%,100%{opacity:1;}50%{opacity:0.55;}}
+  @media (prefers-reduced-motion: reduce){[data-skel]{animation:none !important;}}
+</style>
+</helmet>
+<div style="width:1600px;min-height:1120px;font-family:'Libre Franklin',Helvetica,Arial,sans-serif;background:#fbfcfd;color:#11150f;position:relative;overflow:hidden;">
+
+  <div style="position:relative;padding:0;background:linear-gradient(180deg,#f4f5f7 0%,#f7f8fa 55%,#fdfdfe 90%,#ffffff 100%);">
+    <div style="position:absolute;inset:0;background-image:radial-gradient(rgba(17,21,15,0.07) 1.4px, transparent 1.5px);background-size:30px 30px;pointer-events:none;-webkit-mask:linear-gradient(to bottom, transparent 0px, transparent 110px, #000 230px, #000 calc(100% - 180px), transparent 100%);mask:linear-gradient(to bottom, transparent 0px, transparent 110px, #000 230px, #000 calc(100% - 180px), transparent 100%);"></div>
+
+    <nav data-screen-label="Nav" style="position:relative;display:flex;align-items:center;justify-content:space-between;padding:26px 56px 0;">
+      <a href="#" style="display:flex;align-items:center;gap:16px;text-decoration:none;">
+        <svg width="40" height="40" viewBox="8 9 84 84" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;flex:none;"><path d="M8,92 L46,10 L46,92 Z" fill="#11150f"></path><path d="M92,92 L54,10 L54,92 Z" fill="#11150f"></path></svg>
+        <span style="font-weight:600;font-size:25px;letter-spacing:0.16em;color:#11150f;">ALETHICAL</span>
+      </a>
+      <div style="display:flex;align-items:center;gap:30px;">
+        <div style="display:flex;align-items:center;gap:34px;">
+          <a href="#" style="display:inline-flex;align-items:center;gap:8px;color:#4b524b;text-decoration:none;font-size:18px;font-weight:500;" style-hover="color:#11150f;">Search<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 9 L12 15 L18 9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg></a>
+          <a href="#" style="display:inline-flex;align-items:center;gap:8px;color:#4b524b;text-decoration:none;font-size:18px;font-weight:500;" style-hover="color:#11150f;">Yours<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 9 L12 15 L18 9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg></a>
+          <a href="#" style="display:inline-flex;align-items:center;gap:8px;color:#4b524b;text-decoration:none;font-size:18px;font-weight:500;" style-hover="color:#11150f;">About<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 9 L12 15 L18 9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg></a>
+        </div>
+        <div style="display:inline-flex;align-items:center;gap:11px;padding:12px 20px;background:#ffffff;border:1px solid rgba(17,21,15,0.16);border-radius:12px;color:#11150f;font-size:17px;font-weight:600;cursor:pointer;" style-hover="border-color:rgba(17,21,15,0.32);background:#f7f8fa;">
+          <span style="width:9px;height:9px;border-radius:50%;background:#2ed47e;display:inline-block;flex:none;box-shadow:0 0 0 3px rgba(45,212,126,0.18);"></span>
+          Jordan Reyes
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 9 L12 15 L18 9" stroke="#6f756f" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </div>
+      </div>
+    </nav>
+
+    <div style="position:relative;padding:48px 56px 0;">
+      <a href="#" style="display:inline-flex;align-items:center;gap:9px;color:#4b524b;text-decoration:none;font-size:16px;font-weight:600;" style-hover="color:#11150f;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M15 5 L8 12 L15 19" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>Go back</a>
+
+      <sc-if value="{{ isNotFound }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-top:24px;font-size:13px;font-weight:700;letter-spacing:0.2em;color:#0f7a45;">COMMITTEES</div>
+        <h1 style="margin:14px 0 0;font-size:46px;line-height:1.08;font-weight:800;letter-spacing:-0.03em;color:#11150f;max-width:900px;">This number isn’t in the register we hold</h1>
+        <p style="margin:18px 0 0;max-width:760px;font-size:18px;line-height:1.6;color:#4f5651;text-wrap:pretty;">Nothing is registered under <span style="font-family:'JetBrains Mono',monospace;font-size:16px;color:#11150f;">{{ nf.number }}</span> in our copy of the Board’s register, last updated {{ nf.asOf }}. That is a fact about our register, not about the committee — the number may be newer than our copy, or mistyped by a digit.</p>
+        <div style="margin-top:24px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+          <a href="#" style="display:inline-flex;align-items:center;gap:9px;background:#11150f;color:#ffffff;border-radius:11px;padding:13px 19px;font-size:15.5px;font-weight:700;text-decoration:none;">Search committees</a>
+          <a href="https://cfb.mn.gov/" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:7px;background:#ffffff;color:#2c322c;border:1px solid rgba(17,21,15,0.16);border-radius:11px;padding:13px 19px;font-size:15.5px;font-weight:700;text-decoration:none;">Check the Board’s register<svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M7 17 L17 7 M9.5 7 H17 V14.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg></a>
+        </div>
+        <div style="height:40px;"></div>
+      </sc-if>
+
+      <sc-if value="{{ hasEntity }}" hint-placeholder-val="{{ true }}">
+      <div style="margin-top:24px;font-size:13px;font-weight:700;letter-spacing:0.2em;color:#0f7a45;">{{ ent.eyebrow }}</div>
+
+      <div style="margin-top:14px;display:flex;align-items:flex-start;justify-content:space-between;gap:40px;flex-wrap:wrap;">
+        <div style="flex:1;min-width:0;max-width:1000px;">
+          <h1 style="margin:0;font-size:46px;line-height:1.08;font-weight:800;letter-spacing:-0.03em;color:#11150f;text-wrap:pretty;">{{ ent.name }}</h1>
+          <div style="margin-top:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <span style="display:inline-flex;align-items:center;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;letter-spacing:0.06em;color:#4f5651;background:#f1f1f4;border:1px solid rgba(17,21,15,0.1);border-radius:8px;padding:6px 11px;">{{ ent.regNo }}</span>
+            <span style="font-size:17px;color:#4b524b;">{{ ent.registeredFor }}</span>
+            <sc-if value="{{ ent.isTerminated }}" hint-placeholder-val="{{ false }}">
+              <span style="display:inline-flex;align-items:center;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.08em;color:#4f5651;background:transparent;border:1px solid rgba(17,21,15,0.18);border-radius:8px;padding:5px 10px;">{{ ent.closedLabel }}</span>
+            </sc-if>
+          </div>
+        </div>
+
+        <div style="flex:none;position:relative;z-index:60;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+          <button onClick="{{ openShare }}" aria-haspopup="true" aria-expanded="{{ shareOpen }}" style="flex:none;display:inline-flex;align-items:center;gap:11px;background:#ffffff;color:#11150f;border:1px solid rgba(17,21,15,0.16);border-radius:12px;padding:16px 24px 16px 21px;font-family:'Libre Franklin',sans-serif;font-size:18px;font-weight:600;cursor:pointer;" style-hover="border-color:rgba(17,21,15,0.32);background:#f7f8fa;">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" style="flex:none;"><circle cx="18" cy="5" r="2.8" stroke="currentColor" stroke-width="2"></circle><circle cx="6" cy="12" r="2.8" stroke="currentColor" stroke-width="2"></circle><circle cx="18" cy="19" r="2.8" stroke="currentColor" stroke-width="2"></circle><path d="M8.5 10.8 L15.5 6.4 M8.5 13.2 L15.5 17.6" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path></svg>
+            Share
+          </button>
+          <sc-if value="{{ shareOpen }}" hint-placeholder-val="{{ false }}">
+          <div onClick="{{ closeShare }}" style="position:fixed;inset:0;z-index:0;"></div>
+          <div role="dialog" aria-label="Share this committee" style="position:absolute;top:calc(100% + 12px);right:0;z-index:1;width:366px;background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:16px;box-shadow:0 24px 60px rgba(17,21,15,0.2);padding:20px 20px 22px;animation:cardPop 0.16s ease;text-align:left;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+              <span style="font-size:17px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">Share this committee</span>
+              <button onClick="{{ closeShare }}" aria-label="Close" style="width:30px;height:30px;display:inline-flex;align-items:center;justify-content:center;background:transparent;border:none;border-radius:8px;cursor:pointer;color:#6f756f;" style-hover="background:#f1f1f4;color:#11150f;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 6 L18 18 M18 6 L6 18" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"></path></svg></button>
+            </div>
+            <div style="margin-top:14px;display:flex;align-items:center;gap:8px;background:#f7f9f8;border:1px solid rgba(17,21,15,0.1);border-radius:11px;padding:5px 5px 5px 14px;">
+              <input readonly value="{{ share.url }}" aria-label="Committee link" style="flex:1;min-width:0;background:transparent;border:none;outline:none;font-family:'JetBrains Mono',monospace;font-size:13px;color:#4f5651;" />
+              <sc-if value="{{ notCopied }}" hint-placeholder-val="{{ true }}"><button onClick="{{ copyLink }}" style="flex:none;display:inline-flex;align-items:center;gap:6px;background:#2ed47e;color:#06231a;border:none;border-radius:8px;padding:10px 16px;font-family:'Libre Franklin',sans-serif;font-size:14px;font-weight:700;cursor:pointer;" style-hover="background:#28bf71;">Copy</button></sc-if>
+              <sc-if value="{{ copied }}" hint-placeholder-val="{{ false }}"><span style="flex:none;display:inline-flex;align-items:center;gap:6px;background:#2ed47e;color:#06231a;border-radius:8px;padding:10px 16px;font-size:14px;font-weight:700;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M5 12.5 L10 17.5 L19 7" stroke="#06231a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path></svg>Copied</span></sc-if>
+            </div>
+            <div style="margin-top:16px;padding-top:16px;border-top:1px solid rgba(17,21,15,0.08);">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.14em;color:#6f756f;">SHARE TO</div>
+              <div style="margin-top:12px;display:flex;align-items:center;gap:10px;">
+                <a href="{{ share.linkedin }}" target="_blank" rel="noopener" aria-label="Share on LinkedIn" style="width:44px;height:44px;border-radius:50%;background:#f1f1f4;display:inline-flex;align-items:center;justify-content:center;color:#11150f;text-decoration:none;" style-hover="background:#e7e8ec;color:#000000;"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.42v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13zM7.12 20.45H3.56V9h3.56v11.45zM22.22 0H1.77C.79 0 0 .77 0 1.72v20.56C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.72V1.72C24 .77 23.2 0 22.22 0z"></path></svg></a>
+                <a href="{{ share.x }}" target="_blank" rel="noopener" aria-label="Share on X" style="width:44px;height:44px;border-radius:50%;background:#f1f1f4;display:inline-flex;align-items:center;justify-content:center;color:#11150f;text-decoration:none;" style-hover="background:#e7e8ec;color:#000000;"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"></path></svg></a>
+                <a href="{{ share.facebook }}" target="_blank" rel="noopener" aria-label="Share on Facebook" style="width:44px;height:44px;border-radius:50%;background:#f1f1f4;display:inline-flex;align-items:center;justify-content:center;color:#11150f;text-decoration:none;" style-hover="background:#e7e8ec;color:#000000;"><svg width="19" height="19" viewBox="0 0 24 24" fill="currentColor"><path d="M15.12 5.32H17V2.14A26.11 26.11 0 0 0 14.26 2c-2.72 0-4.58 1.66-4.58 4.7v2.6H6.61v3.56h3.07V22h3.68v-9.14h3.06l.46-3.56h-3.52V7.05c0-1.03.28-1.73 1.76-1.73z"></path></svg></a>
+                <a href="{{ share.instagram }}" target="_blank" rel="noopener" aria-label="Share on Instagram" style="width:44px;height:44px;border-radius:50%;background:#f1f1f4;display:inline-flex;align-items:center;justify-content:center;color:#11150f;text-decoration:none;" style-hover="background:#e7e8ec;color:#000000;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="5.4" stroke="currentColor" stroke-width="2"></rect><circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="2"></circle><circle cx="17.4" cy="6.6" r="1.3" fill="currentColor"></circle></svg></a>
+                <a href="{{ share.email }}" aria-label="Share by email" style="width:44px;height:44px;border-radius:50%;background:#f1f1f4;display:inline-flex;align-items:center;justify-content:center;color:#11150f;text-decoration:none;" style-hover="background:#e7e8ec;color:#000000;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="5" width="18" height="14" rx="2.4" stroke="currentColor" stroke-width="2"></rect><path d="M4 7.5 L12 13 L20 7.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path></svg></a>
+              </div>
+            </div>
+          </div>
+          </sc-if>
+        </div>
+      </div>
+
+      <!-- WHOSE COMMITTEE. A committee page is complete where a profile is empty: the money is filed
+           BY committee, so it all reads here. The only thing missing is the link to a person, and the
+           filed name is not that link — "Aguirre-Bell, Marisol Senate Committee" is a string the
+           filer chose, not a confirmation by anyone. -->
+      <div style="margin-top:26px;max-width:1000px;background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:14px;box-shadow:0 6px 18px rgba(17,21,15,0.05);padding:18px 22px;">
+        <sc-if value="{{ link.isLinked }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+            <span style="font-size:16px;color:#4b524b;">Confirmed as the committee of</span>
+            <a href="LIVE Legislator profile web.dc.html" style="display:inline-flex;align-items:center;gap:8px;font-size:17px;font-weight:700;color:#0f7a45;text-decoration:none;">{{ link.person }}<span aria-hidden="true" style="font-weight:400;">→</span></a>
+          </div>
+        </sc-if>
+        <sc-if value="{{ link.isUnlinked }}" hint-placeholder-val="{{ true }}">
+          <div style="font-size:16px;line-height:1.55;color:#4f5651;text-wrap:pretty;">{{ link.text }}</div>
+        </sc-if>
+      </div>
+
+      <div style="margin-top:22px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.12em;color:#6f756f;">FILING YEAR</span>
+        <sc-for list="{{ years }}" as="y" hint-placeholder-count="2">
+          <sc-if value="{{ y.active }}" hint-placeholder-val="{{ true }}"><button style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;padding:9px 16px;border-radius:10px;background:#11150f;color:#ffffff;border:1px solid #11150f;cursor:pointer;">{{ y.label }}</button></sc-if>
+          <sc-if value="{{ y.inactive }}" hint-placeholder-val="{{ false }}"><button onClick="{{ y.select }}" style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;padding:9px 16px;border-radius:10px;background:#ffffff;color:#4f5651;border:1px solid rgba(17,21,15,0.16);cursor:pointer;" style-hover="border-color:rgba(17,21,15,0.32);color:#11150f;">{{ y.label }}</button></sc-if>
+        </sc-for>
+      </div>
+      </sc-if>
+    </div>
+
+    <sc-if value="{{ hasEntity }}" hint-placeholder-val="{{ true }}">
+    <div style="position:relative;padding:26px 56px 0;">
+      <!-- PROVENANCE. Same panel as the profile's money tab: what report these figures come from and
+           the period it covers, both ends read off the filing. -->
+      <div data-screen-label="Filing period stamp" style="max-width:1490px;background:#f7f8fa;border:1px solid rgba(17,21,15,0.1);border-radius:14px;padding:18px 22px;">
+        <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;">
+          <sc-if value="{{ stamp.isCovered }}" hint-placeholder-val="{{ true }}">
+            <span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;letter-spacing:0.08em;color:#0f7a45;">{{ stamp.period }}</span>
+          </sc-if>
+          <sc-if value="{{ stamp.isUncovered }}" hint-placeholder-val="{{ false }}">
+            <span style="font-size:16px;font-weight:700;color:#4f5651;">{{ stamp.period }}</span>
+          </sc-if>
+        </div>
+        <p style="margin:10px 0 0;max-width:1000px;font-size:15px;line-height:1.5;color:#4f5651;text-wrap:pretty;">{{ stamp.detail }}</p>
+      </div>
+    </div>
+    </sc-if>
+  </div>
+
+  <div style="background:#ffffff;padding:34px 56px 0;">
+
+    <sc-if value="{{ isLoading }}" hint-placeholder-val="{{ false }}">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:22px;max-width:1490px;">
+        <div style="background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:16px;box-shadow:0 8px 24px rgba(17,21,15,0.05);padding:28px 30px 30px;">
+          <span data-skel="1" style="display:block;width:180px;height:13px;border-radius:5px;background:#e6e9e7;animation:skelPulse 1.4s ease-in-out infinite;"></span>
+          <span data-skel="1" style="display:block;margin-top:14px;width:240px;height:34px;border-radius:8px;background:#e6e9e7;animation:skelPulse 1.4s ease-in-out infinite;"></span>
+          <span data-skel="1" style="display:block;margin-top:20px;width:100%;height:10px;border-radius:5px;background:#e6e9e7;animation:skelPulse 1.4s ease-in-out infinite;"></span>
+        </div>
+        <div style="background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:16px;box-shadow:0 8px 24px rgba(17,21,15,0.05);padding:28px 30px 30px;">
+          <span data-skel="1" style="display:block;width:180px;height:13px;border-radius:5px;background:#e6e9e7;animation:skelPulse 1.4s ease-in-out infinite;"></span>
+          <span data-skel="1" style="display:block;margin-top:14px;width:240px;height:34px;border-radius:8px;background:#e6e9e7;animation:skelPulse 1.4s ease-in-out infinite;"></span>
+          <span data-skel="1" style="display:block;margin-top:20px;width:100%;height:10px;border-radius:5px;background:#e6e9e7;animation:skelPulse 1.4s ease-in-out infinite;"></span>
+        </div>
+      </div>
+    </sc-if>
+
+    <sc-if value="{{ notLoading }}" hint-placeholder-val="{{ true }}">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:22px;max-width:1490px;">
+
+      <div data-screen-label="Money in" style="background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:16px;box-shadow:0 8px 24px rgba(17,21,15,0.05);padding:28px 30px 30px;">
+        <h2 style="margin:0;font-size:21px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">Money in</h2>
+
+        <sc-if value="{{ mIn.isEmpty }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:18px;">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.12em;color:#6f756f;">TOTAL REPORTED RAISED</div>
+            <div style="margin-top:8px;font-size:32px;font-weight:600;letter-spacing:-0.01em;color:#6f756f;">{{ mIn.emptyValue }}</div>
+            <p style="margin:14px 0 0;font-size:17px;line-height:1.55;color:#4f5651;text-wrap:pretty;">{{ mIn.emptyWhy }}</p>
+            <div style="margin-top:16px;display:flex;align-items:center;gap:22px;flex-wrap:wrap;">
+              <sc-if value="{{ mIn.hasFinalReport }}" hint-placeholder-val="{{ false }}">
+                <a href="{{ src.url }}" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:6px;font-size:16px;font-weight:700;color:#0f7a45;text-decoration:none;">Read the final report<svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M7 17 L17 7 M9.5 7 H17 V14.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg></a>
+              </sc-if>
+              <sc-if value="{{ mIn.hasOtherYear }}" hint-placeholder-val="{{ false }}">
+                <a href="{{ otherYear.url }}" onClick="{{ otherYear.select }}" style="display:inline-flex;align-items:center;gap:8px;font-size:16px;font-weight:700;color:#0f7a45;text-decoration:none;"><span>See {{ otherYear.label }}</span><span aria-hidden="true" style="font-weight:400;">→</span></a>
+              </sc-if>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ mIn.isData }}" hint-placeholder-val="{{ true }}">
+          <div style="margin-top:18px;">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.12em;color:#6f756f;">TOTAL REPORTED RAISED</div>
+            <div style="margin-top:8px;font-family:'JetBrains Mono',monospace;font-size:38px;font-weight:700;letter-spacing:-0.01em;color:#11150f;font-variant-numeric:tabular-nums;">{{ mIn.total }}</div>
+          </div>
+
+          <sc-if value="{{ mIn.hasSplit }}" hint-placeholder-val="{{ true }}">
+            <div style="margin-top:20px;height:10px;border-radius:5px;background:#e6e9e7;border:1px solid rgba(17,21,15,0.08);overflow:hidden;display:flex;">
+              <span style="display:block;height:100%;background:#149d5b;width:{{ mIn.pct }};"></span>
+            </div>
+            <div style="margin-top:16px;display:flex;flex-direction:column;gap:11px;">
+              <div style="display:flex;align-items:center;gap:12px;">
+                <span style="flex:none;width:11px;height:11px;border-radius:3px;background:#149d5b;"></span>
+                <span style="flex:1;min-width:0;font-size:16px;color:#1a201d;">Itemized — {{ mIn.itemizedLabel }}</span>
+                <span style="flex:none;font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;color:#11150f;font-variant-numeric:tabular-nums;">{{ mIn.itemized }}</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;">
+                <span style="flex:none;width:11px;height:11px;border-radius:3px;background:#e6e9e7;border:1px solid rgba(17,21,15,0.14);"></span>
+                <span style="flex:1;min-width:0;font-size:16px;color:#1a201d;">{{ mIn.notItemLabel }}</span>
+                <span style="flex:none;font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;color:#11150f;font-variant-numeric:tabular-nums;">{{ mIn.nonItemized }}</span>
+              </div>
+            </div>
+            <sc-if value="{{ mIn.hasThreshNote }}" hint-placeholder-val="{{ true }}"><p style="margin:14px 0 0;font-size:15px;line-height:1.5;color:#6b716b;text-wrap:pretty;">{{ mIn.threshNote }}</p></sc-if>
+          </sc-if>
+
+          <sc-if value="{{ mIn.noSplit }}" hint-placeholder-val="{{ false }}">
+            <p style="margin:18px 0 0;font-size:17px;line-height:1.55;color:#4f5651;text-wrap:pretty;">The total above is the filing’s own figure and stands. What is missing is the split: the payments we hold do not reconcile against the named total this report states, so dividing it into named and unnamed would be our arithmetic rather than the filing’s. Every payment we can name is listed below.</p>
+          </sc-if>
+        </sc-if>
+      </div>
+
+      <div data-screen-label="Money out" style="background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:16px;box-shadow:0 8px 24px rgba(17,21,15,0.05);padding:28px 30px 30px;">
+        <h2 style="margin:0;font-size:21px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">Money out</h2>
+
+        <sc-if value="{{ mOut.isEmpty }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:18px;">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.12em;color:#6f756f;">TOTAL REPORTED SPENT</div>
+            <div style="margin-top:8px;font-size:32px;font-weight:600;letter-spacing:-0.01em;color:#6f756f;">{{ mOut.emptyValue }}</div>
+            <p style="margin:14px 0 0;font-size:17px;line-height:1.55;color:#4f5651;text-wrap:pretty;">{{ mOut.emptyWhy }}</p>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ mOut.isData }}" hint-placeholder-val="{{ true }}">
+          <div style="margin-top:18px;">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.12em;color:#6f756f;">TOTAL REPORTED SPENT</div>
+            <div style="margin-top:8px;font-family:'JetBrains Mono',monospace;font-size:38px;font-weight:700;letter-spacing:-0.01em;color:#11150f;font-variant-numeric:tabular-nums;">{{ mOut.total }}</div>
+          </div>
+
+          <sc-if value="{{ mOut.hasSplit }}" hint-placeholder-val="{{ true }}">
+            <div style="margin-top:20px;height:10px;border-radius:5px;background:#e6e9e7;border:1px solid rgba(17,21,15,0.08);overflow:hidden;display:flex;">
+              <span style="display:block;height:100%;background:#149d5b;width:{{ mOut.pct }};"></span>
+              <sc-if value="{{ mOut.hasTransfers }}" hint-placeholder-val="{{ false }}">
+                <span style="display:block;height:100%;background:#2ed47e;width:{{ mOut.transferPct }};"></span>
+              </sc-if>
+            </div>
+            <div style="margin-top:16px;display:flex;flex-direction:column;gap:11px;">
+              <div style="display:flex;align-items:center;gap:12px;">
+                <span style="flex:none;width:11px;height:11px;border-radius:3px;background:#149d5b;"></span>
+                <span style="flex:1;min-width:0;font-size:16px;color:#1a201d;">Itemized — {{ mOut.itemizedLabel }}</span>
+                <span style="flex:none;font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;color:#11150f;font-variant-numeric:tabular-nums;">{{ mOut.itemized }}</span>
+              </div>
+              <sc-if value="{{ mOut.hasTransfers }}" hint-placeholder-val="{{ false }}">
+                <div style="display:flex;align-items:center;gap:12px;">
+                  <span style="flex:none;width:11px;height:11px;border-radius:3px;background:#2ed47e;"></span>
+                  <span style="flex:1;min-width:0;font-size:16px;color:#1a201d;">Given to other campaigns — {{ mOut.transferLabel }}</span>
+                  <span style="flex:none;font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;color:#11150f;font-variant-numeric:tabular-nums;">{{ mOut.transfers }}</span>
+                </div>
+              </sc-if>
+              <div style="display:flex;align-items:center;gap:12px;">
+                <span style="flex:none;width:11px;height:11px;border-radius:3px;background:#e6e9e7;border:1px solid rgba(17,21,15,0.14);"></span>
+                <span style="flex:1;min-width:0;font-size:16px;color:#1a201d;">{{ mOut.notItemLabel }}</span>
+                <span style="flex:none;font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;color:#11150f;font-variant-numeric:tabular-nums;">{{ mOut.nonItemized }}</span>
+              </div>
+            </div>
+            <sc-if value="{{ mOut.hasThreshNote }}" hint-placeholder-val="{{ true }}"><p style="margin:14px 0 0;font-size:15px;line-height:1.5;color:#6b716b;text-wrap:pretty;">{{ mOut.threshNote }}</p></sc-if>
+          </sc-if>
+
+          <sc-if value="{{ mOut.noSplit }}" hint-placeholder-val="{{ false }}">
+            <p style="margin:18px 0 0;font-size:17px;line-height:1.55;color:#4f5651;text-wrap:pretty;">Spending is reported in the same filing, so its split is held back for the same reason. The total stands, and the payments we can name are below.</p>
+          </sc-if>
+        </sc-if>
+      </div>
+    </div>
+
+    <!-- TABS -->
+    <div data-screen-label="Committee tabs" style="margin-top:34px;max-width:1490px;display:flex;align-items:center;gap:34px;border-bottom:1px solid rgba(17,21,15,0.1);">
+      <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="3">
+        <sc-if value="{{ t.active }}" hint-placeholder-val="{{ true }}"><a href="{{ t.url }}" onClick="{{ t.select }}" style="font-size:17px;font-weight:700;color:#11150f;text-decoration:none;padding-bottom:13px;border-bottom:2px solid #11150f;margin-bottom:-1px;">{{ t.label }}</a></sc-if>
+        <sc-if value="{{ t.inactive }}" hint-placeholder-val="{{ false }}"><a href="{{ t.url }}" onClick="{{ t.select }}" style="font-size:17px;font-weight:600;color:#4b524b;text-decoration:none;padding-bottom:13px;" style-hover="color:#11150f;">{{ t.label }}</a></sc-if>
+      </sc-for>
+    </div>
+
+    <div style="margin-top:24px;max-width:1490px;">
+      <sc-if value="{{ listEmpty }}" hint-placeholder-val="{{ false }}">
+        <div style="background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:16px;box-shadow:0 6px 18px rgba(17,21,15,0.05);padding:26px 28px;">
+          <div style="font-size:19px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">{{ listEmptyTitle }}</div>
+          <p style="margin:9px 0 0;max-width:780px;font-size:16px;line-height:1.55;color:#4f5651;text-wrap:pretty;">{{ listEmptyWhy }}</p>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ listHas }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:20px;flex-wrap:wrap;">
+          <div style="font-size:16px;color:#4f5651;">{{ listCount }}</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.08em;color:#6f756f;">{{ listSort }}</div>
+        </div>
+
+        <div style="margin-top:14px;display:flex;flex-direction:column;gap:9px;">
+          <sc-for list="{{ rows }}" as="r" hint-placeholder-count="6">
+            <!-- A name links only when it carries a registration number we can identify it by —
+                 committees and party units. A business has none and a private donor is not a profile,
+                 so those rows are plain. Mixing the two in one list is the point: the affordance is
+                 the difference between a name we can stand behind opening and one we cannot. -->
+            <sc-if value="{{ r.isLink }}" hint-placeholder-val="{{ false }}">
+              <div style="position:relative;display:flex;align-items:center;gap:18px;background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:12px;padding:16px 18px;box-shadow:0 6px 18px rgba(17,21,15,0.05);transition:border-color .16s ease, box-shadow .16s ease;" style-hover="border-color:rgba(45,212,126,0.55);box-shadow:0 14px 34px rgba(17,21,15,0.10);">
+                <a href="{{ r.href }}" onClick="{{ r.select }}" aria-label="{{ r.aria }}" style="position:absolute;inset:0;z-index:1;border-radius:12px;"></a>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:16px;font-weight:700;color:#11150f;text-wrap:pretty;">{{ r.name }}</div>
+                  <div style="margin-top:4px;font-size:14px;line-height:1.45;color:#4f5651;">{{ r.meta }}</div>
+                </div>
+                <div style="flex:none;width:200px;height:8px;border-radius:999px;background:#eef0f2;overflow:hidden;">
+                  <span style="display:block;height:100%;background:#2ed47e;width:{{ r.pct }};"></span>
+                </div>
+                <div style="flex:none;width:104px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;color:#11150f;font-variant-numeric:tabular-nums;">{{ r.amount }}</div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ r.isPlain }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;align-items:center;gap:18px;background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:12px;padding:16px 18px;box-shadow:0 6px 18px rgba(17,21,15,0.05);">
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:16px;font-weight:700;color:#11150f;text-wrap:pretty;">{{ r.name }}</div>
+                  <div style="margin-top:4px;font-size:14px;line-height:1.45;color:#4f5651;">{{ r.meta }}</div>
+                </div>
+                <div style="flex:none;width:200px;height:8px;border-radius:999px;background:#eef0f2;overflow:hidden;">
+                  <span style="display:block;height:100%;background:#2ed47e;width:{{ r.pct }};"></span>
+                </div>
+                <div style="flex:none;width:104px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;color:#11150f;font-variant-numeric:tabular-nums;">{{ r.amount }}</div>
+              </div>
+            </sc-if>
+          </sc-for>
+        </div>
+
+        <div style="margin-top:14px;padding-left:16px;display:flex;flex-direction:column;gap:9px;">
+          <a href="Money lists web.dc.html" style="display:inline-flex;align-items:center;gap:8px;font-size:16px;font-weight:700;color:#0f7a45;text-decoration:none;"><span>{{ listMore }}</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M5 12 H19 M14 7 L19 12 L14 17" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg></a>
+          <div style="max-width:900px;font-size:14.5px;line-height:1.5;color:#656c66;text-wrap:pretty;">{{ linkNote }}</div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{ tabFilings }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.12em;color:#4f5651;">EVERY REPORT THIS COMMITTEE HAS FILED</div>
+          <div style="font-size:14px;color:#6f756f;">Newest first, by the date filed — never by amount</div>
+        </div>
+        <div style="margin-top:10px;">
+          <sc-for list="{{ filings }}" as="f" hint-placeholder-count="5">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;gap:24px;padding:15px 0;border-top:1px solid rgba(17,21,15,0.07);">
+              <div style="min-width:0;">
+                <div style="font-size:16px;font-weight:700;color:#11150f;">{{ f.kind }}</div>
+                <div style="margin-top:4px;font-size:14.5px;line-height:1.45;color:#4b524b;">{{ f.period }}</div>
+              </div>
+              <div style="flex:none;display:flex;align-items:center;gap:20px;">
+                <sc-if value="{{ f.isAmended }}" hint-placeholder-val="{{ false }}">
+                  <span style="display:inline-flex;align-items:center;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.08em;color:#4f5651;background:transparent;border:1px solid rgba(17,21,15,0.18);border-radius:7px;padding:4px 9px;">AMENDED {{ f.amendedOn }}</span>
+                </sc-if>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:700;letter-spacing:0.06em;color:#6f756f;white-space:nowrap;">FILED {{ f.filed }}</span>
+                <a href="{{ src.url }}" target="_blank" rel="noopener noreferrer" aria-label="Open this filing" style="display:inline-flex;align-items:center;gap:5px;font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:700;letter-spacing:0.06em;color:#0f7a45;text-decoration:none;">OPEN<svg width="12" height="12" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M7 17 L17 7 M9.5 7 H17 V14.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"></path></svg></a>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="margin-top:14px;padding-left:17px;max-width:900px;font-size:14.5px;line-height:1.5;color:#656c66;text-wrap:pretty;">Both ends of every period are read off the filing itself. An ordinary filer’s year opens Jan 1 by statute; a special-election filer’s does not. Where a start does not resolve, the row reads “covers through” its end date rather than an assumed January.</div>
+      </sc-if>
+    </div>
+    </sc-if>
+
+    <sc-if value="{{ hasEntity }}" hint-placeholder-val="{{ true }}">
+    <div style="margin-top:34px;max-width:1490px;background:#f7f8fa;border:1px solid rgba(17,21,15,0.1);border-radius:16px;padding:22px 26px 24px;">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.12em;color:#4f5651;">WHAT THIS RECORD COVERS</div>
+      <div style="margin-top:12px;display:flex;flex-direction:column;gap:7px;font-size:15.5px;line-height:1.55;color:#4b524b;">
+        <div>Money filed with the Minnesota Campaign Finance and Public Disclosure Board.</div>
+        <div>Nothing before 2015.</div>
+        <div>Unions don’t report to this board at all.</div>
+        <sc-if value="{{ covThresh }}" hint-placeholder-val="{{ true }}"><div>{{ covThreshText }}</div></sc-if>
+      </div>
+    </div>
+    </sc-if>
+
+    <div style="height:64px;"></div>
+  </div>
+
+  <footer data-screen-label="Footer" style="position:relative;background:#0a0e0c;color:#ffffff;padding:56px 56px 44px;">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:48px;flex-wrap:wrap;">
+      <div style="max-width:480px;">
+        <p style="margin:0;font-size:21px;line-height:1.4;font-weight:300;letter-spacing:-0.01em;color:#eef1ef;">We hold these truths to be self-evident.<br><span style="color:#3de08a;">Alethical makes them accessible.</span></p>
+      </div>
+      <div style="display:flex;align-items:center;gap:34px;">
+        <a href="https://www.alethical.com/privacy" target="_blank" rel="noopener noreferrer" style="color:#cfd6d2;text-decoration:none;font-size:16px;font-weight:500;" style-hover="color:#ffffff;">Privacy Policy</a>
+        <a href="https://www.alethical.com/terms" target="_blank" rel="noopener noreferrer" style="color:#cfd6d2;text-decoration:none;font-size:16px;font-weight:500;" style-hover="color:#ffffff;">Terms of Use</a>
+      </div>
+    </div>
+    <div style="margin-top:40px;padding-top:24px;border-top:1px solid rgba(255,255,255,0.12);display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;">
+      <div style="font-size:13px;letter-spacing:0.1em;color:#7c847f;">© ALETHICAL · BUILT IN MINNESOTA</div>
+      <div style="font-size:13px;letter-spacing:0.14em;color:#3de08a;">TRUTH, UNCONCEALED</div>
+    </div>
+  </footer>
+
+  <div data-screen-label="Preview state controls" style="background:#0a0e0c;border-top:1px solid rgba(255,255,255,0.12);padding:16px 56px 20px;display:flex;align-items:center;gap:18px;flex-wrap:wrap;">
+    <span style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.14em;color:#7c847f;">PREVIEW</span>
+    <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
+      <sc-for list="{{ stateBtns }}" as="btn" hint-placeholder-count="7">
+        <sc-if value="{{ btn.active }}" hint-placeholder-val="{{ true }}"><button style="font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:700;padding:8px 13px;border-radius:9px;background:#2ed47e;color:#06231a;border:none;cursor:pointer;">{{ btn.label }}</button></sc-if>
+        <sc-if value="{{ btn.inactive }}" hint-placeholder-val="{{ false }}"><button onClick="{{ btn.select }}" style="font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:600;padding:8px 13px;border-radius:9px;background:transparent;color:#cfd6d2;border:1px solid rgba(255,255,255,0.18);cursor:pointer;" style-hover="border-color:rgba(255,255,255,0.42);color:#ffffff;">{{ btn.label }}</button></sc-if>
+      </sc-for>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1600,&quot;height&quot;:1120}}">
+class Component extends DCLogic {
+  state = { view: 'unlinked', year: '2026', tab: 'gave', shareOpen: false, copied: false };
+
+  componentDidMount() {
+    try {
+      const raw = localStorage.getItem('alethical.moneycommittee.preview');
+      if (raw) { const s = JSON.parse(raw); if (s && s.view) this.setState(s); }
+    } catch (_) {}
+  }
+  persist(patch) {
+    const next = { view: this.state.view, year: this.state.year, tab: this.state.tab, ...patch };
+    this.setState(next);
+    try { localStorage.setItem('alethical.moneycommittee.preview', JSON.stringify(next)); } catch (_) {}
+  }
+
+  renderVals() {
+    const money = (n) => '$' + n.toLocaleString('en-US', Number.isInteger(n) ? {} : { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const CFB = 'https://cfb.mn.gov/reports/reports-and-data/';
+    const view = this.state.view, year = this.state.year, tab = this.state.tab;
+    const y26 = year === '2026';
+
+    // A committee page is the mirror of the profile's money tab: money is filed BY committee, so the
+    // figures are complete here even while the profile is empty. The only thing missing is the link
+    // to a person — and the committee's own filed name is not that link.
+    const BASE = { name: 'Aguirre-Bell, Marisol Senate Committee', regNo: 'REG 30412', registeredFor: 'Registered for Senate District 41', eyebrow: 'CANDIDATE COMMITTEE', slug: 'aguirre-bell-marisol-senate-committee-30412' };
+    const PARTY = { name: 'Senate District 41 DFL', regNo: 'REG 20155', registeredFor: 'Party unit · Senate District 41', eyebrow: 'PARTY UNIT', slug: 'senate-district-41-dfl-20155' };
+    // The register's kind alone for the 106 filers whose finer kind is unknowable — never an invented expansion.
+    const FUND = { name: 'Statewide Nurses Alliance Political Fund', regNo: 'REG 41210', registeredFor: 'Kind as registered: political committee or fund', eyebrow: 'POLITICAL COMMITTEE OR FUND', slug: 'statewide-nurses-alliance-political-fund-41210' };
+    const BALLOT = { name: 'Neighbors for Question 2', regNo: 'REG 51877', registeredFor: 'Registered for a statewide ballot question', eyebrow: 'BALLOT QUESTION COMMITTEE', slug: 'neighbors-for-question-2-51877' };
+    const ent = view === 'partyunit' ? { ...PARTY, isTerminated: false }
+      : view === 'plainkind' ? { ...FUND, isTerminated: false }
+      : view === 'ballot' ? { ...BALLOT, isTerminated: false }
+      : { ...BASE, isTerminated: view === 'terminated', closedLabel: 'CLOSED JUL 28, 2026' };
+
+    // Whose committee. Three shapes, and only the first two are about confirmation: a party unit is
+    // nobody's, so it must not render an unconfirmed line that implies a person is missing.
+    let link;
+    if (view === 'partyunit') {
+      link = { isLinked: false, isUnlinked: true, text: 'A party unit is not a candidate’s committee. It raises and spends for a district party organisation, so there is no person to attach it to.' };
+    } else if (view === 'plainkind') {
+      link = { isLinked: false, isUnlinked: true, text: 'The register carries this filer as a political committee or fund, and no finer kind. We print the kind as registered — an expansion would be ours, not the register’s — and a fund is not a candidate’s committee, so there is no person to attach it to.' };
+    } else if (view === 'ballot') {
+      link = { isLinked: false, isUnlinked: true, text: 'A ballot-question committee raises and spends about a question on the ballot, not a candidate, so there is no person to attach it to.' };
+    } else if (view === 'linked') {
+      link = { isLinked: true, isUnlinked: false, person: 'Sen. Marisol Aguirre-Bell' };
+    } else {
+      link = { isLinked: false, isUnlinked: true, text: 'Two committees are registered under this name — this one for Senate District 41 and another for House District 41A — so which of them funds the seat is a question a person has to settle. The name a committee filed under is the filer’s own wording, not a confirmation by anyone, so we do not put these figures under a legislator’s name on the strength of it. The money below is the committee’s, and it is complete.' };
+    }
+
+    // COVERAGE-END CHECK. The Board's totals service answers a request for an empty year with the
+    // committee's most recent EARLIER-year figures, successfully and unmarked. So a figure renders
+    // only when the coverage end falls inside the selected year; otherwise the year has no data.
+    const P26 = { label: 'Jan 1 – Jul 20, 2026', report: 'pre-primary report', filed: 'Jul 27, 2026' };
+    const P25 = { label: 'Jan 1 – Dec 31, 2025', report: '2025 year-end report', filed: 'Jan 29, 2026' };
+
+    const IN_26 = { total: 48320, itemized: 29140, count: 74, donors: 61, period: P26 };
+    const IN_25 = { total: 21870, itemized: 12405, count: 38, donors: 33, period: P25 };
+    // Measured shape: unnamed 30% of spending, and 40% given to other campaigns — the median where
+    // transfers happen at all (94 of 209 committee-years).
+    const OUT_26 = { total: 31450, itemized: 9435, transfers: 12580, transferCount: 3, count: 41, period: P26 };
+    const OUT_25 = { total: 14200, itemized: 8946, count: 22, period: P25 };
+
+    const shape = (o, kind) => {
+      const base = { isData: false, isEmpty: false, hasSplit: false, noSplit: false, hasTransfers: false, hasOtherYear: false, hasFinalReport: false };
+      if (o.empty) return { ...base, isEmpty: true, emptyValue: o.emptyValue, emptyWhy: o.emptyWhy, hasOtherYear: !!o.otherYear, hasFinalReport: !!o.finalReport };
+      const transfers = o.transfers || 0;
+      return { ...base, isData: true,
+        total: money(o.total), itemized: money(o.itemized),
+        // Transfers come OUT of the remainder — leave them in and a named payment to a named
+        // committee renders as money too small to name.
+        nonItemized: money(Math.round((o.total - o.itemized - transfers) * 100) / 100),
+        pct: Math.round((o.itemized / o.total) * 1000) / 10 + '%',
+        hasSplit: !o.noSplit, noSplit: !!o.noSplit,
+        hasTransfers: !!transfers, transfers: transfers ? money(transfers) : '',
+        transferPct: transfers ? (Math.round((transfers / o.total) * 1000) / 10 + '%') : '0%',
+        transferLabel: o.transferCount === 1 ? '1 committee' : (o.transferCount + ' committees'),
+        itemizedLabel: kind === 'in'
+          ? (o.donors + (o.donors === 1 ? ' donor named' : ' donors named'))
+          : (o.count + (o.count === 1 ? ' payment named' : ' payments named')),
+      };
+    };
+
+    let inRaw, outRaw, stamp;
+    if (view === 'terminated' && y26) {
+      inRaw = { empty: true, emptyValue: 'Not available', emptyWhy: 'This committee closed on Jul 28, 2026 and filed a final report at termination. That filing is public and you can read it, but the Board’s totals service does not return its figures, so there is no 2026 total to show here. The money it reported before it closed is still here, under 2025.', finalReport: true, otherYear: true };
+      outRaw = { empty: true, emptyValue: 'Not available', emptyWhy: 'Spending is reported in that same final report, so it is unavailable here for the same reason.' };
+      stamp = { isCovered: false, isUncovered: true, period: 'Committee closed Jul 28, 2026',
+        detail: 'The Board records this committee as terminated on Jul 28, 2026. It filed a final report at termination and no report will follow it. Checked against the Board’s file on Aug 11, 2026.' };
+    } else if (view === 'emptyyear' && y26) {
+      inRaw = { empty: true, emptyValue: 'Not reported', emptyWhy: 'No report covering 2026 has been filed by this committee. The figures on record end with its 2025 year-end report, and we do not carry those forward under a 2026 heading.', otherYear: true };
+      outRaw = { empty: true, emptyValue: 'Not reported', emptyWhy: 'Spending is reported in the same filing as contributions, so it is unavailable for 2026 for the same reason.' };
+      stamp = { isCovered: false, isUncovered: true, period: 'No report covers 2026 yet',
+        detail: 'The most recent report on file for this committee covers through Dec 31, 2025. Its coverage end falls outside 2026, so this year has no figures — the service will answer a 2026 request with the 2025 numbers, and those are not this year’s. Checked against the Board’s file on Aug 11, 2026.' };
+    } else {
+      const src26 = view === 'nosplit' ? { ...IN_26, noSplit: true } : IN_26;
+      const srcOut26 = view === 'nosplit' ? { ...OUT_26, noSplit: true } : OUT_26;
+      inRaw = y26 ? src26 : IN_25;
+      outRaw = y26 ? srcOut26 : OUT_25;
+      const p = y26 ? P26 : P25;
+      const cal = view === 'partyunit' ? ' Party units file on their own calendar, so these are the party-unit series’ dates, not a candidate committee’s.' : '';
+      stamp = view === 'stale'
+        ? { isCovered: true, isUncovered: false, period: p.label,
+            detail: 'From the ' + p.report + ', filed ' + p.filed + ', accepted into our records Aug 11, 2026. The Board’s service has not answered since — these are the last figures we accepted, held until it answers rather than expiring on a timer.' }
+        : { isCovered: true, isUncovered: false, period: p.label,
+            detail: 'From the ' + p.report + ', filed ' + p.filed + '. Both ends of the period are read off the filing. Checked against the Board’s file on Aug 11, 2026.' + cal };
+    }
+
+    const mIn = shape(inRaw, 'in');
+    const mOut = shape(outRaw, 'out');
+    // Threshold copy generates per filer kind; a ballot-question page asserts no threshold at all
+    // (official sources disagree on its value), so it prints no threshold sentence anywhere.
+    const isBallot = view === 'ballot';
+    mIn.notItemLabel = isBallot ? 'Not itemized — donors below the naming threshold' : 'Not itemized — donors $200 or less in total for the year';
+    mOut.notItemLabel = isBallot ? 'Not itemized — recipients below the naming threshold' : 'Not itemized — recipients paid $200 or less in total for the year';
+    mIn.hasThreshNote = mIn.hasSplit && !isBallot;
+    mOut.hasThreshNote = mOut.hasSplit && !isBallot;
+    mIn.threshNote = 'Minnesota names a donor only once their giving passes $200 in total for the year, so the payments below never sum to the total above.';
+    mOut.threshNote = 'Minnesota names a recipient only once payments to them pass $200 in total for the year, so the payments below never sum to the total above.';
+    const isEmptyYear = !!inRaw.empty;
+
+    // Lists. Ranking donors within ONE committee is a fact about that committee; the rule against
+    // ranking is about lists that put different members side by side.
+    // A name is a link only when it carries a registration number: committees and party units. A
+    // vendor has none, and a private donor is a person we hold no record of beyond these payments —
+    // so those names are searchable but never open a page. The lists mix both on purpose.
+    const GAVE = [
+      ['Statewide Nurses Alliance Political Fund', 4000, 'Political fund · Saint Paul · 4 payments', 'committee', 41210],
+      ['Trades Council Political Fund', 3500, 'Political fund · Minneapolis · 2 payments', 'committee', 41377],
+      ['Senate District 41 DFL', 2250, 'Party unit · 1 payment', 'committee', 20155],
+      ['Okonkwo, Adaeze', 1000, 'Individual · Roseville · attorney · 2 payments', 'person'],
+      ['Lindqvist, Bo', 1000, 'Individual · Shoreview · retired · 1 payment', 'person'],
+      ['Vasquez-Hale, Renata', 800, 'Individual · Arden Hills · physician · 1 payment', 'person'],
+    ];
+    const SPENT = [
+      ['Aguirre Print & Mail', 6120, 'Business · printing and postage · 9 payments', 'vendor'],
+      ['House District 41A DFL', 5000, 'Party unit · money given to another campaign · 1 payment', 'committee', 20344],
+      ['Northgate Digital', 4300, 'Business · advertising · 6 payments', 'vendor'],
+      ['Senate District 52 Volunteer Committee', 4080, 'Committee · money given to another campaign · 2 payments', 'committee', 31088],
+      ['Kowalczyk Strategies', 2900, 'Business · consulting · 4 payments', 'vendor'],
+      ['Cedar Hall Events', 1400, 'Business · venue hire · 2 payments', 'vendor'],
+    ];
+    const src = tab === 'spent' ? SPENT : GAVE;
+    const top = src.length ? src[0][1] : 1;
+    const rows = src.map((a) => ({
+      name: a[0], amount: money(a[1]), meta: a[2], hasMeta: !!a[2],
+      pct: Math.round((a[1] / top) * 1000) / 10 + '%',
+      isLink: a[3] === 'committee', isPlain: a[3] !== 'committee',
+      href: '/money/committees/' + a[0].toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + (a[4] ? '-' + a[4] : ''),
+      aria: 'Open ' + a[0],
+      // The href documents the intended route for the build; the mock has nowhere to go, so the
+      // overlay is held. It is the largest target in the list — unguarded, it takes a reviewer
+      // off the page they are reviewing.
+      select: (e) => { if (e && e.preventDefault) e.preventDefault(); },
+    }));
+    const linkNote = tab === 'spent'
+      ? 'Committees and party units open — they carry a registration number we can identify them by. A name that only got paid has none, so it is searchable and its payments listed as filed, but it is not a page.'
+      : 'Committees, party units and political funds open — they carry a registration number we can identify them by. A private donor’s name is searchable but is not a profile, and never becomes one here.';
+
+    const FILINGS = [
+      { kind: 'Pre-primary report', period: 'Covers Jan 1 – Jul 20, 2026', filed: 'JUL 27, 2026', isAmended: false },
+      { kind: '2025 year-end report', period: 'Covers Jan 1 – Dec 31, 2025', filed: 'JAN 29, 2026', isAmended: true, amendedOn: 'FEB 14, 2026' },
+      { kind: '2025 pre-primary report', period: 'Covers Jan 1 – Jul 21, 2025', filed: 'JUL 28, 2025', isAmended: false },
+      { kind: '2024 year-end report', period: 'Covers Jan 1 – Dec 31, 2024', filed: 'JAN 30, 2025', isAmended: false },
+      { kind: '2024 pre-general report', period: 'Covers through Oct 22, 2024', filed: 'OCT 29, 2024', isAmended: false },
+    ];
+
+    const tabDefs = [['gave', 'Who gave'], ['spent', 'Where it went'], ['filings', 'Filings']];
+    const tabs = tabDefs.map(([k, label]) => ({
+      label, active: tab === k, inactive: tab !== k,
+      url: '/money/committees/' + ent.slug + '?tab=' + k + '&year=' + year,
+      select: (e) => { if (e && e.preventDefault) e.preventDefault(); this.persist({ tab: k }); },
+    }));
+
+    const years = ['2026', '2025'].map((y) => ({
+      label: y, active: year === y, inactive: year !== y,
+      select: (e) => { if (e && e.preventDefault) e.preventDefault(); this.persist({ year: y }); },
+    }));
+    const otherLabel = y26 ? '2025' : '2026';
+    const otherYear = { label: otherLabel, url: '?year=' + otherLabel,
+      select: (e) => { if (e && e.preventDefault) e.preventDefault(); this.persist({ year: otherLabel }); } };
+
+    // Share carries route state — page, tab and year — so the recipient sees the sender's figures.
+    const shareUrl = 'https://alethical.com/money/committees/' + ent.slug + '?tab=' + tab + '&year=' + year;
+    const shareTitle = ent.name + ' — Alethical';
+    const enc = encodeURIComponent;
+    const share = { url: shareUrl,
+      x: 'https://twitter.com/intent/tweet?text=' + enc(shareTitle) + '&url=' + enc(shareUrl),
+      facebook: 'https://www.facebook.com/sharer/sharer.php?u=' + enc(shareUrl),
+      instagram: 'https://www.instagram.com/',
+      linkedin: 'https://www.linkedin.com/sharing/share-offsite/?url=' + enc(shareUrl),
+      email: 'mailto:?subject=' + enc(shareTitle) + '&body=' + enc(shareTitle + '\n\n' + shareUrl + '\n\nvia Alethical') };
+
+    const mkBtn = (k, label) => ({
+      label, active: view === k, inactive: view !== k,
+      select: (e) => { if (e && e.preventDefault) e.preventDefault(); this.persist({ view: k, year: (k === 'terminated' || k === 'emptyyear' || k === 'nosplit' || k === 'stale') ? '2026' : this.state.year }); },
+    });
+
+    const tabFilings = tab === 'filings';
+    const listHas = !tabFilings && !isEmptyYear;
+    const listEmpty = !tabFilings && isEmptyYear;
+
+    return {
+      ent, link, stamp, mIn, mOut, years, otherYear, tabs, tabFilings, rows, filings: FILINGS, linkNote,
+      listHas, listEmpty,
+      listEmptyTitle: tab === 'spent' ? 'No payments for 2026' : 'No donors named for 2026',
+      listEmptyWhy: 'Payments are listed from the report that covers them, and no report covers 2026 for this committee. The 2025 payments are on the 2025 view — we do not show them under a 2026 heading.',
+      listCount: tab === 'spent' ? '41 payments named in this period' : '61 donors named in this period',
+      listSort: 'LARGEST FIRST',
+      listMore: tab === 'spent' ? 'See all 41 payments' : 'See all 74 payments',
+      listMoreHref: '/money/committees/' + ent.slug + '/payments?tab=' + tab + '&year=' + year,
+      isLoading: view === 'loading', notLoading: view !== 'loading' && view !== 'notfound',
+      hasEntity: view !== 'notfound', isNotFound: view === 'notfound',
+      nf: { number: 'REG 99999', asOf: 'Aug 11, 2026' },
+      covThresh: !isBallot, covThreshText: 'Donors who gave $200 or less in total for the year are never named.',
+      src: { url: CFB },
+      share, shareOpen: this.state.shareOpen, copied: this.state.copied, notCopied: !this.state.copied,
+      openShare: (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState({ shareOpen: true, copied: false }); },
+      closeShare: (e) => { if (e && e.preventDefault) e.preventDefault(); this.setState({ shareOpen: false }); },
+      copyLink: (e) => { if (e && e.preventDefault) e.preventDefault(); try { if (navigator.clipboard) navigator.clipboard.writeText(shareUrl); } catch (_) {} if (this._cpT) clearTimeout(this._cpT); this.setState({ copied: true }); this._cpT = setTimeout(() => this.setState({ copied: false }), 2000); },
+      stateBtns: [
+        mkBtn('unlinked', 'Not linked to a candidate'),
+        mkBtn('linked', 'Linked to a legislator'),
+        mkBtn('partyunit', 'Party unit'),
+        mkBtn('nosplit', 'Split not published'),
+        mkBtn('emptyyear', 'No report covers this year'),
+        mkBtn('terminated', 'Committee closed'),
+        mkBtn('plainkind', 'Kind as registered only'),
+        mkBtn('ballot', 'Ballot question'),
+        mkBtn('notfound', 'Number not in register'),
+        mkBtn('stale', 'Service unreachable'),
+        mkBtn('loading', 'Loading'),
+      ],
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@300;500&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{font-family:'Libre Franklin',Helvetica,Arial,sans-serif;background:#fbfcfd;color:#11150f;-webkit-font-smoothing:antialiased;text-wrap:pretty;}
+  a{color:#149d5b;text-decoration:none;}
+  a:hover{color:#0f7a45;text-decoration:underline;}
+</style>
+</helmet>
+
+<div style="width:1400px;background:#fbfcfd;padding:56px 64px 88px;">
+
+  <div style="max-width:1272px;margin:0 auto;">
+
+    <div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;letter-spacing:0.18em;color:#2b6377;">CAMPAIGN MONEY · INFORMATION ARCHITECTURE</div>
+    <h1 style="margin:14px 0 0;font-size:46px;line-height:1.08;font-weight:800;letter-spacing:-0.025em;color:#11150f;max-width:900px;">Search is the front door. The nav gains one item.</h1>
+    <p style="margin:16px 0 0;font-size:19px;line-height:1.55;color:#4b524b;max-width:760px;">Campaign money is new, so every surface here is one we are adding. This is the plan for all of it: the nav, the landing, the record, and what none of it may do.</p>
+
+    <div style="margin-top:44px;height:1px;background:rgba(17,21,15,0.1);"></div>
+
+    <!-- ── 1 · THE ROUTE COLLAPSE ───────────────────────────── -->
+    <div style="margin-top:44px;">
+      <div style="display:flex;align-items:baseline;gap:14px;">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.14em;color:#6f756f;">01</div>
+        <h2 style="margin:0;font-size:28px;font-weight:800;letter-spacing:-0.02em;color:#11150f;">The nav</h2>
+      </div>
+      <p style="margin:12px 0 0 33px;font-size:16px;line-height:1.55;color:#4b524b;max-width:720px;">Money is a section of Alethical, so the whole nav change is <strong style="color:#11150f;">one new item</strong>, in the dropdown that already holds Bills and Legislators. Named for what a person wants to know, not for what the tables are called — which is where the names in section 01 come from.</p>
+
+      <div style="margin:26px 0 0 33px;background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:16px;box-shadow:0 8px 24px rgba(17,21,15,0.05);overflow:hidden;">
+        <div style="display:flex;align-items:center;gap:30px;padding:18px 26px;">
+          <div style="display:flex;align-items:center;gap:11px;flex:none;">
+            <svg width="23" height="23" viewBox="8 9 84 84" fill="#11150f" style="flex:none;"><path d="M8,92 L46,10 L46,92 Z"></path><path d="M92,92 L54,10 L54,92 Z"></path></svg>
+            <div style="font-family:'Space Grotesk','Libre Franklin',sans-serif;font-size:18px;font-weight:500;letter-spacing:0.16em;color:#11150f;">ALETHICAL</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:26px;flex:1;justify-content:flex-end;">
+            <div style="display:flex;align-items:center;gap:6px;"><div style="font-size:15.5px;font-weight:700;color:#11150f;">Search</div><span aria-hidden="true" style="font-size:11px;color:#11150f;">&#9662;</span></div>
+            <div style="display:flex;align-items:center;gap:6px;"><div style="font-size:15.5px;font-weight:600;color:#4b524b;">Yours</div><span aria-hidden="true" style="font-size:11px;color:#6f756f;">&#9662;</span></div>
+            <div style="display:flex;align-items:center;gap:6px;"><div style="font-size:15.5px;font-weight:600;color:#4b524b;">About</div><span aria-hidden="true" style="font-size:11px;color:#6f756f;">&#9662;</span></div>
+            <div style="background:#2ed47e;color:#06231a;border-radius:11px;padding:10px 18px;font-size:14px;font-weight:700;flex:none;">Sign in</div>
+          </div>
+        </div>
+        <div style="padding:16px 26px 18px;background:#f7f8fa;border-top:1px solid rgba(17,21,15,0.08);display:flex;align-items:center;gap:20px;flex-wrap:wrap;">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.12em;color:#4f5651;flex:none;">INSIDE SEARCH</div>
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <div style="background:#ffffff;border:1px solid rgba(17,21,15,0.16);border-radius:11px;padding:9px 15px;font-size:14px;font-weight:600;color:#2c322c;white-space:nowrap;">Bills</div>
+            <div style="display:flex;align-items:center;gap:8px;background:#ffffff;border:1px solid #bfeacf;border-radius:11px;padding:9px 12px 9px 15px;white-space:nowrap;"><div style="font-size:14px;font-weight:700;color:#11150f;">Campaign money</div><div style="font-family:'JetBrains Mono',monospace;font-size:9.5px;font-weight:700;letter-spacing:0.1em;color:#06231a;background:#2ed47e;border-radius:7px;padding:3px 7px;">NEW</div></div>
+            <div style="background:#ffffff;border:1px solid rgba(17,21,15,0.16);border-radius:11px;padding:9px 15px;font-size:14px;font-weight:600;color:#2c322c;white-space:nowrap;">Legislators</div>
+            <div style="background:#ffffff;border:1px solid rgba(17,21,15,0.16);border-radius:11px;padding:9px 15px;font-size:14px;font-weight:600;color:#2c322c;white-space:nowrap;">Find My Legislator</div>
+          </div>
+        </div>
+      </div>
+      <div style="margin:13px 0 0 33px;padding-left:17px;max-width:820px;font-size:13.5px;line-height:1.5;color:#656c66;">The shipped nav is three dropdowns and a Sign in, so this is one item inside an existing menu rather than a fifth at the top level. The three siblings and their order are proposed — what the menu holds today is question 1 to engineering.</div>
+
+      <div style="margin:38px 0 0 33px;padding-top:32px;border-top:1px solid rgba(17,21,15,0.1);">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.12em;color:#4f5651;">THE OTHER TWO SURFACES</div>
+        <h3 style="margin:11px 0 0;font-size:25px;font-weight:800;letter-spacing:-0.02em;color:#11150f;">Nothing here is invented for the occasion.</h3>
+
+        <div style="margin-top:24px;display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start;">
+
+          <div style="background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:16px;box-shadow:0 8px 24px rgba(17,21,15,0.05);padding:22px 24px 26px;">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.12em;color:#6f756f;">THE DRAWER</div>
+            <div style="margin-top:16px;">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:700;letter-spacing:0.16em;color:#0f7a45;">SEARCH</div>
+              <div style="margin-top:11px;display:flex;flex-direction:column;gap:11px;">
+                <div style="font-size:21px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">Bills</div>
+                <div style="display:flex;align-items:center;gap:9px;"><div style="font-size:21px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">Campaign money</div><div style="font-family:'JetBrains Mono',monospace;font-size:9.5px;font-weight:700;letter-spacing:0.1em;color:#06231a;background:#2ed47e;border-radius:7px;padding:3px 7px;">NEW</div></div>
+                <div style="font-size:21px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">Legislators</div>
+                <div style="font-size:21px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">Find My Legislator</div>
+              </div>
+            </div>
+            <div style="margin-top:22px;">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:700;letter-spacing:0.16em;color:#0f7a45;">YOURS</div>
+              <div style="margin-top:11px;display:flex;flex-direction:column;gap:11px;">
+                <div style="font-size:21px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">Tracked</div>
+              </div>
+            </div>
+            <div style="margin-top:22px;">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:700;letter-spacing:0.16em;color:#0f7a45;">ABOUT</div>
+              <div style="margin-top:11px;display:flex;flex-direction:column;gap:11px;">
+                <div style="font-size:21px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">About Us</div>
+                <div style="font-size:21px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">Contact Us</div>
+              </div>
+            </div>
+          </div>
+
+          <div style="background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:16px;box-shadow:0 8px 24px rgba(17,21,15,0.05);padding:22px 26px 26px;">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.12em;color:#6f756f;">ON THE HOMEPAGE · TBD</div>
+            <p style="margin:14px 0 0;font-size:16px;line-height:1.6;color:#1a201d;">The homepage gets an entry point too, called <strong style="color:#11150f;">Follow the money</strong>. Where it sits is open until the nav is built and we can see it in place.</p>
+            <p style="margin:12px 0 0;font-size:15px;line-height:1.6;color:#4b524b;">One thing is decided: no banner, no announcement strip, no “introducing”. A new capability that needs a launch badge to be found is badly placed.</p>
+          </div>
+
+        </div>
+
+        <div style="margin-top:18px;display:grid;grid-template-columns:repeat(3,1fr);gap:20px;align-items:start;">
+          <div style="font-size:13.5px;line-height:1.55;color:#4b524b;">The drawer is already grouped by verb, so Campaign money slots into SEARCH with no restructuring. It sits <strong style="color:#11150f;">second</strong>: the two subject indexes first, then the person pair. Find My Legislator stays last because it is the only <em>tool</em> in the group — you give it an address and it returns one person — so it is where someone who can’t name what they want ends up.</div>
+          <div style="font-size:13.5px;line-height:1.55;color:#4b524b;">Tracking is <strong style="color:#11150f;">one destination, not a second copy of the list above</strong>. Entity types are filters inside the Tracked page, so nothing in the nav changes as tracking reaches donors, committees or lobbyists.</div>
+          <div style="font-size:13.5px;line-height:1.55;color:#4b524b;">Which leaves the old TRACK group holding a single item called Tracked — a header repeating its own child. So the group becomes <strong style="color:#11150f;">YOURS</strong>, holding Tracked and Account: two items earn the header, and alerts or saved searches land here later without another nav decision. Signed out, this group is replaced by a single Sign in. The greyed roadmap rows still under Track — Candidates, News — move into Search’s greyed group.</div>
+        </div>
+
+        <div style="margin-top:26px;">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.12em;color:#4f5651;">AND YOU LAND HERE</div>
+          <p style="margin:11px 0 0;font-size:16px;line-height:1.55;color:#4b524b;max-width:780px;">Not a table. Money is the one section where the reader usually can’t name what they’re looking for, so the landing page offers a search field, the newest thing we have found in these records, and lanes into the records themselves. What the record does not cover sits under all three, as the qualifier on every one of them.</p>
+
+          <div style="margin-top:20px;background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:16px;box-shadow:0 8px 24px rgba(17,21,15,0.05);overflow:hidden;">
+            <div style="display:flex;align-items:center;gap:12px;padding:13px 20px;background:#f7f8fa;border-bottom:1px solid rgba(17,21,15,0.08);">
+              <div style="display:flex;gap:6px;flex:none;"><div style="width:10px;height:10px;border-radius:50%;background:#dfe2e5;"></div><div style="width:10px;height:10px;border-radius:50%;background:#dfe2e5;"></div><div style="width:10px;height:10px;border-radius:50%;background:#dfe2e5;"></div></div>
+              <div style="flex:1;background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:8px;padding:7px 12px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#4b524b;">alethical.com/money</div>
+            </div>
+            <div style="padding:38px 40px 40px;">
+              <span style="display:inline-flex;align-items:center;margin-bottom:16px;background:#0a0e0c;border-radius:8px;padding:6px 11px;font-family:'JetBrains Mono',monospace;font-size:9.5px;font-weight:700;letter-spacing:0.1em;line-height:1.4;color:#cfd6d2;">MOCK ONLY · FILING ROWS ARE ILLUSTRATIVE · LANE COUNTS AND COVERAGE FIGURES ARE MEASURED (#1661)</span>
+              <h4 style="margin:0;font-size:34px;line-height:1.1;font-weight:800;letter-spacing:-0.025em;color:#11150f;max-width:620px;">Follow the money</h4>
+              <p style="margin:12px 0 0;font-size:17px;line-height:1.5;color:#4b524b;max-width:620px;">Every contribution and expenditure Minnesota publishes for state campaigns, searchable by the name it was filed under.</p>
+
+              <a href="Money lists web.dc.html#results" style="margin-top:24px;max-width:620px;display:flex;align-items:center;gap:12px;background:#ffffff;border:2px solid #11150f;border-radius:14px;padding:14px 17px;box-shadow:0 6px 18px rgba(17,21,15,0.05);text-decoration:none;transition:box-shadow .16s ease;" style-hover="box-shadow:0 14px 34px rgba(17,21,15,0.12);">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="flex:none;"><circle cx="11" cy="11" r="6.5" stroke="#11150f" stroke-width="2"/><path d="M16 16 L21 21" stroke="#11150f" stroke-width="2" stroke-linecap="round"/></svg>
+                <div style="flex:1;min-width:0;font-size:16px;color:#6f756f;">Search any name — people, committees, who got paid</div>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M5 12 H19 M14 7 L19 12 L14 17" stroke="#6f756f" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+              </a>
+
+              <a href="Money report web.dc.html#shelf" style="margin-top:26px;display:block;text-decoration:none;background:#ffffff;border:1px solid rgba(17,21,15,0.16);border-radius:16px;box-shadow:0 10px 28px rgba(17,21,15,0.06);padding:24px 26px 26px;transition:border-color .16s ease, box-shadow .16s ease;" style-hover="border-color:rgba(45,212,126,0.55);box-shadow:0 18px 42px rgba(17,21,15,0.1);">
+                <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.14em;color:#2b6377;">WHAT WE FOUND</div>
+                <div style="margin-top:12px;display:flex;align-items:flex-start;gap:26px;">
+                  <div style="flex:1;min-width:0;">
+                    <div style="font-size:30px;line-height:1.16;font-weight:800;letter-spacing:-0.025em;color:#11150f;text-wrap:pretty;">Follow the Money: Why Outsiders in Both Parties Are Fighting the Same Fight</div>
+                    <div style="margin-top:11px;max-width:720px;font-size:18px;line-height:1.5;color:#4b524b;text-wrap:pretty;">Trace who writes the checks and Minnesota politics stops dividing into Republicans and Democrats. It divides into insiders and outsiders, and that line cuts through both parties.</div>
+                    <div style="margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.08em;color:#656c66;">PUBLISHED AUG 17 2026 · RECORDS THROUGH AUG 11 2026 · EVERY FIGURE LINKED BACK</div>
+                    <div style="margin-top:16px;display:flex;align-items:center;gap:9px;">
+                      <span style="font-size:16px;font-weight:700;color:#0f7a45;">Read the report</span>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M5 12 H19 M14 7 L19 12 L14 17" stroke="#0f7a45" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                    </div>
+                  </div>
+                  <div style="flex:none;width:132px;height:132px;background:#f7f8fa;border:1px solid rgba(17,21,15,0.1);border-radius:13px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;">
+                    <div style="width:64px;height:5px;border-radius:3px;background:#e1e5e2;"></div>
+                    <div style="width:84px;height:5px;border-radius:3px;background:#e1e5e2;"></div>
+                    <div style="width:84px;height:5px;border-radius:3px;background:#e1e5e2;"></div>
+                    <div style="width:52px;height:5px;border-radius:3px;background:#149d5b;"></div>
+                  </div>
+                </div>
+              </a>
+
+              <div style="margin-top:30px;display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">
+                <a href="LIVE Search legislators web.dc.html" style="display:block;text-decoration:none;background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:14px;box-shadow:0 6px 18px rgba(17,21,15,0.05);padding:18px 19px 20px;transition:border-color .16s ease, box-shadow .16s ease;" style-hover="border-color:rgba(45,212,126,0.55);box-shadow:0 14px 34px rgba(17,21,15,0.1);">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+                    <div style="font-size:17px;font-weight:800;color:#11150f;">Legislators</div>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M5 12 H19 M14 7 L19 12 L14 17" stroke="#6f756f" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                  </div>
+                  <div style="margin-top:6px;font-size:14px;line-height:1.45;color:#4b524b;">Their money is a tab on the profile they already have. Confirmed for 0 of Minnesota’s 200 sitting legislators — for the rest, no figures show on a profile.</div>
+                  <div style="margin-top:12px;font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:700;color:#0f7a45;">200 MEMBERS</div>
+                </a>
+                <a href="Money lists web.dc.html#committees" style="display:block;text-decoration:none;background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:14px;box-shadow:0 6px 18px rgba(17,21,15,0.05);padding:18px 19px 20px;transition:border-color .16s ease, box-shadow .16s ease;" style-hover="border-color:rgba(45,212,126,0.55);box-shadow:0 14px 34px rgba(17,21,15,0.1);">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+                    <div style="font-size:17px;font-weight:800;color:#11150f;">Committees</div>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M5 12 H19 M14 7 L19 12 L14 17" stroke="#6f756f" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                  </div>
+                  <div style="margin-top:6px;font-size:14px;line-height:1.45;color:#4b524b;">Campaign committees, party units, and other registered funds.</div>
+                  <div style="margin-top:12px;font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:700;color:#0f7a45;">1,603 REGISTERED FILERS</div>
+                </a>
+                <div style="background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:14px;box-shadow:0 6px 18px rgba(17,21,15,0.05);padding:18px 19px 20px;">
+                  <div style="font-size:17px;font-weight:800;color:#11150f;">Who got paid</div>
+                  <div style="margin-top:6px;font-size:14px;line-height:1.45;color:#4b524b;">Payments as filed, with no page per name.</div>
+                  <div style="margin-top:12px;font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:700;color:#0f7a45;">4,891 NAMES AS FILED</div>
+                </div>
+              </div>
+
+              <div style="margin-top:12px;padding-left:17px;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.08em;color:#656c66;">COUNTED LIVE FROM THE REGISTER · AUG 18 2026</div>
+              <div style="margin-top:9px;padding-left:17px;font-size:13.5px;color:#656c66;">Counts, not teasers — they tell the reader what is actually in here before they commit to a click, and each says what it counts rather than standing as a bare number. They bind to live queries, never pasted — a pasted count is how this page once said 1,336 while the register held 1,603. Who got paid has no card until its page exists, so the landing opens with three lanes. No lane counts money: a dollar figure here would be a total summed across members. The Legislators lane carries the unconfirmed state in its own words, because that is where the promise is made — the page it opens is the ordinary legislator directory, which shows no money and may not advertise the absence of any. <strong style="color:#11150f;">Its count is the only place on the product that speaks about the whole set</strong>, so it requantifies as answers land (0 of 200 today, 144 of 200 after the first pass) and comes off only at 200 of 200 — at 199 it stays, because one unexplained blank is the whole failure. No percentage and no progress bar: a bar invites watching progress rather than reading a fact. Every per-member surface speaks only about that member.</div>
+
+              <div style="margin-top:22px;display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:900px;">
+                <div style="background:#f7f8fa;border:1px solid rgba(17,21,15,0.08);border-radius:13px;padding:16px 18px 17px;">
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.12em;color:#4f5651;">FILES LAST COPIED</div>
+                  <div style="margin-top:7px;font-family:'JetBrains Mono',monospace;font-size:19px;font-weight:700;letter-spacing:-0.01em;color:#11150f;">Aug 11, 2026</div>
+                  <div style="margin-top:8px;font-size:13.5px;line-height:1.5;color:#4b524b;text-wrap:pretty;">When we last copied new filings from the Board. <strong style="color:#11150f;">Not</strong> the period the money covers — every figure carries its own period, and each one ends earlier than this date.</div>
+                </div>
+                <div style="background:#f7f8fa;border:1px solid rgba(17,21,15,0.08);border-radius:13px;padding:16px 18px 17px;">
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.12em;color:#4f5651;">WHAT THIS RECORD DOES NOT COVER</div>
+                  <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px;font-size:13.5px;line-height:1.45;color:#1a201d;">
+                    <div>Nothing before 2015.</div>
+                    <div>Unions don’t report to this board at all.</div>
+                    <div>Donors who gave $200 or less in total for the year are never named.</div>
+                    <div>All 200 sitting members have a committee registered with the Board. <strong>Confirmed as theirs: 0 of 200.</strong> Confirming is a person’s job and it has not started — 144 have one obvious proposal waiting to be checked, 56 hold two or more of their own and need someone to choose. Read live from the confirmation log and dated by the newest confirmation in it; there is none yet.</div>
+                  </div>
+                  <div style="margin-top:10px;font-size:13px;line-height:1.5;color:#4b524b;">The first three are permanent. The last is ours to close, and it is here so an unconfirmed member reads as our gap rather than a member with no money.</div>
+                </div>
+              </div>
+
+              <div style="margin-top:30px;padding-top:24px;border-top:1px solid rgba(17,21,15,0.08);">
+                <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;">
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.12em;color:#4f5651;">FILINGS AS THEY ARRIVE</div>
+                  <div style="font-size:13.5px;color:#6f756f;">Newest first, by the date filed — never by amount</div>
+                </div>
+                <div style="margin-top:6px;">
+                  <div style="display:flex;align-items:baseline;justify-content:space-between;gap:20px;padding:13px 0;border-top:1px solid rgba(17,21,15,0.07);">
+                    <div style="min-width:0;">
+                      <div style="font-size:15.5px;font-weight:700;color:#11150f;">Fateh, Omar Senate Committee</div>
+                      <div style="margin-top:4px;font-size:13.5px;line-height:1.45;color:#4b524b;">Pre-primary report · covers Jan 1 – Jul 20, 2026</div>
+                    </div>
+                    <div style="flex:none;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.06em;color:#6f756f;">FILED JUL 27, 2026</div>
+                  </div>
+                  <div style="display:flex;align-items:baseline;justify-content:space-between;gap:20px;padding:13px 0;border-top:1px solid rgba(17,21,15,0.07);">
+                    <div style="min-width:0;">
+                      <div style="font-size:15.5px;font-weight:700;color:#11150f;">Hollins, Cedrick House Committee</div>
+                      <div style="margin-top:4px;font-size:13.5px;line-height:1.45;color:#4b524b;">Pre-primary report · covers Jan 1 – Jul 20, 2026</div>
+                    </div>
+                    <div style="flex:none;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.06em;color:#6f756f;">FILED JUL 27, 2026</div>
+                  </div>
+                  <div style="display:flex;align-items:baseline;justify-content:space-between;gap:20px;padding:13px 0;border-top:1px solid rgba(17,21,15,0.07);">
+                    <div style="min-width:0;">
+                      <div style="font-size:15.5px;font-weight:700;color:#11150f;">Whitaker, June House Committee</div>
+                      <div style="margin-top:4px;font-size:13.5px;line-height:1.45;color:#4b524b;">Pre-primary report · covers through Jul 20, 2026</div>
+                    </div>
+                    <div style="flex:none;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.06em;color:#6f756f;">FILED JUL 24, 2026</div>
+                  </div>
+                  <div style="display:flex;align-items:baseline;justify-content:space-between;gap:20px;padding:13px 0;border-top:1px solid rgba(17,21,15,0.07);">
+                    <div style="min-width:0;">
+                      <div style="font-size:15.5px;font-weight:700;color:#11150f;">Green, Steve Senate Committee</div>
+                      <div style="margin-top:4px;font-size:13.5px;line-height:1.45;color:#4b524b;">2025 year-end report · covers Jan 1 – Dec 31, 2025</div>
+                    </div>
+                    <div style="flex:none;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.06em;color:#6f756f;">FILED JAN 29, 2026</div>
+                  </div>
+                  <div style="display:flex;align-items:baseline;justify-content:space-between;gap:20px;padding:13px 0;border-top:1px solid rgba(17,21,15,0.07);">
+                    <div style="min-width:0;">
+                      <div style="font-size:15.5px;font-weight:700;color:#11150f;">Ostrander, Dana Senate Committee</div>
+                      <div style="margin-top:4px;font-size:13.5px;line-height:1.45;color:#4b524b;">2025 year-end report · covers Jul 11 – Dec 31, 2025</div>
+                    </div>
+                    <div style="flex:none;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.06em;color:#6f756f;">FILED JAN 27, 2026</div>
+                  </div>
+                </div>
+                <div style="margin-top:12px;padding-left:17px;max-width:760px;font-size:13.5px;line-height:1.5;color:#656c66;text-wrap:pretty;">This is the honest version of a “what’s new” module: whose committee filed, which report, and the period it covers — no amounts. Five rows with five dollar figures is a ranking whether we sort it or not, and these rows show why it would be false: two periods end Jul 20, 2026 and two end Dec 31, 2025, nearly seven months earlier.</div>
+                <div style="margin-top:9px;padding-left:17px;max-width:760px;font-size:13.5px;line-height:1.5;color:#656c66;text-wrap:pretty;">Both ends are read off the filing — never an assumed January. An ordinary filer’s period opens Jan 1 by statute; a special-election filer’s does not, and the Jul 11 row is one. Where the start doesn’t resolve the row reads “covers through Jul 20, 2026”; where neither end does, it carries the report and the filing date and no period at all. And no row prints a due date, by choice: a due date on a filed report is noise, and due dates belong where lateness is the subject — the profile’s late state, which prints one.</div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── 3 · THE FRONT DOOR ───────────────────────────────── -->
+    <div style="margin-top:60px;">
+      <div style="display:flex;align-items:baseline;gap:14px;">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.14em;color:#6f756f;">02</div>
+        <h2 style="margin:0;font-size:28px;font-weight:800;letter-spacing:-0.02em;color:#11150f;">The front door</h2>
+      </div>
+      <p style="margin:12px 0 0 33px;font-size:16px;line-height:1.55;color:#4b524b;max-width:720px;">One field that takes a person or an organisation. Typeahead labels what each result <em>is</em>, so nobody has to know our vocabulary to start. A committee row is a <strong style="color:#11150f;">committee</strong>: it names the office that committee is registered for, and says nothing about whose it is.</p>
+
+      <div style="margin:26px 0 0 33px;background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:16px;box-shadow:0 8px 24px rgba(17,21,15,0.05);padding:36px 40px 40px;">
+        <div style="max-width:660px;">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.12em;color:#4f5651;">THE SAME FIELD, MID-QUERY</div>
+
+          <div style="margin-top:20px;text-align:left;">
+            <div style="display:flex;align-items:center;gap:12px;background:#ffffff;border:2px solid #11150f;border-radius:14px;padding:15px 18px;box-shadow:0 6px 18px rgba(17,21,15,0.05);">
+              <svg width="19" height="19" viewBox="0 0 24 24" fill="none" style="flex:none;"><circle cx="11" cy="11" r="6.5" stroke="#11150f" stroke-width="2"/><path d="M16 16 L21 21" stroke="#11150f" stroke-width="2" stroke-linecap="round"/></svg>
+              <div style="font-size:17px;font-weight:600;color:#11150f;">aguirre</div>
+              <div style="width:1.5px;height:20px;background:#2ed47e;"></div>
+            </div>
+
+            <div style="margin-top:8px;background:#ffffff;border:1px solid rgba(17,21,15,0.12);border-radius:14px;box-shadow:0 14px 34px rgba(17,21,15,0.1);overflow:hidden;">
+              <div style="display:flex;align-items:center;gap:14px;padding:14px 18px;border-bottom:1px solid rgba(17,21,15,0.06);">
+                <div style="width:34px;height:34px;border-radius:9px;background:#eef0f2;flex:none;"></div>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:15.5px;font-weight:700;color:#11150f;">Aguirre-Bell, Marisol Senate Committee</div>
+                  <div style="font-size:13.5px;color:#6f756f;">Registered committee · Senate District 41</div>
+                </div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.08em;color:#4f5651;background:#f1f1f4;border:1px solid rgba(17,21,15,0.1);border-radius:8px;padding:4px 8px;flex:none;">COMMITTEE</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:14px;padding:14px 18px;border-bottom:1px solid rgba(17,21,15,0.06);">
+                <div style="width:34px;height:34px;border-radius:9px;background:#eef0f2;flex:none;"></div>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:15.5px;font-weight:700;color:#11150f;">Aguirre-Bell, Marisol House Committee</div>
+                  <div style="font-size:13.5px;color:#6f756f;">Registered committee · House District 41A</div>
+                </div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.08em;color:#4f5651;background:#f1f1f4;border:1px solid rgba(17,21,15,0.1);border-radius:8px;padding:4px 8px;flex:none;">COMMITTEE</div>
+              </div>
+              <div style="display:flex;align-items:center;gap:14px;padding:14px 18px;">
+                <div style="width:34px;height:34px;border-radius:9px;background:#eef0f2;flex:none;"></div>
+                <div style="flex:1;min-width:0;">
+                  <div style="font-size:15.5px;font-weight:700;color:#11150f;">Aguirre Print &amp; Mail</div>
+                  <div style="font-size:13.5px;color:#6f756f;">Payments filed under this name</div>
+                </div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.08em;color:#4f5651;background:#f1f1f4;border:1px solid rgba(17,21,15,0.1);border-radius:8px;padding:4px 8px;flex:none;">GOT PAID</div>
+              </div>
+            </div>
+            <div style="margin-top:11px;padding-left:17px;max-width:620px;font-size:13.5px;line-height:1.5;color:#6f756f;text-wrap:pretty;">Mixed result types in one list, each labelled. No person row here: person rows exist only for the 200 sitting legislators and open their profiles — Aguirre-Bell is a candidate, so her name resolves to her committees. And matching is exact (substring is fine), never closest-spelling: 178 registered pairs sit one character apart and every pair is a different organization, one of them the Green Party and the Republican Party of the same district (#1661).</div>
+            <div style="margin-top:26px;padding-top:24px;border-top:1px solid rgba(17,21,15,0.08);">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.12em;color:#4f5651;">AND WHEN NOTHING MATCHES</div>
+              <div style="margin-top:14px;background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:14px;box-shadow:0 6px 18px rgba(17,21,15,0.05);padding:20px 22px 22px;">
+                <div style="font-size:19px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">No match for “thelen-brou”</div>
+                <div style="margin-top:9px;font-size:15px;line-height:1.55;color:#4b524b;">This search covers Minnesota state campaign filings. No match was found under that name.</div>
+                <div style="margin-top:7px;font-size:15px;line-height:1.55;color:#4b524b;">Names are searched as they were filed, and spellings vary between filings — try a shorter part of the name.</div>
+              </div>
+              <div style="margin-top:12px;padding-left:17px;max-width:620px;font-size:13.5px;line-height:1.5;color:#6f756f;text-wrap:pretty;">Two sentences and one action. It names no agency, no office and no reason: naming an absence advertises it, and a reader told what is missing starts expecting it. The spelling line is the only thing they can act on, and it is true of every search here.</div>
+            </div>
+
+            <p style="margin:24px 0 0;padding-left:17px;max-width:600px;font-size:13.5px;line-height:1.5;color:#6f756f;text-wrap:pretty;">Minnesota registers a committee per office, so the two committee rows here belong to one person — and a name is never proof of that. The register holds “Fateh, Omar Senate Committee” and “Fatehi, Leili House Committee” one character apart, and they are two different people. So a committee row states the office the committee is registered for and nothing about whose it is; a person appears on a committee only where we have confirmed the link.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 4 · THE PROFILE IS THE UNIT ──────────────────────── -->
+    <div style="margin-top:60px;">
+      <div style="display:flex;align-items:baseline;gap:14px;">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.14em;color:#6f756f;">03</div>
+        <h2 style="margin:0;font-size:28px;font-weight:800;letter-spacing:-0.02em;color:#11150f;">The committee is the record — and it needs a URL</h2>
+      </div>
+      <p style="margin:12px 0 0 33px;font-size:16px;line-height:1.55;color:#4b524b;max-width:760px;">No detail route exists today. If a finance record can’t be linked to, it can’t be cited, sent, or posted — which caps how far this product travels. Every committee and party unit becomes an addressable page with a Share control, at <span style="font-family:'JetBrains Mono',monospace;font-size:14px;color:#11150f;">/money/committees/{name-slug}-{registration number}</span>: the number is the identity and the only thing that resolves, because names collide and registration numbers don’t. There is <strong style="color:#11150f;">no standalone person page this release</strong> — a sitting member’s money is a tab on the profile they already have, and every other name resolves to its committees. And no surface ever adds one person’s committees together: 9 candidates moved $121,241.64 between committees they both control, filed as an ordinary contribution in both, so a cross-committee sum counts the same dollars twice (#1663).</p>
+
+      <div style="margin:26px 0 0 33px;background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:16px;box-shadow:0 8px 24px rgba(17,21,15,0.05);overflow:hidden;">
+        <div style="display:flex;align-items:center;gap:12px;padding:13px 20px;background:#f7f8fa;border-bottom:1px solid rgba(17,21,15,0.08);">
+          <div style="display:flex;gap:6px;flex:none;"><div style="width:10px;height:10px;border-radius:50%;background:#dfe2e5;"></div><div style="width:10px;height:10px;border-radius:50%;background:#dfe2e5;"></div><div style="width:10px;height:10px;border-radius:50%;background:#dfe2e5;"></div></div>
+          <div style="flex:1;background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:8px;padding:7px 12px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#4b524b;">alethical.com/money/committees/aguirre-bell-marisol-senate-committee-18412</div>
+        </div>
+
+        <div style="padding:32px 36px 36px;">
+          <div style="display:flex;align-items:flex-start;gap:22px;">
+            <div style="width:82px;height:82px;border-radius:16px;background:#eef0f2;border:1px solid rgba(17,21,15,0.08);flex:none;"></div>
+            <div style="flex:1;min-width:0;">
+              <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap;">
+                <div style="flex:1;min-width:0;">
+                  <div style="display:flex;align-items:center;gap:9px;flex-wrap:wrap;">
+                    <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.1em;color:#a76a1a;background:#fbf1e2;border:1px solid #f0d6a8;border-radius:8px;padding:4px 9px;">CANDIDATE COMMITTEE</div>
+                    <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.1em;color:#4f5651;">REGISTERED FOR SENATE DISTRICT 41</div>
+                  </div>
+                  <h3 style="margin:9px 0 0;font-size:30px;font-weight:800;letter-spacing:-0.02em;color:#11150f;">Aguirre-Bell, Marisol Senate Committee</h3>
+                </div>
+                <div style="display:flex;align-items:center;gap:9px;flex:none;margin-left:auto;">
+                  <div style="display:inline-flex;align-items:center;gap:8px;background:#ffffff;border:1px solid rgba(17,21,15,0.16);border-radius:10px;padding:11px 15px 11px 12px;font-size:14px;font-weight:700;color:#2c322c;">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M12 15 V4 M12 4 L8 8 M12 4 L16 8" stroke="#2c322c" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 15 v4 a1 1 0 0 0 1 1 h12 a1 1 0 0 0 1-1 v-4" stroke="#2c322c" stroke-width="2" stroke-linecap="round"/></svg>
+                    <span>Share</span>
+                  </div>
+                  <div style="background:#11150f;color:#ffffff;border-radius:10px;padding:11px 17px 11px 14px;font-size:14px;font-weight:700;">+ Track</div>
+                </div>
+              </div>
+
+              <div style="margin-top:24px;display:grid;grid-template-columns:repeat(3,1fr);gap:14px;">
+                <div style="background:#f2fbf6;border:1px solid rgba(17,21,15,0.08);border-radius:13px;padding:16px 18px;">
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.12em;color:#0f7a45;">REPORTED RAISED</div>
+                  <div style="margin-top:7px;font-size:26px;font-weight:800;letter-spacing:-0.02em;color:#11150f;">$38,420</div>
+                </div>
+                <div style="background:#f7f8fa;border:1px solid rgba(17,21,15,0.08);border-radius:13px;padding:16px 18px;">
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.12em;color:#4f5651;">ITEMIZED · 66 PAYMENTS</div>
+                  <div style="margin-top:7px;font-size:26px;font-weight:800;letter-spacing:-0.02em;color:#11150f;">$31,905</div>
+                </div>
+                <div style="background:#f7f8fa;border:1px solid rgba(17,21,15,0.08);border-radius:13px;padding:16px 18px;">
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.12em;color:#4f5651;">NOT ITEMIZED</div>
+                  <div style="margin-top:7px;font-size:26px;font-weight:800;letter-spacing:-0.02em;color:#11150f;">$6,515</div>
+                </div>
+              </div>
+
+              <div style="margin-top:11px;padding-left:17px;display:flex;align-items:center;gap:8px;">
+                <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.08em;color:#656c66;">AS OF AUG 8 2026 · CAMPAIGN FINANCE BOARD · DONORS WHO GAVE $200 OR LESS IN TOTAL FOR THE YEAR ARE NEVER NAMED</div>
+              </div>
+
+              <div style="margin-top:24px;display:flex;align-items:center;gap:26px;border-bottom:1px solid rgba(17,21,15,0.1);">
+                <div style="font-size:15px;font-weight:700;color:#11150f;padding-bottom:11px;border-bottom:2px solid #11150f;margin-bottom:-1px;">Who gave</div>
+                <div style="font-size:15px;font-weight:600;color:#4b524b;padding-bottom:11px;">Where it went</div>
+                <div style="font-size:15px;font-weight:600;color:#4b524b;padding-bottom:11px;">Filings</div>
+              </div>
+
+              <div style="margin-top:18px;display:flex;flex-direction:column;gap:9px;">
+                <div style="display:flex;align-items:center;gap:14px;background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:12px;padding:14px 16px;box-shadow:0 6px 18px rgba(17,21,15,0.05);">
+                  <div style="flex:1;min-width:0;font-size:15px;font-weight:700;color:#11150f;">Statewide Nurses Alliance Political Fund</div>
+                  <div style="width:180px;height:8px;border-radius:999px;background:#eef0f2;overflow:hidden;flex:none;"><div style="width:78%;height:100%;background:#2ed47e;"></div></div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;color:#11150f;flex:none;width:88px;text-align:right;">$4,000</div>
+                </div>
+                <div style="display:flex;align-items:center;gap:14px;background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:12px;padding:14px 16px;box-shadow:0 6px 18px rgba(17,21,15,0.05);">
+                  <div style="flex:1;min-width:0;font-size:15px;font-weight:700;color:#11150f;">Trades Council Political Fund</div>
+                  <div style="width:180px;height:8px;border-radius:999px;background:#eef0f2;overflow:hidden;flex:none;"><div style="width:44%;height:100%;background:#2ed47e;"></div></div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;color:#11150f;flex:none;width:88px;text-align:right;">$2,250</div>
+                </div>
+                <div style="padding-left:17px;margin-top:3px;font-size:14.5px;font-weight:600;color:#149d5b;">See all 66 payments <span style="font-weight:400;">→</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 5 · THE MONEY PAGE ──────────────────────────────── -->
+    <div style="margin-top:60px;">
+      <div style="display:flex;align-items:baseline;gap:14px;">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.14em;color:#6f756f;">04</div>
+        <h2 style="margin:0;font-size:28px;font-weight:800;letter-spacing:-0.02em;color:#11150f;">What the money page may never do</h2>
+      </div>
+      <p style="margin:12px 0 0 33px;font-size:16px;line-height:1.55;color:#4b524b;max-width:760px;">Sitting members file on two different calendars, so a side-by-side list sets one member’s seven months against another member’s blank — a comparison of filing schedules dressed as a comparison of money. Our <a href="Money report web.dc.html#report">own reports</a> are the one exception: signed, dated and showing their working, they may add up across members.</p>
+
+      <div style="margin:20px 0 0 33px;display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+        <div style="background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:16px;box-shadow:0 8px 24px rgba(17,21,15,0.05);padding:22px 24px 24px;">
+          <div style="display:flex;align-items:center;gap:9px;">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.12em;color:#6f756f;">THE OBVIOUS HOMEPAGE MODULE</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:9.5px;font-weight:700;letter-spacing:0.1em;color:#a32c2c;background:#fdf3f3;border:1px solid #f0cccc;border-radius:7px;padding:2px 7px;">CUT</div>
+          </div>
+          <div style="margin-top:9px;font-size:18px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">No top raisers, ever</div>
+          <p style="margin:9px 0 0;font-size:14.5px;line-height:1.55;color:#4b524b;">A member on the 2026 ballot filed through Jul 20. A member who isn’t files nothing covering 2026 until Feb 2027. Rank them together and the list measures who is on the ballot, not who raised more. So: no sorting by amount, no total summed across members, and no amount at all on a row that lists more than one member.</p>
+        </div>
+
+        <div style="background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:16px;box-shadow:0 8px 24px rgba(17,21,15,0.05);padding:22px 24px 24px;">
+          <div style="display:flex;align-items:center;gap:9px;">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.12em;color:#6f756f;">OUTSIDE SPENDING</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:9.5px;font-weight:700;letter-spacing:0.1em;color:#a76a1a;background:#fbf1e2;border:1px solid #f0d6a8;border-radius:7px;padding:2px 7px;white-space:nowrap;">NEEDS LINK</div>
+          </div>
+          <div style="margin-top:9px;font-size:18px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">Named against a committee, never a person</div>
+          <p style="margin:9px 0 0;font-size:14.5px;line-height:1.55;color:#4b524b;">Every one of the 2,674 independent-spending rows for 2025 and 2026 names an affected committee; 2,670 carry its registration number; none names a person. So “money spent about this legislator” needs the same confirmed committee as their own money does.</p>
+          <div style="margin-top:18px;display:flex;flex-direction:column;gap:9px;">
+            <div style="display:flex;align-items:flex-start;gap:12px;background:#f2fbf6;border:1px solid #bfeacf;border-radius:12px;padding:13px 15px;">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.1em;color:#0f7a45;flex:none;padding-top:2px;">LINKED</div>
+              <div style="font-size:14px;line-height:1.5;color:#11150f;">Spending for and against them, both sides identical, each row with its date.</div>
+            </div>
+            <div style="display:flex;align-items:flex-start;gap:12px;background:#f7f8fa;border:1px solid rgba(17,21,15,0.12);border-radius:12px;padding:13px 15px;">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.1em;color:#4f5651;flex:none;padding-top:2px;">NOT YET</div>
+              <div style="font-size:14px;line-height:1.5;color:#11150f;">Genuinely empty, and it says which: we cannot attach these records to this person yet — never that none exist.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── 6 · FINANCE IN CONTEXT ───────────────────────────── -->
+    <div style="margin-top:60px;">
+      <div style="display:flex;align-items:baseline;gap:14px;">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.14em;color:#6f756f;">05</div>
+        <h2 style="margin:0;font-size:28px;font-weight:800;letter-spacing:-0.02em;color:#11150f;">Where else campaign money shows up — and where it must not</h2>
+      </div>
+      <p style="margin:12px 0 0 33px;font-size:16px;line-height:1.55;color:#4b524b;max-width:720px;">Money next to a legislator is a record. Money next to a bill is an accusation — nobody reads two facts side by side and concludes they are unrelated. Two of these three are things we decided <em>not</em> to build, and the reasons are the point.</p>
+
+      <div style="margin:26px 0 0 33px;display:grid;grid-template-columns:repeat(3,1fr);gap:18px;">
+
+        <div style="background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:16px;box-shadow:0 8px 24px rgba(17,21,15,0.05);padding:22px 24px 24px;">
+          <div style="display:flex;align-items:center;gap:9px;">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.12em;color:#6f756f;">ON THE LEGISLATOR PROFILE</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:9.5px;font-weight:700;letter-spacing:0.1em;color:#06231a;background:#2ed47e;border-radius:7px;padding:3px 7px;">DESIGNED</div>
+          </div>
+          <div style="margin-top:9px;font-size:18px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">A Campaign money tab</div>
+          <p style="margin:9px 0 0;font-size:14.5px;line-height:1.55;color:#4b524b;">Not a summary card pointing at a second page. The same person, one page, two tabs.</p>
+          <div style="margin-top:18px;background:#f7f8fa;border:1px solid rgba(17,21,15,0.08);border-radius:13px;padding:16px 17px;">
+            <div style="display:flex;align-items:center;gap:18px;">
+              <div style="font-size:14px;font-weight:700;color:#0f7a45;border-bottom:3px solid #2ed47e;padding-bottom:7px;">Campaign money</div>
+              <div style="font-size:14px;font-weight:600;color:#4b524b;padding-bottom:7px;">Overview</div>
+            </div>
+            <div style="margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.12em;color:#4f5651;">TOTAL REPORTED RAISED</div>
+            <div style="margin-top:5px;font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;color:#11150f;">$10,345</div>
+            <div style="margin-top:10px;height:9px;border-radius:5px;background:#e6e9e7;border:1px solid rgba(17,21,15,0.08);overflow:hidden;display:flex;"><div style="width:60%;height:100%;background:#149d5b;"></div></div>
+            <div style="margin-top:10px;font-size:13px;line-height:1.5;color:#4b524b;">Itemized $6,207 · not itemized $4,138.</div>
+          </div>
+        </div>
+
+        <div style="background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:16px;box-shadow:0 8px 24px rgba(17,21,15,0.05);padding:22px 24px 24px;">
+          <div style="display:flex;align-items:center;gap:9px;">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.12em;color:#6f756f;">ON A BILL PAGE</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:9.5px;font-weight:700;letter-spacing:0.1em;color:#a32c2c;background:#fdf3f3;border:1px solid #f0cccc;border-radius:7px;padding:2px 7px;">CUT</div>
+          </div>
+          <div style="margin-top:9px;font-size:18px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">Nothing. On purpose.</div>
+          <p style="margin:9px 0 0;font-size:14.5px;line-height:1.55;color:#4b524b;">The state gives us a donor’s name and employer, never their industry, so an industry total beside a bill is a grouping we invented. Naming the authors’ real donors instead does not fix it: any money beside a bill says the two are connected, and we have no evidence they are.</p>
+        </div>
+
+        <div style="background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:16px;box-shadow:0 8px 24px rgba(17,21,15,0.05);padding:22px 24px 24px;">
+          <div style="display:flex;align-items:center;gap:9px;">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.12em;color:#6f756f;">ON A DONOR NAME</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:9.5px;font-weight:700;letter-spacing:0.1em;color:#a32c2c;background:#fdf3f3;border:1px solid #f0cccc;border-radius:7px;padding:2px 7px;">HELD</div>
+          </div>
+          <div style="margin-top:9px;font-size:18px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">Payments, not a profile</div>
+          <p style="margin:9px 0 0;font-size:14.5px;line-height:1.55;color:#4b524b;">We refuse to guess that two similar spellings are one person. So a donor page would be a page about a spelling — and it would still look like a page about a human being.</p>
+          <div style="margin-top:18px;background:#f7f8fa;border:1px solid rgba(17,21,15,0.08);border-radius:13px;padding:16px 17px;">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.12em;color:#4f5651;">INSTEAD</div>
+            <div style="margin-top:11px;font-size:14px;line-height:1.55;color:#11150f;font-weight:600;">Payments filed under this name</div>
+            <div style="margin-top:7px;font-size:13px;line-height:1.5;color:#4b524b;">A list of filings, labelled as filings, with a plain line saying spellings vary and this may not be everything. No “who else they fund” until a person has confirmed the links.</div>
+          </div>
+        </div>
+
+      </div>
+
+      <div style="margin:20px 0 0 33px;padding-left:17px;font-size:14.5px;line-height:1.55;color:#4b524b;max-width:900px;">Names of <strong style="color:#11150f;">committees and party units</strong> link, because they carry a registration number we can identify them by. A name that only got paid has none, so it is searchable and its payments listed as filed — never a page. A private donor’s name is searchable but is not a link to a profile. Our own reports are the one surface that may draw a conclusion from these records, and the link runs one way: a report names a member, and a member’s page never names the report.</div>
+    </div>
+
+    <!-- ── 6 · TWO STANDING RULES ───────────────────────────── -->
+    <sc-if value="{{ showRules }}" hint-placeholder-val="{{ true }}">
+    <div style="margin-top:60px;">
+      <div style="display:flex;align-items:baseline;gap:14px;">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.14em;color:#6f756f;">06</div>
+        <h2 style="margin:0;font-size:28px;font-weight:800;letter-spacing:-0.02em;color:#11150f;">Five rules that ride along with all of it</h2>
+      </div>
+
+      <div style="margin:26px 0 0 33px;display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+
+        <div style="background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:16px;box-shadow:0 8px 24px rgba(17,21,15,0.05);padding:24px 26px 26px;">
+          <div style="font-size:19px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">Every number carries its as-of date</div>
+          <p style="margin:10px 0 0;font-size:15px;line-height:1.6;color:#4b524b;">These are periodic filings, not a live feed. Without the date, a total from eight months ago looks exactly like a total from this morning — and the reader draws a conclusion about a race using stale money.</p>
+          <div style="margin-top:18px;background:#f7f8fa;border:1px solid rgba(17,21,15,0.08);border-radius:12px;padding:15px 17px;">
+            <div style="font-size:24px;font-weight:800;color:#11150f;">$10,345</div>
+            <div style="margin-top:7px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.08em;color:#656c66;">AS OF AUG 8 2026 · CAMPAIGN FINANCE BOARD</div>
+          </div>
+        </div>
+
+        <div style="background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:16px;box-shadow:0 8px 24px rgba(17,21,15,0.05);padding:24px 26px 26px;">
+          <div style="font-size:19px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">Missing is never zero</div>
+          <p style="margin:10px 0 0;font-size:15px;line-height:1.6;color:#4b524b;">“We never imported this” and “they spent nothing” are different facts. Render them identically and an import gap becomes a claim about a politician — which on a trust-first product is the worst failure available to us.</p>
+          <div style="margin-top:18px;display:flex;flex-direction:column;gap:9px;">
+            <div style="display:flex;align-items:center;gap:12px;background:#fdf3f3;border:1px solid #f0cccc;border-radius:12px;padding:13px 15px;">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.1em;color:#a32c2c;flex:none;">NEVER</div>
+              <div style="font-size:19px;font-weight:800;color:#11150f;">$0</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:12px;background:#f2fbf6;border:1px solid #bfeacf;border-radius:12px;padding:13px 15px;">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.1em;color:#0f7a45;flex:none;">INSTEAD</div>
+              <div style="font-size:15px;font-weight:700;color:#11150f;">Not reported <span style="font-weight:400;color:#656c66;">— no filing imported for this period</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:16px;box-shadow:0 8px 24px rgba(17,21,15,0.05);padding:24px 26px 26px;">
+          <div style="font-size:19px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">A total we can’t show the parts of is two numbers</div>
+          <p style="margin:10px 0 0;font-size:15px;line-height:1.6;color:#4b524b;">Minnesota names a donor only once their giving passes $200 for the year. So the payments we can list never add up to the reported total, and the difference is real money — not an error, and not a hole in our data. One figure either understates the truth or claims a total whose parts we cannot show. The Board publishes a reported total per filer and resolves which amended version counts, so both numbers are the ordinary case. We show no total only where that service genuinely does not reach — a candidate who ran in a special election files a second report series it does not return — and then it is the named payments, labelled as named payments, with nothing that looks like a grand sum.</p>
+          <div style="margin-top:18px;background:#f7f8fa;border:1px solid rgba(17,21,15,0.08);border-radius:12px;padding:15px 17px;">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.12em;color:#4f5651;">TOTAL REPORTED RAISED</div>
+            <div style="margin-top:5px;font-family:'JetBrains Mono',monospace;font-size:24px;font-weight:700;color:#11150f;">$10,345</div>
+            <div style="margin-top:11px;height:9px;border-radius:5px;background:#e6e9e7;border:1px solid rgba(17,21,15,0.08);overflow:hidden;display:flex;"><div style="width:60%;height:100%;background:#149d5b;"></div></div>
+            <div style="margin-top:11px;display:flex;align-items:center;gap:10px;"><span style="width:10px;height:10px;border-radius:3px;background:#149d5b;flex:none;"></span><div style="flex:1;font-size:14px;color:#1a201d;">Itemized — 10 donors named</div><div style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;color:#11150f;">$6,207</div></div>
+            <div style="margin-top:8px;display:flex;align-items:center;gap:10px;"><span style="width:10px;height:10px;border-radius:3px;background:#e6e9e7;border:1px solid rgba(17,21,15,0.14);flex:none;"></span><div style="flex:1;font-size:14px;color:#1a201d;">Not itemized — donors $200 or less in total for the year</div><div style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;color:#11150f;">$4,138</div></div>
+          </div>
+        </div>
+
+        <div style="background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:16px;box-shadow:0 8px 24px rgba(17,21,15,0.05);padding:24px 26px 26px;">
+          <div style="font-size:19px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">Say what’s missing before they search</div>
+          <p style="margin:10px 0 0;font-size:15px;line-height:1.6;color:#4b524b;">A search box is a promise. Someone who types a name, gets nothing, and is told nothing will conclude that person gave nothing — not that we don’t hold the record. The gaps are large and permanent, so they belong on the page in plain words, above the results, not in a footnote.</p>
+          <div style="margin-top:18px;background:#f7f8fa;border:1px solid rgba(17,21,15,0.08);border-radius:12px;padding:15px 17px;">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.12em;color:#4f5651;">WHAT THIS RECORD DOES NOT COVER</div>
+            <div style="margin-top:11px;display:flex;flex-direction:column;gap:7px;font-size:14px;line-height:1.5;color:#1a201d;">
+              <div>Nothing before 2015.</div>
+              <div>Unions don’t report to this board at all.</div>
+              <div>Donors who gave $200 or less in total for the year are never named.</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:16px;box-shadow:0 8px 24px rgba(17,21,15,0.05);padding:24px 26px 26px;">
+          <div style="font-size:19px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">A published number can change</div>
+          <p style="margin:10px 0 0;font-size:15px;line-height:1.6;color:#4b524b;">Filings get amended, and a total can go down next week — in public, during an election. A records product must never quietly swap one number for another. When a filing is amended we say so on the figure itself, and the earlier figure stays readable.</p>
+          <div style="margin-top:18px;background:#f7f8fa;border:1px solid rgba(17,21,15,0.08);border-radius:12px;padding:15px 17px;">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.12em;color:#4f5651;">TOTAL REPORTED RAISED</div>
+            <div style="margin-top:5px;display:flex;align-items:baseline;gap:11px;flex-wrap:wrap;">
+              <div style="font-family:'JetBrains Mono',monospace;font-size:24px;font-weight:700;color:#11150f;">$10,345</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.1em;color:#a76a1a;background:#fbf1e2;border:1px solid #f0d6a8;border-radius:7px;padding:3px 8px;white-space:nowrap;">AMENDED AUG 4 2026</div>
+            </div>
+            <div style="margin-top:9px;font-size:13.5px;line-height:1.5;color:#4b524b;">Previously reported as $11,120 on Jul 21 2026.</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+    </sc-if>
+
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1400},&quot;showRules&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Plan sections&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      showRules: this.props.showRules ?? true
+    };
+  }
+}
+
+</script>
+</body>
+</html>
