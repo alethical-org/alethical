@@ -80,6 +80,17 @@ BOARD_CALENDAR = "board_calendar"
 #: appears in 3 returns and a drifting copy would tell a caller the order changed.
 ORDERED_BY_PERIOD_END = "period_end"
 
+
+def _utc_today() -> date:
+    """Today in UTC, matching how a snapshot's fetch window is stored.
+
+    Same reason as ``committee_filing_schedule._utc_today``: both sides of a date
+    comparison have to be measured the same way, and a local ``date.today()`` sits a day
+    behind a UTC-stored date for the hours either side of midnight UTC.
+    """
+    return datetime.now(UTC).date()
+
+
 #: Rows fetched per page at most. The landing draws 5; the ceiling is here so a caller
 #: cannot ask for the whole catalogue (36,655 rows in the live snapshot) in one response.
 MAX_FILINGS = 100
@@ -172,6 +183,9 @@ class FilingsPage:
 
     state: str
     ordered_by: str
+    #: The day a report's period must have ended on or before to appear here. Served
+    #: because without it a caller cannot tell why the newest row is not dated today.
+    periods_ended_on_or_before: Optional[date]
     filings: tuple[FilingRow, ...]
     limit: int
     offset: int
@@ -353,7 +367,9 @@ def freshness(db: Session, release) -> Freshness:
     )
 
 
-def recent_filings(db: Session, *, limit: int, offset: int) -> FilingsPage:
+def recent_filings(
+    db: Session, *, limit: int, offset: int, as_of: Optional[date] = None
+) -> FilingsPage:
     """The filed reports we hold with the latest periods, newest period end first.
 
     Three deliberate exclusions, each of which would otherwise put a false row on a
@@ -369,15 +385,33 @@ def recent_filings(db: Session, *, limit: int, offset: int) -> FilingsPage:
       them, since we hold no filing date either.
     * **A filer the register does not hold.** The name comes from ``cf_filer`` in the
       same snapshot, and a nameless row is not worth showing.
+    * **Reports whose period has not ended yet.** Found on production the day this
+      shipped: the 5 newest rows were 2026 year-end reports covering "1 Jan - 31 Dec
+      2026", read on 19 August. They are real filings -- a terminating committee files its
+      final report at termination rather than waiting for the period to close, and Paul
+      Novotny's is the measured case (§9.8) -- and there were 7 of them against 1,261
+      catalogued 2026 pre-primary reports. But a list of the newest filings whose top row
+      covers 4 months of the future reads as an error or as a claim about money nobody has
+      raised yet, and the ordering key is the whole reason: with no filing date, "newest"
+      can only be the latest period, and a period that has not ended sorts above every
+      period that has. So this list is the filings whose periods have **ended**, and the
+      cutoff is served as ``periods_ended_on_or_before`` so a caller can see why the top
+      row is not today's date.
+
+    ``as_of`` is a parameter rather than a call to the clock inside the query, so a test
+    fixes the day instead of racing it. It is a UTC date, matching how a snapshot's fetch
+    window is stored.
 
     ``limit + 1`` is fetched to answer ``has_more`` without a second count, the same
     shape ``campaign_finance_payments`` uses.
     """
+    as_of = as_of or _utc_today()
     snapshot = live_filings_snapshot(db)
     if snapshot is None:
         return FilingsPage(
             state=UNAVAILABLE,
             ordered_by=ORDERED_BY_PERIOD_END,
+            periods_ended_on_or_before=as_of,
             filings=(),
             limit=limit,
             offset=offset,
@@ -410,6 +444,7 @@ def recent_filings(db: Session, *, limit: int, offset: int) -> FilingsPage:
             report.snapshot_id == snapshot.id,
             report.effective_amendment_index.is_not(None),
             report.cut_off_date.is_not(None),
+            report.cut_off_date <= as_of,
         )
         .order_by(
             report.cut_off_date.desc(),
@@ -423,7 +458,8 @@ def recent_filings(db: Session, *, limit: int, offset: int) -> FilingsPage:
     if not rows and offset == 0 and (snapshot.report_count or 0) > 0:
         # An empty page has 2 causes and they are different facts: the snapshot's rows
         # have been replaced under this read, or every row it holds was filtered out by
-        # the 3 exclusions above (a catalogue of nothing but unfiled or undated reports).
+        # the 4 exclusions above (a catalogue of nothing but unfiled, undated or
+        # not-yet-ended reports).
         # Only the first is a refusal, so the rows are probed unfiltered rather than
         # inferred from the filtered count -- the same shape as
         # ``_refuse_if_rows_are_gone`` in the reader, and caught here by
@@ -435,6 +471,7 @@ def recent_filings(db: Session, *, limit: int, offset: int) -> FilingsPage:
             return FilingsPage(
                 state=UNAVAILABLE,
                 ordered_by=ORDERED_BY_PERIOD_END,
+                periods_ended_on_or_before=as_of,
                 filings=(),
                 limit=limit,
                 offset=offset,
@@ -452,6 +489,7 @@ def recent_filings(db: Session, *, limit: int, offset: int) -> FilingsPage:
     return FilingsPage(
         state=REPORTED,
         ordered_by=ORDERED_BY_PERIOD_END,
+        periods_ended_on_or_before=as_of,
         filings=filings,
         limit=limit,
         offset=offset,

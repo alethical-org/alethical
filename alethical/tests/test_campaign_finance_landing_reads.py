@@ -638,6 +638,46 @@ def test_the_2025_year_end_start_is_the_one_the_calendar_prints(client, db) -> N
     assert row["period_start"] == YEAR_END_2025_START.isoformat()
 
 
+def test_a_report_whose_period_has_not_ended_is_not_a_recent_filing(client, db) -> None:
+    """Found on production the day this shipped, at the very top of the list.
+
+    The 5 newest rows were 2026 year-end reports covering "1 Jan - 31 Dec 2026", read on
+    19 August: 7 such rows against 1,261 catalogued 2026 pre-primary reports. They are
+    real filings, because a terminating committee files its final report at termination
+    rather than waiting for the period to close (Paul Novotny's is the measured case,
+    §9.8). But with no filing date "newest" can only be the latest period, and a period
+    running 4 months into the future outranks every period that has actually ended -- so a
+    list of the newest filings led with rows covering money nobody has raised yet.
+    """
+    snapshot = _filings_snapshot(db, report_count=2)
+    _filer(db, snapshot, CANDIDATE)
+    _report(
+        db,
+        snapshot,
+        CANDIDATE,
+        report_name="2026 Year-End Report",
+        report_type="YE",
+        cut_off=date(2026, 12, 31),
+    )
+    _report(db, snapshot, CANDIDATE)
+
+    data = client.get(FILINGS).json()["data"]
+
+    assert [row["report_name"] for row in data["filings"]] == [
+        "2026 Pre-Primary Report"
+    ]
+    assert data["filings"][0]["period_end"] == PRE_PRIMARY_END.isoformat()
+
+
+def test_the_page_says_which_day_it_counted_ended_periods_through(client, db) -> None:
+    """Otherwise a caller cannot tell why the newest row is not dated today."""
+    _filings_snapshot(db, report_count=0)
+
+    data = client.get(FILINGS).json()["data"]
+
+    assert data["periods_ended_on_or_before"] == datetime.now(UTC).date().isoformat()
+
+
 def test_a_report_whose_filer_is_not_in_the_register_is_dropped(client, db) -> None:
     """The name comes from the register, and a nameless row is not worth showing."""
     snapshot = _filings_snapshot(db, report_count=1)
