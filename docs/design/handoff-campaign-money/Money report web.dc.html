@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  a{color:#0f7a45;}
+  a:hover{color:#11832b;}
+  a:focus-visible,button:focus-visible,[tabindex]:focus-visible{outline:2px solid #7c5cff !important;outline-offset:2px !important;}
+</style>
+</helmet>
+<div style="width:1600px;min-height:1120px;font-family:'Libre Franklin',Helvetica,Arial,sans-serif;background:#fbfcfd;color:#11150f;position:relative;overflow:hidden;">
+
+  <nav data-screen-label="Nav" style="position:relative;display:flex;align-items:center;justify-content:space-between;padding:26px 56px 0;background:#ffffff;">
+    <a href="Campaign money IA.dc.html" style="display:flex;align-items:center;gap:16px;text-decoration:none;">
+      <svg width="40" height="40" viewBox="8 9 84 84" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;flex:none;"><path d="M8,92 L46,10 L46,92 Z" fill="#11150f"></path><path d="M92,92 L54,10 L54,92 Z" fill="#11150f"></path></svg>
+      <span style="font-weight:600;font-size:25px;letter-spacing:0.16em;color:#11150f;">ALETHICAL</span>
+    </a>
+    <div style="display:flex;align-items:center;gap:30px;">
+      <div style="display:flex;align-items:center;gap:34px;">
+        <a href="#" style="display:inline-flex;align-items:center;gap:8px;color:#4b524b;text-decoration:none;font-size:18px;font-weight:500;" style-hover="color:#11150f;">Search<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 9 L12 15 L18 9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg></a>
+        <a href="#" style="display:inline-flex;align-items:center;gap:8px;color:#4b524b;text-decoration:none;font-size:18px;font-weight:500;" style-hover="color:#11150f;">Yours<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 9 L12 15 L18 9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg></a>
+        <a href="#" style="display:inline-flex;align-items:center;gap:8px;color:#4b524b;text-decoration:none;font-size:18px;font-weight:500;" style-hover="color:#11150f;">About<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 9 L12 15 L18 9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg></a>
+      </div>
+      <div style="display:inline-flex;align-items:center;gap:11px;padding:12px 20px;background:#ffffff;border:1px solid rgba(17,21,15,0.16);border-radius:12px;color:#11150f;font-size:17px;font-weight:600;">
+        <span style="width:9px;height:9px;border-radius:50%;background:#2ed47e;display:inline-block;flex:none;box-shadow:0 0 0 3px rgba(45,212,126,0.18);"></span>
+        Jordan Reyes
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 9 L12 15 L18 9" stroke="#6f756f" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ═══ SCREEN A · THE SHELF ═══ -->
+  <sc-if value="{{ isShelf }}" hint-placeholder-val="{{ false }}">
+  <div data-screen-label="Reports shelf" style="background:#ffffff;padding:44px 56px 0;">
+    <a href="Campaign money IA.dc.html" style="display:inline-flex;align-items:center;gap:9px;color:#4b524b;text-decoration:none;font-size:16px;font-weight:600;" style-hover="color:#11150f;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M15 5 L8 12 L15 19" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>Campaign money</a>
+    <div style="margin-top:22px;font-size:13px;font-weight:700;letter-spacing:0.2em;color:#0f7a45;">CAMPAIGN MONEY</div>
+    <h1 style="margin:14px 0 0;font-size:46px;line-height:1.08;font-weight:800;letter-spacing:-0.03em;color:#11150f;">What we found</h1>
+    <p style="margin:16px 0 0;max-width:820px;font-size:19px;line-height:1.55;color:#4f5651;text-wrap:pretty;">Our own research on Minnesota’s campaign records. Where we hold the filing behind a figure, the figure links to it.</p>
+
+    <div style="margin-top:36px;max-width:1490px;border-top:1px solid rgba(17,21,15,0.1);padding-top:32px;">
+      <a href="Money report web.dc.html#report" onClick="{{ openReport }}" style="display:block;text-decoration:none;background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:16px;box-shadow:0 8px 24px rgba(17,21,15,0.05);padding:28px 30px 30px;transition:border-color .16s ease, box-shadow .16s ease;" style-hover="border-color:rgba(45,212,126,0.55);box-shadow:0 16px 38px rgba(17,21,15,0.1);">
+        <div style="display:flex;align-items:flex-start;gap:30px;">
+          <div style="flex:1;min-width:0;">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:700;letter-spacing:0.08em;color:#656c66;">PUBLISHED AUG 17 2026 · RECORDS THROUGH AUG 11 2026</div>
+            <div style="margin-top:12px;font-size:30px;line-height:1.18;font-weight:800;letter-spacing:-0.025em;color:#11150f;text-wrap:pretty;">Follow the Money: Why Outsiders in Both Parties Are Fighting the Same Fight</div>
+            <p style="margin:12px 0 0;max-width:760px;font-size:17.5px;line-height:1.55;color:#4b524b;text-wrap:pretty;">Trace who writes the checks and Minnesota politics stops dividing into Republicans and Democrats. It divides into insiders and outsiders, and that line cuts through both parties.</p>
+            <div style="margin-top:18px;display:flex;align-items:center;gap:10px;">
+              <span style="font-size:16px;font-weight:700;color:#0f7a45;">Read the report</span>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M5 12 H19 M14 7 L19 12 L14 17" stroke="#0f7a45" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            </div>
+          </div>
+          <div style="flex:none;width:170px;height:170px;background:#f7f8fa;border:1px solid rgba(17,21,15,0.1);border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;">
+            <div style="width:82px;height:6px;border-radius:3px;background:#e1e5e2;"></div>
+            <div style="width:108px;height:6px;border-radius:3px;background:#e1e5e2;"></div>
+            <div style="width:108px;height:6px;border-radius:3px;background:#e1e5e2;"></div>
+            <div style="width:68px;height:6px;border-radius:3px;background:#149d5b;"></div>
+          </div>
+        </div>
+      </a>
+      <div style="margin-top:16px;padding-left:16px;max-width:900px;font-size:14.5px;line-height:1.55;color:#656c66;text-wrap:pretty;">Newest first, by publication. One report today, so the shelf is a list — a year’s worth is what earns grouping by year, and nothing here announces work we have not done.</div>
+    </div>
+    <div style="height:64px;"></div>
+  </div>
+  </sc-if>
+
+  <!-- ═══ SCREEN B · THE REPORT ═══ -->
+  <sc-if value="{{ isReport }}" hint-placeholder-val="{{ true }}">
+  <div data-screen-label="Report page" style="background:#ffffff;padding:40px 56px 0;">
+    <a href="Money report web.dc.html#shelf" onClick="{{ openShelf }}" style="display:inline-flex;align-items:center;gap:9px;color:#4b524b;text-decoration:none;font-size:16px;font-weight:600;" style-hover="color:#11150f;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M15 5 L8 12 L15 19" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>What we found</a>
+
+    <div style="margin-top:28px;display:grid;grid-template-columns:226px minmax(0,760px) 1fr;gap:56px;align-items:start;">
+
+      <div data-screen-label="Contents rail" style="position:sticky;top:24px;">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.12em;color:#4f5651;">CONTENTS</div>
+        <div style="margin-top:16px;display:flex;flex-direction:column;gap:13px;">
+          <a href="#s1" style="font-size:14px;line-height:1.35;font-weight:800;color:#11150f;text-decoration:none;">The short version</a>
+          <a href="#s2" style="font-size:14px;line-height:1.35;color:#4b524b;text-decoration:none;" style-hover="color:#11150f;">Where the money actually goes</a>
+          <a href="#s3" style="font-size:14px;line-height:1.35;color:#4b524b;text-decoration:none;" style-hover="color:#11150f;">The same donors fund both parties</a>
+          <a href="#s4" style="font-size:14px;line-height:1.35;color:#4b524b;text-decoration:none;" style-hover="color:#11150f;">The outsiders look the same</a>
+          <a href="#s5" style="font-size:14px;line-height:1.35;color:#4b524b;text-decoration:none;" style-hover="color:#11150f;">Small money against big money</a>
+          <a href="#s6" style="font-size:14px;line-height:1.35;color:#4b524b;text-decoration:none;" style-hover="color:#11150f;">The Senate race</a>
+          <a href="#s7" style="font-size:14px;line-height:1.35;color:#4b524b;text-decoration:none;" style-hover="color:#11150f;">Why the outsiders can’t see each other</a>
+          <a href="#s8" style="font-size:14px;line-height:1.35;color:#4b524b;text-decoration:none;" style-hover="color:#11150f;">What it means for a movement</a>
+          <a href="#s9" style="font-size:14px;line-height:1.35;color:#4b524b;text-decoration:none;" style-hover="color:#11150f;">The one rule we follow</a>
+        </div>
+        <div style="margin-top:22px;padding-top:20px;border-top:1px solid rgba(17,21,15,0.1);">
+          <a href="#" style="display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:700;color:#0f7a45;text-decoration:none;">Download as PDF<svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M12 4 V15 M8 11 L12 15 L16 11" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path><path d="M5 17 v2 a1 1 0 0 0 1 1 h12 a1 1 0 0 0 1-1 v-2" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"></path></svg></a>
+        </div>
+      </div>
+
+      <div>
+        <sc-if value="{{ hasNewer }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-bottom:26px;display:flex;align-items:flex-start;gap:13px;background:#fbf1e2;border:1px solid #f0d6a8;border-radius:13px;padding:16px 18px;">
+            <span style="flex:none;margin-top:1px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.08em;color:#8f5a12;">NEWER FILINGS EXIST</span>
+            <span style="flex:1;min-width:0;font-size:15.5px;line-height:1.55;color:#11150f;">The Board has accepted filings since Aug 11, 2026, the date these records run through. The figures below are unchanged from publication; where a later filing moves one, it is noted and dated at that figure.</span>
+          </div>
+        </sc-if>
+
+        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.14em;color:#2b6377;">REPORT</div>
+        <h1 style="margin:14px 0 0;font-size:52px;line-height:1.06;font-weight:800;letter-spacing:-0.03em;color:#11150f;text-wrap:pretty;">Follow the Money: Why Outsiders in Both Parties Are Fighting the Same Fight</h1>
+        <p style="margin:20px 0 0;font-size:22px;line-height:1.5;color:#4b524b;text-wrap:pretty;">Not what candidates say — who writes the checks. Minnesota’s money doesn’t divide into Republicans and Democrats. It divides into insiders and outsiders, and that line cuts straight through both parties.</p>
+
+        <div style="margin-top:24px;padding-top:20px;border-top:1px solid rgba(17,21,15,0.1);display:flex;align-items:flex-start;justify-content:space-between;gap:24px;flex-wrap:wrap;">
+          <div style="min-width:0;">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:700;letter-spacing:0.08em;color:#656c66;">ALETHICAL RESEARCH · AUTHOR NAMED AT PUBLISH</div>
+            <div style="margin-top:7px;font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:500;letter-spacing:0.08em;color:#6f756f;">PUBLISHED AUG 17 2026 · RECORDS THROUGH AUG 11 2026</div>
+            <div style="margin-top:7px;font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:500;letter-spacing:0.08em;color:#6f756f;">MINNESOTA CAMPAIGN FINANCE BOARD · FEDERAL ELECTION COMMISSION</div>
+          </div>
+          <div style="flex:none;display:inline-flex;align-items:center;gap:9px;background:#ffffff;border:1px solid rgba(17,21,15,0.16);border-radius:11px;padding:12px 18px 12px 15px;font-size:15px;font-weight:700;color:#2c322c;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="flex:none;"><circle cx="18" cy="5" r="2.8" stroke="currentColor" stroke-width="2"></circle><circle cx="6" cy="12" r="2.8" stroke="currentColor" stroke-width="2"></circle><circle cx="18" cy="19" r="2.8" stroke="currentColor" stroke-width="2"></circle><path d="M8.5 10.8 L15.5 6.4 M8.5 13.2 L15.5 17.6" stroke="currentColor" stroke-width="2" stroke-linecap="round"></path></svg>
+            <span>Share</span>
+          </div>
+        </div>
+
+        <sc-if value="{{ isCorrected }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:22px;display:flex;align-items:flex-start;gap:13px;background:#f7f8fa;border:1px solid rgba(17,21,15,0.12);border-radius:13px;padding:16px 18px;">
+            <span style="flex:none;margin-top:1px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.08em;color:#8f5a12;">CORRECTED SEP 2 2026</span>
+            <span style="flex:1;min-width:0;font-size:15.5px;line-height:1.55;color:#11150f;">An amended filing moved the caucus and party total. The earlier figure stays readable where it appears.</span>
+          </div>
+        </sc-if>
+
+        <div id="s1" style="margin-top:32px;background:#f7f8fa;border:1px solid rgba(17,21,15,0.08);border-radius:15px;padding:26px 28px 28px;">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.12em;color:#4f5651;">THE SHORT VERSION</div>
+          <p style="margin:14px 0 0;font-size:19px;line-height:1.65;color:#1a201d;text-wrap:pretty;">The outsider candidates in the Republican party and the outsider candidates in the DFL are funded almost identically: small donations from regular people, and their local county party. The insiders in both parties are also funded almost identically: PACs, lobbyists and party machinery — often the same PACs and the same lobbyists.</p>
+          <p style="margin:14px 0 0;font-size:19px;line-height:1.65;color:#1a201d;text-wrap:pretty;">The two party establishments have more in common with each other than either has with its own grassroots. That is not an opinion. It is arithmetic, and every number below can be checked.</p>
+        </div>
+
+        <h2 id="s2" style="margin:44px 0 0;font-size:30px;line-height:1.2;font-weight:800;letter-spacing:-0.02em;color:#11150f;text-wrap:pretty;">Where the money actually goes</h2>
+        <p style="margin:16px 0 0;font-size:19px;line-height:1.7;color:#1a201d;text-wrap:pretty;">Most political money in Minnesota never touches a candidate. Over the last eleven years, all 1,700-odd candidates for state office raised about <a href="Money committee web.dc.html">$108 million</a> between them. The four legislative caucus committees and the two state parties took in about <sc-if value="{{ isCorrected }}" hint-placeholder-val="{{ false }}"><span style="text-decoration:line-through;color:#6f756f;">$221 million</span> <a href="Money committee web.dc.html">$223 million</a> <span style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.06em;color:#8f5a12;">CORRECTED SEP 2 2026</span></sc-if><sc-if value="{{ notCorrected }}" hint-placeholder-val="{{ true }}"><a href="Money committee web.dc.html">$221 million</a></sc-if> — twice as much. Another <a href="Money committee web.dc.html">$179 million</a> was spent independently, on advertising and mail about candidates, money those candidates never see and cannot direct. More than half of it paid to attack someone rather than to support anyone.</p>
+        <p style="margin:16px 0 0;font-size:19px;line-height:1.7;color:#1a201d;text-wrap:pretty;">So the candidate on your ballot is usually the smallest financial player in their own race. The real money sits one level up, in the party machinery — and whoever funds the machinery has more influence over it than any donor to any candidate.</p>
+
+        <div style="margin-top:28px;background:#ffffff;border:1px solid rgba(17,21,15,0.12);border-radius:15px;box-shadow:0 6px 18px rgba(17,21,15,0.05);padding:24px 26px 26px;">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:40px;font-weight:700;letter-spacing:-0.02em;color:#149d5b;">$886M</div>
+          <div style="margin-top:10px;font-size:18px;line-height:1.55;color:#1a201d;text-wrap:pretty;">Spent lobbying the Minnesota government since 2015 — more than every candidate, caucus and state party combined. The biggest money in state politics is not in elections at all.</div>
+          <div style="margin-top:15px;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.08em;color:#656c66;">LOBBYIST DISBURSEMENT REPORTS 2015–2026 · CAMPAIGN FINANCE BOARD</div>
+        </div>
+
+        <h2 id="s3" style="margin:44px 0 0;font-size:30px;line-height:1.2;font-weight:800;letter-spacing:-0.02em;color:#11150f;text-wrap:pretty;">The same donors fund both parties</h2>
+        <p style="margin:16px 0 0;font-size:19px;line-height:1.7;color:#1a201d;text-wrap:pretty;">Filter the records to donors who gave to both a Republican and a DFL committee in the same two-year cycle and a short, familiar list appears: trade associations, utilities, health systems, gambling interests, the building trades, and the lobbying firms that carry them. They do not split evenly, and they do not need to. They fund whoever holds the gavel.</p>
+        <p style="margin:16px 0 0;font-size:19px;line-height:1.7;color:#1a201d;text-wrap:pretty;">Establishment candidates in the two parties therefore share more of their donor list with each other than with the outsiders wearing their own party label.</p>
+
+        <h2 id="s4" style="margin:44px 0 0;font-size:30px;line-height:1.2;font-weight:800;letter-spacing:-0.02em;color:#11150f;text-wrap:pretty;">The outsiders look the same — in both parties</h2>
+        <p style="margin:16px 0 0;font-size:19px;line-height:1.7;color:#1a201d;text-wrap:pretty;">Outsider candidates in the two parties are roughly four times more similar to each other, in where their money comes from, than to their own party’s establishment. The two establishments are the most similar pair of all.</p>
+        <p style="margin:16px 0 0;font-size:19px;line-height:1.7;color:#1a201d;text-wrap:pretty;">The clearest single measure is donor breadth. An establishment candidate’s average dollar arrives from someone who also funds 80 to 150 other committees. An outsider’s average dollar comes from someone who funds about a dozen.</p>
+
+        <div style="margin-top:26px;background:#f7f8fa;border:1px solid rgba(17,21,15,0.08);border-radius:15px;padding:24px 26px 26px;">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.12em;color:#4f5651;">HOW WE SCORED THIS</div>
+          <p style="margin:13px 0 0;font-size:17.5px;line-height:1.65;color:#1a201d;text-wrap:pretty;">Outsider and establishment are ours — nobody filed those words. We scored every candidate committee that raised $20,000 or more since 2021, on records through Aug 11 2026, on four things: the share of its money from PACs, the share arriving in gifts of $200 or less, support from local party units, and how many other committees each of its donors funds. Nothing in the score reads a candidate’s politics, their votes, or what they say.</p>
+        </div>
+
+        <h2 id="s5" style="margin:44px 0 0;font-size:30px;line-height:1.2;font-weight:800;letter-spacing:-0.02em;color:#11150f;text-wrap:pretty;">Small money against big money</h2>
+        <p style="margin:16px 0 0;font-size:19px;line-height:1.7;color:#1a201d;text-wrap:pretty;">Minnesota names a donor only once their giving passes $200 in total for the year, so the smallest gifts are counted but never itemised. That unnamed share is itself a signal: on outsider committees it is routinely the largest single line in the filing, while establishment committees raise most of what they raise in named four-figure gifts and PAC transfers.</p>
+        <p style="margin:16px 0 0;font-size:19px;line-height:1.7;color:#1a201d;text-wrap:pretty;">Two campaigns can report the same total and have been funded by populations that barely overlap — a few hundred donors against a few dozen.</p>
+
+        <h2 id="s6" style="margin:44px 0 0;font-size:30px;line-height:1.2;font-weight:800;letter-spacing:-0.02em;color:#11150f;text-wrap:pretty;">The Senate race</h2>
+        <p style="margin:16px 0 0;font-size:19px;line-height:1.7;color:#1a201d;text-wrap:pretty;">The pattern holds in this year’s Senate primary, where the same split is visible in federal filings: the establishment candidates’ money arrives through PACs and out-of-state bundlers, the outsiders’ through small in-state gifts and local party units.</p>
+        <p style="margin:16px 0 0;font-size:19px;line-height:1.7;color:#1a201d;text-wrap:pretty;">We hold no federal records, so nothing here links into this site. Those figures come from Schedule A of each committee’s FEC filings, with duplicate earmark rows removed, and are <a href="https://www.fec.gov/" target="_blank" rel="noopener noreferrer">public at the FEC</a>.</p>
+
+        <h2 id="s7" style="margin:44px 0 0;font-size:30px;line-height:1.2;font-weight:800;letter-spacing:-0.02em;color:#11150f;text-wrap:pretty;">Why the outsiders can’t see each other</h2>
+        <p style="margin:16px 0 0;font-size:19px;line-height:1.7;color:#1a201d;text-wrap:pretty;">Because they never share a ballot. Each fights their own party’s establishment in a primary the other party’s outsiders never see, against an opponent funded from the same handful of sources. The fight looks partisan from inside it and looks identical from outside it.</p>
+
+        <h2 id="s8" style="margin:44px 0 0;font-size:30px;line-height:1.2;font-weight:800;letter-spacing:-0.02em;color:#11150f;text-wrap:pretty;">What it means for a movement</h2>
+        <p style="margin:16px 0 0;font-size:19px;line-height:1.7;color:#1a201d;text-wrap:pretty;">If the dividing line in the money is inside each party rather than between them, then the durable question for a voter is not which party a candidate belongs to but who funded the campaign — and that is answerable, per candidate, from public records, in about five minutes.</p>
+
+        <h2 id="s9" style="margin:44px 0 0;font-size:30px;line-height:1.2;font-weight:800;letter-spacing:-0.02em;color:#11150f;text-wrap:pretty;">The one rule we follow</h2>
+        <p style="margin:16px 0 0;font-size:19px;line-height:1.7;color:#1a201d;text-wrap:pretty;">We never claim to know why anyone gave money. That a PAC funds both parties is a fact. What it wants in return is a question, and the filings do not answer it. Everything above comes from records anyone can open — the point is to make opening them take five minutes instead of five months.</p>
+
+        <div style="margin-top:44px;padding-top:28px;border-top:1px solid rgba(17,21,15,0.1);">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.12em;color:#4f5651;">WHERE THESE NUMBERS COME FROM</div>
+          <div style="margin-top:16px;display:flex;flex-direction:column;gap:13px;font-size:17px;line-height:1.6;color:#1a201d;">
+            <div>Campaign Finance Board bulk downloads — 583,120 contribution records and 41,130 independent-expenditure records, 2015 to 2026. <span style="color:#4b524b;">Figures drawn from these link to the record on this site.</span></div>
+            <div>FEC Schedule A filings for the three Senate committees, duplicate earmark rows removed. <span style="color:#4b524b;">We hold no federal records, so these are named and link to the filing at the FEC.</span></div>
+            <div>Lobbyist disbursement reports, 2015 to 2026. <span style="color:#4b524b;">Not yet a lane on this site, so this figure names its source and does not link inward.</span></div>
+            <div>Certified primary results, Aug 11 2026.</div>
+          </div>
+          <div style="margin-top:24px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <a href="#" style="display:inline-flex;align-items:center;gap:9px;background:#ffffff;border:1px solid rgba(17,21,15,0.16);border-radius:11px;padding:13px 19px;font-size:15.5px;font-weight:700;color:#2c322c;text-decoration:none;">Download as PDF<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M12 4 V15 M8 11 L12 15 L16 11" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path><path d="M5 17 v2 a1 1 0 0 0 1 1 h12 a1 1 0 0 0 1-1 v-2" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"></path></svg></a>
+            <span style="max-width:520px;font-size:15px;line-height:1.55;color:#656c66;">The PDF is this page, regenerated at each publish — one current copy per published version, never a second document maintained beside the page.</span>
+          </div>
+        </div>
+      </div>
+
+      <div></div>
+    </div>
+    <div style="height:72px;"></div>
+  </div>
+  </sc-if>
+
+  <footer data-screen-label="Footer" style="position:relative;background:#0a0e0c;color:#ffffff;padding:56px 56px 44px;">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:48px;flex-wrap:wrap;">
+      <div style="max-width:480px;">
+        <p style="margin:0;font-size:21px;line-height:1.4;font-weight:300;letter-spacing:-0.01em;color:#eef1ef;">We hold these truths to be self-evident.<br><span style="color:#3de08a;">Alethical makes them accessible.</span></p>
+      </div>
+      <div style="display:flex;align-items:center;gap:34px;">
+        <a href="https://www.alethical.com/privacy" target="_blank" rel="noopener noreferrer" style="color:#cfd6d2;text-decoration:none;font-size:16px;font-weight:500;" style-hover="color:#ffffff;">Privacy Policy</a>
+        <a href="https://www.alethical.com/terms" target="_blank" rel="noopener noreferrer" style="color:#cfd6d2;text-decoration:none;font-size:16px;font-weight:500;" style-hover="color:#ffffff;">Terms of Use</a>
+      </div>
+    </div>
+    <div style="margin-top:40px;padding-top:24px;border-top:1px solid rgba(255,255,255,0.12);display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;">
+      <div style="font-size:13px;letter-spacing:0.1em;color:#7c847f;">© ALETHICAL · BUILT IN MINNESOTA</div>
+      <div style="font-size:13px;letter-spacing:0.14em;color:#3de08a;">TRUTH, UNCONCEALED</div>
+    </div>
+  </footer>
+
+  <sc-if value="{{ showRail }}" hint-placeholder-val="{{ true }}">
+  <div data-screen-label="Preview state controls" style="background:#0a0e0c;border-top:1px solid rgba(255,255,255,0.12);padding:16px 56px 20px;display:flex;flex-direction:column;gap:12px;">
+    <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.14em;color:#7c847f;">SCREEN</span>
+      <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
+        <sc-for list="{{ screenBtns }}" as="btn" hint-placeholder-count="2">
+          <sc-if value="{{ btn.active }}" hint-placeholder-val="{{ true }}"><button style="font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:700;padding:8px 13px;border-radius:9px;background:#2ed47e;color:#06231a;border:none;cursor:pointer;">{{ btn.label }}</button></sc-if>
+          <sc-if value="{{ btn.inactive }}" hint-placeholder-val="{{ false }}"><button onClick="{{ btn.select }}" style="font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:600;padding:8px 13px;border-radius:9px;background:transparent;color:#cfd6d2;border:1px solid rgba(255,255,255,0.18);cursor:pointer;" style-hover="border-color:rgba(255,255,255,0.42);color:#ffffff;">{{ btn.label }}</button></sc-if>
+        </sc-for>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.14em;color:#7c847f;">STATE</span>
+      <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
+        <sc-for list="{{ stateBtns }}" as="btn" hint-placeholder-count="3">
+          <sc-if value="{{ btn.active }}" hint-placeholder-val="{{ true }}"><button style="font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:700;padding:8px 13px;border-radius:9px;background:#2ed47e;color:#06231a;border:none;cursor:pointer;">{{ btn.label }}</button></sc-if>
+          <sc-if value="{{ btn.inactive }}" hint-placeholder-val="{{ false }}"><button onClick="{{ btn.select }}" style="font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:600;padding:8px 13px;border-radius:9px;background:transparent;color:#cfd6d2;border:1px solid rgba(255,255,255,0.18);cursor:pointer;" style-hover="border-color:rgba(255,255,255,0.42);color:#ffffff;">{{ btn.label }}</button></sc-if>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1600,&quot;height&quot;:1180},&quot;showRail&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Preview&quot;}}">
+class Component extends DCLogic {
+  state = { screen: 'report', view: 'default' };
+
+  componentDidMount() {
+    try {
+      const raw = localStorage.getItem('alethical.moneyreport.preview');
+      if (raw) { const s = JSON.parse(raw); if (s && s.screen) this.setState(s); }
+    } catch (_) {}
+    const byHash = { '#shelf': 'shelf', '#report': 'report' };
+    const fromHash = () => {
+      const want = byHash[(location.hash || '').toLowerCase()];
+      if (want) this.persist({ screen: want, view: 'default' });
+    };
+    fromHash();
+    this._onHash = fromHash;
+    window.addEventListener('hashchange', this._onHash);
+  }
+  componentWillUnmount() {
+    if (this._onHash) window.removeEventListener('hashchange', this._onHash);
+  }
+  persist(patch) {
+    const next = { screen: this.state.screen, view: this.state.view, ...patch };
+    this.setState(next);
+    try { localStorage.setItem('alethical.moneyreport.preview', JSON.stringify(next)); } catch (_) {}
+  }
+
+  renderVals() {
+    const screen = this.state.screen, view = this.state.view;
+    const stop = (e) => { if (e && e.preventDefault) e.preventDefault(); };
+    const SCREENS = [['shelf', 'The shelf'], ['report', 'The report']];
+    const STATES = {
+      shelf: [['default', 'Default']],
+      report: [['default', 'Default'], ['corrected', 'A figure corrected'], ['newer', 'Newer filings exist']],
+    };
+    return {
+      isShelf: screen === 'shelf', isReport: screen === 'report',
+      openReport: (e) => { stop(e); this.persist({ screen: 'report', view: 'default' }); },
+      openShelf: (e) => { stop(e); this.persist({ screen: 'shelf', view: 'default' }); },
+      isCorrected: view === 'corrected', notCorrected: view !== 'corrected',
+      hasNewer: view === 'newer',
+      showRail: this.props.showRail ?? true,
+      screenBtns: SCREENS.map(([k, label]) => ({
+        label, active: screen === k, inactive: screen !== k,
+        select: (e) => { stop(e); this.persist({ screen: k, view: 'default' }); },
+      })),
+      stateBtns: (STATES[screen] || []).map(([k, label]) => ({
+        label, active: view === k, inactive: view !== k,
+        select: (e) => { stop(e); this.persist({ view: k }); },
+      })),
+    };
+  }
+}
+
+</script>
+</body>
+</html>

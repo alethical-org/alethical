@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  a{color:#0f7a45;}
+  a:hover{color:#11832b;}
+  a:focus-visible,button:focus-visible,input:focus-visible,[tabindex]:focus-visible{outline:2px solid #7c5cff !important;outline-offset:2px !important;}
+  @keyframes skelPulse{0%,100%{opacity:1;}50%{opacity:0.55;}}
+  @media (prefers-reduced-motion: reduce){[data-skel]{animation:none !important;}}
+</style>
+</helmet>
+<div style="width:1600px;min-height:1120px;font-family:'Libre Franklin',Helvetica,Arial,sans-serif;background:#fbfcfd;color:#11150f;position:relative;overflow:hidden;">
+
+  <div style="position:relative;background:linear-gradient(180deg,#f4f5f7 0%,#f7f8fa 55%,#fdfdfe 90%,#ffffff 100%);">
+    <div style="position:absolute;inset:0;background-image:radial-gradient(rgba(17,21,15,0.07) 1.4px, transparent 1.5px);background-size:30px 30px;pointer-events:none;-webkit-mask:linear-gradient(to bottom, transparent 0px, transparent 110px, #000 230px, #000 calc(100% - 140px), transparent 100%);mask:linear-gradient(to bottom, transparent 0px, transparent 110px, #000 230px, #000 calc(100% - 140px), transparent 100%);"></div>
+
+    <nav data-screen-label="Nav" style="position:relative;display:flex;align-items:center;justify-content:space-between;padding:26px 56px 0;">
+      <a href="#" style="display:flex;align-items:center;gap:16px;text-decoration:none;">
+        <svg width="40" height="40" viewBox="8 9 84 84" fill="none" xmlns="http://www.w3.org/2000/svg" style="display:block;flex:none;"><path d="M8,92 L46,10 L46,92 Z" fill="#11150f"></path><path d="M92,92 L54,10 L54,92 Z" fill="#11150f"></path></svg>
+        <span style="font-weight:600;font-size:25px;letter-spacing:0.16em;color:#11150f;">ALETHICAL</span>
+      </a>
+      <div style="display:flex;align-items:center;gap:30px;">
+        <div style="display:flex;align-items:center;gap:34px;">
+          <a href="#" style="display:inline-flex;align-items:center;gap:8px;color:#4b524b;text-decoration:none;font-size:18px;font-weight:500;" style-hover="color:#11150f;">Search<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 9 L12 15 L18 9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg></a>
+          <a href="#" style="display:inline-flex;align-items:center;gap:8px;color:#4b524b;text-decoration:none;font-size:18px;font-weight:500;" style-hover="color:#11150f;">Yours<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 9 L12 15 L18 9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg></a>
+          <a href="#" style="display:inline-flex;align-items:center;gap:8px;color:#4b524b;text-decoration:none;font-size:18px;font-weight:500;" style-hover="color:#11150f;">About<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 9 L12 15 L18 9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg></a>
+        </div>
+        <div style="display:inline-flex;align-items:center;gap:11px;padding:12px 20px;background:#ffffff;border:1px solid rgba(17,21,15,0.16);border-radius:12px;color:#11150f;font-size:17px;font-weight:600;">
+          <span style="width:9px;height:9px;border-radius:50%;background:#2ed47e;display:inline-block;flex:none;box-shadow:0 0 0 3px rgba(45,212,126,0.18);"></span>
+          Jordan Reyes
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M6 9 L12 15 L18 9" stroke="#6f756f" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+        </div>
+      </div>
+    </nav>
+
+    <!-- ═══ SCREEN A · COMMITTEES LIST ═══ -->
+    <sc-if value="{{ isList }}" hint-placeholder-val="{{ true }}">
+    <div data-screen-label="Committees list header" style="position:relative;padding:44px 56px 0;">
+      <a href="Campaign money IA.dc.html" style="display:inline-flex;align-items:center;gap:9px;color:#4b524b;text-decoration:none;font-size:16px;font-weight:600;" style-hover="color:#11150f;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M15 5 L8 12 L15 19" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>Campaign money</a>
+      <div style="margin-top:22px;font-size:13px;font-weight:700;letter-spacing:0.2em;color:#0f7a45;">CAMPAIGN MONEY</div>
+      <h1 style="margin:14px 0 0;font-size:46px;line-height:1.08;font-weight:800;letter-spacing:-0.03em;color:#11150f;">Committees</h1>
+      <p style="margin:16px 0 0;max-width:820px;font-size:18px;line-height:1.55;color:#4f5651;text-wrap:pretty;">Everyone registered to raise or spend money in Minnesota state politics — candidate committees, party units, and the committees and funds that give to them.</p>
+      <div style="margin-top:16px;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;letter-spacing:0.08em;color:#0f7a45;">{{ listTotal }} REGISTERED FILERS · COUNTED FROM THE REGISTER AUG 18 2026</div>
+
+      <div style="margin-top:26px;max-width:640px;display:flex;align-items:center;gap:12px;background:#ffffff;border:2px solid #11150f;border-radius:14px;padding:14px 17px;box-shadow:0 6px 18px rgba(17,21,15,0.06);">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="flex:none;"><circle cx="11" cy="11" r="6.5" stroke="#11150f" stroke-width="2"></circle><path d="M16 16 L21 21" stroke="#11150f" stroke-width="2" stroke-linecap="round"></path></svg>
+        <div style="flex:1;min-width:0;font-size:16px;color:#6f756f;">Find a committee by name</div>
+      </div>
+
+      <div style="margin-top:20px;display:flex;align-items:center;gap:9px;flex-wrap:wrap;">
+        <sc-for list="{{ kinds }}" as="k" hint-placeholder-count="4">
+          <sc-if value="{{ k.active }}" hint-placeholder-val="{{ true }}"><button style="font-family:'Libre Franklin',sans-serif;font-size:14.5px;font-weight:700;padding:10px 17px;border-radius:10px;background:#11150f;color:#ffffff;border:1px solid #11150f;cursor:pointer;">{{ k.label }}</button></sc-if>
+          <sc-if value="{{ k.inactive }}" hint-placeholder-val="{{ false }}"><button onClick="{{ k.select }}" style="font-family:'Libre Franklin',sans-serif;font-size:14.5px;font-weight:600;padding:10px 17px;border-radius:10px;background:#ffffff;color:#4f5651;border:1px solid rgba(17,21,15,0.16);cursor:pointer;" style-hover="border-color:rgba(17,21,15,0.32);color:#11150f;">{{ k.label }}</button></sc-if>
+        </sc-for>
+      </div>
+      <div style="height:26px;"></div>
+    </div>
+    </sc-if>
+
+    <!-- ═══ SCREEN B · SEARCH RESULTS ═══ -->
+    <sc-if value="{{ isResults }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Search results header" style="position:relative;padding:44px 56px 0;">
+      <div style="max-width:640px;display:flex;align-items:center;gap:12px;background:#ffffff;border:2px solid #11150f;border-radius:14px;padding:14px 17px;box-shadow:0 6px 18px rgba(17,21,15,0.06);">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="flex:none;"><circle cx="11" cy="11" r="6.5" stroke="#11150f" stroke-width="2"></circle><path d="M16 16 L21 21" stroke="#11150f" stroke-width="2" stroke-linecap="round"></path></svg>
+        <div style="flex:1;min-width:0;font-size:16px;font-weight:600;color:#11150f;">{{ q }}</div>
+      </div>
+      <div style="margin-top:18px;font-size:18px;color:#4f5651;">{{ resultSummary }}</div>
+      <div style="height:26px;"></div>
+    </div>
+    </sc-if>
+
+    <!-- ═══ SCREEN D · PAID UNDER A NAME ═══ -->
+    <sc-if value="{{ isName }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Paid under a name header" style="position:relative;padding:44px 56px 0;">
+      <a href="#" onClick="{{ backToResults }}" style="display:inline-flex;align-items:center;gap:9px;color:#4b524b;text-decoration:none;font-size:16px;font-weight:600;" style-hover="color:#11150f;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M15 5 L8 12 L15 19" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>Search results</a>
+      <div style="margin-top:22px;font-size:13px;font-weight:700;letter-spacing:0.2em;color:#0f7a45;">GOT PAID</div>
+      <h1 style="margin:14px 0 0;max-width:1100px;font-size:42px;line-height:1.1;font-weight:800;letter-spacing:-0.03em;color:#11150f;text-wrap:pretty;">{{ nm.title }}</h1>
+      <sc-if value="{{ nm.isFiled }}" hint-placeholder-val="{{ true }}">
+        <p style="margin:16px 0 0;max-width:820px;font-size:18px;line-height:1.55;color:#4f5651;text-wrap:pretty;">Every payment filed under this name, exactly as it was spelled. Spellings vary between filings, so this may not be everything — and a name is all this is: nothing here says who or what got paid.</p>
+        <div style="margin-top:16px;font-family:'JetBrains Mono',monospace;font-size:11.5px;font-weight:700;letter-spacing:0.08em;color:#656c66;">ALL YEARS ON FILE · FILES LAST COPIED AUG 11 2026</div>
+      </sc-if>
+      <div style="height:26px;"></div>
+    </div>
+    </sc-if>
+
+    <!-- ═══ SCREEN C · ALL PAYMENTS ═══ -->
+    <sc-if value="{{ isPayments }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="All payments header" style="position:relative;padding:44px 56px 0;">
+      <a href="Money committee web.dc.html" style="display:inline-flex;align-items:center;gap:9px;color:#4b524b;text-decoration:none;font-size:16px;font-weight:600;" style-hover="color:#11150f;"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M15 5 L8 12 L15 19" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>{{ pay.entName }}</a>
+      <div style="margin-top:22px;font-size:13px;font-weight:700;letter-spacing:0.2em;color:#0f7a45;">{{ pay.eyebrow }}</div>
+      <h1 style="margin:14px 0 0;max-width:1100px;font-size:42px;line-height:1.1;font-weight:800;letter-spacing:-0.03em;color:#11150f;text-wrap:pretty;">{{ pay.title }}</h1>
+      <div style="margin-top:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <span style="display:inline-flex;align-items:center;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;letter-spacing:0.06em;color:#4f5651;background:#f1f1f4;border:1px solid rgba(17,21,15,0.1);border-radius:8px;padding:6px 11px;">{{ pay.regNo }}</span>
+        <span style="font-size:17px;color:#4b524b;">{{ pay.entName }}</span>
+      </div>
+
+      <div style="margin-top:22px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.12em;color:#6f756f;">FILING YEAR</span>
+        <sc-for list="{{ years }}" as="y" hint-placeholder-count="2">
+          <sc-if value="{{ y.active }}" hint-placeholder-val="{{ true }}"><button style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;padding:9px 16px;border-radius:10px;background:#11150f;color:#ffffff;border:1px solid #11150f;cursor:pointer;">{{ y.label }}</button></sc-if>
+          <sc-if value="{{ y.inactive }}" hint-placeholder-val="{{ false }}"><button onClick="{{ y.select }}" style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;padding:9px 16px;border-radius:10px;background:#ffffff;color:#4f5651;border:1px solid rgba(17,21,15,0.16);cursor:pointer;" style-hover="border-color:rgba(17,21,15,0.32);color:#11150f;">{{ y.label }}</button></sc-if>
+        </sc-for>
+      </div>
+
+      <div style="margin-top:22px;max-width:1490px;background:#f7f8fa;border:1px solid rgba(17,21,15,0.1);border-radius:14px;padding:18px 22px;">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;letter-spacing:0.08em;color:#0f7a45;">{{ pay.period }}</div>
+        <p style="margin:10px 0 0;max-width:1000px;font-size:15px;line-height:1.5;color:#4f5651;text-wrap:pretty;">{{ pay.periodDetail }}</p>
+      </div>
+      <div style="height:26px;"></div>
+    </div>
+    </sc-if>
+  </div>
+
+  <div style="background:#ffffff;padding:32px 56px 0;">
+
+    <sc-if value="{{ isLoading }}" hint-placeholder-val="{{ false }}">
+      <div style="max-width:1490px;">
+        <span aria-live="polite" style="position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0;">Loading figures</span>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:20px;">
+          <span data-skel="1" style="display:block;width:220px;height:13px;border-radius:5px;background:#e6e9e7;animation:skelPulse 1.4s ease-in-out infinite;"></span>
+          <span data-skel="1" style="display:block;width:96px;height:11px;border-radius:5px;background:#e6e9e7;animation:skelPulse 1.4s ease-in-out infinite;"></span>
+        </div>
+        <div style="margin-top:14px;display:flex;flex-direction:column;gap:9px;">
+          <sc-for list="{{ skelRows }}" as="r" hint-placeholder-count="6">
+            <div style="display:flex;align-items:center;gap:18px;background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:12px;padding:16px 18px;box-shadow:0 6px 18px rgba(17,21,15,0.05);">
+              <div style="flex:1;min-width:0;">
+                <span data-skel="1" style="display:block;width:{{ r.w }};height:14px;border-radius:5px;background:#e6e9e7;animation:skelPulse 1.4s ease-in-out infinite;"></span>
+                <span data-skel="1" style="display:block;margin-top:9px;width:200px;height:11px;border-radius:5px;background:#eef0f2;animation:skelPulse 1.4s ease-in-out infinite;"></span>
+              </div>
+              <span data-skel="1" style="flex:none;display:block;width:96px;height:11px;border-radius:5px;background:#eef0f2;animation:skelPulse 1.4s ease-in-out infinite;"></span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- LIST ROWS -->
+    <sc-if value="{{ listBody }}" hint-placeholder-val="{{ true }}">
+    <div style="max-width:1490px;">
+      <sc-if value="{{ list.hasRows }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;align-items:baseline;justify-content:space-between;gap:20px;flex-wrap:wrap;">
+          <div style="font-size:16px;color:#4f5651;">{{ list.showing }}</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.08em;color:#6f756f;">NAME A–Z</div>
+        </div>
+
+        <div style="margin-top:14px;display:flex;flex-direction:column;gap:9px;">
+          <sc-for list="{{ list.rows }}" as="r" hint-placeholder-count="8">
+            <div data-row="1" style="position:relative;display:flex;align-items:center;gap:18px;background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:12px;padding:16px 18px;box-shadow:0 6px 18px rgba(17,21,15,0.05);transition:border-color .16s ease, box-shadow .16s ease;" style-hover="border-color:rgba(45,212,126,0.55);box-shadow:0 14px 34px rgba(17,21,15,0.10);">
+              <a href="{{ r.href }}" onClick="{{ r.select }}" aria-label="{{ r.aria }}" style="position:absolute;inset:0;z-index:1;border-radius:12px;"></a>
+              <div style="flex:1;min-width:0;">
+                <div style="font-size:17px;font-weight:700;color:#11150f;text-wrap:pretty;">{{ r.name }}</div>
+                <div style="margin-top:4px;font-size:14.5px;line-height:1.45;color:#4f5651;">{{ r.meta }}</div>
+              </div>
+              <sc-if value="{{ r.isClosed }}" hint-placeholder-val="{{ false }}">
+                <span style="flex:none;display:inline-flex;align-items:center;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.08em;color:#4f5651;background:transparent;border:1px solid rgba(17,21,15,0.18);border-radius:7px;padding:4px 9px;">{{ r.closedLabel }}</span>
+              </sc-if>
+              <span style="flex:none;width:96px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;letter-spacing:0.04em;color:#6f756f;">{{ r.regNo }}</span>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M5 12 H19 M14 7 L19 12 L14 17" stroke="#6f756f" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+            </div>
+          </sc-for>
+        </div>
+
+        <sc-if value="{{ list.hasMore }}" hint-placeholder-val="{{ true }}">
+          <div style="margin-top:20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+            <button onClick="{{ list.showMore }}" style="display:inline-flex;align-items:center;gap:9px;background:#ffffff;color:#2c322c;border:1px solid rgba(17,21,15,0.16);border-radius:11px;padding:13px 20px;font-family:'Libre Franklin',sans-serif;font-size:15.5px;font-weight:700;cursor:pointer;" style-hover="border-color:rgba(17,21,15,0.32);background:#f7f8fa;">Show more</button>
+          </div>
+        </sc-if>
+
+        <div style="margin-top:18px;padding-left:12px;max-width:960px;font-size:14.5px;line-height:1.55;color:#656c66;text-wrap:pretty;">Ordered by name, and a list of many committees carries no dollar figures — they file to different calendars, so two rows side by side would set one period against another. Money is on each committee’s own page, where the period it belongs to is stated. Every row opens by its registration number, so a committee that changes its name keeps its address.</div>
+      </sc-if>
+
+      <sc-if value="{{ list.isEmpty }}" hint-placeholder-val="{{ false }}">
+        <div style="max-width:820px;background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:16px;box-shadow:0 6px 18px rgba(17,21,15,0.05);padding:28px 30px 30px;">
+          <div style="font-size:21px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">{{ list.emptyTitle }}</div>
+          <p style="margin:11px 0 0;font-size:16.5px;line-height:1.6;color:#4f5651;text-wrap:pretty;">{{ list.emptyWhy }}</p>
+          <div style="margin-top:20px;">
+            <button onClick="{{ clearKind }}" style="display:inline-flex;align-items:center;gap:9px;background:#11150f;color:#ffffff;border:none;border-radius:11px;padding:13px 19px;font-family:'Libre Franklin',sans-serif;font-size:15.5px;font-weight:700;cursor:pointer;">Show all kinds</button>
+          </div>
+        </div>
+      </sc-if>
+    </div>
+    </sc-if>
+
+    <!-- RESULT GROUPS -->
+    <sc-if value="{{ resBody }}" hint-placeholder-val="{{ false }}">
+    <div style="max-width:1490px;">
+      <sc-if value="{{ res.hasAny }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;flex-direction:column;gap:38px;">
+          <sc-for list="{{ res.groups }}" as="g" hint-placeholder-count="3">
+            <div data-row="1">
+              <div style="display:flex;align-items:baseline;justify-content:space-between;gap:20px;flex-wrap:wrap;">
+                <div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;letter-spacing:0.14em;color:#2b6377;">{{ g.label }}</div>
+                <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.08em;color:#6f756f;">{{ g.count }}</div>
+              </div>
+
+              <div style="margin-top:14px;display:flex;flex-direction:column;gap:9px;">
+                <sc-for list="{{ g.rows }}" as="r" hint-placeholder-count="2">
+                  <sc-if value="{{ r.opens }}" hint-placeholder-val="{{ true }}">
+                    <div style="position:relative;display:flex;align-items:center;gap:18px;background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:12px;padding:16px 18px;box-shadow:0 6px 18px rgba(17,21,15,0.05);transition:border-color .16s ease, box-shadow .16s ease;" style-hover="border-color:rgba(45,212,126,0.55);box-shadow:0 14px 34px rgba(17,21,15,0.10);">
+                      <a href="{{ r.href }}" onClick="{{ r.select }}" aria-label="{{ r.aria }}" style="position:absolute;inset:0;z-index:1;border-radius:12px;"></a>
+                      <div style="flex:1;min-width:0;">
+                        <div style="font-size:17px;font-weight:700;color:#11150f;text-wrap:pretty;">{{ r.name }}</div>
+                        <div style="margin-top:4px;font-size:14.5px;line-height:1.45;color:#4f5651;">{{ r.meta }}</div>
+                      </div>
+                      <span style="flex:none;display:inline-flex;align-items:center;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.08em;color:#4f5651;background:#f1f1f4;border:1px solid rgba(17,21,15,0.1);border-radius:8px;padding:5px 9px;">{{ r.chip }}</span>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M5 12 H19 M14 7 L19 12 L14 17" stroke="#6f756f" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg>
+                    </div>
+                  </sc-if>
+                </sc-for>
+              </div>
+
+              <sc-if value="{{ g.hasMore }}" hint-placeholder-val="{{ false }}">
+                <div style="margin-top:14px;padding-left:12px;">
+                  <a href="{{ g.moreHref }}" onClick="{{ g.moreSelect }}" style="display:inline-flex;align-items:center;gap:8px;font-size:16px;font-weight:700;color:#0f7a45;text-decoration:none;">{{ g.moreLabel }}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M5 12 H19 M14 7 L19 12 L14 17" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg></a>
+                </div>
+              </sc-if>
+
+              <sc-if value="{{ g.hasNote }}" hint-placeholder-val="{{ false }}">
+                <div style="margin-top:14px;padding-left:12px;max-width:900px;font-size:14.5px;line-height:1.55;color:#656c66;text-wrap:pretty;">{{ g.note }}</div>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+
+        <div style="margin-top:34px;padding-left:12px;max-width:960px;font-size:14.5px;line-height:1.55;color:#656c66;text-wrap:pretty;">Names are matched as they were filed, and only what was typed — no closest-spelling guesses. 178 registered names sit a single character apart from another, and every one of those pairs is a different organisation, so a helpful correction here would quietly merge two of them.</div>
+      </sc-if>
+
+      <sc-if value="{{ res.isEmpty }}" hint-placeholder-val="{{ false }}">
+        <div style="max-width:820px;background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:16px;box-shadow:0 6px 18px rgba(17,21,15,0.05);padding:28px 30px 30px;">
+          <div style="font-size:21px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">Nothing is filed under that name</div>
+          <p style="margin:11px 0 0;font-size:16.5px;line-height:1.6;color:#4f5651;text-wrap:pretty;">Names are searched as they were filed, and spellings vary between filings — try a shorter part of the name. We do not offer a nearest match: names here differ from each other by a single character often enough that a guess would put you on the wrong organisation.</p>
+          <div style="margin-top:20px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+            <a href="#" onClick="{{ goList }}" style="display:inline-flex;align-items:center;gap:9px;background:#11150f;color:#ffffff;border-radius:11px;padding:13px 19px;font-size:15.5px;font-weight:700;text-decoration:none;">Browse all committees</a>
+          </div>
+        </div>
+      </sc-if>
+    </div>
+    </sc-if>
+
+    <!-- PAYMENT ROWS -->
+    <sc-if value="{{ payBody }}" hint-placeholder-val="{{ false }}">
+    <div style="max-width:1490px;">
+      <div data-screen-label="Payments tabs" style="display:flex;align-items:center;gap:34px;border-bottom:1px solid rgba(17,21,15,0.1);">
+        <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="2">
+          <sc-if value="{{ t.active }}" hint-placeholder-val="{{ true }}"><a href="{{ t.url }}" onClick="{{ t.select }}" style="font-size:17px;font-weight:700;color:#11150f;text-decoration:none;padding-bottom:13px;border-bottom:2px solid #11150f;margin-bottom:-1px;">{{ t.label }}</a></sc-if>
+          <sc-if value="{{ t.inactive }}" hint-placeholder-val="{{ false }}"><a href="{{ t.url }}" onClick="{{ t.select }}" style="font-size:17px;font-weight:600;color:#4b524b;text-decoration:none;padding-bottom:13px;" style-hover="color:#11150f;">{{ t.label }}</a></sc-if>
+        </sc-for>
+      </div>
+
+      <sc-if value="{{ pay.hasRows }}" hint-placeholder-val="{{ true }}">
+        <div style="margin-top:24px;display:flex;align-items:baseline;justify-content:space-between;gap:20px;flex-wrap:wrap;">
+          <div style="font-size:16px;color:#4f5651;">{{ pay.showing }}</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.08em;color:#6f756f;">LARGEST FIRST</div>
+        </div>
+
+        <div style="margin-top:14px;display:flex;flex-direction:column;gap:9px;">
+          <sc-for list="{{ pay.rows }}" as="r" hint-placeholder-count="7">
+            <div data-row="1" style="position:relative;display:flex;align-items:center;gap:18px;background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:12px;padding:16px 18px;box-shadow:0 6px 18px rgba(17,21,15,0.05);">
+              <sc-if value="{{ r.isLink }}" hint-placeholder-val="{{ false }}">
+                <a href="{{ r.href }}" onClick="{{ r.select }}" aria-label="{{ r.aria }}" style="position:absolute;inset:0;z-index:1;border-radius:12px;"></a>
+              </sc-if>
+              <div style="flex:1;min-width:0;">
+                <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                  <span style="font-size:17px;font-weight:700;color:#11150f;text-wrap:pretty;">{{ r.name }}</span>
+                  <sc-if value="{{ r.inKind }}" hint-placeholder-val="{{ false }}">
+                    <span style="flex:none;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.08em;color:#4f5651;border:1px solid rgba(17,21,15,0.14);border-radius:7px;padding:2px 7px;">DONATED GOODS OR SERVICES</span>
+                  </sc-if>
+                </div>
+                <div style="margin-top:4px;font-size:14.5px;line-height:1.45;color:#4f5651;">{{ r.meta }}</div>
+              </div>
+              <span style="flex:none;width:120px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;letter-spacing:0.04em;color:#6f756f;">{{ r.date }}</span>
+              <span style="flex:none;width:104px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:17px;font-weight:700;color:#11150f;font-variant-numeric:tabular-nums;">{{ r.amount }}</span>
+            </div>
+          </sc-for>
+        </div>
+
+        <sc-if value="{{ pay.isTruncated }}" hint-placeholder-val="{{ false }}">
+          <div style="margin-top:20px;max-width:900px;background:#f7f8fa;border:1px solid rgba(17,21,15,0.1);border-radius:14px;padding:18px 20px 20px;">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.1em;color:#4f5651;">THIS PAGE IS CAPPED</div>
+            <p style="margin:9px 0 0;font-size:15.5px;line-height:1.55;color:#1a201d;text-wrap:pretty;">{{ pay.truncNote }}</p>
+            <div style="margin-top:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+              <button onClick="{{ pay.capMore }}" style="display:inline-flex;align-items:center;gap:9px;background:#ffffff;color:#2c322c;border:1px solid rgba(17,21,15,0.16);border-radius:11px;padding:12px 18px;font-family:'Libre Franklin',sans-serif;font-size:15px;font-weight:700;cursor:pointer;" style-hover="border-color:rgba(17,21,15,0.32);background:#f7f8fa;">{{ pay.capNextLabel }}</button>
+              <a href="https://cfb.mn.gov/reports/reports-and-data/" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;gap:7px;font-size:15px;font-weight:700;color:#0f7a45;text-decoration:none;">Open the filing itself<svg width="13" height="13" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M7 17 L17 7 M9.5 7 H17 V14.5" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg></a>
+            </div>
+          </div>
+        </sc-if>
+
+        <div style="margin-top:18px;padding-left:12px;max-width:960px;font-size:14.5px;line-height:1.55;color:#656c66;text-wrap:pretty;">{{ pay.footNote }}</div>
+      </sc-if>
+
+      <sc-if value="{{ pay.isEmpty }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-top:24px;max-width:820px;background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:16px;box-shadow:0 6px 18px rgba(17,21,15,0.05);padding:28px 30px 30px;">
+          <div style="font-size:21px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">{{ pay.emptyTitle }}</div>
+          <p style="margin:11px 0 0;font-size:16.5px;line-height:1.6;color:#4f5651;text-wrap:pretty;">{{ pay.emptyWhy }}</p>
+          <div style="margin-top:20px;">
+            <a href="#" onClick="{{ pay.otherYearSelect }}" style="display:inline-flex;align-items:center;gap:9px;background:#11150f;color:#ffffff;border-radius:11px;padding:13px 19px;font-size:15.5px;font-weight:700;text-decoration:none;">{{ pay.otherYearLabel }}<svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex:none;"><path d="M5 12 H19 M14 7 L19 12 L14 17" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"></path></svg></a>
+          </div>
+        </div>
+      </sc-if>
+    </div>
+    </sc-if>
+
+    <sc-if value="{{ nameNotFiled }}" hint-placeholder-val="{{ false }}">
+    <div style="max-width:820px;background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:16px;box-shadow:0 6px 18px rgba(17,21,15,0.05);padding:28px 30px 30px;">
+      <div style="font-size:21px;font-weight:800;letter-spacing:-0.01em;color:#11150f;">Nothing is filed under that name as spelled</div>
+      <p style="margin:11px 0 0;font-size:16.5px;line-height:1.6;color:#4f5651;text-wrap:pretty;">Spellings vary between filings, so a name that does appear in the records may be filed a little differently — try a shorter part of it. We do not offer a nearest match: names here differ from each other by a single character often enough that a guess would put you on the wrong one.</p>
+      <div style="margin-top:20px;">
+        <a href="#" onClick="{{ backToResults }}" style="display:inline-flex;align-items:center;gap:9px;background:#11150f;color:#ffffff;border-radius:11px;padding:13px 19px;font-size:15.5px;font-weight:700;text-decoration:none;">Search another name</a>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- PAID UNDER A NAME · ROWS -->
+    <sc-if value="{{ nameBody }}" hint-placeholder-val="{{ false }}">
+    <div style="max-width:1490px;">
+      <div style="display:flex;align-items:baseline;justify-content:space-between;gap:20px;flex-wrap:wrap;">
+        <div style="font-size:16px;color:#4f5651;">{{ nm.showing }}</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.08em;color:#6f756f;">LARGEST FIRST</div>
+      </div>
+
+      <div style="margin-top:14px;display:flex;flex-direction:column;gap:9px;">
+        <sc-for list="{{ nm.rows }}" as="r" hint-placeholder-count="9">
+          <div data-row="1" style="position:relative;display:flex;align-items:center;gap:18px;background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:12px;padding:16px 18px;box-shadow:0 6px 18px rgba(17,21,15,0.05);transition:border-color .16s ease, box-shadow .16s ease;" style-hover="border-color:rgba(45,212,126,0.55);box-shadow:0 14px 34px rgba(17,21,15,0.10);">
+            <a href="{{ r.href }}" aria-label="{{ r.aria }}" style="position:absolute;inset:0;z-index:1;border-radius:12px;"></a>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:17px;font-weight:700;color:#11150f;text-wrap:pretty;">{{ r.name }}</div>
+              <div style="margin-top:4px;font-size:14.5px;line-height:1.45;color:#4f5651;">{{ r.meta }}</div>
+            </div>
+            <span style="flex:none;width:120px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;letter-spacing:0.04em;color:#6f756f;">{{ r.date }}</span>
+            <span style="flex:none;width:104px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:17px;font-weight:700;color:#11150f;font-variant-numeric:tabular-nums;">{{ r.amount }}</span>
+          </div>
+        </sc-for>
+      </div>
+
+      <sc-if value="{{ nm.isTruncated }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-top:20px;max-width:900px;background:#f7f8fa;border:1px solid rgba(17,21,15,0.1);border-radius:14px;padding:18px 20px 20px;">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.1em;color:#4f5651;">THIS PAGE IS CAPPED</div>
+          <p style="margin:9px 0 0;font-size:15.5px;line-height:1.55;color:#1a201d;text-wrap:pretty;">We load 250 at a time, largest first — the cap is ours, not the filings’. Each payment below is public in the report that carries it.</p>
+          <div style="margin-top:16px;">
+            <button onClick="{{ nm.capMore }}" style="display:inline-flex;align-items:center;gap:9px;background:#ffffff;color:#2c322c;border:1px solid rgba(17,21,15,0.16);border-radius:11px;padding:12px 18px;font-family:'Libre Franklin',sans-serif;font-size:15px;font-weight:700;cursor:pointer;" style-hover="border-color:rgba(17,21,15,0.32);background:#f7f8fa;">{{ nm.capNextLabel }}</button>
+          </div>
+        </div>
+      </sc-if>
+
+      <div style="margin-top:18px;padding-left:12px;max-width:960px;font-size:14.5px;line-height:1.55;color:#656c66;text-wrap:pretty;">Every row is one committee’s filing, and each opens that committee. There is no total: these payments come from committees on different filing calendars, so adding them would set one period against another. Whether the same business is behind two spellings is a question the filings do not answer, so we do not merge them.</div>
+    </div>
+    </sc-if>
+
+    <div style="margin-top:36px;max-width:1490px;background:#f7f8fa;border:1px solid rgba(17,21,15,0.1);border-radius:16px;padding:22px 26px 24px;">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.12em;color:#4f5651;">WHAT THIS RECORD COVERS</div>
+      <div style="margin-top:12px;display:flex;flex-direction:column;gap:7px;font-size:15.5px;line-height:1.55;color:#4b524b;">
+        <div>Money filed with the Minnesota Campaign Finance and Public Disclosure Board.</div>
+        <div>Nothing before 2015.</div>
+        <div>Unions don’t report to this board at all.</div>
+        <div>Donors who gave $200 or less in total for the year are never named.</div>
+      </div>
+    </div>
+
+    <div style="height:56px;"></div>
+  </div>
+
+  <footer data-screen-label="Footer" style="position:relative;background:#0a0e0c;color:#ffffff;padding:56px 56px 44px;">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:48px;flex-wrap:wrap;">
+      <div style="max-width:480px;">
+        <p style="margin:0;font-size:21px;line-height:1.4;font-weight:300;letter-spacing:-0.01em;color:#eef1ef;">We hold these truths to be self-evident.<br><span style="color:#3de08a;">Alethical makes them accessible.</span></p>
+      </div>
+      <div style="display:flex;align-items:center;gap:34px;">
+        <a href="https://www.alethical.com/privacy" target="_blank" rel="noopener noreferrer" style="color:#cfd6d2;text-decoration:none;font-size:16px;font-weight:500;" style-hover="color:#ffffff;">Privacy Policy</a>
+        <a href="https://www.alethical.com/terms" target="_blank" rel="noopener noreferrer" style="color:#cfd6d2;text-decoration:none;font-size:16px;font-weight:500;" style-hover="color:#ffffff;">Terms of Use</a>
+      </div>
+    </div>
+    <div style="margin-top:40px;padding-top:24px;border-top:1px solid rgba(255,255,255,0.12);display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;">
+      <div style="font-size:13px;letter-spacing:0.1em;color:#7c847f;">© ALETHICAL · BUILT IN MINNESOTA</div>
+      <div style="font-size:13px;letter-spacing:0.14em;color:#3de08a;">TRUTH, UNCONCEALED</div>
+    </div>
+  </footer>
+
+  <sc-if value="{{ showRail }}" hint-placeholder-val="{{ true }}">
+  <div data-screen-label="Preview state controls" style="background:#0a0e0c;border-top:1px solid rgba(255,255,255,0.12);padding:16px 56px 20px;display:flex;flex-direction:column;gap:12px;">
+    <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.14em;color:#7c847f;">SCREEN</span>
+      <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
+        <sc-for list="{{ screenBtns }}" as="btn" hint-placeholder-count="3">
+          <sc-if value="{{ btn.active }}" hint-placeholder-val="{{ true }}"><button style="font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:700;padding:8px 13px;border-radius:9px;background:#2ed47e;color:#06231a;border:none;cursor:pointer;">{{ btn.label }}</button></sc-if>
+          <sc-if value="{{ btn.inactive }}" hint-placeholder-val="{{ false }}"><button onClick="{{ btn.select }}" style="font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:600;padding:8px 13px;border-radius:9px;background:transparent;color:#cfd6d2;border:1px solid rgba(255,255,255,0.18);cursor:pointer;" style-hover="border-color:rgba(255,255,255,0.42);color:#ffffff;">{{ btn.label }}</button></sc-if>
+        </sc-for>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:18px;flex-wrap:wrap;">
+      <span style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.14em;color:#7c847f;">STATE</span>
+      <div style="display:flex;align-items:center;gap:4px;flex-wrap:wrap;">
+        <sc-for list="{{ stateBtns }}" as="btn" hint-placeholder-count="3">
+          <sc-if value="{{ btn.active }}" hint-placeholder-val="{{ true }}"><button style="font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:700;padding:8px 13px;border-radius:9px;background:#2ed47e;color:#06231a;border:none;cursor:pointer;">{{ btn.label }}</button></sc-if>
+          <sc-if value="{{ btn.inactive }}" hint-placeholder-val="{{ false }}"><button onClick="{{ btn.select }}" style="font-family:'Libre Franklin',sans-serif;font-size:13px;font-weight:600;padding:8px 13px;border-radius:9px;background:transparent;color:#cfd6d2;border:1px solid rgba(255,255,255,0.18);cursor:pointer;" style-hover="border-color:rgba(255,255,255,0.42);color:#ffffff;">{{ btn.label }}</button></sc-if>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1600,&quot;height&quot;:1180},&quot;showRail&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Preview&quot;}}">
+class Component extends DCLogic {
+  state = { screen: 'list', view: 'default', kind: 'all', tab: 'spent', year: '2026', shown: 8, capShown: 250 };
+
+  componentDidMount() {
+    try {
+      const raw = localStorage.getItem('alethical.moneylists.preview');
+      if (raw) { const s = JSON.parse(raw); if (s && s.screen) this.setState(s); }
+    } catch (_) {}
+    // Arriving from another mock: #committees / #results / #payments opens that screen, so a
+    // walkthrough lands where the link promised rather than on whatever was last previewed.
+    const byHash = { '#committees': 'list', '#results': 'results', '#payments': 'payments', '#name': 'name' };
+    const want = byHash[(location.hash || '').toLowerCase()];
+    if (want) this.persist({ screen: want, view: 'default', kind: 'all', year: '2026' });
+  }
+  persist(patch) {
+    const next = { screen: this.state.screen, view: this.state.view, kind: this.state.kind, tab: this.state.tab, year: this.state.year, shown: this.state.shown, capShown: this.state.capShown, ...patch };
+    this.setState(next);
+    try { localStorage.setItem('alethical.moneylists.preview', JSON.stringify(next)); } catch (_) {} 
+  }
+
+  renderVals() {
+    const money = (n) => '$' + n.toLocaleString('en-US');
+    const screen = this.state.screen, view = this.state.view, kind = this.state.kind, tab = this.state.tab, year = this.state.year;
+    const stop = (e) => { if (e && e.preventDefault) e.preventDefault(); };
+    const slug = (s, n) => '/money/committees/' + s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + n;
+    // In the product a committee row opens its own address; in this walkthrough it opens the mock of
+    // that page. The map holds the real routes.
+    const CMTE_MOCK = 'Money committee web.dc.html';
+    const PROF_MOCK = 'LIVE Legislator profile web.dc.html';
+
+    // ── SCREEN A · the register, as filed. Kind is the register's own, never an expansion.
+    const FILERS = [
+      ['4th Congressional District DFL', 'Party unit', 'Congressional District 4', 20044, 'party'],
+      ['Aguirre-Bell, Marisol Senate Committee', 'Candidate committee', 'Senate District 41', 30412, 'cand'],
+      ['Anderson for House', 'Candidate committee', 'House District 12B', 30188, 'cand'],
+      ['Freedom Club State PAC', 'Political committee or fund', '', 41055, 'fund'],
+      ['Neighbors for Question 2', 'Ballot question committee', '', 51877, 'fund'],
+      ['Novotny, Paul House Committee', 'Candidate committee', 'House District 30B', 30977, 'cand', 'CLOSED JUL 28 2026'],
+      ['Senate District 41 DFL', 'Party unit', 'Senate District 41', 20155, 'party'],
+      ['Statewide Nurses Alliance Political Fund', 'Political committee or fund', '', 41210, 'fund'],
+      ['Suburban Realtors Political Fund', 'Political committee or fund', '', 41488, 'fund'],
+      ['Trades Council Political Fund', 'Political committee or fund', '', 41377, 'fund'],
+      ['Twin Cities Firefighters Political Fund', 'Political committee or fund', '', 41902, 'fund'],
+      ['United Growers Association Fund', 'Political committee or fund', '', 41611, 'fund'],
+      ['Vasquez-Hale for House 41A', 'Candidate committee', 'House District 41A', 30655, 'cand'],
+      ['Wagner, Britta House Committee', 'Candidate committee', 'House District 7B', 30722, 'cand'],
+      ['Wellstone Democrats of Ramsey County', 'Party unit', 'Ramsey County', 20488, 'party'],
+      ['Zimmerman for Senate', 'Candidate committee', 'Senate District 22', 30840, 'cand'],
+    ];
+    const KINDS = [['all', 'All kinds'], ['cand', 'Candidate committees'], ['party', 'Party units'], ['fund', 'Committees and funds']];
+    const kinds = KINDS.map(([k, label]) => ({
+      label, active: kind === k, inactive: kind !== k,
+      select: (e) => { stop(e); this.persist({ kind: k, view: 'default' }); },
+    }));
+    const filtered = view === 'nomatchfilter' ? [] : FILERS.filter((f) => kind === 'all' || f[4] === kind);
+    const shown = this.state.shown || 8;
+    const listRows = filtered.slice(0, shown).map((f) => ({
+      name: f[0], meta: f[2] ? (f[1] + ' · ' + f[2]) : f[1], regNo: 'REG ' + f[3],
+      isClosed: !!f[5], closedLabel: f[5] || '',
+      href: CMTE_MOCK, aria: 'Open ' + f[0], select: null,
+    }));
+    const kindLabel = (KINDS.find(([k]) => k === kind) || KINDS[0])[1].toLowerCase();
+    const list = {
+      hasRows: listRows.length > 0, isEmpty: listRows.length === 0,
+      rows: listRows,
+      hasMore: filtered.length > listRows.length,
+      showMore: (e) => { stop(e); this.persist({ shown: shown + 8 }); },
+      showing: kind === 'all'
+        ? ('Showing ' + listRows.length + ' of 1,603')
+        : ('Showing ' + listRows.length + ' ' + kindLabel),
+      emptyTitle: 'No ' + kindLabel + ' match “ratepayers”',
+      emptyWhy: 'Names are searched as they were filed, and spellings vary between filings — try a shorter part of the name, or drop the filter to search every kind.',
+    };
+
+    // ── SCREEN B · exact matches only, grouped by what each result IS.
+    // A row navigates where a page exists to receive it: committees and sitting members. A got-paid
+    // name has no page yet, so its row stays inert rather than promising one.
+    // A row is a control only where a page exists to receive it: committees and sitting members. A
+    // got-paid name has none, so its row is plain — no arrow, no pointer, nothing to press.
+    const mkRow = (name, meta, chip, href) => ({
+      name, meta, chip, opens: true, plain: false,
+      href: chip === 'COMMITTEE' ? CMTE_MOCK : (chip === 'PERSON' ? PROF_MOCK : href),
+      aria: 'Open ' + name,
+      // A got-paid name opens the payments filed under it — screen D, in this same file.
+      select: chip === 'GOT PAID' ? ((e) => { stop(e); this.persist({ screen: 'name', view: 'default' }); }) : null,
+    });
+    let res;
+    if (view === 'nomatch') {
+      res = { hasAny: false, isEmpty: true, groups: [] };
+    } else if (view === 'manymatches') {
+      const many = [
+        mkRow('Senate District 41 DFL', 'Party unit · Senate District 41', 'COMMITTEE', slug('Senate District 41 DFL', 20155)),
+        mkRow('House District 41A DFL', 'Party unit · House District 41A', 'COMMITTEE', slug('House District 41A DFL', 20344)),
+        mkRow('House District 41B DFL', 'Party unit · House District 41B', 'COMMITTEE', slug('House District 41B DFL', 20345)),
+        mkRow('Aguirre-Bell, Marisol Senate Committee', 'Candidate committee · Senate District 41', 'COMMITTEE', slug('Aguirre-Bell, Marisol Senate Committee', 30412)),
+        mkRow('Senate District 41 Republicans', 'Party unit · Senate District 41', 'COMMITTEE', slug('Senate District 41 Republicans', 20156)),
+      ];
+      res = { hasAny: true, isEmpty: false, groups: [
+        { label: 'COMMITTEES', count: '12 MATCHES', rows: many, hasMore: true, moreLabel: 'See all 12 committees',
+          moreHref: '/money/committees?q=district+41', moreSelect: (e) => { stop(e); this.persist({ screen: 'list', view: 'default', kind: 'all' }); },
+          hasNote: false, note: '' },
+      ] };
+    } else {
+      res = { hasAny: true, isEmpty: false, groups: [
+        { label: 'PEOPLE', count: '1 MATCH', hasMore: false, hasNote: true,
+          note: 'A person is a result only where we hold a record of them beyond these filings — the 200 sitting legislators. Everyone else on a filing resolves to what they filed.',
+          rows: [mkRow('Sen. Marisol Aguirre-Bell', 'Senate District 41 · DFL · sitting member', 'PERSON', '/legislators/marisol-aguirre-bell')] },
+        { label: 'COMMITTEES', count: '2 MATCHES', hasMore: false, hasNote: true,
+          note: 'Two committees are registered under this name, and neither page adds the other in: money moved between committees one person controls is filed as a contribution in both, so a combined figure would count the same dollars twice.',
+          rows: [
+            mkRow('Aguirre-Bell, Marisol Senate Committee', 'Candidate committee · Senate District 41', 'COMMITTEE', slug('Aguirre-Bell, Marisol Senate Committee', 30412)),
+            mkRow('Aguirre-Bell, Marisol House Committee', 'Candidate committee · House District 41A', 'COMMITTEE', slug('Aguirre-Bell, Marisol House Committee', 30655)),
+          ] },
+        { label: 'GOT PAID', count: '2 MATCHES', hasMore: false, hasNote: true,
+          note: 'A name that only ever got paid carries no registration number, so it has no page of its own — it opens the payments filed under that name, exactly as spelled there.',
+          rows: [
+            mkRow('Aguirre Print & Mail', '9 payments filed under this name', 'GOT PAID', '#name'),
+            mkRow('Aguirre Signs LLC', '2 payments filed under this name', 'GOT PAID', '#name'),
+          ] },
+      ] };
+    }
+
+    // ── SCREEN C · one committee's payments. Amounts belong here: ranking inside one committee
+    // is a fact about that committee, not a comparison between filers on different calendars.
+    const BIG = view === 'truncated';
+    const capShown = this.state.capShown || 250;
+    const entName = BIG ? 'House DFL Caucus' : 'Aguirre-Bell, Marisol Senate Committee';
+    const entReg = BIG ? 20011 : 30412;
+    const GAVE = [
+      ['Statewide Nurses Alliance Political Fund', 4000, 'Political committee or fund · Saint Paul', 'JUL 24, 2026', 41210],
+      ['Trades Council Political Fund', 3500, 'Political committee or fund · Minneapolis', 'JUN 11, 2026', 41377],
+      ['Senate District 41 DFL', 2250, 'Party unit · Senate District 41', 'MAY 2, 2026', 20155],
+      ['Okonkwo, Adaeze', 1000, 'Individual · Roseville · attorney', 'APR 9, 2026', 0],
+      ['Lindqvist, Bo', 1000, 'Individual · Shoreview · retired', 'MAR 3, 2026', 0],
+      ['Northside Print Co-op', 825, 'Business · design work for a volunteer recruitment flyer', 'APR 18, 2026', 0, 'inkind'],
+    ];
+    const SPENT = [
+      ['Aguirre Print & Mail', 6120, 'Business · printing and postage', 'MAR 4, 2026', 0],
+      ['House District 41A DFL', 5000, 'Party unit · money given to another campaign', 'APR 2, 2026', 20344],
+      ['Northgate Digital', 4300, 'Business · advertising', 'MAY 19, 2026', 0],
+      ['Senate District 52 Volunteer Committee', 4080, 'Candidate committee · money given to another campaign', 'JUN 1, 2026', 31088],
+      ['Kowalczyk Strategies', 2900, 'Business · consulting', 'JUN 22, 2026', 0],
+      ['Cedar Hall Events', 1400, 'Business · venue hire', 'MAY 6, 2026', 0],
+      ['Lakeside Mailing Services', 980, 'Business · postage', 'FEB 27, 2026', 0],
+    ];
+    const isGave = tab === 'gave';
+    const payRows = (isGave ? GAVE : SPENT).map((a) => ({
+      name: a[0], amount: money(a[1]), meta: a[2], date: a[3],
+      inKind: a[5] === 'inkind',
+      isLink: !!a[4], href: a[4] ? CMTE_MOCK : '#', aria: 'Open ' + a[0], select: a[4] ? null : stop,
+    }));
+    const tabs = [['gave', 'Who gave'], ['spent', 'Where it went']].map(([k, label]) => ({
+      label, active: tab === k, inactive: tab !== k,
+      url: slug(entName, entReg) + '/payments?tab=' + k + '&year=' + year,
+      select: (e) => { stop(e); this.persist({ tab: k }); },
+    }));
+    const emptyYear = view === 'emptyyear';
+    const otherLabel = year === '2026' ? '2025' : '2026';
+    const pay = {
+      entName, eyebrow: isGave ? 'EVERY DONOR NAMED' : 'EVERY PAYMENT NAMED', regNo: 'REG ' + entReg,
+      title: isGave ? 'Who gave to this committee' : 'Where this committee’s money went',
+      period: emptyYear ? 'No report covers 2026 yet' : 'Jan 1 – Jul 20, 2026',
+      periodDetail: emptyYear
+        ? 'The most recent report on file covers through Dec 31, 2025. Its coverage ends outside 2026, so this year has no payments to list. Checked against the Board’s file on Aug 11, 2026.'
+        : 'From the pre-primary report, filed Jul 27, 2026. Both ends of the period are read off the filing. Checked against the Board’s file on Aug 11, 2026.',
+      hasRows: !emptyYear, isEmpty: emptyYear, rows: emptyYear ? [] : payRows,
+      showing: BIG
+        ? ('Showing ' + capShown.toLocaleString('en-US') + ' of 1,284 ' + (isGave ? 'donors named' : 'payments named'))
+        : (isGave ? '61 donors named in this period' : '41 payments named in this period'),
+      isTruncated: BIG && capShown < 1284,
+      capNextLabel: 'Show the next ' + Math.min(250, 1284 - capShown),
+      capMore: (e) => { stop(e); this.persist({ capShown: Math.min(capShown + 250, 1284) }); },
+      truncNote: 'We load 250 at a time, largest first — the cap is ours, not the filing’s. The report this comes from lists every one of them, and it is public.',
+      footNote: isGave
+        ? 'Committees, party units and funds open — they carry a registration number we can identify them by. A private donor’s name is searchable but is not a profile. Donors who gave $200 or less in total for the year are not named in the filing at all, so these payments never sum to the total on the committee’s page.'
+        : 'Committees and party units open — they carry a registration number we can identify them by. A name that only got paid has none, so it opens the payments filed under it rather than a page. Recipients paid $200 or less in total for the year are not named in the filing, so these payments never sum to the total on the committee’s page.',
+      emptyTitle: isGave ? 'No donors named for 2026' : 'No payments named for 2026',
+      emptyWhy: 'Payments are listed from the report that covers them, and no report covers 2026 for this committee. Its 2025 payments are on the 2025 view — we do not carry them forward under a 2026 heading.',
+      otherYearLabel: 'See ' + otherLabel,
+      otherYearSelect: (e) => { stop(e); this.persist({ year: otherLabel, view: 'default' }); },
+    };
+    const years = ['2026', '2025'].map((y) => ({
+      label: y, active: year === y, inactive: year !== y,
+      select: (e) => { stop(e); this.persist({ year: y }); },
+    }));
+
+    // ── SCREEN D · every payment filed under one name, exactly as spelled, across filers. The name is
+    // not an entity here: no registration number, no page about it, and no total across committees.
+    const NAME_ROWS = [
+      ['Aguirre-Bell, Marisol Senate Committee', 6120, 'Candidate committee · printing and postage', 'MAR 4, 2026', 30412],
+      ['Senate District 41 DFL', 2480, 'Party unit · mail program', 'JUN 18, 2026', 20155],
+      ['Vasquez-Hale for House 41A', 1150, 'Candidate committee · literature', 'MAY 2, 2026', 30655],
+      ['House District 41A DFL', 980, 'Party unit · postcards', 'APR 9, 2026', 20344],
+      ['Wagner, Britta House Committee', 760, 'Candidate committee · printing', 'FEB 20, 2026', 30722],
+      ['Zimmerman for Senate', 610, 'Candidate committee · lawn signs', 'JAN 30, 2026', 30840],
+      ['Aguirre-Bell, Marisol House Committee', 540, 'Candidate committee · printing', 'JUL 6, 2026', 30655],
+      ['Neighbors for Question 2', 420, 'Ballot question committee · flyers', 'JUN 1, 2026', 51877],
+      ['Trades Council Political Fund', 310, 'Political committee or fund · printing', 'MAR 22, 2026', 41377],
+    ];
+    const nameCap = view === 'truncated';
+    const nameShownCount = nameCap ? capShown : NAME_ROWS.length;
+    const nameNotFiled = view === 'notfiled';
+    const nm = {
+      isFiled: !nameNotFiled, notFiled: nameNotFiled,
+      title: nameNotFiled ? 'Aguirre Printing' : 'Aguirre Print & Mail',
+      rows: NAME_ROWS.map((a) => ({
+        name: a[0], amount: money(a[1]), meta: a[2], date: a[3],
+        inKind: false, isLink: true, href: CMTE_MOCK, aria: 'Open ' + a[0], select: null,
+      })),
+      showing: nameCap
+        ? ('Showing ' + capShown.toLocaleString('en-US') + ' of 1,284 payments')
+        : (NAME_ROWS.length + ' payments, from ' + NAME_ROWS.length + ' committees'),
+      isTruncated: nameCap && capShown < 1284,
+      capNextLabel: 'Show the next ' + Math.min(250, 1284 - capShown),
+      capMore: (e) => { stop(e); this.persist({ capShown: Math.min(capShown + 250, 1284) }); },
+    };
+
+    const SCREENS = [['list', 'Committees list'], ['results', 'Search results'], ['payments', 'All payments'], ['name', 'Paid under a name']];
+    const STATES = {
+      list: [['default', 'Default'], ['nomatchfilter', 'Nothing matches the filter'], ['loading', 'Loading']],
+      results: [['default', 'Mixed matches'], ['manymatches', 'One group, capped'], ['nomatch', 'No match'], ['loading', 'Loading']],
+      payments: [['default', 'Default'], ['truncated', 'Capped list'], ['emptyyear', 'No report covers this year'], ['loading', 'Loading']],
+      name: [['default', 'Default'], ['truncated', 'Capped list'], ['notfiled', 'Nothing filed under it'], ['loading', 'Loading']],
+    };
+    return {
+      isList: screen === 'list', isResults: screen === 'results', isPayments: screen === 'payments', isName: screen === 'name',
+      isLoading: view === 'loading', notLoading: view !== 'loading', nm,
+      listBody: screen === 'list' && view !== 'loading',
+      resBody: screen === 'results' && view !== 'loading',
+      payBody: screen === 'payments' && view !== 'loading',
+      nameBody: screen === 'name' && view !== 'loading' && view !== 'notfiled',
+      nameNotFiled: screen === 'name' && view === 'notfiled',
+      listTotal: '1,603', kinds, list,
+      skelRows: ['58%', '72%', '44%', '66%', '52%', '38%'].map((w) => ({ w })),
+      q: view === 'nomatch' ? 'aguire' : (view === 'manymatches' ? 'district 41' : 'aguirre'),
+      resultSummary: view === 'nomatch' ? 'No matches' : (view === 'manymatches' ? '12 matches, all committees' : '5 matches across people, committees and names that got paid'),
+      res, pay, tabs, years,
+      clearKind: (e) => { stop(e); this.persist({ kind: 'all', view: 'default' }); },
+      backToResults: (e) => { stop(e); this.persist({ screen: 'results', view: 'default' }); },
+      goList: (e) => { stop(e); this.persist({ screen: 'list', view: 'default', kind: 'all' }); },
+      showRail: this.props.showRail ?? true,
+      screenBtns: SCREENS.map(([k, label]) => ({
+        label, active: screen === k, inactive: screen !== k,
+        select: (e) => { stop(e); this.persist({ screen: k, view: 'default', kind: 'all', year: '2026', shown: 8, capShown: 250 }); },
+      })),
+      stateBtns: (STATES[screen] || []).map(([k, label]) => ({
+        label, active: view === k, inactive: view !== k,
+        select: (e) => { stop(e); this.persist({ view: k, shown: 8, capShown: 250 }); },
+      })),
+    };
+  }
+}
+
+</script>
+</body>
+</html>
