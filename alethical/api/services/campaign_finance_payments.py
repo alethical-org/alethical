@@ -152,8 +152,17 @@ UNIDENTIFIED_REGISTRATION_NUMBER = "0"
 
 #: The most rows one request will list. A page asks again with a larger ``offset``, and
 #: ``has_more`` says whether there is anything left, so no list is ever presented as
-#: complete when it is not.
-MAX_PAYMENTS = 200
+#: complete when it is not. 250 because that is the committee payments page's own cap
+#: (``docs/design/handoff-campaign-money/Money lists web.dc.html``, screen C), so one
+#: request fills one page of it.
+MAX_PAYMENTS = 250
+
+#: The two orders a payments list may ask for. ``date`` is the default and pages by the
+#: row's own date; ``amount`` is largest first, for the one place ranking is honest --
+#: payments inside ONE committee, where the ranking is a fact about that committee
+#: rather than a comparison across filers on different calendars (§7).
+ORDER_BY_DATE = "date"
+ORDER_BY_AMOUNT = "amount"
 
 
 @dataclass(frozen=True)
@@ -282,6 +291,12 @@ class PaymentPage:
     has_more: bool
     limit: int
     offset: int
+    #: How many rows match in all, counted with the page's own WHERE clause, so
+    #: "Showing 250 of 1,284" is a measured sentence. ``None`` on every page that is
+    #: not ``REPORTED`` -- an absence must never arrive as a countable 0 -- and on the
+    #: name-keyed lookups, which deliberately serve no count (see the module
+    #: docstring: a count is the one number a page would print largest).
+    total_payments: Optional[int]
     linkable_registration_numbers: frozenset[str]
     dataset: Dataset
     source_url: Optional[str]
@@ -363,6 +378,7 @@ def _page(
     linkable: frozenset[str],
     release: Release,
     dataset: Dataset,
+    total_payments: Optional[int] = None,
 ) -> PaymentPage:
     return PaymentPage(
         state=state,
@@ -370,6 +386,7 @@ def _page(
         has_more=has_more,
         limit=limit,
         offset=offset,
+        total_payments=total_payments,
         linkable_registration_numbers=linkable,
         dataset=dataset,
         source_url=release.file_for(dataset).source_url,
@@ -406,23 +423,30 @@ def _fetch(
     year: Optional[int],
     limit: int,
     offset: int,
+    order: str = ORDER_BY_DATE,
 ) -> tuple[list, bool]:
-    """One page of rows, newest first, plus whether anything is left after it.
+    """One page of rows, plus whether anything is left after it.
 
     ``limit + 1`` rows are asked for so ``has_more`` is measured rather than guessed.
-    The order is the row's own date and then its record number, which is unique within a
-    snapshot, so paging cannot repeat or skip a row -- and it must not be the row's
-    contents, of which 15,786 contribution rows share theirs with another row.
+    ``order`` is ``ORDER_BY_DATE`` (newest first) or ``ORDER_BY_AMOUNT`` (largest
+    first); both end on the record number, which is unique within a snapshot, so paging
+    cannot repeat or skip a row -- and the tiebreak must not be the row's contents, of
+    which 15,786 contribution rows share theirs with another row.
 
     ``year`` filters on the file's own ``Year`` column, which is a separate claim from
     the date and disagrees with it on 702 rows across the 3 files. A filing is scoped by
     ``Year``, so that is the one to use.
 
-    ``table``, ``columns`` and the 2 column names are this module's own constants; only
-    ``key_value`` and ``year`` come from a caller, and both are bound parameters, so a
-    name holding a quote or a comma is matched rather than interpreted.
+    ``table``, ``columns``, the ORDER BY and the 2 column names are this module's own
+    constants; only ``key_value`` and ``year`` come from a caller, and both are bound
+    parameters, so a name holding a quote or a comma is matched rather than interpreted.
     """
     clause = "" if year is None else " AND year = :year"
+    order_by = (
+        f"amount DESC NULLS LAST, {date_column} DESC NULLS LAST, row_number DESC"
+        if order == ORDER_BY_AMOUNT
+        else f"{date_column} DESC NULLS LAST, row_number DESC"
+    )
     params: dict[str, object] = {
         "snapshot": snapshot_id,
         "key": key_value,
@@ -435,12 +459,41 @@ def _fetch(
         text(
             f"SELECT {columns} FROM {table} "
             f" WHERE snapshot_id = :snapshot AND {key_column} = :key{clause} "
-            f" ORDER BY {date_column} DESC NULLS LAST, row_number DESC "
+            f" ORDER BY {order_by} "
             f" LIMIT :limit OFFSET :offset"
         ),
         params,
     ).all()
     return list(rows[:limit]), len(rows) > limit
+
+
+def _count_rows(
+    db: Session,
+    *,
+    table: str,
+    key_column: str,
+    key_value: str,
+    snapshot_id: UUID,
+    year: Optional[int],
+) -> int:
+    """How many rows the page's own WHERE clause matches in all.
+
+    The same filter ``_fetch`` uses, so "Showing 250 of 1,284" can never describe a
+    different population from the rows under it.
+    """
+    clause = "" if year is None else " AND year = :year"
+    params: dict[str, object] = {"snapshot": snapshot_id, "key": key_value}
+    if year is not None:
+        params["year"] = year
+    return int(
+        db.execute(
+            text(
+                f"SELECT count(*) FROM {table} "
+                f" WHERE snapshot_id = :snapshot AND {key_column} = :key{clause}"
+            ),
+            params,
+        ).scalar_one()
+    )
 
 
 # --- One driver over 3 downloads ---------------------------------------------
@@ -585,6 +638,8 @@ def _payments(
     offset: int,
     numbers_that_are_filers_here: Sequence[str] = (),
     numbers_to_check: Sequence[str] = (),
+    order: str = ORDER_BY_DATE,
+    count_total: bool = False,
 ) -> PaymentPage:
     """One page of one download's rows, found by one column, with no figure computed.
 
@@ -614,10 +669,28 @@ def _payments(
             year=year,
             limit=limit,
             offset=offset,
+            order=order,
         )
         if not rows:
+            # A page past the last row of a real result still deserves the total: with
+            # rows on earlier pages the state is the record's, not silence. But an
+            # empty *result* serves no count -- ``NOT_REPORTED`` is never a 0.
+            empty_state = _empty_state(db, release, dataset, year)
+            total = None
+            if count_total and offset > 0:
+                counted = _count_rows(
+                    db,
+                    table=download.table,
+                    key_column=key_column,
+                    key_value=key_value,
+                    snapshot_id=release.file_for(dataset).snapshot_id,
+                    year=year,
+                )
+                if counted > 0:
+                    empty_state = REPORTED
+                    total = counted
             return _page(
-                state=_empty_state(db, release, dataset, year),
+                state=empty_state,
                 payments=(),
                 has_more=False,
                 limit=limit,
@@ -625,11 +698,24 @@ def _payments(
                 linkable=frozenset(),
                 release=release,
                 dataset=dataset,
+                total_payments=total,
             )
     except ReleaseNoLongerHeld:
         return _unavailable(release, dataset, limit=limit, offset=offset)
 
     payments = tuple(download.build(row) for row in rows)
+    total = (
+        _count_rows(
+            db,
+            table=download.table,
+            key_column=key_column,
+            key_value=key_value,
+            snapshot_id=release.file_for(dataset).snapshot_id,
+            year=year,
+        )
+        if count_total
+        else None
+    )
     return _page(
         state=REPORTED,
         payments=payments,
@@ -640,6 +726,7 @@ def _payments(
         | linkable_committees(db, release, _numbers(payments, numbers_to_check)),
         release=release,
         dataset=dataset,
+        total_payments=total,
     )
 
 
@@ -654,6 +741,7 @@ def payments_received(
     year: Optional[int] = None,
     limit: int = 50,
     offset: int = 0,
+    order: str = ORDER_BY_DATE,
 ) -> PaymentPage:
     """Who paid this committee, one row each, from the committee's own filing.
 
@@ -673,6 +761,8 @@ def payments_received(
         limit=limit,
         offset=offset,
         numbers_to_check=("contributor_registration_number",),
+        order=order,
+        count_total=True,
     )
 
 
@@ -684,6 +774,7 @@ def payments_made(
     year: Optional[int] = None,
     limit: int = 50,
     offset: int = 0,
+    order: str = ORDER_BY_DATE,
 ) -> PaymentPage:
     """Who this committee paid, one row each, every ``Type`` included.
 
@@ -702,6 +793,8 @@ def payments_made(
         limit=limit,
         offset=offset,
         numbers_to_check=("affected_committee_registration_number",),
+        order=order,
+        count_total=True,
     )
 
 
@@ -713,6 +806,7 @@ def independent_payments_about(
     year: Optional[int] = None,
     limit: int = 50,
     offset: int = 0,
+    order: str = ORDER_BY_DATE,
 ) -> PaymentPage:
     """Independent spending filed about this committee, one row each.
 
@@ -737,6 +831,8 @@ def independent_payments_about(
             "spender_registration_number",
             "affected_committee_registration_number",
         ),
+        order=order,
+        count_total=True,
     )
 
 
@@ -865,6 +961,8 @@ def payments_from_donors_typing(
 
 __all__ = [
     "MAX_PAYMENTS",
+    "ORDER_BY_AMOUNT",
+    "ORDER_BY_DATE",
     "NOT_REPORTED",
     "REPORTED",
     "UNAVAILABLE",

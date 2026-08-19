@@ -1063,8 +1063,9 @@ def test_the_route_refuses_a_registration_number_we_hold_no_record_of(db, client
     release, its real committees being 41360 and 80024. Found by an automated review
     (Greptile) on the first version of this route.
 
-    The wording is about **our records**: the Board's registered-filer directory decides
-    whether a committee exists and nothing here reads it yet.
+    The wording is about **our records**. The route now also checks our stored copy of
+    the Board's register before refusing, so this 404 means the number is in neither
+    place we hold.
     """
     # `published_rows=0` on purpose: a snapshot that published rows and holds none is the
     # *stale* case, which the test below covers and which must not 404.

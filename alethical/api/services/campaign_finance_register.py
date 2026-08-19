@@ -271,6 +271,118 @@ def register_summary(db: Session) -> RegisterSummary:
     )
 
 
+#: The register is held and this number is on none of its 3 lists. A fact about our
+#: copy of the Board's register, never "no such committee": the number may be newer
+#: than our copy, or mistyped by a digit.
+NOT_REGISTERED = "not_registered"
+
+
+@dataclass(frozen=True)
+class RegisterEntry:
+    """One filer as the Board's registered-filer directory lists them, or why not.
+
+    What a committee page's header reads: the register's own kind (its verbatim label
+    is the only kind a page may print -- data census
+    [#1661](https://github.com/alethical-org/alethical/issues/1661)), the office and
+    district a candidate registered for, and the termination date that makes a closed
+    committee its own display state rather than an empty year
+    (``docs/architecture/campaign-finance-system-design.md`` §7).
+
+    ``party``, ``office`` and ``district`` are legitimately empty for party units and
+    committees-or-funds -- the Board's own lists carry them only for candidates -- so
+    their absence is never a gap to fill. ``termination_date`` empty means the Board
+    lists the committee as open.
+    """
+
+    state: str
+    kind: Optional[str]
+    name: Optional[str]
+    party: Optional[str]
+    office: Optional[str]
+    district: Optional[str]
+    registration_date: Optional[date]
+    termination_date: Optional[date]
+    as_of: Optional[date]
+    reason: Optional[str]
+
+
+def register_entry(db: Session, registration_number: str) -> RegisterEntry:
+    """Whether the Board's register we hold lists this number, and what it says.
+
+    Three answers, each a different sentence on a page. ``reported`` -- the register
+    lists it, fields attached. ``not_registered`` -- our copy of the register is held
+    and does not carry this number, which is a fact about our copy rather than about
+    the committee. ``unavailable`` -- we hold no register to ask (no snapshot, or its
+    rows were replaced under this read), so nothing may be said either way.
+    """
+    snapshot = live_filings_snapshot(db)
+    if snapshot is None:
+        return RegisterEntry(
+            state=UNAVAILABLE,
+            kind=None,
+            name=None,
+            party=None,
+            office=None,
+            district=None,
+            registration_date=None,
+            termination_date=None,
+            as_of=None,
+            reason=NO_FILINGS_SNAPSHOT,
+        )
+    filer = db.execute(
+        select(schema.CampaignFinanceFiler).where(
+            schema.CampaignFinanceFiler.snapshot_id == snapshot.id,
+            schema.CampaignFinanceFiler.registration_number == registration_number,
+        )
+    ).scalar_one_or_none()
+    if filer is None:
+        # Absence from a replaced set says nothing; absence from a populated register
+        # is the real answer. Same guard as `register_summary`.
+        held = db.scalar(
+            select(schema.CampaignFinanceFiler.registration_number)
+            .where(schema.CampaignFinanceFiler.snapshot_id == snapshot.id)
+            .limit(1)
+        )
+        if held is None and (snapshot.filer_count or 0) > 0:
+            return RegisterEntry(
+                state=UNAVAILABLE,
+                kind=None,
+                name=None,
+                party=None,
+                office=None,
+                district=None,
+                registration_date=None,
+                termination_date=None,
+                as_of=_snapshot_date(snapshot),
+                reason=ROWS_REPLACED,
+            )
+        return RegisterEntry(
+            state=NOT_REGISTERED,
+            kind=None,
+            name=None,
+            party=None,
+            office=None,
+            district=None,
+            registration_date=None,
+            termination_date=None,
+            as_of=_snapshot_date(snapshot),
+            reason=None,
+        )
+    kind = filer.kind
+    return RegisterEntry(
+        state=REPORTED,
+        kind=kind.value if hasattr(kind, "value") else str(kind),
+        name=filer.name,
+        party=filer.party,
+        office=filer.office,
+        district=filer.district,
+        registration_date=filer.registration_date,
+        termination_date=filer.termination_date,
+        as_of=_snapshot_date(snapshot),
+        reason=None,
+    )
+
+
 def _sitting_members_stmt(session_id: UUID) -> Select:
     """The sitting members, filtered exactly as the legislator directory filters them.
 
