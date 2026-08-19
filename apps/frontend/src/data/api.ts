@@ -32,6 +32,7 @@ import {
   Legislator,
   LegislatorCampaignMoney,
   LegislatorVote,
+  MoneyLandingSnapshot,
   RepresentativeAddressChoice,
   RepresentativeLookupInput,
   RepresentativeLookupResult,
@@ -2309,6 +2310,68 @@ export async function getLegislatorCampaignMoneyFromApi(
         lastPaymentOn: committee.split.last_payment_on ?? null,
       },
     })),
+  };
+}
+
+interface ApiMoneyLandingFilingPayload {
+  committee_name: string;
+  report_name: string;
+  period_start?: string | null;
+  period_end?: string | null;
+  filed_on: string;
+}
+
+interface ApiMoneyLandingPayload {
+  files_last_copied?: string | null;
+  latest_filings?: ApiMoneyLandingFilingPayload[] | null;
+  lane_counts?: {
+    registered_filers?: number | null;
+    payee_names?: number | null;
+    sitting_members?: number | null;
+  } | null;
+  confirmation?: {
+    confirmed: number;
+    total: number;
+    newest_confirmation_on?: string | null;
+  } | null;
+}
+
+/**
+ * Everything on the /money landing that is data rather than copy: the freshness
+ * date, the newest filings (no amounts — the landing never ranks money), the
+ * live lane counts, and committee-confirmation progress.
+ *
+ * The path is agreed with the backend's campaign-money phase 1 session; until
+ * that endpoint deploys, this request fails and every module it feeds renders
+ * its designed absent state — the landing binds no number it was not served
+ * (grounded-answers.md rule 12; lane counts are live queries, never pasted).
+ */
+export async function getMoneyLandingFromApi(): Promise<MoneyLandingSnapshot> {
+  const response = await publicApiRequest<DetailResponse<ApiMoneyLandingPayload>>(
+    '/campaign-finance/landing',
+  );
+  const payload = response.data;
+  return {
+    filesLastCopied: payload.files_last_copied ?? null,
+    latestFilings: (payload.latest_filings ?? []).map((filing) => ({
+      committeeName: filing.committee_name,
+      reportName: filing.report_name,
+      periodStart: filing.period_start ?? null,
+      periodEnd: filing.period_end ?? null,
+      filedOn: filing.filed_on,
+    })),
+    laneCounts: {
+      registeredFilers: payload.lane_counts?.registered_filers ?? null,
+      payeeNames: payload.lane_counts?.payee_names ?? null,
+      sittingMembers: payload.lane_counts?.sitting_members ?? null,
+    },
+    confirmation: payload.confirmation
+      ? {
+          confirmed: payload.confirmation.confirmed,
+          total: payload.confirmation.total,
+          newestConfirmationOn: payload.confirmation.newest_confirmation_on ?? null,
+        }
+      : null,
   };
 }
 

@@ -35,12 +35,14 @@ import {
   injectPageHead,
   legislatorListPageMetadata,
   legislatorPageMetadata,
+  moneyReportPageMetadata,
   NOT_FOUND_DESCRIPTION,
   NOT_FOUND_HEADING,
   notFoundPageMetadata,
   STATIC_PAGE_METADATA,
   type PageMetadata,
 } from "../apps/frontend/src/lib/share";
+import { reportBySlug } from "../apps/frontend/src/lib/moneyReports";
 import { targetFromPathname } from "../apps/frontend/src/navigation/webRoutes";
 
 /**
@@ -332,6 +334,17 @@ async function contentFor(
         metadata: STATIC_PAGE_METADATA["/find-my-legislator"],
         snapshot: renderPageSnapshot(findMyLegislatorPageSnapshot()),
       };
+    case "moneyLanding":
+      return headOnly(STATIC_PAGE_METADATA["/money"]);
+    case "moneyReports":
+      return headOnly(STATIC_PAGE_METADATA["/money/reports"]);
+    case "moneyReport": {
+      // Title and dates only in a report's tags (grounded-answers.md rule 13);
+      // an unpublished or unknown slug is a genuinely absent page.
+      const report = reportBySlug(target.slug);
+      if (!report) throw new UnknownAddress(`no report ${target.slug}`);
+      return headOnly(moneyReportPageMetadata(report));
+    }
     case "privacy":
       return headOnly(STATIC_PAGE_METADATA["/privacy"]);
     case "siteMetrics":

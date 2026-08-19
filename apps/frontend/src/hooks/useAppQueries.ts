@@ -17,6 +17,7 @@ import {
   getLegislatorFromApi,
   getLegislatorOutsideSpendingFromApi,
   getLegislatorVotesFromApi,
+  getMoneyLandingFromApi,
   ListPagination,
   LegislatorListFilters,
   listChatSessionsFromApi,
@@ -281,6 +282,19 @@ export function useLegislatorCampaignMoney(
     queryKey: ['legislator-campaign-money', legislatorId, year],
     queryFn: () => getLegislatorCampaignMoneyFromApi(legislatorId, year),
     enabled: Boolean(legislatorId) && (options.enabled ?? true),
+    retry: false,
+  });
+}
+
+/**
+ * The /money landing's data: freshness date, newest filings, live lane counts,
+ * confirmation progress. One request for the page; every module treats an error
+ * as "not served" and renders its designed absent state rather than a number.
+ */
+export function useMoneyLanding() {
+  return useQuery({
+    queryKey: ['money-landing'],
+    queryFn: getMoneyLandingFromApi,
     retry: false,
   });
 }

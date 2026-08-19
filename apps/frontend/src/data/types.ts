@@ -614,6 +614,50 @@ export interface CampaignCommitteeMoney {
   };
 }
 
+/** One row of the /money landing's "filings as they arrive" module: whose
+ *  committee filed, which report, and the period it covers — never an amount
+ *  (five rows with five dollar figures is a ranking whether we sort it or not,
+ *  and the rows' periods differ by months). */
+export interface MoneyLandingFiling {
+  /** The committee's name exactly as filed. */
+  committeeName: string;
+  /** The report's name, e.g. "Pre-primary report". */
+  reportName: string;
+  /** ISO date the period starts, when the filing resolves one — never an
+   *  assumed 1 January. */
+  periodStart: string | null;
+  /** ISO date the period ends (the filing's cutoff). */
+  periodEnd: string | null;
+  /** ISO date the report was filed. */
+  filedOn: string;
+}
+
+/** What the /money landing shows that is data rather than copy. Every field is
+ *  tolerant of absence: a module whose data is not served renders its designed
+ *  empty state instead of a number (the endpoints land with the backend's
+ *  campaign-money phase 1 work). */
+export interface MoneyLandingSnapshot {
+  /** ISO date we last copied new filings from the Board — the page's one
+   *  freshness date. Not the period any money covers. */
+  filesLastCopied: string | null;
+  /** Newest first, by the date filed. */
+  latestFilings: MoneyLandingFiling[];
+  /** Live register counts for the lane cards. Absent means "show no count",
+   *  never zero. */
+  laneCounts: {
+    registeredFilers: number | null;
+    payeeNames: number | null;
+    sittingMembers: number | null;
+  };
+  /** Committee-confirmation progress, read live from the confirmation log. */
+  confirmation: {
+    confirmed: number;
+    total: number;
+    /** ISO date of the newest confirmation; null while there is none. */
+    newestConfirmationOn: string | null;
+  } | null;
+}
+
 /** A legislator's own campaign money for one year. Read `linkState` before
  *  `committees`: an empty list is never on its own a statement about the person. */
 export interface LegislatorCampaignMoney {

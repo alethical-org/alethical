@@ -30,6 +30,9 @@ import { AskAnswerScreen } from '../screens/redesign/AskAnswerScreen';
 import { AboutUsScreen } from '../screens/redesign/AboutUsScreen';
 import { BillDetailScreen } from '../screens/redesign/BillDetailScreen';
 import { HomeSignedOutScreen } from '../screens/redesign/HomeSignedOutScreen';
+import { MoneyLandingScreen } from '../screens/redesign/MoneyLandingScreen';
+import { MoneyReportScreen } from '../screens/redesign/MoneyReportScreen';
+import { MoneyReportsShelfScreen } from '../screens/redesign/MoneyReportsShelfScreen';
 import { NotFoundScreen } from '../screens/redesign/NotFoundScreen';
 import { SearchBillsScreen } from '../screens/redesign/SearchBillsScreen';
 import { SearchLegislatorsScreen } from '../screens/redesign/SearchLegislatorsScreen';
@@ -640,6 +643,21 @@ export function RootNavigator() {
               name="Legislators"
               component={SearchLegislatorsScreen}
               options={{ headerShown: false }}
+            />
+            <Stack.Screen
+              name="MoneyLanding"
+              component={MoneyLandingScreen}
+              options={{ headerShown: false, title: 'Follow the money' }}
+            />
+            <Stack.Screen
+              name="MoneyReports"
+              component={MoneyReportsShelfScreen}
+              options={{ headerShown: false, title: 'What we found' }}
+            />
+            <Stack.Screen
+              name="MoneyReport"
+              component={MoneyReportScreen}
+              options={{ headerShown: false, title: 'Report' }}
             />
             <Stack.Screen
               name="Privacy"

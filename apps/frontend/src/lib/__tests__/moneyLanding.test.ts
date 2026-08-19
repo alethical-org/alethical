@@ -1,0 +1,82 @@
+import { describe, expect, it } from 'vitest';
+
+import {
+  confirmationDateLine,
+  confirmationLine,
+  filingFiledLine,
+  filingPeriodLine,
+  formatCount,
+  laneCountLine,
+  RECORD_DOES_NOT_COVER,
+} from '../moneyLanding';
+
+describe('the does-not-cover block', () => {
+  // Rule 12's exact sentence: the $200 test is on the donor's yearly total,
+  // never on the size of one gift — 327,759 of the 583,152 published rows are
+  // individually under $200 and are named anyway.
+  it('states the donor threshold on the yearly total, never per gift', () => {
+    expect(RECORD_DOES_NOT_COVER).toContain(
+      'Donors who gave $200 or less in total for the year are never named.',
+    );
+  });
+
+  it('names the two permanent source gaps', () => {
+    expect(RECORD_DOES_NOT_COVER[0]).toBe('Nothing before 2015.');
+    expect(RECORD_DOES_NOT_COVER[1]).toBe('Unions don’t report to this board at all.');
+  });
+});
+
+describe('lane counts', () => {
+  it('formats a served count with grouping', () => {
+    expect(formatCount(1603)).toBe('1,603');
+    expect(laneCountLine(1603, 'registered filers')).toBe('1,603 REGISTERED FILERS');
+  });
+
+  // A lane without its live query shows no number — never zero, never a
+  // remembered one (a pasted count is how a page once said 1,336 while the
+  // register held 1,603).
+  it('shows nothing when the count is not served', () => {
+    expect(laneCountLine(null, 'registered filers')).toBeNull();
+  });
+});
+
+describe('filing rows', () => {
+  it('prints both period ends when the filing resolves both', () => {
+    expect(filingPeriodLine({ periodStart: '2026-01-01', periodEnd: '2026-07-20' })).toBe(
+      'covers Jan 1, 2026 – Jul 20, 2026',
+    );
+  });
+
+  // An unresolved start is never an assumed 1 January (build facts: a
+  // special-election filer's period does not open on New Year's Day).
+  it('prints an end-only period when the start does not resolve', () => {
+    expect(filingPeriodLine({ periodStart: null, periodEnd: '2026-07-20' })).toBe(
+      'covers through Jul 20, 2026',
+    );
+  });
+
+  it('prints no period line when neither end resolves', () => {
+    expect(filingPeriodLine({ periodStart: null, periodEnd: null })).toBeNull();
+    expect(filingPeriodLine({ periodStart: '2026-01-01', periodEnd: null })).toBeNull();
+  });
+
+  it('labels the filed date', () => {
+    expect(filingFiledLine({ filedOn: '2026-07-27' })).toBe('FILED JUL 27, 2026');
+  });
+});
+
+describe('confirmation progress', () => {
+  it('states the confirmed share as counts, with no percentage and no bar', () => {
+    expect(confirmationLine({ confirmed: 0, total: 200 })).toBe(
+      'All 200 sitting members have a committee registered with the Board. Confirmed as theirs: ' +
+        '0 of 200. Confirming is a person’s job.',
+    );
+  });
+
+  it('dates the line by the newest confirmation, and stays undated while there is none', () => {
+    expect(confirmationDateLine(null)).toBeNull();
+    expect(confirmationDateLine('2026-08-19')).toBe(
+      'Read live from the confirmation log · newest confirmation Aug 19, 2026',
+    );
+  });
+});

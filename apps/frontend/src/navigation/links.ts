@@ -48,6 +48,9 @@ export const routePath = {
   vote: (billId: string, voteEventId: string) =>
     pathForRoute({ name: 'VoteDetail', params: { billId, voteEventId } }),
   findMyLegislator: () => pathForRoute({ name: 'FindMyLegislator' }),
+  money: () => pathForRoute({ name: 'MoneyLanding' }),
+  moneyReports: () => pathForRoute({ name: 'MoneyReports' }),
+  moneyReport: (slug: string) => pathForRoute({ name: 'MoneyReport', params: { slug } }),
   privacy: () => pathForRoute({ name: 'Privacy' }),
   siteMetrics: () => pathForRoute({ name: 'SiteMetrics' }),
   terms: () => pathForRoute({ name: 'Terms' }),

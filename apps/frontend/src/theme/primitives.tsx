@@ -56,6 +56,7 @@ const NAV_ITEM_HREFS: Record<string, string> = {
   // of redirecting to Home, so this row's link lands where its click lands
   // (issue #764).
   'search-find-my-legislator': routePath.findMyLegislator(),
+  'search-campaign-money': routePath.money(),
   // Live now that Bills is an active Track row: the link lands on the Tracked page,
   // which prompts a signed-out visitor to sign in rather than advertising a
   // capability it can't deliver (grounded-answers rule 2).
@@ -296,6 +297,18 @@ const rowHoverTransition = isWeb
     } as object)
   : null;
 
+/**
+ * Small green NEW chip beside a newly launched nav row's label (IaItem.isNew).
+ * Solid green fill with the darkest brand ink, per the campaign money IA mock.
+ */
+function NewChip() {
+  return (
+    <View style={styles.newChip}>
+      <Text style={styles.newChipText}>NEW</Text>
+    </View>
+  );
+}
+
 function MenuPanelRow({ item, onPress }: { item: IaItem; onPress?: (item: IaItem) => void }) {
   const [hovered, hoverProps] = useHover();
   const disabled = item.availability === 'roadmap';
@@ -307,6 +320,7 @@ function MenuPanelRow({ item, onPress }: { item: IaItem; onPress?: (item: IaItem
           <Text style={[styles.menuRowTitle, disabled && styles.menuRowTitleDisabled]}>
             {item.label}
           </Text>
+          {item.isNew ? <NewChip /> : null}
         </View>
         {item.description ? (
           <Text style={[styles.menuRowDesc, disabled && styles.menuRowDescDisabled]}>
@@ -671,6 +685,7 @@ export function TopNav({
                         style={styles.menuSubRow}
                       >
                         <Text style={styles.menuSubRowText}>{item.label}</Text>
+                        {item.isNew ? <NewChip /> : null}
                       </Pressable>
                     ))}
                   </View>
@@ -1115,6 +1130,21 @@ const styles = StyleSheet.create({
   menuRowIconTileDisabled: { backgroundColor: t.colors.surfaces.s300 },
   menuRowBody: { flex: 1, minWidth: 0 },
   menuRowTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  // NEW chip (IaItem.isNew): solid green fill, darkest brand ink, mono caps —
+  // values from the campaign money IA mock's nav chip.
+  newChip: {
+    backgroundColor: t.colors.brand.base,
+    borderRadius: 7,
+    paddingVertical: 3,
+    paddingHorizontal: 7,
+  },
+  newChipText: {
+    fontFamily: t.typography.mono,
+    fontSize: 9.5,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 1,
+    color: t.colors.brand.darkest,
+  },
   menuRowTitle: {
     fontFamily: t.typography.ui,
     fontSize: t.fontSizes.subhead,

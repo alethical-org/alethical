@@ -38,14 +38,24 @@ export interface IaItem {
    * group (curated set — other roadmap items stay declared but unshown).
    */
   inNavDropdown?: boolean;
+  /**
+   * Newly launched section: the nav row carries a small green NEW chip
+   * (campaign money IA, Aug 2026). Take it off once the section stops being new.
+   */
+  isNew?: boolean;
   /** Optional framing note. */
   note?: string;
 }
 
-/** Top-level menus, in nav order. */
+/**
+ * Top-level menus, in nav order. The personalized menu is "Yours", not "Track":
+ * a group holding Tracked (and later alerts or saved searches) named "Track"
+ * repeats its own child, so the header names whose things these are instead
+ * (campaign money IA handoff, Aug 2026).
+ */
 export const MENUS: { key: MenuKey; label: string }[] = [
   { key: 'search', label: 'Search' },
-  { key: 'track', label: 'Track' },
+  { key: 'track', label: 'Yours' },
   { key: 'about', label: 'About' },
 ];
 
@@ -77,6 +87,22 @@ export const IA: IaItem[] = [
     authGated: false,
     description: 'Make sense of any bill — grounded in the source',
     note: 'Carries the purple "Grounded Ask" pill in the nav dropdown.',
+  },
+  {
+    // Second in Search, between the two subject indexes and the person pair
+    // (campaign money IA §01): named for what a person wants to know, not for
+    // what the tables are called. Public — the money section has no sign-in
+    // gate. The description promises only the record itself, because the
+    // section's search and list lanes ship after this landing does
+    // (grounded-answers.md rule 2, never advertise what you can't answer).
+    id: 'search-campaign-money',
+    label: 'Campaign money',
+    path: '/money',
+    menu: 'search',
+    availability: 'mvp',
+    authGated: false,
+    description: 'Contributions and spending, as Minnesota publishes them',
+    isNew: true,
   },
   {
     id: 'search-legislators',
@@ -140,6 +166,19 @@ export const IA: IaItem[] = [
     inNavDropdown: true,
   },
   {
+    // In Search's greyed group, not Yours' (campaign money IA, Aug 2026): news
+    // about the legislature is something a reader looks up before it is
+    // something they follow. Before Ask AI, which stays last in the pill row.
+    id: 'search-news',
+    label: 'News',
+    path: '/search/news',
+    menu: 'search',
+    availability: 'roadmap',
+    authGated: false,
+    inNavDropdown: true,
+    note: 'Roadmap: "In the news", YouTube legislative sessions. Beyond current product-scope boundary.',
+  },
+  {
     // Free-form "Ask AI" is a ROADMAP capability, not the shipped grounded Ask
     // (/ask, mvp above): open-ended AI questions aren't built yet, so this rides
     // in the greyed "ON THE ROADMAP" group as an inert pill. "Ask AI" is a
@@ -197,6 +236,10 @@ export const IA: IaItem[] = [
     authGated: true,
   },
   {
+    // Greyed "Candidates" moved out of the Yours dropdown (campaign money IA,
+    // Aug 2026): searching candidates is a Search capability, and Search's greyed
+    // group already shows it via search-candidates above. Declared here so the
+    // tracking capability stays on the roadmap, just not as a second grey pill.
     id: 'track-candidates',
     label: 'Candidates',
     path: '/track/candidates',
@@ -204,28 +247,12 @@ export const IA: IaItem[] = [
     availability: 'roadmap',
     authGated: true,
     description: "Follow who's running — the record behind the campaign, through election day",
-    inNavDropdown: true,
   },
-  {
-    id: 'track-campaign-finance',
-    label: 'Campaign Finance',
-    path: '/track/campaign-finance',
-    menu: 'track',
-    availability: 'roadmap',
-    authGated: true,
-    description: 'Follow the filings — who gave, who received, how much, and when',
-    inNavDropdown: true,
-  },
-  {
-    id: 'track-news',
-    label: 'News',
-    path: '/track/news',
-    menu: 'track',
-    availability: 'roadmap',
-    authGated: true,
-    inNavDropdown: true,
-    note: 'Roadmap: "In the news", YouTube legislative sessions. Beyond current product-scope boundary.',
-  },
+  // A greyed "Campaign Finance" tracking row used to sit here
+  // (/track/campaign-finance). The capability shipped as the public Campaign
+  // money section (search-campaign-money above), and the old address forwards
+  // to /money in navigation/webRoutes.ts. The greyed "News" row moved with it
+  // into Search's group (search-news above).
 
   // About — static content.
   {
@@ -311,15 +338,10 @@ export function mobileNavRoadmapLabels(): string[] {
   const askAi = searchRoadmap.find((item) => item.id === 'search-ask-ai');
   const namedSearchRoadmap = searchRoadmap.filter((item) => item.id !== 'search-ask-ai');
   const namedRoadmapLabels = new Set(namedSearchRoadmap.map((item) => item.label));
-  const namedTrackRoadmap = trackRoadmap.filter((item) =>
-    ['track-campaign-finance', 'track-news'].includes(item.id),
-  );
-  for (const item of namedTrackRoadmap) namedRoadmapLabels.add(item.label);
   const hasMoreTracking = trackRoadmap.some((item) => !namedRoadmapLabels.has(item.label));
 
   return [
     ...namedSearchRoadmap.map((item) => item.label),
-    ...namedTrackRoadmap.map((item) => item.label),
     ...(hasMoreTracking ? ['More Tracking'] : []),
     ...(askAi ? [askAi.label] : []),
   ];
