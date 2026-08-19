@@ -52,6 +52,13 @@ from alethical.api.services.campaign_finance_payments import (
     payments_received,
     payments_to_vendor,
 )
+from alethical.api.services.campaign_finance_register import (
+    MAX_FILINGS,
+    freshness,
+    legislator_committee_confirmations,
+    recent_filings,
+    register_summary,
+)
 from alethical.api.services.committee_finance import (
     ReleaseNoLongerHeld,
     committee_finance,
@@ -3199,6 +3206,168 @@ def payments_under_one_printed_name(
             "role": role,
             "year": year,
             **_payment_page_payload(page),
+        }
+    )
+
+
+@router.get("/campaign-finance/summary", response_model=DetailResponse)
+def campaign_finance_summary(db: Session = Depends(get_db)):
+    """What our campaign-finance records hold right now: 3 counted blocks and 2 dates.
+
+    What the ``/money`` landing page opens with, and every figure in it is counted at read
+    time rather than written into the page. A pasted count is how that page once said
+    1,336 registered filers on a day the register held 1,603
+    ([#1661](https://github.com/alethical-org/alethical/issues/1661)).
+
+    **No amount of any kind is served here**, so no total summed across members or filers
+    can reach a lane card (``.claude/rules/grounded-answers.md`` rule 12, and
+    ``docs/architecture/campaign-finance-system-design.md`` §7, which forbids ranking
+    members whose filing calendars differ).
+
+    Three blocks, each with its own ``state``, deliberately rather than one state for the
+    response. They come from 3 independent places -- the Board's register, our own
+    confirmation log, and the bulk downloads -- and one missing piece must not blank the
+    other 2 lanes, which is the same per-block rule
+    ``/committees/{registration_number}/finance`` follows.
+
+    * ``register`` -- how many filers Minnesota's register holds, and how many of each of
+      its 3 kinds, so the committees lane and its filters label themselves from the data.
+    * ``legislator_committee_confirmations`` -- how many sitting members have a committee
+      a person has confirmed is theirs, out of how many are sitting. **The only figure on
+      the product that speaks about the whole set**; every per-member surface speaks about
+      that member alone. ``newest_confirmation_at`` dates it and is ``null`` while nobody
+      has confirmed anything, which is today.
+    * ``freshness`` -- ``downloads_fetched_at`` is the landing's "files last copied" date
+      (#861), and ``register_fetched_at`` is when the register and report catalogue were
+      copied. Two sources, copied on the same day today, so both are named rather than one
+      standing in for both. Neither is the period any money covers: every period ends
+      earlier.
+
+    **A count we could not compute is ``null``, never 0**, and the block's ``reason`` says
+    which of our gaps it was: ``no_filings_snapshot`` (we have loaded no register at all),
+    ``rows_replaced`` (the register we resolved has been replaced under this read), or
+    ``no_current_legislative_session``. A **0 confirmed** is served as ``0``, because the
+    confirmation log is ours and its emptiness is a fact we know rather than a gap.
+
+    No 503: unlike the committee routes, a missing download release only empties the
+    freshness dates here, and an explicit ``null`` beside a ``reason`` cannot be read as a
+    zero.
+    """
+    pin_campaign_finance_to_one_view(db)
+    try:
+        release = current_campaign_finance_release(db)
+    except ReleaseNoLongerHeld:
+        # The published release names a pruned snapshot. That is a fact about our copy of
+        # the downloads and says nothing about the register, which is a different run, so
+        # the other 2 blocks still answer.
+        release = None
+    summary = register_summary(db)
+    confirmations = legislator_committee_confirmations(db)
+    dates = freshness(db, release)
+    return DetailResponse(
+        data={
+            "register": {
+                "state": summary.state,
+                "filer_count": summary.filer_count,
+                "by_kind": summary.by_kind,
+                "as_of": summary.as_of,
+                "snapshot_id": (
+                    str(summary.snapshot_id) if summary.snapshot_id else None
+                ),
+                "reason": summary.reason,
+            },
+            "legislator_committee_confirmations": {
+                "state": confirmations.state,
+                "confirmed_member_count": confirmations.confirmed_member_count,
+                "sitting_member_count": confirmations.sitting_member_count,
+                "newest_confirmation_at": confirmations.newest_confirmation_at,
+                "reason": confirmations.reason,
+            },
+            "freshness": {
+                "downloads_fetched_at": dates.downloads_fetched_at,
+                "register_fetched_at": dates.register_fetched_at,
+                "release_id": str(dates.release_id) if dates.release_id else None,
+            },
+        }
+    )
+
+
+@router.get("/campaign-finance/filings", response_model=DetailResponse)
+def campaign_finance_filings(
+    limit: int = Query(default=10, ge=1, le=MAX_FILINGS),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+):
+    """The filed reports we hold with the latest periods, newest period end first.
+
+    The honest form of a "what's new" list: whose committee filed, which report, and the
+    period it covers. **No row carries an amount and no parameter sorts by one** -- 5 rows
+    with 5 dollar figures is a ranking whether anyone sorted it or not, and these rows are
+    the reason it would mislead: 2 periods can end 20 Jul 2026 while 2 more end 31 Dec
+    2025, nearly 7 months earlier.
+
+    **``ordered_by`` is served because the order is not the one the design asked for.**
+    The Board's report catalogue serves 17 fields per report and none of them is the date
+    a report was filed (``docs/architecture/campaign-finance-system-design.md`` §9.6); the
+    "Received by the Board" date is printed inside the report document, which is served
+    only from 2023 and answers a failure with HTTP 200 and an HTML page. So this is
+    ordered by ``period_end``, the period end the catalogue does serve, and **no filing
+    date field exists here at all** -- a period end relabelled as a filing date would be a
+    fabricated fact about a named committee. Storing a real one is
+    [#1670](https://github.com/alethical-org/alethical/issues/1670), and until it lands no
+    surface may print "filed on" beside these rows.
+
+    **Only reports somebody actually filed.** The catalogue is a schedule: it lists a
+    report from the moment its filing period opens, filed or not, and 7 of the 1,261
+    catalogued 2026 pre-primary reports were unfiled when the filing-calendars module
+    measured them. An unfiled report carries no amendment record while every filed one
+    carries at least ``['0']`` (§9.6), so rows with no amendment record are excluded.
+    That also drops genuinely filed reports from 2002 to 2007, whose amendment record the
+    catalogue does not serve, which is the safe direction on a list of the newest filings.
+
+    ``period_start`` is ``null`` on many rows and that is a designed state, not a gap: the
+    row then reads "covers through {period_end}". §7 forbids hardcoding 1 January, so a
+    start is only served when one of the Board's own transcribed disclosure calendars
+    prints it against that period end (``period_start_source: "board_calendar"``), and
+    never for a filer with a special-election report that year -- filer 19223's 2025
+    period opens 11 July, not 1 January (§9.5).
+
+    ``state`` decides whether ``filings`` may be read: ``reported`` means the rows are
+    real, and ``unavailable`` with a ``reason`` means we hold no register at all
+    (``no_filings_snapshot``) or the snapshot we resolved has been replaced under this read
+    (``rows_replaced``). An empty list is never a claim that nobody has filed.
+    """
+    pin_campaign_finance_to_one_view(db)
+    page = recent_filings(db, limit=limit, offset=offset)
+    return DetailResponse(
+        data={
+            "state": page.state,
+            "ordered_by": page.ordered_by,
+            "filings": [
+                {
+                    "registration_number": row.registration_number,
+                    "filer_name": row.filer_name,
+                    "filer_kind": row.filer_kind,
+                    "report_name": row.report_name,
+                    "report_type": row.report_type,
+                    "filing_year": row.filing_year,
+                    "period_end": row.period_end,
+                    "period_start": row.period_start,
+                    "period_start_source": row.period_start_source,
+                    "special_election": row.special_election,
+                    "amendment_count": row.amendment_count,
+                    "effective_amendment_index": row.effective_amendment_index,
+                }
+                for row in page.filings
+            ],
+            "page": {
+                "limit": page.limit,
+                "offset": page.offset,
+                "has_more": page.has_more,
+            },
+            "as_of": page.as_of,
+            "snapshot_id": str(page.snapshot_id) if page.snapshot_id else None,
+            "reason": page.reason,
         }
     )
 
