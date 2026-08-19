@@ -11,8 +11,17 @@ roadmap noted for direction.
   see `docs/product-onboarding/product-scope.md` § Frontend Scope. The frontend stays a shared Expo/React Native
   codebase, so mobile is a re-target later, not a rebuild — but nothing in the MVP build
   sequence below targets iOS/Android.
-- **IA:** top nav `Search ▾ · Track ▾ · About ▾ · Sign in`, with dropdown
-  subsections. Search and Track share one entity taxonomy. **The AI-answer feature is
+- **IA:** top nav `Search ▾ · Yours ▾ · About ▾ · Sign in`, with dropdown
+  subsections. Search and Yours share one entity taxonomy. **The personalized menu
+  was renamed from "Track" to "Yours"** with the campaign money section
+  (campaign money IA handoff, Aug 2026): a group whose only live row is Tracked,
+  named "Track", repeats its own child. In the same change **Campaign money joined
+  Search as a live public row** (second, with a green NEW chip), the greyed
+  Candidates and News pills moved from the personalized menu into Search's greyed
+  group, and the greyed Campaign Finance pill retired — its old address
+  `/track/campaign-finance` forwards to `/money`. Where the older sections below
+  say "Track", read the menu label as "Yours"; the registry key `track` in
+  `apps/frontend/src/navigation/ia.ts` is unchanged. **The AI-answer feature is
   named "Grounded Ask" (feature / badge) and "Ask" (action verb) — never "Ask AI"**
   (ratified 2026-07-12, matching the v2 home design and
   `docs/design/ui-copy-guide.md`). **The global menu is Ask-free on every page** (revised
@@ -34,12 +43,14 @@ roadmap noted for direction.
 - **Roadmap items in menus = curated, greyed "ON THE ROADMAP" group (resolves O5):**
   the v2 home design shows the Search and Track dropdowns with a greyed, non-navigable
   **ON THE ROADMAP** group beneath the live entries, rather than hiding all roadmap
-  items. The curated sets differ per menu: **Search → Candidates · Claimed Profiles · Ask AI**;
-  **Track → Legislators · Candidates · Campaign Finance · News**. The mobile menu combines
-  them as **Candidates · Claimed Profiles · Campaign Finance · News · More Tracking · Ask AI**.
+  items. The curated sets differ per menu (updated Aug 2026 with the campaign money
+  nav change above): **Search → Candidates · Claimed Profiles · News · Ask AI**;
+  **Yours → Legislators**. The mobile menu combines them as
+  **Candidates · Claimed Profiles · News · More Tracking · Ask AI**.
   Other roadmap registry entries stay hidden. Live
   entries keep icon + one-line description — **Search:** Bills (with a **"Grounded Ask"**
-  badge) · Search Legislators · Find My Legislator; **Track:** Bills.
+  badge) · Campaign money (green NEW chip) · Search Legislators · Find My Legislator;
+  **Yours:** Bills.
 - **Design → frontend handoff (no HTML conversion step):** when a design preview is
   accepted, it hands off to implementation as three inputs, in value order:
   1. **Final screenshots per screen and state** — kept with the active design task or pull
