@@ -1,3 +1,4 @@
+import { registrationNumberFromSlug } from '../lib/committeeMoney';
 import { reportBySlug } from '../lib/moneyReports';
 import type { MainTabParamList, RootStackParamList } from './types';
 
@@ -20,6 +21,8 @@ type WebRouteTarget =
   | { kind: 'moneyLanding' }
   | { kind: 'moneyReports' }
   | { kind: 'moneyReport'; slug: string }
+  | { kind: 'moneyCommittee'; slug: string; tab?: string; year?: string }
+  | { kind: 'moneyCommitteePayments'; slug: string; tab?: string; year?: string }
   | { kind: 'privacy' }
   | { kind: 'siteMetrics' }
   | { kind: 'terms' }
@@ -179,6 +182,35 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
     return reportBySlug(slug)
       ? { kind: 'moneyReport', slug }
       : { kind: 'notFound', path: pathname };
+  }
+
+  // One committee's money page and its full-payments view (campaign money phase
+  // 2). The trailing registration number is the identity and the only thing that
+  // resolves — names collide, registration numbers do not — so an old or
+  // misspelled name part still lands on the right page, which then forwards to
+  // the current address. An address carrying no number is a page that does not
+  // exist. The bare /money/committees list is phase 3; until it ships that
+  // address forwards to /money rather than promising a list.
+  if (segments.length >= 2 && segments[0] === 'money' && segments[1] === 'committees') {
+    if (segments.length === 2) {
+      return { kind: 'moneyLanding' };
+    }
+    const slug = decodeURIComponent(segments[2]);
+    if (!registrationNumberFromSlug(slug)) {
+      return { kind: 'notFound', path: pathname };
+    }
+    const params = {
+      slug,
+      tab: searchParams.get('tab') ?? undefined,
+      year: searchParams.get('year') ?? undefined,
+    };
+    if (segments.length === 3) {
+      return { kind: 'moneyCommittee', ...params };
+    }
+    if (segments.length === 4 && segments[3] === 'payments') {
+      return { kind: 'moneyCommitteePayments', ...params };
+    }
+    return { kind: 'notFound', path: pathname };
   }
 
   // The retired greyed "Campaign Finance" tracking row pointed here before the
@@ -361,6 +393,20 @@ export function pathForRoute(activeRoute: {
       return '/money/reports';
     case 'MoneyReport':
       return `/money/reports/${encodeURIComponent(String(activeRoute.params?.slug ?? ''))}`;
+    case 'CommitteeMoney':
+    case 'CommitteePayments': {
+      const base = `/money/committees/${encodeURIComponent(String(activeRoute.params?.slug ?? ''))}`;
+      const path = activeRoute.name === 'CommitteePayments' ? `${base}/payments` : base;
+      const params = new URLSearchParams();
+      if (activeRoute.params?.tab) {
+        params.set('tab', String(activeRoute.params.tab));
+      }
+      if (activeRoute.params?.year) {
+        params.set('year', String(activeRoute.params.year));
+      }
+      const query = params.toString();
+      return query ? `${path}?${query}` : path;
+    }
     case 'Privacy':
       return '/privacy';
     case 'SiteMetrics':
@@ -500,6 +546,28 @@ export function stateFromPathname(pathname: string): WebNavigationState {
     case 'moneyReport':
       return {
         routes: [homeTabs, { name: 'MoneyReport', params: { slug: target.slug } }],
+        index: 1,
+      };
+    case 'moneyCommittee':
+      return {
+        routes: [
+          homeTabs,
+          {
+            name: 'CommitteeMoney',
+            params: { slug: target.slug, tab: target.tab, year: target.year },
+          },
+        ],
+        index: 1,
+      };
+    case 'moneyCommitteePayments':
+      return {
+        routes: [
+          homeTabs,
+          {
+            name: 'CommitteePayments',
+            params: { slug: target.slug, tab: target.tab, year: target.year },
+          },
+        ],
         index: 1,
       };
     case 'privacy':

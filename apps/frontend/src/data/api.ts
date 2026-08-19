@@ -28,6 +28,10 @@ import {
   Chamber,
   ChatSession,
   Citation,
+  CommitteeMadePayment,
+  CommitteeMoney,
+  CommitteePaymentsPage,
+  CommitteeReceivedPayment,
   LegislativeSession,
   Legislator,
   LegislatorCampaignMoney,
@@ -2621,4 +2625,239 @@ export async function getLegislatorOutsideSpendingFromApi(
     sourceUrl: data.source_url ?? null,
     fetchedAt: data.fetched_at ?? null,
   };
+}
+
+interface ApiCommitteeRegisterPayload {
+  state?: string;
+  kind?: string | null;
+  name?: string | null;
+  party?: string | null;
+  office?: string | null;
+  district?: string | null;
+  registration_date?: string | null;
+  termination_date?: string | null;
+  as_of?: string | null;
+}
+
+interface ApiCommitteeMoneyPayload {
+  registration_number: string;
+  committee_name?: string | null;
+  entity_type?: string | null;
+  entity_sub_type?: string | null;
+  year: number;
+  fetched_at?: string | null;
+  register?: ApiCommitteeRegisterPayload | null;
+  money_in?: {
+    state: string;
+    itemized_contribution_total?: string | null;
+    itemized_contribution_payments?: number | null;
+    other_receipts?: { receipt_type: string; total: string; payments: number }[] | null;
+    source_url?: string | null;
+  } | null;
+  money_out?: {
+    state: string;
+    itemized_payment_total?: string | null;
+    itemized_payments?: number | null;
+    by_type?: { type: string; total: string; payments: number }[] | null;
+    source_url?: string | null;
+  } | null;
+  split?: {
+    state: string;
+    reported_total?: string | null;
+    reported_through?: string | null;
+    named_total?: string | null;
+    named_payments?: number | null;
+    named_cash_total?: string | null;
+    named_in_kind_total?: string | null;
+    unnamed_total?: string | null;
+    stated_split_state?: string | null;
+    first_payment_on?: string | null;
+    last_payment_on?: string | null;
+  } | null;
+}
+
+function committeeRegisterState(state: string | undefined): CommitteeMoney['register']['state'] {
+  if (state === 'reported') return 'reported';
+  if (state === 'not_registered') return 'not_registered';
+  return 'unavailable';
+}
+
+function committeeBlockState(
+  state: string | undefined,
+): 'reported' | 'not_reported' | 'unavailable' {
+  if (state === 'reported') return 'reported';
+  if (state === 'not_reported') return 'not_reported';
+  return 'unavailable';
+}
+
+/**
+ * One committee's money for one year, keyed on its registration number. Resolves
+ * `null` on 404 — the number is in neither our copy of the Board's register nor
+ * the downloads, which the page renders as a fact about our records rather than
+ * an error or a claim that no such committee exists.
+ */
+export async function getCommitteeFinanceFromApi(
+  registrationNumber: string,
+  year: number,
+): Promise<CommitteeMoney | null> {
+  let payload: ApiCommitteeMoneyPayload;
+  try {
+    const response = await publicApiRequest<DetailResponse<ApiCommitteeMoneyPayload>>(
+      `/committees/${encodeURIComponent(registrationNumber)}/finance?year=${year}`,
+    );
+    payload = response.data;
+  } catch (error) {
+    if (isNotFoundError(error)) return null;
+    throw error;
+  }
+  const register = payload.register ?? undefined;
+  return {
+    registrationNumber: payload.registration_number,
+    // The downloads spell a missing name as an empty string; a page must not
+    // render a heading out of it.
+    committeeName: payload.committee_name ? payload.committee_name : null,
+    entityType: payload.entity_type ?? null,
+    entitySubType: payload.entity_sub_type ?? null,
+    year: payload.year,
+    fetchedAt: payload.fetched_at ?? null,
+    register: {
+      state: committeeRegisterState(register?.state),
+      kind: register?.kind ?? null,
+      name: register?.name ?? null,
+      party: register?.party ?? null,
+      office: register?.office ?? null,
+      district: register?.district ?? null,
+      registrationDate: register?.registration_date ?? null,
+      terminationDate: register?.termination_date ?? null,
+      asOf: register?.as_of ?? null,
+    },
+    moneyIn: {
+      state: committeeBlockState(payload.money_in?.state),
+      itemizedContributionTotal: payload.money_in?.itemized_contribution_total ?? null,
+      itemizedContributionPayments: payload.money_in?.itemized_contribution_payments ?? null,
+      otherReceipts: (payload.money_in?.other_receipts ?? []).map((receipt) => ({
+        receiptType: receipt.receipt_type,
+        total: receipt.total,
+        payments: receipt.payments,
+      })),
+      sourceUrl: payload.money_in?.source_url ?? null,
+    },
+    moneyOut: {
+      state: committeeBlockState(payload.money_out?.state),
+      itemizedPaymentTotal: payload.money_out?.itemized_payment_total ?? null,
+      itemizedPayments: payload.money_out?.itemized_payments ?? null,
+      byType: (payload.money_out?.by_type ?? []).map((entry) => ({
+        type: entry.type,
+        total: entry.total,
+        payments: entry.payments,
+      })),
+      sourceUrl: payload.money_out?.source_url ?? null,
+    },
+    split: {
+      state: (payload.split?.state ?? 'no_reported_total') as CommitteeMoney['split']['state'],
+      reportedTotal: payload.split?.reported_total ?? null,
+      reportedThrough: payload.split?.reported_through ?? null,
+      namedTotal: payload.split?.named_total ?? null,
+      namedPayments: payload.split?.named_payments ?? null,
+      namedCashTotal: payload.split?.named_cash_total ?? null,
+      namedInKindTotal: payload.split?.named_in_kind_total ?? null,
+      unnamedTotal: payload.split?.unnamed_total ?? null,
+      statedSplitState: payload.split?.stated_split_state ?? 'not_checked',
+      firstPaymentOn: payload.split?.first_payment_on ?? null,
+      lastPaymentOn: payload.split?.last_payment_on ?? null,
+    },
+  };
+}
+
+interface ApiCommitteePaymentsPayload {
+  state?: string;
+  payments?: Record<string, unknown>[] | null;
+  page?: {
+    limit: number;
+    offset: number;
+    has_more: boolean;
+    total_payments?: number | null;
+  } | null;
+  linkable_registration_numbers?: string[] | null;
+  source_url?: string | null;
+  fetched_at?: string | null;
+}
+
+function committeePaymentsPage<Payment>(
+  payload: ApiCommitteePaymentsPayload,
+  mapPayment: (row: Record<string, unknown>) => Payment,
+): CommitteePaymentsPage<Payment> {
+  const state = committeeBlockState(payload.state);
+  return {
+    state,
+    payments: state === 'reported' ? (payload.payments ?? []).map(mapPayment) : [],
+    hasMore: payload.page?.has_more ?? false,
+    totalPayments: payload.page?.total_payments ?? null,
+    linkableRegistrationNumbers: payload.linkable_registration_numbers ?? [],
+    sourceUrl: payload.source_url ?? null,
+    fetchedAt: payload.fetched_at ?? null,
+  };
+}
+
+const asText = (value: unknown): string | null => (typeof value === 'string' ? value : null);
+
+/** Who paid this committee — its own filing's rows, one per payment. */
+export async function getCommitteePaymentsReceivedFromApi(
+  registrationNumber: string,
+  options: { year?: number; sort?: 'date' | 'amount'; limit?: number; offset?: number } = {},
+): Promise<CommitteePaymentsPage<CommitteeReceivedPayment> | null> {
+  const payload = await committeePaymentsRequest(registrationNumber, 'received', options);
+  if (payload === null) return null;
+  return committeePaymentsPage(payload, (row) => ({
+    contributor: asText(row.contributor),
+    contributorRegistrationNumber: asText(row.contributor_registration_number),
+    contributorType: asText(row.contributor_type),
+    employer: asText(row.employer),
+    amount: asText(row.amount),
+    receivedOn: asText(row.received_on),
+    receiptType: asText(row.receipt_type),
+    inKind: asText(row.in_kind),
+  }));
+}
+
+/** Who this committee paid — every expenditure type included, each row labelled. */
+export async function getCommitteePaymentsMadeFromApi(
+  registrationNumber: string,
+  options: { year?: number; sort?: 'date' | 'amount'; limit?: number; offset?: number } = {},
+): Promise<CommitteePaymentsPage<CommitteeMadePayment> | null> {
+  const payload = await committeePaymentsRequest(registrationNumber, 'made', options);
+  if (payload === null) return null;
+  return committeePaymentsPage(payload, (row) => ({
+    vendorName: asText(row.vendor_name),
+    vendorCity: asText(row.vendor_city),
+    vendorState: asText(row.vendor_state),
+    affectedCommitteeName: asText(row.affected_committee_name),
+    affectedCommitteeRegistrationNumber: asText(row.affected_committee_registration_number),
+    amount: asText(row.amount),
+    paidOn: asText(row.paid_on),
+    expenditureType: asText(row.expenditure_type),
+    purpose: asText(row.purpose),
+    inKind: asText(row.in_kind),
+  }));
+}
+
+async function committeePaymentsRequest(
+  registrationNumber: string,
+  direction: 'received' | 'made',
+  options: { year?: number; sort?: 'date' | 'amount'; limit?: number; offset?: number },
+): Promise<ApiCommitteePaymentsPayload | null> {
+  const params = new URLSearchParams({ direction });
+  if (options.year !== undefined) params.set('year', String(options.year));
+  if (options.sort) params.set('sort', options.sort);
+  if (options.limit !== undefined) params.set('limit', String(options.limit));
+  if (options.offset !== undefined) params.set('offset', String(options.offset));
+  try {
+    const response = await publicApiRequest<DetailResponse<ApiCommitteePaymentsPayload>>(
+      `/committees/${encodeURIComponent(registrationNumber)}/payments?${params.toString()}`,
+    );
+    return response.data;
+  } catch (error) {
+    if (isNotFoundError(error)) return null;
+    throw error;
+  }
 }

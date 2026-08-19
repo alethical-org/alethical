@@ -117,7 +117,7 @@ sentence under it is fixed and says exactly this:
 
 > Minnesota only makes candidates name a donor once that donor has given more than $200
 > in total for the year. Donors who gave $200 or less in total are never named, so their
-> money is counted here but nobody knows who they are.
+> money is counted here and the state's public file does not say who gave it.
 
 **Read that as the donor's yearly total, never the size of a single gift.** 327,759 of
 the 583,152 published donation rows are individually under $200 and are named anyway,

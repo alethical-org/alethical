@@ -445,6 +445,64 @@ def named_money_split(
     return outcome(SPLIT_SHOWN, remainder)
 
 
+def split_for_committee(
+    db: Session,
+    release: Release,
+    *,
+    registration_number: str,
+    year: int,
+    finance: CommitteeFinance,
+    withheld_filer_years: frozenset[tuple[str, int]] | None = None,
+) -> NamedMoneySplit:
+    """One committee-year's split, assembled from the same inputs wherever it is asked.
+
+    The legislator route and the committee page both show this split, and this is the
+    one place that gathers its inputs -- the payment dates, the cash-only itemized
+    figure, the release's own withheld filer-years, and the stated-split check --
+    so the two surfaces cannot drift into different answers for the same committee
+    ([#1442](https://github.com/alethical-org/alethical/issues/1442)).
+
+    ``withheld_filer_years`` is a parameter so a caller looping over several committees
+    can resolve the release-wide set once; a single-committee caller omits it.
+    """
+    if withheld_filer_years is None:
+        withheld_filer_years = reader.filer_years_that_must_not_show_a_split(
+            db, release
+        )
+    first_on, last_on = payment_dates(
+        db, release, registration_number=registration_number, year=year
+    )
+    cash = next(
+        (
+            entry.total
+            for entry in reader.contribution_cash(
+                db, release, registration_number, years=[year]
+            )
+            if entry.year == year
+        ),
+        None,
+    )
+    stated = stated_split_for_year(db, release, registration_number, year)
+    return named_money_split(
+        finance,
+        first_payment_on=first_on,
+        last_payment_on=last_on,
+        named_cash_total=cash,
+        withheld_filer_years=withheld_filer_years,
+        # Only ``agrees`` is a pass. Everything else -- the Board serving no document,
+        # our own reader failing to prove itself, or nobody having run the comparison
+        # -- is a fact about the check rather than about the committee, and the page
+        # says which it is rather than implying a verification that did not happen.
+        stated_split_state=(
+            STATED_SPLIT_AGREES
+            if stated.status == AGREES
+            else DISAGREES
+            if stated.status == DISAGREES
+            else STATED_SPLIT_NOT_CHECKED
+        ),
+    )
+
+
 def legislator_finance(
     db: Session, release: Release, *, legislator_id: UUID, year: int
 ) -> LegislatorFinance:
@@ -499,44 +557,19 @@ def legislator_finance(
                 )
             )
             continue
-        first_on, last_on = payment_dates(
-            db, release, registration_number=link.registration_number, year=year
-        )
-        cash = next(
-            (
-                entry.total
-                for entry in reader.contribution_cash(
-                    db, release, link.registration_number, years=[year]
-                )
-                if entry.year == year
-            ),
-            None,
-        )
-        stated = stated_split_for_year(db, release, link.registration_number, year)
         committees.append(
             LegislatorCommitteeMoney(
                 registration_number=link.registration_number,
                 committee_name_as_reviewed=link.committee_name_as_reviewed,
                 office_as_reviewed=link.office_as_reviewed,
                 finance=finance,
-                split=named_money_split(
-                    finance,
-                    first_payment_on=first_on,
-                    last_payment_on=last_on,
-                    named_cash_total=cash,
+                split=split_for_committee(
+                    db,
+                    release,
+                    registration_number=link.registration_number,
+                    year=year,
+                    finance=finance,
                     withheld_filer_years=withheld,
-                    # Only ``agrees`` is a pass. Everything else -- the Board serving no
-                    # document, our own reader failing to prove itself, or nobody having
-                    # run the comparison -- is a fact about the check rather than about
-                    # the committee, and the page says which it is rather than implying
-                    # a verification that did not happen.
-                    stated_split_state=(
-                        STATED_SPLIT_AGREES
-                        if stated.status == AGREES
-                        else DISAGREES
-                        if stated.status == DISAGREES
-                        else STATED_SPLIT_NOT_CHECKED
-                    ),
                 ),
             )
         )

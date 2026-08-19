@@ -112,3 +112,29 @@ export function readCurrentScrollPosition() {
   const saved = Number(window.sessionStorage.getItem(key));
   return Number.isFinite(saved) && saved > 0 ? saved : 0;
 }
+
+// --- Canonicalization support -------------------------------------------------
+
+let replaceNextPathChange = false;
+
+/**
+ * Make the next navigation-driven path change rewrite the current address instead
+ * of adding a history entry. For canonical forwards (a committee address whose
+ * name part is old or misspelled forwarding to the current spelling): a pushed
+ * entry would trap the Back button between the wrong address and its correction.
+ */
+export function markNextWebHistoryChangeAsReplace() {
+  replaceNextPathChange = true;
+}
+
+export function consumeWebHistoryReplaceMark(): boolean {
+  const marked = replaceNextPathChange;
+  replaceNextPathChange = false;
+  return marked;
+}
+
+/** Rewrite the address in place, keeping the current history entry and its state. */
+export function replaceWebHistoryPath(path: string) {
+  if (typeof window === 'undefined') return;
+  window.history.replaceState(window.history.state, '', path);
+}

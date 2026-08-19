@@ -43,6 +43,8 @@ from alethical.api.services.legislative_sessions import (
 )
 from alethical.api.services.campaign_finance_payments import (
     MAX_PAYMENTS,
+    ORDER_BY_AMOUNT,
+    ORDER_BY_DATE,
     PaymentPage,
     independent_payments_about,
     independent_payments_to_vendor,
@@ -57,20 +59,29 @@ from alethical.api.services.campaign_finance_register import (
     freshness,
     legislator_committee_confirmations,
     recent_filings,
+    register_entry,
     register_summary,
 )
 from alethical.api.services.committee_finance import (
+    Committee as CampaignCommittee,
+    CommitteeFinance,
     ReleaseNoLongerHeld,
     committee_finance,
     current_release as current_campaign_finance_release,
     find_committee,
+    independent_spending_about,
+    money_in as committee_money_in,
+    money_out as committee_money_out,
     pin_to_one_view as pin_campaign_finance_to_one_view,
 )
 from alethical.api.services.independent_spending import (
     independent_spending_for_legislator,
 )
 from alethical.api.services.issue_bills import MIN_ISSUE_LENGTH, matched_issue_bill_ids
-from alethical.api.services.legislator_finance import legislator_finance
+from alethical.api.services.legislator_finance import (
+    legislator_finance,
+    split_for_committee,
+)
 from alethical.api.services.representative_lookup import (
     DistrictMatch,
     RepresentativeLookupChoices,
@@ -2811,14 +2822,25 @@ def committee_finance_for_year(
     own, so nothing here waits on anyone confirming which committee belongs to which
     person ([#1442](https://github.com/alethical-org/alethical/issues/1442)).
 
-    **Every figure is a sum of itemized rows, never a committee's total.** Minnesota
-    names a donor only once their giving passes $200 in aggregate within a calendar
-    year, so the payments listed here always add up to less than the committee
-    reported raising -- around 4 dollars in 10 go unnamed on a typical filing. The
-    reported total comes from a different source that nothing stores yet
-    ([#1408](https://github.com/alethical-org/alethical/issues/1408)); until it
-    lands, a surface may show these figures only as named payments and must not
-    present them as a whole (``.claude/rules/grounded-answers.md`` rule 12).
+    **The itemized figures are sums of named rows, never a committee's total.**
+    Minnesota names a donor only once their giving passes $200 in aggregate within a
+    calendar year, so the named payments and the committee's own reported total are
+    different figures -- around 4 dollars in 10 go unnamed on a typical filing. Rule
+    12's second number is here too: ``money_in.reported_total`` is the filer's own
+    reported figure ([#1408](https://github.com/alethical-org/alethical/issues/1408))
+    with the date it runs to, and ``split`` says whether the two may be divided into
+    named and unnamed money -- read ``split.state`` before drawing any composition,
+    because the 4 withheld states are each a way a subtraction would state something
+    false (``.claude/rules/grounded-answers.md`` rule 12,
+    ``docs/architecture/campaign-finance-system-design.md`` §7).
+
+    ``register`` is the Board's registered-filer directory entry for this number, from
+    our stored copy of the register: its verbatim kind (the only kind label a page may
+    print), a candidate's office and district, and the termination date that makes a
+    closed committee its own display state. Its ``state`` is independent of the money
+    blocks -- ``not_registered`` means our copy of the register does not carry this
+    number, which can happen while the downloads still hold its rows, and
+    ``unavailable`` means we hold no register to ask.
 
     Read ``state`` on each block before its numbers:
 
@@ -2858,10 +2880,11 @@ def committee_finance_for_year(
     silent omission for the day that changes. ``unavailable`` on this block also
     covers rows we hold about the committee and cannot add up.
 
-    404 means this registration number appears nowhere in the current release. That
-    is a statement about our records: the Board's registered-filer directory decides
-    whether a committee exists and nothing here reads it yet. 503 means we hold no
-    usable release at all.
+    404 means this registration number is in neither our copy of the Board's register
+    nor any dataset of the current release. That is a statement about our records --
+    the number may be newer than our copy, or mistyped. A committee the register lists
+    with no money rows anywhere is a real committee and answers 200, each block saying
+    what its absence means. 503 means we hold no usable release at all.
     """
     # Before any other statement: pins every read below to one instant of the
     # database, so 2 publishes landing mid-request cannot turn this committee's
@@ -2881,17 +2904,52 @@ def committee_finance_for_year(
         finance = committee_finance(
             db, release, registration_number=registration_number, year=year
         )
+        register = register_entry(db, registration_number)
+        if finance is None and register.state == "reported":
+            # The register lists this number and the downloads hold no row of its
+            # money in any year -- ordinary for a newly registered filer, and true of
+            # 33 committees and funds on census day (#1661). A real committee, so it
+            # gets a page, with each block saying what its own absence means.
+            committee = CampaignCommittee(
+                registration_number, register.name or "", None, None
+            )
+            finance = CommitteeFinance(
+                committee=committee,
+                year=year,
+                release_id=release.id,
+                fetched_at=release.fetched_at,
+                money_in=committee_money_in(
+                    db, release, registration_number=registration_number, year=year
+                ),
+                money_out=committee_money_out(
+                    db, release, registration_number=registration_number, year=year
+                ),
+                independent_spending=independent_spending_about(
+                    db, release, committee=committee, year=year
+                ),
+            )
+        split = (
+            split_for_committee(
+                db,
+                release,
+                registration_number=registration_number,
+                year=year,
+                finance=finance,
+            )
+            if finance is not None
+            else None
+        )
     except ReleaseNoLongerHeld:
         # The release exists and its rows have been replaced out from under it, so we
         # cannot name this committee at all. A 404 here would say it does not exist,
         # on the strength of our own pruning.
         raise unusable from None
-    if finance is None:
+    if finance is None or split is None:
         raise HTTPException(
             status_code=404,
             detail=(
-                "no records for this registration number in the current "
-                "campaign-finance release"
+                "this registration number is in neither the register we hold nor "
+                "any dataset of the current campaign-finance release"
             ),
         )
     spending = finance.independent_spending
@@ -2904,6 +2962,31 @@ def committee_finance_for_year(
             "year": finance.year,
             "release_id": str(finance.release_id),
             "fetched_at": finance.fetched_at,
+            "register": {
+                "state": register.state,
+                "kind": register.kind,
+                "name": register.name,
+                "party": register.party,
+                "office": register.office,
+                "district": register.district,
+                "registration_date": register.registration_date,
+                "termination_date": register.termination_date,
+                "as_of": register.as_of,
+                "reason": register.reason,
+            },
+            "split": {
+                "state": split.state,
+                "reported_total": split.reported_total,
+                "reported_through": split.reported_through,
+                "named_total": split.named_total,
+                "named_payments": split.named_payments,
+                "named_cash_total": split.named_cash_total,
+                "named_in_kind_total": split.named_in_kind_total,
+                "unnamed_total": split.unnamed_total,
+                "stated_split_state": split.stated_split_state,
+                "first_payment_on": split.first_payment_on,
+                "last_payment_on": split.last_payment_on,
+            },
             "money_in": {
                 "state": finance.money_in.state,
                 "itemized_contribution_total": (
@@ -2995,6 +3078,10 @@ def _payment_page_payload(page: PaymentPage) -> dict:
             "limit": page.limit,
             "offset": page.offset,
             "has_more": page.has_more,
+            # How many rows match in all, counted with the same filter as the rows, so
+            # "Showing 250 of 1,284" is measured. ``None`` where no count is served: on
+            # any page that is not ``reported``, and on the name-keyed lookups.
+            "total_payments": page.total_payments,
         },
         "linkable_registration_numbers": sorted(page.linkable_registration_numbers),
         "dataset": page.dataset.value,
@@ -3041,10 +3128,12 @@ def _refuse_a_committee_we_hold_no_record_of(
     its payments would have printed "reported no payments received" about a committee we
     hold no record of.
 
-    Resolved with ``find_committee``, the same answer the aggregate ``/finance`` route
-    gives, so 2 routes about one committee cannot disagree about whether it exists. Like
-    that route, the 404 is a statement about **our records**: the Board's registered-filer
-    directory decides whether a committee exists and nothing here reads it yet (§9.7).
+    Resolved with ``find_committee`` and then our stored copy of the Board's
+    registered-filer directory, the same pair the aggregate ``/finance`` route reads, so
+    2 routes about one committee cannot disagree about whether it exists. A committee the
+    register lists with no money rows anywhere answers ``not_reported`` rather than 404:
+    it is a real committee whose silence is the record's. The 404 that remains is a
+    statement about **our records** -- the number is in neither place we hold.
 
     A stale release deliberately does **not** 404. When the rows have been replaced out
     from under this release, ``find_committee`` cannot say whether we hold this committee,
@@ -3057,11 +3146,13 @@ def _refuse_a_committee_we_hold_no_record_of(
             return
     except ReleaseNoLongerHeld:
         return
+    if register_entry(db, registration_number).state == "reported":
+        return
     raise HTTPException(
         status_code=404,
         detail=(
-            "no records for this registration number in the current "
-            "campaign-finance release"
+            "this registration number is in neither the register we hold nor "
+            "any dataset of the current campaign-finance release"
         ),
     )
 
@@ -3074,6 +3165,7 @@ def committee_payments(
     registration_number: str,
     direction: Literal["received", "made", "independent"],
     year: int | None = Query(default=None, ge=2015, le=2100),
+    sort: Literal["date", "amount"] = Query(default="date"),
     limit: int = Query(default=50, ge=1, le=MAX_PAYMENTS),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
@@ -3105,16 +3197,24 @@ def committee_payments(
     the year are named at all), and ``unavailable`` means our own copy is stale or the
     download does not reach the year asked for.
 
+    ``sort=date`` (the default) pages newest first; ``sort=amount`` pages largest first.
+    Largest-first is honest here and only here: ranking payments inside one committee is
+    a fact about that committee, not a comparison between filers on different filing
+    calendars (``docs/architecture/campaign-finance-system-design.md`` §7).
+    ``page.total_payments`` counts every matching row with the same filter, so a capped
+    list can say how much it is not showing.
+
     ``linkable_registration_numbers`` lists the counterparty numbers on this page that
     this release also holds as a filer. Only those may be rendered as links: 912 lobbyist
     numbers arrive on contribution rows and none of them is a committee.
 
     Omit ``year`` for every year the download holds, which is 2015 to 2026 today.
 
-    404 means this registration number appears in no dataset of the current release, which
-    is a statement about our records rather than about Minnesota's: without it an unknown
-    number would come back as ``not_reported``, inventing a committee and then reporting
-    its silence. 503 means we hold no usable release, also a fact about us.
+    404 means this registration number is in neither our copy of the Board's register nor
+    any dataset of the current release, which is a statement about our records rather than
+    about Minnesota's: without it an unknown number would come back as ``not_reported``,
+    inventing a committee and then reporting its silence. 503 means we hold no usable
+    release, also a fact about us.
     """
     release = _resolve_campaign_finance_release(db)
     _refuse_a_committee_we_hold_no_record_of(db, release, registration_number)
@@ -3130,6 +3230,7 @@ def committee_payments(
         year=year,
         limit=limit,
         offset=offset,
+        order=ORDER_BY_AMOUNT if sort == "amount" else ORDER_BY_DATE,
     )
     return DetailResponse(
         data={

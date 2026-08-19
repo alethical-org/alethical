@@ -51,6 +51,12 @@ export const routePath = {
   money: () => pathForRoute({ name: 'MoneyLanding' }),
   moneyReports: () => pathForRoute({ name: 'MoneyReports' }),
   moneyReport: (slug: string) => pathForRoute({ name: 'MoneyReport', params: { slug } }),
+  moneyCommittee: (slug: string, params?: Omit<RootStackParamList['CommitteeMoney'], 'slug'>) =>
+    pathForRoute({ name: 'CommitteeMoney', params: { slug, ...params } }),
+  moneyCommitteePayments: (
+    slug: string,
+    params?: Omit<RootStackParamList['CommitteePayments'], 'slug'>,
+  ) => pathForRoute({ name: 'CommitteePayments', params: { slug, ...params } }),
   privacy: () => pathForRoute({ name: 'Privacy' }),
   siteMetrics: () => pathForRoute({ name: 'SiteMetrics' }),
   terms: () => pathForRoute({ name: 'Terms' }),

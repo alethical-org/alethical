@@ -30,6 +30,8 @@ import { AskAnswerScreen } from '../screens/redesign/AskAnswerScreen';
 import { AboutUsScreen } from '../screens/redesign/AboutUsScreen';
 import { BillDetailScreen } from '../screens/redesign/BillDetailScreen';
 import { HomeSignedOutScreen } from '../screens/redesign/HomeSignedOutScreen';
+import { CommitteeMoneyScreen } from '../screens/redesign/CommitteeMoneyScreen';
+import { CommitteePaymentsScreen } from '../screens/redesign/CommitteePaymentsScreen';
 import { MoneyLandingScreen } from '../screens/redesign/MoneyLandingScreen';
 import { MoneyReportScreen } from '../screens/redesign/MoneyReportScreen';
 import { MoneyReportsShelfScreen } from '../screens/redesign/MoneyReportsShelfScreen';
@@ -42,7 +44,12 @@ import { useAuth } from '../providers/AuthProvider';
 import { useResponsive } from '../hooks/useResponsive';
 import { documentTitleForRoute } from './documentTitle';
 import { linkProps, routePath } from './links';
-import { initializeWebHistory, pushWebHistory } from './webHistory';
+import {
+  consumeWebHistoryReplaceMark,
+  initializeWebHistory,
+  pushWebHistory,
+  replaceWebHistoryPath,
+} from './webHistory';
 import { MainTabParamList, MainTabScreenProps, RootStackParamList } from './types';
 import { pathnameFromNavigationState, stateFromPathname } from './webRoutes';
 import { theme } from '../theme/tokens';
@@ -566,7 +573,13 @@ export function RootNavigator() {
         const nextPath = pathnameFromNavigationState(state);
 
         if (nextPath !== lastPathRef.current) {
-          pushWebHistory(nextPath);
+          // A canonical forward (e.g. a committee address with a misspelled name
+          // part) rewrites the address in place; anything else is a real step.
+          if (consumeWebHistoryReplaceMark()) {
+            replaceWebHistoryPath(nextPath);
+          } else {
+            pushWebHistory(nextPath);
+          }
           lastPathRef.current = nextPath;
         }
       }}
@@ -658,6 +671,16 @@ export function RootNavigator() {
               name="MoneyReport"
               component={MoneyReportScreen}
               options={{ headerShown: false, title: 'Report' }}
+            />
+            <Stack.Screen
+              name="CommitteeMoney"
+              component={CommitteeMoneyScreen}
+              options={{ headerShown: false, title: 'Committee' }}
+            />
+            <Stack.Screen
+              name="CommitteePayments"
+              component={CommitteePaymentsScreen}
+              options={{ headerShown: false, title: 'Committee payments' }}
             />
             <Stack.Screen
               name="Privacy"
