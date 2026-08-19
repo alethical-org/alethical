@@ -916,9 +916,11 @@ def test_the_route_never_prints_a_zero_for_a_committee_we_hold_no_rows_for(db, c
         "other_receipts": [],
         "reported_total": None,
         "reported_through": None,
+        "reported_period_start": None,
         "source_url": "https://cfb.mn.gov/reports/contributions.csv",
     }
     assert body["money_out"]["itemized_payment_total"] is None
+    assert body["money_out"]["reported_total"] is None
     # And the one block where absence is a finding rather than a gap.
     assert body["independent_spending"]["state"] == REPORTED
     assert Decimal(body["independent_spending"]["supporting"]) == 0

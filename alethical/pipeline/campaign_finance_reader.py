@@ -934,6 +934,61 @@ class ReportedContributions:
     comparable: bool
 
 
+@dataclass(frozen=True)
+class ReportedExpenditures:
+    """One filer-year's own reported money-out total, from its filing.
+
+    The filing's "Total expenditures" line: the whole of its money out, including
+    money given to other committees, which the category lines deliberately do not sum
+    to (§9.5, bundle 14). Rule 12's second number for a money-out card, exactly as
+    ``ReportedContributions`` is for money in. ``comparable`` is False for the same
+    special-election filer-years, for the same reason.
+    """
+
+    reg_num: str
+    year: int
+    total: Decimal
+    reported_through: Optional[date]
+    comparable: bool
+
+
+def reported_expenditures(
+    db: Session,
+    reg_num: str,
+    years: Optional[Iterable[int]] = None,
+) -> list[ReportedExpenditures]:
+    """What this filer's own filings report paying out in total, per year.
+
+    Reads through ``campaign_finance_filings.filings_context`` like
+    ``reported_contributions`` below, so the line-key mapping lives once. An empty
+    list means no filings snapshot is published; a year absent from the result is
+    "not reported", never a zero.
+    """
+    from alethical.pipeline import campaign_finance_filings as filings
+
+    context = filings.filings_context(db)
+    if context is None:
+        return []
+    wanted = set(years) if years is not None else None
+    result: list[ReportedExpenditures] = []
+    for (registration, year), total in context.reported_expenditures.items():
+        if registration != reg_num:
+            continue
+        if wanted is not None and year not in wanted:
+            continue
+        result.append(
+            ReportedExpenditures(
+                reg_num=registration,
+                year=year,
+                total=total,
+                reported_through=context.reported_through.get((registration, year)),
+                comparable=(registration, year)
+                not in context.special_election_filer_years,
+            )
+        )
+    return sorted(result, key=lambda row: row.year)
+
+
 def reported_contributions(
     db: Session,
     reg_num: str,

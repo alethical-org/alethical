@@ -494,3 +494,120 @@ def test_the_name_keyed_lookups_serve_no_count(db, client):
     data = response.json()["data"]
     assert data["state"] == "reported"
     assert data["page"]["total_payments"] is None
+
+
+# --- Rule 12's second number for money out, and the printed period start ---------
+
+
+def test_the_filings_own_spent_total_is_served_beside_the_itemized_sum(
+    db, client, monkeypatch
+):
+    """Two numbers for money out, exactly as for money in: the filing's own
+    "Total expenditures" figure beside the payments we can list, never added or
+    subtracted (review of phase 2, 19 Aug 2026 — the ban was on labelling the
+    itemized sum "spent", not on showing the filing's own total)."""
+    from alethical.pipeline import campaign_finance_reader as reader
+
+    published = Published(db)
+    _receipt(db, published.contributions, reg_num=CANDIDATE, amount="100.00")
+    db.commit()
+
+    def one_real_total(db_, reg_num, years=None):
+        return [
+            reader.ReportedExpenditures(
+                reg_num=reg_num,
+                year=2025,
+                total=Decimal("9508.24"),
+                reported_through=date(2025, 12, 31),
+                comparable=True,
+            )
+        ]
+
+    monkeypatch.setattr(reader, "reported_expenditures", one_real_total)
+    response = client.get(
+        f"/api/v1/committees/{CANDIDATE}/finance", params={"year": 2025}
+    )
+    assert response.status_code == 200, response.text
+    money_out = response.json()["data"]["money_out"]
+    assert money_out["reported_total"] == "9508.24"
+    assert money_out["reported_through"] == "2025-12-31"
+
+
+def test_a_special_election_filers_spent_total_is_never_printed(
+    db, client, monkeypatch
+):
+    """The same comparability rule as contributions: the totals copy cannot speak
+    for a filer that filed 2 report series, so no figure reaches the page."""
+    from alethical.pipeline import campaign_finance_reader as reader
+
+    published = Published(db)
+    _receipt(db, published.contributions, reg_num=CANDIDATE, amount="100.00")
+    db.commit()
+
+    def one_incomparable_total(db_, reg_num, years=None):
+        return [
+            reader.ReportedExpenditures(
+                reg_num=reg_num,
+                year=2025,
+                total=Decimal("317.20"),
+                reported_through=date(2025, 12, 31),
+                comparable=False,
+            )
+        ]
+
+    monkeypatch.setattr(reader, "reported_expenditures", one_incomparable_total)
+    money_out = client.get(
+        f"/api/v1/committees/{CANDIDATE}/finance", params={"year": 2025}
+    ).json()["data"]["money_out"]
+    assert money_out["reported_total"] is None
+    assert money_out["reported_through"] is None
+
+
+def test_the_period_start_is_the_boards_own_printed_one_or_absent(
+    db, client, monkeypatch
+):
+    """Both ends of the period, each from the Board's own documents: the end off the
+    filing, the start off the transcribed disclosure calendars — never an assumed
+    1 January (§7). An end no calendar prints stays the covers-through state."""
+    from alethical.pipeline import campaign_finance_reader as reader
+
+    published = Published(db)
+    _receipt(
+        db,
+        published.contributions,
+        reg_num=CANDIDATE,
+        amount="100.00",
+        year=2026,
+        on=date(2026, 2, 1),
+    )
+    db.commit()
+
+    def totals_for(through):
+        def totals(db_, reg_num, years=None):
+            return [
+                reader.ReportedContributions(
+                    reg_num=reg_num,
+                    year=2026,
+                    total=Decimal("500.00"),
+                    reported_through=through,
+                    comparable=True,
+                )
+            ]
+
+        return totals
+
+    # The 2026 pre-primary end is printed against 1 Jan 2026 on the Board's calendar.
+    monkeypatch.setattr(reader, "reported_contributions", totals_for(date(2026, 7, 20)))
+    money_in = client.get(
+        f"/api/v1/committees/{CANDIDATE}/finance", params={"year": 2026}
+    ).json()["data"]["money_in"]
+    assert money_in["reported_period_start"] == "2026-01-01"
+
+    # An end the calendars do not print carries no start — covers-through, not Jan 1.
+    monkeypatch.setattr(
+        reader, "reported_contributions", totals_for(date(2026, 11, 16))
+    )
+    money_in = client.get(
+        f"/api/v1/committees/{CANDIDATE}/finance", params={"year": 2026}
+    ).json()["data"]["money_in"]
+    assert money_in["reported_period_start"] is None

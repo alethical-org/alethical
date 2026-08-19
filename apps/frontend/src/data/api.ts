@@ -2652,6 +2652,7 @@ interface ApiCommitteeMoneyPayload {
     itemized_contribution_total?: string | null;
     itemized_contribution_payments?: number | null;
     other_receipts?: { receipt_type: string; total: string; payments: number }[] | null;
+    reported_period_start?: string | null;
     source_url?: string | null;
   } | null;
   money_out?: {
@@ -2659,6 +2660,8 @@ interface ApiCommitteeMoneyPayload {
     itemized_payment_total?: string | null;
     itemized_payments?: number | null;
     by_type?: { type: string; total: string; payments: number }[] | null;
+    reported_total?: string | null;
+    reported_through?: string | null;
     source_url?: string | null;
   } | null;
   split?: {
@@ -2740,6 +2743,7 @@ export async function getCommitteeFinanceFromApi(
         total: receipt.total,
         payments: receipt.payments,
       })),
+      reportedPeriodStart: payload.money_in?.reported_period_start ?? null,
       sourceUrl: payload.money_in?.source_url ?? null,
     },
     moneyOut: {
@@ -2751,6 +2755,8 @@ export async function getCommitteeFinanceFromApi(
         total: entry.total,
         payments: entry.payments,
       })),
+      reportedTotal: payload.money_out?.reported_total ?? null,
+      reportedThrough: payload.money_out?.reported_through ?? null,
       sourceUrl: payload.money_out?.source_url ?? null,
     },
     split: {

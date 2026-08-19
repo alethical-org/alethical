@@ -719,6 +719,10 @@ export interface CommitteeMoney {
     itemizedContributionTotal: string | null;
     itemizedContributionPayments: number | null;
     otherReceipts: { receiptType: string; total: string; payments: number }[];
+    /** The period start the Board's own transcribed disclosure calendars print
+     *  against this filing's period end — never an assumed 1 January. Null is
+     *  the covers-through state, not a fault. */
+    reportedPeriodStart: string | null;
     sourceUrl: string | null;
   };
   moneyOut: {
@@ -726,6 +730,11 @@ export interface CommitteeMoney {
     itemizedPaymentTotal: string | null;
     itemizedPayments: number | null;
     byType: { type: string; total: string; payments: number }[];
+    /** The filing's own "Total expenditures" figure — rule 12's second number for
+     *  money out. A separate claim by a separate source, never added to or
+     *  subtracted from the payments we can list. */
+    reportedTotal: string | null;
+    reportedThrough: string | null;
     sourceUrl: string | null;
   };
   /** Served, never computed by the page: the 4 withheld states are each a way a

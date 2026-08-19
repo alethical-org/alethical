@@ -182,14 +182,21 @@ export function CommitteePaymentsScreen({
               <View style={styles.stampCard}>
                 {yearCovered ? (
                   <>
-                    {coveredPeriodLine(money?.split.reportedThrough) ? (
+                    {coveredPeriodLine(
+                      money?.split.reportedThrough,
+                      money?.moneyIn.reportedPeriodStart,
+                    ) ? (
                       <Text style={styles.stampPeriod}>
-                        {coveredPeriodLine(money?.split.reportedThrough)}
+                        {coveredPeriodLine(
+                          money?.split.reportedThrough,
+                          money?.moneyIn.reportedPeriodStart,
+                        )}
                       </Text>
                     ) : null}
                     <Text style={styles.stampDetail}>
                       {coveredPeriodDetail(money?.split.reportedThrough ?? null, checkedOn, {
                         isPartyUnit: registerKind === 'party_unit',
+                        reportedPeriodStart: money?.moneyIn.reportedPeriodStart ?? null,
                       })}
                     </Text>
                   </>

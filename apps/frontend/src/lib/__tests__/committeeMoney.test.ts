@@ -26,6 +26,7 @@ import {
   listLinkNote,
   madeRowMeta,
   MONEY_OUT_FIGURE_LABEL,
+  MONEY_OUT_REPORTED_LABEL,
   moneyOutKindLabel,
   moneyOutNote,
   notFoundBody,
@@ -140,6 +141,19 @@ describe('the period stamp', () => {
     expect(detail).not.toContain('Jan 1');
   });
 
+  it('shows both ends only when the Board’s own calendar prints the start', () => {
+    expect(coveredPeriodLine('2026-07-20', '2026-01-01')).toBe(
+      'Figures for 1 Jan 2026 – 20 Jul 2026',
+    );
+    const detail = coveredPeriodDetail('2026-07-20', 'Aug 11, 2026', {
+      reportedPeriodStart: '2026-01-01',
+    });
+    expect(detail).toContain('covers 1 Jan 2026 through 20 Jul 2026');
+    expect(detail).toContain('the Board’s own published filing calendar');
+    // No printed start, no start — never an assumed January.
+    expect(coveredPeriodLine('2026-11-16', null)).toBe('Figures through 16 Nov 2026');
+  });
+
   it('a party unit’s stamp says its calendar is its own', () => {
     expect(coveredPeriodDetail('2026-03-31', 'Aug 11, 2026', { isPartyUnit: true })).toContain(
       'party-unit series',
@@ -198,6 +212,25 @@ describe('money out', () => {
     expect(moneyOutNote('reported', true)).not.toContain('$200');
     expect(moneyOutNote('not_reported', true)).not.toContain('$200');
     expect(moneyOutNote('not_reported', true)).not.toContain('$500');
+    expect(moneyOutNote('reported', true, true)).not.toContain('$200');
+  });
+
+  it('a filing’s own zero paid out never gets "does not mean it paid out nothing"', () => {
+    const note = moneyOutNote('not_reported', true, true, true);
+    expect(note).toContain('says it paid out nothing');
+    expect(note).not.toContain('does not mean');
+    // A real total beside an empty payments file says which claim is whose.
+    expect(moneyOutNote('not_reported', false, true, false)).toContain('names none of its payments');
+  });
+
+  it('with the filing’s own total on screen, the note explains two figures and no subtraction', () => {
+    const note = moneyOutNote('reported', false, true);
+    expect(note).toContain('the filing’s own figure');
+    expect(note).toContain('do not subtract');
+    expect(MONEY_OUT_REPORTED_LABEL.toLowerCase()).not.toContain('spent');
+    // Without one, the note owns the gap as ours rather than claiming Minnesota
+    // publishes no such total — it does, and our copy can simply lack a year.
+    expect(moneyOutNote('reported', false, false)).toContain('Our copy');
   });
 
   it('a Contribution-typed payment out is money given to another campaign', () => {
