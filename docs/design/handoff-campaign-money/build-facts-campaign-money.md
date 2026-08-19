@@ -286,9 +286,17 @@ which the report list tells us — never at a fixed number of weeks.
   GET /api/v1/committees/{registration_number}/finance (alethical/api/routers/public.py:2791), payments
   (:3061), payments-under-name (:3136). Live money-tab components:
   apps/frontend/src/components/campaignMoney/CampaignMoneyTab.tsx.
-- Not built yet: the name-search service and its 3 indexes (#1486 — lands with the results+list pass),
-  the committees-list endpoint, the live lane-count query, the payee-list endpoint (deferred with the Who
-  got paid index), the /track/campaign-finance and /congressional* forwards, and the nav rename.
+- **Built since this file was written (19 Aug 2026), so do not design around their absence:** the live
+  lane counts and the newest-filings feed, serving from `GET /api/v1/campaign-finance/summary` and
+  `/campaign-finance/filings` ([PR #1672](https://github.com/alethical-org/alethical/pull/1672),
+  verified on production: 1,603 registered filers as 778 / 299 / 526, and 0 of 200 confirmed links).
+  The filings feed returns only filings whose period has ended, because with no filing date stored
+  "newest" would otherwise mean the furthest-reaching period and lead with reports covering months of
+  the future ([PR #1673](https://github.com/alethical-org/alethical/pull/1673); storing a real filed
+  date is [#1670](https://github.com/alethical-org/alethical/issues/1670)).
+- Still not built: the name-search service and its 3 indexes (#1486 — lands with the results+list pass),
+  the committees-list endpoint, the payee-list endpoint (deferred with the Who got paid index), the
+  /track/campaign-finance and /congressional* forwards, and the nav rename.
 - Build order: committee-page states → committees list + search results + all-payments view (shared row)
   → Who got paid index (after first release; lane card held, landing ships three lanes) → technical
   version (last, on the v4 document).
