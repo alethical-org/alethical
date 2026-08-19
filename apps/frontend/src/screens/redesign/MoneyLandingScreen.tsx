@@ -2,6 +2,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
 import { Skeleton } from '../../components/Skeleton';
+import { UnderDevelopmentNotice } from '../../components/campaignMoney/UnderDevelopmentNotice';
 import { useResponsive } from '../../hooks/useResponsive';
 import { useCampaignFinanceFilings, useCampaignFinanceSummary } from '../../hooks/useAppQueries';
 import {
@@ -134,6 +135,11 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
     <PageBackground>
       <ScrollView contentContainerStyle={styles.page}>
         <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
+
+        {/* The section is partially built and nothing else on the page says so
+            at a glance. Scrolls away with the top of the page; deleting the
+            element and its component file is the whole removal. */}
+        <UnderDevelopmentNotice />
 
         <Container style={[styles.main, isMobile && styles.mainMobile]}>
           <Text

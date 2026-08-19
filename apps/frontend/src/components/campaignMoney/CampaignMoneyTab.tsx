@@ -45,6 +45,7 @@ import {
 import { useLegislatorOutsideSpending } from '../../hooks/useAppQueries';
 import { outsideSpendingYears } from '../../lib/outsideSpending';
 import { OutsideSpendingCard } from '../legislator/OutsideSpendingCard';
+import { UnderDevelopmentNotice } from './UnderDevelopmentNotice';
 import { externalLinkProps } from '../../navigation/links';
 import { theme as t } from '../../theme/tokens';
 
@@ -96,6 +97,12 @@ export function CampaignMoneyTab({
 
   return (
     <View style={styles.wrap}>
+      {/* This tab is the one money surface showing dollar figures, and it is
+          still partially built (#1642, #1645, #1650, #1663). Boxed rather than
+          full-bleed: the tab opens inside a content column, below the profile
+          header and the tab row. */}
+      <UnderDevelopmentNotice variant="inset" />
+
       <View style={styles.head}>
         <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
           Campaign money
