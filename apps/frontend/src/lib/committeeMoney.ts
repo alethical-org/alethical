@@ -366,11 +366,11 @@ export function moneyOutNote(
   if (state === 'not_reported') {
     return isBallot
       ? 'Minnesota’s public file names only payments above a naming threshold, and it names none for this committee this year. That does not mean the committee paid out nothing.'
-      : 'Minnesota only publishes a committee’s payments over $200, and it published none for this committee this year. That does not mean the committee paid out nothing.';
+      : 'Minnesota only names a recipient once payments to them pass $200 in total for the year, and it named none for this committee this year. That does not mean the committee paid out nothing.';
   }
   return isBallot
     ? 'Minnesota publishes no official total for a committee’s money out, so there is no bigger number to compare this against. Money out is not all spending: some of it is money given to other campaigns, listed below.'
-    : 'Minnesota only publishes payments over $200 and no official total for a committee’s money out, so there is no bigger number to compare this against. Money out is not all spending: some of it is money given to other campaigns, listed below.';
+    : 'Minnesota only names a recipient once payments to them pass $200 in total for the year, and publishes no official total for a committee’s money out, so there is no bigger number to compare this against. Money out is not all spending: some of it is money given to other campaigns, listed below.';
 }
 
 // --- The two lists and the payments view ----------------------------------------------

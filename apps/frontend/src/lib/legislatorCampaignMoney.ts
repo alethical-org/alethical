@@ -208,16 +208,18 @@ export const UNNAMED_MONEY_EXPLANATION =
 export function spendingNote(state: MoneyBlockState): string {
   if (state === 'reported') {
     return (
-      'Minnesota only publishes payments over $200, and publishes no official total ' +
-      'for a committee’s spending, so there is no bigger number to compare this against.'
+      'Minnesota only names a recipient once payments to them pass $200 in total for ' +
+      'the year, and publishes no official total for a committee’s spending, so there ' +
+      'is no bigger number to compare this against.'
     );
   }
   if (state === 'unavailable') {
     return 'We could not read this committee’s payments out of our copy of Minnesota’s file.';
   }
   return (
-    'Minnesota only publishes a committee’s payments over $200, and it published none ' +
-    'for this committee this year. That does not mean the committee spent nothing.'
+    'Minnesota only names a recipient once payments to them pass $200 in total for the ' +
+    'year, and it named none for this committee this year. That does not mean the ' +
+    'committee spent nothing.'
   );
 }
 
