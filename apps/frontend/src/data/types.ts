@@ -614,6 +614,56 @@ export interface CampaignCommitteeMoney {
   };
 }
 
+/** One row of the /money landing's filed-reports module: whose committee filed,
+ *  which report, and the period it covers — never an amount, and never a filed
+ *  date, because the Board's catalogue serves none (storing a real one is
+ *  issue #1670; a period end relabelled "filed" would be a fabricated fact). */
+export interface MoneyFilingRow {
+  /** The filer's name exactly as registered. */
+  filerName: string;
+  /** The report's name, e.g. "2026 Pre-Primary Report". */
+  reportName: string;
+  /** ISO date the period starts, when the filing resolves one — never an
+   *  assumed 1 January. */
+  periodStart: string | null;
+  /** ISO date the period ends (the filing's cutoff). */
+  periodEnd: string | null;
+}
+
+/** The filed-reports feed (GET /campaign-finance/filings). `state`
+ *  "unavailable" means our gap, never that nobody filed. */
+export interface MoneyFilingsFeed {
+  state: 'reported' | 'unavailable';
+  /** What the feed is ordered by (e.g. "period_end"). The printed ordering
+   *  sentence derives from this through one mapping (lib/moneyLanding.ts), so
+   *  the words and the order cannot drift apart. */
+  orderedBy: string;
+  filings: MoneyFilingRow[];
+}
+
+/** The landing's counts and dates (GET /campaign-finance/summary). Three
+ *  independent blocks, each with its own state, so one gap cannot blank the
+ *  others. A null count is our gap and never renders as 0; a served 0 is a
+ *  verified zero and renders as the number it is. */
+export interface MoneyLandingSummary {
+  register: {
+    state: 'reported' | 'unavailable';
+    filerCount: number | null;
+  };
+  confirmations: {
+    state: 'reported' | 'unavailable';
+    confirmedMemberCount: number | null;
+    sittingMemberCount: number | null;
+    /** ISO timestamp of the newest confirmation; null while there is none. */
+    newestConfirmationAt: string | null;
+  };
+  freshness: {
+    /** ISO timestamp we last copied new filings from the Board — the page's one
+     *  freshness date. Printed in Central time. */
+    downloadsFetchedAt: string | null;
+  };
+}
+
 /** A legislator's own campaign money for one year. Read `linkState` before
  *  `committees`: an empty list is never on its own a statement about the person. */
 export interface LegislatorCampaignMoney {

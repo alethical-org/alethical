@@ -1,5 +1,6 @@
 import { plainBillSummary } from './billDetail';
 import { directoryPagePath } from './directoryPagination';
+import { reportShareDescription } from './moneyReports';
 
 export const PUBLIC_SITE_ORIGIN = 'https://www.alethical.com';
 export const SOCIAL_PREVIEW_IMAGE_URL = `${PUBLIC_SITE_ORIGIN}/social-preview.png`;
@@ -28,7 +29,7 @@ const LEGISLATOR_LIST_SUBJECT = 'Minnesota House and Senate members';
 export const X_SHORT_LINK_LENGTH = 23;
 const X_TEXT_LENGTH = 280 - X_SHORT_LINK_LENGTH - 1;
 
-export type ShareSubject = 'bill' | 'legislator' | 'answer';
+export type ShareSubject = 'bill' | 'legislator' | 'answer' | 'report';
 
 export interface ShareContent {
   subject: ShareSubject;
@@ -324,8 +325,46 @@ export function askPageMetadata(question?: string | null): PageMetadata {
   });
 }
 
+/**
+ * One published research report's page metadata. Title and dates ONLY: report
+ * claims and derived labels appear in no social-share preview or metadata
+ * (.claude/rules/grounded-answers.md rule 13), so the dek and every figure stay
+ * out of these tags. Ordinary search snippets of the body stay on — no
+ * nosnippet (rule 13, reversed 18 Aug 2026).
+ */
+export function moneyReportPageMetadata(report: {
+  slug: string;
+  title: string;
+  publishedOn: string;
+  recordsThrough: string;
+}): PageMetadata {
+  const canonicalPath = `/money/reports/${encodeURIComponent(report.slug)}`;
+  return pageMetadata({
+    title: titleFor(report.title),
+    socialTitle: report.title,
+    description: reportShareDescription(report),
+    canonicalPath,
+  });
+}
+
 /** Pages whose wording never varies. */
 export const STATIC_PAGE_METADATA: Record<string, PageMetadata> = {
+  // The campaign money landing (public, no sign-in gate). The description
+  // promises the record, not the section's still-unbuilt search and lists
+  // (grounded-answers.md rule 2).
+  '/money': pageMetadata({
+    title: titleFor('Follow the money'),
+    socialTitle: 'Follow the money',
+    description:
+      'Contributions and spending for Minnesota state campaigns, as the state publishes them.',
+    canonicalPath: '/money',
+  }),
+  '/money/reports': pageMetadata({
+    title: titleFor('What we found'),
+    socialTitle: 'What we found',
+    description: 'Our own research on Minnesota’s campaign money records.',
+    canonicalPath: '/money/reports',
+  }),
   '/confirm': pageMetadata({
     title: titleFor('Confirm email'),
     socialTitle: 'Confirm email',

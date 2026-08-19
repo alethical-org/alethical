@@ -66,6 +66,8 @@ describe('sitemap endpoint', () => {
       '/bills',
       '/legislators',
       '/find-my-legislator',
+      '/money',
+      '/money/reports',
       '/about',
       '/about/contact',
       '/privacy',
@@ -77,7 +79,7 @@ describe('sitemap endpoint', () => {
     expect(body).toContain('<loc>https://www.alethical.com/bills?page=2</loc>');
     expect(body).toContain('<loc>https://www.alethical.com/bills?page=3</loc>');
     expect(body).toContain('<loc>https://www.alethical.com/legislators?page=2</loc>');
-    expect(body.match(/<url>/g)).toHaveLength(12);
+    expect(body.match(/<url>/g)).toHaveLength(14);
     expect(body).not.toContain('<lastmod>');
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
@@ -90,7 +92,7 @@ describe('sitemap endpoint', () => {
 
     const { body, status } = recorder.read();
     expect(status).toBe(200);
-    expect(body.match(/<url>/g)).toHaveLength(9);
+    expect(body.match(/<url>/g)).toHaveLength(11);
     expect(body).not.toContain('?page=');
   });
 

@@ -62,6 +62,13 @@ export type RootStackParamList = {
         locationFailure?: HomeLocationFailure;
       }
     | undefined;
+  // Campaign money section (campaign money IA handoff, Aug 2026). All public —
+  // the section has no sign-in gate.
+  MoneyLanding: undefined;
+  MoneyReports: undefined;
+  // One published research report. The slug resolves against the published-report
+  // registry (lib/moneyReports.ts); an unknown slug lands on NotFound.
+  MoneyReport: { slug: string };
   Privacy: undefined;
   SiteMetrics: undefined;
   Terms: undefined;

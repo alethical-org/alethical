@@ -7,10 +7,12 @@ import {
   billPageMetadata,
   homePageMetadata,
   legislatorListPageMetadata,
+  moneyReportPageMetadata,
   notFoundPageMetadata,
   SITE_NAME,
   STATIC_PAGE_METADATA,
 } from '../lib/share';
+import { reportBySlug } from '../lib/moneyReports';
 
 import { MainTabParamList, RootStackParamList } from './types';
 import { pathForRoute } from './webRoutes';
@@ -67,6 +69,12 @@ function titleWithoutRecord(route: TitledRoute): string | null {
     }
     case 'NotFound':
       return notFoundPageMetadata().title;
+    case 'MoneyReport': {
+      const slug = route.params?.slug ? String(route.params.slug) : '';
+      const report = slug ? reportBySlug(slug) : undefined;
+      // An unknown slug renders the NotFound screen, which titles itself.
+      return report ? moneyReportPageMetadata(report).title : null;
+    }
     default:
       return STATIC_PAGE_METADATA[pathnameOf(route)]?.title ?? null;
   }

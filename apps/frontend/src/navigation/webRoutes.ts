@@ -1,3 +1,4 @@
+import { reportBySlug } from '../lib/moneyReports';
 import type { MainTabParamList, RootStackParamList } from './types';
 
 type WebNavigationState = {
@@ -16,6 +17,9 @@ type WebRouteTarget =
   | { kind: 'bills'; params: Record<string, string> }
   | { kind: 'legislators'; params: Record<string, string> }
   | { kind: 'findMyLegislator'; address?: string }
+  | { kind: 'moneyLanding' }
+  | { kind: 'moneyReports' }
+  | { kind: 'moneyReport'; slug: string }
   | { kind: 'privacy' }
   | { kind: 'siteMetrics' }
   | { kind: 'terms' }
@@ -142,11 +146,15 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
     if (segments[0] === 'search') {
       return { kind: 'bills', params: billsFilterParams(searchParams) };
     }
-    // '/tracked' is the tracked-bills page (the Track dropdown's live "Bills" row
+    // '/tracked' is the tracked-bills page (the Yours dropdown's live "Bills" row
     // links here). Signed-out visitors get a "sign in to track" card, not Home, so
     // the link lands where it says it will (grounded-answers.md rule 5).
     if (segments[0] === 'tracked') {
       return { kind: 'tab', screen: 'Tracked' };
+    }
+    // The campaign money landing — public, no sign-in gate (campaign money IA).
+    if (segments[0] === 'money') {
+      return { kind: 'moneyLanding' };
     }
     // '/chat' and '/account' are old-design or auth-gated surfaces with no shipped
     // page yet — redirect a stray bookmark/link to Home.
@@ -157,6 +165,26 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
 
   if (segments.length === 2 && segments[0] === 'about' && segments[1] === 'contact') {
     return { kind: 'contactUs' };
+  }
+
+  // The reports shelf and one report (campaign money IA; grounded-answers.md
+  // rule 13). The registry of published reports is static and synchronous, so
+  // the router resolves the slug itself: an unpublished or unknown report is a
+  // page that does not exist, and lands on NotFound rather than an empty shell.
+  if (segments.length === 2 && segments[0] === 'money' && segments[1] === 'reports') {
+    return { kind: 'moneyReports' };
+  }
+  if (segments.length === 3 && segments[0] === 'money' && segments[1] === 'reports') {
+    const slug = decodeURIComponent(segments[2]);
+    return reportBySlug(slug)
+      ? { kind: 'moneyReport', slug }
+      : { kind: 'notFound', path: pathname };
+  }
+
+  // The retired greyed "Campaign Finance" tracking row pointed here before the
+  // public money section shipped — forward the old address to /money.
+  if (segments.length === 2 && segments[0] === 'track' && segments[1] === 'campaign-finance') {
+    return { kind: 'moneyLanding' };
   }
 
   // Bill detail and legislator detail resolve to their redesigned profile
@@ -327,6 +355,12 @@ export function pathForRoute(activeRoute: {
         ? `/find-my-legislator?address=${encodeURIComponent(String(address))}`
         : '/find-my-legislator';
     }
+    case 'MoneyLanding':
+      return '/money';
+    case 'MoneyReports':
+      return '/money/reports';
+    case 'MoneyReport':
+      return `/money/reports/${encodeURIComponent(String(activeRoute.params?.slug ?? ''))}`;
     case 'Privacy':
       return '/privacy';
     case 'SiteMetrics':
@@ -451,6 +485,21 @@ export function stateFromPathname(pathname: string): WebNavigationState {
     case 'legislators':
       return {
         routes: [homeTabs, { name: 'Legislators', params: target.params }],
+        index: 1,
+      };
+    case 'moneyLanding':
+      return {
+        routes: [homeTabs, { name: 'MoneyLanding' }],
+        index: 1,
+      };
+    case 'moneyReports':
+      return {
+        routes: [homeTabs, { name: 'MoneyReports' }],
+        index: 1,
+      };
+    case 'moneyReport':
+      return {
+        routes: [homeTabs, { name: 'MoneyReport', params: { slug: target.slug } }],
         index: 1,
       };
     case 'privacy':

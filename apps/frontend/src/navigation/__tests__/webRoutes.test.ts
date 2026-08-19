@@ -237,6 +237,43 @@ describe('live URLs still resolve to themselves', () => {
   });
 });
 
+// The campaign money section is public — no sign-in gate on any of it
+// (campaign money IA §01).
+describe('campaign money routes', () => {
+  it('round-trips the landing through /money', () => {
+    expect(targetFromPathname('/money')).toEqual({ kind: 'moneyLanding' });
+    expect(pathForRoute({ name: 'MoneyLanding' })).toBe('/money');
+  });
+
+  it('round-trips the reports shelf through /money/reports', () => {
+    expect(targetFromPathname('/money/reports')).toEqual({ kind: 'moneyReports' });
+    expect(pathForRoute({ name: 'MoneyReports' })).toBe('/money/reports');
+  });
+
+  // Nothing is published yet, so every report address is a page that does not
+  // exist — NotFound, not an empty shell (grounded-answers.md rule 13; the
+  // registry in lib/moneyReports.ts is deliberately empty until Eugene
+  // approves a report's text for publication).
+  it('sends an unpublished report slug to NotFound', () => {
+    expect(targetFromPathname('/money/reports/outsider-pattern')).toEqual({
+      kind: 'notFound',
+      path: '/money/reports/outsider-pattern',
+    });
+  });
+
+  it('writes a report URL under the shelf', () => {
+    expect(pathForRoute({ name: 'MoneyReport', params: { slug: 'outsider-pattern' } })).toBe(
+      '/money/reports/outsider-pattern',
+    );
+  });
+
+  // The retired greyed "Campaign Finance" tracking row pointed here; the old
+  // address forwards rather than 404ing.
+  it('forwards the old /track/campaign-finance address to the landing', () => {
+    expect(targetFromPathname('/track/campaign-finance')).toEqual({ kind: 'moneyLanding' });
+  });
+});
+
 describe('shared top navigation', () => {
   it('offers Search, Track and About without an active Ask entry', () => {
     expect(MENUS.map((menu) => menu.key)).toEqual(['search', 'track', 'about']);
@@ -307,12 +344,17 @@ describe('Find My Legislator round-trips through its URL', () => {
 });
 
 // Free-form "Ask AI" is a roadmap capability, not the shipped grounded Ask, so it
-// rides in the Search dropdown's greyed "ON THE ROADMAP" row after Candidates
-// and Claimed Profiles.
+// rides in the Search dropdown's greyed "ON THE ROADMAP" row, last. News moved
+// into this group from the old Track menu (campaign money IA, Aug 2026).
 describe('Search dropdown roadmap row', () => {
-  it('reads Candidates, Claimed Profiles, then Ask AI', () => {
+  it('reads Candidates, Claimed Profiles, News, then Ask AI', () => {
     const { roadmap } = navDropdownItems('search');
-    expect(roadmap.map((item) => item.label)).toEqual(['Candidates', 'Claimed Profiles', 'Ask AI']);
+    expect(roadmap.map((item) => item.label)).toEqual([
+      'Candidates',
+      'Claimed Profiles',
+      'News',
+      'Ask AI',
+    ]);
   });
 
   it('keeps Ask AI a greyed roadmap pill, never a live row', () => {
@@ -321,23 +363,46 @@ describe('Search dropdown roadmap row', () => {
   });
 });
 
-// Bill tracking ships, so Track's "Bills" is an active row at the top of the
+// The Campaign money row is live, public, second in Search, and carries the
+// green NEW chip (campaign money IA §01).
+describe('Search dropdown Campaign money row', () => {
+  it('sits second among the live rows, between Bills and Legislators', () => {
+    const { live } = navDropdownItems('search');
+    expect(live.map((item) => item.id)).toEqual([
+      'search-bills',
+      'search-campaign-money',
+      'search-legislators',
+      'search-find-my-legislator',
+    ]);
+  });
+
+  it('is public and marked new', () => {
+    const item = IA.find((entry) => entry.id === 'search-campaign-money');
+    expect(item?.authGated).toBe(false);
+    expect(item?.path).toBe('/money');
+    expect(item?.isNew).toBe(true);
+  });
+});
+
+// Bill tracking ships, so Yours' "Bills" is an active row at the top of the
 // dropdown (icon tile + description + link), not a greyed "ON THE ROADMAP" pill.
-describe('Track dropdown offers Bills as a live row', () => {
+describe('Yours dropdown offers Bills as a live row', () => {
   it('lists Bills under live, not roadmap', () => {
     const { live, roadmap } = navDropdownItems('track');
     expect(live.map((item) => item.id)).toContain('track-bills');
     expect(roadmap.map((item) => item.id)).not.toContain('track-bills');
   });
 
-  it('adds News after Campaign Finance on the roadmap row', () => {
+  // Candidates and News moved to Search's greyed group, and Campaign Finance
+  // became the live Campaign money section, so Legislators is the one greyed
+  // pill left here.
+  it('greys only Legislators on the roadmap row', () => {
     const { roadmap } = navDropdownItems('track');
-    expect(roadmap.map((item) => item.label)).toEqual([
-      'Legislators',
-      'Candidates',
-      'Campaign Finance',
-      'News',
-    ]);
+    expect(roadmap.map((item) => item.label)).toEqual(['Legislators']);
+  });
+
+  it('is labelled Yours, not Track', () => {
+    expect(MENUS.find((menu) => menu.key === 'track')?.label).toBe('Yours');
   });
 });
 
@@ -346,7 +411,6 @@ describe('Mobile menu roadmap row', () => {
     expect(mobileNavRoadmapLabels()).toEqual([
       'Candidates',
       'Claimed Profiles',
-      'Campaign Finance',
       'News',
       'More Tracking',
       'Ask AI',
