@@ -1110,6 +1110,15 @@ record are excluded — which also drops genuinely filed 2002–2007 reports who
 the catalogue does not serve, the safe direction on a list of the newest filings. Rows with no
 period end are excluded too, since nothing orders them and no row can be drawn from them.
 
+**And only periods that have ended**, with the cutoff served as `periods_ended_on_or_before`.
+Measured on production on 19 Aug 2026: the 5 newest rows were 2026 year-end reports covering
+"1 Jan – 31 Dec 2026", 7 such rows in all. Those are real filings — a terminating committee files
+its final report at termination rather than waiting for the period to close, and Paul Novotny's is
+the measured case (`docs/architecture/campaign-finance-system-design.md` §9.8) — but a list of the
+newest filings whose top row covers 4 months of the future reads as an error or as a claim about
+money nobody has raised. It is the missing filing date again: "newest" can only mean the latest
+period, and an unfinished period outranks every finished one.
+
 Each row: `registration_number`, `filer_name`, `filer_kind`, `report_name`, `report_type`,
 `filing_year`, `period_end`, `period_start`, `period_start_source`, `special_election`,
 `amendment_count`, `effective_amendment_index`.

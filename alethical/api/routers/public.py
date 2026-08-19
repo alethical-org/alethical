@@ -3325,6 +3325,15 @@ def campaign_finance_filings(
     That also drops genuinely filed reports from 2002 to 2007, whose amendment record the
     catalogue does not serve, which is the safe direction on a list of the newest filings.
 
+    **Only periods that have ended.** A terminating committee files its final report at
+    termination rather than waiting for the period to close, so on 19 Aug 2026 the 5
+    newest rows were 2026 year-end reports covering "1 Jan - 31 Dec 2026" -- 7 such rows
+    against 1,261 catalogued 2026 pre-primary reports. Real filings, and a top row
+    covering 4 months of the future reads as an error or as a claim about money nobody has
+    raised. With no filing date, "newest" can only mean the latest period, and an
+    unfinished period outranks every finished one, so the cutoff is served as
+    ``periods_ended_on_or_before``.
+
     ``period_start`` is ``null`` on many rows and that is a designed state, not a gap: the
     row then reads "covers through {period_end}". §7 forbids hardcoding 1 January, so a
     start is only served when one of the Board's own transcribed disclosure calendars
@@ -3343,6 +3352,7 @@ def campaign_finance_filings(
         data={
             "state": page.state,
             "ordered_by": page.ordered_by,
+            "periods_ended_on_or_before": page.periods_ended_on_or_before,
             "filings": [
                 {
                     "registration_number": row.registration_number,
