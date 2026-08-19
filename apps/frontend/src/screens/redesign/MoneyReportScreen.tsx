@@ -264,7 +264,7 @@ export function MoneyReportScreen({ navigation, route }: RootScreenProps<'MoneyR
 
             <View style={styles.column}>
               {report.newerFilingsNote ? (
-                <View style={styles.newerBanner}>
+                <View style={[styles.newerBanner, isMobile && styles.bannerMobile]}>
                   <Text style={styles.newerBannerLabel}>NEWER FILINGS EXIST</Text>
                   <Text style={styles.newerBannerText}>{report.newerFilingsNote}</Text>
                 </View>
@@ -292,7 +292,7 @@ export function MoneyReportScreen({ navigation, route }: RootScreenProps<'MoneyR
               </View>
 
               {report.correction ? (
-                <View style={styles.correctionBanner}>
+                <View style={[styles.correctionBanner, isMobile && styles.bannerMobile]}>
                   <Text style={styles.correctionLabel}>{report.correction.datedLabel}</Text>
                   <Text style={styles.correctionText}>{report.correction.note}</Text>
                 </View>
@@ -392,6 +392,9 @@ const styles = StyleSheet.create({
     borderRadius: 13,
     padding: 18,
   },
+  // Phone widths stack a banner's label above its sentence; side by side the
+  // label column eats half the screen.
+  bannerMobile: { flexDirection: 'column', gap: 8 },
   newerBanner: {
     marginBottom: 26,
     flexDirection: 'row',
@@ -454,7 +457,7 @@ const styles = StyleSheet.create({
     gap: 24,
     flexWrap: 'wrap',
   },
-  mastheadMeta: { minWidth: 0, gap: 7 },
+  mastheadMeta: { flexShrink: 1, minWidth: 0, gap: 7 },
   mastheadLine: {
     color: t.colors.text.muted,
     fontFamily: t.typography.mono,

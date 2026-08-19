@@ -224,6 +224,18 @@ function MenuRowIcon({ itemId, disabled }: { itemId: string; disabled?: boolean 
             />
           </>
         ) : null}
+        {itemId === 'search-campaign-money' ? (
+          // A dollar-marked ledger sheet: money as a record, not a coin.
+          <>
+            <Rect x={4.5} y={3.5} width={15} height={17} rx={2} stroke={c} strokeWidth={2} />
+            <Path
+              d="M14.4 8.6c-.5-.8-1.4-1.2-2.4-1.2-1.4 0-2.5.8-2.5 2s1 1.7 2.5 2c1.5.3 2.5.9 2.5 2.1s-1.1 2-2.5 2c-1 0-1.9-.5-2.4-1.2M12 6v1.4M12 15.5V17"
+              stroke={c}
+              strokeWidth={2}
+              strokeLinecap="round"
+            />
+          </>
+        ) : null}
         {itemId === 'search-find-my-legislator' ? (
           <>
             <Path
