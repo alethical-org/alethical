@@ -442,6 +442,14 @@ def recent_filings(
         )
         .where(
             report.snapshot_id == snapshot.id,
+            # Not an optimization, and never remove it to widen the feed. An amendment
+            # record is the Board's own positive signal that a report was FILED: every
+            # filed report carries at least ['0'] and a report nobody has filed carries
+            # none (`docs/architecture/campaign-finance-system-design.md` §9.6). The
+            # catalogue is a schedule, so without this line the feed prints a report as
+            # filed under a named politician's committee that has not filed it. §9.6 also
+            # rules that this must be read from the version history and never inferred
+            # from a failed document download, which is what this column stores.
             report.effective_amendment_index.is_not(None),
             report.cut_off_date.is_not(None),
             report.cut_off_date <= as_of,
