@@ -1,6 +1,6 @@
 # Alethical Backend API System Design
 
-<!-- describes: alethical/api/routers/*.py, alethical/api/problems.py, alethical/api/serializers.py, alethical/api/services/representative_lookup.py, alethical/api/services/contact.py, alethical/api/services/independent_spending.py, alethical/api/services/committee_finance.py, alethical/api/services/campaign_finance_payments.py, alethical/api/auth.py, alethical/api/services/auth.py -->
+<!-- describes: alethical/api/routers/*.py, alethical/api/problems.py, alethical/api/serializers.py, alethical/api/services/representative_lookup.py, alethical/api/services/contact.py, alethical/api/services/independent_spending.py, alethical/api/services/committee_finance.py, alethical/api/services/campaign_finance_payments.py, alethical/api/services/campaign_finance_register.py, alethical/api/auth.py, alethical/api/services/auth.py -->
 
 Status: **design reference, not an inventory of what exists.** Much of this document is the
 target shape rather than the shipped API, and the two used to be indistinguishable here: it
@@ -1021,6 +1021,114 @@ different day's data.
 **Neither is wired to any client yet.** Nothing under `apps/frontend/src` references either; the
 clicking belongs to [#1331](https://github.com/alethical-org/alethical/issues/1331)'s remaining
 half, which waits on [#1329](https://github.com/alethical-org/alethical/issues/1329).
+
+#### `GET /api/v1/campaign-finance/summary`
+
+Shipped Aug 19 2026. What the `/money` landing page opens with: 3 counted blocks and 2 dates,
+for the lane cards, the confirmation sentence and the "files last copied" line drawn in
+`docs/design/handoff-campaign-money/Campaign money IA.dc.html` section 01.
+
+Purpose:
+
+- how many filers Minnesota's register holds, in total and per register kind
+- how many sitting members have a committee a person has confirmed is theirs, out of how many
+  are sitting
+- when each copy of Minnesota's data was last taken
+
+No parameters. **No amount of any kind is served**, so no total summed across members or filers
+can reach a lane card (`.claude/rules/grounded-answers.md` rule 12, and
+`docs/architecture/campaign-finance-system-design.md` §7, which forbids ranking members whose
+filing calendars differ).
+
+**Every figure is counted at read time.** A pasted count is how that page once said 1,336
+registered filers on a day the register held 1,603
+([#1661](https://github.com/alethical-org/alethical/issues/1661)), so `filer_count` and
+`by_kind` are one grouped count over `cf_filer` in the published snapshot.
+
+**Three blocks, 3 states, deliberately not one state for the response.** They read 3
+independent things — the Board's register, our own confirmation log, and the 3 bulk downloads —
+and one missing piece must not blank the other 2 lanes, the same per-block rule
+`/committees/{registration_number}/finance` follows.
+
+- `register` — `state`, `filer_count`, `by_kind` (all 3 of `candidate_committee`, `party_unit`,
+  `political_committee_or_fund`, including a kind counting 0, which is a measured zero because
+  the register is loaded whole per snapshot), `as_of`, `snapshot_id`, `reason`.
+- `legislator_committee_confirmations` — `state`, `confirmed_member_count`,
+  `sitting_member_count`, `newest_confirmation_at`, `reason`. **The only figure on the product
+  that speaks about the whole set**; every per-member surface speaks about that member alone.
+  `sitting_member_count` is filtered exactly as `legislator_directory_stmt` filters the
+  `/legislators` directory this lane opens, so the 2 cannot describe different populations; it
+  counts people once each, which differs from the directory's row count only if a member holds 2
+  current service periods in one session. Rejected links are stored in the same table and are
+  deliberately not counted: "we looked and it is not theirs" is not a confirmed committee.
+- `freshness` — `downloads_fetched_at` (the landing's "files last copied" date,
+  [#861](https://github.com/alethical-org/alethical/issues/861)), `register_fetched_at`,
+  `release_id`. Two runs, copied on the same day today and still 2 sources, so one date does not
+  stand in for both. Neither is the period any money covers: every period ends earlier. Both are
+  normalized to UTC, because Postgres returns a `timestamptz` in the session's own timezone and
+  an unnormalized read names the wrong **day** for any run that finished in the small hours.
+
+**A count we could not compute is `null`, never 0**, with the block's `reason` naming which of
+our gaps it was: `no_filings_snapshot` (no register loaded at all), `rows_replaced` (the
+snapshot we resolved has been replaced under this read, which its rows survive exactly one
+further publish), `no_current_legislative_session`. A **0 confirmed** is served as `0`, because
+the confirmation log is ours and its emptiness is a fact we know.
+
+**No 503**, unlike the committee routes: a missing download release only empties the freshness
+dates, and an explicit `null` beside a `reason` cannot be read as a zero.
+
+#### `GET /api/v1/campaign-finance/filings`
+
+Shipped Aug 19 2026. The landing's "filings as they arrive" list.
+
+Purpose:
+
+- the filed reports we hold with the latest periods, newest period end first, each carrying its
+  filer's name, the report, and the period it covers
+
+`limit` (default 10, max 100) and `offset`. **There is no sort parameter and no row carries an
+amount**: 5 rows with 5 dollar figures is a ranking whether anyone sorted it or not, and these
+rows are why it would mislead — 2 periods can end 20 Jul 2026 while 2 more end 31 Dec 2025,
+nearly 7 months earlier.
+
+**`ordered_by` is served because the order is not the one the design asked for.** The design
+draws a filed date on every row and **we hold none**: the Board's report catalogue serves 17
+fields per report and no filing date among them
+(`docs/architecture/campaign-finance-system-design.md` §9.6), and the "Received by the Board"
+date is printed inside the report document, which is served only from 2023 and answers a failure
+with HTTP 200 and an HTML page. So this is ordered by `period_end` and **no filing-date field
+exists here at all** — a period end relabelled as a filing date would be a fabricated fact about
+a named committee. Storing a real one is
+[#1670](https://github.com/alethical-org/alethical/issues/1670); until it lands no surface may
+print "filed on" beside these rows.
+
+**Only reports somebody actually filed.** The catalogue is a schedule: it lists a report from the
+moment its filing period opens, filed or not, and 7 of the 1,261 catalogued 2026 pre-primary
+reports were unfiled when the filing-calendars module measured them. An unfiled report carries no
+amendment record while every filed one carries at least `['0']` (§9.6), so rows with no amendment
+record are excluded — which also drops genuinely filed 2002–2007 reports whose amendment record
+the catalogue does not serve, the safe direction on a list of the newest filings. Rows with no
+period end are excluded too, since nothing orders them and no row can be drawn from them.
+
+Each row: `registration_number`, `filer_name`, `filer_kind`, `report_name`, `report_type`,
+`filing_year`, `period_end`, `period_start`, `period_start_source`, `special_election`,
+`amendment_count`, `effective_amendment_index`.
+
+**`period_start` is `null` on many rows and that is a designed state**, not a gap: the row then
+reads "covers through {period_end}". §7 forbids hardcoding 1 January, so a start is served only
+where one of the Board's own transcribed disclosure calendars prints it against that period end
+(`period_start_source: "board_calendar"`, from `CALENDARS` in
+`alethical/pipeline/campaign_finance_filing_calendars.py`), and never for a filer with a
+special-election report that year — filer 19223's 2025 period opens 11 July (§9.5). Only the 2026
+calendars are transcribed, so 2024 and earlier carry no start.
+
+`state` decides whether `filings` may be read: `reported` means the rows are real, `unavailable`
+with a `reason` means `no_filings_snapshot` or `rows_replaced`. An empty list is never a claim
+that nobody has filed. `page` keeps this document's offset contract (`limit`, `offset`,
+`has_more`, with `limit + 1` fetched).
+
+**Neither endpoint is wired to a client in this PR.** The `/money` landing that reads them is
+built in parallel by the frontend half of the campaign money phase 1 work.
 
 ### Districts and Lookup
 

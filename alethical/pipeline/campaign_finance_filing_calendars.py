@@ -428,6 +428,35 @@ def calendar_for(
     return None
 
 
+def printed_period_start_for_end(period_end: date) -> Optional[date]:
+    """The period start the Board's own calendars print against this period end.
+
+    ``docs/architecture/campaign-finance-system-design.md`` §7 (Display rules) forbids
+    hardcoding 1 January as a period start, because a special-election filer's period
+    does not open there. This is the grounded alternative: the 4 transcribed calendars
+    each print both ends of every periodic report, so a period end that appears on them
+    carries a printed start, read off a document rather than assumed.
+
+    ``None`` in 2 cases, and both are the "covers through" state rather than a fault:
+    no transcribed calendar names this end (every year before 2025's year-end, since
+    only the 2026 calendars are transcribed), or 2 of them disagree about the start. The
+    calendars agree on every end they share today; the disagreement branch exists so a
+    future transcription cannot introduce one silently.
+
+    **It answers about the regular report series only.** Nothing here knows whether the
+    filer is on a special-election series, whose start these calendars do not print, so
+    the caller excludes those filer-years before asking (``recent_filings`` in
+    ``alethical/api/services/campaign_finance_register.py``).
+    """
+    starts = {
+        entry.period_start
+        for entries in CALENDARS.values()
+        for entry in entries
+        if entry.period_end == period_end
+    }
+    return starts.pop() if len(starts) == 1 else None
+
+
 def classify(
     *,
     registration_number: str,
