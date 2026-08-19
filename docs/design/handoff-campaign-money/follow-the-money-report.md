@@ -1,12 +1,19 @@
-<!-- Source text for the first published Alethical research report. Transcribed verbatim
-     from Angel's "Follow the Money: Plain Language" document, 17 Aug 2026, supplied by
-     Eugene 18 Aug 2026 with the instruction to publish exactly as written. Do not edit the
-     prose to fit a layout; the layout accommodates the prose.
+<!-- NOT PUBLISHED. This text is not on any reader-facing page, and putting it on one is a
+     separate decision Eugene has not made yet (his instruction, 19 Aug 2026, superseding the
+     18 Aug one this header used to carry). Phase 1 builds the report page and its shelf as an
+     empty container: the structure ships, the words do not. The shelf ships in its
+     nothing-published-yet state.
 
-     Publishing conditions live in .claude/rules/grounded-answers.md rule 13 (signed
-     reports). The figures here have NOT yet been recomputed against our own loaded data:
-     Eugene's decision, 18 Aug 2026, is to publish first and run the recompute pass before
-     phase 2 begins, because the dated struck-through correction path is already designed.
+     Source text for the first Alethical research report, transcribed verbatim from Angel's
+     "Follow the Money: Plain Language" document, 17 Aug 2026. Do not edit the prose to fit a
+     layout; the layout accommodates the prose.
+
+     Two conditions attach to it whenever publication is decided. Publishing conditions live in
+     .claude/rules/grounded-answers.md rule 13 (signed reports). And the figures here have not
+     been recomputed against our own loaded data: the recompute pass runs before phase 2, and
+     the dated struck-through correction path the design carries is what would make publishing
+     ahead of it safe.
+
      Section headings match the contents rail in "Money report web.dc.html". -->
 
 # Follow the Money: Why Outsiders in Both Parties Are Fighting the Same Fight
