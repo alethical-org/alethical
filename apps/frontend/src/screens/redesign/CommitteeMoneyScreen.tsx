@@ -4,6 +4,7 @@ import Svg, { Path } from 'react-native-svg';
 
 import { SharePopover } from '../../components/billDetail/SharePopover';
 import { YearControl } from '../../components/campaignMoney/CampaignMoneyTab';
+import { UnderDevelopmentNotice } from '../../components/campaignMoney/UnderDevelopmentNotice';
 import { Skeleton } from '../../components/Skeleton';
 import type { CommitteeMoney } from '../../data/types';
 import {
@@ -182,6 +183,12 @@ export function CommitteeMoneyScreen({ navigation, route }: RootScreenProps<'Com
     <PageBackground>
       <ScrollView contentContainerStyle={styles.page}>
         <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
+
+        {/* The section is partially built (lists and search are phase 3) and
+            nothing else on the page says so at a glance. Deleting the element
+            and its component file is the whole removal. */}
+        <UnderDevelopmentNotice />
+
         <Container style={[styles.main, isMobile && styles.mainMobile]}>
           <Pressable
             {...linkProps(routePath.money(), () => navigation.navigate('MoneyLanding'))}

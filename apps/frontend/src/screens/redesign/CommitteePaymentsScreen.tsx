@@ -2,6 +2,7 @@ import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-na
 import Svg, { Path } from 'react-native-svg';
 
 import { YearControl } from '../../components/campaignMoney/CampaignMoneyTab';
+import { UnderDevelopmentNotice } from '../../components/campaignMoney/UnderDevelopmentNotice';
 import { Skeleton } from '../../components/Skeleton';
 import type { CommitteeMadePayment, CommitteeReceivedPayment } from '../../data/types';
 import { useCommitteeMoney, useCommitteePaymentsList } from '../../hooks/useAppQueries';
@@ -129,6 +130,12 @@ export function CommitteePaymentsScreen({
     <PageBackground>
       <ScrollView contentContainerStyle={styles.page}>
         <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
+
+        {/* The section is partially built (lists and search are phase 3) and
+            nothing else on the page says so at a glance. Deleting the element
+            and its component file is the whole removal. */}
+        <UnderDevelopmentNotice />
+
         <Container style={[styles.main, isMobile && styles.mainMobile]}>
           <Pressable
             {...linkProps(routePath.moneyCommittee(slug, { tab, year: String(year) }), () =>
