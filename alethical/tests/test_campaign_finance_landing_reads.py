@@ -32,6 +32,7 @@ import pytest
 from sqlalchemy import select, text
 
 from alethical.api.services.campaign_finance_register import (
+    report_corrections,
     NO_FILINGS_SNAPSHOT,
     ROWS_REPLACED,
 )
@@ -720,9 +721,186 @@ def test_paging_reports_more_without_counting_the_whole_catalogue(client, db) ->
     second = client.get(FILINGS, params={"limit": 2, "offset": 2}).json()["data"]
 
     assert len(first["filings"]) == 2
-    assert first["page"] == {"limit": 2, "offset": 2 - 2, "has_more": True}
+    assert first["page"] == {
+        "limit": 2,
+        "offset": 2 - 2,
+        "has_more": True,
+        "total": 3,
+    }
     assert len(second["filings"]) == 1
     assert second["page"]["has_more"] is False
+
+
+def test_the_total_counts_exactly_the_set_the_rows_came_from(client, db) -> None:
+    """The count carries the feed's own exclusions, so it describes its own list (#1677).
+
+    A report nobody filed and a report whose period has not ended are both outside the
+    list and outside the number. Without any count, 5 rows beginning "100 Percent Future
+    Fund" read as a shortlist of the newest or the biggest.
+
+    **This is not the landing's "N committees filed for this period" figure**, which is
+    ``newest_period.filing_count`` and is pinned below. This one counts every ended filed
+    report we hold, across every period: 33,612 on production against that one's 1,203.
+    """
+    snapshot = _filings_snapshot(db, report_count=4)
+    _filer(db, snapshot, CANDIDATE)
+    _report(db, snapshot, CANDIDATE, report_name="Filed and ended")
+    _report(db, snapshot, CANDIDATE, report_name="Filed and ended too")
+    # Scheduled but nobody filed it: no amendment record (§9.6).
+    _report(db, snapshot, CANDIDATE, report_name="Unfiled", amendment_index=None)
+    # Filed, but its period runs to the end of 2026 and has not closed.
+    _report(
+        db, snapshot, CANDIDATE, report_name="Not ended", cut_off=date(2026, 12, 31)
+    )
+
+    data = client.get(FILINGS, params={"limit": 1}).json()["data"]
+
+    assert data["page"]["total"] == 2
+    assert data["page"]["has_more"] is True
+    assert len(data["filings"]) == 1
+
+
+def test_the_period_count_is_the_newest_periods_own_and_never_the_whole_set(
+    client, db
+) -> None:
+    """ "N committees filed for this period" needs the period's count, not the feed's.
+
+    The 2 numbers differ by 28-fold on production -- 1,203 filings carry the newest
+    period end of 20 Jul 2026 against 33,612 ended filed reports in all -- so a page
+    printing the feed's total in that sentence overstates one period by a factor of 28
+    under a named date. Here the same shape in miniature: 3 in the newest period, 5 in
+    the feed.
+    """
+    snapshot = _filings_snapshot(db, report_count=5)
+    _filer(db, snapshot, CANDIDATE)
+    for index in range(3):
+        _report(db, snapshot, CANDIDATE, report_name=f"Newest {index}")
+    _report(db, snapshot, CANDIDATE, report_name="Older", cut_off=date(2026, 5, 31))
+    _report(db, snapshot, CANDIDATE, report_name="Oldest", cut_off=date(2025, 12, 31))
+
+    data = client.get(FILINGS, params={"limit": 2}).json()["data"]
+
+    assert data["page"]["total"] == 5
+    assert data["newest_period"]["filing_count"] == 3
+    assert data["newest_period"]["period_end"] == PRE_PRIMARY_END.isoformat()
+    # All 3 of those reports belong to one committee here, so this fixture also shows
+    # the 2 counts of one period coming apart -- 3 documents, 1 committee.
+    assert data["newest_period"]["committee_count"] == 1
+
+
+def test_the_period_count_is_the_same_whatever_page_was_asked_for(client, db) -> None:
+    """Counted over the filter, never read off the rows on screen.
+
+    The newest period's filings run past the end of any one page -- 1,203 of them against
+    a landing that draws 5 -- so a count taken from the returned rows would be a count of
+    the page wearing the period's name, and it would shrink as a reader paged.
+    """
+    snapshot = _filings_snapshot(db, report_count=4)
+    _filer(db, snapshot, CANDIDATE)
+    for index in range(3):
+        _report(db, snapshot, CANDIDATE, report_name=f"Newest {index}")
+    _report(db, snapshot, CANDIDATE, report_name="Older", cut_off=date(2026, 5, 31))
+
+    first = client.get(FILINGS, params={"limit": 1}).json()["data"]
+    deep = client.get(FILINGS, params={"limit": 1, "offset": 3}).json()["data"]
+
+    assert first["newest_period"] == deep["newest_period"]
+    assert deep["newest_period"]["filing_count"] == 3
+    # The page it was read from is genuinely past that period, so the count cannot have
+    # come from the rows returned.
+    assert deep["filings"][0]["period_end"] == "2026-05-31"
+
+
+def test_the_period_count_carries_the_feeds_exclusions_like_the_total_does(client, db):
+    """An unfiled report is outside the list, so it is outside the period's count too.
+
+    The catalogue is a schedule: it lists a report from the moment its period opens. A
+    count that included the unfiled ones would say more committees filed for a period
+    than actually did, which is a false claim about named committees.
+    """
+    snapshot = _filings_snapshot(db, report_count=3)
+    _filer(db, snapshot, CANDIDATE)
+    _report(db, snapshot, CANDIDATE, report_name="Filed")
+    _report(db, snapshot, CANDIDATE, report_name="Unfiled", amendment_index=None)
+    _report(db, snapshot, CANDIDATE, report_name="Also unfiled", amendment_index=None)
+
+    data = client.get(FILINGS).json()["data"]
+
+    assert data["newest_period"]["filing_count"] == 1
+
+
+def test_one_committee_filing_twice_for_a_period_counts_once_as_a_committee(
+    client, db
+) -> None:
+    """ "N committees filed" and "N filings" are different claims (#1677, review round 2).
+
+    A committee reaches 2 rows for one period end by filing 2 different reports that
+    close the same day, and a count of documents is then larger than a count of
+    committees while looking exactly like it. Measured on production 20 Aug 2026 the 2
+    are identical -- 1,203 each on the newest period, and no divergence across 3,000
+    filings in the 25 next-newest periods -- so this is the case the data does not
+    currently contain, pinned here so the distinction cannot be optimised away as a
+    duplicate of ``filing_count``.
+
+    **Amendments are not this case.** A report's whole amendment list is folded onto its
+    single catalogue row as ``amendment_count`` and ``effective_amendment_index``
+    (``alethical/pipeline/campaign_finance_filings.py``), so an amended report is one row
+    however many times it was amended.
+    """
+    snapshot = _filings_snapshot(db, report_count=3)
+    _filer(db, snapshot, CANDIDATE)
+    _filer(db, snapshot, PARTY_UNIT, name="HRCC")
+    # One committee, 2 different reports, both closing on the same day.
+    _report(db, snapshot, CANDIDATE, report_name="Pre-Primary", report_type="C")
+    _report(db, snapshot, CANDIDATE, report_name="Special Election", report_type="G")
+    _report(db, snapshot, PARTY_UNIT, report_name="Pre-Primary", report_type="C")
+
+    period = client.get(FILINGS).json()["data"]["newest_period"]
+
+    assert period["filing_count"] == 3
+    assert period["committee_count"] == 2
+
+
+def test_an_amended_report_is_one_filing_and_one_committee(client, db) -> None:
+    """367 of 1,005 catalogued reports carry at least one amendment (#1661).
+
+    If an amendment made a second row, the newest period's counts would both inflate on
+    every amended report, and "N committees filed" would overstate by however many
+    committees amended. It does not: the catalogue serves one entry per report with its
+    amendment list attached, and the loader folds that list into 2 columns.
+    """
+    snapshot = _filings_snapshot(db, report_count=1)
+    _filer(db, snapshot, CANDIDATE)
+    _report(db, snapshot, CANDIDATE, amendment_index=3, amendment_count=4)
+
+    period = client.get(FILINGS).json()["data"]["newest_period"]
+
+    assert period["filing_count"] == 1
+    assert period["committee_count"] == 1
+    assert client.get(FILINGS).json()["data"]["filings"][0]["amendment_count"] == 4
+
+
+def test_a_period_count_we_cannot_compute_is_absent_rather_than_zero(client, db):
+    """No register held is not "nobody filed for this period" (rule 12)."""
+    empty = {"period_end": None, "filing_count": None, "committee_count": None}
+    assert client.get(FILINGS).json()["data"]["newest_period"] == empty
+
+    _filings_snapshot(db, report_count=1005)
+
+    replaced = client.get(FILINGS).json()["data"]
+    assert replaced["reason"] == ROWS_REPLACED
+    assert replaced["newest_period"] == empty
+
+
+def test_a_total_we_cannot_compute_is_absent_rather_than_zero(client, db) -> None:
+    """0 filings filed and "we hold no register" are different facts (rule 12)."""
+    assert client.get(FILINGS).json()["data"]["page"]["total"] is None
+
+    _filings_snapshot(db, report_count=1005)
+
+    replaced = client.get(FILINGS).json()["data"]
+    assert replaced["reason"] == ROWS_REPLACED
+    assert replaced["page"]["total"] is None
 
 
 def test_the_limit_is_capped_so_one_request_cannot_ask_for_the_catalogue(
@@ -730,3 +908,56 @@ def test_the_limit_is_capped_so_one_request_cannot_ask_for_the_catalogue(
 ) -> None:
     """The live catalogue holds 36,655 rows; the landing draws 5."""
     assert client.get(FILINGS, params={"limit": 500}).status_code == 422
+
+
+def test_a_corrected_report_is_told_apart_from_one_nobody_has_filed(db) -> None:
+    """3 answers, and reading any 2 of them as the same invents a fact (#1648).
+
+    A committee-year whose report has been refiled with different figures explains a
+    stored total that will not line up with our rows. One still on its first version
+    rules that explanation out. And a committee-year we hold no version history for
+    rules nothing out either way, so it answers ``None`` rather than 0 -- a count we
+    cannot compute is absent, never a measured zero
+    (``.claude/rules/grounded-answers.md`` rule 12).
+
+    Wynfred Russell's House committee (19086) is the live case: its 2026 pre-primary
+    report is on version 1 of 2, and the Board's totals service was still serving the
+    version-0 figures 8 days after the correction.
+    """
+    snapshot = _filings_snapshot(db, report_count=3)
+    _report(db, snapshot, "19086", year=2026, amendment_index=1, amendment_count=2)
+    _report(db, snapshot, "17709", year=2026, amendment_index=0, amendment_count=1)
+    _report(
+        db, snapshot, "20010", year=2026, amendment_index=None, amendment_count=None
+    )
+
+    assert report_corrections(db, "19086", 2026) == 1
+    assert report_corrections(db, "17709", 2026) == 0
+    assert report_corrections(db, "20010", 2026) is None
+    # A year with no catalogued report at all is the same "we cannot say" as a report
+    # nobody has filed.
+    assert report_corrections(db, "19086", 2024) is None
+
+
+def test_the_years_latest_version_is_the_years_answer(db) -> None:
+    """A Minnesota report restates the whole year, so the highest version wins.
+
+    A committee files several reports in a year and any of them can be corrected. Taking
+    the first one found would let an uncorrected year-end report hide a corrected
+    pre-primary one, which is the direction that loses the explanation.
+    """
+    snapshot = _filings_snapshot(db, report_count=2)
+    _report(db, snapshot, CANDIDATE, year=2026, report_type="C", amendment_index=0)
+    _report(
+        db,
+        snapshot,
+        CANDIDATE,
+        year=2026,
+        report_type="YE",
+        report_name="2026 Year-End Report",
+        cut_off=date(2026, 12, 31),
+        amendment_index=2,
+        amendment_count=3,
+    )
+
+    assert report_corrections(db, CANDIDATE, 2026) == 2

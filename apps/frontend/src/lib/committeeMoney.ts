@@ -399,17 +399,17 @@ export function moneyOutNote(
     }
     return isBallot
       ? 'Minnesota’s public file names only payments above a naming threshold, and it names none for this committee this year. That does not mean the committee paid out nothing.'
-      : 'Minnesota only publishes a committee’s payments over $200, and it published none for this committee this year. That does not mean the committee paid out nothing.';
+      : 'Minnesota only names a recipient once payments to them pass $200 in total for the year, and it named none for this committee this year. That does not mean the committee paid out nothing.';
   }
   if (hasReportedTotal) {
     // Two numbers, both correct, never subtracted — the same rule as money in.
     return isBallot
       ? 'The total above is the filing’s own figure for the period it names. The payments we can list come from the state’s payments file, which names only payments above a naming threshold, so the two are different figures and we do not subtract one from the other. Money out is not all spending: some of it is money given to other campaigns, listed below.'
-      : 'The total above is the filing’s own figure for the period it names. The payments we can list come from the state’s payments file, which names only payments over $200, so the two are different figures and we do not subtract one from the other. Money out is not all spending: some of it is money given to other campaigns, listed below.';
+      : 'The total above is the filing’s own figure for the period it names. The payments we can list come from the state’s payments file, which names a recipient only once payments to them pass $200 in total for the year, so the two are different figures and we do not subtract one from the other. Money out is not all spending: some of it is money given to other campaigns, listed below.';
   }
   return isBallot
     ? 'Our copy of the state’s figures holds no reported total for this year’s money out, so there is no bigger number to compare this against. Money out is not all spending: some of it is money given to other campaigns, listed below.'
-    : 'Our copy of the state’s figures holds no reported total for this year’s money out, so there is no bigger number to compare this against. Minnesota only publishes payments over $200. Money out is not all spending: some of it is money given to other campaigns, listed below.';
+    : 'Our copy of the state’s figures holds no reported total for this year’s money out, so there is no bigger number to compare this against. Minnesota only names a recipient once payments to them pass $200 in total for the year. Money out is not all spending: some of it is money given to other campaigns, listed below.';
 }
 
 // --- The two lists and the payments view ----------------------------------------------
@@ -432,6 +432,119 @@ export const PAYMENTS_TAB_LABELS: Record<PaymentsTab, string> = {
   gave: 'Who gave',
   spent: 'Where it went',
 };
+
+// --- The Filings tab -------------------------------------------------------------------
+
+/** The committee page's three tabs. The full-payments view keeps `PaymentsTab`:
+ *  filings have no "see every payment" page behind them. */
+export type CommitteeTab = PaymentsTab | 'filings';
+
+export function committeeTabFromParam(raw: string | undefined | null): CommitteeTab {
+  if (raw === 'filings') return 'filings';
+  return paymentsTabFromParam(raw);
+}
+
+export const COMMITTEE_TAB_LABELS: Record<CommitteeTab, string> = {
+  gave: 'Who gave',
+  spent: 'Where it went',
+  filings: 'Filings',
+};
+
+/** Not "every report" — the Board's catalogue carries no filing record for most
+ *  pre-2008 rows, so a completeness claim would be one we cannot check. The rows
+ *  themselves are each a filed report; `unlistedReportsLine` says the boundary. */
+export const FILINGS_HEADLINE = 'REPORTS THIS COMMITTEE HAS FILED';
+
+/**
+ * The printed ordering sentence, derived from the served `ordered_by` through this
+ * one mapping so the words and the order can never drift apart. The drawn design
+ * says "by the date filed", and that sentence does not ship: we hold no filing
+ * date for any report (issue #1670), so nothing here may print or imply one. An
+ * `ordered_by` this mapping does not know prints no sentence rather than a guess.
+ */
+export function filingsOrderingLine(orderedBy: string): string | null {
+  if (orderedBy === 'period_end') {
+    return 'Newest first, by the period each report covers — never by amount';
+  }
+  return null;
+}
+
+/**
+ * The period a filing covers, both ends read off the Board's own records — never
+ * an assumed January. Start unresolved → "Covers through {end}". No end at all →
+ * null, and the row carries the report name with no period line.
+ */
+export function filingRowPeriodLine(filing: {
+  periodStart: string | null;
+  periodEnd: string | null;
+}): string | null {
+  const end = formatDay(filing.periodEnd);
+  if (!end) return null;
+  const start = formatDay(filing.periodStart);
+  if (!start) return `Covers through ${end}`;
+  return `Covers ${start} – ${end}`;
+}
+
+/** The neutral marker on a report whose effective version is an amendment. It
+ *  carries no date: the catalogue's amendment record is version indexes only, and
+ *  a dated chip would be a fabricated fact about a named committee. Never amber —
+ *  amber is reserved for bill identity. */
+export const AMENDED_CHIP = 'AMENDED';
+
+/** Index 0 is the original; 1 and up mean the report on file is an amendment. A
+ *  missing prior figure never suppresses this — the record of the versions is
+ *  reliable even where old documents are not. */
+export function filingIsAmended(effectiveAmendmentIndex: number | null): boolean {
+  return effectiveAmendmentIndex !== null && effectiveAmendmentIndex >= 1;
+}
+
+/** "16 reports filed" / "Showing 100 of 120 reports filed". */
+export function filingsCountLine(shown: number, total: number | null): string | null {
+  if (total === null) return null;
+  if (shown < total) {
+    return `Showing ${shown.toLocaleString('en-US')} of ${total.toLocaleString('en-US')} reports filed`;
+  }
+  return `${total.toLocaleString('en-US')} ${total === 1 ? 'report' : 'reports'} filed`;
+}
+
+/**
+ * The list's honest boundary, printed only when it exists: the catalogue lists
+ * some reports without saying whether they were filed — a report whose filing
+ * period has opened but which nobody has filed, or one so old the Board serves no
+ * record either way (ordinary before 2008). Left out rather than shown as filed,
+ * and said out loud rather than implied away.
+ */
+export function unlistedReportsLine(count: number | null): string | null {
+  if (!count) return null;
+  const reports = count === 1 ? 'report' : 'reports';
+  return (
+    `The Board's catalogue lists ${count.toLocaleString('en-US')} ${reports} for this ` +
+    `committee without saying whether ${count === 1 ? 'it was' : 'they were'} filed — a report ` +
+    `can be listed before anyone files it, and for the oldest reports the Board keeps no ` +
+    `record either way. ${count === 1 ? 'It is' : 'They are'} left out rather than shown as filed.`
+  );
+}
+
+/** Under the list, on every non-empty view. The Board's own calendars are the only
+ *  source of a period start (design doc §7). */
+export const FILINGS_PERIOD_NOTE =
+  'The end of every period is read off the filing itself. A start is shown only where one of ' +
+  'the Board’s own filing calendars prints it — never an assumed January 1, because not every ' +
+  'filer’s year opens then. Where no start resolves, the row reads “covers through” its end date.';
+
+export const FILINGS_EMPTY_TITLE = 'No filed reports in our copy';
+
+/** An empty list is a fact about the Board's catalogue as we hold it, never a
+ *  claim that the committee did something wrong — and never a lateness claim,
+ *  which no page may make (#1642). */
+export const FILINGS_EMPTY_WHY =
+  'The Board’s report catalogue, as we last copied it, records no filed report for this ' +
+  'committee. That is a fact about the catalogue and our copy of it, not a statement about ' +
+  'the committee.';
+
+export const FILINGS_UNAVAILABLE =
+  'We could not read this committee’s filings out of our copy of the Board’s catalogue. This ' +
+  'is a gap on our side, not a statement about the committee.';
 
 /** "Showing 250 of 1,284 payments named" / "41 payments named in this period". */
 export function showingLine(shown: number, total: number | null): string | null {

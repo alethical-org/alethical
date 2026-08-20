@@ -72,7 +72,7 @@ One committee's money for one year, from Minnesota's own filings. The number at 
 of the address is the committee's registration number with the state, and it is the only
 part that has to be right: committee names collide and numbers do not, so an old or
 misspelled name part still lands on the right page, and the address then quietly corrects
-itself to the current spelling. The chosen year and list ride in the address, so a shared
+itself to the current spelling. The chosen year and tab ride in the address, so a shared
 link shows the receiver exactly what the sender saw.
 
 **Until the committees list and search ship (phase 3), these pages are reached only by
@@ -108,6 +108,7 @@ Top to bottom:
    subtracts. When the split is safe, a bar shows it and the unnamed figure appears with
    the sentence explaining it (donors at $200 or less in total for the year are never
    named). In each case where a split would state something false — the two figures cover
+<<<<<<< HEAD
    different periods, the sources disagree, there are no named payments, or there is no
    reported total — the page shows the figures it has and a plain sentence saying why it
    will not divide them, never saying which figure is larger. A committee whose own report
@@ -131,6 +132,59 @@ Top to bottom:
    that is how the state counts them. A name opens a page only when it carries a
    registration number we hold as a filer; a private donor or a business stays plain text.
 8. **What this record covers**: filed with the Board, nothing before 2015, unions don't
+=======
+   different periods, the sources disagree, there are no named payments, our copy of the
+   donation list is missing named money the filing carries, the committee corrected its
+   report after we copied the official total, the two figures simply will not line up, or
+   there is no reported total — the page shows the figures it has and a plain sentence
+   saying why it will not divide them, never saying which figure is larger. A committee
+   whose own report says zero shows $0.00 with a sentence saying that is the filing's
+   zero, not our gap.
+
+   **Only one of those sentences says Minnesota's two publications disagree, and until
+   19 August 2026 three of them did.** A committee-year where the donation list holds no
+   row at all, and one where a subtraction simply came out negative, both printed "for
+   this committee and year they do not agree" — which blamed Minnesota for gaps on our
+   side. Seven live committee pages carried it, Kristin Robbins's governor committee
+   among them ([#1682](https://github.com/alethical-org/alethical/issues/1682),
+   [#1648](https://github.com/alethical-org/alethical/issues/1648)). Each route now says
+   only what its own evidence supports; the sentence about disagreement is left to the
+   one check that actually compares the two publications. The full list of states and
+   their counts is in
+   [`legislator-campaign-money-guide.md`](legislator-campaign-money-guide.md), which
+   owns the wording both surfaces share.
+6. **Money out — never called "spending."** The figure is "Payments we can list" (there is
+   no official total to compare it against), broken down by the filing's own kinds, with
+   money given to other campaigns on its own plainly-labelled line — statewide, a large
+   share of money out is transfers to other committees, and for a caucus that is the
+   point.
+7. **Three tabs. The first two — Who gave and Where it went** — the six largest payments,
+   ranked largest first (honest inside one committee; never across committees), each
+   naming the filing's own type. Donated goods and services carry a marker and stay
+   inside the totals, because that is how the state counts them. A name opens a page only
+   when it carries a registration number we hold as a filer; a private donor or a
+   business stays plain text.
+8. **The third tab — Filings**: every report the Board's catalogue records this committee
+   as having filed, all years at once, with no amounts anywhere — it is a list of
+   filings, not of money. Newest first by the period each report covers, and the tab says
+   so in those words: we hold no date any report was filed (the Board's catalogue does
+   not publish one), so no row says when it was filed. Each row shows the report's name
+   and the period it covers — both ends only where the Board's own filing calendar prints
+   the start, otherwise "covers through" its end date, never an assumed January 1. A
+   report whose effective version is an amendment carries a neutral AMENDED marker with
+   no date, because the catalogue records version numbers, not dates; the marker never
+   depends on whether the older version's figures survived. A closed committee's final
+   report appears even when its period runs past today, because a terminating committee
+   files at termination. The Board also lists reports without saying whether they were
+   filed — a report is listed from the moment its filing window opens, and for the oldest
+   reports (mostly before 2008) the Board keeps no record either way — and the tab counts
+   those out loud rather than showing them as filed or claiming the list is complete. It
+   never says a report is late. One link under the list opens the Board's own report
+   viewer; there are no per-report links, because the Board serves report documents
+   through a form a link cannot reach, and not at all for most years before 2023 — a row
+   of dead links would be worse than one honest step.
+9. **What this record covers**: filed with the Board, nothing before 2015, unions don't
+>>>>>>> origin/main
    report here — and the $200 donor sentence, except on a ballot-question committee's
    page, which prints **no** threshold figure anywhere: the statute says $500 for ballot
    questions, the Board's own handbook for those filers says $200, and we assert neither.

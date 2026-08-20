@@ -8,12 +8,14 @@ import { UnderDevelopmentNotice } from '../../components/campaignMoney/UnderDeve
 import { Skeleton } from '../../components/Skeleton';
 import type { CommitteeMoney } from '../../data/types';
 import {
+  useCommitteeFilingsList,
   useCommitteeMoney,
   useCommitteePaymentsMade,
   useCommitteePaymentsReceived,
 } from '../../hooks/useAppQueries';
 import { useResponsive } from '../../hooks/useResponsive';
 import {
+  AMENDED_CHIP,
   CLOSED_EMPTY_VALUE,
   CLOSED_MONEY_IN_WHY,
   CLOSED_MONEY_OUT_WHY,
@@ -22,6 +24,8 @@ import {
   closedPeriodLine,
   committeeEyebrow,
   committeeSlug,
+  committeeTabFromParam,
+  COMMITTEE_TAB_LABELS,
   coveredPeriodDetail,
   coveredPeriodLine,
   EMPTY_YEAR_VALUE,
@@ -29,6 +33,15 @@ import {
   emptyListWhy,
   emptyYearMoneyInWhy,
   EMPTY_YEAR_MONEY_OUT_WHY,
+  filingIsAmended,
+  filingRowPeriodLine,
+  filingsCountLine,
+  filingsOrderingLine,
+  FILINGS_EMPTY_TITLE,
+  FILINGS_EMPTY_WHY,
+  FILINGS_HEADLINE,
+  FILINGS_PERIOD_NOTE,
+  FILINGS_UNAVAILABLE,
   isBallotQuestionFiler,
   isInKind,
   IN_KIND_CHIP,
@@ -40,8 +53,6 @@ import {
   moneyOutNote,
   notFoundBody,
   notFoundTitle,
-  PAYMENTS_TAB_LABELS,
-  paymentsTabFromParam,
   receivedRowMeta,
   recordCoverageLines,
   registeredForLine,
@@ -52,10 +63,11 @@ import {
   NOT_IN_REGISTER_LINE,
   uncoveredPeriodDetail,
   uncoveredPeriodLine,
+  unlistedReportsLine,
   unnamedMoneyExplanation,
   whoseCommitteeText,
   ZERO_REPORTED_NOTE,
-  type PaymentsTab,
+  type CommitteeTab,
 } from '../../lib/committeeMoney';
 import {
   campaignMoneyYear,
@@ -154,7 +166,7 @@ export function CommitteeMoneyScreen({ navigation, route }: RootScreenProps<'Com
   const slug = route.params?.slug ?? '';
   const registrationNumber = registrationNumberFromSlug(slug);
   const year = campaignMoneyYear(route.params?.year);
-  const tab = paymentsTabFromParam(route.params?.tab);
+  const tab = committeeTabFromParam(route.params?.tab);
 
   const moneyQuery = useCommitteeMoney(registrationNumber, year);
   const money = moneyQuery.data ?? null;
@@ -179,7 +191,7 @@ export function CommitteeMoneyScreen({ navigation, route }: RootScreenProps<'Com
   );
 
   const onSelectYear = (next: number) => navigation.setParams({ year: String(next) });
-  const onSelectTab = (next: PaymentsTab) => navigation.setParams({ tab: next });
+  const onSelectTab = (next: CommitteeTab) => navigation.setParams({ tab: next });
 
   return (
     <PageBackground>
@@ -305,13 +317,13 @@ function CommitteeBody({
 }: {
   money: CommitteeMoney;
   year: number;
-  tab: PaymentsTab;
+  tab: CommitteeTab;
   slug: string;
   registrationNumber: string;
   isMobile: boolean;
   isHoldingStale: boolean;
   onSelectYear: (year: number) => void;
-  onSelectTab: (tab: PaymentsTab) => void;
+  onSelectTab: (tab: CommitteeTab) => void;
   navigation: RootScreenProps<'CommitteeMoney'>['navigation'];
 }) {
   const registerKind =
@@ -729,11 +741,11 @@ function PaymentsSection({
 }: {
   money: CommitteeMoney;
   year: number;
-  tab: PaymentsTab;
+  tab: CommitteeTab;
   slug: string;
   registrationNumber: string;
   isBallot: boolean;
-  onSelectTab: (tab: PaymentsTab) => void;
+  onSelectTab: (tab: CommitteeTab) => void;
   navigation: RootScreenProps<'CommitteeMoney'>['navigation'];
 }) {
   const { isMobile } = useResponsive();
@@ -801,26 +813,39 @@ function PaymentsSection({
     return Number.isFinite(amount) && amount > top ? amount : top;
   }, 0);
 
+  const tabsRow = (
+    <View style={styles.tabsRow} role="tablist">
+      {(Object.keys(COMMITTEE_TAB_LABELS) as CommitteeTab[]).map((key) => {
+        const active = key === tab;
+        return (
+          <Pressable
+            key={key}
+            onPress={() => onSelectTab(key)}
+            accessibilityRole="tab"
+            aria-selected={active}
+            style={[styles.tab, active && styles.tabActive]}
+          >
+            <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>
+              {COMMITTEE_TAB_LABELS[key]}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+
+  if (tab === 'filings') {
+    return (
+      <View style={styles.listSection}>
+        {tabsRow}
+        <FilingsList registrationNumber={registrationNumber} />
+      </View>
+    );
+  }
+
   return (
     <View style={styles.listSection}>
-      <View style={styles.tabsRow} role="tablist">
-        {(Object.keys(PAYMENTS_TAB_LABELS) as PaymentsTab[]).map((key) => {
-          const active = key === tab;
-          return (
-            <Pressable
-              key={key}
-              onPress={() => onSelectTab(key)}
-              accessibilityRole="tab"
-              aria-selected={active}
-              style={[styles.tab, active && styles.tabActive]}
-            >
-              <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>
-                {PAYMENTS_TAB_LABELS[key]}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      {tabsRow}
 
       {isLoading ? (
         <View style={styles.listLoading}>
@@ -931,6 +956,117 @@ function PaymentsSection({
         </>
       )}
     </View>
+  );
+}
+
+/**
+ * The Filings tab: every report the Board's catalogue records this committee as
+ * having filed, newest period first ("Money committee web.dc.html", #1679).
+ *
+ * What the drawn design shows that this list deliberately does not:
+ * - No "FILED {date}" label and no ordering by date filed — we hold no filing
+ *   date for any report (#1670), so the list orders by the period each report
+ *   covers and says so.
+ * - No date on the AMENDED chip — the catalogue's amendment record is version
+ *   indexes only. The chip itself is never suppressed: a missing prior figure is
+ *   a fact about old documents, not about whether the report was amended.
+ * - No per-row OPEN link — the Board serves report documents through a form the
+ *   web cannot link to directly, and not at all for most years before 2023, so a
+ *   per-report link would be dead for most rows. One link under the list opens
+ *   the Board's own viewer, where every report here can be pulled up.
+ */
+function FilingsList({ registrationNumber }: { registrationNumber: string }) {
+  const query = useCommitteeFilingsList(registrationNumber);
+  const pages = query.data?.pages ?? [];
+  const firstPage = pages[0];
+  const rows = pages.flatMap((page) => page.filings);
+
+  if (query.isPending) {
+    return (
+      <View style={styles.listLoading}>
+        <View role="status" aria-busy style={styles.hidden}>
+          <Text>Loading filings</Text>
+        </View>
+        {[0, 1, 2].map((index) => (
+          <View key={index} style={styles.listRow}>
+            <View style={styles.listRowText}>
+              <Skeleton width="45%" height={14} />
+              <Skeleton width={220} height={11} style={{ marginTop: 8 }} />
+            </View>
+          </View>
+        ))}
+      </View>
+    );
+  }
+
+  if (!firstPage || firstPage.state !== 'reported') {
+    return (
+      <View style={[styles.card, styles.filingsCard]}>
+        <Text style={styles.explain}>{FILINGS_UNAVAILABLE}</Text>
+      </View>
+    );
+  }
+
+  const unlisted = unlistedReportsLine(firstPage.cataloguedWithoutRecord);
+
+  if (rows.length === 0) {
+    return (
+      <View style={[styles.card, styles.filingsCard]}>
+        <Text style={styles.h3}>{FILINGS_EMPTY_TITLE}</Text>
+        <Text style={styles.explain}>{FILINGS_EMPTY_WHY}</Text>
+        {unlisted ? <Text style={styles.explain}>{unlisted}</Text> : null}
+      </View>
+    );
+  }
+
+  const ordering = filingsOrderingLine(firstPage.orderedBy);
+  const countLine = filingsCountLine(rows.length, firstPage.total);
+
+  return (
+    <>
+      <View style={styles.listHead}>
+        <Text style={styles.filingsHead}>{FILINGS_HEADLINE}</Text>
+        {ordering ? <Text style={styles.listCount}>{ordering}</Text> : null}
+      </View>
+      <View style={styles.listRows}>
+        {rows.map((filing, index) => {
+          const period = filingRowPeriodLine(filing);
+          return (
+            <View
+              key={`${filing.filingYear}-${filing.reportType}-${filing.periodEnd ?? 'no-end'}-${index}`}
+              style={styles.listRow}
+            >
+              <View style={styles.listRowText}>
+                <Text style={styles.listName}>{filing.reportName}</Text>
+                {period ? <Text style={styles.listMeta}>{period}</Text> : null}
+              </View>
+              {filingIsAmended(filing.effectiveAmendmentIndex) ? (
+                <Text style={styles.amendedChip}>{AMENDED_CHIP}</Text>
+              ) : null}
+            </View>
+          );
+        })}
+      </View>
+      {countLine ? <Text style={styles.listCountFoot}>{countLine}</Text> : null}
+      {query.hasNextPage ? (
+        <Pressable
+          onPress={() => void query.fetchNextPage()}
+          accessibilityRole="button"
+          style={styles.seeAll}
+        >
+          <Text style={styles.seeAllLabel}>Show more reports</Text>
+          <ForwardArrow color={t.colors.brand.base} />
+        </Pressable>
+      ) : null}
+      {unlisted ? <Text style={styles.linkNote}>{unlisted}</Text> : null}
+      <Text style={styles.linkNote}>{FILINGS_PERIOD_NOTE}</Text>
+      <Text
+        style={[styles.source, styles.filingsSource]}
+        {...externalLinkProps(BOARD_VIEWER, () => void Linking.openURL(BOARD_VIEWER))}
+      >
+        This committee’s filed reports, on the state’s own site
+      </Text>
+    </>
   );
 }
 
@@ -1235,6 +1371,37 @@ const styles = StyleSheet.create({
   },
   listRows: { marginTop: 12, gap: 9 },
   listLoading: { marginTop: 20, gap: 9 },
+  filingsCard: { marginTop: 20 },
+  filingsHead: {
+    fontFamily: t.typography.mono,
+    fontSize: 11,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 1.3,
+    color: t.colors.text.secondary,
+  },
+  /** Neutral, like the in-kind chip — never amber, which is reserved for bill
+   *  identity. */
+  amendedChip: {
+    fontFamily: t.typography.mono,
+    fontSize: 10,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 0.8,
+    color: t.colors.text.secondary,
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink18,
+    borderRadius: 7,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    overflow: 'hidden',
+    flexShrink: 0,
+  },
+  listCountFoot: {
+    marginTop: 14,
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.body,
+    color: t.colors.text.secondary,
+  },
+  filingsSource: { marginTop: 12, alignSelf: 'flex-start' },
   listRow: {
     flexDirection: 'row',
     alignItems: 'center',

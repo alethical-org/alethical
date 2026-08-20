@@ -336,3 +336,29 @@ describe('the record-coverage block', () => {
     expect(ballot.join(' ')).not.toContain('$200');
   });
 });
+
+describe('the money-out threshold sentence describes a yearly total, never a per-payment cut-off', () => {
+  // grounded-answers rule 12: "Minnesota only publishes payments over $200" was live on
+  // production on both money surfaces. It reads as a rule about the size of a single
+  // payment. The real rule is a test on what one recipient was paid across the year, and
+  // most named payments are individually under $200, so the per-payment phrasing tells a
+  // reader the opposite of the truth about which payments are missing.
+  const forbidden = /(publishes|names)\s+(a committee’s\s+)?payments\s+over\s+\$200/i;
+
+  it('never phrases the threshold as a per-payment rule', () => {
+    for (const state of ['reported', 'not_reported', 'unavailable'] as const) {
+      expect(moneyOutNote(state, false)).not.toMatch(forbidden);
+      expect(moneyOutNote(state, true)).not.toMatch(forbidden);
+    }
+  });
+
+  it('says the threshold is a total for the year, per recipient', () => {
+    expect(moneyOutNote('reported', false)).toContain(
+      'once payments to them pass $200 in total for the year',
+    );
+  });
+
+  it('still prints no threshold figure at all on a ballot-question page', () => {
+    expect(moneyOutNote('reported', true)).not.toContain('$200');
+  });
+});

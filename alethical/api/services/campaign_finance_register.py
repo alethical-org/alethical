@@ -61,6 +61,7 @@ from alethical.pipeline.campaign_finance_filing_calendars import (
     printed_period_start_for_end,
 )
 from alethical.pipeline.campaign_finance_filings import live_filings_snapshot
+from alethical.pipeline.campaign_finance_reader import Dataset
 
 #: No filings snapshot is published, so the register and the catalogue can say nothing.
 #: A fact about us: production held none until #1408's loader was first run.
@@ -79,6 +80,11 @@ BOARD_CALENDAR = "board_calendar"
 #: The only order this feed has, served on every page. Named once because the string
 #: appears in 3 returns and a drifting copy would tell a caller the order changed.
 ORDERED_BY_PERIOD_END = "period_end"
+#: The only order the committees list has, served on every page so a caller never has to
+#: assume one. Alphabetical by the name as filed, and there is deliberately no way to ask
+#: for another: ordering 1,603 filers by money would rank filing calendars rather than
+#: fundraising, because these filers file to different ones (§7).
+ORDERED_BY_NAME = "name"
 
 
 def _utc_today() -> date:
@@ -94,6 +100,87 @@ def _utc_today() -> date:
 #: Rows fetched per page at most. The landing draws 5; the ceiling is here so a caller
 #: cannot ask for the whole catalogue (36,655 rows in the live snapshot) in one response.
 MAX_FILINGS = 100
+
+#: Committees fetched per page at most. Screen A draws 8 and pages by 8; the ceiling
+#: stops a caller pulling the whole register (1,603 filers) into one response.
+MAX_COMMITTEES = 100
+
+
+@dataclass(frozen=True)
+class CommitteeRow:
+    """One registered filer, exactly as the Board's own directory lists them.
+
+    **No amount, and there is no version of this row that carries one.** These filers
+    file to different calendars, so 2 dollar figures side by side on a list would set one
+    period against another (``.claude/rules/grounded-answers.md`` rule 12, and
+    ``docs/architecture/campaign-finance-system-design.md`` §7). Money lives on each
+    committee's own page, where the period it belongs to is stated.
+
+    ``office`` and ``district`` are ``None`` on most rows and that is the register's
+    shape, not a gap in our copy. The Board publishes 3 lists of different widths: a
+    candidate row carries office, district and party; a party-unit row and a
+    committee-or-fund row carry name, registration number and 2 dates
+    ([#1661](https://github.com/alethical-org/alethical/issues/1661) measured 778 of
+    1,603 rows carrying an office and 0 party units carrying one). A party unit's
+    geography exists only inside its printed name, and reading it out of the name is a
+    mapping a person confirms rather than a column we hold, so nothing here derives one.
+
+    ``is_closed`` is exactly "the register carries a termination date for this filer",
+    which is why the date is served beside the flag rather than behind it: a closed
+    committee with no date would be a claim we could not show the evidence for.
+    """
+
+    registration_number: str
+    name: str
+    kind: str
+    office: Optional[str]
+    district: Optional[str]
+    is_closed: bool
+    termination_date: Optional[date]
+    #: The Board's own sub-type code from this filer's money rows, where one carries a
+    #: documented code -- the only finer kind that exists, since the register's 3 lists
+    #: carry no marker separating a ballot-question committee from a political fund
+    #: (§9.7). A **code, never a label**: the wording a reader sees is owned once, by
+    #: ``committeeEyebrow`` in ``apps/frontend/src/lib/committeeMoney.ts``, so this list
+    #: and the committee page cannot label the same filer 2 different ways. ``None`` for
+    #: the 33 registered filers with no money row and the 73 carrying the undocumented
+    #: `PCN` and `PFN` codes, and a caller renders those at the register's kind.
+    sub_type: Optional[str]
+
+
+@dataclass(frozen=True)
+class CommitteesPage:
+    """One page of the register, with both totals a screen needs.
+
+    ``total`` and ``register_total`` are different numbers on purpose. ``total`` counts
+    the filter the rows came from, so "showing 8 of 778 candidate committees" is true of
+    the list a reader is looking at; ``register_total`` counts the whole register, so the
+    lane card can say 1,603 whatever filter is applied. A single total would make one of
+    those 2 sentences false.
+
+    ``by_kind`` is unfiltered for the same reason: the 3 filter chips label themselves
+    from it, and counts that changed when a filter was applied would read as the filter
+    having found fewer of a kind than exist.
+    """
+
+    state: str
+    ordered_by: str
+    committees: tuple[CommitteeRow, ...]
+    limit: int
+    offset: int
+    has_more: bool
+    total: Optional[int]
+    register_total: Optional[int]
+    by_kind: Optional[dict[str, int]]
+    as_of: Optional[date]
+    snapshot_id: Optional[UUID]
+    #: Which download release the rows' ``sub_type`` codes were read from. A second
+    #: source behind one page, named rather than left implicit: the rows themselves come
+    #: from the register snapshot and only that one field comes from here, so a caller
+    #: can see the 2 apart. ``None`` when no release is held, which empties every
+    #: ``sub_type`` and nothing else.
+    release_id: Optional[UUID]
+    reason: Optional[str]
 
 
 @dataclass(frozen=True)
@@ -190,6 +277,43 @@ class FilingsPage:
     limit: int
     offset: int
     has_more: bool
+    #: How many filings the rows are a slice of, counted over the identical filter --
+    #: the same 4 exclusions and the same ended-periods cutoff
+    #: ([#1677](https://github.com/alethical-org/alethical/issues/1677)). Without it a
+    #: landing showing 5 rows beginning "100 Percent Future Fund" reads as a shortlist of
+    #: the newest or the biggest, which is a claim these rows do not make: over 1,200
+    #: filers share the period end of 20 July 2026, so the list is one enormous tie
+    #: broken alphabetically. ``None`` whenever the state is not ``reported``, never 0.
+    total: Optional[int]
+    #: The newest period any filing here covers, and how many filings cover it -- the 2
+    #: served together as one block, deliberately, because a count of filings is
+    #: meaningless without the period it counts them for
+    #: (``.claude/rules/grounded-answers.md`` rule 12: every total states the period it
+    #: covers). This is the number the landing's "N committees filed for this period"
+    #: sentence needs, and ``total`` is **not** it: measured on production 20 Aug 2026,
+    #: 1,203 filings carry the newest period end of 20 Jul 2026 while ``total`` counts
+    #: all 33,612 ended filed reports we hold, so printing ``total`` in that sentence
+    #: would overstate one period 28-fold. Both are honest; they answer different
+    #: questions, and they are named apart so neither can wear the other's label.
+    #: ``None`` for all 3 whenever the state is not ``reported``, never 0.
+    #:
+    #: **Two counts of the same period, because the sentence says committees and the
+    #: rows are filings.** A committee can appear on 2 rows for one period end by filing
+    #: 2 different reports that both close that day, and then a count of documents is
+    #: larger than a count of committees while looking exactly like it. Amendments are
+    #: **not** how that happens: the loader folds a report's whole amendment list onto
+    #: its single catalogue row as ``amendment_count`` and ``effective_amendment_index``
+    #: (``alethical/pipeline/campaign_finance_filings.py``), so an amended report is one
+    #: row however many times it was amended.
+    #:
+    #: Measured on production 20 Aug 2026, and it is a fact about the data rather than a
+    #: rule: the 2 are **identical on every period sampled** -- 1,203 of each on the
+    #: newest period end of 20 Jul 2026, and no divergence in 3,000 filings across the
+    #: 25 next-newest periods. They are still served apart, because "identical today" is
+    #: not "cannot differ", and the page's sentence names committees.
+    newest_period_end: Optional[date]
+    newest_period_filing_count: Optional[int]
+    newest_period_committee_count: Optional[int]
     as_of: Optional[date]
     snapshot_id: Optional[UUID]
     reason: Optional[str]
@@ -383,6 +507,237 @@ def register_entry(db: Session, registration_number: str) -> RegisterEntry:
     )
 
 
+def name_contains(column, typed: str):
+    """Match a filed name against exactly what somebody typed, and nothing else.
+
+    Case-insensitive containment of the typed string. **No closest-spelling match, no
+    did-you-mean, no similarity score, ever** -- and this is the one rule on this surface
+    that is not a preference. 178 registered filer names sit a single character apart
+    from another registered name, and every one of those pairs is a different
+    organisation: the Green Party and the Republican Party of the same district are 2 of
+    them. A helpful correction would hand a reader one organisation's money under
+    another's name, silently, with nothing on screen to tell them
+    ([#1661](https://github.com/alethical-org/alethical/issues/1661)).
+
+    The typed string is escaped rather than passed through, so a reader typing ``%`` or
+    ``_`` searches for that character instead of matching everything.
+    """
+    escaped = typed.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return column.ilike(f"%{escaped}%", escape="\\")
+
+
+#: The Board's own sub-type codes on a money row, and the only 6 anything may act on.
+#: `PCN`, `PFN` and `BCN` also appear and are **documented nowhere** -- not by the Board,
+#: whose data-downloads page publishes no legend and whose handbooks do not name them,
+#: and not by us ([#1661](https://github.com/alethical-org/alethical/issues/1661)). They
+#: are dropped here rather than served, because a code reaching a surface is a code
+#: somebody eventually expands, and there is no expansion to give: their behaviour
+#: establishes only that they are general-purpose rather than independent-expenditure.
+DOCUMENTED_SUB_TYPES = frozenset({"PC", "PF", "IEC", "IEF", "BC", "BF"})
+
+
+def sub_types_for(db: Session, release, registration_numbers) -> dict[str, str]:
+    """The Board's sub-type code for each of these filers, where a money row carries one.
+
+    **The register itself distinguishes 3 kinds and this is the only finer signal there
+    is.** Independent-expenditure committees, ballot-question committees and political
+    funds all arrive on one register list carrying no type marker at all (§9.7), so a
+    ballot-question filer is knowable only from the code its own money rows carry. On the
+    live release 493 of the 526 registered committees and funds carry one; the other 33
+    have no money row anywhere, which is ordinary for a newly registered filer (#1661).
+
+    **The code is returned, never a label.** The vocabulary a reader sees is owned in one
+    place -- ``committeeEyebrow`` in ``apps/frontend/src/lib/committeeMoney.ts``, which
+    the committee page already ships -- so the list and the committee page cannot print
+    2 different kinds for the same filer. A second expansion written here would be that
+    divergence rather than a guard against it, and it would start out disagreeing: that
+    function deliberately expands ``BC`` and ``BF`` only, leaving the rest at the
+    register's own wording, on the ground that any further expansion would be ours rather
+    than the register's.
+
+    Read in the same preference order as ``committee_finance.find_committee``, so 2
+    surfaces asking the same question of the same filer get the same answer:
+    expenditures, then contributions, then independent expenditures. Order matters only
+    in theory -- #1661 found 0 registration numbers carrying 2 different sub-types -- and
+    it is fixed anyway rather than left to whichever query returns first.
+
+    Scoped to the page's own filers, so the cost is a lookup for 25 rows rather than a
+    scan that grows with the register. ``{}`` when no release is held: the sub-type is a
+    label on top of the register rather than the register itself, so its absence leaves
+    every row at its register kind instead of emptying the list.
+    """
+    numbers = tuple(registration_numbers)
+    if not numbers or release is None:
+        return {}
+    expenditure = schema.CampaignFinanceExpenditureRow
+    contribution = schema.CampaignFinanceContributionRow
+    independent = schema.CampaignFinanceIndependentExpenditureRow
+    lookups = (
+        (
+            Dataset.expenditures,
+            expenditure,
+            expenditure.committee_reg_num,
+            expenditure.entity_sub_type,
+        ),
+        (
+            Dataset.contributions,
+            contribution,
+            contribution.recipient_reg_num,
+            contribution.recipient_subtype,
+        ),
+        (
+            Dataset.independent_expenditures,
+            independent,
+            independent.spender_reg_num,
+            independent.spender_sub_type,
+        ),
+    )
+    found: dict[str, str] = {}
+    for dataset, model, key_column, sub_type_column in lookups:
+        outstanding = [number for number in numbers if number not in found]
+        if not outstanding:
+            break
+        rows = db.execute(
+            select(key_column, sub_type_column)
+            .where(
+                model.snapshot_id == release.file_for(dataset).snapshot_id,
+                key_column.in_(outstanding),
+                sub_type_column.in_(DOCUMENTED_SUB_TYPES),
+            )
+            .distinct()
+        ).all()
+        for registration_number, sub_type in rows:
+            found.setdefault(registration_number, sub_type)
+    return found
+
+
+def committees(
+    db: Session,
+    *,
+    limit: int,
+    offset: int,
+    kind: Optional[str] = None,
+    query: Optional[str] = None,
+    release=None,
+) -> CommitteesPage:
+    """One page of the register, ordered by the filed name, A to Z.
+
+    **Ordered by name and nothing else, with no way to ask for another order.** Not a
+    simplification to revisit: any order over money would compare filers who file to
+    different calendars, and 2 periods on this register can end nearly 7 months apart
+    (§7). Alphabetical is also the only order that is stable while a reader pages, since
+    names are unique within a snapshot -- checked on the live register, 0 duplicates in
+    1,603 rows -- so ``name`` alone is a deterministic tie-breaker and no second sort key
+    is needed.
+
+    ``kind`` filters to one of the Board's 3 register kinds. There are only 3, and that
+    is the source's shape rather than something our loader dropped: independent-
+    expenditure committees, ballot-question committees and political funds all arrive on
+    a single list carrying no type marker (§9.7). A caller must not offer a finer filter.
+
+    ``query`` is the screen's "find a committee by name" box, matched by
+    ``name_contains`` -- read that function before loosening anything here.
+
+    Refuses rather than reporting an empty register when the snapshot published filers
+    and holds none now, the same reasoning as ``register_summary``: those rows survive
+    exactly one further publish, so an empty read on a populated snapshot means we are
+    looking at a set that has been replaced, and "Minnesota registers nobody" is a claim
+    about the state we would be making about ourselves.
+    """
+    snapshot = live_filings_snapshot(db)
+    if snapshot is None:
+        return CommitteesPage(
+            state=UNAVAILABLE,
+            ordered_by=ORDERED_BY_NAME,
+            committees=(),
+            limit=limit,
+            offset=offset,
+            has_more=False,
+            total=None,
+            register_total=None,
+            by_kind=None,
+            as_of=None,
+            snapshot_id=None,
+            release_id=None,
+            reason=NO_FILINGS_SNAPSHOT,
+        )
+    summary = register_summary(db)
+    if summary.state != REPORTED:
+        # The register itself could not be counted, so a page of it would be a slice of
+        # a set we just refused to describe. Carries the summary's own reason rather
+        # than a second one, so a caller sees one explanation for both.
+        return CommitteesPage(
+            state=summary.state,
+            ordered_by=ORDERED_BY_NAME,
+            committees=(),
+            limit=limit,
+            offset=offset,
+            has_more=False,
+            total=None,
+            register_total=None,
+            by_kind=None,
+            as_of=summary.as_of,
+            snapshot_id=summary.snapshot_id,
+            release_id=None,
+            reason=summary.reason,
+        )
+    filer = schema.CampaignFinanceFiler
+    filters = [filer.snapshot_id == snapshot.id]
+    if kind is not None:
+        filters.append(filer.kind == schema.CampaignFinanceFilerKind(kind))
+    if query:
+        filters.append(name_contains(filer.name, query))
+    total = db.scalar(select(func.count()).select_from(filer).where(*filters)) or 0
+    rows = db.execute(
+        select(
+            filer.registration_number,
+            filer.name,
+            filer.kind,
+            filer.office,
+            filer.district,
+            filer.termination_date,
+        )
+        .where(*filters)
+        .order_by(filer.name.asc())
+        .limit(limit + 1)
+        .offset(offset)
+    ).all()
+    has_more = len(rows) > limit
+    page = rows[:limit]
+    sub_types = sub_types_for(db, release, (row[0] for row in page))
+    return CommitteesPage(
+        state=REPORTED,
+        ordered_by=ORDERED_BY_NAME,
+        committees=tuple(_committee_row(row, sub_types=sub_types) for row in page),
+        limit=limit,
+        offset=offset,
+        has_more=has_more,
+        total=total,
+        register_total=summary.filer_count,
+        by_kind=summary.by_kind,
+        as_of=summary.as_of,
+        snapshot_id=summary.snapshot_id,
+        release_id=getattr(release, "id", None),
+        reason=None,
+    )
+
+
+def _committee_row(row, *, sub_types: dict[str, str]) -> CommitteeRow:
+    registration_number, name, kind, office, district, termination_date = row
+    return CommitteeRow(
+        registration_number=registration_number,
+        name=name,
+        kind=kind.value if hasattr(kind, "value") else str(kind),
+        office=office,
+        district=district,
+        # Read off the date rather than stored separately, so the flag and the evidence
+        # for it can never disagree.
+        is_closed=termination_date is not None,
+        termination_date=termination_date,
+        sub_type=sub_types.get(registration_number),
+    )
+
+
 def _sitting_members_stmt(session_id: UUID) -> Select:
     """The sitting members, filtered exactly as the legislator directory filters them.
 
@@ -528,12 +883,39 @@ def recent_filings(
             limit=limit,
             offset=offset,
             has_more=False,
+            total=None,
+            newest_period_end=None,
+            newest_period_filing_count=None,
+            newest_period_committee_count=None,
             as_of=None,
             snapshot_id=None,
             reason=NO_FILINGS_SNAPSHOT,
         )
     report = schema.CampaignFinanceFilingReport
     filer = schema.CampaignFinanceFiler
+    # Built once and handed to both the rows and the count below, so the number a page
+    # prints can never describe a different set from the rows under it (#1677). The join
+    # is part of the filter, not decoration: it is what drops a report whose filer the
+    # register does not hold.
+    filed_and_ended = (
+        report.snapshot_id == snapshot.id,
+        # Not an optimization, and never remove it to widen the feed. An amendment
+        # record is the Board's own positive signal that a report was FILED: every
+        # filed report carries at least ['0'] and a report nobody has filed carries
+        # none (`docs/architecture/campaign-finance-system-design.md` §9.6). The
+        # catalogue is a schedule, so without this line the feed prints a report as
+        # filed under a named politician's committee that has not filed it. §9.6 also
+        # rules that this must be read from the version history and never inferred
+        # from a failed document download, which is what this column stores.
+        report.effective_amendment_index.is_not(None),
+        report.cut_off_date.is_not(None),
+        report.cut_off_date <= as_of,
+    )
+    joined_to_filer = (
+        filer,
+        (filer.snapshot_id == report.snapshot_id)
+        & (filer.registration_number == report.registration_number),
+    )
     rows = db.execute(
         select(
             report.registration_number,
@@ -547,25 +929,8 @@ def recent_filings(
             filer.name,
             filer.kind,
         )
-        .join(
-            filer,
-            (filer.snapshot_id == report.snapshot_id)
-            & (filer.registration_number == report.registration_number),
-        )
-        .where(
-            report.snapshot_id == snapshot.id,
-            # Not an optimization, and never remove it to widen the feed. An amendment
-            # record is the Board's own positive signal that a report was FILED: every
-            # filed report carries at least ['0'] and a report nobody has filed carries
-            # none (`docs/architecture/campaign-finance-system-design.md` §9.6). The
-            # catalogue is a schedule, so without this line the feed prints a report as
-            # filed under a named politician's committee that has not filed it. §9.6 also
-            # rules that this must be read from the version history and never inferred
-            # from a failed document download, which is what this column stores.
-            report.effective_amendment_index.is_not(None),
-            report.cut_off_date.is_not(None),
-            report.cut_off_date <= as_of,
-        )
+        .join(*joined_to_filer)
+        .where(*filed_and_ended)
         .order_by(
             report.cut_off_date.desc(),
             filer.name.asc(),
@@ -596,6 +961,10 @@ def recent_filings(
                 limit=limit,
                 offset=offset,
                 has_more=False,
+                total=None,
+                newest_period_end=None,
+                newest_period_filing_count=None,
+                newest_period_committee_count=None,
                 as_of=_snapshot_date(snapshot),
                 snapshot_id=snapshot.id,
                 reason=ROWS_REPLACED,
@@ -606,6 +975,32 @@ def recent_filings(
         db, snapshot.id, {row[0] for row in page}
     )
     filings = tuple(_filing_row(row, special_years=special_years) for row in page)
+    total = (
+        db.scalar(
+            select(func.count())
+            .select_from(report)
+            .join(*joined_to_filer)
+            .where(*filed_and_ended)
+        )
+        or 0
+    )
+    # Counted over the same filter again rather than read off the rows: the newest
+    # period's filings run past the end of any one page, so a count taken from `filings`
+    # would be a count of this page wearing the period's name. Grouped and ordered
+    # rather than read from row 0, so it is right whatever offset the caller asked for.
+    newest = db.execute(
+        select(
+            report.cut_off_date,
+            func.count(),
+            func.count(func.distinct(report.registration_number)),
+        )
+        .select_from(report)
+        .join(*joined_to_filer)
+        .where(*filed_and_ended)
+        .group_by(report.cut_off_date)
+        .order_by(report.cut_off_date.desc())
+        .limit(1)
+    ).first()
     return FilingsPage(
         state=REPORTED,
         ordered_by=ORDERED_BY_PERIOD_END,
@@ -614,6 +1009,193 @@ def recent_filings(
         limit=limit,
         offset=offset,
         has_more=has_more,
+        total=total,
+        newest_period_end=newest[0] if newest else None,
+        newest_period_filing_count=newest[1] if newest else None,
+        newest_period_committee_count=newest[2] if newest else None,
+        as_of=_snapshot_date(snapshot),
+        snapshot_id=snapshot.id,
+        reason=None,
+    )
+
+
+@dataclass(frozen=True)
+class CommitteeFilingsPage:
+    """One committee's filed reports, the whole history the catalogue records.
+
+    The same row shape as the landing feed (``FilingRow``), because both lists make the
+    same claims and must break in the same places. Two deliberate differences from
+    ``FilingsPage``:
+
+    * **No ended-periods cutoff.** A terminating committee files its final report at
+      termination, before the period closes — filer 18472's 2026 year-end is a real,
+      filed report read in August 2026 (§9.4's sixth filer) — and on the committee's own
+      page that report is the newest thing it has filed, not noise at the top of a feed.
+    * **A filed report with no period end is listed, last, rather than dropped.** The
+      landing drops it because a "newest" feed cannot place it; a committee's own history
+      leaving it out would hide a real filing. The row then carries no period line
+      (0 such rows in the live snapshot, measured 19 Aug 2026 — this is the safe shape,
+      not a live state).
+
+    ``catalogued_without_record`` counts this filer's catalogue rows that carry no
+    amendment record — either never filed (the catalogue is a schedule) or too old for
+    the Board to serve a version history (ordinary before 2008, §9.6) — so the page can
+    say the list's boundary out loud instead of implying it lists every report ever
+    filed. ``None`` when the state is not ``reported``, never 0.
+    """
+
+    state: str
+    ordered_by: str
+    filings: tuple[FilingRow, ...]
+    limit: int
+    offset: int
+    has_more: bool
+    total: Optional[int]
+    catalogued_without_record: Optional[int]
+    as_of: Optional[date]
+    snapshot_id: Optional[UUID]
+    reason: Optional[str]
+
+
+def committee_filings(
+    db: Session, registration_number: str, *, limit: int, offset: int
+) -> CommitteeFilingsPage:
+    """Every report this committee is recorded as having filed, newest period first.
+
+    The same honesty rules as ``recent_filings``, scoped to one filer:
+
+    * **Only reports somebody actually filed.** The catalogue lists a report the moment
+      its filing period opens, so rows with no amendment record are excluded (§9.6's
+      rule: every filed report carries at least ``['0']``). They are counted in
+      ``catalogued_without_record`` instead, because for pre-2008 rows the missing
+      record means "the Board serves no history", not "never filed", and the page must
+      not pretend the boundary away.
+    * **Ordered by period end, and it says so.** We hold no filing date for any report
+      ([#1670](https://github.com/alethical-org/alethical/issues/1670)), so ``ordered_by``
+      is served and no caller may print "filed on" beside these rows. If a filing date
+      ever lands, this order — and the served ``ordered_by`` — is where it changes.
+    * **A period start comes off a Board calendar or not at all**, and never for a
+      filer-year that carries a special-election report, whose year does not open on
+      1 January (§9.5).
+
+    An empty page for a real committee is ``reported`` with 0 rows: the register lists
+    filers whose catalogued reports all lack an amendment record (filer 18684 holds 7
+    catalogued rows and 0 filed ones in the live snapshot), and that is a fact about the
+    catalogue, not a fault of ours. ``unavailable`` is reserved for our own gaps: no
+    filings snapshot loaded, or the snapshot's rows replaced under this read.
+    """
+    snapshot = live_filings_snapshot(db)
+    if snapshot is None:
+        return CommitteeFilingsPage(
+            state=UNAVAILABLE,
+            ordered_by=ORDERED_BY_PERIOD_END,
+            filings=(),
+            limit=limit,
+            offset=offset,
+            has_more=False,
+            total=None,
+            catalogued_without_record=None,
+            as_of=None,
+            snapshot_id=None,
+            reason=NO_FILINGS_SNAPSHOT,
+        )
+    report = schema.CampaignFinanceFilingReport
+    filer = schema.CampaignFinanceFiler
+    filed_for_this_committee = (
+        report.snapshot_id == snapshot.id,
+        report.registration_number == registration_number,
+        # The amendment-record rule, same as the landing feed: the Board's own positive
+        # signal that a report was FILED (§9.6). Never inferred from a failed document
+        # download, which is what this column stores.
+        report.effective_amendment_index.is_not(None),
+    )
+    joined_to_filer = (
+        filer,
+        (filer.snapshot_id == report.snapshot_id)
+        & (filer.registration_number == report.registration_number),
+    )
+    rows = db.execute(
+        select(
+            report.registration_number,
+            report.filing_year,
+            report.report_type,
+            report.report_name,
+            report.cut_off_date,
+            report.special_election,
+            report.effective_amendment_index,
+            report.amendment_count,
+            filer.name,
+            filer.kind,
+        )
+        .join(*joined_to_filer)
+        .where(*filed_for_this_committee)
+        .order_by(
+            # A row with no period end sorts last rather than being dropped: it is a
+            # real filing we simply cannot place, and its row carries no period line.
+            report.cut_off_date.desc().nulls_last(),
+            report.filing_year.desc(),
+            report.row_number.asc(),
+        )
+        .limit(limit + 1)
+        .offset(offset)
+    ).all()
+    if not rows and offset == 0 and (snapshot.report_count or 0) > 0:
+        # Empty has 2 causes and only one is a refusal: the snapshot's rows were
+        # replaced under this read, or this committee genuinely has no filed report in
+        # the catalogue. Probed unfiltered, the same shape as ``recent_filings``.
+        present = db.scalar(
+            select(report.row_number).where(report.snapshot_id == snapshot.id).limit(1)
+        )
+        if present is None:
+            return CommitteeFilingsPage(
+                state=UNAVAILABLE,
+                ordered_by=ORDERED_BY_PERIOD_END,
+                filings=(),
+                limit=limit,
+                offset=offset,
+                has_more=False,
+                total=None,
+                catalogued_without_record=None,
+                as_of=_snapshot_date(snapshot),
+                snapshot_id=snapshot.id,
+                reason=ROWS_REPLACED,
+            )
+    has_more = len(rows) > limit
+    page = rows[:limit]
+    special_years = _special_election_filer_years(
+        db, snapshot.id, {registration_number}
+    )
+    filings = tuple(_filing_row(row, special_years=special_years) for row in page)
+    total = (
+        db.scalar(
+            select(func.count())
+            .select_from(report)
+            .join(*joined_to_filer)
+            .where(*filed_for_this_committee)
+        )
+        or 0
+    )
+    without_record = (
+        db.scalar(
+            select(func.count())
+            .select_from(report)
+            .where(
+                report.snapshot_id == snapshot.id,
+                report.registration_number == registration_number,
+                report.effective_amendment_index.is_(None),
+            )
+        )
+        or 0
+    )
+    return CommitteeFilingsPage(
+        state=REPORTED,
+        ordered_by=ORDERED_BY_PERIOD_END,
+        filings=filings,
+        limit=limit,
+        offset=offset,
+        has_more=has_more,
+        total=total,
+        catalogued_without_record=without_record,
         as_of=_snapshot_date(snapshot),
         snapshot_id=snapshot.id,
         reason=None,
@@ -679,4 +1261,47 @@ def _filing_row(row, *, special_years: set[tuple[str, int]]) -> FilingRow:
         special_election=special_election,
         amendment_count=amendment_count,
         effective_amendment_index=effective_amendment_index,
+    )
+
+
+def report_corrections(
+    db: Session, registration_number: str, year: int
+) -> Optional[int]:
+    """How many times this committee-year's report has been corrected after filing.
+
+    The Board's catalogue keeps a version history per report, and
+    ``effective_amendment_index`` is the version that counts: ``0`` is the report as
+    first filed, ``1`` and above mean the committee filed it again with different
+    figures. This returns the highest index across the year's reports, because a
+    Minnesota report restates the whole year, so the year's latest version is the
+    year's figures.
+
+    Three answers and they are not interchangeable:
+
+    * A number **above 0** -- the committee corrected itself, and any figure of ours
+      that predates the correction is a figure of the superseded version.
+    * ``0`` -- every report of this year is still on its first version, so a
+      disagreement between 2 of our figures cannot be blamed on a correction.
+    * ``None`` -- we hold no version history for this committee-year at all: no
+      filings snapshot, no catalogued report, or a report nobody has filed yet (the
+      catalogue lists a report when its period opens, and an unfiled one carries no
+      version history at all, §9.6). Never read as "never corrected": a count we
+      cannot compute is absent, never 0
+      (``.claude/rules/grounded-answers.md`` rule 12).
+
+    Measured on the live catalogue, 19 Aug 2026: of 15,988 committee-years, 5,402
+    carry a correction, 8,898 are still on their first version, and 1,688 carry no
+    version history. So this separates a third of the population rather than being
+    true of everything.
+    """
+    snapshot = live_filings_snapshot(db)
+    if snapshot is None:
+        return None
+    report = schema.CampaignFinanceFilingReport
+    return db.scalar(
+        select(func.max(report.effective_amendment_index)).where(
+            report.snapshot_id == snapshot.id,
+            report.registration_number == registration_number,
+            report.filing_year == year,
+        )
     )

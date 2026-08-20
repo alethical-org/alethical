@@ -8,11 +8,39 @@
      "Follow the Money: Plain Language" document, 17 Aug 2026. Do not edit the prose to fit a
      layout; the layout accommodates the prose.
 
-     Two conditions attach to it whenever publication is decided. Publishing conditions live in
-     .claude/rules/grounded-answers.md rule 13 (signed reports). And the figures here have not
-     been recomputed against our own loaded data: the recompute pass runs before phase 2, and
-     the dated struck-through correction path the design carries is what would make publishing
-     ahead of it safe.
+     Publishing conditions live in .claude/rules/grounded-answers.md rule 13 (signed reports).
+
+     THE RECOMPUTE HAS NOW RUN, and it found one thing that needs a decision before this text
+     is published. Full table and method: issue #1687, pinned to release 3f2bdf90.
+
+     7 of the 10 headline figures reproduce from our own loaded data, several to the dollar:
+     the $108M candidate total, the $221M caucus-and-party total, the $179M independent total,
+     the more-than-half-attacking share (54.06%), the 345 both-parties organizations, the ~2%
+     small-gift share, the top-5%-hold-60% figure, and the ~$13,000 typical candidate. Two
+     independent spot checks matched the report's own worked examples to the cent.
+
+     4 differ and are described in #1687: the "almost half of organizational money" share, the
+     53% of big funders (which reproduces at 53.3% only if each side must be at least 5% of a
+     funder's giving, and at 68.5% if any nonzero amount counts), the $1.5M minor-party total
+     (computed $507,493, reaching $1.4M only by counting non-partisan judicial committees), and
+     the 12% ordinary-donor crossover, where the sentence's 2 numbers turn out to be measured
+     differently from each other. The $886M lobbying figure cannot be checked at all: no
+     lobbying records are loaded, and no ingestion path loads any.
+
+     AND THE ONE THAT IS NOT ON THAT LIST. Every eleven-year total here counts itemized money
+     only, and itemized coverage differs sharply by filer kind: itemized rows capture about
+     55% to 60% of candidate-committee receipts against 82% to 92% of party-unit receipts,
+     because candidates lose far more of their money to the unnamed-donor threshold. So the
+     piece's central comparison, that the machinery took in twice what candidates did, is
+     amplified by that gap; measured against each filer's own reported totals the ratio is
+     nearer 1.4x. An eleven-year reported-totals version is not computable, because our stored
+     reported totals cover filing years 2024 to 2026 only.
+
+     This is not a wrong number. Each figure is correct as itemized money. It is a comparison
+     of 2 figures whose coverage differs, and rule 13 requires coverage to reconcile before
+     publication rather than only the totals. Resolving it is Eugene's call and Angel's: state
+     the itemized-only basis in the piece, restate the ratio, or publish as written with the
+     basis noted. Do not resolve it by editing the prose without them.
 
      Section headings match the contents rail in "Money report web.dc.html". -->
 

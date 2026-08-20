@@ -47,8 +47,11 @@ from alethical.api.services.legislator_finance import (
     LINK_REVIEWED_NONE_CONFIRMED,
     LINK_UNCONFIRMED,
     is_for_a_legislative_office,
+    SPLIT_FIGURES_DO_NOT_LINE_UP,
+    SPLIT_NAMED_PAYMENTS_NOT_IN_OUR_COPY,
     SPLIT_NO_NAMED_PAYMENTS,
     SPLIT_NO_REPORTED_TOTAL,
+    SPLIT_REPORTED_TOTAL_PREDATES_A_CORRECTION,
     SPLIT_PERIODS_DIFFER,
     SPLIT_SHOWN,
     SPLIT_SOURCES_DISAGREE,
@@ -63,6 +66,7 @@ from alethical.db.session import get_session_factory
 HRCC = "20010"  # House Republican Campaign Committee.
 FATEH_SENATE = "18488"  # Fateh, Omar Senate Committee.
 NASH_HOUSE = "17709"  # Nash, Jim House Committee.
+ROBBINS_GOVERNOR = "19244"  # Robbins, Kristin Gov Committee.
 
 
 def _finance(
@@ -107,6 +111,7 @@ def _split(
     withheld=(),
     cash: str | None = "__same__",
     stated: str = STATED_SPLIT_NOT_CHECKED,
+    corrections: int | None = None,
 ):
     """``cash`` defaults to "all of it was cash", which is 400 committee-years short of
     the truth and the right default for a test about something else."""
@@ -121,6 +126,7 @@ def _split(
         named_cash_total=named_cash,
         withheld_filer_years=frozenset(withheld),
         stated_split_state=stated,
+        report_corrections=corrections,
     )
 
 
@@ -198,24 +204,70 @@ def test_a_period_mismatch_is_not_reported_as_the_sources_disagreeing():
 
 
 def test_named_payments_exceeding_the_filers_own_total_withhold_the_split():
-    """Eugene's ruling, 12 Aug 2026: where 2 official sources disagree, show both and say so.
+    """The subtraction refuses to run, and does not blame Minnesota for refusing.
 
     Within one period, our named payments cannot exceed what the filer told the state
     it raised. Where they do, the remainder is negative, and §9.5 is explicit that a
     negative result is a failed reconciliation rather than a number to clamp to zero.
-    Measured on the live release: 16 candidate committee-years across 2025 and 2026,
-    the largest over by $20,750.00.
+    Withholding the split is the load-bearing half and is unchanged.
+
+    What the state may **not** say is that Minnesota's 2 publications disagree, which
+    this used to say. A negative remainder establishes that these 2 numbers cannot be
+    subtracted and nothing else; the one check that compares the 2 publications is the
+    stated split, and it has not spoken here (#1648).
     """
     split = _split(
         _finance(named_total="30000.00", reported_total="20552.62"),
         last_payment_on=date(2025, 12, 31),
     )
 
-    assert split.state == SPLIT_SOURCES_DISAGREE
+    assert split.state == SPLIT_FIGURES_DO_NOT_LINE_UP
+    assert split.state != SPLIT_SOURCES_DISAGREE
     assert split.unnamed_total is None
     # Both figures are still there. The page shows them and subtracts nothing.
     assert split.named_total == Decimal("30000.00")
     assert split.reported_total == Decimal("20552.62")
+
+
+def test_a_corrected_filing_is_told_apart_from_a_gap_nobody_can_explain():
+    """The 2 shapes are one subtraction apart, and a test on the amount would pass either way.
+
+    Wynfred Russell's House committee (19086) filed an empty 2026 pre-primary report on
+    1 August, corrected it on 10 August to name $20,750.00, and our rows hold exactly
+    that $20,750.00. The Board's totals service was still serving the superseded $0.00
+    on 18 August, so our stored total is the superseded version's. That is our refresh
+    gap, and the page may say so.
+
+    The same arithmetic with no correction on the Board's catalogue is a gap we cannot
+    explain, and it gets the quieter sentence. Both withhold the split; neither claims a
+    disagreement.
+    """
+    corrected = _split(
+        _finance(named_total="20750.00", reported_total="0.00", named_payments=29),
+        last_payment_on=date(2025, 12, 31),
+        corrections=1,
+    )
+    unexplained = _split(
+        _finance(named_total="20750.00", reported_total="0.00", named_payments=29),
+        last_payment_on=date(2025, 12, 31),
+        corrections=0,
+    )
+    no_history = _split(
+        _finance(named_total="20750.00", reported_total="0.00", named_payments=29),
+        last_payment_on=date(2025, 12, 31),
+        corrections=None,
+    )
+
+    assert corrected.state == SPLIT_REPORTED_TOTAL_PREDATES_A_CORRECTION
+    assert unexplained.state == SPLIT_FIGURES_DO_NOT_LINE_UP
+    # No version history is not "never corrected". A count we cannot compute is absent,
+    # never 0 (rule 12), so it may not claim the correction either.
+    assert no_history.state == SPLIT_FIGURES_DO_NOT_LINE_UP
+    # Every one of them still shows both figures and subtracts neither.
+    for split in (corrected, unexplained, no_history):
+        assert split.unnamed_total is None
+        assert split.reported_total == Decimal("0.00")
+        assert split.named_total == Decimal("20750.00")
 
 
 def test_a_penny_over_never_prints_a_penny_of_negative_unnamed_money():
@@ -231,7 +283,7 @@ def test_a_penny_over_never_prints_a_penny_of_negative_unnamed_money():
         last_payment_on=date(2025, 12, 31),
     )
 
-    assert split.state == SPLIT_SOURCES_DISAGREE
+    assert split.state == SPLIT_FIGURES_DO_NOT_LINE_UP
     assert split.unnamed_total is None
 
 
@@ -249,7 +301,11 @@ def test_the_release_can_withhold_a_filer_year_this_arithmetic_would_publish():
         withheld={(FATEH_SENATE, 2025)},
     )
 
-    assert split.state == SPLIT_SOURCES_DISAGREE
+    # The same refusal the negative-remainder guard makes, found at publish time
+    # instead, so it reports the same state rather than a disagreement it has no
+    # verdict for.
+    assert split.state == SPLIT_FIGURES_DO_NOT_LINE_UP
+    assert split.unnamed_total is None
 
 
 def test_holding_no_named_payment_never_becomes_money_that_had_no_donor():
@@ -431,6 +487,101 @@ def test_a_filing_that_itemizes_more_than_we_hold_withholds_the_split():
     # Both official figures survive. The page shows them and subtracts neither.
     assert split.reported_total == Decimal("20552.62")
     assert split.named_total == Decimal("10730.30")
+
+
+def test_an_empty_download_is_never_dressed_as_minnesota_contradicting_itself():
+    """#1682, and the 7th empty-year state #1642 found, are one state seen twice.
+
+    A committee-year where the filing names money donor by donor and our copy of the
+    state's donation list holds not one row is not 2 official sources disagreeing. It
+    is our copy being empty, and there is nothing of Minnesota's on our side of the
+    comparison to disagree with anything.
+
+    **14 committee-years in the live release, measured 19 Aug 2026**, and 6 of them
+    printed "for this committee and year they do not agree" on a live committee page.
+    Kristin Robbins's governor committee is the largest: its own 2025 report names
+    $533,295.01 and our download holds none of it.
+
+    The distinguishing fact is ``money_in.state``. ``not_reported`` means the download
+    covers this year and carries no row for this committee, which is a measured
+    absence. ``unavailable`` -- a stale copy of ours, or a year the download does not
+    reach -- is not that fact, so it keeps the disagreement it has a verdict for.
+    """
+    empty = _split(
+        _finance(
+            registration_number=ROBBINS_GOVERNOR,
+            money_in_state=NOT_REPORTED,
+            named_total=None,
+            named_payments=None,
+            reported_total="553925.86",
+        ),
+        last_payment_on=None,
+        cash=None,
+        stated=DISAGREES,
+    )
+    rows_we_cannot_total = _split(
+        _finance(
+            money_in_state=UNAVAILABLE,
+            named_total=None,
+            named_payments=None,
+        ),
+        last_payment_on=None,
+        cash=None,
+        stated=DISAGREES,
+    )
+
+    assert empty.state == SPLIT_NAMED_PAYMENTS_NOT_IN_OUR_COPY
+    assert empty.state != SPLIT_SOURCES_DISAGREE
+    assert rows_we_cannot_total.state == SPLIT_SOURCES_DISAGREE
+    # The committee's own reported total still shows. Only the subtraction is withheld.
+    assert empty.reported_total == Decimal("553925.86")
+    assert empty.named_total is None
+    assert empty.unnamed_total is None
+
+
+def test_a_year_nobody_checked_never_borrows_the_missing_copy_sentence():
+    """The near-identical sibling, and why they may not share a sentence.
+
+    468 committee-years in the live release hold no named payment against a reported
+    total, and for **none** of them has the filing been read. A committee whose donors
+    all gave $200 or less in the year is never itemized, so those may be perfectly
+    complete. Saying our copy is missing the money would be a claim about Minnesota's
+    export that nothing we hold supports.
+    """
+    unchecked = _split(
+        _finance(
+            money_in_state=NOT_REPORTED,
+            named_total=None,
+            named_payments=None,
+            reported_total="4000.00",
+        ),
+        last_payment_on=None,
+        cash=None,
+    )
+
+    assert unchecked.state == SPLIT_NO_NAMED_PAYMENTS
+    assert unchecked.state != SPLIT_NAMED_PAYMENTS_NOT_IN_OUR_COPY
+
+
+def test_a_stated_split_disagreement_never_prints_a_total_from_another_year():
+    """§7's coverage-end guard, which the stated-split branch used to return before.
+
+    The Board's totals route answers a year it has no report for with the most recent
+    report's figures, at HTTP 200 with nothing in the response to say so, so a coverage
+    end outside the year asked for is the only tell. No committee-year on the live
+    release trips this today (0 of 76 measured 19 Aug 2026), which is exactly why a
+    branch that skipped the guard could sit there unnoticed.
+    """
+    stale = _split(
+        _finance(
+            year=2026, reported_total="20552.62", reported_through=date(2025, 12, 31)
+        ),
+        last_payment_on=None,
+        stated=DISAGREES,
+    )
+
+    assert stale.reported_total is None
+    assert stale.reported_through is None
 
 
 def test_a_checked_split_is_told_apart_from_an_unchecked_one():
