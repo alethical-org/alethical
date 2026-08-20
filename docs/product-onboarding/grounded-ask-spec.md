@@ -10,8 +10,10 @@ Related surfaces: signed-out home (hero), chat
 
 The signed-out home page hero ships this copy:
 
-> **Grounded answers on Minnesota law**
-> We read every bill so you don't have to — what it says, where it stands, and how legislators voted. Plain language, with every claim linked to the official record.
+> **Grounded answers on Minnesota politics**
+> We read every bill so you don't have to — what it says, where it stands, and how legislators voted. And the money: who gives, who spends, who gets paid, and who lobbies. Plain language, with every claim linked to the official record.
+
+The headline said *on Minnesota law* until the campaign-money card was added to the page (20 Aug 2026); *politics* is the wider word because the page now covers campaign money as well as legislation. The money clause names lobbying, which is not loaded — item 8 on `docs/product-onboarding/campaign-finance-roadmap.md` — and the money section carries its own under-construction notice, so the claim is about what the record covers rather than what a reader can reach today.
 
 The subhead is a contract, not marketing: **no answer ships without a resolvable citation to its official source.** Everything in this spec exists to keep that sentence true when the hero's Ask box goes from bill-scoped chat to a general question box.
 

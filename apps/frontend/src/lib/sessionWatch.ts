@@ -55,6 +55,23 @@ export interface SessionWatch<T> {
 
 type WithActions = { actions?: BillAction[] };
 
+/** The quiet state's headline, in its two subject forms.
+ *
+ *  Split out because the singular is not a plural with one word swapped: at one
+ *  tracked bill the sentence drops the count and changes verb ("has not moved"
+ *  rather than "moved"), so a template with a conditional noun cannot express it.
+ *  Both forms carry the most-recent-change clause only when a date exists —
+ *  `bill_action.action_at` is nullable and the Legislature files undated entries,
+ *  so a tracked set with no dated action anywhere is ordinary, not a fault.
+ */
+export function quietHeadline(trackedCount: number, visitedOn: string, mostRecent: string): string {
+  const opening =
+    trackedCount === 1
+      ? `Your tracked bill has not moved since you last opened the list on ${visitedOn}`
+      : `None of your ${trackedCount} tracked bills moved since you last opened the list on ${visitedOn}`;
+  return mostRecent ? `${opening} — the most recent change was ${mostRecent}` : opening;
+}
+
 /** Build the whole hero + card view model.
  *
  *  `visitedOn` is the reader's previous visit already humanized ("Mar 12"), because
@@ -147,9 +164,12 @@ export function sessionWatch<T extends WithActions>(
       // Names "your tracked bills" (like the moved/first-visit lines) rather than
       // just "nothing has moved" — this headline has no section above it to supply
       // a subject, and a bare quiet state gives no proof the check actually ran.
-      heroLine: mostRecent
-        ? `None of your ${bills.length} tracked ${bills.length === 1 ? 'bill' : 'bills'} moved since you last opened the list on ${visitedOn} — the most recent change was ${mostRecent}`
-        : `None of your ${bills.length} tracked ${bills.length === 1 ? 'bill' : 'bills'} moved since you last opened the list on ${visitedOn}`,
+      //
+      // One tracked bill drops the numeral entirely rather than printing "your 1
+      // tracked bill": the digit says with a number what the singular noun beside
+      // it already says, and it is the only state where the count adds nothing —
+      // "none of 1" is the whole set, so there is no proportion to report.
+      heroLine: quietHeadline(bills.length, visitedOn, mostRecent),
       glyph: 'clock',
     };
   }

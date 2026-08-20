@@ -775,7 +775,7 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
                       <Text style={styles.heroEyebrow}>TRUTH, UNCONCEALED</Text>
                       <Text {...heroHeadingProps(isFocused)} style={styles.heroH1}>
                         Grounded answers{'\n'}
-                        <Text style={styles.heroH1Green}>on Minnesota law</Text>
+                        <Text style={styles.heroH1Green}>on Minnesota politics</Text>
                       </Text>
                       <Text style={styles.heroSubhead}>{HOME_PUBLIC_INTRO}</Text>
                     </>
@@ -1395,7 +1395,7 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
                   <Text style={m.heroEyebrow}>TRUTH, UNCONCEALED</Text>
                   <Text {...heroHeadingProps(isFocused)} style={m.heroH1}>
                     Grounded answers{'\n'}
-                    <Text style={m.heroH1Green}>on Minnesota law</Text>
+                    <Text style={m.heroH1Green}>on Minnesota politics</Text>
                   </Text>
                   <Text style={m.heroSubhead}>{HOME_PUBLIC_INTRO}</Text>
                 </>

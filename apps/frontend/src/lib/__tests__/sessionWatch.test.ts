@@ -82,8 +82,21 @@ describe('the five frames are chosen by what we actually know', () => {
   it('drops the trailing clause when no tracked bill has a dated action at all', () => {
     const watch = sessionWatch([{ id: 'b1', actions: [] }], VISITED, NOW, 'Mar 20');
     expect(watch.heroLine).toBe(
-      'None of your 1 tracked bill moved since you last opened the list on Mar 20',
+      'Your tracked bill has not moved since you last opened the list on Mar 20',
     );
+  });
+
+  // One tracked bill drops the numeral: "your 1 tracked bill" says with a digit
+  // what the singular noun already says, and "none of 1" reports a proportion
+  // that cannot vary. The verb changes with it, which is why this is a separate
+  // sentence rather than a conditional noun.
+  it('names ONE tracked bill without a numeral, and still dates the last change', () => {
+    const watch = sessionWatch([quiet('b1')], VISITED, NOW, 'Mar 20');
+    expect(watch.state).toBe('quiet');
+    expect(watch.heroLine).toBe(
+      'Your tracked bill has not moved since you last opened the list on Mar 20 — the most recent change was Jan 5, 2026',
+    );
+    expect(watch.heroLine).not.toMatch(/\b1 tracked\b/);
   });
 
   it('renders MOVED with the count and the date', () => {

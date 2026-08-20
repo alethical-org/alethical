@@ -14,8 +14,24 @@ live feature.
 - The example answer card shows what a cited answer looks like. It is an editorial
   example about HF 4138, not a generated answer or a promise that a reader can ask
   any question from Home.
-- The supporting sentence says every claim links to the official record. It does
-  not promise that every question can be answered.
+- The headline reads "Grounded answers on Minnesota politics". It said "on Minnesota
+  law" until the money section was added to the page; "politics" is the wider word
+  because the page now covers campaign money as well as legislation. The headline is
+  written in 4 places and all 4 must match: both hero layouts in
+  `HomeSignedOutScreen.tsx`, `homePageSnapshot()` in `lib/pageSnapshot.ts`, and the
+  pre-rendered copy baked into `public/index.html` that a crawler reads before any
+  JavaScript runs. A test pins the last one against the first three.
+- The supporting sentence names what the record covers — bills, where they stand,
+  how legislators voted, and the money: who gives, who spends, who gets paid, and
+  who lobbies — and says every claim links to the official record. It does not
+  promise that every question can be answered.
+- The money half of that sentence runs ahead of what a reader can reach today, and
+  that is deliberate rather than an oversight. Minnesota publishes lobbyist and
+  lobbying-entity registration, the lobbyist-to-client relationships, and principal
+  expenditures, and loading them is a named item on the campaign-money plan
+  (`docs/product-onboarding/campaign-finance-roadmap.md`, "8. Lobbying"). The money
+  section carries its own under-construction notice, so a reader is told where the
+  gap is.
 
 The example answer card keeps 1 divider, a linked bill code, the signed and effective
 dates, the chief author, both chamber vote totals, a plain-language summary, up to 3
