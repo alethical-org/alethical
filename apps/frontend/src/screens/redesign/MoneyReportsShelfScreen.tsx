@@ -84,6 +84,9 @@ export function MoneyReportsShelfScreen({ navigation }: RootScreenProps<'MoneyRe
         <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
 
         <Container style={[styles.main, isMobile && styles.mainMobile]}>
+          {/* A back link names its destination, never the page it sits on: this
+              one goes to the money landing, which the nav calls "Money in
+              politics" (#1707 follow-up, 20 Aug 2026). */}
           <Pressable
             {...linkProps(routePath.money(), () => navigation.navigate('MoneyLanding'))}
             style={styles.backLink}
@@ -91,7 +94,7 @@ export function MoneyReportsShelfScreen({ navigation }: RootScreenProps<'MoneyRe
             <View style={styles.backChevron}>
               <BackChevron />
             </View>
-            <Text style={styles.backLinkText}>Campaign money</Text>
+            <Text style={styles.backLinkText}>Money in politics</Text>
           </Pressable>
 
           <Text style={styles.eyebrow}>CAMPAIGN MONEY</Text>
@@ -102,7 +105,7 @@ export function MoneyReportsShelfScreen({ navigation }: RootScreenProps<'MoneyRe
           >
             What we found
           </Text>
-          <Text style={styles.intro}>Our own research on Minnesota’s campaign records.</Text>
+          <Text style={styles.intro}>Our own research on Minnesota’s records.</Text>
 
           <View style={styles.rule} />
 
