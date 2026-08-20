@@ -67,12 +67,30 @@ export function orderingSentence(orderedBy: string): string | null {
 
 /**
  * Why the listed rows are these rows: over a thousand filers can share one
- * period end (1,200+ share 20 Jul 2026), and the tie breaks alphabetically. Said
+ * period end (1,203 share 20 Jul 2026), and the tie breaks alphabetically. Said
  * plainly so a reader never takes the first rows for the newest or the largest.
- * No count is printed because the feed serves none.
+ *
+ * The count says REPORTS, not committees, and that wording is load-bearing. The
+ * served figure is `newest_period.filing_count`, and a committee that corrects a
+ * filing files a second report for the same period — 367 of 1,005 catalogued
+ * reports carry at least one amendment (#1661), so filings exceed committees by
+ * however many corrected. Printing this number beside the word "committees"
+ * would overstate how many filers the period covers, which is why the previous
+ * version of this sentence could not carry a count at all.
+ *
+ * The period comes from the same served block as the count, never from anywhere
+ * else, so a count can never appear beside a period it does not describe
+ * (grounded-answers rule 12: every total states the period it covers).
  */
-export const FILINGS_TIE_SENTENCE =
-  'Every committee that filed for this period is listed alphabetically — the rows shown are the first by name, not the newest and not the largest.';
+export function filingsTieSentence(filingCount: number | null): string {
+  if (filingCount === null) {
+    return 'Every committee that filed for this period is listed alphabetically — the rows shown are the first by name, not the newest and not the largest.';
+  }
+  return `${filingCount.toLocaleString('en-US')} reports cover this period, listed alphabetically by filer — the rows shown are the first by name, not the newest and not the largest.`;
+}
+
+/** Retained for callers that render the feed before a count is served. */
+export const FILINGS_TIE_SENTENCE = filingsTieSentence(null);
 
 /**
  * One place that turns a served instant into the day a Minnesotan reads
