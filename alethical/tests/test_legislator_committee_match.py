@@ -48,6 +48,7 @@ from alethical.pipeline.legislator_committee_match import (
     find_contested_registrations,
     given_name_words,
     index_committees_by_surname,
+    is_for_a_legislative_office,
     normalize_district,
     parse_committee_name,
     propose_all,
@@ -1361,3 +1362,45 @@ def test_a_strong_proposal_still_reports_why_it_is_unconfirmed():
     assert result.unresolved_reason == (
         "one committee proposed and nothing competing; awaiting confirmation"
     )
+
+
+class TestIsForALegislativeOffice:
+    """A confirmed committee for another race must not appear on a legislator's profile.
+
+    Rescued with the filter itself: this work sat uncommitted in an abandoned worktree
+    with no tests, and the whole point of it is a rule that fails silently. Every case
+    below is one the module's own docstring measured against production.
+    """
+
+    def test_the_two_legislative_offices_are_kept(self) -> None:
+        assert is_for_a_legislative_office("House") is True
+        assert is_for_a_legislative_office("Senate") is True
+
+    def test_another_race_is_excluded(self) -> None:
+        # Measured in the independent-expenditure file: 13 Governor committees, 5
+        # Attorney General, 5 State Auditor, 4 Secretary of State, 1 District Court,
+        # 1 Supreme Court. A run for any of them is a real record and belongs on its
+        # own committee page, never under a legislative profile.
+        for office in (
+            "Governor",
+            "Attorney General",
+            "State Auditor",
+            "Secretary of State",
+            "District Court",
+            "Supreme Court",
+        ):
+            assert is_for_a_legislative_office(office) is False, office
+
+    def test_a_committee_with_no_office_recorded_is_kept(self) -> None:
+        # 2 committees in the download carry no office at all. Absence is not evidence
+        # of another race, and hiding a member's real money on a blank field is the
+        # worse error: a reader cannot tell a hidden figure from one that never existed.
+        assert is_for_a_legislative_office(None) is True
+        assert is_for_a_legislative_office("") is True
+
+    def test_the_match_is_exact_rather_than_a_substring(self) -> None:
+        # office_as_reviewed stores the parsed office verbatim, so an exact match is
+        # correct and a substring search would only invent ways to be wrong.
+        assert is_for_a_legislative_office("house") is False
+        assert is_for_a_legislative_office("Househol") is False
+        assert is_for_a_legislative_office(" House") is False
