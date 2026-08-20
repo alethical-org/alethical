@@ -996,6 +996,187 @@ def recent_filings(
     )
 
 
+@dataclass(frozen=True)
+class CommitteeFilingsPage:
+    """One committee's filed reports, the whole history the catalogue records.
+
+    The same row shape as the landing feed (``FilingRow``), because both lists make the
+    same claims and must break in the same places. Two deliberate differences from
+    ``FilingsPage``:
+
+    * **No ended-periods cutoff.** A terminating committee files its final report at
+      termination, before the period closes — filer 18472's 2026 year-end is a real,
+      filed report read in August 2026 (§9.4's sixth filer) — and on the committee's own
+      page that report is the newest thing it has filed, not noise at the top of a feed.
+    * **A filed report with no period end is listed, last, rather than dropped.** The
+      landing drops it because a "newest" feed cannot place it; a committee's own history
+      leaving it out would hide a real filing. The row then carries no period line
+      (0 such rows in the live snapshot, measured 19 Aug 2026 — this is the safe shape,
+      not a live state).
+
+    ``catalogued_without_record`` counts this filer's catalogue rows that carry no
+    amendment record — either never filed (the catalogue is a schedule) or too old for
+    the Board to serve a version history (ordinary before 2008, §9.6) — so the page can
+    say the list's boundary out loud instead of implying it lists every report ever
+    filed. ``None`` when the state is not ``reported``, never 0.
+    """
+
+    state: str
+    ordered_by: str
+    filings: tuple[FilingRow, ...]
+    limit: int
+    offset: int
+    has_more: bool
+    total: Optional[int]
+    catalogued_without_record: Optional[int]
+    as_of: Optional[date]
+    snapshot_id: Optional[UUID]
+    reason: Optional[str]
+
+
+def committee_filings(
+    db: Session, registration_number: str, *, limit: int, offset: int
+) -> CommitteeFilingsPage:
+    """Every report this committee is recorded as having filed, newest period first.
+
+    The same honesty rules as ``recent_filings``, scoped to one filer:
+
+    * **Only reports somebody actually filed.** The catalogue lists a report the moment
+      its filing period opens, so rows with no amendment record are excluded (§9.6's
+      rule: every filed report carries at least ``['0']``). They are counted in
+      ``catalogued_without_record`` instead, because for pre-2008 rows the missing
+      record means "the Board serves no history", not "never filed", and the page must
+      not pretend the boundary away.
+    * **Ordered by period end, and it says so.** We hold no filing date for any report
+      ([#1670](https://github.com/alethical-org/alethical/issues/1670)), so ``ordered_by``
+      is served and no caller may print "filed on" beside these rows. If a filing date
+      ever lands, this order — and the served ``ordered_by`` — is where it changes.
+    * **A period start comes off a Board calendar or not at all**, and never for a
+      filer-year that carries a special-election report, whose year does not open on
+      1 January (§9.5).
+
+    An empty page for a real committee is ``reported`` with 0 rows: the register lists
+    filers whose catalogued reports all lack an amendment record (filer 18684 holds 7
+    catalogued rows and 0 filed ones in the live snapshot), and that is a fact about the
+    catalogue, not a fault of ours. ``unavailable`` is reserved for our own gaps: no
+    filings snapshot loaded, or the snapshot's rows replaced under this read.
+    """
+    snapshot = live_filings_snapshot(db)
+    if snapshot is None:
+        return CommitteeFilingsPage(
+            state=UNAVAILABLE,
+            ordered_by=ORDERED_BY_PERIOD_END,
+            filings=(),
+            limit=limit,
+            offset=offset,
+            has_more=False,
+            total=None,
+            catalogued_without_record=None,
+            as_of=None,
+            snapshot_id=None,
+            reason=NO_FILINGS_SNAPSHOT,
+        )
+    report = schema.CampaignFinanceFilingReport
+    filer = schema.CampaignFinanceFiler
+    filed_for_this_committee = (
+        report.snapshot_id == snapshot.id,
+        report.registration_number == registration_number,
+        # The amendment-record rule, same as the landing feed: the Board's own positive
+        # signal that a report was FILED (§9.6). Never inferred from a failed document
+        # download, which is what this column stores.
+        report.effective_amendment_index.is_not(None),
+    )
+    joined_to_filer = (
+        filer,
+        (filer.snapshot_id == report.snapshot_id)
+        & (filer.registration_number == report.registration_number),
+    )
+    rows = db.execute(
+        select(
+            report.registration_number,
+            report.filing_year,
+            report.report_type,
+            report.report_name,
+            report.cut_off_date,
+            report.special_election,
+            report.effective_amendment_index,
+            report.amendment_count,
+            filer.name,
+            filer.kind,
+        )
+        .join(*joined_to_filer)
+        .where(*filed_for_this_committee)
+        .order_by(
+            # A row with no period end sorts last rather than being dropped: it is a
+            # real filing we simply cannot place, and its row carries no period line.
+            report.cut_off_date.desc().nulls_last(),
+            report.filing_year.desc(),
+            report.row_number.asc(),
+        )
+        .limit(limit + 1)
+        .offset(offset)
+    ).all()
+    if not rows and offset == 0 and (snapshot.report_count or 0) > 0:
+        # Empty has 2 causes and only one is a refusal: the snapshot's rows were
+        # replaced under this read, or this committee genuinely has no filed report in
+        # the catalogue. Probed unfiltered, the same shape as ``recent_filings``.
+        present = db.scalar(
+            select(report.row_number).where(report.snapshot_id == snapshot.id).limit(1)
+        )
+        if present is None:
+            return CommitteeFilingsPage(
+                state=UNAVAILABLE,
+                ordered_by=ORDERED_BY_PERIOD_END,
+                filings=(),
+                limit=limit,
+                offset=offset,
+                has_more=False,
+                total=None,
+                catalogued_without_record=None,
+                as_of=_snapshot_date(snapshot),
+                snapshot_id=snapshot.id,
+                reason=ROWS_REPLACED,
+            )
+    has_more = len(rows) > limit
+    page = rows[:limit]
+    special_years = _special_election_filer_years(db, snapshot.id, {registration_number})
+    filings = tuple(_filing_row(row, special_years=special_years) for row in page)
+    total = (
+        db.scalar(
+            select(func.count())
+            .select_from(report)
+            .join(*joined_to_filer)
+            .where(*filed_for_this_committee)
+        )
+        or 0
+    )
+    without_record = (
+        db.scalar(
+            select(func.count())
+            .select_from(report)
+            .where(
+                report.snapshot_id == snapshot.id,
+                report.registration_number == registration_number,
+                report.effective_amendment_index.is_(None),
+            )
+        )
+        or 0
+    )
+    return CommitteeFilingsPage(
+        state=REPORTED,
+        ordered_by=ORDERED_BY_PERIOD_END,
+        filings=filings,
+        limit=limit,
+        offset=offset,
+        has_more=has_more,
+        total=total,
+        catalogued_without_record=without_record,
+        as_of=_snapshot_date(snapshot),
+        snapshot_id=snapshot.id,
+        reason=None,
+    )
+
+
 def _special_election_filer_years(
     db: Session, snapshot_id: UUID, registrations: set[str]
 ) -> set[tuple[str, int]]:

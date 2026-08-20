@@ -28,6 +28,7 @@ import {
   Chamber,
   ChatSession,
   Citation,
+  CommitteeFilingsPage,
   CommitteeMadePayment,
   CommitteeMoney,
   CommitteePaymentsPage,
@@ -2860,4 +2861,62 @@ async function committeePaymentsRequest(
     if (isNotFoundError(error)) return null;
     throw error;
   }
+}
+
+interface ApiCommitteeFilingPayload {
+  report_name?: string | null;
+  report_type?: string | null;
+  filing_year?: number | null;
+  period_start?: string | null;
+  period_end?: string | null;
+  effective_amendment_index?: number | null;
+  amendment_count?: number | null;
+}
+
+interface ApiCommitteeFilingsPayload {
+  state?: string;
+  ordered_by?: string;
+  filings?: ApiCommitteeFilingPayload[] | null;
+  page?: { has_more?: boolean; total?: number | null } | null;
+  catalogued_without_record?: number | null;
+}
+
+/**
+ * Every report a committee is recorded as having filed (the Filings tab). No
+ * amounts, no filed date and no amendment date — we hold none of those (issue
+ * #1670; the catalogue's amendment record is version indexes only) — so the
+ * list orders by the period each report covers and `ordered_by` says so.
+ */
+export async function getCommitteeFilingsFromApi(
+  registrationNumber: string,
+  options: { limit?: number; offset?: number } = {},
+): Promise<CommitteeFilingsPage> {
+  const params = new URLSearchParams();
+  if (options.limit !== undefined) params.set('limit', String(options.limit));
+  if (options.offset !== undefined) params.set('offset', String(options.offset));
+  const query = params.toString();
+  const response = await publicApiRequest<DetailResponse<ApiCommitteeFilingsPayload>>(
+    `/committees/${encodeURIComponent(registrationNumber)}/filings${query ? `?${query}` : ''}`,
+  );
+  const payload = response.data;
+  const state = blockState(payload.state);
+  return {
+    state,
+    orderedBy: payload.ordered_by ?? '',
+    filings:
+      state === 'reported'
+        ? (payload.filings ?? []).map((filing) => ({
+            reportName: filing.report_name ?? '',
+            reportType: filing.report_type ?? '',
+            filingYear: filing.filing_year ?? 0,
+            periodStart: filing.period_start ?? null,
+            periodEnd: filing.period_end ?? null,
+            effectiveAmendmentIndex: filing.effective_amendment_index ?? null,
+            amendmentCount: filing.amendment_count ?? null,
+          }))
+        : [],
+    hasMore: payload.page?.has_more ?? false,
+    total: payload.page?.total ?? null,
+    cataloguedWithoutRecord: payload.catalogued_without_record ?? null,
+  };
 }

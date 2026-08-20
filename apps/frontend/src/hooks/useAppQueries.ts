@@ -25,6 +25,7 @@ import {
   getLegislatorVotesFromApi,
   getCampaignFinanceFilingsFromApi,
   getCampaignFinanceSummaryFromApi,
+  getCommitteeFilingsFromApi,
   getCommitteeFinanceFromApi,
   getCommitteePaymentsMadeFromApi,
   getCommitteePaymentsReceivedFromApi,
@@ -47,6 +48,7 @@ import {
   updateNotificationPreference,
 } from '../data/mockData';
 import type {
+  CommitteeFilingsPage,
   CommitteeMadePayment,
   CommitteePaymentsPage,
   CommitteeReceivedPayment,
@@ -394,6 +396,28 @@ export function useCommitteePaymentsList(
     getNextPageParam: (lastPage, allPages) =>
       lastPage && lastPage.hasMore ? allPages.length * 250 : undefined,
     enabled: Boolean(registrationNumber),
+    retry: false,
+  });
+}
+
+/**
+ * Every report a committee is recorded as having filed, for the Filings tab:
+ * pages of 100, newest period first, accumulated as the reader asks for more.
+ * 100 matches the served maximum, and no committee in the live catalogue holds
+ * more than 74 filed reports, so the whole history is usually one request.
+ */
+export function useCommitteeFilingsList(
+  registrationNumber: string | null,
+  options: { enabled?: boolean } = {},
+) {
+  return useInfiniteQuery({
+    queryKey: ['committee-filings', registrationNumber],
+    queryFn: ({ pageParam }): Promise<CommitteeFilingsPage> =>
+      getCommitteeFilingsFromApi(registrationNumber ?? '', { limit: 100, offset: pageParam }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) =>
+      lastPage.hasMore ? allPages.length * 100 : undefined,
+    enabled: Boolean(registrationNumber) && (options.enabled ?? true),
     retry: false,
   });
 }

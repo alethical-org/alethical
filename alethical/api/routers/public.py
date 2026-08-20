@@ -57,6 +57,7 @@ from alethical.api.services.campaign_finance_payments import (
 from alethical.api.services.campaign_finance_register import (
     MAX_COMMITTEES,
     MAX_FILINGS,
+    committee_filings,
     committees as register_committees,
     freshness,
     legislator_committee_confirmations,
@@ -3520,6 +3521,87 @@ def campaign_finance_filings(
                 "period_end": page.newest_period_end,
                 "filing_count": page.newest_period_filing_count,
             },
+            "as_of": page.as_of,
+            "snapshot_id": str(page.snapshot_id) if page.snapshot_id else None,
+            "reason": page.reason,
+        }
+    )
+
+
+@router.get("/committees/{registration_number}/filings", response_model=DetailResponse)
+def committee_filings_list(
+    registration_number: str,
+    limit: int = Query(default=MAX_FILINGS, ge=1, le=MAX_FILINGS),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+):
+    """Every report this committee is recorded as having filed, newest period first.
+
+    The committee page's Filings tab ("Money committee web.dc.html",
+    [#1679](https://github.com/alethical-org/alethical/issues/1679)). The same row shape
+    and the same honesty rules as ``/campaign-finance/filings``, scoped to one filer:
+
+    * **No amount of any kind**, and no parameter sorts by one: this is a list of
+      filings, not of money.
+    * **Only reports somebody actually filed.** The catalogue is a schedule — it lists a
+      report from the moment its filing period opens — so rows with no amendment record
+      are excluded (every filed report carries at least ``['0']``,
+      ``docs/architecture/campaign-finance-system-design.md`` §9.6).
+      ``catalogued_without_record`` counts the excluded rows, because before 2008 the
+      missing record means the Board serves no version history rather than "never
+      filed", and the page says that boundary out loud instead of claiming to list
+      every report ever filed.
+    * **Ordered by period end, and ``ordered_by`` says so.** We hold no filing date for
+      any report ([#1670](https://github.com/alethical-org/alethical/issues/1670)) and
+      no amendment date either — the catalogue's amendment record is a list of version
+      indexes, nothing more — so no surface may print "filed on" or date an AMENDED
+      marker from these rows.
+    * **A period start comes off one of the Board's own transcribed disclosure
+      calendars or not at all** (``period_start_source: "board_calendar"``), and never
+      for a filer-year carrying a special-election report, whose year does not open on
+      1 January (§9.5). A row with no start reads "covers through {period_end}".
+
+    Two deliberate differences from the landing feed, both because this is one
+    committee's own history rather than a "what's new" feed: a filed report whose period
+    has not ended yet is listed (a terminating committee files its final report at
+    termination — filer 18472's 2026 year-end is real and filed), and a filed report
+    with no period end is listed last rather than dropped.
+
+    ``state`` decides whether ``filings`` may be read. An empty ``reported`` list means
+    the catalogue records no filed report for this registration number — real for some
+    registered filers — never that the committee does not exist; ``unavailable`` with a
+    ``reason`` is our own gap (``no_filings_snapshot`` or ``rows_replaced``).
+    """
+    pin_campaign_finance_to_one_view(db)
+    page = committee_filings(db, registration_number, limit=limit, offset=offset)
+    return DetailResponse(
+        data={
+            "state": page.state,
+            "ordered_by": page.ordered_by,
+            "filings": [
+                {
+                    "registration_number": row.registration_number,
+                    "filer_name": row.filer_name,
+                    "filer_kind": row.filer_kind,
+                    "report_name": row.report_name,
+                    "report_type": row.report_type,
+                    "filing_year": row.filing_year,
+                    "period_end": row.period_end,
+                    "period_start": row.period_start,
+                    "period_start_source": row.period_start_source,
+                    "special_election": row.special_election,
+                    "amendment_count": row.amendment_count,
+                    "effective_amendment_index": row.effective_amendment_index,
+                }
+                for row in page.filings
+            ],
+            "page": {
+                "limit": page.limit,
+                "offset": page.offset,
+                "has_more": page.has_more,
+                "total": page.total,
+            },
+            "catalogued_without_record": page.catalogued_without_record,
             "as_of": page.as_of,
             "snapshot_id": str(page.snapshot_id) if page.snapshot_id else None,
             "reason": page.reason,
