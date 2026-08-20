@@ -131,12 +131,18 @@ function InlineRuns({ runs }: { runs: ReportInline[] }) {
 function Blocks({ blocks }: { blocks: ReportBlock[] }) {
   return (
     <>
-      {blocks.map((block, index) =>
-        block.kind === 'paragraph' ? (
-          <Text key={index} style={styles.paragraph}>
-            <InlineRuns runs={block.runs} />
-          </Text>
-        ) : (
+      {blocks.map((block, index) => {
+        if (block.kind === 'paragraph') {
+          return (
+            <Text key={index} style={styles.paragraph}>
+              <InlineRuns runs={block.runs} />
+            </Text>
+          );
+        }
+        if (block.kind === 'table') {
+          return <BlockTable key={index} columns={block.columns} rows={block.rows} />;
+        }
+        return (
           <View key={index} style={styles.bullets}>
             {block.items.map((item, itemIndex) => (
               <View key={itemIndex} style={styles.bulletRow}>
@@ -147,9 +153,47 @@ function Blocks({ blocks }: { blocks: ReportBlock[] }) {
               </View>
             ))}
           </View>
-        ),
-      )}
+        );
+      })}
     </>
+  );
+}
+
+/**
+ * A report's table. Marked up as a real table so a screen reader announces each
+ * figure with its column, and scrollable on its own so a long row never pushes
+ * the page sideways.
+ */
+function BlockTable({ columns, rows }: { columns: string[]; rows: string[][] }) {
+  return (
+    <View style={styles.tableScroll}>
+      <View role="table" style={styles.table}>
+        <View role="row" style={[styles.tableRow, styles.tableHeadRow]}>
+          {columns.map((column, index) => (
+            <Text
+              key={column}
+              role="columnheader"
+              style={[styles.tableHeadCell, index > 0 && styles.tableCellNumeric]}
+            >
+              {column}
+            </Text>
+          ))}
+        </View>
+        {rows.map((row) => (
+          <View role="row" key={row[0]} style={styles.tableRow}>
+            {row.map((cell, index) => (
+              <Text
+                key={index}
+                role="cell"
+                style={[styles.tableCell, index > 0 && styles.tableCellNumeric]}
+              >
+                {cell}
+              </Text>
+            ))}
+          </View>
+        ))}
+      </View>
+    </View>
   );
 }
 
@@ -287,6 +331,9 @@ export function MoneyReportScreen({ navigation, route }: RootScreenProps<'MoneyR
                   <Text style={styles.mastheadLineMuted}>
                     {report.filingBodies.join(' · ').toUpperCase()}
                   </Text>
+                  {report.undatedRecordsNote ? (
+                    <Text style={styles.mastheadNote}>{report.undatedRecordsNote}</Text>
+                  ) : null}
                 </View>
                 <SharePopover content={shareContent} />
               </View>
@@ -541,6 +588,48 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.7,
   },
+  mastheadNote: {
+    color: t.colors.text.secondary,
+    fontFamily: t.typography.body,
+    fontSize: 13,
+    lineHeight: 19,
+    maxWidth: 420,
+  },
+  tableScroll: { marginTop: 22, overflow: 'scroll' },
+  table: {
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink08,
+    borderRadius: 12,
+    overflow: 'hidden',
+    minWidth: 320,
+  },
+  tableRow: {
+    flexDirection: 'row',
+    borderTopWidth: 1,
+    borderTopColor: t.colors.alpha.ink08,
+  },
+  tableHeadRow: { borderTopWidth: 0, backgroundColor: t.colors.surfaces.s200 },
+  tableHeadCell: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    color: t.colors.text.secondary,
+    fontFamily: t.typography.mono,
+    fontSize: 11,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 0.7,
+    textTransform: 'uppercase',
+  },
+  tableCell: {
+    flex: 1,
+    paddingVertical: 13,
+    paddingHorizontal: 16,
+    color: t.colors.text.primary,
+    fontFamily: t.typography.body,
+    fontSize: 16,
+    lineHeight: 24,
+  },
+  tableCellNumeric: { flex: 0, minWidth: 140, textAlign: 'right' },
   bullets: { marginTop: 16, gap: 10 },
   bulletRow: { flexDirection: 'row', gap: 10 },
   bulletDot: {

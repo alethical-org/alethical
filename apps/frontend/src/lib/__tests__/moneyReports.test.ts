@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
+import { moneyReportPageMetadata } from '../share';
 import {
   PUBLISHED_REPORTS,
+  publishedReports,
   reportBySlug,
   reportDateCapsLabel,
   reportDateLabel,
@@ -16,6 +18,7 @@ import {
 // (Eugene's 19 Aug 2026 decision — build the page and its container only).
 export const SAMPLE_REPORT: MoneyReport = {
   slug: 'sample-report',
+  listed: true,
   title: 'Sample report title',
   dek: 'A sample standfirst for tests.',
   authorLine: 'ALETHICAL RESEARCH · AUTHOR NAMED AT PUBLISH',
@@ -65,14 +68,45 @@ export const SAMPLE_REPORT: MoneyReport = {
   newerFilingsNote: 'A sample newer-filings note, dated at the figure it moves.',
 };
 
-describe('the published-report registry', () => {
-  // Publication is a decision Eugene makes per report. When the first report is
-  // approved, its entry lands in PUBLISHED_REPORTS and this pin moves with it —
-  // until then, an entry here would put unapproved claims on a live page.
-  it('is empty until a report is approved for publication', () => {
-    expect(PUBLISHED_REPORTS).toEqual([]);
-    expect(reportBySlug('outsider-pattern')).toBeUndefined();
-    expect(reportBySlug('sample-report')).toBeUndefined();
+describe('the posted-report registry', () => {
+  // Rule 13's publishing order separates posting from listing: a posted report
+  // has a page at its own address, and only a LISTED report is one a reader can
+  // find. These pins are what stop an unlisted report leaking into a surface
+  // that would make it findable, so they move only when Eugene lists one.
+  it('gives every posted report a page at its own address', () => {
+    expect(PUBLISHED_REPORTS.length).toBeGreaterThan(0);
+    for (const report of PUBLISHED_REPORTS) {
+      expect(reportBySlug(report.slug)).toBe(report);
+    }
+  });
+
+  it('keeps an unlisted report out of the shelf, the landing and the sitemap', () => {
+    // publishedReports() is the single feed those three surfaces read.
+    const listed = publishedReports();
+    expect(listed.every((report) => report.listed)).toBe(true);
+    for (const report of PUBLISHED_REPORTS.filter((report) => !report.listed)) {
+      expect(listed).not.toContain(report);
+    }
+  });
+
+  it('tells search engines to skip an unlisted report, and to index a listed one', () => {
+    const unlisted = moneyReportPageMetadata({ ...SAMPLE_REPORT, listed: false });
+    expect(unlisted.noindex).toBe(true);
+    // No canonical while noindex: an unlisted page is not a copy of a real one.
+    expect(unlisted.canonicalPath).toBe('');
+
+    const listed = moneyReportPageMetadata(SAMPLE_REPORT);
+    expect(listed.noindex).toBe(false);
+    expect(listed.canonicalPath).toBe('/reports/sample-report');
+  });
+
+  it('names records it does not hold rather than dating them', () => {
+    // Rule 13's publishing order, point 11.
+    for (const report of PUBLISHED_REPORTS) {
+      if (report.undatedRecordsNote === undefined) continue;
+      expect(report.undatedRecordsNote.trim().length).toBeGreaterThan(0);
+      expect(report.undatedRecordsNote).not.toContain(report.recordsThrough);
+    }
   });
 });
 

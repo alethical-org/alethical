@@ -1167,11 +1167,10 @@ date and source. A network view may show the shape; it may not imply continuatio
 Everything above governs a **record** surface. A signed research report is the one surface
 allowed to add records up across members and to name a pattern, under the conditions in
 [`.claude/rules/grounded-answers.md`](../../.claude/rules/grounded-answers.md) rule 13
-(Eugene's decision, 18 Aug 2026). That rule carries the permissions and their conditions; this
-subsection carries the display half, and it describes **what a report page must do when a report
-is published on it**. None is published today: phase 1 builds the page and its shelf as an empty
-container, and publishing the first report is a separate decision (Eugene, 19 Aug 2026). The
-drawn design is `docs/design/handoff-campaign-money/Money report web.dc.html`.
+That rule carries the permissions and their conditions, including the publishing order that
+separates posting a report from listing it publicly; this subsection carries the display half,
+and it describes **what a report page must do**. The drawn design is
+`docs/design/handoff-campaign-money/Money report web.dc.html`.
 
 - **The masthead sits above the first claim** and names five things: that this is Alethical
   research, its author, its publication date, the date its records run through, and every filing

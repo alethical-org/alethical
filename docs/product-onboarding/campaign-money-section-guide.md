@@ -229,22 +229,40 @@ about either page's contents changed with the move.
 
 The shelf for Alethical's own signed research on these records
 ([`.claude/rules/grounded-answers.md` rule 13](../../.claude/rules/grounded-answers.md)).
-One entry per published report, newest first, each carrying its publication date and the
-date its records run through. **Nothing is published yet**, and the shelf says exactly
-that. Publishing a report is a separate, per-report decision made by Eugene; the first
-report's text exists in this repository
-([`docs/design/handoff-campaign-money/follow-the-money-report.md`](../design/handoff-campaign-money/follow-the-money-report.md))
-and deliberately does not appear on the site.
+One entry per **listed** report, newest first, each carrying its publication date and the
+date its records run through.
+
+Posting a report and listing it are two separate steps, and only the second one puts a
+report on this shelf:
+
+- **Posted** means the report has a page at its own address, exactly as its author wrote
+  it, before any of its figures have been checked. A posted report is deliberately hard to
+  find: it is absent from this shelf, absent from the money landing's card, absent from the
+  sitemap, and marked for search engines to skip. Its only readers are people given the
+  link.
+- **Listed** means Eugene has decided the report is ready for the public, once the figure
+  check has resolved. Listing is what adds it here, to the sitemap, and to search results.
+
+**Nothing is listed yet**, and the shelf says exactly that, so it shows "Nothing is
+published yet" and counts 0 reports. One report is posted and unlisted: "The Money Only
+Goes One Way", at `/reports/the-money-only-goes-one-way`.
 
 ## A report page (`/reports/{name}`)
 
-No report address exists until its report is published — an unpublished address shows the
-ordinary "page not found" screen. The page layout is fully built and waiting. When a report
-publishes, its page carries:
+Every posted report has a page here, listed or not; an address with no report behind it
+shows the ordinary "page not found" screen. A report's page carries:
 
-- A masthead naming what it is (ALETHICAL RESEARCH), its author (until the signing name is
-  decided, the line reads "AUTHOR NAMED AT PUBLISH" — never an invented name), its
-  publication date, its records-through date, and every filing body it used.
+- A masthead naming what it is (ALETHICAL RESEARCH), its author, its publication date, its
+  records-through date, and every filing body it used. A report Alethical publishes in its
+  own name is authored by "ALETHICAL". Where a figure comes from records Alethical does not
+  hold, the masthead says so and names it rather than leaving a blank or lending it another
+  figure's date.
+- The publication date is the day the report is listed publicly, in Minnesota time; while a
+  report is unlisted it shows the day it posted. The records-through date never moves with
+  it, so a reader always sees which records the figures were computed from.
+- Tables, where the report's own text uses one. A table is marked up as a real table, so a
+  screen reader announces each figure with its column heading, and it scrolls on its own
+  rather than pushing the page sideways on a phone.
 - A contents list — a side rail on a computer, a jump list on a phone.
 - The reading column, with the short version boxed on top, and a "how we scored this" inset
   printed beside the first use of any term we defined.
