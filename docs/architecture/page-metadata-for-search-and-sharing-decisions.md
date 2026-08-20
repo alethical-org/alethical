@@ -1018,7 +1018,10 @@ record.
   standing over rather than treat `/reports` as a new page competing with a live one. The sitemap
   and the served canonical address now name `/reports` only, so nothing we publish points at the
   redirect. The route table resolves the old addresses too, which is what keeps them working on a
-  host with no redirect rules — the dev server and a local static export.
+  host with no redirect rules — the dev server and a local static export. The cost of choosing
+  permanent, accepted here: a browser may cache a 308 and keep forwarding even after the rule is
+  removed, so this is not a cheap decision to reverse. That is the right trade for a page that
+  moved for good, and the wrong one for Chat and Account above, which may come back.
 
 ### What this deliberately does not do
 

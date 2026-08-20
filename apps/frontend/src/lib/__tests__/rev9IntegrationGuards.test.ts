@@ -24,6 +24,27 @@ describe('rev 9 sign-in integration guards', () => {
     }
   });
 
+  // A Track press made while signed out is held by the server and written at
+  // sign-in, on a path that does NOT go through useSetTrackedBill. It used to
+  // write the row and refresh nothing, so the reader landed back on the bill with
+  // the Track button still offering to track it, and the account menu's count one
+  // short (#1698). Both read one shared saved list, so one refresh fixes both.
+  it('refreshes the watchlist after finishing a held Track press', () => {
+    const modalProvider = source('../../providers/SignInModalProvider.tsx');
+    const queries = source('../../hooks/useAppQueries.ts');
+
+    expect(modalProvider).toContain('useRefreshTrackedBills(user?.id)');
+    expect(modalProvider).toContain('await completePendingTrackActionFromApi(');
+    expect(modalProvider).toContain('refreshTrackedBills();');
+
+    // Nothing is watching that list while the write happens — the account menu is
+    // shut — so the refresh has to reach an unwatched query, not just active ones.
+    expect(queries).toContain("refetchType: 'all'");
+    expect(queries).toContain('export function useRefreshTrackedBills');
+    // One refresh for every watchlist write, so the two paths cannot drift.
+    expect(queries).toContain('onSuccess: refreshTrackedBills');
+  });
+
   it('closes a completed email-link flow without running its saved action twice', () => {
     const modalProvider = source('../../providers/SignInModalProvider.tsx');
 

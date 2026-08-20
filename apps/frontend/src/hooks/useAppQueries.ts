@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import {
   keepPreviousData,
   useInfiniteQuery,
@@ -567,18 +568,45 @@ export function useTrackedListState(): {
   };
 }
 
-export function useSetTrackedBill(userId?: string) {
+/**
+ * Throw away what we hold about this reader's watchlist, so the next read comes
+ * from the server. Every write to the watchlist calls this, from wherever it is
+ * made, because a write that skips it leaves a stale list on screen that looks
+ * exactly like a current one.
+ *
+ * It exists as a shared hook rather than an inline call because there are TWO
+ * write paths and only one of them used to refresh anything. The other is a
+ * Track press made while signed out, which the server holds and completes at
+ * sign-in (`SignInModalProvider`): it wrote the row and refreshed nothing, so
+ * the reader landed back on the bill with the Track button still offering to
+ * track a bill they now tracked, and — since #1698 — the account menu printing
+ * a count one short of the truth. Nothing corrected it until a tab focus or a
+ * later mount happened to refetch.
+ *
+ * `refetchType: 'all'` refreshes the query even when nothing is watching it,
+ * which is the case here: the account menu is shut while the write happens.
+ */
+export function useRefreshTrackedBills(userId?: string) {
   const queryClient = useQueryClient();
+
+  return useCallback(() => {
+    void queryClient.invalidateQueries({
+      queryKey: ['tracked-bills', userId ?? 'anon'],
+      refetchType: 'all',
+    });
+    void queryClient.invalidateQueries({ queryKey: ['bills'] });
+    void queryClient.invalidateQueries({ queryKey: ['bill'] });
+  }, [queryClient, userId]);
+}
+
+export function useSetTrackedBill(userId?: string) {
   const { accessToken } = useAuth();
+  const refreshTrackedBills = useRefreshTrackedBills(userId);
 
   return useMutation({
     mutationFn: ({ billId, tracked }: { billId: string; tracked: boolean }) =>
       setTrackedBillFromApi(accessToken ?? '', billId, tracked),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['tracked-bills', userId ?? 'anon'] });
-      void queryClient.invalidateQueries({ queryKey: ['bills'] });
-      void queryClient.invalidateQueries({ queryKey: ['bill'] });
-    },
+    onSuccess: refreshTrackedBills,
   });
 }
 
