@@ -839,10 +839,14 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
                   </View>
                 </View>
 
-                {/* RIGHT: the Session watch card replaces the example answer card in
-                    the same slot, footprint and shadow — not a band above the hero,
-                    which would stack two heroes and make a signed-in reader scroll
-                    past a pitch that already worked. */}
+                {/* RIGHT: signed in this is the Legislative session watch card,
+                    signed out it is the money promo. The signed-in slot is NOT a
+                    pitch and must not become one — a band above the hero would
+                    stack two heroes and make a returning reader scroll past a
+                    pitch that already worked, which is why the money card sits in
+                    its own band BELOW this hero when signed in. The example answer
+                    that used to fill this slot signed out now has its own
+                    full-width section further down. */}
                 <View
                   style={[
                     styles.heroRight,
