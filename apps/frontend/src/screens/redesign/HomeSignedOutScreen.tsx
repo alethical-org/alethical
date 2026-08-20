@@ -674,17 +674,22 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
   );
   const lastVisitData = lastVisitQuery.data;
   const trackedBills = trackedQuery.data;
+  // The query does not retry, so one failure is terminal until the reader asks.
+  const trackedFailed = trackedQuery.isError;
   const watchNow = useRef(new Date()).current;
   const watch = useMemo(() => {
     const lastVisit = lastVisitFrom(lastVisitData);
     // The tracked list itself is still loading, so we do not yet know what to
     // compare — the same "we have not asked" case, and it renders as pending
     // rather than as an empty watchlist (#1026, #1034).
+    // A failed load has no bills and no visit answer either, so it must be told
+    // apart here rather than inferred from those absences downstream.
+    if (trackedFailed) return sessionWatch([], { state: 'not-checked' }, watchNow, '', true);
     if (!trackedBills) return sessionWatch([], { state: 'not-checked' }, watchNow, '');
     const visitedOn =
       lastVisit.state === 'previous-visit' ? formatNiceDate(localDay(lastVisit.at)) : '';
     return sessionWatch(trackedBills, lastVisit, watchNow, visitedOn);
-  }, [trackedBills, lastVisitData, watchNow]);
+  }, [trackedBills, trackedFailed, lastVisitData, watchNow]);
 
   // "Or start from what's moving now" scrolls to the Bill Activity section already
   // further down this page, so someone tracking nothing is never at a dead end.
@@ -852,6 +857,7 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
                       onAllTracked={() => navigation.navigate('Tracked')}
                       onSearchBills={() => navigation.navigate('Bills')}
                       onWhatsMoving={scrollToBillActivity}
+                      onRetry={() => void trackedQuery.refetch()}
                     />
                   ) : (
                     <MoneyPromoCard
@@ -1291,14 +1297,19 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
   );
   const lastVisitData = lastVisitQuery.data;
   const trackedBills = trackedQuery.data;
+  // The query does not retry, so one failure is terminal until the reader asks.
+  const trackedFailed = trackedQuery.isError;
   const watchNow = useRef(new Date()).current;
   const watch = useMemo(() => {
     const lastVisit = lastVisitFrom(lastVisitData);
+    // A failed load has no bills and no visit answer either, so it must be told
+    // apart here rather than inferred from those absences downstream.
+    if (trackedFailed) return sessionWatch([], { state: 'not-checked' }, watchNow, '', true);
     if (!trackedBills) return sessionWatch([], { state: 'not-checked' }, watchNow, '');
     const visitedOn =
       lastVisit.state === 'previous-visit' ? formatNiceDate(localDay(lastVisit.at)) : '';
     return sessionWatch(trackedBills, lastVisit, watchNow, visitedOn);
-  }, [trackedBills, lastVisitData, watchNow]);
+  }, [trackedBills, trackedFailed, lastVisitData, watchNow]);
   const billActivityRef = useRef<Text>(null);
   const scrollToBillActivity = () => {
     if (!isWeb || !billActivityRef.current) return;
@@ -1457,6 +1468,7 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
                       onAllTracked={() => navigation.navigate('Tracked')}
                       onSearchBills={openSearchBills}
                       onWhatsMoving={scrollToBillActivity}
+                      onRetry={() => void trackedQuery.refetch()}
                     />
                   </View>
                   {/* Side by side on a tablet, stacked full-width on a phone. */}

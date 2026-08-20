@@ -27,6 +27,9 @@ live feature.
   built. It says the figures are read from the filings instead, and
   `src/components/home/__tests__/moneyPromoCopy.test.ts` fails if that sentence
   drifts back.
+- The tracked-bills card is titled **Legislative session watch**. The longer name
+  is deliberate: sitting next to the account menu, "Session" alone reads as a
+  login session.
 - The example answer card shows what a cited answer looks like. It is an editorial
   example about HF 4138, not a generated answer or a promise that a reader can ask
   any question from Home. It sits in its own section below the hero, headed "What
@@ -62,6 +65,27 @@ The card's wording is editorial, but every stated bill fact must stay true. The 
 check in `scripts/check_home_hero_card_literals.py` compares the card with Alethical's
 published record every month and whenever the card or check changes
 (`.github/workflows/home-hero-card-facts.yml`).
+
+## When the tracked-bills check fails
+
+The signed-in hero asks once whether any tracked bill moved, and that request does
+not try again on its own. Before this state existed, one failure left the hero
+saying "Checking your tracked bills…" with a spinner forever, which looks exactly
+like a slow load and never resolves.
+
+- The card now says **"We couldn’t check your tracked bills"**, with a **Try
+  again** button, and the hero headline reads "We couldn’t check your tracked
+  bills just now". "Just now" is deliberate: it says this attempt failed, not that
+  something is wrong with the reader's account.
+- The wording says plainly that nothing was lost. Their bills are still tracked;
+  the list of what moved is the part we could not reach.
+- It uses amber, not red, and the same amber as the bill-code badge. Nothing is
+  broken for the reader, so an error colour would overstate it.
+- The "All tracked bills" link is hidden in this state, because we cannot say what
+  is in that list right now.
+- This is a separate state from the waiting one, not a variant of it. Waiting says
+  we are working and fixes itself; this says we stopped and nothing else will
+  start again.
 
 ## Bill activity
 

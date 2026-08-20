@@ -34,8 +34,15 @@ export interface SessionWatch<T> {
    *  `pending` is the one that exists to prevent a specific lie: on a fresh load we
    *  have not asked when the reader last looked, and "no answer" means NOT ASKED,
    *  never "nothing moved". Built the obvious way, this page would tell someone
-   *  whose bills all moved that nothing had. */
-  state: 'pending' | 'tracking-nothing' | 'first-visit' | 'moved' | 'quiet';
+   *  whose bills all moved that nothing had.
+   *
+   *  `failed` is the end of that road rather than a variant of it. The tracked
+   *  list does not retry, so one failure used to leave the hero saying "Checking
+   *  your tracked bills…" with a spinner permanently — indistinguishable from a
+   *  slow load, and resolving never. It is a separate state because the reader
+   *  needs a different thing from it: not reassurance that we are working, but
+   *  the fact that we stopped and a way to ask again. */
+  state: 'pending' | 'failed' | 'tracking-nothing' | 'first-visit' | 'moved' | 'quiet';
   /** Up to SESSION_WATCH_ROWS rows, moved first. Empty while pending and when
    *  nothing is tracked, where the card renders its own frame instead. */
   rows: Array<SessionWatchRow<T>>;
@@ -83,7 +90,25 @@ export function sessionWatch<T extends WithActions>(
   lastVisit: LastVisit,
   now: Date,
   visitedOn: string,
+  loadFailed = false,
 ): SessionWatch<T> {
+  // Asked, and it came back empty-handed. Checked FIRST: a failed load also has
+  // no bills and no last-visit answer, so every state below would otherwise
+  // claim one of those absences means something about the reader's bills.
+  if (loadFailed) {
+    return {
+      state: 'failed',
+      rows: [],
+      movedCount: 0,
+      capCaption: '',
+      // "just now" is doing real work: it says the failure is this attempt, not a
+      // standing fact about their account, which is what makes trying again read
+      // as worth doing.
+      heroLine: 'We couldn’t check your tracked bills just now',
+      glyph: 'clock',
+    };
+  }
+
   // Not asked yet. No count, no date, no reassurance — the date is exactly the
   // unknown being fetched, so a hero line naming one would be inventing it.
   if (lastVisit.state === 'not-checked') {
