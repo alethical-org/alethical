@@ -732,12 +732,15 @@ def test_paging_reports_more_without_counting_the_whole_catalogue(client, db) ->
 
 
 def test_the_total_counts_exactly_the_set_the_rows_came_from(client, db) -> None:
-    """The landing says "N committees filed for this period" over these very rows (#1677).
+    """The count carries the feed's own exclusions, so it describes its own list (#1677).
 
-    So the count carries the feed's own exclusions: a report nobody filed and a report
-    whose period has not ended are both outside the list and outside the number. Over
-    1,200 filers share the period end of 20 July 2026, so without the count 5 rows
-    beginning "100 Percent Future Fund" read as a shortlist of the newest or the biggest.
+    A report nobody filed and a report whose period has not ended are both outside the
+    list and outside the number. Without any count, 5 rows beginning "100 Percent Future
+    Fund" read as a shortlist of the newest or the biggest.
+
+    **This is not the landing's "N committees filed for this period" figure**, which is
+    ``newest_period.filing_count`` and is pinned below. This one counts every ended filed
+    report we hold, across every period: 33,612 on production against that one's 1,203.
     """
     snapshot = _filings_snapshot(db, report_count=4)
     _filer(db, snapshot, CANDIDATE)
@@ -755,6 +758,84 @@ def test_the_total_counts_exactly_the_set_the_rows_came_from(client, db) -> None
     assert data["page"]["total"] == 2
     assert data["page"]["has_more"] is True
     assert len(data["filings"]) == 1
+
+
+def test_the_period_count_is_the_newest_periods_own_and_never_the_whole_set(
+    client, db
+) -> None:
+    """ "N committees filed for this period" needs the period's count, not the feed's.
+
+    The 2 numbers differ by 28-fold on production -- 1,203 filings carry the newest
+    period end of 20 Jul 2026 against 33,612 ended filed reports in all -- so a page
+    printing the feed's total in that sentence overstates one period by a factor of 28
+    under a named date. Here the same shape in miniature: 3 in the newest period, 5 in
+    the feed.
+    """
+    snapshot = _filings_snapshot(db, report_count=5)
+    _filer(db, snapshot, CANDIDATE)
+    for index in range(3):
+        _report(db, snapshot, CANDIDATE, report_name=f"Newest {index}")
+    _report(db, snapshot, CANDIDATE, report_name="Older", cut_off=date(2026, 5, 31))
+    _report(db, snapshot, CANDIDATE, report_name="Oldest", cut_off=date(2025, 12, 31))
+
+    data = client.get(FILINGS, params={"limit": 2}).json()["data"]
+
+    assert data["page"]["total"] == 5
+    assert data["newest_period"]["filing_count"] == 3
+    assert data["newest_period"]["period_end"] == PRE_PRIMARY_END.isoformat()
+
+
+def test_the_period_count_is_the_same_whatever_page_was_asked_for(client, db) -> None:
+    """Counted over the filter, never read off the rows on screen.
+
+    The newest period's filings run past the end of any one page -- 1,203 of them against
+    a landing that draws 5 -- so a count taken from the returned rows would be a count of
+    the page wearing the period's name, and it would shrink as a reader paged.
+    """
+    snapshot = _filings_snapshot(db, report_count=4)
+    _filer(db, snapshot, CANDIDATE)
+    for index in range(3):
+        _report(db, snapshot, CANDIDATE, report_name=f"Newest {index}")
+    _report(db, snapshot, CANDIDATE, report_name="Older", cut_off=date(2026, 5, 31))
+
+    first = client.get(FILINGS, params={"limit": 1}).json()["data"]
+    deep = client.get(FILINGS, params={"limit": 1, "offset": 3}).json()["data"]
+
+    assert first["newest_period"] == deep["newest_period"]
+    assert deep["newest_period"]["filing_count"] == 3
+    # The page it was read from is genuinely past that period, so the count cannot have
+    # come from the rows returned.
+    assert deep["filings"][0]["period_end"] == "2026-05-31"
+
+
+def test_the_period_count_carries_the_feeds_exclusions_like_the_total_does(client, db):
+    """An unfiled report is outside the list, so it is outside the period's count too.
+
+    The catalogue is a schedule: it lists a report from the moment its period opens. A
+    count that included the unfiled ones would say more committees filed for a period
+    than actually did, which is a false claim about named committees.
+    """
+    snapshot = _filings_snapshot(db, report_count=3)
+    _filer(db, snapshot, CANDIDATE)
+    _report(db, snapshot, CANDIDATE, report_name="Filed")
+    _report(db, snapshot, CANDIDATE, report_name="Unfiled", amendment_index=None)
+    _report(db, snapshot, CANDIDATE, report_name="Also unfiled", amendment_index=None)
+
+    data = client.get(FILINGS).json()["data"]
+
+    assert data["newest_period"]["filing_count"] == 1
+
+
+def test_a_period_count_we_cannot_compute_is_absent_rather_than_zero(client, db):
+    """No register held is not "nobody filed for this period" (rule 12)."""
+    absent = client.get(FILINGS).json()["data"]["newest_period"]
+    assert absent == {"period_end": None, "filing_count": None}
+
+    _filings_snapshot(db, report_count=1005)
+
+    replaced = client.get(FILINGS).json()["data"]
+    assert replaced["reason"] == ROWS_REPLACED
+    assert replaced["newest_period"] == {"period_end": None, "filing_count": None}
 
 
 def test_a_total_we_cannot_compute_is_absent_rather_than_zero(client, db) -> None:

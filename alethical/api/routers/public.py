@@ -3458,6 +3458,18 @@ def campaign_finance_filings(
     real, and ``unavailable`` with a ``reason`` means we hold no register at all
     (``no_filings_snapshot``) or the snapshot we resolved has been replaced under this read
     (``rows_replaced``). An empty list is never a claim that nobody has filed.
+
+    **Two counts, and they are not interchangeable.** ``page.total`` counts the whole
+    set the rows page through -- every filed report whose period has ended, 33,612 on
+    production -- so it is true of the list and says nothing about any one period.
+    ``newest_period`` carries the newest period end **and** the number of filings
+    covering it, served as one block because a count of filings is meaningless without
+    the period it counts them for (``.claude/rules/grounded-answers.md`` rule 12: every
+    total states the period it covers). Measured on production 20 Aug 2026: 1,203
+    filings carry the newest period end of 20 Jul 2026, against ``page.total``'s
+    33,612. **Only ``newest_period.filing_count`` may appear in a sentence about "this
+    period"**; ``page.total`` there would overstate one period 28-fold on a public
+    page.
     """
     pin_campaign_finance_to_one_view(db)
     page = recent_filings(db, limit=limit, offset=offset)
@@ -3487,13 +3499,26 @@ def campaign_finance_filings(
                 "limit": page.limit,
                 "offset": page.offset,
                 "has_more": page.has_more,
-                # Counted over the identical filter the rows came from, so the landing's
-                # "N committees filed for this period" describes exactly the list under
-                # it (#1677). Over 1,200 filers share the period end of 20 July 2026, so
-                # without the number 5 rows beginning "100 Percent Future Fund" read as
-                # a shortlist of the newest or the biggest. `null` whenever the rows are
-                # unavailable, never 0.
+                # Counted over the identical filter the rows came from, so it describes
+                # exactly the list under it (#1677): every filed report whose period has
+                # ended, 33,612 on production. Without it, 5 rows beginning "100 Percent
+                # Future Fund" read as a shortlist of the newest or the biggest. `null`
+                # whenever the rows are unavailable, never 0.
+                #
+                # NOT the landing's "N committees filed for this period" number, which is
+                # `newest_period.filing_count` below. An earlier version of this comment
+                # said it was, and it was wrong by 28-fold: 1,203 filings carry the newest
+                # period end against this figure's 33,612.
                 "total": page.total,
+            },
+            # The newest period and its filing count, served as one block because a count
+            # of filings is meaningless without the period it counts them for
+            # (`.claude/rules/grounded-answers.md` rule 12: every total states the period
+            # it covers). Pairing them is the guard -- a bare count is what gets printed
+            # beside the wrong period.
+            "newest_period": {
+                "period_end": page.newest_period_end,
+                "filing_count": page.newest_period_filing_count,
             },
             "as_of": page.as_of,
             "snapshot_id": str(page.snapshot_id) if page.snapshot_id else None,
