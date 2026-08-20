@@ -104,10 +104,26 @@ Top to bottom:
    subtracts. When the split is safe, a bar shows it and the unnamed figure appears with
    the sentence explaining it (donors at $200 or less in total for the year are never
    named). In each case where a split would state something false — the two figures cover
-   different periods, the sources disagree, there are no named payments, or there is no
-   reported total — the page shows the figures it has and a plain sentence saying why it
-   will not divide them, never saying which figure is larger. A committee whose own report
-   says zero shows $0.00 with a sentence saying that is the filing's zero, not our gap.
+   different periods, the sources disagree, there are no named payments, our copy of the
+   donation list is missing named money the filing carries, the committee corrected its
+   report after we copied the official total, the two figures simply will not line up, or
+   there is no reported total — the page shows the figures it has and a plain sentence
+   saying why it will not divide them, never saying which figure is larger. A committee
+   whose own report says zero shows $0.00 with a sentence saying that is the filing's
+   zero, not our gap.
+
+   **Only one of those sentences says Minnesota's two publications disagree, and until
+   19 August 2026 three of them did.** A committee-year where the donation list holds no
+   row at all, and one where a subtraction simply came out negative, both printed "for
+   this committee and year they do not agree" — which blamed Minnesota for gaps on our
+   side. Seven live committee pages carried it, Kristin Robbins's governor committee
+   among them ([#1682](https://github.com/alethical-org/alethical/issues/1682),
+   [#1648](https://github.com/alethical-org/alethical/issues/1648)). Each route now says
+   only what its own evidence supports; the sentence about disagreement is left to the
+   one check that actually compares the two publications. The full list of states and
+   their counts is in
+   [`legislator-campaign-money-guide.md`](legislator-campaign-money-guide.md), which
+   owns the wording both surfaces share.
 6. **Money out — never called "spending."** The figure is "Payments we can list" (there is
    no official total to compare it against), broken down by the filing's own kinds, with
    money given to other campaigns on its own plainly-labelled line — statewide, a large

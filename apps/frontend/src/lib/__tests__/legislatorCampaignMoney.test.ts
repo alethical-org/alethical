@@ -166,6 +166,51 @@ describe('splitExplanation', () => {
     expect(text).not.toMatch(/state has not published/i);
   });
 
+  it('says an empty donation list is ours rather than a disagreement', () => {
+    // #1682 and #1642's 7th empty-year state. Six live committee pages printed the
+    // disagreement sentence here on 19 Aug 2026, Kristin Robbins's governor committee
+    // among them, when the truth is that the state's donation list holds no row for
+    // that year at all.
+    const text = splitExplanation('named_payments_not_in_our_copy') ?? '';
+    expect(text).toMatch(/names its donors/);
+    expect(text).toMatch(/not from what the committee filed/);
+    expect(text).not.toMatch(/do not agree|disagree/);
+    // Never a filing-calendar sentence: the report was filed on time, so a deadline
+    // would be true about the calendar and false about the money.
+    expect(text).not.toMatch(/due|deadline|not required to report|schedule/i);
+  });
+
+  it('says a corrected filing is our refresh gap rather than a contradiction', () => {
+    const text = splitExplanation('reported_total_predates_a_correction') ?? '';
+    expect(text).toMatch(/then corrected it/);
+    expect(text).toMatch(/had not picked the correction up/);
+    expect(text).not.toMatch(/do not agree|disagree/);
+  });
+
+  it('keeps the unexplained case quieter than a disagreement', () => {
+    const text = splitExplanation('figures_do_not_line_up') ?? '';
+    expect(text).toMatch(/will not line up/);
+    expect(text).toMatch(/cannot tell why/);
+    expect(text).not.toMatch(/do not agree|disagree/);
+  });
+
+  it('gives every state a sentence, so none renders as a bare figure', () => {
+    // A state the backend serves and this function does not know falls through to
+    // `null`, which draws a withheld figure with nothing saying why. Adding a state to
+    // the union without a sentence is the way that happens, so the list is walked.
+    for (const state of [
+      'no_reported_total',
+      'sources_disagree',
+      'periods_differ',
+      'no_named_payments',
+      'named_payments_not_in_our_copy',
+      'reported_total_predates_a_correction',
+      'figures_do_not_line_up',
+    ] as const) {
+      expect(splitExplanation(state)).not.toBeNull();
+    }
+  });
+
   it('never states a reason as a fact about the person', () => {
     // Every withheld state is about the records or about us. None may read as a
     // finding about the member whose photograph is at the top of the page.
@@ -174,6 +219,9 @@ describe('splitExplanation', () => {
       'sources_disagree',
       'periods_differ',
       'no_named_payments',
+      'named_payments_not_in_our_copy',
+      'reported_total_predates_a_correction',
+      'figures_do_not_line_up',
     ] as const) {
       expect(splitExplanation(state)).not.toMatch(/hid|conceal|refus|failed to (report|file)/i);
     }

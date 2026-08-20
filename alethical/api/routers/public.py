@@ -2839,9 +2839,12 @@ def committee_finance_for_year(
     reported figure ([#1408](https://github.com/alethical-org/alethical/issues/1408))
     with the date it runs to, and ``split`` says whether the two may be divided into
     named and unnamed money -- read ``split.state`` before drawing any composition,
-    because the 4 withheld states are each a way a subtraction would state something
-    false (``.claude/rules/grounded-answers.md`` rule 12,
-    ``docs/architecture/campaign-finance-system-design.md`` §7).
+    because the 7 withheld states are each a way a subtraction would state something
+    false, and only 1 of them may say Minnesota's 2 publications disagree
+    (``.claude/rules/grounded-answers.md`` rule 12,
+    ``docs/architecture/campaign-finance-system-design.md`` §7). The full list is on
+    ``GET /legislators/{legislator_id}/campaign-finance``, which serves the same
+    ``split`` object from the same code.
 
     ``register`` is the Board's registered-filer directory entry for this number, from
     our stored copy of the register: its verbatim kind (the only kind label a page may
@@ -3809,11 +3812,30 @@ def legislator_campaign_finance(
       periods, so their difference is not a fact about donors. Measured on the live
       release, 36 of 835 committee-years for 2026.
     * ``sources_disagree`` -- Minnesota's own report and Minnesota's own spreadsheet
-      contradict each other for this committee-year. Both figures are shown and
-      neither is subtracted from the other.
+      contradict each other for this committee-year, on the evidence of the one check
+      that compares them. Both figures are shown and neither is subtracted from the
+      other, and no wording may say which of the two is the larger: 33 of the 76
+      disagreeing committee-years run one way and 43 the other. 62 committee-years on
+      the live release, measured 19 Aug 2026.
     * ``no_named_payments`` -- the filing reports money and we hold no named payment
-      of it. Never rendered as "this money had no names", which is the claim it would
-      silently become.
+      of it, and nobody has read the filing to find out whether it named any. Never
+      rendered as "this money had no names", which is the claim it would silently
+      become. 468 committee-years.
+    * ``named_payments_not_in_our_copy`` -- the committee's own filed report names
+      donors and our copy of the download carries no row at all for this committee-year,
+      so the emptiness is provably on our side. A different fact from
+      ``no_named_payments``, and it may never be explained by the filing calendar: the
+      report was filed and the money is public. 14 committee-years
+      ([#1682](https://github.com/alethical-org/alethical/issues/1682)).
+    * ``reported_total_predates_a_correction`` -- the subtraction refuses to run and the
+      Board's report catalogue records that the committee refiled this year's report, so
+      the official total we hold is the superseded version's. Our refresh gap, not a
+      contradiction in Minnesota's records. 1 committee-year
+      ([#1648](https://github.com/alethical-org/alethical/issues/1648)).
+    * ``figures_do_not_line_up`` -- the subtraction refuses to run and nothing we hold
+      says why. Weaker than ``sources_disagree`` on purpose: it establishes that these 2
+      numbers cannot be subtracted and nothing about whether the 2 publications
+      disagree. 0 committee-years today.
 
     ``committees`` carries only committees for a **legislative** office. A member may
     have confirmed committees for a run at something else, and §7 forbids that race's
@@ -3828,7 +3850,8 @@ def legislator_campaign_finance(
     comparison has not been made, which is a fact about us and never a verdict about the
     committee. A page shows the figures either way and must not let the second read as
     the first. ``disagrees`` never reaches a page as a split at all: it becomes
-    ``sources_disagree`` above.
+    ``sources_disagree`` above, or ``named_payments_not_in_our_copy`` where we hold no
+    row for the year to have disagreed with anything.
 
     ``first_payment_on`` and ``last_payment_on`` describe the payments we hold and are
     **not** a coverage period. No surface may turn them into one, or assume a period

@@ -1024,3 +1024,46 @@ def _filing_row(row, *, special_years: set[tuple[str, int]]) -> FilingRow:
         amendment_count=amendment_count,
         effective_amendment_index=effective_amendment_index,
     )
+
+
+def report_corrections(
+    db: Session, registration_number: str, year: int
+) -> Optional[int]:
+    """How many times this committee-year's report has been corrected after filing.
+
+    The Board's catalogue keeps a version history per report, and
+    ``effective_amendment_index`` is the version that counts: ``0`` is the report as
+    first filed, ``1`` and above mean the committee filed it again with different
+    figures. This returns the highest index across the year's reports, because a
+    Minnesota report restates the whole year, so the year's latest version is the
+    year's figures.
+
+    Three answers and they are not interchangeable:
+
+    * A number **above 0** -- the committee corrected itself, and any figure of ours
+      that predates the correction is a figure of the superseded version.
+    * ``0`` -- every report of this year is still on its first version, so a
+      disagreement between 2 of our figures cannot be blamed on a correction.
+    * ``None`` -- we hold no version history for this committee-year at all: no
+      filings snapshot, no catalogued report, or a report nobody has filed yet (the
+      catalogue lists a report when its period opens, and an unfiled one carries no
+      version history at all, §9.6). Never read as "never corrected": a count we
+      cannot compute is absent, never 0
+      (``.claude/rules/grounded-answers.md`` rule 12).
+
+    Measured on the live catalogue, 19 Aug 2026: of 15,988 committee-years, 5,402
+    carry a correction, 8,898 are still on their first version, and 1,688 carry no
+    version history. So this separates a third of the population rather than being
+    true of everything.
+    """
+    snapshot = live_filings_snapshot(db)
+    if snapshot is None:
+        return None
+    report = schema.CampaignFinanceFilingReport
+    return db.scalar(
+        select(func.max(report.effective_amendment_index)).where(
+            report.snapshot_id == snapshot.id,
+            report.registration_number == registration_number,
+            report.filing_year == year,
+        )
+    )
