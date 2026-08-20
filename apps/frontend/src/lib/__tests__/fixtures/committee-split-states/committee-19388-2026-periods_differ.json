@@ -1,0 +1,79 @@
+{
+  "registration_number": "19388",
+  "committee_name": "Jensen, Scott M State Aud Committee",
+  "entity_type": "PCC",
+  "entity_sub_type": null,
+  "year": 2026,
+  "release_id": "3f2bdf90-a4e3-4cf2-b8f1-6024167da680",
+  "fetched_at": "2026-08-12T02:54:22.402100Z",
+  "register": {
+    "state": "reported",
+    "kind": "candidate_committee",
+    "name": "Jensen, Scott M State Aud Committee",
+    "party": "RPM",
+    "office": "State Auditor",
+    "district": null,
+    "registration_date": "2026-02-09",
+    "termination_date": null,
+    "as_of": "2026-08-12",
+    "reason": null
+  },
+  "split": {
+    "state": "periods_differ",
+    "reported_total": "75156.0000",
+    "reported_through": "2026-03-31",
+    "named_total": "92745.9900",
+    "named_payments": 67,
+    "named_cash_total": "92400.0000",
+    "named_in_kind_total": "345.9900",
+    "unnamed_total": null,
+    "stated_split_state": "agrees",
+    "first_payment_on": "2026-02-09",
+    "last_payment_on": "2026-07-13"
+  },
+  "money_in": {
+    "state": "reported",
+    "itemized_contribution_total": "92745.9900",
+    "itemized_contribution_payments": 67,
+    "other_receipts": [
+      {
+        "receipt_type": "Miscellaneous",
+        "total": "10000.0000",
+        "payments": 1
+      }
+    ],
+    "reported_total": "75156.0000",
+    "reported_through": "2026-03-31",
+    "source_url": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/?download=-2113865252"
+  },
+  "money_out": {
+    "state": "reported",
+    "itemized_payment_total": "51883.1800",
+    "itemized_payments": 65,
+    "by_type": [
+      {
+        "type": "Campaign Expenditure",
+        "total": "40530.1600",
+        "payments": 46
+      },
+      {
+        "type": "Non-Campaign Disbursement",
+        "total": "11353.0200",
+        "payments": 19
+      }
+    ],
+    "source_url": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/?download=-1890073264"
+  },
+  "independent_spending": {
+    "state": "reported",
+    "supporting": "0",
+    "opposing": "0",
+    "direction_not_recorded": "0",
+    "supporting_payments": 0,
+    "opposing_payments": 0,
+    "direction_not_recorded_payments": 0,
+    "first_payment_on": null,
+    "last_payment_on": null,
+    "source_url": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/?download=-617535497"
+  }
+}

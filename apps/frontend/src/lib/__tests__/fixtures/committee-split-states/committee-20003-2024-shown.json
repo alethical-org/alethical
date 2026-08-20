@@ -1,0 +1,79 @@
+{
+  "registration_number": "20003",
+  "committee_name": "MN DFL State Central Committee",
+  "entity_type": "PTU",
+  "entity_sub_type": "SPU",
+  "year": 2024,
+  "release_id": "3f2bdf90-a4e3-4cf2-b8f1-6024167da680",
+  "fetched_at": "2026-08-12T02:54:22.402100Z",
+  "register": {
+    "state": "reported",
+    "kind": "party_unit",
+    "name": "MN DFL State Central Committee",
+    "party": null,
+    "office": null,
+    "district": null,
+    "registration_date": "1974-06-28",
+    "termination_date": null,
+    "as_of": "2026-08-12",
+    "reason": null
+  },
+  "split": {
+    "state": "shown",
+    "reported_total": "10566738.1100",
+    "reported_through": "2024-12-31",
+    "named_total": "10826176.6700",
+    "named_payments": 577,
+    "named_cash_total": "10560703.3300",
+    "named_in_kind_total": "265473.3400",
+    "unnamed_total": "6034.7800",
+    "stated_split_state": "agrees",
+    "first_payment_on": "2024-01-01",
+    "last_payment_on": "2024-12-31"
+  },
+  "money_in": {
+    "state": "reported",
+    "itemized_contribution_total": "10826176.6700",
+    "itemized_contribution_payments": 577,
+    "other_receipts": [
+      {
+        "receipt_type": "Miscellaneous",
+        "total": "149962.3400",
+        "payments": 241
+      }
+    ],
+    "reported_total": "10566738.1100",
+    "reported_through": "2024-12-31",
+    "source_url": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/?download=-2113865252"
+  },
+  "money_out": {
+    "state": "reported",
+    "itemized_payment_total": "8065963.6300",
+    "itemized_payments": 2358,
+    "by_type": [
+      {
+        "type": "Contribution",
+        "total": "503086.6700",
+        "payments": 108
+      },
+      {
+        "type": "General Expenditure",
+        "total": "7562876.9600",
+        "payments": 2250
+      }
+    ],
+    "source_url": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/?download=-1890073264"
+  },
+  "independent_spending": {
+    "state": "reported",
+    "supporting": "0",
+    "opposing": "0",
+    "direction_not_recorded": "0",
+    "supporting_payments": 0,
+    "opposing_payments": 0,
+    "direction_not_recorded_payments": 0,
+    "first_payment_on": null,
+    "last_payment_on": null,
+    "source_url": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/?download=-617535497"
+  }
+}

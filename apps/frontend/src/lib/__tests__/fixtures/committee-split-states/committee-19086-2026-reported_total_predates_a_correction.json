@@ -1,0 +1,68 @@
+{
+  "registration_number": "19086",
+  "committee_name": "Russell, Wynfred N House Committee",
+  "entity_type": "PCC",
+  "entity_sub_type": null,
+  "year": 2026,
+  "release_id": "3f2bdf90-a4e3-4cf2-b8f1-6024167da680",
+  "fetched_at": "2026-08-12T02:54:22.402100Z",
+  "register": {
+    "state": "reported",
+    "kind": "candidate_committee",
+    "name": "Russell, Wynfred N House Committee",
+    "party": "DFL",
+    "office": "House",
+    "district": "38A",
+    "registration_date": "2024-03-04",
+    "termination_date": null,
+    "as_of": "2026-08-12",
+    "reason": null
+  },
+  "split": {
+    "state": "reported_total_predates_a_correction",
+    "reported_total": "0.0000",
+    "reported_through": "2026-07-20",
+    "named_total": "20750.0000",
+    "named_payments": 29,
+    "named_cash_total": "20750.0000",
+    "named_in_kind_total": "0.0000",
+    "unnamed_total": null,
+    "stated_split_state": "not_checked",
+    "first_payment_on": "2026-01-17",
+    "last_payment_on": "2026-07-20"
+  },
+  "money_in": {
+    "state": "reported",
+    "itemized_contribution_total": "20750.0000",
+    "itemized_contribution_payments": 29,
+    "other_receipts": [],
+    "reported_total": "0.0000",
+    "reported_through": "2026-07-20",
+    "source_url": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/?download=-2113865252"
+  },
+  "money_out": {
+    "state": "reported",
+    "itemized_payment_total": "7367.4100",
+    "itemized_payments": 14,
+    "by_type": [
+      {
+        "type": "Campaign Expenditure",
+        "total": "7367.4100",
+        "payments": 14
+      }
+    ],
+    "source_url": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/?download=-1890073264"
+  },
+  "independent_spending": {
+    "state": "reported",
+    "supporting": "0",
+    "opposing": "0",
+    "direction_not_recorded": "0",
+    "supporting_payments": 0,
+    "opposing_payments": 0,
+    "direction_not_recorded_payments": 0,
+    "first_payment_on": null,
+    "last_payment_on": null,
+    "source_url": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/?download=-617535497"
+  }
+}

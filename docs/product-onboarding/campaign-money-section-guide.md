@@ -93,6 +93,15 @@ Top to bottom:
    own record and attaches it to no person. A party unit, caucus, fund, or ballot-question
    committee gets its own sentence, because for those there is no person to attach.
 3. **A year switch** (this calendar year and the one before), each year its own address.
+3b. **What the committee owes next, and whether it has closed.** The page can read the
+   committee's own filing schedule (`filing_schedule` on both money routes, added
+   19 August 2026): whether it is on this year's ballot, whether it is not, whether its
+   registration has ended and on what date, and when its next report is due. Two things
+   that block cannot do, by how it is built rather than by anyone remembering: it can
+   never say a report is late, and it can never hand over a due date without the Board's
+   printed exemption sentence beside it. It also carries how many times the year's report
+   has been refiled (`report_corrections`).
+
 4. **The period panel**: what the committee's own report covers, its end read off the
    filing — no start is ever assumed — plus the one freshness date (the day we copied the
    Board's files, printed as its Minnesota day). A party unit's panel says its calendar is

@@ -1,0 +1,62 @@
+{
+  "registration_number": "18472",
+  "committee_name": "Novotny, Paul House Committee",
+  "entity_type": "PCC",
+  "entity_sub_type": null,
+  "year": 2026,
+  "release_id": "3f2bdf90-a4e3-4cf2-b8f1-6024167da680",
+  "fetched_at": "2026-08-12T02:54:22.402100Z",
+  "register": {
+    "state": "reported",
+    "kind": "candidate_committee",
+    "name": "Novotny, Paul House Committee",
+    "party": "RPM",
+    "office": "House",
+    "district": "30B",
+    "registration_date": "2019-12-03",
+    "termination_date": "2026-07-28",
+    "as_of": "2026-08-12",
+    "reason": null
+  },
+  "split": {
+    "state": "named_payments_not_in_our_copy",
+    "reported_total": null,
+    "reported_through": null,
+    "named_total": null,
+    "named_payments": null,
+    "named_cash_total": null,
+    "named_in_kind_total": null,
+    "unnamed_total": null,
+    "stated_split_state": "disagrees",
+    "first_payment_on": null,
+    "last_payment_on": null
+  },
+  "money_in": {
+    "state": "not_reported",
+    "itemized_contribution_total": null,
+    "itemized_contribution_payments": null,
+    "other_receipts": [],
+    "reported_total": null,
+    "reported_through": null,
+    "source_url": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/?download=-2113865252"
+  },
+  "money_out": {
+    "state": "not_reported",
+    "itemized_payment_total": null,
+    "itemized_payments": null,
+    "by_type": [],
+    "source_url": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/?download=-1890073264"
+  },
+  "independent_spending": {
+    "state": "reported",
+    "supporting": "0",
+    "opposing": "0",
+    "direction_not_recorded": "0",
+    "supporting_payments": 0,
+    "opposing_payments": 0,
+    "direction_not_recorded_payments": 0,
+    "first_payment_on": null,
+    "last_payment_on": null,
+    "source_url": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/?download=-617535497"
+  }
+}

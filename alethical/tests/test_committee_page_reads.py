@@ -23,6 +23,7 @@ from decimal import Decimal
 import pytest
 from sqlalchemy import text
 
+from alethical.api.services import committee_filing_schedule
 from alethical.db import models
 from alethical.db.session import get_session_factory
 
@@ -181,6 +182,44 @@ def _filer(
             district=district,
             termination_date=terminated,
             is_incumbent=False,
+        )
+    )
+    db.commit()
+
+
+_REPORT_ROW = [0]
+
+
+def _catalogued_report(
+    db,
+    snapshot,
+    registration: str,
+    *,
+    year: int = 2026,
+    report_type: str = "C",
+    report_name: str = "2026 Pre-Primary Report",
+    cut_off: date | None = date(2026, 7, 20),
+    amendment_index: int | None = 0,
+    amendment_count: int | None = 1,
+):
+    """One row of the Board's report catalogue.
+
+    ``amendment_index=None`` is what a report nobody has filed looks like: the Board
+    serves no version history for one, and every filed report carries at least ``['0']``.
+    """
+    _REPORT_ROW[0] += 1
+    db.add(
+        models.CampaignFinanceFilingReport(
+            snapshot_id=snapshot.id,
+            row_number=_REPORT_ROW[0],
+            registration_number=registration,
+            filing_year=year,
+            report_type=report_type,
+            report_name=report_name,
+            cut_off_date=cut_off,
+            special_election=False,
+            effective_amendment_index=amendment_index,
+            amendment_count=amendment_count,
         )
     )
     db.commit()
@@ -494,3 +533,152 @@ def test_the_name_keyed_lookups_serve_no_count(db, client):
     data = response.json()["data"]
     assert data["state"] == "reported"
     assert data["page"]["total_payments"] is None
+
+
+# --- The filing schedule and the correction marker (#1642, #1415) --------------
+
+
+def test_a_closed_committee_says_so_through_the_schedule_rather_than_a_blank(
+    db, client
+):
+    """§7's closed-committee state, reachable without a live request per view.
+
+    Paul Novotny's committee (18472) closed on 28 Jul 2026 and its 2026 money blocks read
+    ``not_reported``, which on its own is indistinguishable from a member who has simply
+    not filed yet. The schedule block is what tells the two apart, and its
+    ``terminated_on`` is the registration's own end date, read from the filer rather than
+    from a report -- the catalogue copies that date onto every report a terminated
+    committee ever filed, including ones filed years earlier.
+    """
+    published = Published(db)
+    _receipt(db, published.contributions, reg_num=CANDIDATE, amount="250.00", year=2026)
+    db.commit()
+    snapshot = _filings_snapshot(db)
+    _filer(db, snapshot, CANDIDATE, terminated=date(2026, 7, 28))
+
+    data = client.get(
+        f"/api/v1/committees/{CANDIDATE}/finance", params={"year": 2026}
+    ).json()["data"]
+
+    schedule = data["filing_schedule"]
+    assert schedule["state"] == "terminated"
+    assert schedule["terminated_on"] == "2026-07-28"
+    assert schedule["next_report"] is None
+    assert schedule["reason"]
+    # The money block is untouched: a closed committee is a fact about the schedule and
+    # says nothing about whether we hold its rows.
+    assert data["money_in"]["state"] == "reported"
+
+
+def test_no_filings_of_ours_is_our_gap_and_never_a_schedule(db, client):
+    """3 of the 6 empty-year reasons are about us, and this is the sharpest of them.
+
+    With no filings snapshot published there is nothing to place any committee on a
+    calendar with. That must read as our gap rather than as the committee having nothing
+    due, which is a claim about a named politician's obligations.
+    """
+    published = Published(db)
+    _receipt(db, published.contributions, reg_num=CANDIDATE, amount="250.00")
+    db.commit()
+
+    schedule = client.get(
+        f"/api/v1/committees/{CANDIDATE}/finance", params={"year": 2026}
+    ).json()["data"]["filing_schedule"]
+
+    assert schedule["state"] == "no_snapshot"
+    assert schedule["next_report"] is None
+    assert schedule["terminated_on"] is None
+    assert "cannot say" in schedule["reason"]
+
+
+def test_a_due_date_can_never_be_served_without_its_printed_condition(
+    db, client, monkeypatch
+):
+    """The one shape rule this block exists to make unbreakable (#1642).
+
+    Everyone who advances past the primary owes the pre-general report and everyone who
+    lost the primary does not, and no record we hold says which happened. So the Board
+    prints an exemption sentence beside that date, and the date is wrong for one of the 2
+    groups without it. Serving them as siblings would let a client take the date and drop
+    the sentence by omission; they arrive inside one object instead.
+
+    Also pinned here: **no field anywhere in this block can say a report is late.** The
+    service answers what is next due and never what was missed.
+    """
+    # The clock is frozen because the answer is "what is next due", which moves. Left
+    # to the real date this test would pass until 26 Oct 2026 and then start asserting
+    # the wrong report -- a test that expires without saying so.
+    monkeypatch.setattr(
+        committee_filing_schedule, "_utc_today", lambda: date(2026, 8, 19)
+    )
+    published = Published(db)
+    _receipt(db, published.contributions, reg_num=CANDIDATE, amount="250.00")
+    db.commit()
+    snapshot = _filings_snapshot(db)
+    _filer(db, snapshot, CANDIDATE)
+    _catalogued_report(db, snapshot, CANDIDATE)
+
+    schedule = client.get(
+        f"/api/v1/committees/{CANDIDATE}/finance", params={"year": 2026}
+    ).json()["data"]["filing_schedule"]
+
+    assert schedule["state"] == "filing_for_office"
+    entry = schedule["next_report"]
+    assert entry is not None
+    # The date and its condition are one object, so a client cannot fetch one field.
+    assert set(entry) == {
+        "report_name",
+        "period_start",
+        "period_end",
+        "due_date",
+        "condition",
+    }
+    assert entry["due_date"]
+    # On 19 Aug 2026 the next report is the pre-general, which is the one carrying a
+    # printed exemption, so the value is checked and not only the key.
+    assert entry["report_name"] == "Pre-general report of receipts and expenditures"
+    assert entry["due_date"] == "2026-10-26"
+    assert entry["condition"] == (
+        "Candidates who lost the primary election do not need to file this report."
+    )
+    assert "late" not in repr(schedule).lower()
+    assert "overdue" not in repr(schedule).lower()
+
+
+def test_a_correction_is_a_count_and_never_a_guess(db, client):
+    """The evidence behind the corrected-total split state, served rather than inferred.
+
+    Above 0 means the committee refiled this year's report with different figures, 0
+    means it did not, and ``null`` means we hold no version history for it. The third is
+    what a report nobody has filed looks like, and reading it as 0 would assert the
+    original version is the effective one.
+    """
+    published = Published(db)
+    _receipt(db, published.contributions, reg_num=CANDIDATE, amount="250.00")
+    db.commit()
+    snapshot = _filings_snapshot(db)
+    _filer(db, snapshot, CANDIDATE)
+
+    def served() -> object:
+        return client.get(
+            f"/api/v1/committees/{CANDIDATE}/finance", params={"year": 2026}
+        ).json()["data"]["report_corrections"]
+
+    assert served() is None
+
+    _catalogued_report(db, snapshot, CANDIDATE, amendment_index=0)
+    assert served() == 0
+
+    _catalogued_report(
+        db,
+        snapshot,
+        CANDIDATE,
+        report_type="YE",
+        report_name="2026 Year-End Report",
+        cut_off=date(2026, 12, 31),
+        amendment_index=2,
+        amendment_count=3,
+    )
+    # The year's latest version is the year's answer: a Minnesota report restates the
+    # whole year, so an uncorrected earlier report must not hide a corrected later one.
+    assert served() == 2

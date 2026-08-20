@@ -55,6 +55,7 @@ from alethical.api.services.campaign_finance_payments import (
     payments_to_vendor,
 )
 from alethical.api.services.campaign_finance_register import (
+    report_corrections,
     MAX_COMMITTEES,
     MAX_FILINGS,
     committees as register_committees,
@@ -71,6 +72,7 @@ from alethical.api.services.campaign_finance_search import (
     PersonResult,
     search as search_campaign_finance_names,
 )
+from alethical.api.services.committee_filing_schedule import filing_schedule
 from alethical.api.services.committee_finance import (
     Committee as CampaignCommittee,
     CommitteeFinance,
@@ -2846,6 +2848,28 @@ def committee_finance_for_year(
     ``GET /legislators/{legislator_id}/campaign-finance``, which serves the same
     ``split`` object from the same code.
 
+    ``filing_schedule`` is when this committee's next report is due, and it is the field
+    a page reads to say **why** a year is empty. Its ``state`` is the committee's own
+    position -- on this year's ballot, not on it, or closed, with ``terminated_on`` where
+    the registration has ended -- or one of 3 states that are facts about us: no filings
+    published, this number absent from the copy we hold, or a day earlier than the
+    evidence. Every one of them arrives with a plain ``reason``.
+    **Nothing in this block can say a report is late**, because the service answers what
+    is next due and never what was missed, and the signal is only readable for the year
+    happening now. **A due date is never served without its printed condition**: they sit
+    inside one ``next_report`` object, so a client cannot take the date and leave the
+    condition behind. The 2026 pre-general report is the live case, and the condition is
+    the Board's own sentence, verbatim.
+
+    ``report_corrections`` is how many times this committee-year's report has been refiled
+    with different figures: above 0 means it was corrected, ``0`` means it was not, and
+    ``null`` means we hold no version history and may not say either way. It is the
+    evidence behind ``split.state`` of ``reported_total_predates_a_correction``, served so
+    a page can name the correction rather than infer it. **What we do not hold is the day
+    the Board received it or the figure it replaced** -- both live inside report
+    documents, which cost a request each and fail with a success status
+    ([#1670](https://github.com/alethical-org/alethical/issues/1670)).
+
     ``register`` is the Board's registered-filer directory entry for this number, from
     our stored copy of the register: its verbatim kind (the only kind label a page may
     print), a candidate's office and district, and the termination date that makes a
@@ -2974,6 +2998,15 @@ def committee_finance_for_year(
             "year": finance.year,
             "release_id": str(finance.release_id),
             "fetched_at": finance.fetched_at,
+            "filing_schedule": _filing_schedule_payload(
+                filing_schedule(db, registration_number, year=year)
+            ),
+            # How many times this committee-year's report has been refiled with
+            # different figures. Above 0 means it was corrected, 0 means it was not,
+            # and `null` means we hold no version history and may not say either way --
+            # a count we cannot compute is absent, never a measured zero
+            # (`.claude/rules/grounded-answers.md` rule 12).
+            "report_corrections": report_corrections(db, registration_number, year),
             "register": {
                 "state": register.state,
                 "kind": register.kind,
@@ -3065,6 +3098,63 @@ def committee_finance_for_year(
             },
         }
     )
+
+
+def _filing_schedule_payload(outcome) -> dict:
+    """One committee-year's filing schedule, over HTTP.
+
+    Net: a money page showing nothing for a year has to say **why**, and the 6 reasons
+    are genuinely different facts ([#1642](https://github.com/alethical-org/alethical/issues/1642)).
+    3 of them are about the committee -- it is on this year's ballot, it is not, it has
+    closed -- and 3 are about us. Collapsing any 2 states something false about a named
+    politician, so each arrives with its own ``state`` and its own plain ``reason``.
+
+    **Two things this shape refuses to do, and both are refusals rather than
+    conventions.**
+
+    * **Nothing here can say a report is late.** ``committee_filing_schedule`` answers
+      what is *next* due and never what was missed, so there is no lateness to serialize.
+      The signal is only readable for the year happening now, and the same code run over
+      an older year would accuse people of missing deadlines they never had.
+    * **A due date is never servable without its printed condition.** They travel inside
+      one ``next_report`` object rather than as siblings, so a client cannot fetch the
+      date and leave the condition behind by omission. The 2026 pre-general report is the
+      live case: everyone who advances past the primary owes it and everyone who lost
+      does not, and no record we hold says which happened, so the Board's own printed
+      sentence is the only honest form of that date.
+
+    ``terminated_on`` is the registration's own end date and is read from the filer
+    rather than from a report, because the catalogue copies it onto every report a
+    terminated committee ever filed, including ones filed years earlier. Paul Novotny's
+    committee (18472) closed on 28 Jul 2026 and is the one sitting member's committee
+    affected.
+    """
+    schedule_class = getattr(outcome, "schedule_class", None)
+    state = (
+        schedule_class.value
+        if schedule_class is not None
+        else getattr(outcome, "state")
+    )
+    calendar = getattr(outcome, "calendar", None)
+    entry = getattr(outcome, "next_report", None)
+    return {
+        "state": state,
+        "reason": outcome.reason,
+        "calendar": calendar.value if calendar is not None else None,
+        "terminated_on": getattr(outcome, "terminated_on", None),
+        "next_report": (
+            {
+                "report_name": entry.report_name,
+                "period_start": entry.period_start,
+                "period_end": entry.period_end,
+                "due_date": entry.due_date,
+                # Verbatim, and in the same object as the date it qualifies.
+                "condition": entry.condition,
+            }
+            if entry is not None
+            else None
+        ),
+    }
 
 
 def _payment_page_payload(page: PaymentPage) -> dict:
@@ -3862,6 +3952,19 @@ def legislator_campaign_finance(
       numbers cannot be subtracted and nothing about whether the 2 publications
       disagree. 0 committee-years today.
 
+    Each committee also carries ``filing_schedule`` and ``report_corrections``, the same
+    2 blocks the committee route serves and documented there. They key on the
+    registration number, so both are correct before anyone confirms whose committee it
+    is, and they are what lets an empty year be explained in this committee's own terms
+    instead of by one fixed sentence about Minnesota's calendar
+    ([#1642](https://github.com/alethical-org/alethical/issues/1642)).
+
+    **``filing_schedule`` and ``money_in.state`` answer different questions and may
+    disagree, which is the point of keeping them apart.** Kristin Robbins's governor
+    committee filed its 2025 report on time naming $553,925.86, and our copy of the
+    donation list holds no row of it: the schedule is in order and the money block is
+    empty, and a single field would have to be false about one of them.
+
     ``committees`` carries only committees for a **legislative** office. A member may
     have confirmed committees for a run at something else, and §7 forbids that race's
     money appearing under their legislative profile; ``other_office_committees`` counts
@@ -3932,6 +4035,18 @@ def legislator_campaign_finance(
                         entry.finance.committee.name if entry.finance else None
                     ),
                     "office": entry.office_as_reviewed,
+                    # The same 2 blocks the committee route serves, per committee, so a
+                    # profile can say why a year is empty in the committee's own terms
+                    # rather than printing one sentence about Minnesota in general
+                    # ([#1642](https://github.com/alethical-org/alethical/issues/1642)).
+                    # Both key on the registration number, so neither waits on anyone
+                    # confirming whose committee it is.
+                    "filing_schedule": _filing_schedule_payload(
+                        filing_schedule(db, entry.registration_number, year=year)
+                    ),
+                    "report_corrections": report_corrections(
+                        db, entry.registration_number, year
+                    ),
                     "money_in": (
                         {
                             "state": entry.finance.money_in.state,

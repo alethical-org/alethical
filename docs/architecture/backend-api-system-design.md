@@ -834,6 +834,45 @@ coverage period.
 `committees[]` carries only committees for a **legislative** office; `other_office_committees`
 counts the rest so a page can say they exist without reporting a dollar of them.
 
+**Each committee also carries `filing_schedule` and `report_corrections`**, added Aug 19 2026
+so a page can say *why* a year is empty in the committee's own terms rather than printing one
+fixed sentence about Minnesota's calendar
+([#1642](https://github.com/alethical-org/alethical/issues/1642)). Both key on the registration
+number, so both are correct before anyone confirms whose committee it is, and both are served
+identically by `/committees/{registration_number}/finance`.
+
+`filing_schedule` is `{state, reason, calendar, terminated_on, next_report}`, from
+`alethical/api/services/committee_filing_schedule.py`. Its `state` is either the committee's own
+position — `filing_for_office`, `not_filing_for_office`, `terminated`, `unknown` — or one of 3
+facts about us: `no_snapshot`, `filer_not_in_snapshot`, `as_of_predates_the_evidence`. Every one
+carries a plain `reason`, so a surface never invents wording for a missing date.
+`terminated_on` is the registration's own end date, read from the filer rather than from a
+report, because the catalogue copies it onto every report a terminated committee ever filed.
+
+**Two refusals are built into that shape rather than left to a caller.** No field can say a
+report is **late**: the service answers what is next due and never what was missed, and the
+signal is readable only for the year happening now, so the same code over an older year would
+accuse people of missing deadlines they never had. And a **due date is never servable without
+its printed condition** — they sit inside one `next_report` object rather than as siblings, so
+omission cannot separate them. The 2026 pre-general report is the live case: everyone who
+advances past the primary owes it, everyone who lost does not, no record we hold says which
+happened, and the Board's own printed sentence is the only honest form of that date.
+
+`report_corrections` is an integer or `null`: above 0 means the committee refiled this year's
+report with different figures, `0` means it did not, and `null` means we hold no version
+history and may not say either way (rule 12 — a count we cannot compute is absent, never a
+measured zero). It is the evidence behind `split.state` of
+`reported_total_predates_a_correction`. **The day the Board received a correction, and the
+figure it replaced, are not served and cannot be**: both live inside report documents, one
+request each, on a route that serves a document for about 1 report in 4 and fails with a
+success status ([#1670](https://github.com/alethical-org/alethical/issues/1670) is the stored
+filing date).
+
+**`filing_schedule` and `money_in.state` answer different questions and may disagree.** Kristin
+Robbins's governor committee filed its 2025 report on time naming $553,925.86 and our copy of
+the donation list holds no row of it: the schedule is in order and the money block is empty.
+One field covering both would have to be false about one of them.
+
 503 means we hold no usable release, which is a fact about us and never a figure about a named
 person.
 
