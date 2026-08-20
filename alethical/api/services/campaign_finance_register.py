@@ -285,6 +285,19 @@ class FilingsPage:
     #: filers share the period end of 20 July 2026, so the list is one enormous tie
     #: broken alphabetically. ``None`` whenever the state is not ``reported``, never 0.
     total: Optional[int]
+    #: The newest period any filing here covers, and how many filings cover it -- the 2
+    #: served together as one block, deliberately, because a count of filings is
+    #: meaningless without the period it counts them for
+    #: (``.claude/rules/grounded-answers.md`` rule 12: every total states the period it
+    #: covers). This is the number the landing's "N committees filed for this period"
+    #: sentence needs, and ``total`` is **not** it: measured on production 20 Aug 2026,
+    #: 1,203 filings carry the newest period end of 20 Jul 2026 while ``total`` counts
+    #: all 33,612 ended filed reports we hold, so printing ``total`` in that sentence
+    #: would overstate one period 28-fold. Both are honest; they answer different
+    #: questions, and they are named apart so neither can wear the other's label.
+    #: ``None`` for both whenever the state is not ``reported``, never 0.
+    newest_period_end: Optional[date]
+    newest_period_filing_count: Optional[int]
     as_of: Optional[date]
     snapshot_id: Optional[UUID]
     reason: Optional[str]
@@ -855,6 +868,8 @@ def recent_filings(
             offset=offset,
             has_more=False,
             total=None,
+            newest_period_end=None,
+            newest_period_filing_count=None,
             as_of=None,
             snapshot_id=None,
             reason=NO_FILINGS_SNAPSHOT,
@@ -930,6 +945,8 @@ def recent_filings(
                 offset=offset,
                 has_more=False,
                 total=None,
+                newest_period_end=None,
+                newest_period_filing_count=None,
                 as_of=_snapshot_date(snapshot),
                 snapshot_id=snapshot.id,
                 reason=ROWS_REPLACED,
@@ -949,6 +966,19 @@ def recent_filings(
         )
         or 0
     )
+    # Counted over the same filter again rather than read off the rows: the newest
+    # period's filings run past the end of any one page, so a count taken from `filings`
+    # would be a count of this page wearing the period's name. Grouped and ordered
+    # rather than read from row 0, so it is right whatever offset the caller asked for.
+    newest = db.execute(
+        select(report.cut_off_date, func.count())
+        .select_from(report)
+        .join(*joined_to_filer)
+        .where(*filed_and_ended)
+        .group_by(report.cut_off_date)
+        .order_by(report.cut_off_date.desc())
+        .limit(1)
+    ).first()
     return FilingsPage(
         state=REPORTED,
         ordered_by=ORDERED_BY_PERIOD_END,
@@ -958,6 +988,8 @@ def recent_filings(
         offset=offset,
         has_more=has_more,
         total=total,
+        newest_period_end=newest[0] if newest else None,
+        newest_period_filing_count=newest[1] if newest else None,
         as_of=_snapshot_date(snapshot),
         snapshot_id=snapshot.id,
         reason=None,
