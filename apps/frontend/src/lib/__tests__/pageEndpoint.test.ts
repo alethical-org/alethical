@@ -380,6 +380,21 @@ describe('first-response page tags', () => {
     expect(readPageShell).toHaveBeenCalledTimes(1);
   });
 
+  // The research shelf moved out of the money section on 20 Aug 2026 (#1698).
+  // The server looks its wording up by path string, so a mismatch between the
+  // route's new path and the wording table's key would compile fine and serve
+  // a page with no title at all.
+  it('titles the research shelf at its own address, and at the old one', async () => {
+    stubNetwork(() => ({ status: 500 }));
+
+    for (const path of ['/reports', '/money/reports']) {
+      const { body, status } = await serve({ path });
+      expect(status).toBe(200);
+      expect(body).toContain('<title>What we found | Alethical</title>');
+      expect(body).toContain('<link rel="canonical" href="https://www.alethical.com/reports"');
+    }
+  });
+
   it('serves the normal missing-page response for the retired Traffic address', async () => {
     stubNetwork(() => ({ status: 500 }));
 
