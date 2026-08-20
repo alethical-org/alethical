@@ -79,6 +79,11 @@ BOARD_CALENDAR = "board_calendar"
 #: The only order this feed has, served on every page. Named once because the string
 #: appears in 3 returns and a drifting copy would tell a caller the order changed.
 ORDERED_BY_PERIOD_END = "period_end"
+#: The only order the committees list has, served on every page so a caller never has to
+#: assume one. Alphabetical by the name as filed, and there is deliberately no way to ask
+#: for another: ordering 1,603 filers by money would rank filing calendars rather than
+#: fundraising, because these filers file to different ones (§7).
+ORDERED_BY_NAME = "name"
 
 
 def _utc_today() -> date:
@@ -94,6 +99,72 @@ def _utc_today() -> date:
 #: Rows fetched per page at most. The landing draws 5; the ceiling is here so a caller
 #: cannot ask for the whole catalogue (36,655 rows in the live snapshot) in one response.
 MAX_FILINGS = 100
+
+#: Committees fetched per page at most. Screen A draws 8 and pages by 8; the ceiling
+#: stops a caller pulling the whole register (1,603 filers) into one response.
+MAX_COMMITTEES = 100
+
+
+@dataclass(frozen=True)
+class CommitteeRow:
+    """One registered filer, exactly as the Board's own directory lists them.
+
+    **No amount, and there is no version of this row that carries one.** These filers
+    file to different calendars, so 2 dollar figures side by side on a list would set one
+    period against another (``.claude/rules/grounded-answers.md`` rule 12, and
+    ``docs/architecture/campaign-finance-system-design.md`` §7). Money lives on each
+    committee's own page, where the period it belongs to is stated.
+
+    ``office`` and ``district`` are ``None`` on most rows and that is the register's
+    shape, not a gap in our copy. The Board publishes 3 lists of different widths: a
+    candidate row carries office, district and party; a party-unit row and a
+    committee-or-fund row carry name, registration number and 2 dates
+    ([#1661](https://github.com/alethical-org/alethical/issues/1661) measured 778 of
+    1,603 rows carrying an office and 0 party units carrying one). A party unit's
+    geography exists only inside its printed name, and reading it out of the name is a
+    mapping a person confirms rather than a column we hold, so nothing here derives one.
+
+    ``is_closed`` is exactly "the register carries a termination date for this filer",
+    which is why the date is served beside the flag rather than behind it: a closed
+    committee with no date would be a claim we could not show the evidence for.
+    """
+
+    registration_number: str
+    name: str
+    kind: str
+    office: Optional[str]
+    district: Optional[str]
+    is_closed: bool
+    termination_date: Optional[date]
+
+
+@dataclass(frozen=True)
+class CommitteesPage:
+    """One page of the register, with both totals a screen needs.
+
+    ``total`` and ``register_total`` are different numbers on purpose. ``total`` counts
+    the filter the rows came from, so "showing 8 of 778 candidate committees" is true of
+    the list a reader is looking at; ``register_total`` counts the whole register, so the
+    lane card can say 1,603 whatever filter is applied. A single total would make one of
+    those 2 sentences false.
+
+    ``by_kind`` is unfiltered for the same reason: the 3 filter chips label themselves
+    from it, and counts that changed when a filter was applied would read as the filter
+    having found fewer of a kind than exist.
+    """
+
+    state: str
+    ordered_by: str
+    committees: tuple[CommitteeRow, ...]
+    limit: int
+    offset: int
+    has_more: bool
+    total: Optional[int]
+    register_total: Optional[int]
+    by_kind: Optional[dict[str, int]]
+    as_of: Optional[date]
+    snapshot_id: Optional[UUID]
+    reason: Optional[str]
 
 
 @dataclass(frozen=True)
@@ -190,6 +261,14 @@ class FilingsPage:
     limit: int
     offset: int
     has_more: bool
+    #: How many filings the rows are a slice of, counted over the identical filter --
+    #: the same 4 exclusions and the same ended-periods cutoff
+    #: ([#1677](https://github.com/alethical-org/alethical/issues/1677)). Without it a
+    #: landing showing 5 rows beginning "100 Percent Future Fund" reads as a shortlist of
+    #: the newest or the biggest, which is a claim these rows do not make: over 1,200
+    #: filers share the period end of 20 July 2026, so the list is one enormous tie
+    #: broken alphabetically. ``None`` whenever the state is not ``reported``, never 0.
+    total: Optional[int]
     as_of: Optional[date]
     snapshot_id: Optional[UUID]
     reason: Optional[str]
@@ -383,6 +462,145 @@ def register_entry(db: Session, registration_number: str) -> RegisterEntry:
     )
 
 
+def name_contains(column, typed: str):
+    """Match a filed name against exactly what somebody typed, and nothing else.
+
+    Case-insensitive containment of the typed string. **No closest-spelling match, no
+    did-you-mean, no similarity score, ever** -- and this is the one rule on this surface
+    that is not a preference. 178 registered filer names sit a single character apart
+    from another registered name, and every one of those pairs is a different
+    organisation: the Green Party and the Republican Party of the same district are 2 of
+    them. A helpful correction would hand a reader one organisation's money under
+    another's name, silently, with nothing on screen to tell them
+    ([#1661](https://github.com/alethical-org/alethical/issues/1661)).
+
+    The typed string is escaped rather than passed through, so a reader typing ``%`` or
+    ``_`` searches for that character instead of matching everything.
+    """
+    escaped = typed.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return column.ilike(f"%{escaped}%", escape="\\")
+
+
+def committees(
+    db: Session,
+    *,
+    limit: int,
+    offset: int,
+    kind: Optional[str] = None,
+    query: Optional[str] = None,
+) -> CommitteesPage:
+    """One page of the register, ordered by the filed name, A to Z.
+
+    **Ordered by name and nothing else, with no way to ask for another order.** Not a
+    simplification to revisit: any order over money would compare filers who file to
+    different calendars, and 2 periods on this register can end nearly 7 months apart
+    (§7). Alphabetical is also the only order that is stable while a reader pages, since
+    names are unique within a snapshot -- checked on the live register, 0 duplicates in
+    1,603 rows -- so ``name`` alone is a deterministic tie-breaker and no second sort key
+    is needed.
+
+    ``kind`` filters to one of the Board's 3 register kinds. There are only 3, and that
+    is the source's shape rather than something our loader dropped: independent-
+    expenditure committees, ballot-question committees and political funds all arrive on
+    a single list carrying no type marker (§9.7). A caller must not offer a finer filter.
+
+    ``query`` is the screen's "find a committee by name" box, matched by
+    ``name_contains`` -- read that function before loosening anything here.
+
+    Refuses rather than reporting an empty register when the snapshot published filers
+    and holds none now, the same reasoning as ``register_summary``: those rows survive
+    exactly one further publish, so an empty read on a populated snapshot means we are
+    looking at a set that has been replaced, and "Minnesota registers nobody" is a claim
+    about the state we would be making about ourselves.
+    """
+    snapshot = live_filings_snapshot(db)
+    if snapshot is None:
+        return CommitteesPage(
+            state=UNAVAILABLE,
+            ordered_by=ORDERED_BY_NAME,
+            committees=(),
+            limit=limit,
+            offset=offset,
+            has_more=False,
+            total=None,
+            register_total=None,
+            by_kind=None,
+            as_of=None,
+            snapshot_id=None,
+            reason=NO_FILINGS_SNAPSHOT,
+        )
+    summary = register_summary(db)
+    if summary.state != REPORTED:
+        # The register itself could not be counted, so a page of it would be a slice of
+        # a set we just refused to describe. Carries the summary's own reason rather
+        # than a second one, so a caller sees one explanation for both.
+        return CommitteesPage(
+            state=summary.state,
+            ordered_by=ORDERED_BY_NAME,
+            committees=(),
+            limit=limit,
+            offset=offset,
+            has_more=False,
+            total=None,
+            register_total=None,
+            by_kind=None,
+            as_of=summary.as_of,
+            snapshot_id=summary.snapshot_id,
+            reason=summary.reason,
+        )
+    filer = schema.CampaignFinanceFiler
+    filters = [filer.snapshot_id == snapshot.id]
+    if kind is not None:
+        filters.append(filer.kind == schema.CampaignFinanceFilerKind(kind))
+    if query:
+        filters.append(name_contains(filer.name, query))
+    total = db.scalar(select(func.count()).select_from(filer).where(*filters)) or 0
+    rows = db.execute(
+        select(
+            filer.registration_number,
+            filer.name,
+            filer.kind,
+            filer.office,
+            filer.district,
+            filer.termination_date,
+        )
+        .where(*filters)
+        .order_by(filer.name.asc())
+        .limit(limit + 1)
+        .offset(offset)
+    ).all()
+    has_more = len(rows) > limit
+    return CommitteesPage(
+        state=REPORTED,
+        ordered_by=ORDERED_BY_NAME,
+        committees=tuple(_committee_row(row) for row in rows[:limit]),
+        limit=limit,
+        offset=offset,
+        has_more=has_more,
+        total=total,
+        register_total=summary.filer_count,
+        by_kind=summary.by_kind,
+        as_of=summary.as_of,
+        snapshot_id=summary.snapshot_id,
+        reason=None,
+    )
+
+
+def _committee_row(row) -> CommitteeRow:
+    registration_number, name, kind, office, district, termination_date = row
+    return CommitteeRow(
+        registration_number=registration_number,
+        name=name,
+        kind=kind.value if hasattr(kind, "value") else str(kind),
+        office=office,
+        district=district,
+        # Read off the date rather than stored separately, so the flag and the evidence
+        # for it can never disagree.
+        is_closed=termination_date is not None,
+        termination_date=termination_date,
+    )
+
+
 def _sitting_members_stmt(session_id: UUID) -> Select:
     """The sitting members, filtered exactly as the legislator directory filters them.
 
@@ -528,12 +746,36 @@ def recent_filings(
             limit=limit,
             offset=offset,
             has_more=False,
+            total=None,
             as_of=None,
             snapshot_id=None,
             reason=NO_FILINGS_SNAPSHOT,
         )
     report = schema.CampaignFinanceFilingReport
     filer = schema.CampaignFinanceFiler
+    # Built once and handed to both the rows and the count below, so the number a page
+    # prints can never describe a different set from the rows under it (#1677). The join
+    # is part of the filter, not decoration: it is what drops a report whose filer the
+    # register does not hold.
+    filed_and_ended = (
+        report.snapshot_id == snapshot.id,
+        # Not an optimization, and never remove it to widen the feed. An amendment
+        # record is the Board's own positive signal that a report was FILED: every
+        # filed report carries at least ['0'] and a report nobody has filed carries
+        # none (`docs/architecture/campaign-finance-system-design.md` §9.6). The
+        # catalogue is a schedule, so without this line the feed prints a report as
+        # filed under a named politician's committee that has not filed it. §9.6 also
+        # rules that this must be read from the version history and never inferred
+        # from a failed document download, which is what this column stores.
+        report.effective_amendment_index.is_not(None),
+        report.cut_off_date.is_not(None),
+        report.cut_off_date <= as_of,
+    )
+    joined_to_filer = (
+        filer,
+        (filer.snapshot_id == report.snapshot_id)
+        & (filer.registration_number == report.registration_number),
+    )
     rows = db.execute(
         select(
             report.registration_number,
@@ -547,25 +789,8 @@ def recent_filings(
             filer.name,
             filer.kind,
         )
-        .join(
-            filer,
-            (filer.snapshot_id == report.snapshot_id)
-            & (filer.registration_number == report.registration_number),
-        )
-        .where(
-            report.snapshot_id == snapshot.id,
-            # Not an optimization, and never remove it to widen the feed. An amendment
-            # record is the Board's own positive signal that a report was FILED: every
-            # filed report carries at least ['0'] and a report nobody has filed carries
-            # none (`docs/architecture/campaign-finance-system-design.md` §9.6). The
-            # catalogue is a schedule, so without this line the feed prints a report as
-            # filed under a named politician's committee that has not filed it. §9.6 also
-            # rules that this must be read from the version history and never inferred
-            # from a failed document download, which is what this column stores.
-            report.effective_amendment_index.is_not(None),
-            report.cut_off_date.is_not(None),
-            report.cut_off_date <= as_of,
-        )
+        .join(*joined_to_filer)
+        .where(*filed_and_ended)
         .order_by(
             report.cut_off_date.desc(),
             filer.name.asc(),
@@ -596,6 +821,7 @@ def recent_filings(
                 limit=limit,
                 offset=offset,
                 has_more=False,
+                total=None,
                 as_of=_snapshot_date(snapshot),
                 snapshot_id=snapshot.id,
                 reason=ROWS_REPLACED,
@@ -606,6 +832,15 @@ def recent_filings(
         db, snapshot.id, {row[0] for row in page}
     )
     filings = tuple(_filing_row(row, special_years=special_years) for row in page)
+    total = (
+        db.scalar(
+            select(func.count())
+            .select_from(report)
+            .join(*joined_to_filer)
+            .where(*filed_and_ended)
+        )
+        or 0
+    )
     return FilingsPage(
         state=REPORTED,
         ordered_by=ORDERED_BY_PERIOD_END,
@@ -614,6 +849,7 @@ def recent_filings(
         limit=limit,
         offset=offset,
         has_more=has_more,
+        total=total,
         as_of=_snapshot_date(snapshot),
         snapshot_id=snapshot.id,
         reason=None,

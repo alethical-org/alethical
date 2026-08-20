@@ -720,9 +720,51 @@ def test_paging_reports_more_without_counting_the_whole_catalogue(client, db) ->
     second = client.get(FILINGS, params={"limit": 2, "offset": 2}).json()["data"]
 
     assert len(first["filings"]) == 2
-    assert first["page"] == {"limit": 2, "offset": 2 - 2, "has_more": True}
+    assert first["page"] == {
+        "limit": 2,
+        "offset": 2 - 2,
+        "has_more": True,
+        "total": 3,
+    }
     assert len(second["filings"]) == 1
     assert second["page"]["has_more"] is False
+
+
+def test_the_total_counts_exactly_the_set_the_rows_came_from(client, db) -> None:
+    """The landing says "N committees filed for this period" over these very rows (#1677).
+
+    So the count carries the feed's own exclusions: a report nobody filed and a report
+    whose period has not ended are both outside the list and outside the number. Over
+    1,200 filers share the period end of 20 July 2026, so without the count 5 rows
+    beginning "100 Percent Future Fund" read as a shortlist of the newest or the biggest.
+    """
+    snapshot = _filings_snapshot(db, report_count=4)
+    _filer(db, snapshot, CANDIDATE)
+    _report(db, snapshot, CANDIDATE, report_name="Filed and ended")
+    _report(db, snapshot, CANDIDATE, report_name="Filed and ended too")
+    # Scheduled but nobody filed it: no amendment record (§9.6).
+    _report(db, snapshot, CANDIDATE, report_name="Unfiled", amendment_index=None)
+    # Filed, but its period runs to the end of 2026 and has not closed.
+    _report(
+        db, snapshot, CANDIDATE, report_name="Not ended", cut_off=date(2026, 12, 31)
+    )
+
+    data = client.get(FILINGS, params={"limit": 1}).json()["data"]
+
+    assert data["page"]["total"] == 2
+    assert data["page"]["has_more"] is True
+    assert len(data["filings"]) == 1
+
+
+def test_a_total_we_cannot_compute_is_absent_rather_than_zero(client, db) -> None:
+    """0 filings filed and "we hold no register" are different facts (rule 12)."""
+    assert client.get(FILINGS).json()["data"]["page"]["total"] is None
+
+    _filings_snapshot(db, report_count=1005)
+
+    replaced = client.get(FILINGS).json()["data"]
+    assert replaced["reason"] == ROWS_REPLACED
+    assert replaced["page"]["total"] is None
 
 
 def test_the_limit_is_capped_so_one_request_cannot_ask_for_the_catalogue(
