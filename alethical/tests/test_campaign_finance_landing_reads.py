@@ -792,7 +792,9 @@ def test_a_corrected_report_is_told_apart_from_one_nobody_has_filed(db) -> None:
     snapshot = _filings_snapshot(db, report_count=3)
     _report(db, snapshot, "19086", year=2026, amendment_index=1, amendment_count=2)
     _report(db, snapshot, "17709", year=2026, amendment_index=0, amendment_count=1)
-    _report(db, snapshot, "20010", year=2026, amendment_index=None, amendment_count=None)
+    _report(
+        db, snapshot, "20010", year=2026, amendment_index=None, amendment_count=None
+    )
 
     assert report_corrections(db, "19086", 2026) == 1
     assert report_corrections(db, "17709", 2026) == 0
