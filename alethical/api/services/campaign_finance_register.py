@@ -1139,7 +1139,9 @@ def committee_filings(
             )
     has_more = len(rows) > limit
     page = rows[:limit]
-    special_years = _special_election_filer_years(db, snapshot.id, {registration_number})
+    special_years = _special_election_filer_years(
+        db, snapshot.id, {registration_number}
+    )
     filings = tuple(_filing_row(row, special_years=special_years) for row in page)
     total = (
         db.scalar(

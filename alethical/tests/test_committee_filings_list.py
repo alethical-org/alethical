@@ -52,7 +52,9 @@ def _filings_url(registration: str) -> str:
 # Real numbers from the live register, so a reader can check any of these rows against
 # the Board's own directory.
 CANDIDATE = "18466"  # Port, Lindsey Senate Committee.
-OTHER_CANDIDATE = "18472"  # Novotny, Paul House Committee — terminated, final report filed.
+OTHER_CANDIDATE = (
+    "18472"  # Novotny, Paul House Committee — terminated, final report filed.
+)
 # The filer whose 2025 period opens 11 July rather than 1 January, because it ran in a
 # special election (§9.5). The one case a printed calendar start would be wrong for.
 SPECIAL_ELECTION_FILER = "19223"
@@ -419,7 +421,11 @@ def test_a_catalogue_whose_rows_were_replaced_refuses_rather_than_reading_empty(
 def test_paging_reports_more_without_serving_it(client, db) -> None:
     snapshot = _filings_snapshot(db, report_count=3)
     _filer(db, snapshot, CANDIDATE)
-    for year, cut_off in ((2026, PRE_PRIMARY_END), (2025, YEAR_END_2025), (2024, date(2024, 12, 31))):
+    for year, cut_off in (
+        (2026, PRE_PRIMARY_END),
+        (2025, YEAR_END_2025),
+        (2024, date(2024, 12, 31)),
+    ):
         _report(
             db,
             snapshot,
@@ -436,9 +442,9 @@ def test_paging_reports_more_without_serving_it(client, db) -> None:
     assert data["page"]["has_more"] is True
     assert data["page"]["total"] == 3
 
-    rest = client.get(
-        _filings_url(CANDIDATE), params={"limit": 2, "offset": 2}
-    ).json()["data"]
+    rest = client.get(_filings_url(CANDIDATE), params={"limit": 2, "offset": 2}).json()[
+        "data"
+    ]
     assert [row["report_name"] for row in rest["filings"]] == ["2024 Report"]
     assert rest["page"]["has_more"] is False
 
