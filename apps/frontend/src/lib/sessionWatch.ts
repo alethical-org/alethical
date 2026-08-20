@@ -144,9 +144,12 @@ export function sessionWatch<T extends WithActions>(
       capCaption: '',
       // Dates the last change rather than reading as empty. The card still lists
       // tracked bills with their latest action, so the page is never blank.
+      // Names "your tracked bills" (like the moved/first-visit lines) rather than
+      // just "nothing has moved" — this headline has no section above it to supply
+      // a subject, and a bare quiet state gives no proof the check actually ran.
       heroLine: mostRecent
-        ? `Nothing has moved since you last opened the list on ${visitedOn} — the most recent change was ${mostRecent}`
-        : `Nothing has moved since you last opened the list on ${visitedOn}`,
+        ? `None of your ${bills.length} tracked ${bills.length === 1 ? 'bill' : 'bills'} moved since you last opened the list on ${visitedOn} — the most recent change was ${mostRecent}`
+        : `None of your ${bills.length} tracked ${bills.length === 1 ? 'bill' : 'bills'} moved since you last opened the list on ${visitedOn}`,
       glyph: 'clock',
     };
   }
