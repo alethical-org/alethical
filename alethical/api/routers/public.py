@@ -55,12 +55,21 @@ from alethical.api.services.campaign_finance_payments import (
     payments_to_vendor,
 )
 from alethical.api.services.campaign_finance_register import (
+    MAX_COMMITTEES,
     MAX_FILINGS,
+    committees as register_committees,
     freshness,
     legislator_committee_confirmations,
     recent_filings,
     register_entry,
     register_summary,
+)
+from alethical.api.services.campaign_finance_search import (
+    MAX_PER_GROUP,
+    CommitteeRow,
+    PaymentNameResult,
+    PersonResult,
+    search as search_campaign_finance_names,
 )
 from alethical.api.services.committee_finance import (
     Committee as CampaignCommittee,
@@ -3475,12 +3484,274 @@ def campaign_finance_filings(
                 "limit": page.limit,
                 "offset": page.offset,
                 "has_more": page.has_more,
+                # Counted over the identical filter the rows came from, so the landing's
+                # "N committees filed for this period" describes exactly the list under
+                # it (#1677). Over 1,200 filers share the period end of 20 July 2026, so
+                # without the number 5 rows beginning "100 Percent Future Fund" read as
+                # a shortlist of the newest or the biggest. `null` whenever the rows are
+                # unavailable, never 0.
+                "total": page.total,
             },
             "as_of": page.as_of,
             "snapshot_id": str(page.snapshot_id) if page.snapshot_id else None,
             "reason": page.reason,
         }
     )
+
+
+@router.get("/campaign-finance/committees", response_model=DetailResponse)
+def campaign_finance_committees(
+    kind: Literal["candidate_committee", "party_unit", "political_committee_or_fund"]
+    | None = Query(default=None),
+    q: str | None = Query(default=None, min_length=1, max_length=200),
+    limit: int = Query(default=25, ge=1, le=MAX_COMMITTEES),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+):
+    """Everyone registered to raise or spend money in Minnesota state politics.
+
+    The whole register, ordered by the name as filed, A to Z. **No row carries an amount
+    and no parameter sorts by one, ever.** These filers file to different calendars, so 2
+    dollar figures side by side would set one period against another rather than compare
+    money (``.claude/rules/grounded-answers.md`` rule 12, and
+    ``docs/architecture/campaign-finance-system-design.md`` §7). Money lives on each
+    committee's own page, where the period it belongs to is stated.
+
+    **``kind`` offers 3 values because the register holds 3, and that is the Board's own
+    shape rather than something our loader threw away.** The directory is 3 separate
+    lists, and independent-expenditure committees, ballot-question committees and
+    political funds all arrive on one of them carrying no type marker at all (§9.7). The
+    finer kind exists only on the money rows, so a caller must not offer a finer filter
+    here ([#1661](https://github.com/alethical-org/alethical/issues/1661)).
+
+    **``sub_type`` is that finer kind, as the Board's own code and never as a label.**
+    It is what makes a ballot-question committee knowable at all, and it is served
+    because the committee page already reads it: without it the same filer would read
+    "Political committee or fund" on this list and "Ballot question committee" on its own
+    page, and a reader who noticed would trust neither. The label is derived in exactly
+    one place -- ``committeeEyebrow`` in ``apps/frontend/src/lib/committeeMoney.ts``,
+    which the committee page ships -- so the 2 surfaces cannot diverge. 6 codes are
+    documented (``PC``, ``PF``, ``IEC``, ``IEF``, ``BC``, ``BF``) and only those are
+    served; ``PCN``, ``PFN`` and ``BCN`` are documented nowhere by the Board or by us, so
+    they arrive as ``null`` rather than as a code somebody might expand. ``null`` is also
+    the answer for the 33 registered filers with no money row at all, and a caller shows
+    the register's kind for every one of them.
+
+    Read from the download release rather than the register, which is a **second copy of
+    Minnesota's data behind one response**, so ``release_id`` names it beside the
+    register's ``snapshot_id``. No release held means every ``sub_type`` is ``null`` and
+    nothing else changes.
+
+    **``office`` and ``district`` are ``null`` on most rows, and that is the register, not
+    a gap.** A candidate row carries office, district and party; a party-unit row and a
+    committee-or-fund row carry a name, a number and 2 dates. Measured on the live
+    register: 778 of 1,603 rows carry an office and **0 party units carry one**. A party
+    unit's geography is legible only inside its printed name, and #1661 rules that
+    reading it out of the name is a mapping a person confirms rather than a column we
+    hold -- so nothing here derives one, and a row's meta line is the kind alone.
+
+    **Two totals, deliberately.** ``page.total`` counts the filter the rows came from, so
+    "showing 8 of 778 candidate committees" is true of the list on screen.
+    ``register_total`` counts the whole register, so the lane card can say 1,603 whatever
+    filter is applied. ``by_kind`` is unfiltered for the same reason: the 3 filter chips
+    label themselves from it, and counts that moved when a filter was applied would read
+    as the filter having found fewer of a kind than exist.
+
+    ``q`` is the screen's "find a committee by name" box: case-insensitive containment of
+    exactly what was typed, and **no closest-spelling suggestion of any kind**. 178
+    registered names sit a single character apart from another registered name and every
+    one of those pairs is a different organisation, so a correction would quietly swap
+    one for another (``campaign_finance_register.name_contains``).
+
+    ``state`` decides whether ``committees`` may be read: ``unavailable`` with a
+    ``reason`` means we hold no register (``no_filings_snapshot``) or the snapshot we
+    resolved has been replaced under this read (``rows_replaced``). An empty list is
+    never a claim that Minnesota registers nobody.
+    """
+    pin_campaign_finance_to_one_view(db)
+    try:
+        release = current_campaign_finance_release(db)
+    except ReleaseNoLongerHeld:
+        # The published release names a pruned snapshot. That is a fact about our copy of
+        # the downloads, and the register is a different run, so the list still answers
+        # in full -- only the sub-type codes, which are read from the downloads, go
+        # absent. No 503: refusing the whole register over a missing label would report a
+        # gap in one source as an absence in the other.
+        release = None
+    page = register_committees(
+        db, limit=limit, offset=offset, kind=kind, query=q, release=release
+    )
+    return DetailResponse(
+        data={
+            "state": page.state,
+            "ordered_by": page.ordered_by,
+            "kind": kind,
+            "q": q,
+            "committees": [_committee_payload(row) for row in page.committees],
+            "page": {
+                "limit": page.limit,
+                "offset": page.offset,
+                "has_more": page.has_more,
+                "total": page.total,
+            },
+            "register_total": page.register_total,
+            "by_kind": page.by_kind,
+            "as_of": page.as_of,
+            "snapshot_id": str(page.snapshot_id) if page.snapshot_id else None,
+            "release_id": str(page.release_id) if page.release_id else None,
+            "reason": page.reason,
+        }
+    )
+
+
+@router.get("/campaign-finance/search", response_model=DetailResponse)
+def campaign_finance_search(
+    q: str = Query(min_length=1, max_length=200),
+    limit: int = Query(default=5, ge=1, le=MAX_PER_GROUP),
+    db: Session = Depends(get_db),
+):
+    """One typed name, matched across 4 kinds of record and grouped by what each one is.
+
+    **Exactly what was typed, and no did-you-mean anywhere.** Case-insensitive
+    containment, no closest spelling, no similarity, no suggestion. Not caution: 178
+    registered filer names sit a single character apart from another registered name, and
+    every one of those pairs is a different organisation -- the Green Party and the
+    Republican Party of the same district among them (#1661). A correction on this data
+    does not fix a typo, it hands a reader one organisation's money under another's name
+    with nothing on screen to reveal it.
+
+    Five groups, always all 5, always in this order, even when empty -- so a caller can
+    never read a missing group as "no matches" when it meant "we did not look":
+
+    * ``people`` -- **the 200 sitting legislators, and only them.** A person is a result
+      only where we hold a record of them beyond these filings. Everybody else on a
+      filing resolves to what they filed, because a page about a donor would be a page
+      about a *spelling* that still reads as a page about a human being (§5).
+    * ``committees`` -- the register. The one group whose rows carry an identifier that
+      survives a name change, so these are the rows that open a page.
+    * ``gave`` -- distinct names in the contributions download. A private donor's name is
+      searchable and is deliberately not a profile.
+    * ``got_paid`` and ``got_paid_independent`` -- distinct vendor names, from the
+      expenditures download and the independent-expenditures download. **Two groups on
+      purpose, and a caller must never add their counts.** They are 2 separate filings,
+      and 491 rows of the independent file share a spender, vendor, amount and date with
+      an expenditures row; whether that is one payment filed twice or two that coincide
+      is not established.
+
+    A name row carries the ``role`` that ``/campaign-finance/payments-under-name`` takes,
+    verbatim, so a caller opens that name's payments without translating anything.
+    ``payment_count`` counts records in one download and is never an amount.
+
+    **The employer column is not searched and has no group.** It is free text a donor
+    filled in, and its 4 commonest values are "Not Employed" (67,342 rows), "Retired"
+    (36,517), "Self employed Retired" and "Lawyer" -- a result row for "retired" would
+    present a status as something to open.
+
+    ``total`` on the 3 name groups is exact up to ``counted_up_to`` distinct names and
+    ``null`` past it, with ``at_least`` saying how far the count got. A broad query
+    genuinely matches thousands, and a capped number printed as a total is a fabricated
+    fact in the largest type on the page (rule 11). A ``total`` of 0 is different: we
+    searched and nothing carried that string, which is a fact about the spelling and our
+    records rather than about anybody's giving.
+
+    Below ``min_query_length`` characters the answer is ``unavailable`` with
+    ``query_too_short`` and every group empty. A served state rather than an error, so
+    the page says "type at least 3 characters" instead of "nothing found", which would be
+    a false claim about the records. The floor is the index's: a trigram index holds no
+    whole trigram for a 2-character query, so it would fall back to reading all 583,152
+    contribution rows
+    ([#1486](https://github.com/alethical-org/alethical/issues/1486)).
+
+    No 503 when nothing is published: the 3 name groups go ``unavailable`` with
+    ``no_release`` while the register and the legislators still answer, because one
+    missing copy of the data must not blank the groups that do not depend on it.
+    """
+    pin_campaign_finance_to_one_view(db)
+    try:
+        release = current_campaign_finance_release(db)
+    except ReleaseNoLongerHeld:
+        # The published release names a pruned snapshot. A fact about our copy of the
+        # downloads that says nothing about the register, which is a separate run, so the
+        # other 2 groups still answer.
+        release = None
+    answer = search_campaign_finance_names(db, release, query=q, limit=limit)
+    return DetailResponse(
+        data={
+            "state": answer.state,
+            "q": answer.query,
+            "matched_on": answer.matched_on,
+            "min_query_length": answer.min_query_length,
+            "counted_up_to": answer.counted_up_to,
+            "groups": [
+                {
+                    "kind": group.kind,
+                    "state": group.state,
+                    "results": [_search_result_payload(row) for row in group.results],
+                    "total": group.total,
+                    "at_least": group.at_least,
+                    "has_more": group.has_more,
+                    "reason": group.reason,
+                }
+                for group in answer.groups
+            ],
+            "as_of": answer.as_of,
+            "snapshot_id": str(answer.snapshot_id) if answer.snapshot_id else None,
+            "release_id": str(answer.release_id) if answer.release_id else None,
+            "reason": answer.reason,
+        }
+    )
+
+
+def _committee_payload(row: CommitteeRow) -> dict:
+    """One register row. ``is_closed`` ships beside its date, never instead of it.
+
+    ``sub_type`` is the Board's own code and deliberately not a label, so the wording a
+    reader sees stays owned in one place and this list cannot label a filer differently
+    from its own committee page -- the same field, spelled the same way, that
+    ``/committees/{registration_number}/finance`` already serves as ``entity_sub_type``.
+    """
+    return {
+        "registration_number": row.registration_number,
+        "name": row.name,
+        "kind": row.kind,
+        "sub_type": row.sub_type,
+        "office": row.office,
+        "district": row.district,
+        "is_closed": row.is_closed,
+        "termination_date": row.termination_date,
+    }
+
+
+def _search_result_payload(row) -> dict:
+    """Serialise whichever of the 3 result shapes a group holds.
+
+    Each carries its own ``kind`` so a caller reads the row rather than inferring its
+    shape from the group it arrived in -- which is what would break the day a group holds
+    more than one shape.
+    """
+    if isinstance(row, PersonResult):
+        return {
+            "kind": "person",
+            "id": row.id,
+            "slug": row.slug,
+            "full_name": row.full_name,
+            "chamber": row.chamber,
+            "district_code": row.district_code,
+            "party": row.party,
+        }
+    if isinstance(row, PaymentNameResult):
+        return {
+            "kind": "payment_name",
+            "name": row.name,
+            "role": row.role,
+            "payment_count": row.payment_count,
+        }
+    payload = _committee_payload(row)
+    # 2 different meanings of "kind" meet here: what this result *is*, and which of the
+    # register's 3 kinds the committee is. The register's moves aside to `filer_kind`,
+    # because a caller reading `kind` to decide how to draw a row would otherwise get
+    # "candidate_committee" where every other group hands it a shape name.
+    return {"kind": "committee", "filer_kind": payload.pop("kind"), **payload}
 
 
 @router.get(

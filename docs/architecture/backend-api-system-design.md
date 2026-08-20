@@ -1134,10 +1134,144 @@ calendars are transcribed, so 2024 and earlier carry no start.
 `state` decides whether `filings` may be read: `reported` means the rows are real, `unavailable`
 with a `reason` means `no_filings_snapshot` or `rows_replaced`. An empty list is never a claim
 that nobody has filed. `page` keeps this document's offset contract (`limit`, `offset`,
-`has_more`, with `limit + 1` fetched).
+`has_more`, with `limit + 1` fetched), **plus `total`**
+([#1677](https://github.com/alethical-org/alethical/issues/1677)) — counted over the identical
+filter the rows use, the same 4 exclusions and the same ended-periods cutoff, from one predicate
+built once and handed to both, so the number and the list can never describe different sets. It
+is `null` whenever the state is not `reported`, never 0. Without it, 5 rows beginning "100 Percent
+Future Fund" read as a shortlist of the newest or the biggest, which these rows do not claim: over
+1,200 filers share the period end of 20 July 2026, so the list is one enormous tie broken
+alphabetically.
 
-**Neither endpoint is wired to a client in this PR.** The `/money` landing that reads them is
-built in parallel by the frontend half of the campaign money phase 1 work.
+#### `GET /api/v1/campaign-finance/committees`
+
+Shipped Aug 19 2026. Screen A of the money section's lists: the whole register.
+
+Purpose:
+
+- every filer registered to raise or spend money in Minnesota state politics — 1,603 on the
+  live register — ordered by the name as filed, A to Z
+
+`kind` (one of `candidate_committee`, `party_unit`, `political_committee_or_fund`), `q`,
+`limit` (default 25, max 100) and `offset`. **No row carries an amount and there is no sort
+parameter**, in either direction: these filers file to different calendars, so 2 dollar figures
+side by side would set one period against another rather than compare money
+(`.claude/rules/grounded-answers.md` rule 12, and
+`docs/architecture/campaign-finance-system-design.md` §7). Money lives on each committee's own
+page, where the period it belongs to is stated. Name is also the only order that is stable while
+a reader pages, since names are unique within a snapshot — 0 duplicates in the live register's
+1,603 rows — so no second sort key is needed.
+
+**`kind` offers 3 values because the register holds 3.** That is the Board's own shape, not
+something our loader dropped: the directory is 3 separate lists, and independent-expenditure
+committees, ballot-question committees and political funds all arrive on one of them carrying no
+type marker at all (§9.7). A client must not offer a finer filter
+([#1661](https://github.com/alethical-org/alethical/issues/1661)).
+
+Each row: `registration_number`, `name`, `kind`, `sub_type`, `office`, `district`, `is_closed`,
+`termination_date`.
+
+**`sub_type` is the finer kind, as the Board's own code and never as a label.** It is the only
+signal that a ballot-question committee exists at all, and it is read from the download release
+rather than the register — 493 of the 526 registered committees and funds carry one. It is served
+because the committee page already reads the same field (as `entity_sub_type` on
+`/committees/{registration_number}/finance`): without it the same filer would read "Political
+committee or fund" on this list and "Ballot question committee" on its own page, and a reader who
+noticed would trust neither. **The label is derived in exactly one place** —
+`committeeEyebrow` in `apps/frontend/src/lib/committeeMoney.ts`, which the committee page ships —
+so the 2 surfaces cannot diverge, and a second expansion written in the API would be that
+divergence rather than a guard against it. Only the 6 documented codes are served (`PC`, `PF`,
+`IEC`, `IEF`, `BC`, `BF`); `PCN`, `PFN` and `BCN` are documented nowhere by the Board or by us, so
+they arrive as `null` rather than as a code somebody might expand, as do the 33 registered filers
+with no money row anywhere. A client shows the register's own kind for every `null`.
+
+**`office` and `district` are `null` on most rows, and that is the register, not a gap.** A
+candidate row carries office, district and party; a party-unit row and a committee-or-fund row
+carry a name, a number and 2 dates. Measured on the live register: 778 of 1,603 rows carry an
+office and **0 party units carry one**. The design draws "Party unit · Ramsey County", and that
+geography is legible only inside the printed name — #1661 rules that reading it out of the name
+is a mapping a person confirms rather than a column we hold, so nothing derives one and a party
+unit's meta line is the kind alone.
+
+**Two totals, deliberately.** `page.total` counts the filter the rows came from, so "showing 8 of
+778 candidate committees" is true of the list on screen; `register_total` counts the whole
+register, so the lane card can say 1,603 whatever filter is applied. A single total would make one
+of those 2 sentences false. `by_kind` is unfiltered for the same reason: the 3 filter chips label
+themselves from it, and counts that moved when a filter was applied would read as the filter
+having found fewer of a kind than exist.
+
+`q` is the screen's "find a committee by name" box: case-insensitive containment of exactly what
+was typed, and **no closest-spelling suggestion of any kind** (see the search endpoint below for
+why). `%` and `_` are escaped, so typing one searches for that character.
+
+**Two copies of Minnesota's data sit behind one response, and both are named.** The rows come from
+the register snapshot (`snapshot_id`, `as_of`); only `sub_type` comes from the download release
+(`release_id`). No release held means every `sub_type` is `null` and nothing else changes — a gap
+in one source must never read as an absence in the other, so there is no 503 here.
+
+`state` is `unavailable` with a `reason` of `no_filings_snapshot` or `rows_replaced` when the
+register cannot be read. An empty list is never a claim that Minnesota registers nobody.
+
+#### `GET /api/v1/campaign-finance/search`
+
+Shipped Aug 19 2026. Screen B, and the money section's front door.
+
+Purpose:
+
+- one typed name matched against sitting legislators, the register, and the names payments were
+  filed under, grouped by what each result **is**
+
+`q` (required) and `limit` (default 10, max 50).
+
+**The match is exactly what was typed, and there is no did-you-mean here or anywhere downstream.**
+Case-insensitive containment, nothing else: no closest spelling, no similarity score, no nearest
+match on an empty result. This is a measurement rather than caution — 178 registered filer names
+sit a single character apart from another registered name, and **every one of those pairs is a
+different organisation**, the Green Party and the Republican Party of the same district among them
+(#1661). A correction on this data does not fix a typo; it silently hands a reader one
+organisation's money under another's name, with nothing on screen that could tell them.
+
+**Five groups, always all 5, always in the same order**, even when a group is empty — so a client
+can never read a missing group as "no matches" when it meant "we did not look":
+
+| group | what it holds |
+|---|---|
+| `people` | the 200 sitting legislators, **and only them** |
+| `committees` | the register, the one group whose rows carry an identifier that survives a name change |
+| `gave` | distinct contributor names, with how many payments carry each |
+| `got_paid` | distinct vendor names from the expenditures download |
+| `got_paid_independent` | distinct vendor names from the independent-expenditures download |
+
+**A person is a result only where we hold a record of them beyond these filings.** Everyone else
+who appears on a filing resolves to what they filed, because a page about a donor would be a page
+about a *spelling* that still looks like a page about a human being
+(`docs/architecture/campaign-finance-system-design.md` §5).
+
+**The 2 expenditure files are 2 groups and their counts are never added.** 491 rows of the
+independent file share a spender, vendor, amount and date with an expenditures row; whether that
+is one payment filed twice or two payments that coincide is not established, so a combined count
+would resolve it by inventing payments.
+
+**The employer column is deliberately not searched and has no group.** Its 4 commonest values in
+the live release are "Not Employed" (67,342 rows), "Retired" (36,517), "Self employed Retired"
+(16,788) and "Lawyer" (9,276) — a search for "retired" returning a result row would present a
+status as an entity somebody could open.
+
+**Counts are exact to `counted_up_to` and `null` beyond it**, with `at_least` saying how far the
+count got. A broad query genuinely matches thousands of names, and a capped number printed as a
+total is a fabricated fact in the largest type on the page
+(`.claude/rules/grounded-answers.md` rule 11). `null` beside an `at_least` is the honest shape, and
+it is not the same as 0. Each name row's `payment_count` is a count of records, never an amount,
+and is never added across groups.
+
+**A query shorter than `min_query_length` (3) is a served state, not an error**: `unavailable`
+with `query_too_short`, so the page says "type at least 3 characters" rather than claiming nothing
+was found. The floor is the index's: a trigram index cannot answer a 2-character query, so below it
+the read would fall back to scanning all 583,152 contribution rows.
+
+`as_of` and `snapshot_id` name the register copy; `release_id` names the download release the
+3 name groups were read from. A missing release empties those 3 groups with `no_release` while the
+register and the legislators still answer.
 
 ### Districts and Lookup
 

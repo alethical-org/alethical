@@ -1938,6 +1938,24 @@ class CampaignFinanceContributionRow(Base):
 
     __table_args__ = (
         Index("ix_cf_contribution_row_recipient", "recipient_reg_num", "year"),
+        # The 3 name indexes of #1486, snapshot first because every query filters both
+        # and the snapshot narrows first -- which also lets the index prune the way the
+        # rows do. These 2 answer an exact name; the trigram one below answers a
+        # substring, which a B-tree cannot do at all.
+        Index(
+            "ix_cf_contribution_row_snapshot_contributor", "snapshot_id", "contributor"
+        ),
+        Index(
+            "ix_cf_contribution_row_snapshot_employer",
+            "snapshot_id",
+            "contrib_employer_name",
+        ),
+        Index(
+            "ix_cf_contribution_row_contributor_trgm",
+            "contributor",
+            postgresql_using="gin",
+            postgresql_ops={"contributor": "gin_trgm_ops"},
+        ),
     )
 
 
@@ -1986,6 +2004,14 @@ class CampaignFinanceExpenditureRow(Base):
 
     __table_args__ = (
         Index("ix_cf_expenditure_row_committee", "committee_reg_num", "year"),
+        # See the contribution table above: exact by B-tree, substring by trigram.
+        Index("ix_cf_expenditure_row_snapshot_vendor", "snapshot_id", "vendor_name"),
+        Index(
+            "ix_cf_expenditure_row_vendor_trgm",
+            "vendor_name",
+            postgresql_using="gin",
+            postgresql_ops={"vendor_name": "gin_trgm_ops"},
+        ),
     )
 
 
