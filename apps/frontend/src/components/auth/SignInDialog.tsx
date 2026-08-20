@@ -198,8 +198,7 @@ function GoogleHelp({ create = false }: { create?: boolean }) {
 
   return (
     <Text style={styles.googleHelp}>
-      If you first used Google and haven’t added a password,{' '}
-      <Text style={styles.googleHelpStrong}>continue with Google.</Text>
+      If you first used Google and haven’t added a password, continue with Google
     </Text>
   );
 }
@@ -811,7 +810,6 @@ const styles = StyleSheet.create({
     color: t.colors.text.secondary,
   },
   googleHelpCreate: { marginBottom: t.spacing.md },
-  googleHelpStrong: { fontWeight: t.fontWeights.bold, color: t.colors.text.primary },
   actionStack: { marginTop: 20, gap: 12 },
   actionStackNoTop: { gap: 12 },
   googleSolo: { marginBottom: 12 },
