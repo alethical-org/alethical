@@ -793,3 +793,41 @@ export interface CommitteePaymentsPage<Payment> {
   sourceUrl: string | null;
   fetchedAt: string | null;
 }
+
+/** One report a committee filed, as the Board's own catalogue records it — never
+ *  an amount, never a filed date (we hold none, issue #1670), and never an
+ *  amendment date (the catalogue's amendment record is version indexes only). */
+export interface CommitteeFilingRow {
+  /** The report's name as catalogued, e.g. "2026 Pre-Primary Report". */
+  reportName: string;
+  reportType: string;
+  filingYear: number;
+  /** ISO date the period starts, only when one of the Board's own filing
+   *  calendars prints it — never an assumed 1 January. */
+  periodStart: string | null;
+  /** ISO date the period ends (the filing's cutoff). Null on a filed report the
+   *  catalogue gives no period end for; the row then carries no period line. */
+  periodEnd: string | null;
+  /** The effective version's index: 0 is the original, 1 and up mean the report
+   *  was amended. The AMENDED chip draws from this and carries no date. */
+  effectiveAmendmentIndex: number | null;
+  amendmentCount: number | null;
+}
+
+/** One committee's filed reports (GET /committees/{n}/filings), newest period
+ *  first. `state` "unavailable" is our gap, never that nobody filed. */
+export interface CommitteeFilingsPage {
+  state: 'reported' | 'unavailable';
+  /** What the list is ordered by ("period_end"); the printed ordering sentence
+   *  derives from this so the words and the order cannot drift apart. */
+  orderedBy: string;
+  filings: CommitteeFilingRow[];
+  hasMore: boolean;
+  /** Every filed report, counted with the same filter as the rows. Null when no
+   *  count is served. */
+  total: number | null;
+  /** Catalogue rows for this committee with no filing record — either never
+   *  filed, or too old for the Board to serve a version history — so the page
+   *  can say the list's boundary instead of implying completeness. */
+  cataloguedWithoutRecord: number | null;
+}
