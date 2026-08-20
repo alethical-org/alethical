@@ -81,7 +81,9 @@ describe('the five frames are chosen by what we actually know', () => {
 
   it('drops the trailing clause when no tracked bill has a dated action at all', () => {
     const watch = sessionWatch([{ id: 'b1', actions: [] }], VISITED, NOW, 'Mar 20');
-    expect(watch.heroLine).toBe('None of your 1 tracked bill moved since you last opened the list on Mar 20');
+    expect(watch.heroLine).toBe(
+      'None of your 1 tracked bill moved since you last opened the list on Mar 20',
+    );
   });
 
   it('renders MOVED with the count and the date', () => {
