@@ -32,6 +32,7 @@ import pytest
 from sqlalchemy import select, text
 
 from alethical.api.services.campaign_finance_register import (
+    report_corrections,
     NO_FILINGS_SNAPSHOT,
     ROWS_REPLACED,
 )
@@ -772,3 +773,54 @@ def test_the_limit_is_capped_so_one_request_cannot_ask_for_the_catalogue(
 ) -> None:
     """The live catalogue holds 36,655 rows; the landing draws 5."""
     assert client.get(FILINGS, params={"limit": 500}).status_code == 422
+
+
+def test_a_corrected_report_is_told_apart_from_one_nobody_has_filed(db) -> None:
+    """3 answers, and reading any 2 of them as the same invents a fact (#1648).
+
+    A committee-year whose report has been refiled with different figures explains a
+    stored total that will not line up with our rows. One still on its first version
+    rules that explanation out. And a committee-year we hold no version history for
+    rules nothing out either way, so it answers ``None`` rather than 0 -- a count we
+    cannot compute is absent, never a measured zero
+    (``.claude/rules/grounded-answers.md`` rule 12).
+
+    Wynfred Russell's House committee (19086) is the live case: its 2026 pre-primary
+    report is on version 1 of 2, and the Board's totals service was still serving the
+    version-0 figures 8 days after the correction.
+    """
+    snapshot = _filings_snapshot(db, report_count=3)
+    _report(db, snapshot, "19086", year=2026, amendment_index=1, amendment_count=2)
+    _report(db, snapshot, "17709", year=2026, amendment_index=0, amendment_count=1)
+    _report(db, snapshot, "20010", year=2026, amendment_index=None, amendment_count=None)
+
+    assert report_corrections(db, "19086", 2026) == 1
+    assert report_corrections(db, "17709", 2026) == 0
+    assert report_corrections(db, "20010", 2026) is None
+    # A year with no catalogued report at all is the same "we cannot say" as a report
+    # nobody has filed.
+    assert report_corrections(db, "19086", 2024) is None
+
+
+def test_the_years_latest_version_is_the_years_answer(db) -> None:
+    """A Minnesota report restates the whole year, so the highest version wins.
+
+    A committee files several reports in a year and any of them can be corrected. Taking
+    the first one found would let an uncorrected year-end report hide a corrected
+    pre-primary one, which is the direction that loses the explanation.
+    """
+    snapshot = _filings_snapshot(db, report_count=2)
+    _report(db, snapshot, CANDIDATE, year=2026, report_type="C", amendment_index=0)
+    _report(
+        db,
+        snapshot,
+        CANDIDATE,
+        year=2026,
+        report_type="YE",
+        report_name="2026 Year-End Report",
+        cut_off=date(2026, 12, 31),
+        amendment_index=2,
+        amendment_count=3,
+    )
+
+    assert report_corrections(db, CANDIDATE, 2026) == 2

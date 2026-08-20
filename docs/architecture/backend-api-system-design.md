@@ -773,6 +773,70 @@ which committee it belongs to rather than only which year.
 belongs to [#1329](https://github.com/alethical-org/alethical/issues/1329)'s campaign money tab.
 So Story 3's access path below is still the complete list of what a profile screen calls.
 
+#### `GET /api/v1/legislators/{legislator_id}/campaign-finance`
+
+Shipped Aug 13 2026 ([#1329](https://github.com/alethical-org/alethical/issues/1329)), after
+the Aug 3 audit. Added to this inventory on Aug 19 2026, when the `split` states changed
+([#1682](https://github.com/alethical-org/alethical/issues/1682),
+[#1648](https://github.com/alethical-org/alethical/issues/1648)) — it was serving before that
+and simply was not listed here.
+
+Purpose:
+
+- one legislator's **own** campaign money for one calendar year, one block per confirmed
+  committee. Money others spent about them is the separate `independent-spending` endpoint
+  above, and the two are never added.
+
+`year` is **required** (`ge=2015, le=2100`, no default), as on every endpoint in this section.
+
+**Read `link_state` before `committees`.** An empty list is not a statement about the person:
+`unconfirmed` (nobody has checked which committee is theirs — every sitting member today),
+`reviewed_none_confirmed` (someone checked and confirmed none, worded the same way to a reader
+because all 200 sitting members do appear in the Board's register), `confirmed`.
+
+Returns `legislator_id`, `year`, `link_state`, `other_office_committees`, and `committees[]`.
+Each committee carries `registration_number`, `committee_name`, `office`, the same `money_in`
+/ `money_out` / `independent_spending` blocks the committee endpoint serves, and a `split`.
+
+**`split.state` and the 8 values it takes.** This is the field that decides whether a page may
+divide a committee's money into named and unnamed, and the same object is served by
+`/committees/{registration_number}/finance` from the same code, so the two surfaces cannot
+drift. Counts measured against the live release on 19 Aug 2026 across all 11,065
+committee-years it covers:
+
+| `split.state` | What it means | Count |
+| --- | --- | --- |
+| `shown` | `unnamed_total` is real: the reported total minus the named **cash** payments we hold | 3,062 |
+| `no_reported_total` | No official total this page may print for the year, so there is no whole to divide | 7,442 |
+| `no_named_payments` | The filing reports money, we hold no named payment of it, and nobody has read the filing to find out whether it named any | 468 |
+| `sources_disagree` | The check against the committee's own filed report found the 2 official figures differ | 62 |
+| `periods_differ` | The 2 figures cover different periods, so their difference is not a fact about donors | 16 |
+| `named_payments_not_in_our_copy` | The filing names donors and our copy of the download holds no row at all for the committee-year | 14 |
+| `reported_total_predates_a_correction` | The subtraction refuses to run and the Board's catalogue records the committee refiling the year's report | 1 |
+| `figures_do_not_line_up` | The subtraction refuses to run and nothing we hold says why | 0 |
+
+**Only `sources_disagree` may say Minnesota's 2 publications contradict each other, and until
+Aug 19 2026 three states shared it.** An empty download and a negative subtraction both landed
+there, which reported a gap of ours as a contradiction of the state's, on 7 live committee
+pages. Each route now carries only what its own evidence supports. Two further rules ride on
+this field and neither is optional: no wording downstream of `sources_disagree` may say which
+of the 2 figures is the larger one, because 33 of the 76 disagreeing committee-years run one
+way and 43 the other; and `named_payments_not_in_our_copy` may never be explained by the
+filing calendar, because the report was filed on time and a deadline sentence would be true
+about the calendar and false about the money.
+
+Every state except `shown` leaves `unnamed_total` null and shows both official figures
+un-subtracted. `stated_split_state` travels alongside and says whether the committee's own
+filed report was checked against our rows at all (`agrees` / `disagrees` / `not_checked`);
+`first_payment_on` and `last_payment_on` describe the payments we hold and are **never** a
+coverage period.
+
+`committees[]` carries only committees for a **legislative** office; `other_office_committees`
+counts the rest so a page can say they exist without reporting a dollar of them.
+
+503 means we hold no usable release, which is a fact about us and never a figure about a named
+person.
+
 ### Campaign committees
 
 #### `GET /api/v1/committees/{registration_number}/finance`
@@ -823,6 +887,12 @@ against $10,155.00 — the gap in each is legitimate small-donor money, not an e
 `reported_total` is `null` when no filings snapshot is published, and also for a
 special-election filer whose second report series the Board's route does not return, because
 §9.5 is explicit that those read "Not reported" rather than being compared.
+
+**`split` is served here too, identically**, from `legislator_finance.split_for_committee`.
+Its 8 states, their counts, and the 2 rules that ride on them are tabled under
+`GET /api/v1/legislators/{legislator_id}/campaign-finance` above rather than repeated, because
+one drifting copy of that table is how the two surfaces would come to disagree about the same
+committee. Read `split.state` before drawing any composition.
 
 **Read each block's `state` before its numbers:**
 

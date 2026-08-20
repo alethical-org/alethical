@@ -222,15 +222,37 @@ says why.
 
 | What the reader sees | When | How common |
 | --- | --- | --- |
-| "These two figures cover different stretches of time." | The committee's own report stops earlier than the donation spreadsheet does | 28 of 446 candidate committees in 2026, 0 in 2025 |
-| "Minnesota publishes these two figures separately, and for this committee and year they do not agree." | The two official figures differ, in **either** direction: the committee's own filed report can name money the donation spreadsheet does not hold, or the spreadsheet can hold more than the committee reported | 76 committee-years across 2024 to 2026, of which 33 are the filing naming more and 43 are the spreadsheet holding more |
-| "The state has not published a report for this committee covering this year." | No official total we can stand behind for that year | 14 candidate committees in 2025, 0 in 2026 |
-| "We cannot tell whether every donor stayed under the naming threshold or whether donations are missing from the list." | The committee reported money and the spreadsheet names none of it | 212 candidate committees in 2025, 28 in 2026 |
+| "These two figures cover different stretches of time." | The committee's own report stops earlier than the donation spreadsheet does | 16 committee-years |
+| "Minnesota publishes these two figures separately, and for this committee and year they do not agree." | The comparison against the committee's own filed report found the two official figures differ, in **either** direction | 62 committee-years |
+| "The state's separate list of donations holds none of them for this year — so the names are missing from what we can show you, not from what the committee filed." | The filing names donors and our copy of the donation spreadsheet carries no row at all for that committee-year | 14 committee-years |
+| "This committee filed its report for this year and then corrected it." | A subtraction refuses to run and the Board's catalogue records that the committee refiled the year's report | 1 committee-year |
+| "These two figures will not line up, and we cannot tell why." | A subtraction refuses to run and nothing we hold says why | 0 committee-years |
+| "The state has not published a report for this committee covering this year." | No official total we can stand behind for that year | 7,442 committee-years |
+| "We cannot tell whether every donor stayed under the naming threshold or whether donations are missing from the list." | The committee reported money and the spreadsheet names none of it, and nobody has read the filing to find out which | 468 committee-years |
 
-Counts measured against the live release on 12 August 2026, except the disagreement row,
-re-measured on 18 August 2026 once the comparison had run for 2024 and 2026 as well as
-2025 ([#1496](https://github.com/alethical-org/alethical/issues/1496)). They are
-evidence, not a requirement.
+Counts measured against the live release on 19 August 2026, across every committee-year
+the release covers rather than candidate committees alone. They are evidence, not a
+requirement. Read them together: the 7,442 is mostly committee-years whose official total
+was never published rather than a failure of anything, and 3,062 committee-years do show a
+full split.
+
+**Three of those rows used to be one, and the shared sentence was false on two of them.**
+Until 19 August 2026 a committee-year with no donation rows at all, and one whose two
+figures simply would not subtract, both printed the disagreement sentence — which says
+Minnesota's own publications contradict each other about a named committee. Neither had
+any evidence for that: an empty spreadsheet has nothing on our side to disagree with the
+filing, and a subtraction coming out negative tells you the two numbers will not subtract
+and nothing about why. Splitting them apart is
+[#1682](https://github.com/alethical-org/alethical/issues/1682) and
+[#1648](https://github.com/alethical-org/alethical/issues/1648).
+
+**Seven live committee pages printed it**, measured on production 19 August 2026 —
+Kristin Robbins's governor committee (2025), IBEW - COPE (2024, 2025 and 2026), the Great
+River Energy Action Team (2025), the 2nd Congressional District RPM (2025), and Wynfred
+Russell's House committee (2026). The legislator tab this guide describes reached none of
+them, because it needs a confirmed member-to-committee match and there are still none of
+those; the committee pages shipped on 17 August need no such match, and they share this
+wording. So this was a live wrong sentence about named committees, not a near miss.
 
 **The disagreement row used to name a direction and it was the wrong one on 33 of those
 76.** It said the listed donations "add up to more than the committee reported raising",
@@ -241,12 +263,14 @@ having no donor at all. Filer 20010's 2025 is the plain case: its filing itemize
 $1,493,418.08 and the spreadsheet holds $1,488,168.08. The sentence on screen now names
 no direction, and a test pins that it never does again.
 
-**Nobody had read it, and the first version of this paragraph wrongly implied they had.**
-This whole money section only draws once a person has confirmed which committee belongs to
-a member, and **no such confirmation exists yet** — the table holding them
-(`legislator_campaign_committee`) has 0 rows in production, so every member's tab currently
-shows the "nobody has confirmed which committee is theirs" panel and never reaches a split
-or its explanation. So this was a wrong sentence sitting in shipped code, fixed before the
+**Nobody had read it on a legislator's tab, and the first version of this paragraph
+wrongly implied nobody could read it anywhere.** This tab only draws once a person has
+confirmed which committee belongs to a member, and **no such confirmation exists yet** —
+the table holding them (`legislator_campaign_committee`) has 0 rows in production, so
+every member's tab currently shows the "nobody has confirmed which committee is theirs"
+panel and never reaches a split or its explanation. **The committee pages are a different
+story**: they arrived on 17 August 2026, they key on a registration number rather than a
+person, and they print these same sentences today. So this was a wrong sentence sitting in shipped code, fixed before the
 first confirmation made it visible, rather than a wrong sentence a reader saw. Recorded
 this way round because the difference is the whole distance between a near miss and a
 published falsehood, and the first telling of it took the credit for the wrong one.

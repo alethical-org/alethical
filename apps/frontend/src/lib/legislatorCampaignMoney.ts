@@ -57,7 +57,14 @@ export type MoneyBlockState = 'reported' | 'not_reported' | 'unavailable';
 
 /** Why a split may or may not be drawn, from the server's own vocabulary. */
 export type SplitState =
-  'shown' | 'no_reported_total' | 'sources_disagree' | 'periods_differ' | 'no_named_payments';
+  | 'shown'
+  | 'no_reported_total'
+  | 'sources_disagree'
+  | 'periods_differ'
+  | 'no_named_payments'
+  | 'named_payments_not_in_our_copy'
+  | 'reported_total_predates_a_correction'
+  | 'figures_do_not_line_up';
 
 /** Whether anyone has confirmed which committees belong to this legislator. */
 export type LinkState = 'unconfirmed' | 'reviewed_none_confirmed' | 'confirmed';
@@ -324,6 +331,49 @@ export function splitExplanation(state: SplitState): string | null {
         'none of it for this year. We cannot tell whether every donor stayed under the ' +
         'naming threshold or whether donations are missing from the list, so we do not ' +
         'say either.'
+      );
+    case 'named_payments_not_in_our_copy':
+      // The sibling above is a shrug: we hold nothing and cannot tell why. Here the
+      // committee's own filed report has been read and it names donors, so the
+      // emptiness is provably on our side. 14 committee-years in the live release,
+      // measured 19 Aug 2026 (#1682, #1642) — Kristin Robbins's governor committee is
+      // the largest, its own 2025 report naming $533,295.01 against no rows at all.
+      //
+      // What this must never reach for is a sentence about the filing calendar. The
+      // report was filed on time and the deadline was met; a deadline sentence would
+      // be true about the calendar and false about the money.
+      return (
+        'This committee’s own report for this year names its donors. The state’s ' +
+        'separate list of donations, which is where every name on this page comes from, ' +
+        'holds none of them for this year — so the names are missing from what we can ' +
+        'show you, not from what the committee filed. The report itself is public on the ' +
+        'Board’s site.'
+      );
+    case 'reported_total_predates_a_correction':
+      // A committee may file a report and then file it again with different figures.
+      // The Board's own totals service can go on serving the first version's numbers
+      // afterwards: Wynfred Russell's House committee (19086) corrected its 2026
+      // pre-primary report on 10 August to name $20,750.00, our donation rows hold
+      // exactly that, and the totals service was still serving $0.00 on 18 August.
+      //
+      // So this is our refresh gap, and it fixes itself when the Board's service
+      // catches up. It is never Minnesota contradicting itself (#1648).
+      return (
+        'This committee filed its report for this year and then corrected it. The ' +
+        'official total here comes from a separate state service that had not picked ' +
+        'the correction up when we last copied it, so it does not line up with the ' +
+        'donations listed beside it. We show both and change neither.'
+      );
+    case 'figures_do_not_line_up':
+      // The quiet one, and deliberately weaker than `sources_disagree`. Reached when a
+      // subtraction refuses to run and nothing we hold says why — which proves these 2
+      // numbers cannot be subtracted and proves nothing about whether Minnesota's 2
+      // publications disagree. 0 committee-years are in it on the live release; it
+      // exists so the other 2 states never have to cover a case they cannot support.
+      return (
+        'These two figures will not line up, and we cannot tell why. We show both and ' +
+        'work out neither, rather than print a number that would read as a fact about ' +
+        'donors.'
       );
     default:
       return null;

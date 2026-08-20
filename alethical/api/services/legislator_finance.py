@@ -38,16 +38,22 @@ because a wrong remainder does not look wrong -- it looks like a fact about dono
    for 2025. The House Republican Campaign Committee (20010) is the sharpest -- its
    2026 named payments total $881,816.24 against a report of $399,275.76 through
    31 March, so an unguarded subtraction prints **minus $482,540.48** of unnamed money.
-2. **Minnesota's two publications can contradict each other.** Where our named
-   payments exceed what the filer told the state it raised, the remainder is negative
-   and §9.5 is explicit that a negative result is a failed reconciliation rather than a
-   number to clamp. Eugene ruled on 12 Aug 2026 that where 2 official sources disagree
-   and we cannot derive the truth, we show both figures and say plainly that they
-   disagree.
-3. **We can hold no named payments at all while the filing reports money.** "The state
+2. **Minnesota's two publications can contradict each other.** Where the committee's
+   own filed report and our copy of the state's donation list state different itemized
+   figures, the comparison in ``committee_stated_split`` records a disagreement, and
+   Eugene ruled on 12 Aug 2026 that where 2 official sources disagree and we cannot
+   derive the truth, we show both figures and say plainly that they disagree.
+3. **A subtraction that comes out negative is not that.** It proves these 2 numbers
+   cannot be subtracted and nothing more. Sometimes we can say why -- the committee has
+   refiled the year's report and the total we hold is the superseded version's -- and
+   sometimes we cannot, and those are 2 different sentences and neither is the one
+   above (#1648).
+4. **We can hold no named payments at all while the filing reports money.** "The state
    named nobody" and "we hold nobody" look identical on a card and are not the same
    claim (``CampaignFinanceReconcileOutcome.no_itemized_rows``). §7: "we hold no
-   itemized rows" is never rendered as "this money had no names".
+   itemized rows" is never rendered as "this money had no names". Where the filing has
+   been read and it names the money, the emptiness is provably our copy's and says so
+   (#1682).
 
 Each check is per committee-year and none of them blocks anything else: a committee
 whose figures disagree withholds its own split while every other committee on every
@@ -68,6 +74,7 @@ from uuid import UUID
 from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
+from alethical.api.services.campaign_finance_register import report_corrections
 from alethical.api.services.committee_finance import (
     NOT_REPORTED,
     CommitteeFinance,
@@ -118,6 +125,23 @@ SPLIT_SOURCES_DISAGREE = "sources_disagree"
 SPLIT_PERIODS_DIFFER = "periods_differ"
 #: The filing reports money and we hold no named payment for it.
 SPLIT_NO_NAMED_PAYMENTS = "no_named_payments"
+#: The committee's own filed report names money donor by donor and our copy of
+#: Minnesota's donation list holds not one row of it for this year. Our gap, and a
+#: different fact from ``SPLIT_NO_NAMED_PAYMENTS``, which is the honest shrug for a year
+#: where nobody has checked the filing and the money may simply have come from donors
+#: too small to name. Here the filing has been read and it names the money, so the
+#: emptiness is provably our copy's rather than possibly the committee's
+#: ([#1682](https://github.com/alethical-org/alethical/issues/1682)).
+SPLIT_NAMED_PAYMENTS_NOT_IN_OUR_COPY = "named_payments_not_in_our_copy"
+#: The official total we hold cannot be squared with the payments we hold, and the
+#: committee has corrected this year's report since. Our stored total is the superseded
+#: version's ([#1648](https://github.com/alethical-org/alethical/issues/1648)).
+SPLIT_REPORTED_TOTAL_PREDATES_A_CORRECTION = "reported_total_predates_a_correction"
+#: The official total we hold cannot be squared with the payments we hold and nothing
+#: we hold says why. Not a disagreement between Minnesota's 2 publications: a
+#: subtraction that will not run, which is a weaker thing to know and the only thing
+#: known here.
+SPLIT_FIGURES_DO_NOT_LINE_UP = "figures_do_not_line_up"
 
 #: The committee's own filed report states the same itemized figure we hold, so the
 #: split has been checked against the filing rather than only derived from it.
@@ -308,6 +332,7 @@ def named_money_split(
     named_cash_total: Decimal | None,
     withheld_filer_years: frozenset[tuple[str, int]],
     stated_split_state: str,
+    report_corrections: int | None = None,
 ) -> NamedMoneySplit:
     """Whether this committee-year's split may be drawn, and what it is.
 
@@ -317,47 +342,49 @@ def named_money_split(
     House Republican Campaign Committee's 2026 rows exceed its own reported total by
     $482,540.48 purely because our download runs 4 months further than its last report.
     Calling that "the sources disagree" would blame Minnesota for our arithmetic.
+
+    **Only one of these states may say that Minnesota's 2 publications disagree, and it
+    is the one backed by a verdict that compared them.** Three routes used to share
+    ``SPLIT_SOURCES_DISAGREE`` and only the first established a disagreement at all:
+    the stated-split verdict, an empty download, and a subtraction that came out
+    negative. The other 2 are facts about our own copy, and printing them as Minnesota
+    contradicting itself put a false sentence on 7 live committee pages, measured
+    19 Aug 2026 (#1682, #1648). Each route now carries only what its own evidence
+    supports.
+
+    ``report_corrections`` is the highest version number the Board's catalogue holds for
+    this committee-year's reports, from ``campaign_finance_register.report_corrections``:
+    above 0 means the committee refiled with different figures, ``0`` means it did not,
+    and ``None`` means we hold no version history and may not say either way.
     """
     money_in = finance.money_in
+    named_total = money_in.itemized_contribution_total
+    # §7's coverage-end guard, applied once and before anything reads these 2 figures.
+    # The Board's totals route ignores the year it is asked for when that year has no
+    # report and answers with the most recent report's figures instead, at HTTP 200 with
+    # nothing in the response to say so. The coverage-end date is the only thing standing
+    # between a page and printing last year's money under this year's heading, so a
+    # figure whose coverage end is missing or falls outside the year asked for is not a
+    # figure this page holds. It is checked up here rather than inside one branch because
+    # a branch that returns before the check bypasses it, which is what the
+    # stated-split branch below used to do.
     reported_total = money_in.reported_total
     reported_through = money_in.reported_through
-    named_total = money_in.itemized_contribution_total
+    if (
+        reported_total is None
+        or reported_through is None
+        or reported_through.year != finance.year
+    ):
+        # Both dropped rather than one. A coverage end from the wrong year printed
+        # beside a figure is the caption §7 says this guard must not become.
+        reported_total = None
+        reported_through = None
     named_payments = money_in.itemized_contribution_payments
     in_kind_total = (
         named_total - named_cash_total
         if named_total is not None and named_cash_total is not None
         else None
     )
-
-    if stated_split_state == DISAGREES:
-        # The committee's own filed report states a different itemized figure from the
-        # one we hold. That is #1433's check, and it catches the direction the release
-        # reconciliation cannot: a filing that itemizes money our rows are missing
-        # entirely, which would otherwise land silently in the unnamed figure and become
-        # a positive claim that money had no donor. **76 committee-years in the live
-        # release**, measured 18 Aug 2026 across 2024, 2025 and 2026 (#1496).
-        #
-        # It runs in both directions, which matters to the page and not to this branch:
-        # 33 of the 76 are the filing naming more than we hold and 43 are us holding more
-        # than it names. Both land here, so no wording downstream of this state may say
-        # which figure is the larger one (`splitExplanation` in
-        # `apps/frontend/src/lib/legislatorCampaignMoney.ts` said so until #1496 and was
-        # wrong for 33 of them — reached by no reader, because the money section needs a
-        # confirmed member-to-committee match and `legislator_campaign_committee` holds 0
-        # rows in production, but wrong in shipped code all the same).
-        return NamedMoneySplit(
-            state=SPLIT_SOURCES_DISAGREE,
-            reported_total=reported_total,
-            reported_through=reported_through,
-            named_total=named_total,
-            named_payments=named_payments,
-            named_cash_total=named_cash_total,
-            named_in_kind_total=in_kind_total,
-            unnamed_total=None,
-            first_payment_on=first_payment_on,
-            last_payment_on=last_payment_on,
-            stated_split_state=stated_split_state,
-        )
 
     def outcome(state: str, unnamed: Decimal | None = None) -> NamedMoneySplit:
         return NamedMoneySplit(
@@ -374,41 +401,60 @@ def named_money_split(
             stated_split_state=stated_split_state,
         )
 
-    # §7's coverage-end guard, and it is a guard rather than a caption. The Board's
-    # totals route ignores the year it is asked for when that year has no report and
-    # answers with the most recent report's figures instead, at HTTP 200 with nothing
-    # in the response to say so. The coverage-end date is the only thing standing
-    # between a page and printing last year's money under this year's heading, so a
-    # figure whose coverage end is missing or falls outside the year asked for is not
-    # a figure this page holds.
-    if (
-        reported_total is None
-        or reported_through is None
-        or reported_through.year != finance.year
-    ):
-        return NamedMoneySplit(
-            state=SPLIT_NO_REPORTED_TOTAL,
-            # Both dropped rather than passed through. A figure that fails this guard
-            # is one we may not print at all, and a coverage end from the wrong year
-            # printed beside it would be the caption §7 says this must not become.
-            reported_total=None,
-            reported_through=None,
-            named_total=named_total,
-            named_payments=named_payments,
-            named_cash_total=named_cash_total,
-            named_in_kind_total=in_kind_total,
-            unnamed_total=None,
-            first_payment_on=first_payment_on,
-            last_payment_on=last_payment_on,
-            stated_split_state=stated_split_state,
-        )
+    def cannot_be_subtracted() -> NamedMoneySplit:
+        """The 2 figures will not subtract, and what we may say about why.
+
+        Reached from a negative remainder and from the release's own withheld-filer
+        list, which are the same evidence found at 2 different moments. Neither
+        establishes that Minnesota's 2 publications disagree -- only that these 2
+        numbers cannot be subtracted -- so neither may borrow the sentence that says
+        they do (#1648).
+        """
+        if report_corrections is not None and report_corrections > 0:
+            return outcome(SPLIT_REPORTED_TOTAL_PREDATES_A_CORRECTION)
+        return outcome(SPLIT_FIGURES_DO_NOT_LINE_UP)
+
+    if stated_split_state == DISAGREES:
+        # The committee's own filed report states a different itemized figure from the
+        # one we hold. That is #1433's check, and it catches the direction the release
+        # reconciliation cannot: a filing that itemizes money our rows are missing
+        # entirely, which would otherwise land silently in the unnamed figure and become
+        # a positive claim that money had no donor. **76 committee-years in the live
+        # release**, measured 18 Aug 2026 across 2024, 2025 and 2026 (#1496).
+        #
+        # It runs in both directions, which matters to the page and not to this branch:
+        # 33 of the 76 are the filing naming more than we hold and 43 are us holding more
+        # than it names. Both land here, so no wording downstream of this state may say
+        # which figure is the larger one (`splitExplanation` in
+        # `apps/frontend/src/lib/legislatorCampaignMoney.ts` said so until #1646 and was
+        # wrong for 33 of them).
+        if money_in.state == NOT_REPORTED:
+            # We hold not one row for this committee-year while the filing names money
+            # donor by donor, so there is nothing of Minnesota's to disagree with the
+            # filing: the emptiness is our copy's. 14 committee-years in the live
+            # release, measured 19 Aug 2026 (#1682), of which Kristin Robbins's governor
+            # committee is the largest -- its own 2025 report names $533,295.01 and our
+            # download holds none of it.
+            #
+            # ``NOT_REPORTED`` rather than "no total", deliberately: it means the
+            # download covers this year and carries no contribution row for this
+            # committee, which is a measured absence. ``UNAVAILABLE`` -- a stale copy, or
+            # a year the download does not reach -- is not that fact and falls through.
+            return outcome(SPLIT_NAMED_PAYMENTS_NOT_IN_OUR_COPY)
+        return outcome(SPLIT_SOURCES_DISAGREE)
+
+    if reported_total is None:
+        # The coverage-end guard at the top of this function refused the figure, or
+        # there was never one to refuse. Either way there is no whole to divide.
+        return outcome(SPLIT_NO_REPORTED_TOTAL)
 
     # What the release itself decided, read before anything computed here. A release
     # records which filer-years its own reconciliation refused, and a surface honours
     # that decision rather than forming a second opinion against rows that may since
-    # have been replaced.
+    # have been replaced. What it refused is the same negative subtraction the guard at
+    # the foot of this function catches, so it reports the same states.
     if (finance.committee.registration_number, finance.year) in withheld_filer_years:
-        return outcome(SPLIT_SOURCES_DISAGREE)
+        return cannot_be_subtracted()
 
     if money_in.state != REPORTED:
         # Either we hold no named payment for a year the download covers
@@ -440,7 +486,16 @@ def named_money_split(
         # Every negative, not merely a large one. A tolerance on the comparison and no
         # tolerance on the subtraction let a penny through as "-$0.01 of money with
         # nobody's name on it", which cannot be true of anything.
-        return outcome(SPLIT_SOURCES_DISAGREE)
+        #
+        # Refusing the subtraction is the load-bearing half and does not change here.
+        # What changes is what may be said about the refusal: a negative remainder
+        # proves these 2 numbers cannot be subtracted and proves nothing about whether
+        # Minnesota's 2 publications disagree. Wynfred Russell's House committee (19086)
+        # is the measured case -- it filed an empty 2026 pre-primary report on 1 August,
+        # corrected it on 10 August to name $20,750.00, our rows hold exactly that, and
+        # the Board's totals service was still serving the superseded $0.00 8 days later.
+        # Its 2 official figures agree once the corrected filing is used (#1648).
+        return cannot_be_subtracted()
 
     return outcome(SPLIT_SHOWN, remainder)
 
@@ -489,6 +544,10 @@ def split_for_committee(
         last_payment_on=last_on,
         named_cash_total=cash,
         withheld_filer_years=withheld_filer_years,
+        # Whether the committee has refiled this year's report with different figures.
+        # Read from the Board's own report catalogue rather than inferred, and only
+        # consulted where a subtraction has already refused to run.
+        report_corrections=report_corrections(db, registration_number, year),
         # Only ``agrees`` is a pass. Everything else -- the Board serving no document,
         # our own reader failing to prove itself, or nobody having run the comparison
         # -- is a fact about the check rather than about the committee, and the page
