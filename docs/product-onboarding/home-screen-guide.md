@@ -11,9 +11,29 @@ live feature.
 
 - **Search Bills** opens the default bill search page.
 - **Search Legislators** opens the legislator directory.
+- **The campaign-money card** is the right-hand half of the opening section for a
+  signed-out reader, and its own band below the hero for a signed-in one. A
+  signed-in reader's right-hand slot already holds their tracked bills, and a
+  pitch must not take that away. On a phone it is the third item in the search
+  cluster, because its own action is a third search.
+- The card's count is read live from the register on every load. If the register
+  does not answer, the whole line disappears: never a zero, never a dash, never a
+  remembered number. While it loads, a grey bar stands in its place.
+- The count says "registered campaigns, parties, and funds" and counts campaign
+  filers only. Lobbying is a separate register we do not hold, so the word
+  "registered" is what stops the number reading as the size of both.
+- The card never says an entry is tied to the filing it came from. The published
+  rows carry no reference to the report they were filed on, so that link cannot be
+  built. It says the figures are read from the filings instead, and
+  `src/components/home/__tests__/moneyPromoCopy.test.ts` fails if that sentence
+  drifts back.
 - The example answer card shows what a cited answer looks like. It is an editorial
   example about HF 4138, not a generated answer or a promise that a reader can ask
-  any question from Home.
+  any question from Home. It sits in its own section below the hero, headed "What
+  an answer looks like", with the sample question as body text under that heading.
+  The question is deliberately not a heading: as one, screen-reader heading
+  navigation announced a single bill as a section of the homepage with nothing
+  marking it as an example.
 - The headline reads "Grounded answers on Minnesota politics". It said "on Minnesota
   law" until the money section was added to the page; "politics" is the wider word
   because the page now covers campaign money as well as legislation. The headline is

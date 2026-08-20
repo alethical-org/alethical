@@ -12,6 +12,7 @@ import { useResponsive } from '../../hooks/useResponsive';
 import { useBillTracking } from '../../hooks/useBillTracking';
 import {
   useBills,
+  useCampaignFinanceSummary,
   useFeaturedBills,
   useSessions,
   useTrackedBills,
@@ -19,6 +20,7 @@ import {
 import { useLastVisitWithoutAdvancing } from '../../hooks/useTrackedBillsLastVisit';
 import { useAuth } from '../../providers/AuthProvider';
 import { SessionWatchCard } from '../../components/home/SessionWatchCard';
+import { MoneyPromoCard } from '../../components/home/MoneyPromoCard';
 import { sessionWatch } from '../../lib/sessionWatch';
 import { lastVisitFrom } from '../../lib/trackedBillsLastVisit';
 import { BillResultCard } from '../../components/search/BillResultCard';
@@ -376,14 +378,11 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
       }
     : { backgroundColor: 'rgba(255,255,255,0.75)' };
   return (
-    <View style={[styles.answerCard, isMobile && styles.answerCardMobile, t.shadows.lg as object]}>
-      {/* The bold question is the first element (the "ASKED" eyebrow was removed). */}
-      <Text style={styles.askedQuestion}>What’s in the new social media law for kids?</Text>
-
-      {/* Full-width divider between the question and the bill facts. */}
-      <View style={styles.billDividerRow}>
-        <View style={styles.hairlineFlex} />
-      </View>
+    <View style={[styles.answerCard, isMobile && styles.answerCardMobile, t.shadows.md as object]}>
+      {/* The card opens at the bill facts. The question moved out to the section
+          above when the card left the hero: it is the example being shown, so it
+          belongs beside the section's own heading rather than repeated inside the
+          thing it labels. The divider that separated the two went with it. */}
 
       {/* badge + meta. Mobile: compact 2×2 grid (fixed 90px left column shared by
           badge + votes; right column holds dates and chief author, both aligned
@@ -610,6 +609,21 @@ export function HomeSignedOutScreen() {
   );
 }
 
+/** The money card's count, read live from the register on every homepage load.
+ *
+ *  `filerCount` is already null unless the register block came back `reported`
+ *  (data/api.ts), so a stale or refused read reaches the card as "no number"
+ *  rather than as a zero — which is the whole of rule 12's missing-versus-zero
+ *  line, kept out of the card so the card cannot get it wrong.
+ */
+function useMoneyPromoCount(enabled: boolean) {
+  const summary = useCampaignFinanceSummary({ enabled });
+  return {
+    filerCount: summary.data?.register.filerCount ?? null,
+    countLoading: summary.isLoading,
+  };
+}
+
 // Editorially flagged "🔥 Hot issue" bills (docs/product-onboarding/home-screen-guide.md).
 // A card carries the flag only when its bill is in the shared set
 // (../../lib/hotIssues). The desktop feed is recency-driven (not curated), so a
@@ -628,6 +642,7 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
   // stays mounted beneath a deep-linked stack screen (e.g. a bill), so ungated it
   // would fire these queries and contend with the visible screen's first load.
   const isFocused = useIsFocused();
+  const { filerCount, countLoading } = useMoneyPromoCount(isFocused);
   // Bill Activity — real, date-ordered data (#342: the section previously showed
   // fabricated bills under real legislators' names). Mirrors the mobile home feed
   // (#341); web shows more per home-screen-guide.md §Bill activity: 2 passed, 3
@@ -748,9 +763,27 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
             />
 
             <Container style={styles.heroBody}>
-              <View style={[styles.heroGrid, styles.heroGridDesktop]}>
+              {/* The grid branches on auth, and this is the one place the 2 states
+                  genuinely want different proportions: signed out the right column
+                  is a promo we are pitching, signed in it is the reader's own
+                  tracked bills. Signed in keeps what shipped (even columns, 40px);
+                  signed out widens the text and narrows the card, because a white
+                  card with a shadow outweighs plain text at equal width. */}
+              <View
+                style={[
+                  styles.heroGrid,
+                  styles.heroGridDesktop,
+                  isSignedIn ? styles.heroGridSignedIn : styles.heroGridSignedOut,
+                ]}
+              >
                 {/* LEFT */}
-                <View style={[styles.heroLeft, styles.heroLeftDesktop]}>
+                <View
+                  style={[
+                    styles.heroLeft,
+                    styles.heroLeftDesktop,
+                    isSignedIn ? styles.heroLeftSignedIn : undefined,
+                  ]}
+                >
                   {isSignedIn ? (
                     <>
                       {/* The STATE LINE is the headline and the greeting is a small
@@ -805,7 +838,13 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
                     the same slot, footprint and shadow — not a band above the hero,
                     which would stack two heroes and make a signed-in reader scroll
                     past a pitch that already worked. */}
-                <View style={[styles.heroRight, styles.heroRightDesktop]}>
+                <View
+                  style={[
+                    styles.heroRight,
+                    styles.heroRightDesktop,
+                    isSignedIn ? undefined : styles.heroRightSignedOut,
+                  ]}
+                >
                   {isSignedIn ? (
                     <SessionWatchCard
                       watch={watch}
@@ -815,13 +854,60 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
                       onWhatsMoving={scrollToBillActivity}
                     />
                   ) : (
-                    <AnswerCard dimmed={openMenu !== null} />
+                    <MoneyPromoCard
+                      variant="desktop"
+                      filerCount={filerCount}
+                      countLoading={countLoading}
+                      dimmed={openMenu !== null}
+                      onPress={() => navigation.navigate('MoneyLanding')}
+                    />
                   )}
                 </View>
               </View>
             </Container>
-            <View style={styles.heroBottomSpace} />
+            <View style={isSignedIn ? styles.heroBottomSpace : styles.heroBottomSpaceSignedOut} />
           </View>
+
+          {/* MONEY IN POLITICS — signed in only, as its own band. The signed-out
+              reader meets this card in the hero; a signed-in reader's hero right
+              column is already their tracked bills, and displacing that for a
+              pitch takes away the reason they came back (#1034). Even space above
+              and below, so the card reads as its own band rather than as an
+              introduction to the white section beneath it. */}
+          {isSignedIn ? (
+            <View style={styles.moneyBand}>
+              <Container>
+                <MoneyPromoCard
+                  variant="desktop"
+                  filerCount={filerCount}
+                  countLoading={countLoading}
+                  dimmed={openMenu !== null}
+                  onPress={() => navigation.navigate('MoneyLanding')}
+                />
+              </Container>
+            </View>
+          ) : null}
+
+          {/* WHAT AN ANSWER LOOKS LIKE — the example answer, moved out of the hero
+              when the money card took that slot. Full width now, and the SECTION
+              is the heading: the sample question used to be the h2, so heading
+              navigation announced one bill as a section of the homepage with
+              nothing marking it as an example. Signed-out only, as it always was. */}
+          {!isSignedIn ? (
+            <View style={styles.answerSection}>
+              <Container>
+                <Text accessibilityRole="header" aria-level={2} style={styles.answerSectionH2}>
+                  What an answer looks like
+                </Text>
+                <Text style={styles.answerSectionQuestion}>
+                  What’s in the new social media law for kids?
+                </Text>
+                <View style={styles.answerSectionCard}>
+                  <AnswerCard dimmed={openMenu !== null} />
+                </View>
+              </Container>
+            </View>
+          ) : null}
 
           {/* BILLS MOVING THROUGH THE LEGISLATURE */}
           <View ref={billActivityRef} style={styles.billsSection}>
@@ -1196,6 +1282,7 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
   // stays mounted beneath a deep-linked stack screen (e.g. a bill), so ungated it
   // would fire these queries and contend with the visible screen's first load.
   const isFocused = useIsFocused();
+  const { filerCount, countLoading } = useMoneyPromoCount(isFocused);
   // The signed-in hero's inputs. READS the last-looked mark and never advances it —
   // only opening the tracked list does that (#1034).
   const trackedQuery = useTrackedBills(isSignedIn && isFocused ? user?.id : undefined);
@@ -1389,6 +1476,18 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
                       fullWidth={!isTablet}
                     />
                   </View>
+                  {/* The money card is the third thing in this cluster because its
+                      own action is a third search. It sits below the actions, not
+                      above them, for the same reason they sit below the watch card:
+                      what the reader came back for stays first (#1069). */}
+                  <View style={m.heroMoneyCard}>
+                    <MoneyPromoCard
+                      variant={isTablet ? 'tabletSignedIn' : 'phoneSignedIn'}
+                      filerCount={filerCount}
+                      countLoading={countLoading}
+                      onPress={() => navigation.navigate('MoneyLanding')}
+                    />
+                  </View>
                 </>
               ) : (
                 <>
@@ -1447,6 +1546,14 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
                 onPress={() => navigation.navigate('Legislators')}
                 fullWidth
                 searchBand
+              />
+              {/* Third in the search cluster rather than above In the news: a
+                  partly-built section does not go ahead of today's news. */}
+              <MoneyPromoCard
+                variant="phoneSignedOut"
+                filerCount={filerCount}
+                countLoading={countLoading}
+                onPress={() => navigation.navigate('MoneyLanding')}
               />
             </View>
           ) : null}
@@ -1658,6 +1765,7 @@ const m = StyleSheet.create({
   // 96 (lastSectionBottom) so its content isn't crowded against the black footer.
   section: { paddingTop: 40, paddingBottom: 40 },
   newsSectionBeforeSearchBand: { paddingBottom: 0 },
+  heroMoneyCard: { marginTop: 22 },
   searchActionsBand: {
     position: 'relative',
     marginTop: 64,
@@ -1959,7 +2067,7 @@ const styles = StyleSheet.create({
   heroBody: { paddingTop: 80 },
   heroGrid: { gap: 40 },
   heroGridDesktop: { flexDirection: 'row', alignItems: 'flex-start' },
-  heroLeft: { flex: 1, minWidth: 0, maxWidth: 720 },
+  heroLeft: { flex: 1, minWidth: 0 },
   // Nudge the left column down ~40px so it sits above center, headline anchored high.
   // The answer card on the right runs taller, so with a top-aligned grid the left
   // column's buttons left an empty pocket at the lower-left; this offset shrinks that
@@ -2053,11 +2161,51 @@ const styles = StyleSheet.create({
   // gap down to "Bills Moving". Trimming it pulls that section up without moving the
   // card or the Search buttons.
   heroBottomSpace: { height: 48 },
+  // Signed out the next section's eyebrow peeks on a laptop while its heading
+  // falls below the fold, which is the drawn rhythm for a hero that now ends on
+  // a card rather than on the buttons.
+  heroBottomSpaceSignedOut: { height: 140 },
+  // 1fr / 0.72fr. Equal columns read as UNBALANCED here: a white card with a
+  // shadow outweighs plain text at the same width.
+  heroGridSignedOut: { gap: 96 },
+  heroGridSignedIn: { gap: 40 },
+  // The 720 cap belongs to the signed-in hero, which is unchanged. Signed out the
+  // ratio sets the width: capping the left column at 720 leaves the extra space in
+  // the right column instead, which strands the 583px card 89px short of the page
+  // edge at 1600px. A style object cannot unset a value in React Native — an
+  // override of `undefined` merges as absent — so the cap has to move rather than
+  // be cancelled.
+  heroLeftSignedIn: { maxWidth: 720 },
+  heroRightSignedOut: { flex: 0.72 },
+  // Even above and below: the card is its own band, not an introduction to the
+  // white section under it.
+  moneyBand: { paddingTop: 120, paddingBottom: 120 },
+  answerSection: { backgroundColor: t.colors.surfaces.base, paddingTop: 60, paddingBottom: 80 },
+  answerSectionH2: {
+    fontFamily: t.typography.title,
+    fontSize: 44,
+    fontWeight: t.fontWeights.heavy,
+    letterSpacing: -0.9,
+    color: t.colors.text.primary,
+  },
+  // The example question, as body text under the section's own heading rather
+  // than as a heading of its own.
+  answerSectionQuestion: {
+    marginTop: 18,
+    fontFamily: t.typography.ui,
+    fontSize: 26,
+    lineHeight: 35,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: -0.26,
+    color: t.colors.text.secondary,
+  },
+  answerSectionCard: { marginTop: 28 },
 
   // answer card
   answerCard: {
-    width: 600,
-    maxWidth: '100%',
+    width: '100%',
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink08,
     backgroundColor: t.colors.surfaces.base,
     borderRadius: 20,
     paddingVertical: 32,
@@ -2066,16 +2214,6 @@ const styles = StyleSheet.create({
   },
   answerCardMobile: { paddingVertical: 24, paddingHorizontal: 22 },
   answerOverlay: { ...StyleSheet.absoluteFill, borderRadius: 20, zIndex: 5 },
-  askedQuestion: {
-    fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.subheadLg,
-    fontWeight: t.fontWeights.bold,
-    lineHeight: 25,
-    color: t.colors.text.primary,
-    marginBottom: 16,
-  },
-  billDividerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
-  hairlineFlex: { flex: 1, height: 1, backgroundColor: t.colors.alpha.ink08 },
   billMetaRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
