@@ -2769,6 +2769,14 @@ def legislator_independent_spending(
     ``opposing_payments``), because a page putting the combined count under both
     figures would say the same payments produced each of them.
 
+    ``committees_for_another_race`` counts this member's confirmed committees these
+    figures deliberately leave out, because they are for a race other than a legislative
+    seat. §7 of ``docs/architecture/campaign-finance-system-design.md`` (Display rules)
+    forbids another race's money under a legislative profile, and a reviewer confirming
+    such a committee is stating something true rather than making a mistake -- so the
+    exclusion happens here and is counted rather than hidden. A page must say so when it
+    is not 0: an excluded record and an absent one look identical otherwise.
+
     ``snapshot_id`` names the download that answered. **A page asking about several
     years makes several requests, each resolving the live release on its own, so it
     must compare this before printing one freshness date over all of them**: a publish
@@ -2786,6 +2794,7 @@ def legislator_independent_spending(
             "year": spending.year,
             "state": spending.state,
             "snapshot_id": spending.snapshot_id,
+            "committees_for_another_race": spending.committees_for_another_race,
             "supporting": spending.supporting,
             "opposing": spending.opposing,
             "direction_not_recorded": spending.direction_not_recorded,

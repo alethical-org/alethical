@@ -162,7 +162,11 @@ def _next_row(db, snapshot) -> int:
     return _ROW_COUNTER[snapshot.id]
 
 
-def _confirm(db, legislator, reg_num, *, office="State Senator", first=None, last=None):
+# The office is stored verbatim from parsing the committee's own name, so the only values
+# that ever reach this column are OFFICE_SUFFIXES members ("Senate", "House", "Gov", ...)
+# or None. "State Senator" is the filer directory's OfficeSoughtFullName and is never
+# what the review script writes, so a fixture using it tested behaviour on impossible data.
+def _confirm(db, legislator, reg_num, *, office="Senate", first=None, last=None):
     db.add(
         models.LegislatorCampaignCommittee(
             legislator_id=legislator.id,
@@ -512,11 +516,11 @@ def test_each_figure_names_its_committee(db, legislator):
     _publish(db, independent=snapshot)
     _row(db, snapshot, reg_num=SENATE_COMMITTEE, direction="For", amount="250.00")
     db.commit()
-    _confirm(db, legislator, SENATE_COMMITTEE, office="State Senator")
+    _confirm(db, legislator, SENATE_COMMITTEE, office="Senate")
     result = independent_spending_for_legislator(db, legislator.id, year=2025)
     (committee,) = result.committees
     assert committee.registration_number == SENATE_COMMITTEE
-    assert committee.office == "State Senator"
+    assert committee.office == "Senate"
     assert committee.supporting == Decimal("250.00")
     assert committee.first_payment_on == date(2025, 6, 1)
     assert result.source_url.startswith("https://")

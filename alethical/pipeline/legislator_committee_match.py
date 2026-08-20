@@ -89,6 +89,44 @@ OFFICE_SUFFIXES: tuple[str, ...] = (
 # may have run for and also the easiest way to pick up a stranger of the same name.
 LEGISLATIVE_OFFICES: dict[str, str] = {"House": "house", "Senate": "senate"}
 
+
+def is_for_a_legislative_office(office: str | None) -> bool:
+    """Whether a confirmed committee belongs on a legislator's profile at all.
+
+    §7 of ``docs/architecture/campaign-finance-system-design.md`` (Display rules):
+    **money from a race for another office never appears under a legislator's profile.**
+    A run for Governor is a real public record, and putting its money under a state
+    senator's name asserts something about their legislative work that no filing
+    supports. Confirming such a link is not a reviewer's mistake -- it is a true
+    statement that this committee is this person's -- so the exclusion has to happen
+    after the confirmation, not instead of it.
+
+    Lives here rather than in a service because this module owns the vocabulary it
+    reads: ``OFFICE_SUFFIXES`` is what parses an office out of a committee's name, and
+    ``office_as_reviewed`` stores that parsed value verbatim
+    (``scripts/review_legislator_campaign_committees.py``). An exact match is therefore
+    right, and a substring search would only invent ways to be wrong.
+
+    **Matched on the office, never on the chamber the member sits in**, and that is
+    measured rather than stylistic. Liz Reyer sits in the House and has 2 live
+    committees, "Reyer, Lizabeth House Committee" and "Reyer, Liz Senate Committee";
+    filtering to her own chamber would throw away a real committee of hers. Both are
+    legislative, so both belong.
+
+    **A committee with no office recorded is kept.** 2 committees in the download carry
+    no office at all, and absence is not evidence of another race. Hiding a member's real
+    money on the strength of a blank field is the worse of the 2 errors available, because
+    a reader cannot tell a hidden figure from a figure that does not exist.
+
+    Worth doing rather than theoretical: the independent-expenditure file names 13
+    Governor committees, 5 Attorney General, 5 State Auditor, 4 Secretary of State, 1
+    District Court and 1 Supreme Court, measured against production on 13 Aug 2026.
+    """
+    if not office:
+        return True
+    return office in LEGISLATIVE_OFFICES
+
+
 # Generational suffixes, which Minnesota puts on **either side of the comma**: on the
 # surname in "Holmstrom Jr, Michael Senate Committee", and on the given name in
 # "Backer, Jeff W Jr House Committee". 10 committees carry one on the surname and 12 on the

@@ -62,6 +62,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from alethical.db.schema import load_schema
+from alethical.pipeline.legislator_committee_match import is_for_a_legislative_office
 
 schema = load_schema()
 CampaignFinanceCurrentRelease = schema.CampaignFinanceCurrentRelease
@@ -144,6 +145,9 @@ class IndependentSpending:
     #: Which download answered. A page comparing 2 years must refuse to print one
     #: freshness date over figures that came from 2 different ones.
     snapshot_id: str | None = None
+    #: Confirmed committees left out because they are for another race. Shown rather than
+    #: dropped in silence, so an excluded record cannot look like an absent one.
+    committees_for_another_race: int = 0
 
     @property
     def supporting(self) -> Decimal | None:
@@ -271,7 +275,7 @@ def current_release(db: Session) -> Release | None:
 def confirmed_committees(
     db: Session, legislator_id: UUID, *, year: int
 ) -> list[LegislatorCampaignCommittee]:
-    """This legislator's confirmed committees whose reviewed period covers ``year``.
+    """This legislator's confirmed **legislative** committees covering ``year``.
 
     Only ``confirmed`` counts. A rejection is stored rather than discarded (§5.1),
     and a proposal is a question — only an answer is a link.
@@ -279,7 +283,43 @@ def confirmed_committees(
     A reviewed period with no first or last year is treated as open at that end:
     the reviewer saw the committee and did not bound it, which is weaker evidence
     than a bound but is not evidence against.
+
+    **A committee for another race is confirmed and still excluded here**, which is the
+    one part of this that reads like a contradiction and is not. A reviewer confirming
+    "Fateh, Omar for Minneapolis Mayor" for Senator Omar Fateh states something true: it
+    is his committee. §7 forbids the next step, putting a city mayoral race's money under
+    a legislative profile, so the exclusion belongs after the confirmation rather than
+    instead of it. The test is ``is_for_a_legislative_office``, which carries the
+    measurements and the 2 traps: never filter on the member's own chamber, and keep a
+    committee whose office is blank.
     """
+    rows = _confirmed_links(db, legislator_id, year=year)
+    return [
+        link for link in rows if is_for_a_legislative_office(link.office_as_reviewed)
+    ]
+
+
+def count_committees_for_another_race(
+    db: Session, legislator_id: UUID, *, year: int
+) -> int:
+    """How many confirmed committees ``confirmed_committees`` left out for their office.
+
+    Served rather than dropped in silence. A reader who knows their member ran for
+    Governor should be told that money exists and is not on this page, rather than being
+    left to conclude we missed it. That is the missing-versus-zero failure of rule 12
+    wearing a different hat: an excluded record and an absent record look identical.
+    """
+    return sum(
+        1
+        for link in _confirmed_links(db, legislator_id, year=year)
+        if not is_for_a_legislative_office(link.office_as_reviewed)
+    )
+
+
+def _confirmed_links(
+    db: Session, legislator_id: UUID, *, year: int
+) -> list[LegislatorCampaignCommittee]:
+    """Every confirmed link covering ``year``, whatever office it is for."""
     rows = db.scalars(
         select(LegislatorCampaignCommittee).where(
             LegislatorCampaignCommittee.legislator_id == legislator_id,
@@ -401,6 +441,7 @@ def independent_spending_for_legislator(
         release.source_url,
         release.fetched_at,
         release.identity,
+        count_committees_for_another_race(db, legislator_id, year=year),
     )
 
 
