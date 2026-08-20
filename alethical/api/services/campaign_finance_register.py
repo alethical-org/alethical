@@ -61,6 +61,7 @@ from alethical.pipeline.campaign_finance_filing_calendars import (
     printed_period_start_for_end,
 )
 from alethical.pipeline.campaign_finance_filings import live_filings_snapshot
+from alethical.pipeline.campaign_finance_reader import Dataset
 
 #: No filings snapshot is published, so the register and the catalogue can say nothing.
 #: A fact about us: production held none until #1408's loader was first run.
@@ -136,6 +137,15 @@ class CommitteeRow:
     district: Optional[str]
     is_closed: bool
     termination_date: Optional[date]
+    #: The Board's own sub-type code from this filer's money rows, where one carries a
+    #: documented code -- the only finer kind that exists, since the register's 3 lists
+    #: carry no marker separating a ballot-question committee from a political fund
+    #: (§9.7). A **code, never a label**: the wording a reader sees is owned once, by
+    #: ``committeeEyebrow`` in ``apps/frontend/src/lib/committeeMoney.ts``, so this list
+    #: and the committee page cannot label the same filer 2 different ways. ``None`` for
+    #: the 33 registered filers with no money row and the 73 carrying the undocumented
+    #: `PCN` and `PFN` codes, and a caller renders those at the register's kind.
+    sub_type: Optional[str]
 
 
 @dataclass(frozen=True)
@@ -164,6 +174,12 @@ class CommitteesPage:
     by_kind: Optional[dict[str, int]]
     as_of: Optional[date]
     snapshot_id: Optional[UUID]
+    #: Which download release the rows' ``sub_type`` codes were read from. A second
+    #: source behind one page, named rather than left implicit: the rows themselves come
+    #: from the register snapshot and only that one field comes from here, so a caller
+    #: can see the 2 apart. ``None`` when no release is held, which empties every
+    #: ``sub_type`` and nothing else.
+    release_id: Optional[UUID]
     reason: Optional[str]
 
 
@@ -481,6 +497,91 @@ def name_contains(column, typed: str):
     return column.ilike(f"%{escaped}%", escape="\\")
 
 
+#: The Board's own sub-type codes on a money row, and the only 6 anything may act on.
+#: `PCN`, `PFN` and `BCN` also appear and are **documented nowhere** -- not by the Board,
+#: whose data-downloads page publishes no legend and whose handbooks do not name them,
+#: and not by us ([#1661](https://github.com/alethical-org/alethical/issues/1661)). They
+#: are dropped here rather than served, because a code reaching a surface is a code
+#: somebody eventually expands, and there is no expansion to give: their behaviour
+#: establishes only that they are general-purpose rather than independent-expenditure.
+DOCUMENTED_SUB_TYPES = frozenset({"PC", "PF", "IEC", "IEF", "BC", "BF"})
+
+
+def sub_types_for(db: Session, release, registration_numbers) -> dict[str, str]:
+    """The Board's sub-type code for each of these filers, where a money row carries one.
+
+    **The register itself distinguishes 3 kinds and this is the only finer signal there
+    is.** Independent-expenditure committees, ballot-question committees and political
+    funds all arrive on one register list carrying no type marker at all (§9.7), so a
+    ballot-question filer is knowable only from the code its own money rows carry. On the
+    live release 493 of the 526 registered committees and funds carry one; the other 33
+    have no money row anywhere, which is ordinary for a newly registered filer (#1661).
+
+    **The code is returned, never a label.** The vocabulary a reader sees is owned in one
+    place -- ``committeeEyebrow`` in ``apps/frontend/src/lib/committeeMoney.ts``, which
+    the committee page already ships -- so the list and the committee page cannot print
+    2 different kinds for the same filer. A second expansion written here would be that
+    divergence rather than a guard against it, and it would start out disagreeing: that
+    function deliberately expands ``BC`` and ``BF`` only, leaving the rest at the
+    register's own wording, on the ground that any further expansion would be ours rather
+    than the register's.
+
+    Read in the same preference order as ``committee_finance.find_committee``, so 2
+    surfaces asking the same question of the same filer get the same answer:
+    expenditures, then contributions, then independent expenditures. Order matters only
+    in theory -- #1661 found 0 registration numbers carrying 2 different sub-types -- and
+    it is fixed anyway rather than left to whichever query returns first.
+
+    Scoped to the page's own filers, so the cost is a lookup for 25 rows rather than a
+    scan that grows with the register. ``{}`` when no release is held: the sub-type is a
+    label on top of the register rather than the register itself, so its absence leaves
+    every row at its register kind instead of emptying the list.
+    """
+    numbers = tuple(registration_numbers)
+    if not numbers or release is None:
+        return {}
+    expenditure = schema.CampaignFinanceExpenditureRow
+    contribution = schema.CampaignFinanceContributionRow
+    independent = schema.CampaignFinanceIndependentExpenditureRow
+    lookups = (
+        (
+            Dataset.expenditures,
+            expenditure,
+            expenditure.committee_reg_num,
+            expenditure.entity_sub_type,
+        ),
+        (
+            Dataset.contributions,
+            contribution,
+            contribution.recipient_reg_num,
+            contribution.recipient_subtype,
+        ),
+        (
+            Dataset.independent_expenditures,
+            independent,
+            independent.spender_reg_num,
+            independent.spender_sub_type,
+        ),
+    )
+    found: dict[str, str] = {}
+    for dataset, model, key_column, sub_type_column in lookups:
+        outstanding = [number for number in numbers if number not in found]
+        if not outstanding:
+            break
+        rows = db.execute(
+            select(key_column, sub_type_column)
+            .where(
+                model.snapshot_id == release.file_for(dataset).snapshot_id,
+                key_column.in_(outstanding),
+                sub_type_column.in_(DOCUMENTED_SUB_TYPES),
+            )
+            .distinct()
+        ).all()
+        for registration_number, sub_type in rows:
+            found.setdefault(registration_number, sub_type)
+    return found
+
+
 def committees(
     db: Session,
     *,
@@ -488,6 +589,7 @@ def committees(
     offset: int,
     kind: Optional[str] = None,
     query: Optional[str] = None,
+    release=None,
 ) -> CommitteesPage:
     """One page of the register, ordered by the filed name, A to Z.
 
@@ -527,6 +629,7 @@ def committees(
             by_kind=None,
             as_of=None,
             snapshot_id=None,
+            release_id=None,
             reason=NO_FILINGS_SNAPSHOT,
         )
     summary = register_summary(db)
@@ -546,6 +649,7 @@ def committees(
             by_kind=None,
             as_of=summary.as_of,
             snapshot_id=summary.snapshot_id,
+            release_id=None,
             reason=summary.reason,
         )
     filer = schema.CampaignFinanceFiler
@@ -570,10 +674,12 @@ def committees(
         .offset(offset)
     ).all()
     has_more = len(rows) > limit
+    page = rows[:limit]
+    sub_types = sub_types_for(db, release, (row[0] for row in page))
     return CommitteesPage(
         state=REPORTED,
         ordered_by=ORDERED_BY_NAME,
-        committees=tuple(_committee_row(row) for row in rows[:limit]),
+        committees=tuple(_committee_row(row, sub_types=sub_types) for row in page),
         limit=limit,
         offset=offset,
         has_more=has_more,
@@ -582,11 +688,12 @@ def committees(
         by_kind=summary.by_kind,
         as_of=summary.as_of,
         snapshot_id=summary.snapshot_id,
+        release_id=getattr(release, "id", None),
         reason=None,
     )
 
 
-def _committee_row(row) -> CommitteeRow:
+def _committee_row(row, *, sub_types: dict[str, str]) -> CommitteeRow:
     registration_number, name, kind, office, district, termination_date = row
     return CommitteeRow(
         registration_number=registration_number,
@@ -598,6 +705,7 @@ def _committee_row(row) -> CommitteeRow:
         # for it can never disagree.
         is_closed=termination_date is not None,
         termination_date=termination_date,
+        sub_type=sub_types.get(registration_number),
     )
 
 

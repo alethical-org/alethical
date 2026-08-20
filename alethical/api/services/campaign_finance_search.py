@@ -268,7 +268,9 @@ def search(db: Session, release, *, query: str, limit: int) -> SearchAnswer:
     typed = query.strip()
     if len(typed) < MIN_QUERY_LENGTH:
         return _too_short(query)
-    register = committees(db, limit=limit, offset=0, query=typed)
+    # The same release the name groups read, so a committee's finer kind here and on
+    # the committees list are read from one set of downloads rather than two.
+    register = committees(db, limit=limit, offset=0, query=typed, release=release)
     groups = [
         _people_group(db, typed, limit=limit),
         _committees_group(register),

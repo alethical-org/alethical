@@ -345,6 +345,7 @@ def test_the_register_lists_every_kind_alphabetically_with_no_amount(
         "registration_number",
         "name",
         "kind",
+        "sub_type",
         "office",
         "district",
         "is_closed",
@@ -409,6 +410,142 @@ def test_a_closed_committee_ships_its_flag_beside_the_date_that_proves_it(
     assert rows["Novotny, Paul House Committee"]["termination_date"] == "2026-07-28"
     assert rows["HRCC"]["is_closed"] is False
     assert rows["HRCC"]["termination_date"] is None
+
+
+def _payment_with_sub_type(db, snapshot, *, registration_number: str, sub_type) -> None:
+    """One expenditure row carrying a Board sub-type code for that filer."""
+    db.add(
+        models.CampaignFinanceExpenditureRow(
+            snapshot_id=snapshot.id,
+            row_number=_next_row(snapshot),
+            committee_reg_num=registration_number,
+            committee_name="a committee",
+            entity_type="PCF",
+            entity_sub_type=sub_type,
+            vendor_name="Print Shop",
+            amount=Decimal("500"),
+            unpaid_amount=Decimal("0"),
+            transaction_date=date(2025, 6, 1),
+            year=2025,
+            type="General Expenditure",
+            purpose="Printing",
+        )
+    )
+    db.commit()
+
+
+def test_a_row_carries_the_boards_finer_kind_code_where_a_money_row_has_one(
+    client, db
+) -> None:
+    """The register's 3 kinds cannot tell a ballot-question committee from a fund.
+
+    Without this field the same filer reads "Political committee or fund" on this list
+    and "Ballot question committee" on its own page, which the committee page derives
+    from exactly this code -- and a reader who noticed would trust neither screen.
+    """
+    published = Published(db)
+    snapshot = _register(db, filer_count=2)
+    _filer(
+        db,
+        snapshot,
+        FUND,
+        name="Neighbors for Question 2",
+        kind=FilerKind.political_committee_or_fund,
+    )
+    _filer(db, snapshot, PARTY_UNIT, name="HRCC", kind=FilerKind.party_unit)
+    _payment_with_sub_type(
+        db, published.expenditures, registration_number=FUND, sub_type="BC"
+    )
+
+    data = client.get(COMMITTEES_URL).json()["data"]
+    rows = {row["name"]: row for row in data["committees"]}
+
+    assert rows["Neighbors for Question 2"]["sub_type"] == "BC"
+    # The register kind is untouched beside it: the finer kind is a label, never a
+    # reclassification of what the Board's own directory lists this filer as.
+    assert rows["Neighbors for Question 2"]["kind"] == "political_committee_or_fund"
+    # No money row, so nothing finer is knowable, and the row says so with a null
+    # rather than by falling back to a guess.
+    assert rows["HRCC"]["sub_type"] is None
+    # The second copy of the data is named beside the register's own snapshot.
+    assert data["release_id"] == str(published.release.id)
+
+
+def test_an_undocumented_sub_type_code_is_withheld_rather_than_served(client, db):
+    """`PCN`, `PFN` and `BCN` are documented nowhere, by the Board or by us (#1661).
+
+    73 registered filers carry one. Serving the code invites an expansion that does not
+    exist, so the row reads at the register's kind instead. What their behaviour
+    establishes -- general-purpose rather than independent-expenditure -- is not a label.
+    """
+    published = Published(db)
+    snapshot = _register(db, filer_count=1)
+    _filer(
+        db,
+        snapshot,
+        FUND,
+        name="100 Percent Future Fund",
+        kind=FilerKind.political_committee_or_fund,
+    )
+    _payment_with_sub_type(
+        db, published.expenditures, registration_number=FUND, sub_type="PCN"
+    )
+
+    rows = client.get(COMMITTEES_URL).json()["data"]["committees"]
+
+    assert rows[0]["sub_type"] is None
+
+
+def test_no_release_leaves_the_finer_kind_absent_and_the_register_whole(client, db):
+    """The codes live in the downloads and the rows live in the register.
+
+    A gap in one source must not read as an absence in the other, so a missing release
+    empties the finer kind and lists all 1,603 filers regardless.
+    """
+    snapshot = _register(db, filer_count=1)
+    _filer(
+        db,
+        snapshot,
+        FUND,
+        name="100 Percent Future Fund",
+        kind=FilerKind.political_committee_or_fund,
+    )
+
+    data = client.get(COMMITTEES_URL).json()["data"]
+
+    assert data["state"] == REPORTED
+    assert data["release_id"] is None
+    assert [row["name"] for row in data["committees"]] == ["100 Percent Future Fund"]
+    assert data["committees"][0]["sub_type"] is None
+
+
+def test_a_committee_search_result_carries_the_same_finer_kind_as_the_list(client, db):
+    """One filer, 2 surfaces, and they read the same code.
+
+    The search's committee group reuses the committees list rather than re-querying, so
+    this pins that the release reaches it too -- the whole point of the field is that no
+    2 screens can label the same filer differently.
+    """
+    published = Published(db)
+    snapshot = _register(db, filer_count=1)
+    _filer(
+        db,
+        snapshot,
+        FUND,
+        name="Neighbors for Question 2",
+        kind=FilerKind.political_committee_or_fund,
+    )
+    _payment_with_sub_type(
+        db, published.expenditures, registration_number=FUND, sub_type="BF"
+    )
+
+    listed = client.get(COMMITTEES_URL).json()["data"]["committees"][0]
+    found = _group(
+        client.get(SEARCH_URL, params={"q": "Neighbors"}).json()["data"], "committees"
+    )["results"][0]
+
+    assert listed["sub_type"] == "BF"
+    assert found["sub_type"] == listed["sub_type"]
 
 
 def test_the_filtered_total_and_the_register_total_are_both_served(client, db) -> None:

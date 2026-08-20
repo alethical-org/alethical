@@ -3522,8 +3522,25 @@ def campaign_finance_committees(
     lists, and independent-expenditure committees, ballot-question committees and
     political funds all arrive on one of them carrying no type marker at all (§9.7). The
     finer kind exists only on the money rows, so a caller must not offer a finer filter
-    here and no row may be labelled "ballot question committee"
-    ([#1661](https://github.com/alethical-org/alethical/issues/1661)).
+    here ([#1661](https://github.com/alethical-org/alethical/issues/1661)).
+
+    **``sub_type`` is that finer kind, as the Board's own code and never as a label.**
+    It is what makes a ballot-question committee knowable at all, and it is served
+    because the committee page already reads it: without it the same filer would read
+    "Political committee or fund" on this list and "Ballot question committee" on its own
+    page, and a reader who noticed would trust neither. The label is derived in exactly
+    one place -- ``committeeEyebrow`` in ``apps/frontend/src/lib/committeeMoney.ts``,
+    which the committee page ships -- so the 2 surfaces cannot diverge. 6 codes are
+    documented (``PC``, ``PF``, ``IEC``, ``IEF``, ``BC``, ``BF``) and only those are
+    served; ``PCN``, ``PFN`` and ``BCN`` are documented nowhere by the Board or by us, so
+    they arrive as ``null`` rather than as a code somebody might expand. ``null`` is also
+    the answer for the 33 registered filers with no money row at all, and a caller shows
+    the register's kind for every one of them.
+
+    Read from the download release rather than the register, which is a **second copy of
+    Minnesota's data behind one response**, so ``release_id`` names it beside the
+    register's ``snapshot_id``. No release held means every ``sub_type`` is ``null`` and
+    nothing else changes.
 
     **``office`` and ``district`` are ``null`` on most rows, and that is the register, not
     a gap.** A candidate row carries office, district and party; a party-unit row and a
@@ -3552,7 +3569,18 @@ def campaign_finance_committees(
     never a claim that Minnesota registers nobody.
     """
     pin_campaign_finance_to_one_view(db)
-    page = register_committees(db, limit=limit, offset=offset, kind=kind, query=q)
+    try:
+        release = current_campaign_finance_release(db)
+    except ReleaseNoLongerHeld:
+        # The published release names a pruned snapshot. That is a fact about our copy of
+        # the downloads, and the register is a different run, so the list still answers
+        # in full -- only the sub-type codes, which are read from the downloads, go
+        # absent. No 503: refusing the whole register over a missing label would report a
+        # gap in one source as an absence in the other.
+        release = None
+    page = register_committees(
+        db, limit=limit, offset=offset, kind=kind, query=q, release=release
+    )
     return DetailResponse(
         data={
             "state": page.state,
@@ -3570,6 +3598,7 @@ def campaign_finance_committees(
             "by_kind": page.by_kind,
             "as_of": page.as_of,
             "snapshot_id": str(page.snapshot_id) if page.snapshot_id else None,
+            "release_id": str(page.release_id) if page.release_id else None,
             "reason": page.reason,
         }
     )
@@ -3674,11 +3703,18 @@ def campaign_finance_search(
 
 
 def _committee_payload(row: CommitteeRow) -> dict:
-    """One register row. ``is_closed`` ships beside its date, never instead of it."""
+    """One register row. ``is_closed`` ships beside its date, never instead of it.
+
+    ``sub_type`` is the Board's own code and deliberately not a label, so the wording a
+    reader sees stays owned in one place and this list cannot label a filer differently
+    from its own committee page -- the same field, spelled the same way, that
+    ``/committees/{registration_number}/finance`` already serves as ``entity_sub_type``.
+    """
     return {
         "registration_number": row.registration_number,
         "name": row.name,
         "kind": row.kind,
+        "sub_type": row.sub_type,
         "office": row.office,
         "district": row.district,
         "is_closed": row.is_closed,
