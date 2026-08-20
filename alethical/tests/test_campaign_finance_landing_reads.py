@@ -783,6 +783,9 @@ def test_the_period_count_is_the_newest_periods_own_and_never_the_whole_set(
     assert data["page"]["total"] == 5
     assert data["newest_period"]["filing_count"] == 3
     assert data["newest_period"]["period_end"] == PRE_PRIMARY_END.isoformat()
+    # All 3 of those reports belong to one committee here, so this fixture also shows
+    # the 2 counts of one period coming apart -- 3 documents, 1 committee.
+    assert data["newest_period"]["committee_count"] == 1
 
 
 def test_the_period_count_is_the_same_whatever_page_was_asked_for(client, db) -> None:
@@ -826,16 +829,67 @@ def test_the_period_count_carries_the_feeds_exclusions_like_the_total_does(clien
     assert data["newest_period"]["filing_count"] == 1
 
 
+def test_one_committee_filing_twice_for_a_period_counts_once_as_a_committee(
+    client, db
+) -> None:
+    """ "N committees filed" and "N filings" are different claims (#1677, review round 2).
+
+    A committee reaches 2 rows for one period end by filing 2 different reports that
+    close the same day, and a count of documents is then larger than a count of
+    committees while looking exactly like it. Measured on production 20 Aug 2026 the 2
+    are identical -- 1,203 each on the newest period, and no divergence across 3,000
+    filings in the 25 next-newest periods -- so this is the case the data does not
+    currently contain, pinned here so the distinction cannot be optimised away as a
+    duplicate of ``filing_count``.
+
+    **Amendments are not this case.** A report's whole amendment list is folded onto its
+    single catalogue row as ``amendment_count`` and ``effective_amendment_index``
+    (``alethical/pipeline/campaign_finance_filings.py``), so an amended report is one row
+    however many times it was amended.
+    """
+    snapshot = _filings_snapshot(db, report_count=3)
+    _filer(db, snapshot, CANDIDATE)
+    _filer(db, snapshot, PARTY_UNIT, name="HRCC")
+    # One committee, 2 different reports, both closing on the same day.
+    _report(db, snapshot, CANDIDATE, report_name="Pre-Primary", report_type="C")
+    _report(db, snapshot, CANDIDATE, report_name="Special Election", report_type="G")
+    _report(db, snapshot, PARTY_UNIT, report_name="Pre-Primary", report_type="C")
+
+    period = client.get(FILINGS).json()["data"]["newest_period"]
+
+    assert period["filing_count"] == 3
+    assert period["committee_count"] == 2
+
+
+def test_an_amended_report_is_one_filing_and_one_committee(client, db) -> None:
+    """367 of 1,005 catalogued reports carry at least one amendment (#1661).
+
+    If an amendment made a second row, the newest period's counts would both inflate on
+    every amended report, and "N committees filed" would overstate by however many
+    committees amended. It does not: the catalogue serves one entry per report with its
+    amendment list attached, and the loader folds that list into 2 columns.
+    """
+    snapshot = _filings_snapshot(db, report_count=1)
+    _filer(db, snapshot, CANDIDATE)
+    _report(db, snapshot, CANDIDATE, amendment_index=3, amendment_count=4)
+
+    period = client.get(FILINGS).json()["data"]["newest_period"]
+
+    assert period["filing_count"] == 1
+    assert period["committee_count"] == 1
+    assert client.get(FILINGS).json()["data"]["filings"][0]["amendment_count"] == 4
+
+
 def test_a_period_count_we_cannot_compute_is_absent_rather_than_zero(client, db):
     """No register held is not "nobody filed for this period" (rule 12)."""
-    absent = client.get(FILINGS).json()["data"]["newest_period"]
-    assert absent == {"period_end": None, "filing_count": None}
+    empty = {"period_end": None, "filing_count": None, "committee_count": None}
+    assert client.get(FILINGS).json()["data"]["newest_period"] == empty
 
     _filings_snapshot(db, report_count=1005)
 
     replaced = client.get(FILINGS).json()["data"]
     assert replaced["reason"] == ROWS_REPLACED
-    assert replaced["newest_period"] == {"period_end": None, "filing_count": None}
+    assert replaced["newest_period"] == empty
 
 
 def test_a_total_we_cannot_compute_is_absent_rather_than_zero(client, db) -> None:
