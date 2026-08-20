@@ -57,6 +57,7 @@ const NAV_ITEM_HREFS: Record<string, string> = {
   // (issue #764).
   'search-find-my-legislator': routePath.findMyLegislator(),
   'search-campaign-money': routePath.money(),
+  'reports-campaign-money': routePath.moneyReports(),
   // Live now that Bills is an active Track row: the link lands on the Tracked page,
   // which prompts a signed-out visitor to sign in rather than advertising a
   // capability it can't deliver (grounded-answers rule 2).
@@ -236,6 +237,18 @@ function MenuRowIcon({ itemId, disabled }: { itemId: string; disabled?: boolean 
             />
           </>
         ) : null}
+        {itemId === 'reports-campaign-money' ? (
+          // A page of prose with bars on it: our own writing about the record,
+          // as opposed to the record itself (nav design, 20 Aug 2026).
+          <>
+            <Path
+              d="M6 3.5h12a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-15a1 1 0 0 1 1-1Z"
+              stroke={c}
+              strokeWidth={2}
+            />
+            <Path d="M9 16v-3M12 16v-6M15 16v-4" stroke={c} strokeWidth={2} strokeLinecap="round" />
+          </>
+        ) : null}
         {itemId === 'search-find-my-legislator' ? (
           <>
             <Path
@@ -365,7 +378,7 @@ function RoadmapPill({ label, large }: { label: string; large?: boolean }) {
   );
 }
 
-const PANEL_WIDTHS: Partial<Record<MenuKey, number>> = { search: 452, track: 452, about: 320 };
+const PANEL_WIDTHS: Partial<Record<MenuKey, number>> = { search: 452, reports: 452, about: 320 };
 
 function MenuPanel({ menu, onNavigate }: { menu: MenuKey; onNavigate?: (item: IaItem) => void }) {
   const { live, roadmap } = navDropdownItems(menu);
@@ -580,9 +593,7 @@ export function TopNav({
     setOpenMenu(null);
   };
   const dropdownMenus = MENUS;
-  // Mobile flattens the Search and Track roadmaps into one compact pill row.
-  // Named items come first, "More Tracking" covers the remaining Track expansion,
-  // and Ask AI stays last.
+  // Mobile flattens Search's roadmap into one compact pill row, Ask AI last.
   const mobileRoadmapPills = mobileNavRoadmapLabels();
   const navigate = (item: IaItem) => {
     setOpenMenu(null);

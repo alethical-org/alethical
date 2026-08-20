@@ -35,7 +35,7 @@ const FIXED_PAGES = [
   "/legislators",
   "/find-my-legislator",
   "/money",
-  "/money/reports",
+  "/reports",
   "/about",
   "/about/contact",
   "/privacy",
@@ -76,7 +76,7 @@ function pagesUrlset(data?: SitemapPayload): string {
   // Published research reports list themselves (grounded-answers.md rule 13);
   // an unpublished report has no page and so no sitemap row.
   for (const report of publishedReports()) {
-    paths.push(`/money/reports/${encodeURIComponent(report.slug)}`);
+    paths.push(`/reports/${encodeURIComponent(report.slug)}`);
   }
   if (data) {
     for (

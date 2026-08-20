@@ -19,7 +19,7 @@ import { Container, Footer, PageBackground, TopNav } from '../../theme/primitive
 import { prefersReducedMotion, theme as t } from '../../theme/tokens';
 
 /**
- * One published research report at /money/reports/{slug} — the one surface that
+ * One published research report at /reports/{slug} — the one surface that
  * may add figures up across members, under `.claude/rules/grounded-answers.md`
  * rule 13's conditions ("Money report web.dc.html", screen B).
  *

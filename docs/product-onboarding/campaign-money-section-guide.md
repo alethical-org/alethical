@@ -4,17 +4,20 @@
 
 **Net.** `/money` is the public front door to Minnesota's campaign-money records, open to
 everyone with no sign-in. In this first release it shows the shape of the whole section —
-what exists, what is coming, and what the record does and does not cover — plus the shelf
-where our own signed research reports appear once published. Nothing is published on that shelf
-yet, and it says so.
+what exists, what is coming, and what the record does and does not cover. Our own signed
+research reports live one level up, at `/reports`, which the money landing still points at.
+Nothing is published on that shelf yet, and it says so.
 
 ## Ways in
 
-- Choose **Search**, then **Campaign money** (marked with a green NEW chip) in the shared
+- Choose **Search**, then **Money in politics** (marked with a green NEW chip) in the shared
   top menu, on a computer or in the phone menu.
 - Open `/money` directly.
 - The retired address `/track/campaign-finance` (an old greyed "Campaign Finance" tracking
   row pointed there) shows the `/money` landing instead of an error.
+
+The research shelf has its own way in, separate from this section: choose **Reports**, then
+**Campaign money**, in the same top menu.
 
 ## The landing page (`/money`)
 
@@ -207,7 +210,14 @@ is a measured count served with the rows, never a guess. The same naming rules a
 loan is labelled as reported on its own schedule rather than reading as a gift, transfers
 read "Money given to another campaign", and only registered filers' names open pages.
 
-## The reports shelf (`/money/reports`)
+## The reports shelf (`/reports`)
+
+Reached from the top menu's **Reports** group, and from the money landing's "What we found"
+card. It sat at `/money/reports` until 20 Aug 2026, when the nav gained its own Reports
+group and the shelf moved out of the money section
+([#1698](https://github.com/alethical-org/alethical/issues/1698)); both old addresses
+redirect permanently, so a link shared before the move still opens the right page. Nothing
+about either page's contents changed with the move.
 
 The shelf for Alethical's own signed research on these records
 ([`.claude/rules/grounded-answers.md` rule 13](../../.claude/rules/grounded-answers.md)).
@@ -218,7 +228,7 @@ report's text exists in this repository
 ([`docs/design/handoff-campaign-money/follow-the-money-report.md`](../design/handoff-campaign-money/follow-the-money-report.md))
 and deliberately does not appear on the site.
 
-## A report page (`/money/reports/{name}`)
+## A report page (`/reports/{name}`)
 
 No report address exists until its report is published — an unpublished address shows the
 ordinary "page not found" screen. The page layout is fully built and waiting. When a report

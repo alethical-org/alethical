@@ -5,6 +5,7 @@ type TopNavNavigateArgs =
   | ['Legislators']
   | ['FindMyLegislator']
   | ['MoneyLanding']
+  | ['MoneyReports']
   | ['AboutUs']
   | ['SiteMetrics']
   | ['ContactUs']
@@ -45,6 +46,9 @@ export function navigateTopNavItem(
       return true;
     case 'search-campaign-money':
       navigation.navigate('MoneyLanding');
+      return true;
+    case 'reports-campaign-money':
+      navigation.navigate('MoneyReports');
       return true;
     case 'search-find-my-legislator':
       navigation.navigate('FindMyLegislator');
