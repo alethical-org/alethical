@@ -141,7 +141,7 @@ function directoryNavigation(
 
 export function homePageSnapshot(): PageSnapshot {
   return {
-    heading: 'Grounded answers on Minnesota law',
+    heading: 'Grounded answers on Minnesota politics',
     subheading: 'TRUTH, UNCONCEALED',
     bodyHeading: '',
     body: [HOME_PUBLIC_INTRO],

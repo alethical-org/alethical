@@ -743,7 +743,7 @@ describe('addresses that are not real pages', () => {
 
     expect(status).toBe(200);
     expect(body).toContain(title);
-    expect(body).not.toContain('<h1>Grounded answers on Minnesota law</h1>');
+    expect(body).not.toContain('<h1>Grounded answers on Minnesota politics</h1>');
   });
 
   it('keeps a retired vote address on its bill page', async () => {
