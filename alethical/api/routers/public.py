@@ -3462,14 +3462,28 @@ def campaign_finance_filings(
     **Two counts, and they are not interchangeable.** ``page.total`` counts the whole
     set the rows page through -- every filed report whose period has ended, 33,612 on
     production -- so it is true of the list and says nothing about any one period.
-    ``newest_period`` carries the newest period end **and** the number of filings
-    covering it, served as one block because a count of filings is meaningless without
-    the period it counts them for (``.claude/rules/grounded-answers.md`` rule 12: every
-    total states the period it covers). Measured on production 20 Aug 2026: 1,203
-    filings carry the newest period end of 20 Jul 2026, against ``page.total``'s
-    33,612. **Only ``newest_period.filing_count`` may appear in a sentence about "this
-    period"**; ``page.total`` there would overstate one period 28-fold on a public
-    page.
+    ``newest_period`` carries the newest period end **and** 2 counts of it, served as one
+    block because a count is meaningless without the period it counts for
+    (``.claude/rules/grounded-answers.md`` rule 12: every total states the period it
+    covers). Measured on production 20 Aug 2026: 1,203 filings carry the newest period
+    end of 20 Jul 2026, against ``page.total``'s 33,612. **Nothing from ``page`` may
+    appear in a sentence about "this period"**; ``page.total`` there would overstate one
+    period 28-fold on a public page.
+
+    **``committee_count`` is the one a "N committees filed for this period" sentence
+    needs**, and ``filing_count`` counts documents. A committee reaches 2 rows for one
+    period end by filing 2 different reports that close the same day, and a count of
+    documents is then larger than a count of committees while looking identical to it.
+    Amendments are not that case: a report's whole amendment list is folded onto its
+    single catalogue row. Both come back 1,203 today, and they are served apart anyway
+    because "identical on every period measured" is not "cannot differ", and only one of
+    them is what the sentence claims.
+
+    **20 Jul 2026 is a deadline all 3 filer kinds share**, so "this period" does not
+    silently speak for filers on another calendar: all 1,203 rows are the same report,
+    the *2026 Pre-Primary Report*, filed by 473 committees and funds, 435 candidate
+    committees and 295 party units. That is measured for this period, not a rule about
+    every period, and a surface naming a period should not assume the next one is shared.
     """
     pin_campaign_finance_to_one_view(db)
     page = recent_filings(db, limit=limit, offset=offset)
@@ -3511,14 +3525,20 @@ def campaign_finance_filings(
                 # period end against this figure's 33,612.
                 "total": page.total,
             },
-            # The newest period and its filing count, served as one block because a count
-            # of filings is meaningless without the period it counts them for
+            # The newest period and its 2 counts, served as one block because a count is
+            # meaningless without the period it counts for
             # (`.claude/rules/grounded-answers.md` rule 12: every total states the period
             # it covers). Pairing them is the guard -- a bare count is what gets printed
             # beside the wrong period.
+            #
+            # `committee_count` is the one the landing's "N committees filed for this
+            # period" sentence needs; `filing_count` counts documents. Identical on every
+            # period measured, and served apart anyway, because "identical today" is not
+            # "cannot differ" and only one of them is what the sentence claims.
             "newest_period": {
                 "period_end": page.newest_period_end,
                 "filing_count": page.newest_period_filing_count,
+                "committee_count": page.newest_period_committee_count,
             },
             "as_of": page.as_of,
             "snapshot_id": str(page.snapshot_id) if page.snapshot_id else None,

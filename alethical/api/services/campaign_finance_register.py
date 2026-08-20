@@ -295,9 +295,25 @@ class FilingsPage:
     #: all 33,612 ended filed reports we hold, so printing ``total`` in that sentence
     #: would overstate one period 28-fold. Both are honest; they answer different
     #: questions, and they are named apart so neither can wear the other's label.
-    #: ``None`` for both whenever the state is not ``reported``, never 0.
+    #: ``None`` for all 3 whenever the state is not ``reported``, never 0.
+    #:
+    #: **Two counts of the same period, because the sentence says committees and the
+    #: rows are filings.** A committee can appear on 2 rows for one period end by filing
+    #: 2 different reports that both close that day, and then a count of documents is
+    #: larger than a count of committees while looking exactly like it. Amendments are
+    #: **not** how that happens: the loader folds a report's whole amendment list onto
+    #: its single catalogue row as ``amendment_count`` and ``effective_amendment_index``
+    #: (``alethical/pipeline/campaign_finance_filings.py``), so an amended report is one
+    #: row however many times it was amended.
+    #:
+    #: Measured on production 20 Aug 2026, and it is a fact about the data rather than a
+    #: rule: the 2 are **identical on every period sampled** -- 1,203 of each on the
+    #: newest period end of 20 Jul 2026, and no divergence in 3,000 filings across the
+    #: 25 next-newest periods. They are still served apart, because "identical today" is
+    #: not "cannot differ", and the page's sentence names committees.
     newest_period_end: Optional[date]
     newest_period_filing_count: Optional[int]
+    newest_period_committee_count: Optional[int]
     as_of: Optional[date]
     snapshot_id: Optional[UUID]
     reason: Optional[str]
@@ -870,6 +886,7 @@ def recent_filings(
             total=None,
             newest_period_end=None,
             newest_period_filing_count=None,
+            newest_period_committee_count=None,
             as_of=None,
             snapshot_id=None,
             reason=NO_FILINGS_SNAPSHOT,
@@ -947,6 +964,7 @@ def recent_filings(
                 total=None,
                 newest_period_end=None,
                 newest_period_filing_count=None,
+                newest_period_committee_count=None,
                 as_of=_snapshot_date(snapshot),
                 snapshot_id=snapshot.id,
                 reason=ROWS_REPLACED,
@@ -971,7 +989,11 @@ def recent_filings(
     # would be a count of this page wearing the period's name. Grouped and ordered
     # rather than read from row 0, so it is right whatever offset the caller asked for.
     newest = db.execute(
-        select(report.cut_off_date, func.count())
+        select(
+            report.cut_off_date,
+            func.count(),
+            func.count(func.distinct(report.registration_number)),
+        )
         .select_from(report)
         .join(*joined_to_filer)
         .where(*filed_and_ended)
@@ -990,6 +1012,7 @@ def recent_filings(
         total=total,
         newest_period_end=newest[0] if newest else None,
         newest_period_filing_count=newest[1] if newest else None,
+        newest_period_committee_count=newest[2] if newest else None,
         as_of=_snapshot_date(snapshot),
         snapshot_id=snapshot.id,
         reason=None,

@@ -1213,15 +1213,33 @@ Future Fund" read as a shortlist of the newest or the biggest, which these rows 
 1,200 filers share the period end of 20 July 2026, so the list is one enormous tie broken
 alphabetically.
 
-**And `newest_period`, which is a different count and the only one that may be printed beside a
-period.** It carries `period_end` and `filing_count` together, never a bare number, because a
-count of filings is meaningless without the period it counts them for
+**And `newest_period`, which is where the only counts that may be printed beside a period live.**
+It carries `period_end`, `filing_count` and `committee_count` together, never a bare number,
+because a count is meaningless without the period it counts for
 (`.claude/rules/grounded-answers.md` rule 12: every total states the period it covers). Measured
-on production 20 Aug 2026: **1,203** filings carry the newest period end of 20 Jul 2026, against
-`page.total`'s **33,612**. Both are honest and they answer different questions — `page.total` is
-the whole set the rows page through, across every period — so **only `newest_period.filing_count`
+on production 20 Aug 2026: **1,203** filings, from **1,203** committees, carry the newest period
+end of 20 Jul 2026, against `page.total`'s **33,612**. `page.total` is honest about a different
+question — the whole set the rows page through, across every period — so **nothing from `page`
 may appear in a sentence about "this period"**; `page.total` there would overstate one period
-28-fold on a public page. #1677's acceptance criterion ("the count must describe exactly the set
+28-fold on a public page.
+
+**`committee_count` is what a "N committees filed for this period" sentence needs; `filing_count`
+counts documents.** A committee reaches 2 rows for one period end by filing 2 different reports
+that close the same day, and a count of documents is then larger than a count of committees while
+looking identical to it. **Amendments are not that case** — a report's whole amendment list is
+folded onto its single catalogue row as `amendment_count` and `effective_amendment_index`
+(`alethical/pipeline/campaign_finance_filings.py`), so an amended report is one row however many
+times it was amended, and the 367 of 1,005 catalogued reports carrying an amendment inflate
+neither count. The 2 are identical on every period measured — 1,203 each on the newest, and no
+divergence across 3,000 filings in the 25 next-newest periods — and they are served apart anyway,
+because "identical on every period measured" is not "cannot differ" and only one of them is what
+the sentence claims.
+
+**20 Jul 2026 is a deadline all 3 filer kinds share**, so a sentence naming that period does not
+silently speak for filers on another calendar: all 1,203 rows are the same report, the *2026
+Pre-Primary Report*, filed by 473 committees and funds, 435 candidate committees and 295 party
+units. Measured for this period, not a rule about every period — filer kinds do file to different
+calendars (§7), so a surface naming a period must not assume the next one is shared. #1677's acceptance criterion ("the count must describe exactly the set
 the rows come from") and its example sentence ("N committees filed for this period") pull apart
 on this data, and serving both counts is what satisfies each without either wearing the other's
 label. The rows themselves are not narrowed to one period: paging past row 1,203 leaves 20 July
