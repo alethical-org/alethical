@@ -106,15 +106,25 @@ export const IA: IaItem[] = [
     // section's search and list lanes ship after this landing does
     // (grounded-answers.md rule 2, never advertise what you can't answer).
     id: 'search-campaign-money',
-    // "Money in politics" since #1698: the row sits in Search, and what a reader
-    // searches for here is a person or a committee, which the description now
-    // says outright. Position, NEW pill and destination all unchanged.
+    // "Money in politics" since #1698: the row sits in Search, and the label is
+    // broader than "Campaign money" because the section will hold lobbying too.
+    // Position, NEW pill and destination all unchanged.
+    //
+    // The description promises the RECORD, never a search, and that is the whole
+    // point of its wording (grounded-answers.md rule 2, never advertise what you
+    // can't answer). #1698 shipped "Search any name to find people, committees,
+    // and who got paid", which was drawn for the finished section and went live
+    // months before it: /money still shows a picture of a search box with
+    // "Search is not built yet." printed under it, so the menu told a reader they
+    // could search and the page then told them they could not. The search wording
+    // is correct and belongs here the day the front door ships (#1696) — not
+    // before.
     label: 'Money in politics',
     path: '/money',
     menu: 'search',
     availability: 'mvp',
     authGated: false,
-    description: 'Search any name to find people, committees, and who got paid',
+    description: 'Contributions and spending, as Minnesota publishes them',
     isNew: true,
   },
   {

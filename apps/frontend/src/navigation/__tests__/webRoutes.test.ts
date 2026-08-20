@@ -426,6 +426,19 @@ describe('Search dropdown Campaign money row', () => {
     expect(item?.path).toBe('/money');
     expect(item?.isNew).toBe(true);
   });
+
+  // A tripwire, not a style rule. #1698 shipped a description promising "Search
+  // any name to find people, committees, and who got paid" while /money still
+  // renders a picture of a search box captioned "Search is not built yet.", so
+  // the menu offered a search the page then refused (grounded-answers.md rule 2).
+  // DELETE THIS TEST in the same pull request that ships the front door (#1696),
+  // and put the search wording back in that pull request. Until then, a failure
+  // here means the claim came back before the capability did.
+  it('promises the record rather than a search, until search ships (#1696)', () => {
+    const item = IA.find((entry) => entry.id === 'search-campaign-money');
+    expect(item?.description).toBeDefined();
+    expect(item?.description?.toLowerCase()).not.toContain('search');
+  });
 });
 
 // Bill tracking ships, and since #1698 its row lives in the account menu behind
