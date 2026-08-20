@@ -28,6 +28,17 @@ Not for: a **finalized** design ready to build (→ `design-build`), proofing a 
 
 **Resolving which bundle to review.** If the invocation names a bundle (a path or page name), use it. Otherwise — including a bare `/design-review` with no other arguments — default to the **most recently downloaded bundle in `~/Downloads`**, so the skill can be invoked with nothing else and still know what to review. Find the newest candidate with `ls -td ~/Downloads/*/ ~/Downloads/*.zip 2>/dev/null | head` (a Claude Design bundle is a folder — or a `.zip` of one — holding `README.md` + a `.dc.html` + `screenshots/`); unzip a `.zip` first. If the newest item isn't a design bundle, fall back to the newest one that is. Confirm in one line which bundle you picked and what page it's for, then frame it (step 0). This pass reads the bundle in place for feedback — it does not land it in-repo (that's `design-build`'s job once the design finalizes).
 
+**Before reading any bundle, check whether its markup is real or bundled.** Claude Design ships 2 formats and they need opposite handling, so stripping `<script>` first — the normal way to read an HTML file — silently deletes the entire page in one of them:
+
+```bash
+python3 -c "import re,sys;s=open(sys.argv[1],encoding='utf-8').read();print('bundled' if sum(len(x) for x in re.findall(r'<script\\b.*?</script>',s,flags=re.S))/len(s) > 0.5 else 'plain HTML')" <file>
+```
+
+- **Review exports (`.dc.html`)** are plain HTML — a few percent script. Strip tags and read normally.
+- **Build exports (`.html`)** are self-extracting bundles: measured 20 Aug 2026, **99.7% of the file sat inside one `<script>`**, with only 67 characters of real text outside it ("This page requires JavaScript to display"). The markup is a JavaScript string with every `/` written `\u002F` so `</div>` cannot close the script early — 401 of those against 3 literal `</div>`. Search the **raw source** after HTML-unescaping, or render it in a browser; never strip script tags.
+
+**The failure mode is what makes this worth a step of its own: it fails silently, and it fails toward a false blocker.** Every copy check returns "not found", which reads as "Design did not make the change" rather than "the reader is broken" — on the 20 Aug 2026 homepage build bundle that nearly shipped "the new sentence is missing from all 4 files" as a finding when all 4 carried it. Any string check that comes back empty across *every* file is the tell: verify the reader before writing the finding.
+
 **0. Frame it.** Identify the page, the preview-band state(s) shown (reference frames only by Claude Design's own band labels — never invented names, per the `claude-design-prompt-rules` memory), its place in the IA and `docs/product-onboarding/mvp-redesign-plan.md`, and pull the governing spec (`docs/product-onboarding/product-scope.md`, `docs/product-onboarding/grounded-ask-spec.md`, the relevant issues/milestone). State in one line what this screen is and is for.
 
 **1. Ground every element.** Walk *each discrete element* — every field, chip, badge, count, filter, card, CTA, empty state, suggested question — and tag it:
