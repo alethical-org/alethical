@@ -14,6 +14,7 @@ import {
   laneCountLine,
   legislatorsLaneSentence,
   orderingSentence,
+  LOBBYING_NOT_LOADED,
   RECORD_DOES_NOT_COVER,
 } from '../../lib/moneyLanding';
 import { publishedReports, reportDatesLine } from '../../lib/moneyReports';
@@ -266,6 +267,10 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
                   {line}
                 </Text>
               ))}
+              {/* Last of the absences, and the only one that is ours rather than
+                  the record's — so it says "not loaded" rather than "not
+                  published". */}
+              <Text style={styles.notCoveredLine}>{LOBBYING_NOT_LOADED}</Text>
               {confirmations ? (
                 <>
                   <Text style={styles.notCoveredLine}>{confirmationLine(confirmations)}</Text>

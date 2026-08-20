@@ -42,6 +42,14 @@ Top to bottom:
 5. **What this record does not cover**: nothing before 2015; unions do not report to this
    board; and the exact sentence "Donors who gave $200 or less in total for the year are
    never named" (the $200 test is on a donor's yearly total, never on one gift's size).
+   A fourth line names **lobbying**, and it is deliberately not one of the three above:
+   those are permanent gaps in the record, while lobbying is published by Minnesota and
+   simply not loaded by us yet, so it says "not here yet" rather than "not covered".
+   It earns its place because the homepage promises "campaign and lobbying records"
+   twice and this is where a reader arrives looking for the second half. Every other
+   absence in this section is stated out loud; before this line, lobbying was the one a
+   reader could only find by hunting and giving up (found by an end-to-end browser test,
+   20 Aug 2026).
 
 Three more pieces bind to live data (two public endpoints:
 `/api/v1/campaign-finance/summary` and `/api/v1/campaign-finance/filings`). Each data block
