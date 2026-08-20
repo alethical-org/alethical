@@ -309,11 +309,16 @@ export function useLegislatorCampaignMoney(
  * Each block carries its own state; a block that is not served renders its
  * designed absent state rather than a number.
  */
-export function useCampaignFinanceSummary() {
+export function useCampaignFinanceSummary(options: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: ['campaign-finance-summary'],
     queryFn: getCampaignFinanceSummaryFromApi,
     retry: false,
+    // The homepage reads this too, and Home stays mounted beneath a deep-linked
+    // stack screen, so an ungated read there would contend with the visible
+    // screen's first load. The /money landing passes nothing and gets the
+    // previous always-on behaviour.
+    enabled: options.enabled ?? true,
   });
 }
 
