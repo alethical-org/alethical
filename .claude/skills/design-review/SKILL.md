@@ -40,6 +40,12 @@ Not for: a **finalized** design ready to build (→ `design-build`), proofing a 
 
 Verify data claims against what's **ingested and fresh**, not what's theoretically possible. No verdict from memory — check the field/API/issue.
 
+**But score an under-construction surface against the FINISHED roadmap, not today's build (Eugene, 20 Aug 2026).** When the screen carries its own under-construction notice — the money section's is the standing case — "it does not work yet" is not a finding, because the notice already tells the reader that. The test becomes: **once every roadmap item ships, can this claim be built from what the source actually publishes?** Only what fails *that* survives as 🔴. A claim whose data is simply not loaded yet is 🟡 with the roadmap item named.
+
+Applied to the 20 Aug 2026 homepage review, this dissolved 3 of 6 findings, 2 of them called blockers: lobbying copy (Minnesota publishes the registrations; it is a named roadmap item), a search button (search is that section's own plan), and an under-construction caveat. What survived was the one claim no finished roadmap can deliver — payments tied to the filing they came from, which the published rows carry no key for.
+
+**And ask whether a missing state needs a FRAME or only a SENTENCE (Eugene, 20 Aug 2026).** Before requesting a new frame, split the state: does it differ *visually*, or only in *wording*? A singular/plural form, a shortened clause when a value is absent, an error message — those are copy, and the ask is the sentence, not a drawing. Sample data in a mock is never the thing to fix: "14 tracked bills" is a placeholder, and asking Design to redraw it with 1 wastes a round while leaving the actual gap, the singular wording, unwritten.
+
 **2. Apply the `design-audit` rubric statically.** Run the accessibility + interaction rubric (the `design-audit` skill's pinned Web Interface Guidelines + WCAG snapshot) against everything a static design reveals — see the split below. Flag what the still image can prove; note the few checks that must wait for the live build so they carry into `design-build`'s verify step.
 
 **3. Improvement pass — prioritized.** In this order (data/capability is our moat, so it leads):
@@ -56,6 +62,8 @@ Each recommendation gets a plain-language **Net** (per `eugene-workflow-preferen
 
 **4. Produce two outputs.**
 - **A Claude Design prompt** — obeying the `claude-design-prompt-rules` memory: no feasibility questions back to Design (feasibility is our call), no approval-dependent blocks, no export requests, no roadmap relabeling, no mock-realism policing; frames referenced by preview-band label; capabilities stated as settled facts. Must-fix items stated as settled changes; recommended-polish items included beneath them, labeled as recommendations.
+
+  **A truth finding is a settled change; a visual one is a constraint plus its price (memory rules 8–10).** Say what the code makes true and what each option costs — including when lifting the constraint is cheap, because a cheap limit reported as a bare fact reads as a wall. Then let Design choose. Where lifting it is worth what it costs and the change is one I agree with, lift it myself rather than routing it back. And a handoff marked *settled* is Design's status, not a finding I inherit: re-judge anything that touches what a reader is told.
 - **A decision list** — the scope/product calls that need a human owner (build the missing capability vs. cut the element vs. ship interim), each with a recommendation, effort, and Net.
 
 **5. Interview on genuine gaps only** — batched, ≤4, each with a recommended default (`design-intake` style). Only for gaps the repo/spec didn't answer.
