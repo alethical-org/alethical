@@ -84,6 +84,9 @@ from alethical.api.services.independent_spending import (
 )
 from alethical.db.schema import load_schema
 from alethical.pipeline import campaign_finance_reader as reader
+from alethical.pipeline.campaign_finance_filing_calendars import (
+    printed_period_start_for_end,
+)
 
 schema = load_schema()
 CampaignFinanceContributionRow = schema.CampaignFinanceContributionRow
@@ -171,6 +174,12 @@ class MoneyIn:
     other_receipts: tuple[ReceiptTypeTotal, ...]
     reported_total: Decimal | None
     reported_through: date | None
+    #: The period start the Board's own transcribed disclosure calendars print
+    #: against this filing's period end, or ``None`` — never an assumed 1 January
+    #: (§7). Only derived for a filer-year the totals copy can speak for, which
+    #: already excludes special-election filers, whose period does not open where
+    #: the calendars say.
+    reported_period_start: date | None
     source_url: str | None
 
 
@@ -190,6 +199,12 @@ class MoneyOut:
     itemized_payment_total: Decimal | None
     itemized_payments: int | None
     by_type: tuple[ExpenditureTypeTotal, ...]
+    #: The filing's own "Total expenditures" figure — rule 12's second number for
+    #: money out, a separate claim by a separate source, never added to or
+    #: subtracted from the itemized sum. ``None`` when no filings snapshot is
+    #: published or the totals copy cannot speak for this filer-year.
+    reported_total: Decimal | None
+    reported_through: date | None
     source_url: str | None
 
 
@@ -397,10 +412,18 @@ def money_in(
     reported_total, reported_through = _reported_contributions(
         db, registration_number, year
     )
+    # The Board's own calendars print a start against this period end; a filer-year
+    # the totals copy speaks for is never a special-election one, so the printed
+    # start applies where one exists. ``None`` stays the covers-through state.
+    period_start = (
+        printed_period_start_for_end(reported_through)
+        if reported_through is not None
+        else None
+    )
     try:
         years = reader.money_in(db, release, registration_number, years=[year])
     except ReleaseNoLongerHeld:
-        return MoneyIn(UNAVAILABLE, None, None, (), None, None, source_url)
+        return MoneyIn(UNAVAILABLE, None, None, (), None, None, None, source_url)
 
     found = next((entry for entry in years if entry.year == year), None)
     if found is None:
@@ -411,6 +434,7 @@ def money_in(
             (),
             reported_total,
             reported_through,
+            period_start,
             source_url,
         )
 
@@ -433,6 +457,7 @@ def money_in(
             others,
             reported_total,
             reported_through,
+            period_start,
             source_url,
         )
     if contributions.rows == 0:
@@ -443,6 +468,7 @@ def money_in(
             others,
             reported_total,
             reported_through,
+            period_start,
             source_url,
         )
     return MoneyIn(
@@ -452,6 +478,7 @@ def money_in(
         others,
         reported_total,
         reported_through,
+        period_start,
         source_url,
     )
 
@@ -474,6 +501,22 @@ def _reported_contributions(
     return None, None
 
 
+def _reported_expenditures(
+    db: Session, registration_number: str, year: int
+) -> tuple[Decimal | None, date | None]:
+    """The filer's own reported money-out total, or ``None`` twice.
+
+    Rule 12's second number for money out. ``None`` when no filings snapshot is
+    published, and for a special-election filer-year the totals copy cannot speak
+    for -- the same rule as ``_reported_contributions``, because both figures come
+    off the same filing.
+    """
+    for entry in reader.reported_expenditures(db, registration_number, years=[year]):
+        if entry.year == year and entry.comparable:
+            return entry.total, entry.reported_through
+    return None, None
+
+
 def money_out(
     db: Session, release: Release, *, registration_number: str, year: int
 ) -> MoneyOut:
@@ -486,23 +529,32 @@ def money_out(
     nothing (§2.1).
     """
     source_url = release.expenditures.source_url
+    reported_total, reported_through = _reported_expenditures(
+        db, registration_number, year
+    )
     try:
         years = reader.money_out(db, release, registration_number, years=[year])
     except ReleaseNoLongerHeld:
-        return MoneyOut(UNAVAILABLE, None, None, (), source_url)
+        return MoneyOut(
+            UNAVAILABLE, None, None, (), reported_total, reported_through, source_url
+        )
 
     found = next((entry for entry in years if entry.year == year), None)
     if found is not None and any(
         bucket.rows_missing_an_amount for bucket in found.by_label
     ):
         # Rows we hold and cannot total: our gap, not the committee's silence.
-        return MoneyOut(UNAVAILABLE, None, None, (), source_url)
+        return MoneyOut(
+            UNAVAILABLE, None, None, (), reported_total, reported_through, source_url
+        )
     if found is None:
         return MoneyOut(
             _empty_state(db, release, Dataset.expenditures, year),
             None,
             None,
             (),
+            reported_total,
+            reported_through,
             source_url,
         )
     return MoneyOut(
@@ -513,6 +565,8 @@ def money_out(
             ExpenditureTypeTotal(bucket.label, bucket.total, bucket.rows)
             for bucket in found.by_label
         ),
+        reported_total,
+        reported_through,
         source_url,
     )
 

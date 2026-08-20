@@ -206,14 +206,19 @@ export function registrationNumberFromSlug(segment: string | null | undefined): 
 // --- The period stamp ------------------------------------------------------------
 
 /**
- * The stamp's headline when figures cover the selected year: what the filing's own
- * coverage says. We hold the coverage END from the filing; no source we store
- * serves this committee's period start, so the stamp says "through" rather than
- * asserting a January nobody stated (§7 forbids hardcoding 1 January).
+ * The stamp's headline when figures cover the selected year. The end is read off
+ * the filing; the start appears only when the Board's own transcribed disclosure
+ * calendars print one against that end — never an assumed 1 January (§7). With no
+ * printed start the honest headline is "through" alone.
  */
-export function coveredPeriodLine(reportedThrough: string | null | undefined): string | null {
+export function coveredPeriodLine(
+  reportedThrough: string | null | undefined,
+  reportedPeriodStart?: string | null,
+): string | null {
   const day = formatDay(reportedThrough);
-  return day ? `Figures through ${day}` : null;
+  if (!day) return null;
+  const start = formatDay(reportedPeriodStart);
+  return start ? `Figures for ${start} – ${day}` : `Figures through ${day}`;
 }
 
 /** The stamp's detail sentence under a covered period. `checkedOn` is the day we
@@ -221,11 +226,14 @@ export function coveredPeriodLine(reportedThrough: string | null | undefined): s
 export function coveredPeriodDetail(
   reportedThrough: string | null | undefined,
   checkedOn: string | null,
-  options: { isPartyUnit?: boolean } = {},
+  options: { isPartyUnit?: boolean; reportedPeriodStart?: string | null } = {},
 ): string {
   const day = formatDay(reportedThrough);
+  const start = formatDay(options.reportedPeriodStart);
   const coverage = day
-    ? `The committee’s own report to the state covers through ${day}. The coverage end is read off the filing — no start is assumed.`
+    ? start
+      ? `The committee’s own report to the state covers ${start} through ${day}. The end is read off the filing and the start off the Board’s own published filing calendar — nothing is assumed.`
+      : `The committee’s own report to the state covers through ${day}. The coverage end is read off the filing — no start is assumed.`
     : 'The dates on this page are read off the filings themselves.';
   const checked = checkedOn
     ? ` Checked against our copy of the Board’s files, taken ${checkedOn}.`
@@ -350,6 +358,10 @@ export function moneyOutKindLabel(expenditureType: string): string {
  *  committees, so the neutral heading is fixed here where a test can hold it. */
 export const MONEY_OUT_FIGURE_LABEL = 'Payments we can list';
 
+/** The filing's own money-out total — rule 12's second number for this card,
+ *  labelled as the filing's claim, never as "spent". */
+export const MONEY_OUT_REPORTED_LABEL = 'Payments out this committee reported to the state';
+
 /**
  * The sentence under the money-out figure, per served state. A ballot-question
  * filer's page prints no threshold figure in it — the same silence rule 12 sets
@@ -359,18 +371,43 @@ export const MONEY_OUT_FIGURE_LABEL = 'Payments we can list';
 export function moneyOutNote(
   state: 'reported' | 'not_reported' | 'unavailable',
   isBallot: boolean,
+  hasReportedTotal = false,
+  reportedTotalIsZero = false,
 ): string {
   if (state === 'unavailable') {
     return 'We could not read this committee’s payments out of our copy of Minnesota’s file.';
   }
   if (state === 'not_reported') {
+    if (hasReportedTotal && reportedTotalIsZero) {
+      // The filing's own zero: "that does not mean it paid out nothing" would
+      // contradict the committee's own report sitting right above it.
+      return (
+        'The committee’s own report to the state says it paid out nothing in this ' +
+        'period, and the state’s payments file names no payment for it. That is the ' +
+        'filing’s own zero, not a gap in our records.'
+      );
+    }
+    if (hasReportedTotal) {
+      return (
+        'The total above is the filing’s own figure. The state’s payments file names ' +
+        'none of its payments for this year' +
+        (isBallot ? '' : ' — it names only recipients paid more than $200 in total for the year') +
+        ', so we cannot list any of them.'
+      );
+    }
     return isBallot
       ? 'Minnesota’s public file names only payments above a naming threshold, and it names none for this committee this year. That does not mean the committee paid out nothing.'
       : 'Minnesota only names a recipient once payments to them pass $200 in total for the year, and it named none for this committee this year. That does not mean the committee paid out nothing.';
   }
+  if (hasReportedTotal) {
+    // Two numbers, both correct, never subtracted — the same rule as money in.
+    return isBallot
+      ? 'The total above is the filing’s own figure for the period it names. The payments we can list come from the state’s payments file, which names only payments above a naming threshold, so the two are different figures and we do not subtract one from the other. Money out is not all spending: some of it is money given to other campaigns, listed below.'
+      : 'The total above is the filing’s own figure for the period it names. The payments we can list come from the state’s payments file, which names a recipient only once payments to them pass $200 in total for the year, so the two are different figures and we do not subtract one from the other. Money out is not all spending: some of it is money given to other campaigns, listed below.';
+  }
   return isBallot
-    ? 'Minnesota publishes no official total for a committee’s money out, so there is no bigger number to compare this against. Money out is not all spending: some of it is money given to other campaigns, listed below.'
-    : 'Minnesota only names a recipient once payments to them pass $200 in total for the year, and publishes no official total for a committee’s money out, so there is no bigger number to compare this against. Money out is not all spending: some of it is money given to other campaigns, listed below.';
+    ? 'Our copy of the state’s figures holds no reported total for this year’s money out, so there is no bigger number to compare this against. Money out is not all spending: some of it is money given to other campaigns, listed below.'
+    : 'Our copy of the state’s figures holds no reported total for this year’s money out, so there is no bigger number to compare this against. Minnesota only names a recipient once payments to them pass $200 in total for the year. Money out is not all spending: some of it is money given to other campaigns, listed below.';
 }
 
 // --- The two lists and the payments view ----------------------------------------------

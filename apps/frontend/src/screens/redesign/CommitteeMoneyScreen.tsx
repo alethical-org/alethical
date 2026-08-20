@@ -48,6 +48,7 @@ import {
   listLinkNote,
   madeRowMeta,
   MONEY_OUT_FIGURE_LABEL,
+  MONEY_OUT_REPORTED_LABEL,
   moneyOutKindLabel,
   moneyOutNote,
   notFoundBody,
@@ -151,6 +152,7 @@ function ForwardArrow({ color }: { color: string }) {
 export function yearDisplayState(money: CommitteeMoney): 'closed-empty' | 'empty-year' | 'figures' {
   const hasFigures =
     money.split.reportedTotal !== null ||
+    money.moneyOut.reportedTotal !== null ||
     money.moneyIn.state === 'reported' ||
     money.moneyOut.state === 'reported' ||
     money.moneyIn.otherReceipts.length > 0 ||
@@ -459,8 +461,11 @@ function PeriodStamp({
     line = uncoveredPeriodLine(year);
     detail = uncoveredPeriodDetail(year, checkedOn);
   } else {
-    line = coveredPeriodLine(money.split.reportedThrough);
-    detail = coveredPeriodDetail(money.split.reportedThrough, checkedOn, { isPartyUnit });
+    line = coveredPeriodLine(money.split.reportedThrough, money.moneyIn.reportedPeriodStart);
+    detail = coveredPeriodDetail(money.split.reportedThrough, checkedOn, {
+      isPartyUnit,
+      reportedPeriodStart: money.moneyIn.reportedPeriodStart,
+    });
   }
   const covered = state === 'figures' && line !== null;
   return (
@@ -670,18 +675,33 @@ function MoneyOutCard({
     );
   }
   const total = moneyFigure(moneyOut.state, moneyOut.itemizedPaymentTotal);
+  const reportedOut = formatMoney(moneyOut.reportedTotal);
   return (
     <View style={styles.card}>
       <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
         Money out
       </Text>
+      {reportedOut ? (
+        <Figure
+          label={MONEY_OUT_REPORTED_LABEL}
+          value={reportedOut}
+          note={reportedThroughLabel(moneyOut.reportedThrough)}
+        />
+      ) : null}
       <Figure
         label={MONEY_OUT_FIGURE_LABEL}
         value={total.text}
         isFigure={total.isFigure}
         note={paymentCountLabel(moneyOut.itemizedPayments)}
       />
-      <Text style={styles.explain}>{moneyOutNote(moneyOut.state, isBallot)}</Text>
+      <Text style={styles.explain}>
+        {moneyOutNote(
+          moneyOut.state,
+          isBallot,
+          reportedOut !== null,
+          Number(moneyOut.reportedTotal) === 0,
+        )}
+      </Text>
       {moneyOut.byType.length ? (
         <View style={styles.rows}>
           {moneyOut.byType.map((entry) => (

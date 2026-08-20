@@ -1605,6 +1605,11 @@ class FilingsContext:
     years: tuple[int, ...]
     known_registrations: frozenset[str]
     reported_contributions: dict[tuple[str, int], Decimal]
+    #: The filing's own "Total expenditures" line, per filer-year. The filing's whole
+    #: money-out figure — it includes money given to other committees, which the
+    #: category lines do not sum to (§9.5, bundle 14) — and rule 12's second number
+    #: for the money-out card, exactly as ``reported_contributions`` is for money in.
+    reported_expenditures: dict[tuple[str, int], Decimal]
     reported_through: dict[tuple[str, int], date]
     # Filer-years the totals route cannot speak for, because the filer also filed a
     # special-election series that the route does not return. Excluded from the
@@ -1649,6 +1654,7 @@ def filings_context(db: Session) -> Optional[FilingsContext]:
         ).all()
     )
     contributions: dict[tuple[str, int], Decimal] = {}
+    expenditures: dict[tuple[str, int], Decimal] = {}
     through: dict[tuple[str, int], date] = {}
     rows = db.execute(
         select(
@@ -1674,12 +1680,17 @@ def filings_context(db: Session) -> Optional[FilingsContext]:
             contributions[filer_year] = (
                 contributions.get(filer_year, Decimal("0")) + amount
             )
+        if line_key == "total_expenditures":
+            expenditures[filer_year] = (
+                expenditures.get(filer_year, Decimal("0")) + amount
+            )
     return FilingsContext(
         snapshot_id=snapshot.id,
         fetch_completed_at=snapshot.fetch_completed_at,
         years=tuple(snapshot.years or ()),
         known_registrations=registrations,
         reported_contributions=contributions,
+        reported_expenditures=expenditures,
         reported_through=through,
         special_election_filer_years=special,
     )

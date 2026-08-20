@@ -96,9 +96,10 @@ def _finance(
                 None if reported_total is None else Decimal(reported_total)
             ),
             reported_through=reported_through,
+            reported_period_start=None,
             source_url="https://cfb.mn.gov/reports/contributions.csv",
         ),
-        money_out=MoneyOut(REPORTED, Decimal("1000.00"), 3, (), None),
+        money_out=MoneyOut(REPORTED, Decimal("1000.00"), 3, (), None, None, None),
         independent_spending=IndependentSpendingAbout(REPORTED, None, None),
     )
 

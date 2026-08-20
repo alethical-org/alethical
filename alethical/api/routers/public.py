@@ -3018,12 +3018,15 @@ def committee_finance_for_year(
                 ],
                 "reported_total": finance.money_in.reported_total,
                 "reported_through": finance.money_in.reported_through,
+                "reported_period_start": finance.money_in.reported_period_start,
                 "source_url": finance.money_in.source_url,
             },
             "money_out": {
                 "state": finance.money_out.state,
                 "itemized_payment_total": finance.money_out.itemized_payment_total,
                 "itemized_payments": finance.money_out.itemized_payments,
+                "reported_total": finance.money_out.reported_total,
+                "reported_through": finance.money_out.reported_through,
                 "by_type": [
                     {
                         "type": entry.expenditure_type,

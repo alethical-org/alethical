@@ -93,17 +93,46 @@ Top to bottom:
    own record and attaches it to no person. A party unit, caucus, fund, or ballot-question
    committee gets its own sentence, because for those there is no person to attach.
 3. **A year switch** (this calendar year and the one before), each year its own address.
-4. **The period panel**: what the committee's own report covers, its end read off the
-   filing — no start is ever assumed — plus the one freshness date (the day we copied the
-   Board's files, printed as its Minnesota day). A party unit's panel says its calendar is
-   its own. If our own data service stops answering, the page keeps the figures it already
-   had and says they are held until it answers — never expiring on a timer.
+4. **The period panel**: what the committee's own report covers. The end is read off the
+   filing; the start appears only when the Board's own published filing calendar prints
+   one against that end (so "Figures for 1 Jan 2026 – 20 Jul 2026"), and otherwise the
+   panel says "through" alone — a start is never assumed, because a special-election
+   filer's period does not open on 1 January. Beside it, the one freshness date (the day
+   we copied the Board's files, printed as its Minnesota day). A party unit's panel says
+   its calendar is its own. If our own data service stops answering, the page keeps the
+   figures it already had and says they are held until it answers — never expiring on a
+   timer.
 5. **Money in — two numbers, both correct.** The total the committee itself reported to
    the state, and the donations we can list with a donor's name. The split into named and
    unnamed money is decided by the server before the page ever sees it, and the page never
    subtracts. When the split is safe, a bar shows it and the unnamed figure appears with
    the sentence explaining it (donors at $200 or less in total for the year are never
    named). In each case where a split would state something false — the two figures cover
+<<<<<<< HEAD
+   different periods, the sources disagree, there are no named payments, or there is no
+   reported total — the page shows the figures it has and a plain sentence saying why it
+   will not divide them, never saying which figure is larger. A committee whose own report
+   says zero shows $0.00 with a sentence saying that is the filing's zero, not our gap.
+6. **Money out — two numbers too, and never called "spending."** The filing's own
+   reported money-out total ("Payments out this committee reported to the state", with
+   the period it covers) sits above "Payments we can list", and the two are never added
+   or subtracted — they are separate claims by separate sources, exactly like money in.
+   What stays banned is calling the listed payments "spent": broken down by the filing's
+   own kinds, money given to other campaigns gets its own plainly-labelled line —
+   statewide, a large share of money out is transfers to other committees, and for a
+   caucus that is the point. A year our copy holds no reported total for says so as our
+   copy's gap.
+7. **Two lists — Who gave and Where it went** — the six largest payments, ranked largest
+   first (honest inside one committee; never across committees), each naming the filing's
+   own type. **Every count is a count of payments, never of donors**: the filings carry
+   printed names with no identifier, and one person appears under several spellings
+   ("Messinger, Alida" / "Messinger, Alida R" / "Messinger, Alida Rockefelle" are 3
+   strings in the live files), so "N donors" would be a claim the data cannot back —
+   the same failure as vouching for a list's completeness. Donated goods and services carry a marker and stay inside the totals, because
+   that is how the state counts them. A name opens a page only when it carries a
+   registration number we hold as a filer; a private donor or a business stays plain text.
+8. **What this record covers**: filed with the Board, nothing before 2015, unions don't
+=======
    different periods, the sources disagree, there are no named payments, our copy of the
    donation list is missing named money the filing carries, the committee corrected its
    report after we copied the official total, the two figures simply will not line up, or
@@ -155,6 +184,7 @@ Top to bottom:
    through a form a link cannot reach, and not at all for most years before 2023 — a row
    of dead links would be worse than one honest step.
 9. **What this record covers**: filed with the Board, nothing before 2015, unions don't
+>>>>>>> origin/main
    report here — and the $200 donor sentence, except on a ballot-question committee's
    page, which prints **no** threshold figure anywhere: the statute says $500 for ballot
    questions, the Board's own handbook for those filers says $200, and we assert neither.
