@@ -875,28 +875,41 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
                 </View>
               </View>
             </Container>
-            <View style={isSignedIn ? styles.heroBottomSpace : styles.heroBottomSpaceSignedOut} />
-          </View>
 
-          {/* MONEY IN POLITICS — signed in only, as its own band. The signed-out
-              reader meets this card in the hero; a signed-in reader's hero right
-              column is already their tracked bills, and displacing that for a
-              pitch takes away the reason they came back (#1034). Even space above
-              and below, so the card reads as its own band rather than as an
-              introduction to the white section beneath it. */}
-          {isSignedIn ? (
-            <View style={styles.moneyBand}>
-              <Container>
-                <MoneyPromoCard
-                  variant="desktop"
-                  filerCount={filerCount}
-                  countLoading={countLoading}
-                  dimmed={openMenu !== null}
-                  onPress={() => navigation.navigate('MoneyLanding')}
-                />
-              </Container>
-            </View>
-          ) : null}
+            {/* MONEY IN POLITICS — signed in only, and INSIDE the hero wrapper
+                rather than in a band of its own. Outside it, the wrapper's
+                gradient ended above the card and the page background took over,
+                and those two gradients turn white at different points (55% here,
+                60% on the page) — so a full-width edge ran across the page and
+                the promo read as a separate section.
+                The card is not a section: it is the tail of the hero.
+
+                Two knock-on effects, both accepted (Eugene, 20 Aug 2026), and
+                both follow from the backgrounds staying in percentages of the
+                wrapper rather than being pinned to pixels or split into a second
+                layer. The wrapper is now ~700px taller when signed in, so its
+                gradient reaches white further down and the region around the
+                Search pair sits lighter than before; and the dot grid runs behind
+                and around the card, fading out 180px above the new bottom instead
+                of above the Search pair. */}
+            <View style={isSignedIn ? styles.heroMoneySpace : styles.heroBottomSpaceSignedOut} />
+            {isSignedIn ? (
+              <>
+                <Container>
+                  <MoneyPromoCard
+                    variant="desktop"
+                    filerCount={filerCount}
+                    countLoading={countLoading}
+                    dimmed={openMenu !== null}
+                    onPress={() => navigation.navigate('MoneyLanding')}
+                  />
+                </Container>
+                {/* The gradient has already reached #ffffff by here, so the white
+                    section below starts with no visible edge either. */}
+                <View style={styles.heroMoneySpace} />
+              </>
+            ) : null}
+          </View>
 
           {/* WHAT AN ANSWER LOOKS LIKE — the example answer, moved out of the hero
               when the money card took that slot. Full width now, and the SECTION
@@ -1766,7 +1779,11 @@ const m = StyleSheet.create({
   heroStateLineTablet: { fontSize: 32, lineHeight: 40, letterSpacing: -0.64 },
   heroWatchCard: { marginTop: 22 },
   // Stacked and full-width on a phone; side by side on a tablet.
-  heroActions: { marginTop: 20, gap: 12 },
+  // 36, not 20: at 20 the Search pair read as part of the watch card's stack
+  // rather than as its own group. The 12px between the buttons and the 22px down
+  // to the money card are unchanged, so the pair and the card stay one group,
+  // separated from the card above.
+  heroActions: { marginTop: 36, gap: 12 },
   heroActionsTablet: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
   heroSubhead: {
     marginTop: 18,
@@ -2070,6 +2087,18 @@ const m = StyleSheet.create({
   },
 });
 
+/** The small green section label: 13px, bold, 0.2em of tracking (2.6px at 13px),
+ *  #0f7a45. Two consumers spread this rather than repeating the values — the
+ *  section eyebrows above each band, and the answer example's own label, which
+ *  must read as the same thing. */
+const sectionLabel = {
+  fontFamily: t.typography.ui,
+  fontSize: t.fontSizes.meta,
+  fontWeight: t.fontWeights.bold,
+  letterSpacing: 2.6,
+  color: t.colors.text.green,
+} as const;
+
 const styles = StyleSheet.create({
   root: { flex: 1, position: 'relative' },
   scroll: { flex: 1 },
@@ -2172,11 +2201,10 @@ const styles = StyleSheet.create({
   },
   heroRight: { minWidth: 0 },
   heroRightDesktop: { flex: 1, alignItems: 'flex-end', marginTop: -10 },
-  // Tightened 88 -> 48: the answer card runs much taller than the left column, so
-  // a tall bottom spacer left the hero reading bottom-heavy with a large trailing
-  // gap down to "Bills Moving". Trimming it pulls that section up without moving the
-  // card or the Search buttons.
-  heroBottomSpace: { height: 48 },
+  // 120 above the card and 120 below, replacing the old 48 + 120 = 168. Even on
+  // both sides deliberately: the card is the tail of the hero, not an intro to
+  // the white section under it.
+  heroMoneySpace: { height: 120 },
   // Signed out the next section's eyebrow peeks on a laptop while its heading
   // falls below the fold, which is the drawn rhythm for a hero that now ends on
   // a card rather than on the buttons.
@@ -2193,27 +2221,31 @@ const styles = StyleSheet.create({
   // be cancelled.
   heroLeftSignedIn: { maxWidth: 720 },
   heroRightSignedOut: { flex: 0.72 },
-  // Even above and below: the card is its own band, not an introduction to the
-  // white section under it.
-  moneyBand: { paddingTop: 120, paddingBottom: 120 },
   answerSection: { backgroundColor: t.colors.surfaces.base, paddingTop: 60, paddingBottom: 80 },
+  // The section label, not a headline. At 44px it matched "Bills Moving Through
+  // the Legislature" and ranked one worked example equal to a whole section of
+  // bills. These are sectionEyebrow's own values rather than a copy of them, so
+  // the two labels cannot drift apart; marginBottom is the one difference (14
+  // here against 22 there).
+  //
+  // Capitals come from textTransform rather than from typing the words in caps:
+  // this element is a heading, and a heading whose text is literally uppercase
+  // can be announced letter by letter.
   answerSectionH2: {
-    fontFamily: t.typography.title,
-    fontSize: 44,
-    fontWeight: t.fontWeights.heavy,
-    letterSpacing: -0.9,
-    color: t.colors.text.primary,
+    ...sectionLabel,
+    marginBottom: 14,
+    textTransform: 'uppercase',
   },
-  // The example question, as body text under the section's own heading rather
-  // than as a heading of its own.
+  // With the headline gone this is the loudest line in the section, which is
+  // right — the example is the content. Still not a heading: heading navigation
+  // names the section, never a specific bill.
   answerSectionQuestion: {
-    marginTop: 18,
     fontFamily: t.typography.ui,
     fontSize: 26,
     lineHeight: 35,
     fontWeight: t.fontWeights.bold,
     letterSpacing: -0.26,
-    color: t.colors.text.secondary,
+    color: t.colors.text.primary,
   },
   answerSectionCard: { marginTop: 28 },
 
@@ -2333,14 +2365,7 @@ const styles = StyleSheet.create({
   },
 
   // Section eyebrow — small green label above a section (e.g. "2025–26 LEGISLATIVE SESSION").
-  sectionEyebrow: {
-    fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.meta,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 2.6,
-    color: t.colors.text.green,
-    marginBottom: 22,
-  },
+  sectionEyebrow: { ...sectionLabel, marginBottom: 22 },
 
   // finder band
   finderBand: { position: 'relative', paddingTop: 64, paddingBottom: 128, overflow: 'hidden' },

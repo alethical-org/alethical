@@ -12,10 +12,18 @@ live feature.
 - **Search Bills** opens the default bill search page.
 - **Search Legislators** opens the legislator directory.
 - **The campaign-money card** is the right-hand half of the opening section for a
-  signed-out reader, and its own band below the hero for a signed-in one. A
-  signed-in reader's right-hand slot already holds their tracked bills, and a
-  pitch must not take that away. On a phone it is the third item in the search
-  cluster, because its own action is a third search.
+  signed-out reader. For a signed-in one it sits below the opening section but
+  still inside it: the card is the tail of the hero, not a section of its own, so
+  the hero's background runs unbroken from the greeting down past the card, with
+  120px above it and 120px below. A signed-in reader's right-hand slot already
+  holds their tracked bills, and a pitch must not take that away. On a phone it is
+  the third item in the search cluster, because its own action is a third search.
+- Keeping the card inside the hero has 2 visible consequences, both chosen
+  deliberately (20 Aug 2026). The hero's background is a gradient measured as
+  percentages of its own height, so a taller hero pushes the fade further down and
+  the area around the Search pair reads lighter than it did. The dot texture runs
+  behind and around the card for the same reason. Neither is pinned to fixed pixel
+  positions, because that would freeze the background to today's hero height.
 - The card's count is read live from the register on every load. If the register
   does not answer, the whole line disappears: never a zero, never a dash, never a
   remembered number. While it loads, a grey bar stands in its place.
@@ -32,11 +40,20 @@ live feature.
   login session.
 - The example answer card shows what a cited answer looks like. It is an editorial
   example about HF 4138, not a generated answer or a promise that a reader can ask
-  any question from Home. It sits in its own section below the hero, headed "What
-  an answer looks like", with the sample question as body text under that heading.
+  any question from Home. It sits in its own section below the hero, labelled "What
+  an answer looks like", with the sample question as body text under that label.
   The question is deliberately not a heading: as one, screen-reader heading
   navigation announced a single bill as a section of the homepage with nothing
   marking it as an example.
+- That label is the same small green section label used above the bill sections,
+  not a large black headline. At 44px it matched "Bills Moving Through the
+  Legislature" and ranked one worked example equal to a whole section of bills.
+  The sample question underneath is now the loudest line in the section, which is
+  right, because the example is the content.
+- The label is still a heading, and its capitals come from styling rather than
+  from typing the words in capitals. The words a screen reader announces stay in
+  ordinary sentence case, because some readers spell out short all-capital text
+  letter by letter.
 - The headline reads "Grounded answers on Minnesota politics". It said "on Minnesota
   law" until the money section was added to the page; "politics" is the wider word
   because the page now covers campaign money as well as legislation. The headline is
