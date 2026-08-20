@@ -119,9 +119,12 @@ redirect permanently. This is
 the one surface allowed to add records up across members and to name a pattern, under the
 conditions in
 [`.claude/rules/grounded-answers.md` rule 13](../../.claude/rules/grounded-answers.md).
-The first report (funding patterns it names "insider" and "outsider") publishes once every
-figure in it recomputes from a pinned copy of our loaded data; its lobbying figure waits for
-the lobbying records (number 8 below) to be loaded first.
+A report posts as its author wrote it, before any figure is checked, and is unlisted while
+it waits: absent from the shelf, absent from the sitemap, and marked for search engines to
+skip, so its only readers are people given the link. Every figure is then checked against
+our loaded data on the live page. Eugene decides when a report is listed publicly, once
+that check has resolved. A figure drawn from records we do not hold yet, such as lobbying
+(number 8 below), stays in the report and is named in the masthead as undated.
 
 ---
 
@@ -186,9 +189,9 @@ is no date. Every page says what it holds and stops there.
 Eugene's call, 12 Aug 2026. It replaces an earlier "deferred" wording on this list, which had
 started to read as a plan.
 
-**One exception, decided 18 Aug 2026: this is a record-page promise.** A signed research report
+**One exception: this is a record-page promise.** A signed research report
 (see "Our own research reports" above) may cite records filed with another body, named and
-linked at their source — the first report cites federal filings (FEC). A report's masthead names
+linked at their source. A report's masthead names
 every filing body it used, so a reader always knows which promise applies to the page they are
 on. Record pages keep the rule above unchanged. Conditions:
 [`.claude/rules/grounded-answers.md` rule 13](../../.claude/rules/grounded-answers.md).

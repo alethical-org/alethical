@@ -327,24 +327,31 @@ export function askPageMetadata(question?: string | null): PageMetadata {
 }
 
 /**
- * One published research report's page metadata. Title and dates ONLY: report
+ * One posted research report's page metadata. Title and dates ONLY: report
  * claims and derived labels appear in no social-share preview or metadata
  * (.claude/rules/grounded-answers.md rule 13), so the dek and every figure stay
- * out of these tags. Ordinary search snippets of the body stay on — no
- * nosnippet (rule 13, reversed 18 Aug 2026).
+ * out of these tags.
+ *
+ * A listed report carries no `nosnippet`: an ordinary search snippet always
+ * links to the page holding the method, and suppressing body text on a
+ * transparency product reads as hiding the thing it publishes. An unlisted
+ * report is `noindex` instead, and carries no canonical while it is, so search
+ * engines skip the page entirely and its only readers are people given the link
+ * (rule 13's publishing order, point 3).
  */
 export function moneyReportPageMetadata(report: {
   slug: string;
   title: string;
   publishedOn: string;
   recordsThrough: string;
+  listed: boolean;
 }): PageMetadata {
-  const canonicalPath = `/reports/${encodeURIComponent(report.slug)}`;
   return pageMetadata({
     title: titleFor(report.title),
     socialTitle: report.title,
     description: reportShareDescription(report),
-    canonicalPath,
+    canonicalPath: report.listed ? `/reports/${encodeURIComponent(report.slug)}` : '',
+    noindex: !report.listed,
   });
 }
 
