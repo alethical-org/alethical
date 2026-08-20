@@ -220,7 +220,9 @@ describe('money out', () => {
     expect(note).toContain('says it paid out nothing');
     expect(note).not.toContain('does not mean');
     // A real total beside an empty payments file says which claim is whose.
-    expect(moneyOutNote('not_reported', false, true, false)).toContain('names none of its payments');
+    expect(moneyOutNote('not_reported', false, true, false)).toContain(
+      'names none of its payments',
+    );
   });
 
   it('with the filing’s own total on screen, the note explains two figures and no subtraction', () => {

@@ -391,9 +391,7 @@ export function moneyOutNote(
       return (
         'The total above is the filing’s own figure. The state’s payments file names ' +
         'none of its payments for this year' +
-        (isBallot
-          ? ''
-          : ' — it names only recipients paid more than $200 in total for the year') +
+        (isBallot ? '' : ' — it names only recipients paid more than $200 in total for the year') +
         ', so we cannot list any of them.'
       );
     }
