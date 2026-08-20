@@ -8,6 +8,7 @@ import {
   filingPeriodLine,
   formatCount,
   laneCountLine,
+  LOBBYING_NOT_LOADED,
   legislatorsLaneSentence,
   orderingSentence,
   RECORD_DOES_NOT_COVER,
@@ -26,6 +27,23 @@ describe('the does-not-cover block', () => {
   it('names the two permanent source gaps', () => {
     expect(RECORD_DOES_NOT_COVER[0]).toBe('Nothing before 2015.');
     expect(RECORD_DOES_NOT_COVER[1]).toBe('Unions don’t report to this board at all.');
+  });
+
+  // Lobbying is OURS to close, not a hole in what Minnesota publishes — the Board
+  // publishes registrations, the lobbyist-to-client relationships and principal
+  // expenditures. Folding it in with the permanent gaps would make a false claim
+  // about Minnesota while trying to be honest about us.
+  it('keeps lobbying out of the permanent gaps, because ours is a different kind of absence', () => {
+    expect(RECORD_DOES_NOT_COVER).toHaveLength(3);
+    expect(RECORD_DOES_NOT_COVER.join(' ').toLowerCase()).not.toContain('lobby');
+  });
+
+  it('says lobbying is not loaded, never that the record does not cover it', () => {
+    expect(LOBBYING_NOT_LOADED).toContain('not here yet');
+    expect(LOBBYING_NOT_LOADED).toContain('we have not loaded it');
+    expect(LOBBYING_NOT_LOADED.toLowerCase()).not.toContain('does not cover');
+    // Says what Minnesota does publish, so the gap reads as ours to close.
+    expect(LOBBYING_NOT_LOADED).toContain('Minnesota publishes');
   });
 });
 
