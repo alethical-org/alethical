@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  filingsTieSentence,
   centralDateLabel,
   confirmationDateLine,
   confirmationLine,
@@ -106,5 +107,35 @@ describe('confirmation progress', () => {
       "Confirmed for 0 of Minnesota's 200 sitting legislators — for the rest, no figures show " +
         'on a profile.',
     );
+  });
+});
+
+describe('the filings tie sentence counts reports, never committees', () => {
+  // The served figure is newest_period.filing_count, and a committee that
+  // corrects a filing files a second report for the same period: 367 of 1,005
+  // catalogued reports carry at least one amendment (#1661). So filings exceed
+  // committees by however many corrected, and printing the number beside the
+  // word "committees" would overstate how many filers the period covers. The
+  // count also arrives with its period in one served block, so no count can sit
+  // beside a period it does not describe (grounded-answers rule 12).
+  it('says reports, not committees, when a count is served', () => {
+    const sentence = filingsTieSentence(1203);
+    expect(sentence).toContain('1,203 reports');
+    expect(sentence).not.toMatch(/committees? filed/i);
+    expect(sentence).not.toContain('1,203 committees');
+  });
+
+  it('keeps the anti-ranking clause whether or not a count is served', () => {
+    for (const value of [1203, null]) {
+      expect(filingsTieSentence(value)).toContain('not the newest and not the largest');
+    }
+  });
+
+  it('falls back to the no-count wording rather than printing zero', () => {
+    expect(filingsTieSentence(null)).not.toMatch(/\d/);
+  });
+
+  it('renders a served zero as a number, since a verified zero is a fact', () => {
+    expect(filingsTieSentence(0)).toContain('0 reports');
   });
 });

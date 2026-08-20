@@ -9,7 +9,7 @@ import {
   centralDateLabel,
   confirmationDateLine,
   confirmationLine,
-  FILINGS_TIE_SENTENCE,
+  filingsTieSentence,
   filingPeriodLine,
   laneCountLine,
   legislatorsLaneSentence,
@@ -302,7 +302,9 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
                   {orderingSentence(feed?.orderedBy ?? '')} — never by amount
                 </Text>
               ) : null}
-              <Text style={styles.filingsSort}>{FILINGS_TIE_SENTENCE}</Text>
+              <Text style={styles.filingsSort}>
+                {filingsTieSentence(feed?.newestPeriod?.filingCount ?? null)}
+              </Text>
               <View style={styles.filingsList}>
                 {filings.map((filing, index) => (
                   <View key={index} style={styles.filingRow}>

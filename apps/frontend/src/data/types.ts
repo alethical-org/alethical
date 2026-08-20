@@ -639,6 +639,12 @@ export interface MoneyFilingsFeed {
    *  the words and the order cannot drift apart. */
   orderedBy: string;
   filings: MoneyFilingRow[];
+  /** The newest completed filing period and how many REPORTS cover it, carried
+   *  together because a count must never appear beside a period it does not
+   *  describe (grounded-answers rule 12). Null when the server serves no such
+   *  block. The count is reports, not committees: a committee that corrects a
+   *  filing files a second report for the same period. */
+  newestPeriod: { periodEnd: string | null; filingCount: number } | null;
 }
 
 /** The landing's counts and dates (GET /campaign-finance/summary). Three

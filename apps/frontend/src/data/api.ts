@@ -2345,6 +2345,7 @@ interface ApiCampaignFinanceFilingsPayload {
   state?: string;
   ordered_by?: string;
   filings?: ApiMoneyFilingPayload[] | null;
+  newest_period?: { period_end?: string | null; filing_count?: number | null } | null;
 }
 
 function blockState(state: string | undefined): 'reported' | 'unavailable' {
@@ -2410,6 +2411,16 @@ export async function getCampaignFinanceFilingsFromApi(limit = 5): Promise<Money
             periodEnd: filing.period_end ?? null,
           }))
         : [],
+    // Only a real number becomes a count. A missing or null figure leaves the
+    // block null so the sentence falls back to its no-count wording, rather
+    // than rendering 0 reports for a period that plainly has some.
+    newestPeriod:
+      payload.state === 'reported' && typeof payload.newest_period?.filing_count === 'number'
+        ? {
+            periodEnd: payload.newest_period.period_end ?? null,
+            filingCount: payload.newest_period.filing_count,
+          }
+        : null,
   };
 }
 
