@@ -31,7 +31,7 @@ own conclusion. We hand them the record, not the verdict.
 Between those two sits a third kind of claim: a pattern that really is in the records — for
 example, that two groups of candidates are funded in measurably different ways. Since
 18 Aug 2026 (Eugene's call), that kind of claim is allowed in exactly one place: a signed,
-dated research report on the money section's reports shelf, where the method is printed beside
+dated research report on the site's own research shelf (`/reports`), where the method is printed beside
 the words, every figure links to the record behind it, and the reader can redo the arithmetic
 and argue with the counting. What a report may do, and everything still banned there — motive
 and causation above all — is
@@ -110,8 +110,12 @@ the *Spending by outside groups* section of
 
 ### Also in the first wave: our own research reports (added 18 Aug 2026)
 
-Signed, dated reports on the money section's reports shelf: our research on the records we
-hold, what they show when added up, every figure linked back to the record behind it. This is
+Signed, dated reports on the site's own research shelf, at `/reports`, reached from the top
+menu's **Reports** group and from the money landing's "What we found" card: our research on
+the records we hold, what they show when added up, every figure linked back to the record
+behind it. The shelf sat inside the money section, at `/money/reports`, until 20 Aug 2026
+([#1698](https://github.com/alethical-org/alethical/issues/1698)); both old addresses
+redirect permanently. This is
 the one surface allowed to add records up across members and to name a pattern, under the
 conditions in
 [`.claude/rules/grounded-answers.md` rule 13](../../.claude/rules/grounded-answers.md).

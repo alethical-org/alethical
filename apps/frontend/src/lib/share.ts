@@ -339,7 +339,7 @@ export function moneyReportPageMetadata(report: {
   publishedOn: string;
   recordsThrough: string;
 }): PageMetadata {
-  const canonicalPath = `/money/reports/${encodeURIComponent(report.slug)}`;
+  const canonicalPath = `/reports/${encodeURIComponent(report.slug)}`;
   return pageMetadata({
     title: titleFor(report.title),
     socialTitle: report.title,
@@ -392,11 +392,11 @@ export const STATIC_PAGE_METADATA: Record<string, PageMetadata> = {
       'Contributions and spending for Minnesota state campaigns, as the state publishes them.',
     canonicalPath: '/money',
   }),
-  '/money/reports': pageMetadata({
+  '/reports': pageMetadata({
     title: titleFor('What we found'),
     socialTitle: 'What we found',
     description: 'Our own research on Minnesota’s campaign money records.',
-    canonicalPath: '/money/reports',
+    canonicalPath: '/reports',
   }),
   '/confirm': pageMetadata({
     title: titleFor('Confirm email'),

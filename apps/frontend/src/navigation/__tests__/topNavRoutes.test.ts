@@ -7,6 +7,8 @@ describe('top navigation routes', () => {
     ['search-bills', ['Bills']],
     ['search-legislators', ['Legislators']],
     ['search-find-my-legislator', ['FindMyLegislator']],
+    ['search-campaign-money', ['MoneyLanding']],
+    ['reports-campaign-money', ['MoneyReports']],
     ['about-us', ['AboutUs']],
     ['about-site-metrics', ['SiteMetrics']],
     ['about-contact', ['ContactUs']],

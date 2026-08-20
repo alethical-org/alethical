@@ -22,6 +22,7 @@ import {
   signInReducer,
   urlWithoutAuthError,
 } from '../lib/signIn';
+import { useRefreshTrackedBills } from '../hooks/useAppQueries';
 import { pendingSignInRequest } from '../lib/trackIntent';
 import { buildEmailLinkRedirectUrl, requestedSignInState } from '../lib/auth/linkSession';
 import {
@@ -135,7 +136,9 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
     createAccount,
     resendConfirmation,
     sendPasswordReset,
+    user,
   } = useAuth();
+  const refreshTrackedBills = useRefreshTrackedBills(user?.id);
   const [state, dispatch] = useReducer(signInReducer, initialSignInState);
   const pendingRequest = useRef<SignInRequest | null>(readPendingSignIn());
   const signInAttemptGate = useRef(createSignInAttemptGate()).current;
@@ -227,13 +230,22 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
     state.scrollY,
   ]);
 
-  const completeOrdinaryPending = useCallback(async (token: string | null) => {
-    const request = pendingRequest.current;
-    if (!token || !request?.pendingReference || request.pendingCompletion !== 'ordinary') {
-      return;
-    }
-    await completePendingTrackActionFromApi(token, request.pendingReference);
-  }, []);
+  const completeOrdinaryPending = useCallback(
+    async (token: string | null) => {
+      const request = pendingRequest.current;
+      if (!token || !request?.pendingReference || request.pendingCompletion !== 'ordinary') {
+        return;
+      }
+      await completePendingTrackActionFromApi(token, request.pendingReference);
+      // This write added a bill to the reader's watchlist, so what we hold about
+      // that list is now short by one. Nothing else refreshes it on this path —
+      // the ordinary Track press goes through useSetTrackedBill, which does —
+      // so the Track button and the account menu's count would both keep
+      // describing the list as it was before the press.
+      refreshTrackedBills();
+    },
+    [refreshTrackedBills],
+  );
 
   // A fresh submission owns the screen: drop any error the dialog reopened
   // with, so a stale banner (e.g. the unverified-Google result) cannot mask

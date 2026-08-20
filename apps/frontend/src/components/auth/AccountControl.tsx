@@ -1,3 +1,4 @@
+import { useNavigation } from '@react-navigation/native';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -19,8 +20,12 @@ import {
 } from '../../lib/auth/rev9Auth';
 import { passwordMethodCopy, type PasswordMethodCopy } from '../../lib/auth/passwordMethod';
 import { clearSignedInAuthDrafts } from '../../lib/auth/signOutCleanup';
+import { trackedBillsCount } from '../../lib/trackedState';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useResponsive } from '../../hooks/useResponsive';
+import { useTrackedBills } from '../../hooks/useAppQueries';
+import { linkProps, routePath } from '../../navigation/links';
+import { navigateTopNavItem } from '../../navigation/topNavRoutes';
 import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fieldFocus';
 import { theme as t } from '../../theme/tokens';
 import { useAuth } from '../../providers/AuthProvider';
@@ -444,6 +449,84 @@ function ChevronIcon() {
   );
 }
 
+/** The watchlist row's glyph, drawn like the Track button's bookmark. */
+function BookmarkIcon({ size }: { size: number }) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <Path
+        d="M7 4h10a1 1 0 0 1 1 1v15l-6-4-6 4V5a1 1 0 0 1 1-1Z"
+        stroke={t.colors.brand.graphics}
+        strokeWidth={2}
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
+/**
+ * How many bills this reader tracks, or `null` when there is no number we may
+ * print. TWO cases return null and the row renders identically for both — the
+ * label with no number:
+ *
+ *   nothing tracked   -> null. NEVER a printed 0.
+ *   list not arrived  -> null. No dash, no spinner, no skeleton.
+ *
+ * The second case is the honesty one, and it is the same rule the Track button
+ * follows for the same list (lib/trackedState.ts): a count we did not get is not
+ * a count we may state about a reader's own things. A failed request lands here
+ * too — `data` stays undefined — so a blip shows the label alone rather than
+ * telling someone they track nothing.
+ *
+ * There is no count endpoint. This is the length of the watchlist itself, which
+ * the server returns whole and unpaginated (`/me/tracked-bills`), and every
+ * Track button on the page already shares this one query — so on a page that has
+ * loaded it the number costs nothing, and elsewhere it arrives just after the
+ * menu opens.
+ */
+function useTrackedBillsCount(): number | null {
+  const { user } = useAuth();
+  const tracked = useTrackedBills(user?.id);
+  // The rule itself lives beside the Track button's, and is pinned by its tests.
+  return trackedBillsCount(tracked.data?.length);
+}
+
+function TrackedBillsRow({
+  variant,
+  onNavigate,
+}: {
+  variant: 'desktop' | 'phone';
+  onNavigate: () => void;
+}) {
+  const navigation = useNavigation<never>();
+  const count = useTrackedBillsCount();
+  const phone = variant === 'phone';
+  const press = () => {
+    onNavigate();
+    // Tracked is a tab nested inside the root Tabs screen, so it goes through the
+    // shared nav route map rather than a bare navigate() that would do nothing.
+    navigateTopNavItem(navigation, { id: 'track-bills' });
+  };
+  return (
+    <Pressable
+      {...linkProps(routePath.tracked(), press)}
+      // The number is part of the spoken name, so a screen reader hears "Tracked
+      // Bills, 12". With no number the visible text is the name -- an aria-label
+      // REPLACES that text, so setting one here would be strictly worse.
+      accessibilityLabel={count === null ? undefined : `Tracked Bills, ${count}`}
+      style={({ pressed }) => [
+        phone ? styles.sheetTrackedRow : styles.menuTrackedRow,
+        pressed && (phone ? styles.sheetButtonPressed : styles.menuItemPressed),
+      ]}
+    >
+      <BookmarkIcon size={phone ? 22 : 20} />
+      <Text style={phone ? styles.sheetTrackedLabel : styles.menuTrackedLabel}>Tracked Bills</Text>
+      {count === null ? null : (
+        <Text style={phone ? styles.sheetTrackedCount : styles.menuTrackedCount}>{count}</Text>
+      )}
+    </Pressable>
+  );
+}
+
 function ChevronRightIcon() {
   return (
     <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" aria-hidden>
@@ -581,6 +664,7 @@ function AccountSurfaceContent({
   signInMethods,
   signOutFlow,
   onPasswordPress,
+  onLeave,
 }: {
   variant: 'desktop' | 'phone';
   name: string;
@@ -588,6 +672,8 @@ function AccountSurfaceContent({
   signInMethods: Parameters<typeof passwordMethodCopy>[0];
   signOutFlow: ReturnType<typeof useAccountSignOut>;
   onPasswordPress: () => void;
+  /** Shut the panel or sheet before navigating away from it. */
+  onLeave: () => void;
 }) {
   const passwordCopy = passwordMethodCopy(signInMethods, email || 'your email');
 
@@ -597,6 +683,11 @@ function AccountSurfaceContent({
         <View style={styles.menuHeader}>
           <Identity name={name} email={email} avatar={38} />
         </View>
+        <View style={styles.menuDivider} />
+        {/* The reader's own things sit above the one setting behind this menu
+            (#1698). There is deliberately no Account row: Change password IS the
+            action, so a row called Account would be a hop revealing one row. */}
+        <TrackedBillsRow variant="desktop" onNavigate={onLeave} />
         <View style={styles.menuDivider} />
         {emailPasswordEnabled ? (
           <>
@@ -619,6 +710,7 @@ function AccountSurfaceContent({
   return (
     <>
       <Identity name={name} email={email} avatar={48} />
+      <TrackedBillsRow variant="phone" onNavigate={onLeave} />
       {emailPasswordEnabled ? (
         <Pressable
           accessibilityRole="button"
@@ -700,6 +792,7 @@ export function AccountNavButton() {
               email={user?.email ?? ''}
               signInMethods={user?.signInMethods ?? null}
               signOutFlow={signOutFlow}
+              onLeave={() => setOpen(false)}
               onPasswordPress={() => {
                 setOpen(false);
                 setPasswordOpen(true);
@@ -816,6 +909,7 @@ function PhoneAccountControl({ trigger }: { trigger: 'avatar' | 'drawer' }) {
               email={user?.email ?? ''}
               signInMethods={user?.signInMethods ?? null}
               signOutFlow={signOutFlow}
+              onLeave={() => setOpen(false)}
               onPasswordPress={() => {
                 setOpen(false);
                 setPasswordOpen(true);
@@ -929,6 +1023,32 @@ const styles = StyleSheet.create({
     paddingLeft: 12,
   },
   menuItemPressed: { backgroundColor: t.colors.surfaces.s300 },
+  // The watchlist row. Same padding as the rows around it, with the 44px floor
+  // stated rather than left to add up (nav build prompt, 20 Aug 2026).
+  menuTrackedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    minHeight: 44,
+    paddingTop: 13,
+    paddingRight: 15,
+    paddingBottom: 13,
+    paddingLeft: 12,
+  },
+  menuTrackedLabel: {
+    flex: 1,
+    minWidth: 0,
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.lg,
+    fontWeight: t.fontWeights.bold,
+    color: t.colors.text.primary,
+  },
+  menuTrackedCount: {
+    fontFamily: t.typography.mono,
+    fontSize: t.fontSizes.small,
+    fontWeight: t.fontWeights.bold,
+    color: t.colors.text.secondary,
+  },
   menuItemText: {
     fontFamily: t.typography.ui,
     fontSize: t.fontSizes.small,
@@ -1066,6 +1186,34 @@ const styles = StyleSheet.create({
     borderColor: t.colors.alpha.ink18,
     borderRadius: 13,
     paddingVertical: 16,
+  },
+  // The phone watchlist row, above Change password. It carries the line ABOVE
+  // it; the line between the two is Change password's own top border.
+  sheetTrackedRow: {
+    marginTop: 18,
+    width: '100%',
+    minHeight: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: t.colors.surfaces.base,
+    borderTopWidth: 1,
+    borderColor: t.colors.alpha.ink08,
+    paddingHorizontal: 2,
+  },
+  sheetTrackedLabel: {
+    flex: 1,
+    minWidth: 0,
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.subheadLg,
+    fontWeight: t.fontWeights.bold,
+    color: t.colors.text.primary,
+  },
+  sheetTrackedCount: {
+    fontFamily: t.typography.mono,
+    fontSize: t.fontSizes.body,
+    fontWeight: t.fontWeights.bold,
+    color: t.colors.text.secondary,
   },
   sheetPasswordButton: {
     marginTop: 18,

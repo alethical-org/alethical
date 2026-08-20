@@ -338,7 +338,7 @@ async function contentFor(
     case "moneyLanding":
       return headOnly(STATIC_PAGE_METADATA["/money"]);
     case "moneyReports":
-      return headOnly(STATIC_PAGE_METADATA["/money/reports"]);
+      return headOnly(STATIC_PAGE_METADATA["/reports"]);
     case "moneyReport": {
       // Title and dates only in a report's tags (grounded-answers.md rule 13);
       // an unpublished or unknown slug is a genuinely absent page.

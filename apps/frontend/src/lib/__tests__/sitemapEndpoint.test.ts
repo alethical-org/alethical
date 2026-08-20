@@ -67,7 +67,7 @@ describe('sitemap endpoint', () => {
       '/legislators',
       '/find-my-legislator',
       '/money',
-      '/money/reports',
+      '/reports',
       '/about',
       '/about/contact',
       '/privacy',

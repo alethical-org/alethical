@@ -9,8 +9,10 @@ import { Container, Footer, PageBackground, TopNav } from '../../theme/primitive
 import { theme as t } from '../../theme/tokens';
 
 /**
- * The reports shelf at /money/reports — the campaign money section's "What we
- * found" lane (grounded-answers.md rule 13; "Money report web.dc.html", screen A).
+ * The reports shelf at /reports — the site's research lane, reached from the
+ * nav's Reports group and from the money landing's "What we found" card
+ * (grounded-answers.md rule 13; "Money report web.dc.html", screen A). It sat
+ * at /money/reports until #1698 moved it out of the money section.
  *
  * Ships in its nothing-published state: `publishedReports()` is empty until a
  * report's text is approved for publication, and this screen renders whatever

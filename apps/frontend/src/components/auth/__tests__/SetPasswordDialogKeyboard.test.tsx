@@ -29,6 +29,19 @@ vi.mock('react-native-svg', () => ({
   Path: () => <path />,
 }));
 
+// AccountControl's Tracked Bills row reads the watchlist and the navigator
+// (#1698). Both are mocked at the boundary, like the auth provider above: the
+// real `@react-navigation/native` and the query layer that reaches it pull in a
+// React Native source file Node cannot parse, so importing this module at all
+// would fail before a single assertion ran.
+vi.mock('@react-navigation/native', () => ({
+  useNavigation: () => ({ navigate: vi.fn() }),
+}));
+
+vi.mock('../../../hooks/useAppQueries', () => ({
+  useTrackedBills: () => ({ data: undefined }),
+}));
+
 vi.mock('../../../hooks/useResponsive', () => ({
   useResponsive: () => ({
     width: responsive.width,

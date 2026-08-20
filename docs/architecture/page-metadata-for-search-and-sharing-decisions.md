@@ -1009,6 +1009,19 @@ record.
 - Retired `/search` addresses permanently redirect to Bills. Chat and Account addresses temporarily
   redirect Home because those features may return. They still lead somewhere useful without making
   a browser remember a permanent move that later blocks the restored feature.
+- The research shelf moved from `/money/reports` to `/reports`, and one report from
+  `/money/reports/{slug}` to `/reports/{slug}`, on 20 Aug 2026
+  ([#1698](https://github.com/alethical-org/alethical/issues/1698)). Both old addresses redirect
+  **permanently**, because the page genuinely moved and is not coming back to the old address —
+  the opposite of the Chat and Account case above. `/money/reports` had been in the pages sitemap
+  since the shelf shipped, so a permanent redirect is what tells a search engine to carry its
+  standing over rather than treat `/reports` as a new page competing with a live one. The sitemap
+  and the served canonical address now name `/reports` only, so nothing we publish points at the
+  redirect. The route table resolves the old addresses too, which is what keeps them working on a
+  host with no redirect rules — the dev server and a local static export. The cost of choosing
+  permanent, accepted here: a browser may cache a 308 and keep forwarding even after the rule is
+  removed, so this is not a cheap decision to reverse. That is the right trade for a page that
+  moved for good, and the wrong one for Chat and Account above, which may come back.
 
 ### What this deliberately does not do
 

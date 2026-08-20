@@ -21,6 +21,17 @@ server and database never receive or store it.
 - If Supabase asks for fresh proof before saving a password, the same form sends a code and adds
   a **Code** field below the 2 password fields. The reader enters that code and presses **Save
   password** again. There is no separate proof screen.
+- Reach their tracked bills from the account menu. Since 20 Aug 2026
+  ([#1698](https://github.com/alethical-org/alethical/issues/1698)) the menu opens with
+  the reader's name and email, then a **Tracked Bills** row above **Change password**,
+  then **Sign out**. The row carries how many bills they track, on the right. There is no
+  Account row: Change password is the only setting behind the menu, so a row called
+  Account would be one hop revealing one row.
+- See a count beside Tracked Bills only when we actually have one. Two cases show the
+  label with no number, and they look identical on purpose: the reader tracks nothing,
+  and the list has not arrived (or its request failed). Neither shows a zero, a dash or a
+  spinner — a zero would tell someone who tracks 40 bills that they track none. A screen
+  reader hears the number as part of the row's name, "Tracked Bills, 12".
 - Sign out only from the browser or device they are using.
 
 ## What no screen may claim

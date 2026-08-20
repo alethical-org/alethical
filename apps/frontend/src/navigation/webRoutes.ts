@@ -149,15 +149,23 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
     if (segments[0] === 'search') {
       return { kind: 'bills', params: billsFilterParams(searchParams) };
     }
-    // '/tracked' is the tracked-bills page (the Yours dropdown's live "Bills" row
-    // links here). Signed-out visitors get a "sign in to track" card, not Home, so
-    // the link lands where it says it will (grounded-answers.md rule 5).
+    // '/tracked' is the tracked-bills page (the account menu's Tracked Bills row
+    // links here; it was the Yours dropdown's "Bills" row until #1698). Signed-out
+    // visitors get a "sign in to track" card, not Home, so the link lands where it
+    // says it will (grounded-answers.md rule 5).
     if (segments[0] === 'tracked') {
       return { kind: 'tab', screen: 'Tracked' };
     }
     // The campaign money landing — public, no sign-in gate (campaign money IA).
     if (segments[0] === 'money') {
       return { kind: 'moneyLanding' };
+    }
+    // The research shelf, at the top level rather than inside the money section
+    // (#1698): the nav's Reports group points here, and what the group holds is
+    // not limited to money in the long run. The route names stay MoneyReports /
+    // MoneyReport because every published report today is a campaign-money one.
+    if (segments[0] === 'reports') {
+      return { kind: 'moneyReports' };
     }
     // '/chat' and '/account' are old-design or auth-gated surfaces with no shipped
     // page yet — redirect a stray bookmark/link to Home.
@@ -170,10 +178,23 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
     return { kind: 'contactUs' };
   }
 
-  // The reports shelf and one report (campaign money IA; grounded-answers.md
-  // rule 13). The registry of published reports is static and synchronous, so
-  // the router resolves the slug itself: an unpublished or unknown report is a
-  // page that does not exist, and lands on NotFound rather than an empty shell.
+  // One report (campaign money IA; grounded-answers.md rule 13). The registry of
+  // published reports is static and synchronous, so the router resolves the slug
+  // itself: an unpublished or unknown report is a page that does not exist, and
+  // lands on NotFound rather than an empty shell.
+  if (segments.length === 2 && segments[0] === 'reports') {
+    const slug = decodeURIComponent(segments[1]);
+    return reportBySlug(slug)
+      ? { kind: 'moneyReport', slug }
+      : { kind: 'notFound', path: pathname };
+  }
+
+  // The shelf and the reports used to live under /money/reports (#1698 moved
+  // them to /reports). vercel.json redirects both old addresses permanently, so
+  // a shared or bookmarked link never reaches the app at the old path in
+  // production; these two branches are what makes it land anyway on any host
+  // without those redirects — the dev server, a local static export, or a
+  // client-side link written before the move.
   if (segments.length === 2 && segments[0] === 'money' && segments[1] === 'reports') {
     return { kind: 'moneyReports' };
   }
@@ -390,9 +411,9 @@ export function pathForRoute(activeRoute: {
     case 'MoneyLanding':
       return '/money';
     case 'MoneyReports':
-      return '/money/reports';
+      return '/reports';
     case 'MoneyReport':
-      return `/money/reports/${encodeURIComponent(String(activeRoute.params?.slug ?? ''))}`;
+      return `/reports/${encodeURIComponent(String(activeRoute.params?.slug ?? ''))}`;
     case 'CommitteeMoney':
     case 'CommitteePayments': {
       const base = `/money/committees/${encodeURIComponent(String(activeRoute.params?.slug ?? ''))}`;

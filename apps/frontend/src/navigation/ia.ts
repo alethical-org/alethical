@@ -1,6 +1,6 @@
 /**
  * Phase-0 IA contract — single source of truth for the new top-nav information
- * architecture (Search · Track · About · auth).
+ * architecture (Search · Reports · About · auth).
  *
  * Ask stays reachable through its answer route and in-page actions, but it is not
  * a global navigation item. Every page now shares the same Ask-free menu.
@@ -14,7 +14,13 @@
  * See docs/product-onboarding/mvp-redesign-plan.md for decisions and the migration steps.
  */
 
-export type MenuKey = 'search' | 'track' | 'about';
+/**
+ * A menu an item can belong to. `track` no longer draws a group in the bar
+ * (#1698 moved tracking behind the account avatar), but the key stays: the
+ * tracking capabilities below are still declared, and Tracked Bills is still a
+ * real page. Only `MENUS` decides what the bar and the phone drawer render.
+ */
+export type MenuKey = 'search' | 'track' | 'reports' | 'about';
 
 export type Availability = 'mvp' | 'roadmap';
 
@@ -48,14 +54,18 @@ export interface IaItem {
 }
 
 /**
- * Top-level menus, in nav order. The personalized menu is "Yours", not "Track":
- * a group holding Tracked (and later alerts or saved searches) named "Track"
- * repeats its own child, so the header names whose things these are instead
- * (campaign money IA handoff, Aug 2026).
+ * Top-level menus, in nav order — the same three in both auth states, which
+ * differ only in the right-hand control (Sign in, or the avatar).
+ *
+ * A "Yours" group used to sit second, holding one row: Tracked Bills. #1698
+ * moved that row into the account menu, where a reader's own things belong, and
+ * dropped the group from the bar. Reports took second place: it holds one child
+ * for now, and holds as a group because the child names a subject rather than
+ * repeating the header (nav build prompt, 20 Aug 2026).
  */
 export const MENUS: { key: MenuKey; label: string }[] = [
   { key: 'search', label: 'Search' },
-  { key: 'track', label: 'Yours' },
+  { key: 'reports', label: 'Reports' },
   { key: 'about', label: 'About' },
 ];
 
@@ -96,12 +106,15 @@ export const IA: IaItem[] = [
     // section's search and list lanes ship after this landing does
     // (grounded-answers.md rule 2, never advertise what you can't answer).
     id: 'search-campaign-money',
-    label: 'Campaign money',
+    // "Money in politics" since #1698: the row sits in Search, and what a reader
+    // searches for here is a person or a committee, which the description now
+    // says outright. Position, NEW pill and destination all unchanged.
+    label: 'Money in politics',
     path: '/money',
     menu: 'search',
     availability: 'mvp',
     authGated: false,
-    description: 'Contributions and spending, as Minnesota publishes them',
+    description: 'Search any name to find people, committees, and who got paid',
     isNew: true,
   },
   {
@@ -193,7 +206,25 @@ export const IA: IaItem[] = [
     authGated: false,
     inNavDropdown: true,
   },
-  // Track — personalized, signed-in ("your space"). Auth-gated.
+  // Reports — Alethical's own published research, second in the bar. One child
+  // today; the group holds because "Campaign money" names a subject the header
+  // does not, and adding a "report" suffix would stutter (nav build prompt,
+  // 20 Aug 2026). The NEW pill rides on the child, not the group.
+  {
+    id: 'reports-campaign-money',
+    label: 'Campaign money',
+    path: '/reports',
+    menu: 'reports',
+    availability: 'mvp',
+    authGated: false,
+    description: 'What we found across campaign filings and how we counted it',
+    isNew: true,
+    note: 'Opens the research shelf. A signed report is the one surface allowed to add figures up across members (.claude/rules/grounded-answers.md rule 13).',
+  },
+
+  // Track — personalized, signed-in ("your space"). Auth-gated. No longer a
+  // group in the bar: Tracked Bills moved into the account menu (#1698), and
+  // these rows stay declared so the tracking roadmap is still recorded here.
   {
     id: 'track-bills',
     label: 'Bills',
@@ -331,20 +362,22 @@ export const navDropdownItems = (menu: MenuKey): { live: IaItem[]; roadmap: IaIt
   ),
 });
 
-/** The phone drawer combines both menus into one compact roadmap row. */
+/**
+ * The phone drawer's one compact roadmap row: Search's greyed items, with Ask AI
+ * held last.
+ *
+ * A calculated "More Tracking" chip used to sit before Ask AI, standing in for
+ * whatever the Yours menu still had on its roadmap. #1698 dropped it: the Yours
+ * group is gone from the bar, so the chip pointed at a menu a reader could no
+ * longer open, and the account menu's Tracked Bills row already names the one
+ * thing that is live.
+ */
 export function mobileNavRoadmapLabels(): string[] {
   const searchRoadmap = navDropdownItems('search').roadmap;
-  const trackRoadmap = navDropdownItems('track').roadmap;
   const askAi = searchRoadmap.find((item) => item.id === 'search-ask-ai');
   const namedSearchRoadmap = searchRoadmap.filter((item) => item.id !== 'search-ask-ai');
-  const namedRoadmapLabels = new Set(namedSearchRoadmap.map((item) => item.label));
-  const hasMoreTracking = trackRoadmap.some((item) => !namedRoadmapLabels.has(item.label));
 
-  return [
-    ...namedSearchRoadmap.map((item) => item.label),
-    ...(hasMoreTracking ? ['More Tracking'] : []),
-    ...(askAi ? [askAi.label] : []),
-  ];
+  return [...namedSearchRoadmap.map((item) => item.label), ...(askAi ? [askAi.label] : [])];
 }
 
 /** Whether an item is reachable for the given auth state. */

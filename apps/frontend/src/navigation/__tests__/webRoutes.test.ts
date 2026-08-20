@@ -245,9 +245,11 @@ describe('campaign money routes', () => {
     expect(pathForRoute({ name: 'MoneyLanding' })).toBe('/money');
   });
 
-  it('round-trips the reports shelf through /money/reports', () => {
-    expect(targetFromPathname('/money/reports')).toEqual({ kind: 'moneyReports' });
-    expect(pathForRoute({ name: 'MoneyReports' })).toBe('/money/reports');
+  // The research shelf left the money section for the top level (#1698), so the
+  // nav's Reports group has somewhere to point.
+  it('round-trips the reports shelf through /reports', () => {
+    expect(targetFromPathname('/reports')).toEqual({ kind: 'moneyReports' });
+    expect(pathForRoute({ name: 'MoneyReports' })).toBe('/reports');
   });
 
   // Nothing is published yet, so every report address is a page that does not
@@ -255,16 +257,36 @@ describe('campaign money routes', () => {
   // registry in lib/moneyReports.ts is deliberately empty until Eugene
   // approves a report's text for publication).
   it('sends an unpublished report slug to NotFound', () => {
-    expect(targetFromPathname('/money/reports/outsider-pattern')).toEqual({
+    expect(targetFromPathname('/reports/outsider-pattern')).toEqual({
       kind: 'notFound',
-      path: '/money/reports/outsider-pattern',
+      path: '/reports/outsider-pattern',
     });
   });
 
   it('writes a report URL under the shelf', () => {
     expect(pathForRoute({ name: 'MoneyReport', params: { slug: 'outsider-pattern' } })).toBe(
-      '/money/reports/outsider-pattern',
+      '/reports/outsider-pattern',
     );
+  });
+
+  // Both old addresses still land, so a link shared before the move works on any
+  // host — the production redirects in vercel.json never see the app, but the dev
+  // server and a local static export have none.
+  it('lands an old /money/reports link on the shelf', () => {
+    expect(targetFromPathname('/money/reports')).toEqual({ kind: 'moneyReports' });
+    expect(targetFromPathname('/money/reports/')).toEqual({ kind: 'moneyReports' });
+    expect(targetFromPathname('/money/reports?utm_source=newsletter')).toEqual({
+      kind: 'moneyReports',
+    });
+  });
+
+  it('resolves an old report link the same way as the new one', () => {
+    // Unpublished either way, so both are the same absent page rather than one
+    // 404 and one shell.
+    expect(targetFromPathname('/money/reports/outsider-pattern')).toEqual({
+      kind: 'notFound',
+      path: '/money/reports/outsider-pattern',
+    });
   });
 
   // The retired greyed "Campaign Finance" tracking row pointed here; the old
@@ -275,8 +297,30 @@ describe('campaign money routes', () => {
 });
 
 describe('shared top navigation', () => {
-  it('offers Search, Track and About without an active Ask entry', () => {
-    expect(MENUS.map((menu) => menu.key)).toEqual(['search', 'track', 'about']);
+  // Yours left the bar for the account menu and Reports took second place
+  // (#1698). Both auth states carry these same three groups.
+  it('offers Search, Reports and About without an active Ask entry', () => {
+    expect(MENUS.map((menu) => menu.key)).toEqual(['search', 'reports', 'about']);
+    expect(MENUS.map((menu) => menu.label)).toEqual(['Search', 'Reports', 'About']);
+  });
+
+  it('keeps no Yours group in the bar', () => {
+    expect(MENUS.map((menu) => menu.key)).not.toContain('track');
+  });
+});
+
+// Reports holds one child, and the child is what carries the NEW pill. The row
+// has to open a page that exists, so its path is the shelf's own address.
+describe('Reports group', () => {
+  it('lists Campaign money as its one live row, pointed at the shelf', () => {
+    const { live, roadmap } = navDropdownItems('reports');
+    expect(live.map((item) => item.id)).toEqual(['reports-campaign-money']);
+    expect(roadmap).toEqual([]);
+    expect(live[0].label).toBe('Campaign money');
+    expect(live[0].description).toBe('What we found across campaign filings and how we counted it');
+    expect(live[0].path).toBe('/reports');
+    expect(live[0].isNew).toBe(true);
+    expect(live[0].authGated).toBe(false);
   });
 });
 
@@ -384,36 +428,33 @@ describe('Search dropdown Campaign money row', () => {
   });
 });
 
-// Bill tracking ships, so Yours' "Bills" is an active row at the top of the
-// dropdown (icon tile + description + link), not a greyed "ON THE ROADMAP" pill.
-describe('Yours dropdown offers Bills as a live row', () => {
-  it('lists Bills under live, not roadmap', () => {
-    const { live, roadmap } = navDropdownItems('track');
-    expect(live.map((item) => item.id)).toContain('track-bills');
-    expect(roadmap.map((item) => item.id)).not.toContain('track-bills');
+// Bill tracking ships, and since #1698 its row lives in the account menu behind
+// the avatar rather than in a "Yours" group in the bar.
+describe('tracking is behind the avatar, not in the bar', () => {
+  // The row moved into the account menu (#1698). Its registry entry stays, so
+  // the page keeps its declared path and the tracking roadmap is still recorded.
+  it('still declares the tracked-bills row and its page', () => {
+    const item = IA.find((entry) => entry.id === 'track-bills');
+    expect(item?.availability).toBe('mvp');
+    expect(item?.authGated).toBe(true);
   });
 
-  // Candidates and News moved to Search's greyed group, and Campaign Finance
-  // became the live Campaign money section, so Legislators is the one greyed
-  // pill left here.
-  it('greys only Legislators on the roadmap row', () => {
-    const { roadmap } = navDropdownItems('track');
-    expect(roadmap.map((item) => item.label)).toEqual(['Legislators']);
-  });
-
-  it('is labelled Yours, not Track', () => {
-    expect(MENUS.find((menu) => menu.key === 'track')?.label).toBe('Yours');
+  // The registry path is decorative for this row: the real address comes from
+  // the router, and the tracked page has always answered on /tracked.
+  it('sends the account menu row to the tracked page', () => {
+    expect(targetFromPathname('/tracked')).toEqual({ kind: 'tab', screen: 'Tracked' });
   });
 });
 
 describe('Mobile menu roadmap row', () => {
-  it('shows News by name and keeps Ask AI last', () => {
-    expect(mobileNavRoadmapLabels()).toEqual([
-      'Candidates',
-      'Claimed Profiles',
-      'News',
-      'More Tracking',
-      'Ask AI',
-    ]);
+  // "More Tracking" was calculated from whatever the Yours menu still had on its
+  // roadmap. With that menu gone from the bar the chip pointed at a group a
+  // reader could no longer open, so it goes (#1698).
+  it('shows four chips, News by name and Ask AI last', () => {
+    expect(mobileNavRoadmapLabels()).toEqual(['Candidates', 'Claimed Profiles', 'News', 'Ask AI']);
+  });
+
+  it('offers no More Tracking chip', () => {
+    expect(mobileNavRoadmapLabels()).not.toContain('More Tracking');
   });
 });

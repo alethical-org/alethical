@@ -78,7 +78,7 @@ export interface ReportCorrection {
 }
 
 export interface MoneyReport {
-  /** URL slug under /money/reports/. */
+  /** URL slug under /reports/. */
   slug: string;
   title: string;
   /** Masthead and shelf standfirst. Never appears in share previews (rule 13:

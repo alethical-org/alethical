@@ -11,17 +11,25 @@ roadmap noted for direction.
   see `docs/product-onboarding/product-scope.md` § Frontend Scope. The frontend stays a shared Expo/React Native
   codebase, so mobile is a re-target later, not a rebuild — but nothing in the MVP build
   sequence below targets iOS/Android.
-- **IA:** top nav `Search ▾ · Yours ▾ · About ▾ · Sign in`, with dropdown
-  subsections. Search and Yours share one entity taxonomy. **The personalized menu
-  was renamed from "Track" to "Yours"** with the campaign money section
-  (campaign money IA handoff, Aug 2026): a group whose only live row is Tracked,
-  named "Track", repeats its own child. In the same change **Campaign money joined
-  Search as a live public row** (second, with a green NEW chip), the greyed
-  Candidates and News pills moved from the personalized menu into Search's greyed
-  group, and the greyed Campaign Finance pill retired — its old address
-  `/track/campaign-finance` forwards to `/money`. Where the older sections below
-  say "Track", read the menu label as "Yours"; the registry key `track` in
-  `apps/frontend/src/navigation/ia.ts` is unchanged. **The AI-answer feature is
+- **IA:** top nav `Search ▾ · Reports ▾ · About ▾`, then Sign in or the account
+  avatar — the same three groups in both auth states. Rows carry dropdown
+  subsections. **Revised 20 Aug 2026**
+  ([#1698](https://github.com/alethical-org/alethical/issues/1698)): the
+  personalized **Yours** group left the bar, its one row (Tracked Bills, now with
+  a count) moved into the account menu behind the avatar, a new **Reports** group
+  took second place holding one row (Campaign money → `/reports`, green NEW chip),
+  and Search's money row was renamed **Money in politics**. The tracked-bills page
+  keeps its address, `/tracked`.
+  Before that, with the campaign money section (campaign money IA handoff,
+  Aug 2026): **the personalized menu was renamed from "Track" to "Yours"** — a
+  group whose only live row is Tracked, named "Track", repeats its own child —
+  **Campaign money joined Search as a live public row** (second, with a green NEW
+  chip), the greyed Candidates and News pills moved from the personalized menu
+  into Search's greyed group, and the greyed Campaign Finance pill retired, its
+  old address `/track/campaign-finance` forwarding to `/money`. Where the older
+  sections below say "Track" or "Yours", read them as history: the registry key
+  `track` in `apps/frontend/src/navigation/ia.ts` still exists and still declares
+  those rows, but `MENUS` in the same file no longer draws that group. **The AI-answer feature is
   named "Grounded Ask" (feature / badge) and "Ask" (action verb) — never "Ask AI"**
   (ratified 2026-07-12, matching the v2 home design and
   `docs/design/ui-copy-guide.md`). **The global menu is Ask-free on every page** (revised
@@ -29,9 +37,10 @@ roadmap noted for direction.
   pages. Ask stays reachable through the home hero and contextual actions on bills,
   profiles, and answers. The grey **Ask AI** roadmap pill remains the one scoped naming
   exception because it is inert and describes a separate future capability.
-- **MVP surface:** Ask AI; Search → Bills, Legislators ("Find My Legislator");
-  Track → Bills; About → About Us, Trust & Integrity, Contact Us; Sign in.
-  Everything else in the menus is roadmap.
+- **MVP surface:** Ask AI; Search → Bills, Money in politics, Legislators, Find My
+  Legislator; Reports → Campaign money; About → About Us, Site Metrics, Contact Us;
+  Sign in, or the account menu holding Tracked Bills. Everything else in the menus
+  is roadmap.
 - **Aesthetic:** green / rounded / bold-sans / soft-shadow. Shared intent lives in
   `docs/design/design-principles.md`; exact values live in the frontend theme.
 - **Final designs land one page at a time:** accepted previews are temporary build aids.
@@ -43,14 +52,16 @@ roadmap noted for direction.
 - **Roadmap items in menus = curated, greyed "ON THE ROADMAP" group (resolves O5):**
   the v2 home design shows the Search and Track dropdowns with a greyed, non-navigable
   **ON THE ROADMAP** group beneath the live entries, rather than hiding all roadmap
-  items. The curated sets differ per menu (updated Aug 2026 with the campaign money
-  nav change above): **Search → Candidates · Claimed Profiles · News · Ask AI**;
-  **Yours → Legislators**. The mobile menu combines them as
-  **Candidates · Claimed Profiles · News · More Tracking · Ask AI**.
+  items. Only Search carries one now: **Search → Candidates · Claimed Profiles ·
+  News · Ask AI**, and the phone drawer shows the same four. A calculated **More
+  Tracking** chip used to sit before Ask AI, standing in for the Yours menu's own
+  roadmap; it went with that menu on 20 Aug 2026
+  ([#1698](https://github.com/alethical-org/alethical/issues/1698)), because it
+  pointed at a group a reader could no longer open. Reports has no roadmap group.
   Other roadmap registry entries stay hidden. Live
   entries keep icon + one-line description — **Search:** Bills (with a **"Grounded Ask"**
-  badge) · Campaign money (green NEW chip) · Search Legislators · Find My Legislator;
-  **Yours:** Bills.
+  badge) · Money in politics (green NEW chip) · Legislators · Find My Legislator;
+  **Reports:** Campaign money (green NEW chip).
 - **Design → frontend handoff (no HTML conversion step):** when a design preview is
   accepted, it hands off to implementation as three inputs, in value order:
   1. **Final screenshots per screen and state** — kept with the active design task or pull
