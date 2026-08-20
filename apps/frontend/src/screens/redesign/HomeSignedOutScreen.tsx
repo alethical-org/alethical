@@ -674,17 +674,22 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
   );
   const lastVisitData = lastVisitQuery.data;
   const trackedBills = trackedQuery.data;
+  // The query does not retry, so one failure is terminal until the reader asks.
+  const trackedFailed = trackedQuery.isError;
   const watchNow = useRef(new Date()).current;
   const watch = useMemo(() => {
     const lastVisit = lastVisitFrom(lastVisitData);
     // The tracked list itself is still loading, so we do not yet know what to
     // compare — the same "we have not asked" case, and it renders as pending
     // rather than as an empty watchlist (#1026, #1034).
+    // A failed load has no bills and no visit answer either, so it must be told
+    // apart here rather than inferred from those absences downstream.
+    if (trackedFailed) return sessionWatch([], { state: 'not-checked' }, watchNow, '', true);
     if (!trackedBills) return sessionWatch([], { state: 'not-checked' }, watchNow, '');
     const visitedOn =
       lastVisit.state === 'previous-visit' ? formatNiceDate(localDay(lastVisit.at)) : '';
     return sessionWatch(trackedBills, lastVisit, watchNow, visitedOn);
-  }, [trackedBills, lastVisitData, watchNow]);
+  }, [trackedBills, trackedFailed, lastVisitData, watchNow]);
 
   // "Or start from what's moving now" scrolls to the Bill Activity section already
   // further down this page, so someone tracking nothing is never at a dead end.
@@ -834,10 +839,14 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
                   </View>
                 </View>
 
-                {/* RIGHT: the Session watch card replaces the example answer card in
-                    the same slot, footprint and shadow — not a band above the hero,
-                    which would stack two heroes and make a signed-in reader scroll
-                    past a pitch that already worked. */}
+                {/* RIGHT: signed in this is the Legislative session watch card,
+                    signed out it is the money promo. The signed-in slot is NOT a
+                    pitch and must not become one — a band above the hero would
+                    stack two heroes and make a returning reader scroll past a
+                    pitch that already worked, which is why the money card sits in
+                    its own band BELOW this hero when signed in. The example answer
+                    that used to fill this slot signed out now has its own
+                    full-width section further down. */}
                 <View
                   style={[
                     styles.heroRight,
@@ -852,6 +861,7 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
                       onAllTracked={() => navigation.navigate('Tracked')}
                       onSearchBills={() => navigation.navigate('Bills')}
                       onWhatsMoving={scrollToBillActivity}
+                      onRetry={() => void trackedQuery.refetch()}
                     />
                   ) : (
                     <MoneyPromoCard
@@ -1291,14 +1301,19 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
   );
   const lastVisitData = lastVisitQuery.data;
   const trackedBills = trackedQuery.data;
+  // The query does not retry, so one failure is terminal until the reader asks.
+  const trackedFailed = trackedQuery.isError;
   const watchNow = useRef(new Date()).current;
   const watch = useMemo(() => {
     const lastVisit = lastVisitFrom(lastVisitData);
+    // A failed load has no bills and no visit answer either, so it must be told
+    // apart here rather than inferred from those absences downstream.
+    if (trackedFailed) return sessionWatch([], { state: 'not-checked' }, watchNow, '', true);
     if (!trackedBills) return sessionWatch([], { state: 'not-checked' }, watchNow, '');
     const visitedOn =
       lastVisit.state === 'previous-visit' ? formatNiceDate(localDay(lastVisit.at)) : '';
     return sessionWatch(trackedBills, lastVisit, watchNow, visitedOn);
-  }, [trackedBills, lastVisitData, watchNow]);
+  }, [trackedBills, trackedFailed, lastVisitData, watchNow]);
   const billActivityRef = useRef<Text>(null);
   const scrollToBillActivity = () => {
     if (!isWeb || !billActivityRef.current) return;
@@ -1457,6 +1472,7 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
                       onAllTracked={() => navigation.navigate('Tracked')}
                       onSearchBills={openSearchBills}
                       onWhatsMoving={scrollToBillActivity}
+                      onRetry={() => void trackedQuery.refetch()}
                     />
                   </View>
                   {/* Side by side on a tablet, stacked full-width on a phone. */}

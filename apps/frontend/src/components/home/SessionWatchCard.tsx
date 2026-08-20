@@ -39,12 +39,15 @@ export function SessionWatchCard({
   onAllTracked,
   onSearchBills,
   onWhatsMoving,
+  onRetry,
 }: {
   watch: SessionWatch<WatchBill>;
   onBill: (billId: string) => void;
   onAllTracked: () => void;
   onSearchBills: () => void;
   onWhatsMoving: () => void;
+  /** Ask again. Nothing else will: the tracked-list query does not retry. */
+  onRetry: () => void;
 }) {
   const pending = watch.state === 'pending';
 
@@ -52,15 +55,19 @@ export function SessionWatchCard({
     <View style={styles.card}>
       <View style={styles.header}>
         <Text accessibilityRole="header" aria-level={2} style={styles.title}>
-          Session watch
+          Legislative session watch
         </Text>
-        {watch.state !== 'tracking-nothing' ? (
+        {watch.state !== 'tracking-nothing' && watch.state !== 'failed' ? (
           <CardLink label="All tracked bills" href={routePath.tracked()} onPress={onAllTracked} />
         ) : null}
       </View>
       <View style={styles.rule} />
 
       {pending ? <PendingFrame /> : null}
+
+      {watch.state === 'failed' ? (
+        <CouldNotCheckFrame onRetry={onRetry} onWhatsMoving={onWhatsMoving} />
+      ) : null}
 
       {watch.state === 'tracking-nothing' ? (
         <TrackFirstBillFrame onSearchBills={onSearchBills} onWhatsMoving={onWhatsMoving} />
@@ -162,6 +169,64 @@ function Spinner() {
     >
       {glyph}
     </Animated.View>
+  );
+}
+
+// The check ran and could not finish. A frame of its own rather than a variant of
+// the pending one, because the two mean opposite things to a reader: pending says
+// we are working and resolves itself, this says we stopped and nothing else will
+// start again. The tracked-list query does not retry, so without the button here
+// the hero sat on "Checking your tracked bills…" with a spinner forever.
+//
+// Amber, not red. Nothing is broken for the reader and nothing was lost — their
+// bills are still tracked; the list of what moved is the part we could not reach.
+// The same amber the bill-code badge uses, at the same AA-clearing #8f5a12 ink.
+function CouldNotCheckFrame({
+  onRetry,
+  onWhatsMoving,
+}: {
+  onRetry: () => void;
+  onWhatsMoving: () => void;
+}) {
+  const [hovered, hover] = useHover();
+  return (
+    <View style={styles.frame}>
+      <View style={styles.warningTile}>
+        <Svg width={27} height={27} viewBox="0 0 24 24" fill="none" aria-hidden>
+          <Path
+            d="M12 4 L21 20 H3 Z"
+            stroke={t.colors.omnibus.text}
+            strokeWidth={2}
+            strokeLinejoin="round"
+          />
+          <Path
+            d="M12 10 v4"
+            stroke={t.colors.omnibus.text}
+            strokeWidth={2}
+            strokeLinecap="round"
+          />
+          <Circle cx={12} cy={17} r={1.1} fill={t.colors.omnibus.text} />
+        </Svg>
+      </View>
+      <Text accessibilityRole="header" aria-level={3} style={styles.emptyHeading}>
+        We couldn’t check your tracked bills
+      </Text>
+      <Text style={styles.emptyBody}>
+        Your bills are still tracked and nothing has been lost. The list of what moved is what we
+        could not reach.
+      </Text>
+      <View style={styles.emptyActions}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={onRetry}
+          {...hover}
+          style={[styles.cta, hovered && styles.ctaHover]}
+        >
+          <Text style={styles.ctaText}>Try again</Text>
+        </Pressable>
+        <CardLink label="Or start from what’s moving now" onPress={onWhatsMoving} />
+      </View>
+    </View>
   );
 }
 
@@ -380,6 +445,16 @@ const styles = StyleSheet.create({
   },
   latestLabel: { color: t.colors.text.muted },
   latestValue: { color: t.colors.text.primary, fontWeight: t.fontWeights.semibold },
+  warningTile: {
+    width: 56,
+    height: 56,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: t.colors.omnibus.fill,
+    borderWidth: 1,
+    borderColor: t.colors.omnibus.border,
+  },
   bookmarkTile: {
     width: 56,
     height: 56,
