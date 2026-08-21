@@ -27,12 +27,20 @@ export function requestedSignInState(
 ): RequestedSignInState {
   const parameters = new URLSearchParams(hash.replace(/^#/, ''));
   const hashScreen = parameters.get('auth_screen');
-  parameters.delete('auth_screen');
   const requested = storedScreen ?? hashScreen;
-  return {
-    screen: requested === 'forgot' || requested === 'sign-in' ? requested : undefined,
-    cleanHash: parameters.size ? `#${parameters.toString()}` : '',
-  };
+  const screen = requested === 'forgot' || requested === 'sign-in' ? requested : undefined;
+
+  // Nothing of ours in the fragment, so hand it back exactly as it arrived. It
+  // is only a set of key=value pairs when we put them there; an ordinary
+  // section link like #the-one-way-valve is one plain word, and re-serializing
+  // it through URLSearchParams turns it into #the-one-way-valve=, which names
+  // no section on the page (report contents rail).
+  if (hashScreen === null) {
+    return { screen, cleanHash: hash };
+  }
+
+  parameters.delete('auth_screen');
+  return { screen, cleanHash: parameters.size ? `#${parameters.toString()}` : '' };
 }
 
 /**

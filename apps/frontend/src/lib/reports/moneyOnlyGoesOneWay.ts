@@ -31,7 +31,6 @@ export const MONEY_ONLY_GOES_ONE_WAY: MoneyReport = {
   ],
   sections: [
     {
-      anchor: 'start-with-your-own-check',
       heading: 'Start with your own check',
       railLabel: 'Your own check',
       blocks: [
@@ -50,7 +49,6 @@ export const MONEY_ONLY_GOES_ONE_WAY: MoneyReport = {
       ],
     },
     {
-      anchor: 'the-one-way-valve',
       heading: 'The one-way valve',
       railLabel: 'The one-way valve',
       blocks: [
@@ -67,7 +65,6 @@ export const MONEY_ONLY_GOES_ONE_WAY: MoneyReport = {
       ],
     },
     {
-      anchor: 'but-the-party-spends-on-the-candidates-behalf',
       heading: '"But the party spends on the candidate’s behalf"',
       railLabel: 'The counterargument',
       blocks: [
@@ -88,7 +85,6 @@ export const MONEY_ONLY_GOES_ONE_WAY: MoneyReport = {
       ],
     },
     {
-      anchor: 'why-this-isnt-a-party-story',
       heading: "Why this isn't a party story",
       railLabel: 'Not a party story',
       blocks: [
@@ -120,7 +116,6 @@ export const MONEY_ONLY_GOES_ONE_WAY: MoneyReport = {
       ],
     },
     {
-      anchor: 'the-number-that-dwarfs-all-of-it',
       heading: 'The number that dwarfs all of it',
       railLabel: 'The biggest number',
       blocks: [
@@ -152,7 +147,6 @@ export const MONEY_ONLY_GOES_ONE_WAY: MoneyReport = {
       ],
     },
     {
-      anchor: 'what-the-shape-actually-looks-like',
       heading: 'What the shape actually looks like',
       railLabel: 'The shape',
       blocks: [
@@ -171,7 +165,6 @@ export const MONEY_ONLY_GOES_ONE_WAY: MoneyReport = {
       ],
     },
     {
-      anchor: 'what-to-do-about-it',
       heading: 'What to do about it',
       railLabel: 'What to do',
       blocks: [

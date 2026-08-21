@@ -263,7 +263,16 @@ ordinary "page not found" screen. A report's page carries:
 - Tables, where the report's own text uses one. A table is marked up as a real table, so a
   screen reader announces each figure with its column heading, and it scrolls on its own
   rather than pushing the page sideways on a phone.
-- A contents list — a side rail on a computer, a jump list on a phone.
+- A contents list — a side rail on a computer, a jump list on a phone. Every entry is
+  an ordinary link to its section, listed in the order the article reads, so it can be
+  opened in a new tab, copied, or reached by keyboard. Choosing one puts that section's
+  name in the address bar (`/reports/the-money-only-goes-one-way#the-one-way-valve`), so
+  a reader can share a link straight to a section and Back returns them to where they
+  were reading. Opening an address that already names a section starts there. Each
+  section's name is built from the words of its own heading, never its position in the
+  page, so a link someone shared still lands on the right section after a new section is
+  added above it. On a computer the rail marks the section being read, and exactly one
+  entry is marked at a time.
 - The reading column, with the short version boxed on top, and a "how we scored this" inset
   printed beside the first use of any term we defined.
 - A "where these numbers come from" block naming every source.
