@@ -39,6 +39,8 @@ python3 -c "import re,sys;s=open(sys.argv[1],encoding='utf-8').read();print('bun
 
 **The failure mode is what makes this worth a step of its own: it fails silently, and it fails toward a false blocker.** Every copy check returns "not found", which reads as "Design did not make the change" rather than "the reader is broken" — on the 20 Aug 2026 homepage build bundle that nearly shipped "the new sentence is missing from all 4 files" as a finding when all 4 carried it. Any string check that comes back empty across *every* file is the tell: verify the reader before writing the finding.
 
+**Tier the review before you open the bundle.** The first line out names the model, the tool's exact reasoning label and the mechanism this review should run at (a `Tier:` line, per `~/.claude/CLAUDE.md`), because a review is judgment-bound end to end: deep or deepest useful reasoning, one pass, nothing worth handing to a helper. Say it before reading the bundle in depth, while the setting can still change the review — a tier named in the reply that delivers the findings is a receipt, not a recommendation.
+
 **0. Frame it.** Identify the page, the preview-band state(s) shown (reference frames only by Claude Design's own band labels — never invented names, per the `claude-design-prompt-rules` memory), its place in the IA and `docs/product-onboarding/mvp-redesign-plan.md`, and pull the governing spec (`docs/product-onboarding/product-scope.md`, `docs/product-onboarding/grounded-ask-spec.md`, the relevant issues/milestone). State in one line what this screen is and is for.
 
 **1. Ground every element.** Walk *each discrete element* — every field, chip, badge, count, filter, card, CTA, empty state, suggested question — and tag it:
