@@ -37,9 +37,6 @@ import { prefersReducedMotion, theme as t } from '../../theme/tokens';
  *   moneyReportPageMetadata); the Share control's prepared text says the same.
  * - A corrected figure stays readable — struck through and dated — and the
  *   correction banner is dated, never a silent edit.
- * - The downloadable copy is this page, regenerated at each publish: the
- *   control prints the current page, so there is no second stored document to
- *   drift from it.
  */
 
 const isWeb = Platform.OS === 'web';
@@ -53,27 +50,6 @@ function BackChevron() {
         strokeWidth={2.2}
         strokeLinecap="round"
         strokeLinejoin="round"
-      />
-    </Svg>
-  );
-}
-
-/** Down-into-tray "download" glyph beside the PDF control, drawn (no font arrows). */
-function DownloadGlyph({ color }: { color: string }) {
-  return (
-    <Svg width={14} height={14} viewBox="0 0 24 24" fill="none" aria-hidden>
-      <Path
-        d="M12 4 V15 M8 11 L12 15 L16 11"
-        stroke={color}
-        strokeWidth={2.2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <Path
-        d="M5 17 v2 a1 1 0 0 0 1 1 h12 a1 1 0 0 0 1-1 v-2"
-        stroke={color}
-        strokeWidth={2.2}
-        strokeLinecap="round"
       />
     </Svg>
   );
@@ -234,22 +210,6 @@ function ContentsLinks({ report, compact }: { report: MoneyReport; compact?: boo
   );
 }
 
-function DownloadPdf({ subtle }: { subtle?: boolean }) {
-  const color = subtle ? t.colors.text.greenOnLight : '#2c322c';
-  return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={() => {
-        if (isWeb && typeof window !== 'undefined') window.print();
-      }}
-      style={subtle ? styles.pdfLink : styles.pdfButton}
-    >
-      <Text style={subtle ? styles.pdfLinkText : styles.pdfButtonText}>Download as PDF</Text>
-      <DownloadGlyph color={color} />
-    </Pressable>
-  );
-}
-
 export function MoneyReportScreen({ navigation, route }: RootScreenProps<'MoneyReport'>) {
   const { isMobile } = useResponsive();
   const report = reportBySlug(route.params.slug);
@@ -301,8 +261,6 @@ export function MoneyReportScreen({ navigation, route }: RootScreenProps<'MoneyR
               <View style={[styles.rail, webSticky as never]}>
                 <Text style={styles.railLabel}>CONTENTS</Text>
                 <ContentsLinks report={report} />
-                <View style={styles.railRule} />
-                <DownloadPdf subtle />
               </View>
             ) : null}
 
@@ -376,13 +334,6 @@ export function MoneyReportScreen({ navigation, route }: RootScreenProps<'MoneyR
                     </Text>
                   ))}
                 </View>
-                <View style={styles.pdfRow}>
-                  <DownloadPdf />
-                  <Text style={styles.pdfNote}>
-                    The PDF is this page, regenerated at each publish — one current copy per
-                    published version, never a second document maintained beside the page.
-                  </Text>
-                </View>
               </View>
             </View>
           </View>
@@ -429,7 +380,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 19,
   },
-  railRule: { marginTop: 22, height: 1, backgroundColor: t.colors.alpha.ink10 },
   column: { flex: 1, maxWidth: 760, minWidth: 0 },
   mobileContents: {
     marginTop: 24,
@@ -675,38 +625,4 @@ const styles = StyleSheet.create({
     lineHeight: 27,
   },
   sourceNote: { color: t.colors.text.secondary },
-  pdfRow: { marginTop: 24, flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
-  pdfButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 9,
-    backgroundColor: t.colors.surfaces.base,
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink16,
-    borderRadius: 11,
-    paddingVertical: 13,
-    paddingHorizontal: 19,
-  },
-  pdfButtonText: {
-    color: '#2c322c',
-    fontFamily: t.typography.ui,
-    fontSize: 15.5,
-    fontWeight: t.fontWeights.bold,
-  },
-  pdfLink: { marginTop: 20, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  pdfLinkText: {
-    color: t.colors.text.greenOnLight,
-    fontFamily: t.typography.ui,
-    fontSize: 14,
-    fontWeight: t.fontWeights.bold,
-  },
-  pdfNote: {
-    flex: 1,
-    minWidth: 220,
-    maxWidth: 520,
-    color: t.colors.text.muted,
-    fontFamily: t.typography.body,
-    fontSize: 15,
-    lineHeight: 23,
-  },
 });
