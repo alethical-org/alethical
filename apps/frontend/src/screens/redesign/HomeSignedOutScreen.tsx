@@ -2356,6 +2356,12 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     color: t.colors.text.secondary,
     fontStyle: 'italic',
+    // Bill text, so the length is the bill's and not ours to predict: these three
+    // run 143, 125 and 96 characters and the next bill's will differ again. Nothing
+    // here is sized to fit a quote on one line - the cap holds the measure at about
+    // 62-72 characters at 14px, and where the column is already narrower the column
+    // governs and the cap does nothing. `pretty` keeps a last line off one word.
+    ...(isWeb ? ({ maxWidth: '34em', textWrap: 'pretty' } as object) : null),
   },
   sectionCardQuoteTextMobile: { fontSize: 16, lineHeight: 24 },
   sectionCardNote: {
