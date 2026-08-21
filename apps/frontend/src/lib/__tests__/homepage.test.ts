@@ -39,6 +39,13 @@ describe('the example answer names the law in the record’s own words', () => {
   it('reuses the sentence’s own weight-600 emphasis, with no link or new colour', () => {
     expect(cardSource()).toContain('answerSummaryBold: { fontWeight: t.fontWeights.semibold },');
   });
+
+  it('starts the privacy promise on the second summary line', () => {
+    expect(cardSource()).toContain(
+      String.raw`ban addictive features,{'\n'}and default
+        their accounts to the strictest privacy.`,
+    );
+  });
 });
 
 describe('home bill groups continue into the matching Bill Search view', () => {
