@@ -34,11 +34,9 @@ const palette = {
   greenTint200: '#dcf1e5',
   greenTint300: '#cbeed6',
   greenBorder: '#bfeacf',
-  // cyan surfaces: the lighter step reads on white; the stronger step reads on grey
+  // cyan panel surface
   cyanSurface: '#f4fafc',
-  cyanSurfaceStrong: '#e9f4f9',
   cyanBorder: '#dbeef4',
-  cyanBorderStrong: '#cbe4ee',
   cyanInk: '#2b6377',
   // neutral surfaces (light → tint)
   white: '#ffffff',
@@ -172,9 +170,7 @@ export const theme = {
     },
     cyan: {
       surface: palette.cyanSurface,
-      surfaceStrong: palette.cyanSurfaceStrong,
       border: palette.cyanBorder,
-      borderStrong: palette.cyanBorderStrong,
       ink: palette.cyanInk,
     },
     surfaces: {

@@ -649,9 +649,9 @@ const styles = StyleSheet.create({
   },
   shortVersionBox: {
     marginTop: 32,
-    backgroundColor: t.colors.cyan.surfaceStrong,
+    backgroundColor: t.colors.cyan.surface,
     borderWidth: 1,
-    borderColor: t.colors.cyan.borderStrong,
+    borderColor: t.colors.cyan.border,
     borderRadius: 15,
     paddingHorizontal: 28,
     paddingBottom: 28,
