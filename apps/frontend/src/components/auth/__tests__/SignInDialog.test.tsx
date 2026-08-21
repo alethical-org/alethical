@@ -124,7 +124,11 @@ describe('rev 9 sign-in dialog', () => {
     expect(html).not.toContain('Continue with Google.');
     expect(html.match(/Continue with Google/g)).toHaveLength(1);
     expect(html).toContain('Create account');
-    expect(SOURCE).toContain('googleHelpCreate: { marginBottom: t.spacing.md }');
+    // One shared style carries the gap above and below both help sentences,
+    // so neither one touches the Google button under it.
+    expect(SOURCE).toMatch(
+      /googleHelp: \{\s*marginTop: t\.spacing\.sm,[\s\S]{0,200}?marginBottom: t\.spacing\.md,/,
+    );
   });
 
   it('pins the separate create-account Track wording', () => {
