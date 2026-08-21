@@ -1722,6 +1722,13 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
   );
 }
 
+// The narrow layout's one section break. Every top-level section pads this much top
+// and bottom (m.section), so two stacked sections always sit SECTION_BREAK apart —
+// the gap under the signed-in hero's money card, above IN THE NEWS. Named so the
+// hero can reuse the same number rather than restate it (see m.heroActions).
+const SECTION_PADDING = 40;
+const SECTION_BREAK = SECTION_PADDING * 2;
+
 const m = StyleSheet.create({
   root: { flex: 1 },
   scroll: { flex: 1 },
@@ -1779,11 +1786,13 @@ const m = StyleSheet.create({
   heroStateLineTablet: { fontSize: 32, lineHeight: 40, letterSpacing: -0.64 },
   heroWatchCard: { marginTop: 22 },
   // Stacked and full-width on a phone; side by side on a tablet.
-  // 36, not 20: at 20 the Search pair read as part of the watch card's stack
-  // rather than as its own group. The 12px between the buttons and the 22px down
-  // to the money card are unchanged, so the pair and the card stay one group,
-  // separated from the card above.
-  heroActions: { marginTop: 36, gap: 12 },
+  // SECTION_BREAK, not 20 or 36: the pair and the money card under it are a section
+  // of their own, so the space above the pair is the page's section break — the same
+  // number the money card gets below it, before IN THE NEWS. At anything smaller the
+  // pair read as the tail of the watch card's stack. The 12px between the buttons and
+  // the 22px down to the money card are unchanged, so the pair and the card stay one
+  // group, separated from the card above.
+  heroActions: { marginTop: SECTION_BREAK, gap: 12 },
   heroActionsTablet: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
   heroSubhead: {
     marginTop: 18,
@@ -1792,11 +1801,12 @@ const m = StyleSheet.create({
     lineHeight: 27,
     color: t.colors.text.muted,
   },
-  // Even section rhythm: every top-level section gets 40 top / 40 bottom, so the
-  // gaps between stacked sections read as a consistent ~80px. 20px sides from
-  // Container mobile. The last section before the footer overrides its bottom to
-  // 96 (lastSectionBottom) so its content isn't crowded against the black footer.
-  section: { paddingTop: 40, paddingBottom: 40 },
+  // Even section rhythm: every top-level section gets SECTION_PADDING top and bottom,
+  // so the gaps between stacked sections read as a consistent SECTION_BREAK. 24px
+  // sides from Container mobile. The last section before the footer overrides its
+  // bottom to 96 (lastSectionBottom) so its content isn't crowded against the black
+  // footer.
+  section: { paddingTop: SECTION_PADDING, paddingBottom: SECTION_PADDING },
   newsSectionBeforeSearchBand: { paddingBottom: 0 },
   heroMoneyCard: { marginTop: 22 },
   searchActionsBand: {
