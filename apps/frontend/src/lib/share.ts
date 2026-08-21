@@ -400,9 +400,10 @@ export const STATIC_PAGE_METADATA: Record<string, PageMetadata> = {
     canonicalPath: '/money',
   }),
   '/reports': pageMetadata({
-    title: titleFor('What we found'),
-    socialTitle: 'What we found',
-    description: 'Our own research on Minnesota’s campaign money records.',
+    title: titleFor('Campaign money reports'),
+    socialTitle: 'Campaign money reports',
+    description:
+      'Our own research, in plain language, drawn from the filings Minnesota campaigns, parties and funds make with the state.',
     canonicalPath: '/reports',
   }),
   '/confirm': pageMetadata({

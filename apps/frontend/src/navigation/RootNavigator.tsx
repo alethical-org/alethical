@@ -665,7 +665,7 @@ export function RootNavigator() {
             <Stack.Screen
               name="MoneyReports"
               component={MoneyReportsShelfScreen}
-              options={{ headerShown: false, title: 'What we found' }}
+              options={{ headerShown: false, title: 'Campaign money reports' }}
             />
             <Stack.Screen
               name="MoneyReport"

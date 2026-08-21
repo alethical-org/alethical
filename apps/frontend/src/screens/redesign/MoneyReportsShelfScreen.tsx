@@ -97,15 +97,31 @@ export function MoneyReportsShelfScreen({ navigation }: RootScreenProps<'MoneyRe
             <Text style={styles.backLinkText}>Money in politics</Text>
           </Pressable>
 
-          <Text style={styles.eyebrow}>CAMPAIGN MONEY</Text>
+          {/* No eyebrow above the heading: a back link plus a label plus a
+              heading is three lines of navigation furniture before the page
+              says anything, and the label's words ("CAMPAIGN MONEY") are the
+              subject the heading was missing, so they moved into it. The
+              heading names the things on the shelf rather than the act of
+              finding them, and stays plural so one report and a collection
+              both read right (header design prompt, 20 Aug 2026).
+
+              The description says who wrote the research and what it was drawn
+              from. It deliberately does not promise that figures link to their
+              filings: no posted report links one yet, and rule 6 of
+              .claude/rules/grounded-answers.md only lets copy claim what the
+              shipped surface delivers. That sentence belongs here the day a
+              report carries the links. */}
           <Text
             accessibilityRole="header"
             aria-level={1}
             style={[styles.heading, isMobile && styles.headingMobile]}
           >
-            What we found
+            Campaign money reports
           </Text>
-          <Text style={styles.intro}>Our own research on Minnesota’s records.</Text>
+          <Text style={styles.intro}>
+            Our own research, in plain language, drawn from the filings Minnesota campaigns, parties
+            and funds make with the state.
+          </Text>
 
           <View style={styles.rule} />
 
@@ -161,16 +177,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: t.fontWeights.semibold,
   },
-  eyebrow: {
-    marginTop: 22,
-    color: t.colors.text.greenOnLight,
-    fontFamily: t.typography.ui,
-    fontSize: 13,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 2.6,
-  },
   heading: {
-    marginTop: 14,
+    // 22, the gap the removed eyebrow held: the heading takes the label's
+    // place under the back link rather than closing up against it.
+    marginTop: 22,
     color: t.colors.text.primary,
     fontFamily: t.typography.title,
     fontSize: 46,
