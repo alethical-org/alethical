@@ -1,9 +1,19 @@
-import { useEffect, useRef, useState } from 'react';
-import { Linking, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import {
+  Linking,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 
 import { MobileShareSheet } from '../share/MobileShareSheet';
 import { useResponsive } from '../../hooks/useResponsive';
+import { placeAnchoredPanel, type AnchorRect } from '../../lib/anchoredPanel';
 import { buildShareIntents, type ShareContent } from '../../lib/share';
 import { theme as t } from '../../theme/tokens';
 import { isWeb, useHover } from './interactions';
@@ -14,18 +24,49 @@ import { isWeb, useHover } from './interactions';
 // text arrives as one ShareContent value, while this component owns the layout
 // and platform buttons.
 //
-// Layering is load-bearing and is specified because it has shipped broken twice
-// (Legislator Profile session filter; Bill Search "Sorted by" menu): the wrapper
-// is position:relative z-index 60, the panel position:absolute z-index 1, and the
-// backdrop position:fixed z-index 0. Nothing painted after it in the DOM may open
-// a competing stacking context.
+// LAYERING, and why the panel is a Modal rather than a box inside the page.
+//
+// A panel drawn inside the article has been painted over three times on this
+// stack: the Legislator Profile session filter, the Bill Search "Sorted by"
+// menu, and this Share panel on the campaign-money report page, where the
+// article covered it and it also ran off the bottom of the window. Raising its
+// own z-index cannot fix that, and the reason is structural: react-native-web
+// gives EVERY View `position: relative; z-index: 0`, so a panel nested in the
+// article shares a layer with each of the article's
+// later blocks and loses to them on document order however high it climbs
+// inside its own parent. The article also scrolls inside a ScrollView that both
+// clips its overflow and carries a transform, and a transform makes an ancestor
+// the containing block for `position: fixed` too, so even a fixed panel would be
+// trapped and cut off.
+//
+// So the panel is rendered in a react-native Modal, which on web is a portal into
+// document.body holding a fixed, full-window layer at z-index 9999 (the highest
+// z-index anywhere else in this app is 80). That single move satisfies the whole
+// contract: nothing in the page can paint over it, no ancestor can clip it, it
+// adds nothing to the article's layout so nothing behind it moves, and the Modal
+// itself supplies Escape-to-close and a focus trap that hands focus back to the
+// Share control on close. What this file still owns is where the panel sits
+// inside that layer (lib/anchoredPanel.ts) and closing on an outside click.
 
 export function SharePopover({ content }: { content: ShareContent }) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [btnHovered, btnHover] = useHover();
   const { isDesktop } = useResponsive();
+  const { height: windowHeight, width: windowWidth } = useWindowDimensions();
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const shareBtnRef = useRef<View>(null);
+  const panelRef = useRef<View>(null);
+  const closeBtnRef = useRef<View>(null);
+  const [anchor, setAnchor] = useState<AnchorRect | null>(null);
+  const [panelSize, setPanelSize] = useState<{ height: number; width: number } | null>(null);
+
+  const measure = useCallback(() => {
+    measureBox(shareBtnRef.current, setAnchor);
+    measureBox(panelRef.current, (box) =>
+      setPanelSize({ height: box.bottom - box.top, width: box.right - box.left }),
+    );
+  }, []);
 
   useEffect(
     () => () => {
@@ -34,8 +75,38 @@ export function SharePopover({ content }: { content: ShareContent }) {
     [],
   );
 
+  // Measure the Share control and the panel every time the panel opens and every
+  // time the window changes size, so the panel is placed against where the
+  // control actually is rather than where it was. This runs before the browser
+  // paints, so on the web the panel is never drawn in the wrong place first.
+  useLayoutEffect(() => {
+    if (!open || !isDesktop) {
+      setAnchor(null);
+      return;
+    }
+    measure();
+  }, [isDesktop, measure, open, windowHeight, windowWidth]);
+
+  // Send the keyboard to the panel's Close button on open. The Modal's own focus
+  // trap keeps focus inside from there and returns it to the Share control on
+  // close, but it would otherwise land on whichever element happens to come
+  // first, which is the invisible backdrop.
+  useEffect(() => {
+    if (!isWeb || !open || !isDesktop) return;
+    (closeBtnRef.current as unknown as HTMLElement | null)?.focus?.();
+  }, [isDesktop, open]);
+
   const intents = buildShareIntents(content);
   const { description, subject, title, url } = content;
+
+  const placement =
+    anchor && panelSize
+      ? placeAnchoredPanel({
+          anchor,
+          panel: panelSize,
+          viewport: { height: windowHeight, width: windowWidth },
+        })
+      : null;
 
   const copy = () => {
     if (isWeb && typeof navigator !== 'undefined' && navigator.clipboard) {
@@ -57,6 +128,7 @@ export function SharePopover({ content }: { content: ShareContent }) {
   return (
     <View style={styles.shareWrap}>
       <Pressable
+        ref={shareBtnRef}
         accessibilityRole="button"
         accessibilityLabel={`Share this ${subject}`}
         aria-expanded={open}
@@ -83,22 +155,37 @@ export function SharePopover({ content }: { content: ShareContent }) {
 
       {!isDesktop ? (
         <MobileShareSheet visible={open} onClose={() => setOpen(false)} content={content} />
-      ) : open ? (
-        <>
-          {/* transparent backdrop closes on outside click */}
+      ) : (
+        <Modal
+          visible={open}
+          transparent
+          animationType="none"
+          onRequestClose={() => setOpen(false)}
+        >
+          {/* Transparent full-window backdrop: closes on an outside click, and
+              takes itself out of the tab order (react-native-web makes every
+              Pressable a tab stop unless tabIndex says otherwise) so the keyboard
+              cycles inside the panel instead of landing on an invisible sheet. */}
           <Pressable
             accessibilityLabel="Close share"
-            style={styles.shareBackdrop}
+            tabIndex={-1}
+            style={StyleSheet.absoluteFill}
             onPress={() => setOpen(false)}
           />
           <View
             accessibilityRole={isWeb ? undefined : 'menu'}
             aria-label={`Share this ${subject}`}
-            style={[styles.sharePanel, isWeb ? (styles.sharePanelWeb as object) : null]}
+            ref={panelRef}
+            style={[
+              styles.sharePanel,
+              isWeb ? (styles.sharePanelWeb as object) : null,
+              placement ? { left: placement.left, top: placement.top } : styles.sharePanelUnplaced,
+            ]}
           >
             <View style={styles.sharePanelHead}>
               <Text style={styles.sharePanelTitle}>{`Share this ${subject}`}</Text>
               <Pressable
+                ref={closeBtnRef}
                 accessibilityRole="button"
                 accessibilityLabel="Close"
                 onPress={() => setOpen(false)}
@@ -190,9 +277,26 @@ export function SharePopover({ content }: { content: ShareContent }) {
               </View>
             </View>
           </View>
-        </>
-      ) : null}
+        </Modal>
+      )}
     </View>
+  );
+}
+
+// Where something sits in the window, which is the coordinate space the panel is
+// painted in. `getBoundingClientRect` is exact and synchronous on the web, the
+// platform this ships on, so the answer is ready before the browser paints;
+// native has no such call and falls back to React Native's own measurement,
+// which answers a moment later, with the panel held invisible until it does.
+function measureBox(node: View | null, apply: (box: AnchorRect) => void) {
+  if (!node) return;
+  if (isWeb) {
+    const { bottom, left, right, top } = (node as unknown as HTMLElement).getBoundingClientRect();
+    apply({ bottom, left, right, top });
+    return;
+  }
+  node.measureInWindow((x, y, width, height) =>
+    apply({ bottom: y + height, left: x, right: x + width, top: y }),
   );
 }
 
@@ -229,6 +333,10 @@ function SocialButton({
 }
 
 const styles = StyleSheet.create({
+  // The panel no longer sits inside this wrapper, so this layer is only about
+  // the Share button holding its place among its own neighbours on the pages
+  // that use it. Left exactly as it was, because changing it would change those
+  // pages rather than this panel.
   shareWrap: {
     position: 'relative',
     zIndex: 60,
@@ -257,21 +365,8 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.semibold,
     color: t.colors.text.primary,
   },
-  shareBackdrop: {
-    ...(StyleSheet.absoluteFill as object),
-    position: (isWeb ? 'fixed' : 'absolute') as 'absolute',
-    top: -2000,
-    left: -2000,
-    right: -2000,
-    bottom: -2000,
-    zIndex: 0,
-  },
   sharePanel: {
     position: 'absolute',
-    top: '100%',
-    right: 0,
-    marginTop: 12,
-    zIndex: 1,
     width: 366,
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
@@ -283,6 +378,11 @@ const styles = StyleSheet.create({
     ...(t.shadows.lg as object),
   },
   sharePanelWeb: { boxShadow: '0 24px 60px rgba(17,21,15,0.2)' },
+  // Held invisible until the panel has been measured, so it is never seen in the
+  // top-left corner on its way to the Share control. On the web the measurement
+  // happens before the browser paints, so this state is never drawn at all; on
+  // native, where measuring answers a moment later, it covers that moment.
+  sharePanelUnplaced: { opacity: 0 },
   sharePanelHead: {
     flexDirection: 'row',
     alignItems: 'center',

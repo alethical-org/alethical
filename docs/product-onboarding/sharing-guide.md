@@ -54,7 +54,9 @@ Instagram has no direct button. It cannot open a prepared visitor post containin
 ## What readers see
 
 - On the website, Share opens one panel showing the title, description, and link before the reader chooses LinkedIn, X, Facebook, email, or Copy link.
-- On a phone, every Share button opens the same bottom sheet on bill, legislator, and answered Ask pages. It adds **Share using another app** when the phone or browser supports the normal Share menu.
+- On a wide screen that panel hangs from the Share button, lined up with its right edge, and sits in front of everything else on the page. If there is not enough room below the button it opens above it instead, and it always keeps its whole self inside the window, so no row of it is ever cut off or covered. Nothing on the page behind it moves when it opens or closes.
+- Three ways to close it, all of which work: click or tap anywhere outside it, press Esc, or use the X in its corner. The keyboard goes into the panel when it opens, stays inside it while it is open, and comes back to the Share button when it closes.
+- On a phone, every Share button opens the same bottom sheet over a dimmed page, on bill, legislator, answered Ask, campaign-money report, and committee money pages. It closes the same three ways, and it adds **Share using another app** when the phone or browser supports the normal Share menu.
 - Copy link confirms the copy for about 2 seconds. The native app and website both copy the real link.
 - No share includes a reader's account details, saved bills, address, or sign-in information.
 
