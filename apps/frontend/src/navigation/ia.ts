@@ -110,21 +110,25 @@ export const IA: IaItem[] = [
     // broader than "Campaign money" because the section will hold lobbying too.
     // Position, NEW pill and destination all unchanged.
     //
-    // The description promises the RECORD, never a search, and that is the whole
-    // point of its wording (grounded-answers.md rule 2, never advertise what you
-    // can't answer). #1698 shipped "Search any name to find people, committees,
-    // and who got paid", which was drawn for the finished section and went live
-    // months before it: /money still shows a picture of a search box with
-    // "Search is not built yet." printed under it, so the menu told a reader they
-    // could search and the page then told them they could not. The search wording
-    // is correct and belongs here the day the front door ships (#1696) — not
-    // before.
+    // The description names the search before the search works, and that is a
+    // decision rather than an oversight (Eugene, 20 Aug 2026). #1700 had removed
+    // this wording under grounded-answers.md rule 2, on the grounds that /money
+    // answers a promised search with "Search is not built yet." Eugene overruled
+    // it: /money opens with its own under-development notice, so a reader is told
+    // where they are before they try anything, and the row can say what the
+    // section is for rather than what it currently holds. Same call he made for
+    // the homepage promo's "Search the money records" button, so the menu and the
+    // homepage now say the same thing about the same destination.
+    //
+    // What that notice is doing is load-bearing. If /money ever stops declaring
+    // itself unfinished while its search is still a picture, this row goes back
+    // to describing the record (#1696 ships the working front door).
     label: 'Money in politics',
     path: '/money',
     menu: 'search',
     availability: 'mvp',
     authGated: false,
-    description: 'Contributions and spending, as Minnesota publishes them',
+    description: 'Search any name to find people, committees, and who got paid',
     isNew: true,
   },
   {
