@@ -251,11 +251,12 @@ One report is posted: "The Money Only Goes One Way", at
 Every posted report has a page here; an address with no report behind it shows the
 ordinary "page not found" screen. A report's page carries:
 
-- A masthead naming what it is (ALETHICAL RESEARCH), its author, its publication date, its
-  records-through date, and every filing body it used. A report Alethical publishes in its
-  own name is authored by "ALETHICAL". Where a figure comes from records Alethical does not
-  hold, the masthead says so and names it rather than leaving a blank or lending it another
-  figure's date.
+- A masthead carrying 2 dates and nothing else: the publication date and the
+  records-through date. A report published in Alethical's own name carries no byline,
+  because the site is the author, and the "where these numbers come from" block names every
+  filing body used. Where a figure comes from records Alethical does not hold, that block
+  names those records and the years they cover; the records-through date speaks only for
+  Alethical's own loaded data (Eugene, 20 Aug 2026).
 - The publication date is the day the report posts, in Minnesota time, and it never moves
   afterwards. The records-through date is separate and stays pinned to the records the
   figures were computed from, so a report read late never looks fresher than its data.
@@ -280,7 +281,7 @@ links back to a report.
 
 - Every figure the section will ever show comes from official filings (Minnesota Campaign
   Finance Board; a signed report may also name other bodies, such as the FEC, in its
-  masthead). No page here shows a figure it cannot back.
+  sources block). No page here shows a figure it cannot back.
 - No page sums money across members or filers, ranks committees by amount, or shows a
   dollar figure on a list of many committees. Signed reports are the one conditioned
   exception, under rule 13.

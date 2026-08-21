@@ -200,7 +200,7 @@ Minnesota focus or relies on unreviewed sources rather than an official public r
     and are not named on any record surface, because naming an absence advertises it (Eugene,
     12 Aug 2026). One exception, decided 18 Aug 2026: a signed research report may cite another
     body's records, named and linked at their source, under
-    `.claude/rules/grounded-answers.md` rule 13; the report's masthead names every body used.
+    `.claude/rules/grounded-answers.md` rule 13; the report's sources block names every body used.
   - **Whole-set replacement, not row merging.** Minnesota publishes no per-transaction
     identifier and two payments can be legitimately identical, so no key built from a row's
     contents can separate a genuine repeat payment from a re-import.

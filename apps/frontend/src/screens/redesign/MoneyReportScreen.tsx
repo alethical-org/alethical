@@ -31,6 +31,10 @@ import { prefersReducedMotion, theme as t } from '../../theme/tokens';
  * content instead.
  *
  * Rule 13 constraints this layout owns:
+ * - The masthead carries the 2 dates and nothing else (Eugene, 20 Aug 2026). The
+ *   author line, the filing bodies, and the undated-records note were removed
+ *   from it; the sources block still names every filing body and the years each
+ *   set of outside records covers.
  * - Links run one way. The report may link outward to record pages and official
  *   sources; nothing here writes report claims into any record surface.
  * - Share previews carry title and dates only (lib/share.ts
@@ -284,14 +288,7 @@ export function MoneyReportScreen({ navigation, route }: RootScreenProps<'MoneyR
 
               <View style={styles.mastheadRow}>
                 <View style={styles.mastheadMeta}>
-                  <Text style={styles.mastheadLine}>{report.authorLine}</Text>
                   <Text style={styles.mastheadLineMuted}>{reportDatesLine(report)}</Text>
-                  <Text style={styles.mastheadLineMuted}>
-                    {report.filingBodies.join(' · ').toUpperCase()}
-                  </Text>
-                  {report.undatedRecordsNote ? (
-                    <Text style={styles.mastheadNote}>{report.undatedRecordsNote}</Text>
-                  ) : null}
                 </View>
                 <SharePopover content={shareContent} />
               </View>
@@ -455,13 +452,6 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   mastheadMeta: { flexShrink: 1, minWidth: 0, gap: 7 },
-  mastheadLine: {
-    color: t.colors.text.muted,
-    fontFamily: t.typography.mono,
-    fontSize: 11.5,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 0.9,
-  },
   mastheadLineMuted: {
     color: t.colors.text.muted,
     fontFamily: t.typography.mono,
@@ -537,13 +527,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.7,
-  },
-  mastheadNote: {
-    color: t.colors.text.secondary,
-    fontFamily: t.typography.body,
-    fontSize: 13,
-    lineHeight: 19,
-    maxWidth: 420,
   },
   tableScroll: { marginTop: 22, overflow: 'scroll' },
   table: {

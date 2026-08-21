@@ -1172,10 +1172,11 @@ separates posting a report from listing it publicly; this subsection carries the
 and it describes **what a report page must do**. The drawn design is
 `docs/design/handoff-campaign-money/Money report web.dc.html`.
 
-- **The masthead sits above the first claim** and names five things: that this is Alethical
-  research, its author, its publication date, the date its records run through, and every filing
-  body it used. A reader arriving from a search engine must be able to tell what they are reading
-  and which promise applies to it, without scrolling.
+- **The masthead sits above the first claim** and names 2 things: the publication date and the
+  date its records run through (Eugene, 20 Aug 2026). Authorship and the filing bodies moved into
+  the report itself — the site is the author, and the sources block names every body used. The
+  known cost: a reader arriving from a search engine no longer sees which filing bodies the page
+  used until they reach the sources block.
 - **The never-rank-members rule above has exactly one exception**, and it is this surface: a
   signed report may total and compare across members. No record surface may, for the reason the
   rest of §7 gives — two filing calendars make a side-by-side comparison of amounts a comparison
