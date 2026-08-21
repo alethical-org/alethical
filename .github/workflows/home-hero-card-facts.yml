@@ -27,11 +27,15 @@ on:
       - "scripts/check_home_hero_card_literals.py"
       - ".github/workflows/home-hero-card-facts.yml"
   schedule:
-    # 12:00 UTC on the 1st of each month (~6-7am America/Chicago). An enacted
-    # law's record rarely moves, so monthly is enough to catch a correction long
-    # before a reader would, and it keeps the issue volume at zero in a normal
-    # month.
-    - cron: "0 12 1 * *"
+    # 12:00 UTC daily (~6-7am America/Chicago). Monthly until Aug 2026, on the
+    # reasoning that an enacted law's record rarely moves. That is still true of
+    # the dates, the votes and the quoted passages, but the card now also states
+    # the record's `short_title`, and that string is regenerated whenever the
+    # corpus is re-enriched - so it is the one literal here that can change while
+    # the law does not. Daily holds a stale name to about a day. The run reads
+    # only the public API and files nothing unless a literal drifts, so the cost
+    # and the issue volume in a normal day are both zero.
+    - cron: "0 12 * * *"
 
 concurrency:
   group: home-hero-card-facts

@@ -42,6 +42,14 @@ CARD_PATH = Path("apps/frontend/src/screens/redesign/HomeSignedOutScreen.tsx")
 # The card's own strings. Each must appear in the TSX and hold up against the
 # record. The en dashes in the vote totals are the card's; keep them exact.
 CARD_CODE = "HF 4138"
+# The bolded name in the card's summary sentence. It is the record's own
+# ``short_title`` - the same string the bill profile shows as its heading - typed
+# into the card character for character, capitals and straight apostrophe included.
+# The card names the law so the example says which law it is about, and this check
+# is the whole binding between the two: nothing fetches the title at page load, so
+# a drift here is the only thing standing between the homepage and a name the bill
+# profile no longer uses.
+CARD_SHORT_TITLE = "New Rules For Minors' Social Media Accounts"
 CARD_SIGNED = "May 26, 2026"
 CARD_EFFECTIVE = "July 1, 2027"
 CARD_AUTHOR = "Rep. Peggy Scott"
@@ -125,6 +133,7 @@ def check_card_still_states(source: str, failures: list[str]) -> None:
     flat = normalize(source)
     expected = {
         "bill code": CARD_CODE,
+        "short title": CARD_SHORT_TITLE,
         "signing date": CARD_SIGNED,
         "effective date": CARD_EFFECTIVE,
         "chief author": CARD_AUTHOR,
@@ -157,6 +166,16 @@ def check_record_agrees(api_base: str, failures: list[str]) -> None:
     code = f"{bill['file_type']} {bill['file_number']}"
     if code != CARD_CODE:
         failures.append(f"Card shows {CARD_CODE}; the record says {code}.")
+
+    # ``short_title`` is what the bill profile prints as its heading, so a drift
+    # here is the homepage and the page it links to naming one law two ways.
+    analysis = bill.get("ai_analysis") or {}
+    short_title = (analysis.get("short_title") or "").strip()
+    if short_title != CARD_SHORT_TITLE:
+        failures.append(
+            f"Card names the law {CARD_SHORT_TITLE!r}; the record's short title is "
+            f"{short_title or 'empty'!r}."
+        )
 
     effective = bill.get("effective_date")
     if effective != CARD_EFFECTIVE:

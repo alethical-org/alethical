@@ -78,10 +78,33 @@ dates, the chief author, both chamber vote totals, a plain-language summary, up 
 cited passages, and 1 link to the bill page. Amber marks bill identity, green marks
 links and verified citations, and purple is reserved for cited locations and focus.
 
+The summary sentence opens by naming the law, in bold. The name is the record's own
+`short_title` for the bill, character for character and capitalised as the record
+holds it, which is the same string the bill profile shows as its heading. Naming it
+is the point: this section exists to show what an Alethical answer looks like, and an
+answer that will not say which law it is about is not a demonstration of one. A
+description like "the new law on minors' social media accounts" is also something a
+reader can neither verify nor search for.
+
+That name is a headline we wrote from the bill, not a legal one. HF 4138 carries no
+"may be cited as" clause, so it has no official short name, and nothing in the card
+calls this one official. What makes it honest is that it is the same wording as the
+page the card links to, one click away, so a reader can check it. No explanatory line
+is added, because the check a reader can actually perform is the link.
+
+The name is typed into the card, not fetched when the page loads. It sits mid-sentence,
+so a pending state would be a hole in a sentence, and an unreachable API would need a
+second name typed in as a fallback, which is the drift the change was meant to remove.
+
 The card's wording is editorial, but every stated bill fact must stay true. The free
 check in `scripts/check_home_hero_card_literals.py` compares the card with Alethical's
-published record every month and whenever the card or check changes
-(`.github/workflows/home-hero-card-facts.yml`).
+published record daily, and whenever the card or check changes
+(`.github/workflows/home-hero-card-facts.yml`). It fails in both directions: a literal
+the record no longer supports, and a literal it can no longer find in the card. The
+schedule was monthly until Aug 2026, when the short title joined the checked literals.
+An enacted law's dates, votes and text do not move, but `short_title` is regenerated
+whenever the corpus is re-enriched, so it is the one literal here that can change while
+the law does not. Daily holds a stale name to about a day.
 
 ## When the tracked-bills check fails
 

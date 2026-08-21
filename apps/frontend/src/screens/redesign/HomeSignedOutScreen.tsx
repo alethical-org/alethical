@@ -497,12 +497,18 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
         </View>
       )}
 
-      {/* The bolded phrase is our own plain-language name for the law. HF 4138 carries
-          no "may be cited as" clause, so no popular act title can be asserted here. */}
+      {/* The bolded string is the record's own `short_title` for HF 4138, character for
+          character and capitalised as the record holds it, so this sentence and the bill
+          profile this card links to name the law identically. It is a headline we wrote
+          from the bill, not a legal name - HF 4138 carries no "may be cited as" clause -
+          and nothing here calls it one. Typed, not fetched: it sits mid-sentence, so a
+          pending state would be a hole in a sentence and an unreachable API would need a
+          second name typed in as a fallback. `scripts/check_home_hero_card_literals.py`
+          holds it to the record nightly instead. The straight apostrophe in "Minors'" is
+          the record's; do not curl it to match the surrounding copy. */}
       <Text style={styles.answerSummary}>
-        Minnesota’s{' '}
-        <Text style={styles.answerSummaryBold}>new law on minors’ social media accounts</Text> will
-        require parental consent for kids under 16, ban addictive features, and default their
+        <Text style={styles.answerSummaryBold}>New Rules For Minors' Social Media Accounts</Text>{' '}
+        will require parental consent for kids under 16, ban addictive features, and default their
         accounts to the strictest privacy.
       </Text>
 
