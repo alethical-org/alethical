@@ -434,17 +434,25 @@ describe('Search dropdown Campaign money row', () => {
     expect(item?.isNew).toBe(true);
   });
 
-  // A tripwire, not a style rule. #1698 shipped a description promising "Search
-  // any name to find people, committees, and who got paid" while /money still
-  // renders a picture of a search box captioned "Search is not built yet.", so
-  // the menu offered a search the page then refused (grounded-answers.md rule 2).
-  // DELETE THIS TEST in the same pull request that ships the front door (#1696),
-  // and put the search wording back in that pull request. Until then, a failure
-  // here means the claim came back before the capability did.
-  it('promises the record rather than a search, until search ships (#1696)', () => {
+  // This replaces the tripwire #1700 left here, which failed if the row named a
+  // search before the search worked. Eugene retired that rule on 20 Aug 2026:
+  // /money opens with its own under-development notice, so the row may say what
+  // the section is for. What the tripwire was protecting still matters, so it is
+  // re-pointed rather than deleted — the guard is now on the NOTICE, not on the
+  // wording. If /money stops declaring itself unfinished while its search is
+  // still a picture, this fails and the row goes back to describing the record.
+  it('may name the search only while /money declares itself unfinished', () => {
     const item = IA.find((entry) => entry.id === 'search-campaign-money');
-    expect(item?.description).toBeDefined();
-    expect(item?.description?.toLowerCase()).not.toContain('search');
+    expect(item?.description).toBe('Search any name to find people, committees, and who got paid');
+    // The notice is what makes the claim honest, so the guard reads the real
+    // component rather than trusting a comment. Its own file states that
+    // deleting the element and the file is the whole removal, so a missing file
+    // is exactly the condition this needs to catch.
+    const notice = readFileSync(
+      join(__dirname, '../../components/campaignMoney/UnderDevelopmentNotice.tsx'),
+      'utf8',
+    );
+    expect(notice).toMatch(/under development/i);
   });
 });
 
