@@ -6,8 +6,8 @@
  * here is edited to fit a layout or to fit a check: the layout accommodates the
  * prose, and the figure check happens after posting, on the live page.
  *
- * The report is posted unlisted (`listed: false`). Listing it publicly is
- * Eugene's decision, made once the figure check has resolved.
+ * Live on the site from the day it posted. Search engines are told to skip it
+ * (`indexed: false`) until the figure check resolves, which is Eugene's call.
  */
 import type { MoneyReport, ReportBlock } from '../moneyReports';
 
@@ -15,7 +15,7 @@ const p = (text: string): ReportBlock => ({ kind: 'paragraph', runs: [{ kind: 't
 
 export const MONEY_ONLY_GOES_ONE_WAY: MoneyReport = {
   slug: 'the-money-only-goes-one-way',
-  listed: false,
+  indexed: false,
   title: 'The Money Only Goes One Way',
   dek: "If you've ever given $50 to a candidate, this is where it went.",
   authorLine: 'ALETHICAL',

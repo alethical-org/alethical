@@ -7,8 +7,8 @@
  * derived classifications — under rule 13's conditions. This file holds the
  * machinery for that surface. Posting a report means adding its entry to
  * `PUBLISHED_REPORTS`: the report page, the share preview, the shelf, the money
- * landing and the sitemap all read this registry. A report's `listed` flag
- * decides which of those it reaches, so posting and listing stay separate.
+ * landing and the sitemap all read this registry. A report's `indexed` flag
+ * decides only whether search engines may list it.
  *
  * Framework-free, in the style of lib/billDetail.ts: every sentence the report
  * chrome shows is decided by data in this shape, so tests can exercise the
@@ -84,12 +84,13 @@ export interface MoneyReport {
   /** URL slug under /reports/. */
   slug: string;
   /**
-   * Whether the report is listed publicly (rule 13's publishing order). An
-   * unlisted report renders at its own address for anyone given the link and is
-   * absent from the shelf, the landing, the sitemap and search engines. Listing
-   * is Eugene's decision, made once the figure check has resolved.
+   * Whether search engines may list the report (rule 13's publishing order).
+   * Posting a report always puts it on the site: its own address, the reports
+   * shelf, and the money landing's count. This flag governs only the sitemap and
+   * the indexing tag, which is Eugene's decision, made once the figure check has
+   * resolved.
    */
-  listed: boolean;
+  indexed: boolean;
   title: string;
   /** Masthead and shelf standfirst. Never appears in share previews (rule 13:
    * share previews carry title and dates only). */
@@ -128,26 +129,26 @@ export interface MoneyReport {
 }
 
 /**
- * Every posted report, newest first. A posted report has a page at its own
- * address; whether it is *listed* is a separate flag, so the two halves of rule
- * 13's publishing order stay separate in code as well as in prose.
+ * Every posted report, newest first. Posting puts a report on the site, so this
+ * is what the reports shelf, the money landing and every address-based reader
+ * show. Whether a search engine may list it is the separate `indexed` flag.
  */
 export const PUBLISHED_REPORTS: MoneyReport[] = [MONEY_ONLY_GOES_ONE_WAY];
 
-/**
- * The reports a reader can find without the link: the shelf, the money landing
- * and the sitemap all read this, so an unlisted report is absent from every one
- * of them by construction rather than by each caller remembering.
- */
+/** Every posted report: the reports shelf and the money landing's count. */
 export function publishedReports(): MoneyReport[] {
-  return PUBLISHED_REPORTS.filter((report) => report.listed);
+  return PUBLISHED_REPORTS;
 }
 
 /**
- * Every posted report, listed or not. The router, the document title, the report
- * screen and the page function read this, because an unlisted report still
- * renders for anyone given its address.
+ * The reports a search engine may list. Only the sitemap reads this, so a report
+ * still waiting on its figure check is out of the sitemap by construction rather
+ * than by the sitemap remembering to check.
  */
+export function indexedReports(): MoneyReport[] {
+  return PUBLISHED_REPORTS.filter((report) => report.indexed);
+}
+
 export function reportBySlug(slug: string): MoneyReport | undefined {
   return PUBLISHED_REPORTS.find((report) => report.slug === slug);
 }

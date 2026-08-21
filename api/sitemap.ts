@@ -1,5 +1,5 @@
 import { publicPageUrl } from "../apps/frontend/src/lib/share";
-import { publishedReports } from "../apps/frontend/src/lib/moneyReports";
+import { indexedReports } from "../apps/frontend/src/lib/moneyReports";
 import {
   BILL_DIRECTORY_PAGE_SIZE,
   directoryPagePath,
@@ -73,9 +73,9 @@ function sitemapIndex(): string {
 
 function pagesUrlset(data?: SitemapPayload): string {
   const paths = [...FIXED_PAGES];
-  // Published research reports list themselves (grounded-answers.md rule 13);
-  // an unpublished report has no page and so no sitemap row.
-  for (const report of publishedReports()) {
+  // A posted report is live on the site straight away, but it earns a sitemap
+  // row only once its figures are checked (grounded-answers.md rule 13).
+  for (const report of indexedReports()) {
     paths.push(`/reports/${encodeURIComponent(report.slug)}`);
   }
   if (data) {

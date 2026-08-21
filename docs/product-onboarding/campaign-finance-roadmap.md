@@ -119,12 +119,13 @@ redirect permanently. This is
 the one surface allowed to add records up across members and to name a pattern, under the
 conditions in
 [`.claude/rules/grounded-answers.md` rule 13](../../.claude/rules/grounded-answers.md).
-A report posts as its author wrote it, before any figure is checked, and is unlisted while
-it waits: absent from the shelf, absent from the sitemap, and marked for search engines to
-skip, so its only readers are people given the link. Every figure is then checked against
-our loaded data on the live page. Eugene decides when a report is listed publicly, once
-that check has resolved. A figure drawn from records we do not hold yet, such as lobbying
-(number 8 below), stays in the report and is named in the masthead as undated.
+A report posts as its author wrote it, before any figure is checked, and goes live on the
+site the same day: its own address, the reports shelf, and the money landing's count. Only
+search engines wait. Until Eugene is satisfied with how the figure check resolved, the
+report is out of the sitemap and marked for search engines to skip. Every figure is checked
+against our loaded data on the live page. A figure drawn from records we do not hold yet,
+such as lobbying (number 8 below), stays in the report and is named in the masthead as
+undated.
 
 ---
 
