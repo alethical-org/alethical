@@ -383,7 +383,14 @@ describe('Find My Legislator round-trips through its URL', () => {
   // (grounded-answers.md rule 2, never advertise what you can't answer).
   it('does not offer a city or an area it cannot look up', () => {
     const item = IA.find((entry) => entry.id === 'search-find-my-legislator');
-    expect(item?.description).toBe('See who represents you — by street address');
+    expect(item?.description).toBe('Enter your street address to see who represents you');
+    // The exact string above is the copy; these are the invariant it has to keep,
+    // so a future rewrite that quietly widens the promise fails here rather than
+    // passing because someone updated the expected string to match.
+    expect(item?.description?.toLowerCase()).toContain('street address');
+    for (const tooWide of ['city', 'zip', 'area', 'town', 'neighborhood']) {
+      expect(item?.description?.toLowerCase()).not.toContain(tooWide);
+    }
   });
 });
 
