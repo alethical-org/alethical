@@ -2338,7 +2338,12 @@ const styles = StyleSheet.create({
     letterSpacing: 0.7,
     color: t.colors.text.muted,
   },
-  sectionCardStack: { gap: 8 },
+  sectionCardStack: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, 1fr)',
+    gap: 14,
+    alignItems: 'stretch',
+  } as never,
   sectionCardBox: {
     backgroundColor: '#f7f9f8',
     borderWidth: 1,

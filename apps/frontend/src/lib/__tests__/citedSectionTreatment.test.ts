@@ -33,6 +33,12 @@ describe('cited sections distinguish quoted statute without decorative rules', (
     expect(home).not.toMatch(/sectionCardQuote: \{[^}]*width/);
   });
 
+  it('lays homepage cited sections into 3 equal, stretching desktop tracks', () => {
+    expect(home).toMatch(
+      /sectionCardStack: \{\n    display: 'grid',\n    gridTemplateColumns: 'repeat\(3, 1fr\)',\n    gap: 14,\n    alignItems: 'stretch',\n  \} as never,/,
+    );
+  });
+
   it('keeps each Answer chip close to its first quote and separates later quotes', () => {
     expect(citationCard).toContain('firstAnswerQuote: { marginTop: 8 }');
     expect(citationCard).toContain('followingAnswerQuote: { marginTop: 15 }');
