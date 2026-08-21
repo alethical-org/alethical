@@ -308,7 +308,7 @@ export function MoneyReportScreen({ navigation, route }: RootScreenProps<'MoneyR
               ) : null}
 
               <View style={styles.shortVersionBox}>
-                <Text style={styles.insetLabel}>THE SHORT VERSION</Text>
+                <Text style={[styles.insetLabel, styles.shortVersionLabel]}>SHORT VERSION</Text>
                 <Blocks blocks={report.shortVersion} />
               </View>
 
@@ -487,14 +487,18 @@ const styles = StyleSheet.create({
   },
   shortVersionBox: {
     marginTop: 32,
-    backgroundColor: t.colors.surfaces.s200,
+    // Pale cyan, not grey: this panel is the page's orientation, and the same
+    // pair already holds descriptive text on the About page. Green is spoken
+    // for here (figures, links, and the "something moved" change block).
+    backgroundColor: '#f4fafc',
     borderWidth: 1,
-    borderColor: t.colors.alpha.ink08,
+    borderColor: '#dbeef4',
     borderRadius: 15,
     paddingHorizontal: 28,
     paddingBottom: 28,
     paddingTop: 26,
   },
+  shortVersionLabel: { color: '#2b6377' },
   sectionHeading: {
     marginTop: 44,
     color: t.colors.text.primary,
