@@ -11,7 +11,11 @@ import { PasswordField } from '../../components/auth/PasswordField';
 import { ResendControl, type ResendStatus } from '../../components/auth/ResendControl';
 import { SignInContainer, descriptionTextStyle } from '../../components/auth/SignInContainer';
 import { ApiError, completePendingTrackActionFromApi } from '../../data/api';
-import { createTemporaryAuthClient } from '../../lib/auth/linkSession';
+import {
+  createTemporaryAuthClient,
+  finishTemporarySessionAfterPassword,
+  legacyConfirmationPasswordMatches,
+} from '../../lib/auth/linkSession';
 import { validateAlethicalSession } from '../../lib/auth/operations';
 import { finishResetSignOuts, updatePasswordOnce } from '../../lib/auth/resetCleanup';
 import {
@@ -142,10 +146,8 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
   const [deadResendSeconds, setDeadResendSeconds] = useState(0);
   const temporaryClient = useRef<InstanceType<typeof AuthClient> | null>(null);
   const temporarySession = useRef<Session | null>(null);
-  const ordinaryClient = useRef<InstanceType<typeof AuthClient> | null>(null);
-  const clearOrdinarySession = useRef<(() => void) | null>(null);
-  const ordinaryAccountRef = useRef<OrdinaryAccount | null>(null);
   const passwordWasChanged = useRef(false);
+  const passwordChangedAtProvider = useRef(false);
   const emailRef = useRef<any>(null);
   const passwordRef = useRef<any>(null);
   const confirmationRef = useRef<any>(null);
@@ -162,51 +164,37 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
     return () => clearInterval(timer);
   }, [deadResendStatus]);
 
-  const finishConfirmation = async (session: Session) => {
-    if (memory?.pendingReference) {
-      try {
-        const completed = await completePendingTrackActionFromApi(
-          session.access_token,
-          memory.pendingReference,
-        );
-        setReturnPath(completed.returnPath);
-      } catch (completionError) {
-        if (!(completionError instanceof ApiError && completionError.status === 410)) {
-          setScreen('link-fail');
-          return;
-        }
-      }
-    }
+  const refreshOrdinaryAccount = async () => {
+    const currentOrdinary = await ordinaryClientAndAccount();
+    setOrdinaryAccount(currentOrdinary.account);
+    return currentOrdinary;
+  };
 
-    const openAccount = ordinaryAccountRef.current;
-    const relationship = !openAccount
-      ? 'none'
-      : openAccount.id === session.user.id
-        ? 'same'
-        : 'different';
-    const ordinary = ordinaryClient.current;
+  const finishConfirmation = async (session: Session) => {
+    // Re-read the ordinary account at the last possible moment. Another tab may
+    // have signed in while this password form was open.
+    const currentOrdinary = await refreshOrdinaryAccount();
     const temporary = temporaryClient.current;
-    if (!ordinary || !temporary) {
+    if (!temporary) {
       setScreen('link-fail');
       return;
     }
 
-    if (relationship === 'none') {
-      const handed = await ordinary.setSession({
-        access_token: session.access_token,
-        refresh_token: session.refresh_token,
-      });
-      if (handed.error) {
-        setScreen('link-fail');
-        return;
-      }
-      setScreen('confirmed');
+    const finished = await finishTemporarySessionAfterPassword({
+      clearOrdinarySession: currentOrdinary.clearStoredSession,
+      ordinary: currentOrdinary.client,
+      ordinaryUserId: currentOrdinary.account?.id ?? null,
+      passwordChanged: passwordChangedAtProvider.current,
+      session,
+      temporary,
+    });
+    if (finished.error) {
+      setScreen('link-fail');
       return;
     }
 
-    await temporary.signOut({ scope: 'local' });
     temporarySession.current = null;
-    setScreen(relationship === 'different' ? 'confirmed-other' : 'confirmed');
+    setScreen(finished.relationship === 'different' ? 'confirmed-other' : 'confirmed');
   };
 
   const expectedLink = useMemo(() => {
@@ -234,16 +222,31 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
     }
     setVerifiedEmail(safeAccount.data.email || session.user.email || '');
 
-    const ordinary = await ordinaryClientAndAccount();
-    ordinaryClient.current = ordinary.client;
-    clearOrdinarySession.current = ordinary.clearStoredSession;
-    ordinaryAccountRef.current = ordinary.account;
-    setOrdinaryAccount(ordinary.account);
-    if (kind === 'reset') {
-      setScreen('new-password');
+    // The held action belongs to this proved account even if the following
+    // password save gets an uncertain reply. Complete it now so that exit cannot
+    // silently lose what brought the reader through sign-in.
+    if (kind === 'confirm' && memory?.pendingReference) {
+      try {
+        const completed = await completePendingTrackActionFromApi(
+          session.access_token,
+          memory.pendingReference,
+        );
+        setReturnPath(completed.returnPath);
+      } catch (completionError) {
+        if (!(completionError instanceof ApiError && completionError.status === 410)) {
+          setScreen('link-fail');
+          return;
+        }
+      }
+    }
+
+    await refreshOrdinaryAccount();
+    if (kind === 'confirm' && passwordWasChanged.current) {
+      setScreen('finishing');
+      await finishConfirmation(session);
       return;
     }
-    await finishConfirmation(session);
+    setScreen('new-password');
   };
 
   const verifyLink = async () => {
@@ -320,10 +323,10 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
     }
   };
 
-  const resetRelationship = () => {
+  const resetRelationship = (openAccount: OrdinaryAccount | null) => {
     const resetSession = temporarySession.current;
-    if (!ordinaryAccount) return 'none' as const;
-    if (resetSession && ordinaryAccount.id === resetSession.user.id) return 'same' as const;
+    if (!openAccount) return 'none' as const;
+    if (resetSession && openAccount.id === resetSession.user.id) return 'same' as const;
     return 'different' as const;
   };
 
@@ -339,20 +342,21 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
     // Supabase's UpdatePassword runs LogoutAllExceptMe inside the same
     // transaction — so the client's only remaining work is its two local
     // clears, and there is no cleanup failure left to report (#1533).
-    const relationship = resetRelationship();
+    const currentOrdinary = await refreshOrdinaryAccount();
+    const relationship = resetRelationship(currentOrdinary.account);
     await finishResetSignOuts(
       temporary,
-      ordinaryClient.current,
+      currentOrdinary.client,
       relationship,
-      clearOrdinarySession.current,
+      currentOrdinary.clearStoredSession,
     );
-    if (relationship === 'different' && ordinaryAccount) {
+    if (relationship === 'different' && currentOrdinary.account) {
       try {
         window.sessionStorage.setItem(
           PASSWORD_NOTICE_KEY,
           JSON.stringify({
             resetEmail: verifiedEmail,
-            ordinaryEmail: ordinaryAccount.email,
+            ordinaryEmail: currentOrdinary.account.email,
           }),
         );
       } catch {
@@ -369,16 +373,27 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
   // is unknown, and no surface may claim it (rev 17 REQUEST FAILURE carve-out).
   const continueAfterUncertainSave = async () => {
     const temporary = temporaryClient.current;
-    const relationship = resetRelationship();
+    const currentOrdinary = await refreshOrdinaryAccount();
+    const relationship = resetRelationship(currentOrdinary.account);
     if (temporary) {
       await finishResetSignOuts(
         temporary,
-        ordinaryClient.current,
+        currentOrdinary.client,
         relationship,
-        clearOrdinarySession.current,
+        currentOrdinary.clearStoredSession,
       );
     }
     goToAlethical(relationship !== 'different');
+  };
+
+  const finishConfirmedPassword = async () => {
+    const session = temporarySession.current;
+    if (!session) {
+      setScreen('link-fail');
+      return;
+    }
+    setScreen('finishing');
+    await finishConfirmation(session);
   };
 
   const changePassword = async () => {
@@ -397,6 +412,12 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
       temporary.updateUser({ password }),
     );
     if (changed.error) {
+      if (legacyConfirmationPasswordMatches(kind, memory?.type ?? null, changed.error)) {
+        passwordWasChanged.current = true;
+        passwordChangedAtProvider.current = false;
+        await finishConfirmedPassword();
+        return;
+      }
       // A lost reply may have saved the password server-side. Clear the typed
       // password and never offer the save again — a blind retry could change
       // the password twice, which the checks forbid.
@@ -420,6 +441,11 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
       if (fieldError) passwordRef.current?.focus?.();
       return;
     }
+    passwordChangedAtProvider.current = true;
+    if (kind === 'confirm') {
+      await finishConfirmedPassword();
+      return;
+    }
     await finishResetCleanup();
   };
 
@@ -431,6 +457,7 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
     // screen, so "your account has not changed" would be false (#1533).
     return (
       <SignInContainer
+        focusKey={screen}
         variant="page"
         title="We couldn’t check that link"
         description={
@@ -458,6 +485,7 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
     const confirmationDead = kind === 'confirm';
     return (
       <SignInContainer
+        focusKey={screen}
         variant="page"
         title="That link can’t be used"
         description={
@@ -517,6 +545,7 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
   if (screen === 'dead-sent') {
     return (
       <SignInContainer
+        focusKey={screen}
         variant="page"
         title="Check your email"
         description="If a confirmation email arrives, open the newest one"
@@ -533,6 +562,7 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
   if (screen === 'deactivated') {
     return (
       <SignInContainer
+        focusKey={screen}
         variant="page"
         title="This account has been deactivated"
         description={
@@ -555,12 +585,13 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
     // original intent survives the detour).
     return (
       <SignInContainer
+        focusKey={screen}
         variant="page"
-        title="Email confirmed"
+        title="Password saved"
         description={
           screen === 'confirmed'
-            ? 'You’re signed in'
-            : 'That address is confirmed. Nothing about the account open here has changed.'
+            ? 'Your email is confirmed. You’re signed in'
+            : `${verifiedEmail} is confirmed. The account open here has not changed`
         }
       >
         <View style={styles.stack}>
@@ -594,11 +625,12 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
     const different = ordinaryAccount && ordinaryAccount.id !== temporarySession.current?.user.id;
     return (
       <SignInContainer
+        focusKey={screen}
         variant="page"
-        title="Choose a new password"
+        title={kind === 'confirm' ? 'Choose a password' : 'Choose a new password'}
         description={
           different
-            ? `Change the password for ${verifiedEmail}. The account open in this browser will stay signed in.`
+            ? `${kind === 'confirm' ? 'Set' : 'Change'} the password for ${verifiedEmail}. The account open in this browser will stay signed in.`
             : `For ${verifiedEmail}`
         }
       >
@@ -628,7 +660,11 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
             error={confirmationError}
             onChangeText={setConfirmation}
           />
-          <LoadingButton label="Change password" busyLabel="Saving…" onPress={changePassword} />
+          <LoadingButton
+            label={kind === 'confirm' ? 'Save password' : 'Change password'}
+            busyLabel="Saving…"
+            onPress={changePassword}
+          />
         </View>
       </SignInContainer>
     );
@@ -641,8 +677,9 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
       ordinaryAccount && ordinaryAccount.id !== temporarySession.current?.user.id;
     return (
       <SignInContainer
+        focusKey={screen}
         variant="page"
-        title="Choose a new password"
+        title="We couldn’t confirm the password was saved"
         description={`For ${verifiedEmail}`}
       >
         <View style={styles.stack}>
@@ -671,9 +708,12 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
     // so no wording here may say other devices are already signed out.
     return (
       <SignInContainer
+        focusKey={screen}
         variant="page"
-        title="Password changed"
-        description="Finishing up — closing this reset session"
+        title={kind === 'confirm' ? 'Password saved' : 'Password changed'}
+        description={
+          kind === 'confirm' ? 'Finishing sign-in' : 'Finishing up — closing this reset session'
+        }
       >
         <LoadingButton label="Finishing up…" busyLabel="Finishing up…" busy onPress={undefined} />
       </SignInContainer>
@@ -682,11 +722,12 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
 
   return (
     <SignInContainer
+      focusKey="gate"
       variant="page"
       title={kind === 'confirm' ? 'Confirm your email' : 'Reset your password'}
       description={
         kind === 'confirm'
-          ? 'Press the button to confirm the email address from this message'
+          ? 'Confirm this email, then choose the password you’ll use to sign in'
           : 'Press the button to check this reset link and choose a new password'
       }
     >

@@ -70,6 +70,18 @@ describe('rev 9 sign-in integration guards', () => {
     expect(emailLinkPage).toContain("if (failureScreen === 'deactivated')");
   });
 
+  it('requires a password after every old confirmation link before signing in', () => {
+    const emailLinkPage = source('../../screens/auth/EmailLinkPage.tsx');
+
+    expect(emailLinkPage).toContain("setScreen('new-password')");
+    expect(emailLinkPage).toContain("if (kind === 'confirm')");
+    expect(emailLinkPage).toContain(
+      "label={kind === 'confirm' ? 'Save password' : 'Change password'}",
+    );
+    expect(emailLinkPage).toContain('finishTemporarySessionAfterPassword({');
+    expect(emailLinkPage).toContain('const currentOrdinary = await ordinaryClientAndAccount()');
+  });
+
   it('ends a verified email-link flow only after a deactivated account result', () => {
     const emailLinkPage = source('../../screens/auth/EmailLinkPage.tsx');
 
@@ -120,7 +132,7 @@ describe('rev 9 sign-in integration guards', () => {
       'You’re signed in',
       'To switch accounts later, sign out from the normal account menu',
       'Finishing up — closing this reset session',
-      'Press the button to confirm the email address from this message',
+      'Confirm this email, then choose the password you’ll use to sign in',
       'Press the button to check this reset link and choose a new password',
     ]) {
       expect(emailLinkPage).toContain(message);

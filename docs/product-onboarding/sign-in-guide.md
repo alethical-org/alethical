@@ -11,7 +11,7 @@ server and database never receive or store it.
 - Continue with Google — including from the check-email and reset waiting screens, where the
   Google button is the one control that works for every reader who can land there.
 - Create an account with an email and a password.
-- Confirm a new email address before the first password sign-in.
+- Confirm a new email address, then save its password before the first sign-in.
 - Reset a forgotten password through an email link. This works for Google-only readers too:
   Supabase sends the recovery email per user, not per password identity (measured on
   production, 14 August 2026), and finishing the link leaves them holding a password.
@@ -155,9 +155,14 @@ The web server copies the Supabase token out of the address and removes it from 
 bar before the app or outside content loads. The app does not spend the 1-use token until the
 reader presses **Confirm email** or **Continue to reset password**.
 
+After a valid confirmation link proves the address, Alethical shows **Choose a password** and
+does not finish sign-in until that password is saved.
+
 The link page uses a separate, short-lived Supabase connection. It never replaces the account
 already open in the browser. If Jordan's reset link opens while Marissa is signed in, Jordan's
-password changes and Marissa stays signed in.
+password changes and Marissa stays signed in. After a confirmed account saves its password,
+Alethical checks the open account again: no account or the same account receives the surviving
+temporary sign-in; a different account stays open and only the temporary sign-in closes.
 
 When checking a link fails for any reason other than a spent or expired token, the page shows
 a floor rather than a loop: **Try again** (which retries the same kind of link), a real mail

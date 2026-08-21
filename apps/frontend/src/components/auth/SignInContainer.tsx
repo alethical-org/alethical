@@ -1,5 +1,6 @@
 import { ReactNode, useEffect, useId, useRef, useState } from 'react';
 import {
+  AccessibilityInfo,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -8,6 +9,7 @@ import {
   StyleSheet,
   Text,
   View,
+  findNodeHandle,
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
@@ -68,6 +70,7 @@ export function SignInContainer({
   const descriptionId = description ? `auth-description-${generatedDescriptionId}` : undefined;
   const cardRef = useRef<View>(null);
   const closeRef = useRef<View>(null);
+  const titleRef = useRef<Text>(null);
   // Android shrinks the visual viewport when its keyboard opens. That rebuilds
   // parent callbacks, but it must not make an already-open dialog focus Close.
   const onCloseRef = useRef(onClose);
@@ -75,6 +78,20 @@ export function SignInContainer({
   const [closeFocused, setCloseFocused] = useState(false);
   const isPage = variant === 'page';
   const asSheet = !isPage && isMobile;
+
+  useEffect(() => {
+    if (!open || !isPage) return;
+    if (isWeb && typeof document !== 'undefined') {
+      const titleElement = titleRef.current as unknown as HTMLElement | null;
+      if (!titleElement) return;
+      titleElement.setAttribute('tabindex', '-1');
+      titleElement.focus();
+      titleElement.removeAttribute('tabindex');
+      return;
+    }
+    const titleHandle = findNodeHandle(titleRef.current);
+    if (titleHandle !== null) AccessibilityInfo.setAccessibilityFocus(titleHandle);
+  }, [focusKey, isPage, open]);
 
   useEffect(() => {
     if (!isWeb || !open || isPage || typeof document === 'undefined') return;
@@ -128,6 +145,7 @@ export function SignInContainer({
     <>
       {icon ? <View style={styles.iconSlot}>{icon}</View> : null}
       <Text
+        ref={titleRef}
         nativeID={titleId}
         accessibilityRole="header"
         aria-level={isPage ? 1 : 2}
