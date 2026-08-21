@@ -1195,10 +1195,10 @@ and it describes **what a report page must do**. The drawn design is
   the byline is.
 - **A report names the committee it read.** A person's name attaches to a committee only through a
   confirmed link (§5.1), on this surface exactly as on every other.
-- **The downloadable copy is the page, regenerated at each publish** — one current copy per
-  published version, never a second document maintained beside the page, because two copies of one
-  report and no way to tell which is current is the failure this product exists to avoid. It
-  carries the same two dates as the masthead.
+- **There is no second copy of a report.** The page is the report; a reader who wants one prints
+  it. The download control that used to say so was removed with its sentence
+  ([PR #1720](https://github.com/alethical-org/alethical/pull/1720)), because two copies of one
+  report and no way to tell which is current is the failure this product exists to avoid.
 
 ---
 
