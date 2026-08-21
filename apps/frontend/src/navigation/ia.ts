@@ -95,7 +95,7 @@ export const IA: IaItem[] = [
     menu: 'search',
     availability: 'mvp',
     authGated: false,
-    description: 'Make sense of any bill — grounded in the source',
+    description: 'Make sense of any bill, with the official text beside it',
     note: 'Carries the purple "Grounded Ask" pill in the nav dropdown.',
   },
   {
@@ -137,7 +137,7 @@ export const IA: IaItem[] = [
     menu: 'search',
     availability: 'mvp',
     authGated: false,
-    description: 'Look up any legislator — committees and authored bills',
+    description: 'Look up any legislator’s bills, committees, and campaign money',
   },
   {
     id: 'search-find-my-legislator',
@@ -150,7 +150,7 @@ export const IA: IaItem[] = [
     // drawn below city level and the lookup's geocoder only matches a house
     // number + street, so a city or ZIP cannot resolve to a district
     // (grounded-answers.md rule 2, never advertise what you can't answer).
-    description: 'See who represents you — by street address',
+    description: 'Enter your street address to see who represents you',
   },
   {
     id: 'search-issues',
