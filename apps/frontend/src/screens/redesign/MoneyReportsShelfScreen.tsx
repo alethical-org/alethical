@@ -2,7 +2,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { useResponsive } from '../../hooks/useResponsive';
-import { publishedReports, reportDatesLine, type MoneyReport } from '../../lib/moneyReports';
+import { publishedReports, reportDateCapsLabel, type MoneyReport } from '../../lib/moneyReports';
 import { linkProps, routePath } from '../../navigation/links';
 import type { RootScreenProps } from '../../navigation/types';
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
@@ -35,21 +35,6 @@ function BackChevron() {
   );
 }
 
-/** Right-pointing "read on" arrow, drawn for the same reason. */
-function ForwardArrow({ color }: { color: string }) {
-  return (
-    <Svg width={15} height={15} viewBox="0 0 24 24" fill="none" aria-hidden>
-      <Path
-        d="M5 12 H19 M14 7 L19 12 L14 17"
-        stroke={color}
-        strokeWidth={2.2}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </Svg>
-  );
-}
-
 function ReportCard({
   report,
   onOpen,
@@ -62,13 +47,10 @@ function ReportCard({
   return (
     <Pressable {...linkProps(routePath.moneyReport(report.slug), onOpen)} style={styles.card}>
       <View style={styles.cardBody}>
-        <Text style={styles.cardDates}>{reportDatesLine(report)}</Text>
+        <Text style={styles.cardDates}>PUBLISHED {reportDateCapsLabel(report.publishedOn)}</Text>
         <Text style={[styles.cardTitle, isMobile && styles.cardTitleMobile]}>{report.title}</Text>
         <Text style={styles.cardDek}>{report.dek}</Text>
-        <View style={styles.cardCta}>
-          <Text style={styles.cardCtaText}>Read the report</Text>
-          <ForwardArrow color={t.colors.text.greenOnLight} />
-        </View>
+        <Text style={styles.cardCtaText}>Read the report →</Text>
       </View>
     </Pressable>
   );
@@ -256,8 +238,8 @@ const styles = StyleSheet.create({
     fontSize: 17.5,
     lineHeight: 27,
   },
-  cardCta: { marginTop: 6, flexDirection: 'row', alignItems: 'center', gap: 10 },
   cardCtaText: {
+    marginTop: 6,
     color: t.colors.text.greenOnLight,
     fontFamily: t.typography.ui,
     fontSize: 16,
