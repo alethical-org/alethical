@@ -21,9 +21,6 @@ import { Container, Footer, PageBackground, TopNav } from '../../theme/primitive
 import { prefersReducedMotion, theme as t } from '../../theme/tokens';
 
 const ABOUT_COLORS = {
-  cyanSurface: '#f4fafc',
-  cyanBorder: '#dbeef4',
-  cyanInk: '#2b6377',
   roadmapSurface: '#f7f8fa',
   subtleBorder: 'rgba(17,21,15,0.09)',
   sectionRule: 'rgba(17,21,15,0.1)',
@@ -444,9 +441,9 @@ const styles = StyleSheet.create({
   heroSubtitleMobile: { fontSize: 18, lineHeight: 27, marginTop: 14 },
   provenanceText: { color: t.colors.purple.base },
   originPanel: {
-    backgroundColor: ABOUT_COLORS.cyanSurface,
+    backgroundColor: t.colors.cyan.surface,
     borderWidth: 1,
-    borderColor: ABOUT_COLORS.cyanBorder,
+    borderColor: t.colors.cyan.border,
     borderRadius: 16,
     paddingHorizontal: 34,
     paddingVertical: 30,
@@ -465,7 +462,7 @@ const styles = StyleSheet.create({
     maxWidth: 1040,
   },
   originTextMobile: { fontSize: 16, lineHeight: 25 },
-  originTerm: { color: ABOUT_COLORS.cyanInk, fontWeight: t.fontWeights.bold },
+  originTerm: { color: t.colors.cyan.ink, fontWeight: t.fontWeights.bold },
   originDivider: {
     marginTop: 40,
     height: 1,
@@ -513,9 +510,9 @@ const styles = StyleSheet.create({
   threeColumn: { width: '31.5%' },
   fourColumn: { width: '23.5%' },
   beliefCard: {
-    backgroundColor: ABOUT_COLORS.cyanSurface,
+    backgroundColor: t.colors.cyan.surface,
     borderWidth: 1,
-    borderColor: ABOUT_COLORS.cyanBorder,
+    borderColor: t.colors.cyan.border,
     borderRadius: 16,
     padding: 24,
     minHeight: 176,
@@ -534,7 +531,7 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
   },
   cardTitleArrow: { top: 0 },
-  beliefTitle: { color: ABOUT_COLORS.cyanInk },
+  beliefTitle: { color: t.colors.cyan.ink },
   beliefTitleMobile: {
     fontSize: 15.5,
     fontWeight: t.fontWeights.heavy,

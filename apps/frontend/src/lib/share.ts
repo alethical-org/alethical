@@ -36,6 +36,8 @@ export interface ShareContent {
   subject: ShareSubject;
   title: string;
   description: string;
+  /** Optional shorter line shown in the Share panel without changing prepared post text. */
+  previewDescription?: string;
   url: string;
 }
 

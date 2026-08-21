@@ -12,6 +12,7 @@ import {
   reportSectionAnchor,
   reportSectionAnchors,
   reportShareDescription,
+  reportSharePanelDescription,
   type MoneyReport,
 } from '../moneyReports';
 
@@ -141,6 +142,10 @@ describe('report share previews', () => {
     expect(reportShareDescription(SAMPLE_REPORT)).toBe(
       'Published Aug 17, 2026 · records through Aug 11, 2026.',
     );
+  });
+
+  it('shows only the publication date inside the Share panel', () => {
+    expect(reportSharePanelDescription(SAMPLE_REPORT)).toBe('Published Aug 17, 2026');
   });
 });
 
