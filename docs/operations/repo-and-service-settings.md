@@ -245,6 +245,10 @@ missing, expired, corrupt, or unsaved replacement fails the check.
 | Authentication email limit | `30` emails per hour | Limits total confirmation and reset email volume. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
 | Sign-up and sign-in limit | `30` requests per 5 minutes per internet address | Limits rapid password guesses from 1 address. | Unchecked: Supabase's read-only hosted API exposes the project-wide email-code limit, not this per-address limit; [Supabase rate limits](https://supabase.com/docs/guides/auth/rate-limits) |
 
+[0041_confirmation_password_guard.py](../../alethical/alembic/versions/0041_confirmation_password_guard.py)
+removes any password stored before email proof in the same database write that confirms the
+address. It changes no confirmed account and reads no other row.
+
 Supabase stores passwords with salted bcrypt. The intended product explanation remains in
 [`sign-in-guide.md`](../product-onboarding/sign-in-guide.md); it is not a second settings
 list.
