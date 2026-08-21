@@ -390,7 +390,7 @@ describe('first-response page tags', () => {
     for (const path of ['/reports', '/money/reports']) {
       const { body, status } = await serve({ path });
       expect(status).toBe(200);
-      expect(body).toContain('<title>What we found | Alethical</title>');
+      expect(body).toContain('<title>Campaign money reports | Alethical</title>');
       expect(body).toContain('<link rel="canonical" href="https://www.alethical.com/reports"');
     }
   });

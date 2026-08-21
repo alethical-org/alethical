@@ -293,7 +293,7 @@ export function MoneyReportScreen({ navigation, route }: RootScreenProps<'MoneyR
             style={styles.backLink}
           >
             <BackChevron />
-            <Text style={styles.backLinkText}>What we found</Text>
+            <Text style={styles.backLinkText}>Campaign money reports</Text>
           </Pressable>
 
           <View style={[styles.grid, isMobile && styles.gridMobile]}>
