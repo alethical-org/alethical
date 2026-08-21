@@ -96,22 +96,29 @@ export interface MoneyReport {
    * share previews carry title and dates only). */
   dek: string;
   /**
-   * The byline line, mono caps. A report Alethical publishes in its own name is
-   * authored by "ALETHICAL" (rule 13's publishing order, point 8); a report
-   * signed by a person carries that person's name. Never an invented name.
+   * The byline. Kept on the record, rendered nowhere since 20 Aug 2026: the
+   * masthead now carries the 2 dates alone (rule 13's publishing order, point
+   * 8), and a report published in Alethical's own name needs no byline because
+   * the site is the author. A report signed by a person names them in its own
+   * text. Never an invented name.
    */
   authorLine: string;
   /** ISO date the report was published, e.g. "2026-08-17". */
   publishedOn: string;
   /** ISO date the records run through, e.g. "2026-08-11". */
   recordsThrough: string;
-  /** Every filing body the report used, named in the masthead (rule 13). */
+  /**
+   * Every filing body the report used. Kept on the record, rendered nowhere
+   * since 20 Aug 2026: the sources block names the bodies in its own prose
+   * (rule 13).
+   */
   filingBodies: string[];
   /**
    * Set when the report draws a figure from records Alethical does not hold, so
-   * that figure has no records-through date. The masthead names it rather than
-   * leaving it blank or lending it another figure's date (rule 13's publishing
-   * order, point 11).
+   * that figure has no records-through date. Kept on the record, rendered
+   * nowhere since 20 Aug 2026 (Eugene's call): the sources block names those
+   * records and the years they cover instead (rule 13's publishing order, point
+   * 11).
    */
   undatedRecordsNote?: string;
   /** The boxed opening summary ("THE SHORT VERSION"). */

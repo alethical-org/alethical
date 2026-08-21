@@ -1172,10 +1172,11 @@ separates posting a report from listing it publicly; this subsection carries the
 and it describes **what a report page must do**. The drawn design is
 `docs/design/handoff-campaign-money/Money report web.dc.html`.
 
-- **The masthead sits above the first claim** and names five things: that this is Alethical
-  research, its author, its publication date, the date its records run through, and every filing
-  body it used. A reader arriving from a search engine must be able to tell what they are reading
-  and which promise applies to it, without scrolling.
+- **The masthead sits above the first claim** and names 2 things: the publication date and the
+  date its records run through (Eugene, 20 Aug 2026). Authorship and the filing bodies moved into
+  the report itself — the site is the author, and the sources block names every body used. The
+  known cost: a reader arriving from a search engine no longer sees which filing bodies the page
+  used until they reach the sources block.
 - **The never-rank-members rule above has exactly one exception**, and it is this surface: a
   signed report may total and compare across members. No record surface may, for the reason the
   rest of §7 gives — two filing calendars make a side-by-side comparison of amounts a comparison
@@ -1194,10 +1195,10 @@ and it describes **what a report page must do**. The drawn design is
   the byline is.
 - **A report names the committee it read.** A person's name attaches to a committee only through a
   confirmed link (§5.1), on this surface exactly as on every other.
-- **The downloadable copy is the page, regenerated at each publish** — one current copy per
-  published version, never a second document maintained beside the page, because two copies of one
-  report and no way to tell which is current is the failure this product exists to avoid. It
-  carries the same two dates as the masthead.
+- **There is no second copy of a report.** The page is the report; a reader who wants one prints
+  it. The download control that used to say so was removed with its sentence
+  ([PR #1720](https://github.com/alethical-org/alethical/pull/1720)), because two copies of one
+  report and no way to tell which is current is the failure this product exists to avoid.
 
 ---
 

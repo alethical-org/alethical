@@ -124,8 +124,8 @@ site the same day: its own address, the reports shelf, and the money landing's c
 search engines wait. Until Eugene is satisfied with how the figure check resolved, the
 report is out of the sitemap and marked for search engines to skip. Every figure is checked
 against our loaded data on the live page. A figure drawn from records we do not hold yet,
-such as lobbying (number 8 below), stays in the report and is named in the masthead as
-undated.
+such as lobbying (number 8 below), stays in the report, and the sources block names those
+records and the years they cover. The masthead names no undated figure (Eugene, 20 Aug 2026).
 
 ---
 
@@ -192,8 +192,8 @@ started to read as a plan.
 
 **One exception: this is a record-page promise.** A signed research report
 (see "Our own research reports" above) may cite records filed with another body, named and
-linked at their source. A report's masthead names
-every filing body it used, so a reader always knows which promise applies to the page they are
+linked at their source. A report's sources block names
+every filing body it used, so a reader can see which promise applies to the page they are
 on. Record pages keep the rule above unchanged. Conditions:
 [`.claude/rules/grounded-answers.md` rule 13](../../.claude/rules/grounded-answers.md).
 
