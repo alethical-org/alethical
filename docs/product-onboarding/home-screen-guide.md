@@ -75,7 +75,9 @@ live feature.
 
 The example answer card keeps 1 divider, a linked bill code, the signed and effective
 dates, the chief author, both chamber vote totals, a plain-language summary, up to 3
-cited passages, and 1 link to the bill page. Amber marks bill identity, green marks
+cited passages, and 1 link to the bill page. The cited passages sit in 3 equal columns
+on the signed-out wide-screen page; their text keeps its readable cap and wraps inside
+each column. Amber marks bill identity, green marks
 links and verified citations, and purple is reserved for cited locations and focus.
 
 The summary sentence opens by naming the law, in bold. The name is the record's own
