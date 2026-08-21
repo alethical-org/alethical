@@ -344,8 +344,9 @@ const HF4138_BILL_ID = '94-2026-HF4138';
 const PEGGY_SCOTT_LEGISLATOR_ID = '2ebc386c-bf7e-4b9c-9d81-81f3bef1f971';
 
 // Every literal below was re-verified against the ingested record on 2026-08-12, and
-// `alethical/tests/test_home_hero_card_literals.py` re-runs that check in CI so this
-// card cannot go stale in silence (#1444, #1467). Signed 05/26/26 and Chapter 111 come
+// `scripts/check_home_hero_card_literals.py` re-runs that check against the published
+// API on a schedule (`.github/workflows/home-hero-card-facts.yml`, which files an issue
+// on drift) so this card cannot go stale in silence (#1444, #1467). Signed 05/26/26 and Chapter 111 come
 // from the bill's Governor-approval and Secretary-of-State actions; the effective date
 // from `effective_date`; House 132–2 / Senate 66–0 from the two passage roll calls; all
 // three excerpts are verbatim from the enacted text (version 5).
