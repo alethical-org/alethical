@@ -197,9 +197,7 @@ function GoogleHelp({ create = false }: { create?: boolean }) {
   }
 
   return (
-    <Text style={styles.googleHelp}>
-      If you first used Google and haven’t added a password, continue with Google
-    </Text>
+    <Text style={styles.googleHelp}>If you first used Google and haven’t added a password</Text>
   );
 }
 

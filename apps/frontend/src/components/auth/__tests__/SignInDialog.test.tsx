@@ -137,13 +137,13 @@ describe('rev 9 sign-in dialog', () => {
     expect(html).not.toContain('You’ll use this email and password');
   });
 
-  it('shows the wrong-password Google help as a plain sentence, not a fake button', () => {
+  it('shows the wrong-password Google help without repeating the button wording', () => {
     const html = render({ errorMessage: 'Email or password is incorrect' });
 
-    expect(html).toContain(
-      'If you first used Google and haven’t added a password, continue with Google',
-    );
-    expect(html).not.toContain('continue with Google.</span>');
+    expect(html).toContain('If you first used Google and haven’t added a password');
+    // The button directly below already reads Continue with Google, so the help
+    // sentence names the condition only and never repeats the instruction.
+    expect(html.match(/continue with Google/gi)).toHaveLength(1);
   });
 
   it('shows the arrival-neutral confirmation screen with a working Google button', () => {
