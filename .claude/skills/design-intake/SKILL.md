@@ -13,7 +13,7 @@ A terse design prompt ("the dropdown hover doesn't work") is usually *answerable
 
 Interview **only** for gaps that change *what you do* or *how fast*. If you can already state the **scope**, the **expected vs. actual** (bug) or the **target state + acceptance** (change), and you know **where the spec/assets are**, skip the questions, restate the task in one line, and proceed. Interrogating for things the repo answers — or for low-stakes details — is the anti-goal. Most prompts pass the gate; the interview is the exception, not the toll booth.
 
-Name the tier in the same first reply as the intake questions. A `Tier:` line (per `~/.claude/CLAUDE.md`) says which model, reasoning label and mechanism should run the build or review the prompt is asking for — asked and answered while the prompt is still being proofed, since that is the last point before the work starts.
+**When the prompt was pasted as a piece of work, the tier comes before this whole skill runs.** The first reply is a `Tier:` line (per `~/.claude/CLAUDE.md`) naming the model, reasoning label and mechanism for the build or review being asked for, plus at most one line saying what job you read in the paste, and nothing else — no repo reading, no intake questions, no code. Then wait for Eugene's go (`g`) and run this skill from step 1. The intake questions come after the go, not beside the tier, because step 1's whole point is self-answering from the repo first and that reading is the spend the wait protects.
 
 One gate, once: for design tasks this skill **is** the intake step — don't stack another start-of-task gate on top of it (the general form of that rule now lives in `~/.claude/CLAUDE.md`, "Reach for a skill before improvising"). Run this, then hand off.
 
