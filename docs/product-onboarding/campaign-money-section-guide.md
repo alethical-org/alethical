@@ -268,8 +268,6 @@ ordinary "page not found" screen. A report's page carries:
 - A "where these numbers come from" block naming every source.
 - **Share**, whose link previews carry the report's title and its two dates only — no
   claims, no figures.
-- **Download as PDF**, which prints the current page: the PDF is this page, regenerated at
-  each publish, never a second document maintained beside it.
 - Two dated states, both built and tested: a **newer-filings notice** (the Board has
   accepted filings since the records-through date; figures stay as published, with any
   moved figure noted where it appears) and a **correction** (the earlier figure stays
