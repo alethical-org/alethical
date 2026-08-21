@@ -81,15 +81,19 @@ const ACTIVE_LINE = 140;
  * itself: a page opened at a #section address, where the article has not
  * rendered yet when the browser looks for the target.
  *
- * Deliberately instant, not animated, and that is the whole bug this page had.
- * Measured 20 Aug 2026 in 2 Chrome builds — the maintainer's own Chrome on the
- * live page, and Chrome 148 — `scrollIntoView({ behavior: 'smooth' })` on this
- * page moves NOTHING AT ALL, while the same call with 'auto' lands correctly.
- * The app scrolls an inner container rather than the document, which is the
- * suspected reason, unproven. A third Chromium (Playwright's, headed) animates
- * it correctly, which is why a silently dead contents rail passed every check
- * we had. Nothing here animates, so prefers-reduced-motion has nothing to
- * reduce.
+ * Instant, not animated: a page someone has just opened at a #section address
+ * should already be there, and the browser's own fragment jump — which is what
+ * every rail click now uses — is instant too, so animating this one path would
+ * be the odd one out. Nothing here animates, so prefers-reduced-motion has
+ * nothing to reduce.
+ *
+ * A measured warning against reaching for `behavior: 'smooth'` here. Chrome
+ * only advances a smooth scroll while the page is actually rendering, so in a
+ * tab that is hidden or occluded the call returns having moved nothing, with no
+ * error. This page's earlier rail cancelled its own anchor and then scrolled
+ * that way, which made it look completely dead under automation (20 Aug 2026).
+ * In a visible window the same call did scroll, so that is a caveat about
+ * measuring, not the explanation for a reader seeing a rail do nothing.
  */
 function jumpToAnchor(anchor: string) {
   if (!isWeb || typeof document === 'undefined') return;
@@ -273,8 +277,9 @@ function SectionView({ section, anchor }: { section: ReportSection; anchor: stri
  * the anchor. That is what puts `#the-one-way-valve` in the address bar, makes
  * Back return the reader, and does the scrolling itself, honouring the target's
  * scroll-margin-top. The previous version cancelled the anchor and scrolled by
- * hand, and the hand-rolled scroll was a silent no-op (see jumpToAnchor), so
- * the entries did nothing at all.
+ * hand, which threw all of that away: it moved the page and left the address
+ * bar untouched, so no section here could be linked to (grounded-answers rule 5
+ * — anything linked to must be URL-addressable).
  */
 function ContentsLinks({
   report,
