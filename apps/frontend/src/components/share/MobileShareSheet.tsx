@@ -108,7 +108,9 @@ export function MobileShareSheet({
               {`Share this ${content.subject}`}
             </Text>
             <Text style={styles.contentTitle}>{content.title}</Text>
-            <Text style={styles.description}>{content.description}</Text>
+            <Text style={styles.description}>
+              {content.previewDescription ?? content.description}
+            </Text>
 
             <View style={styles.urlField}>
               <Text numberOfLines={1} style={styles.urlText}>

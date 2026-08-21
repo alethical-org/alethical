@@ -97,7 +97,7 @@ export function SharePopover({ content }: { content: ShareContent }) {
   }, [isDesktop, open]);
 
   const intents = buildShareIntents(content);
-  const { description, subject, title, url } = content;
+  const { description, previewDescription, subject, title, url } = content;
 
   const placement =
     anchor && panelSize
@@ -207,7 +207,7 @@ export function SharePopover({ content }: { content: ShareContent }) {
                 {title}
               </Text>
               <Text numberOfLines={3} style={styles.sharePreviewDescription}>
-                {description}
+                {previewDescription ?? description}
               </Text>
             </View>
 

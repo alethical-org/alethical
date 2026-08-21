@@ -11,6 +11,7 @@ import {
   reportDatesLine,
   reportSectionAnchors,
   reportShareDescription,
+  reportSharePanelDescription,
   type MoneyReport,
   type ReportBlock,
   type ReportInline,
@@ -397,6 +398,7 @@ export function MoneyReportScreen({ navigation, route }: RootScreenProps<'MoneyR
     title: report.title,
     // Title and dates only — no dek, no figures (rule 13).
     description: reportShareDescription(report),
+    previewDescription: reportSharePanelDescription(report),
     url: publicPageUrl(routePath.moneyReport(report.slug)),
   };
 
@@ -647,18 +649,15 @@ const styles = StyleSheet.create({
   },
   shortVersionBox: {
     marginTop: 32,
-    // Pale cyan, not grey: this panel is the page's orientation, and the same
-    // pair already holds descriptive text on the About page. Green is spoken
-    // for here (figures, links, and the "something moved" change block).
-    backgroundColor: '#f4fafc',
+    backgroundColor: t.colors.cyan.surfaceStrong,
     borderWidth: 1,
-    borderColor: '#dbeef4',
+    borderColor: t.colors.cyan.borderStrong,
     borderRadius: 15,
     paddingHorizontal: 28,
     paddingBottom: 28,
     paddingTop: 26,
   },
-  shortVersionLabel: { color: '#2b6377' },
+  shortVersionLabel: { color: t.colors.cyan.ink },
   sectionHeading: {
     marginTop: 44,
     color: t.colors.text.primary,

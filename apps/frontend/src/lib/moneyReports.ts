@@ -240,13 +240,14 @@ export function reportDatesLine(report: Pick<MoneyReport, 'publishedOn' | 'recor
   return `PUBLISHED ${reportDateCapsLabel(report.publishedOn)} · RECORDS THROUGH ${reportDateCapsLabel(report.recordsThrough)}`;
 }
 
-/**
- * What a share preview may carry for a report: its title and its two dates,
- * nothing else (rule 13 — report claims and derived labels appear in no
- * social-share preview or metadata).
- */
+/** What search metadata and prepared share text may carry: the report's two dates. */
 export function reportShareDescription(
   report: Pick<MoneyReport, 'publishedOn' | 'recordsThrough'>,
 ): string {
   return `Published ${reportDateLabel(report.publishedOn)} · records through ${reportDateLabel(report.recordsThrough)}.`;
+}
+
+/** The quiet identity line shown inside the Share panel. */
+export function reportSharePanelDescription(report: Pick<MoneyReport, 'publishedOn'>): string {
+  return `Published ${reportDateLabel(report.publishedOn)}`;
 }
