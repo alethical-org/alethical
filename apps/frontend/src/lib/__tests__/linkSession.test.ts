@@ -1,10 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
   TEMPORARY_AUTH_STORAGE_PREFIX,
   buildEmailLinkRedirectUrl,
   buildTemporaryAuthClientOptions,
-  decideTemporarySessionCleanup,
+  decideTemporarySessionAfterPassword,
+  finishTemporarySessionAfterPassword,
+  legacyConfirmationPasswordMatches,
   parseEmailLinkUrl,
   requestedSignInState,
 } from '../auth/linkSession';
@@ -140,28 +142,148 @@ describe('temporary Supabase client settings', () => {
   });
 });
 
-describe('temporary-session cleanup decisions', () => {
+describe('temporary session after a password save', () => {
+  it('accepts the password already stored by a real old signup link only', () => {
+    const samePassword = { code: 'same_password' };
+
+    expect(legacyConfirmationPasswordMatches('confirm', 'signup', samePassword)).toBe(true);
+    expect(legacyConfirmationPasswordMatches('confirm', 'email', samePassword)).toBe(true);
+    expect(legacyConfirmationPasswordMatches('reset', 'recovery', samePassword)).toBe(false);
+    expect(legacyConfirmationPasswordMatches('confirm', 'signup', { code: 'weak_password' })).toBe(
+      false,
+    );
+  });
+
   it('hands the verified session to the ordinary client when no account is open', () => {
-    expect(decideTemporarySessionCleanup(null, 'reset-user')).toEqual({
+    expect(decideTemporarySessionAfterPassword(null, 'reset-user')).toEqual({
       relationship: 'none',
       handToOrdinaryClient: true,
       clearTemporarySession: false,
     });
   });
 
-  it('clears only the temporary session when the same account is already open', () => {
-    expect(decideTemporarySessionCleanup('reset-user', 'reset-user')).toEqual({
+  it('replaces a matching ordinary session because the password save revoked it', () => {
+    expect(decideTemporarySessionAfterPassword('reset-user', 'reset-user')).toEqual({
       relationship: 'same',
+      handToOrdinaryClient: true,
+      clearTemporarySession: false,
+    });
+  });
+
+  it('clears only the temporary session when a different account is open', () => {
+    expect(decideTemporarySessionAfterPassword('marissa-user', 'jordan-user')).toEqual({
+      relationship: 'different',
       handToOrdinaryClient: false,
       clearTemporarySession: true,
     });
   });
 
-  it('clears only the temporary session when a different account is open', () => {
-    expect(decideTemporarySessionCleanup('marissa-user', 'jordan-user')).toEqual({
-      relationship: 'different',
-      handToOrdinaryClient: false,
-      clearTemporarySession: true,
-    });
+  it('hands no-account and same-account sessions to the ordinary client without revoking them', async () => {
+    for (const ordinaryUserId of [null, 'target-user']) {
+      const ordinary = {
+        setSession: vi.fn(async () => ({ error: null })),
+      };
+      const temporary = {
+        signOut: vi.fn(async () => ({ error: null })),
+      };
+
+      await expect(
+        finishTemporarySessionAfterPassword({
+          ordinary,
+          ordinaryUserId,
+          passwordChanged: true,
+          session: {
+            access_token: 'temporary-access',
+            refresh_token: 'temporary-refresh',
+            user: { id: 'target-user' },
+          },
+          temporary,
+        }),
+      ).resolves.toEqual({
+        error: null,
+        relationship: ordinaryUserId ? 'same' : 'none',
+      });
+      expect(ordinary.setSession).toHaveBeenCalledWith({
+        access_token: 'temporary-access',
+        refresh_token: 'temporary-refresh',
+      });
+      expect(temporary.signOut).not.toHaveBeenCalled();
+    }
+  });
+
+  it('preserves a different ordinary account and closes only the temporary session', async () => {
+    const ordinary = {
+      setSession: vi.fn(async () => ({ error: null })),
+    };
+    const temporary = {
+      signOut: vi.fn(async () => ({ error: null })),
+    };
+
+    await expect(
+      finishTemporarySessionAfterPassword({
+        ordinary,
+        ordinaryUserId: 'open-user',
+        passwordChanged: true,
+        session: {
+          access_token: 'temporary-access',
+          refresh_token: 'temporary-refresh',
+          user: { id: 'target-user' },
+        },
+        temporary,
+      }),
+    ).resolves.toEqual({ error: null, relationship: 'different' });
+    expect(ordinary.setSession).not.toHaveBeenCalled();
+    expect(temporary.signOut).toHaveBeenCalledWith({ scope: 'local' });
+  });
+
+  it('clears a revoked matching session when handing off the surviving session fails', async () => {
+    const clearOrdinarySession = vi.fn();
+    const temporary = {
+      signOut: vi.fn(async () => ({ error: null })),
+    };
+
+    await expect(
+      finishTemporarySessionAfterPassword({
+        clearOrdinarySession,
+        ordinary: {
+          setSession: vi.fn(async () => ({ error: new Error('offline') })),
+        },
+        ordinaryUserId: 'target-user',
+        passwordChanged: true,
+        session: {
+          access_token: 'temporary-access',
+          refresh_token: 'temporary-refresh',
+          user: { id: 'target-user' },
+        },
+        temporary,
+      }),
+    ).resolves.toMatchObject({ relationship: 'same', error: expect.any(Error) });
+    expect(clearOrdinarySession).toHaveBeenCalledOnce();
+    expect(temporary.signOut).not.toHaveBeenCalled();
+  });
+
+  it('keeps a valid matching ordinary session when the password was already the same', async () => {
+    const ordinary = {
+      setSession: vi.fn(async () => ({ error: null })),
+    };
+    const temporary = {
+      signOut: vi.fn(async () => ({ error: null })),
+    };
+
+    await expect(
+      finishTemporarySessionAfterPassword({
+        ordinary,
+        ordinaryUserId: 'target-user',
+        passwordChanged: false,
+        session: {
+          access_token: 'temporary-access',
+          refresh_token: 'temporary-refresh',
+          user: { id: 'target-user' },
+        },
+        temporary,
+      }),
+    ).resolves.toEqual({ error: null, relationship: 'same' });
+    expect(ordinary.setSession).not.toHaveBeenCalled();
+    expect(temporary.signOut).toHaveBeenCalledWith({ scope: 'local' });
   });
 });

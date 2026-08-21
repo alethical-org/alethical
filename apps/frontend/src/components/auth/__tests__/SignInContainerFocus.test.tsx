@@ -71,4 +71,60 @@ describe('phone password focus', () => {
     opener.remove();
     mount.remove();
   });
+
+  it('moves focus to the new heading when a full-page auth step changes', () => {
+    const mount = document.createElement('div');
+    document.body.append(mount);
+    const root = createRoot(mount);
+
+    act(() =>
+      root.render(
+        <SignInContainer variant="page" focusKey="gate" title="Confirm your email">
+          <button>Confirm email</button>
+        </SignInContainer>,
+      ),
+    );
+    expect(document.activeElement).toBe(mount.querySelector('[role="heading"]'));
+
+    act(() =>
+      root.render(
+        <SignInContainer variant="page" focusKey="password" title="Choose a password">
+          <button>Save password</button>
+        </SignInContainer>,
+      ),
+    );
+    expect(document.activeElement).toBe(mount.querySelector('[role="heading"]'));
+
+    act(() => root.unmount());
+    mount.remove();
+  });
+
+  it('keeps focus on the busy action while the same full-page step is checking', () => {
+    const mount = document.createElement('div');
+    document.body.append(mount);
+    const root = createRoot(mount);
+
+    act(() =>
+      root.render(
+        <SignInContainer variant="page" focusKey="gate" title="Confirm your email">
+          <button>Confirm email</button>
+        </SignInContainer>,
+      ),
+    );
+    const button = mount.querySelector('button');
+    act(() => button?.focus());
+
+    act(() =>
+      root.render(
+        <SignInContainer variant="page" focusKey="gate" title="Confirm your email">
+          <button>Confirming…</button>
+        </SignInContainer>,
+      ),
+    );
+
+    expect(document.activeElement).toBe(mount.querySelector('button'));
+
+    act(() => root.unmount());
+    mount.remove();
+  });
 });

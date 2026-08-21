@@ -169,16 +169,35 @@ export interface TemporarySessionCleanupDecision {
 }
 
 /**
+ * Before the confirmation-time password guard is live, an old signup link may
+ * still have the password the reader chose before confirming. Supabase reports
+ * that exact re-entry as `same_password`; no other link kind earns this narrow
+ * compatibility exception.
+ */
+export function legacyConfirmationPasswordMatches(
+  route: EmailLinkRoute,
+  verificationType: string | null,
+  error: unknown,
+): boolean {
+  if (route !== 'confirm' || (verificationType !== 'signup' && verificationType !== 'email')) {
+    return false;
+  }
+  if (!error || typeof error !== 'object') return false;
+  return (error as { code?: unknown }).code === 'same_password';
+}
+
+/**
  * Do not clear the temporary session after handing its refresh token to the
  * ordinary client. A local Supabase sign-out would revoke that handed-off token.
  */
-export function decideTemporarySessionCleanup(
+export function decideTemporarySessionAfterPassword(
   ordinaryUserId: string | null,
   temporaryUserId: string,
+  passwordChanged = true,
 ): TemporarySessionCleanupDecision {
-  if (!ordinaryUserId) {
+  if (!ordinaryUserId || (ordinaryUserId === temporaryUserId && passwordChanged)) {
     return {
-      relationship: 'none',
+      relationship: ordinaryUserId ? 'same' : 'none',
       handToOrdinaryClient: true,
       clearTemporarySession: false,
     };
@@ -188,4 +207,66 @@ export function decideTemporarySessionCleanup(
     handToOrdinaryClient: false,
     clearTemporarySession: true,
   };
+}
+
+interface OrdinarySessionClient {
+  setSession(tokens: {
+    access_token: string;
+    refresh_token: string;
+  }): Promise<{ error: unknown | null }>;
+}
+
+interface TemporarySessionClient {
+  signOut(options: { scope: 'local' }): Promise<{ error: unknown | null }>;
+}
+
+interface PasswordSession {
+  access_token: string;
+  refresh_token: string;
+  user: { id: string };
+}
+
+/**
+ * A password save revokes every other refresh session for that account. Hand
+ * the surviving temporary session to the ordinary client when no account or
+ * the same account is open. A different account is never replaced.
+ */
+export async function finishTemporarySessionAfterPassword({
+  clearOrdinarySession,
+  ordinary,
+  ordinaryUserId,
+  passwordChanged,
+  session,
+  temporary,
+}: {
+  clearOrdinarySession?: () => void | Promise<void>;
+  ordinary: OrdinarySessionClient;
+  ordinaryUserId: string | null;
+  passwordChanged: boolean;
+  session: PasswordSession;
+  temporary: TemporarySessionClient;
+}): Promise<{ relationship: TemporarySessionRelationship; error: unknown | null }> {
+  const decision = decideTemporarySessionAfterPassword(
+    ordinaryUserId,
+    session.user.id,
+    passwordChanged,
+  );
+  if (decision.handToOrdinaryClient) {
+    try {
+      const handed = await ordinary.setSession({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+      });
+      if (handed.error && decision.relationship === 'same') {
+        await clearOrdinarySession?.();
+      }
+      return { relationship: decision.relationship, error: handed.error };
+    } catch (error) {
+      if (decision.relationship === 'same') await clearOrdinarySession?.();
+      return { relationship: decision.relationship, error };
+    }
+  }
+
+  await temporary.signOut({ scope: 'local' }).catch(() => undefined);
+  return { relationship: decision.relationship, error: null };
 }
