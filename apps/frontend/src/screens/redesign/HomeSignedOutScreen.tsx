@@ -344,8 +344,9 @@ const HF4138_BILL_ID = '94-2026-HF4138';
 const PEGGY_SCOTT_LEGISLATOR_ID = '2ebc386c-bf7e-4b9c-9d81-81f3bef1f971';
 
 // Every literal below was re-verified against the ingested record on 2026-08-12, and
-// `alethical/tests/test_home_hero_card_literals.py` re-runs that check in CI so this
-// card cannot go stale in silence (#1444, #1467). Signed 05/26/26 and Chapter 111 come
+// `scripts/check_home_hero_card_literals.py` re-runs that check against the published
+// API on a schedule (`.github/workflows/home-hero-card-facts.yml`, which files an issue
+// on drift) so this card cannot go stale in silence (#1444, #1467). Signed 05/26/26 and Chapter 111 come
 // from the bill's Governor-approval and Secretary-of-State actions; the effective date
 // from `effective_date`; House 132–2 / Senate 66–0 from the two passage roll calls; all
 // three excerpts are verbatim from the enacted text (version 5).
@@ -496,12 +497,18 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
         </View>
       )}
 
-      {/* The bolded phrase is our own plain-language name for the law. HF 4138 carries
-          no "may be cited as" clause, so no popular act title can be asserted here. */}
+      {/* The bolded string is the record's own `short_title` for HF 4138, character for
+          character and capitalised as the record holds it, so this sentence and the bill
+          profile this card links to name the law identically. It is a headline we wrote
+          from the bill, not a legal name - HF 4138 carries no "may be cited as" clause -
+          and nothing here calls it one. Typed, not fetched: it sits mid-sentence, so a
+          pending state would be a hole in a sentence and an unreachable API would need a
+          second name typed in as a fallback. `scripts/check_home_hero_card_literals.py`
+          holds it to the record nightly instead. The straight apostrophe in "Minors'" is
+          the record's; do not curl it to match the surrounding copy. */}
       <Text style={styles.answerSummary}>
-        Minnesota’s{' '}
-        <Text style={styles.answerSummaryBold}>new law on minors’ social media accounts</Text> will
-        require parental consent for kids under 16, ban addictive features, and default their
+        <Text style={styles.answerSummaryBold}>New Rules For Minors' Social Media Accounts</Text>{' '}
+        will require parental consent for kids under 16, ban addictive features, and default their
         accounts to the strictest privacy.
       </Text>
 
@@ -2356,6 +2363,12 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     color: t.colors.text.secondary,
     fontStyle: 'italic',
+    // Bill text, so the length is the bill's and not ours to predict: these three
+    // run 143, 125 and 96 characters and the next bill's will differ again. Nothing
+    // here is sized to fit a quote on one line - the cap holds the measure at about
+    // 62-72 characters at 14px, and where the column is already narrower the column
+    // governs and the cap does nothing. `pretty` keeps a last line off one word.
+    ...(isWeb ? ({ maxWidth: '34em', textWrap: 'pretty' } as object) : null),
   },
   sectionCardQuoteTextMobile: { fontSize: 16, lineHeight: 24 },
   sectionCardNote: {

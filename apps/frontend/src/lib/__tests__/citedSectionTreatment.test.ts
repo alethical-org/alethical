@@ -27,6 +27,12 @@ describe('cited sections distinguish quoted statute without decorative rules', (
     expect(citationCard).toContain('quoteMobile: { fontSize: 16, lineHeight: 24 }');
   });
 
+  it('caps the homepage quote measure without sizing anything to one line', () => {
+    expect(home).toContain("maxWidth: '34em', textWrap: 'pretty'");
+    expect(home).not.toMatch(/sectionCardBox: \{[^}]*whiteSpace/);
+    expect(home).not.toMatch(/sectionCardQuote: \{[^}]*width/);
+  });
+
   it('keeps each Answer chip close to its first quote and separates later quotes', () => {
     expect(citationCard).toContain('firstAnswerQuote: { marginTop: 8 }');
     expect(citationCard).toContain('followingAnswerQuote: { marginTop: 15 }');
