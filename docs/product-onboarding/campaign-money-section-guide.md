@@ -229,37 +229,36 @@ about either page's contents changed with the move.
 
 The shelf for Alethical's own signed research on these records
 ([`.claude/rules/grounded-answers.md` rule 13](../../.claude/rules/grounded-answers.md)).
-One entry per **listed** report, newest first, each carrying its publication date and the
-date its records run through.
+One entry per posted report, newest first, each carrying its publication date and the date
+its records run through. With no report posted the shelf says "Nothing is published yet"
+and the money landing counts 0 reports.
 
-Posting a report and listing it are two separate steps, and only the second one puts a
-report on this shelf:
+Posting a report puts it on the site straight away, before any of its figures have been
+checked: its own address, this shelf, and the money landing's count, all on the day it
+posts. Nothing about the report waits for our checking.
 
-- **Posted** means the report has a page at its own address, exactly as its author wrote
-  it, before any of its figures have been checked. A posted report is deliberately hard to
-  find: it is absent from this shelf, absent from the money landing's card, absent from the
-  sitemap, and marked for search engines to skip. Its only readers are people given the
-  link.
-- **Listed** means Eugene has decided the report is ready for the public, once the figure
-  check has resolved. Listing is what adds it here, to the sitemap, and to search results.
+The one thing that does wait is **search engines**. Until Eugene is satisfied with how the
+figure check resolved, the report is out of the site map that search engines read
+(`/sitemap.xml`) and its page carries an instruction telling them to skip it. So somebody
+who comes to Alethical reads the report; somebody searching Google does not find it yet.
+Opening a report to search engines is Eugene's decision, made per report.
 
-**Nothing is listed yet**, and the shelf says exactly that, so it shows "Nothing is
-published yet" and counts 0 reports. One report is posted and unlisted: "The Money Only
-Goes One Way", at `/reports/the-money-only-goes-one-way`.
+One report is posted: "The Money Only Goes One Way", at
+`/reports/the-money-only-goes-one-way`.
 
 ## A report page (`/reports/{name}`)
 
-Every posted report has a page here, listed or not; an address with no report behind it
-shows the ordinary "page not found" screen. A report's page carries:
+Every posted report has a page here; an address with no report behind it shows the
+ordinary "page not found" screen. A report's page carries:
 
 - A masthead naming what it is (ALETHICAL RESEARCH), its author, its publication date, its
   records-through date, and every filing body it used. A report Alethical publishes in its
   own name is authored by "ALETHICAL". Where a figure comes from records Alethical does not
   hold, the masthead says so and names it rather than leaving a blank or lending it another
   figure's date.
-- The publication date is the day the report is listed publicly, in Minnesota time; while a
-  report is unlisted it shows the day it posted. The records-through date never moves with
-  it, so a reader always sees which records the figures were computed from.
+- The publication date is the day the report posts, in Minnesota time, and it never moves
+  afterwards. The records-through date is separate and stays pinned to the records the
+  figures were computed from, so a report read late never looks fresher than its data.
 - Tables, where the report's own text uses one. A table is marked up as a real table, so a
   screen reader announces each figure with its column heading, and it scrolls on its own
   rather than pushing the page sideways on a phone.

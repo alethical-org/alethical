@@ -332,26 +332,26 @@ export function askPageMetadata(question?: string | null): PageMetadata {
  * (.claude/rules/grounded-answers.md rule 13), so the dek and every figure stay
  * out of these tags.
  *
- * A listed report carries no `nosnippet`: an ordinary search snippet always
+ * An indexed report carries no `nosnippet`: an ordinary search snippet always
  * links to the page holding the method, and suppressing body text on a
- * transparency product reads as hiding the thing it publishes. An unlisted
- * report is `noindex` instead, and carries no canonical while it is, so search
- * engines skip the page entirely and its only readers are people given the link
- * (rule 13's publishing order, point 3).
+ * transparency product reads as hiding the thing it publishes. A report still
+ * waiting on its figure check is `noindex`, and carries no canonical while it
+ * is. It stays fully readable on the site either way; only search engines are
+ * held off (rule 13's publishing order).
  */
 export function moneyReportPageMetadata(report: {
   slug: string;
   title: string;
   publishedOn: string;
   recordsThrough: string;
-  listed: boolean;
+  indexed: boolean;
 }): PageMetadata {
   return pageMetadata({
     title: titleFor(report.title),
     socialTitle: report.title,
     description: reportShareDescription(report),
-    canonicalPath: report.listed ? `/reports/${encodeURIComponent(report.slug)}` : '',
-    noindex: !report.listed,
+    canonicalPath: report.indexed ? `/reports/${encodeURIComponent(report.slug)}` : '',
+    noindex: !report.indexed,
   });
 }
 

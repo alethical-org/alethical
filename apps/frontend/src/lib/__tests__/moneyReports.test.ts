@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { moneyReportPageMetadata } from '../share';
 import {
   PUBLISHED_REPORTS,
+  indexedReports,
   publishedReports,
   reportBySlug,
   reportDateCapsLabel,
@@ -18,7 +19,7 @@ import {
 // (Eugene's 19 Aug 2026 decision — build the page and its container only).
 export const SAMPLE_REPORT: MoneyReport = {
   slug: 'sample-report',
-  listed: true,
+  indexed: true,
   title: 'Sample report title',
   dek: 'A sample standfirst for tests.',
   authorLine: 'ALETHICAL RESEARCH · AUTHOR NAMED AT PUBLISH',
@@ -69,39 +70,38 @@ export const SAMPLE_REPORT: MoneyReport = {
 };
 
 describe('the posted-report registry', () => {
-  // Rule 13's publishing order separates posting from listing: a posted report
-  // has a page at its own address, and only a LISTED report is one a reader can
-  // find. These pins are what stop an unlisted report leaking into a surface
-  // that would make it findable, so they move only when Eugene lists one.
-  it('gives every posted report a page at its own address', () => {
+  // Rule 13's publishing order: posting a report puts it on the site straight
+  // away, and holding it back from SEARCH ENGINES is the separate, later step.
+  // These pins are what keep those two apart, so neither can drag the other.
+  it('puts every posted report on the site, at its address and on the shelf', () => {
     expect(PUBLISHED_REPORTS.length).toBeGreaterThan(0);
+    // publishedReports() is what the shelf and the money landing's count read.
+    expect(publishedReports()).toEqual(PUBLISHED_REPORTS);
     for (const report of PUBLISHED_REPORTS) {
       expect(reportBySlug(report.slug)).toBe(report);
     }
   });
 
-  it('keeps an unlisted report out of the shelf, the landing and the sitemap', () => {
-    // publishedReports() is the single feed those three surfaces read.
-    const listed = publishedReports();
-    expect(listed.every((report) => report.listed)).toBe(true);
-    for (const report of PUBLISHED_REPORTS.filter((report) => !report.listed)) {
-      expect(listed).not.toContain(report);
-    }
+  it('keeps a report out of the sitemap until its figures are checked', () => {
+    // Written as an equality so the guard still does work on a day when every
+    // posted report happens to be indexed.
+    expect(indexedReports()).toEqual(PUBLISHED_REPORTS.filter((report) => report.indexed));
+    expect(indexedReports().every((report) => report.indexed)).toBe(true);
   });
 
-  it('tells search engines to skip an unlisted report, and to index a listed one', () => {
-    const unlisted = moneyReportPageMetadata({ ...SAMPLE_REPORT, listed: false });
-    expect(unlisted.noindex).toBe(true);
-    // No canonical while noindex: an unlisted page is not a copy of a real one.
-    expect(unlisted.canonicalPath).toBe('');
+  it('tells search engines to skip a report until it is opened to them', () => {
+    const held = moneyReportPageMetadata({ ...SAMPLE_REPORT, indexed: false });
+    expect(held.noindex).toBe(true);
+    // No canonical while noindex: a held page is not a copy of a real one.
+    expect(held.canonicalPath).toBe('');
 
-    const listed = moneyReportPageMetadata(SAMPLE_REPORT);
-    expect(listed.noindex).toBe(false);
-    expect(listed.canonicalPath).toBe('/reports/sample-report');
+    const open = moneyReportPageMetadata(SAMPLE_REPORT);
+    expect(open.noindex).toBe(false);
+    expect(open.canonicalPath).toBe('/reports/sample-report');
   });
 
   it('names records it does not hold rather than dating them', () => {
-    // Rule 13's publishing order, point 11.
+    // Rule 13's publishing order.
     for (const report of PUBLISHED_REPORTS) {
       if (report.undatedRecordsNote === undefined) continue;
       expect(report.undatedRecordsNote.trim().length).toBeGreaterThan(0);
