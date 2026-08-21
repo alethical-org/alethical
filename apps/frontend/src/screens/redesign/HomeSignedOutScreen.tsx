@@ -508,8 +508,8 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
           the record's; do not curl it to match the surrounding copy. */}
       <Text style={styles.answerSummary}>
         <Text style={styles.answerSummaryBold}>New Rules For Minors' Social Media Accounts</Text>{' '}
-        will require parental consent for kids under 16, ban addictive features, and default their
-        accounts to the strictest privacy.
+        will require parental consent for kids under 16, ban addictive features,{'\n'}and default
+        their accounts to the strictest privacy.
       </Text>
 
       <View style={styles.citedRow}>
