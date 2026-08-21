@@ -47,9 +47,10 @@ export type ReportBlock =
   | { kind: 'table'; columns: string[]; rows: string[][] };
 
 export interface ReportSection {
-  /** Anchor id, unique in the report — the contents rail jumps to it. */
-  anchor: string;
-  /** The section heading, exactly as the report's text writes it. */
+  /** The section heading, exactly as the report's text writes it. The heading is
+   * also what the section's link target is built from — see
+   * `reportSectionAnchors` — so there is no second, hand-kept list to fall out of
+   * step with it. */
   heading: string;
   /** The short label the contents rail shows for this section. */
   railLabel: string;
@@ -154,6 +155,44 @@ export function publishedReports(): MoneyReport[] {
  */
 export function indexedReports(): MoneyReport[] {
   return PUBLISHED_REPORTS.filter((report) => report.indexed);
+}
+
+/**
+ * The link target for one section heading: the heading's own words, lowercased,
+ * with punctuation dropped and spaces turned into hyphens.
+ *
+ * Built from the words rather than the section's position, because a shared
+ * `/reports/{slug}#{anchor}` link has to survive a section being inserted above
+ * it — a positional `#s3` would silently start pointing at a different section
+ * (rule 13 is explicit that a posted report's addresses are stable). Apostrophes
+ * and quote marks are removed rather than hyphenated, so "the candidate's
+ * behalf" reads as `the-candidates-behalf` and not `the-candidate-s-behalf`.
+ */
+export function reportSectionAnchor(heading: string): string {
+  const slug = heading
+    .toLowerCase()
+    .replace(/['\u2018\u2019"\u201c\u201d]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return slug || 'section';
+}
+
+/**
+ * Every section's link target, in document order, aligned index-for-index with
+ * the sections passed in. Two headings that slug the same way get a numeric
+ * suffix (`-2`, `-3`) in document order, so an id never names two places.
+ *
+ * The contents rail and the article both read this one list, which is why the
+ * rail cannot drift out of step with the headings it points at.
+ */
+export function reportSectionAnchors(sections: Pick<ReportSection, 'heading'>[]): string[] {
+  const used = new Map<string, number>();
+  return sections.map((section) => {
+    const base = reportSectionAnchor(section.heading);
+    const seen = used.get(base) ?? 0;
+    used.set(base, seen + 1);
+    return seen === 0 ? base : `${base}-${seen + 1}`;
+  });
 }
 
 export function reportBySlug(slug: string): MoneyReport | undefined {

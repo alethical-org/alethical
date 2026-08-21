@@ -1,11 +1,15 @@
+import { useEffect, useMemo, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
+import { useHover } from '../../components/billDetail/interactions';
 import { SharePopover } from '../../components/billDetail/SharePopover';
+import { useHistoryScrollRestoration } from '../../hooks/useHistoryScrollRestoration';
 import { useResponsive } from '../../hooks/useResponsive';
 import {
   reportBySlug,
   reportDatesLine,
+  reportSectionAnchors,
   reportShareDescription,
   type MoneyReport,
   type ReportBlock,
@@ -16,7 +20,7 @@ import { publicPageUrl, type ShareContent } from '../../lib/share';
 import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
 import type { RootScreenProps } from '../../navigation/types';
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
-import { prefersReducedMotion, theme as t } from '../../theme/tokens';
+import { theme as t } from '../../theme/tokens';
 
 /**
  * One published research report at /reports/{slug} — the one surface that
@@ -59,12 +63,78 @@ function BackChevron() {
   );
 }
 
-/** Jump to a section anchor in place. Web-only mechanics, honoring reduced motion. */
+// How far below the top of the window a section comes to rest after a jump, so
+// the heading is not flush against the edge and reads as the top of a page
+// rather than as a link that missed. scrollIntoView and the browser's own
+// fragment jump both honour scroll-margin-top, so this one value sets the
+// offset for a rail click, a shared #link, and Back alike. Web only — React
+// Native has no CSS scroll margin. Cast out of the typed style union.
+const SCROLL_MARGIN = { scrollMarginTop: 24 } as object;
+
+// A section counts as the one being read once its top has passed this line.
+// Comfortably below SCROLL_MARGIN, so the section a reader just jumped to is
+// the one the rail marks.
+const ACTIVE_LINE = 140;
+
+/**
+ * Jump to a section in place, for the one case the browser cannot handle
+ * itself: a page opened at a #section address, where the article has not
+ * rendered yet when the browser looks for the target.
+ *
+ * Deliberately instant, not animated, and that is the whole bug this page had.
+ * Measured 20 Aug 2026 in 2 Chrome builds — the maintainer's own Chrome on the
+ * live page, and Chrome 148 — `scrollIntoView({ behavior: 'smooth' })` on this
+ * page moves NOTHING AT ALL, while the same call with 'auto' lands correctly.
+ * The app scrolls an inner container rather than the document, which is the
+ * suspected reason, unproven. A third Chromium (Playwright's, headed) animates
+ * it correctly, which is why a silently dead contents rail passed every check
+ * we had. Nothing here animates, so prefers-reduced-motion has nothing to
+ * reduce.
+ */
 function jumpToAnchor(anchor: string) {
   if (!isWeb || typeof document === 'undefined') return;
-  document
-    .getElementById(anchor)
-    ?.scrollIntoView({ behavior: prefersReducedMotion() ? 'auto' : 'smooth', block: 'start' });
+  document.getElementById(anchor)?.scrollIntoView({ behavior: 'auto', block: 'start' });
+}
+
+/**
+ * Which section the reader is in, for the rail's marked entry — web only, and
+ * only while the rail is on screen.
+ *
+ * Recomputed from every section's position rather than from the entry that just
+ * crossed, so exactly one is marked at every scroll position, including at the
+ * top of the article and on a page opened at a #section address. The observer
+ * is the signal that something crossed the line; the answer comes from the pass
+ * over all of them.
+ */
+function useActiveSection(anchors: string[], enabled: boolean): string | null {
+  const [active, setActive] = useState<string | null>(anchors[0] ?? null);
+
+  useEffect(() => {
+    if (!enabled || !isWeb || typeof document === 'undefined') return;
+    if (typeof IntersectionObserver === 'undefined') return;
+
+    const pick = () => {
+      let current = anchors[0] ?? null;
+      for (const anchor of anchors) {
+        const node = document.getElementById(anchor);
+        if (node && node.getBoundingClientRect().top <= ACTIVE_LINE) current = anchor;
+      }
+      setActive(current);
+    };
+
+    const observer = new IntersectionObserver(pick, {
+      rootMargin: `-${ACTIVE_LINE}px 0px 0px 0px`,
+      threshold: 0,
+    });
+    for (const anchor of anchors) {
+      const node = document.getElementById(anchor);
+      if (node) observer.observe(node);
+    }
+    pick();
+    return () => observer.disconnect();
+  }, [anchors, enabled]);
+
+  return enabled ? active : null;
 }
 
 function InlineRuns({ runs }: { runs: ReportInline[] }) {
@@ -177,9 +247,9 @@ function BlockTable({ columns, rows }: { columns: string[]; rows: string[][] }) 
   );
 }
 
-function SectionView({ section }: { section: ReportSection }) {
+function SectionView({ section, anchor }: { section: ReportSection; anchor: string }) {
   return (
-    <View nativeID={section.anchor}>
+    <View nativeID={anchor} style={SCROLL_MARGIN as never}>
       <Text accessibilityRole="header" aria-level={2} style={styles.sectionHeading}>
         {section.heading}
       </Text>
@@ -194,29 +264,108 @@ function SectionView({ section }: { section: ReportSection }) {
   );
 }
 
-function ContentsLinks({ report, compact }: { report: MoneyReport; compact?: boolean }) {
+/**
+ * The contents list: one ordinary link per section, in document order, built
+ * from the report's own sections so it cannot list a section the article does
+ * not have.
+ *
+ * The click is left to the browser on purpose — no onPress, so nothing cancels
+ * the anchor. That is what puts `#the-one-way-valve` in the address bar, makes
+ * Back return the reader, and does the scrolling itself, honouring the target's
+ * scroll-margin-top. The previous version cancelled the anchor and scrolled by
+ * hand, and the hand-rolled scroll was a silent no-op (see jumpToAnchor), so
+ * the entries did nothing at all.
+ */
+function ContentsLinks({
+  report,
+  anchors,
+  activeAnchor,
+  compact,
+}: {
+  report: MoneyReport;
+  anchors: string[];
+  activeAnchor?: string | null;
+  compact?: boolean;
+}) {
   return (
-    <View style={compact ? styles.contentsListCompact : styles.contentsList}>
-      {report.sections.map((section) => (
-        <Pressable
-          key={section.anchor}
-          accessibilityRole="link"
-          {...(isWeb ? { href: `#${section.anchor}` } : {})}
-          onPress={(event) => {
-            (event as unknown as { preventDefault?: () => void })?.preventDefault?.();
-            jumpToAnchor(section.anchor);
-          }}
-        >
-          <Text style={styles.contentsLink}>{section.railLabel}</Text>
-        </Pressable>
+    <View
+      accessibilityRole={isWeb ? ('navigation' as 'none') : undefined}
+      accessibilityLabel="Sections in this report"
+      style={compact ? styles.contentsListCompact : styles.contentsList}
+    >
+      {report.sections.map((section, index) => (
+        <ContentsLink
+          key={anchors[index]}
+          anchor={anchors[index]}
+          label={section.railLabel}
+          active={anchors[index] === activeAnchor}
+        />
       ))}
     </View>
   );
 }
 
+function ContentsLink({
+  anchor,
+  label,
+  active,
+}: {
+  anchor: string;
+  label: string;
+  active: boolean;
+}) {
+  const [hovered, hoverProps] = useHover();
+  return (
+    <Pressable
+      {...hoverProps}
+      accessibilityRole="link"
+      // Marks the reader's place for assistive technology too, not only in ink.
+      aria-current={active ? 'location' : undefined}
+      {...(isWeb ? { href: `#${anchor}` } : { onPress: () => jumpToAnchor(anchor) })}
+    >
+      <Text
+        style={[
+          styles.contentsLink,
+          hovered && styles.contentsLinkHovered,
+          active && styles.contentsLinkActive,
+        ]}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  );
+}
+
 export function MoneyReportScreen({ navigation, route }: RootScreenProps<'MoneyReport'>) {
   const { isMobile } = useResponsive();
+  // Back out of a #section address should return the reader to where they were
+  // reading, not to the top. The browser cannot do it here — the page scrolls
+  // an inner container, not the document — so this is the shared hook that
+  // saves the position against the exact history entry.
+  const scrollRestoration = useHistoryScrollRestoration();
   const report = reportBySlug(route.params.slug);
+
+  // One list of section link targets, read by both the rail and the article.
+  const anchors = useMemo(() => reportSectionAnchors(report?.sections ?? []), [report]);
+  const activeAnchor = useActiveSection(anchors, !isMobile);
+
+  // A page opened at /reports/{slug}#{section} has to jump itself: the article
+  // is drawn by JavaScript, so when the browser looks for the fragment's target
+  // on load there is nothing there yet. Read once on the first render, then
+  // re-asserted after the layout settles.
+  const [openingAnchor] = useState(() =>
+    isWeb && typeof window !== 'undefined' ? window.location.hash.replace(/^#/, '') : '',
+  );
+  useEffect(() => {
+    if (!openingAnchor || !anchors.includes(openingAnchor)) return;
+    const jump = () => jumpToAnchor(openingAnchor);
+    const first = setTimeout(jump, 0);
+    const settled = setTimeout(jump, 250);
+    return () => {
+      clearTimeout(first);
+      clearTimeout(settled);
+    };
+  }, [openingAnchor, anchors]);
 
   // The router only produces this route for published slugs, so this is a
   // belt-and-braces guard, not a reachable state.
@@ -248,7 +397,7 @@ export function MoneyReportScreen({ navigation, route }: RootScreenProps<'MoneyR
 
   return (
     <PageBackground>
-      <ScrollView contentContainerStyle={styles.page}>
+      <ScrollView {...scrollRestoration} contentContainerStyle={styles.page}>
         <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
 
         <Container style={[styles.main, isMobile && styles.mainMobile]}>
@@ -264,7 +413,7 @@ export function MoneyReportScreen({ navigation, route }: RootScreenProps<'MoneyR
             {!isMobile ? (
               <View style={[styles.rail, webSticky as never]}>
                 <Text style={styles.railLabel}>CONTENTS</Text>
-                <ContentsLinks report={report} />
+                <ContentsLinks report={report} anchors={anchors} activeAnchor={activeAnchor} />
               </View>
             ) : null}
 
@@ -303,7 +452,7 @@ export function MoneyReportScreen({ navigation, route }: RootScreenProps<'MoneyR
               {isMobile ? (
                 <View style={styles.mobileContents}>
                   <Text style={styles.railLabel}>CONTENTS</Text>
-                  <ContentsLinks report={report} compact />
+                  <ContentsLinks report={report} anchors={anchors} compact />
                 </View>
               ) : null}
 
@@ -312,8 +461,8 @@ export function MoneyReportScreen({ navigation, route }: RootScreenProps<'MoneyR
                 <Blocks blocks={report.shortVersion} />
               </View>
 
-              {report.sections.map((section) => (
-                <SectionView key={section.anchor} section={section} />
+              {report.sections.map((section, index) => (
+                <SectionView key={anchors[index]} section={section} anchor={anchors[index]} />
               ))}
 
               <View style={styles.sourcesBlock}>
@@ -371,12 +520,18 @@ const styles = StyleSheet.create({
   },
   contentsList: { marginTop: 16, gap: 13 },
   contentsListCompact: { marginTop: 12, gap: 10 },
+  // Literal inks from the report design: resting #4b524b, and #11150f for the
+  // section being read and for hover. The ink ramp has no role name for either
+  // shade at this weight, and the rest of this screen names its mockup colours
+  // the same way.
   contentsLink: {
-    color: t.colors.text.secondary,
+    color: '#4b524b',
     fontFamily: t.typography.ui,
     fontSize: 14,
     lineHeight: 19,
   },
+  contentsLinkHovered: { color: '#11150f' },
+  contentsLinkActive: { color: '#11150f', fontWeight: t.fontWeights.heavy },
   column: { flex: 1, maxWidth: 760, minWidth: 0 },
   mobileContents: {
     marginTop: 24,

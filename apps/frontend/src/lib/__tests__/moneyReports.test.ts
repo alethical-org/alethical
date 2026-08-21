@@ -9,6 +9,8 @@ import {
   reportDateCapsLabel,
   reportDateLabel,
   reportDatesLine,
+  reportSectionAnchor,
+  reportSectionAnchors,
   reportShareDescription,
   type MoneyReport,
 } from '../moneyReports';
@@ -31,7 +33,6 @@ export const SAMPLE_REPORT: MoneyReport = {
   ],
   sections: [
     {
-      anchor: 's1',
       heading: 'A sample section',
       railLabel: 'Sample section',
       blocks: [
@@ -140,5 +141,61 @@ describe('report share previews', () => {
     expect(reportShareDescription(SAMPLE_REPORT)).toBe(
       'Published Aug 17, 2026 · records through Aug 11, 2026.',
     );
+  });
+});
+
+describe('section link targets', () => {
+  // Rule 13: a posted report's addresses are stable. These are the seven
+  // addresses "The Money Only Goes One Way" has been shareable at since it
+  // posted, so a change to the slug rule that would break a link someone
+  // already sent fails here rather than on the live page.
+  it('keeps the posted report\u2019s section addresses exactly as published', () => {
+    const report = reportBySlug('the-money-only-goes-one-way');
+    expect(report).toBeDefined();
+    expect(reportSectionAnchors(report!.sections)).toEqual([
+      'start-with-your-own-check',
+      'the-one-way-valve',
+      'but-the-party-spends-on-the-candidates-behalf',
+      'why-this-isnt-a-party-story',
+      'the-number-that-dwarfs-all-of-it',
+      'what-the-shape-actually-looks-like',
+      'what-to-do-about-it',
+    ]);
+  });
+
+  it('builds the address from the heading\u2019s own words, never its position', () => {
+    expect(reportSectionAnchor('The one-way valve')).toBe('the-one-way-valve');
+    // An apostrophe closes up rather than splitting the word in two.
+    expect(reportSectionAnchor("Why this isn't a party story")).toBe('why-this-isnt-a-party-story');
+    expect(
+      reportSectionAnchor('\u201cBut the party spends on the candidate\u2019s behalf\u201d'),
+    ).toBe('but-the-party-spends-on-the-candidates-behalf');
+    // Punctuation, runs of spaces and edge punctuation all collapse away.
+    expect(reportSectionAnchor('  What to do about it?  ')).toBe('what-to-do-about-it');
+    expect(reportSectionAnchor('$221 million, in six accounts')).toBe(
+      '221-million-in-six-accounts',
+    );
+  });
+
+  it('gives a heading with nothing to slug a name rather than an empty address', () => {
+    expect(reportSectionAnchor('\u2014 \u2014')).toBe('section');
+  });
+
+  it('numbers two headings that would otherwise share one address', () => {
+    expect(
+      reportSectionAnchors([
+        { heading: 'What to do about it' },
+        { heading: 'What to do about it' },
+        { heading: 'What to do about it?' },
+      ]),
+    ).toEqual(['what-to-do-about-it', 'what-to-do-about-it-2', 'what-to-do-about-it-3']);
+  });
+
+  it('lists one address per section, in the order the article reads', () => {
+    for (const report of PUBLISHED_REPORTS) {
+      const anchors = reportSectionAnchors(report.sections);
+      expect(anchors).toHaveLength(report.sections.length);
+      expect(new Set(anchors).size).toBe(anchors.length);
+    }
   });
 });

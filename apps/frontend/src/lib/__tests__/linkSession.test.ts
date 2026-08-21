@@ -103,6 +103,16 @@ describe('requested sign-in screen fallback', () => {
       cleanHash: '#section=details',
     });
   });
+
+  // A shared report link ends in a plain section name, not key=value pairs.
+  // Rewriting it as pairs appended an '=' and pointed the link at nothing.
+  it('leaves an ordinary page fragment exactly as it arrived', () => {
+    expect(requestedSignInState(null, '#the-one-way-valve')).toEqual({
+      screen: undefined,
+      cleanHash: '#the-one-way-valve',
+    });
+    expect(requestedSignInState(null, '')).toEqual({ screen: undefined, cleanHash: '' });
+  });
 });
 
 describe('temporary Supabase client settings', () => {
