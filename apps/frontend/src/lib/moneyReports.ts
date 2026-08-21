@@ -114,7 +114,7 @@ export interface MoneyReport {
    * order, point 11).
    */
   undatedRecordsNote?: string;
-  /** The boxed opening summary ("THE SHORT VERSION"). */
+  /** The boxed opening summary ("SHORT VERSION"). */
   shortVersion: ReportBlock[];
   sections: ReportSection[];
   /** The where-these-numbers-come-from block. */
