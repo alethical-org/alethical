@@ -229,9 +229,9 @@ about either page's contents changed with the move.
 
 The shelf for Alethical's own signed research on these records
 ([`.claude/rules/grounded-answers.md` rule 13](../../.claude/rules/grounded-answers.md)).
-One entry per posted report, newest first, each carrying its publication date and the date
-its records run through. With no report posted the shelf says "Nothing is published yet"
-and the money landing counts 0 reports.
+One entry per posted report, newest first, each carrying its publication date alone. The
+report page carries the date its records run through. With no report posted the shelf says
+"Nothing is published yet" and the money landing counts 0 reports.
 
 Posting a report puts it on the site straight away, before any of its figures have been
 checked: its own address, this shelf, and the money landing's count, all on the day it
