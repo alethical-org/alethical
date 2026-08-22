@@ -1,12 +1,12 @@
 ---
 name: design-review
 description: >-
-  Use when a draft (not-yet-final) Claude Design mockup + bundle arrives and needs
+  Use when a draft (not-yet-final) Design mockup + bundle arrives and needs
   evaluating against Alethical's real data, backend capability, and UX before anyone
   builds it. Pressure-tests every element for buildability + honesty
   (grounded-answers), applies the design-audit accessibility/interaction rubric to
-  everything a static design can reveal, and returns prioritized improvement feedback
-  as a definitive Claude-Design prompt plus a decision list. Pre-build. First in the
+  everything a static design can reveal, and routes prioritized feedback to Design,
+  the current coding agent, or Eugene. Pre-build. First in the
   design- skill set: design-review → design-intake → design-build → design-audit.
 ---
 
@@ -14,17 +14,24 @@ description: >-
 
 ## Purpose
 
-A Claude Design mockup is drawn without visibility into our database, backend, or roadmap — so it can confidently show elements we can't back, claims our data can't honor, or accessibility problems that are cheaper to fix now than after a build. This is the **shift-left gate**: surface every issue a still image + our data can prove *before* a line of code, and hand back exact change requests. It is the one design phase only Claude Code can run, because it depends on the repo, the corpus, and the milestones.
+A Design mockup is drawn without visibility into our database, backend, or roadmap — so it can confidently show elements we can't back, claims our data can't honor, or accessibility problems that are cheaper to fix now than after a build. This is the **shift-left gate**: surface every issue a still image + our data can prove *before* a line of code, and hand back exact change requests. It is the one design phase only the current coding agent can run, because it depends on the repo, the corpus, and the milestones.
 
-This produces **feedback**, not code. It does **not** implement, edit the mockup, or send anything to Claude Design — the maintainer relays the prompt and drives the design iteration.
+This reviews the handoff and may correct mechanical bundle errors. It does **not** begin the
+product build or send anything to Design. The maintainer relays any needed prompt and drives
+the design iteration.
 
-**Substantial design work is a hard return-to-Design gate.** If the review finds a missing
-screen, interaction model, responsive layout, state treatment, visual hierarchy, or any
-other change that needs real design judgment, return one definitive Claude Design prompt
-and state that the bundle is not build-ready. Never offer “build now” as an alternative,
-never present “revise or build” as a decision, and never ask the maintainer to accept
-design debt to save a round. The maintainer will bring back Design's response. A build may
-be recommended only after a later review finds no substantial design work remains.
+**Return to Design only when its judgment materially improves the build.** All 3 answers must
+be yes: (1) an unresolved choice changes what a person sees, understands or does; (2) the
+approved design, product rules, source facts, accessibility rules and shipped patterns do not
+settle it; and (3) Design's visual workspace or design judgment is likely to improve the build.
+At least 2 meaningfully different good answers must remain. A missing screen, state, phone view
+or other large change does not qualify by itself. Everything with 1 checkable answer stays with
+the current coding agent. Product, scope and policy choices stay with Eugene.
+
+**The coding roles are relative.** The agent holding this review is the current coding agent.
+Its peer coding consultant is the other platform: Codex consults Claude Code, and Claude Code
+consults Codex. A peer consultation follows the `model-effort` triggers and supplies advice;
+it does not transfer ownership or create a routine extra round.
 
 **Reuse files already present in the Design conversation.** When the maintainer is
 continuing the same Design conversation and Design already received the bundle,
@@ -40,7 +47,7 @@ changed. Mention only the exception that changes the maintainer's action.
 ## When to use
 
 - A draft mockup / bundle / screenshots arrive for a page that isn't finalized yet.
-- You're iterating with Claude Design toward a final design and need grounded feedback.
+- You're iterating with Design toward a final design and need grounded feedback.
 
 Not for: a **finalized** design ready to build (→ `design-build`), proofing a build/bug request (→ `design-intake`), or auditing an already-built screen (→ `design-audit`).
 
@@ -65,9 +72,20 @@ python3 -c "import re,sys;s=open(sys.argv[1],encoding='utf-8').read();print('bun
 
 **The failure mode is what makes this worth a step of its own: it fails silently, and it fails toward a false blocker.** Every copy check returns "not found", which reads as "Design did not make the change" rather than "the reader is broken" — on the 20 Aug 2026 homepage build bundle that nearly shipped "the new sentence is missing from all 4 files" as a finding when all 4 carried it. Any string check that comes back empty across *every* file is the tell: verify the reader before writing the finding.
 
-**Tier the review, then STOP and wait for the go.** When the review request arrives as a pasted prompt, the first reply names the model, the tool's exact reasoning label and the mechanism this review should run at (a `Tier:` line, per `~/.claude/CLAUDE.md`) and does nothing else: no reading the bundle, no repo checks, no findings. A review is judgment-bound end to end, so the default is deep or deepest useful reasoning in one pass with nothing worth handing to a helper. Then wait for Eugene's go (`g`) and start from step 0 — reading the bundle at the wrong tier is the exact spend the wait exists to prevent, and a tier named alongside the findings is a receipt, not a recommendation.
+**Tier the review, then STOP and wait for the go.** When the review request arrives as a
+pasted prompt, the first reply's `Tier:` line names only the model and the tool's exact effort
+label. If a mechanism choice is required, name it in `Rec:`. Do nothing else: no reading the
+bundle, repo checks, findings, plan or code. A review is judgment-bound end to end, so the
+default is deep or deepest useful reasoning in 1 pass with nothing worth handing to a helper.
+Then wait for Eugene's go (`'`) and start from step 0. Reading the bundle at the wrong tier is
+the exact spend the wait exists to prevent, and a tier named alongside the findings is a
+receipt, not a recommendation.
 
-**0. Frame it.** Identify the page, the preview-band state(s) shown (reference frames only by Claude Design's own band labels — never invented names, per the `claude-design-prompt-rules` memory), its place in the IA and `docs/product-onboarding/mvp-redesign-plan.md`, and pull the governing spec (`docs/product-onboarding/product-scope.md`, `docs/product-onboarding/grounded-ask-spec.md`, the relevant issues/milestone). State in one line what this screen is and is for.
+**0. Frame it.** Identify the page, the preview-band state(s) shown (reference frames only by
+Design's own band labels, never invented names), its place in the IA and
+`docs/product-onboarding/mvp-redesign-plan.md`, and pull the governing spec
+(`docs/product-onboarding/product-scope.md`, `docs/product-onboarding/grounded-ask-spec.md`,
+the relevant issues/milestone). State in one line what this screen is and is for.
 
 **1. Ground every element.** Walk *each discrete element* — every field, chip, badge, count, filter, card, CTA, empty state, suggested question — and tag it:
 - ✅ **backed today** (cite the source: bill field, API, spec §, issue)
@@ -99,11 +117,14 @@ Each recommendation gets a plain-language **Net** (per `eugene-workflow-preferen
 
 **Every observation ships in the deliverable, weighted — never withheld as an aside (Eugene, 18 Aug 2026).** A review's output is not only rule breaches: taste-level UX and copy improvements (a label whose voice drifted from a renamed sibling, a placeholder using our vocabulary instead of the reader's) go into the same relayed feedback, tagged by weight — *must fix* (breaks a rule or the data) versus *recommended polish* (better, Design may push back). The failure this prevents: a real improvement spotted during review, then parked in an "also found" note that never reaches Design (origin: the round-2 campaign-money review left the "vendor"-to-"payee" voice fix out of the relayed fix block after the lane it echoed had been renamed).
 
-**4. Produce two outputs.**
-- **A Claude Design prompt** — obeying the `claude-design-prompt-rules` memory: no feasibility questions back to Design (feasibility is our call), no approval-dependent blocks, no export requests, no roadmap relabeling, no mock-realism policing; frames referenced by preview-band label; capabilities stated as settled facts. Must-fix items stated as settled changes; recommended-polish items included beneath them, labeled as recommendations.
+**4. Route every finding into exactly 1 output.**
+- **A Design prompt, only when needed** — include only findings that pass all 3 return-to-Design checks. Obey the active Design provider's prompt rules; for Claude Design, use the `claude-design-prompt-rules` memory. Ask no feasibility questions back to Design (feasibility is our call), add no approval-dependent blocks, request no exports, do no roadmap relabeling, and do no mock-realism policing. Reference frames by preview-band label and state capabilities as settled facts. State must-fix items as settled changes and label recommended polish.
 
   **A truth finding is a settled change; a visual one is a constraint plus its price (memory rules 8–10).** Say what the code makes true and what each option costs — including when lifting the constraint is cheap, because a cheap limit reported as a bare fact reads as a wall. Then let Design choose. Where lifting it is worth what it costs and the change is one I agree with, lift it myself rather than routing it back. And a handoff marked *settled* is Design's status, not a finding I inherit: re-judge anything that touches what a reader is told.
-- **A decision list** — the scope/product calls that need a human owner (build the missing capability vs. cut the element vs. ship interim), each with a recommendation, effort, and Net.
+- **A current-coding-agent fix list** — include every finding with 1 checkable answer: factual and source corrections, technical feasibility, settled copy, existing patterns, known accessibility fixes, browser behaviour, acceptance checks, tests, bundle consistency and implementation. Fix local bundle errors during the review where the shared rules authorize it; otherwise carry the exact correction into the build. Consult the peer coding consultant only when the `model-effort` triggers apply, and keep ownership here.
+- **An Eugene decision list, only when needed** — include genuine product, scope or policy calls (build the missing capability vs. cut the element vs. ship interim), each with a recommendation, effort and Net.
+
+If no finding passes the Design test, produce no Design prompt. Say the handoff is build-ready after the current-coding-agent fixes, then wait for Eugene's explicit build go.
 
 **5. Interview on genuine gaps only** — batched, ≤4, each with a recommended default (`design-intake` style). Only for gaps the repo/spec didn't answer.
 
@@ -129,10 +150,10 @@ The point of this gate is to pull everything forward that *can* come forward. `d
 
 ## Anti-patterns
 
-Implementing or editing the mockup (this pass only produces feedback) · offering a build
-while substantial design work remains · presenting “revise or build” as a user choice ·
+Starting the product build during review · sending a 1-answer correction to Design ·
+offering a build while unresolved Design work remains · presenting “revise or build” as a user choice ·
 asking the maintainer to resend a file already present in the Design conversation ·
-sending anything to Claude Design directly · asking Design to assess feasibility · a
+sending anything to Design directly · asking Design to assess feasibility · a
 verdict from memory instead of checking the field/API/issue · deferring to the build
 something a still image could have caught · policing mock content realism (real vs.
 fictional names — withdrawn, per `claude-design-prompt-rules`).
