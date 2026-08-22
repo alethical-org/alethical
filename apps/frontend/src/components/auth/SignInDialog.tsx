@@ -110,7 +110,7 @@ export interface SignInDialogProps {
   onRetryAccountCodeFinish: () => Promise<AccountCodePasswordActionResult>;
   onKeepCurrentAccount: () => Promise<void>;
   onSwitchAccount: () => Promise<SignInDialogActionResult>;
-  onCancelAccountCode: () => Promise<void>;
+  onCancelAccountCode: (nextScreen: SignInDialogScreen) => Promise<void>;
   onBackFromOutcome?: () => void;
 }
 
@@ -406,7 +406,7 @@ export function SignInDialog({
 
   const cancelCodeAndMoveTo = (next: SignInDialogScreen, clearEmail = false) => {
     const generation = openGeneration.current;
-    void onCancelAccountCode().finally(() => {
+    void onCancelAccountCode(next).finally(() => {
       if (isCurrentOpen(generation)) moveTo(next, clearEmail);
     });
   };
@@ -734,7 +734,7 @@ export function SignInDialog({
         tone="quiet"
         onPress={() => {
           const generation = openGeneration.current;
-          void onCancelAccountCode().finally(() => {
+          void onCancelAccountCode('sign-in').finally(() => {
             if (isCurrentOpen(generation)) {
               moveTo('sign-in');
               onBackFromOutcome?.();
@@ -913,7 +913,7 @@ export function SignInDialog({
             disabled={anyBusy}
             onPress={() => {
               const generation = openGeneration.current;
-              void onCancelAccountCode().finally(() => {
+              void onCancelAccountCode(codePurpose).finally(() => {
                 if (isCurrentOpen(generation)) moveTo(codePurpose, true);
               });
             }}

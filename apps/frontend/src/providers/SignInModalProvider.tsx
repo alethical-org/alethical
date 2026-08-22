@@ -197,6 +197,9 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
     accessToken: string | null;
   } | null>(null);
   const requestedScreen = useRef(readRequestedScreen());
+  const requestedAccountScreenOpen = useRef(
+    canOpenRequestedSignInScreen(requestedScreen.current, true),
+  );
   const [initialScreen, setInitialScreen] = useState<SignInDialogScreen | undefined>(
     requestedScreen.current,
   );
@@ -218,6 +221,8 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
       // Already signed in: the design's "you're already signed in" panel is a
       // step in the way, so we just let the caller's action proceed.
       if (isSignedIn) return;
+      requestedAccountScreenOpen.current = false;
+      requestedScreen.current = undefined;
       pendingRequest.current = { ...request };
       setInitialScreen('sign-in');
       dispatch({ type: 'open', request });
@@ -226,6 +231,7 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
   );
 
   const close = useCallback(() => {
+    requestedAccountScreenOpen.current = false;
     operationGeneration.current += 1;
     accountCodeStarting.current = null;
     ordinarySignInStarting.current = null;
@@ -268,6 +274,7 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
 
   const onContinue = useCallback(async () => {
     if (!signInAttemptGate.begin()) return;
+    requestedAccountScreenOpen.current = false;
     const generation = operationGeneration.current;
     ordinarySignInStarting.current = generation;
     const finishStarting = () => {
@@ -365,6 +372,7 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
 
   const onPasswordSignIn = useCallback(
     async (email: string, password: string): Promise<SignInDialogActionResult> => {
+      requestedAccountScreenOpen.current = false;
       const generation = operationGeneration.current;
       ordinarySignInStarting.current = generation;
       let controller: PasswordSignInController | null = null;
@@ -812,7 +820,8 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
     return result;
   }, [close, isCurrentAccountCodeOperation]);
 
-  const onCancelAccountCode = useCallback(async () => {
+  const onCancelAccountCode = useCallback(async (nextScreen: SignInDialogScreen) => {
+    if (nextScreen === 'sign-in') requestedAccountScreenOpen.current = false;
     const generation = operationGeneration.current + 1;
     operationGeneration.current = generation;
     accountCodeStarting.current = null;
@@ -842,7 +851,7 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
     }
     // An expired email link explicitly asked for Create or Recover. Let that
     // destination win over an account being restored in the background.
-    if (canOpenRequestedSignInScreen(requestedScreen.current, isSignedIn)) return;
+    if (requestedAccountScreenOpen.current) return;
     const ordinaryJustSettled = ordinaryCompletionRequested.current;
     if (!isSignedIn || (!justSignedIn && !pendingRequest.current && !ordinaryJustSettled)) return;
     ordinaryCompletionRequested.current = false;
@@ -980,7 +989,7 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
       return;
     }
     requestedScreen.current = undefined;
-    dispatch({ type: 'open', request: { intent: 'nav' } });
+    dispatch({ type: 'open', request: pendingRequest.current ?? { intent: 'nav' } });
   }, [isLoading, isSignedIn, state.open]);
 
   return (

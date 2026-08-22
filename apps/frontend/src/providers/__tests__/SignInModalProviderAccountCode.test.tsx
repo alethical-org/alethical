@@ -208,6 +208,56 @@ describe('account-code dialog lifetime', () => {
     },
   );
 
+  it.each([
+    ['create', 'create'],
+    ['forgot', 'recover'],
+  ] as const)(
+    'keeps the requested %s screen and pending Track action during session restore',
+    async (requested, screen) => {
+      act(() => root.unmount());
+      window.history.replaceState(null, '', `/#auth_screen=${requested}`);
+      window.sessionStorage.setItem(
+        'alethical.pendingSignIn',
+        JSON.stringify({
+          intent: 'track',
+          billId: 'bill-pending',
+          billCode: 'HF 1',
+          returnTo: '/bills/hf-1',
+          pendingReference: 'pending-reference-with-at-least-32-chars',
+          pendingCompletion: 'email-link',
+        }),
+      );
+      testState.isLoading = true;
+      root = createRoot(mount);
+      act(() =>
+        root.render(
+          <SignInModalProvider>
+            <OpenSignInProbe />
+          </SignInModalProvider>,
+        ),
+      );
+
+      testState.isLoading = false;
+      testState.isSignedIn = true;
+      testState.accessToken = 'restored-access-token';
+      await act(async () => {
+        root.render(
+          <SignInModalProvider>
+            <OpenSignInProbe />
+          </SignInModalProvider>,
+        );
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(testState.dialogProps.open).toBe(true);
+      expect(testState.dialogProps.initialScreen).toBe(screen);
+      expect(testState.dialogProps.intent).toBe('track');
+      expect(testState.completionCalls).toHaveLength(0);
+      expect(window.sessionStorage.getItem('alethical.pendingSignIn')).not.toBeNull();
+    },
+  );
+
   it('still closes an ordinary dialog when another tab signs in', async () => {
     act(() => testState.openSignIn({ intent: 'nav' }));
     expect(testState.dialogProps.open).toBe(true);
@@ -221,6 +271,94 @@ describe('account-code dialog lifetime', () => {
         </SignInModalProvider>,
       );
       await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(testState.dialogProps.open).toBe(false);
+  });
+
+  it('closes after a requested Create screen changes to ordinary sign in', async () => {
+    act(() => root.unmount());
+    window.history.replaceState(null, '', '/#auth_screen=create');
+    root = createRoot(mount);
+    act(() =>
+      root.render(
+        <SignInModalProvider>
+          <OpenSignInProbe />
+        </SignInModalProvider>,
+      ),
+    );
+    await vi.waitFor(() => expect(testState.dialogProps.open).toBe(true));
+
+    await act(async () => testState.dialogProps.onCancelAccountCode('sign-in'));
+    testState.isSignedIn = true;
+    testState.accessToken = 'other-tab-access-token';
+    await act(async () => {
+      root.render(
+        <SignInModalProvider>
+          <OpenSignInProbe />
+        </SignInModalProvider>,
+      );
+      await Promise.resolve();
+    });
+
+    expect(testState.dialogProps.open).toBe(false);
+  });
+
+  it('keeps a requested Create screen open after choosing another email', async () => {
+    act(() => root.unmount());
+    window.history.replaceState(null, '', '/#auth_screen=create');
+    root = createRoot(mount);
+    act(() =>
+      root.render(
+        <SignInModalProvider>
+          <OpenSignInProbe />
+        </SignInModalProvider>,
+      ),
+    );
+    await vi.waitFor(() => expect(testState.dialogProps.open).toBe(true));
+
+    await act(async () => testState.dialogProps.onCancelAccountCode('create'));
+    testState.isSignedIn = true;
+    testState.accessToken = 'restored-access-token';
+    await act(async () => {
+      root.render(
+        <SignInModalProvider>
+          <OpenSignInProbe />
+        </SignInModalProvider>,
+      );
+      await Promise.resolve();
+    });
+
+    expect(testState.dialogProps.open).toBe(true);
+  });
+
+  it('lets an ordinary sign-in request replace a requested screen during session restore', async () => {
+    act(() => root.unmount());
+    window.history.replaceState(null, '', '/#auth_screen=create');
+    testState.isLoading = true;
+    root = createRoot(mount);
+    act(() =>
+      root.render(
+        <SignInModalProvider>
+          <OpenSignInProbe />
+        </SignInModalProvider>,
+      ),
+    );
+
+    act(() => testState.openSignIn({ intent: 'nav' }));
+    expect(testState.dialogProps.open).toBe(true);
+    expect(testState.dialogProps.initialScreen).toBe('sign-in');
+
+    testState.isLoading = false;
+    testState.isSignedIn = true;
+    testState.accessToken = 'other-tab-access-token';
+    await act(async () => {
+      root.render(
+        <SignInModalProvider>
+          <OpenSignInProbe />
+        </SignInModalProvider>,
+      );
       await Promise.resolve();
     });
 
