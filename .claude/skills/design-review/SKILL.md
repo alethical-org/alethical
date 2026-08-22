@@ -28,12 +28,14 @@ be recommended only after a later review finds no substantial design work remain
 
 **Reuse files already present in the Design conversation.** When the maintainer is
 continuing the same Design conversation and Design already received the bundle,
-screenshot, or other source file, tell the maintainer to send only the new prompt. The
-prompt may name the exact existing filename as context, but neither the prompt nor the
-recommendation may tell the maintainer to attach, upload, or resend that file. Instruct a
-new upload only when the maintainer says this is a new conversation, Design reports that
-the earlier file is unavailable, or the file itself changed. Do not mention that exception
-when it does not apply.
+screenshot, or other source file, the complete user-facing handoff instruction is
+`Send Design (<exact Design tier>) prompt.` The prompt may name the exact existing filename
+as context, but neither the prompt nor the recommendation may tell the maintainer to attach,
+upload, or resend that file. Do not add `below`, restate that this is the same conversation,
+or repeat that no upload or build should happen: placement and standing rules already make
+those facts true. Instruct a new upload only when the maintainer says this is a new
+conversation, Design reports that the earlier file is unavailable, or the file itself
+changed. Mention only the exception that changes the maintainer's action.
 
 ## When to use
 
