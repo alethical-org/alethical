@@ -120,6 +120,11 @@ Each recommendation gets a plain-language **Net** (per `eugene-workflow-preferen
 **4. Route every finding into exactly 1 output.**
 - **A Design prompt, only when needed** — include only findings that pass all 3 return-to-Design checks. Obey the active Design provider's prompt rules; for Claude Design, use the `claude-design-prompt-rules` memory. Ask no feasibility questions back to Design (feasibility is our call), add no approval-dependent blocks, request no exports, do no roadmap relabeling, and do no mock-realism policing. Reference frames by preview-band label and state capabilities as settled facts. State must-fix items as settled changes and label recommended polish.
 
+  Put the complete copy-and-send prompt under a literal `## Prompt` heading inside 1
+  fenced `text` code block. No part of the prompt may sit outside that code block, and
+  the code block contains only what the maintainer should paste. Keep the handoff action
+  `Send Design (<exact Design tier>) prompt.` outside the code block.
+
   **A truth finding is a settled change; a visual one is a constraint plus its price (memory rules 8–10).** Say what the code makes true and what each option costs — including when lifting the constraint is cheap, because a cheap limit reported as a bare fact reads as a wall. Then let Design choose. Where lifting it is worth what it costs and the change is one I agree with, lift it myself rather than routing it back. And a handoff marked *settled* is Design's status, not a finding I inherit: re-judge anything that touches what a reader is told.
 - **A current-coding-agent fix list** — include every finding with 1 checkable answer: factual and source corrections, technical feasibility, settled copy, existing patterns, known accessibility fixes, browser behaviour, acceptance checks, tests, bundle consistency and implementation. Fix local bundle errors during the review where the shared rules authorize it; otherwise carry the exact correction into the build. Consult the peer coding consultant only when the `model-effort` triggers apply, and keep ownership here.
 - **An Eugene decision list, only when needed** — include genuine product, scope or policy calls (build the missing capability vs. cut the element vs. ship interim), each with a recommendation, effort and Net.
