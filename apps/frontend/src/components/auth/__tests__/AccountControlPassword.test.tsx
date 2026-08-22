@@ -73,7 +73,7 @@ const SOURCE = readFileSync(
 );
 
 describe('signed-in set or change password', () => {
-  it('shows the current Google-only Add state and the 15-character rule', () => {
+  it('shows the current Google-only Add state and the 8-character rule', () => {
     const html = renderToStaticMarkup(<SetPasswordDialog open onClose={vi.fn()} />);
 
     expect(html).toContain('Add a password');
@@ -85,7 +85,7 @@ describe('signed-in set or change password', () => {
     expect(html.match(/autocomplete="new-password"/gi)).toHaveLength(2);
     expect(html).toContain('NEW PASSWORD');
     expect(html).toContain('CONFIRM PASSWORD');
-    expect(html).toContain('Use at least 15 characters. A few words with spaces works well.');
+    expect(html).toContain('Use at least 8 characters');
     expect(html).toContain('Save password');
     expect(html).toContain('Cancel');
     expect(html).not.toContain('CODE');
@@ -95,7 +95,7 @@ describe('signed-in set or change password', () => {
     expect(SOURCE).toContain('validatePassword(password)');
     expect(SOURCE).toContain('validatePasswordMatch(password, confirmation)');
     expect(SOURCE).toContain('createValidRequestGate()');
-    expect(SOURCE).toContain('await setPassword(password, proofCode || undefined)');
+    expect(SOURCE).toContain('openingAccessToken.current ?? undefined');
     expect(SOURCE).toContain('setSaved(true)');
     expect(SOURCE).toContain('busyLabel="Saving…"');
     expect(SOURCE).toContain('onPress={onDone}');
@@ -116,10 +116,10 @@ describe('signed-in set or change password', () => {
     expect(passwordDialog).toContain(
       "aria-describedby={freshProofMessage ? 'fresh-proof-code-help'",
     );
-    expect(passwordDialog).toContain('setPassword(password, proofCode || undefined)');
-    // Field rejections show the mapped message directly, covering the two
-    // pinned Supabase rejections beside the weak/leaked pair (#1533).
-    expect(SOURCE).toContain("result.error.kind === 'same-password'");
+    expect(passwordDialog).toContain('openingAccessToken.current ?? undefined');
+    // The shared save helper accepts an already-working password. The storage
+    // limit remains the only provider password rejection shown here.
+    expect(SOURCE).not.toContain("result.error.kind === 'same-password'");
     expect(SOURCE).toContain("result.error.kind === 'password-too-long'");
   });
 

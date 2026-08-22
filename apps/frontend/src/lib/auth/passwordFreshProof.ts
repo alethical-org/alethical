@@ -28,6 +28,13 @@ export async function savePasswordWithFreshProof(
   }
 
   if (!updateError) return authSuccess();
+  if (
+    updateError &&
+    typeof updateError === 'object' &&
+    (updateError as { code?: unknown }).code === 'same_password'
+  ) {
+    return authSuccess();
+  }
 
   // A lost reply may have saved the password server-side; the form must
   // stop rather than offer the save again (rev 17 REQUEST FAILURE carve-out).

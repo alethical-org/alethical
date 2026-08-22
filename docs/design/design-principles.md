@@ -155,9 +155,7 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
   that state only, via a sibling style, so the text-only state stays centred.
 
   Build new buttons this way. It applies to auth-gated controls (account nav, Sign out,
-  Track/Tracking, Continue with Google) as soon as sign-in ships; they were skipped on the first
-  sweep only because they are not on the live signed-out site
-  ([#720](https://github.com/alethical-org/alethical/pull/720)).
+  Track/Tracking, Continue with Google).
 - **A corner close control is inset by its own button box, never by the ✕ inside it.** Give the
   button at least 16px of clear space from every nearby surface edge, and use the same inset from
   the top and side so its corner placement reads as deliberate. A phone sheet uses its own side

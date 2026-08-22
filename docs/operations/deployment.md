@@ -162,14 +162,14 @@ The complete intended Vercel variable-name and release-target list lives in
 [`repo-and-service-settings.md` § Vercel environment variables](repo-and-service-settings.md#vercel-environment-variables).
 Keep values only in Vercel, never in this repository.
 
-`EXPO_PUBLIC_AUTH_RESEND_WAIT_SECONDS` must equal Supabase Auth's real email resend cooldown.
-It controls the visible wait after a confirmation or reset email. Read the project setting before
+`EXPO_PUBLIC_AUTH_RESEND_WAIT_SECONDS` must equal Supabase Auth's real account-code cooldown.
+It controls the visible wait before another code request. Read the project setting before
 changing it; the number shown in a design file is not a product setting.
 
 Keep `EXPO_PUBLIC_EMAIL_PASSWORD_SIGN_IN_ENABLED=false` in a new environment until Supabase custom
-SMTP is connected to Resend and confirmation, resend, and reset emails have all arrived. Change it
-to `true` only in the same release that passes those checks. Production passed them on 13 August
-2026 and is `true`. Google remains available in either state.
+SMTP is connected to Resend and account codes for new and confirmed throwaway addresses have both
+arrived. Change it to `true` only in the same release that passes those checks. Google remains
+available in either state.
 
 Set `EXPO_PUBLIC_API_URL` for both Production and Preview. Without the Preview value, the server's
 first-response text still works but the loaded preview app cannot read any record and replaces that

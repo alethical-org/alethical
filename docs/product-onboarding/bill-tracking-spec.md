@@ -18,21 +18,22 @@ and the tracked-bills list. Every surface uses the same states and behavior.
   `✓ Tracked` removes.
 - A signed-out press opens the shared sign-in dialog over the current page. It never opens
   the bill, navigates to a sign-in page, or changes the current URL.
-- The Track dialog uses the bell and this exact copy: “Track bills across sessions and
-  pick up where you left off. Your tracked list is saved to your account.”
+- The Track dialog uses the bell and says: “Save {bill} to your tracked bills and check where it
+  stands whenever you come back.” It uses **this bill** when no bill number is available.
 - Closing the dialog changes nothing. The page, scroll position, and `+ Track` state stay
   as they were, with no error notice.
 
 ## Returning from sign-in
 
-Before Google replaces the page or Alethical sends a confirmation email, the app asks the
+Before Google replaces the page or Alethical requests an account code, the app asks the
 server for a random, single-use pending-action reference. The server row contains only the
-bill id, a checked Alethical return path, and an expiration time. It is not attached to an
-account before sign-in. The browser may also hold the current scroll position for the Google
-return, but it never holds the only copy of an email-confirmation Track request.
+reference fingerprint, action type, bill id, a checked Alethical return path, and an expiration
+time. It is not attached to an account before sign-in. The browser holds the random reference
+and may also hold the current scroll position for the Google return; the server holds the
+pending action used by both Google and account-code completion.
 
-After a successful return or email confirmation, the server saves the bill and consumes the
-reference in one database operation. A retry or second tab cannot save it twice. The app
+After a successful Google return or proved email code, the server saves the bill and consumes the
+reference in one protected transaction. A retry or second tab cannot save it twice. The app
 restores the safe return page and, for Google in the same browser, its scroll position.
 Successful cache refreshes make every copy of the button read `✓ Tracked`; the reader never
 has to press Track a second time. Old incoming `?track=1` links remain accepted for

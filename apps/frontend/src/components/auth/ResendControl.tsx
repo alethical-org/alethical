@@ -7,7 +7,7 @@ import { LoadingButton } from './LoadingButton';
 export type ResendStatus = 'ready' | 'sending' | 'sent' | 'waiting' | 'rate-limited';
 
 function waitSentence(seconds: number) {
-  return `You can resend in ${seconds} ${seconds === 1 ? 'second' : 'seconds'}`;
+  return `Try again in ${seconds} ${seconds === 1 ? 'second' : 'seconds'}`;
 }
 
 export function ResendControl({
@@ -15,8 +15,9 @@ export function ResendControl({
   sentMessage,
   onResend,
   secondsRemaining = 0,
-  actionLabel = 'Resend email',
-  sendingLabel = 'Resending…',
+  actionLabel = 'Send a new code',
+  sendingLabel = 'Requesting…',
+  disabled = false,
 }: {
   status: ResendStatus;
   sentMessage: string;
@@ -24,12 +25,15 @@ export function ResendControl({
   secondsRemaining?: number;
   actionLabel?: string;
   sendingLabel?: string;
+  disabled?: boolean;
 }) {
   const previousStatus = useRef(status);
   const [announceReady, setAnnounceReady] = useState(false);
 
   useEffect(() => {
-    const justBecameReady = previousStatus.current === 'waiting' && status === 'ready';
+    const justBecameReady =
+      (previousStatus.current === 'waiting' || previousStatus.current === 'rate-limited') &&
+      status === 'ready';
     previousStatus.current = status;
     setAnnounceReady(justBecameReady);
   }, [status]);
@@ -42,11 +46,12 @@ export function ResendControl({
           label={actionLabel}
           busyLabel={sendingLabel}
           busy={status === 'sending'}
+          disabled={disabled}
           onPress={onResend}
         />
         {announceReady ? (
           <Text accessibilityLiveRegion="polite" style={styles.screenReaderOnly}>
-            You can resend now
+            You can try again now
           </Text>
         ) : null}
       </View>

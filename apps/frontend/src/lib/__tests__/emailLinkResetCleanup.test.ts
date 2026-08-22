@@ -11,6 +11,15 @@ function signOutClient(result: () => { error: unknown | null }, calls: string[],
   };
 }
 
+function clearClient(result: () => boolean, calls: string[]) {
+  return {
+    clearSessionIfUnchanged: vi.fn(async () => {
+      calls.push('ordinary:clear');
+      return result();
+    }),
+  };
+}
+
 // The password save itself revokes the reset account's other sessions
 // (Supabase's UpdatePassword runs LogoutAllExceptMe in the same transaction,
 // pin 0fb56ca9; proven live on this project, #1533) — so the cleanup makes NO
@@ -20,50 +29,48 @@ describe('password-reset local cleanup', () => {
   it('never asks the provider to sign out other sessions', async () => {
     const calls: string[] = [];
     const temporary = signOutClient(() => ({ error: null }), calls, 'temporary');
-    const ordinary = signOutClient(() => ({ error: null }), calls, 'ordinary');
+    const ordinary = clearClient(() => true, calls);
+    const savedSession = { access_token: 'saved' };
 
-    await finishResetSignOuts(temporary, ordinary, 'same');
-    expect(calls).toEqual(['temporary:local', 'ordinary:local']);
+    await finishResetSignOuts(temporary, ordinary, 'same', savedSession);
+    expect(calls).toEqual(['temporary:local', 'ordinary:clear']);
   });
 
   it('finishes past a temporary local error because that client never persists', async () => {
     const calls: string[] = [];
     const temporary = signOutClient(() => ({ error: new Error('offline') }), calls, 'temporary');
-    const ordinary = signOutClient(() => ({ error: null }), calls, 'ordinary');
+    const ordinary = clearClient(() => true, calls);
 
-    await finishResetSignOuts(temporary, ordinary, 'same');
-    expect(calls).toEqual(['temporary:local', 'ordinary:local']);
+    await finishResetSignOuts(temporary, ordinary, 'same', { access_token: 'saved' });
+    expect(calls).toEqual(['temporary:local', 'ordinary:clear']);
   });
 
-  it('clears the matching saved session when provider sign-out fails locally', async () => {
+  it('does not clear a newer saved session', async () => {
     const calls: string[] = [];
     const temporary = signOutClient(() => ({ error: null }), calls, 'temporary');
-    const ordinary = signOutClient(() => ({ error: new Error('offline') }), calls, 'ordinary');
+    const ordinary = clearClient(() => false, calls);
 
-    const clearStoredSession = vi.fn();
-    await finishResetSignOuts(temporary, ordinary, 'same', clearStoredSession);
-    expect(calls).toEqual(['temporary:local', 'ordinary:local']);
-    expect(clearStoredSession).toHaveBeenCalledOnce();
+    await finishResetSignOuts(temporary, ordinary, 'same', { access_token: 'old' });
+    expect(calls).toEqual(['temporary:local', 'ordinary:clear']);
+    expect(ordinary.clearSessionIfUnchanged).toHaveBeenCalledOnce();
   });
 
-  it('still clears the matching saved session when no ordinary client exists', async () => {
+  it('finishes when no ordinary session exists', async () => {
     const calls: string[] = [];
     const temporary = signOutClient(() => ({ error: null }), calls, 'temporary');
 
-    const clearStoredSession = vi.fn();
-    await finishResetSignOuts(temporary, null, 'same', clearStoredSession);
+    await finishResetSignOuts(temporary, null, 'same', null);
     expect(calls).toEqual(['temporary:local']);
-    expect(clearStoredSession).toHaveBeenCalledOnce();
   });
 
   it('preserves a different ordinary account untouched', async () => {
     const calls: string[] = [];
     const temporary = signOutClient(() => ({ error: null }), calls, 'temporary');
-    const ordinary = signOutClient(() => ({ error: null }), calls, 'ordinary');
+    const ordinary = clearClient(() => true, calls);
 
     await finishResetSignOuts(temporary, ordinary, 'different');
     expect(calls).toEqual(['temporary:local']);
-    expect(ordinary.signOut).not.toHaveBeenCalled();
+    expect(ordinary.clearSessionIfUnchanged).not.toHaveBeenCalled();
   });
 
   it('survives a thrown sign-out failure on either client', async () => {
@@ -72,13 +79,17 @@ describe('password-reset local cleanup', () => {
         throw new Error('offline');
       }),
     };
-    const clearStoredSession = vi.fn();
+    const throwingClear = {
+      clearSessionIfUnchanged: vi.fn(async () => {
+        throw new Error('offline');
+      }),
+    };
 
     await expect(finishResetSignOuts(throwing, null, 'none')).resolves.toBeUndefined();
     await expect(
-      finishResetSignOuts(throwing, throwing, 'same', clearStoredSession),
+      finishResetSignOuts(throwing, throwingClear, 'same', { access_token: 'saved' }),
     ).resolves.toBeUndefined();
-    expect(clearStoredSession).toHaveBeenCalledOnce();
+    expect(throwingClear.clearSessionIfUnchanged).toHaveBeenCalledOnce();
   });
 });
 

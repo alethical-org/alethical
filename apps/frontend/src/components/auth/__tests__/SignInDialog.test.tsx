@@ -40,11 +40,17 @@ vi.mock('../../../theme/primitives', () => ({
     label,
     busyLabel,
     busy,
+    disabled,
   }: {
     label: string;
     busyLabel?: string;
     busy: boolean;
-  }) => <button aria-busy={busy}>{busy ? busyLabel : label}</button>,
+    disabled?: boolean;
+  }) => (
+    <button aria-busy={busy} disabled={disabled}>
+      {busy ? busyLabel : label}
+    </button>
+  ),
 }));
 
 import { SignInDialog, SignInDialogProps } from '../SignInDialog';
@@ -56,6 +62,24 @@ const SOURCE = readFileSync(
 
 function props(overrides: Partial<SignInDialogProps> = {}): SignInDialogProps {
   const ok = vi.fn(async () => ({ ok: true }) as const);
+  const verified = vi.fn(
+    async () =>
+      ({
+        ok: true,
+        data: { email: 'jordan@example.com', googleStillWorks: false },
+      }) as const,
+  );
+  const passwordSaved = vi.fn(
+    async () =>
+      ({
+        ok: true,
+        data: {
+          passwordStatus: 'saved',
+          relationship: 'none',
+          requiresAccountChoice: false,
+        },
+      }) as const,
+  );
   return {
     open: true,
     intent: 'nav',
@@ -64,9 +88,13 @@ function props(overrides: Partial<SignInDialogProps> = {}): SignInDialogProps {
     onClose: vi.fn(),
     onGoogle: vi.fn(async () => undefined),
     onPasswordSignIn: ok,
-    onCreateAccount: ok,
-    onResendConfirmation: ok,
-    onForgotPassword: ok,
+    onRequestAccountCode: ok,
+    onVerifyAccountCode: verified,
+    onSaveAccountCodePassword: passwordSaved,
+    onRetryAccountCodeFinish: passwordSaved,
+    onKeepCurrentAccount: vi.fn(async () => undefined),
+    onSwitchAccount: ok,
+    onCancelAccountCode: vi.fn(async () => undefined),
     onBackFromOutcome: vi.fn(),
     ...overrides,
   };
@@ -112,18 +140,17 @@ describe('rev 9 sign-in dialog', () => {
     );
   });
 
-  it('renders 2 new-password fields and the 15-character passphrase help on create', () => {
+  it('asks only for email before proving a new account', () => {
     const html = render({ initialScreen: 'create', initialEmail: 'jordan@example.com' });
 
     expect(html).toContain('Create your Alethical account');
     expect(html).toContain('Bills you track are saved to your account');
-    expect(html.match(/autocomplete="new-password"/gi)).toHaveLength(2);
-    expect(html).toContain('CONFIRM PASSWORD');
-    expect(html).toContain('Use at least 15 characters. A few words with spaces works well.');
+    expect(html).not.toContain('autocomplete="new-password"');
+    expect(html).not.toContain('CONFIRM PASSWORD');
     expect(html).toContain('Already use Google with this email?');
     expect(html).not.toContain('Continue with Google.');
     expect(html.match(/Continue with Google/g)).toHaveLength(1);
-    expect(html).toContain('Create account');
+    expect(html).toContain('>Continue<');
     // One shared style carries the gap above and below both help sentences,
     // so neither one touches the Google button under it.
     expect(SOURCE).toMatch(
@@ -150,46 +177,30 @@ describe('rev 9 sign-in dialog', () => {
     expect(html.match(/continue with Google/gi)).toHaveLength(1);
   });
 
-  it('shows the arrival-neutral confirmation screen with a working Google button', () => {
-    const html = render({ initialScreen: 'check-email', initialEmail: 'jordan@example.com' });
+  it('shows code entry without claiming an email was sent or will arrive', () => {
+    const html = render({ initialScreen: 'code', initialEmail: 'jordan@example.com' });
 
-    expect(html).toContain('Check your email');
-    // Arrival-neutral and unaddressed: every accepted create lands here — new
-    // address, taken address or Google-first account — and resend measurably
-    // reports success without sending for a confirmed address (#1533).
-    expect(html).toContain(
-      'If a confirmation email arrives, open the newest one. If none does, sign in — you may already have an account.',
-    );
+    expect(html).toContain('Enter your code');
+    expect(html).toContain('For jordan@example.com');
+    expect(html).toContain('CODE');
     expect(html).not.toContain('on the way');
-    // The Google button is the one control that works for all three
-    // populations (rev 12), and the working routes now precede Resend (#1581).
-    expect(html).toMatch(
-      /Continue with Google[\s\S]*?>Sign in<[\s\S]*?>Resend email<[\s\S]*?>Change email</,
-    );
-    expect(html).not.toContain('Sign in after confirming');
-    expect(SOURCE).toMatch(
-      /checkEmailMode === 'create' \? \([\s\S]*?signInAfterEmailControl[\s\S]*?resendConfirmationControl[\s\S]*?\) : \([\s\S]*?resendConfirmationControl[\s\S]*?signInAfterEmailControl/,
-    );
+    expect(html).not.toContain('sent');
+    expect(html).not.toContain('arrives');
+    expect(html).toContain('Send a new code');
+    expect(html).toContain('Use another email');
+    expect(html).toContain('Continue with Google');
+    expect(html).toContain('mailto:ask@alethical.com');
   });
 
-  it('uses arrival-neutral reset wording, with the real Google button and no fake help line', () => {
-    const forgot = render({ initialScreen: 'forgot', initialEmail: 'jordan@example.com' });
-    const sent = render({ initialScreen: 'forgot-sent', initialEmail: 'jordan@example.com' });
+  it('uses the same email-first shape for account recovery', () => {
+    const recover = render({ initialScreen: 'recover', initialEmail: 'jordan@example.com' });
 
-    expect(forgot).toContain('Reset your password');
-    expect(forgot).toContain('Send reset instructions');
-    expect(forgot).toContain('Back to sign in');
-    // Rev 12: the button is the sentence — 9 of 10 live accounts are
-    // Google-only, and the bolded plain-text "continue with Google" looked
-    // pressable and was not.
-    expect(forgot).toContain('Continue with Google');
-    expect(forgot).not.toContain('If you first used Google');
-    expect(sent).toContain('If a reset email arrives, open the newest one');
-    expect(sent).not.toContain('we’ll send password reset instructions to');
-    expect(sent).toContain('Continue with Google');
-    expect(sent).not.toContain('If you first used Google');
-    expect(sent).toContain('Resend email');
-    expect(sent).toContain('Change email');
+    expect(recover).toContain('Recover your account');
+    expect(recover).toContain('Enter your email to choose a new password');
+    expect(recover).toContain('If no account exists, this creates one');
+    expect(recover).toContain('Continue with Google');
+    expect(recover).toContain('Back to sign in');
+    expect(recover).not.toContain('reset email');
   });
 
   it('uses the dedicated deactivated outcome without a sign-in form, with a mail link', () => {
@@ -212,10 +223,10 @@ describe('rev 9 sign-in dialog', () => {
     const html = render({
       errorKind: 'unverified-google',
       errorMessage:
-        'Sign-in couldn’t finish because the email address needs confirmation. If a confirmation email arrives, open the newest one.',
+        'Sign-in couldn’t finish because the email needs confirmation. Use Create account with this email to confirm it.',
     });
 
-    expect(html).toContain('Sign-in couldn’t finish because the email address needs confirmation.');
+    expect(html).toContain('Sign-in couldn’t finish because the email needs confirmation.');
     expect(html).toContain('Continue with Google');
     expect(html).toContain('Sign in to Alethical');
     expect(html).not.toContain('We couldn’t match this sign-in');
@@ -227,7 +238,7 @@ describe('rev 9 sign-in dialog', () => {
     expect(SOURCE).toContain('validatePasswordMatch(password, confirmation)');
     expect(SOURCE).toContain('createValidRequestGate()');
     expect(SOURCE).toContain("result.error.kind === 'email-not-confirmed'");
-    expect(SOURCE).toContain("result.error.kind === 'check-email'");
+    expect(SOURCE).toContain("onRequestAccountCode(safeEmail, 'create')");
     expect(SOURCE).toMatch(
       /if \(error\.kind === 'bad-credentials'\) \{[\s\S]*?setPassword\(''\);[\s\S]*?\}/,
     );

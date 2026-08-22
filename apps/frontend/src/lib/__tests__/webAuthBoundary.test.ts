@@ -1,11 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { AuthClient, processLock } from '@supabase/auth-js';
+import { AuthClient, navigatorLock, processLock } from '@supabase/auth-js';
 import { createClient } from '@supabase/supabase-js';
 import { describe, expect, it } from 'vitest';
 
-import { supabase } from '../supabase.web';
+import { supabase, webAuthLock } from '../supabase.web';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -36,7 +36,9 @@ describe('the web authentication boundary', () => {
     expect(webClient).toContain('persistSession: true');
     expect(webClient).toContain('autoRefreshToken: true');
     expect(webClient).toContain("flowType: 'pkce'");
-    expect(webClient).toContain('lock: processLock');
+    expect(webClient).toContain('lock: webAuthLock');
+    expect(webClient).toContain('lockAcquireTimeout: -1');
+    expect(webClient).toContain('navigatorLock');
     expect(webClient).toContain("new URL('auth/v1', baseUrl)");
     expect(webClient).toContain('Authorization: `Bearer ${clientKey}`');
     expect(webClient).toContain('apikey: clientKey');
@@ -63,14 +65,15 @@ describe('the web authentication boundary', () => {
         persistSession: true,
         detectSessionInUrl: true,
         flowType: 'pkce',
-        lock: processLock,
+        lock: webAuthLock,
+        lockAcquireTimeout: -1,
       },
     }).auth;
     const webAuth = supabase.auth;
 
     expect(webAuth).toBeInstanceOf(AuthClient);
 
-    const settings = (client: typeof webAuth) =>
+    const settings = (client: unknown) =>
       client as unknown as {
         url: string;
         storageKey: string;
@@ -78,7 +81,8 @@ describe('the web authentication boundary', () => {
         persistSession: boolean;
         detectSessionInUrl: boolean;
         flowType: string;
-        lock: typeof processLock;
+        lock: typeof processLock | typeof navigatorLock;
+        lockAcquireTimeout: number;
         headers: Record<string, string>;
       };
 
@@ -95,6 +99,7 @@ describe('the web authentication boundary', () => {
         apikey: settings(reference).headers.apikey,
       },
     });
+    expect(settings(webAuth).lockAcquireTimeout).toBe(-1);
 
     for (const method of [
       'getSession',
@@ -117,9 +122,9 @@ describe('the web authentication boundary', () => {
       source('../../providers/AuthProvider.web.tsx'),
       source('../../providers/AuthProvider.tsx'),
     ]) {
-      expect(provider).toContain('setPassword: (password: string, freshProofCode?: string)');
+      expect(provider).toContain('expectedAccessToken?: string');
       expect(provider).toContain('savePasswordWithFreshProof(');
-      expect(provider).toContain('supabase.auth,');
+      expect(provider).toContain('passwordClientForOrdinarySession(');
       expect(provider).toContain('freshProofCode,');
     }
   });

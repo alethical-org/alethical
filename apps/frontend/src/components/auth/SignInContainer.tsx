@@ -96,6 +96,11 @@ export function SignInContainer({
   useEffect(() => {
     if (!isWeb || !open || isPage || typeof document === 'undefined') return;
     const opener = document.activeElement as HTMLElement | null;
+    return () => opener?.focus?.();
+  }, [isPage, open]);
+
+  useEffect(() => {
+    if (!isWeb || !open || isPage || typeof document === 'undefined') return;
     const card = cardRef.current as unknown as HTMLElement | null;
     const close = closeRef.current as unknown as HTMLElement | null;
     close?.focus();
@@ -135,7 +140,6 @@ export function SignInContainer({
     document.addEventListener('keydown', onKeyDown, true);
     return () => {
       document.removeEventListener('keydown', onKeyDown, true);
-      opener?.focus?.();
     };
   }, [focusKey, isPage, open]);
 

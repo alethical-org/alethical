@@ -38,7 +38,7 @@ describe('corner close-control spacing', () => {
       signIn.indexOf('<ScrollView', signIn.indexOf('<View style={styles.sheetHeader}>')),
     );
     expect(signInDialog).toContain(
-      "'sign-in' | 'create' | 'check-email' | 'forgot' | 'forgot-sent'",
+      "| 'recover'\n  | 'code'\n  | 'choose-password'\n  | 'uncertain-save'\n  | 'different-account'",
     );
     expect(signInDialog.match(/<SignInContainer/g)).toHaveLength(1);
     expect(
