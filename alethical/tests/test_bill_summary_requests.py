@@ -15,7 +15,7 @@ from sqlalchemy import create_engine, delete, event, func, select, text
 from sqlalchemy.orm import Session
 
 from alethical.db import models as schema
-from alethical.db.session import get_engine
+from alethical.db.session import get_engine, local_database_url
 from alethical.pipeline import (
     ai_enrichment,
     anthropic_enrichment,
@@ -693,7 +693,7 @@ def test_exact_context_cached_reapply_restores_completed_summary_without_provide
     try:
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
         first_result = run_summary_request(
-            str(get_engine().url),
+            local_database_url(),
             original_request_id,
             limits=_enabled_limits(),
             call_anthropic=one_paid_call,
@@ -779,7 +779,7 @@ def test_exact_context_cached_reapply_restores_completed_summary_without_provide
             )
 
         repeated = run_summary_request(
-            str(get_engine().url),
+            local_database_url(),
             original_request_id,
             limits=_enabled_limits(),
             call_anthropic=forbidden_call,
@@ -1207,7 +1207,7 @@ def test_disabled_worker_never_calls_anthropic(
     try:
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
         result = run_summary_request(
-            str(get_engine().url),
+            local_database_url(),
             request_id,
             limits=SummaryAutomationLimits(
                 enabled=False,
@@ -1248,18 +1248,18 @@ async def test_ready_request_recovers_after_switch_was_off_when_job_ran(
     try:
         monkeypatch.setattr(oban_workers, "_enqueue_child", record_enqueue)
         _enable_automatic_summary_environment(monkeypatch)
-        first = await reconcile_ready_requests(database_url=str(get_engine().url))
+        first = await reconcile_ready_requests(database_url=local_database_url())
 
         monkeypatch.setenv("ALETHICAL_AUTO_BILL_SUMMARY_ENABLED", "false")
         disabled = run_summary_request(
-            str(get_engine().url),
+            local_database_url(),
             request_id,
             call_anthropic=lambda *_args, **_kwargs: (_valid_summary(), {}),
         )
-        while_off = await reconcile_ready_requests(database_url=str(get_engine().url))
+        while_off = await reconcile_ready_requests(database_url=local_database_url())
 
         monkeypatch.setenv("ALETHICAL_AUTO_BILL_SUMMARY_ENABLED", "true")
-        recovered = await reconcile_ready_requests(database_url=str(get_engine().url))
+        recovered = await reconcile_ready_requests(database_url=local_database_url())
 
         assert disabled.outcome == "disabled"
         assert len(first) == 1
@@ -1344,7 +1344,7 @@ async def test_enqueue_filters_supplied_ids_to_committed_ready_requests(
         children = await enqueue_ready_requests(
             [waiting_request_id, ready_request_id],
             database_target="local",
-            database_url=str(get_engine().url),
+            database_url=local_database_url(),
         )
 
         assert len(children) == 1
@@ -1385,13 +1385,13 @@ async def test_oban_worker_passes_its_job_id_as_the_paid_claim_owner(
             id=457_117,
             args={
                 "request_id": str(request_id),
-                "database_url": str(get_engine().url),
+                "database_url": local_database_url(),
             },
         )
     )
 
     assert seen == {
-        "database_url": str(get_engine().url),
+        "database_url": local_database_url(),
         "request_id": request_id,
         "claim_job_id": 457_117,
     }
@@ -1468,7 +1468,7 @@ async def test_worker_enqueues_one_ready_successor_after_paid_a_becomes_stale(
         monkeypatch.setattr(oban_workers, "_enqueue_child", record_enqueue)
         job_args = {
             "request_id": str(request_id),
-            "database_url": str(get_engine().url),
+            "database_url": local_database_url(),
         }
 
         await oban_workers.BillSummaryRequestWorker().process(
@@ -1495,8 +1495,8 @@ async def test_worker_enqueues_one_ready_successor_after_paid_a_becomes_stale(
             active_job = next(iter(active_jobs.values()))
             assert active_job["request_id"] == str(requests[1].id)
             assert active_job["task_key"] == f"bill-summary-request:{requests[1].id}"
-            assert active_job["database_url"] == str(get_engine().url)
-            assert active_job["oban_dsn"] == str(get_engine().url)
+            assert active_job["database_url"] == local_database_url()
+            assert active_job["oban_dsn"] == local_database_url()
             assert active_job["oban_target"] is None
     finally:
         with Session(get_engine()) as db:
@@ -1552,7 +1552,7 @@ async def test_bill_sync_heading_only_change_rebuilds_search_and_hands_off_once(
         monkeypatch.setattr(
             oban_workers,
             "_resolve_rag_write_url",
-            lambda _args: str(get_engine().url),
+            lambda _args: local_database_url(),
         )
         monkeypatch.setattr(
             "alethical.pipeline.bill_summary_requests.enqueue_ready_requests",
@@ -1574,7 +1574,7 @@ async def test_bill_sync_heading_only_change_rebuilds_search_and_hands_off_once(
                     "include_rag": True,
                     "rag_target": "production",
                     "database_target": "local",
-                    "database_url": str(get_engine().url),
+                    "database_url": local_database_url(),
                 }
             )
         )
@@ -1657,7 +1657,7 @@ def test_direct_loader_heading_only_change_rebuilds_search_and_hands_off_once(
             [
                 "load_minnesota_data.py",
                 "--database-url",
-                str(get_engine().url),
+                local_database_url(),
                 "--skip-legislators",
                 "--bill",
                 "HF457120",
@@ -1914,7 +1914,7 @@ async def test_default_rag_role_only_change_survives_production_key_outage(
         monkeypatch.setattr(
             oban_workers,
             "_resolve_rag_write_url",
-            lambda _args: str(get_engine().url),
+            lambda _args: local_database_url(),
         )
         monkeypatch.setattr(rag_ingest, "_build_embeddings", forbidden_embedding_call)
 
@@ -1932,7 +1932,7 @@ async def test_default_rag_role_only_change_survives_production_key_outage(
                     "allow_writes": True,
                     "rag_target": "production",
                     "database_target": "production",
-                    "database_url": str(get_engine().url),
+                    "database_url": local_database_url(),
                 }
             )
         )
@@ -2058,7 +2058,7 @@ async def test_search_skipped_production_target_without_openai_key_commits_waiti
                     "allow_writes": True,
                     "include_rag": False,
                     "database_target": "production",
-                    "database_url": str(get_engine().url),
+                    "database_url": local_database_url(),
                 }
             )
         )
@@ -2103,13 +2103,13 @@ async def test_ready_request_recovers_after_job_found_no_api_key(
         monkeypatch.setattr(oban_workers, "_enqueue_child", record_enqueue)
         _enable_automatic_summary_environment(monkeypatch)
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-present-for-enqueue-test")
-        first = await reconcile_ready_requests(database_url=str(get_engine().url))
+        first = await reconcile_ready_requests(database_url=local_database_url())
 
         monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-        missing_key = run_summary_request(str(get_engine().url), request_id)
+        missing_key = run_summary_request(local_database_url(), request_id)
 
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-restored-for-enqueue-test")
-        recovered = await reconcile_ready_requests(database_url=str(get_engine().url))
+        recovered = await reconcile_ready_requests(database_url=local_database_url())
 
         assert missing_key.outcome == "missing_api_key"
         assert len(first) == 1
@@ -2144,13 +2144,13 @@ async def test_ready_request_reconciliation_waits_for_the_database_commit(
         bill_id, request_id = bill.id, request.id
 
         before_commit = await reconcile_ready_requests(
-            database_url=str(get_engine().url)
+            database_url=local_database_url()
         )
         db.commit()
 
     try:
         after_commit = await reconcile_ready_requests(
-            database_url=str(get_engine().url)
+            database_url=local_database_url()
         )
         assert before_commit == []
         assert len(after_commit) == 1
@@ -2192,7 +2192,7 @@ def test_worker_stops_before_anthropic_when_monthly_ceiling_is_exhausted(
     try:
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
         result = run_summary_request(
-            str(get_engine().url),
+            local_database_url(),
             request_id,
             limits=SummaryAutomationLimits(
                 enabled=True,
@@ -2249,7 +2249,7 @@ def test_worker_per_bill_ceiling_includes_paid_attempts_from_older_months(
     try:
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
         result = run_summary_request(
-            str(get_engine().url),
+            local_database_url(),
             request_id,
             limits=SummaryAutomationLimits(
                 enabled=True,
@@ -2307,7 +2307,7 @@ def test_worker_stops_before_anthropic_when_monthly_failure_cap_is_reached(
     try:
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
         result = run_summary_request(
-            str(get_engine().url),
+            local_database_url(),
             request_id,
             limits=SummaryAutomationLimits(
                 enabled=True,
@@ -2377,7 +2377,7 @@ def test_inflight_request_reserves_one_failure_slot(
         with ThreadPoolExecutor(max_workers=2) as pool:
             first = pool.submit(
                 run_summary_request,
-                str(get_engine().url),
+                local_database_url(),
                 first_request_id,
                 limits=limits,
                 call_anthropic=held_call,
@@ -2385,7 +2385,7 @@ def test_inflight_request_reserves_one_failure_slot(
             assert provider_started.wait(timeout=10)
             second = pool.submit(
                 run_summary_request,
-                str(get_engine().url),
+                local_database_url(),
                 second_request_id,
                 limits=limits,
                 call_anthropic=forbidden_call,
@@ -2415,7 +2415,7 @@ def test_worker_waits_for_inflight_text_save_before_claiming_paid_request(
         bill_id, version_id, request_id = bill.id, version.id, request.id
 
     provider_calls: list[str] = []
-    audit_engine = create_engine(str(get_engine().url), pool_pre_ping=True)
+    audit_engine = create_engine(local_database_url(), pool_pre_ping=True)
 
     def forbidden_call(*_args, **_kwargs):
         provider_calls.append("called")
@@ -2444,7 +2444,7 @@ def test_worker_waits_for_inflight_text_save_before_claiming_paid_request(
             with ThreadPoolExecutor(max_workers=1) as pool:
                 worker = pool.submit(
                     run_summary_request,
-                    str(get_engine().url),
+                    local_database_url(),
                     request_id,
                     limits=_enabled_limits(),
                     call_anthropic=forbidden_call,
@@ -2522,8 +2522,8 @@ def test_provider_timeout_is_terminal_ambiguous_without_an_automatic_retry(
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
         monkeypatch.setattr(anthropic_enrichment.requests, "post", timeout)
 
-        result = run_summary_request(str(get_engine().url), request_id, limits=limits)
-        repeated = run_summary_request(str(get_engine().url), request_id, limits=limits)
+        result = run_summary_request(local_database_url(), request_id, limits=limits)
+        repeated = run_summary_request(local_database_url(), request_id, limits=limits)
 
         assert result.outcome == "ambiguous"
         assert result.provider_attempts == 1
@@ -2570,14 +2570,14 @@ def test_restart_after_paid_claim_becomes_terminal_without_second_provider_call(
     try:
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
         first = run_summary_request(
-            str(get_engine().url),
+            local_database_url(),
             request_id,
             limits=_enabled_limits(),
             call_anthropic=forbidden_call,
             claim_job_id=claim_job_id,
         )
         second = run_summary_request(
-            str(get_engine().url),
+            local_database_url(),
             request_id,
             limits=_enabled_limits(),
             call_anthropic=forbidden_call,
@@ -2632,7 +2632,7 @@ def test_distinct_jobs_cannot_steal_a_live_paid_claim(
         with ThreadPoolExecutor(max_workers=2) as executor:
             first_future = executor.submit(
                 run_summary_request,
-                str(get_engine().url),
+                local_database_url(),
                 request_id,
                 limits=_enabled_limits(),
                 call_anthropic=blocking_provider,
@@ -2640,7 +2640,7 @@ def test_distinct_jobs_cannot_steal_a_live_paid_claim(
             )
             assert provider_started.wait(timeout=10)
             second = run_summary_request(
-                str(get_engine().url),
+                local_database_url(),
                 request_id,
                 limits=_enabled_limits(),
                 call_anthropic=blocking_provider,
@@ -2713,7 +2713,7 @@ def test_worker_reuses_full_prompt_and_safe_apply_path(
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
         monkeypatch.setattr(ai_enrichment, "apply_full_summary", capture_apply)
         result = run_summary_request(
-            str(get_engine().url),
+            local_database_url(),
             request_id,
             limits=_enabled_limits(),
             call_anthropic=fake_call,
@@ -2808,7 +2808,7 @@ def test_missing_or_invalid_paid_usage_keeps_the_conservative_reservation(
     try:
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
         result = run_summary_request(
-            str(get_engine().url),
+            local_database_url(),
             request_id,
             limits=limits,
             call_anthropic=response_without_trustworthy_usage,
@@ -2920,7 +2920,7 @@ def test_cited_inflight_a_to_b_to_a_reuses_paid_response_without_provider(
     try:
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
         result = run_summary_request(
-            str(get_engine().url),
+            local_database_url(),
             old_request_id,
             limits=_enabled_limits(),
             call_anthropic=change_text_during_call,
@@ -3024,7 +3024,7 @@ def test_mutable_display_metadata_change_during_call_does_not_strand_result(
     try:
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
         result = run_summary_request(
-            str(get_engine().url),
+            local_database_url(),
             request_id,
             limits=_enabled_limits(),
             call_anthropic=change_only_display_metadata,
@@ -3076,7 +3076,7 @@ def test_prompt_context_change_during_paid_call_creates_one_ready_replacement(
     try:
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
         result = run_summary_request(
-            str(get_engine().url),
+            local_database_url(),
             request_id,
             limits=_enabled_limits(),
             call_anthropic=change_prompt_contract,
@@ -3316,7 +3316,7 @@ def test_worker_refuses_incomplete_or_over_limit_prompt_before_anthropic(
             ai_enrichment, "bill_prompt_measurement", refused_measurement
         )
         result = run_summary_request(
-            str(get_engine().url),
+            local_database_url(),
             request_id,
             limits=_enabled_limits(),
             call_anthropic=forbidden_call,
@@ -3368,7 +3368,7 @@ def test_repaired_source_gate_reopens_the_same_unspent_request_without_provider(
             ai_enrichment, "bill_prompt_measurement", incomplete_measurement
         )
         refused = run_summary_request(
-            str(get_engine().url),
+            local_database_url(),
             request_id,
             limits=_enabled_limits(),
             call_anthropic=forbidden_call,
@@ -3448,7 +3448,7 @@ def test_provider_started_under_older_prompt_context_is_terminal_and_visible(
     try:
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
         result = run_summary_request(
-            str(get_engine().url),
+            local_database_url(),
             request_id,
             limits=_enabled_limits(),
             call_anthropic=forbidden_call,
@@ -3512,7 +3512,7 @@ def test_paid_citation_rejection_counts_toward_the_failure_cap(
     try:
         monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-test")
         rejected = run_summary_request(
-            str(get_engine().url),
+            local_database_url(),
             first_request_id,
             limits=_enabled_limits(),
             call_anthropic=appendix_citing_call,
@@ -3529,13 +3529,13 @@ def test_paid_citation_rejection_counts_toward_the_failure_cap(
             assert stored.failure_kind == "non_citable_appendix_citation"
 
         repeated = run_summary_request(
-            str(get_engine().url),
+            local_database_url(),
             first_request_id,
             limits=_enabled_limits(),
             call_anthropic=forbidden_call,
         )
         capped = run_summary_request(
-            str(get_engine().url),
+            local_database_url(),
             second_request_id,
             limits=SummaryAutomationLimits(
                 enabled=True,
