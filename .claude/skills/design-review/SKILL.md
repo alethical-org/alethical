@@ -26,6 +26,15 @@ never present “revise or build” as a decision, and never ask the maintainer 
 design debt to save a round. The maintainer will bring back Design's response. A build may
 be recommended only after a later review finds no substantial design work remains.
 
+**Reuse files already present in the Design conversation.** When the maintainer is
+continuing the same Design conversation and Design already received the bundle,
+screenshot, or other source file, tell the maintainer to send only the new prompt. The
+prompt may name the exact existing filename as context, but neither the prompt nor the
+recommendation may tell the maintainer to attach, upload, or resend that file. Instruct a
+new upload only when the maintainer says this is a new conversation, Design reports that
+the earlier file is unavailable, or the file itself changed. Do not mention that exception
+when it does not apply.
+
 ## When to use
 
 - A draft mockup / bundle / screenshots arrive for a page that isn't finalized yet.
@@ -120,6 +129,7 @@ The point of this gate is to pull everything forward that *can* come forward. `d
 
 Implementing or editing the mockup (this pass only produces feedback) · offering a build
 while substantial design work remains · presenting “revise or build” as a user choice ·
+asking the maintainer to resend a file already present in the Design conversation ·
 sending anything to Claude Design directly · asking Design to assess feasibility · a
 verdict from memory instead of checking the field/API/issue · deferring to the build
 something a still image could have caught · policing mock content realism (real vs.
