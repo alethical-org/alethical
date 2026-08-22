@@ -10,13 +10,12 @@ name: Check every bill is searchable
 # there, the summary is there — only search is blind to it. So this check is the
 # only thing that would notice.
 #
-# Why a schedule is the only place it can live: the job-queue path already embeds
-# (BillSyncChunkWorker calls build_rag_rows_for_bill_keys when include_rag is
-# true, the default). Two paths do not — scripts/load_minnesota_data.py never
-# embeds, and scripts/repair_missing_bill_sections.py prints a line telling a
-# person to embed afterwards. Both run by hand from a laptop, so no CI run can
-# see one happen, and the second depends on somebody reading that printed line.
-# #844's 69 bills were found only because someone finishing #763 happened to.
+# Why the check remains: the normal queue, the direct loader, and the missing-
+# section repair now build search rows before they finish. A person can still use
+# the direct loader's explicit --skip-rag escape hatch, a run started on older
+# code can finish later, or a database operation outside these entry points can
+# miss the shared finish step. None is visible from inside the product. #844's 69
+# bills were found only because someone finishing #763 happened to look.
 #
 # Free: one SQL query, fetches nothing, no paid API. Quiet: it opens an issue only
 # when a gap actually exists, and comments on the existing open one rather than

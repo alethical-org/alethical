@@ -16,18 +16,12 @@ Usage (run from the repo root; PYTHONPATH=. so `alethical` imports as a file)::
     ALETHICAL_DATABASE_TARGET=production PYTHONPATH=. uv run \\
         python scripts/check_rag_coverage.py
 
-**Why a schedule is the only place this can live.** The job-queue path already
-embeds -- ``BillSyncChunkWorker`` (``alethical/pipeline/oban_workers.py``) calls
-``build_rag_rows_for_bill_keys`` whenever ``include_rag`` is true, the default. Two
-paths do not, and between them they produced every one of the 69 bills #844 found:
-
-  * ``scripts/load_minnesota_data.py`` -- ingests text and never embeds.
-  * ``scripts/repair_missing_bill_sections.py`` -- inserts sections and prints a
-    line telling a person to embed them afterwards.
-
-Both run by hand from a laptop, so no CI run can see one happen, and the second
-depends on somebody reading a printed instruction. That is what went wrong: #844
-was found only because someone finishing #763 happened to follow that line.
+**Why the scheduled check remains.** The queued importer, the direct loader, and
+the missing-section repair now build search rows before they finish. A person can
+still use the direct loader's explicit ``--skip-rag`` escape hatch, a run started
+on older code can finish later, or an outside database operation can miss the
+shared finish step. None is visible from inside the product. #844's 69 bills were
+found only because someone finishing #763 happened to look.
 
 It asks the same question the pipeline asks itself, by importing the pipeline's
 own staleness query (``STALE_RAG_BILL_KEYS_SQL`` in ``alethical/pipeline/rag.py``)

@@ -15,6 +15,11 @@ from sqlalchemy.orm import Session
 from alethical.db import models as schema
 from alethical.db.session import get_database_url
 from alethical.pipeline import ai_enrichment
+from alethical.pipeline.minnesota import (
+    APPENDIX_PARSER_VERSION,
+    CHANGE_ROLE_PARSER_VERSION,
+    compute_appendix_source_hash,
+)
 
 
 def _session() -> Session:
@@ -47,9 +52,30 @@ def _make_bill_with_summary(
         version_code="test-v1",
         sequence_number=0,
         is_current=True,
+        appendix_parser_version=APPENDIX_PARSER_VERSION,
+        appendix_source_hash=compute_appendix_source_hash(False, []),
+        appendix_parse_complete=True,
+        appendix_present=False,
+        change_role_parser_version=CHANGE_ROLE_PARSER_VERSION,
+        change_role_parse_complete=True,
     )
     db.add(version)
     db.flush()
+    raw_text = "The commissioner shall publish a yearly report."
+    role_segments = [{"role": "carried_forward", "text": raw_text}]
+    db.add(
+        schema.BillVersionSection(
+            bill_version_id=version.id,
+            section_id_text="laws.0.1.0",
+            source_order=1,
+            section_heading="ANNUAL REPORT.",
+            raw_text=raw_text,
+            source_hash=hashlib.sha256(raw_text.encode("utf-8")).hexdigest(),
+            change_role_segments=role_segments,
+            change_role_source_hash=ai_enrichment._change_role_hash(role_segments),
+            change_role_parse_complete=True,
+        )
+    )
     enrichment = schema.AIEnrichment(
         bill_id=bill.id,
         bill_version_id=version.id,
@@ -62,6 +88,15 @@ def _make_bill_with_summary(
     db.add(enrichment)
     db.commit()
     return bill.id, version.id
+
+
+def _set_carried_forward_text(section, text: str) -> None:
+    segments = [{"role": "carried_forward", "text": text}]
+    section.raw_text = text
+    section.source_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
+    section.change_role_segments = segments
+    section.change_role_source_hash = ai_enrichment._change_role_hash(segments)
+    section.change_role_parse_complete = True
 
 
 def _cleanup(db: Session, bill_id) -> None:
@@ -297,10 +332,17 @@ def _make_bill_with_sections(
         version_code="test-v1",
         sequence_number=0,
         is_current=True,
+        appendix_parser_version=APPENDIX_PARSER_VERSION,
+        appendix_source_hash=compute_appendix_source_hash(False, []),
+        appendix_parse_complete=True,
+        appendix_present=False,
+        change_role_parser_version=CHANGE_ROLE_PARSER_VERSION,
+        change_role_parse_complete=True,
     )
     db.add(version)
     db.flush()
-    for order, (section_id_text, raw_text) in enumerate(sections):
+    for order, (section_id_text, raw_text) in enumerate(sections, start=1):
+        role_segments = [{"role": "carried_forward", "text": raw_text}]
         db.add(
             schema.BillVersionSection(
                 bill_version_id=version.id,
@@ -308,6 +350,10 @@ def _make_bill_with_sections(
                 source_order=order,
                 section_heading=f"Section {section_id_text}",
                 raw_text=raw_text,
+                source_hash=hashlib.sha256(raw_text.encode("utf-8")).hexdigest(),
+                change_role_segments=role_segments,
+                change_role_source_hash=ai_enrichment._change_role_hash(role_segments),
+                change_role_parse_complete=True,
             )
         )
     db.commit()
@@ -1200,6 +1246,10 @@ def _summary_apply_args(
                         "bill_version_id": str(version_id),
                         "model": "claude:claude-sonnet-5",
                         "source_version_hash": source_version_hash,
+                        "prompt_context_version": (
+                            ai_enrichment.BILL_SUMMARY_PROMPT_CONTEXT_VERSION
+                        ),
+                        "prepared_prompt_fingerprint": source_version_hash,
                     }
                 ],
             }
@@ -1320,9 +1370,8 @@ def test_apply_output_updates_the_matching_row_instead_of_inserting_a_second(
             bill = db.get(schema.Bill, bill_id)
             version = db.get(schema.BillVersion, version_id)
             assert bill is not None and version is not None
-            _prompt, prepared_hash, _truncated = ai_enrichment.bill_prompt(
-                db, bill, version, max_input_chars=60_000
-            )
+            prepared_hash = ai_enrichment.prepared_prompt_fingerprint(db, bill, version)
+            assert prepared_hash is not None
             superseded = _enrichment(
                 bill_id,
                 version_id,
@@ -1350,6 +1399,10 @@ def test_apply_output_updates_the_matching_row_instead_of_inserting_a_second(
                             "bill_version_id": str(version_id),
                             "model": "claude:claude-sonnet-5",
                             "source_version_hash": prepared_hash,
+                            "prompt_context_version": (
+                                ai_enrichment.BILL_SUMMARY_PROMPT_CONTEXT_VERSION
+                            ),
+                            "prepared_prompt_fingerprint": prepared_hash,
                         }
                     ],
                 }
@@ -1429,15 +1482,15 @@ def test_apply_output_refuses_a_summary_for_text_that_is_no_longer_current(
         version = db.get(schema.BillVersion, version_id)
         assert bill is not None and version is not None
         original_text = "Official text before the refresh."
-        section = schema.BillVersionSection(
-            bill_version_id=version_id,
-            section_id_text="laws.0.1.0",
-            source_order=0,
-            raw_text=original_text,
+        section = db.scalar(
+            select(schema.BillVersionSection).where(
+                schema.BillVersionSection.bill_version_id == version_id
+            )
         )
-        db.add(section)
+        assert section is not None
+        _set_carried_forward_text(section, original_text)
         db.flush()
-        _prompt, prepared_hash, _truncated = ai_enrichment.bill_prompt(
+        prompt_before_search, prepared_hash, _truncated = ai_enrichment.bill_prompt(
             db, bill, version, max_input_chars=60_000
         )
         assert ai_enrichment.source_version_matches_current_text(
@@ -1459,6 +1512,11 @@ def test_apply_output_refuses_a_summary_for_text_that_is_no_longer_current(
             )
         )
         db.flush()
+        prompt_after_search, hash_after_search, _truncated = ai_enrichment.bill_prompt(
+            db, bill, version, max_input_chars=60_000
+        )
+        assert prompt_after_search == prompt_before_search
+        assert hash_after_search == prepared_hash
         assert ai_enrichment.source_version_matches_current_text(
             db, bill, version, prepared_hash
         )
@@ -1471,7 +1529,9 @@ def test_apply_output_refuses_a_summary_for_text_that_is_no_longer_current(
             .where(schema.AIEnrichment.bill_id == bill_id)
             .values(is_current=False)
         )
-        section.raw_text = "New official text that the prepared summary never saw."
+        _set_carried_forward_text(
+            section, "New official text that the prepared summary never saw."
+        )
         db.flush()
         assert not ai_enrichment.source_version_matches_current_text(
             db, bill, version, prepared_hash
@@ -1546,15 +1606,13 @@ def test_apply_output_waits_for_an_inflight_text_refresh(
         bill = db.get(schema.Bill, bill_id)
         version = db.get(schema.BillVersion, version_id)
         assert bill is not None and version is not None
-        db.add(
-            schema.BillVersionSection(
-                bill_version_id=version_id,
-                section_id_text="laws.0.1.0",
-                source_order=0,
-                raw_text=original_text,
-                source_hash=hashlib.sha256(original_text.encode()).hexdigest(),
+        section = db.scalar(
+            select(schema.BillVersionSection).where(
+                schema.BillVersionSection.bill_version_id == version_id
             )
         )
+        assert section is not None
+        _set_carried_forward_text(section, original_text)
         db.flush()
         _prompt, prepared_hash, _truncated = ai_enrichment.bill_prompt(
             db, bill, version, max_input_chars=60_000
@@ -1607,8 +1665,7 @@ def test_apply_output_waits_for_an_inflight_text_refresh(
                 )
             )
             assert section is not None
-            section.raw_text = refreshed_text
-            section.source_hash = hashlib.sha256(refreshed_text.encode()).hexdigest()
+            _set_carried_forward_text(section, refreshed_text)
             refresh_db.execute(
                 update(schema.AIEnrichment)
                 .where(

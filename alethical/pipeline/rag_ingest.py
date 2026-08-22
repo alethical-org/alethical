@@ -23,7 +23,16 @@ VECTOR_DIMENSIONS = 1536
 OPENAI_EMBEDDING_TIMEOUT_SECONDS = 60
 
 
-def _require_openai_key_in_production() -> None:
+def _is_production_target(database_target: str | None = None) -> bool:
+    target = (
+        database_target
+        if database_target is not None
+        else os.environ.get("ALETHICAL_DATABASE_TARGET")
+    )
+    return target == "production"
+
+
+def _require_openai_key_in_production(*, database_target: str | None = None) -> None:
     """Fail closed: refuse to fall back to hash vectors against the production DB.
 
     The deterministic hash fallback exists for tests / local dev without an
@@ -33,7 +42,7 @@ def _require_openai_key_in_production() -> None:
     the fail-closed check in api/services/auth.py — production is signalled by
     ALETHICAL_DATABASE_TARGET=production.
     """
-    if os.environ.get("ALETHICAL_DATABASE_TARGET") == "production":
+    if _is_production_target(database_target):
         raise RuntimeError(
             "OPENAI_API_KEY is required when ALETHICAL_DATABASE_TARGET=production. "
             "Refusing to embed with the deterministic hash fallback, which would "
@@ -41,7 +50,9 @@ def _require_openai_key_in_production() -> None:
         )
 
 
-def effective_embedding_model(requested: str) -> str:
+def effective_embedding_model(
+    requested: str, *, database_target: str | None = None
+) -> str:
     """The model label matching what _build_embeddings will actually produce.
 
     Returns ``requested`` when OPENAI_API_KEY is set (real OpenAI embeddings),
@@ -51,7 +62,7 @@ def effective_embedding_model(requested: str) -> str:
     resolving to the fallback label (#105).
     """
     if not os.environ.get("OPENAI_API_KEY"):
-        _require_openai_key_in_production()
+        _require_openai_key_in_production(database_target=database_target)
         return FALLBACK_EMBEDDING_MODEL
     return requested
 
@@ -343,7 +354,11 @@ def _openai_embeddings(
 
 
 def _build_embeddings(
-    texts: list[str], *, model: str, batch_size: int
+    texts: list[str],
+    *,
+    model: str,
+    batch_size: int,
+    database_target: str | None = None,
 ) -> list[list[float]]:
     if not texts:
         return []
@@ -352,7 +367,7 @@ def _build_embeddings(
         # store these under FALLBACK_EMBEDDING_MODEL (via effective_embedding_model)
         # so retrieval excludes them and a keyed backfill replaces them (#221).
         # In production, refuse rather than poison retrieval with hash noise (#105).
-        _require_openai_key_in_production()
+        _require_openai_key_in_production(database_target=database_target)
         return [
             _deterministic_embedding(text, dimensions=VECTOR_DIMENSIONS)
             for text in texts
@@ -440,6 +455,7 @@ def build_rag_rows_for_bill_keys(
     dry_run: bool = False,
     rag_model: str = DEFAULT_RAG_MODEL,
     rag_embedding_batch_size: int = DEFAULT_RAG_BATCH_SIZE,
+    database_target: str | None = None,
 ) -> dict[str, Any]:
     bill_keys = _bill_keys(bill_keys)
     summary: dict[str, Any] = {
@@ -509,11 +525,16 @@ def build_rag_rows_for_bill_keys(
         ]
         summary["bills_processed"] += 1
 
+        match_embedding_model = (
+            rag_model
+            if _is_production_target(database_target)
+            else effective_embedding_model(rag_model, database_target=database_target)
+        )
         if _bill_rag_sections_complete(
             db,
             bill_version.id,
             prepared_sections,
-            embedding_model=effective_embedding_model(rag_model),
+            embedding_model=match_embedding_model,
         ):
             summary["rag_already_exists"] += 1
             summary["rag_results"].append(
@@ -555,11 +576,14 @@ def build_rag_rows_for_bill_keys(
 
         # Resolve the label right before building so it matches the vectors
         # _build_embeddings actually produces (real model vs hash fallback, #221).
-        stored_embedding_model = effective_embedding_model(rag_model)
+        stored_embedding_model = effective_embedding_model(
+            rag_model, database_target=database_target
+        )
         embeddings = _build_embeddings(
             [chunk_text for _, chunk_text in chunk_rows],
             model=rag_model,
             batch_size=max(1, rag_embedding_batch_size),
+            database_target=database_target,
         )
         embedding_flush_size = max(1, rag_embedding_batch_size)
         for index, ((rag_chunk, _chunk_text), embedding) in enumerate(
@@ -598,5 +622,25 @@ def build_rag_rows_for_bill_keys(
         summary["rag_chunk_count"] = summary.get("rag_chunk_count", 0) + sum(
             len(section["chunks"]) for section in prepared_sections
         )
+
+    if not dry_run:
+        from alethical.pipeline.bill_summary_requests import (
+            mark_summary_requests_ready,
+        )
+
+        search_ready_bill_keys = [
+            str(result["bill_key"])
+            for result in summary["rag_results"]
+            if result.get("status") in {"built", "already_exists"}
+        ]
+        summary["ready_summary_request_ids"] = [
+            str(request_id)
+            for request_id in mark_summary_requests_ready(
+                db,
+                search_ready_bill_keys,
+                rag_model=rag_model,
+                database_target=database_target,
+            )
+        ]
 
     return summary

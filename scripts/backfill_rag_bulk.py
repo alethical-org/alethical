@@ -42,6 +42,7 @@ notices when nobody did.
 from __future__ import annotations
 
 import argparse
+import asyncio
 import threading
 import time
 import uuid
@@ -182,7 +183,7 @@ def upsert_batch(
     prod_engine: Any,
     bill_keys: list[str],
     embedding_insert_size: int,
-) -> dict[str, int]:
+) -> dict[str, Any]:
     local_payloads = load_local_payloads(local_engine, bill_keys)
     with Session(prod_engine) as db:
         prod_map = load_prod_section_map(db, bill_keys)
@@ -228,6 +229,7 @@ def upsert_batch(
                 "sections": 0,
                 "chunks": 0,
                 "embeddings": 0,
+                "ready_summary_request_ids": [],
             }
 
         # Catch a repeated target section here, where the message can name the
@@ -311,6 +313,7 @@ def upsert_batch(
                 "sections": len(section_rows),
                 "chunks": 0,
                 "embeddings": 0,
+                "ready_summary_request_ids": [],
             }
 
         excluded_chunk = insert(schema.RagChunk).excluded
@@ -357,7 +360,10 @@ def upsert_batch(
         }
 
         embeddings = _build_embeddings(
-            [text for _temp_id, text in chunk_texts], model=MODEL, batch_size=64
+            [text for _temp_id, text in chunk_texts],
+            model=MODEL,
+            batch_size=64,
+            database_target="production",
         )
         embedding_rows: list[dict[str, Any]] = []
         for (temp_chunk_id, _chunk_text), embedding in zip(chunk_texts, embeddings):
@@ -386,6 +392,16 @@ def upsert_batch(
             )
             db.execute(embedding_stmt)
 
+        from alethical.pipeline.bill_summary_requests import (
+            mark_summary_requests_ready,
+        )
+
+        ready_summary_request_ids = [
+            str(request_id)
+            for request_id in mark_summary_requests_ready(
+                db, bill_keys, database_target="production"
+            )
+        ]
         db.commit()
         return {
             "bills": len(bill_keys),
@@ -393,6 +409,7 @@ def upsert_batch(
             "sections": len(section_rows),
             "chunks": len(chunk_rows),
             "embeddings": len(embedding_rows),
+            "ready_summary_request_ids": ready_summary_request_ids,
         }
 
 
@@ -525,6 +542,7 @@ def main() -> None:
         "chunks": 0,
         "embeddings": 0,
         "last_batch": None,
+        "ready_summary_request_ids": [],
     }
     lock = threading.Lock()
 
@@ -581,11 +599,22 @@ def main() -> None:
                 state["sections"] += result["sections"]
                 state["chunks"] += result["chunks"]
                 state["embeddings"] += result["embeddings"]
+                state["ready_summary_request_ids"].extend(
+                    result["ready_summary_request_ids"]
+                )
             snapshot("batch")
     finally:
         with lock:
             state["done"] = True
     snapshot("done")
+    from alethical.pipeline.bill_summary_requests import enqueue_ready_requests
+
+    asyncio.run(
+        enqueue_ready_requests(
+            state["ready_summary_request_ids"],
+            database_target="production",
+        )
+    )
 
 
 if __name__ == "__main__":

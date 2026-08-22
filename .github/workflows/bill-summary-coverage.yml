@@ -1,0 +1,95 @@
+name: Check every complete bill has a current summary
+
+# The database check is free and read-only. It compares text, summary flags, and
+# durable request rows already in PostgreSQL. This workflow writes only the alert
+# issue below. It never calls Anthropic or any other model provider.
+on:
+  workflow_dispatch:
+  schedule:
+    # Two hours after the search-coverage check and one hour after the source-file
+    # mirror. Earlier source or search gaps are reported first, and the jobs do
+    # not contend.
+    - cron: "0 14 * * *"
+
+concurrency:
+  group: production-bill-summary-coverage-check
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    env:
+      ALETHICAL_DATABASE_TARGET: production
+      SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          version: 0.12.5
+          enable-cache: true
+          prune-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version-file: ".python-version"
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Check database secrets are set
+        run: test -n "$SUPABASE_PROJECT_URL" && test -n "$SUPABASE_DB_PASSWORD"
+
+      - name: Find complete bills with a missing or outdated summary
+        id: summary_check
+        shell: bash
+        run: |
+          set +e
+          PYTHONPATH=. uv run python scripts/check_bill_summary_coverage.py --issue-report-path summary-issue-report.txt | tee summary-report.txt
+          status=${PIPESTATUS[0]}
+          if [ "$status" -eq 0 ]; then
+            echo "result=ok" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$status" -eq 1 ] && [ -s summary-issue-report.txt ] && grep -q '^SUMMARY GAPS:' summary-issue-report.txt; then
+            echo "result=gaps" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          echo "result=error" >> "$GITHUB_OUTPUT"
+          exit "$status"
+
+      - name: Keep the full read-only report with this run
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: bill-summary-coverage-report
+          path: summary-report.txt
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Open 1 alert issue if a summary is missing or outdated
+        if: failure() && steps.summary_check.outputs.result == 'gaps'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="Complete bills have missing or outdated plain-language summaries"
+          report=$(cat summary-issue-report.txt 2>/dev/null || echo "(the check failed before it produced a report)")
+          body=$(printf '**Net:** At least 1 bill has complete current official text but its full summary is missing or was made from older text or instructions. The bill can lose its plain-language title and disappear from normal browsing and search. This check reads saved data only and spends no model tokens.\n\n```\n%s\n```\n\n**Fix:** inspect the saved request state first. Automatic Anthropic calls stay off until their monthly and per-bill limits are approved. Do not reactivate an old summary or invent a fallback title.\n\nBackground: [issue 457](https://github.com/alethical-org/alethical/issues/457), created after 27 repaired bills lost stale summaries without getting replacement work. The automatic worker did not repair those 27 records. Run: %s.' "$report" "$RUN_URL")
+          existing=$(gh issue list --state open --search "$title in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "Still missing or outdated as of this run: $RUN_URL"$'\n\n```\n'"$report"$'\n```'
+          else
+            gh issue create --title "🚨 $title" --label backend --body "$body"
+          fi
+
+      - name: Report a broken coverage check without claiming data is missing
+        if: failure() && steps.summary_check.outputs.result != 'gaps'
+        run: echo "::error::The bill-summary coverage check failed before it proved a saved-data gap. Inspect this workflow run; no missing-summary issue was opened."

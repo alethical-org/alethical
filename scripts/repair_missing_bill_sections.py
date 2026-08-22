@@ -11,14 +11,14 @@ position now), but the production ingest is human-triggered and skips
 already-ingested bills by default, so nothing re-visits the bills already stored.
 This does.
 
-**It only ever INSERTS rows. It never updates one, and that is the point, not a
-detail.** Two paid caches hash `bill_version_section.raw_text` — every section's
-search embedding (`rag_ingest.py`) and every bill's AI summary
-(`ai_enrichment.source_version_hash`) — so rewriting a stored section would re-run
-two corpus-wide paid jobs. Adding sections costs only the embeddings for the ~57
-new rows, which is proportional to those rows and not a corpus-wide re-embed. See
-`docs/product-onboarding/data-ingestion-onboarding.md` § "A section's body is
-stored twice, and that is deliberate".
+The repair never rewrites a section that is already stored. It inserts only the
+missing official rows. That still changes the bill's complete source text, so an
+apply also retires the old full summary, rebuilds that bill's search rows, and
+records one replacement-summary request for the new text. Those steps share one
+database transaction: if search preparation fails, the section insert and summary
+retirement roll back too. Search embeddings may use the paid OpenAI API. The
+replacement Claude call remains behind the default-off switch and all 4 spending
+and failure limits from issue 457.
 
 How a target is found, without fetching anything: the bug leaves an exact
 fingerprint. `source_order` holds the section's position on the page, so a version
@@ -30,6 +30,8 @@ version page, at the URL ingestion recorded (`bill_version.html_url`), parsed wi
 the same parser the pipeline uses (`parse_bill_text_html`).
 
 Safety, checked per bill before a single row is written:
+  * the fetched page URL and exact page hash must match the source artifact linked
+    by ordinary ingestion; a changed page needs a re-ingest, not a repair;
   * the page's section count must equal the version's highest stored position — if
     the page has grown or shrunk since ingest, this is an ingestion-freshness gap
     (`.claude/rules/grounded-answers.md` rule 7) and needs a re-ingest, not a repair;
@@ -63,13 +65,20 @@ Usage (run from the repo root; PYTHONPATH=. so `alethical` imports as a file):
 from __future__ import annotations
 
 import argparse
+import asyncio
 import os
 import time
 
 from sqlalchemy import create_engine, select, text
 from sqlalchemy.orm import Session
 
-from alethical.db.models import BillVersionSection
+from alethical.db.models import (
+    ArtifactType,
+    Bill,
+    BillVersion,
+    BillVersionSection,
+    SourceArtifact,
+)
 from alethical.db.session import (
     NO_PREPARED_STATEMENTS,
     database_url_for_target,
@@ -80,6 +89,7 @@ from alethical.pipeline.minnesota import (
     fetch_text,
     http_session,
     parse_bill_text_html,
+    replace_bill_version_prompt_context,
 )
 
 # Seconds between page fetches. The pages are public and a repair is at most a few
@@ -88,13 +98,13 @@ FETCH_PAUSE = 0.8
 
 # Versions that lost sections: the highest stored position exceeds the row count.
 TARGETS_SQL = """
-select b.bill_key, v.id as version_id, v.version_code, v.is_current, v.html_url,
+select b.id as bill_id, b.bill_key, v.id as version_id, v.version_code, v.is_current, v.html_url,
        count(*) as stored, max(s.source_order) as page_sections
 from bill_version_section s
 join bill_version v on v.id = s.bill_version_id
 join bill b on b.id = v.bill_id
 where v.html_url is not null
-group by 1, 2, 3, 4, 5
+group by 1, 2, 3, 4, 5, 6
 having max(s.source_order) > count(*)
 order by (max(s.source_order) - count(*)) desc, b.bill_key
 """
@@ -147,6 +157,7 @@ def main() -> None:
         inserted_total = 0
         repaired: list[str] = []
         skipped: list[str] = []
+        ready_summary_request_ids: list[str] = []
 
         for target in targets:
             label = f"{target.bill_key} v{target.version_code}"
@@ -159,6 +170,46 @@ def main() -> None:
             finally:
                 time.sleep(FETCH_PAUSE)
             sections = parsed["sections"]
+
+            bill_query = select(Bill).where(Bill.id == target.bill_id)
+            if args.apply:
+                bill_query = bill_query.with_for_update()
+            locked_bill = session.scalar(bill_query)
+            version = session.scalar(
+                select(BillVersion).where(
+                    BillVersion.id == target.version_id,
+                    BillVersion.bill_id == target.bill_id,
+                    BillVersion.is_current.is_(True),
+                )
+            )
+            if locked_bill is None or version is None:
+                skipped.append(
+                    f"{label}: current bill version disappeared before repair"
+                )
+                session.rollback()
+                continue
+
+            source_artifact = (
+                session.get(SourceArtifact, version.source_artifact_id)
+                if version.source_artifact_id is not None
+                else None
+            )
+            if (
+                version.version_code != target.version_code
+                or str(version.html_url or "") != str(target.html_url)
+                or source_artifact is None
+                or source_artifact.adapter != "minnesota_live"
+                or source_artifact.artifact_type != ArtifactType.html
+                or source_artifact.source_key != target.bill_key
+                or source_artifact.source_url != str(version.html_url)
+                or source_artifact.content_hash != content_hash(page)
+            ):
+                skipped.append(
+                    f"{label}: fetched page does not match the exact official page "
+                    "saved by ingestion — needs a re-ingest, not a repair"
+                )
+                session.rollback()
+                continue
 
             stored_rows = session.scalars(
                 select(BillVersionSection)
@@ -236,6 +287,28 @@ def main() -> None:
                 f"{', '.join(str(p) for p, _ in missing)})"
             )
             if args.apply:
+                from alethical.pipeline.bill_summary_requests import (
+                    register_official_text_change,
+                )
+                from alethical.pipeline.rag_ingest import (
+                    build_rag_rows_for_bill_keys,
+                )
+
+                session.flush()
+                replace_bill_version_prompt_context(session, version, parsed)
+                session.flush()
+                summary_request = register_official_text_change(session, locked_bill)
+                if summary_request is not None:
+                    ready_summary_request_ids.append(str(summary_request.id))
+                rag_stats = build_rag_rows_for_bill_keys(
+                    session,
+                    [target.bill_key],
+                    dry_run=False,
+                    database_target=os.environ.get("ALETHICAL_DATABASE_TARGET"),
+                )
+                ready_summary_request_ids.extend(
+                    rag_stats.get("ready_summary_request_ids", [])
+                )
                 session.commit()
             else:
                 session.rollback()
@@ -252,9 +325,19 @@ def main() -> None:
             print("\ndry run — no changes written. Re-run with --apply to write.")
         elif inserted_total:
             print(
-                "\nThe new sections have no search embedding yet. Run the RAG "
-                "ingest for these bills so Grounded Ask can cite them."
+                "\nThe repaired official text and matching search rows were saved together."
             )
+
+    if ready_summary_request_ids:
+        from alethical.pipeline.bill_summary_requests import enqueue_ready_requests
+
+        asyncio.run(
+            enqueue_ready_requests(
+                ready_summary_request_ids,
+                database_target=os.environ.get("ALETHICAL_DATABASE_TARGET") or "local",
+                database_url=database_url if args.database_url else None,
+            )
+        )
 
 
 if __name__ == "__main__":

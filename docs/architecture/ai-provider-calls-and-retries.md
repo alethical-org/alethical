@@ -170,6 +170,11 @@ The retryable group is:
 - HTTP 408, 409, or 429;
 - a temporary provider server failure (HTTP 500 through 599).
 
+Issue 457's automatic changed-bill summary is stricter for a dropped connection or
+timeout. It stops after that 1 ambiguous attempt because Anthropic may have completed
+the paid request even though Alethical did not receive the response. A person must
+review that visible ambiguous request before any later paid try.
+
 A bad request, bad key, forbidden request, or missing resource stops after 1 try.
 Those include HTTP 400, 401, 403, and 404.
 
@@ -345,7 +350,7 @@ spending approval.
 | 2 | [#780](https://github.com/alethical-org/alethical/issues/780) | Protect readers with a hard clock, honest state, and official libraries | 24 to 35 hours across 3 pull requests |
 | 3 | [#1520](https://github.com/alethical-org/alethical/issues/1520) | Make Anthropic's offline summary and batch paths safe | 16 to 22 hours across 2 pull requests |
 | 4 | [#998](https://github.com/alethical-org/alethical/issues/998) | Make the dormant OpenAI summary fallback safe without turning it on | 7 to 10 hours |
-| Later | [#457](https://github.com/alethical-org/alethical/issues/457) | Automatically queue a missing Anthropic summary after new official text is ready | Estimate after its spending limit and stop switch are approved |
+| Shipped, off by default | [#457](https://github.com/alethical-org/alethical/issues/457) | Record and queue exactly 1 replacement summary after complete changed official text is ready | Provider calls wait for approved spending and failure limits plus deliberate switch activation |
 | Only when triggered | [#1623](https://github.com/alethical-org/alethical/issues/1623) | Prove strict Anthropic JSON preserves grounded facts | 6 to 9 hours for 60 pairs, plus 8 to 12 hours if it expands |
 
 The 2 requested estimates break down as follows. “Focused engineering time” means
@@ -369,9 +374,15 @@ not counted unless a person must watch and respond.
   - Guide checks, current-main checks, release, and rollback proof: 3 to 5 hours.
 
 [Issue 457](https://github.com/alethical-org/alethical/issues/457) does not add a
-paid timer. The existing fast, parallel, cached Anthropic path already works. The
-remaining job is a single handoff for a new bill version, with a hard spending
-limit, failure limit, and off switch approved before live automatic calls begin.
+paid timer. A saved official-text change records 1 exact durable request after its
+saved legal roles are complete. The request becomes ready after current search rows
+match. An actual automatic job is queued only when the switch, monthly spending ceiling,
+lifetime per-bill ceiling, monthly ceiling for failed requests, and per-request attempt
+limit are all open; they default to off or 0. The worker then reuses the existing cached
+Anthropic prompt, bounded retries, checks, lock, and apply path. Live automatic calls begin
+only after those values and the rollback are approved. The rollback is to set
+`ALETHICAL_AUTO_BILL_SUMMARY_ENABLED=false`; this stops new Anthropic calls while retaining
+migration 0042's request and spending history for audit and safe later recovery.
 
 ## 10. Options considered
 
