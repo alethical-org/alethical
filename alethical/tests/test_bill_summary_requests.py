@@ -2149,9 +2149,7 @@ async def test_ready_request_reconciliation_waits_for_the_database_commit(
         db.commit()
 
     try:
-        after_commit = await reconcile_ready_requests(
-            database_url=local_database_url()
-        )
+        after_commit = await reconcile_ready_requests(database_url=local_database_url())
         assert before_commit == []
         assert len(after_commit) == 1
         assert enqueued == [str(request_id)]
