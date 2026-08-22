@@ -41,6 +41,7 @@ import {
 import { recordSiteMetricEvent } from '../lib/siteMetricEvents';
 import type { IaItem, MenuKey } from '../navigation/ia';
 import type { RootStackParamList } from '../navigation/types';
+import { browserFillTextInputProps } from '../theme/browserFill';
 import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../theme/fieldFocus';
 import { Container, Footer, PageBackground, TopNav } from '../theme/primitives';
 import { theme as t } from '../theme/tokens';
@@ -642,6 +643,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
               >
                 <TextInput
                   ref={addressInputRef}
+                  {...browserFillTextInputProps}
                   accessibilityLabel="Full Minnesota street address"
                   aria-describedby={addressError ? ADDRESS_ERROR_ID : undefined}
                   aria-invalid={addressError ? true : undefined}

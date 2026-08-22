@@ -26,6 +26,7 @@ import { useResponsive } from '../../hooks/useResponsive';
 import { useTrackedBills } from '../../hooks/useAppQueries';
 import { linkProps, routePath } from '../../navigation/links';
 import { navigateTopNavItem } from '../../navigation/topNavRoutes';
+import { browserFillTextInputProps } from '../../theme/browserFill';
 import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fieldFocus';
 import { theme as t } from '../../theme/tokens';
 import { useAuth } from '../../providers/AuthProvider';
@@ -302,6 +303,38 @@ export function SetPasswordDialog({
 
   if (!open) return null;
 
+  const freshProofInput = (
+    <TextInput
+      ref={freshProofRef}
+      nativeID="fresh-proof-code"
+      accessibilityLabel="CODE"
+      aria-describedby={freshProofMessage ? 'fresh-proof-code-help' : undefined}
+      aria-labelledby="fresh-proof-code-label"
+      autoCapitalize="none"
+      autoComplete="one-time-code"
+      autoCorrect={false}
+      editable={!busy}
+      inputMode="numeric"
+      keyboardType="number-pad"
+      returnKeyType="done"
+      spellCheck={false}
+      value={freshProofCode}
+      onChangeText={(value) => {
+        setFreshProofCode(value);
+        setFormError(null);
+      }}
+      onSubmitEditing={() => void save()}
+      {...browserFillTextInputProps}
+      {...freshProofFocusProps}
+      style={[
+        styles.freshProofInput,
+        isWeb && styles.freshProofInputWeb,
+        fieldOutlineReset,
+        ...(!isWeb ? fieldFocusRing(freshProofFocused) : []),
+      ]}
+    />
+  );
+
   return (
     <SignInContainer
       open
@@ -376,33 +409,15 @@ export function SetPasswordDialog({
                     {freshProofMessage}
                   </Text>
                 ) : null}
-                <TextInput
-                  ref={freshProofRef}
-                  nativeID="fresh-proof-code"
-                  accessibilityLabel="CODE"
-                  aria-describedby={freshProofMessage ? 'fresh-proof-code-help' : undefined}
-                  aria-labelledby="fresh-proof-code-label"
-                  autoCapitalize="none"
-                  autoComplete="one-time-code"
-                  autoCorrect={false}
-                  editable={!busy}
-                  inputMode="numeric"
-                  keyboardType="number-pad"
-                  returnKeyType="done"
-                  spellCheck={false}
-                  value={freshProofCode}
-                  onChangeText={(value) => {
-                    setFreshProofCode(value);
-                    setFormError(null);
-                  }}
-                  onSubmitEditing={() => void save()}
-                  {...freshProofFocusProps}
-                  style={[
-                    styles.freshProofInput,
-                    fieldOutlineReset,
-                    ...fieldFocusRing(freshProofFocused),
-                  ]}
-                />
+                {isWeb ? (
+                  <View
+                    style={[styles.freshProofInputShellWeb, ...fieldFocusRing(freshProofFocused)]}
+                  >
+                    {freshProofInput}
+                  </View>
+                ) : (
+                  freshProofInput
+                )}
               </View>
             ) : null}
           </View>
@@ -1101,6 +1116,14 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: t.colors.text.secondary,
   },
+  freshProofInputShellWeb: {
+    minHeight: 52,
+    borderWidth: 1,
+    borderColor: 'rgba(17,21,15,0.18)',
+    borderRadius: 12,
+    backgroundColor: t.colors.surfaces.base,
+    overflow: 'hidden',
+  },
   freshProofInput: {
     width: '100%',
     minHeight: 52,
@@ -1114,6 +1137,11 @@ const styles = StyleSheet.create({
     fontSize: 17,
     lineHeight: 22,
     color: t.colors.text.primary,
+  },
+  freshProofInputWeb: {
+    minHeight: 50,
+    borderWidth: 0,
+    backgroundColor: 'transparent',
   },
   passwordActions: { marginTop: 20, gap: 12 },
   quietButton: {

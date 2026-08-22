@@ -2,6 +2,7 @@ import { createElement, Ref, useId } from 'react';
 import { Platform, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fieldFocus';
+import { browserFillInputProps } from '../../theme/browserFill';
 import { useResponsive } from '../../hooks/useResponsive';
 import { theme as t } from '../../theme/tokens';
 import { FormError } from './FormError';
@@ -57,6 +58,7 @@ export function EmailField({
   const input =
     Platform.OS === 'web' ? (
       createElement('input', {
+        ...browserFillInputProps,
         'aria-describedby': error ? errorId : undefined,
         'aria-invalid': error ? true : undefined,
         'aria-labelledby': labelId,
@@ -136,6 +138,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(17,21,15,0.18)',
     borderRadius: 12,
+    ...(Platform.OS === 'web' ? ({ overflow: 'hidden' } as object) : null),
   },
   inputShellError: { borderColor: '#e0b673' },
   inputShellDisabled: { opacity: 0.6 },
