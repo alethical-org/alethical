@@ -1,6 +1,13 @@
 ---
 name: design-review
-description: Use when a draft (not-yet-final) Claude Design mockup + bundle arrives and needs evaluating against Alethical's real data, backend capability, and UX before anyone builds it. Pressure-tests every element for buildability + honesty (grounded-answers), applies the design-audit accessibility/interaction rubric to everything a static design can reveal, and returns prioritized improvement feedback — output as a definitive Claude-Design prompt plus a decision list. Pre-build. First in the design- skill set: design-review → design-intake → design-build → design-audit.
+description: >-
+  Use when a draft (not-yet-final) Claude Design mockup + bundle arrives and needs
+  evaluating against Alethical's real data, backend capability, and UX before anyone
+  builds it. Pressure-tests every element for buildability + honesty
+  (grounded-answers), applies the design-audit accessibility/interaction rubric to
+  everything a static design can reveal, and returns prioritized improvement feedback
+  as a definitive Claude-Design prompt plus a decision list. Pre-build. First in the
+  design- skill set: design-review → design-intake → design-build → design-audit.
 ---
 
 # Design review
@@ -10,6 +17,14 @@ description: Use when a draft (not-yet-final) Claude Design mockup + bundle arri
 A Claude Design mockup is drawn without visibility into our database, backend, or roadmap — so it can confidently show elements we can't back, claims our data can't honor, or accessibility problems that are cheaper to fix now than after a build. This is the **shift-left gate**: surface every issue a still image + our data can prove *before* a line of code, and hand back exact change requests. It is the one design phase only Claude Code can run, because it depends on the repo, the corpus, and the milestones.
 
 This produces **feedback**, not code. It does **not** implement, edit the mockup, or send anything to Claude Design — the maintainer relays the prompt and drives the design iteration.
+
+**Substantial design work is a hard return-to-Design gate.** If the review finds a missing
+screen, interaction model, responsive layout, state treatment, visual hierarchy, or any
+other change that needs real design judgment, return one definitive Claude Design prompt
+and state that the bundle is not build-ready. Never offer “build now” as an alternative,
+never present “revise or build” as a decision, and never ask the maintainer to accept
+design debt to save a round. The maintainer will bring back Design's response. A build may
+be recommended only after a later review finds no substantial design work remains.
 
 ## When to use
 
@@ -103,7 +118,12 @@ The point of this gate is to pull everything forward that *can* come forward. `d
 
 ## Anti-patterns
 
-Implementing or editing the mockup (this pass only produces feedback) · sending anything to Claude Design directly · asking Design to assess feasibility · a verdict from memory instead of checking the field/API/issue · deferring to the build something a still image could have caught · policing mock content realism (real vs. fictional names — withdrawn, per `claude-design-prompt-rules`).
+Implementing or editing the mockup (this pass only produces feedback) · offering a build
+while substantial design work remains · presenting “revise or build” as a user choice ·
+sending anything to Claude Design directly · asking Design to assess feasibility · a
+verdict from memory instead of checking the field/API/issue · deferring to the build
+something a still image could have caught · policing mock content realism (real vs.
+fictional names — withdrawn, per `claude-design-prompt-rules`).
 
 ## References
 
