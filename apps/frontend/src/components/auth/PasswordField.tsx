@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 
 import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fieldFocus';
+import { browserFillInputProps } from '../../theme/browserFill';
 import { useResponsive } from '../../hooks/useResponsive';
 import { theme as t } from '../../theme/tokens';
 import { FormError } from './FormError';
@@ -137,6 +138,7 @@ export function PasswordField({
   const input =
     Platform.OS === 'web' ? (
       createElement('input', {
+        ...browserFillInputProps,
         'aria-describedby': describedBy,
         'aria-invalid': error ? true : undefined,
         'aria-labelledby': labelId,

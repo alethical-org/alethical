@@ -112,6 +112,7 @@ describe('signed-in set or change password', () => {
     expect(passwordDialog).not.toContain('security notice');
     expect(passwordDialog).toContain("result.error.kind === 'fresh-proof'");
     expect(passwordDialog).toContain('autoComplete="one-time-code"');
+    expect(passwordDialog).toContain('...browserFillTextInputProps');
     expect(passwordDialog).toContain('accessibilityLabel="CODE"');
     expect(passwordDialog).toContain(
       "aria-describedby={freshProofMessage ? 'fresh-proof-code-help'",

@@ -26,6 +26,7 @@ import { IaItem, MenuKey } from '../../navigation/ia';
 import { externalLinkProps, routePath } from '../../navigation/links';
 import { navigateTopNavItem } from '../../navigation/topNavRoutes';
 import { RootScreenProps } from '../../navigation/types';
+import { browserFillInputProps } from '../../theme/browserFill';
 import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fieldFocus';
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { prefersReducedMotion, theme as t } from '../../theme/tokens';
@@ -140,6 +141,7 @@ function ContactFieldInput({
   const { focused, focusProps } = useFieldFocus();
   const descriptionId = error ? `${field}-error` : undefined;
   const multiline = field === 'message';
+  const receivesBrowserFill = field === 'name' || field === 'email' || field === 'phone';
   const inputShellStyle = [
     styles.inputShell,
     error && styles.inputError,
@@ -151,6 +153,7 @@ function ContactFieldInput({
   const input =
     Platform.OS === 'web' ? (
       createElement(multiline ? 'textarea' : 'input', {
+        ...(receivesBrowserFill ? browserFillInputProps : {}),
         'aria-describedby': descriptionId,
         'aria-invalid': Boolean(error),
         'aria-labelledby': `${field}-label`,

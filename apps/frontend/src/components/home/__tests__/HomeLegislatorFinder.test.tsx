@@ -48,6 +48,7 @@ describe('homepage legislator finder form', () => {
     expect(html).toContain('aria-describedby="home-finder-address-help"');
     expect(html).toContain('id="home-finder-address-help"');
     expect(html).toMatch(/autocomplete="street-address"/i);
+    expect(html).toContain('data-alethical-browser-fill="true"');
     expect(html).toContain('placeholder="350 S 5th St, Minneapolis, MN 55415"');
     expect(HOME_FINDER_HELP).toBe(
       "Enter a full street address — a city or ZIP code alone can't identify your legislators",

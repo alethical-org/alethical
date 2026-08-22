@@ -64,6 +64,12 @@ class PhoneViewport extends EventTarget {
   height = 844;
 }
 
+function enter(input: HTMLInputElement, value: string) {
+  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+  setter?.call(input, value);
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
 afterEach(() => {
   document.body.replaceChildren();
   Reflect.deleteProperty(HTMLElement.prototype, 'scrollIntoView');
@@ -73,6 +79,37 @@ afterEach(() => {
 });
 
 describe('phone password action visibility', () => {
+  it('renders the marked browser-filled account proof code after the server asks for it', async () => {
+    auth.setPassword.mockResolvedValueOnce({
+      ok: false,
+      error: { kind: 'fresh-proof', message: 'Enter the code we sent.' },
+    } as any);
+    const mount = document.createElement('div');
+    document.body.append(mount);
+    const root = createRoot(mount);
+
+    act(() => root.render(<SetPasswordDialog open onClose={vi.fn()} />));
+    const passwordInputs = document.querySelectorAll<HTMLInputElement>(
+      'input[autocomplete="new-password"]',
+    );
+    act(() => {
+      enter(passwordInputs[0]!, 'a password');
+      enter(passwordInputs[1]!, 'a password');
+    });
+    const save = [...document.querySelectorAll<HTMLButtonElement>('button')].find(
+      (button) => button.textContent === 'Save password',
+    );
+
+    await act(async () => save?.click());
+
+    const proof = document.querySelector<HTMLInputElement>('#fresh-proof-code');
+    expect(proof).not.toBeNull();
+    expect(proof?.getAttribute('autocomplete')).toBe('one-time-code');
+    expect(proof?.getAttribute('data-alethical-browser-fill')).toBe('true');
+
+    act(() => root.unmount());
+  });
+
   it('reveals both actions when confirmation is focused before or after the keyboard opens', () => {
     const phoneViewport = new PhoneViewport();
     Object.defineProperty(window, 'visualViewport', {

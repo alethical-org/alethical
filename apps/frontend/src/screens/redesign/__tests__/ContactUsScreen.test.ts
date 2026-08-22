@@ -22,6 +22,20 @@ describe('Contact us screen contract', () => {
     expect(SCREEN).not.toContain('autoFocus');
   });
 
+  it('allows browser fill only for name, email, and phone', () => {
+    const browserFillChoice = SCREEN.slice(
+      SCREEN.indexOf('const receivesBrowserFill ='),
+      SCREEN.indexOf('const inputShellStyle ='),
+    );
+
+    expect(browserFillChoice).toContain("field === 'name'");
+    expect(browserFillChoice).toContain("field === 'email'");
+    expect(browserFillChoice).toContain("field === 'phone'");
+    expect(browserFillChoice).not.toContain("field === 'subject'");
+    expect(browserFillChoice).not.toContain("field === 'message'");
+    expect(SCREEN).toContain('...(receivesBrowserFill ? browserFillInputProps : {})');
+  });
+
   it('puts the light border, purple focus glow, and amber error on the field wrapper', () => {
     const inputStyle = SCREEN.match(/input: \{[\s\S]*?\n  \},/)?.[0] ?? '';
     const inputShellStyle = SCREEN.match(/inputShell: \{[\s\S]*?\n  \},/)?.[0] ?? '';

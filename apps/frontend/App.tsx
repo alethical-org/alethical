@@ -6,6 +6,7 @@ import { AppErrorBoundary } from './src/components/AppErrorBoundary';
 import { unregisterServiceWorkers } from './src/lib/serviceWorkerCleanup';
 import { RootNavigator } from './src/navigation/RootNavigator';
 import { EmailLinkPage } from './src/screens/auth/EmailLinkPage';
+import { ensureBrowserFillStyles } from './src/theme/browserFill';
 
 export default function App() {
   const emailLinkKind =
@@ -73,6 +74,7 @@ export default function App() {
     ensureAppleTouchIcon();
     ensureThemeColor();
     ensureFocusStyles();
+    ensureBrowserFillStyles();
 
     // Releases can change the JavaScript files a page needs. A saved-site worker
     // can keep serving an older page that requests files the new release no

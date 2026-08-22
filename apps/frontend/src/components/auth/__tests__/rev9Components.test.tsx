@@ -41,6 +41,7 @@ describe('rev 9 shared sign-in components', () => {
     expect(html).toContain('aria-invalid="true"');
     expect(html).toMatch(/type="email"/i);
     expect(html).toMatch(/autocomplete="email"/i);
+    expect(html).toContain('data-alethical-browser-fill="true"');
     expect(html).toMatch(/inputmode="email"/i);
     expect(html).toContain('min-height:50px');
     expect(html).toContain('padding-top:16px');
@@ -71,6 +72,7 @@ describe('rev 9 shared sign-in components', () => {
     expect(html).toContain('aria-describedby="test-password-help"');
     expect(html).toMatch(/type="password"/i);
     expect(html).toMatch(/autocomplete="new-password"/i);
+    expect(html).toContain('data-alethical-browser-fill="true"');
     expect(html).toContain('aria-pressed="false"');
     expect(html).toContain('Show password');
     expect(html).toContain('min-height:50px');
@@ -84,6 +86,12 @@ describe('rev 9 shared sign-in components', () => {
     expect(source('PasswordField.tsx')).toContain('setSelectionRange');
     expect(source('PasswordField.tsx')).not.toContain('maxLength=');
     expect(source('PasswordField.tsx')).not.toContain('autoFocus');
+
+    const currentPasswordHtml = renderToStaticMarkup(
+      <PasswordField value="a password" onChangeText={vi.fn()} />,
+    );
+    expect(currentPasswordHtml).toMatch(/autocomplete="current-password"/i);
+    expect(currentPasswordHtml).toContain('data-alethical-browser-fill="true"');
   });
 
   it('renders a labelled one-time-code field with numeric keyboard help and linked errors', () => {
@@ -93,6 +101,7 @@ describe('rev 9 shared sign-in components', () => {
 
     expect(html).toContain('CODE');
     expect(html).toMatch(/autocomplete="one-time-code"/i);
+    expect(html).toContain('data-alethical-browser-fill="true"');
     expect(html).toMatch(/inputmode="numeric"/i);
     expect(html).toContain('aria-invalid="true"');
     expect(html).toMatch(/aria-describedby="auth-code-[^"]+-error"/);

@@ -1,6 +1,6 @@
 # Alethical design principles — the green system
 
-<!-- describes: apps/frontend/src/components/VoteCountLinkChip.tsx, apps/frontend/src/components/GoBackLink.tsx, apps/frontend/src/components/LinkArrow.tsx, apps/frontend/src/components/ChangeBlock.tsx, apps/frontend/src/components/auth/LoadingButton.tsx, apps/frontend/src/components/auth/SignInDialog.tsx, apps/frontend/src/components/billDetail/BillTrackButton.tsx, apps/frontend/src/components/billDetail/SourceLine.tsx, apps/frontend/src/components/billDetail/billTrackButtonAppearance.ts, apps/frontend/src/components/search/BillResultCard.tsx, apps/frontend/src/hooks/useHistoryScrollRestoration.ts, apps/frontend/src/hooks/useResponsive.ts, apps/frontend/src/navigation/links.ts, apps/frontend/src/navigation/webHistory.ts, apps/frontend/src/screens/redesign/HomeSignedOutScreen.tsx, apps/frontend/src/theme/tokens.ts, apps/frontend/src/theme/primitives.tsx, apps/frontend/src/theme/pageBackground.ts -->
+<!-- describes: apps/frontend/src/components/VoteCountLinkChip.tsx, apps/frontend/src/components/GoBackLink.tsx, apps/frontend/src/components/LinkArrow.tsx, apps/frontend/src/components/ChangeBlock.tsx, apps/frontend/src/components/auth/LoadingButton.tsx, apps/frontend/src/components/auth/SignInDialog.tsx, apps/frontend/src/components/billDetail/BillTrackButton.tsx, apps/frontend/src/components/billDetail/SourceLine.tsx, apps/frontend/src/components/billDetail/billTrackButtonAppearance.ts, apps/frontend/src/components/search/BillResultCard.tsx, apps/frontend/src/hooks/useHistoryScrollRestoration.ts, apps/frontend/src/hooks/useResponsive.ts, apps/frontend/src/navigation/links.ts, apps/frontend/src/navigation/webHistory.ts, apps/frontend/src/screens/redesign/HomeSignedOutScreen.tsx, apps/frontend/src/theme/browserFill.ts, apps/frontend/src/theme/tokens.ts, apps/frontend/src/theme/primitives.tsx, apps/frontend/src/theme/pageBackground.ts -->
 
 > **What this is.** The written design intent behind Alethical's green visual system: what
 > the product should feel like, and the visual/interaction rules that get it there. It is the
@@ -314,6 +314,12 @@ one: see the box below before writing one.**
   (`theme/fieldFocus.ts`) while the cursor is in them. Text fields never receive focus on page load
   or navigation; the visitor must tap one or reach it with the keyboard. Never remove focus styling
   without an equivalent replacement.
+- **Browser-filled values keep the field's own appearance.** Browser-filled auth email, password,
+  and code fields; the signed-in account proof code; both legislator address fields; and Contact us
+  name, email, and phone fields keep a white interior with the normal dark value and caret while
+  preserving their existing border, focus ring, corners, and password Show/Hide seam. This is an
+  explicit opt-in list. Search, chat, read-only, Contact us subject and message, and future fields do
+  not inherit it automatically.
 - **Contrast holds — and accessibility overrides the spec.** Body text and essential UI meet WCAG AA
   against their background (4.5:1 for normal text, 3:1 for large/bold ≥18.66px and for essential UI).
   The dark-ink-on-green-fill rule exists for this reason — bright green with white text fails contrast.

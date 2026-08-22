@@ -383,7 +383,7 @@ export const theme = {
       },
     }),
     focusPurple: Platform.select({
-      web: { boxShadow: '0 0 0 4px rgba(91,48,214,0.14)' },
+      web: { boxShadow: '0 0 0 3px rgba(91,48,214,0.22)' },
       default: {
         shadowColor: '#5b30d6',
         shadowOffset: { width: 0, height: 0 },
