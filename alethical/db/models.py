@@ -137,6 +137,16 @@ class EnrichmentType(enum.Enum):
     stakeholder_extraction = "stakeholder_extraction"
 
 
+class BillSummaryRequestStatus(enum.Enum):
+    waiting_for_search = "waiting_for_search"
+    ready = "ready"
+    processing = "processing"
+    completed = "completed"
+    failed = "failed"
+    ambiguous = "ambiguous"
+    superseded = "superseded"
+
+
 class ChatRole(enum.Enum):
     system = "system"
     user = "user"
@@ -630,9 +640,25 @@ class BillVersion(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         ForeignKey("source_artifact.id")
     )
     is_current: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    appendix_parser_version: Mapped[Optional[str]] = mapped_column(String(50))
+    appendix_source_hash: Mapped[Optional[str]] = mapped_column(String(64))
+    appendix_parse_complete: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("false"), nullable=False
+    )
+    appendix_present: Mapped[Optional[bool]] = mapped_column(Boolean)
+    change_role_parser_version: Mapped[Optional[str]] = mapped_column(String(50))
+    change_role_parse_complete: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("false"), nullable=False
+    )
+    bill_summary_context_baselined: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("false"), nullable=False
+    )
 
     bill: Mapped["Bill"] = relationship(back_populates="versions")
     sections: Mapped[list["BillVersionSection"]] = relationship(
+        back_populates="bill_version"
+    )
+    appendix_references: Mapped[list["BillVersionAppendixReference"]] = relationship(
         back_populates="bill_version"
     )
     rag_sections: Mapped[list["RagSectionDocument"]] = relationship(
@@ -686,6 +712,11 @@ class BillVersionSection(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     # column, so filling it costs nothing.
     body_blocks: Mapped[Optional[list]] = mapped_column(JSONB)
     source_hash: Mapped[Optional[str]] = mapped_column(String(64))
+    change_role_segments: Mapped[Optional[list]] = mapped_column(JSONB)
+    change_role_source_hash: Mapped[Optional[str]] = mapped_column(String(64))
+    change_role_parse_complete: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("false"), nullable=False
+    )
 
     bill_version: Mapped["BillVersion"] = relationship(back_populates="sections")
     rag_sections: Mapped[list["RagSectionDocument"]] = relationship(
@@ -711,6 +742,51 @@ class BillVersionSection(UUIDPrimaryKeyMixin, TimestampMixin, Base):
         UniqueConstraint("bill_version_id", "source_order"),
         Index("ix_bill_version_section_order", "bill_version_id", "source_order"),
         Index("ix_bill_version_section_text", "bill_version_id", "section_id_text"),
+    )
+
+
+class BillVersionAppendixReference(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    __tablename__ = "bill_version_appendix_reference"
+
+    bill_version_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("bill_version.id", ondelete="CASCADE"), nullable=False
+    )
+    source_order: Mapped[int] = mapped_column(Integer, nullable=False)
+    reference_kind: Mapped[str] = mapped_column(String(30), nullable=False)
+    official_reference: Mapped[str] = mapped_column(Text, nullable=False)
+    raw_text: Mapped[Optional[str]] = mapped_column(Text)
+    body_blocks: Mapped[Optional[list]] = mapped_column(JSONB(none_as_null=True))
+    source_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    bill_version_section_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("bill_version_section.id", ondelete="CASCADE")
+    )
+
+    bill_version: Mapped["BillVersion"] = relationship(
+        back_populates="appendix_references"
+    )
+    bill_version_section: Mapped[Optional["BillVersionSection"]] = relationship()
+
+    __table_args__ = (
+        UniqueConstraint(
+            "bill_version_id",
+            "source_order",
+            name="uq_bill_version_appendix_reference_order",
+        ),
+        CheckConstraint(
+            "reference_kind IN ('repealed_statute', "
+            "'repealed_session_law', 'repealed_rule')",
+            name="reference_kind",
+        ),
+        CheckConstraint(
+            "(bill_version_section_id IS NOT NULL AND raw_text IS NULL "
+            "AND body_blocks IS NULL) OR "
+            "(bill_version_section_id IS NULL AND raw_text IS NOT NULL)",
+            name="one_content_source",
+        ),
+        Index(
+            "ix_bill_version_appendix_reference_section",
+            "bill_version_section_id",
+        ),
     )
 
 
@@ -1223,6 +1299,65 @@ class AIEnrichment(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             name="uq_ai_enrichment_bill_version_type_model_hash",
             postgresql_nulls_not_distinct=True,
         ),
+    )
+
+
+class BillSummaryRequest(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """Immutable request and spending history for an exact official text.
+
+    The bill UUIDs are historical identity values, not foreign keys. A source-data
+    cleanup may remove a bill version or bill, but it must not erase paid-use,
+    budget, or exact-once evidence from this ledger.
+    """
+
+    __tablename__ = "bill_summary_request"
+
+    bill_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    bill_version_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False
+    )
+    source_text_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    prompt_context_version: Mapped[str] = mapped_column(String(50), nullable=False)
+    prepared_prompt_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    model_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    status: Mapped[BillSummaryRequestStatus] = mapped_column(
+        SQLEnum(BillSummaryRequestStatus, name="bill_summary_request_status"),
+        nullable=False,
+    )
+    provider_attempt_limit: Mapped[int] = mapped_column(
+        SmallInteger, default=0, server_default=text("0"), nullable=False
+    )
+    provider_attempts: Mapped[int] = mapped_column(
+        SmallInteger, default=0, server_default=text("0"), nullable=False
+    )
+    provider_call_started_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True)
+    )
+    provider_claim_job_id: Mapped[Optional[int]] = mapped_column(BigInteger)
+    provider_call_finished_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True)
+    )
+    failure_kind: Mapped[Optional[str]] = mapped_column(String(80))
+    input_tokens: Mapped[Optional[int]] = mapped_column(Integer)
+    output_tokens: Mapped[Optional[int]] = mapped_column(Integer)
+    cache_creation_input_tokens: Mapped[Optional[int]] = mapped_column(Integer)
+    cache_read_input_tokens: Mapped[Optional[int]] = mapped_column(Integer)
+    provider_response_json: Mapped[Optional[dict]] = mapped_column(JSONB)
+    reserved_cost_microusd: Mapped[int] = mapped_column(
+        BigInteger, default=0, server_default=text("0"), nullable=False
+    )
+    actual_cost_microusd: Mapped[Optional[int]] = mapped_column(BigInteger)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "bill_id",
+            "bill_version_id",
+            "source_text_fingerprint",
+            "prompt_context_version",
+            "prepared_prompt_fingerprint",
+            name="uq_bill_summary_request_exact_prompt",
+        ),
+        Index("ix_bill_summary_request_status", "status"),
     )
 
 

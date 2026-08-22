@@ -68,7 +68,7 @@ import subprocess
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 import requests
 
@@ -247,13 +247,24 @@ def _warm_cache(api_key: str, model: str, system: str) -> dict[str, Any]:
 
 
 def _call_anthropic(
-    api_key: str, model: str, system: str, user: str, max_tokens: int
+    api_key: str,
+    model: str,
+    system: str,
+    user: str,
+    max_tokens: int,
+    *,
+    max_attempts: int = MAX_ATTEMPTS,
+    retry_ambiguous: bool = True,
+    attempt_observer: Callable[[dict[str, Any] | None], None] | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     """Generate one bill's enrichment. Returns the validated content and the token
     counts the API reported for the successful attempt."""
     payload = message_params(model, system, user, max_tokens, cache_instructions=True)
     last_err: Exception | None = None
-    for attempt in range(MAX_ATTEMPTS):
+    if not 1 <= max_attempts <= MAX_ATTEMPTS:
+        raise ValueError(f"max_attempts must be between 1 and {MAX_ATTEMPTS}")
+    for attempt in range(max_attempts):
+        usage: dict[str, Any] | None = None
         try:
             resp = requests.post(
                 ANTHROPIC_API_URL,
@@ -265,6 +276,7 @@ def _call_anthropic(
                 raise RuntimeError(f"retryable {resp.status_code}: {resp.text[:200]}")
             resp.raise_for_status()
             data = resp.json()
+            usage = dict(data.get("usage") or {})
             text = "".join(
                 b.get("text", "")
                 for b in data.get("content", [])
@@ -274,15 +286,25 @@ def _call_anthropic(
             errors = validate_summary_shape(content)
             if errors:
                 raise ValueError(f"schema errors: {errors[:5]}")
-            return content, dict(data.get("usage") or {})
+            if attempt_observer is not None:
+                attempt_observer(usage)
+            return content, usage
         except Exception as exc:  # noqa: BLE001
+            if attempt_observer is not None:
+                attempt_observer(usage)
             last_err = exc
+            if not retry_ambiguous and isinstance(
+                exc,
+                (requests.exceptions.ConnectionError, requests.exceptions.Timeout),
+            ):
+                raise
             # Exponential backoff; also nudge max_tokens up on truncation.
-            time.sleep(min(2**attempt, 30))
+            if attempt + 1 < max_attempts:
+                time.sleep(min(2**attempt, 30))
             if isinstance(exc, (ValueError, json.JSONDecodeError)):
                 payload["max_tokens"] = min(payload["max_tokens"] + 2048, 16000)
     raise RuntimeError(
-        f"anthropic call failed after {MAX_ATTEMPTS} attempts: {last_err}"
+        f"anthropic call failed after {max_attempts} attempts: {last_err}"
     )
 
 

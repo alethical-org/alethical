@@ -139,6 +139,7 @@ refresh-policy-area-counts target="local" *ARGS:
 pipeline-work target:
   uv run python -m alethical.pipeline.oban --target {{target}} drain source_sync
   uv run python -m alethical.pipeline.oban --target {{target}} drain bill_sync --concurrency 8
+  uv run python -m alethical.pipeline.oban --target {{target}} drain ai_summary
   uv run python -m alethical.pipeline.oban --target {{target}} drain committee_sync
   uv run python -m alethical.pipeline.oban --target {{target}} drain vote_sync
   uv run python -m alethical.pipeline.oban --target {{target}} drain ai_batch

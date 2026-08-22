@@ -2,7 +2,7 @@
 
 <!-- describes: .github/workflows/**, scripts/**, alethical/pipeline/**, alethical/api/routers/ask.py, alethical/api/routers/me.py, alethical/api/services/ask_router.py -->
 
-Net: The repository has 13 GitHub Actions workflows. 9 can start automatically
+Net: The repository has 14 GitHub Actions workflows. 10 can start automatically
 and 4 run only when a person starts them. Scheduled checks, releases, and local
 backups do not call paid AI services. Reader questions and deliberately started
 AI work do.
@@ -16,6 +16,7 @@ AI work do.
 | Missing bill sections (`.github/workflows/bill-section-gaps.yml`) | Daily at 11:00 UTC | Opens or updates an issue when stored bill text is incomplete | No paid AI call; reads the database |
 | Bills missing from search (`.github/workflows/rag-coverage-gaps.yml`) | Daily at 12:00 UTC | Opens or updates an issue when a stored bill has no current search index | No paid AI call; reads the database and does not rebuild the index |
 | Second copy of source files (`.github/workflows/mirror-raw-files.yml`) | Daily at 13:00 UTC | Copies new campaign-finance stored files from Supabase to Cloudflare R2, then verifies them. Covers all 3 kinds of stored body (bulk downloads, totals archives, report documents), discovered from the database schema so a later 4th kind is copied from the day it ships | No paid AI call; [Cloudflare R2 includes 10 GB of Standard storage and large monthly operation allowances](https://developers.cloudflare.com/r2/pricing/) before charges |
+| Bills with summary gaps (`.github/workflows/bill-summary-coverage.yml`) | Daily at 14:00 UTC | Opens or updates 1 issue when a bill has complete current text but its full summary is missing or was made from older text or instructions | No paid AI call; reads the database and does not create or change a summary |
 | Homepage fact check (`.github/workflows/home-hero-card-facts.yml`) | Monthly at 12:00 UTC on day 1, and on relevant pull requests | Checks the homepage's 5 bill claims against Minnesota's published record | No paid AI call; reads public government pages |
 | Technology health (`.github/workflows/technology-health.yml`) | Monthly at 13:17 UTC on day 1, and by hand | Checks saved tool versions, package safety, support dates, and whether the 3-month major-release review is overdue | No paid AI call; reads public package lists on GitHub's standard computer |
 | Hosted service settings (`.github/workflows/hosted-service-settings.yml`) | Monthly at 09:30 UTC on day 1, on relevant pull requests, and after relevant changes reach `main` | Compares the intended GitHub, Vercel, Railway, and Supabase settings with their live read routes; keeps Supabase's rotating read grant as 2 encrypted 90-day artifacts; lists every setting it cannot safely read | No paid AI call; reads existing service APIs on GitHub's standard free runner |
@@ -24,12 +25,12 @@ AI work do.
 | Website release (Vercel Git connection) | A relevant commit reaches `main` | Builds and releases the web app | No paid AI call; build and hosting usage stays on the existing Vercel account |
 | Unsaved-work backup (`com.alethical.wip-backup`) | Every 5 minutes after `just install-wip-backup` is installed on Eugene's Mac | Saves uncommitted work from each worktree to a local Git reference and an outside bundle | No outside service |
 
-The 8 clock-based GitHub jobs use UTC. Minnesota moves between Central Standard
+The 9 clock-based GitHub jobs use UTC. Minnesota moves between Central Standard
 Time and Central Daylight Time, so their local hour changes by 1 during the year.
 
 ## What GitHub runs only by hand
 
-These 4 workflows complete the total of 13:
+These 4 workflows complete the total of 14:
 
 | Workflow | Purpose | Usage-based cost |
 | --- | --- | --- |
@@ -43,14 +44,14 @@ owns the workflow count, triggers, and costs.
 
 ## Command-line tools
 
-The `scripts/` folder has 46 runnable files. GitHub jobs call 13 of them, and the
+The `scripts/` folder has 48 runnable files. GitHub jobs call 14 of them, and the
 Mac backup above calls 1. The complete list is grouped here so a new file cannot
 hide inside a total:
 
 | Purpose | Files |
 | --- | --- |
 | Import official records or test data | `build_legislative_district_boundaries.py`, `load_campaign_finance.py`, `load_campaign_finance_filings.py`, `load_minnesota_data.py`, `load_sample_data.py` |
-| Check data, code, documents, local tools, and hosted settings | `check_bill_section_gaps.py`, `check_campaign_finance_stated_split.py`, `check_declared_dependencies.py`, `check_doc_quotes.py`, `check_doc_references.py`, `check_doc_sync.py`, `check_home_hero_card_literals.py`, `check_hosted_service_settings.py`, `check_local_env.py`, `check_no_nul_bytes.py`, `check_rag_coverage.py`, `check_schema_drift.py`, `check_technology_health.py` |
+| Check data, code, documents, local tools, and hosted settings | `audit_repaired_bill_prompt_context.py`, `check_bill_section_gaps.py`, `check_bill_summary_coverage.py`, `check_campaign_finance_stated_split.py`, `check_declared_dependencies.py`, `check_doc_quotes.py`, `check_doc_references.py`, `check_doc_sync.py`, `check_home_hero_card_literals.py`, `check_hosted_service_settings.py`, `check_local_env.py`, `check_no_nul_bytes.py`, `check_rag_coverage.py`, `check_schema_drift.py`, `check_technology_health.py` |
 | Fill missing fields on older records | `backfill_bill_action_committee_name.py`, `backfill_bill_section_body_blocks.py`, `backfill_bill_title_from_current_version.py`, `backfill_campaign_finance_report_documents.py`, `backfill_companion_links.py`, `backfill_rag_bulk.py`, `backfill_vote_event_dates.py` |
 | Repair damage from past bugs | `clean_stale_bill_versions.py`, `correct_bill_current_statuses.py`, `dedupe_ai_enrichment.py`, `delete_fixture_bills.py`, `dump_evidence_document.py`, `reanchor_rag_to_current_version.py`, `repair_companion_links.py`, `repair_incomplete_vote_records.py`, `repair_missing_bill_sections.py`, `repair_mojibake_text.py`, `repair_vote_roster_identities.py` |
 | Review campaign-finance records | `review_legislator_campaign_committees.py`, `show_party_and_caucus_money.py` |
@@ -61,19 +62,26 @@ hide inside a total:
 Most of these commands use shared code in `alethical/pipeline/`. The queue in
 `alethical/pipeline/oban.py` and `alethical/pipeline/oban_workers.py` can run an
 explicitly queued import, summary, or search-index job. The queue does not create
-work or approve spending on its own.
+work or approve spending on its own. An accepted official-text change records one
+full-summary request in PostgreSQL. The request becomes runnable only after the
+same text has complete search rows. The paid worker still refuses to run unless
+its off switch, monthly ceiling, per-bill ceiling, failure limit, and total-try
+limit are all positive. The switch is `false` and all 4 limits are `0` by
+default, so the shipped settings cannot make a paid call.
 
 ## What spends money
 
-Job-driven AI spending has 2 triggers: a reader submits an Ask question, or a
-person starts AI work or an evaluation. No clock-based job above does either.
+Job-driven AI spending has 3 possible triggers: a reader submits an Ask question,
+a person starts AI work or an evaluation, or an accepted official bill-text
+change reaches a ready summary request while its separate spending gate is open.
+That last gate is off by default. No clock-based job above opens it.
 
 | Work | What starts it | Paid service | Cost shape |
 | --- | --- | --- | --- |
 | Sort an Ask question and, when needed, choose its bill (`alethical/api/services/ask_router.py`) | A reader submits a question | OpenAI text generation | Recurs with reader traffic; varies with the question and configured model |
 | Find passages for an Ask question (`alethical/api/routers/me.py`) | A reader submits a question that needs bill retrieval | OpenAI embeddings | Recurs with reader traffic; a small call for each query |
 | Write a cited Ask answer (`alethical/api/routers/me.py`) | A reader asks a question with enough source text to answer | OpenAI or Anthropic text generation | Recurs with reader traffic; varies with answer length and configured model |
-| Write bill summaries, key points, questions, citations, and topic tags (`alethical/pipeline/anthropic_enrichment.py`, `ai_enrichment.py`, `codex_enrichment.py`) | A person starts a generation command or queues it | Claude subscription, Anthropic API, OpenAI API, or Codex subscription, depending on the chosen path | The measured Anthropic path is about $0.064 to $0.072 per bill, about $730 for 10,471 bills at list price or about $365 through the half-price batch path |
+| Write bill summaries, key points, questions, citations, and topic tags (`alethical/pipeline/anthropic_enrichment.py`, `ai_enrichment.py`, `bill_summary_requests.py`, `codex_enrichment.py`) | A person starts generation, or saved official text creates a ready request while all automatic-spending settings are open | Claude subscription, Anthropic API, OpenAI API, or Codex subscription, depending on the chosen path; the automatic request uses Anthropic API only | The older bulk run measured about $0.064 to $0.072 per bill, about $730 for 10,471 bills at list price or about $365 through the half-price batch path. Those figures do not approve the new automatic path; its per-bill and monthly limits must be measured and approved before its switch changes from `false` |
 | Build or replace a bill's search index (`alethical/pipeline/rag_ingest.py`, `scripts/backfill_rag_bulk.py`, or a queued RAG worker) | A person starts or queues an ingest or backfill that includes RAG | OpenAI embeddings | About $0.001 per bill in the measured run, or about $10 for 10,500 bills |
 | Run AI answer or retrieval evaluations (`scripts/answer_eval.py`, `scripts/retrieval_eval.py`, `scripts/try_queries.py`) | A person starts the command | OpenAI, Anthropic, or Voyage APIs, depending on the mode | Varies by mode; cached results avoid paying again for unchanged work |
 

@@ -30,12 +30,19 @@ is why the gates below are load-bearing, not decorative:
     is_current — confirmed with the #377 RAG session) and removes a latent
     version-mixing risk.
 
-Deleting a bill_version requires clearing its dependents first — all ON DELETE
-NO ACTION. Per the #377 RAG session, the RAG side is a 3-level subtree
+Deleting a bill_version requires backing up and clearing every dependent first.
+Most foreign keys block the parent delete. APPENDIX references would cascade, but
+the script still deletes them explicitly so the backup and restore cannot omit
+them. Per the #377 RAG session, the RAG side is a 3-level subtree
 (rag_chunk_embedding -> rag_chunk -> rag_section_document). Full delete order per
 orphan version, bottom-up:
     rag_chunk_embedding -> rag_chunk -> rag_section_document
-    -> ai_enrichment -> bill_version_section -> bill_version
+    -> ai_enrichment -> bill_version_appendix_reference
+    -> bill_version_section -> bill_version
+
+The paid bill-summary request ledger is deliberately not in this subtree. Its
+bill and version UUIDs are durable historical values with no cascading foreign
+keys, so cleanup cannot lower a monthly spending total or erase exact-once proof.
 
 Safe by construction (three gates, each reported):
   * Candidates are enumerated by shape, never "anything absent from a fetch".
@@ -110,6 +117,7 @@ from alethical.db.models import (
     AIEnrichment,
     Bill,
     BillVersion,
+    BillVersionAppendixReference,
     BillVersionSection,
     RagChunk,
     RagChunkEmbedding,
@@ -140,6 +148,7 @@ SUBTREE: tuple[tuple[str, str], ...] = (
     ("rag_chunk", f"rag_section_document_id IN ({DOOMED_DOCS})"),
     ("rag_section_document", DOOMED_ROWS),
     ("ai_enrichment", DOOMED_ROWS),
+    ("bill_version_appendix_reference", DOOMED_ROWS),
     ("bill_version_section", DOOMED_ROWS),
     # The redundant is_current guard: belt and suspenders on the last step.
     ("bill_version", "id = ANY(CAST(:version_ids AS uuid[])) AND is_current = false"),
@@ -147,11 +156,10 @@ SUBTREE: tuple[tuple[str, str], ...] = (
 
 
 def _counts_batch(session: Session, version_ids: list) -> dict[str, dict[str, int]]:
-    """Dependent-row counts for every candidate, as 5 GROUP BY queries (not 5*N).
+    """Dependent-row counts for every candidate, in batched GROUP BY queries.
 
-    Returns {version_id_str: {sections, rag_section_documents, rag_chunks,
-    rag_chunk_embeddings, ai_enrichment}}; versions with no dependents simply
-    don't appear in the grouped results and default to 0 in the caller.
+    Versions with no dependents simply don't appear in the grouped results and
+    default to 0 in the caller.
     """
     out: dict[str, dict[str, int]] = {}
 
@@ -165,6 +173,14 @@ def _counts_batch(session: Session, version_ids: list) -> dict[str, dict[str, in
             select(BillVersionSection.bill_version_id, func.count())
             .where(BillVersionSection.bill_version_id.in_(version_ids))
             .group_by(BillVersionSection.bill_version_id)
+        ).all(),
+    )
+    _tally(
+        "appendix_references",
+        session.execute(
+            select(BillVersionAppendixReference.bill_version_id, func.count())
+            .where(BillVersionAppendixReference.bill_version_id.in_(version_ids))
+            .group_by(BillVersionAppendixReference.bill_version_id)
         ).all(),
     )
     _tally(
@@ -337,6 +353,7 @@ def _find_candidates(session: Session, bill_key: str | None) -> list[dict]:
 
     zero = {
         "sections": 0,
+        "appendix_references": 0,
         "rag_section_documents": 0,
         "rag_chunks": 0,
         "rag_chunk_embeddings": 0,
@@ -658,7 +675,8 @@ def main() -> None:
                 print(
                     f"  {c['bill_key']} code={c['version_code']!r} "
                     f"name={c['version_name']!r} is_current={c['is_current']} "
-                    f"sections={c['sections']} rag_docs={c['rag_section_documents']} "
+                    f"sections={c['sections']} appendix={c['appendix_references']} "
+                    f"rag_docs={c['rag_section_documents']} "
                     f"chunks={c['rag_chunks']} embeddings={c['rag_chunk_embeddings']} "
                     f"ai={c['ai_enrichment']}"
                 )
@@ -716,6 +734,7 @@ def main() -> None:
             k: sum(c[k] for c in deletable)
             for k in (
                 "sections",
+                "appendix_references",
                 "rag_section_documents",
                 "rag_chunks",
                 "rag_chunk_embeddings",
@@ -725,6 +744,7 @@ def main() -> None:
         print(
             f"\nwould delete: {len(deletable)} bill_version + "
             f"{totals['sections']} sections + "
+            f"{totals['appendix_references']} appendix references + "
             f"{totals['rag_section_documents']} rag_section_documents + "
             f"{totals['rag_chunks']} rag_chunks + "
             f"{totals['rag_chunk_embeddings']} rag_chunk_embeddings + "
@@ -737,6 +757,7 @@ def main() -> None:
             print(
                 f"  {c['bill_key']:18} code={c['version_code']!r} "
                 f"name={c['version_name']!r} sections={c['sections']} "
+                f"appendix={c['appendix_references']} "
                 f"rag_docs={c['rag_section_documents']} "
                 f"chunks={c['rag_chunks']} embeddings={c['rag_chunk_embeddings']} "
                 f"ai={c['ai_enrichment']}(current={c['ai_enrichment_current']}) "

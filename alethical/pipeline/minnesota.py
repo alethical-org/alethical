@@ -4,10 +4,12 @@ import hashlib
 import html
 import re
 import time
+import uuid
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any
+from html.parser import HTMLParser
+from typing import Any, Iterable
 from urllib.parse import urljoin
 
 import requests
@@ -43,18 +45,17 @@ LEGISLATOR_LOCK_KEY = 610312263003
 
 schema = load_schema()
 ArtifactType = schema.ArtifactType
-AIEnrichment = schema.AIEnrichment
 Bill = schema.Bill
 BillAction = schema.BillAction
 BillStats = schema.BillStats
 BillVersion = schema.BillVersion
+BillVersionAppendixReference = schema.BillVersionAppendixReference
 BillVersionSection = schema.BillVersionSection
 Chamber = schema.Chamber
 ChamberType = schema.ChamberType
 Committee = schema.Committee
 CommitteeMembership = schema.CommitteeMembership
 District = schema.District
-EnrichmentType = schema.EnrichmentType
 IngestionRun = schema.IngestionRun
 IngestionStatus = schema.IngestionStatus
 Jurisdiction = schema.Jurisdiction
@@ -129,6 +130,8 @@ class BillSourcePayload:
 class BillIngestionResult:
     bill: Any
     public_text_changed: bool
+    summary_source_changed: bool = False
+    summary_request_id: uuid.UUID | None = None
 
 
 @dataclass
@@ -371,6 +374,8 @@ def extract_balanced_div(html_text: str, start_index: int) -> str:
     first_tag = DIV_TAG_RE.match(html_text, start_index)
     if first_tag is None or first_tag.group(0).startswith("</"):
         raise MinnesotaIngestionError(f"Expected opening div at index {start_index}")
+    if first_tag.group(0).rstrip().endswith("/>"):
+        return first_tag.group(0)
 
     depth = 1
     for tag_match in DIV_TAG_RE.finditer(html_text, first_tag.end()):
@@ -379,7 +384,7 @@ def extract_balanced_div(html_text: str, start_index: int) -> str:
             depth -= 1
             if depth == 0:
                 return html_text[start_index : tag_match.end()]
-        else:
+        elif not tag.rstrip().endswith("/>"):
             depth += 1
 
     raise MinnesotaIngestionError(
@@ -405,6 +410,20 @@ def locate_div_blocks(html_text: str, class_name: str) -> list[dict[str, object]
             }
         )
     return blocks
+
+
+def _outer_div_blocks(html_text: str, class_name: str) -> list[dict[str, object]]:
+    """Return matching divs that are not nested inside another matching div."""
+    blocks = locate_div_blocks(html_text, class_name)
+    return [
+        block
+        for block in blocks
+        if not any(
+            int(parent["start"]) < int(block["start"])
+            and int(block["end"]) <= int(parent["end"])
+            for parent in blocks
+        )
+    ]
 
 
 def fetch_text(sess: requests.Session, url: str) -> str:
@@ -873,6 +892,196 @@ def parse_section_blocks(section_html: str) -> list[dict[str, object]]:
     return _merge_subdivision_headings(blocks)
 
 
+CHANGE_ROLE_PARSER_VERSION = "mn-revisor-change-roles-v2"
+_VOID_HTML_TAGS = {"br", "col", "hr", "img", "input", "link", "meta"}
+_ROLE_BOUNDARY_TAGS = {
+    "blockquote",
+    "br",
+    "div",
+    "h1",
+    "h2",
+    "h3",
+    "li",
+    "p",
+    "table",
+    "td",
+    "th",
+    "tr",
+}
+
+
+class _ChangeRoleParser(HTMLParser):
+    """Turn Revisor markup into explicit legal-change roles for model input."""
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.stack: list[tuple[str, str, bool, list[str] | None, str | None]] = []
+        self.role = "carried_forward"
+        self.ignore_depth = 0
+        self.complete = True
+        self.parts: list[tuple[str, str]] = []
+        self.change_events: list[tuple[str, str]] = []
+
+    def _append(self, value: str) -> None:
+        if self.ignore_depth or not value:
+            return
+        if self.parts and self.parts[-1][0] == self.role:
+            prior_role, prior_text = self.parts[-1]
+            self.parts[-1] = (prior_role, prior_text + value)
+        else:
+            self.parts.append((self.role, value))
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        tag = tag.casefold()
+        attributes = {key.casefold(): value or "" for key, value in attrs}
+        classes = set(attributes.get("class", "").split())
+        marker_parts = [] if "sr-only" in classes and not self.ignore_depth else None
+        ignored = bool(
+            self.ignore_depth
+            or "sr-only" in classes
+            or (tag in {"h1", "h2"} and classes & COLUMN_HEADING_CLASSES)
+        )
+        prior_role = self.role
+        next_role = prior_role
+        semantic_role: str | None = None
+        if not ignored:
+            deleted = (
+                tag == "del"
+                or "del" in classes
+                or "line-through" in attributes.get("style", "")
+            )
+            if tag == "ins":
+                semantic_role = "added"
+            elif deleted:
+                semantic_role = "deleted"
+            if semantic_role is not None:
+                next_role = semantic_role
+        if prior_role in {"added", "deleted"} and next_role != prior_role:
+            self.complete = False
+        if semantic_role is not None:
+            self.change_events.append(("markup_begin", semantic_role))
+        if tag in _ROLE_BOUNDARY_TAGS:
+            self._append(" ")
+        if tag in _VOID_HTML_TAGS:
+            return
+        self.stack.append((tag, prior_role, ignored, marker_parts, semantic_role))
+        self.role = next_role
+        if ignored:
+            self.ignore_depth += 1
+
+    def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag.casefold() in _ROLE_BOUNDARY_TAGS:
+            self._append(" ")
+
+    def handle_endtag(self, tag: str) -> None:
+        tag = tag.casefold()
+        if tag in _ROLE_BOUNDARY_TAGS:
+            self._append(" ")
+        if not self.stack:
+            self.complete = False
+            return
+        open_tag, prior_role, ignored, marker_parts, semantic_role = self.stack.pop()
+        if open_tag != tag:
+            self.complete = False
+        if semantic_role is not None:
+            self.change_events.append(("markup_end", semantic_role))
+        if marker_parts is not None:
+            marker = " ".join("".join(marker_parts).casefold().split())
+            marker_event = {
+                "new text begin": ("marker_begin", "added"),
+                "new text end": ("marker_end", "added"),
+                "deleted text begin": ("marker_begin", "deleted"),
+                "deleted text end": ("marker_end", "deleted"),
+            }.get(marker)
+            if marker_event is not None:
+                self.change_events.append(marker_event)
+        if ignored:
+            self.ignore_depth = max(0, self.ignore_depth - 1)
+        self.role = prior_role
+
+    def handle_data(self, data: str) -> None:
+        for (
+            _tag,
+            _prior_role,
+            _ignored,
+            marker_parts,
+            _semantic_role,
+        ) in reversed(self.stack):
+            if marker_parts is not None:
+                marker_parts.append(data)
+                break
+        self._append(data)
+
+
+def _change_events_are_complete(events: list[tuple[str, str]]) -> bool:
+    """Require each official accessibility marker to match its visible markup."""
+    stack: list[tuple[str, str]] = []
+    for event, role in events:
+        if event == "marker_begin":
+            stack.append((role, "needs_markup_begin"))
+        elif event == "markup_begin":
+            if not stack or stack[-1] != (role, "needs_markup_begin"):
+                return False
+            stack[-1] = (role, "needs_markup_end")
+        elif event == "markup_end":
+            if not stack or stack[-1] != (role, "needs_markup_end"):
+                return False
+            stack[-1] = (role, "needs_marker_end")
+        elif event == "marker_end":
+            if not stack or stack.pop() != (role, "needs_marker_end"):
+                return False
+        else:
+            return False
+    return not stack
+
+
+def parse_change_role_segments(
+    section_html: str,
+) -> tuple[list[dict[str, str]], str, bool]:
+    parser = _ChangeRoleParser()
+    parser.feed(section_html)
+    parser.close()
+    if parser.stack or parser.ignore_depth or parser.role != "carried_forward":
+        parser.complete = False
+    if not _change_events_are_complete(parser.change_events):
+        parser.complete = False
+
+    segments: list[dict[str, str]] = []
+    pending_space_role: str | None = None
+    has_text = False
+
+    def append(role: str, value: str) -> None:
+        if segments and segments[-1]["role"] == role:
+            segments[-1]["text"] += value
+        else:
+            segments.append({"role": role, "text": value})
+
+    # Normalize whitespace once across the whole stream. Normalizing each role
+    # separately and joining it with spaces changes legal words at an inline role
+    # boundary: ``tax<ins>payer</ins>`` became ``tax payer``. Keep 1 real separator
+    # when the official HTML has one, and keep touching words touching.
+    for role, value in parser.parts:
+        decoded = html.unescape(value).replace("\xa0", " ")
+        for token in re.findall(r"\s+|\S+", decoded):
+            if token.isspace():
+                if has_text and pending_space_role is None:
+                    pending_space_role = role
+                continue
+            if pending_space_role is not None:
+                append(pending_space_role, " ")
+                pending_space_role = None
+            append(role, token)
+            has_text = True
+
+    digest = hashlib.sha256()
+    for segment in segments:
+        digest.update(segment["role"].encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(segment["text"].encode("utf-8"))
+        digest.update(b"\0")
+    return segments, digest.hexdigest(), parser.complete
+
+
 def parse_bill_section(section_html: str, section_id: str) -> dict[str, object]:
     heading = extract(
         r"""<h2 class=["']section_number["']>(.*?)</h2>""", section_html, flags=re.S
@@ -888,13 +1097,15 @@ def parse_bill_section(section_html: str, section_id: str) -> dict[str, object]:
     effective_date = extract(
         r"""<h2 class=["']effective_date["']>(.*?)</h2>""", section_html, flags=re.S
     )
-    text = normalize_space(
-        re.sub(
-            r"""<h[12]\s+class=["'](?:section_number|statute_section_number|subd_no|effective_date|shn|title)["'][^>]*>.*?</h[12]>""",
-            "",
-            section_html,
-            flags=re.S,
-        )
+    body_html = re.sub(
+        r"""<h[12]\s+class=["'](?:section_number|statute_section_number|subd_no|effective_date|shn|title)["'][^>]*>.*?</h[12]>""",
+        "",
+        section_html,
+        flags=re.S,
+    )
+    text = normalize_space(body_html)
+    change_segments, change_hash, change_complete = parse_change_role_segments(
+        body_html
     )
     return {
         "section_id": section_id,
@@ -904,7 +1115,441 @@ def parse_bill_section(section_html: str, section_id: str) -> dict[str, object]:
         "effective_date_heading": effective_date,
         "text": text,
         "blocks": parse_section_blocks(section_html),
+        "change_role_segments": change_segments,
+        "change_role_source_hash": change_hash,
+        "change_role_parse_complete": change_complete,
     }
+
+
+APPENDIX_PARSER_VERSION = "mn-revisor-appendix-v2"
+APPENDIX_HEADING_RE = re.compile(
+    r"<h2\b[^>]*\bclass=[\"'][^\"']*\btitle\b[^\"']*[\"'][^>]*>(.*?)</h2>",
+    flags=re.I | re.S,
+)
+APPENDIX_STATUTE_HEADING_RE = re.compile(
+    r"<h1\b[^>]*\bclass=[\"'][^\"']*\bshn\b[^\"']*[\"'][^>]*>",
+    flags=re.I,
+)
+APPENDIX_PARAGRAPH_RE = re.compile(r"<p\b", flags=re.I)
+APPENDIX_RULE_HEADING_RE = re.compile(
+    r"<h1\b[^>]*\bclass=[\"'][^\"']*\bheadnote\b[^\"']*[\"'][^>]*>",
+    flags=re.I,
+)
+
+
+def _remove_no_active_paragraphs(fragment: str) -> str:
+    """Remove source notices that contain no old law text."""
+    pieces: list[str] = []
+    position = 0
+    while True:
+        match = APPENDIX_PARAGRAPH_RE.search(fragment, position)
+        if match is None:
+            pieces.append(fragment[position:])
+            return "".join(pieces)
+        paragraph_html, end = balanced_element(fragment, match.start(), "p")
+        if not paragraph_html:
+            pieces.append(fragment[position:])
+            return "".join(pieces)
+        pieces.append(fragment[position : match.start()])
+        paragraph_text = _one_line(normalize_space(paragraph_html))
+        if not paragraph_text.casefold().startswith("no active language found for:"):
+            pieces.append(paragraph_html)
+        position = end
+
+
+def _appendix_reference_payload(
+    *,
+    reference_kind: str,
+    official_reference: str,
+    raw_text: str,
+    body_blocks: list[dict[str, object]],
+    linked_section_id_text: str | None = None,
+    linked_section_source_order: int | None = None,
+) -> dict[str, object]:
+    payload: dict[str, object] = {
+        "source_order": 0,
+        "reference_kind": reference_kind,
+        "official_reference": official_reference,
+        "raw_text": raw_text,
+        "body_blocks": body_blocks,
+        "source_hash": content_hash(raw_text),
+    }
+    if linked_section_id_text is not None:
+        payload["linked_section_id_text"] = linked_section_id_text
+        payload["linked_section_source_order"] = linked_section_source_order
+    return payload
+
+
+def compute_appendix_source_hash(
+    appendix_present: bool,
+    ordered_references: Iterable[tuple[str, str, str]],
+) -> str:
+    """Hash the complete ordered manifest of saved APPENDIX references."""
+    digest = hashlib.sha256()
+    parts = [f"appendix_present:{int(appendix_present)}"]
+    for reference_kind, official_reference, source_hash in ordered_references:
+        parts.extend([reference_kind, official_reference, source_hash])
+    for part in parts:
+        digest.update(part.encode("utf-8"))
+        digest.update(b"\0")
+    return digest.hexdigest()
+
+
+def _paragraphs_before(fragment: str, before: int) -> list[str]:
+    """Normalized paragraph values that begin before one appendix section."""
+    return [
+        value for _start, _end, value in _located_paragraphs(fragment) if _end <= before
+    ]
+
+
+def _located_paragraphs(fragment: str) -> list[tuple[int, int, str]]:
+    """Paragraph positions and text, for proving APPENDIX source coverage."""
+    values: list[tuple[int, int, str]] = []
+    position = 0
+    while True:
+        match = APPENDIX_PARAGRAPH_RE.search(fragment, position)
+        if match is None:
+            return values
+        paragraph_html, end = balanced_element(fragment, match.start(), "p")
+        if not paragraph_html:
+            return values
+        value = _one_line(normalize_space(paragraph_html))
+        if value:
+            values.append((match.start(), end, value))
+        position = end
+
+
+def _parse_appendix_references(
+    html_text: str,
+    *,
+    section_source_order_by_start: dict[int, int],
+) -> list[dict[str, object]]:
+    located: list[tuple[int, dict[str, object]]] = []
+    for appendix_block in _outer_div_blocks(html_text, "rlang"):
+        appendix_html = str(appendix_block["html"])
+        heading = APPENDIX_HEADING_RE.search(appendix_html)
+        if (
+            heading is None
+            or normalize_space(heading.group(1)).casefold() != "appendix"
+        ):
+            continue
+        appendix_start = int(appendix_block["start"])
+        appendix_sections = locate_div_blocks(appendix_html, "bill_section")
+        section_ranges = [
+            (int(section["start"]), int(section["end"]))
+            for section in appendix_sections
+        ]
+        reference_paragraphs = [
+            paragraph
+            for paragraph in _located_paragraphs(appendix_html)
+            if not any(
+                paragraph[0] >= section_start and paragraph[1] <= section_end
+                for section_start, section_end in section_ranges
+            )
+        ]
+
+        for wrapper in locate_div_blocks(appendix_html, "repealed_statutes"):
+            wrapper_html = str(wrapper["html"])
+            headings = list(APPENDIX_STATUTE_HEADING_RE.finditer(wrapper_html))
+            for index, heading_match in enumerate(headings):
+                heading_html, heading_end = balanced_element(
+                    wrapper_html, heading_match.start(), "h1"
+                )
+                if not heading_html:
+                    continue
+                body_end = (
+                    headings[index + 1].start()
+                    if index + 1 < len(headings)
+                    else len(wrapper_html)
+                )
+                body_html = _remove_no_active_paragraphs(
+                    wrapper_html[heading_end:body_end]
+                )
+                official_reference = _one_line(normalize_space(heading_html))
+                raw_text = normalize_space(body_html)
+                if raw_text:
+                    reference = _appendix_reference_payload(
+                        reference_kind="repealed_statute",
+                        official_reference=official_reference,
+                        raw_text=raw_text,
+                        body_blocks=parse_section_blocks(body_html),
+                    )
+                    located.append(
+                        (
+                            appendix_start
+                            + int(wrapper["start"])
+                            + heading_match.start(),
+                            reference,
+                        )
+                    )
+
+        for section_block in appendix_sections:
+            section_html = str(section_block["html"])
+            section_start = int(section_block["start"])
+            parsed = parse_bill_section(section_html, str(section_block["id"]))
+            official_reference = next(
+                (
+                    value
+                    for _start, end, value in reversed(reference_paragraphs)
+                    if end <= section_start and value.casefold().startswith("laws ")
+                ),
+                "",
+            )
+            global_section_start = appendix_start + section_start
+            reference = _appendix_reference_payload(
+                reference_kind="repealed_session_law",
+                official_reference=official_reference,
+                raw_text=str(parsed["text"]),
+                body_blocks=list(parsed["blocks"]),
+                linked_section_id_text=str(parsed["section_id"]),
+                linked_section_source_order=section_source_order_by_start.get(
+                    global_section_start
+                ),
+            )
+            located.append((global_section_start, reference))
+
+        for wrapper in locate_div_blocks(appendix_html, "repealed_rules"):
+            wrapper_html = str(wrapper["html"])
+            for part in locate_div_blocks(wrapper_html, "part"):
+                part_html = str(part["html"])
+                heading = APPENDIX_RULE_HEADING_RE.search(part_html)
+                if heading is None:
+                    continue
+                heading_html, heading_end = balanced_element(
+                    part_html, heading.start(), "h1"
+                )
+                if not heading_html:
+                    continue
+                body_html = part_html[: heading.start()] + part_html[heading_end:]
+                raw_text = normalize_space(body_html)
+                if not raw_text:
+                    continue
+                reference = _appendix_reference_payload(
+                    reference_kind="repealed_rule",
+                    official_reference=_one_line(normalize_space(heading_html)),
+                    raw_text=raw_text,
+                    body_blocks=parse_section_blocks(body_html),
+                )
+                located.append(
+                    (
+                        appendix_start + int(wrapper["start"]) + int(part["start"]),
+                        reference,
+                    )
+                )
+
+    references: list[dict[str, object]] = []
+    for source_order, (_position, reference) in enumerate(
+        sorted(located, key=lambda item: item[0]), start=1
+    ):
+        reference["source_order"] = source_order
+        references.append(reference)
+    return references
+
+
+def _appendix_coverage(
+    html_text: str, references: list[dict[str, object]]
+) -> tuple[bool, bool, str, int]:
+    """Saved proof that the APPENDIX lane was parsed, including empty lanes."""
+    appendix_blocks = []
+    no_active_notices: list[str] = []
+    for block in _outer_div_blocks(html_text, "rlang"):
+        block_html = str(block["html"])
+        heading = APPENDIX_HEADING_RE.search(block_html)
+        if (
+            heading is None
+            or normalize_space(heading.group(1)).casefold() != "appendix"
+        ):
+            continue
+        appendix_blocks.append(block)
+        for wrapper in locate_div_blocks(block_html, "repealed_statutes"):
+            wrapper_html = str(wrapper["html"])
+            for notice in _paragraphs_before(wrapper_html, len(wrapper_html)):
+                if notice.casefold().startswith("no active language found for:"):
+                    no_active_notices.append(notice)
+
+    parse_complete = all(
+        _appendix_block_coverage_complete(str(block["html"]))
+        for block in appendix_blocks
+    )
+
+    source_hash = compute_appendix_source_hash(
+        bool(appendix_blocks),
+        (
+            (
+                str(reference["reference_kind"]),
+                str(reference["official_reference"]),
+                str(reference["source_hash"]),
+            )
+            for reference in references
+        ),
+    )
+    return (
+        bool(appendix_blocks),
+        parse_complete,
+        source_hash,
+        len(no_active_notices),
+    )
+
+
+_APPENDIX_CATEGORY_PREFIXES = (
+    "repealed minnesota statutes:",
+    "repealed minnesota session laws:",
+    "repealed minnesota rule:",
+    "repealed minnesota rules:",
+)
+
+
+def _text_outside_ranges(fragment: str, ranges: list[tuple[int, int]]) -> str:
+    """Visible text not claimed by a parsed APPENDIX reference or source label."""
+    pieces: list[str] = []
+    position = 0
+    for start, end in sorted(ranges):
+        start = max(position, start)
+        end = max(start, end)
+        if start > position:
+            pieces.append(fragment[position:start])
+        position = max(position, end)
+    pieces.append(fragment[position:])
+    return normalize_space("".join(pieces))
+
+
+def _appendix_block_coverage_complete(
+    appendix_html: str, *, unclaimed_text: list[str] | None = None
+) -> bool:
+    """Prove that every meaningful APPENDIX word has a known legal role."""
+    covered: list[tuple[int, int]] = []
+    complete = True
+
+    heading = APPENDIX_HEADING_RE.search(appendix_html)
+    if heading is None or normalize_space(heading.group(1)).casefold() != "appendix":
+        return False
+    covered.append(heading.span())
+
+    paragraphs = _located_paragraphs(appendix_html)
+    for start, end, value in paragraphs:
+        lowered = value.casefold()
+        if lowered.startswith(_APPENDIX_CATEGORY_PREFIXES) or lowered.startswith(
+            "no active language found for:"
+        ):
+            covered.append((start, end))
+
+    for wrapper in locate_div_blocks(appendix_html, "repealed_statutes"):
+        wrapper_start = int(wrapper["start"])
+        wrapper_html = str(wrapper["html"])
+        headings = list(APPENDIX_STATUTE_HEADING_RE.finditer(wrapper_html))
+        for index, heading_match in enumerate(headings):
+            heading_html, heading_end = balanced_element(
+                wrapper_html, heading_match.start(), "h1"
+            )
+            if not heading_html:
+                complete = False
+                continue
+            body_end = (
+                headings[index + 1].start()
+                if index + 1 < len(headings)
+                else len(wrapper_html)
+            )
+            body_html = wrapper_html[heading_end:body_end]
+            subdivisions = locate_div_blocks(body_html, "subd")
+            if subdivisions:
+                valid_subdivision = False
+                for subdivision in subdivisions:
+                    subdivision_html = str(subdivision["html"])
+                    if not normalize_space(subdivision_html):
+                        continue
+                    valid_subdivision = True
+                    covered.append(
+                        (
+                            wrapper_start + heading_end + int(subdivision["start"]),
+                            wrapper_start + heading_end + int(subdivision["end"]),
+                        )
+                    )
+                if valid_subdivision:
+                    covered.append(
+                        (
+                            wrapper_start + heading_match.start(),
+                            wrapper_start + heading_end,
+                        )
+                    )
+                else:
+                    complete = False
+                continue
+
+            if normalize_space(body_html):
+                covered.extend(
+                    [
+                        (
+                            wrapper_start + heading_match.start(),
+                            wrapper_start + heading_end,
+                        ),
+                        (
+                            wrapper_start + heading_end,
+                            wrapper_start + body_end,
+                        ),
+                    ]
+                )
+            else:
+                complete = False
+
+    appendix_sections = locate_div_blocks(appendix_html, "bill_section")
+    section_ranges = [
+        (int(candidate["start"]), int(candidate["end"]))
+        for candidate in appendix_sections
+    ]
+    for section in appendix_sections:
+        section_start = int(section["start"])
+        section_end = int(section["end"])
+        section_html = str(section["html"])
+        parsed = parse_bill_section(section_html, str(section["id"]))
+        explicitly_empty = bool(
+            re.fullmatch(r"\s*<div\b[^>]*/\s*>\s*", section_html, flags=re.I | re.S)
+        )
+        if not str(parsed["text"]).strip() and not explicitly_empty:
+            complete = False
+        covered.append((section_start, section_end))
+        preceding = [
+            paragraph
+            for paragraph in paragraphs
+            if paragraph[1] <= section_start
+            and paragraph[2].casefold().startswith("laws ")
+            and not any(
+                paragraph[0] >= candidate_start and paragraph[1] <= candidate_end
+                for candidate_start, candidate_end in section_ranges
+            )
+        ]
+        if not preceding:
+            complete = False
+            continue
+        reference_start, reference_end, _value = preceding[-1]
+        covered.append((reference_start, reference_end))
+
+    for wrapper in locate_div_blocks(appendix_html, "repealed_rules"):
+        wrapper_start = int(wrapper["start"])
+        wrapper_html = str(wrapper["html"])
+        for part in locate_div_blocks(wrapper_html, "part"):
+            part_html = str(part["html"])
+            rule_heading = APPENDIX_RULE_HEADING_RE.search(part_html)
+            if rule_heading is None:
+                complete = False
+                continue
+            heading_html, heading_end = balanced_element(
+                part_html, rule_heading.start(), "h1"
+            )
+            body_html = part_html[: rule_heading.start()] + part_html[heading_end:]
+            if not heading_html or not normalize_space(body_html):
+                complete = False
+                continue
+            covered.append(
+                (
+                    wrapper_start + int(part["start"]),
+                    wrapper_start + int(part["end"]),
+                )
+            )
+
+    unclaimed = _text_outside_ranges(appendix_html, covered)
+    if unclaimed and unclaimed_text is not None:
+        unclaimed_text.append(unclaimed)
+    return complete and not unclaimed
 
 
 def parse_bill_text_html(html_text: str, source_url: str) -> dict[str, object]:
@@ -917,7 +1562,7 @@ def parse_bill_text_html(html_text: str, source_url: str) -> dict[str, object]:
         (int(block["start"]), int(block["end"])) for block in article_blocks
     ]
     articles = []
-    sections = []
+    located_sections: list[tuple[int, dict[str, object]]] = []
 
     for article_block in article_blocks:
         article_html = str(article_block["html"])
@@ -933,7 +1578,12 @@ def parse_bill_text_html(html_text: str, source_url: str) -> dict[str, object]:
                 str(section_block["html"]), str(section_block["id"])
             )
             article_sections.append(parsed)
-            sections.append(parsed)
+            located_sections.append(
+                (
+                    int(article_block["start"]) + int(section_block["start"]),
+                    parsed,
+                )
+            )
         articles.append(
             {
                 "article_id": article_block["id"],
@@ -952,14 +1602,43 @@ def parse_bill_text_html(html_text: str, source_url: str) -> dict[str, object]:
                 for article_start, article_end in article_ranges
             ):
                 continue
-            sections.append(
-                parse_bill_section(str(section_block["html"]), str(section_block["id"]))
+            located_sections.append(
+                (
+                    start,
+                    parse_bill_section(
+                        str(section_block["html"]), str(section_block["id"])
+                    ),
+                )
             )
     else:
         for section_block in locate_div_blocks(html_text, "bill_section"):
-            sections.append(
-                parse_bill_section(str(section_block["html"]), str(section_block["id"]))
+            located_sections.append(
+                (
+                    int(section_block["start"]),
+                    parse_bill_section(
+                        str(section_block["html"]), str(section_block["id"])
+                    ),
+                )
             )
+
+    located_sections.sort(key=lambda item: item[0])
+    section_starts = [start for start, _section in located_sections]
+    sections = [section for _start, section in located_sections]
+
+    section_source_order_by_start = {
+        start: source_order
+        for source_order, start in enumerate(section_starts, start=1)
+    }
+    appendix_references = _parse_appendix_references(
+        html_text,
+        section_source_order_by_start=section_source_order_by_start,
+    )
+    (
+        appendix_present,
+        appendix_parse_complete,
+        appendix_source_hash,
+        appendix_no_active_count,
+    ) = _appendix_coverage(html_text, appendix_references)
 
     return {
         "source_url": source_url,
@@ -967,7 +1646,138 @@ def parse_bill_text_html(html_text: str, source_url: str) -> dict[str, object]:
         "bill_title_text": bill_title,
         "articles": articles,
         "sections": sections,
+        "appendix_references": appendix_references,
+        "appendix_parser_version": APPENDIX_PARSER_VERSION,
+        "appendix_parse_complete": appendix_parse_complete,
+        "appendix_present": appendix_present,
+        "appendix_source_hash": appendix_source_hash,
+        "appendix_no_active_count": appendix_no_active_count,
     }
+
+
+def replace_bill_version_appendix_references(
+    db: Session, version: Any, bill_text: dict[str, Any]
+) -> None:
+    """Save the fully parsed APPENDIX lane without changing bill or search text."""
+    if bill_text.get("appendix_parse_complete") is not True:
+        raise MinnesotaIngestionError("Bill APPENDIX parsing was not complete")
+    parser_version = str(bill_text.get("appendix_parser_version") or "")
+    appendix_source_hash = str(bill_text.get("appendix_source_hash") or "")
+    if not parser_version or len(appendix_source_hash) != 64:
+        raise MinnesotaIngestionError("Bill APPENDIX coverage proof is missing")
+
+    section_rows = {
+        section.source_order: section
+        for section in db.scalars(
+            select(BillVersionSection)
+            .where(BillVersionSection.bill_version_id == version.id)
+            .order_by(BillVersionSection.source_order.asc())
+        ).all()
+    }
+    prepared: list[BillVersionAppendixReference] = []
+    references = list(bill_text.get("appendix_references") or [])
+    for expected_order, reference in enumerate(references, start=1):
+        if int(reference.get("source_order") or 0) != expected_order:
+            raise MinnesotaIngestionError("Bill APPENDIX references are not contiguous")
+        reference_kind = str(reference.get("reference_kind") or "")
+        official_reference = str(reference.get("official_reference") or "").strip()
+        source_hash = str(reference.get("source_hash") or "")
+        if not official_reference or len(source_hash) != 64:
+            raise MinnesotaIngestionError("Bill APPENDIX reference is incomplete")
+
+        linked_section_id = None
+        raw_text: str | None = str(reference.get("raw_text") or "")
+        body_blocks = reference.get("body_blocks") or None
+        if reference_kind == "repealed_session_law":
+            linked_order = int(reference.get("linked_section_source_order") or 0)
+            linked_section = section_rows.get(linked_order)
+            if (
+                linked_section is None
+                or linked_section.section_id_text
+                != str(reference.get("linked_section_id_text") or "")
+                or content_hash(linked_section.raw_text) != source_hash
+            ):
+                raise MinnesotaIngestionError(
+                    "Bill APPENDIX session law did not match its saved section"
+                )
+            linked_section_id = linked_section.id
+            raw_text = None
+            body_blocks = None
+        elif reference_kind not in {"repealed_statute", "repealed_rule"}:
+            raise MinnesotaIngestionError("Bill APPENDIX reference kind is unknown")
+        elif not raw_text:
+            raise MinnesotaIngestionError("Bill APPENDIX reference text is empty")
+
+        prepared.append(
+            BillVersionAppendixReference(
+                bill_version_id=version.id,
+                source_order=expected_order,
+                reference_kind=reference_kind,
+                official_reference=official_reference,
+                raw_text=raw_text,
+                body_blocks=body_blocks,
+                source_hash=source_hash,
+                bill_version_section_id=linked_section_id,
+            )
+        )
+
+    db.execute(
+        delete(BillVersionAppendixReference).where(
+            BillVersionAppendixReference.bill_version_id == version.id
+        )
+    )
+    db.add_all(prepared)
+    version.appendix_parser_version = parser_version
+    version.appendix_source_hash = appendix_source_hash
+    version.appendix_parse_complete = True
+    version.appendix_present = bool(bill_text.get("appendix_present"))
+
+
+def replace_bill_version_prompt_context(
+    db: Session, version: Any, bill_text: dict[str, Any]
+) -> None:
+    """Save proven model-only legal roles without changing reader/search text."""
+    if bill_text.get("appendix_parse_complete") is not True:
+        raise MinnesotaIngestionError("Bill APPENDIX parsing was not complete")
+
+    parsed_sections = list(bill_text.get("sections") or [])
+    if any(
+        section.get("change_role_parse_complete") is not True
+        or len(str(section.get("change_role_source_hash") or "")) != 64
+        for section in parsed_sections
+    ):
+        raise MinnesotaIngestionError("Bill change-role parsing was not complete")
+
+    saved_sections = list(
+        db.scalars(
+            select(BillVersionSection)
+            .where(BillVersionSection.bill_version_id == version.id)
+            .order_by(BillVersionSection.source_order.asc())
+        ).all()
+    )
+    if len(saved_sections) != len(parsed_sections):
+        raise MinnesotaIngestionError(
+            "Saved bill sections did not match the parsed prompt context"
+        )
+    for source_order, (saved, parsed) in enumerate(
+        zip(saved_sections, parsed_sections, strict=True), start=1
+    ):
+        parsed_text = str(parsed.get("text") or "")
+        if (
+            saved.source_order != source_order
+            or saved.section_id_text != str(parsed.get("section_id") or "")
+            or content_hash(saved.raw_text) != content_hash(parsed_text)
+        ):
+            raise MinnesotaIngestionError(
+                "Saved bill text did not match its parsed prompt context"
+            )
+        saved.change_role_segments = parsed.get("change_role_segments") or None
+        saved.change_role_source_hash = str(parsed["change_role_source_hash"])
+        saved.change_role_parse_complete = True
+
+    version.change_role_parser_version = CHANGE_ROLE_PARSER_VERSION
+    version.change_role_parse_complete = True
+    replace_bill_version_appendix_references(db, version, bill_text)
 
 
 def parse_roster_entries(section_html: str, chamber: str) -> list[dict[str, str]]:
@@ -1893,6 +2703,8 @@ class MinnesotaIngestionPipeline:
             ),
             "versions": max(1, len(canonical.get("text_versions", []))),
             "sections": len(bill_text.get("sections", [])),
+            "appendix_blocks": int(bool(bill_text.get("appendix_present"))),
+            "appendix_references": len(bill_text.get("appendix_references", [])),
         }
 
     def _stored_bill_counts(self, bill: Any) -> dict[str, int]:
@@ -1908,6 +2720,8 @@ class MinnesotaIngestionPipeline:
             "authors": "sponsor_count",
             "versions": "version_count",
             "sections": "section_count",
+            "appendix_blocks": "appendix_block_count",
+            "appendix_references": "appendix_reference_count",
         }
         counts: dict[str, int] = {}
         if bill.ingestion_run_id is not None:
@@ -1950,6 +2764,34 @@ class MinnesotaIngestionPipeline:
                 or 0
             ),
         )
+        current_version = self.db.scalar(
+            select(BillVersion).where(
+                BillVersion.bill_id == bill.id,
+                BillVersion.is_current.is_(True),
+            )
+        )
+        counts.setdefault(
+            "appendix_blocks",
+            int(
+                current_version is not None
+                and current_version.appendix_parse_complete
+                and current_version.appendix_present is True
+            ),
+        )
+        counts.setdefault(
+            "appendix_references",
+            int(
+                self.db.scalar(
+                    select(func.count())
+                    .select_from(BillVersionAppendixReference)
+                    .where(
+                        BillVersionAppendixReference.bill_version_id
+                        == (current_version.id if current_version is not None else None)
+                    )
+                )
+                or 0
+            ),
+        )
         return counts
 
     def bill_refresh_drops(
@@ -1968,7 +2810,14 @@ class MinnesotaIngestionPipeline:
         fetched = self._fetched_bill_counts(canonical, bill_text)
         return {
             field: {"stored": stored[field], "fetched": fetched[field]}
-            for field in ("actions", "authors", "versions", "sections")
+            for field in (
+                "actions",
+                "authors",
+                "versions",
+                "sections",
+                "appendix_blocks",
+                "appendix_references",
+            )
             if fetched[field] < stored[field]
         }
 
@@ -1983,6 +2832,8 @@ class MinnesotaIngestionPipeline:
             "authors": canonical.get("authors", {}),
             "versions": canonical.get("text_versions", []),
             "sections": bill_text.get("sections", []),
+            "appendix_blocks": bool(bill_text.get("appendix_present")),
+            "appendix_references": bill_text.get("appendix_references", []),
         }
         return {field: source_fields[field] for field in fields}
 
@@ -2001,6 +2852,11 @@ class MinnesotaIngestionPipeline:
             "sponsor_count": counts["authors"],
             "version_count": counts["versions"],
             "section_count": counts["sections"],
+            "appendix_block_count": counts["appendix_blocks"],
+            "appendix_reference_count": counts["appendix_references"],
+            "appendix_no_active_count": int(
+                bill_text.get("appendix_no_active_count") or 0
+            ),
             "completeness_retry_count": int(retried),
             "corroborated_source_contraction": corroborated_drop,
         }
@@ -2054,6 +2910,108 @@ class MinnesotaIngestionPipeline:
         )
         return version.id, section_hashes
 
+    def _appendix_context_signature(self, bill: Any | None) -> tuple[Any, str] | None:
+        """Current saved APPENDIX identity, absent until the new parser ran."""
+        if bill is None:
+            return None
+        version = self.db.scalar(
+            select(BillVersion).where(
+                BillVersion.bill_id == bill.id,
+                BillVersion.is_current.is_(True),
+            )
+        )
+        if (
+            version is None
+            or not version.appendix_parse_complete
+            or version.appendix_parser_version != APPENDIX_PARSER_VERSION
+            or not version.appendix_source_hash
+        ):
+            return None
+        rows = self.db.execute(
+            select(BillVersionAppendixReference, BillVersionSection)
+            .outerjoin(
+                BillVersionSection,
+                BillVersionSection.id
+                == BillVersionAppendixReference.bill_version_section_id,
+            )
+            .where(BillVersionAppendixReference.bill_version_id == version.id)
+            .order_by(BillVersionAppendixReference.source_order.asc())
+        ).all()
+        parts = [
+            str(version.appendix_source_hash),
+            f"appendix_present:{int(bool(version.appendix_present))}",
+        ]
+        for reference, linked_section in rows:
+            parts.extend(
+                [
+                    str(reference.source_order),
+                    str(reference.reference_kind),
+                    str(reference.official_reference),
+                    str(reference.source_hash),
+                    str(linked_section.source_order if linked_section else ""),
+                    str(linked_section.section_heading if linked_section else ""),
+                ]
+            )
+        return version.id, content_hash("\0".join(parts))
+
+    def _change_role_context_signature(
+        self, bill: Any | None
+    ) -> tuple[Any, tuple[str, ...]] | None:
+        """Saved added/deleted/carry-forward identity after its first safe parse."""
+        if bill is None:
+            return None
+        version = self.db.scalar(
+            select(BillVersion).where(
+                BillVersion.bill_id == bill.id,
+                BillVersion.is_current.is_(True),
+            )
+        )
+        if (
+            version is None
+            or not version.change_role_parse_complete
+            or version.change_role_parser_version != CHANGE_ROLE_PARSER_VERSION
+        ):
+            return None
+        linked_appendix_section_ids = set(
+            self.db.scalars(
+                select(BillVersionAppendixReference.bill_version_section_id).where(
+                    BillVersionAppendixReference.bill_version_id == version.id,
+                    BillVersionAppendixReference.bill_version_section_id.is_not(None),
+                )
+            )
+        )
+        sections_query = select(BillVersionSection).where(
+            BillVersionSection.bill_version_id == version.id
+        )
+        if linked_appendix_section_ids:
+            sections_query = sections_query.where(
+                BillVersionSection.id.not_in(linked_appendix_section_ids)
+            )
+        sections = self.db.scalars(
+            sections_query.order_by(BillVersionSection.source_order.asc())
+        ).all()
+        if not sections or any(
+            len(str(section.change_role_source_hash or "")) != 64
+            for section in sections
+        ):
+            return None
+        hashes = tuple(
+            content_hash(
+                "\0".join(
+                    [
+                        str(section.source_order),
+                        str(section.section_id_text or ""),
+                        str(section.article_number or ""),
+                        str(section.article_heading or ""),
+                        str(section.section_heading or ""),
+                        str(section.change_role_source_hash or ""),
+                    ]
+                )
+            )
+            for section in sections
+        )
+        return version.id, hashes
+
     def ingest_bill_target(self, refs: dict[str, Any], target: BillTarget) -> Any:
         """Keep the established single-bill return while tracking batch changes."""
         return self._ingest_bill_target_result(refs, target).bill
@@ -2074,6 +3032,20 @@ class MinnesotaIngestionPipeline:
             .with_for_update()
         )
         previous_text = self._public_text_signature(existing_bill)
+        previous_appendix = self._appendix_context_signature(existing_bill)
+        previous_change_roles = self._change_role_context_signature(existing_bill)
+        previous_context_baselined = False
+        if existing_bill is not None:
+            previous_version = self.db.scalar(
+                select(BillVersion).where(
+                    BillVersion.bill_id == existing_bill.id,
+                    BillVersion.is_current.is_(True),
+                )
+            )
+            previous_context_baselined = bool(
+                previous_version is not None
+                and previous_version.bill_summary_context_baselined
+            )
         drops = self.bill_refresh_drops(payload.canonical, payload.bill_text)
         retried = bool(drops)
         corroborated_drop = False
@@ -2141,6 +3113,20 @@ class MinnesotaIngestionPipeline:
         )
         self.db.flush()
         current_text = self._public_text_signature(bill)
+        current_appendix = self._appendix_context_signature(bill)
+        current_change_roles = self._change_role_context_signature(bill)
+        public_text_changed = previous_text != current_text
+        if public_text_changed or (
+            current_appendix is not None and current_change_roles is not None
+        ):
+            current_version = self.db.scalar(
+                select(BillVersion).where(
+                    BillVersion.bill_id == bill.id,
+                    BillVersion.is_current.is_(True),
+                )
+            )
+            if current_version is not None:
+                current_version.bill_summary_context_baselined = True
         self.finish_run(
             run,
             self._run_stats(
@@ -2150,9 +3136,33 @@ class MinnesotaIngestionPipeline:
                 corroborated_drop=corroborated_drop,
             ),
         )
+        appendix_context_changed = current_appendix is not None and (
+            (previous_appendix is not None and previous_appendix != current_appendix)
+            or (previous_appendix is None and previous_context_baselined)
+        )
+        change_roles_changed = current_change_roles is not None and (
+            (
+                previous_change_roles is not None
+                and previous_change_roles != current_change_roles
+            )
+            or (previous_change_roles is None and previous_context_baselined)
+        )
+        summary_source_changed = (
+            public_text_changed or appendix_context_changed or change_roles_changed
+        )
+        summary_request_id = None
+        if summary_source_changed:
+            from alethical.pipeline.bill_summary_requests import (
+                register_official_text_change,
+            )
+
+            request = register_official_text_change(self.db, bill)
+            summary_request_id = request.id if request is not None else None
         return BillIngestionResult(
             bill=bill,
-            public_text_changed=previous_text != current_text,
+            public_text_changed=public_text_changed,
+            summary_source_changed=summary_source_changed,
+            summary_request_id=summary_request_id,
         )
 
     def upsert_bill(
@@ -2430,6 +3440,14 @@ class MinnesotaIngestionPipeline:
         if latest_version is None:
             return
 
+        parsed_sections = list(bill_text.get("sections", []))
+        if any(
+            section.get("change_role_parse_complete") is not True
+            or len(str(section.get("change_role_source_hash") or "")) != 64
+            for section in parsed_sections
+        ):
+            raise MinnesotaIngestionError("Bill change-role parsing was not complete")
+
         # A shorter section list is allowed only after the completeness guard has
         # fetched the same official response twice. Reconcile only the accepted
         # current version, and delete search dependents child-first because these
@@ -2531,6 +3549,9 @@ class MinnesotaIngestionPipeline:
             # never instead of, `raw_text` — see the column's comment in
             # alethical/db/models.py for why that separation is load-bearing.
             section_row.body_blocks = section.get("blocks") or None
+
+        self.db.flush()
+        replace_bill_version_prompt_context(self.db, latest_version, bill_text)
 
     def replace_actions(
         self,
@@ -2643,16 +3664,9 @@ class MinnesotaIngestionPipeline:
         text_changed_bills = [
             result.bill for result in results if result.public_text_changed
         ]
-        if text_changed_bills:
-            self.db.execute(
-                update(AIEnrichment)
-                .where(
-                    AIEnrichment.bill_id.in_([bill.id for bill in text_changed_bills]),
-                    AIEnrichment.enrichment_type == EnrichmentType.bill_summary,
-                    AIEnrichment.is_current.is_(True),
-                )
-                .values(is_current=False)
-            )
+        summary_changed_bills = [
+            result.bill for result in results if result.summary_source_changed
+        ]
         # Refresh stats only for the legislators this batch actually touched (the
         # sponsors of its bills), not the whole jurisdiction — otherwise concurrent
         # chunk workers all contend on the same ~400 legislator_stats rows and hit
@@ -2676,6 +3690,14 @@ class MinnesotaIngestionPipeline:
             "bills_ingested": len(bills),
             "bill_keys": [bill.bill_key for bill in bills],
             "text_changed_bill_keys": [bill.bill_key for bill in text_changed_bills],
+            "summary_changed_bill_keys": [
+                bill.bill_key for bill in summary_changed_bills
+            ],
+            "summary_request_ids": [
+                str(result.summary_request_id)
+                for result in results
+                if result.summary_request_id is not None
+            ],
             "bill_refresh_rejections": refresh_rejections,
         }
 

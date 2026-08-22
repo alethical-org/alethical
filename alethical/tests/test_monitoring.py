@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -13,6 +14,7 @@ from alethical.api import problems
 from alethical.api.routers import me
 from alethical.pipeline import minnesota
 from alethical.pipeline import oban as oban_pipeline
+from scripts import check_bill_summary_coverage
 
 
 def _request(path: str, route_template: str) -> Request:
@@ -398,3 +400,121 @@ async def test_queue_drain_command_reports_its_failed_jobs(monkeypatch) -> None:
             {"completed": 18, "retryable": 2, "discarded": 1},
         )
     ]
+
+
+@pytest.mark.asyncio
+async def test_ai_summary_drain_recovers_committed_ready_requests_first(
+    monkeypatch,
+) -> None:
+    events: list[str] = []
+
+    class _Pool:
+        async def close(self) -> None:
+            events.append("close")
+
+    async def _reconcile(**kwargs):
+        assert kwargs == {
+            "database_target": "local",
+            "oban_target": "local",
+            "oban_dsn": "postgresql://test",
+        }
+        events.append("reconcile")
+        return [{"inserted": True}]
+
+    async def _open_pool(dsn: str):
+        assert dsn == "postgresql://test"
+        events.append("open")
+        return _Pool()
+
+    async def _drain_queue(**_kwargs):
+        events.append("drain")
+        return {"completed": 1, "retryable": 0, "discarded": 0}
+
+    monkeypatch.setattr(
+        "alethical.pipeline.bill_summary_requests.reconcile_ready_requests",
+        _reconcile,
+    )
+    monkeypatch.setattr(oban_pipeline, "open_pool", _open_pool)
+    monkeypatch.setattr(oban_pipeline, "Oban", lambda **kwargs: object())
+    monkeypatch.setattr(oban_pipeline, "drain_queue", _drain_queue)
+
+    await oban_pipeline.drain(
+        SimpleNamespace(
+            dsn="postgresql://test",
+            target="local",
+            queue="ai_summary",
+            concurrency=1,
+        )
+    )
+
+    assert events == ["reconcile", "open", "drain", "close"]
+
+
+@pytest.mark.asyncio
+async def test_completed_ai_summary_job_does_not_hide_a_ready_request() -> None:
+    captured_states: list[list[str]] = []
+
+    class _Cursor:
+        async def fetchone(self):
+            return None
+
+    class _Connection:
+        async def execute(self, _sql, parameters):
+            captured_states.append(parameters[3])
+            return _Cursor()
+
+    class _ConnectionContext:
+        async def __aenter__(self):
+            return _Connection()
+
+        async def __aexit__(self, *_args):
+            return None
+
+    class _Pool:
+        def connection(self):
+            return _ConnectionContext()
+
+    pool = _Pool()
+    await oban_pipeline.existing_job_id(
+        pool,
+        worker="BillSummaryRequestWorker",
+        queue="ai_summary",
+        task_key="bill-summary-request:test",
+    )
+    await oban_pipeline.existing_job_id(
+        pool,
+        worker="BillSyncChunkWorker",
+        queue="bill_sync",
+        task_key="bill-sync:test",
+    )
+
+    assert "completed" not in captured_states[0]
+    assert "completed" in captured_states[1]
+
+
+def test_summary_gap_alert_is_bounded_but_keeps_the_full_report() -> None:
+    gaps = [
+        SimpleNamespace(
+            bill_key=f"94-2026-HF{number}",
+            request_status="outdated_prompt_context",
+            source_text_fingerprint=f"{number:064x}"[-64:],
+        )
+        for number in range(10_000)
+    ]
+
+    issue_report = check_bill_summary_coverage.issue_report(gaps)
+
+    assert len(issue_report) < 50_000
+    assert "SUMMARY GAPS: 10000" in issue_report
+    assert "94-2026-HF0" in issue_report
+    assert "9,900 more gaps are in the attached workflow report" in issue_report
+
+    workflow = Path(".github/workflows/bill-summary-coverage.yml").read_text(
+        encoding="utf-8"
+    )
+    assert "--issue-report-path summary-issue-report.txt" in workflow
+    assert "actions/upload-artifact@" in workflow
+    assert "report=$(cat summary-issue-report.txt" in workflow
+    assert 'echo "result=gaps" >> "$GITHUB_OUTPUT"' in workflow
+    assert "steps.summary_check.outputs.result == 'gaps'" in workflow
+    assert "steps.summary_check.outputs.result != 'gaps'" in workflow

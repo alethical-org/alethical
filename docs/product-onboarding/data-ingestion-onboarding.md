@@ -237,12 +237,16 @@ rows together.
 
 ### Changed bill text and search rows publish together
 
-An accepted batch reports every canonical write in `bill_keys` and only new or changed
-public text in `text_changed_bill_keys`
+An accepted batch reports every canonical write in `bill_keys`, only new or changed
+reader-facing text in `text_changed_bill_keys`, and every change that can alter a
+summary in `summary_changed_bill_keys`
 ([#1320](https://github.com/alethical-org/alethical/issues/1320)). The change signal is the
 current `bill_version.id` plus the ordered SHA-256 hashes of each stored
 `bill_version_section.raw_text`. A metadata-only refresh therefore does not pay to rebuild search,
-while a new version or changed section wording does.
+while a new version or changed section wording does. The summary signal also covers a change to
+which words are added, deleted, or carried forward and a change to the saved APPENDIX reference
+material. Those legal-role-only changes do not rebuild search rows because the reader-facing text
+and search text did not change.
 
 `bill-sync-chunk` flushes the accepted bill rows, builds retrieval rows only for that changed
 subset through the same database session, then commits once. A chunking or embedding failure rolls
@@ -250,15 +254,17 @@ back the bill refresh too, so the retry cannot mistake unindexed new text for an
 The worker refuses inline writes to a different RAG database because that second connection could
 publish only half of the refresh.
 
-For every bill in `text_changed_bill_keys`, the same transaction marks its displayed
+For every bill in `summary_changed_bill_keys`, the same transaction marks its displayed
 `bill_summary` non-current, and the database clears both `Bill.has_current_summary`
 ([#1321](https://github.com/alethical-org/alethical/issues/1321)) and `Bill.short_title`, the copy
 of that summary's plain-language headline that keyword search matches (alembic 0033). The product
 therefore shows the new official record without a summary rather than pairing it with an older
 draft's explanation, and search stops matching a headline the bill no longer displays.
-Metadata-only updates and rejected thin responses keep the summary that still matches. This step
-does not call a model or spend money; a later missing-current batch may choose the bill for a new
-summary. Refresh and summary apply take the same bill-row lock, so a result prepared from old text
+Metadata-only updates and rejected thin responses keep the summary that still matches. The same
+saved change records 1 exact replacement request after all proposal roles and APPENDIX references
+are complete. Recording the request does not call a model or spend money. The automatic worker
+stays off until its separate switch, spending ceilings, retry limit, and failure limit are all
+set. Refresh and summary apply take the same bill-row lock, so a result prepared from old text
 cannot pass its check during a refresh and become current after that refresh commits.
 
 ### A section's body is stored twice, and that is deliberate
@@ -939,17 +945,22 @@ CLI: `uv run python -m alethical.pipeline.oban --target {local|production} {inst
 | `vote-backfill`                       | `vote_sync` (1)         | Roll-call votes                                                           |
 | `rag-backfill` / `rag-backfill-chunk` | `rag_sync` (1)          | Rebuild retrieval chunks + embeddings. Both were missing from this table. |
 | `ai-prepare` / `ai-apply`             | `ai_batch` / `ai_apply` | OpenAI Batch prepare/apply                                                |
+| `bill-summary-request`                | `ai_summary` (1)        | Run 1 exact changed-text summary request when its default-off spending gate is open |
 | `codex-ai-*`                          | `ai_batch` / `ai_codex` | Local Codex enrichment                                                    |
 | `smoke`                               | `maintenance` (1)       | Health check                                                              |
 
 **`just pipeline-work` does not drain every queue in this table.** It covers
-`source_sync`, `bill_sync`, `committee_sync`, `vote_sync` and `ai_batch`, so
-`ai_apply`, `ai_codex` and `rag_sync` need a `drain` of their own
+`source_sync`, `bill_sync`, `ai_summary`, `committee_sync`, `vote_sync` and
+`ai_batch`, so `ai_apply`, `ai_codex` and `rag_sync` need a `drain` of their own
 (`python -m alethical.pipeline.oban --target <t> drain <queue>`). A job sitting in one
 of those three looks stuck when nothing is draining it.
 
-**Safety:** jobs are `--dry-run` by default — pass `--write --allow-writes` to
-persist. A **task-key dedupe** prevents duplicate concurrent jobs. Typical run
+**Safety:** `just pipeline` queues a preview by default. Pass `--write --allow-writes` only
+after reviewing that preview. `just pipeline-work` is not itself a preview: it runs jobs already
+waiting in the named queues. Its `ai_summary` step can call Anthropic and write a summary if every
+`ALETHICAL_AUTO_BILL_SUMMARY_*` safety value is open. Keep
+`ALETHICAL_AUTO_BILL_SUMMARY_ENABLED=false` while draining unless that paid automatic path has
+been approved. A **task-key dedupe** prevents duplicate concurrent jobs. Typical run
 (via [justfile](../../justfile) wrappers):
 
 ```bash

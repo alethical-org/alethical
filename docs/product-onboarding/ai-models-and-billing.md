@@ -127,9 +127,12 @@ matters.
 current version and official section text still match what `prepare` recorded. Both valid text-hash
 lengths are accepted, so building the search index after preparation does not waste unchanged paid
 output. If the bill changed while the model was writing, `apply` reports the result as `outdated`
-and does not display it. It does not spend money on a replacement; a later missing-current
-preparation may select that bill. Apply and refresh also take the same bill-row lock, so a refresh
-cannot commit between this check and the summary write ([#1321](https://github.com/alethical-org/alethical/issues/1321)).
+and does not display it. That manual apply does not create replacement work or spend more money.
+The earlier saved official-text change already recorded 1 exact durable request after its proposal
+roles and APPENDIX references were complete. The request becomes ready when current search rows
+match, but an actual automatic job is queued only when the switch and every spending and failure
+limit are open. Apply and refresh also take the same bill-row lock, so a refresh cannot commit
+between this check and the summary write ([#1321](https://github.com/alethical-org/alethical/issues/1321)).
 
 **Same output, very different wall-clock — this is the real tradeoff.** The two
 `generate` rails produce identical text, but not at identical speed. The subscription
@@ -157,7 +160,7 @@ always used its provider's half-price queue, which is why that one is cheap and 
 **The lesson to carry away is that "batch" in a command name never means "discount" by
 itself** — read whether the command *waits*. The full mode-and-tier comparison is
 explained below; [issue 457](https://github.com/alethical-org/alethical/issues/457)
-now owns only the future automatic handoff for newly ingested bill text.
+adds the default-off automatic handoff for newly saved or changed official bill text.
 
 ### 4.1 Where the 50% bulk discount comes from, and who can reach it
 
@@ -204,11 +207,11 @@ the token price:
 **Net (plain language): OpenRouter can now get the half price, but going straight to
 Anthropic is a few dollars cheaper and has fewer things that can go wrong.**
 
-**The one real promotion is a different thing, and it has a deadline.** Claude Sonnet 5
-is on introductory pricing of **$2 in / $10 out per million tokens** through
-**August 31, 2026**, after which it returns to **$3 / $15**
-([pricing](https://platform.claude.com/docs/en/about-claude/pricing#claude-sonnet-5-introductory-pricing)).
-That is a 50% increase on every enrichment run from September 1.
+**Claude Sonnet 5's launch price is now permanent.** Anthropic made the
+**$2 input / $10 output per million tokens** price permanent on August 10, 2026
+([announcement](https://www.anthropic.com/research/claude-sonnet-5),
+[pricing](https://platform.claude.com/docs/en/about-claude/pricing)). There is no
+August 31 deadline and no planned return to $3 / $15.
 
 Both discounts apply to the same job, so the
 [#723](https://github.com/alethical-org/alethical/issues/723) re-enrichment of 3,222
@@ -223,16 +226,13 @@ Measured: 26.7M tokens in, ~17.4M out (3,222 bills × ~5,400 output tokens each)
 
 | | Live calls (~1 hour) | Bulk lane (up to 24 hours) |
 |---|---|---|
-| **Through Aug 31, 2026** | **~$224** (actually paid) | **~$112** |
-| **From Sep 1, 2026** | ~$337 | ~$169 |
+| **Permanent Sonnet 5 price** | **~$224** (actually paid) | **~$112** |
 
-The bulk-lane column is the live column halved, per the 50% bulk discount above; the
-Sep 1 row scales the measured cost by the same ratio the estimate used ($265 / $176).
-Only the ~$224 was actually paid.
+The bulk-lane column is the live column halved, per the 50% bulk discount above.
+Only the ~$224 live run was actually paid.
 
-**Net (plain language): the bulk lane saves more than the deadline costs.** Missing
-August is a ~$113 mistake only if we stay on live calls; on the bulk lane it is ~$57.
-Doing both — bulk lane, before September — is the cheapest this job will ever be.
+**Net (plain language): the bulk lane cuts the measured provider price in half;
+there is no model-price deadline to race.**
 
 **Those output figures are now high, because the job itself got smaller.** The prices
 above are the measured cost of the #723 job *as it was billed*, and they stay accurate
@@ -255,6 +255,8 @@ side-by-side comparison rather than assumed.
 lets you pay once to keep a repeated block of instructions on hand, then pay about 10% of
 the normal rate every time a later call reuses it. Our enrichment prompt is a perfect
 candidate: ~3,240 tokens of identical instructions on every call, about 39% of the input.
+For Sonnet 5's 1-hour cache, writes cost **$4 per million tokens** and reads cost
+**$0.20 per million tokens** at the permanent base price.
 
 **Both lanes are now wired up, and each takes exactly the saving that suits it:**
 

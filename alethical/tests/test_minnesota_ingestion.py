@@ -14,6 +14,8 @@ from alethical.db.models import (
     ArtifactType,
     Bill,
     BillAction,
+    BillSummaryRequest,
+    BillSummaryRequestStatus,
     BillVersion,
     BillVersionSection,
     Committee,
@@ -43,6 +45,7 @@ from alethical.pipeline.minnesota import (
     parse_bill_section,
     parse_bill_text_html,
     parse_bill_xml,
+    parse_change_role_segments,
     parse_datetime,
     parse_senate_profile,
     parse_section_blocks,
@@ -193,6 +196,36 @@ def test_flat_section_text_is_unchanged_by_the_block_parser() -> None:
     assert flat.startswith("Minnesota Statutes 2024, section 62A.011")
 
 
+def test_change_role_segments_preserve_exact_word_boundaries() -> None:
+    touching_html = """
+    <p>tax<span class="sr-only">new text begin </span><ins>payer</ins>
+    <span class="sr-only">new text end </span> must
+    <span class="sr-only">deleted text begin </span><del>not</del>
+    <span class="sr-only">deleted text end </span> wait.</p>
+    """
+    spaced_html = """
+    <p>tax <span class="sr-only">new text begin </span><ins>payer</ins>
+    <span class="sr-only">new text end </span> must wait.</p>
+    """
+
+    touching, _touching_hash, touching_complete = parse_change_role_segments(
+        touching_html
+    )
+    spaced, _spaced_hash, spaced_complete = parse_change_role_segments(spaced_html)
+
+    assert touching_complete is True
+    assert spaced_complete is True
+    assert "".join(segment["text"] for segment in touching) == "taxpayer must not wait."
+    assert "".join(segment["text"] for segment in spaced) == "tax payer must wait."
+    assert touching == [
+        {"role": "carried_forward", "text": "tax"},
+        {"role": "added", "text": "payer"},
+        {"role": "carried_forward", "text": " must "},
+        {"role": "deleted", "text": "not"},
+        {"role": "carried_forward", "text": " wait."},
+    ]
+
+
 def test_bill_parsers_extract_canonical_payloads() -> None:
     canonical = parse_bill_xml(SAMPLE_BILL_XML)
     bill_text = parse_bill_text_html(
@@ -212,6 +245,53 @@ def test_bill_parsers_extract_canonical_payloads() -> None:
         == "A bill for an act relating to live ingestion tests."
     )
     assert bill_text["sections"][0]["text"] == "Test section text."
+
+
+def _complete_hand_built_bill_text(bill_text: dict) -> dict:
+    """Add proof fields that real HTML parsing normally supplies.
+
+    These fixtures bypass ``parse_bill_text_html``. Keep their explicit proof
+    visible so tests exercise the same write contract as production responses.
+    Partly supplied proof is left alone so incomplete-input tests still fail
+    closed.
+    """
+    payload = dict(bill_text)
+    appendix_proof_fields = {
+        "appendix_references",
+        "appendix_parser_version",
+        "appendix_parse_complete",
+        "appendix_source_hash",
+    }
+    if not appendix_proof_fields.intersection(payload):
+        parsed_empty = parse_bill_text_html("<html></html>", "")
+        for field in appendix_proof_fields | {
+            "appendix_present",
+            "appendix_no_active_count",
+        }:
+            payload[field] = parsed_empty[field]
+
+    sections = []
+    for original_section in payload.get("sections", []):
+        section = dict(original_section)
+        change_role_fields = {
+            "change_role_segments",
+            "change_role_source_hash",
+            "change_role_parse_complete",
+        }
+        if not change_role_fields.intersection(section):
+            segments, source_hash, parse_complete = parse_change_role_segments(
+                str(section.get("text") or "")
+            )
+            section.update(
+                {
+                    "change_role_segments": segments,
+                    "change_role_source_hash": source_hash,
+                    "change_role_parse_complete": parse_complete,
+                }
+            )
+        sections.append(section)
+    payload["sections"] = sections
+    return payload
 
 
 def test_roster_only_member_can_be_ingested(seed_database: None) -> None:
@@ -662,7 +742,9 @@ def test_reingest_with_new_version_code_keeps_one_current(seed_database: None) -
         session.add(bill)
         session.flush()
 
-        bill_text: dict = {"sections": [], "articles": []}
+        bill_text: dict = _complete_hand_built_bill_text(
+            {"sections": [], "articles": []}
+        )
 
         # First ingest: empty text_versions -> the "current" fallback code.
         pipeline.upsert_versions_and_sections(
@@ -726,7 +808,9 @@ def test_current_placeholder_guard_is_scoped(seed_database: None) -> None:
         )
         session.add(bill)
         session.flush()
-        bill_text: dict = {"sections": [], "articles": []}
+        bill_text: dict = _complete_hand_built_bill_text(
+            {"sections": [], "articles": []}
+        )
 
         # Two empty ingests in a row: the "current" fallback must persist (the bill
         # still has no published text), not get dropped by the guard.
@@ -861,7 +945,7 @@ def test_official_unofficial_and_ccr_versions_never_collide(
         pipeline.upsert_versions_and_sections(
             bill,
             {"text_versions": ENGROSSMENT_COLLISION_VERSIONS},
-            {"sections": [], "articles": []},
+            _complete_hand_built_bill_text({"sections": [], "articles": []}),
             artifact,
         )
         session.flush()
@@ -1134,11 +1218,13 @@ def test_upsert_bill_orders_actions_inside_each_chamber(seed_database: None) -> 
         bill = pipeline.upsert_bill(
             refs,
             canonical,
-            {
-                "sections": [],
-                "articles": [],
-                "source_url": "https://example.test/hf7778.html",
-            },
+            _complete_hand_built_bill_text(
+                {
+                    "sections": [],
+                    "articles": [],
+                    "source_url": "https://example.test/hf7778.html",
+                }
+            ),
             run,
             xml_artifact,
             html_artifact,
@@ -1167,11 +1253,13 @@ def test_upsert_bill_populates_action_dates(seed_database: None) -> None:
         html_artifact = pipeline.record_artifact(
             run, ArtifactType.html, "https://example.test/hf7777.html", "<html></html>"
         )
-        bill_text = {
-            "sections": [],
-            "articles": [],
-            "source_url": "https://example.test/hf7777.html",
-        }
+        bill_text = _complete_hand_built_bill_text(
+            {
+                "sections": [],
+                "articles": [],
+                "source_url": "https://example.test/hf7777.html",
+            }
+        )
 
         bill = pipeline.upsert_bill(
             refs, canonical, bill_text, run, xml_artifact, html_artifact
@@ -1257,11 +1345,13 @@ def test_upsert_bill_persists_committee_name(seed_database: None) -> None:
         html_artifact = pipeline.record_artifact(
             run, ArtifactType.html, "https://example.test/hf6666.html", "<html></html>"
         )
-        bill_text = {
-            "sections": [],
-            "articles": [],
-            "source_url": "https://example.test/hf6666.html",
-        }
+        bill_text = _complete_hand_built_bill_text(
+            {
+                "sections": [],
+                "articles": [],
+                "source_url": "https://example.test/hf6666.html",
+            }
+        )
 
         bill = pipeline.upsert_bill(
             refs, canonical, bill_text, run, xml_artifact, html_artifact
@@ -1321,11 +1411,13 @@ def test_upsert_bill_links_companion_symmetrically(seed_database: None) -> None:
                 f"https://example.test/{key}.html",
                 "<html></html>",
             )
-            bill_text = {
-                "sections": [],
-                "articles": [],
-                "source_url": f"https://example.test/{key}.html",
-            }
+            bill_text = _complete_hand_built_bill_text(
+                {
+                    "sections": [],
+                    "articles": [],
+                    "source_url": f"https://example.test/{key}.html",
+                }
+            )
             bill = pipeline.upsert_bill(
                 refs, canonical, bill_text, run, xml_artifact, html_artifact
             )
@@ -1394,12 +1486,14 @@ def test_upsert_bill_refreshes_title_on_reingest(seed_database: None) -> None:
                 f"https://example.test/{key}.html",
                 "<html></html>",
             )
-            bill_text = {
-                "sections": [],
-                "articles": [],
-                "source_url": f"https://example.test/{key}.html",
-                "bill_title_text": title_text,
-            }
+            bill_text = _complete_hand_built_bill_text(
+                {
+                    "sections": [],
+                    "articles": [],
+                    "source_url": f"https://example.test/{key}.html",
+                    "bill_title_text": title_text,
+                }
+            )
             bill = pipeline.upsert_bill(
                 refs, canonical, bill_text, run, xml_artifact, html_artifact
             )
@@ -1476,18 +1570,20 @@ def _refresh_payload(
             for code in version_codes
         ],
     }
-    bill_text = {
-        "bill_title_text": "A bill for an act relating to safe refreshes.",
-        "sections": [
-            {
-                "section_id": f"section-{index}",
-                "text": text,
-            }
-            for index, text in enumerate(section_texts, start=1)
-        ],
-        "articles": [],
-        "source_url": "https://example.test/hf5002.html",
-    }
+    bill_text = _complete_hand_built_bill_text(
+        {
+            "bill_title_text": "A bill for an act relating to safe refreshes.",
+            "sections": [
+                {
+                    "section_id": f"section-{index}",
+                    "text": text,
+                }
+                for index, text in enumerate(section_texts, start=1)
+            ],
+            "articles": [],
+            "source_url": "https://example.test/hf5002.html",
+        }
+    )
     return canonical, bill_text
 
 
@@ -1781,8 +1877,10 @@ def test_ingest_bills_reports_only_public_text_changes(
 
         assert changed["bill_keys"] == ["94-2025-HF5002"]
         assert changed["text_changed_bill_keys"] == ["94-2025-HF5002"]
+        assert len(changed["summary_request_ids"]) == 1
         assert unchanged["bill_keys"] == ["94-2025-HF5002"]
         assert unchanged["text_changed_bill_keys"] == []
+        assert unchanged["summary_request_ids"] == []
 
         session.rollback()
 
@@ -1805,6 +1903,7 @@ def test_ingest_bills_reports_a_new_bill_as_public_text_changed(
 
         assert result["bill_keys"] == ["94-2025-HF5002"]
         assert result["text_changed_bill_keys"] == ["94-2025-HF5002"]
+        assert len(result["summary_request_ids"]) == 1
 
         session.rollback()
 
@@ -1853,6 +1952,12 @@ def test_changed_bill_text_retires_its_current_summary(
         assert bill.has_current_summary is False
         assert current_bill_summary_enrichment(bill.enrichments) is None
         assert result["text_changed_bill_keys"] == [bill.bill_key]
+        request = session.scalar(
+            select(BillSummaryRequest).where(BillSummaryRequest.bill_id == bill.id)
+        )
+        assert request is not None
+        assert str(request.id) in result["summary_request_ids"]
+        assert request.status == BillSummaryRequestStatus.waiting_for_search
 
         session.rollback()
 
@@ -1887,8 +1992,119 @@ def test_metadata_only_refresh_keeps_its_current_summary(
         session.refresh(bill)
 
         assert result["text_changed_bill_keys"] == []
+        assert result["summary_request_ids"] == []
         assert summary.is_current is True
         assert bill.has_current_summary is True
+
+        session.rollback()
+
+
+@pytest.mark.parametrize(
+    ("already_baselined", "expects_replacement"),
+    [(False, False), (True, True)],
+    ids=["first-rollout-baseline", "later-context-repair"],
+)
+def test_complete_prompt_context_baseline_and_later_repair(
+    seed_database: None,
+    monkeypatch: pytest.MonkeyPatch,
+    already_baselined: bool,
+    expects_replacement: bool,
+) -> None:
+    """First rollout is harmless; a later lost context still gets replaced."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        canonical, bill_text = _refresh_payload(
+            description="The stored description.",
+            authors=[("500216", "Author, First")],
+        )
+        bill = _store_refresh_payload(
+            pipeline, refs, canonical, bill_text, artifact_suffix="summary-old-context"
+        )
+        summary = _add_current_summary(session, bill)
+        current_version = session.scalar(
+            select(BillVersion).where(
+                BillVersion.bill_id == bill.id,
+                BillVersion.is_current.is_(True),
+            )
+        )
+        assert current_version is not None
+        current_version.bill_summary_context_baselined = already_baselined
+        current_version.appendix_parser_version = None
+        current_version.appendix_source_hash = None
+        current_version.appendix_parse_complete = False
+        current_version.appendix_present = None
+        current_version.change_role_parser_version = None
+        current_version.change_role_parse_complete = False
+        for section in current_version.sections:
+            section.change_role_segments = None
+            section.change_role_source_hash = None
+            section.change_role_parse_complete = False
+        session.flush()
+
+        _mock_bill_fetches(monkeypatch, [(canonical, bill_text)])
+        result = pipeline.ingest_bills(
+            [BillTarget(chamber="House", bill_number="5002")]
+        )
+        session.flush()
+        session.refresh(summary)
+
+        requests = list(
+            session.scalars(
+                select(BillSummaryRequest).where(BillSummaryRequest.bill_id == bill.id)
+            )
+        )
+        assert result["text_changed_bill_keys"] == []
+        assert current_version.bill_summary_context_baselined is True
+        if expects_replacement:
+            assert result["summary_changed_bill_keys"] == [bill.bill_key]
+            assert len(result["summary_request_ids"]) == 1
+            assert len(requests) == 1
+            assert str(requests[0].id) == result["summary_request_ids"][0]
+            assert summary.is_current is False
+        else:
+            assert result["summary_changed_bill_keys"] == []
+            assert result["summary_request_ids"] == []
+            assert requests == []
+            assert summary.is_current is True
+
+        session.rollback()
+
+
+def test_official_section_label_change_requests_one_replacement_summary(
+    seed_database: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A changed official prompt label is legal context, even with identical words."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        canonical, bill_text = _refresh_payload(
+            description="The stored description.",
+            authors=[("500216", "Author, First")],
+        )
+        bill_text["sections"][0]["heading"] = "Existing section heading"
+        bill = _store_refresh_payload(
+            pipeline, refs, canonical, bill_text, artifact_suffix="summary-label"
+        )
+        summary = _add_current_summary(session, bill)
+
+        refreshed_canonical, refreshed_text = _refresh_payload(
+            description="The stored description.",
+            authors=[("500216", "Author, First")],
+        )
+        refreshed_text["sections"][0]["heading"] = "Changed official heading"
+        _mock_bill_fetches(monkeypatch, [(refreshed_canonical, refreshed_text)])
+        result = pipeline.ingest_bills(
+            [BillTarget(chamber="House", bill_number="5002")]
+        )
+        session.flush()
+        session.refresh(summary)
+
+        assert result["text_changed_bill_keys"] == []
+        assert result["summary_changed_bill_keys"] == [bill.bill_key]
+        assert len(result["summary_request_ids"]) == 1
+        assert summary.is_current is False
 
         session.rollback()
 
@@ -2392,15 +2608,17 @@ def test_repeated_section_id_keeps_every_section(seed_database: None) -> None:
 
         # Three sections outside any article, all carrying `laws.0.1.0`, with one
         # ordinary in-article section between them — the real shape of an omnibus.
-        bill_text: dict = {
-            "articles": [],
-            "sections": [
-                {"section_id": "laws.0.1.0", "text": "Advisory committee."},
-                {"section_id": "laws.1.1.0", "text": "In-article section."},
-                {"section_id": "laws.0.1.0", "text": "Repealer."},
-                {"section_id": "laws.0.1.0", "text": "Appropriation."},
-            ],
-        }
+        bill_text: dict = _complete_hand_built_bill_text(
+            {
+                "articles": [],
+                "sections": [
+                    {"section_id": "laws.0.1.0", "text": "Advisory committee."},
+                    {"section_id": "laws.1.1.0", "text": "In-article section."},
+                    {"section_id": "laws.0.1.0", "text": "Repealer."},
+                    {"section_id": "laws.0.1.0", "text": "Appropriation."},
+                ],
+            }
+        )
         canonical = {
             "text_versions": [
                 {"document_engrossment": "0", "document_name": "Introduced"}
@@ -2498,7 +2716,9 @@ def _ingest_bill(pipeline, refs, session, xml: str) -> Bill:
     bill = pipeline.upsert_bill(
         refs,
         canonical,
-        {"sections": [], "articles": [], "source_url": "https://example.test/x"},
+        _complete_hand_built_bill_text(
+            {"sections": [], "articles": [], "source_url": "https://example.test/x"}
+        ),
         run,
         xml_artifact,
         html_artifact,
