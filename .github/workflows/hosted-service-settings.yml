@@ -5,6 +5,8 @@ on:
     paths:
       - docs/operations/repo-and-service-settings.md
       - docs/operations/deployment.md
+      - supabase/templates/account-code.html
+      - supabase/templates/email-confirmation.html
       - scripts/check_hosted_service_settings.py
       - scripts/supabase_oauth_state.mjs
       - scripts/tests/test_hosted_service_settings.py
@@ -15,6 +17,8 @@ on:
   pull_request_target:
     paths:
       - docs/operations/repo-and-service-settings.md
+      - supabase/templates/account-code.html
+      - supabase/templates/email-confirmation.html
       - railway.json
       - vercel.json
   push:
@@ -22,6 +26,8 @@ on:
     paths:
       - docs/operations/repo-and-service-settings.md
       - docs/operations/deployment.md
+      - supabase/templates/account-code.html
+      - supabase/templates/email-confirmation.html
       - scripts/check_hosted_service_settings.py
       - scripts/supabase_oauth_state.mjs
       - scripts/tests/test_hosted_service_settings.py
@@ -89,6 +95,8 @@ jobs:
           persist-credentials: false
           sparse-checkout: |
             docs/operations/repo-and-service-settings.md
+            supabase/templates/account-code.html
+            supabase/templates/email-confirmation.html
             railway.json
             vercel.json
 
