@@ -840,6 +840,9 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
     ) {
       return;
     }
+    // An expired email link explicitly asked for Create or Recover. Let that
+    // destination win over an account being restored in the background.
+    if (canOpenRequestedSignInScreen(requestedScreen.current, isSignedIn)) return;
     const ordinaryJustSettled = ordinaryCompletionRequested.current;
     if (!isSignedIn || (!justSignedIn && !pendingRequest.current && !ordinaryJustSettled)) return;
     ordinaryCompletionRequested.current = false;
