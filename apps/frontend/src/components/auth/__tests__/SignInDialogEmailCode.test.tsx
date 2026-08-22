@@ -298,7 +298,10 @@ afterEach(() => {
 describe('email-code account access', () => {
   it('moves from Create to code entry without claiming delivery', async () => {
     const request = vi.fn(async () => ({ ok: true }) as SignInDialogActionResult);
-    const { root, mount } = mountDialog(baseProps({ onRequestAccountCode: request }));
+    const cancel = vi.fn(async () => undefined);
+    const { root, mount } = mountDialog(
+      baseProps({ onRequestAccountCode: request, onCancelAccountCode: cancel }),
+    );
 
     await press('Continue');
 
@@ -308,6 +311,10 @@ describe('email-code account access', () => {
     expect(mount.textContent).toContain('Enter the newest code');
     expect(mount.textContent).toContain('Use another email');
     expect(mount.textContent).toContain('No code? Check spam or contact us');
+
+    await press('Use another email');
+    expect(cancel).toHaveBeenCalledWith('create');
+    expect(mount.querySelector('h1')?.textContent).toBe('Create your Alethical account');
 
     act(() => root.unmount());
   });
@@ -624,6 +631,7 @@ describe('email-code account access', () => {
       await press(label);
 
       expect(cancel).toHaveBeenCalledTimes(1);
+      expect(cancel).toHaveBeenCalledWith('sign-in');
       expect(mount.querySelector('h1')?.textContent).toBe('Sign in to Alethical');
       act(() => root.unmount());
     }
@@ -653,6 +661,7 @@ describe('email-code account access', () => {
     await press('Back to sign in');
 
     expect(cancel).toHaveBeenCalledTimes(1);
+    expect(cancel).toHaveBeenCalledWith('sign-in');
     expect(mount.querySelector('h1')?.textContent).toBe('Sign in to Alethical');
     expect(mount.querySelector('input[aria-label="CODE"]')).toBeNull();
     act(() => root.unmount());
