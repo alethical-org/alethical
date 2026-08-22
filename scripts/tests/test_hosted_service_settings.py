@@ -42,7 +42,7 @@ class HostedSettingsTest(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.rows = settings.parse_doc(settings.DOC.read_text())
 
-    def test_markdown_is_the_only_intended_value_source(self) -> None:
+    def test_tracked_sources_hold_the_intended_values(self) -> None:
         self.assertGreater(len(self.rows), 70)
         self.assertEqual(
             self.rows[("GitHub Actions secrets", "REPO_SETTINGS_TOKEN")].intended
@@ -54,7 +54,58 @@ class HostedSettingsTest(unittest.TestCase):
             self.rows[("Vercel environment variables", "EXPO_PUBLIC_API_URL")].intended,
             "Preview, Production",
         )
+        confirmation_template = settings.EMAIL_CONFIRMATION_TEMPLATE.read_text(
+            encoding="utf-8"
+        )
+        magic_link_template = settings.MAGIC_LINK_TEMPLATE.read_text(encoding="utf-8")
+        self.assertTrue(
+            settings._is_confirmation_compat_template(confirmation_template)
+        )
+        self.assertTrue(settings._is_code_only_template(magic_link_template))
+        self.assertEqual(
+            settings._codes(
+                self.rows[("Supabase sign-in", "Email confirmation template")].intended
+            )[0],
+            "Your Alethical code",
+        )
         self.assertTrue(all(row.automation for row in self.rows.values()))
+
+    def test_magic_link_template_requires_a_code_and_forbids_links(self) -> None:
+        template = settings.MAGIC_LINK_TEMPLATE.read_text(encoding="utf-8")
+        self.assertTrue(settings._is_code_only_template(template))
+        for invalid in (
+            template.replace("{{ .Token }}", "12345678"),
+            template + '<a href="https://wrong.example">Open</a>',
+            template + "{{.ConfirmationURL}}",
+            template + "{{ .TokenHash}}",
+            template + "{{.RedirectTo }}",
+            template + "{{ .SiteURL }}",
+        ):
+            with self.subTest(invalid=invalid[-40:]):
+                self.assertFalse(settings._is_code_only_template(invalid))
+
+    def test_confirmation_template_requires_code_and_exact_safe_link(self) -> None:
+        template = settings.EMAIL_CONFIRMATION_TEMPLATE.read_text(encoding="utf-8")
+        self.assertTrue(settings._is_confirmation_compat_template(template))
+        for invalid in (
+            template.replace("{{ .Token }}", "12345678"),
+            template.replace("&amp;type=email", "&amp;type=magiclink"),
+            template.replace("{{ .TokenHash }}", "PRIVATE"),
+            template + '<a href="https://wrong.example">Open</a>',
+            template + "{{ .ConfirmationURL }}",
+        ):
+            with self.subTest(invalid=invalid[-40:]):
+                self.assertFalse(settings._is_confirmation_compat_template(invalid))
+
+    def test_workflow_reads_both_tracked_email_bodies(self) -> None:
+        workflow = (
+            settings.ROOT / ".github/workflows/hosted-service-settings.yml"
+        ).read_text(encoding="utf-8")
+        for path in (
+            "supabase/templates/email-confirmation.html",
+            "supabase/templates/account-code.html",
+        ):
+            self.assertEqual(workflow.count(path), 4)
 
     def test_markdown_cleanup_preserves_setting_underscores(self) -> None:
         self.assertEqual(
@@ -486,6 +537,10 @@ class HostedSettingsTest(unittest.TestCase):
         self.assertIn("documented as absent", internal.detail)
 
     def test_supabase_refreshes_read_only_oauth_and_compares_auth_config(self) -> None:
+        confirmation_template = settings.EMAIL_CONFIRMATION_TEMPLATE.read_text(
+            encoding="utf-8"
+        )
+        magic_link_template = settings.MAGIC_LINK_TEMPLATE.read_text(encoding="utf-8")
         fetch = FakeFetch(
             {
                 "/v1/oauth/token": settings.HttpResponse(
@@ -515,15 +570,15 @@ class HostedSettingsTest(unittest.TestCase):
                         "external_google_enabled": True,
                         "mailer_autoconfirm": False,
                         "security_manual_linking_enabled": False,
-                        "password_min_length": 15,
+                        "password_min_length": 8,
                         "password_required_characters": "",
-                        "password_hibp_enabled": True,
+                        "password_hibp_enabled": False,
                         "security_update_password_require_reauthentication": False,
                         "security_captcha_enabled": False,
-                        "mailer_templates_confirmation_content": (
-                            '<a href="{{ .RedirectTo }}&amp;token_hash={{ .TokenHash }}'
-                            '&amp;type=email">Confirm</a>'
-                        ),
+                        "mailer_subjects_confirmation": "Your Alethical code",
+                        "mailer_templates_confirmation_content": confirmation_template,
+                        "mailer_subjects_magic_link": "Your Alethical code",
+                        "mailer_templates_magic_link_content": magic_link_template,
                         "mailer_templates_recovery_content": (
                             '<a href="{{ .RedirectTo }}&amp;token_hash={{ .TokenHash }}'
                             '&amp;type=recovery">Reset</a>'
@@ -532,6 +587,8 @@ class HostedSettingsTest(unittest.TestCase):
                         "smtp_host": "smtp.resend.com",
                         "smtp_admin_email": "ask@alethical.com",
                         "smtp_pass": "private-smtp-password",
+                        "mailer_otp_exp": 3600,
+                        "mailer_otp_length": 8,
                         "rate_limit_email_sent": 30,
                         "rate_limit_otp": 30,
                     },
@@ -566,9 +623,9 @@ class HostedSettingsTest(unittest.TestCase):
             for result in checker.results
             if result.provider == "Supabase sign-in"
         ]
-        self.assertEqual(len(supabase_results), 17)
+        self.assertEqual(len(supabase_results), 19)
         self.assertEqual(
-            sum(result.state is settings.State.MATCH for result in supabase_results), 16
+            sum(result.state is settings.State.MATCH for result in supabase_results), 18
         )
         unsupported = next(
             result
@@ -585,6 +642,78 @@ class HostedSettingsTest(unittest.TestCase):
         self.assertEqual(fetch.calls[1][3], None)
         self.assertTrue(all(call[0] != "PATCH" for call in fetch.calls))
 
+    def test_supabase_checker_accepts_the_old_confirmation_contract_between_prs(
+        self,
+    ) -> None:
+        legacy_rows = dict(self.rows)
+        for setting in ("Email code lifetime", "Email code length"):
+            legacy_rows.pop(("Supabase sign-in", setting))
+        confirmation_key = ("Supabase sign-in", "Email confirmation template")
+        confirmation_row = legacy_rows[confirmation_key]
+        legacy_rows[confirmation_key] = settings.DocRow(
+            section=confirmation_row.section,
+            setting=confirmation_row.setting,
+            intended=(
+                "Supabase `RedirectTo` followed by `TokenHash`; the app supplies "
+                "Alethical `/confirm` with its private values after `#`"
+            ),
+            automation=confirmation_row.automation,
+        )
+        fetch = FakeFetch(
+            {
+                "/v1/oauth/token": settings.HttpResponse(
+                    200,
+                    {"access_token": "short-lived", "token_type": "Bearer"},
+                ),
+                "/config/auth": settings.HttpResponse(
+                    200,
+                    {
+                        "site_url": "https://www.alethical.com",
+                        "uri_allow_list": ",".join(
+                            [
+                                "https://www.alethical.com/**",
+                                "http://localhost:8081/**",
+                                "http://127.0.0.1:8081/**",
+                                "http://localhost:19006/**",
+                                "http://127.0.0.1:19006/**",
+                                "alethical://auth/callback",
+                            ]
+                        ),
+                        "mailer_templates_confirmation_content": (
+                            '<a href="{{ .RedirectTo }}&amp;token_hash={{ .TokenHash }}'
+                            '&amp;type=email">Confirm</a>'
+                        ),
+                    },
+                ),
+            }
+        )
+        checker = settings.Checker(
+            legacy_rows,
+            env={
+                "SUPABASE_OAUTH_REQUIRED": "true",
+                "SUPABASE_OAUTH_CLIENT_ID": "client-id",
+                "SUPABASE_OAUTH_CLIENT_SECRET": "client-secret",
+                "SUPABASE_OAUTH_REFRESH_TOKEN": "refresh-token",
+                "SUPABASE_PROJECT_REF": "naakzorbkqqgbsreulqi",
+            },
+            fetch=fetch,
+        )
+        checker.check_supabase()
+        checker.classify_non_live_rows()
+        confirmation_result = next(
+            result
+            for result in checker.results
+            if result.setting == "Email confirmation template"
+        )
+        self.assertIs(confirmation_result.state, settings.State.MATCH)
+        self.assertFalse(
+            any(
+                "no checker owns the row" in result.detail
+                for result in checker.results
+                if result.provider == "Supabase sign-in"
+            )
+        )
+
     def test_missing_or_expired_supabase_grant_fails_as_unreadable(self) -> None:
         checker = settings.Checker(
             self.rows,
@@ -600,7 +729,7 @@ class HostedSettingsTest(unittest.TestCase):
             for result in checker.results
             if result.provider == "Supabase sign-in"
         ]
-        self.assertEqual(len(missing_results), 16)
+        self.assertEqual(len(missing_results), 18)
         self.assertTrue(
             all(result.state is settings.State.UNVERIFIED for result in missing_results)
         )
@@ -632,47 +761,61 @@ class HostedSettingsTest(unittest.TestCase):
             self.assertEqual(settings.print_results(expired_results), 1)
 
     def test_supabase_template_drift_never_prints_template_contents(self) -> None:
-        private_template = (
-            '<a href="https://wrong.example/confirm?token_hash=PRIVATE-VALUE">'
-            "Confirm</a>"
+        confirmation_template = settings.EMAIL_CONFIRMATION_TEMPLATE.read_text(
+            encoding="utf-8"
         )
-        fetch = FakeFetch(
-            {
-                "/v1/oauth/token": settings.HttpResponse(
-                    200,
-                    {"access_token": "short-lived", "token_type": "Bearer"},
-                ),
-                "/config/auth": settings.HttpResponse(
-                    200,
+        magic_link_template = settings.MAGIC_LINK_TEMPLATE.read_text(encoding="utf-8")
+        expected = {
+            "mailer_subjects_confirmation": "Your Alethical code",
+            "mailer_templates_confirmation_content": confirmation_template,
+            "mailer_subjects_magic_link": "Your Alethical code",
+            "mailer_templates_magic_link_content": magic_link_template,
+        }
+        cases = (
+            "mailer_subjects_confirmation",
+            "mailer_templates_confirmation_content",
+            "mailer_subjects_magic_link",
+            "mailer_templates_magic_link_content",
+        )
+        for field in cases:
+            with self.subTest(field=field):
+                private_value = f"PRIVATE-{field}"
+                fetch = FakeFetch(
                     {
-                        "mailer_templates_confirmation_content": private_template,
+                        "/v1/oauth/token": settings.HttpResponse(
+                            200,
+                            {"access_token": "short-lived", "token_type": "Bearer"},
+                        ),
+                        "/config/auth": settings.HttpResponse(
+                            200,
+                            {**expected, field: private_value},
+                        ),
+                    }
+                )
+                checker = settings.Checker(
+                    self.rows,
+                    env={
+                        "SUPABASE_OAUTH_REQUIRED": "true",
+                        "SUPABASE_OAUTH_CLIENT_ID": "client-id",
+                        "SUPABASE_OAUTH_CLIENT_SECRET": "client-secret",
+                        "SUPABASE_OAUTH_REFRESH_TOKEN": "refresh-token",
+                        "SUPABASE_PROJECT_REF": "naakzorbkqqgbsreulqi",
                     },
-                ),
-            }
-        )
-        checker = settings.Checker(
-            self.rows,
-            env={
-                "SUPABASE_OAUTH_REQUIRED": "true",
-                "SUPABASE_OAUTH_CLIENT_ID": "client-id",
-                "SUPABASE_OAUTH_CLIENT_SECRET": "client-secret",
-                "SUPABASE_OAUTH_REFRESH_TOKEN": "refresh-token",
-                "SUPABASE_PROJECT_REF": "naakzorbkqqgbsreulqi",
-            },
-            fetch=fetch,
-        )
-        checker.check_supabase()
-        template_result = next(
-            result
-            for result in checker.results
-            if result.setting == "Email confirmation template"
-        )
-        self.assertIs(template_result.state, settings.State.DRIFT)
-        output = io.StringIO()
-        with contextlib.redirect_stdout(output):
-            settings.print_results(checker.results)
-        self.assertNotIn(private_template, output.getvalue())
-        self.assertNotIn("PRIVATE-VALUE", output.getvalue())
+                    fetch=fetch,
+                )
+                checker.check_supabase()
+                template_result = next(
+                    result
+                    for result in checker.results
+                    if result.setting == "Email confirmation template"
+                )
+                self.assertIs(template_result.state, settings.State.DRIFT)
+                output = io.StringIO()
+                with contextlib.redirect_stdout(output):
+                    settings.print_results(checker.results)
+                self.assertNotIn(private_value, output.getvalue())
+                self.assertNotIn(confirmation_template, output.getvalue())
+                self.assertNotIn(magic_link_template, output.getvalue())
 
     def test_supabase_does_not_consume_state_without_a_safe_output_file(self) -> None:
         fetch = FakeFetch({})

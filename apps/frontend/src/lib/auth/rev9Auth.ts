@@ -1,19 +1,18 @@
-export const MIN_PASSWORD_LENGTH = 15;
+export const MIN_PASSWORD_LENGTH = 8;
 
 export const REV9_AUTH_MESSAGES = {
   badCredentials: 'Email or password is incorrect',
   invalidEmail: 'Enter a complete email address, like name@example.com',
-  passwordTooShort: 'Use at least 15 characters. A few words with spaces works well.',
+  passwordTooShort: 'Use at least 8 characters',
   passwordMismatch: 'Passwords do not match',
-  leakedPassword: 'Choose a password that hasn’t appeared in a known data breach',
-  samePassword: 'Choose a different password',
   passwordTooLong: 'This password is too long. Use a shorter one.',
   tooManyAttempts: 'Too many attempts. Wait a while, then try again.',
   requestFailure: 'We couldn’t complete that request. Check your connection and try again.',
   expiredOrUsedLink: 'This link has expired or has already been used',
   unverifiedGoogle:
-    'Sign-in couldn’t finish because the email address needs confirmation. If a confirmation email arrives, open the newest one.',
+    'Sign-in couldn’t finish because the email needs confirmation. Use Create account with this email to confirm it.',
   humanCheck: 'One more step — confirm you’re human, then press the button again',
+  sessionChanged: 'Your sign-in changed. Close this form and try again.',
 } as const;
 
 const COMPLETE_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -27,7 +26,7 @@ export function validateEmail(value: string): string | null {
   return COMPLETE_EMAIL.test(normalizeEmail(value)) ? null : REV9_AUTH_MESSAGES.invalidEmail;
 }
 
-/** Supabase owns the remaining password checks, including known-breach screening. */
+/** Supabase owns only its storage limit; Alethical requires no character mix. */
 export function validatePassword(value: string): string | null {
   return value.length >= MIN_PASSWORD_LENGTH ? null : REV9_AUTH_MESSAGES.passwordTooShort;
 }
@@ -38,7 +37,6 @@ export function validatePasswordMatch(password: string, confirmation: string): s
 
 interface ProviderAuthErrorLike {
   code?: unknown;
-  reasons?: unknown;
 }
 
 export type PublicAuthErrorKind =
@@ -46,17 +44,16 @@ export type PublicAuthErrorKind =
   | 'email-not-confirmed'
   | 'invalid-email'
   | 'weak-password'
-  | 'leaked-password'
-  | 'same-password'
   | 'password-too-long'
   | 'too-many-attempts'
   | 'expired-or-used-link'
+  | 'wrong-or-expired-code'
   | 'unverified-google'
   | 'uncertain-password-save'
   | 'deactivated'
   | 'human-check'
   | 'fresh-proof'
-  | 'check-email'
+  | 'session-changed'
   | 'request-failure';
 
 export interface PublicAuthError {
@@ -99,14 +96,6 @@ function errorCode(error: unknown): string | null {
   return typeof code === 'string' ? code : null;
 }
 
-function weakPasswordReasons(error: unknown): string[] {
-  if (!error || typeof error !== 'object') return [];
-  const reasons = (error as ProviderAuthErrorLike).reasons;
-  return Array.isArray(reasons)
-    ? reasons.filter((reason): reason is string => typeof reason === 'string')
-    : [];
-}
-
 /**
  * Turn provider failures into the fixed rev 9 messages. The provider's own
  * message is deliberately never read, so account details and internal errors
@@ -143,12 +132,7 @@ export function mapProviderAuthError(
     return { kind: 'invalid-email', message: REV9_AUTH_MESSAGES.invalidEmail };
   }
   if (code === 'weak_password') {
-    return weakPasswordReasons(error).includes('pwned')
-      ? { kind: 'leaked-password', message: REV9_AUTH_MESSAGES.leakedPassword }
-      : { kind: 'weak-password', message: REV9_AUTH_MESSAGES.passwordTooShort };
-  }
-  if (code === 'same_password') {
-    return { kind: 'same-password', message: REV9_AUTH_MESSAGES.samePassword };
+    return { kind: 'weak-password', message: REV9_AUTH_MESSAGES.passwordTooShort };
   }
   if (code && RATE_LIMIT_CODES.has(code)) {
     return { kind: 'too-many-attempts', message: REV9_AUTH_MESSAGES.tooManyAttempts };
@@ -171,17 +155,12 @@ export function mapProviderAuthError(
     return {
       kind: 'fresh-proof',
       message: safeEmail
-        ? `Enter the code we sent to ${safeEmail} to confirm it’s you`
-        : 'Enter the code we sent to confirm it’s you',
+        ? `Enter the newest code for ${safeEmail} to confirm it’s you`
+        : 'Enter the newest code to confirm it’s you',
     };
   }
-  if (code === 'email_exists' || code === 'user_already_exists') {
-    return {
-      kind: 'check-email',
-      message: safeEmail
-        ? `If this address can create an Alethical account, a confirmation link is on the way to ${safeEmail}`
-        : 'If this address can create an Alethical account, a confirmation link is on the way',
-    };
+  if (code === 'session_changed') {
+    return { kind: 'session-changed', message: REV9_AUTH_MESSAGES.sessionChanged };
   }
   return { kind: 'request-failure', message: REV9_AUTH_MESSAGES.requestFailure };
 }

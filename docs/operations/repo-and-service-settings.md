@@ -216,7 +216,7 @@ Set under **Settings** in Sentry organization `Alethical`. Verified 2026-08-15.
 
 ## Supabase sign-in
 
-Set under **Authentication** in the Alethical Supabase project. Verified 2026-08-15.
+Set under **Authentication** in the Alethical Supabase project. Verified 2026-08-21.
 The monthly check uses a Supabase OAuth grant limited to `auth:read`. It cannot change a
 Supabase setting. No Supabase personal access token is stored. Supabase replaces the
 refresh token after every use, so the workflow encrypts each replacement with the OAuth
@@ -232,17 +232,19 @@ missing, expired, corrupt, or unsaved replacement fails the check.
 | Google provider | **On** | Keeps Google sign-in available. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
 | Confirm email | **On** | A password account cannot claim an address before proving it. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
 | Manual identity linking | **Off** | Matching confirmed emails use Supabase's automatic account match. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
-| Minimum password length | `15` | Email and password sign-in has no required second factor. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
-| Required character groups | **None** | Length is safer than predictable capital, digit, or symbol rules. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
-| Prevent leaked passwords | **On** | Supabase checks known exposed passwords through Have I Been Pwned. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
+| Minimum password length | `8` | Any password with 8 or more characters is accepted. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
+| Required character groups | **None** | Capitals, numbers, symbols, and other character types are optional. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
+| Prevent leaked passwords | **Off** | A password is never blocked or described because it appeared in an outside list. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
 | Secure password change | **Off** | The password form still has a dormant email-code step, so enabling this later cannot strand a reader on a separate screen. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
 | Require current password | **Off** | The signed-in password form asks only for the new password. | Tracked file: `apps/frontend/src/components/auth/AccountControl.tsx` |
 | CAPTCHA | **Off** | No human-check box ships. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
-| Email confirmation template | Supabase `RedirectTo` followed by `TokenHash`; the app supplies Alethical `/confirm` with its private values after `#` | Email scanners cannot spend the 1-use token before the reader confirms. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
-| Password reset template | Supabase `RedirectTo` followed by `TokenHash`; the app supplies Alethical `/reset` with its private values after `#` | Opening the email reaches a safe page before the 1-use token is spent. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
+| Email confirmation template | Confirmation and magic-link subject `Your Alethical code`; exact bodies in [`email-confirmation.html`](../../supabase/templates/email-confirmation.html) and [`account-code.html`](../../supabase/templates/account-code.html) | A new address gets a code plus the safe old confirmation link; a confirmed address gets only a code. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
+| Password reset template | Supabase `RedirectTo` followed by `TokenHash`; the app supplies Alethical `/reset` with its private values after `#` | Already-issued reset links keep their safe, 1-use route; new Recover requests use the shared code. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
 | Password-changed security email | **On** | A changed password sends a warning with a route to Forgot password. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
-| Custom SMTP through Resend | **On** at `smtp.resend.com`, sender `ask@alethical.com` | Sends confirmation and reset messages from `ask@alethical.com`. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
-| Authentication email limit | `30` emails per hour | Limits total confirmation and reset email volume. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
+| Custom SMTP through Resend | **On** at `smtp.resend.com`, sender `ask@alethical.com` | Sends account codes, old reset links, and security notices from `ask@alethical.com`. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
+| Email code lifetime | `3600` seconds | A late code stops working after 1 hour. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
+| Email code length | `8` digits | The service owns the code length; the app accepts what the reader pastes. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
+| Authentication email limit | `30` emails per hour | Limits total account-code and security-email volume. | Live with `SUPABASE_OAUTH_REFRESH_TOKEN` |
 | Sign-up and sign-in limit | `30` requests per 5 minutes per internet address | Limits rapid password guesses from 1 address. | Unchecked: Supabase's read-only hosted API exposes the project-wide email-code limit, not this per-address limit; [Supabase rate limits](https://supabase.com/docs/guides/auth/rate-limits) |
 
 [0041_confirmation_password_guard.py](../../alethical/alembic/versions/0041_confirmation_password_guard.py)

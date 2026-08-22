@@ -29,12 +29,17 @@ test('signed-out sign-in shows Google and the account terms', async ({ page }) =
   );
 });
 
-test('an expired confirmation link focuses an invalid replacement email', async ({ page }) => {
+test('an expired confirmation link opens Create and focuses an invalid email', async ({ page }) => {
   await page.goto('/confirm');
   await page.getByRole('button', { name: 'Confirm email' }).click();
-  const email = page.getByRole('textbox', { name: 'EMAIL' });
+  await page.getByRole('button', { name: 'Go to Create account' }).click();
+  const dialog = page.getByRole('dialog');
+  await expect(
+    dialog.getByRole('heading', { name: 'Create your Alethical account' }),
+  ).toBeVisible();
+  const email = dialog.getByRole('textbox', { name: 'EMAIL' });
   await email.fill('not-an-email');
-  await page.getByRole('button', { name: 'Send a new confirmation email' }).click();
+  await dialog.getByRole('button', { name: 'Continue', exact: true }).click();
 
   await expect(
     page.getByText('Enter a complete email address, like name@example.com'),

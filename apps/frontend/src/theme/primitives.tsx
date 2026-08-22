@@ -821,37 +821,40 @@ export function GoogleButton({
   onPress,
   label = 'Continue with Google',
   busy = false,
+  disabled = false,
   busyLabel = 'Continuing with Google…',
   size = 'md',
 }: {
   onPress?: () => void;
   label?: string;
   busy?: boolean;
+  disabled?: boolean;
   busyLabel?: string;
   size?: 'md' | 'lg';
 }) {
   const [hovered, hoverProps] = useHover();
   const reduceMotion = useReducedMotion();
+  const unavailable = busy || disabled;
   // accessibilityState alone renders NOTHING on RN-Web, and this button has no
   // `disabled` prop to fall back on — it gates by swapping onPress for undefined. So
   // until #1025 the connecting state announced as an ordinary pressable button and
   // stayed a tab stop: someone on a screen reader pressed "Continue with Google" and
   // heard nothing to say it was working, on the only path into an account. The state
   // prop stays for native, where it is the real mechanism.
-  const busyRef = useUnavailableControl(Boolean(busy), { busy: true });
+  const busyRef = useUnavailableControl(unavailable, { busy });
   return (
     <Pressable
       ref={busyRef}
       accessibilityRole="button"
       accessibilityLabel={busy ? busyLabel : label}
-      accessibilityState={{ busy, disabled: busy }}
-      onPress={busy ? undefined : onPress}
+      accessibilityState={{ busy, disabled: unavailable }}
+      onPress={unavailable ? undefined : onPress}
       {...hoverProps}
       style={[
         styles.googleBtn,
         size === 'lg' && styles.googleBtnLg,
-        hovered && !busy && { borderColor: t.colors.borders.strong },
-        busy && styles.googleBtnBusy,
+        hovered && !unavailable && { borderColor: t.colors.borders.strong },
+        unavailable && styles.googleBtnBusy,
       ]}
     >
       {busy ? (

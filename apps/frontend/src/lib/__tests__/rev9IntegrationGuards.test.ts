@@ -20,7 +20,10 @@ describe('rev 9 sign-in integration guards', () => {
       expect(providerSource).toContain('const generation = ++validationGeneration.current');
       expect(providerSource).toContain('generation !== validationGeneration.current');
       expect(providerSource).toContain('return authFailure(null)');
-      expect(providerSource).toContain('validationGeneration.current += 1');
+      expect(providerSource).toContain('isProviderSessionRejected(candidate)');
+      expect(providerSource).toContain('onProviderSessionRejected((rejectedSessionKey)');
+      expect(providerSource).toContain('providerSessionIdentity(sessionRef.current)');
+      expect(providerSource).toContain('clearOrdinarySessionIfUnchanged(candidate)');
     }
   });
 
@@ -48,9 +51,8 @@ describe('rev 9 sign-in integration guards', () => {
   it('closes a completed email-link flow without running its saved action twice', () => {
     const modalProvider = source('../../providers/SignInModalProvider.tsx');
 
-    expect(modalProvider).toContain(
-      "if (request?.pendingCompletion === 'email-link') return finishSignedInRequest();",
-    );
+    expect(modalProvider).toContain("if (request?.pendingCompletion === 'email-link') {");
+    expect(modalProvider).toContain('releaseCompletion();');
   });
 
   it('treats a pending action already used in another tab as finished', () => {
@@ -95,27 +97,31 @@ describe('rev 9 sign-in integration guards', () => {
     expect(emailLinkPage).toContain('We couldn’t check that link');
   });
 
-  it('keeps an expired-link resend disabled after the provider rate-limits it', () => {
+  it('routes expired links into the shared Create or Recover code flow', () => {
     const emailLinkPage = source('../../screens/auth/EmailLinkPage.tsx');
 
-    expect(emailLinkPage).toContain("setDeadResendStatus('rate-limited')");
-    expect(emailLinkPage).toContain('secondsRemaining={deadResendSeconds}');
-    expect(emailLinkPage).toContain("deadResendStatus !== 'rate-limited'");
+    expect(emailLinkPage).toContain('function goToCreateAccount()');
+    expect(emailLinkPage).toContain("window.location.replace('/#auth_screen=create')");
+    expect(emailLinkPage).toContain('function goToForgotPassword()');
+    expect(emailLinkPage).toContain("window.location.replace('/#auth_screen=forgot')");
+    expect(emailLinkPage).not.toContain('.resend(');
+  });
+
+  it('uses the allowed phone return address for account-code requests', () => {
+    const modalProvider = source('../../providers/SignInModalProvider.tsx');
+
+    expect(modalProvider).toContain("return 'alethical://auth/callback'");
+    expect(modalProvider).not.toContain('alethical://confirm');
   });
 
   it('focuses the first invalid email-link field after a submit', () => {
     const emailLinkPage = source('../../screens/auth/EmailLinkPage.tsx');
 
-    expect(emailLinkPage).toContain('const emailRef = useRef<any>(null)');
     expect(emailLinkPage).toContain('const passwordRef = useRef<any>(null)');
     expect(emailLinkPage).toContain('const confirmationRef = useRef<any>(null)');
-    expect(emailLinkPage).toMatch(
-      /if \(fieldFailure\) \{[\s\S]*?emailRef\.current\?\.focus\?\.\(\);[\s\S]*?return;[\s\S]*?\}/,
-    );
     expect(emailLinkPage).toContain(
       '(firstFailure ? passwordRef : confirmationRef).current?.focus?.();',
     );
-    expect(emailLinkPage).toContain('inputRef={emailRef}');
     expect(emailLinkPage).toContain('inputRef={passwordRef}');
     expect(emailLinkPage).toContain('inputRef={confirmationRef}');
   });
@@ -125,10 +131,9 @@ describe('rev 9 sign-in integration guards', () => {
 
     for (const message of [
       'Something went wrong checking this link',
-      'Enter your email address to request another confirmation link',
-      'Start the Forgot password flow again and open the newest email',
+      'Start Create account again to request a new code',
+      'Start Recover account again to request a new code',
       'This link has expired or has already been used',
-      'If a confirmation email arrives, open the newest one',
       'You’re signed in',
       'To switch accounts later, sign out from the normal account menu',
       'Finishing up — closing this reset session',
@@ -153,7 +158,8 @@ describe('rev 9 sign-in integration guards', () => {
   it('moves serious email-and-password results off the ordinary form', () => {
     const modalProvider = source('../../providers/SignInModalProvider.tsx');
 
-    expect(modalProvider.match(/dedicatedSignInOutcome\(result\.error\.kind\)/g)).toHaveLength(2);
+    expect(modalProvider).toContain('dedicatedSignInOutcome(result.error.kind)');
+    expect(modalProvider).toContain('dedicatedSignInOutcome(verified.error.kind)');
     expect(modalProvider).toContain("dispatch({ type: 'fail', kind: outcome })");
   });
 

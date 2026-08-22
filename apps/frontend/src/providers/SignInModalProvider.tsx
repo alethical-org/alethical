@@ -8,6 +8,7 @@ import {
   useState,
 } from 'react';
 import { Platform } from 'react-native';
+import type { Session } from '@supabase/auth-js';
 
 import { SignInDialog } from '../components/auth/SignInDialog';
 import {
@@ -24,16 +25,41 @@ import {
 } from '../lib/signIn';
 import { useRefreshTrackedBills } from '../hooks/useAppQueries';
 import { pendingSignInRequest } from '../lib/trackIntent';
-import { buildEmailLinkRedirectUrl, requestedSignInState } from '../lib/auth/linkSession';
+import {
+  buildEmailLinkRedirectUrl,
+  canOpenRequestedSignInScreen,
+  requestedSignInState,
+} from '../lib/auth/linkSession';
+import { createTemporaryAuthClient } from '../lib/auth/linkSession';
+import {
+  AccountCodeAccessController,
+  type AccountCodePasswordResult,
+  type AccountCodePurpose,
+  type OrdinaryAccountSnapshot,
+  readStableOrdinaryAccount,
+} from '../lib/auth/accountCodeFlow';
+import { PasswordSignInController } from '../lib/auth/passwordSignInFlow';
+import { validateAlethicalSession } from '../lib/auth/operations';
+import { normalizeEmail } from '../lib/auth/rev9Auth';
 import {
   ApiError,
   completePendingTrackActionFromApi,
   createPendingTrackActionFromApi,
 } from '../data/api';
 import type { SignInDialogActionResult, SignInDialogScreen } from '../components/auth/SignInDialog';
+import type {
+  AccountCodePasswordActionResult,
+  OpenAccountSummary,
+} from '../components/auth/SignInDialog';
 import { SignInModalContext } from './signInModalContext';
 import { signInHeldConnecting } from '../lib/devSignInHold';
 import { useAuth } from './AuthProvider';
+import {
+  clearOrdinarySessionIfUnchanged,
+  setOrdinarySessionIfUnchanged,
+  supabase,
+  supabaseAuthConfig,
+} from '../lib/supabase';
 
 // One dialog for the whole app. Any button anywhere calls `openSignIn(...)` with
 // why it is asking; nothing re-implements a sign-in box per screen.
@@ -100,13 +126,8 @@ function readRequestedScreen(): SignInDialogScreen | undefined {
 }
 
 function confirmationUrl(pendingReference?: string) {
-  if (!isWeb || typeof window === 'undefined') return 'alethical://confirm#auth_action=confirm';
+  if (!isWeb || typeof window === 'undefined') return 'alethical://auth/callback';
   return buildEmailLinkRedirectUrl(window.location.origin, 'confirm', pendingReference);
-}
-
-function resetUrl() {
-  if (!isWeb || typeof window === 'undefined') return 'alethical://reset#auth_action=reset';
-  return buildEmailLinkRedirectUrl(window.location.origin, 'reset');
 }
 
 function restoreScrollPosition(scrollY?: number) {
@@ -123,6 +144,29 @@ function restoreScrollPosition(scrollY?: number) {
   return () => window.clearInterval(timer);
 }
 
+function accountSummary(account: OrdinaryAccountSnapshot['account']): OpenAccountSummary {
+  return {
+    id: account.id,
+    name: account.name,
+    email: account.email,
+  };
+}
+
+async function readValidatedOrdinaryAccount(): Promise<OrdinaryAccountSnapshot | null> {
+  return readStableOrdinaryAccount(supabase.auth, validateAlethicalSession);
+}
+
+async function currentOpenAccount(): Promise<OpenAccountSummary | null> {
+  const current = await readValidatedOrdinaryAccount();
+  return current ? accountSummary(current.account) : null;
+}
+
+const ordinarySessionClient = {
+  getSession: () => supabase.auth.getSession(),
+  setSessionIfUnchanged: setOrdinarySessionIfUnchanged,
+  clearSessionIfUnchanged: clearOrdinarySessionIfUnchanged,
+};
+
 export function SignInModalProvider({ children }: PropsWithChildren) {
   const {
     isLoading,
@@ -132,23 +176,42 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
     authErrorKind,
     dismissAuthError,
     signInWithGoogle,
-    signInWithPassword,
-    createAccount,
-    resendConfirmation,
-    sendPasswordReset,
     user,
   } = useAuth();
   const refreshTrackedBills = useRefreshTrackedBills(user?.id);
   const [state, dispatch] = useReducer(signInReducer, initialSignInState);
   const pendingRequest = useRef<SignInRequest | null>(readPendingSignIn());
   const signInAttemptGate = useRef(createSignInAttemptGate()).current;
+  const accountCodeAccess = useRef<AccountCodeAccessController | null>(null);
+  const accountCodeCleanup = useRef<Promise<void>>(Promise.resolve());
+  const accountCodeStarting = useRef<number | null>(null);
+  const ordinarySignInStarting = useRef<number | null>(null);
+  const passwordSignInAccess = useRef<PasswordSignInController | null>(null);
+  const passwordSignInCleanup = useRef<Promise<void>>(Promise.resolve());
+  const ordinaryCompletionRequested = useRef(false);
+  const [ordinaryCompletionTick, setOrdinaryCompletionTick] = useState(0);
+  const accountChoiceRunning = useRef(false);
+  const operationGeneration = useRef(0);
+  const ordinaryCompletion = useRef<{
+    request: SignInRequest | null;
+    accessToken: string | null;
+  } | null>(null);
   const requestedScreen = useRef(readRequestedScreen());
   const [initialScreen, setInitialScreen] = useState<SignInDialogScreen | undefined>(
     requestedScreen.current,
   );
   const [busyAction, setBusyAction] = useState<
-    'google' | 'sign-in' | 'create' | 'resend' | 'forgot' | null
+    | 'google'
+    | 'sign-in'
+    | 'request-code'
+    | 'verify-code'
+    | 'save-password'
+    | 'finish-code'
+    | 'switch-account'
+    | null
   >(null);
+  const accessTokenRef = useRef(accessToken);
+  accessTokenRef.current = accessToken;
 
   const openSignIn = useCallback(
     (request: SignInRequest) => {
@@ -163,6 +226,21 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
   );
 
   const close = useCallback(() => {
+    operationGeneration.current += 1;
+    accountCodeStarting.current = null;
+    ordinarySignInStarting.current = null;
+    ordinaryCompletionRequested.current = false;
+    accountChoiceRunning.current = false;
+    const codeAccess = accountCodeAccess.current;
+    accountCodeAccess.current = null;
+    if (codeAccess) {
+      accountCodeCleanup.current = codeAccess.dispose().catch(() => undefined);
+    }
+    const passwordAccess = passwordSignInAccess.current;
+    passwordSignInAccess.current = null;
+    if (passwordAccess) {
+      passwordSignInCleanup.current = passwordAccess.dispose().catch(() => undefined);
+    }
     dismissAuthError();
     signInAttemptGate.reset();
     pendingRequest.current = null;
@@ -181,6 +259,7 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
       existing.billId,
       existing.returnTo ?? '/',
     );
+    if (pendingRequest.current !== existing) return undefined;
     existing.pendingReference = created.reference;
     existing.pendingCompletion = completion;
     stashPendingSignIn(existing);
@@ -189,11 +268,32 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
 
   const onContinue = useCallback(async () => {
     if (!signInAttemptGate.begin()) return;
+    const generation = operationGeneration.current;
+    ordinarySignInStarting.current = generation;
+    const finishStarting = () => {
+      if (ordinarySignInStarting.current !== generation) return;
+      ordinarySignInStarting.current = null;
+      if (accessTokenRef.current) ordinaryCompletionRequested.current = true;
+      setOrdinaryCompletionTick((current) => current + 1);
+    };
+    const codeAccess = accountCodeAccess.current;
+    accountCodeAccess.current = null;
+    if (codeAccess) {
+      accountCodeCleanup.current = codeAccess.dispose().catch(() => undefined);
+    }
+    const passwordAccess = passwordSignInAccess.current;
+    passwordSignInAccess.current = null;
+    if (passwordAccess) {
+      passwordSignInCleanup.current = passwordAccess.dispose().catch(() => undefined);
+    }
+    await Promise.all([accountCodeCleanup.current, passwordSignInCleanup.current]);
+    if (operationGeneration.current !== generation) return;
     setBusyAction('google');
     dispatch({ type: 'connect' });
     // Development builds only: stop here so the connecting state can be looked at
     // (lib/devSignInHold.ts). Nothing is stashed because nothing is coming back.
     if (signInHeldConnecting()) {
+      finishStarting();
       signInAttemptGate.reset();
       setBusyAction(null);
       return;
@@ -208,13 +308,22 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
     pendingRequest.current = request;
     try {
       await ensurePendingReference('ordinary');
+      if (operationGeneration.current !== generation) return;
+      if (accessTokenRef.current) {
+        finishStarting();
+        return;
+      }
       stashPendingSignIn(request);
       const result = await signInWithGoogle(state.returnTo);
+      if (operationGeneration.current !== generation) return;
+      finishStarting();
       if (!result.ok) {
         signInAttemptGate.reset();
         setBusyAction(null);
       }
     } catch {
+      if (operationGeneration.current !== generation) return;
+      finishStarting();
       signInAttemptGate.reset();
       setBusyAction(null);
       dispatch({ type: 'fail', kind: 'failed' });
@@ -231,20 +340,13 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
   ]);
 
   const completeOrdinaryPending = useCallback(
-    async (token: string | null) => {
-      const request = pendingRequest.current;
+    async (token: string | null, request: SignInRequest | null) => {
       if (!token || !request?.pendingReference || request.pendingCompletion !== 'ordinary') {
         return;
       }
       await completePendingTrackActionFromApi(token, request.pendingReference);
-      // This write added a bill to the reader's watchlist, so what we hold about
-      // that list is now short by one. Nothing else refreshes it on this path —
-      // the ordinary Track press goes through useSetTrackedBill, which does —
-      // so the Track button and the account menu's count would both keep
-      // describing the list as it was before the press.
-      refreshTrackedBills();
     },
-    [refreshTrackedBills],
+    [],
   );
 
   // A fresh submission owns the screen: drop any error the dialog reopened
@@ -255,82 +357,474 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
     dispatch({ type: 'clearError' });
   }, [dismissAuthError]);
 
+  const isCurrentAccountCodeOperation = useCallback(
+    (generation: number, controller: AccountCodeAccessController) =>
+      operationGeneration.current === generation && accountCodeAccess.current === controller,
+    [],
+  );
+
   const onPasswordSignIn = useCallback(
     async (email: string, password: string): Promise<SignInDialogActionResult> => {
+      const generation = operationGeneration.current;
+      ordinarySignInStarting.current = generation;
+      let controller: PasswordSignInController | null = null;
       clearReopenedError();
       setBusyAction('sign-in');
       try {
+        await Promise.all([accountCodeCleanup.current, passwordSignInCleanup.current]);
+        if (operationGeneration.current !== generation) {
+          return {
+            ok: false,
+            error: { kind: 'request-failure', message: 'This sign-in was cancelled.' },
+          };
+        }
+        const codeAccess = accountCodeAccess.current;
+        accountCodeAccess.current = null;
+        await codeAccess?.dispose();
+        if (operationGeneration.current !== generation) {
+          return {
+            ok: false,
+            error: { kind: 'request-failure', message: 'This sign-in was cancelled.' },
+          };
+        }
         await ensurePendingReference('ordinary');
-        const result = await signInWithPassword(email, password);
+        if (operationGeneration.current !== generation) {
+          return {
+            ok: false,
+            error: { kind: 'request-failure', message: 'This sign-in was cancelled.' },
+          };
+        }
+        const temporary = createTemporaryAuthClient(
+          supabaseAuthConfig.url,
+          supabaseAuthConfig.publishableKey,
+        );
+        controller = new PasswordSignInController(
+          temporary,
+          ordinarySessionClient,
+          validateAlethicalSession,
+        );
+        passwordSignInAccess.current = controller;
+        if (ordinarySignInStarting.current === generation) {
+          ordinarySignInStarting.current = null;
+        }
+        const result = await controller.signIn(email, password);
+        if (
+          operationGeneration.current !== generation ||
+          passwordSignInAccess.current !== controller
+        ) {
+          return {
+            ok: false,
+            error: { kind: 'request-failure', message: 'This sign-in was cancelled.' },
+          };
+        }
+        passwordSignInAccess.current = null;
         if (!result.ok) {
+          await controller.dispose();
+          if (operationGeneration.current !== generation) {
+            return {
+              ok: false,
+              error: { kind: 'request-failure', message: 'This sign-in was cancelled.' },
+            };
+          }
+          if (accessTokenRef.current) ordinaryCompletionRequested.current = true;
+          setOrdinaryCompletionTick((current) => current + 1);
           const outcome = dedicatedSignInOutcome(result.error.kind);
           if (outcome) dispatch({ type: 'fail', kind: outcome });
           return result;
         }
+        ordinaryCompletionRequested.current = true;
+        setOrdinaryCompletionTick((current) => current + 1);
         return { ok: true };
       } finally {
-        setBusyAction(null);
+        if (ordinarySignInStarting.current === generation) {
+          ordinarySignInStarting.current = null;
+          if (accessTokenRef.current) ordinaryCompletionRequested.current = true;
+          setOrdinaryCompletionTick((current) => current + 1);
+        }
+        if (
+          operationGeneration.current === generation &&
+          (!controller ||
+            passwordSignInAccess.current === controller ||
+            passwordSignInAccess.current === null)
+        ) {
+          setBusyAction(null);
+        }
       }
     },
-    [clearReopenedError, ensurePendingReference, signInWithPassword],
+    [clearReopenedError, ensurePendingReference],
   );
 
-  const onCreateAccount = useCallback(
-    async (email: string, password: string): Promise<SignInDialogActionResult> => {
+  const onRequestAccountCode = useCallback(
+    async (email: string, purpose: AccountCodePurpose): Promise<SignInDialogActionResult> => {
+      const generation = operationGeneration.current;
+      accountCodeStarting.current = generation;
+      let controller: AccountCodeAccessController | null = null;
       clearReopenedError();
-      setBusyAction('create');
+      setBusyAction('request-code');
+      const safeEmail = normalizeEmail(email);
       try {
-        const pendingReference = await ensurePendingReference('email-link');
-        const result = await createAccount(email, password, confirmationUrl(pendingReference));
-        if (!result.ok) {
-          const outcome = dedicatedSignInOutcome(result.error.kind);
-          if (outcome) dispatch({ type: 'fail', kind: outcome });
-          return result;
+        await accountCodeCleanup.current;
+        if (operationGeneration.current !== generation) {
+          return {
+            ok: false,
+            error: { kind: 'request-failure', message: 'This request was cancelled.' },
+          };
         }
-        return { ok: true };
+        const pendingReference = await ensurePendingReference('email-link');
+        if (operationGeneration.current !== generation) {
+          return {
+            ok: false,
+            error: { kind: 'request-failure', message: 'This request was cancelled.' },
+          };
+        }
+        controller = accountCodeAccess.current;
+        if (controller && (controller.email !== safeEmail || controller.purpose !== purpose)) {
+          const replacedController = controller;
+          await replacedController.dispose();
+          if (
+            operationGeneration.current !== generation ||
+            accountCodeAccess.current !== replacedController
+          ) {
+            return {
+              ok: false,
+              error: { kind: 'request-failure', message: 'This request was cancelled.' },
+            };
+          }
+          accountCodeAccess.current = null;
+          controller = null;
+        }
+        if (!controller) {
+          const temporary = createTemporaryAuthClient(
+            supabaseAuthConfig.url,
+            supabaseAuthConfig.publishableKey,
+          );
+          controller = new AccountCodeAccessController(
+            purpose,
+            safeEmail,
+            temporary,
+            ordinarySessionClient,
+            validateAlethicalSession,
+            readValidatedOrdinaryAccount,
+            async (temporarySession, signal) => {
+              if (!pendingReference) return;
+              try {
+                await completePendingTrackActionFromApi(
+                  temporarySession.access_token,
+                  pendingReference,
+                  signal,
+                );
+              } catch (error) {
+                if (!(error instanceof ApiError && error.status === 410)) throw error;
+              }
+              refreshTrackedBills();
+            },
+          );
+          accountCodeAccess.current = controller;
+        }
+        const result = await controller.request(confirmationUrl(pendingReference));
+        if (!isCurrentAccountCodeOperation(generation, controller)) {
+          return {
+            ok: false,
+            error: { kind: 'request-failure', message: 'This request was cancelled.' },
+          };
+        }
+        return result.ok ? { ok: true } : result;
       } catch {
+        if (
+          operationGeneration.current !== generation ||
+          (controller && accountCodeAccess.current !== controller)
+        ) {
+          return {
+            ok: false,
+            error: { kind: 'request-failure', message: 'This request was cancelled.' },
+          };
+        }
         return {
           ok: false,
           error: {
             kind: 'request-failure',
-            message: 'We couldn’t complete that request. Check your connection and try again.',
+            message: 'We couldn’t request a code. Check your connection and try again.',
           },
         };
       } finally {
-        setBusyAction(null);
+        if (accountCodeStarting.current === generation) accountCodeStarting.current = null;
+        if (
+          operationGeneration.current === generation &&
+          (!controller || accountCodeAccess.current === controller)
+        ) {
+          setBusyAction(null);
+        }
       }
     },
-    [clearReopenedError, createAccount, ensurePendingReference],
+    [
+      clearReopenedError,
+      ensurePendingReference,
+      isCurrentAccountCodeOperation,
+      refreshTrackedBills,
+    ],
   );
 
-  const onResendConfirmation = useCallback(
-    async (email: string): Promise<SignInDialogActionResult> => {
+  const onVerifyAccountCode = useCallback(
+    async (code: string) => {
+      const generation = operationGeneration.current;
+      const controller = accountCodeAccess.current;
       clearReopenedError();
-      setBusyAction('resend');
+      setBusyAction('verify-code');
       try {
-        const pendingReference = await ensurePendingReference('email-link');
-        const result = await resendConfirmation(email, confirmationUrl(pendingReference));
-        return result.ok ? { ok: true } : result;
+        if (!controller) {
+          return {
+            ok: false as const,
+            error: {
+              kind: 'request-failure',
+              message: 'We couldn’t check that code. Check your connection and try again.',
+            },
+          };
+        }
+        const verified = await controller.verify(code);
+        if (!isCurrentAccountCodeOperation(generation, controller)) {
+          return {
+            ok: false as const,
+            error: { kind: 'request-failure' as const, message: 'This request was cancelled.' },
+          };
+        }
+        if (!verified.ok) {
+          const outcome = dedicatedSignInOutcome(verified.error.kind);
+          if (outcome) dispatch({ type: 'fail', kind: outcome });
+          return verified;
+        }
+        const alreadyOpen = await controller.finishCreateIfSameAccountOpen();
+        if (!isCurrentAccountCodeOperation(generation, controller)) {
+          return {
+            ok: false as const,
+            error: { kind: 'request-failure' as const, message: 'This request was cancelled.' },
+          };
+        }
+        if (!alreadyOpen.ok) return alreadyOpen;
+        if (alreadyOpen.data) {
+          close();
+          return {
+            ok: true as const,
+            data: {
+              email: verified.data.account.email || controller.email,
+              googleStillWorks: Boolean(verified.data.account.signInMethods?.google),
+            },
+          };
+        }
+        return {
+          ok: true as const,
+          data: {
+            email: verified.data.account.email || controller.email,
+            googleStillWorks: Boolean(verified.data.account.signInMethods?.google),
+          },
+        };
       } finally {
-        setBusyAction(null);
+        if (
+          operationGeneration.current === generation &&
+          (!controller || accountCodeAccess.current === controller)
+        ) {
+          setBusyAction(null);
+        }
       }
     },
-    [clearReopenedError, ensurePendingReference, resendConfirmation],
+    [clearReopenedError, close, isCurrentAccountCodeOperation],
   );
 
-  const onForgotPassword = useCallback(
-    async (email: string): Promise<SignInDialogActionResult> => {
+  const presentAccountCodePasswordResult = useCallback(
+    async (
+      result: AccountCodePasswordResult,
+      generation: number,
+      controller: AccountCodeAccessController,
+    ): Promise<AccountCodePasswordActionResult> => {
+      const cancelled = (): AccountCodePasswordActionResult => ({
+        ok: false,
+        error: { kind: 'request-failure', message: 'This request was cancelled.' },
+        canRetryPassword: false,
+        passwordStatus: controller.status,
+      });
+      if (!isCurrentAccountCodeOperation(generation, controller)) return cancelled();
+      if (!result.ok) return result;
+
+      let finalResult: AccountCodePasswordResult = result;
+      let openAccount: OpenAccountSummary | null = null;
+      if (finalResult.data.requiresAccountChoice) {
+        openAccount = await currentOpenAccount();
+        if (!isCurrentAccountCodeOperation(generation, controller)) return cancelled();
+        if (!openAccount || openAccount.id === controller.targetAccountId) {
+          finalResult = await controller.retryFinish();
+          if (!isCurrentAccountCodeOperation(generation, controller)) return cancelled();
+          if (!finalResult.ok) return finalResult;
+        }
+      }
+
+      if (!finalResult.ok) return finalResult;
+      if (finalResult.data.requiresAccountChoice) {
+        openAccount = openAccount ?? (await currentOpenAccount());
+        if (!isCurrentAccountCodeOperation(generation, controller)) return cancelled();
+      }
+      const presented: AccountCodePasswordActionResult = {
+        ok: true,
+        data: {
+          ...finalResult.data,
+          ...(openAccount ? { openAccount } : {}),
+        },
+      };
+      if (finalResult.data.relationship === 'same') refreshTrackedBills();
+      if (
+        !finalResult.data.requiresAccountChoice &&
+        finalResult.data.passwordStatus !== 'unknown'
+      ) {
+        close();
+      }
+      return presented;
+    },
+    [close, isCurrentAccountCodeOperation, refreshTrackedBills],
+  );
+
+  const onSaveAccountCodePassword = useCallback(
+    async (password: string): Promise<AccountCodePasswordActionResult> => {
+      const generation = operationGeneration.current;
+      const controller = accountCodeAccess.current;
       clearReopenedError();
-      setBusyAction('forgot');
+      setBusyAction('save-password');
       try {
-        const result = await sendPasswordReset(email, resetUrl());
-        return result.ok ? { ok: true } : result;
+        if (!controller) {
+          return {
+            ok: false,
+            error: {
+              kind: 'request-failure',
+              message: 'We couldn’t finish signing you in. Try again.',
+            },
+            canRetryPassword: false,
+            passwordStatus: 'not-started',
+          };
+        }
+        const result = await controller.savePassword(password);
+        if (!isCurrentAccountCodeOperation(generation, controller)) {
+          return {
+            ok: false,
+            error: { kind: 'request-failure', message: 'This request was cancelled.' },
+            canRetryPassword: false,
+            passwordStatus: controller.status,
+          };
+        }
+        return await presentAccountCodePasswordResult(result, generation, controller);
       } finally {
-        setBusyAction(null);
+        if (
+          operationGeneration.current === generation &&
+          (!controller || accountCodeAccess.current === controller)
+        ) {
+          setBusyAction(null);
+        }
       }
     },
-    [clearReopenedError, sendPasswordReset],
+    [clearReopenedError, isCurrentAccountCodeOperation, presentAccountCodePasswordResult],
   );
+
+  const onRetryAccountCodeFinish =
+    useCallback(async (): Promise<AccountCodePasswordActionResult> => {
+      const generation = operationGeneration.current;
+      const controller = accountCodeAccess.current;
+      setBusyAction('finish-code');
+      try {
+        if (!controller) {
+          return {
+            ok: false,
+            error: {
+              kind: 'request-failure',
+              message: 'We couldn’t finish signing you in. Try again.',
+            },
+            canRetryPassword: false,
+            passwordStatus: 'unknown',
+          };
+        }
+        const result = await controller.retryFinish();
+        if (!isCurrentAccountCodeOperation(generation, controller)) {
+          return {
+            ok: false,
+            error: { kind: 'request-failure', message: 'This request was cancelled.' },
+            canRetryPassword: false,
+            passwordStatus: controller.status,
+          };
+        }
+        return await presentAccountCodePasswordResult(result, generation, controller);
+      } finally {
+        if (
+          operationGeneration.current === generation &&
+          (!controller || accountCodeAccess.current === controller)
+        ) {
+          setBusyAction(null);
+        }
+      }
+    }, [isCurrentAccountCodeOperation, presentAccountCodePasswordResult]);
+
+  const onKeepCurrentAccount = useCallback(async () => {
+    if (accountChoiceRunning.current) return;
+    const generation = operationGeneration.current;
+    const controller = accountCodeAccess.current;
+    if (!controller) return;
+    accountChoiceRunning.current = true;
+    setBusyAction('finish-code');
+    await controller.keepCurrentAccount();
+    if (!isCurrentAccountCodeOperation(generation, controller)) return;
+    accountCodeAccess.current = null;
+    close();
+  }, [close, isCurrentAccountCodeOperation]);
+
+  const onSwitchAccount = useCallback(async (): Promise<SignInDialogActionResult> => {
+    if (accountChoiceRunning.current) {
+      return {
+        ok: false,
+        error: {
+          kind: 'request-failure',
+          message: 'An account choice is already in progress.',
+        },
+      };
+    }
+    const generation = operationGeneration.current;
+    accountChoiceRunning.current = true;
+    setBusyAction('switch-account');
+    const controller = accountCodeAccess.current;
+    if (!controller) {
+      accountChoiceRunning.current = false;
+      setBusyAction(null);
+      return {
+        ok: false,
+        error: {
+          kind: 'request-failure',
+          message: 'We couldn’t switch accounts. Check your connection and try again.',
+        },
+      };
+    }
+    const result = await controller.switchAccount();
+    if (!isCurrentAccountCodeOperation(generation, controller)) {
+      return {
+        ok: false,
+        error: { kind: 'request-failure', message: 'This request was cancelled.' },
+      };
+    }
+    if (result.ok) {
+      accountCodeAccess.current = null;
+      close();
+      return { ok: true };
+    }
+    accountChoiceRunning.current = false;
+    setBusyAction(null);
+    return result;
+  }, [close, isCurrentAccountCodeOperation]);
+
+  const onCancelAccountCode = useCallback(async () => {
+    const generation = operationGeneration.current + 1;
+    operationGeneration.current = generation;
+    accountCodeStarting.current = null;
+    accountChoiceRunning.current = false;
+    const controller = accountCodeAccess.current;
+    accountCodeAccess.current = null;
+    if (controller) {
+      accountCodeCleanup.current = controller.dispose().catch(() => undefined);
+    }
+    await accountCodeCleanup.current;
+    if (operationGeneration.current === generation) setBusyAction(null);
+  }, []);
 
   // Signing in anywhere — including a second tab — closes the dialog. When this
   // tab came back from a Track request, finish that exact idempotent write first.
@@ -338,28 +832,74 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
   useEffect(() => {
     const justSignedIn = isSignedIn && !authWasSignedIn.current;
     authWasSignedIn.current = isSignedIn;
-    if (!isSignedIn || (!justSignedIn && !pendingRequest.current)) return;
+    if (
+      accountCodeStarting.current !== null ||
+      accountCodeAccess.current ||
+      ordinarySignInStarting.current !== null ||
+      passwordSignInAccess.current
+    ) {
+      return;
+    }
+    const ordinaryJustSettled = ordinaryCompletionRequested.current;
+    if (!isSignedIn || (!justSignedIn && !pendingRequest.current && !ordinaryJustSettled)) return;
+    ordinaryCompletionRequested.current = false;
+    const request = pendingRequest.current;
+    const signedInToken = accessToken;
+    if (
+      ordinaryCompletion.current?.request === request &&
+      ordinaryCompletion.current.accessToken === signedInToken
+    ) {
+      return;
+    }
+    const completion = { request, accessToken: signedInToken };
+    ordinaryCompletion.current = completion;
+    const generation = operationGeneration.current + 1;
+    operationGeneration.current = generation;
     signInAttemptGate.reset();
     setBusyAction(null);
-    const request = pendingRequest.current;
+    const stillCurrent = () =>
+      operationGeneration.current === generation &&
+      pendingRequest.current === request &&
+      accessTokenRef.current === signedInToken;
+    const releaseCompletion = () => {
+      if (ordinaryCompletion.current === completion) ordinaryCompletion.current = null;
+    };
     const finishSignedInRequest = () => {
+      if (!stillCurrent()) return () => {};
       pendingRequest.current = null;
       clearPendingSignIn();
       const stopRestoringScroll = restoreScrollPosition(request?.scrollY);
       dispatch({ type: 'close' });
       return stopRestoringScroll;
     };
-    if (request?.pendingCompletion === 'email-link') return finishSignedInRequest();
-    void completeOrdinaryPending(accessToken)
-      .then(finishSignedInRequest)
+    if (request?.pendingCompletion === 'email-link') {
+      const cleanup = finishSignedInRequest();
+      releaseCompletion();
+      return cleanup;
+    }
+    void completeOrdinaryPending(signedInToken, request)
+      .then(() => {
+        if (!stillCurrent()) return;
+        refreshTrackedBills();
+        finishSignedInRequest();
+      })
       .catch((error) => {
+        if (!stillCurrent()) return;
         if (error instanceof ApiError && error.status === 410) {
           finishSignedInRequest();
           return;
         }
         dispatch({ type: 'fail', kind: 'failed' });
-      });
-  }, [accessToken, completeOrdinaryPending, isSignedIn, signInAttemptGate]);
+      })
+      .finally(releaseCompletion);
+  }, [
+    accessToken,
+    completeOrdinaryPending,
+    isSignedIn,
+    ordinaryCompletionTick,
+    refreshTrackedBills,
+    signInAttemptGate,
+  ]);
 
   // A provider result can arrive before a redirect, after a full-page return,
   // or when an old account is found during an ordinary read. Serious account
@@ -429,7 +969,13 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
   const value = useMemo(() => ({ openSignIn }), [openSignIn]);
 
   useEffect(() => {
-    if (!requestedScreen.current || isLoading || isSignedIn || state.open) return;
+    if (
+      isLoading ||
+      state.open ||
+      !canOpenRequestedSignInScreen(requestedScreen.current, isSignedIn)
+    ) {
+      return;
+    }
     requestedScreen.current = undefined;
     dispatch({ type: 'open', request: { intent: 'nav' } });
   }, [isLoading, isSignedIn, state.open]);
@@ -447,12 +993,17 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
         busyAction={busyAction}
         emailPasswordEnabled={EMAIL_PASSWORD_ENABLED}
         resendWaitSeconds={RESEND_WAIT_SECONDS}
+        ordinaryAccountOpen={isSignedIn}
         onClose={close}
         onGoogle={onContinue}
         onPasswordSignIn={onPasswordSignIn}
-        onCreateAccount={onCreateAccount}
-        onResendConfirmation={onResendConfirmation}
-        onForgotPassword={onForgotPassword}
+        onRequestAccountCode={onRequestAccountCode}
+        onVerifyAccountCode={onVerifyAccountCode}
+        onSaveAccountCodePassword={onSaveAccountCodePassword}
+        onRetryAccountCodeFinish={onRetryAccountCodeFinish}
+        onKeepCurrentAccount={onKeepCurrentAccount}
+        onSwitchAccount={onSwitchAccount}
+        onCancelAccountCode={onCancelAccountCode}
         onBackFromOutcome={() => {
           dismissAuthError();
           dispatch({

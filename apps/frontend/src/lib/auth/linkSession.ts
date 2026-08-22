@@ -1,4 +1,7 @@
 import { AuthClient } from '@supabase/auth-js';
+import type { Session } from '@supabase/auth-js';
+
+import { rejectProviderSession, sameProviderSessionLineage } from './providerSessionAcceptance';
 
 export type EmailLinkVerificationType = 'signup' | 'email' | 'recovery';
 
@@ -13,11 +16,20 @@ export interface ParsedEmailLink {
 }
 
 export type EmailLinkRoute = 'confirm' | 'reset';
-export type RequestedSignInScreen = 'forgot' | 'sign-in';
+export type RequestedSignInScreen = 'create' | 'recover' | 'sign-in';
 
 export interface RequestedSignInState {
   screen: RequestedSignInScreen | undefined;
   cleanHash: string;
+}
+
+/** Expired links may start account recovery without closing a different open account. */
+export function canOpenRequestedSignInScreen(
+  screen: string | undefined,
+  isSignedIn: boolean,
+): boolean {
+  if (!screen) return false;
+  return !isSignedIn || screen === 'create' || screen === 'recover';
 }
 
 /** A non-secret address fallback keeps the requested screen when storage is blocked. */
@@ -28,7 +40,14 @@ export function requestedSignInState(
   const parameters = new URLSearchParams(hash.replace(/^#/, ''));
   const hashScreen = parameters.get('auth_screen');
   const requested = storedScreen ?? hashScreen;
-  const screen = requested === 'forgot' || requested === 'sign-in' ? requested : undefined;
+  const screen =
+    requested === 'forgot' || requested === 'recover'
+      ? 'recover'
+      : requested === 'create'
+        ? 'create'
+        : requested === 'sign-in'
+          ? 'sign-in'
+          : undefined;
 
   // Nothing of ours in the fragment, so hand it back exactly as it arrived. It
   // is only a set of key=value pairs when we put them there; an ordinary
@@ -168,6 +187,14 @@ export interface TemporarySessionCleanupDecision {
   clearTemporarySession: boolean;
 }
 
+export function temporarySessionRelationship(
+  ordinaryAccountId: string | null,
+  temporaryAccountId: string,
+): TemporarySessionRelationship {
+  if (!ordinaryAccountId) return 'none';
+  return ordinaryAccountId === temporaryAccountId ? 'same' : 'different';
+}
+
 /**
  * Before the confirmation-time password guard is live, an old signup link may
  * still have the password the reader chose before confirming. Supabase reports
@@ -190,30 +217,52 @@ export function legacyConfirmationPasswordMatches(
  * Do not clear the temporary session after handing its refresh token to the
  * ordinary client. A local Supabase sign-out would revoke that handed-off token.
  */
-export function decideTemporarySessionAfterPassword(
-  ordinaryUserId: string | null,
-  temporaryUserId: string,
+export function decideTemporarySessionAfterPassword({
+  ordinaryAccountId,
+  ordinaryProviderUserId,
+  ordinaryProviderSessionWasCurrent = true,
   passwordChanged = true,
-): TemporarySessionCleanupDecision {
-  if (!ordinaryUserId || (ordinaryUserId === temporaryUserId && passwordChanged)) {
+  temporaryAccountId,
+  temporaryProviderUserId,
+}: {
+  ordinaryAccountId: string | null;
+  ordinaryProviderUserId: string | null;
+  ordinaryProviderSessionWasCurrent?: boolean;
+  passwordChanged?: boolean;
+  temporaryAccountId: string;
+  temporaryProviderUserId: string;
+}): TemporarySessionCleanupDecision {
+  const relationship = temporarySessionRelationship(ordinaryAccountId, temporaryAccountId);
+  const ordinaryProviderSessionWasRevoked =
+    passwordChanged &&
+    ordinaryProviderSessionWasCurrent &&
+    ordinaryProviderUserId !== null &&
+    ordinaryProviderUserId === temporaryProviderUserId;
+
+  if (relationship === 'none' || ordinaryProviderSessionWasRevoked) {
     return {
-      relationship: ordinaryUserId ? 'same' : 'none',
+      relationship,
       handToOrdinaryClient: true,
       clearTemporarySession: false,
     };
   }
   return {
-    relationship: ordinaryUserId === temporaryUserId ? 'same' : 'different',
+    relationship,
     handToOrdinaryClient: false,
     clearTemporarySession: true,
   };
 }
 
 interface OrdinarySessionClient {
-  setSession(tokens: {
-    access_token: string;
-    refresh_token: string;
-  }): Promise<{ error: unknown | null }>;
+  setSessionIfUnchanged(
+    expected: PasswordSession | null,
+    tokens: { access_token: string; refresh_token: string },
+  ): Promise<{
+    changed: boolean;
+    data: { session: PasswordSession | null };
+    error: unknown | null;
+  }>;
+  clearSessionIfUnchanged(expected: PasswordSession): Promise<boolean>;
 }
 
 interface TemporarySessionClient {
@@ -227,42 +276,71 @@ interface PasswordSession {
 }
 
 /**
- * A password save revokes every other refresh session for that account. Hand
- * the surviving temporary session to the ordinary client when no account or
- * the same account is open. A different account is never replaced.
+ * Product account IDs decide what the reader sees. Provider user IDs decide
+ * whether the password save revoked the exact ordinary session. Hand the
+ * surviving temporary session over only when no account is open or that saved
+ * provider session was revoked.
  */
 export async function finishTemporarySessionAfterPassword({
-  clearOrdinarySession,
   ordinary,
-  ordinaryUserId,
+  ordinaryAccountId,
+  ordinaryProviderUserId,
+  ordinarySession,
+  ordinarySessionAtPasswordMutation,
   passwordChanged,
   session,
+  temporaryAccountId,
   temporary,
 }: {
-  clearOrdinarySession?: () => void | Promise<void>;
   ordinary: OrdinarySessionClient;
-  ordinaryUserId: string | null;
+  ordinaryAccountId: string | null;
+  ordinaryProviderUserId: string | null;
+  ordinarySession: PasswordSession | null;
+  ordinarySessionAtPasswordMutation?: PasswordSession | null;
   passwordChanged: boolean;
   session: PasswordSession;
+  temporaryAccountId: string;
   temporary: TemporarySessionClient;
 }): Promise<{ relationship: TemporarySessionRelationship; error: unknown | null }> {
-  const decision = decideTemporarySessionAfterPassword(
-    ordinaryUserId,
-    session.user.id,
+  const sessionAtPasswordMutation =
+    ordinarySessionAtPasswordMutation === undefined
+      ? ordinarySession
+      : ordinarySessionAtPasswordMutation;
+  const decision = decideTemporarySessionAfterPassword({
+    ordinaryAccountId,
+    ordinaryProviderUserId,
+    ordinaryProviderSessionWasCurrent: Boolean(
+      ordinarySession &&
+      sessionAtPasswordMutation &&
+      sameProviderSessionLineage(ordinarySession as Session, sessionAtPasswordMutation as Session),
+    ),
     passwordChanged,
-  );
+    temporaryAccountId,
+    temporaryProviderUserId: session.user.id,
+  });
   if (decision.handToOrdinaryClient) {
     try {
-      const handed = await ordinary.setSession({
+      const handed = await ordinary.setSessionIfUnchanged(ordinarySession, {
         access_token: session.access_token,
         refresh_token: session.refresh_token,
       });
-      if (handed.error && decision.relationship === 'same') {
-        await clearOrdinarySession?.();
+      if (handed.changed) {
+        return {
+          relationship: decision.relationship,
+          error: new Error('The open account changed'),
+        };
+      }
+      const saved = handed.data.session ?? session;
+      if (handed.error) {
+        rejectProviderSession(saved as Session);
+        await ordinary.clearSessionIfUnchanged(saved);
+        if (ordinarySession) await ordinary.clearSessionIfUnchanged(ordinarySession);
       }
       return { relationship: decision.relationship, error: handed.error };
     } catch (error) {
-      if (decision.relationship === 'same') await clearOrdinarySession?.();
+      rejectProviderSession(session as Session);
+      await ordinary.clearSessionIfUnchanged(session);
+      if (ordinarySession) await ordinary.clearSessionIfUnchanged(ordinarySession);
       return { relationship: decision.relationship, error };
     }
   }

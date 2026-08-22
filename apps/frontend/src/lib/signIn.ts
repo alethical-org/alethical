@@ -74,10 +74,10 @@ export const SIGN_IN_ERROR_MESSAGES: Record<SignInErrorKind, string> = {
   deactivated:
     'This account has been deactivated, so we’ve signed you out. Bills, votes and legislators are all still here to read. Contact us at ask@alethical.com if you think this is a mistake.',
   // A Google return whose email address Supabase has not confirmed. Shown as a
-  // banner on the ordinary sign-in screen — the Google button stays on the card,
-  // and the wording is arrival-neutral because no send is observable (#1533).
+  // banner on the ordinary sign-in screen. The Google button stays on the card,
+  // and Create account now owns the email-code proof (#1734).
   'unverified-google':
-    'Sign-in couldn’t finish because the email address needs confirmation. If a confirmation email arrives, open the newest one.',
+    'Sign-in couldn’t finish because the email needs confirmation. Use Create account with this email to confirm it.',
 };
 
 export const SIGN_IN_BUTTON_LABEL = 'Continue with Google';

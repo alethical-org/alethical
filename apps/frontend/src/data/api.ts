@@ -686,7 +686,7 @@ export function isAccountDeactivatedError(error: unknown): boolean {
   );
 }
 
-type DeactivatedHandler = () => void;
+type DeactivatedHandler = (requestAccessToken: string) => void;
 let deactivatedHandler: DeactivatedHandler | null = null;
 
 /**
@@ -742,7 +742,7 @@ async function apiRequest<T>(path: string, init: RequestInit, accessToken: strin
       // Every authenticated request comes through here, so whichever one the
       // reader happened to trigger is enough to notice. Without this the app
       // keeps showing them as signed in while nothing of theirs works (#1092).
-      deactivatedHandler?.();
+      deactivatedHandler?.(accessToken);
     }
     throw error;
   }
@@ -1654,6 +1654,7 @@ export async function createPendingTrackActionFromApi(
 export async function completePendingTrackActionFromApi(
   accessToken: string,
   reference: string,
+  signal?: AbortSignal,
 ): Promise<CompletedPendingTrackAction> {
   const response = await apiRequest<
     DetailResponse<{ action: 'track_bill'; bill_id: string; return_path: string }>
@@ -1662,6 +1663,7 @@ export async function completePendingTrackActionFromApi(
     {
       method: 'POST',
       body: JSON.stringify({ action: 'track_bill', reference }),
+      signal,
     },
     accessToken,
   );

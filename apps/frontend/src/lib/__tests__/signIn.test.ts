@@ -130,7 +130,7 @@ describe('no sign-in copy promises a notification', () => {
       }
     }
     expect(SIGN_IN_ERROR_MESSAGES['unverified-google']).toBe(
-      'Sign-in couldn’t finish because the email address needs confirmation. If a confirmation email arrives, open the newest one.',
+      'Sign-in couldn’t finish because the email needs confirmation. Use Create account with this email to confirm it.',
     );
   });
 

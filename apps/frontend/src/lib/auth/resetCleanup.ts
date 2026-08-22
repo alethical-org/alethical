@@ -4,6 +4,10 @@ export interface ResetSignOutClient {
   signOut(options: { scope: 'local' }): Promise<{ error: unknown | null }>;
 }
 
+export interface OrdinaryResetSessionClient<Session> {
+  clearSessionIfUnchanged(expected: Session): Promise<boolean>;
+}
+
 /**
  * The password save IS the cleanup: Supabase's UpdatePassword runs
  * LogoutAllExceptMe inside the same transaction, unconditionally, so the reset
@@ -19,26 +23,19 @@ export interface ResetSignOutClient {
  * same-account session would come back looking signed in until its access pass
  * expires. A different account's session is untouched.
  */
-export async function finishResetSignOuts(
+export async function finishResetSignOuts<Session>(
   temporary: ResetSignOutClient,
-  ordinary: ResetSignOutClient | null,
+  ordinary: OrdinaryResetSessionClient<Session> | null,
   relationship: ResetAccountRelationship,
-  clearOrdinarySession: (() => void | Promise<void>) | null = null,
+  ordinarySession: Session | null = null,
 ): Promise<void> {
   // The link-only client never persists its session, so the hard load clears it
   // even when the provider cannot acknowledge this best-effort local close.
   await temporary.signOut({ scope: 'local' }).catch(() => undefined);
 
   if (relationship === 'same') {
-    if (!ordinary) {
-      await clearOrdinarySession?.();
-      return;
-    }
-    try {
-      const local = await ordinary.signOut({ scope: 'local' });
-      if (local.error) await clearOrdinarySession?.();
-    } catch {
-      await clearOrdinarySession?.();
+    if (ordinary && ordinarySession) {
+      await ordinary.clearSessionIfUnchanged(ordinarySession).catch(() => false);
     }
   }
 }

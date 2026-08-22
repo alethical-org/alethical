@@ -25,10 +25,10 @@ describe('rev 9 email and password rules', () => {
     expect(validateEmail('jordan @example.com')).toBe(REV9_AUTH_MESSAGES.invalidEmail);
   });
 
-  it('requires 15 characters without requiring capitals, numbers, or symbols', () => {
-    expect(validatePassword('four calm words!')).toBeNull();
-    expect(validatePassword('alllowercasepass')).toBeNull();
-    expect(validatePassword('short password')).toBe(REV9_AUTH_MESSAGES.passwordTooShort);
+  it('requires 8 characters without requiring capitals, numbers, or symbols', () => {
+    expect(validatePassword('abcdefgh')).toBeNull();
+    expect(validatePassword('12345678')).toBeNull();
+    expect(validatePassword('abcdefg')).toBe(REV9_AUTH_MESSAGES.passwordTooShort);
   });
 
   it('allows spaces and long pasted passwords, including more than 64 characters', () => {
@@ -66,14 +66,14 @@ describe('rev 9 provider error copy', () => {
     });
   });
 
-  it('maps known breached passwords separately from other weak passwords', () => {
+  it('never exposes a provider breach-list reason', () => {
     expect(mapProviderAuthError({ code: 'weak_password', reasons: ['pwned'] })).toEqual({
-      kind: 'leaked-password',
-      message: 'Choose a password that hasn’t appeared in a known data breach',
+      kind: 'weak-password',
+      message: 'Use at least 8 characters',
     });
     expect(mapProviderAuthError({ code: 'weak_password', reasons: ['length'] })).toEqual({
       kind: 'weak-password',
-      message: 'Use at least 15 characters. A few words with spaces works well.',
+      message: 'Use at least 8 characters',
     });
   });
 
@@ -105,7 +105,7 @@ describe('rev 9 provider error copy', () => {
     expect(mapProviderAuthError({ code: 'provider_email_needs_verification' })).toEqual({
       kind: 'unverified-google',
       message:
-        'Sign-in couldn’t finish because the email address needs confirmation. If a confirmation email arrives, open the newest one.',
+        'Sign-in couldn’t finish because the email needs confirmation. Use Create account with this email to confirm it.',
     });
   });
 
@@ -119,13 +119,12 @@ describe('rev 9 provider error copy', () => {
     }
   });
 
-  it('maps the two Supabase password rejections to their pinned field messages', () => {
-    // #1533's two live bugs: a reused password blamed the connection, and an
-    // over-72-character password asked for a complete email address on a
-    // screen with no email field.
+  it('keeps same-password handling inside password saves and maps the storage limit', () => {
+    // Password-save helpers accept same_password before this generic mapper.
+    // If it reaches the mapper elsewhere, it must not revive retired copy.
     expect(mapProviderAuthError({ code: 'same_password', status: 422 })).toEqual({
-      kind: 'same-password',
-      message: 'Choose a different password',
+      kind: 'request-failure',
+      message: 'We couldn’t complete that request. Check your connection and try again.',
     });
     expect(
       mapProviderAuthError({ code: 'validation_failed', status: 422 }, undefined, {
@@ -142,17 +141,24 @@ describe('rev 9 provider error copy', () => {
     });
   });
 
+  it('explains when another tab changed the signed-in account before a password save', () => {
+    expect(mapProviderAuthError({ code: 'session_changed', status: 409 })).toEqual({
+      kind: 'session-changed',
+      message: 'Your sign-in changed. Close this form and try again.',
+    });
+  });
+
   it('omits the final period from short 1-step provider messages', () => {
     expect(REV9_AUTH_MESSAGES.humanCheck).toBe(
       'One more step — confirm you’re human, then press the button again',
     );
     expect(mapProviderAuthError({ code: 'reauthentication_needed' })).toEqual({
       kind: 'fresh-proof',
-      message: 'Enter the code we sent to confirm it’s you',
+      message: 'Enter the newest code to confirm it’s you',
     });
     expect(mapProviderAuthError({ code: 'user_already_exists' })).toEqual({
-      kind: 'check-email',
-      message: 'If this address can create an Alethical account, a confirmation link is on the way',
+      kind: 'request-failure',
+      message: 'We couldn’t complete that request. Check your connection and try again.',
     });
   });
 

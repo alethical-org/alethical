@@ -1,22 +1,25 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Platform, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { AuthClient, type Session } from '@supabase/auth-js';
 
 import { AccountCard } from '../../components/auth/AccountCard';
 import { ContactMailText } from '../../components/auth/ContactMailText';
-import { EmailField } from '../../components/auth/EmailField';
 import { FormError } from '../../components/auth/FormError';
 import { LoadingButton } from '../../components/auth/LoadingButton';
 import { PasswordField } from '../../components/auth/PasswordField';
-import { ResendControl, type ResendStatus } from '../../components/auth/ResendControl';
 import { SignInContainer, descriptionTextStyle } from '../../components/auth/SignInContainer';
 import { ApiError, completePendingTrackActionFromApi } from '../../data/api';
 import {
   createTemporaryAuthClient,
   finishTemporarySessionAfterPassword,
   legacyConfirmationPasswordMatches,
+  temporarySessionRelationship,
 } from '../../lib/auth/linkSession';
-import { validateAlethicalSession } from '../../lib/auth/operations';
+import { validateAlethicalSession, type AuthUser } from '../../lib/auth/operations';
+import {
+  sameProviderSession,
+  sameProviderSessionLineage,
+} from '../../lib/auth/providerSessionAcceptance';
 import { finishResetSignOuts, updatePasswordOnce } from '../../lib/auth/resetCleanup';
 import {
   REV9_AUTH_MESSAGES,
@@ -24,7 +27,6 @@ import {
   isUncertainPasswordSave,
   mapProviderAuthError,
   uncertainPasswordSaveMessage,
-  validateEmail,
   validatePassword,
   validatePasswordMatch,
 } from '../../lib/auth/rev9Auth';
@@ -47,7 +49,6 @@ type Screen =
   | 'checking'
   | 'link-fail'
   | 'dead'
-  | 'dead-sent'
   | 'deactivated'
   | 'confirmed'
   | 'confirmed-other'
@@ -64,13 +65,6 @@ interface OrdinaryAccount {
 
 const OPEN_SIGN_IN_KEY = 'alethical.openSignIn';
 const PASSWORD_NOTICE_KEY = 'alethical.passwordChangedNotice';
-const configuredResendWait = Number(process.env.EXPO_PUBLIC_AUTH_RESEND_WAIT_SECONDS);
-const RESEND_WAIT_SECONDS =
-  Number.isFinite(configuredResendWait) && configuredResendWait > 0 ? configuredResendWait : 60;
-
-function publicOrigin() {
-  return Platform.OS === 'web' && typeof window !== 'undefined' ? window.location.origin : '';
-}
 
 function goToAlethical(openSignIn = false) {
   if (typeof window === 'undefined') return;
@@ -89,6 +83,11 @@ function goToForgotPassword() {
   window.location.replace('/#auth_screen=forgot');
 }
 
+function goToCreateAccount() {
+  if (typeof window === 'undefined') return;
+  window.location.replace('/#auth_screen=create');
+}
+
 function publicSupabaseConfig() {
   return {
     url: process.env.EXPO_PUBLIC_SUPABASE_URL ?? '',
@@ -97,44 +96,56 @@ function publicSupabaseConfig() {
 }
 
 async function ordinaryClientAndAccount(): Promise<{
-  client: InstanceType<typeof AuthClient>;
+  client: {
+    setSessionIfUnchanged: typeof import('../../lib/supabase.web').setOrdinarySessionIfUnchanged;
+    clearSessionIfUnchanged: typeof import('../../lib/supabase.web').clearOrdinarySessionIfUnchanged;
+  };
   account: OrdinaryAccount | null;
-  clearStoredSession: () => void;
 }> {
   const module = await import('../../lib/supabase.web');
-  const current = await module.supabase.auth.getSession();
-  const session = current.data.session;
-  if (!session) {
-    return {
-      client: module.supabase.auth,
-      account: null,
-      clearStoredSession: module.clearStoredSupabaseSession,
-    };
+  let current = await module.supabase.auth.getSession();
+  if (current.error) throw current.error;
+
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const session = current.data.session;
+    if (!session) {
+      return {
+        client: {
+          setSessionIfUnchanged: module.setOrdinarySessionIfUnchanged,
+          clearSessionIfUnchanged: module.clearOrdinarySessionIfUnchanged,
+        },
+        account: null,
+      };
+    }
+
+    const validated = await validateAlethicalSession(session);
+    if (!validated.ok) throw new Error('The open account could not be checked');
+    const latest = await module.supabase.auth.getSession();
+    if (latest.error) throw latest.error;
+    if (sameProviderSession(latest.data.session, session)) {
+      return {
+        client: {
+          setSessionIfUnchanged: module.setOrdinarySessionIfUnchanged,
+          clearSessionIfUnchanged: module.clearOrdinarySessionIfUnchanged,
+        },
+        account: {
+          session,
+          id: validated.data.id,
+          name: validated.data.name,
+          email: validated.data.email,
+        },
+      };
+    }
+    current = latest;
   }
 
-  const metadataName = session.user.user_metadata?.full_name ?? session.user.user_metadata?.name;
-  const email = session.user.email ?? '';
-  return {
-    client: module.supabase.auth,
-    account: {
-      session,
-      id: session.user.id,
-      name:
-        typeof metadataName === 'string' && metadataName.trim()
-          ? metadataName
-          : email.split('@')[0] || 'Signed-in user',
-      email,
-    },
-    clearStoredSession: module.clearStoredSupabaseSession,
-  };
+  throw new Error('The open account changed while it was being checked');
 }
 
 export function EmailLinkPage({ kind }: { kind: LinkKind }) {
   const memory = typeof window !== 'undefined' ? window.__alethicalEmailLink : undefined;
   const [screen, setScreen] = useState<Screen>('gate');
   const [error, setError] = useState<string | null>(null);
-  const [email, setEmail] = useState('');
-  const [emailError, setEmailError] = useState<string | undefined>();
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [passwordError, setPasswordError] = useState<string | undefined>();
@@ -142,50 +153,46 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
   const [verifiedEmail, setVerifiedEmail] = useState('');
   const [ordinaryAccount, setOrdinaryAccount] = useState<OrdinaryAccount | null>(null);
   const [returnPath, setReturnPath] = useState('/');
-  const [deadResendStatus, setDeadResendStatus] = useState<ResendStatus>('ready');
-  const [deadResendSeconds, setDeadResendSeconds] = useState(0);
   const temporaryClient = useRef<InstanceType<typeof AuthClient> | null>(null);
   const temporarySession = useRef<Session | null>(null);
+  const verifiedAccount = useRef<AuthUser | null>(null);
   const passwordWasChanged = useRef(false);
-  const passwordChangedAtProvider = useRef(false);
-  const emailRef = useRef<any>(null);
+  const ordinarySessionMayBeRevoked = useRef(false);
+  const ordinarySessionAtPasswordMutation = useRef<Session | null>(null);
   const passwordRef = useRef<any>(null);
   const confirmationRef = useRef<any>(null);
 
-  useEffect(() => {
-    if (deadResendStatus !== 'rate-limited') return;
-    const timer = setInterval(() => {
-      setDeadResendSeconds((seconds) => {
-        if (seconds > 1) return seconds - 1;
-        setDeadResendStatus('ready');
-        return 0;
-      });
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [deadResendStatus]);
-
   const refreshOrdinaryAccount = async () => {
-    const currentOrdinary = await ordinaryClientAndAccount();
-    setOrdinaryAccount(currentOrdinary.account);
-    return currentOrdinary;
+    try {
+      const currentOrdinary = await ordinaryClientAndAccount();
+      setOrdinaryAccount(currentOrdinary.account);
+      return currentOrdinary;
+    } catch {
+      setScreen('link-fail');
+      return null;
+    }
   };
 
   const finishConfirmation = async (session: Session) => {
     // Re-read the ordinary account at the last possible moment. Another tab may
     // have signed in while this password form was open.
     const currentOrdinary = await refreshOrdinaryAccount();
+    const targetAccount = verifiedAccount.current;
     const temporary = temporaryClient.current;
-    if (!temporary) {
+    if (!currentOrdinary || !targetAccount || !temporary) {
       setScreen('link-fail');
       return;
     }
 
     const finished = await finishTemporarySessionAfterPassword({
-      clearOrdinarySession: currentOrdinary.clearStoredSession,
       ordinary: currentOrdinary.client,
-      ordinaryUserId: currentOrdinary.account?.id ?? null,
-      passwordChanged: passwordChangedAtProvider.current,
+      ordinaryAccountId: currentOrdinary.account?.id ?? null,
+      ordinaryProviderUserId: currentOrdinary.account?.session.user.id ?? null,
+      ordinarySession: currentOrdinary.account?.session ?? null,
+      ordinarySessionAtPasswordMutation: ordinarySessionAtPasswordMutation.current,
+      passwordChanged: ordinarySessionMayBeRevoked.current,
       session,
+      temporaryAccountId: targetAccount.id,
       temporary,
     });
     if (finished.error) {
@@ -220,6 +227,7 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
       setScreen(failureScreen === 'deactivated' ? 'deactivated' : 'link-fail');
       return;
     }
+    verifiedAccount.current = safeAccount.data;
     setVerifiedEmail(safeAccount.data.email || session.user.email || '');
 
     // The held action belongs to this proved account even if the following
@@ -240,7 +248,7 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
       }
     }
 
-    await refreshOrdinaryAccount();
+    if (!(await refreshOrdinaryAccount())) return;
     if (kind === 'confirm' && passwordWasChanged.current) {
       setScreen('finishing');
       await finishConfirmation(session);
@@ -286,48 +294,10 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
     await continueVerifiedSession(verified.data.session);
   };
 
-  const resendDeadConfirmation = async () => {
-    const fieldFailure = validateEmail(email);
-    setEmailError(fieldFailure ?? undefined);
-    if (fieldFailure) {
-      emailRef.current?.focus?.();
-      return;
-    }
-    setError(null);
-    setDeadResendStatus('sending');
-    try {
-      const config = publicSupabaseConfig();
-      const temporary = createTemporaryAuthClient(config.url, config.key);
-      const result = await temporary.resend({
-        type: 'signup',
-        email: email.trim().toLowerCase(),
-        options: {
-          emailRedirectTo: `${publicOrigin()}/confirm#auth_action=confirm`,
-        },
-      });
-      if (result.error) {
-        const failure = mapProviderAuthError(result.error, email);
-        setError(failure.message);
-        if (failure.kind === 'too-many-attempts') {
-          setDeadResendSeconds(RESEND_WAIT_SECONDS);
-          setDeadResendStatus('rate-limited');
-        } else {
-          setDeadResendStatus('ready');
-        }
-        return;
-      }
-      setScreen('dead-sent');
-    } catch {
-      setError(REV9_AUTH_MESSAGES.requestFailure);
-      setDeadResendStatus('ready');
-    }
-  };
-
   const resetRelationship = (openAccount: OrdinaryAccount | null) => {
-    const resetSession = temporarySession.current;
-    if (!openAccount) return 'none' as const;
-    if (resetSession && openAccount.id === resetSession.user.id) return 'same' as const;
-    return 'different' as const;
+    const targetAccount = verifiedAccount.current;
+    if (!targetAccount) return null;
+    return temporarySessionRelationship(openAccount?.id ?? null, targetAccount.id);
   };
 
   const finishResetCleanup = async () => {
@@ -343,12 +313,28 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
     // transaction — so the client's only remaining work is its two local
     // clears, and there is no cleanup failure left to report (#1533).
     const currentOrdinary = await refreshOrdinaryAccount();
+    if (!currentOrdinary) return;
     const relationship = resetRelationship(currentOrdinary.account);
+    if (!relationship) {
+      setScreen('link-fail');
+      return;
+    }
+    const ordinaryProviderMatchesTarget =
+      ordinarySessionMayBeRevoked.current &&
+      currentOrdinary.account?.session.user.id === resetSession.user.id &&
+      Boolean(
+        currentOrdinary.account?.session &&
+        ordinarySessionAtPasswordMutation.current &&
+        sameProviderSessionLineage(
+          currentOrdinary.account.session,
+          ordinarySessionAtPasswordMutation.current,
+        ),
+      );
     await finishResetSignOuts(
       temporary,
       currentOrdinary.client,
-      relationship,
-      currentOrdinary.clearStoredSession,
+      ordinaryProviderMatchesTarget ? 'same' : currentOrdinary.account ? 'different' : 'none',
+      currentOrdinary.account?.session ?? null,
     );
     if (relationship === 'different' && currentOrdinary.account) {
       try {
@@ -374,13 +360,29 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
   const continueAfterUncertainSave = async () => {
     const temporary = temporaryClient.current;
     const currentOrdinary = await refreshOrdinaryAccount();
+    if (!currentOrdinary) return;
     const relationship = resetRelationship(currentOrdinary.account);
+    const resetSession = temporarySession.current;
+    if (!relationship || !resetSession) {
+      setScreen('link-fail');
+      return;
+    }
     if (temporary) {
+      const ordinaryProviderMatchesTarget =
+        currentOrdinary.account?.session.user.id === resetSession.user.id &&
+        Boolean(
+          currentOrdinary.account?.session &&
+          ordinarySessionAtPasswordMutation.current &&
+          sameProviderSessionLineage(
+            currentOrdinary.account.session,
+            ordinarySessionAtPasswordMutation.current,
+          ),
+        );
       await finishResetSignOuts(
         temporary,
         currentOrdinary.client,
-        relationship,
-        currentOrdinary.clearStoredSession,
+        ordinaryProviderMatchesTarget ? 'same' : currentOrdinary.account ? 'different' : 'none',
+        currentOrdinary.account?.session ?? null,
       );
     }
     goToAlethical(relationship !== 'different');
@@ -408,15 +410,61 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
     if (!temporaryClient.current) return;
 
     const temporary = temporaryClient.current;
+    const ordinaryBeforePassword = await refreshOrdinaryAccount();
+    if (!ordinaryBeforePassword) return;
+    ordinarySessionAtPasswordMutation.current = ordinaryBeforePassword.account?.session ?? null;
     const changed = await updatePasswordOnce(passwordWasChanged, () =>
       temporary.updateUser({ password }),
     );
+    const previousSession = temporarySession.current;
+    let currentTemporarySession: Session | null = null;
+    try {
+      const current = await temporary.getSession();
+      if (
+        !current.error &&
+        current.data.session &&
+        previousSession &&
+        sameProviderSessionLineage(current.data.session, previousSession)
+      ) {
+        currentTemporarySession = current.data.session;
+        temporarySession.current = current.data.session;
+      }
+    } catch {
+      // The password result below still decides whether another save is safe.
+    }
+    const finishesPasswordFlow =
+      !changed.error ||
+      legacyConfirmationPasswordMatches(kind, memory?.type ?? null, changed.error) ||
+      (changed.error as { code?: unknown } | null)?.code === 'same_password';
+    if (finishesPasswordFlow && !currentTemporarySession) {
+      if (!changed.error) passwordWasChanged.current = true;
+      setError(REV9_AUTH_MESSAGES.requestFailure);
+      return;
+    }
     if (changed.error) {
       if (legacyConfirmationPasswordMatches(kind, memory?.type ?? null, changed.error)) {
         passwordWasChanged.current = true;
-        passwordChangedAtProvider.current = false;
+        ordinarySessionMayBeRevoked.current = false;
         await finishConfirmedPassword();
         return;
+      }
+      if ((changed.error as { code?: unknown } | null)?.code === 'same_password') {
+        passwordWasChanged.current = true;
+        ordinarySessionMayBeRevoked.current = false;
+        if (kind === 'reset') {
+          const ordinaryBeforeOtherSessionSignOut = await refreshOrdinaryAccount();
+          if (!ordinaryBeforeOtherSessionSignOut) return;
+          ordinarySessionAtPasswordMutation.current =
+            ordinaryBeforeOtherSessionSignOut.account?.session ?? null;
+          const ended = await temporary.signOut({ scope: 'others' });
+          if (ended.error) {
+            setError(REV9_AUTH_MESSAGES.requestFailure);
+            return;
+          }
+          ordinarySessionMayBeRevoked.current = true;
+          await finishResetCleanup();
+          return;
+        }
       }
       // A lost reply may have saved the password server-side. Clear the typed
       // password and never offer the save again — a blind retry could change
@@ -431,17 +479,13 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
         return;
       }
       const failure = mapProviderAuthError(changed.error, verifiedEmail, { passwordSave: true });
-      const fieldError =
-        failure.kind === 'weak-password' ||
-        failure.kind === 'leaked-password' ||
-        failure.kind === 'same-password' ||
-        failure.kind === 'password-too-long';
+      const fieldError = failure.kind === 'weak-password' || failure.kind === 'password-too-long';
       setPasswordError(fieldError ? failure.message : undefined);
       setError(fieldError ? null : failure.message);
       if (fieldError) passwordRef.current?.focus?.();
       return;
     }
-    passwordChangedAtProvider.current = true;
+    ordinarySessionMayBeRevoked.current = true;
     if (kind === 'confirm') {
       await finishConfirmedPassword();
       return;
@@ -490,71 +534,36 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
         title="That link can’t be used"
         description={
           confirmationDead
-            ? 'Enter your email address to request another confirmation link'
-            : 'Start the Forgot password flow again and open the newest email'
+            ? 'Start Create account again to request a new code'
+            : 'Start Recover account again to request a new code'
         }
       >
         <View style={styles.stack}>
           <FormError variant="banner" message="This link has expired or has already been used" />
-          {error && error !== 'This link has expired or has already been used' ? (
-            <FormError variant="banner" message={error} />
-          ) : null}
           {confirmationDead ? (
             <>
-              <EmailField
-                inputRef={emailRef}
-                value={email}
-                error={emailError}
-                onChangeText={setEmail}
-              />
-              <ResendControl
-                status={deadResendStatus}
-                secondsRemaining={deadResendSeconds}
-                sentMessage="If a confirmation email arrives, open the newest one"
-                actionLabel="Send a new confirmation email"
-                sendingLabel="Sending…"
-                onResend={resendDeadConfirmation}
-              />
               <LoadingButton
-                label="Continue to sign in"
+                label="Go to Create account"
                 busyLabel="Continuing…"
-                tone="quiet"
-                onPress={() => goToAlethical(true)}
+                onPress={goToCreateAccount}
               />
             </>
           ) : (
             <>
               <LoadingButton
-                label="Go to Forgot password"
+                label="Go to Recover account"
                 busyLabel="Continuing…"
                 onPress={goToForgotPassword}
               />
-              <LoadingButton
-                label="Continue"
-                busyLabel="Continuing…"
-                tone="quiet"
-                onPress={() => goToAlethical(true)}
-              />
             </>
           )}
+          <LoadingButton
+            label="Continue"
+            busyLabel="Continuing…"
+            tone="quiet"
+            onPress={() => goToAlethical(true)}
+          />
         </View>
-      </SignInContainer>
-    );
-  }
-
-  if (screen === 'dead-sent') {
-    return (
-      <SignInContainer
-        focusKey={screen}
-        variant="page"
-        title="Check your email"
-        description="If a confirmation email arrives, open the newest one"
-      >
-        <LoadingButton
-          label="Continue to sign in"
-          busyLabel="Continuing…"
-          onPress={() => goToAlethical(true)}
-        />
       </SignInContainer>
     );
   }
@@ -622,7 +631,11 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
   }
 
   if (screen === 'new-password') {
-    const different = ordinaryAccount && ordinaryAccount.id !== temporarySession.current?.user.id;
+    const different = Boolean(
+      ordinaryAccount &&
+      verifiedAccount.current &&
+      ordinaryAccount.id !== verifiedAccount.current.id,
+    );
     return (
       <SignInContainer
         focusKey={screen}
@@ -648,7 +661,7 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
             label="NEW PASSWORD"
             value={password}
             autoComplete="new-password"
-            helper="Use at least 15 characters. A few words with spaces works well."
+            helper={REV9_AUTH_MESSAGES.passwordTooShort}
             error={passwordError}
             onChangeText={setPassword}
           />
@@ -673,8 +686,11 @@ export function EmailLinkPage({ kind }: { kind: LinkKind }) {
   if (screen === 'uncertain-save') {
     // The REQUEST FAILURE carve-out: success is unknown, so this skips the
     // "Password changed" screen and notice, and never re-offers the save.
-    const differentOpen =
-      ordinaryAccount && ordinaryAccount.id !== temporarySession.current?.user.id;
+    const differentOpen = Boolean(
+      ordinaryAccount &&
+      verifiedAccount.current &&
+      ordinaryAccount.id !== verifiedAccount.current.id,
+    );
     return (
       <SignInContainer
         focusKey={screen}

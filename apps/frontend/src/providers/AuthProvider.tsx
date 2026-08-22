@@ -22,18 +22,29 @@ import {
   validateAlethicalSession,
 } from '../lib/auth/operations';
 import { savePasswordWithFreshProof } from '../lib/auth/passwordFreshProof';
-import { normalizeEmail } from '../lib/auth/rev9Auth';
 import {
-  signOutLocallyAndVerify,
-  validationFailureRevokesSession,
-} from '../lib/auth/sessionSafety';
+  isProviderSessionRejected,
+  onProviderSessionRejected,
+  providerSessionIdentity,
+  rejectProviderSession,
+  sameProviderSessionLineage,
+  sessionMatchesProviderUserAccessToken,
+  sessionMatchesOpeningAccessToken,
+} from '../lib/auth/providerSessionAcceptance';
+import { validationFailureRevokesSession } from '../lib/auth/sessionSafety';
 import { restoreAuthSession } from '../lib/authRestore';
 import {
   SIGN_IN_ERROR_MESSAGES,
   SignInErrorKind,
   signInErrorKindFromCallback,
 } from '../lib/signIn';
-import { clearStoredSupabaseSession, isSupabaseConfigured, supabase } from '../lib/supabase';
+import {
+  clearOrdinarySessionIfUnchanged,
+  isSupabaseConfigured,
+  passwordClientForOrdinarySession,
+  signOutOrdinarySessionIfUnchanged,
+  supabase,
+} from '../lib/supabase';
 
 interface AuthContextValue {
   isLoading: boolean;
@@ -45,15 +56,11 @@ interface AuthContextValue {
   authErrorKind: SignInErrorKind | null;
   dismissAuthError: () => void;
   signInWithGoogle: (returnTo?: string) => Promise<AuthOperationResult<unknown>>;
-  signInWithPassword: (email: string, password: string) => Promise<AuthOperationResult<unknown>>;
-  createAccount: (
-    email: string,
+  setPassword: (
     password: string,
-    confirmationUrl: string,
-  ) => Promise<AuthOperationResult<{ signedIn: boolean }>>;
-  resendConfirmation: (email: string, confirmationUrl: string) => Promise<AuthOperationResult>;
-  sendPasswordReset: (email: string, resetUrl: string) => Promise<AuthOperationResult>;
-  setPassword: (password: string, freshProofCode?: string) => Promise<AuthOperationResult>;
+    freshProofCode?: string,
+    expectedAccessToken?: string,
+  ) => Promise<AuthOperationResult>;
   signOut: () => Promise<AuthOperationResult>;
 }
 
@@ -90,8 +97,13 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [authErrorKind, setAuthErrorKind] = useState<SignInErrorKind | null>(null);
+  const sessionRef = useRef<Session | null>(null);
   const validations = useRef(new Map<string, Promise<AuthOperationResult<AuthUser>>>());
   const validationGeneration = useRef(0);
+  const passwordChange = useRef<{
+    openingAccessToken: string;
+    auth: ReturnType<typeof passwordClientForOrdinarySession>;
+  } | null>(null);
 
   const failWith = useCallback((message: string, kind: SignInErrorKind = 'failed') => {
     setAuthError(message);
@@ -104,6 +116,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   const acceptSession = useCallback(
     async (candidate: Session): Promise<AuthOperationResult<AuthUser>> => {
+      if (isProviderSessionRejected(candidate)) return authFailure(null);
       const generation = ++validationGeneration.current;
       setIsLoading(true);
       let validation = validations.current.get(candidate.access_token);
@@ -114,20 +127,39 @@ export function AuthProvider({ children }: PropsWithChildren) {
       const result = await validation;
       validations.current.delete(candidate.access_token);
       if (generation !== validationGeneration.current) return authFailure(null);
+      if (isProviderSessionRejected(candidate)) {
+        setIsLoading(false);
+        return authFailure(null);
+      }
+      const current = await supabase.auth.getSession().catch(() => null);
+      if (generation !== validationGeneration.current) return authFailure(null);
+      const currentSession = current && !current.error ? current.data.session : null;
+      if (currentSession && isProviderSessionRejected(currentSession)) {
+        setIsLoading(false);
+        return authFailure(null);
+      }
+      if (!sameProviderSessionLineage(currentSession, candidate)) {
+        setIsLoading(false);
+        return authFailure(null);
+      }
       if (result.ok) {
-        setSession(candidate);
+        sessionRef.current = currentSession;
+        setSession(currentSession);
         setUser(result.data);
         clearAuthError();
         setIsLoading(false);
         return result;
       }
-      if (validationFailureRevokesSession(result.error.kind)) {
-        await supabase.auth.signOut({ scope: 'local' }).catch(() => undefined);
-        await clearStoredSupabaseSession();
+      failWith(result.error.message, publicErrorKind(result.error.kind));
+      if (validationFailureRevokesSession(result.error.kind)) rejectProviderSession(candidate);
+      await clearOrdinarySessionIfUnchanged(candidate).catch(() => false);
+      if (generation !== validationGeneration.current) return result;
+      if (sessionRef.current && !sameProviderSessionLineage(sessionRef.current, candidate)) {
+        return result;
       }
+      sessionRef.current = null;
       setSession(null);
       setUser(null);
-      failWith(result.error.message, publicErrorKind(result.error.kind));
       setIsLoading(false);
       return result;
     },
@@ -136,23 +168,72 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   useEffect(
     () =>
-      onAccountDeactivated(() => {
-        validationGeneration.current += 1;
-        void supabase.auth.signOut({ scope: 'local' }).finally(() => {
-          void clearStoredSupabaseSession();
-          setSession(null);
-          setUser(null);
-          failWith(SIGN_IN_ERROR_MESSAGES.deactivated, 'deactivated');
-        });
+      onProviderSessionRejected((rejectedSessionKey) => {
+        if (
+          !sessionRef.current ||
+          providerSessionIdentity(sessionRef.current) !== rejectedSessionKey
+        ) {
+          return;
+        }
+        sessionRef.current = null;
+        setSession(null);
+        setUser(null);
+        setIsLoading(false);
+      }),
+    [],
+  );
+
+  useEffect(
+    () =>
+      onAccountDeactivated((requestAccessToken) => {
+        void (async () => {
+          let removedMatchingSession = false;
+          let storedBelongsToDifferentAccount = false;
+          for (let attempt = 0; attempt < 2; attempt += 1) {
+            const current = await supabase.auth.getSession().catch(() => null);
+            const stored = current && !current.error ? current.data.session : null;
+            if (!stored) {
+              break;
+            }
+            if (!sessionMatchesProviderUserAccessToken(stored, requestAccessToken)) {
+              storedBelongsToDifferentAccount = true;
+              break;
+            }
+            rejectProviderSession(stored);
+            const cleared = await clearOrdinarySessionIfUnchanged(stored).catch(() => false);
+            removedMatchingSession ||= cleared;
+          }
+
+          const visible = sessionRef.current;
+          const visibleMatches = Boolean(
+            visible && sessionMatchesProviderUserAccessToken(visible, requestAccessToken),
+          );
+          const visibleBelongsToDifferentAccount = Boolean(visible && !visibleMatches);
+          if (visible && visibleMatches) {
+            rejectProviderSession(visible);
+            sessionRef.current = null;
+            setSession(null);
+            setUser(null);
+          }
+          if (
+            !storedBelongsToDifferentAccount &&
+            !visibleBelongsToDifferentAccount &&
+            (removedMatchingSession || visibleMatches)
+          ) {
+            setIsLoading(false);
+            failWith(SIGN_IN_ERROR_MESSAGES.deactivated, 'deactivated');
+          }
+        })();
       }),
     [failWith],
   );
 
   useEffect(() => {
     let mounted = true;
+    const restoreGeneration = ++validationGeneration.current;
     void restoreAuthSession<Session>(() => supabase.auth.getSession())
       .then(async ({ session: restoredSession, errorMessage }) => {
-        if (!mounted) return;
+        if (!mounted || restoreGeneration !== validationGeneration.current) return;
         if (errorMessage) {
           failWith(SIGN_IN_ERROR_MESSAGES.failed);
           return;
@@ -160,18 +241,41 @@ export function AuthProvider({ children }: PropsWithChildren) {
         if (restoredSession) await acceptSession(restoredSession);
       })
       .catch(() => {
-        if (mounted) failWith(SIGN_IN_ERROR_MESSAGES.failed);
+        if (mounted && restoreGeneration === validationGeneration.current) {
+          sessionRef.current = null;
+          setSession(null);
+          setUser(null);
+          failWith(SIGN_IN_ERROR_MESSAGES.failed);
+        }
       })
       .finally(() => {
-        if (mounted) setIsLoading(false);
+        if (mounted && restoreGeneration === validationGeneration.current) setIsLoading(false);
       });
 
     const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       if (!nextSession) {
-        validationGeneration.current += 1;
-        setSession(null);
-        setUser(null);
-        setIsLoading(false);
+        const generation = ++validationGeneration.current;
+        void supabase.auth
+          .getSession()
+          .then((current) => {
+            if (generation !== validationGeneration.current) return;
+            if (!current.error && current.data.session) {
+              void acceptSession(current.data.session);
+              return;
+            }
+            sessionRef.current = null;
+            setSession(null);
+            setUser(null);
+            setIsLoading(false);
+          })
+          .catch(() => {
+            if (generation !== validationGeneration.current) return;
+            sessionRef.current = null;
+            setSession(null);
+            setUser(null);
+            failWith(SIGN_IN_ERROR_MESSAGES.failed);
+            setIsLoading(false);
+          });
         return;
       }
       void acceptSession(nextSession);
@@ -238,70 +342,66 @@ export function AuthProvider({ children }: PropsWithChildren) {
         }
         return acceptSession(exchanged.data.session);
       },
-      signInWithPassword: async (email: string, password: string) => {
-        const normalized = normalizeEmail(email);
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: normalized,
-          password,
-        });
-        if (error || !data.session) return authFailure(error, normalized);
-        return acceptSession(data.session);
-      },
-      createAccount: async (email: string, password: string, confirmationUrl: string) => {
-        const normalized = normalizeEmail(email);
-        const { data, error } = await supabase.auth.signUp({
-          email: normalized,
-          password,
-          options: { emailRedirectTo: confirmationUrl },
-        });
-        if (error) return authFailure(error, normalized);
-        if (data.session) {
-          const accepted = await acceptSession(data.session);
-          if (!accepted.ok) return accepted;
+      setPassword: async (
+        password: string,
+        freshProofCode?: string,
+        expectedAccessToken?: string,
+      ) => {
+        const visibleSession = sessionRef.current;
+        if (
+          !visibleSession ||
+          !expectedAccessToken ||
+          !sessionMatchesOpeningAccessToken(visibleSession, expectedAccessToken)
+        ) {
+          passwordChange.current = null;
+          return authFailure({ code: 'session_changed' }, user?.email);
         }
-        return authSuccess({ signedIn: Boolean(data.session) });
-      },
-      resendConfirmation: async (email: string, confirmationUrl: string) => {
-        const normalized = normalizeEmail(email);
-        const { error } = await supabase.auth.resend({
-          type: 'signup',
-          email: normalized,
-          options: { emailRedirectTo: confirmationUrl },
-        });
-        return error ? authFailure(error, normalized) : authSuccess();
-      },
-      sendPasswordReset: async (email: string, resetUrl: string) => {
-        const normalized = normalizeEmail(email);
-        const { error } = await supabase.auth.resetPasswordForEmail(normalized, {
-          redirectTo: resetUrl,
-        });
-        return error ? authFailure(error, normalized) : authSuccess();
-      },
-      setPassword: async (password: string, freshProofCode?: string) => {
+        if (!freshProofCode) {
+          passwordChange.current = {
+            openingAccessToken: expectedAccessToken,
+            auth: passwordClientForOrdinarySession(visibleSession),
+          };
+        }
+        const flow = passwordChange.current;
+        if (!flow || flow.openingAccessToken !== expectedAccessToken) {
+          return authFailure({ code: 'session_changed' }, user?.email);
+        }
         const result = await savePasswordWithFreshProof(
-          supabase.auth,
+          flow.auth,
           password,
           freshProofCode,
           user?.email,
         );
+        if (result.ok || result.error.kind !== 'fresh-proof') passwordChange.current = null;
         if (!result.ok) return result;
-        if (user?.signInMethods) {
-          setUser({
-            ...user,
-            signInMethods: { ...user.signInMethods, password: true },
-          });
-        }
+        setUser((current) => {
+          if (!current || current.id !== user?.id || !current.signInMethods) return current;
+          return {
+            ...current,
+            signInMethods: { ...current.signInMethods, password: true },
+          };
+        });
         return result;
       },
       signOut: async () => {
         clearAuthError();
-        validationGeneration.current += 1;
-        const result = await signOutLocallyAndVerify(supabase.auth);
-        if (!result.signedOut) {
+        const openingSession = sessionRef.current;
+        if (!openingSession) return authSuccess();
+        const generation = ++validationGeneration.current;
+        const result = await signOutOrdinarySessionIfUnchanged(openingSession);
+        if (result.error) {
           const failure = authFailure(result.error);
           failWith(SIGN_IN_ERROR_MESSAGES.failed);
           return failure;
         }
+        if (generation !== validationGeneration.current) return authSuccess();
+        const current = await supabase.auth.getSession().catch(() => null);
+        if (generation !== validationGeneration.current) return authSuccess();
+        if (current && !current.error && current.data.session) {
+          void acceptSession(current.data.session);
+          return authSuccess();
+        }
+        sessionRef.current = null;
         setSession(null);
         setUser(null);
         return authSuccess();

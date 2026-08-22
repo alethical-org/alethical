@@ -3,6 +3,23 @@ import { describe, expect, it, vi } from 'vitest';
 import { savePasswordWithFreshProof } from '../passwordFreshProof';
 
 describe('fresh proof during a password save', () => {
+  it('accepts a password that already works', async () => {
+    const updateUser = vi.fn(async () => ({
+      error: { code: 'same_password', status: 422 },
+    }));
+    const reauthenticate = vi.fn();
+
+    const result = await savePasswordWithFreshProof(
+      { updateUser, reauthenticate },
+      'password',
+      undefined,
+      'marissa@example.com',
+    );
+
+    expect(result).toEqual({ ok: true, data: undefined });
+    expect(reauthenticate).not.toHaveBeenCalled();
+  });
+
   it('sends the code once, then retries the same password with that code', async () => {
     const updateUser = vi
       .fn()
@@ -24,7 +41,7 @@ describe('fresh proof during a password save', () => {
       ok: false,
       error: {
         kind: 'fresh-proof',
-        message: 'Enter the code we sent to marissa@example.com to confirm it’s you',
+        message: 'Enter the newest code for marissa@example.com to confirm it’s you',
       },
     });
     expect(updateUser).toHaveBeenNthCalledWith(1, {

@@ -99,6 +99,37 @@ describe('phone password focus', () => {
     mount.remove();
   });
 
+  it('returns focus to the page opener after the dialog changes steps', () => {
+    const mount = document.createElement('div');
+    const opener = document.createElement('button');
+    opener.textContent = 'Sign in';
+    document.body.append(opener, mount);
+    opener.focus();
+    const root = createRoot(mount);
+
+    act(() =>
+      root.render(
+        <SignInContainer open focusKey="create" title="Create your account" onClose={vi.fn()}>
+          <button>Continue</button>
+        </SignInContainer>,
+      ),
+    );
+    expect(document.activeElement?.getAttribute('aria-label')).toBe('Close');
+    act(() =>
+      root.render(
+        <SignInContainer open focusKey="code" title="Enter your code" onClose={vi.fn()}>
+          <button>Continue</button>
+        </SignInContainer>,
+      ),
+    );
+    expect(document.activeElement?.getAttribute('aria-label')).toBe('Close');
+    act(() => root.unmount());
+
+    expect(document.activeElement).toBe(opener);
+    opener.remove();
+    mount.remove();
+  });
+
   it('keeps focus on the busy action while the same full-page step is checking', () => {
     const mount = document.createElement('div');
     document.body.append(mount);

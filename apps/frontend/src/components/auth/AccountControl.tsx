@@ -143,7 +143,7 @@ export function SetPasswordDialog({
   onClose: () => void;
   onDone?: () => void;
 }) {
-  const { setPassword, user } = useAuth();
+  const { accessToken, setPassword, user } = useAuth();
   const [password, setPasswordValue] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [passwordError, setPasswordError] = useState<string | undefined>();
@@ -168,6 +168,7 @@ export function SetPasswordDialog({
   const passwordActionsRef = useRef<any>(null);
   const requestGate = useRef(createValidRequestGate()).current;
   const wasOpen = useRef(false);
+  const openingAccessToken = useRef<string | null>(null);
 
   const revealPasswordActions = useCallback(() => {
     if (!isWeb || !isMobile) return;
@@ -186,6 +187,7 @@ export function SetPasswordDialog({
   useEffect(() => {
     if (!open) {
       wasOpen.current = false;
+      openingAccessToken.current = null;
       requestGate.reset();
       setPasswordValue('');
       setConfirmation('');
@@ -199,6 +201,7 @@ export function SetPasswordDialog({
     }
     if (wasOpen.current) return;
     wasOpen.current = true;
+    openingAccessToken.current = accessToken;
     setPasswordValue('');
     setConfirmation('');
     setPasswordError(undefined);
@@ -211,7 +214,7 @@ export function SetPasswordDialog({
     setSaved(false);
     setUncertainMessage(null);
     setFlowCopy(currentCopy);
-  }, [currentCopy, open, requestGate]);
+  }, [accessToken, currentCopy, open, requestGate]);
 
   useEffect(() => {
     if (!open || !freshProofRequested || busy) return;
@@ -256,7 +259,11 @@ export function SetPasswordDialog({
     setBusy(true);
     setFormError(null);
     try {
-      const result = await setPassword(password, proofCode || undefined);
+      const result = await setPassword(
+        password,
+        proofCode || undefined,
+        openingAccessToken.current ?? undefined,
+      );
       if (result.ok) {
         setSaved(true);
         setPasswordValue('');
@@ -279,12 +286,7 @@ export function SetPasswordDialog({
         setFreshProofMessage(result.error.message);
         return;
       }
-      if (
-        result.error.kind === 'weak-password' ||
-        result.error.kind === 'leaked-password' ||
-        result.error.kind === 'same-password' ||
-        result.error.kind === 'password-too-long'
-      ) {
+      if (result.error.kind === 'weak-password' || result.error.kind === 'password-too-long') {
         setPasswordError(result.error.message);
         passwordRef.current?.focus?.();
         return;

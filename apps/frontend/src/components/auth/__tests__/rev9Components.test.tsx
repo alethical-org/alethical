@@ -14,6 +14,7 @@ vi.mock('react-native-svg', () => ({
 }));
 
 import { AccountCard } from '../AccountCard';
+import { CodeField } from '../CodeField';
 import { EmailField } from '../EmailField';
 import { FormError } from '../FormError';
 import { LoadingButton } from '../LoadingButton';
@@ -61,7 +62,7 @@ describe('rev 9 shared sign-in components', () => {
         label="NEW PASSWORD"
         value="a password"
         autoComplete="new-password"
-        helper="Use at least 15 characters."
+        helper="Use at least 8 characters"
         onChangeText={vi.fn()}
       />,
     );
@@ -83,6 +84,19 @@ describe('rev 9 shared sign-in components', () => {
     expect(source('PasswordField.tsx')).toContain('setSelectionRange');
     expect(source('PasswordField.tsx')).not.toContain('maxLength=');
     expect(source('PasswordField.tsx')).not.toContain('autoFocus');
+  });
+
+  it('renders a labelled one-time-code field with numeric keyboard help and linked errors', () => {
+    const html = renderToStaticMarkup(
+      <CodeField value="123" error="That code is wrong or expired" onChangeText={vi.fn()} />,
+    );
+
+    expect(html).toContain('CODE');
+    expect(html).toMatch(/autocomplete="one-time-code"/i);
+    expect(html).toMatch(/inputmode="numeric"/i);
+    expect(html).toContain('aria-invalid="true"');
+    expect(html).toMatch(/aria-describedby="auth-code-[^"]+-error"/);
+    expect(html).toContain('That code is wrong or expired');
   });
 
   it('uses one quiet field error and one announced banner error', () => {
@@ -120,29 +134,29 @@ describe('rev 9 shared sign-in components', () => {
       <ResendControl
         status="waiting"
         secondsRemaining={37}
-        sentMessage="If this address can receive an email, we’ve sent one."
+        sentMessage="Enter the newest code"
         onResend={vi.fn()}
       />,
     );
     const sending = renderToStaticMarkup(
-      <ResendControl status="sending" sentMessage="Sent." onResend={vi.fn()} />,
+      <ResendControl status="sending" sentMessage="Enter the newest code" onResend={vi.fn()} />,
     );
     const rateLimited = renderToStaticMarkup(
       <ResendControl
         status="rate-limited"
         secondsRemaining={37}
-        sentMessage="We’ve sent one."
+        sentMessage="Enter the newest code"
         onResend={vi.fn()}
       />,
     );
 
     expect(waiting).toContain('role="status"');
     expect(waiting).toContain('aria-live="off"');
-    expect(waiting).toContain('You can resend in 37 seconds');
+    expect(waiting).toContain('Try again in 37 seconds');
     expect(sending).toContain('aria-busy="true"');
-    expect(sending).toContain('Resending…');
-    expect(rateLimited).toContain('You can resend in 37 seconds');
-    expect(rateLimited).not.toContain('We’ve sent one.');
+    expect(sending).toContain('Requesting…');
+    expect(rateLimited).toContain('Try again in 37 seconds');
+    expect(rateLimited).not.toContain('Enter the newest code');
   });
 
   it('names the other signed-in account without making the card interactive', () => {
@@ -206,6 +220,8 @@ describe('rev 9 shared sign-in components', () => {
       primitives.indexOf('// A `CityChip`'),
     );
     expect(googleButton).toContain('useReducedMotion()');
+    expect(googleButton).toContain('const unavailable = busy || disabled');
+    expect(googleButton).toContain('accessibilityState={{ busy, disabled: unavailable }}');
     expect(googleButton).toContain('{!reduceMotion ? (');
     expect(googleButton).toContain('<Text style={styles.googleBtnText}>{busyLabel}</Text>');
   });

@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useRef, useState } from 'react';
+import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
@@ -16,6 +16,8 @@ import { externalLinkProps, routePath } from '../../navigation/links';
 import { GoogleButton } from '../../theme/primitives';
 import { theme as t } from '../../theme/tokens';
 import { ContactMailText } from './ContactMailText';
+import { AccountCard } from './AccountCard';
+import { CodeField } from './CodeField';
 import { EmailField } from './EmailField';
 import { FormError } from './FormError';
 import { LoadingButton } from './LoadingButton';
@@ -26,13 +28,16 @@ import { SignInContainer, descriptionTextStyle } from './SignInContainer';
 const isWeb = Platform.OS === 'web';
 const TERMS_URL = 'https://www.alethical.com/terms';
 const PRIVACY_URL = 'https://www.alethical.com/privacy';
-// Arrival-neutral by rule: no screen claims a send happened — Supabase measurably
-// reports success without sending for an already-confirmed address, and a claim
-// the screen cannot see is barred (rev 17 sign-in bundle, #1533).
-const CONFIRMATION_SENT = 'If a confirmation email arrives, open the newest one';
-const RESET_SENT = 'If a reset email arrives, open the newest one';
+const NEWEST_CODE = 'Enter the newest code';
 
-export type SignInDialogScreen = 'sign-in' | 'create' | 'check-email' | 'forgot' | 'forgot-sent';
+export type SignInDialogScreen =
+  | 'sign-in'
+  | 'create'
+  | 'recover'
+  | 'code'
+  | 'choose-password'
+  | 'uncertain-save'
+  | 'different-account';
 
 export interface SignInDialogActionError {
   kind: string;
@@ -40,6 +45,33 @@ export interface SignInDialogActionError {
 }
 
 export type SignInDialogActionResult = { ok: true } | { ok: false; error: SignInDialogActionError };
+
+export interface AccountCodeVerifiedData {
+  email: string;
+  googleStillWorks: boolean;
+}
+
+export interface OpenAccountSummary {
+  id: string;
+  name: string;
+  email: string;
+}
+
+export interface AccountCodePasswordOutcome {
+  passwordStatus: 'saved' | 'already-set' | 'unknown';
+  relationship: 'none' | 'same' | 'different';
+  requiresAccountChoice: boolean;
+  openAccount?: OpenAccountSummary;
+}
+
+export type AccountCodePasswordActionResult =
+  | { ok: true; data: AccountCodePasswordOutcome }
+  | {
+      ok: false;
+      error: SignInDialogActionError;
+      canRetryPassword: boolean;
+      passwordStatus: 'not-started' | 'saved' | 'already-set' | 'unknown';
+    };
 
 export interface SignInDialogProps {
   open: boolean;
@@ -49,21 +81,40 @@ export interface SignInDialogProps {
   initialEmail?: string;
   errorMessage?: string | null;
   errorKind?: SignInErrorKind | null;
-  busyAction?: 'google' | 'sign-in' | 'create' | 'resend' | 'forgot' | null;
+  busyAction?:
+    | 'google'
+    | 'sign-in'
+    | 'request-code'
+    | 'verify-code'
+    | 'save-password'
+    | 'finish-code'
+    | 'switch-account'
+    | null;
   emailPasswordEnabled: boolean;
   /** The launch value recorded from Supabase. The 60-second drawing was not a specification. */
   resendWaitSeconds: number;
+  ordinaryAccountOpen?: boolean;
   onClose: () => void;
   onGoogle: () => Promise<void>;
   onPasswordSignIn: (email: string, password: string) => Promise<SignInDialogActionResult>;
-  onCreateAccount: (email: string, password: string) => Promise<SignInDialogActionResult>;
-  onResendConfirmation: (email: string) => Promise<SignInDialogActionResult>;
-  onForgotPassword: (email: string) => Promise<SignInDialogActionResult>;
+  onRequestAccountCode: (
+    email: string,
+    purpose: 'create' | 'recover',
+  ) => Promise<SignInDialogActionResult>;
+  onVerifyAccountCode: (
+    code: string,
+  ) => Promise<
+    { ok: true; data: AccountCodeVerifiedData } | { ok: false; error: SignInDialogActionError }
+  >;
+  onSaveAccountCodePassword: (password: string) => Promise<AccountCodePasswordActionResult>;
+  onRetryAccountCodeFinish: () => Promise<AccountCodePasswordActionResult>;
+  onKeepCurrentAccount: () => Promise<void>;
+  onSwitchAccount: () => Promise<SignInDialogActionResult>;
+  onCancelAccountCode: () => Promise<void>;
   onBackFromOutcome?: () => void;
 }
 
-type FieldErrors = { email?: string; password?: string; confirmation?: string };
-type CheckEmailMode = 'create' | 'unconfirmed';
+type FieldErrors = { email?: string; code?: string; password?: string; confirmation?: string };
 
 function IntentIcon({
   icon,
@@ -208,36 +259,64 @@ export function SignInDialog({
   busyAction = null,
   emailPasswordEnabled,
   resendWaitSeconds,
+  ordinaryAccountOpen = false,
   onClose,
   onGoogle,
   onPasswordSignIn,
-  onCreateAccount,
-  onResendConfirmation,
-  onForgotPassword,
+  onRequestAccountCode,
+  onVerifyAccountCode,
+  onSaveAccountCodePassword,
+  onRetryAccountCodeFinish,
+  onKeepCurrentAccount,
+  onSwitchAccount,
+  onCancelAccountCode,
   onBackFromOutcome,
 }: SignInDialogProps) {
   const { isMobile } = useResponsive();
   const [screen, setScreen] = useState<SignInDialogScreen>(initialScreen);
   const [email, setEmail] = useState(initialEmail);
+  const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
-  const [checkEmailMode, setCheckEmailMode] = useState<CheckEmailMode>('create');
+  const [codePurpose, setCodePurpose] = useState<'create' | 'recover'>('create');
+  const [googleStillWorks, setGoogleStillWorks] = useState(false);
+  const [openAccount, setOpenAccount] = useState<OpenAccountSummary | null>(null);
+  const [finishNeedsRetry, setFinishNeedsRetry] = useState(false);
   const [resendStatus, setResendStatus] = useState<ResendStatus>('ready');
   const [resendSeconds, setResendSeconds] = useState(0);
   const wasOpen = useRef(false);
+  const openGeneration = useRef(0);
   const requestGate = useRef(createValidRequestGate()).current;
   const emailRef = useRef<any>(null);
+  const codeRef = useRef<any>(null);
   const passwordRef = useRef<any>(null);
   const confirmationRef = useRef<any>(null);
+  const passwordActionsRef = useRef<any>(null);
   const anyBusy = busyAction !== null;
+
+  const revealPasswordActions = useCallback(() => {
+    if (!isWeb || !isMobile) return;
+    const actions = passwordActionsRef.current as HTMLElement | null;
+    actions?.scrollIntoView?.({ block: 'end', inline: 'nearest' });
+    let parent = actions?.parentElement ?? null;
+    while (parent) {
+      if (parent.scrollHeight > parent.clientHeight) {
+        parent.scrollTop = parent.scrollHeight;
+        return;
+      }
+      parent = parent.parentElement;
+    }
+  }, [isMobile]);
 
   useEffect(() => {
     if (!open) {
+      if (wasOpen.current) openGeneration.current += 1;
       wasOpen.current = false;
       requestGate.reset();
       setEmail('');
+      setCode('');
       setPassword('');
       setConfirmation('');
       setFieldErrors({});
@@ -246,13 +325,18 @@ export function SignInDialog({
     }
     if (wasOpen.current) return;
     wasOpen.current = true;
+    openGeneration.current += 1;
     setScreen(emailPasswordEnabled ? initialScreen : 'sign-in');
     setEmail(initialEmail);
+    setCode('');
     setPassword('');
     setConfirmation('');
     setFieldErrors({});
     setFormError(null);
-    setCheckEmailMode('create');
+    setCodePurpose('create');
+    setGoogleStillWorks(false);
+    setOpenAccount(null);
+    setFinishNeedsRetry(false);
     setResendStatus('ready');
     setResendSeconds(0);
   }, [emailPasswordEnabled, initialEmail, initialScreen, open, requestGate]);
@@ -274,6 +358,22 @@ export function SignInDialog({
     passwordRef.current?.focus?.();
   }, [anyBusy, formError, password]);
 
+  useEffect(() => {
+    if (!open || screen !== 'choose-password' || !isWeb || !isMobile) return;
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+    let previousHeight = viewport.height;
+    const revealAfterKeyboardOpens = () => {
+      const nextHeight = viewport.height;
+      if (nextHeight < previousHeight && document.activeElement === confirmationRef.current) {
+        revealPasswordActions();
+      }
+      previousHeight = nextHeight;
+    };
+    viewport.addEventListener('resize', revealAfterKeyboardOpens);
+    return () => viewport.removeEventListener('resize', revealAfterKeyboardOpens);
+  }, [isMobile, open, revealPasswordActions, screen]);
+
   const clearMessages = () => {
     setFieldErrors({});
     setFormError(null);
@@ -282,11 +382,33 @@ export function SignInDialog({
   const moveTo = (next: SignInDialogScreen, clearEmail = false) => {
     setScreen(next);
     if (clearEmail) setEmail('');
+    setCode('');
     setPassword('');
     setConfirmation('');
+    setOpenAccount(null);
+    setFinishNeedsRetry(false);
     clearMessages();
     setResendStatus('ready');
     setResendSeconds(0);
+  };
+
+  const isCurrentOpen = (generation: number) => openGeneration.current === generation;
+
+  const resetCurrentRequest = (generation: number) => {
+    if (isCurrentOpen(generation)) requestGate.reset();
+  };
+
+  const closeDialog = () => {
+    openGeneration.current += 1;
+    requestGate.reset();
+    onClose();
+  };
+
+  const cancelCodeAndMoveTo = (next: SignInDialogScreen, clearEmail = false) => {
+    const generation = openGeneration.current;
+    void onCancelAccountCode().finally(() => {
+      if (isCurrentOpen(generation)) moveTo(next, clearEmail);
+    });
   };
 
   const showResultError = (error: SignInDialogActionError) => {
@@ -295,9 +417,14 @@ export function SignInDialog({
       emailRef.current?.focus?.();
       return;
     }
-    if (error.kind === 'weak-password' || error.kind === 'leaked-password') {
+    if (error.kind === 'weak-password' || error.kind === 'password-too-long') {
       setFieldErrors({ password: error.message });
       passwordRef.current?.focus?.();
+      return;
+    }
+    if (error.kind === 'wrong-or-expired-code') {
+      setFieldErrors({ code: error.message });
+      codeRef.current?.focus?.();
       return;
     }
     if (error.kind === 'bad-credentials') {
@@ -314,13 +441,16 @@ export function SignInDialog({
 
   const submitGoogle = async () => {
     if (!requestGate.tryStart(true)) return;
+    const generation = openGeneration.current;
     clearMessages();
     try {
       await onGoogle();
+      if (!isCurrentOpen(generation)) return;
     } catch {
+      if (!isCurrentOpen(generation)) return;
       setFormError(REV9_AUTH_MESSAGES.requestFailure);
     } finally {
-      requestGate.reset();
+      resetCurrentRequest(generation);
     }
   };
 
@@ -334,58 +464,36 @@ export function SignInDialog({
       return;
     }
     if (!requestGate.tryStart(true)) return;
+    const generation = openGeneration.current;
     clearMessages();
     const safeEmail = normalizeEmail(email);
     try {
       const result = await onPasswordSignIn(safeEmail, password);
+      if (!isCurrentOpen(generation)) return;
       if (result.ok) return;
       if (result.error.kind === 'email-not-confirmed') {
         setEmail(safeEmail);
-        setCheckEmailMode('unconfirmed');
-        moveTo('check-email');
+        const requested = await onRequestAccountCode(safeEmail, 'create');
+        if (!isCurrentOpen(generation)) return;
+        if (requested.ok) {
+          setCodePurpose('create');
+          moveTo('code');
+          finishResend();
+        } else {
+          showResultError(requested.error);
+        }
         return;
       }
       showResultError(result.error);
     } catch {
+      if (!isCurrentOpen(generation)) return;
       setFormError(REV9_AUTH_MESSAGES.requestFailure);
     } finally {
-      requestGate.reset();
+      resetCurrentRequest(generation);
     }
   };
 
-  const submitCreate = async () => {
-    const emailError = validateEmail(email);
-    const passwordError = validatePassword(password);
-    const confirmationError = validatePasswordMatch(password, confirmation);
-    if (emailError || passwordError || confirmationError) {
-      setFieldErrors({
-        email: emailError ?? undefined,
-        password: passwordError ?? undefined,
-        confirmation: confirmationError ?? undefined,
-      });
-      (emailError ? emailRef : passwordError ? passwordRef : confirmationRef).current?.focus?.();
-      return;
-    }
-    if (!requestGate.tryStart(true)) return;
-    clearMessages();
-    const safeEmail = normalizeEmail(email);
-    try {
-      const result = await onCreateAccount(safeEmail, password);
-      if (result.ok || result.error.kind === 'check-email') {
-        setEmail(safeEmail);
-        setCheckEmailMode('create');
-        moveTo('check-email');
-        return;
-      }
-      showResultError(result.error);
-    } catch {
-      setFormError(REV9_AUTH_MESSAGES.requestFailure);
-    } finally {
-      requestGate.reset();
-    }
-  };
-
-  const submitForgot = async () => {
+  const submitCodeRequest = async (purpose: 'create' | 'recover', repeat = false) => {
     const emailError = validateEmail(email);
     if (emailError) {
       setFieldErrors({ email: emailError });
@@ -393,40 +501,148 @@ export function SignInDialog({
       return;
     }
     if (!requestGate.tryStart(true)) return;
+    const generation = openGeneration.current;
     clearMessages();
     const safeEmail = normalizeEmail(email);
     try {
-      const result = await onForgotPassword(safeEmail);
+      const result = await onRequestAccountCode(safeEmail, purpose);
+      if (!isCurrentOpen(generation)) return;
       if (result.ok) {
         setEmail(safeEmail);
-        moveTo('forgot-sent');
+        setCodePurpose(purpose);
+        if (repeat) {
+          setCode('');
+          codeRef.current?.focus?.();
+        } else moveTo('code');
+        finishResend();
+        return;
+      }
+      if (result.error.kind === 'too-many-attempts') {
+        finishResend(false);
+        if (repeat) codeRef.current?.focus?.();
+      }
+      showResultError(
+        result.error.kind === 'bad-credentials'
+          ? {
+              kind: 'request-failure',
+              message: 'We couldn’t request a code. Check your connection and try again.',
+            }
+          : result.error,
+      );
+    } catch {
+      if (!isCurrentOpen(generation)) return;
+      setFormError(REV9_AUTH_MESSAGES.requestFailure);
+    } finally {
+      resetCurrentRequest(generation);
+    }
+  };
+
+  const submitCode = async () => {
+    if (!code.trim()) {
+      setFieldErrors({ code: 'Enter your code' });
+      codeRef.current?.focus?.();
+      return;
+    }
+    if (!requestGate.tryStart(true)) return;
+    const generation = openGeneration.current;
+    clearMessages();
+    try {
+      const result = await onVerifyAccountCode(code.trim());
+      if (!isCurrentOpen(generation)) return;
+      if (result.ok) {
+        setEmail(result.data.email);
+        setGoogleStillWorks(result.data.googleStillWorks);
+        moveTo('choose-password');
         return;
       }
       showResultError(result.error);
     } catch {
+      if (!isCurrentOpen(generation)) return;
       setFormError(REV9_AUTH_MESSAGES.requestFailure);
     } finally {
-      requestGate.reset();
+      resetCurrentRequest(generation);
     }
   };
 
-  const submitResend = async () => {
+  const finishPasswordOutcome = (outcome: AccountCodePasswordOutcome) => {
+    setPassword('');
+    setConfirmation('');
+    setOpenAccount(outcome.openAccount ?? null);
+    setFinishNeedsRetry(false);
+    if (outcome.passwordStatus === 'unknown') {
+      setScreen('uncertain-save');
+    } else if (outcome.requiresAccountChoice) {
+      setScreen('different-account');
+    }
+  };
+
+  const submitCodePassword = async () => {
+    const passwordError = validatePassword(password);
+    const confirmationError = validatePasswordMatch(password, confirmation);
+    if (passwordError || confirmationError) {
+      setFieldErrors({
+        password: passwordError ?? undefined,
+        confirmation: confirmationError ?? undefined,
+      });
+      (passwordError ? passwordRef : confirmationRef).current?.focus?.();
+      return;
+    }
     if (!requestGate.tryStart(true)) return;
+    const generation = openGeneration.current;
     clearMessages();
     try {
-      const result =
-        screen === 'forgot-sent'
-          ? await onForgotPassword(normalizeEmail(email))
-          : await onResendConfirmation(normalizeEmail(email));
-      if (result.ok) finishResend();
-      else {
-        if (result.error.kind === 'too-many-attempts') finishResend(false);
+      const result = await onSaveAccountCodePassword(password);
+      if (!isCurrentOpen(generation)) return;
+      if (result.ok) {
+        finishPasswordOutcome(result.data);
+      } else if (result.canRetryPassword) {
         showResultError(result.error);
+      } else {
+        setPassword('');
+        setConfirmation('');
+        setFinishNeedsRetry(true);
+        setFormError(result.error.message);
+        setScreen('uncertain-save');
       }
     } catch {
+      if (!isCurrentOpen(generation)) return;
+      setPassword('');
+      setConfirmation('');
+      setFinishNeedsRetry(true);
       setFormError(REV9_AUTH_MESSAGES.requestFailure);
+      setScreen('uncertain-save');
     } finally {
-      requestGate.reset();
+      resetCurrentRequest(generation);
+    }
+  };
+
+  const retryCodeFinish = async () => {
+    if (!requestGate.tryStart(true)) return;
+    const generation = openGeneration.current;
+    setFormError(null);
+    try {
+      const result = await onRetryAccountCodeFinish();
+      if (!isCurrentOpen(generation)) return;
+      if (result.ok) finishPasswordOutcome(result.data);
+      else {
+        setFinishNeedsRetry(true);
+        setFormError(result.error.message);
+      }
+    } finally {
+      resetCurrentRequest(generation);
+    }
+  };
+
+  const switchCodeAccount = async () => {
+    const generation = openGeneration.current;
+    setFormError(null);
+    try {
+      const result = await onSwitchAccount();
+      if (!isCurrentOpen(generation)) return;
+      if (!result.ok) setFormError(result.error.message);
+    } catch {
+      if (!isCurrentOpen(generation)) return;
+      setFormError(REV9_AUTH_MESSAGES.requestFailure);
     }
   };
 
@@ -455,30 +671,35 @@ export function SignInDialog({
     description =
       intent === 'track' ? trackDescription : 'Bills you track are saved to your account';
     icon = intent === 'track' ? 'bell' : 'brand';
-  } else if (screen === 'check-email') {
-    title = checkEmailMode === 'unconfirmed' ? 'Confirm your email' : 'Check your email';
-    // Every accepted create lands here — new address, taken address or
-    // Google-first account, identical response and shape — so the copy names
-    // no address and claims no send.
+  } else if (screen === 'recover') {
+    title = 'Recover your account';
     description =
-      checkEmailMode === 'unconfirmed'
-        ? `Confirm ${email} before signing in`
-        : 'If a confirmation email arrives, open the newest one. If none does, sign in — you may already have an account.';
+      'Enter your email to choose a new password. If no account exists, this creates one.';
+    icon = 'lock';
+  } else if (screen === 'code') {
+    title = 'Enter your code';
+    description = `For ${email}`;
     icon = 'mail';
-  } else if (screen === 'forgot') {
-    title = 'Reset your password';
-    description =
-      'Enter the email you use for Alethical and we’ll send password reset instructions';
+  } else if (screen === 'choose-password') {
+    title = 'Choose a password';
+    description = `For ${email}`;
+    icon = 'lock';
+  } else if (screen === 'uncertain-save') {
+    title = finishNeedsRetry
+      ? 'We couldn’t finish signing you in'
+      : 'We couldn’t confirm the password was saved';
+    description = `For ${email}`;
     icon = 'lock';
   } else {
-    title = 'Check your email';
-    description = RESET_SENT;
-    icon = 'mail';
+    title = 'Account ready';
+    description = openAccount
+      ? `${email} is ready. You’re still signed in as ${openAccount.email}`
+      : `${email} is ready`;
+    icon = 'shield';
   }
   const shownError = dedicatedOutcome ? formError : (errorMessage ?? formError);
   const googleBusy = busyAction === 'google';
-  const resendBusy =
-    busyAction === 'resend' || (screen === 'forgot-sent' && busyAction === 'forgot');
+  const resendBusy = screen === 'code' && busyAction === 'request-code';
   const shownResendStatus: ResendStatus = resendBusy ? 'sending' : resendStatus;
 
   const serverError = shownError ? (
@@ -489,9 +710,10 @@ export function SignInDialog({
 
   const googleButton = (
     <GoogleButton
-      onPress={anyBusy && !googleBusy ? undefined : () => void submitGoogle()}
+      onPress={() => void submitGoogle()}
       label="Continue with Google"
       busy={googleBusy}
+      disabled={anyBusy && !googleBusy}
       busyLabel="Continuing with Google…"
       size={isMobile ? 'lg' : 'md'}
     />
@@ -510,7 +732,15 @@ export function SignInDialog({
         label="Back to sign in"
         busyLabel="Returning…"
         tone="quiet"
-        onPress={() => onBackFromOutcome?.()}
+        onPress={() => {
+          const generation = openGeneration.current;
+          void onCancelAccountCode().finally(() => {
+            if (isCurrentOpen(generation)) {
+              moveTo('sign-in');
+              onBackFromOutcome?.();
+            }
+          });
+        }}
       />
     );
   } else if (screen === 'sign-in') {
@@ -557,7 +787,7 @@ export function SignInDialog({
               <TextAction
                 label="Forgot password?"
                 disabled={anyBusy}
-                onPress={() => moveTo('forgot')}
+                onPress={() => moveTo('recover')}
               />
             </View>
             <View style={styles.switchRow}>
@@ -578,20 +808,129 @@ export function SignInDialog({
     content = (
       <>
         {serverError}
-        <GoogleHelp create />
-        {googleChoice}
-        <View style={styles.fields}>
-          <EmailField
-            inputRef={emailRef}
-            value={email}
-            error={fieldErrors.email}
-            disabled={anyBusy}
-            onChangeText={(value) => {
-              setEmail(value);
-              setFieldErrors((errors) => ({ ...errors, email: undefined }));
-            }}
-            onSubmitEditing={() => passwordRef.current?.focus?.()}
+        {!ordinaryAccountOpen ? <GoogleHelp create /> : null}
+        {!ordinaryAccountOpen ? googleChoice : null}
+        <EmailField
+          inputRef={emailRef}
+          value={email}
+          error={fieldErrors.email}
+          disabled={anyBusy}
+          returnKeyType="go"
+          onChangeText={(value) => {
+            setEmail(value);
+            setFieldErrors((errors) => ({ ...errors, email: undefined }));
+          }}
+          onSubmitEditing={() => void submitCodeRequest('create')}
+        />
+        <View style={styles.actionStack}>
+          <LoadingButton
+            label="Continue"
+            busyLabel="Continuing…"
+            busy={busyAction === 'request-code'}
+            disabled={!email.trim() || (anyBusy && busyAction !== 'request-code')}
+            onPress={() => submitCodeRequest('create')}
           />
+        </View>
+        <View style={styles.switchRow}>
+          <Text style={styles.switchText}>Already have an account?</Text>
+          <TextAction
+            label="Sign in"
+            inline
+            disabled={anyBusy}
+            onPress={() => cancelCodeAndMoveTo('sign-in')}
+          />
+        </View>
+        <LegalCopy />
+      </>
+    );
+  } else if (screen === 'recover') {
+    content = (
+      <>
+        {serverError}
+        {!ordinaryAccountOpen ? googleChoice : null}
+        <EmailField
+          inputRef={emailRef}
+          value={email}
+          error={fieldErrors.email}
+          disabled={anyBusy}
+          returnKeyType="go"
+          onChangeText={(value) => {
+            setEmail(value);
+            setFieldErrors((errors) => ({ ...errors, email: undefined }));
+          }}
+          onSubmitEditing={() => void submitCodeRequest('recover')}
+        />
+        <View style={styles.actionStack}>
+          <LoadingButton
+            label="Continue"
+            busyLabel="Continuing…"
+            busy={busyAction === 'request-code'}
+            disabled={!email.trim() || (anyBusy && busyAction !== 'request-code')}
+            onPress={() => submitCodeRequest('recover')}
+          />
+          <TextAction
+            label="Back to sign in"
+            disabled={anyBusy}
+            onPress={() => cancelCodeAndMoveTo('sign-in')}
+          />
+        </View>
+      </>
+    );
+  } else if (screen === 'code') {
+    content = (
+      <>
+        {serverError}
+        <CodeField
+          inputRef={codeRef}
+          value={code}
+          error={fieldErrors.code}
+          disabled={anyBusy}
+          onChangeText={(value) => {
+            setCode(value);
+            setFieldErrors((errors) => ({ ...errors, code: undefined }));
+          }}
+          onSubmitEditing={() => void submitCode()}
+        />
+        <View style={styles.actionStack}>
+          <LoadingButton
+            label="Continue"
+            busyLabel="Checking…"
+            busy={busyAction === 'verify-code'}
+            disabled={!code.trim() || (anyBusy && busyAction !== 'verify-code')}
+            onPress={submitCode}
+          />
+          <ResendControl
+            status={shownResendStatus}
+            secondsRemaining={resendSeconds}
+            sentMessage={NEWEST_CODE}
+            actionLabel="Send a new code"
+            sendingLabel="Requesting…"
+            disabled={anyBusy && !resendBusy}
+            onResend={() => submitCodeRequest(codePurpose, true)}
+          />
+          <TextAction
+            label="Use another email"
+            disabled={anyBusy}
+            onPress={() => {
+              const generation = openGeneration.current;
+              void onCancelAccountCode().finally(() => {
+                if (isCurrentOpen(generation)) moveTo(codePurpose, true);
+              });
+            }}
+          />
+          {!ordinaryAccountOpen ? googleButton : null}
+          <ContactMailText
+            text="No code? Check spam or contact us at ask@alethical.com."
+            style={styles.helpText}
+          />
+        </View>
+      </>
+    );
+  } else if (screen === 'choose-password') {
+    content = (
+      <>
+        {serverError}
+        <View style={styles.fields}>
           <PasswordField
             inputRef={passwordRef}
             label="PASSWORD"
@@ -614,140 +953,106 @@ export function SignInDialog({
             error={fieldErrors.confirmation}
             disabled={anyBusy}
             autoComplete="new-password"
+            onFocus={revealPasswordActions}
             onChangeText={(value) => {
               setConfirmation(value);
               setFieldErrors((errors) => ({ ...errors, confirmation: undefined }));
             }}
-            onSubmitEditing={() => void submitCreate()}
+            onSubmitEditing={() => void submitCodePassword()}
           />
         </View>
-        <View style={styles.actionStack}>
+        {googleStillWorks ? <Text style={styles.helpText}>Google will still work</Text> : null}
+        <View ref={passwordActionsRef} style={styles.actionStack}>
           <LoadingButton
-            label="Create account"
-            busyLabel="Creating your account…"
-            busy={busyAction === 'create'}
-            disabled={
-              !email.trim() || !password || !confirmation || (anyBusy && busyAction !== 'create')
-            }
-            onPress={submitCreate}
-          />
-        </View>
-        <View style={styles.switchRow}>
-          <Text style={styles.switchText}>Already have an account?</Text>
-          <TextAction label="Sign in" inline disabled={anyBusy} onPress={() => moveTo('sign-in')} />
-        </View>
-        <LegalCopy />
-      </>
-    );
-  } else if (screen === 'check-email') {
-    // The Google button is on the card for the create outcome (rev 12): for a
-    // taken address or a Google-first account every other control here is inert,
-    // and the button reveals nothing because everyone sees it. The unconfirmed
-    // outcome deliberately has no Google button — this screen already knows the
-    // password is correct, and an unconfirmed email must never be invited to
-    // claim an existing account through Google.
-    const resendConfirmationControl = (
-      <ResendControl
-        status={shownResendStatus}
-        secondsRemaining={resendSeconds}
-        sentMessage={CONFIRMATION_SENT}
-        actionLabel={
-          checkEmailMode === 'unconfirmed' ? 'Resend confirmation email' : 'Resend email'
-        }
-        onResend={submitResend}
-      />
-    );
-    const signInAfterEmailControl = (
-      <LoadingButton
-        label={checkEmailMode === 'unconfirmed' ? 'Sign in after confirming' : 'Sign in'}
-        busyLabel="Opening sign in…"
-        disabled={anyBusy}
-        onPress={() => moveTo('sign-in')}
-      />
-    );
-    content = (
-      <>
-        {serverError}
-        {checkEmailMode === 'create' ? <View style={styles.googleSolo}>{googleButton}</View> : null}
-        <View style={styles.actionStackNoTop}>
-          {checkEmailMode === 'create' ? (
-            <>
-              {signInAfterEmailControl}
-              {resendConfirmationControl}
-            </>
-          ) : (
-            <>
-              {resendConfirmationControl}
-              {signInAfterEmailControl}
-            </>
-          )}
-          <TextAction
-            label="Change email"
-            disabled={anyBusy}
-            onPress={() => moveTo(checkEmailMode === 'create' ? 'create' : 'sign-in', true)}
+            label="Save password"
+            busyLabel="Saving…"
+            busy={busyAction === 'save-password'}
+            disabled={!password || !confirmation || (anyBusy && busyAction !== 'save-password')}
+            onPress={submitCodePassword}
           />
         </View>
       </>
     );
-  } else if (screen === 'forgot') {
-    // Rev 12: the Google button is on the card and the Google help sentence is
-    // gone — the button is the sentence.
+  } else if (screen === 'uncertain-save') {
+    const accountChoice = openAccount ? (
+      <AccountCard
+        label="This browser is still signed in as:"
+        name={openAccount.name}
+        email={openAccount.email}
+      />
+    ) : null;
     content = (
-      <>
-        {serverError}
-        {googleChoice}
-        <EmailField
-          inputRef={emailRef}
-          value={email}
-          error={fieldErrors.email}
-          disabled={anyBusy}
-          returnKeyType="go"
-          onChangeText={(value) => {
-            setEmail(value);
-            setFieldErrors((errors) => ({ ...errors, email: undefined }));
-          }}
-          onSubmitEditing={() => void submitForgot()}
-        />
-        <View style={styles.actionStack}>
+      <View style={styles.actionStackNoTop}>
+        {serverError ?? (
+          <FormError
+            variant="banner"
+            message="We couldn’t confirm whether the password was saved. Try it when you sign in. If it doesn’t work, recover your account."
+          />
+        )}
+        {accountChoice}
+        {finishNeedsRetry ? (
           <LoadingButton
-            label="Send reset instructions"
-            busyLabel="Sending…"
-            busy={busyAction === 'forgot'}
-            disabled={!email.trim() || (anyBusy && busyAction !== 'forgot')}
-            onPress={submitForgot}
+            label="Continue"
+            busyLabel="Finishing…"
+            busy={busyAction === 'finish-code'}
+            onPress={retryCodeFinish}
           />
-          <TextAction
-            label="Back to sign in"
-            disabled={anyBusy}
-            onPress={() => moveTo('sign-in')}
+        ) : openAccount ? (
+          <>
+            <LoadingButton
+              label="Keep current account"
+              busyLabel="Finishing…"
+              busy={busyAction === 'finish-code'}
+              disabled={anyBusy && busyAction !== 'finish-code'}
+              onPress={() => void onKeepCurrentAccount()}
+            />
+            <LoadingButton
+              tone="secondary"
+              label="Switch account"
+              busyLabel="Switching…"
+              busy={busyAction === 'switch-account'}
+              disabled={anyBusy && busyAction !== 'switch-account'}
+              onPress={switchCodeAccount}
+            />
+          </>
+        ) : (
+          <LoadingButton
+            label="Continue"
+            busyLabel="Continuing…"
+            busy={busyAction === 'finish-code'}
+            disabled={anyBusy && busyAction !== 'finish-code'}
+            onPress={() => void onKeepCurrentAccount()}
           />
-        </View>
-      </>
+        )}
+      </View>
     );
   } else {
     content = (
-      <>
+      <View style={styles.actionStackNoTop}>
         {serverError}
-        <View style={styles.googleSolo}>{googleButton}</View>
-        <View style={styles.actionStackNoTop}>
-          <ResendControl
-            status={shownResendStatus}
-            secondsRemaining={resendSeconds}
-            sentMessage={RESET_SENT}
-            onResend={submitResend}
+        {openAccount ? (
+          <AccountCard
+            label="This browser is still signed in as:"
+            name={openAccount.name}
+            email={openAccount.email}
           />
-          <TextAction
-            label="Change email"
-            disabled={anyBusy}
-            onPress={() => moveTo('forgot', true)}
-          />
-          <TextAction
-            label="Back to sign in"
-            disabled={anyBusy}
-            onPress={() => moveTo('sign-in')}
-          />
-        </View>
-      </>
+        ) : null}
+        <LoadingButton
+          label="Keep current account"
+          busyLabel="Finishing…"
+          busy={busyAction === 'finish-code'}
+          disabled={anyBusy && busyAction !== 'finish-code'}
+          onPress={() => void onKeepCurrentAccount()}
+        />
+        <LoadingButton
+          tone="secondary"
+          label="Switch account"
+          busyLabel="Switching…"
+          busy={busyAction === 'switch-account'}
+          disabled={anyBusy && busyAction !== 'switch-account'}
+          onPress={switchCodeAccount}
+        />
+      </View>
     );
   }
 
@@ -758,7 +1063,7 @@ export function SignInDialog({
       title={title}
       description={description}
       icon={<IntentIcon icon={icon} size={isMobile ? 56 : 52} />}
-      onClose={onClose}
+      onClose={closeDialog}
     >
       {content}
     </SignInContainer>
@@ -809,6 +1114,12 @@ const styles = StyleSheet.create({
   actionStack: { marginTop: 20, gap: 12 },
   actionStackNoTop: { gap: 12 },
   googleSolo: { marginBottom: 12 },
+  helpText: {
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.small,
+    lineHeight: 21,
+    color: t.colors.text.muted,
+  },
   textAction: {
     width: '100%',
     minHeight: 44,
