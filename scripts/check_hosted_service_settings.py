@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Compare documented hosted-service settings with their live read APIs.
 
-The intended values live only in ``docs/operations/repo-and-service-settings.md``.
-This script parses that Markdown directly. It never keeps a JSON or Python copy of
-the expected values.
+The intended scalar values live in ``docs/operations/repo-and-service-settings.md``.
+When that record enables account-code email, the exact confirmation and magic-link
+bodies live in ``supabase/templates``. This script reads the active tracked sources
+directly. It never keeps a JSON or Python copy of the expected values.
 
 Every governed row must say how it is checked:
 
@@ -38,6 +39,8 @@ ROOT = Path(
     os.environ.get("HOSTED_SETTINGS_ROOT", Path(__file__).resolve().parents[1])
 ).resolve()
 DOC = ROOT / "docs/operations/repo-and-service-settings.md"
+EMAIL_CONFIRMATION_TEMPLATE = ROOT / "supabase/templates/email-confirmation.html"
+MAGIC_LINK_TEMPLATE = ROOT / "supabase/templates/account-code.html"
 
 GITHUB_API = "https://api.github.com"
 VERCEL_API = "https://api.vercel.com"
@@ -101,6 +104,31 @@ class TemplateLinks(HTMLParser):
         self.hrefs.extend(
             value for name, value in attrs if name == "href" and value is not None
         )
+
+
+def _is_code_only_template(template: str) -> bool:
+    links = TemplateLinks()
+    links.feed(template)
+    return (
+        "{{ .Token }}" in template
+        and not links.hrefs
+        and re.search(
+            r"{{\s*\.(?:ConfirmationURL|TokenHash|RedirectTo|SiteURL)\s*}}", template
+        )
+        is None
+    )
+
+
+def _is_confirmation_compat_template(template: str) -> bool:
+    links = TemplateLinks()
+    links.feed(template)
+    expected_link = "{{.RedirectTo}}&token_hash={{.TokenHash}}&type=email"
+    normalized_links = ["".join(href.split()) for href in links.hrefs]
+    return (
+        "{{ .Token }}" in template
+        and normalized_links == [expected_link]
+        and re.search(r"{{\s*\.ConfirmationURL\s*}}", template) is None
+    )
 
 
 Fetcher = Callable[[str, str, Mapping[str, str], object | None], HttpResponse]
@@ -276,6 +304,17 @@ class Checker:
                 ""
                 if matches
                 else f"expected {expected or _plain(row.intended)!r}; live is {actual!r}",
+            )
+        )
+
+    def record_hidden(self, row: DocRow, matches: bool, detail: str) -> None:
+        """Record an exact comparison without exposing either value."""
+        self.results.append(
+            Result(
+                State.MATCH if matches else State.DRIFT,
+                row.section,
+                row.setting,
+                "" if matches else detail,
             )
         )
 
@@ -1315,10 +1354,17 @@ class Checker:
             actual = not value if inverted else value
             self.record(row, actual is _intended_bool(row), _bool_word(actual))
 
-        for label, field in (
+        numeric_settings = [
             ("Minimum password length", "password_min_length"),
             ("Authentication email limit", "rate_limit_email_sent"),
+        ]
+        for optional_setting in (
+            ("Email code lifetime", "mailer_otp_exp"),
+            ("Email code length", "mailer_otp_length"),
         ):
+            if ("Supabase sign-in", optional_setting[0]) in self.rows:
+                numeric_settings.append(optional_setting)
+        for label, field in numeric_settings:
             row = self.row("Supabase sign-in", label)
             expected_codes = _codes(row.intended)
             expected = int(
@@ -1337,37 +1383,77 @@ class Checker:
             "none" if no_characters else "required groups are set",
         )
 
-        for label, field, email_type in (
-            (
-                "Email confirmation template",
-                "mailer_templates_confirmation_content",
-                "email",
-            ),
-            (
-                "Password reset template",
-                "mailer_templates_recovery_content",
-                "recovery",
-            ),
-        ):
-            row = self.row("Supabase sign-in", label)
-            template = config.get(field)
-            links = TemplateLinks()
-            if isinstance(template, str):
-                links.feed(template)
-            expected_prefix = (
-                f"{{{{.RedirectTo}}}}&token_hash={{{{.TokenHash}}}}&type={email_type}"
+        confirmation_row = self.row("Supabase sign-in", "Email confirmation template")
+        uses_code_templates = all(
+            name in confirmation_row.intended
+            for name in ("email-confirmation.html", "account-code.html")
+        )
+        if uses_code_templates:
+            expected_subjects = _codes(confirmation_row.intended)
+            try:
+                confirmation_template = EMAIL_CONFIRMATION_TEMPLATE.read_text(
+                    encoding="utf-8"
+                )
+                magic_link_template = MAGIC_LINK_TEMPLATE.read_text(encoding="utf-8")
+            except OSError:
+                confirmation_template = None
+                magic_link_template = None
+            tracked_templates_valid = (
+                isinstance(confirmation_template, str)
+                and _is_confirmation_compat_template(confirmation_template)
+                and isinstance(magic_link_template, str)
+                and _is_code_only_template(magic_link_template)
+                and bool(expected_subjects)
             )
-            safe_structure = redirects_match and any(
-                "".join(href.split()).startswith(expected_prefix)
-                for href in links.hrefs
+            subject = expected_subjects[0] if expected_subjects else None
+            live_templates_match = (
+                tracked_templates_valid
+                and config.get("mailer_subjects_confirmation") == subject
+                and config.get("mailer_templates_confirmation_content")
+                == confirmation_template
+                and config.get("mailer_subjects_magic_link") == subject
+                and config.get("mailer_templates_magic_link_content")
+                == magic_link_template
             )
-            self.record(
-                row,
-                safe_structure,
-                "safe RedirectTo fragment-token structure"
-                if safe_structure
-                else "RedirectTo fragment-token structure or allow-list does not match",
+            self.record_hidden(
+                confirmation_row,
+                bool(live_templates_match),
+                "live confirmation or magic-link subject/body does not match its "
+                "tracked email",
             )
+        else:
+            confirmation_template = config.get("mailer_templates_confirmation_content")
+            confirmation_links = TemplateLinks()
+            if isinstance(confirmation_template, str):
+                confirmation_links.feed(confirmation_template)
+            confirmation_prefix = "{{.RedirectTo}}&token_hash={{.TokenHash}}&type=email"
+            confirmation_structure = redirects_match and any(
+                "".join(href.split()).startswith(confirmation_prefix)
+                for href in confirmation_links.hrefs
+            )
+            self.record_hidden(
+                confirmation_row,
+                confirmation_structure,
+                "live confirmation body does not use the safe RedirectTo "
+                "fragment-token structure",
+            )
+
+        recovery_row = self.row("Supabase sign-in", "Password reset template")
+        recovery_template = config.get("mailer_templates_recovery_content")
+        recovery_links = TemplateLinks()
+        if isinstance(recovery_template, str):
+            recovery_links.feed(recovery_template)
+        recovery_prefix = "{{.RedirectTo}}&token_hash={{.TokenHash}}&type=recovery"
+        recovery_structure = redirects_match and any(
+            "".join(href.split()).startswith(recovery_prefix)
+            for href in recovery_links.hrefs
+        )
+        self.record_hidden(
+            recovery_row,
+            recovery_structure,
+            "live password-reset body does not use the safe RedirectTo "
+            "fragment-token structure",
+        )
 
         smtp_row = self.row("Supabase sign-in", "Custom SMTP through Resend")
         smtp_expected = _codes(smtp_row.intended)
