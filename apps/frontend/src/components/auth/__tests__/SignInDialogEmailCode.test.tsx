@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, ReactNode, useState } from 'react';
+import { act, ReactNode, useLayoutEffect, useState } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -23,21 +23,46 @@ vi.mock('../../../hooks/useResponsive', () => ({
 
 vi.mock('../SignInContainer', () => ({
   descriptionTextStyle: {},
+  accountPanelDescriptionTextStyle: {},
   SignInContainer: ({
+    open,
     title,
     description,
+    headerIcon,
+    backAction,
     children,
+    onClose,
   }: {
+    open: boolean;
     title: string;
     description: ReactNode;
+    headerIcon?: ReactNode;
+    backAction?: { label: string; onPress: () => void; disabled?: boolean };
     children: ReactNode;
-  }) => (
-    <section>
-      <h1>{title}</h1>
-      <div>{description}</div>
-      {children}
-    </section>
-  ),
+    onClose?: () => void;
+  }) =>
+    open ? (
+      <section>
+        {headerIcon}
+        {backAction ? (
+          <button
+            aria-label={backAction.label}
+            disabled={backAction.disabled}
+            onClick={backAction.onPress}
+          >
+            Back
+          </button>
+        ) : null}
+        {onClose ? (
+          <button aria-label="Close" onClick={onClose}>
+            Close
+          </button>
+        ) : null}
+        <h1>{title}</h1>
+        <div>{description}</div>
+        {children}
+      </section>
+    ) : null,
 }));
 
 vi.mock('../LoadingButton', () => ({
@@ -86,11 +111,13 @@ vi.mock('../EmailField', () => ({
     value,
     error,
     onChangeText,
+    onBlur,
   }: {
     inputRef: React.Ref<HTMLInputElement>;
     value: string;
     error?: string;
     onChangeText: (value: string) => void;
+    onBlur?: () => void;
   }) => (
     <label>
       EMAIL
@@ -98,6 +125,7 @@ vi.mock('../EmailField', () => ({
         ref={inputRef}
         aria-label="EMAIL"
         value={value}
+        onBlur={onBlur}
         onChange={(event) => onChangeText(event.currentTarget.value)}
       />
       {error ? <span>{error}</span> : null}
@@ -137,6 +165,7 @@ vi.mock('../PasswordField', () => ({
     value,
     helper,
     error,
+    labelAccessory,
     onFocus,
     onChangeText,
   }: {
@@ -145,11 +174,13 @@ vi.mock('../PasswordField', () => ({
     value: string;
     helper?: string;
     error?: string;
+    labelAccessory?: ReactNode;
     onFocus?: () => void;
     onChangeText: (value: string) => void;
   }) => (
     <label>
-      {label}
+      <span>{label}</span>
+      {labelAccessory}
       <input
         ref={inputRef}
         aria-label={label}
@@ -259,7 +290,8 @@ function enter(label: string, value: string) {
 
 async function press(label: string) {
   const control = [...document.querySelectorAll<HTMLElement>('button, [role="button"]')].find(
-    (candidate) => candidate.textContent === label,
+    (candidate) =>
+      candidate.textContent === label || candidate.getAttribute('aria-label') === label,
   );
   if (!control) throw new Error(`Control not found: ${label}`);
   await act(async () => {
@@ -276,6 +308,23 @@ function mountDialog(props: SignInDialogProps): { root: Root; mount: HTMLDivElem
   const root = createRoot(mount);
   act(() => root.render(<SignInDialog {...props} />));
   return { root, mount };
+}
+
+type Purpose = 'create' | 'recover';
+type TestOrigin = 'choices' | 'email' | 'direct';
+
+async function mountPurpose(
+  purpose: Purpose,
+  origin: TestOrigin,
+  overrides: Partial<SignInDialogProps> = {},
+) {
+  const initialScreen =
+    origin === 'direct' ? purpose : origin === 'email' ? 'email-sign-in' : 'sign-in';
+  const result = mountDialog(baseProps({ initialScreen, ...overrides }));
+  if (origin !== 'direct') {
+    await press(purpose === 'create' ? 'Create an account' : 'Forgot password?');
+  }
+  return result;
 }
 
 function deferred<T>() {
@@ -296,6 +345,204 @@ afterEach(() => {
 });
 
 describe('email-code account access', () => {
+  it('reopens on the choices without painting the previously closed screen', async () => {
+    const firstFrames: string[] = [];
+
+    function Harness() {
+      const [open, setOpen] = useState(true);
+      useLayoutEffect(() => {
+        if (open) firstFrames.push(document.querySelector('h1')?.textContent ?? '');
+      }, [open]);
+      return (
+        <>
+          <SignInDialog
+            {...baseProps({
+              open,
+              initialScreen: 'sign-in',
+              onClose: () => setOpen(false),
+            })}
+          />
+          {!open ? <button onClick={() => setOpen(true)}>Reopen</button> : null}
+        </>
+      );
+    }
+
+    const mount = document.createElement('div');
+    document.body.append(mount);
+    const root = createRoot(mount);
+    act(() => root.render(<Harness />));
+    await press('Sign in with email');
+    await press('Close');
+    await press('Reopen');
+
+    expect(firstFrames).toEqual(['Sign in to Alethical', 'Sign in to Alethical']);
+    act(() => root.unmount());
+  });
+
+  it('opens email sign-in and returns with email kept and password cleared', async () => {
+    const { root, mount } = mountDialog(
+      baseProps({ initialScreen: 'sign-in', initialEmail: 'jordan@example.com' }),
+    );
+
+    await press('Sign in with email');
+    expect(mount.querySelector('h1')?.textContent).toBe('Sign in with email');
+    enter('PASSWORD', 'mistyped password');
+
+    await press('Back to sign-in choices');
+    expect(mount.querySelector('h1')?.textContent).toBe('Sign in to Alethical');
+    await press('Sign in with email');
+
+    expect(document.querySelector<HTMLInputElement>('input[aria-label="EMAIL"]')?.value).toBe(
+      'jordan@example.com',
+    );
+    expect(document.querySelector<HTMLInputElement>('input[aria-label="PASSWORD"]')?.value).toBe(
+      '',
+    );
+    act(() => root.unmount());
+  });
+
+  it('checks email on blur and keeps the error while the visitor edits', () => {
+    const { root, mount } = mountDialog(
+      baseProps({ initialScreen: 'email-sign-in', initialEmail: 'name@example' }),
+    );
+    const email = document.querySelector<HTMLInputElement>('input[aria-label="EMAIL"]');
+
+    act(() => {
+      email?.focus();
+      email?.blur();
+    });
+    expect(mount.textContent).toContain('Enter a complete email address, like name@example.com');
+
+    enter('EMAIL', 'name@example.com');
+    expect(mount.textContent).toContain('Enter a complete email address, like name@example.com');
+
+    act(() => {
+      email?.focus();
+      email?.blur();
+    });
+    expect(mount.textContent).not.toContain(
+      'Enter a complete email address, like name@example.com',
+    );
+    act(() => root.unmount());
+  });
+
+  it('keeps, focuses, and selects a rejected password', async () => {
+    const signIn = vi.fn(
+      async () =>
+        ({
+          ok: false,
+          error: { kind: 'bad-credentials', message: 'Email or password is incorrect' },
+        }) as SignInDialogActionResult,
+    );
+    const { root, mount } = mountDialog(
+      baseProps({ initialScreen: 'email-sign-in', onPasswordSignIn: signIn }),
+    );
+    const password = enter('PASSWORD', 'wrong password');
+
+    await press('Sign in');
+
+    expect(signIn).toHaveBeenCalledWith('jordan@example.com', 'wrong password');
+    expect(password.value).toBe('wrong password');
+    expect(document.activeElement).toBe(password);
+    expect(password.selectionStart).toBe(0);
+    expect(password.selectionEnd).toBe('wrong password'.length);
+    expect(mount.textContent).toContain('Email or password is incorrect');
+    act(() => root.unmount());
+  });
+
+  it('routes Create and Recover back to their exact origin', async () => {
+    for (const purpose of ['create', 'recover'] as const) {
+      for (const origin of ['choices', 'email', 'direct'] as const) {
+        const { root, mount } = await mountPurpose(purpose, origin);
+        const bodyRoute = purpose === 'create' ? 'Sign in' : 'Back to sign in';
+        const bodyRouteButton = [...mount.querySelectorAll('button')].find(
+          (button) => button.textContent === bodyRoute,
+        );
+
+        if (origin === 'direct') {
+          expect(mount.querySelector('button[aria-label^="Back"]')).toBeNull();
+          expect(bodyRouteButton).not.toBeUndefined();
+        } else {
+          const backName =
+            origin === 'email' ? 'Back to signing in with email' : 'Back to sign-in choices';
+          expect(mount.querySelector(`button[aria-label="${backName}"]`)).not.toBeNull();
+          expect(bodyRouteButton).toBeUndefined();
+          await press(backName);
+          expect(mount.querySelector('h1')?.textContent).toBe(
+            origin === 'email' ? 'Sign in with email' : 'Sign in to Alethical',
+          );
+        }
+        act(() => root.unmount());
+      }
+    }
+  });
+
+  it('returns from code to Create or Recover with its origin kept', async () => {
+    for (const purpose of ['create', 'recover'] as const) {
+      for (const origin of ['choices', 'email', 'direct'] as const) {
+        const cancel = vi.fn(async () => undefined);
+        const { root, mount } = await mountPurpose(purpose, origin, {
+          onCancelAccountCode: cancel,
+        });
+
+        await press('Continue');
+        const codeBack =
+          purpose === 'create'
+            ? 'Back to creating your account'
+            : 'Back to recovering your account';
+        await press(codeBack);
+
+        expect(cancel).toHaveBeenCalledWith(purpose);
+        expect(mount.querySelector('h1')?.textContent).toBe(
+          purpose === 'create' ? 'Create your Alethical account' : 'Recover your account',
+        );
+        if (origin === 'direct') {
+          expect(mount.querySelector('button[aria-label^="Back"]')).toBeNull();
+        } else {
+          expect(
+            mount.querySelector(
+              `button[aria-label="${
+                origin === 'email' ? 'Back to signing in with email' : 'Back to sign-in choices'
+              }"]`,
+            ),
+          ).not.toBeNull();
+        }
+        act(() => root.unmount());
+      }
+    }
+  });
+
+  it('cancels proof and returns from Choose password with its origin kept', async () => {
+    for (const purpose of ['create', 'recover'] as const) {
+      for (const origin of ['choices', 'email', 'direct'] as const) {
+        const cancel = vi.fn(async () => undefined);
+        const { root, mount } = await mountPurpose(purpose, origin, {
+          onCancelAccountCode: cancel,
+        });
+
+        await press('Continue');
+        enter('CODE', '123456');
+        await press('Continue');
+        const passwordBack =
+          purpose === 'create'
+            ? 'Cancel and go back to creating your account'
+            : 'Cancel and go back to recovering your account';
+        await press(passwordBack);
+
+        expect(cancel).toHaveBeenCalledWith(purpose);
+        expect(mount.querySelector('h1')?.textContent).toBe(
+          purpose === 'create' ? 'Create your Alethical account' : 'Recover your account',
+        );
+        if (origin === 'email') {
+          expect(
+            mount.querySelector('button[aria-label="Back to signing in with email"]'),
+          ).not.toBeNull();
+        }
+        act(() => root.unmount());
+      }
+    }
+  });
+
   it('moves from Create to code entry without claiming delivery', async () => {
     const request = vi.fn(async () => ({ ok: true }) as SignInDialogActionResult);
     const cancel = vi.fn(async () => undefined);
@@ -533,6 +780,7 @@ describe('email-code account access', () => {
     expect(mount.textContent).toContain('You’re still signed in as marissa@example.com');
     expect(mount.textContent).toContain('Keep current account');
     expect(mount.textContent).toContain('Switch account');
+    expect(mount.querySelector('button[aria-label^="Back"]')).toBeNull();
 
     await press('Keep current account');
     expect(keep).toHaveBeenCalledTimes(1);
@@ -614,6 +862,7 @@ describe('email-code account access', () => {
     );
     expect(mount.textContent).not.toContain('Save password');
     expect(document.querySelector('input[aria-label="PASSWORD"]')).toBeNull();
+    expect(mount.querySelector('button[aria-label^="Back"]')).toBeNull();
 
     act(() => root.unmount());
   });
@@ -658,7 +907,7 @@ describe('email-code account access', () => {
     const root = createRoot(mount);
     act(() => root.render(<Harness />));
 
-    await press('Back to sign in');
+    await press('Back to sign-in choices');
 
     expect(cancel).toHaveBeenCalledTimes(1);
     expect(cancel).toHaveBeenCalledWith('sign-in');
@@ -685,6 +934,34 @@ describe('email-code account access', () => {
 
     act(() => confirmation?.focus());
     expect(scrollIntoView).toHaveBeenCalledWith({ block: 'end', inline: 'nearest' });
+
+    scrollIntoView.mockClear();
+    act(() => {
+      viewport.height = 520;
+      viewport.dispatchEvent(new Event('resize'));
+    });
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'end', inline: 'nearest' });
+
+    act(() => root.unmount());
+  });
+
+  it('keeps the email password field and Sign in button together when the keyboard opens', () => {
+    class PhoneViewport extends EventTarget {
+      height = 844;
+    }
+    const viewport = new PhoneViewport();
+    Object.defineProperty(window, 'visualViewport', { configurable: true, value: viewport });
+    const scrollIntoView = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value: scrollIntoView,
+    });
+    const { root } = mountDialog(baseProps({ initialScreen: 'email-sign-in' }));
+    const password = document.querySelector<HTMLInputElement>('input[aria-label="PASSWORD"]');
+
+    act(() => password?.focus());
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: 'end', inline: 'nearest' });
+    expect((scrollIntoView.mock.instances[0] as HTMLElement).textContent).toBe('Sign in');
 
     scrollIntoView.mockClear();
     act(() => {

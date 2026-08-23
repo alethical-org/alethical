@@ -19,6 +19,7 @@ import {
   dedicatedSignInOutcome,
   initialSignInState,
   parseAuthError,
+  signInErrorMessage,
   signInErrorKind,
   signInReducer,
   urlWithoutAuthError,
@@ -189,6 +190,7 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
   const passwordSignInAccess = useRef<PasswordSignInController | null>(null);
   const passwordSignInCleanup = useRef<Promise<void>>(Promise.resolve());
   const ordinaryCompletionRequested = useRef(false);
+  const ordinaryCompletionFromRetry = useRef(false);
   const [ordinaryCompletionTick, setOrdinaryCompletionTick] = useState(0);
   const accountChoiceRunning = useRef(false);
   const operationGeneration = useRef(0);
@@ -236,6 +238,7 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
     accountCodeStarting.current = null;
     ordinarySignInStarting.current = null;
     ordinaryCompletionRequested.current = false;
+    ordinaryCompletionFromRetry.current = false;
     accountChoiceRunning.current = false;
     const codeAccess = accountCodeAccess.current;
     accountCodeAccess.current = null;
@@ -274,6 +277,7 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
 
   const onContinue = useCallback(async () => {
     if (!signInAttemptGate.begin()) return;
+    ordinaryCompletionFromRetry.current = false;
     requestedAccountScreenOpen.current = false;
     const generation = operationGeneration.current;
     ordinarySignInStarting.current = generation;
@@ -311,16 +315,24 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
       billId: state.billId,
       billCode: state.billCode,
       scrollY: state.scrollY,
+      pendingReference: state.pendingReference,
+      pendingCompletion: state.pendingCompletion,
     };
     pendingRequest.current = request;
+    let googleStarted = false;
     try {
       await ensurePendingReference('ordinary');
       if (operationGeneration.current !== generation) return;
       if (accessTokenRef.current) {
+        ordinaryCompletionFromRetry.current =
+          state.open &&
+          request.pendingCompletion === 'ordinary' &&
+          Boolean(request.pendingReference);
         finishStarting();
         return;
       }
       stashPendingSignIn(request);
+      googleStarted = true;
       const result = await signInWithGoogle(state.returnTo);
       if (operationGeneration.current !== generation) return;
       finishStarting();
@@ -333,7 +345,7 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
       finishStarting();
       signInAttemptGate.reset();
       setBusyAction(null);
-      dispatch({ type: 'fail', kind: 'failed' });
+      dispatch({ type: 'fail', kind: googleStarted ? 'failed' : 'request-failure' });
     }
   }, [
     ensurePendingReference,
@@ -342,6 +354,9 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
     state.billCode,
     state.billId,
     state.intent,
+    state.open,
+    state.pendingCompletion,
+    state.pendingReference,
     state.returnTo,
     state.scrollY,
   ]);
@@ -855,6 +870,8 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
     const ordinaryJustSettled = ordinaryCompletionRequested.current;
     if (!isSignedIn || (!justSignedIn && !pendingRequest.current && !ordinaryJustSettled)) return;
     ordinaryCompletionRequested.current = false;
+    const completionFromRetry = ordinaryCompletionFromRetry.current;
+    ordinaryCompletionFromRetry.current = false;
     const request = pendingRequest.current;
     const signedInToken = accessToken;
     if (
@@ -867,8 +884,10 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
     ordinaryCompletion.current = completion;
     const generation = operationGeneration.current + 1;
     operationGeneration.current = generation;
-    signInAttemptGate.reset();
-    setBusyAction(null);
+    if (!completionFromRetry) {
+      signInAttemptGate.reset();
+      setBusyAction(null);
+    }
     const stillCurrent = () =>
       operationGeneration.current === generation &&
       pendingRequest.current === request &&
@@ -892,16 +911,30 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
     void completeOrdinaryPending(signedInToken, request)
       .then(() => {
         if (!stillCurrent()) return;
+        if (completionFromRetry) {
+          signInAttemptGate.reset();
+          setBusyAction(null);
+        }
         refreshTrackedBills();
         finishSignedInRequest();
       })
       .catch((error) => {
         if (!stillCurrent()) return;
         if (error instanceof ApiError && error.status === 410) {
+          if (completionFromRetry) {
+            signInAttemptGate.reset();
+            setBusyAction(null);
+          }
           finishSignedInRequest();
           return;
         }
-        dispatch({ type: 'fail', kind: 'failed' });
+        signInAttemptGate.reset();
+        setBusyAction(null);
+        dispatch({
+          type: 'reopenWithError',
+          request: request ?? { intent: 'nav' },
+          kind: 'request-failure',
+        });
       })
       .finally(releaseCompletion);
   }, [
@@ -921,7 +954,11 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
     if (!authError) return;
     const kind = authErrorKind ?? 'failed';
     if (kind === 'cancelled') {
-      if (state.status === 'connecting') close();
+      if (state.status === 'connecting') {
+        signInAttemptGate.reset();
+        setBusyAction(null);
+        dispatch({ type: 'fail', kind });
+      }
       return;
     }
     const serious = dedicatedSignInOutcome(kind);
@@ -935,15 +972,7 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
     } else {
       dispatch({ type: 'reopenWithError', request: request ?? { intent: 'nav' }, kind });
     }
-  }, [
-    authError,
-    authErrorKind,
-    close,
-    signInAttemptGate,
-    state.errorKind,
-    state.open,
-    state.status,
-  ]);
+  }, [authError, authErrorKind, signInAttemptGate, state.errorKind, state.open, state.status]);
 
   // The web return trip: Google sends failures back as URL params on the page we
   // asked it to return to. Reopen the dialog where it left off, then take the
@@ -966,7 +995,11 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
     const pending = pendingRequest.current;
     const failureKind = signInErrorKind(failure.code, failure.errorCode);
     if (failureKind === 'cancelled') {
-      close();
+      dispatch({
+        type: 'reopenWithError',
+        request: pending ?? { intent: 'nav' },
+        kind: failureKind,
+      });
       return;
     }
     pendingRequest.current = null;
@@ -976,7 +1009,7 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
       request: pending ?? { intent: 'nav' },
       kind: failureKind,
     });
-  }, [close, isLoading, isSignedIn, signInAttemptGate]);
+  }, [isLoading, isSignedIn, signInAttemptGate]);
 
   const value = useMemo(() => ({ openSignIn }), [openSignIn]);
 
@@ -1000,12 +1033,20 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
         intent={state.intent}
         billCode={state.billCode}
         initialScreen={initialScreen}
-        errorMessage={state.errorKind ? SIGN_IN_ERROR_MESSAGES[state.errorKind] : null}
+        errorMessage={
+          state.errorKind ? signInErrorMessage(state.errorKind, EMAIL_PASSWORD_ENABLED) : null
+        }
         errorKind={state.errorKind}
         busyAction={busyAction}
         emailPasswordEnabled={EMAIL_PASSWORD_ENABLED}
         resendWaitSeconds={RESEND_WAIT_SECONDS}
         ordinaryAccountOpen={isSignedIn}
+        pendingTrackRetry={
+          isSignedIn &&
+          state.intent === 'track' &&
+          state.pendingCompletion === 'ordinary' &&
+          Boolean(state.pendingReference)
+        }
         onClose={close}
         onGoogle={onContinue}
         onPasswordSignIn={onPasswordSignIn}

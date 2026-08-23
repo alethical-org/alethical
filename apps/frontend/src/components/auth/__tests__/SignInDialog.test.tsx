@@ -15,21 +15,34 @@ vi.mock('react-native-svg', () => ({
 
 vi.mock('../SignInContainer', () => ({
   descriptionTextStyle: {},
+  accountPanelDescriptionTextStyle: {},
   SignInContainer: ({
     title,
     description,
     icon,
+    headerIcon,
+    backAction,
+    contentGap,
     children,
   }: {
     title: string;
     description: React.ReactNode;
     icon: React.ReactNode;
+    headerIcon?: React.ReactNode;
+    backAction?: { label: string; onPress: () => void };
+    contentGap?: number;
     children: React.ReactNode;
   }) => (
-    <section>
+    <section data-content-gap={contentGap}>
+      {headerIcon}
+      {backAction ? (
+        <button aria-label={backAction.label} onClick={backAction.onPress}>
+          Back
+        </button>
+      ) : null}
       {icon}
       <h2>{title}</h2>
-      <p>{description}</p>
+      <div>{description}</div>
       {children}
     </section>
   ),
@@ -105,20 +118,32 @@ function render(overrides: Partial<SignInDialogProps> = {}) {
 }
 
 describe('rev 9 sign-in dialog', () => {
-  it('keeps Google and adds the complete email sign-in choice', () => {
+  it('shows all 4 opening paths without the email form', () => {
     const html = render({ initialEmail: 'jordan@example.com' });
 
     expect(html).toContain('Sign in to Alethical');
     expect(html).toContain('Continue with Google');
-    expect(html).toContain('>or<');
-    expect(html).toContain('EMAIL');
-    expect(html).toContain('PASSWORD');
-    expect(html).toMatch(/autocomplete="email"/i);
-    expect(html).toMatch(/autocomplete="current-password"/i);
+    expect(html).toContain('Sign in with email');
     expect(html).toContain('Forgot password?');
     expect(html).toContain('Create an account');
     expect(html).toContain('Terms of Use');
     expect(html).toContain('Privacy Policy');
+    expect(html).toContain('data-content-gap="18"');
+    expect(html).not.toContain('EMAIL');
+    expect(html).not.toContain('PASSWORD');
+    expect(html).not.toContain('aria-expanded');
+  });
+
+  it('shows the compact email form only after the email choice', () => {
+    const html = render({ initialScreen: 'email-sign-in', initialEmail: 'jordan@example.com' });
+
+    expect(html).toContain('Sign in with email');
+    expect(html).toContain('EMAIL');
+    expect(html).toContain('PASSWORD');
+    expect(html).toMatch(/autocomplete="email"/i);
+    expect(html).toMatch(/autocomplete="current-password"/i);
+    expect(html).toContain('data-content-gap="16"');
+    expect(html).not.toContain('Continue with Google');
   });
 
   it('keeps Google working while email launch is held for the production sender', () => {
@@ -131,13 +156,36 @@ describe('rev 9 sign-in dialog', () => {
     expect(html).not.toContain('Create an account');
   });
 
-  it('keeps the Track reason and bill code on email or Google sign-in', () => {
+  it('labels a signed-in pending Track retry without sending the person back to Google', () => {
+    const ready = render({
+      intent: 'track',
+      ordinaryAccountOpen: true,
+      pendingTrackRetry: true,
+      errorKind: 'request-failure',
+      errorMessage: 'We couldn’t complete that request. Check your connection and try again.',
+    });
+    const saving = render({
+      intent: 'track',
+      ordinaryAccountOpen: true,
+      pendingTrackRetry: true,
+      busyAction: 'google',
+    });
+
+    expect(ready).toContain('Try again');
+    expect(ready).not.toContain('Continue with Google');
+    expect(ready).not.toContain('Sign in with email');
+    expect(ready).not.toContain('Create an account');
+    expect(ready).not.toContain('Forgot password?');
+    expect(ready).not.toContain('Terms of Use');
+    expect(saving).toContain('Saving…');
+    expect(saving).not.toContain('Continuing with Google…');
+  });
+
+  it('keeps the accepted Track reason on the 4-choice opening', () => {
     const html = render({ intent: 'track', billCode: 'HF 4138' });
 
-    expect(html).toContain('Sign in to track this bill');
-    expect(html).toContain(
-      'Save HF 4138 to your tracked bills and check where it stands whenever you come back',
-    );
+    expect(html).toContain('Sign in to Alethical');
+    expect(html).toContain('This bill goes to your tracked list');
   });
 
   it('asks only for email before proving a new account', () => {
@@ -162,19 +210,20 @@ describe('rev 9 sign-in dialog', () => {
     const html = render({ initialScreen: 'create', intent: 'track', billCode: 'SF 10' });
 
     expect(html).toContain('Create an account to track this bill');
-    expect(html).toContain(
-      'Save SF 10 to your tracked bills and check where it stands whenever you come back',
-    );
+    expect(html).toContain('This bill goes to your tracked list');
     expect(html).not.toContain('You’ll use this email and password');
   });
 
   it('shows the wrong-password Google help without repeating the button wording', () => {
-    const html = render({ errorMessage: 'Email or password is incorrect' });
+    const html = render({
+      initialScreen: 'email-sign-in',
+      errorMessage: 'Email or password is incorrect',
+    });
 
     expect(html).toContain('If you first used Google and haven’t added a password');
-    // The button directly below already reads Continue with Google, so the help
-    // sentence names the condition only and never repeats the instruction.
-    expect(html.match(/continue with Google/gi)).toHaveLength(1);
+    // The email view points back to the four choices without placing a second
+    // Google action beside the form's green Sign in button.
+    expect(html).not.toMatch(/continue with Google/i);
   });
 
   it('shows code entry without claiming an email was sent or will arrive', () => {
@@ -207,11 +256,12 @@ describe('rev 9 sign-in dialog', () => {
     const deactivated = render({
       errorKind: 'deactivated',
       errorMessage:
-        'This account has been deactivated, so we’ve signed you out. Bills, votes and legislators are all still here to read. Contact us at ask@alethical.com if you think this is a mistake.',
+        'You’ve been signed out. Bills, votes and legislators are all still here to read. Contact us at ask@alethical.com if you think this is a mistake.',
     });
 
     expect(deactivated).toContain('This account has been deactivated');
-    expect(deactivated).toContain('Back to sign in');
+    expect(deactivated).toContain('aria-label="Back to sign-in choices"');
+    expect(deactivated).not.toContain('>Back to sign in<');
     expect(deactivated).not.toContain('Continue with Google');
     expect(deactivated).toContain('mailto:ask@alethical.com');
   });
@@ -239,13 +289,14 @@ describe('rev 9 sign-in dialog', () => {
     expect(SOURCE).toContain('createValidRequestGate()');
     expect(SOURCE).toContain("result.error.kind === 'email-not-confirmed'");
     expect(SOURCE).toContain("onRequestAccountCode(safeEmail, 'create')");
-    expect(SOURCE).toMatch(
-      /if \(error\.kind === 'bad-credentials'\) \{[\s\S]*?setPassword\(''\);[\s\S]*?\}/,
+    expect(SOURCE).toContain("error.kind === 'bad-credentials'");
+    expect(SOURCE).toContain("typeof input?.select === 'function'");
+    expect(SOURCE).toContain('input?.setNativeProps?.({ selection:');
+    expect(SOURCE).not.toMatch(
+      /if \(error\.kind === 'bad-credentials'\) \{[\s\S]{0,200}?setPassword\(''\)/,
     );
-    expect(SOURCE).toMatch(
-      /useEffect\(\(\) => \{[\s\S]*?formError !== REV9_AUTH_MESSAGES\.badCredentials[\s\S]*?passwordRef\.current\?\.focus\?\.\(\);[\s\S]*?\}, \[anyBusy, formError, password\]\);/,
-    );
-    expect(SOURCE).toContain("focusKey={dedicatedOutcome ? 'deactivated' : screen}");
+    expect(SOURCE).toContain("dedicatedOutcome ? 'deactivated' : `${screen}:${accountOrigin}");
+    expect(SOURCE).toContain('onBlur={validateEmailAfterBlur}');
     expect(SOURCE).toContain('Math.ceil(resendWaitSeconds)');
     expect(SOURCE).not.toMatch(/resendWaitSeconds\s*=\s*60/);
     expect(SOURCE).not.toContain('maxlength');

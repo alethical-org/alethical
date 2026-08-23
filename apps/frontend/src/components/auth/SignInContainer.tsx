@@ -1,6 +1,7 @@
-import { ReactNode, useEffect, useId, useRef, useState } from 'react';
+import { ReactNode, useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import {
   AccessibilityInfo,
+  Animated,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -18,22 +19,27 @@ import { useResponsive } from '../../hooks/useResponsive';
 import { theme as t } from '../../theme/tokens';
 
 const isWeb = Platform.OS === 'web';
+const focusableSelector =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [role="button"], [tabindex]:not([tabindex="-1"])';
+
+export const accountPanelHeaderContentGap = 14;
+
+function potentialFocusableChildren(node: HTMLElement | null): HTMLElement[] {
+  if (!node) return [];
+  return Array.from(node.querySelectorAll<HTMLElement>(focusableSelector)).filter(
+    (element) => element.tabIndex >= 0 && element.getAttribute('aria-disabled') !== 'true',
+  );
+}
 
 function focusableChildren(node: HTMLElement | null): HTMLElement[] {
-  if (!node) return [];
-  const selector =
-    'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [role="button"], [tabindex]:not([tabindex="-1"])';
-  return Array.from(node.querySelectorAll<HTMLElement>(selector)).filter(
-    (element) =>
-      element.tabIndex >= 0 &&
-      element.getAttribute('aria-disabled') !== 'true' &&
-      (element.getClientRects().length > 0 || element === document.activeElement),
+  return potentialFocusableChildren(node).filter(
+    (element) => element.getClientRects().length > 0 || element === document.activeElement,
   );
 }
 
 function CloseIcon() {
   return (
-    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" aria-hidden>
+    <Svg width={19} height={19} viewBox="0 0 24 24" fill="none" aria-hidden>
       <Path
         d="M6 6 L18 18 M18 6 L6 18"
         stroke={t.colors.text.faint}
@@ -44,22 +50,44 @@ function CloseIcon() {
   );
 }
 
+function BackIcon() {
+  return (
+    <Svg width={20} height={20} viewBox="0 0 24 24" fill="none" aria-hidden>
+      <Path
+        d="M14.5 5.5 L8 12 L14.5 18.5"
+        stroke={t.colors.text.muted}
+        strokeWidth={2.2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </Svg>
+  );
+}
+
 export function SignInContainer({
   open = true,
   focusKey,
   variant = 'flow',
+  accountPanel = false,
   title,
   description,
   icon,
+  headerIcon,
+  backAction,
+  contentGap,
   children,
   onClose,
 }: {
   open?: boolean;
   focusKey?: string;
   variant?: 'flow' | 'page';
+  accountPanel?: boolean;
   title: string;
   description?: ReactNode;
   icon?: ReactNode;
+  headerIcon?: ReactNode;
+  backAction?: { label: string; onPress: () => void; disabled?: boolean };
+  contentGap?: number;
   children: ReactNode;
   onClose?: () => void;
 }) {
@@ -69,6 +97,7 @@ export function SignInContainer({
   const generatedDescriptionId = useId();
   const descriptionId = description ? `auth-description-${generatedDescriptionId}` : undefined;
   const cardRef = useRef<View>(null);
+  const scrollRef = useRef<ScrollView>(null);
   const closeRef = useRef<View>(null);
   const titleRef = useRef<Text>(null);
   // Android shrinks the visual viewport when its keyboard opens. That rebuilds
@@ -76,35 +105,158 @@ export function SignInContainer({
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
   const [closeFocused, setCloseFocused] = useState(false);
+  const [backFocused, setBackFocused] = useState(false);
+  const [titleBottom, setTitleBottom] = useState(0);
+  const [showHeaderTitle, setShowHeaderTitle] = useState(false);
+  const [visualViewportHeight, setVisualViewportHeight] = useState<number | null>(null);
   const isPage = variant === 'page';
   const asSheet = !isPage && isMobile;
+  const useAccountPanel = accountPanel && !isPage;
+  const frameKey = focusKey ?? title;
+  const incomingFrame = {
+    frameKey,
+    title,
+    description,
+    icon,
+    headerIcon,
+    backAction,
+    contentGap,
+    children,
+  };
+  const incomingFrameRef = useRef(incomingFrame);
+  incomingFrameRef.current = incomingFrame;
+  const frameRef = useRef(incomingFrame);
+  const [displayedFrameKey, setDisplayedFrameKey] = useState(frameKey);
+  const frameOpacity = useRef(new Animated.Value(1)).current;
+  const frameOffset = useRef(new Animated.Value(0)).current;
+  const transitionRun = useRef(0);
+  const sameFrameFocus = useRef<{ frameKey: string; index: number } | null>(null);
+
+  if (!useAccountPanel || displayedFrameKey === frameKey) frameRef.current = incomingFrame;
+  const displayedFrame =
+    !useAccountPanel || displayedFrameKey === frameKey ? incomingFrame : frameRef.current;
 
   useEffect(() => {
-    if (!open || !isPage) return;
+    if (!open || !useAccountPanel || frameRef.current.frameKey === frameKey) return;
+    const run = transitionRun.current + 1;
+    transitionRun.current = run;
+    const showIncomingFrame = () => {
+      if (transitionRun.current !== run) return;
+      frameRef.current = incomingFrameRef.current;
+      frameOpacity.setValue(reduceMotion ? 1 : 0);
+      frameOffset.setValue(reduceMotion ? 0 : 8);
+      setDisplayedFrameKey(frameKey);
+      if (reduceMotion) return;
+      Animated.parallel([
+        Animated.timing(frameOpacity, {
+          toValue: 1,
+          duration: 90,
+          useNativeDriver: true,
+        }),
+        Animated.timing(frameOffset, {
+          toValue: 0,
+          duration: 90,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    };
+
+    if (reduceMotion) {
+      showIncomingFrame();
+      return;
+    }
+
+    Animated.timing(frameOpacity, {
+      toValue: 0,
+      duration: 90,
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) showIncomingFrame();
+    });
+
+    return () => {
+      transitionRun.current += 1;
+      frameOpacity.stopAnimation();
+      frameOffset.stopAnimation();
+    };
+  }, [frameKey, frameOffset, frameOpacity, open, reduceMotion, useAccountPanel]);
+
+  useEffect(() => {
+    if (open || !useAccountPanel) return;
+    transitionRun.current += 1;
+    frameOpacity.stopAnimation();
+    frameOffset.stopAnimation();
+    frameRef.current = incomingFrameRef.current;
+    frameOpacity.setValue(1);
+    frameOffset.setValue(0);
+    setDisplayedFrameKey(frameKey);
+  }, [frameKey, frameOffset, frameOpacity, open, useAccountPanel]);
+
+  useEffect(() => {
+    if (!isWeb || !open || !useAccountPanel || typeof window === 'undefined') return;
+    const viewport = window.visualViewport;
+    const updateHeight = () => setVisualViewportHeight(viewport?.height ?? window.innerHeight);
+    updateHeight();
+    viewport?.addEventListener('resize', updateHeight);
+    window.addEventListener('resize', updateHeight);
+    return () => {
+      viewport?.removeEventListener('resize', updateHeight);
+      window.removeEventListener('resize', updateHeight);
+    };
+  }, [open, useAccountPanel]);
+
+  useEffect(() => {
+    if (!open || (!isPage && !useAccountPanel)) return;
+    if (useAccountPanel) {
+      setBackFocused(false);
+      setCloseFocused(false);
+    }
     if (isWeb && typeof document !== 'undefined') {
       const titleElement = titleRef.current as unknown as HTMLElement | null;
       if (!titleElement) return;
-      titleElement.setAttribute('tabindex', '-1');
       titleElement.focus();
-      titleElement.removeAttribute('tabindex');
       return;
     }
     const titleHandle = findNodeHandle(titleRef.current);
     if (titleHandle !== null) AccessibilityInfo.setAccessibilityFocus(titleHandle);
-  }, [focusKey, isPage, open]);
+  }, [displayedFrameKey, isPage, open, useAccountPanel]);
 
   useEffect(() => {
+    if (!useAccountPanel) return;
+    setShowHeaderTitle(false);
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+  }, [displayedFrameKey, useAccountPanel]);
+
+  useLayoutEffect(() => {
     if (!isWeb || !open || isPage || typeof document === 'undefined') return;
     const opener = document.activeElement as HTMLElement | null;
     return () => opener?.focus?.();
   }, [isPage, open]);
 
+  useLayoutEffect(() => {
+    if (!isWeb || !open || !isPage || typeof document === 'undefined') return;
+    const card = cardRef.current as unknown as HTMLElement | null;
+    const restore = sameFrameFocus.current;
+    sameFrameFocus.current = null;
+    const active = document.activeElement as HTMLElement | null;
+    if (restore?.frameKey === frameKey && card && !card.contains(active)) {
+      potentialFocusableChildren(card)[restore.index]?.focus();
+    }
+
+    return () => {
+      const currentCard = cardRef.current as unknown as HTMLElement | null;
+      const currentActive = document.activeElement as HTMLElement | null;
+      const index = focusableChildren(currentCard).indexOf(currentActive as HTMLElement);
+      if (index >= 0) sameFrameFocus.current = { frameKey, index };
+    };
+  });
+
   useEffect(() => {
     if (!isWeb || !open || isPage || typeof document === 'undefined') return;
     const card = cardRef.current as unknown as HTMLElement | null;
     const close = closeRef.current as unknown as HTMLElement | null;
-    close?.focus();
-    if (!close && card) {
+    if (!useAccountPanel) close?.focus();
+    if (!useAccountPanel && !close && card) {
       card.setAttribute('tabindex', '-1');
       card.focus();
       card.removeAttribute('tabindex');
@@ -141,45 +293,84 @@ export function SignInContainer({
     return () => {
       document.removeEventListener('keydown', onKeyDown, true);
     };
-  }, [focusKey, isPage, open]);
+  }, [displayedFrameKey, isPage, open, useAccountPanel]);
 
   if (!open) return null;
 
   const heading = (
-    <>
-      {icon ? <View style={styles.iconSlot}>{icon}</View> : null}
+    <View style={useAccountPanel && styles.accountHeading}>
+      {displayedFrame.icon ? (
+        <View style={[styles.iconSlot, useAccountPanel && styles.accountIconSlot]}>
+          {displayedFrame.icon}
+        </View>
+      ) : null}
       <Text
         ref={titleRef}
         nativeID={titleId}
         accessibilityRole="header"
         aria-level={isPage ? 1 : 2}
-        style={[styles.title, asSheet && styles.titleSheet]}
+        onLayout={(event) =>
+          setTitleBottom(event.nativeEvent.layout.y + event.nativeEvent.layout.height)
+        }
+        {...(isWeb ? ({ tabIndex: -1 } as object) : null)}
+        style={[
+          styles.title,
+          asSheet && styles.titleSheet,
+          useAccountPanel && styles.accountTitle,
+          focusedHeadingWeb,
+        ]}
       >
-        {title}
+        {displayedFrame.title}
       </Text>
-      {description ? (
-        <View nativeID={descriptionId} style={styles.descriptionWrap}>
-          {typeof description === 'string' ? (
-            <Text style={styles.description}>{description}</Text>
+      {displayedFrame.description ? (
+        <View
+          nativeID={descriptionId}
+          style={[styles.descriptionWrap, useAccountPanel && styles.accountDescriptionWrap]}
+        >
+          {typeof displayedFrame.description === 'string' ? (
+            <Text style={[styles.description, useAccountPanel && accountPanelDescriptionTextStyle]}>
+              {displayedFrame.description}
+            </Text>
           ) : (
-            description
+            displayedFrame.description
           )}
         </View>
       ) : null}
-    </>
+    </View>
   );
 
-  const cardAccessibility = isWeb
-    ? isPage
+  const cardAccessibility =
+    isWeb && isPage
       ? ({ role: 'main', 'aria-labelledby': titleId, 'aria-describedby': descriptionId } as object)
-      : ({} as object)
-    : null;
+      : null;
+  const modalAccessibility =
+    isWeb && !isPage
+      ? ({ 'aria-labelledby': titleId, 'aria-describedby': descriptionId } as object)
+      : null;
 
-  const body = (
-    <>
+  const bodyContents = (
+    <View>
       {heading}
-      <View style={styles.children}>{children}</View>
-    </>
+      <View
+        style={[
+          styles.children,
+          useAccountPanel &&
+            typeof displayedFrame.contentGap === 'number' && {
+              marginTop: displayedFrame.contentGap,
+            },
+        ]}
+      >
+        {displayedFrame.children}
+      </View>
+    </View>
+  );
+
+  const body = useAccountPanel ? (
+    <Animated.View style={{ opacity: frameOpacity, transform: [{ translateY: frameOffset }] }}>
+      {bodyContents}
+    </Animated.View>
+  ) : (
+    bodyContents
   );
 
   if (isPage) {
@@ -205,14 +396,92 @@ export function SignInContainer({
   }
 
   const animationType = reduceMotion ? 'none' : asSheet ? 'slide' : 'fade';
+  const accountPanelMaxHeight =
+    isWeb && useAccountPanel && visualViewportHeight !== null
+      ? { maxHeight: Math.max(0, visualViewportHeight - (asSheet ? 45 : 80)) }
+      : null;
+  const onModalRequestClose = () => {
+    if (displayedFrame.backAction) {
+      if (!displayedFrame.backAction.disabled) displayedFrame.backAction.onPress();
+      return;
+    }
+    onClose?.();
+  };
+  const accountHeader = useAccountPanel ? (
+    <View style={[styles.accountHeader, asSheet && styles.accountHeaderSheet]}>
+      {asSheet ? <View aria-hidden style={styles.grabHandle} /> : null}
+      {displayedFrame.backAction ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={displayedFrame.backAction.label}
+          accessibilityState={{ disabled: displayedFrame.backAction.disabled }}
+          disabled={displayedFrame.backAction.disabled}
+          onBlur={() => setBackFocused(false)}
+          onFocus={() => setBackFocused(true)}
+          onPress={displayedFrame.backAction.onPress}
+          style={({ pressed }) => [
+            styles.back,
+            asSheet ? styles.accountControlSheet : styles.accountControlCard,
+            backFocused && focusRingWeb,
+            pressed && styles.headerControlPressed,
+          ]}
+        >
+          <BackIcon />
+          <Text style={styles.backText}>Back</Text>
+        </Pressable>
+      ) : displayedFrame.headerIcon ? (
+        <View
+          accessible={false}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+          {...(isWeb ? ({ 'aria-hidden': true } as object) : null)}
+          style={[
+            styles.headerIconSlot,
+            asSheet ? styles.accountControlSheet : styles.accountControlCard,
+          ]}
+        >
+          {displayedFrame.headerIcon}
+        </View>
+      ) : null}
+      {showHeaderTitle ? (
+        <Text
+          accessible={false}
+          numberOfLines={1}
+          {...(isWeb ? ({ 'aria-hidden': true } as object) : null)}
+          style={styles.stickyTitle}
+        >
+          {displayedFrame.title}
+        </Text>
+      ) : null}
+      {onClose ? (
+        <Pressable
+          ref={closeRef}
+          accessibilityRole="button"
+          accessibilityLabel="Close"
+          onBlur={() => setCloseFocused(false)}
+          onFocus={() => setCloseFocused(true)}
+          onPress={onClose}
+          style={({ pressed }) => [
+            styles.accountClose,
+            asSheet ? styles.accountControlSheet : styles.accountControlCard,
+            closeFocused && focusRingWeb,
+            pressed && styles.headerControlPressed,
+          ]}
+        >
+          <CloseIcon />
+        </Pressable>
+      ) : null}
+    </View>
+  ) : null;
 
   return (
     <Modal
       visible
       transparent
       animationType={animationType}
-      accessibilityLabel={title}
-      onRequestClose={() => onClose?.()}
+      {...modalAccessibility}
+      accessibilityLabel={displayedFrame.title}
+      onRequestClose={onModalRequestClose}
     >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -231,8 +500,11 @@ export function SignInContainer({
           ref={cardRef}
           {...cardAccessibility}
           style={[
-            asSheet ? styles.sheet : styles.card,
-            asSheet && sheetMaxHeightWeb,
+            asSheet
+              ? [styles.sheet, useAccountPanel && styles.accountSheet]
+              : [styles.card, useAccountPanel && styles.accountCard],
+            asSheet && !useAccountPanel && sheetMaxHeightWeb,
+            accountPanelMaxHeight,
             isWeb
               ? asSheet
                 ? styles.sheetShadowWeb
@@ -240,7 +512,8 @@ export function SignInContainer({
               : (t.shadows.lg as object),
           ]}
         >
-          {asSheet ? (
+          {accountHeader}
+          {!useAccountPanel && asSheet ? (
             <View style={styles.sheetHeader}>
               <View style={styles.grabHandle} />
               {onClose ? (
@@ -261,7 +534,7 @@ export function SignInContainer({
                 </Pressable>
               ) : null}
             </View>
-          ) : onClose ? (
+          ) : !useAccountPanel && onClose ? (
             <Pressable
               ref={closeRef}
               accessibilityRole="button"
@@ -280,9 +553,28 @@ export function SignInContainer({
             </Pressable>
           ) : null}
           <ScrollView
+            ref={scrollRef}
             style={asSheet ? styles.sheetScroll : styles.cardScroll}
-            contentContainerStyle={asSheet ? [styles.sheetBody, sheetBodySafeAreaWeb] : undefined}
+            contentContainerStyle={
+              useAccountPanel
+                ? [
+                    asSheet ? styles.accountSheetBody : styles.accountCardBody,
+                    asSheet && accountSheetBodySafeAreaWeb,
+                  ]
+                : asSheet
+                  ? [styles.sheetBody, sheetBodySafeAreaWeb]
+                  : undefined
+            }
             keyboardShouldPersistTaps="handled"
+            onScroll={
+              useAccountPanel
+                ? (event) => {
+                    const realTitleBottom = accountPanelHeaderContentGap + titleBottom;
+                    setShowHeaderTitle(event.nativeEvent.contentOffset.y >= realTitleBottom);
+                  }
+                : undefined
+            }
+            scrollEventThrottle={16}
           >
             {body}
           </ScrollView>
@@ -296,6 +588,9 @@ const sheetMaxHeightWeb = isWeb ? ({ maxHeight: '92dvh' } as object) : null;
 const sheetBodySafeAreaWeb = isWeb
   ? ({ paddingBottom: 'max(32px, env(safe-area-inset-bottom))' } as object)
   : null;
+const accountSheetBodySafeAreaWeb = isWeb
+  ? ({ paddingBottom: 'calc(26px + env(safe-area-inset-bottom))' } as object)
+  : null;
 const focusRingWeb = isWeb
   ? ({
       outlineColor: '#7c5cff',
@@ -304,12 +599,21 @@ const focusRingWeb = isWeb
       outlineWidth: 2,
     } as object)
   : null;
+const focusedHeadingWeb = isWeb ? ({ outlineStyle: 'none', outlineWidth: 0 } as object) : null;
 
 /** Exported so node descriptions (e.g. ones carrying a mail link) match plain ones. */
 export const descriptionTextStyle = {
   fontFamily: t.typography.body,
   fontSize: t.fontSizes.bodyLg,
   lineHeight: 24,
+  color: t.colors.text.muted,
+} as const;
+
+/** Account-panel descriptions use the compact type from the accepted narrow-screen design. */
+export const accountPanelDescriptionTextStyle = {
+  fontFamily: t.typography.body,
+  fontSize: 15,
+  lineHeight: 22.5,
   color: t.colors.text.muted,
 } as const;
 
@@ -329,6 +633,14 @@ const styles = StyleSheet.create({
   },
   cardScroll: { flexGrow: 0, flexShrink: 1 },
   cardShadowWeb: { boxShadow: '0 30px 80px rgba(10,14,12,0.4)' },
+  accountCard: {
+    width: 420,
+    borderRadius: 16,
+    paddingTop: 0,
+    paddingHorizontal: 0,
+    paddingBottom: 0,
+    overflow: 'hidden',
+  },
   sheet: {
     width: '100%',
     maxHeight: '92%',
@@ -338,6 +650,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   sheetShadowWeb: { boxShadow: '0 -18px 50px rgba(10,14,12,0.28)' },
+  accountSheet: { overflow: 'hidden' },
   sheetHeader: {
     height: 84,
     flexShrink: 0,
@@ -348,6 +661,10 @@ const styles = StyleSheet.create({
   sheetScroll: { flexGrow: 0, flexShrink: 1 },
   sheetBody: { paddingTop: 0, paddingHorizontal: 24, paddingBottom: 32 },
   grabHandle: {
+    position: 'absolute',
+    top: 12,
+    left: '50%',
+    marginLeft: -20,
     width: 40,
     height: 5,
     borderRadius: t.radii.pill,
@@ -367,6 +684,70 @@ const styles = StyleSheet.create({
   },
   closeCard: { top: 20, right: 20, backgroundColor: 'transparent' },
   closePressed: { backgroundColor: t.colors.surfaces.s400 },
+  accountHeader: {
+    position: 'relative',
+    height: 66,
+    marginHorizontal: 20,
+    flexShrink: 0,
+    zIndex: 2,
+  },
+  accountHeaderSheet: { marginHorizontal: 22 },
+  accountControlSheet: { top: 22 },
+  accountControlCard: { top: 20 },
+  headerIconSlot: {
+    position: 'absolute',
+    left: 0,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+  },
+  back: {
+    position: 'absolute',
+    left: 0,
+    minWidth: 44,
+    height: 44,
+    paddingLeft: 4,
+    paddingRight: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderRadius: 12,
+    zIndex: 1,
+  },
+  backText: {
+    fontFamily: t.typography.body,
+    fontSize: 15,
+    fontWeight: t.fontWeights.semibold,
+    color: t.colors.text.muted,
+  },
+  accountClose: {
+    position: 'absolute',
+    right: 0,
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 12,
+    zIndex: 1,
+  },
+  headerControlPressed: { backgroundColor: t.colors.surfaces.s300 },
+  stickyTitle: {
+    position: 'absolute',
+    top: 20,
+    left: 76,
+    right: 76,
+    height: 44,
+    fontFamily: t.typography.body,
+    fontSize: 15,
+    lineHeight: 44,
+    fontWeight: t.fontWeights.bold,
+    textAlign: 'center',
+    color: t.colors.text.primary,
+  },
+  accountSheetBody: { paddingTop: 0, paddingHorizontal: 22, paddingBottom: 26 },
+  accountCardBody: { paddingTop: 0, paddingHorizontal: 20, paddingBottom: 26 },
   page: { flex: 1, backgroundColor: t.colors.surfaces.s100 },
   pageContent: {
     flexGrow: 1,
@@ -389,6 +770,7 @@ const styles = StyleSheet.create({
   pageCardMobile: { paddingTop: 28, paddingHorizontal: 24, paddingBottom: 28 },
   pageCardShadowWeb: { boxShadow: '0 8px 24px rgba(17,21,15,0.05)' },
   iconSlot: { marginBottom: 20, alignSelf: 'flex-start' },
+  accountIconSlot: { marginBottom: 14 },
   title: {
     fontFamily: t.typography.title,
     fontSize: t.fontSizes.h2,
@@ -398,7 +780,14 @@ const styles = StyleSheet.create({
     color: t.colors.text.primary,
   },
   titleSheet: { fontSize: 23, lineHeight: 30 },
+  accountHeading: { marginTop: accountPanelHeaderContentGap },
+  accountTitle: {
+    fontSize: 24,
+    lineHeight: 28,
+    letterSpacing: -0.48,
+  },
   descriptionWrap: { marginTop: 9 },
+  accountDescriptionWrap: { marginTop: 6 },
   description: descriptionTextStyle,
   children: { marginTop: 22 },
 });

@@ -9,15 +9,19 @@ import { useSignInModal } from '../signInModalContext';
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((done) => {
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((done, fail) => {
     resolve = done;
+    reject = fail;
   });
-  return { promise, resolve };
+  return { promise, resolve, reject };
 }
 
 const testState = vi.hoisted(() => ({
   dialogProps: null as any,
+  errorKinds: [] as Array<string | null>,
   requestCalls: 0,
+  googleCalls: 0,
   requestReplies: [] as Array<Promise<any>>,
   googleReplies: [] as Array<Promise<any>>,
   passwordReplies: [] as Array<Promise<any>>,
@@ -27,7 +31,10 @@ const testState = vi.hoisted(() => ({
   isLoading: false,
   isSignedIn: false,
   accessToken: null as string | null,
+  authError: null as string | null,
+  authErrorKind: null as string | null,
   openSignIn: null as any,
+  refreshTrackedBills: vi.fn(),
 }));
 
 function OpenSignInProbe() {
@@ -38,12 +45,13 @@ function OpenSignInProbe() {
 vi.mock('../../components/auth/SignInDialog', () => ({
   SignInDialog: (props: any) => {
     testState.dialogProps = props;
+    testState.errorKinds.push(props.errorKind);
     return null;
   },
 }));
 
 vi.mock('../../hooks/useAppQueries', () => ({
-  useRefreshTrackedBills: () => vi.fn(),
+  useRefreshTrackedBills: () => testState.refreshTrackedBills,
 }));
 
 vi.mock('../AuthProvider', () => ({
@@ -51,10 +59,13 @@ vi.mock('../AuthProvider', () => ({
     isLoading: testState.isLoading,
     isSignedIn: testState.isSignedIn,
     accessToken: testState.accessToken,
-    authError: null,
-    authErrorKind: null,
+    authError: testState.authError,
+    authErrorKind: testState.authErrorKind,
     dismissAuthError: vi.fn(),
-    signInWithGoogle: vi.fn(() => testState.googleReplies.shift() ?? Promise.resolve({ ok: true })),
+    signInWithGoogle: vi.fn(() => {
+      testState.googleCalls += 1;
+      return testState.googleReplies.shift() ?? Promise.resolve({ ok: true });
+    }),
     user: null,
   }),
 }));
@@ -141,7 +152,9 @@ describe('account-code dialog lifetime', () => {
     window.history.replaceState(null, '', '/');
     window.sessionStorage.clear();
     testState.dialogProps = null;
+    testState.errorKinds = [];
     testState.requestCalls = 0;
+    testState.googleCalls = 0;
     testState.requestReplies = [];
     testState.googleReplies = [];
     testState.passwordReplies = [];
@@ -151,7 +164,10 @@ describe('account-code dialog lifetime', () => {
     testState.isLoading = false;
     testState.isSignedIn = false;
     testState.accessToken = null;
+    testState.authError = null;
+    testState.authErrorKind = null;
     testState.openSignIn = null;
+    testState.refreshTrackedBills.mockReset();
     (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
     mount = document.createElement('div');
     document.body.appendChild(mount);
@@ -275,6 +291,119 @@ describe('account-code dialog lifetime', () => {
     });
 
     expect(testState.dialogProps.open).toBe(false);
+  });
+
+  it('keeps an in-place Google cancellation open with its Track request', async () => {
+    const google = deferred<{ ok: false; error: { kind: string; message: string } }>();
+    testState.googleReplies.push(google.promise);
+    act(() =>
+      testState.openSignIn({
+        intent: 'track',
+        billId: 'bill-a',
+        billCode: 'HF 1',
+        returnTo: '/bills/hf-1',
+      }),
+    );
+
+    let signIn!: Promise<void>;
+    act(() => {
+      signIn = testState.dialogProps.onGoogle();
+    });
+    await vi.waitFor(() => expect(testState.dialogProps.busyAction).toBe('google'));
+    await vi.waitFor(() =>
+      expect(window.sessionStorage.getItem('alethical.pendingSignIn')).not.toBeNull(),
+    );
+
+    testState.authError = 'The Google window was closed.';
+    testState.authErrorKind = 'cancelled';
+    await act(async () => {
+      root.render(
+        <SignInModalProvider>
+          <OpenSignInProbe />
+        </SignInModalProvider>,
+      );
+      await Promise.resolve();
+    });
+
+    expect(testState.dialogProps.open).toBe(true);
+    expect(testState.dialogProps.intent).toBe('track');
+    expect(testState.dialogProps.billCode).toBe('HF 1');
+    expect(testState.dialogProps.errorKind).toBe('cancelled');
+    expect(testState.dialogProps.errorMessage).toBe('Google didn’t finish. Try again.');
+    expect(testState.dialogProps.busyAction).toBeNull();
+    expect(window.sessionStorage.getItem('alethical.pendingSignIn')).not.toBeNull();
+
+    await act(async () => {
+      google.resolve({
+        ok: false,
+        error: { kind: 'cancelled', message: 'The Google window was closed.' },
+      });
+      await signIn;
+    });
+  });
+
+  it('reopens a returned Google cancellation with its Track request', async () => {
+    act(() => root.unmount());
+    window.sessionStorage.setItem(
+      'alethical.pendingSignIn',
+      JSON.stringify({
+        intent: 'track',
+        billId: 'bill-a',
+        billCode: 'HF 1',
+        returnTo: '/bills/hf-1',
+        pendingReference: 'pending-reference-with-at-least-32-chars',
+        pendingCompletion: 'ordinary',
+      }),
+    );
+    window.history.replaceState(null, '', '/?error=access_denied');
+    root = createRoot(mount);
+
+    await act(async () => {
+      root.render(
+        <SignInModalProvider>
+          <OpenSignInProbe />
+        </SignInModalProvider>,
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(testState.dialogProps.open).toBe(true);
+    expect(testState.dialogProps.intent).toBe('track');
+    expect(testState.dialogProps.billCode).toBe('HF 1');
+    expect(testState.dialogProps.errorKind).toBe('cancelled');
+    expect(testState.dialogProps.errorMessage).toBe('Google didn’t finish. Try again.');
+    expect(window.sessionStorage.getItem('alethical.pendingSignIn')).not.toBeNull();
+    expect(window.location.search).toBe('');
+  });
+
+  it('does not blame Google when preparing a pending Track press fails first', async () => {
+    const pendingReference = deferred<{ reference: string }>();
+    testState.pendingReplies.push(pendingReference.promise);
+    act(() =>
+      testState.openSignIn({
+        intent: 'track',
+        billId: 'bill-a',
+        billCode: 'HF 1',
+        returnTo: '/bills/hf-1',
+      }),
+    );
+
+    let signIn!: Promise<void>;
+    act(() => {
+      signIn = testState.dialogProps.onGoogle();
+    });
+    await vi.waitFor(() => expect(testState.dialogProps.busyAction).toBe('google'));
+    await act(async () => {
+      pendingReference.reject(new Error('Track setup failed'));
+      await signIn;
+    });
+
+    expect(testState.googleCalls).toBe(0);
+    expect(testState.dialogProps.errorKind).toBe('request-failure');
+    expect(testState.dialogProps.errorMessage).toBe(
+      'We couldn’t complete that request. Check your connection and try again.',
+    );
   });
 
   it('closes after a requested Create screen changes to ordinary sign in', async () => {
@@ -575,6 +704,69 @@ describe('account-code dialog lifetime', () => {
 
     await vi.waitFor(() => expect(testState.dialogProps.open).toBe(false));
     expect(testState.completionCalls).toEqual([['access-account-b', 'pending-track']]);
+  });
+
+  it('reopens after a full-page Google return when saving the pending Track press fails', async () => {
+    act(() => root.unmount());
+    window.sessionStorage.setItem(
+      'alethical.pendingSignIn',
+      JSON.stringify({
+        intent: 'track',
+        billId: 'bill-a',
+        billCode: 'HF 1',
+        returnTo: '/bills/hf-1',
+        pendingReference: 'pending-track-reference-with-32-chars',
+        pendingCompletion: 'ordinary',
+      }),
+    );
+    testState.isSignedIn = true;
+    testState.accessToken = 'access-account-b';
+    testState.completionReplies.push(Promise.reject(new Error('Track save failed')));
+    root = createRoot(mount);
+    await act(async () => {
+      root.render(
+        <SignInModalProvider>
+          <OpenSignInProbe />
+        </SignInModalProvider>,
+      );
+      await Promise.resolve();
+    });
+    await vi.waitFor(() => expect(testState.completionCalls).toHaveLength(1));
+
+    expect(testState.dialogProps.open).toBe(true);
+    expect(testState.dialogProps.errorKind).toBe('request-failure');
+    expect(testState.dialogProps.pendingTrackRetry).toBe(true);
+    expect(testState.googleCalls).toBe(0);
+    expect(window.sessionStorage.getItem('alethical.pendingSignIn')).not.toBeNull();
+
+    const retryCompletion = deferred<void>();
+    testState.completionReplies.push(retryCompletion.promise);
+    let retry!: Promise<void>;
+    act(() => {
+      retry = testState.dialogProps.onGoogle();
+    });
+
+    await vi.waitFor(() => expect(testState.dialogProps.busyAction).toBe('google'));
+    expect(testState.dialogProps.pendingTrackRetry).toBe(true);
+    expect(testState.googleCalls).toBe(0);
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await testState.dialogProps.onGoogle();
+    });
+    expect(testState.dialogProps.busyAction).toBe('google');
+    expect(testState.completionCalls).toHaveLength(2);
+
+    await act(async () => {
+      retryCompletion.resolve();
+      await retry;
+    });
+
+    await vi.waitFor(() => expect(testState.completionCalls).toHaveLength(2));
+    await vi.waitFor(() => expect(testState.dialogProps.open).toBe(false));
+    expect(testState.googleCalls).toBe(0);
+    expect(window.sessionStorage.getItem('alethical.pendingSignIn')).toBeNull();
   });
 
   it('closes a requested dialog when another account wins before password failure', async () => {

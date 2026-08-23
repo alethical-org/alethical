@@ -1,3 +1,5 @@
+import { REV9_AUTH_MESSAGES } from './auth/rev9Auth';
+
 // The sign-in dialog's copy and state machine, kept out of the component so both
 // are plain data a test can read (docs/product-onboarding/sign-in-guide.md). One
 // config drives every surface, so the web overlay and the phone sheet cannot say
@@ -16,7 +18,8 @@ export type SignInIntent = 'nav' | 'track';
 export type SignInStatus = 'idle' | 'connecting' | 'error';
 
 /** Why sign-in failed, which picks the message. */
-export type SignInErrorKind = 'cancelled' | 'failed' | 'deactivated' | 'unverified-google';
+export type SignInErrorKind =
+  'cancelled' | 'failed' | 'request-failure' | 'deactivated' | 'unverified-google';
 
 export interface SignInRequest {
   intent: SignInIntent;
@@ -55,8 +58,8 @@ export const SIGN_IN_INTENTS: Record<SignInIntent, IntentConfig> = {
   },
   track: {
     icon: 'bell',
-    headline: 'Sign in to track this bill',
-    subcopy: () => GENERIC_SUBCOPY,
+    headline: GENERIC_HEADLINE,
+    subcopy: () => 'This bill goes to your tracked list',
   },
 };
 
@@ -66,19 +69,25 @@ export function signInCopy(intent: SignInIntent, billCode?: string) {
 }
 
 export const SIGN_IN_ERROR_MESSAGES: Record<SignInErrorKind, string> = {
-  failed: 'We couldn’t complete that request. Check your connection and try again.',
-  cancelled:
-    'Sign-in didn’t finish. The Google step was closed or cancelled before you were signed in. Try again when you’re ready.',
+  failed: 'Google isn’t responding. Try again in a moment.',
+  cancelled: 'Google didn’t finish. Try again, or use email.',
+  'request-failure': REV9_AUTH_MESSAGES.requestFailure,
   // Not a failure the reader can retry their way out of, so it says what happened
   // and who to ask rather than inviting another attempt (#1092).
   deactivated:
-    'This account has been deactivated, so we’ve signed you out. Bills, votes and legislators are all still here to read. Contact us at ask@alethical.com if you think this is a mistake.',
+    'You’ve been signed out. Bills, votes and legislators are all still here to read. Contact us at ask@alethical.com if you think this is a mistake.',
   // A Google return whose email address Supabase has not confirmed. Shown as a
   // banner on the ordinary sign-in screen. The Google button stays on the card,
   // and Create account now owns the email-code proof (#1734).
   'unverified-google':
     'Sign-in couldn’t finish because the email needs confirmation. Use Create account with this email to confirm it.',
 };
+
+/** Never point to the email route while that route is held back. */
+export function signInErrorMessage(kind: SignInErrorKind, emailPasswordEnabled: boolean): string {
+  if (kind === 'cancelled' && !emailPasswordEnabled) return 'Google didn’t finish. Try again.';
+  return SIGN_IN_ERROR_MESSAGES[kind];
+}
 
 export const SIGN_IN_BUTTON_LABEL = 'Continue with Google';
 export const SIGN_IN_RETRY_LABEL = 'Try again';

@@ -1,4 +1,4 @@
-import { createElement, Ref, useEffect, useId, useRef, useState } from 'react';
+import { createElement, ReactNode, Ref, useEffect, useId, useRef, useState } from 'react';
 import {
   NativeSyntheticEvent,
   Platform,
@@ -33,7 +33,9 @@ export function PasswordField({
   value,
   helper,
   error,
+  labelAccessory,
   disabled = false,
+  compact = false,
   autoComplete = 'current-password',
   returnKeyType = 'go',
   inputRef,
@@ -47,7 +49,9 @@ export function PasswordField({
   value: string;
   helper?: string;
   error?: string;
+  labelAccessory?: ReactNode;
   disabled?: boolean;
+  compact?: boolean;
   autoComplete?: PasswordAutoComplete;
   returnKeyType?: 'next' | 'go' | 'done';
   inputRef?: Ref<PasswordInputHandle>;
@@ -71,15 +75,21 @@ export function PasswordField({
   const inputFocused = useRef(false);
   const { focused, focusProps } = useFieldFocus();
   const { isMobile } = useResponsive();
-  const inputStyle = [styles.input, isMobile && styles.inputMobile, fieldOutlineReset];
+  const inputStyle = [
+    styles.input,
+    isMobile && styles.inputMobile,
+    compact && styles.inputCompact,
+    fieldOutlineReset,
+  ];
   const webInputStyle = { ...(StyleSheet.flatten(inputStyle) as Record<string, unknown>) };
   delete webInputStyle.paddingVertical;
-  webInputStyle.paddingTop = isMobile ? 16 : 14;
-  webInputStyle.paddingBottom = isMobile ? 16 : 14;
+  webInputStyle.paddingTop = compact ? 12 : isMobile ? 16 : 14;
+  webInputStyle.paddingBottom = compact ? 12 : isMobile ? 16 : 14;
   webInputStyle.boxSizing = 'border-box';
   webInputStyle.lineHeight = '22px';
   const shellStyle = [
     styles.inputShell,
+    compact && styles.inputShellCompact,
     disabled && styles.inputShellDisabled,
     error && styles.inputShellError,
     ...fieldFocusRing(focused),
@@ -206,9 +216,15 @@ export function PasswordField({
 
   return (
     <View style={styles.fieldGroup}>
-      <Text nativeID={labelId} style={styles.label}>
-        {label}
-      </Text>
+      <View style={labelAccessory ? styles.labelRow : undefined}>
+        <Text
+          nativeID={labelId}
+          style={[styles.label, labelAccessory ? styles.labelWithAccessory : undefined]}
+        >
+          {label}
+        </Text>
+        {labelAccessory}
+      </View>
       <View style={shellStyle}>
         {input}
         <Pressable
@@ -242,6 +258,13 @@ export function PasswordField({
 
 const styles = StyleSheet.create({
   fieldGroup: { width: '100%' },
+  labelRow: {
+    minHeight: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
   label: {
     marginBottom: 8,
     fontFamily: t.typography.mono,
@@ -251,6 +274,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1.32,
     color: t.colors.text.secondary,
   },
+  labelWithAccessory: { marginBottom: 0 },
   inputShell: {
     minHeight: 52,
     flexDirection: 'row',
@@ -261,6 +285,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     overflow: 'hidden',
   },
+  inputShellCompact: { minHeight: 48 },
   inputShellError: { borderColor: '#e0b673' },
   inputShellDisabled: { opacity: 0.6 },
   input: {
@@ -278,6 +303,7 @@ const styles = StyleSheet.create({
     color: t.colors.text.primary,
   },
   inputMobile: { paddingVertical: 16 },
+  inputCompact: { minHeight: 46, paddingVertical: 12, paddingLeft: 14, fontSize: 16 },
   visibilityButton: {
     minWidth: 44,
     minHeight: 44,
