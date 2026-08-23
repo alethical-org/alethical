@@ -11,7 +11,12 @@ import {
   validatePassword,
   validatePasswordMatch,
 } from '../../lib/auth/rev9Auth';
-import { signInCopy, type SignInErrorKind } from '../../lib/signIn';
+import {
+  SIGN_IN_BUTTON_LABEL,
+  SIGN_IN_RETRY_LABEL,
+  signInCopy,
+  type SignInErrorKind,
+} from '../../lib/signIn';
 import { externalLinkProps, routePath } from '../../navigation/links';
 import { GoogleButton } from '../../theme/primitives';
 import { theme as t } from '../../theme/tokens';
@@ -95,6 +100,8 @@ export interface SignInDialogProps {
   /** The launch value recorded from Supabase. The 60-second drawing was not a specification. */
   resendWaitSeconds: number;
   ordinaryAccountOpen?: boolean;
+  /** Google already succeeded; this action retries saving the pending tracked bill. */
+  pendingTrackRetry?: boolean;
   onClose: () => void;
   onGoogle: () => Promise<void>;
   onPasswordSignIn: (email: string, password: string) => Promise<SignInDialogActionResult>;
@@ -297,6 +304,7 @@ export function SignInDialog({
   emailPasswordEnabled,
   resendWaitSeconds,
   ordinaryAccountOpen = false,
+  pendingTrackRetry = false,
   onClose,
   onGoogle,
   onPasswordSignIn,
@@ -842,11 +850,22 @@ export function SignInDialog({
   const googleButton = (
     <GoogleButton
       onPress={() => void submitGoogle()}
-      label="Continue with Google"
+      label={SIGN_IN_BUTTON_LABEL}
       busy={googleBusy}
       disabled={anyBusy && !googleBusy}
       busyLabel="Continuing with Google…"
       size="compact"
+    />
+  );
+  const pendingTrackRetryButton = (
+    <LoadingButton
+      label={SIGN_IN_RETRY_LABEL}
+      busyLabel="Saving…"
+      busy={googleBusy}
+      disabled={anyBusy && !googleBusy}
+      tone="secondary"
+      style={styles.accountPrimaryButton}
+      onPress={submitGoogle}
     />
   );
   const googleChoice = (
@@ -863,7 +882,9 @@ export function SignInDialog({
     content = (
       <>
         {serverError}
-        {emailPasswordEnabled ? (
+        {pendingTrackRetry ? (
+          pendingTrackRetryButton
+        ) : emailPasswordEnabled ? (
           <>
             <View style={styles.openingPrimaryChoices}>
               {googleButton}
@@ -894,7 +915,7 @@ export function SignInDialog({
         ) : (
           googleButton
         )}
-        <LegalCopy compact />
+        {!pendingTrackRetry ? <LegalCopy compact /> : null}
       </>
     );
   } else if (screen === 'email-sign-in') {

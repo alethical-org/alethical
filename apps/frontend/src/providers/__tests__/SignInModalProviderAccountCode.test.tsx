@@ -34,6 +34,7 @@ const testState = vi.hoisted(() => ({
   authError: null as string | null,
   authErrorKind: null as string | null,
   openSignIn: null as any,
+  refreshTrackedBills: vi.fn(),
 }));
 
 function OpenSignInProbe() {
@@ -50,7 +51,7 @@ vi.mock('../../components/auth/SignInDialog', () => ({
 }));
 
 vi.mock('../../hooks/useAppQueries', () => ({
-  useRefreshTrackedBills: () => vi.fn(),
+  useRefreshTrackedBills: () => testState.refreshTrackedBills,
 }));
 
 vi.mock('../AuthProvider', () => ({
@@ -166,6 +167,7 @@ describe('account-code dialog lifetime', () => {
     testState.authError = null;
     testState.authErrorKind = null;
     testState.openSignIn = null;
+    testState.refreshTrackedBills.mockReset();
     (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
     mount = document.createElement('div');
     document.body.appendChild(mount);
@@ -704,40 +706,67 @@ describe('account-code dialog lifetime', () => {
     expect(testState.completionCalls).toEqual([['access-account-b', 'pending-track']]);
   });
 
-  it('does not blame Google when saving the pending Track press fails', async () => {
-    const completion = deferred<void>();
-    testState.pendingReplies.push(Promise.resolve({ reference: 'pending-track' }));
-    testState.googleReplies.push(Promise.resolve({ ok: true }));
-    testState.completionReplies.push(completion.promise);
-    act(() =>
-      testState.openSignIn({
+  it('reopens after a full-page Google return when saving the pending Track press fails', async () => {
+    act(() => root.unmount());
+    window.sessionStorage.setItem(
+      'alethical.pendingSignIn',
+      JSON.stringify({
         intent: 'track',
         billId: 'bill-a',
         billCode: 'HF 1',
         returnTo: '/bills/hf-1',
+        pendingReference: 'pending-track-reference-with-32-chars',
+        pendingCompletion: 'ordinary',
       }),
     );
-
-    await act(async () => testState.dialogProps.onGoogle());
     testState.isSignedIn = true;
     testState.accessToken = 'access-account-b';
-    act(() =>
+    testState.completionReplies.push(Promise.reject(new Error('Track save failed')));
+    root = createRoot(mount);
+    await act(async () => {
       root.render(
         <SignInModalProvider>
           <OpenSignInProbe />
         </SignInModalProvider>,
-      ),
-    );
-    await vi.waitFor(() => expect(testState.completionCalls).toHaveLength(1));
-    expect(testState.dialogProps.open).toBe(true);
-
-    await act(async () => {
-      completion.reject(new Error('Track save failed'));
-      await completion.promise.catch(() => undefined);
+      );
       await Promise.resolve();
     });
+    await vi.waitFor(() => expect(testState.completionCalls).toHaveLength(1));
 
-    await vi.waitFor(() => expect(testState.errorKinds).toContain('request-failure'));
+    expect(testState.dialogProps.open).toBe(true);
+    expect(testState.dialogProps.errorKind).toBe('request-failure');
+    expect(testState.dialogProps.pendingTrackRetry).toBe(true);
+    expect(testState.googleCalls).toBe(0);
+    expect(window.sessionStorage.getItem('alethical.pendingSignIn')).not.toBeNull();
+
+    const retryCompletion = deferred<void>();
+    testState.completionReplies.push(retryCompletion.promise);
+    let retry!: Promise<void>;
+    act(() => {
+      retry = testState.dialogProps.onGoogle();
+    });
+
+    await vi.waitFor(() => expect(testState.dialogProps.busyAction).toBe('google'));
+    expect(testState.dialogProps.pendingTrackRetry).toBe(true);
+    expect(testState.googleCalls).toBe(0);
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await testState.dialogProps.onGoogle();
+    });
+    expect(testState.dialogProps.busyAction).toBe('google');
+    expect(testState.completionCalls).toHaveLength(2);
+
+    await act(async () => {
+      retryCompletion.resolve();
+      await retry;
+    });
+
+    await vi.waitFor(() => expect(testState.completionCalls).toHaveLength(2));
+    await vi.waitFor(() => expect(testState.dialogProps.open).toBe(false));
+    expect(testState.googleCalls).toBe(0);
+    expect(window.sessionStorage.getItem('alethical.pendingSignIn')).toBeNull();
   });
 
   it('closes a requested dialog when another account wins before password failure', async () => {

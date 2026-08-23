@@ -156,6 +156,12 @@ describe('rev 9 shared sign-in components', () => {
       buttonSource.indexOf('await onPress()'),
     );
     expect(buttonSource).toContain('opacity: 0.75');
+
+    const retry = renderToStaticMarkup(
+      <LoadingButton label="Try again" busyLabel="Saving…" tone="secondary" />,
+    );
+    expect(retry).toContain('Try again');
+    expect(retry).not.toContain('<svg');
   });
 
   it('shares one resend treatment for sending, sent, waiting, and ready', () => {

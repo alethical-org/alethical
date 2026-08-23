@@ -190,6 +190,7 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
   const passwordSignInAccess = useRef<PasswordSignInController | null>(null);
   const passwordSignInCleanup = useRef<Promise<void>>(Promise.resolve());
   const ordinaryCompletionRequested = useRef(false);
+  const ordinaryCompletionFromRetry = useRef(false);
   const [ordinaryCompletionTick, setOrdinaryCompletionTick] = useState(0);
   const accountChoiceRunning = useRef(false);
   const operationGeneration = useRef(0);
@@ -237,6 +238,7 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
     accountCodeStarting.current = null;
     ordinarySignInStarting.current = null;
     ordinaryCompletionRequested.current = false;
+    ordinaryCompletionFromRetry.current = false;
     accountChoiceRunning.current = false;
     const codeAccess = accountCodeAccess.current;
     accountCodeAccess.current = null;
@@ -275,6 +277,7 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
 
   const onContinue = useCallback(async () => {
     if (!signInAttemptGate.begin()) return;
+    ordinaryCompletionFromRetry.current = false;
     requestedAccountScreenOpen.current = false;
     const generation = operationGeneration.current;
     ordinarySignInStarting.current = generation;
@@ -312,6 +315,8 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
       billId: state.billId,
       billCode: state.billCode,
       scrollY: state.scrollY,
+      pendingReference: state.pendingReference,
+      pendingCompletion: state.pendingCompletion,
     };
     pendingRequest.current = request;
     let googleStarted = false;
@@ -319,6 +324,10 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
       await ensurePendingReference('ordinary');
       if (operationGeneration.current !== generation) return;
       if (accessTokenRef.current) {
+        ordinaryCompletionFromRetry.current =
+          state.open &&
+          request.pendingCompletion === 'ordinary' &&
+          Boolean(request.pendingReference);
         finishStarting();
         return;
       }
@@ -345,6 +354,9 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
     state.billCode,
     state.billId,
     state.intent,
+    state.open,
+    state.pendingCompletion,
+    state.pendingReference,
     state.returnTo,
     state.scrollY,
   ]);
@@ -858,6 +870,8 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
     const ordinaryJustSettled = ordinaryCompletionRequested.current;
     if (!isSignedIn || (!justSignedIn && !pendingRequest.current && !ordinaryJustSettled)) return;
     ordinaryCompletionRequested.current = false;
+    const completionFromRetry = ordinaryCompletionFromRetry.current;
+    ordinaryCompletionFromRetry.current = false;
     const request = pendingRequest.current;
     const signedInToken = accessToken;
     if (
@@ -870,8 +884,10 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
     ordinaryCompletion.current = completion;
     const generation = operationGeneration.current + 1;
     operationGeneration.current = generation;
-    signInAttemptGate.reset();
-    setBusyAction(null);
+    if (!completionFromRetry) {
+      signInAttemptGate.reset();
+      setBusyAction(null);
+    }
     const stillCurrent = () =>
       operationGeneration.current === generation &&
       pendingRequest.current === request &&
@@ -895,16 +911,30 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
     void completeOrdinaryPending(signedInToken, request)
       .then(() => {
         if (!stillCurrent()) return;
+        if (completionFromRetry) {
+          signInAttemptGate.reset();
+          setBusyAction(null);
+        }
         refreshTrackedBills();
         finishSignedInRequest();
       })
       .catch((error) => {
         if (!stillCurrent()) return;
         if (error instanceof ApiError && error.status === 410) {
+          if (completionFromRetry) {
+            signInAttemptGate.reset();
+            setBusyAction(null);
+          }
           finishSignedInRequest();
           return;
         }
-        dispatch({ type: 'fail', kind: 'request-failure' });
+        signInAttemptGate.reset();
+        setBusyAction(null);
+        dispatch({
+          type: 'reopenWithError',
+          request: request ?? { intent: 'nav' },
+          kind: 'request-failure',
+        });
       })
       .finally(releaseCompletion);
   }, [
@@ -1011,6 +1041,12 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
         emailPasswordEnabled={EMAIL_PASSWORD_ENABLED}
         resendWaitSeconds={RESEND_WAIT_SECONDS}
         ordinaryAccountOpen={isSignedIn}
+        pendingTrackRetry={
+          isSignedIn &&
+          state.intent === 'track' &&
+          state.pendingCompletion === 'ordinary' &&
+          Boolean(state.pendingReference)
+        }
         onClose={close}
         onGoogle={onContinue}
         onPasswordSignIn={onPasswordSignIn}

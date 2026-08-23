@@ -226,7 +226,9 @@ Closing or cancelling Google's window returns to the same opening with **Google 
 again, or use email.** While email and password are held back, the unavailable email route is omitted
 from that message. The pending Track request stays saved. A provider or network failure says
 **Google isn’t responding. Try again in a moment.** A failure before Google starts or after Google
-finishes uses the shared request-failure message instead of blaming Google.
+finishes uses the shared request-failure message instead of blaming Google. If saving a tracked bill
+fails after Google succeeds, the panel reopens with **Try again** and retries that save without
+opening Google again.
 
 ## Account menu
 

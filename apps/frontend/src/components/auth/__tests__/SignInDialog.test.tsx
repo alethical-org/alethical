@@ -156,6 +156,31 @@ describe('rev 9 sign-in dialog', () => {
     expect(html).not.toContain('Create an account');
   });
 
+  it('labels a signed-in pending Track retry without sending the person back to Google', () => {
+    const ready = render({
+      intent: 'track',
+      ordinaryAccountOpen: true,
+      pendingTrackRetry: true,
+      errorKind: 'request-failure',
+      errorMessage: 'We couldn’t complete that request. Check your connection and try again.',
+    });
+    const saving = render({
+      intent: 'track',
+      ordinaryAccountOpen: true,
+      pendingTrackRetry: true,
+      busyAction: 'google',
+    });
+
+    expect(ready).toContain('Try again');
+    expect(ready).not.toContain('Continue with Google');
+    expect(ready).not.toContain('Sign in with email');
+    expect(ready).not.toContain('Create an account');
+    expect(ready).not.toContain('Forgot password?');
+    expect(ready).not.toContain('Terms of Use');
+    expect(saving).toContain('Saving…');
+    expect(saving).not.toContain('Continuing with Google…');
+  });
+
   it('keeps the accepted Track reason on the 4-choice opening', () => {
     const html = render({ intent: 'track', billCode: 'HF 4138' });
 
