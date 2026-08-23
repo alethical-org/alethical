@@ -55,8 +55,8 @@ export const SIGN_IN_INTENTS: Record<SignInIntent, IntentConfig> = {
   },
   track: {
     icon: 'bell',
-    headline: 'Sign in to track this bill',
-    subcopy: () => GENERIC_SUBCOPY,
+    headline: GENERIC_HEADLINE,
+    subcopy: () => 'This bill goes to your tracked list',
   },
 };
 
@@ -66,13 +66,12 @@ export function signInCopy(intent: SignInIntent, billCode?: string) {
 }
 
 export const SIGN_IN_ERROR_MESSAGES: Record<SignInErrorKind, string> = {
-  failed: 'We couldn’t complete that request. Check your connection and try again.',
-  cancelled:
-    'Sign-in didn’t finish. The Google step was closed or cancelled before you were signed in. Try again when you’re ready.',
+  failed: 'Google isn’t responding. Try again in a moment.',
+  cancelled: 'Google didn’t finish. Try again, or use email.',
   // Not a failure the reader can retry their way out of, so it says what happened
   // and who to ask rather than inviting another attempt (#1092).
   deactivated:
-    'This account has been deactivated, so we’ve signed you out. Bills, votes and legislators are all still here to read. Contact us at ask@alethical.com if you think this is a mistake.',
+    'You’ve been signed out. Bills, votes and legislators are all still here to read. Contact us at ask@alethical.com if you think this is a mistake.',
   // A Google return whose email address Supabase has not confirmed. Shown as a
   // banner on the ordinary sign-in screen. The Google button stays on the card,
   // and Create account now owns the email-code proof (#1734).

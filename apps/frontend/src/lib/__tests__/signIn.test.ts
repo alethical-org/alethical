@@ -55,8 +55,8 @@ describe('intent → copy', () => {
 
   it('uses the approved Track-intent copy', () => {
     const { headline, subcopy } = signInCopy('track', 'HF 4138');
-    expect(headline).toBe('Sign in to track this bill');
-    expect(subcopy).toBe('Bills you track are saved to your account');
+    expect(headline).toBe('Sign in to Alethical');
+    expect(subcopy).toBe('This bill goes to your tracked list');
   });
 
   it('uses the same Track-intent copy when only the id is known', () => {
@@ -72,9 +72,11 @@ describe('intent → copy', () => {
 });
 
 describe('shared Google failure copy', () => {
-  it('uses the same connection failure as every other sign-in request', () => {
-    expect(SIGN_IN_ERROR_MESSAGES.failed).toBe(
-      'We couldn’t complete that request. Check your connection and try again.',
+  it('uses the exact accepted return messages', () => {
+    expect(SIGN_IN_ERROR_MESSAGES.failed).toBe('Google isn’t responding. Try again in a moment.');
+    expect(SIGN_IN_ERROR_MESSAGES.cancelled).toBe('Google didn’t finish. Try again, or use email.');
+    expect(SIGN_IN_ERROR_MESSAGES.deactivated).toBe(
+      'You’ve been signed out. Bills, votes and legislators are all still here to read. Contact us at ask@alethical.com if you think this is a mistake.',
     );
   });
 });
@@ -135,9 +137,7 @@ describe('no sign-in copy promises a notification', () => {
   });
 
   it('states the payoff we can actually deliver: a saved list', () => {
-    expect(signInCopy('track', 'HF 4138').subcopy).toBe(
-      'Bills you track are saved to your account',
-    );
+    expect(signInCopy('track', 'HF 4138').subcopy).toBe('This bill goes to your tracked list');
   });
 });
 

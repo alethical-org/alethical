@@ -921,7 +921,11 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
     if (!authError) return;
     const kind = authErrorKind ?? 'failed';
     if (kind === 'cancelled') {
-      if (state.status === 'connecting') close();
+      if (state.status === 'connecting') {
+        signInAttemptGate.reset();
+        setBusyAction(null);
+        dispatch({ type: 'fail', kind });
+      }
       return;
     }
     const serious = dedicatedSignInOutcome(kind);
@@ -935,15 +939,7 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
     } else {
       dispatch({ type: 'reopenWithError', request: request ?? { intent: 'nav' }, kind });
     }
-  }, [
-    authError,
-    authErrorKind,
-    close,
-    signInAttemptGate,
-    state.errorKind,
-    state.open,
-    state.status,
-  ]);
+  }, [authError, authErrorKind, signInAttemptGate, state.errorKind, state.open, state.status]);
 
   // The web return trip: Google sends failures back as URL params on the page we
   // asked it to return to. Reopen the dialog where it left off, then take the
@@ -966,7 +962,11 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
     const pending = pendingRequest.current;
     const failureKind = signInErrorKind(failure.code, failure.errorCode);
     if (failureKind === 'cancelled') {
-      close();
+      dispatch({
+        type: 'reopenWithError',
+        request: pending ?? { intent: 'nav' },
+        kind: failureKind,
+      });
       return;
     }
     pendingRequest.current = null;
@@ -976,7 +976,7 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
       request: pending ?? { intent: 'nav' },
       kind: failureKind,
     });
-  }, [close, isLoading, isSignedIn, signInAttemptGate]);
+  }, [isLoading, isSignedIn, signInAttemptGate]);
 
   const value = useMemo(() => ({ openSignIn }), [openSignIn]);
 

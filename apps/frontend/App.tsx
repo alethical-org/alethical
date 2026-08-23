@@ -66,7 +66,7 @@ export default function App() {
       }
       const style = document.createElement('style');
       style.id = 'alethical-focus-visible';
-      style.textContent = `a:focus-visible,button:focus-visible,[role="button"]:focus-visible,[role="link"]:focus-visible,[tabindex]:not(input):not(textarea):not(select):focus-visible{outline:2px solid #7c5cff !important;outline-offset:2px !important;}`;
+      style.textContent = `a:focus-visible,button:focus-visible,[role="button"]:focus-visible,[role="link"]:focus-visible,[tabindex]:not(input):not(textarea):not(select):not([role="heading"]):not(h1):not(h2):not(h3):not(h4):not(h5):not(h6):focus-visible{outline:2px solid #7c5cff !important;outline-offset:2px !important;}`;
       document.head.appendChild(style);
     };
 

@@ -8,9 +8,11 @@ use Google can create, enter, and recover an account with email and password alo
 The browser sends passwords straight to Supabase Auth over an encrypted connection.
 Alethical's own server and database never receive or store them.
 
-## The 5 shared screens
+## The 6 shared screens
 
-- **Sign in** has Google, email, password, Sign in, Create account, and Forgot password.
+- **Sign-in choices** opens every time with Google, Sign in with email, Create account, and Forgot
+  password visible together.
+- **Sign in with email** has email, password, Forgot password, Sign in, and Create account.
 - **Create account** asks for an email, then opens the shared code screen.
 - **Recover account** asks for an email and says that a missing account will be created.
 - **Enter your code** has Code, Continue, Send a new code, Use another email, Google when safe,
@@ -31,8 +33,9 @@ another screen.
    password becomes another way into the same account, and Google still works.
 4. **Unfinished email account, Create account:** Create account → code → password → Alethical.
    Confirmation clears any password stored before email proof, then saves the person's choice.
-5. **Password account, Sign in:** a correct email and password open the account. Every rejected
-   pair says **Email or password is incorrect**, without revealing which part was wrong.
+5. **Password account, Sign in:** Sign in with email opens the email form. A correct email and
+   password open the account. Every rejected pair says **Email or password is incorrect**, without
+   revealing which part was wrong.
 6. **Google or linked account, Continue with Google:** Google proves the person and opens the
    same Alethical account. Alethical never receives the Google password.
 7. **Password account, Recover account:** Recover account → code → new password → Alethical.
@@ -52,6 +55,24 @@ another screen.
 
 Journeys 11 and 12 cover another tab changing the open account while a code flow is underway.
 Signed-in people use journey 10 rather than starting Create or Recover from the account menu.
+
+## Account-panel layout and Back
+
+The phone sheet and desktop window share a 66px fixed header. Its left side shows Alethical's mark,
+a Track bell, or Back. The 44px left control is followed by at least 14px before the first heading,
+icon, or label. That gap is owned by `accountPanelHeaderContentGap`. The first opening button starts
+18px below the heading group. The header does not grow when the body scrolls or a phone keyboard
+opens.
+
+Back keeps the email and clears codes and passwords. Create and Recover remember whether they opened
+from the 4 choices, the email form, or a direct link. Code and Choose password carry that same origin.
+Choose password also cancels the proved-account state. A direct Create or Recover link has no header
+Back, so its body route to sign-in stays. Android's hardware Back follows the same route before it
+closes the panel.
+
+Focus starts on each screen's heading. When that heading scrolls away, a hidden-from-screen-readers
+copy appears in the fixed header. Screen changes fade out and back in with an 8px upward movement over
+180ms. Reduced-motion settings make the change instant.
 
 ## One email-code flow for Create and Recover
 
@@ -99,6 +120,8 @@ new-account tests and its event records prove a delivery problem.
 - Never force routine password changes.
 - Keep repeated sign-in attempts limited.
 - Keep ordinary sign-in free of a length check so an existing password is submitted as typed.
+- Check an incomplete email after the person leaves the field or presses Sign in, not while typing.
+- Keep a rejected password, select it, and focus its field so the next keystroke replaces it.
 
 Supabase can still refuse a password beyond its storage limit. The form then says **This password
 is too long. Use a shorter one.** Choosing the current password is accepted because that password
@@ -196,7 +219,12 @@ A wrong email, wrong password, missing password, or locked account all say **Ema
 incorrect**.
 
 A deactivated account is signed out locally. Public bills, votes, and legislators remain readable.
-Every deactivated message makes ask@alethical.com a real email link.
+Its message starts **You’ve been signed out** and makes ask@alethical.com a real email link. Header
+Back returns to the 4 sign-in choices.
+
+Closing or cancelling Google's window returns to the same opening with **Google didn’t finish. Try
+again, or use email.** The pending Track request stays saved. A provider or network failure says
+**Google isn’t responding. Try again in a moment.**
 
 ## Account menu
 

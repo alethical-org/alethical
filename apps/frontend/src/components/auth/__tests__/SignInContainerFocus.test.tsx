@@ -84,7 +84,7 @@ describe('phone password focus', () => {
         </SignInContainer>,
       ),
     );
-    expect(document.activeElement).toBe(mount.querySelector('[role="heading"]'));
+    expect(document.activeElement).toBe(document.querySelector('[role="heading"]'));
 
     act(() =>
       root.render(
@@ -93,7 +93,7 @@ describe('phone password focus', () => {
         </SignInContainer>,
       ),
     );
-    expect(document.activeElement).toBe(mount.querySelector('[role="heading"]'));
+    expect(document.activeElement).toBe(document.querySelector('[role="heading"]'));
 
     act(() => root.unmount());
     mount.remove();
@@ -109,20 +109,32 @@ describe('phone password focus', () => {
 
     act(() =>
       root.render(
-        <SignInContainer open focusKey="create" title="Create your account" onClose={vi.fn()}>
+        <SignInContainer
+          open
+          accountPanel
+          focusKey="create"
+          title="Create your account"
+          onClose={vi.fn()}
+        >
           <button>Continue</button>
         </SignInContainer>,
       ),
     );
-    expect(document.activeElement?.getAttribute('aria-label')).toBe('Close');
+    expect(document.activeElement).toBe(document.querySelector('[role="dialog"] [role="heading"]'));
     act(() =>
       root.render(
-        <SignInContainer open focusKey="code" title="Enter your code" onClose={vi.fn()}>
+        <SignInContainer
+          open
+          accountPanel
+          focusKey="code"
+          title="Enter your code"
+          onClose={vi.fn()}
+        >
           <button>Continue</button>
         </SignInContainer>,
       ),
     );
-    expect(document.activeElement?.getAttribute('aria-label')).toBe('Close');
+    expect(document.activeElement).toBe(document.querySelector('[role="dialog"] [role="heading"]'));
     act(() => root.unmount());
 
     expect(document.activeElement).toBe(opener);

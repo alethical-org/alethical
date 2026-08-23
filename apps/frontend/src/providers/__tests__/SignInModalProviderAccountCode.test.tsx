@@ -27,6 +27,8 @@ const testState = vi.hoisted(() => ({
   isLoading: false,
   isSignedIn: false,
   accessToken: null as string | null,
+  authError: null as string | null,
+  authErrorKind: null as string | null,
   openSignIn: null as any,
 }));
 
@@ -51,8 +53,8 @@ vi.mock('../AuthProvider', () => ({
     isLoading: testState.isLoading,
     isSignedIn: testState.isSignedIn,
     accessToken: testState.accessToken,
-    authError: null,
-    authErrorKind: null,
+    authError: testState.authError,
+    authErrorKind: testState.authErrorKind,
     dismissAuthError: vi.fn(),
     signInWithGoogle: vi.fn(() => testState.googleReplies.shift() ?? Promise.resolve({ ok: true })),
     user: null,
@@ -151,6 +153,8 @@ describe('account-code dialog lifetime', () => {
     testState.isLoading = false;
     testState.isSignedIn = false;
     testState.accessToken = null;
+    testState.authError = null;
+    testState.authErrorKind = null;
     testState.openSignIn = null;
     (globalThis as any).IS_REACT_ACT_ENVIRONMENT = true;
     mount = document.createElement('div');
@@ -275,6 +279,88 @@ describe('account-code dialog lifetime', () => {
     });
 
     expect(testState.dialogProps.open).toBe(false);
+  });
+
+  it('keeps an in-place Google cancellation open with its Track request', async () => {
+    const google = deferred<{ ok: false; error: { kind: string; message: string } }>();
+    testState.googleReplies.push(google.promise);
+    act(() =>
+      testState.openSignIn({
+        intent: 'track',
+        billId: 'bill-a',
+        billCode: 'HF 1',
+        returnTo: '/bills/hf-1',
+      }),
+    );
+
+    let signIn!: Promise<void>;
+    act(() => {
+      signIn = testState.dialogProps.onGoogle();
+    });
+    await vi.waitFor(() => expect(testState.dialogProps.busyAction).toBe('google'));
+    await vi.waitFor(() =>
+      expect(window.sessionStorage.getItem('alethical.pendingSignIn')).not.toBeNull(),
+    );
+
+    testState.authError = 'The Google window was closed.';
+    testState.authErrorKind = 'cancelled';
+    await act(async () => {
+      root.render(
+        <SignInModalProvider>
+          <OpenSignInProbe />
+        </SignInModalProvider>,
+      );
+      await Promise.resolve();
+    });
+
+    expect(testState.dialogProps.open).toBe(true);
+    expect(testState.dialogProps.intent).toBe('track');
+    expect(testState.dialogProps.billCode).toBe('HF 1');
+    expect(testState.dialogProps.errorKind).toBe('cancelled');
+    expect(testState.dialogProps.busyAction).toBeNull();
+    expect(window.sessionStorage.getItem('alethical.pendingSignIn')).not.toBeNull();
+
+    await act(async () => {
+      google.resolve({
+        ok: false,
+        error: { kind: 'cancelled', message: 'The Google window was closed.' },
+      });
+      await signIn;
+    });
+  });
+
+  it('reopens a returned Google cancellation with its Track request', async () => {
+    act(() => root.unmount());
+    window.sessionStorage.setItem(
+      'alethical.pendingSignIn',
+      JSON.stringify({
+        intent: 'track',
+        billId: 'bill-a',
+        billCode: 'HF 1',
+        returnTo: '/bills/hf-1',
+        pendingReference: 'pending-reference-with-at-least-32-chars',
+        pendingCompletion: 'ordinary',
+      }),
+    );
+    window.history.replaceState(null, '', '/?error=access_denied');
+    root = createRoot(mount);
+
+    await act(async () => {
+      root.render(
+        <SignInModalProvider>
+          <OpenSignInProbe />
+        </SignInModalProvider>,
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(testState.dialogProps.open).toBe(true);
+    expect(testState.dialogProps.intent).toBe('track');
+    expect(testState.dialogProps.billCode).toBe('HF 1');
+    expect(testState.dialogProps.errorKind).toBe('cancelled');
+    expect(window.sessionStorage.getItem('alethical.pendingSignIn')).not.toBeNull();
+    expect(window.location.search).toBe('');
   });
 
   it('closes after a requested Create screen changes to ordinary sign in', async () => {

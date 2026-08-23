@@ -108,6 +108,26 @@ describe('rev 9 shared sign-in components', () => {
     expect(html).toContain('That code is wrong or expired');
   });
 
+  it('keeps compact account-panel fields at 48px and the Show control at 44px', () => {
+    const email = renderToStaticMarkup(
+      <EmailField compact id="compact-email" value="name@example.com" onChangeText={vi.fn()} />,
+    );
+    const password = renderToStaticMarkup(
+      <PasswordField compact id="compact-password" value="password" onChangeText={vi.fn()} />,
+    );
+    const code = renderToStaticMarkup(<CodeField compact value="123456" onChangeText={vi.fn()} />);
+
+    for (const html of [email, password, code]) {
+      expect(html).toContain('min-height:46px');
+      expect(html).toContain('padding-top:12px');
+      expect(html).toContain('padding-bottom:12px');
+    }
+    expect(source('EmailField.tsx')).toContain('inputShellCompact: { minHeight: 48 }');
+    expect(source('PasswordField.tsx')).toContain('inputShellCompact: { minHeight: 48 }');
+    expect(source('CodeField.tsx')).toContain('inputShellCompact: { minHeight: 48 }');
+    expect(source('PasswordField.tsx')).toContain('minHeight: 44');
+  });
+
   it('uses one quiet field error and one announced banner error', () => {
     const field = renderToStaticMarkup(
       <FormError id="field-error" message="Passwords do not match." />,
@@ -183,16 +203,16 @@ describe('rev 9 shared sign-in components', () => {
     expect(html).not.toContain('role="button"');
   });
 
-  it('keeps the desktop modal, phone sheet, and email-link page in one container', () => {
+  it('keeps legacy screens unchanged and gives the account panel its accepted layout', () => {
     const container = source('SignInContainer.tsx');
 
     expect(container).toContain("variant = 'flow'");
     expect(container).toContain("variant === 'page'");
     expect(container).toContain('isMobile');
     expect(container).toContain("maxHeight: '92dvh'");
-    expect(container).toContain('accessibilityLabel={title}');
-    expect(container).not.toContain("role: 'dialog'");
-    expect(container).not.toContain("'aria-modal': true");
+    expect(container).toContain('accessibilityLabel={displayedFrame.title}');
+    expect(container).toContain("role: 'dialog'");
+    expect(container).toContain("'aria-modal': true");
     expect(container).toContain('accessible={false}');
     expect(container).toContain("'aria-hidden': true");
     expect(container).toContain('ScrollView');
@@ -209,6 +229,21 @@ describe('rev 9 shared sign-in components', () => {
     expect(container).toContain("event.key === 'Escape'");
     expect(container).toContain('focusKey');
     expect(container).toContain('minHeight: 44');
+    expect(container).toContain('accountPanelHeaderContentGap = 14');
+    expect(container).toMatch(/accountHeader: \{[\s\S]*?height: 66,/);
+    expect(container).toContain('accountHeaderSheet: { marginHorizontal: 22 }');
+    expect(container).toMatch(/accountCard: \{[\s\S]*?width: 420,/);
+    expect(container).toContain('accountCardBody: { paddingTop: 0, paddingHorizontal: 20');
+    expect(container).toContain('visualViewportHeight - (asSheet ? 45 : 80)');
+    expect(container.match(/duration: 90/g)).toHaveLength(3);
+    expect(container).toContain('frameOffset.setValue(reduceMotion ? 0 : 8)');
+    expect(container).toContain('if (reduceMotion)');
+    expect(container).toContain("{ outlineStyle: 'none', outlineWidth: 0 } as object");
+    expect(container).toContain('onRequestClose={onModalRequestClose}');
+    expect(container).toContain("{...(isWeb ? ({ 'aria-hidden': true } as object) : null)}");
+
+    const app = readFileSync(join(HERE, '..', '..', '..', '..', 'App.tsx'), 'utf8');
+    expect(app).toContain(':not([role="heading"]):not(h1):not(h2):not(h3):not(h4):not(h5):not(h6)');
   });
 
   it('keeps the Google busy words visible and equal to the accessible name', () => {
@@ -233,6 +268,7 @@ describe('rev 9 shared sign-in components', () => {
     expect(googleButton).toContain('accessibilityState={{ busy, disabled: unavailable }}');
     expect(googleButton).toContain('{!reduceMotion ? (');
     expect(googleButton).toContain('<Text style={styles.googleBtnText}>{busyLabel}</Text>');
+    expect(primitives).toContain('googleBtnCompact: { minHeight: 54');
   });
 
   it('gives the phone account sheet a 44 by 44 Close that returns focus', () => {

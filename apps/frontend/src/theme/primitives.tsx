@@ -830,7 +830,7 @@ export function GoogleButton({
   busy?: boolean;
   disabled?: boolean;
   busyLabel?: string;
-  size?: 'md' | 'lg';
+  size?: 'md' | 'lg' | 'compact';
 }) {
   const [hovered, hoverProps] = useHover();
   const reduceMotion = useReducedMotion();
@@ -853,6 +853,7 @@ export function GoogleButton({
       style={[
         styles.googleBtn,
         size === 'lg' && styles.googleBtnLg,
+        size === 'compact' && styles.googleBtnCompact,
         hovered && !unavailable && { borderColor: t.colors.borders.strong },
         unavailable && styles.googleBtnBusy,
       ]}
@@ -1314,6 +1315,7 @@ const styles = StyleSheet.create({
     ...(t.shadows.sm as object),
   },
   googleBtnLg: { paddingVertical: 17, minHeight: 56 },
+  googleBtnCompact: { minHeight: 54, paddingVertical: 14 },
   googleBtnBusy: { opacity: 0.75, borderColor: t.colors.alpha.ink14 },
   googleBtnText: {
     fontFamily: t.typography.ui,

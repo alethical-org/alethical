@@ -13,6 +13,7 @@ export function CodeField({
   value,
   error,
   disabled = false,
+  compact = false,
   inputRef,
   onChangeText,
   onSubmitEditing,
@@ -20,6 +21,7 @@ export function CodeField({
   value: string;
   error?: string;
   disabled?: boolean;
+  compact?: boolean;
   inputRef?: Ref<CodeInputHandle>;
   onChangeText: (value: string) => void;
   onSubmitEditing?: () => void;
@@ -30,18 +32,24 @@ export function CodeField({
   const errorId = `${inputId}-error`;
   const { focused, focusProps } = useFieldFocus();
   const { isMobile } = useResponsive();
-  const inputStyle = [styles.input, isMobile && styles.inputMobile, fieldOutlineReset];
+  const inputStyle = [
+    styles.input,
+    isMobile && styles.inputMobile,
+    compact && styles.inputCompact,
+    fieldOutlineReset,
+  ];
   const webInputStyle = { ...(StyleSheet.flatten(inputStyle) as Record<string, unknown>) };
   delete webInputStyle.paddingVertical;
   delete webInputStyle.paddingHorizontal;
-  webInputStyle.paddingTop = isMobile ? 16 : 14;
-  webInputStyle.paddingBottom = isMobile ? 16 : 14;
-  webInputStyle.paddingLeft = 16;
-  webInputStyle.paddingRight = 16;
+  webInputStyle.paddingTop = compact ? 12 : isMobile ? 16 : 14;
+  webInputStyle.paddingBottom = compact ? 12 : isMobile ? 16 : 14;
+  webInputStyle.paddingLeft = compact ? 14 : 16;
+  webInputStyle.paddingRight = compact ? 14 : 16;
   webInputStyle.boxSizing = 'border-box';
   webInputStyle.lineHeight = '22px';
   const shellStyle = [
     styles.inputShell,
+    compact && styles.inputShellCompact,
     disabled && styles.inputShellDisabled,
     error && styles.inputShellError,
     ...fieldFocusRing(focused),
@@ -132,6 +140,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     ...(Platform.OS === 'web' ? ({ overflow: 'hidden' } as object) : null),
   },
+  inputShellCompact: { minHeight: 48 },
   inputShellError: { borderColor: '#e0b673' },
   inputShellDisabled: { opacity: 0.6 },
   input: {
@@ -147,4 +156,5 @@ const styles = StyleSheet.create({
     color: t.colors.text.primary,
   },
   inputMobile: { paddingVertical: 16 },
+  inputCompact: { minHeight: 46, paddingVertical: 12, paddingHorizontal: 14, fontSize: 16 },
 });

@@ -23,7 +23,7 @@ import { FormError } from './FormError';
 import { LoadingButton } from './LoadingButton';
 import { PasswordField } from './PasswordField';
 import { ResendControl, ResendStatus } from './ResendControl';
-import { SignInContainer, descriptionTextStyle } from './SignInContainer';
+import { SignInContainer, accountPanelDescriptionTextStyle } from './SignInContainer';
 
 const isWeb = Platform.OS === 'web';
 const TERMS_URL = 'https://www.alethical.com/terms';
@@ -32,6 +32,7 @@ const NEWEST_CODE = 'Enter the newest code';
 
 export type SignInDialogScreen =
   | 'sign-in'
+  | 'email-sign-in'
   | 'create'
   | 'recover'
   | 'code'
@@ -115,6 +116,7 @@ export interface SignInDialogProps {
 }
 
 type FieldErrors = { email?: string; code?: string; password?: string; confirmation?: string };
+type AccountOrigin = 'choices' | 'email' | 'direct';
 
 function IntentIcon({
   icon,
@@ -123,11 +125,14 @@ function IntentIcon({
   icon: 'brand' | 'bell' | 'mail' | 'lock' | 'shield';
   size: number;
 }) {
-  const glyph = Math.round(size * 0.5);
+  const glyph = size === 44 ? (icon === 'bell' ? 18 : 21) : Math.round(size * 0.5);
   const ink = t.colors.text.primary;
   return (
     <View
-      style={[styles.iconTile, { width: size, height: size, borderRadius: size === 56 ? 15 : 14 }]}
+      style={[
+        styles.iconTile,
+        { width: size, height: size, borderRadius: size === 56 ? 15 : size === 44 ? 12 : 14 },
+      ]}
     >
       <Svg width={glyph} height={glyph} viewBox="0 0 24 24" fill="none" aria-hidden>
         {icon === 'brand' ? (
@@ -196,9 +201,9 @@ function LegalLink({ label, path, url }: { label: string; path: string; url: str
   );
 }
 
-function LegalCopy() {
+function LegalCopy({ compact = false }: { compact?: boolean }) {
   return (
-    <Text style={styles.legal}>
+    <Text style={[styles.legal, compact && styles.legalCompact]}>
       By continuing you agree to our{' '}
       <LegalLink label="Terms of Use" path={routePath.terms()} url={TERMS_URL} /> and{' '}
       <LegalLink label="Privacy Policy" path={routePath.privacy()} url={PRIVACY_URL} />
@@ -234,6 +239,38 @@ function TextAction({
       ]}
     >
       <Text style={styles.textActionText}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function EmailChoiceButton({ disabled, onPress }: { disabled: boolean; onPress: () => void }) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Sign in with email"
+      disabled={disabled}
+      onBlur={() => setFocused(false)}
+      onFocus={() => setFocused(true)}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.emailChoice,
+        focused && focusRingWeb,
+        pressed && styles.emailChoicePressed,
+        disabled && styles.emailChoiceDisabled,
+      ]}
+    >
+      <Svg width={19} height={19} viewBox="0 0 24 24" fill="none" aria-hidden>
+        <Path d="M2.6 5 H21.4 V19 H2.6 Z" stroke={t.colors.text.muted} strokeWidth={1.9} />
+        <Path
+          d="M3.4 6.4 L12 13 L20.6 6.4"
+          stroke={t.colors.text.muted}
+          strokeWidth={1.9}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </Svg>
+      <Text style={styles.emailChoiceText}>Sign in with email</Text>
     </Pressable>
   );
 }
@@ -281,6 +318,9 @@ export function SignInDialog({
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [codePurpose, setCodePurpose] = useState<'create' | 'recover'>('create');
+  const [accountOrigin, setAccountOrigin] = useState<AccountOrigin>(
+    initialScreen === 'create' || initialScreen === 'recover' ? 'direct' : 'choices',
+  );
   const [googleStillWorks, setGoogleStillWorks] = useState(false);
   const [openAccount, setOpenAccount] = useState<OpenAccountSummary | null>(null);
   const [finishNeedsRetry, setFinishNeedsRetry] = useState(false);
@@ -293,22 +333,33 @@ export function SignInDialog({
   const codeRef = useRef<any>(null);
   const passwordRef = useRef<any>(null);
   const confirmationRef = useRef<any>(null);
+  const emailSignInActionsRef = useRef<any>(null);
   const passwordActionsRef = useRef<any>(null);
   const anyBusy = busyAction !== null;
 
-  const revealPasswordActions = useCallback(() => {
-    if (!isWeb || !isMobile) return;
-    const actions = passwordActionsRef.current as HTMLElement | null;
-    actions?.scrollIntoView?.({ block: 'end', inline: 'nearest' });
-    let parent = actions?.parentElement ?? null;
-    while (parent) {
-      if (parent.scrollHeight > parent.clientHeight) {
-        parent.scrollTop = parent.scrollHeight;
-        return;
+  const revealActions = useCallback(
+    (actions: HTMLElement | null) => {
+      if (!isWeb || !isMobile) return;
+      actions?.scrollIntoView?.({ block: 'end', inline: 'nearest' });
+      let parent = actions?.parentElement ?? null;
+      while (parent) {
+        if (parent.scrollHeight > parent.clientHeight) {
+          parent.scrollTop = parent.scrollHeight;
+          return;
+        }
+        parent = parent.parentElement;
       }
-      parent = parent.parentElement;
-    }
-  }, [isMobile]);
+    },
+    [isMobile],
+  );
+  const revealPasswordActions = useCallback(
+    () => revealActions(passwordActionsRef.current as HTMLElement | null),
+    [revealActions],
+  );
+  const revealEmailSignInActions = useCallback(
+    () => revealActions(emailSignInActionsRef.current as HTMLElement | null),
+    [revealActions],
+  );
 
   useEffect(() => {
     if (!open) {
@@ -334,6 +385,9 @@ export function SignInDialog({
     setFieldErrors({});
     setFormError(null);
     setCodePurpose('create');
+    setAccountOrigin(
+      initialScreen === 'create' || initialScreen === 'recover' ? 'direct' : 'choices',
+    );
     setGoogleStillWorks(false);
     setOpenAccount(null);
     setFinishNeedsRetry(false);
@@ -359,28 +413,40 @@ export function SignInDialog({
   }, [anyBusy, formError, password]);
 
   useEffect(() => {
-    if (!open || screen !== 'choose-password' || !isWeb || !isMobile) return;
+    if (
+      !open ||
+      (screen !== 'choose-password' && screen !== 'email-sign-in') ||
+      !isWeb ||
+      !isMobile
+    )
+      return;
     const viewport = window.visualViewport;
     if (!viewport) return;
     let previousHeight = viewport.height;
     const revealAfterKeyboardOpens = () => {
       const nextHeight = viewport.height;
-      if (nextHeight < previousHeight && document.activeElement === confirmationRef.current) {
-        revealPasswordActions();
+      if (nextHeight < previousHeight) {
+        if (screen === 'choose-password' && document.activeElement === confirmationRef.current) {
+          revealPasswordActions();
+        }
+        if (screen === 'email-sign-in' && document.activeElement === passwordRef.current) {
+          revealEmailSignInActions();
+        }
       }
       previousHeight = nextHeight;
     };
     viewport.addEventListener('resize', revealAfterKeyboardOpens);
     return () => viewport.removeEventListener('resize', revealAfterKeyboardOpens);
-  }, [isMobile, open, revealPasswordActions, screen]);
+  }, [isMobile, open, revealEmailSignInActions, revealPasswordActions, screen]);
 
   const clearMessages = () => {
     setFieldErrors({});
     setFormError(null);
   };
 
-  const moveTo = (next: SignInDialogScreen, clearEmail = false) => {
+  const moveTo = (next: SignInDialogScreen, clearEmail = false, nextOrigin?: AccountOrigin) => {
     setScreen(next);
+    if (nextOrigin) setAccountOrigin(nextOrigin);
     if (clearEmail) setEmail('');
     setCode('');
     setPassword('');
@@ -390,6 +456,11 @@ export function SignInDialog({
     clearMessages();
     setResendStatus('ready');
     setResendSeconds(0);
+  };
+
+  const validateEmailAfterBlur = () => {
+    const error = validateEmail(email);
+    setFieldErrors((errors) => ({ ...errors, email: error ?? undefined }));
   };
 
   const isCurrentOpen = (generation: number) => openGeneration.current === generation;
@@ -427,10 +498,13 @@ export function SignInDialog({
       codeRef.current?.focus?.();
       return;
     }
-    if (error.kind === 'bad-credentials') {
-      setPassword('');
-    }
     setFormError(error.message);
+    if (error.kind === 'bad-credentials') {
+      const input = passwordRef.current;
+      input?.focus?.();
+      if (typeof input?.select === 'function') input.select();
+      else input?.setNativeProps?.({ selection: { start: 0, end: password.length } });
+    }
   };
 
   const finishResend = (sent = true) => {
@@ -477,7 +551,7 @@ export function SignInDialog({
         if (!isCurrentOpen(generation)) return;
         if (requested.ok) {
           setCodePurpose('create');
-          moveTo('code');
+          moveTo('code', false, 'email');
           finishResend();
         } else {
           showResultError(requested.error);
@@ -650,8 +724,8 @@ export function SignInDialog({
   const trackObject = billCode || 'this bill';
   const trackDescription = `Save ${trackObject} to your tracked bills and check where it stands whenever you come back`;
   let title: string;
-  let description: ReactNode;
-  let icon: 'brand' | 'bell' | 'mail' | 'lock' | 'shield';
+  let description: ReactNode = undefined;
+  let bodyIcon: 'lock' | 'shield' | null = null;
 
   // The deactivated state is the one reachable stop state (the match-failure
   // screen was removed in rev 15 as verified unreachable, #1533).
@@ -659,44 +733,107 @@ export function SignInDialog({
 
   if (dedicatedOutcome) {
     title = 'This account has been deactivated';
-    description = <ContactMailText text={errorMessage ?? ''} style={descriptionTextStyle} />;
-    icon = 'shield';
+    description = (
+      <ContactMailText text={errorMessage ?? ''} style={accountPanelDescriptionTextStyle} />
+    );
+    bodyIcon = 'shield';
   } else if (screen === 'sign-in') {
     title = signInIntent.headline;
-    description = intent === 'track' ? trackDescription : signInIntent.subcopy;
-    icon = intent === 'track' ? 'bell' : 'brand';
+    description = signInIntent.subcopy;
+  } else if (screen === 'email-sign-in') {
+    title = 'Sign in with email';
   } else if (screen === 'create') {
     title =
       intent === 'track' ? 'Create an account to track this bill' : 'Create your Alethical account';
     description =
-      intent === 'track' ? trackDescription : 'Bills you track are saved to your account';
-    icon = intent === 'track' ? 'bell' : 'brand';
+      intent === 'track'
+        ? accountOrigin === 'direct'
+          ? signInIntent.subcopy
+          : trackDescription
+        : 'Bills you track are saved to your account';
   } else if (screen === 'recover') {
     title = 'Recover your account';
     description =
-      'Enter your email to choose a new password. If no account exists, this creates one.';
-    icon = 'lock';
+      intent === 'track' && accountOrigin === 'direct'
+        ? signInIntent.subcopy
+        : 'Enter your email to choose a new password. If no account exists, this creates one.';
   } else if (screen === 'code') {
     title = 'Enter your code';
     description = `For ${email}`;
-    icon = 'mail';
   } else if (screen === 'choose-password') {
     title = 'Choose a password';
     description = `For ${email}`;
-    icon = 'lock';
   } else if (screen === 'uncertain-save') {
     title = finishNeedsRetry
       ? 'We couldn’t finish signing you in'
       : 'We couldn’t confirm the password was saved';
     description = `For ${email}`;
-    icon = 'lock';
+    bodyIcon = 'lock';
   } else {
     title = 'Account ready';
     description = openAccount
       ? `${email} is ready. You’re still signed in as ${openAccount.email}`
       : `${email} is ready`;
-    icon = 'shield';
+    bodyIcon = 'shield';
   }
+
+  let backAction: { label: string; onPress: () => void; disabled?: boolean } | undefined;
+  if (dedicatedOutcome) {
+    backAction = {
+      label: 'Back to sign-in choices',
+      disabled: anyBusy,
+      onPress: () => {
+        const generation = openGeneration.current;
+        void onCancelAccountCode('sign-in').finally(() => {
+          if (isCurrentOpen(generation)) {
+            moveTo('sign-in', false, 'choices');
+            onBackFromOutcome?.();
+          }
+        });
+      },
+    };
+  } else if (screen === 'email-sign-in') {
+    backAction = {
+      label: 'Back to sign-in choices',
+      disabled: anyBusy,
+      onPress: () => moveTo('sign-in', false, 'choices'),
+    };
+  } else if ((screen === 'create' || screen === 'recover') && accountOrigin !== 'direct') {
+    const target = accountOrigin === 'email' ? 'email-sign-in' : 'sign-in';
+    backAction = {
+      label:
+        accountOrigin === 'email' ? 'Back to signing in with email' : 'Back to sign-in choices',
+      disabled: anyBusy,
+      onPress: () => cancelCodeAndMoveTo(target),
+    };
+  } else if (screen === 'code') {
+    backAction = {
+      label:
+        codePurpose === 'create'
+          ? 'Back to creating your account'
+          : 'Back to recovering your account',
+      disabled: anyBusy,
+      onPress: () => cancelCodeAndMoveTo(codePurpose),
+    };
+  } else if (screen === 'choose-password') {
+    backAction = {
+      label:
+        codePurpose === 'create'
+          ? 'Cancel and go back to creating your account'
+          : 'Cancel and go back to recovering your account',
+      disabled: anyBusy,
+      onPress: () => cancelCodeAndMoveTo(codePurpose),
+    };
+  }
+
+  const showsIntentHeader =
+    screen === 'sign-in' ||
+    ((screen === 'create' || screen === 'recover') && accountOrigin === 'direct');
+  const headerIcon: 'brand' | 'bell' | null = backAction
+    ? null
+    : showsIntentHeader && intent === 'track'
+      ? 'bell'
+      : 'brand';
   const shownError = dedicatedOutcome ? formError : (errorMessage ?? formError);
   const googleBusy = busyAction === 'google';
   const resendBusy = screen === 'code' && busyAction === 'request-code';
@@ -715,7 +852,7 @@ export function SignInDialog({
       busy={googleBusy}
       disabled={anyBusy && !googleBusy}
       busyLabel="Continuing with Google…"
-      size={isMobile ? 'lg' : 'md'}
+      size="compact"
     />
   );
   const googleChoice = (
@@ -727,81 +864,104 @@ export function SignInDialog({
 
   let content;
   if (dedicatedOutcome) {
-    content = (
-      <LoadingButton
-        label="Back to sign in"
-        busyLabel="Returning…"
-        tone="quiet"
-        onPress={() => {
-          const generation = openGeneration.current;
-          void onCancelAccountCode('sign-in').finally(() => {
-            if (isCurrentOpen(generation)) {
-              moveTo('sign-in');
-              onBackFromOutcome?.();
-            }
-          });
-        }}
-      />
-    );
+    content = serverError;
   } else if (screen === 'sign-in') {
     content = (
       <>
         {serverError}
-        {shownError === REV9_AUTH_MESSAGES.badCredentials ? <GoogleHelp /> : null}
-        {googleChoice}
         {emailPasswordEnabled ? (
           <>
-            <View style={styles.fields}>
-              <EmailField
-                inputRef={emailRef}
-                value={email}
-                error={fieldErrors.email}
+            <View style={styles.openingPrimaryChoices}>
+              {googleButton}
+              <EmailChoiceButton
                 disabled={anyBusy}
-                onChangeText={(value) => {
-                  setEmail(value);
-                  setFieldErrors((errors) => ({ ...errors, email: undefined }));
-                }}
-                onSubmitEditing={() => passwordRef.current?.focus?.()}
-              />
-              <PasswordField
-                inputRef={passwordRef}
-                value={password}
-                error={fieldErrors.password}
-                disabled={anyBusy}
-                autoComplete="current-password"
-                onChangeText={(value) => {
-                  setPassword(value);
-                  setFieldErrors((errors) => ({ ...errors, password: undefined }));
-                }}
-                onSubmitEditing={() => void submitSignIn()}
+                onPress={() => moveTo('email-sign-in', false, 'email')}
               />
             </View>
-            <View style={styles.actionStack}>
-              <LoadingButton
-                label="Sign in"
-                busyLabel="Signing in…"
-                busy={busyAction === 'sign-in'}
-                disabled={!email.trim() || !password || (anyBusy && busyAction !== 'sign-in')}
-                onPress={submitSignIn}
-              />
-              <TextAction
-                label="Forgot password?"
-                disabled={anyBusy}
-                onPress={() => moveTo('recover')}
-              />
-            </View>
-            <View style={styles.switchRow}>
+            <View style={styles.openingSeparator} />
+            <View style={[styles.switchRow, styles.openingCreateRow]}>
               <Text style={styles.switchText}>New to Alethical?</Text>
               <TextAction
                 label="Create an account"
                 inline
                 disabled={anyBusy}
-                onPress={() => moveTo('create')}
+                onPress={() => moveTo('create', false, 'choices')}
+              />
+            </View>
+            <View style={styles.openingForgotRow}>
+              <TextAction
+                label="Forgot password?"
+                inline
+                disabled={anyBusy}
+                onPress={() => moveTo('recover', false, 'choices')}
               />
             </View>
           </>
-        ) : null}
-        <LegalCopy />
+        ) : (
+          googleButton
+        )}
+        <LegalCopy compact />
+      </>
+    );
+  } else if (screen === 'email-sign-in') {
+    content = (
+      <>
+        {serverError}
+        {shownError === REV9_AUTH_MESSAGES.badCredentials ? <GoogleHelp /> : null}
+        <View style={styles.emailFields}>
+          <EmailField
+            compact
+            inputRef={emailRef}
+            value={email}
+            error={fieldErrors.email}
+            disabled={anyBusy}
+            onBlur={validateEmailAfterBlur}
+            onChangeText={setEmail}
+            onSubmitEditing={() => passwordRef.current?.focus?.()}
+          />
+          <PasswordField
+            compact
+            inputRef={passwordRef}
+            value={password}
+            error={fieldErrors.password}
+            disabled={anyBusy}
+            autoComplete="current-password"
+            labelAccessory={
+              <TextAction
+                label="Forgot password?"
+                inline
+                disabled={anyBusy}
+                onPress={() => moveTo('recover', false, 'email')}
+              />
+            }
+            onFocus={revealEmailSignInActions}
+            onChangeText={(value) => {
+              setPassword(value);
+              setFieldErrors((errors) => ({ ...errors, password: undefined }));
+            }}
+            onSubmitEditing={() => void submitSignIn()}
+          />
+        </View>
+        <View ref={emailSignInActionsRef} style={styles.emailSignInActions}>
+          <LoadingButton
+            label="Sign in"
+            busyLabel="Signing in…"
+            busy={busyAction === 'sign-in'}
+            disabled={!email.trim() || !password || (anyBusy && busyAction !== 'sign-in')}
+            onPress={submitSignIn}
+            style={styles.accountPrimaryButton}
+          />
+          <View style={[styles.switchRow, styles.emailSwitchRow]}>
+            <Text style={styles.switchText}>New to Alethical?</Text>
+            <TextAction
+              label="Create an account"
+              inline
+              disabled={anyBusy}
+              onPress={() => moveTo('create', false, 'email')}
+            />
+          </View>
+          <LegalCopy compact />
+        </View>
       </>
     );
   } else if (screen === 'create') {
@@ -811,15 +971,14 @@ export function SignInDialog({
         {!ordinaryAccountOpen ? <GoogleHelp create /> : null}
         {!ordinaryAccountOpen ? googleChoice : null}
         <EmailField
+          compact
           inputRef={emailRef}
           value={email}
           error={fieldErrors.email}
           disabled={anyBusy}
           returnKeyType="go"
-          onChangeText={(value) => {
-            setEmail(value);
-            setFieldErrors((errors) => ({ ...errors, email: undefined }));
-          }}
+          onBlur={validateEmailAfterBlur}
+          onChangeText={setEmail}
           onSubmitEditing={() => void submitCodeRequest('create')}
         />
         <View style={styles.actionStack}>
@@ -829,17 +988,20 @@ export function SignInDialog({
             busy={busyAction === 'request-code'}
             disabled={!email.trim() || (anyBusy && busyAction !== 'request-code')}
             onPress={() => submitCodeRequest('create')}
+            style={styles.accountPrimaryButton}
           />
         </View>
-        <View style={styles.switchRow}>
-          <Text style={styles.switchText}>Already have an account?</Text>
-          <TextAction
-            label="Sign in"
-            inline
-            disabled={anyBusy}
-            onPress={() => cancelCodeAndMoveTo('sign-in')}
-          />
-        </View>
+        {accountOrigin === 'direct' ? (
+          <View style={styles.switchRow}>
+            <Text style={styles.switchText}>Already have an account?</Text>
+            <TextAction
+              label="Sign in"
+              inline
+              disabled={anyBusy}
+              onPress={() => cancelCodeAndMoveTo('sign-in')}
+            />
+          </View>
+        ) : null}
         <LegalCopy />
       </>
     );
@@ -849,15 +1011,14 @@ export function SignInDialog({
         {serverError}
         {!ordinaryAccountOpen ? googleChoice : null}
         <EmailField
+          compact
           inputRef={emailRef}
           value={email}
           error={fieldErrors.email}
           disabled={anyBusy}
           returnKeyType="go"
-          onChangeText={(value) => {
-            setEmail(value);
-            setFieldErrors((errors) => ({ ...errors, email: undefined }));
-          }}
+          onBlur={validateEmailAfterBlur}
+          onChangeText={setEmail}
           onSubmitEditing={() => void submitCodeRequest('recover')}
         />
         <View style={styles.actionStack}>
@@ -867,12 +1028,15 @@ export function SignInDialog({
             busy={busyAction === 'request-code'}
             disabled={!email.trim() || (anyBusy && busyAction !== 'request-code')}
             onPress={() => submitCodeRequest('recover')}
+            style={styles.accountPrimaryButton}
           />
-          <TextAction
-            label="Back to sign in"
-            disabled={anyBusy}
-            onPress={() => cancelCodeAndMoveTo('sign-in')}
-          />
+          {accountOrigin === 'direct' ? (
+            <TextAction
+              label="Back to sign in"
+              disabled={anyBusy}
+              onPress={() => cancelCodeAndMoveTo('sign-in')}
+            />
+          ) : null}
         </View>
       </>
     );
@@ -881,6 +1045,7 @@ export function SignInDialog({
       <>
         {serverError}
         <CodeField
+          compact
           inputRef={codeRef}
           value={code}
           error={fieldErrors.code}
@@ -898,6 +1063,7 @@ export function SignInDialog({
             busy={busyAction === 'verify-code'}
             disabled={!code.trim() || (anyBusy && busyAction !== 'verify-code')}
             onPress={submitCode}
+            style={styles.accountPrimaryButton}
           />
           <ResendControl
             status={shownResendStatus}
@@ -932,6 +1098,7 @@ export function SignInDialog({
         {serverError}
         <View style={styles.fields}>
           <PasswordField
+            compact
             inputRef={passwordRef}
             label="PASSWORD"
             value={password}
@@ -947,6 +1114,7 @@ export function SignInDialog({
             onSubmitEditing={() => confirmationRef.current?.focus?.()}
           />
           <PasswordField
+            compact
             inputRef={confirmationRef}
             label="CONFIRM PASSWORD"
             value={confirmation}
@@ -962,13 +1130,14 @@ export function SignInDialog({
           />
         </View>
         {googleStillWorks ? <Text style={styles.helpText}>Google will still work</Text> : null}
-        <View ref={passwordActionsRef} style={styles.actionStack}>
+        <View ref={passwordActionsRef} style={[styles.actionStack, styles.passwordActionStack]}>
           <LoadingButton
             label="Save password"
             busyLabel="Saving…"
             busy={busyAction === 'save-password'}
             disabled={!password || !confirmation || (anyBusy && busyAction !== 'save-password')}
             onPress={submitCodePassword}
+            style={styles.accountPrimaryButton}
           />
         </View>
       </>
@@ -1059,10 +1228,14 @@ export function SignInDialog({
   return (
     <SignInContainer
       open={open}
-      focusKey={dedicatedOutcome ? 'deactivated' : screen}
+      focusKey={dedicatedOutcome ? 'deactivated' : `${screen}:${accountOrigin}:${codePurpose}`}
+      accountPanel
       title={title}
       description={description}
-      icon={<IntentIcon icon={icon} size={isMobile ? 56 : 52} />}
+      icon={bodyIcon ? <IntentIcon icon={bodyIcon} size={isMobile ? 56 : 52} /> : undefined}
+      headerIcon={headerIcon ? <IntentIcon icon={headerIcon} size={44} /> : undefined}
+      backAction={backAction}
+      contentGap={screen === 'sign-in' ? 18 : screen === 'email-sign-in' ? 16 : undefined}
       onClose={closeDialog}
     >
       {content}
@@ -1088,6 +1261,39 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   bannerWrap: { marginBottom: 18 },
+  openingPrimaryChoices: { gap: 12 },
+  emailChoice: {
+    width: '100%',
+    minHeight: 54,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    paddingHorizontal: 18,
+    borderRadius: 12,
+    backgroundColor: t.colors.surfaces.s300,
+  },
+  emailChoicePressed: { backgroundColor: t.colors.surfaces.s400 },
+  emailChoiceDisabled: { opacity: 0.5 },
+  emailChoiceText: {
+    fontFamily: t.typography.ui,
+    fontSize: 16,
+    lineHeight: 22,
+    fontWeight: t.fontWeights.semibold,
+    color: t.colors.text.primary,
+  },
+  openingSeparator: {
+    height: 1,
+    marginTop: 20,
+    backgroundColor: t.colors.alpha.ink10,
+  },
+  openingCreateRow: { marginTop: 18 },
+  openingForgotRow: {
+    minHeight: 44,
+    marginTop: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   divider: {
     marginVertical: 20,
     flexDirection: 'row',
@@ -1100,7 +1306,11 @@ const styles = StyleSheet.create({
     fontSize: t.fontSizes.meta,
     color: '#6f756f',
   },
-  fields: { gap: 18 },
+  fields: { gap: 16 },
+  emailFields: { gap: 16 },
+  emailSignInActions: { marginTop: 16 },
+  emailSwitchRow: { marginTop: 16 },
+  accountPrimaryButton: { minHeight: 54 },
   googleHelp: {
     marginTop: t.spacing.sm,
     // Both help sentences sit directly above the Google button, so the gap
@@ -1112,6 +1322,7 @@ const styles = StyleSheet.create({
     color: t.colors.text.secondary,
   },
   actionStack: { marginTop: 20, gap: 12 },
+  passwordActionStack: { marginTop: 16 },
   actionStackNoTop: { gap: 12 },
   googleSolo: { marginBottom: 12 },
   helpText: {
@@ -1160,5 +1371,6 @@ const styles = StyleSheet.create({
     lineHeight: 19,
     color: '#6f756f',
   },
+  legalCompact: { marginTop: 12, textAlign: 'center' },
   legalLink: { color: t.colors.text.greenOnLight, fontWeight: t.fontWeights.semibold },
 });
