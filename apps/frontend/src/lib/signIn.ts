@@ -1,3 +1,5 @@
+import { REV9_AUTH_MESSAGES } from './auth/rev9Auth';
+
 // The sign-in dialog's copy and state machine, kept out of the component so both
 // are plain data a test can read (docs/product-onboarding/sign-in-guide.md). One
 // config drives every surface, so the web overlay and the phone sheet cannot say
@@ -16,7 +18,8 @@ export type SignInIntent = 'nav' | 'track';
 export type SignInStatus = 'idle' | 'connecting' | 'error';
 
 /** Why sign-in failed, which picks the message. */
-export type SignInErrorKind = 'cancelled' | 'failed' | 'deactivated' | 'unverified-google';
+export type SignInErrorKind =
+  'cancelled' | 'failed' | 'request-failure' | 'deactivated' | 'unverified-google';
 
 export interface SignInRequest {
   intent: SignInIntent;
@@ -68,6 +71,7 @@ export function signInCopy(intent: SignInIntent, billCode?: string) {
 export const SIGN_IN_ERROR_MESSAGES: Record<SignInErrorKind, string> = {
   failed: 'Google isn’t responding. Try again in a moment.',
   cancelled: 'Google didn’t finish. Try again, or use email.',
+  'request-failure': REV9_AUTH_MESSAGES.requestFailure,
   // Not a failure the reader can retry their way out of, so it says what happened
   // and who to ask rather than inviting another attempt (#1092).
   deactivated:
@@ -78,6 +82,12 @@ export const SIGN_IN_ERROR_MESSAGES: Record<SignInErrorKind, string> = {
   'unverified-google':
     'Sign-in couldn’t finish because the email needs confirmation. Use Create account with this email to confirm it.',
 };
+
+/** Never point to the email route while that route is held back. */
+export function signInErrorMessage(kind: SignInErrorKind, emailPasswordEnabled: boolean): string {
+  if (kind === 'cancelled' && !emailPasswordEnabled) return 'Google didn’t finish. Try again.';
+  return SIGN_IN_ERROR_MESSAGES[kind];
+}
 
 export const SIGN_IN_BUTTON_LABEL = 'Continue with Google';
 export const SIGN_IN_RETRY_LABEL = 'Try again';

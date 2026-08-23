@@ -19,6 +19,7 @@ import {
   dedicatedSignInOutcome,
   initialSignInState,
   parseAuthError,
+  signInErrorMessage,
   signInErrorKind,
   signInReducer,
   urlWithoutAuthError,
@@ -313,6 +314,7 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
       scrollY: state.scrollY,
     };
     pendingRequest.current = request;
+    let googleStarted = false;
     try {
       await ensurePendingReference('ordinary');
       if (operationGeneration.current !== generation) return;
@@ -321,6 +323,7 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
         return;
       }
       stashPendingSignIn(request);
+      googleStarted = true;
       const result = await signInWithGoogle(state.returnTo);
       if (operationGeneration.current !== generation) return;
       finishStarting();
@@ -333,7 +336,7 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
       finishStarting();
       signInAttemptGate.reset();
       setBusyAction(null);
-      dispatch({ type: 'fail', kind: 'failed' });
+      dispatch({ type: 'fail', kind: googleStarted ? 'failed' : 'request-failure' });
     }
   }, [
     ensurePendingReference,
@@ -901,7 +904,7 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
           finishSignedInRequest();
           return;
         }
-        dispatch({ type: 'fail', kind: 'failed' });
+        dispatch({ type: 'fail', kind: 'request-failure' });
       })
       .finally(releaseCompletion);
   }, [
@@ -1000,7 +1003,9 @@ export function SignInModalProvider({ children }: PropsWithChildren) {
         intent={state.intent}
         billCode={state.billCode}
         initialScreen={initialScreen}
-        errorMessage={state.errorKind ? SIGN_IN_ERROR_MESSAGES[state.errorKind] : null}
+        errorMessage={
+          state.errorKind ? signInErrorMessage(state.errorKind, EMAIL_PASSWORD_ENABLED) : null
+        }
         errorKind={state.errorKind}
         busyAction={busyAction}
         emailPasswordEnabled={EMAIL_PASSWORD_ENABLED}

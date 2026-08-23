@@ -211,8 +211,9 @@ describe('rev 9 shared sign-in components', () => {
     expect(container).toContain('isMobile');
     expect(container).toContain("maxHeight: '92dvh'");
     expect(container).toContain('accessibilityLabel={displayedFrame.title}');
-    expect(container).toContain("role: 'dialog'");
-    expect(container).toContain("'aria-modal': true");
+    expect(container).not.toContain("role: 'dialog'");
+    expect(container).not.toContain("'aria-modal': true");
+    expect(container).toContain("'aria-labelledby': titleId");
     expect(container).toContain('accessible={false}');
     expect(container).toContain("'aria-hidden': true");
     expect(container).toContain('ScrollView');
@@ -230,6 +231,8 @@ describe('rev 9 shared sign-in components', () => {
     expect(container).toContain('focusKey');
     expect(container).toContain('minHeight: 44');
     expect(container).toContain('accountPanelHeaderContentGap = 14');
+    expect(container).toContain("paddingBottom: 'calc(26px + env(safe-area-inset-bottom))'");
+    expect(container).not.toContain("paddingBottom: 'max(26px, env(safe-area-inset-bottom))'");
     expect(container).toMatch(/accountHeader: \{[\s\S]*?height: 66,/);
     expect(container).toContain('accountHeaderSheet: { marginHorizontal: 22 }');
     expect(container).toMatch(/accountCard: \{[\s\S]*?width: 420,/);

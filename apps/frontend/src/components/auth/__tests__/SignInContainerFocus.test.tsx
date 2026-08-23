@@ -120,6 +120,10 @@ describe('phone password focus', () => {
         </SignInContainer>,
       ),
     );
+    expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1);
+    expect(document.querySelector('[role="dialog"]')?.getAttribute('aria-labelledby')).toBe(
+      document.querySelector('[role="heading"]')?.id,
+    );
     expect(document.activeElement).toBe(document.querySelector('[role="dialog"] [role="heading"]'));
     act(() =>
       root.render(

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, ReactNode, useState } from 'react';
+import { act, ReactNode, useLayoutEffect, useState } from 'react';
 import { createRoot, Root } from 'react-dom/client';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -25,34 +25,44 @@ vi.mock('../SignInContainer', () => ({
   descriptionTextStyle: {},
   accountPanelDescriptionTextStyle: {},
   SignInContainer: ({
+    open,
     title,
     description,
     headerIcon,
     backAction,
     children,
+    onClose,
   }: {
+    open: boolean;
     title: string;
     description: ReactNode;
     headerIcon?: ReactNode;
     backAction?: { label: string; onPress: () => void; disabled?: boolean };
     children: ReactNode;
-  }) => (
-    <section>
-      {headerIcon}
-      {backAction ? (
-        <button
-          aria-label={backAction.label}
-          disabled={backAction.disabled}
-          onClick={backAction.onPress}
-        >
-          Back
-        </button>
-      ) : null}
-      <h1>{title}</h1>
-      <div>{description}</div>
-      {children}
-    </section>
-  ),
+    onClose?: () => void;
+  }) =>
+    open ? (
+      <section>
+        {headerIcon}
+        {backAction ? (
+          <button
+            aria-label={backAction.label}
+            disabled={backAction.disabled}
+            onClick={backAction.onPress}
+          >
+            Back
+          </button>
+        ) : null}
+        {onClose ? (
+          <button aria-label="Close" onClick={onClose}>
+            Close
+          </button>
+        ) : null}
+        <h1>{title}</h1>
+        <div>{description}</div>
+        {children}
+      </section>
+    ) : null,
 }));
 
 vi.mock('../LoadingButton', () => ({
@@ -335,6 +345,40 @@ afterEach(() => {
 });
 
 describe('email-code account access', () => {
+  it('reopens on the choices without painting the previously closed screen', async () => {
+    const firstFrames: string[] = [];
+
+    function Harness() {
+      const [open, setOpen] = useState(true);
+      useLayoutEffect(() => {
+        if (open) firstFrames.push(document.querySelector('h1')?.textContent ?? '');
+      }, [open]);
+      return (
+        <>
+          <SignInDialog
+            {...baseProps({
+              open,
+              initialScreen: 'sign-in',
+              onClose: () => setOpen(false),
+            })}
+          />
+          {!open ? <button onClick={() => setOpen(true)}>Reopen</button> : null}
+        </>
+      );
+    }
+
+    const mount = document.createElement('div');
+    document.body.append(mount);
+    const root = createRoot(mount);
+    act(() => root.render(<Harness />));
+    await press('Sign in with email');
+    await press('Close');
+    await press('Reopen');
+
+    expect(firstFrames).toEqual(['Sign in to Alethical', 'Sign in to Alethical']);
+    act(() => root.unmount());
+  });
+
   it('opens email sign-in and returns with email kept and password cleared', async () => {
     const { root, mount } = mountDialog(
       baseProps({ initialScreen: 'sign-in', initialEmail: 'jordan@example.com' }),
@@ -917,6 +961,7 @@ describe('email-code account access', () => {
 
     act(() => password?.focus());
     expect(scrollIntoView).toHaveBeenCalledWith({ block: 'end', inline: 'nearest' });
+    expect((scrollIntoView.mock.instances[0] as HTMLElement).textContent).toBe('Sign in');
 
     scrollIntoView.mockClear();
     act(() => {

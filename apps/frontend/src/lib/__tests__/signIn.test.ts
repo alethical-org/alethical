@@ -75,6 +75,9 @@ describe('shared Google failure copy', () => {
   it('uses the exact accepted return messages', () => {
     expect(SIGN_IN_ERROR_MESSAGES.failed).toBe('Google isn’t responding. Try again in a moment.');
     expect(SIGN_IN_ERROR_MESSAGES.cancelled).toBe('Google didn’t finish. Try again, or use email.');
+    expect(SIGN_IN_ERROR_MESSAGES['request-failure']).toBe(
+      'We couldn’t complete that request. Check your connection and try again.',
+    );
     expect(SIGN_IN_ERROR_MESSAGES.deactivated).toBe(
       'You’ve been signed out. Bills, votes and legislators are all still here to read. Contact us at ask@alethical.com if you think this is a mistake.',
     );

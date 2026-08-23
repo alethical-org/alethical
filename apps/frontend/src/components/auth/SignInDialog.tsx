@@ -310,7 +310,10 @@ export function SignInDialog({
   onBackFromOutcome,
 }: SignInDialogProps) {
   const { isMobile } = useResponsive();
-  const [screen, setScreen] = useState<SignInDialogScreen>(initialScreen);
+  const openingScreen = emailPasswordEnabled ? initialScreen : 'sign-in';
+  const openingOrigin: AccountOrigin =
+    initialScreen === 'create' || initialScreen === 'recover' ? 'direct' : 'choices';
+  const [screen, setScreen] = useState<SignInDialogScreen>(openingScreen);
   const [email, setEmail] = useState(initialEmail);
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
@@ -318,9 +321,7 @@ export function SignInDialog({
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [codePurpose, setCodePurpose] = useState<'create' | 'recover'>('create');
-  const [accountOrigin, setAccountOrigin] = useState<AccountOrigin>(
-    initialScreen === 'create' || initialScreen === 'recover' ? 'direct' : 'choices',
-  );
+  const [accountOrigin, setAccountOrigin] = useState<AccountOrigin>(openingOrigin);
   const [googleStillWorks, setGoogleStillWorks] = useState(false);
   const [openAccount, setOpenAccount] = useState<OpenAccountSummary | null>(null);
   const [finishNeedsRetry, setFinishNeedsRetry] = useState(false);
@@ -341,14 +342,6 @@ export function SignInDialog({
     (actions: HTMLElement | null) => {
       if (!isWeb || !isMobile) return;
       actions?.scrollIntoView?.({ block: 'end', inline: 'nearest' });
-      let parent = actions?.parentElement ?? null;
-      while (parent) {
-        if (parent.scrollHeight > parent.clientHeight) {
-          parent.scrollTop = parent.scrollHeight;
-          return;
-        }
-        parent = parent.parentElement;
-      }
     },
     [isMobile],
   );
@@ -361,39 +354,39 @@ export function SignInDialog({
     [revealActions],
   );
 
-  useEffect(() => {
-    if (!open) {
-      if (wasOpen.current) openGeneration.current += 1;
-      wasOpen.current = false;
-      requestGate.reset();
-      setEmail('');
+  const resetDialog = useCallback(
+    (nextEmail: string) => {
+      setScreen(openingScreen);
+      setEmail(nextEmail);
       setCode('');
       setPassword('');
       setConfirmation('');
       setFieldErrors({});
       setFormError(null);
+      setCodePurpose('create');
+      setAccountOrigin(openingOrigin);
+      setGoogleStillWorks(false);
+      setOpenAccount(null);
+      setFinishNeedsRetry(false);
+      setResendStatus('ready');
+      setResendSeconds(0);
+    },
+    [openingOrigin, openingScreen],
+  );
+
+  useEffect(() => {
+    if (!open) {
+      if (wasOpen.current) openGeneration.current += 1;
+      wasOpen.current = false;
+      requestGate.reset();
+      resetDialog('');
       return;
     }
     if (wasOpen.current) return;
     wasOpen.current = true;
     openGeneration.current += 1;
-    setScreen(emailPasswordEnabled ? initialScreen : 'sign-in');
-    setEmail(initialEmail);
-    setCode('');
-    setPassword('');
-    setConfirmation('');
-    setFieldErrors({});
-    setFormError(null);
-    setCodePurpose('create');
-    setAccountOrigin(
-      initialScreen === 'create' || initialScreen === 'recover' ? 'direct' : 'choices',
-    );
-    setGoogleStillWorks(false);
-    setOpenAccount(null);
-    setFinishNeedsRetry(false);
-    setResendStatus('ready');
-    setResendSeconds(0);
-  }, [emailPasswordEnabled, initialEmail, initialScreen, open, requestGate]);
+    resetDialog(initialEmail);
+  }, [initialEmail, open, requestGate, resetDialog]);
 
   useEffect(() => {
     if (resendStatus !== 'waiting' && resendStatus !== 'rate-limited') return;
@@ -472,6 +465,7 @@ export function SignInDialog({
   const closeDialog = () => {
     openGeneration.current += 1;
     requestGate.reset();
+    resetDialog('');
     onClose();
   };
 
@@ -942,15 +936,17 @@ export function SignInDialog({
             onSubmitEditing={() => void submitSignIn()}
           />
         </View>
-        <View ref={emailSignInActionsRef} style={styles.emailSignInActions}>
-          <LoadingButton
-            label="Sign in"
-            busyLabel="Signing in…"
-            busy={busyAction === 'sign-in'}
-            disabled={!email.trim() || !password || (anyBusy && busyAction !== 'sign-in')}
-            onPress={submitSignIn}
-            style={styles.accountPrimaryButton}
-          />
+        <View style={styles.emailSignInActions}>
+          <View ref={emailSignInActionsRef}>
+            <LoadingButton
+              label="Sign in"
+              busyLabel="Signing in…"
+              busy={busyAction === 'sign-in'}
+              disabled={!email.trim() || !password || (anyBusy && busyAction !== 'sign-in')}
+              onPress={submitSignIn}
+              style={styles.accountPrimaryButton}
+            />
+          </View>
           <View style={[styles.switchRow, styles.emailSwitchRow]}>
             <Text style={styles.switchText}>New to Alethical?</Text>
             <TextAction

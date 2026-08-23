@@ -339,16 +339,14 @@ export function SignInContainer({
     </View>
   );
 
-  const cardAccessibility = isWeb
-    ? isPage
+  const cardAccessibility =
+    isWeb && isPage
       ? ({ role: 'main', 'aria-labelledby': titleId, 'aria-describedby': descriptionId } as object)
-      : ({
-          role: 'dialog',
-          'aria-modal': true,
-          'aria-labelledby': titleId,
-          'aria-describedby': descriptionId,
-        } as object)
-    : null;
+      : null;
+  const modalAccessibility =
+    isWeb && !isPage
+      ? ({ 'aria-labelledby': titleId, 'aria-describedby': descriptionId } as object)
+      : null;
 
   const bodyContents = (
     <View>
@@ -481,6 +479,7 @@ export function SignInContainer({
       visible
       transparent
       animationType={animationType}
+      {...modalAccessibility}
       accessibilityLabel={displayedFrame.title}
       onRequestClose={onModalRequestClose}
     >
@@ -590,7 +589,7 @@ const sheetBodySafeAreaWeb = isWeb
   ? ({ paddingBottom: 'max(32px, env(safe-area-inset-bottom))' } as object)
   : null;
 const accountSheetBodySafeAreaWeb = isWeb
-  ? ({ paddingBottom: 'max(26px, env(safe-area-inset-bottom))' } as object)
+  ? ({ paddingBottom: 'calc(26px + env(safe-area-inset-bottom))' } as object)
   : null;
 const focusRingWeb = isWeb
   ? ({

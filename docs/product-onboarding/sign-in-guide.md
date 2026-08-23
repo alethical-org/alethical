@@ -62,7 +62,7 @@ The phone sheet and desktop window share a 66px fixed header. Its left side show
 a Track bell, or Back. The 44px left control is followed by at least 14px before the first heading,
 icon, or label. That gap is owned by `accountPanelHeaderContentGap`. The first opening button starts
 18px below the heading group. The header does not grow when the body scrolls or a phone keyboard
-opens.
+opens. Phone content ends with 26px plus the device's bottom safe area.
 
 Back keeps the email and clears codes and passwords. Create and Recover remember whether they opened
 from the 4 choices, the email form, or a direct link. Code and Choose password carry that same origin.
@@ -223,8 +223,10 @@ Its message starts **You’ve been signed out** and makes ask@alethical.com a re
 Back returns to the 4 sign-in choices.
 
 Closing or cancelling Google's window returns to the same opening with **Google didn’t finish. Try
-again, or use email.** The pending Track request stays saved. A provider or network failure says
-**Google isn’t responding. Try again in a moment.**
+again, or use email.** While email and password are held back, the unavailable email route is omitted
+from that message. The pending Track request stays saved. A provider or network failure says
+**Google isn’t responding. Try again in a moment.** A failure before Google starts or after Google
+finishes uses the shared request-failure message instead of blaming Google.
 
 ## Account menu
 
