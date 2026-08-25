@@ -4,7 +4,9 @@
  * The prose is Eugene's, transcribed word for word. Rule 13's publishing order
  * is explicit that a report posts exactly as its author wrote it, so nothing
  * here is edited to fit a layout or to fit a check: the layout accommodates the
- * prose, and the figure check happens after posting, on the live page.
+ * prose, and the figure check happens after posting, on the live page. Point 2a
+ * is the one door: a wording change the Alethical team directs is made in full,
+ * which is a different act from us softening a line to pass a check.
  *
  * Live on the site from the day it posted. Search engines are told to skip it
  * (`indexed: false`) until the figure check resolves, which is Eugene's call.
