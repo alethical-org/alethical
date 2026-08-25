@@ -6211,7 +6211,9 @@ def test_sitemap_bill_lastmod_is_the_newest_reader_visible_date(client):
     # test ignores a hand-written updated_at (see the bookkeeping check below).
     summary_written_at = datetime(2027, 1, 4, tzinfo=timezone.utc)
 
-    def fixture_bill(key, *, file_type, file_number, latest_action_at, updated_at, title):
+    def fixture_bill(
+        key, *, file_type, file_number, latest_action_at, updated_at, title
+    ):
         return schema.Bill(
             session_id=session_id,
             chamber_id=chamber_id,
@@ -6272,9 +6274,7 @@ def test_sitemap_bill_lastmod_is_the_newest_reader_visible_date(client):
             db.commit()
 
             summary_bill_id = db.scalar(
-                select(schema.Bill.id).where(
-                    schema.Bill.bill_key == summary_newest_key
-                )
+                select(schema.Bill.id).where(schema.Bill.bill_key == summary_newest_key)
             )
             db.add(
                 schema.AIEnrichment(
@@ -6366,8 +6366,6 @@ def test_sitemap_bill_lastmod_is_the_newest_reader_visible_date(client):
             db.execute(delete(schema.Bill).where(schema.Bill.bill_key.in_(keys)))
             if run_id is not None:
                 db.execute(
-                    delete(schema.IngestionRun).where(
-                        schema.IngestionRun.id == run_id
-                    )
+                    delete(schema.IngestionRun).where(schema.IngestionRun.id == run_id)
                 )
             db.commit()
