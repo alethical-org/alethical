@@ -2,7 +2,15 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
 import { useResponsive } from '../../hooks/useResponsive';
-import { publishedReports, reportDateCapsLabel, type MoneyReport } from '../../lib/moneyReports';
+import {
+  MONEY_REPORTS_SHELF_EMPTY_BODY,
+  MONEY_REPORTS_SHELF_EMPTY_TITLE,
+  MONEY_REPORTS_SHELF_HEADING,
+  MONEY_REPORTS_SHELF_INTRO,
+  publishedReports,
+  reportDateCapsLabel,
+  type MoneyReport,
+} from '../../lib/moneyReports';
 import { linkProps, routePath } from '../../navigation/links';
 import type { RootScreenProps } from '../../navigation/types';
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
@@ -98,25 +106,19 @@ export function MoneyReportsShelfScreen({ navigation }: RootScreenProps<'MoneyRe
             aria-level={1}
             style={[styles.heading, isMobile && styles.headingMobile]}
           >
-            Campaign money reports
+            {MONEY_REPORTS_SHELF_HEADING}
           </Text>
-          <Text style={styles.intro}>
-            Our own research, in plain language, drawn from the filings Minnesota campaigns, parties
-            and funds make with the state.
-          </Text>
+          <Text style={styles.intro}>{MONEY_REPORTS_SHELF_INTRO}</Text>
 
           <View style={styles.rule} />
 
           {reports.length === 0 ? (
             <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>Nothing published yet.</Text>
+              <Text style={styles.emptyTitle}>{MONEY_REPORTS_SHELF_EMPTY_TITLE}</Text>
               {/* No promise of future reports — "an index promising work we have
                   not done is the one claim here we could not link" (design rule;
                   wording approved by the design-review session, 19 Aug 2026). */}
-              <Text style={styles.emptyBody}>
-                When we publish research on these records, it appears here, dated and carrying the
-                date its records run through.
-              </Text>
+              <Text style={styles.emptyBody}>{MONEY_REPORTS_SHELF_EMPTY_BODY}</Text>
             </View>
           ) : (
             <View style={styles.cardList}>

@@ -81,10 +81,23 @@ const {
   injectPageSnapshot,
   legislatorDirectoryPageSnapshot,
   legislatorPageSnapshot,
+  moneyReportPageSnapshot,
+  moneyReportsShelfPageSnapshot,
   renderPageSnapshot,
   SNAPSHOT_MARKER_END,
   SNAPSHOT_MARKER_START,
 } = await import('../pageSnapshot');
+const {
+  MONEY_REPORTS_SHELF_EMPTY_BODY,
+  MONEY_REPORTS_SHELF_EMPTY_TITLE,
+  MONEY_REPORTS_SHELF_HEADING,
+  MONEY_REPORTS_SHELF_INTRO,
+  publishedReports,
+  reportDatesLine,
+  reportRunsText,
+  reportSourceText,
+} = await import('../moneyReports');
+const { MONEY_ONLY_GOES_ONE_WAY } = await import('../reports/moneyOnlyGoesOneWay');
 const { legislatorDisplayName, legislatorDistrictLine } = await import('../legislatorProfile');
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -405,6 +418,222 @@ describe('both profile screens keep reading the shared name helper', () => {
     const source = readFileSync(join(HERE, '../../..', path), 'utf8');
     expect(source).toContain('legislatorDisplayName');
     expect(source).not.toMatch(/function (officialName|honorificName)\s*\(/);
+  });
+});
+
+/**
+ * A published report is the one snapshot whose words are not a database record
+ * but a person's writing, so "the served text is the drawn text" has to be
+ * checked differently: the report screen needs navigation and cannot be
+ * rendered here (the same limit the legislator profile hits above), and rule 13
+ * of `.claude/rules/grounded-answers.md` forbids editing that writing at all.
+ *
+ * So the check is that every served line IS one of the report's own stored
+ * strings, produced by the very helper the screen's paragraph renderer uses.
+ * A snapshot that re-punctuated, trimmed or summarised a sentence fails, and so
+ * does one that invented a figure. The drift alarm at the bottom of this file
+ * fails if either screen stops reading those same fields.
+ */
+describe('the report snapshot serves the report’s own writing, unchanged', () => {
+  const report = MONEY_ONLY_GOES_ONE_WAY;
+  const snapshot = moneyReportPageSnapshot(report);
+  const html = renderPageSnapshot(snapshot);
+
+  /** Every string the report itself stores, exactly as the screen draws it. */
+  const storedStrings = new Set<string>([
+    report.title,
+    report.dek,
+    reportDatesLine(report),
+    ...(report.newerFilingsNote ? [report.newerFilingsNote] : []),
+    ...(report.correction ? [report.correction.datedLabel, report.correction.note] : []),
+    ...report.sources.map((source) => reportSourceText(source)),
+    ...[report.shortVersion, ...report.sections.map((section) => section.blocks)]
+      .flat()
+      .flatMap((block) => {
+        if (block.kind === 'paragraph') return [reportRunsText(block.runs)];
+        if (block.kind === 'bullets') return block.items.map((item) => reportRunsText(item));
+        return [...block.columns, ...block.rows.flat()];
+      }),
+    ...report.sections.flatMap((section) =>
+      section.methodologyInset
+        ? [section.methodologyInset.title, section.methodologyInset.body]
+        : [],
+    ),
+  ]);
+
+  it('heads the page with the report’s title and its two dates, nothing else', () => {
+    expect(snapshot.heading).toBe(report.title);
+    expect(snapshot.subheading).toBe(reportDatesLine(report));
+    expect(snapshot.body).toEqual([report.dek]);
+    expect(snapshot.facts).toEqual([]);
+  });
+
+  it('keeps every section in the report’s own order, under the report’s own heading', () => {
+    const headings = (snapshot.sections ?? []).map((section) => section.heading);
+    expect(headings).toEqual([
+      'Short version',
+      ...report.sections.map((section) => section.heading),
+      'Where these numbers come from',
+    ]);
+  });
+
+  it('serves every sentence, bullet and table cell verbatim', () => {
+    const served: string[] = [];
+    for (const section of snapshot.sections ?? []) {
+      for (const block of section.blocks ?? []) {
+        if (block.kind === 'prose') served.push(...block.lines);
+        else if (block.kind === 'bullets') served.push(...block.items);
+        else served.push(...block.columns, ...block.rows.flat());
+      }
+    }
+
+    // Enough of the report to be the report, not a teaser.
+    expect(served.length).toBeGreaterThan(40);
+    for (const line of served) {
+      expect(storedStrings.has(line)).toBe(true);
+    }
+
+    // And nothing the report holds is left behind.
+    const proseAndBullets = [report.shortVersion, ...report.sections.map((s) => s.blocks)]
+      .flat()
+      .flatMap((block) => {
+        if (block.kind === 'paragraph') return [reportRunsText(block.runs)];
+        if (block.kind === 'bullets') return block.items.map((item) => reportRunsText(item));
+        return [];
+      });
+    for (const line of proseAndBullets) {
+      expect(served).toContain(line);
+    }
+  });
+
+  it('states no figure of its own', () => {
+    // grounded-answers rule 11, as the bill snapshot check below it: a number the
+    // layout worked out for itself reads to a reader as a filed fact. Both sides
+    // are read by the same tokeniser, so "$25.9M" is compared with "$25.9M" and
+    // not with a boundary rule that a unit suffix would fail.
+    const figures = (text: string) => text.match(/\d[\d,.]*/g) ?? [];
+    const stored = new Set(figures([...storedStrings].join(' ')));
+    const served = figures(visibleText(html));
+    expect(served.length).toBeGreaterThan(20);
+    for (const number of served) {
+      expect(stored.has(number)).toBe(true);
+    }
+  });
+
+  it('links back to the shelf and nowhere the site cannot honour', () => {
+    expect(snapshot.links).toEqual([{ label: MONEY_REPORTS_SHELF_HEADING, href: '/reports' }]);
+    expect(html.match(/href="/g)).toHaveLength(1);
+  });
+
+  it('marks a table up as a table, so a figure is announced with its column', () => {
+    expect(html).toContain('<table class="ps-table">');
+    expect(html).toContain('<th>Principal</th>');
+    expect(html).toContain('<td>Enbridge Energy</td>');
+  });
+
+  it('escapes the report’s own punctuation rather than breaking the markup', () => {
+    const hostile = moneyReportPageSnapshot({
+      ...report,
+      title: 'Money & <script>alert("x")</script>',
+      dek: "It's 5 < 6",
+      sections: [
+        {
+          heading: 'Tables & quotes',
+          railLabel: 'Tables',
+          blocks: [{ kind: 'table', columns: ['A & B'], rows: [['<b>c</b>']] }],
+        },
+      ],
+    });
+    const rendered = renderPageSnapshot(hostile);
+    expect(rendered).not.toContain('<script>');
+    expect(rendered).not.toContain('<b>c</b>');
+    expect(rendered).toContain('Money &amp; &lt;script&gt;');
+    expect(rendered).toContain('It&#39;s 5 &lt; 6');
+  });
+
+  it('carries a correction banner and a newer-filings banner when the report has them', () => {
+    const withBanners = moneyReportPageSnapshot({
+      ...report,
+      correction: { datedLabel: 'CORRECTED SEP 2 2026', note: 'The ratio moved from 20 to 19.' },
+      newerFilingsNote: 'The Board has accepted filings since this ran.',
+    });
+    const headings = (withBanners.sections ?? []).map((section) => section.heading);
+    expect(headings[0]).toBe('Newer filings exist');
+    expect(headings[1]).toBe('CORRECTED SEP 2 2026');
+    const rendered = renderPageSnapshot(withBanners);
+    expect(rendered).toContain('The ratio moved from 20 to 19.');
+    expect(rendered).toContain('The Board has accepted filings since this ran.');
+  });
+});
+
+describe('the reports shelf snapshot links to every posted report', () => {
+  const reports = publishedReports();
+  const snapshot = moneyReportsShelfPageSnapshot(reports);
+  const html = renderPageSnapshot(snapshot);
+
+  it('uses the shelf’s own heading and introduction', () => {
+    expect(snapshot.heading).toBe(MONEY_REPORTS_SHELF_HEADING);
+    expect(snapshot.body).toEqual([MONEY_REPORTS_SHELF_INTRO]);
+  });
+
+  it('gives every posted report a real link a crawler can follow', () => {
+    expect(reports.length).toBeGreaterThan(0);
+    expect(snapshot.records).toHaveLength(reports.length);
+    for (const report of reports) {
+      expect(html).toContain(`href="/reports/${report.slug}"`);
+      expect(html).toContain(report.title);
+      expect(html).toContain(report.dek.replace(/'/g, '&#39;'));
+    }
+  });
+
+  it('says what the shelf says when nothing is posted yet', () => {
+    const empty = moneyReportsShelfPageSnapshot([]);
+    expect(empty.records).toEqual([]);
+    expect(empty.body).toEqual([
+      MONEY_REPORTS_SHELF_INTRO,
+      MONEY_REPORTS_SHELF_EMPTY_TITLE,
+      MONEY_REPORTS_SHELF_EMPTY_BODY,
+    ]);
+  });
+});
+
+describe('both report screens keep reading the same registry the server reads', () => {
+  // The screens need navigation and cannot be rendered here, so this is the
+  // drift alarm in their place: the moment either grows its own copy of a
+  // sentence, the served page and the drawn page can disagree and nothing else
+  // would notice. It is the same guard the profile screens get above.
+  it('the report screen draws the report’s stored runs, dek, dates and sources', () => {
+    const source = readFileSync(
+      join(HERE, '../../..', 'src/screens/redesign/MoneyReportScreen.tsx'),
+      'utf8',
+    );
+    for (const call of [
+      'InlineRuns',
+      'report.dek',
+      'reportDatesLine(report)',
+      'report.sources',
+      'report.shortVersion',
+      'section.blocks',
+    ]) {
+      expect(source).toContain(call);
+    }
+  });
+
+  it('the shelf screen draws the shared shelf wording', () => {
+    const source = readFileSync(
+      join(HERE, '../../..', 'src/screens/redesign/MoneyReportsShelfScreen.tsx'),
+      'utf8',
+    );
+    for (const constant of [
+      'MONEY_REPORTS_SHELF_HEADING',
+      'MONEY_REPORTS_SHELF_INTRO',
+      'MONEY_REPORTS_SHELF_EMPTY_TITLE',
+      'MONEY_REPORTS_SHELF_EMPTY_BODY',
+    ]) {
+      expect(source).toContain(constant);
+    }
+    // The wording lives in one place now, so a literal copy is the regression.
+    expect(source).not.toContain('Our own research, in plain language');
   });
 });
 
