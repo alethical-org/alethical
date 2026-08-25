@@ -44,8 +44,9 @@ import { theme as t } from '../../theme/tokens';
  *   sources; nothing here writes report claims into any record surface.
  * - Share previews carry title and dates only (lib/share.ts
  *   moneyReportPageMetadata); the Share control's prepared text says the same.
- * - A corrected figure stays readable — struck through and dated — and the
- *   correction banner is dated, never a silent edit.
+ * - A correction replaces the wrong figure in the report's own text; the dated
+ *   correction banner is the only trace, never a silent edit and never a wrong
+ *   number left readable (rule 13, Eugene 25 Aug 2026).
  */
 
 const isWeb = Platform.OS === 'web';
@@ -165,16 +166,6 @@ function InlineRuns({ runs }: { runs: ReportInline[] }) {
             return (
               <Text key={index} {...externalLinkProps(run.href)} style={styles.runLink}>
                 {run.text}
-              </Text>
-            );
-          case 'correctedFigure':
-            // The earlier figure stays readable — struck through, then the
-            // current figure, then the dated marker (rule 13).
-            return (
-              <Text key={index}>
-                <Text style={styles.runStruck}>{run.was}</Text>
-                <Text> {run.now} </Text>
-                <Text style={styles.runCorrectedLabel}>{run.datedLabel}</Text>
               </Text>
             );
         }
@@ -679,17 +670,6 @@ const styles = StyleSheet.create({
   runLink: {
     color: t.colors.text.greenOnLight,
     textDecorationLine: 'underline',
-  },
-  runStruck: {
-    color: t.colors.text.muted,
-    textDecorationLine: 'line-through',
-  },
-  runCorrectedLabel: {
-    color: t.colors.omnibus.text,
-    fontFamily: t.typography.mono,
-    fontSize: 11,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 0.7,
   },
   tableScroll: { marginTop: 22, overflow: 'scroll' },
   table: {

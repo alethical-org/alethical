@@ -1183,7 +1183,8 @@ and it describes **what a report page must do**. The drawn design is
   of schedules.
 - **A report is a snapshot of its records-through date, never silently edited.** When the Board
   holds filings newer than that date, the page carries a dated newer-data notice. When a figure
-  itself is corrected, the prior figure stays readable, struck through and dated, and it leaves
+  itself is corrected, the text is updated to the corrected figure and the wrong one is gone
+  (Eugene, 25 Aug 2026); a dated correction note at the top says what changed, and it leaves
   the page's metadata entirely so a stale number cannot travel in a preview or a search result.
 - **Share previews carry the title and the two dates only** — never a claim, never a derived
   label. **Ordinary search-engine snippets of the body stay on**: an earlier version of rule 13

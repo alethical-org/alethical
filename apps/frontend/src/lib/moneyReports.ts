@@ -25,19 +25,7 @@ export type ReportInline =
   | { kind: 'text'; text: string }
   | { kind: 'bold'; text: string }
   | { kind: 'italic'; text: string }
-  | { kind: 'externalLink'; text: string; href: string }
-  | {
-      /**
-       * A corrected figure (rule 13: a corrected figure stays readable — struck
-       * through and dated — while leaving metadata entirely). The earlier figure
-       * renders struck through, the current one beside it, then the dated label.
-       */
-      kind: 'correctedFigure';
-      was: string;
-      now: string;
-      /** e.g. "CORRECTED SEP 2 2026" */
-      datedLabel: string;
-    };
+  | { kind: 'externalLink'; text: string; href: string };
 
 export type ReportBlock =
   | { kind: 'paragraph'; runs: ReportInline[] }
@@ -76,8 +64,10 @@ export interface ReportSource {
 export interface ReportCorrection {
   /** e.g. "CORRECTED SEP 2 2026" */
   datedLabel: string;
-  /** One banner sentence saying what moved. The figure itself also carries a
-   * correctedFigure run where it appears. */
+  /** One banner sentence saying what moved. The report's own text already holds
+   * the corrected wording: rule 13 replaces a wrong figure rather than leaving it
+   * readable with a line through it, so this banner is the only trace of the
+   * change (Eugene, 25 Aug 2026). */
   note: string;
 }
 

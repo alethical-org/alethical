@@ -280,8 +280,10 @@ ordinary "page not found" screen. A report's page carries:
   claims, no figures.
 - Two dated states, both built and tested: a **newer-filings notice** (the Board has
   accepted filings since the records-through date; figures stay as published, with any
-  moved figure noted where it appears) and a **correction** (the earlier figure stays
-  readable — struck through and dated — never silently swapped).
+  moved figure noted where it appears) and a **correction** (the text is updated to the
+  corrected figure and the wrong one is gone, with a dated note at the top of the report
+  saying what changed, so nothing is swapped silently and no wrong number is left on the
+  page).
 
 Links run one way: a report links out to record pages and official sources; no record page
 links back to a report.
