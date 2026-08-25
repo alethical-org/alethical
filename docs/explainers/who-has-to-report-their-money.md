@@ -30,8 +30,12 @@
      16 with a single "Contributions received", and political committee or fund 41100
      (Optometry PAC) returned the same 16. That settles the reader-facing claim, which is
      about the Board's form. It does not settle whether our parser's label set covers
-     rarer labels across all 299 party units and 529 committees and funds, which is the
-     §9.9 gap and is now issue #1757.
+     rarer labels across all 299 party units and 529 committees and funds. That is now
+     settled too, by issue #1757 (merged 25 Aug 2026): the full population had already
+     been read once on 12 Aug 2026 and was read again on 25 Aug 2026, 828 filers with 0
+     errors, and no label outside `PARTY_UNIT_LINES` exists. §9.2 and §9.9 now say so.
+     Of the 17 and 16 rows, 1 in each carries a date rather than an amount ("Most recent
+     report through"), which is why the prose counts lines and not figures.
 
      TWO FIGURES WERE DELIBERATELY LEFT OUT, each for its own reason.
 
@@ -143,8 +147,8 @@ when. It does not say why, and neither will we.
 
 ## The kind decides what you can see
 
-Look up a candidate’s committee on the Board’s own site and you get 17 lines of figures
-for the year. Five of them split the incoming money by who it came from: individuals,
+Look up a candidate’s committee on the Board’s own site and you get 17 lines for the
+year. Five of them split the incoming money by who it came from: individuals,
 lobbyists, other committees and funds, party units, and everything else.
 
 Look up a party unit or a political committee or fund and you get 16 lines. The 5 are
