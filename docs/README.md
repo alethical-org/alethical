@@ -52,7 +52,15 @@ things work in practice and are the place to start if you're new.
 - [Design principles](design/design-principles.md) — green system's design intent + visual/interaction/accessibility rules; brief for Claude Design
 - [UI copy guide](design/ui-copy-guide.md) — voice and tone
 - [Committee money page design prompt](design/committee-money-page-design-prompt.md) — frozen Claude Design request for #1442's committee money screen (dated 18 Aug 2026)
-- [Campaign money design handoff](design/handoff-campaign-money/) — the accepted Claude Design set for the whole money section (round 6, 18 Aug 2026): the plan and landing, the route map, the 4 list screens, the committee page, the report and its shelf, both profile surfaces, and the measured facts they rest on. Includes [the first report's source text](design/handoff-campaign-money/follow-the-money-report.md), which is not published on any page yet
+- [Campaign money design handoff](design/handoff-campaign-money/) — the accepted Claude Design set for the whole money section (round 6, 18 Aug 2026): the plan and landing, the route map, the 4 list screens, the committee page, the report and its shelf, both profile surfaces, and the measured facts they rest on. Includes [the first report's source text](design/handoff-campaign-money/follow-the-money-report.md), which has since posted as the live report at `/reports/the-money-only-goes-one-way`
+
+## Explainers
+
+Published reader-facing pieces that teach one part of how a system works and draw no conclusions. A signed research report may add records up and reach a conclusion (`.claude/rules/grounded-answers.md` rule 13); an explainer may not, and sits under rules 1 to 12 like every other surface. Drafts live here until the page that renders them is built ([#1752](https://github.com/alethical-org/alethical/issues/1752)).
+
+**How the Money Works** — 5 pieces in a fixed reading order, because each defines the words the next one uses.
+
+- [Who has to report their money](explainers/who-has-to-report-their-money.md) — piece 1: Minnesota's 3 kinds of registered political account, what a party unit and a legislative caucus are, what a PAC is, why the 3 kinds file different forms, and why counting campaign accounts is not counting candidates
 
 ## Architecture
 
