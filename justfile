@@ -96,6 +96,10 @@ format:
 
 lint:
   uvx ruff@0.15.0 check alethical scripts
+  # CI's backend job runs this too, and `just lint` did not, so a branch could
+  # pass lint locally and still fail CI on formatting alone -- one wasted round
+  # trip per occurrence (#1765). `just format` fixes whatever this reports.
+  uvx ruff@0.15.0 format --check alethical scripts
   uvx ty@0.0.72 check alethical/db
   pnpm install --frozen-lockfile
   pnpm --dir apps/frontend exec tsc --noEmit
