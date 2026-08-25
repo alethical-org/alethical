@@ -39,16 +39,7 @@ export const SAMPLE_REPORT: MoneyReport = {
       blocks: [
         {
           kind: 'paragraph',
-          runs: [
-            { kind: 'text', text: 'A figure of ' },
-            {
-              kind: 'correctedFigure',
-              was: '$2 sample',
-              now: '$3 sample',
-              datedLabel: 'CORRECTED SEP 2 2026',
-            },
-            { kind: 'text', text: ' appears here.' },
-          ],
+          runs: [{ kind: 'text', text: 'A figure of $3 sample appears here.' }],
         },
       ],
       methodologyInset: {
@@ -66,7 +57,7 @@ export const SAMPLE_REPORT: MoneyReport = {
   ],
   correction: {
     datedLabel: 'CORRECTED SEP 2 2026',
-    note: 'A sample correction note. The earlier figure stays readable where it appears.',
+    note: 'A sample correction note saying what changed. The text itself carries the corrected figure.',
   },
   newerFilingsNote: 'A sample newer-filings note, dated at the figure it moves.',
 };
