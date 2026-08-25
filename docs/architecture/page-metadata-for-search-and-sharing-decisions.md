@@ -1072,9 +1072,9 @@ no crawling, and 2 of our own surfaces are working against us today.
 
 **The first of those 2 is not a new defect. It is §18's defect on a new surface.** §18 recorded that
 `/bills` and `/legislators` served "the right title but an empty body, so the sitemap was doing almost
-all of the discovery work", and fixed it for the directories. The report page does the same thing
-today, and the explainer library is about to be built on it. Read §20.4's first bullet as a recurrence
-with a known cure rather than a discovery.
+all of the discovery work", and fixed it for the directories. The report page did the same thing, with
+the explainer library about to be built on it. Read §20.4's first bullet as a recurrence with a known
+cure rather than a discovery — **the cure shipped the same day, in §21.**
 
 Recorded from the working session that raised it. Every claim marked **measured** was checked
 against the live site or Google's own documentation on 25 Aug 2026, not inferred.
@@ -1123,12 +1123,13 @@ the existing 3-way split has plenty of room; it is a reporting convenience, not 
 
 ### 20.4 Two defects this found, both filed
 
-- **Our own writing sends search engines no prose.** Measured: `/reports/the-money-only-goes-one-way`
-  returns 8,125 bytes carrying the title 3 times and not one sentence of the body, while
-  `/bills/94-2025-HF1` returns 11,231 bytes including its real database-driven title. Google does run
-  JavaScript, but queues those pages for a later pass and recommends serving content from the server.
-  The links out of the page are missing from the first response too, so discovery and evaluation are
-  both affected. [Issue 1760](https://github.com/alethical-org/alethical/issues/1760).
+- **Our own writing sent search engines no prose. Fixed the same day — see §21.** Measured:
+  `/reports/the-money-only-goes-one-way` returned 8,125 bytes carrying the title 3 times and not one
+  sentence of the body, while `/bills/94-2025-HF1` returned 11,231 bytes including its real
+  database-driven title. Google does run JavaScript, but queues those pages for a later pass and
+  recommends serving content from the server. The links out of the page were missing from the first
+  response too, so discovery and evaluation were both affected.
+  [Issue 1760](https://github.com/alethical-org/alethical/issues/1760).
 - **The bill change date ignores anything after the last official action.** `_lastmod` in
   `alethical/api/routers/public.py` returns the first non-null candidate, and bills pass
   `latest_action_at` before `updated_at`, so a corrected title, regenerated summary or repaired link
@@ -1196,3 +1197,87 @@ forward, kept indefinitely, because other people's saved links never update.
   fixed, with the sitemap submitted that same day. What nobody has read since is the **per-sitemap**
   split of indexed against the 2 not-indexed states, which is the only number that shows whether the
   10,517 bill addresses are landing. Until that is read, every remedy above §20.4 is precautionary.
+
+---
+
+## 21. Our own reports in the first response
+
+Built 25 Aug 2026 for [#1760](https://github.com/alethical-org/alethical/issues/1760), which is
+§20.4's first defect. §20 diagnosed it and holds the before measurement; this section records what
+shipped. It also satisfies §20.5 rule 3 — "the list must exist before any JavaScript runs" — for the
+shelf, which is the list every posted piece is reachable from today.
+
+### What arrives now
+
+`curl` against the built handler, 25 Aug 2026, beside §20.4's live before figures:
+
+| address | before | after | prose present |
+|---|---:|---:|---|
+| `/reports/the-money-only-goes-one-way` | 8,125 bytes | **17,223 bytes** | yes. "Six organizations", "one-way valve", "Optometry", "886 million", "Enbridge Energy" all present |
+| `/reports` | 8,402 bytes | **9,391 bytes** | yes, with an ordinary link to every posted report |
+
+### Decision
+
+- A report address serves the report's **whole text**: title, standfirst, the two masthead dates, the
+  short version, every section under its own heading, every paragraph, bullet and table in the
+  report's own order, the methodology inset where a section carries one, the dated newer-filings and
+  correction banners where the report carries them, and the "where these numbers come from" block.
+  Plus one link, back to the shelf.
+- The shelf serves its heading, its introduction, and an ordinary `<a href>` per posted report,
+  carrying that report's title, publication date and standfirst.
+- A table is served as a real `<table>`, matching how the loaded page marks one up, so a figure is
+  announced with its column rather than as a loose run of text.
+- The report registry (`apps/frontend/src/lib/moneyReports.ts`) is already on the server, so neither
+  address asks the data service for anything. This is the cheapest case in this whole series: no
+  query, no new field, no migration.
+- **The serving path is keyed to the resolved route, not to a path string**, so §20.6's move to
+  `/reading/<name>` needs no work here: whatever address resolves to the shelf or to a piece gets the
+  same body. That is also what "the explainer surface ships with this from its first piece" means in
+  practice — a new piece is a registry entry, not new serving work.
+
+### Why this does not weaken rule 13
+
+[`.claude/rules/grounded-answers.md`](../../.claude/rules/grounded-answers.md) rule 13 holds a
+report's claims out of its **share preview and metadata**, and keeps *listing* a report behind
+Eugene's separate per-report decision. Both are untouched:
+
+- The tags still carry title and dates only. `moneyReportPageMetadata` is unchanged, and a test
+  asserts the served `<head>` carries the dates line and none of the report's figures.
+- The `indexed` flag still decides listing on its own. The posted report is `indexed: false`, so the
+  response still carries `X-Robots-Tag: noindex` and the noindex tag, and the report stays out of the
+  sitemap. Serving the body and permitting the listing are different acts, and only the first one
+  changed here.
+- Rule 13 forbids editing a report's words at all, so the served text is the **stored** text. Nothing
+  is summarised, trimmed or re-punctuated for the server.
+
+### How "the served text is the drawn text" is proved here
+
+The report screen needs navigation and cannot be rendered in a test, the same limit the legislator
+profile hit in §13. So the guarantee is the stronger one available in this case: every served line
+**is** one of the report's own stored strings, produced by the same helper (`reportRunsText`) the
+screen's paragraph renderer uses, and the test asserts set membership rather than containment — a
+re-worded or shortened sentence fails. A second test asserts that no figure in the served HTML is
+absent from the report's own data
+([`.claude/rules/grounded-answers.md`](../../.claude/rules/grounded-answers.md) rule 11: a number the
+layout worked out for itself reads as a filed fact). A drift alarm reads both screen files and fails
+if either stops drawing those same fields. Seven deliberate mutations were run against the set;
+every one failed, including a table silently dropped and a sentence trimmed to 80 characters.
+
+Checked both ways on the real report: all **81** text runs in the first response appear in the live
+rendered page, and all 5 runs on the shelf do.
+
+The shelf's fixed wording had existed in **two** places — the screen and `lib/share.ts`'s search
+description — so it now lives once, in `lib/moneyReports.ts`, and the served, drawn and described
+versions cannot drift apart.
+
+### What this deliberately does not do
+
+- **The contents rail is not served.** It is in-page navigation, like the top nav and the Share
+  control, and the snapshot has never carried site chrome. A shared `#section` address still works,
+  because the loaded page jumps to it.
+- **An outward link inside a report's prose contributes its words, not its address.** The links that
+  matter for finding the rest of the research are the ones between pages, and those are real anchors.
+  No posted report carries an inline link today.
+- **No address, route or redirect changed.** §20.6's decision is separate work.
+- **Nothing about the report's text, source links or method boxes changed.** Those are separate,
+  tracked work; this changed only the rendering path.

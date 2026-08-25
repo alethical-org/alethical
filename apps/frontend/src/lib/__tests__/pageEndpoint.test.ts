@@ -1,6 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { runInNewContext } from 'node:vm';
 
+import { publishedReports, reportRunsText, reportSourceText } from '../moneyReports';
+import { MONEY_ONLY_GOES_ONE_WAY } from '../reports/moneyOnlyGoesOneWay';
+import { escapeHtml } from '../share';
+
 const { readPageShell } = vi.hoisted(() => ({ readPageShell: vi.fn() }));
 
 vi.mock('node:fs/promises', () => ({ readFile: readPageShell }));
@@ -393,6 +397,88 @@ describe('first-response page tags', () => {
       expect(body).toContain('<title>Campaign money reports | Alethical</title>');
       expect(body).toContain('<link rel="canonical" href="https://www.alethical.com/reports"');
     }
+  });
+
+  // Issue #1760: our own writing was the one thing on the site that reached a
+  // search engine only after a crawler had run the app, while every bill page
+  // sent its text straight away. These two checks are the `curl` measurement in
+  // the issue, run on every pull request, because a silent reopening is exactly
+  // how the gap arrived.
+  it('sends the reports shelf its list, with a followable link per posted report', async () => {
+    const calls: string[] = [];
+    stubNetwork((url) => {
+      calls.push(url);
+      return { status: 500 };
+    });
+
+    const { body, status } = await serve({ path: '/reports' });
+
+    expect(status).toBe(200);
+    expect(body).toContain('<h1>Campaign money reports</h1>');
+    expect(body).toContain('drawn from the filings Minnesota campaigns, parties and funds');
+    expect(publishedReports().length).toBeGreaterThan(0);
+    for (const report of publishedReports()) {
+      expect(body).toContain(`href="/reports/${report.slug}"`);
+      expect(body).toContain(report.title);
+    }
+    // Read from the registry the server already holds, so no data call.
+    expect(calls).toHaveLength(0);
+  });
+
+  it('sends a report its whole body, not only its title', async () => {
+    const calls: string[] = [];
+    stubNetwork((url) => {
+      calls.push(url);
+      return { status: 500 };
+    });
+
+    const report = MONEY_ONLY_GOES_ONE_WAY;
+    const { body, headers, status } = await serve({ path: `/reports/${report.slug}` });
+
+    expect(status).toBe(200);
+    expect(calls).toHaveLength(0);
+    expect(body).toContain(`<h1>${report.title}</h1>`);
+    expect(body).toContain('PUBLISHED AUG 20 2026 · RECORDS THROUGH JUL 20 2026');
+
+    // Every sentence, bullet and section heading, read out of the registry so
+    // the check cannot go stale against a report the team later revises.
+    for (const section of report.sections) {
+      expect(body).toContain(escapeHtml(section.heading));
+    }
+    const sentences = [report.shortVersion, ...report.sections.map((section) => section.blocks)]
+      .flat()
+      .flatMap((block) => {
+        if (block.kind === 'paragraph') return [reportRunsText(block.runs)];
+        if (block.kind === 'bullets') return block.items.map((item) => reportRunsText(item));
+        return block.rows.flat();
+      });
+    expect(sentences.length).toBeGreaterThan(40);
+    for (const sentence of sentences) {
+      expect(body).toContain(escapeHtml(sentence));
+    }
+    for (const source of report.sources) {
+      expect(body).toContain(escapeHtml(reportSourceText(source)));
+    }
+
+    // Whether a search engine may LIST the report is a separate, unchanged
+    // decision: this report is still marked to be skipped.
+    expect(report.indexed).toBe(false);
+    expect(headers.get('X-Robots-Tag')).toBe('noindex');
+    expect(body).toContain('<meta name="robots" content="noindex" />');
+    // Rule 13 keeps a report's claims out of its share preview and tags.
+    const head = body.slice(0, body.indexOf('</head>'));
+    expect(head).toContain('Published Aug 20, 2026 · records through Jul 20, 2026.');
+    expect(head).not.toContain('Six organizations');
+  });
+
+  it('still treats an unknown or unpublished report address as a missing page', async () => {
+    stubNetwork(() => ({ status: 500 }));
+
+    const { body, status } = await serve({ path: '/reports/no-such-report' });
+
+    expect(status).toBe(404);
+    expect(body).toContain('<title>Page not found | Alethical</title>');
+    expect(body).not.toContain('Six organizations');
   });
 
   it('serves the normal missing-page response for the retired Traffic address', async () => {

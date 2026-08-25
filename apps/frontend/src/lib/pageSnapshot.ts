@@ -27,6 +27,18 @@ import {
   directoryTotalPages,
   LEGISLATOR_DIRECTORY_HEADING,
 } from './directoryPagination';
+import {
+  MONEY_REPORTS_SHELF_EMPTY_BODY,
+  MONEY_REPORTS_SHELF_EMPTY_TITLE,
+  MONEY_REPORTS_SHELF_HEADING,
+  MONEY_REPORTS_SHELF_INTRO,
+  reportDateCapsLabel,
+  reportDatesLine,
+  reportRunsText,
+  reportSourceText,
+  type MoneyReport,
+  type ReportBlock,
+} from './moneyReports';
 import { formatSessionLabel } from './sessionLabel';
 import { FIND_MY_LEGISLATOR_INSTRUCTIONS } from './findMyLegislator';
 import { HOME_PUBLIC_INTRO } from './homepage';
@@ -96,8 +108,21 @@ export interface SnapshotSectionItem {
   href?: string;
 }
 
+/**
+ * One piece of a section, in the order the page draws it. Prose, bullets and a
+ * table interleave inside a published report, and the order carries meaning: a
+ * table introduced by "The biggest spenders:" has to arrive after that sentence
+ * and before the ones that comment on it.
+ */
+export type SnapshotBlock =
+  | { kind: 'prose'; lines: string[] }
+  | { kind: 'bullets'; items: string[] }
+  | { kind: 'table'; columns: string[]; rows: string[][] };
+
 export interface SnapshotSection {
   heading: string;
+  /** Ordered pieces. A section uses this OR `body`/`items`, never both. */
+  blocks?: SnapshotBlock[];
   body?: string[];
   bodyIsList?: boolean;
   items?: SnapshotSectionItem[];
@@ -442,7 +467,142 @@ export function legislatorPageSnapshot(legislator: LegislatorSnapshotSource): Pa
   };
 }
 
+// --- Published reports ---
+
+/**
+ * A published report's own writing, in the first server response
+ * (issue #1760). Every other snapshot in this file reads a record out of the
+ * database; these two read the report registry, so the text is already on the
+ * server and no data call is involved.
+ *
+ * Rule 13 of `.claude/rules/grounded-answers.md` keeps a report's claims out of
+ * its share preview and metadata, and that is untouched: this is the report
+ * page's own body, the same words a reader sees, and the `indexed` flag still
+ * decides on its own whether a search engine may list the page. The same rule
+ * forbids editing a report's words at all, which is why nothing here shortens,
+ * re-punctuates or summarises a stored sentence.
+ *
+ * An outward link inside the prose contributes its words and not its address.
+ * The report's links that matter for finding the rest of the research are the
+ * ones between pages, and those are real anchors below.
+ */
+
+/** One report block as the screen draws it, in the report's own order. */
+function reportBlocks(blocks: readonly ReportBlock[]): SnapshotBlock[] {
+  return blocks.map((block): SnapshotBlock => {
+    if (block.kind === 'paragraph') {
+      return { kind: 'prose', lines: [reportRunsText(block.runs)] };
+    }
+    if (block.kind === 'bullets') {
+      return { kind: 'bullets', items: block.items.map((item) => reportRunsText(item)) };
+    }
+    return { kind: 'table', columns: block.columns, rows: block.rows };
+  });
+}
+
+export function moneyReportPageSnapshot(report: MoneyReport): PageSnapshot {
+  // The report's own label wording. The screen draws these same words in mono
+  // caps; case is styling this file has never copied, the way a bill's
+  // "Where it stands" is served in sentence case too.
+  const sections: SnapshotSection[] = [
+    ...(report.newerFilingsNote
+      ? [
+          {
+            heading: 'Newer filings exist',
+            blocks: [{ kind: 'prose' as const, lines: [report.newerFilingsNote] }],
+          },
+        ]
+      : []),
+    ...(report.correction
+      ? [
+          {
+            heading: report.correction.datedLabel,
+            blocks: [{ kind: 'prose' as const, lines: [report.correction.note] }],
+          },
+        ]
+      : []),
+    { heading: 'Short version', blocks: reportBlocks(report.shortVersion) },
+    ...report.sections.map((section) => ({
+      heading: section.heading,
+      blocks: [
+        ...reportBlocks(section.blocks),
+        ...(section.methodologyInset
+          ? [
+              {
+                kind: 'prose' as const,
+                lines: [section.methodologyInset.title, section.methodologyInset.body],
+              },
+            ]
+          : []),
+      ],
+    })),
+    {
+      heading: 'Where these numbers come from',
+      blocks: [{ kind: 'prose', lines: report.sources.map(reportSourceText) }],
+    },
+  ];
+
+  return {
+    heading: report.title,
+    subheading: reportDatesLine(report),
+    bodyHeading: '',
+    body: [report.dek],
+    bodyIsList: false,
+    facts: [],
+    sections,
+    links: [{ label: MONEY_REPORTS_SHELF_HEADING, href: '/reports' }],
+  };
+}
+
+/**
+ * The reports shelf, with one crawlable link per posted report. The link is the
+ * point: without it the route to an older piece exists only after the app has
+ * run, so an archive is unreachable on a first visit.
+ */
+export function moneyReportsShelfPageSnapshot(reports: readonly MoneyReport[]): PageSnapshot {
+  return {
+    heading: MONEY_REPORTS_SHELF_HEADING,
+    subheading: '',
+    bodyHeading: '',
+    body: reports.length
+      ? [MONEY_REPORTS_SHELF_INTRO]
+      : [
+          MONEY_REPORTS_SHELF_INTRO,
+          MONEY_REPORTS_SHELF_EMPTY_TITLE,
+          MONEY_REPORTS_SHELF_EMPTY_BODY,
+        ],
+    bodyIsList: false,
+    facts: [],
+    records: reports.map((report) => ({
+      label: report.title,
+      detail: [`PUBLISHED ${reportDateCapsLabel(report.publishedOn)}`, report.dek].join(' · '),
+      href: `/reports/${encodeURIComponent(report.slug)}`,
+    })),
+    // The shelf's own back link, to the section the nav calls "Money in politics".
+    links: [{ label: 'Money in politics', href: '/money' }],
+  };
+}
+
 // --- Rendering ---
+
+/**
+ * One ordered piece of a section. A table is marked up as a real table so a
+ * screen reader announces each figure with its column, which is how the loaded
+ * page draws it too.
+ */
+function renderSnapshotBlock(block: SnapshotBlock): string {
+  if (block.kind === 'prose') {
+    return block.lines.map((line) => `<p class="ps-prose">${escapeHtml(line)}</p>`).join('');
+  }
+  if (block.kind === 'bullets') {
+    return `<ul class="ps-list">${block.items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
+  }
+  const head = `<tr>${block.columns.map((column) => `<th>${escapeHtml(column)}</th>`).join('')}</tr>`;
+  const body = block.rows
+    .map((row) => `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join('')}</tr>`)
+    .join('');
+  return `<table class="ps-table"><thead>${head}</thead><tbody>${body}</tbody></table>`;
+}
 
 /**
  * The snapshot as HTML. Every value is escaped: 10,471 AI-written summaries are
@@ -469,6 +629,9 @@ export function renderPageSnapshot(snapshot: PageSnapshot): string {
 
   const sections = (snapshot.sections ?? [])
     .map((section) => {
+      const orderedBlocks = (section.blocks ?? [])
+        .map((block) => renderSnapshotBlock(block))
+        .join('');
       const sectionBody = section.body?.length
         ? section.bodyIsList
           ? `<ul class="ps-list">${section.body
@@ -485,8 +648,8 @@ export function renderPageSnapshot(snapshot: PageSnapshot): string {
             )
             .join('')}</ul>`
         : '';
-      return sectionBody || items
-        ? `<h2>${escapeHtml(section.heading)}</h2>${sectionBody}${items}`
+      return orderedBlocks || sectionBody || items
+        ? `<h2>${escapeHtml(section.heading)}</h2>${orderedBlocks}${sectionBody}${items}`
         : '';
     })
     .join('');

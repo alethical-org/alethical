@@ -12,6 +12,8 @@ import {
   injectPageSnapshot,
   legislatorDirectoryPageSnapshot,
   legislatorPageSnapshot,
+  moneyReportPageSnapshot,
+  moneyReportsShelfPageSnapshot,
   renderPageSnapshot,
   type BillDirectorySnapshotSource,
   type BillSnapshotSource,
@@ -43,7 +45,10 @@ import {
   STATIC_PAGE_METADATA,
   type PageMetadata,
 } from "../apps/frontend/src/lib/share";
-import { reportBySlug } from "../apps/frontend/src/lib/moneyReports";
+import {
+  publishedReports,
+  reportBySlug,
+} from "../apps/frontend/src/lib/moneyReports";
 import { targetFromPathname } from "../apps/frontend/src/navigation/webRoutes";
 
 /**
@@ -338,13 +343,26 @@ async function contentFor(
     case "moneyLanding":
       return headOnly(STATIC_PAGE_METADATA["/money"]);
     case "moneyReports":
-      return headOnly(STATIC_PAGE_METADATA["/reports"]);
+      // The shelf's own list, so the route to every posted piece exists before
+      // any program runs (#1760). The registry is on the server already, so
+      // this asks the data service for nothing.
+      return {
+        metadata: STATIC_PAGE_METADATA["/reports"],
+        snapshot: renderPageSnapshot(
+          moneyReportsShelfPageSnapshot(publishedReports()),
+        ),
+      };
     case "moneyReport": {
       // Title and dates only in a report's tags (grounded-answers.md rule 13);
-      // an unpublished or unknown slug is a genuinely absent page.
+      // an unpublished or unknown slug is a genuinely absent page. The report's
+      // own writing goes in the body instead, where the loaded page puts it
+      // (#1760) — the `indexed` flag still decides listing on its own.
       const report = reportBySlug(target.slug);
       if (!report) throw new UnknownAddress(`no report ${target.slug}`);
-      return headOnly(moneyReportPageMetadata(report));
+      return {
+        metadata: moneyReportPageMetadata(report),
+        snapshot: renderPageSnapshot(moneyReportPageSnapshot(report)),
+      };
     }
     case "moneyCommittee":
       return headOnly(committeeMoneyPageMetadata(target.slug, "page"));

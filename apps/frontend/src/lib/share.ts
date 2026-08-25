@@ -1,7 +1,11 @@
 import { plainBillSummary } from './billDetail';
 import { registrationNumberFromSlug } from './committeeMoney';
 import { directoryPagePath } from './directoryPagination';
-import { reportShareDescription } from './moneyReports';
+import {
+  MONEY_REPORTS_SHELF_HEADING,
+  MONEY_REPORTS_SHELF_INTRO,
+  reportShareDescription,
+} from './moneyReports';
 
 export const PUBLIC_SITE_ORIGIN = 'https://www.alethical.com';
 export const SOCIAL_PREVIEW_IMAGE_URL = `${PUBLIC_SITE_ORIGIN}/social-preview.png`;
@@ -402,10 +406,9 @@ export const STATIC_PAGE_METADATA: Record<string, PageMetadata> = {
     canonicalPath: '/money',
   }),
   '/reports': pageMetadata({
-    title: titleFor('Campaign money reports'),
-    socialTitle: 'Campaign money reports',
-    description:
-      'Our own research, in plain language, drawn from the filings Minnesota campaigns, parties and funds make with the state.',
+    title: titleFor(MONEY_REPORTS_SHELF_HEADING),
+    socialTitle: MONEY_REPORTS_SHELF_HEADING,
+    description: MONEY_REPORTS_SHELF_INTRO,
     canonicalPath: '/reports',
   }),
   '/confirm': pageMetadata({

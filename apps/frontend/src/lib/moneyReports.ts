@@ -127,6 +127,35 @@ export interface MoneyReport {
 }
 
 /**
+ * The reports shelf's own fixed wording, in one place because 3 surfaces draw it:
+ * the shelf screen, the shelf's search description in lib/share.ts, and the text
+ * served in the first response before any JavaScript runs
+ * (lib/pageSnapshot.ts). A second copy is how a served page and a rendered page
+ * start disagreeing, which is worse than either one being wrong alone.
+ */
+export const MONEY_REPORTS_SHELF_HEADING = 'Campaign money reports';
+export const MONEY_REPORTS_SHELF_INTRO =
+  'Our own research, in plain language, drawn from the filings Minnesota campaigns, parties and funds make with the state.';
+export const MONEY_REPORTS_SHELF_EMPTY_TITLE = 'Nothing published yet.';
+export const MONEY_REPORTS_SHELF_EMPTY_BODY =
+  'When we publish research on these records, it appears here, dated and carrying the date its records run through.';
+
+/**
+ * One run of report prose as a reader sees it: the runs joined, because the
+ * screen draws them as neighbouring texts inside one paragraph. Emphasis and an
+ * outward link contribute their words and nothing else, so this is the same
+ * sentence in both places.
+ */
+export function reportRunsText(runs: ReportInline[]): string {
+  return runs.map((run) => run.text).join('');
+}
+
+/** Every source line as the sources block draws it: the entry, its note, its link text. */
+export function reportSourceText(source: ReportSource): string {
+  return [source.text, source.note, source.noteLink?.text].filter(Boolean).join(' ');
+}
+
+/**
  * Every posted report, newest first. Posting puts a report on the site, so this
  * is what the reports shelf, the money landing and every address-based reader
  * show. Whether a search engine may list it is the separate `indexed` flag.

@@ -243,6 +243,15 @@ figure check resolved, the report is out of the site map that search engines rea
 who comes to Alethical reads the report; somebody searching Google does not find it yet.
 Opening a report to search engines is Eugene's decision, made per report.
 
+The shelf and every report page hand their words over in the **very first response from the
+server**, before any of the app's own code runs: the shelf its list and a plain link to
+every posted report, a report its entire text. Our own writing used to be the one thing on
+the site that a search engine could read only after running the app, while every bill page
+handed its text over straight away
+([#1760](https://github.com/alethical-org/alethical/issues/1760)). This is separate from
+whether a search engine may *list* a report, which is still Eugene's per-report decision
+above: a report marked to be skipped is served in full and still asks to be skipped.
+
 One report is posted: "The Money Only Goes One Way", at
 `/reports/the-money-only-goes-one-way`.
 
