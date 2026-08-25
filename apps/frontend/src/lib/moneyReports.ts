@@ -54,7 +54,7 @@ export interface ReportSection {
 /** One entry in the where-these-numbers-come-from block. */
 export interface ReportSource {
   text: string;
-  /** Muted clarifying sentence after the source name. */
+  /** Clarifying sentence after the source name, in the same ink as the source. */
   note?: string;
   /** Outward link inside the note (e.g. to the FEC). Never an inward link the
    * site cannot honor yet. */

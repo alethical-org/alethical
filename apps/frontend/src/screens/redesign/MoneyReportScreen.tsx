@@ -45,8 +45,8 @@ import { theme as t } from '../../theme/tokens';
  * - Share previews carry title and dates only (lib/share.ts
  *   moneyReportPageMetadata); the Share control's prepared text says the same.
  * - A correction replaces the wrong figure in the report's own text; the dated
- *   correction banner is the only trace, never a silent edit and never a wrong
- *   number left readable (rule 13, Eugene 25 Aug 2026).
+ *   correction banner, when the report carries one, is the only trace, and a
+ *   wrong number is never left readable (rule 13, Eugene 25 Aug 2026).
  */
 
 const isWeb = Platform.OS === 'web';
@@ -469,7 +469,7 @@ export function MoneyReportScreen({ navigation, route }: RootScreenProps<'MoneyR
                   {report.sources.map((source, index) => (
                     <Text key={index} style={styles.sourceItem}>
                       <Text>{source.text} </Text>
-                      {source.note ? <Text style={styles.sourceNote}>{source.note} </Text> : null}
+                      {source.note ? <Text>{source.note} </Text> : null}
                       {source.noteLink ? (
                         <Text {...externalLinkProps(source.noteLink.href)} style={styles.runLink}>
                           {source.noteLink.text}
@@ -750,5 +750,4 @@ const styles = StyleSheet.create({
     fontSize: 17,
     lineHeight: 27,
   },
-  sourceNote: { color: t.colors.text.secondary },
 });

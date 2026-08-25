@@ -216,8 +216,4 @@ export const MONEY_ONLY_GOES_ONE_WAY: MoneyReport = {
     },
     { text: 'CFB lobbying principal expenditure reports, 2015–2025.' },
   ],
-  correction: {
-    datedLabel: 'CORRECTED AUG 25 2026',
-    note: 'The comparison between the six party and caucus committees and all candidates now carries both figures: about twice the money counting only donations with a name attached, and about 1.4 times counting every dollar each of them reported taking in.',
-  },
 };
