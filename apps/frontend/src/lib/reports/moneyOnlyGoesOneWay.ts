@@ -47,7 +47,12 @@ export const MONEY_ONLY_GOES_ONE_WAY: MoneyReport = {
         p(
           'Over those same eleven years, six committees — the four legislative caucuses and the two state parties — took in $221 million.',
         ),
-        p('Six organizations. Twice the money of every candidate in the state put together.'),
+        p(
+          'Six organizations. Twice the money of every candidate in the state put together, counting only the donations with a name attached. Counting every dollar they each reported taking in, unnamed donors included, it is about 1.4 times.',
+        ),
+        p(
+          'One caution before the rest. Minnesota only requires a committee to name a donor once that person has given more than $200 in total during a calendar year, so a large share of all political money is reported as a lump figure with no names. Across the campaign accounts of sitting legislators, that unnamed share was 36.5% of the money in 2024 and 41.3% in 2025. Everything that follows below counts only the named donations.',
+        ),
       ],
     },
     {
@@ -207,8 +212,12 @@ export const MONEY_ONLY_GOES_ONE_WAY: MoneyReport = {
   sources: [
     {
       text: 'Minnesota Campaign Finance Board bulk data downloads — itemized contributions (583,120 records), itemized expenditures, and itemized independent expenditures over $200 (41,130 records), 2015–2026.',
-      note: 'Itemized data excludes contributions below the disclosure threshold; official filed report totals are the authoritative figures for any individual committee.',
+      note: 'Minnesota requires a committee to name a donor once that person has given more than $200 in total during a calendar year, and permits it to name smaller donors as well. Money from donors who are not named is reported as a single figure with no names attached, and this report counts only named payments. Official filed report totals are the authoritative figures for any individual committee.',
     },
     { text: 'CFB lobbying principal expenditure reports, 2015–2025.' },
   ],
+  correction: {
+    datedLabel: 'CORRECTED AUG 25 2026',
+    note: 'The comparison between the six party and caucus committees and all candidates now carries both figures: about twice the money counting only donations with a name attached, and about 1.4 times counting every dollar each of them reported taking in.',
+  },
 };
