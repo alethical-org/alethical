@@ -31,7 +31,7 @@
      (Optometry PAC) returned the same 16. That settles the reader-facing claim, which is
      about the Board's form. It does not settle whether our parser's label set covers
      rarer labels across all 299 party units and 529 committees and funds, which is the
-     §9.9 gap and belongs in its own issue.
+     §9.9 gap and is now issue #1757.
 
      TWO FIGURES WERE DELIBERATELY LEFT OUT, each for its own reason.
 
