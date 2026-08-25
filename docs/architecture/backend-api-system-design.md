@@ -491,16 +491,60 @@ Deliberately unlike every other collection endpoint here:
   the whole corpus, about 1 MB before compression, well inside the sitemap format's 50,000-URL
   and 50 MB limits.
 - **Not serialized through the bill serializer.** Two column-only address selects plus one bill
-  directory count
-  (`select(Bill.bill_key, Bill.latest_action_at, Bill.updated_at)` and the legislator
-  directory statement narrowed to `slug` + `updated_at`), never whole ORM rows, which is what
-  keeps it cheap at that size.
+  directory count (`select(Bill.bill_key, Bill.latest_action_at, Bill.updated_at, …)`
+  outer-joined to each bill's current summary row for its `updated_at` alone, and the
+  legislator directory statement narrowed to `slug` + `updated_at`), never whole ORM rows,
+  which is what keeps it cheap at that size. The partial unique index
+  `ix_ai_enrichment_bill_summary_current_unique` is what makes the join at most one row per
+  bill, and selecting only the timestamp leaves the TOASTed `content_json` unread. Postgres
+  runs it as a hash join over both tables rather than an index lookup, because a sitemap wants
+  every bill: measured against production on 2026-08-25, the bill select went from ~53–61 ms
+  to ~89–112 ms, all from cache.
 
-`lastmod` is a plain `YYYY-MM-DD` calendar date in UTC. For a bill it is `latest_action_at`
-when set, otherwise `updated_at`; for a legislator, `updated_at`. It is omitted rather than
-sent as null. The driver can return a `timestamptz` in the session's own timezone, so the
-instant is normalized to UTC before its date is read — taking `.date()` directly off a
-midnight-UTC timestamp reported the previous day.
+`lastmod` is a plain `YYYY-MM-DD` calendar date in UTC. It is omitted rather than sent as
+null. The driver can return a `timestamptz` in the session's own timezone, so the instant is
+normalized to UTC before its date is read — taking `.date()` directly off a midnight-UTC
+timestamp reported the previous day.
+
+**For a bill it is the newest of three dates, each one a date on which something a reader can
+see changed** ([#1761](https://github.com/alethical-org/alethical/issues/1761)):
+`latest_action_at` (the legislative timeline), `bill.updated_at` (the row's own visible
+fields — title, status, `official_url`, the headline the `short_title` trigger copies in), and
+the current `bill_summary` enrichment's `updated_at` (the plain-language summary and key
+points, which are rewritten without the bill row being touched). For a legislator it is
+`updated_at`, unchanged: one candidate, so the newest of it is itself.
+
+It used to be the **first non-null** candidate, which for a bill meant `latest_action_at` and
+nothing after it, because `updated_at` was only consulted for a bill with no recorded action
+at all. So correcting a title, regenerating a summary or repairing a source link left the
+published date months in the past, on all 10,517 bill pages at once. Google uses the field
+only "if it's consistently and verifiably accurate" and judges that site-wide, so a stale
+value on the bill pages risks the signal being discounted for every address we publish.
+
+**Why `bill.updated_at` needed a trigger before it could be published.** `Bill.ingestion_run_id`
+is re-stamped with a fresh run id on every ingestion pass, so its value always differs, an
+UPDATE is always emitted, and `TimestampMixin`'s `onupdate=func.now()` always fired. Measured
+read-only against production on 2026-08-25: **all 10,517 bill rows** had `updated_at` later
+than `latest_action_at`, spread across only **7 calendar days and 451 distinct seconds**, and
+**8,625 of them shared one day** (2026-07-21) — a bulk-write marker, not a record-changed
+date. Publishing that column as-is would have moved every date at once and then moved them
+again on each pass, which is the noisy-date failure Google names explicitly (it gives a
+changed copyright year as the example of what is not a significant update). Alembic
+`0043_bill_updated_at_visible` therefore adds a `BEFORE UPDATE` trigger on `bill` that
+compares the whole new row against the old one with `updated_at` and `ingestion_run_id`
+removed: any difference stamps `now()`, no difference restores the old value. Whole-row
+comparison rather than a column list is deliberate — a column added later counts as visible
+until someone decides otherwise, so the failure direction is a date that moves when it need
+not, never one that freezes while the page changes. Two consequences worth knowing: the column
+can no longer be set by hand (a write that changes only `updated_at` is ignored), and an
+update issued by another trigger now registers, which is how a regenerated headline reaching
+`bill.short_title` moves the date.
+
+**What still does not move the date, and why.** An author correction on its own. `sponsorship`
+rows are deleted and re-inserted on every ingestion pass, so their timestamps are pass markers
+with no relation to whether the authors changed; the same is true of `bill_action` rows. Using
+them would put back the noise this design removes. An author change that arrives alongside a
+new action or any bill-row edit does move the date.
 
 The legislator list comes from the same `legislator_directory_stmt` the `/legislators` list
 endpoint uses, so the two counts always agree.

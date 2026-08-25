@@ -558,6 +558,15 @@ class Bill(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     companion_bill_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         ForeignKey("bill.id")
     )
+    # Re-stamped with a fresh run id on every ingestion pass, so its value always
+    # differs and an UPDATE is always emitted. That made the inherited
+    # ``updated_at`` a last-ingested marker instead of a record-changed date: all
+    # 10,517 production bill rows sat later than their newest legislative action,
+    # across 7 calendar days. A trigger now holds ``updated_at`` still when a write
+    # changed nothing but this column, so ``bill.updated_at`` means "a field a
+    # reader can see changed" -- which is what the sitemap publishes as the page's
+    # last-modified date (alembic 0043, #1761). This is the only table where that
+    # column carries the narrower meaning.
     ingestion_run_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         ForeignKey("ingestion_run.id")
     )

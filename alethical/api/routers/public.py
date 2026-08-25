@@ -735,18 +735,27 @@ def meta(db: Session = Depends(get_db)):
 
 
 def _lastmod(*candidates: datetime | None) -> dict[str, str]:
-    """The first non-null candidate as a plain "YYYY-MM-DD" string in UTC, or {} if
-    every candidate is null -- never a null lastmod (see sitemap() below).
+    """The newest candidate as a plain "YYYY-MM-DD" string in UTC, or {} if every
+    candidate is null -- never a null lastmod (see sitemap() below).
+
+    Newest, not first-non-null. Every candidate is a date on which something a
+    reader of the page can see changed, so the one worth publishing is the most
+    recent of them. This returned the *first* non-null candidate until #1761, and
+    because a bill's first candidate is its newest legislative action, every later
+    change to the page -- a corrected title, a regenerated plain-language summary,
+    a repaired source link -- was invisible in the date we published, on all
+    10,517 bill pages at once. Google uses the field only "if it is consistently
+    and verifiably accurate", and judges that site-wide.
 
     The driver may return a timestamptz in a non-UTC session timezone (same trap
     as the session date-range check in test_api_contract.py), so the instant is
     normalized to UTC before its calendar date is read -- otherwise a date near
     midnight UTC could report the wrong day.
     """
-    for candidate in candidates:
-        if candidate is not None:
-            return {"lastmod": candidate.astimezone(UTC).date().isoformat()}
-    return {}
+    known = [candidate for candidate in candidates if candidate is not None]
+    if not known:
+        return {}
+    return {"lastmod": max(known).astimezone(UTC).date().isoformat()}
 
 
 @router.get("/sitemap", response_model=DetailResponse)
@@ -756,13 +765,42 @@ def sitemap(db: Session = Depends(get_db), response: Response = None):  # type: 
     A Vercel function turns this into sitemap.xml; without it, building that file
     would mean paging /bills 100 rows at a time -- ~105 round trips for the
     ~10,517 bills alone. Two column-only selects, never the full ORM row or the
-    normal bill serializer, keep this cheap at that size.
+    normal bill serializer, keep this cheap at that size -- the bill one joined to
+    each bill's current summary row for its timestamp alone, never its content.
     """
     response.headers["Cache-Control"] = PUBLIC_CACHE_CONTROL
+    # Three dates per bill, all of them things a reader can see change, because
+    # lastmod publishes the newest of them (#1761):
+    #   * latest_action_at -- the legislative timeline on the page.
+    #   * bill.updated_at -- the row's own reader-visible fields (title, status,
+    #     official_url, the headline the short_title trigger copies in). A DB
+    #     trigger keeps this column still when a write changed only bookkeeping,
+    #     so it is a record-changed date rather than a last-ingested marker
+    #     (alembic 0043).
+    #   * the current bill_summary enrichment's updated_at -- the plain-language
+    #     summary and key points, which are the page's main content and are
+    #     rewritten without the bill row being touched at all.
+    # The partial unique index ix_ai_enrichment_bill_summary_current_unique makes
+    # the join at most one row per bill, and selecting only its updated_at leaves
+    # the TOASTed content_json unread. Postgres hash-joins both tables rather than
+    # walking that index, because every bill is wanted: ~53-61ms to ~89-112ms on
+    # the production corpus, entirely from cache.
     bill_rows = db.execute(
-        select(Bill.bill_key, Bill.latest_action_at, Bill.updated_at).order_by(
-            Bill.bill_key.asc()
+        select(
+            Bill.bill_key,
+            Bill.latest_action_at,
+            Bill.updated_at,
+            AIEnrichment.updated_at.label("summary_updated_at"),
         )
+        .outerjoin(
+            AIEnrichment,
+            and_(
+                AIEnrichment.bill_id == Bill.id,
+                AIEnrichment.enrichment_type == EnrichmentType.bill_summary,
+                AIEnrichment.is_current.is_(True),
+            ),
+        )
+        .order_by(Bill.bill_key.asc())
     ).all()
     # Same roster the /legislators list serves (legislator_directory_stmt +
     # get_session_by_slug(db, None) for the current session), so the count
@@ -788,8 +826,13 @@ def sitemap(db: Session = Depends(get_db), response: Response = None):  # type: 
             "bill_directory_total": bill_directory_total,
             "legislator_directory_total": len(legislator_rows),
             "bills": [
-                {"id": bill_key, **_lastmod(latest_action_at, updated_at)}
-                for bill_key, latest_action_at, updated_at in bill_rows
+                {
+                    "id": bill_key,
+                    **_lastmod(latest_action_at, updated_at, summary_updated_at),
+                }
+                for bill_key, latest_action_at, updated_at, summary_updated_at in (
+                    bill_rows
+                )
             ],
             "legislators": [
                 {"slug": slug, **_lastmod(updated_at)}
