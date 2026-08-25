@@ -1292,7 +1292,13 @@ date** ("Ending cash balance as of 12/31/2025"), and the date is not always 31 D
 committee-year read 11/16/2025 — so match on the label's stem, never on the whole string. The
 12 sampled party units and 12 sampled committees or funds carried a single "Contributions
 received" line in place of the five contributor-type lines, plus their own disbursement
-categories; rarer labels were not ruled out.
+categories; this sample did not rule out a rarer label. **It was later checked against the full
+population twice, and both checks found no label outside this set:** the first full production
+run read every one of the 1,603 registered filers of every kind and logged zero unknown labels
+(issue #1408, 2026-08-12,
+[`data-ingestion-onboarding.md` §H2](../product-onboarding/data-ingestion-onboarding.md)); a
+second, independent read of the current register — 299 party units and 529 political committees
+or funds — confirmed the same thing again on 2026-08-25 (issue #1757, §9.9).
 
 **That stem rule is for the cash-balance figures, not for a period end. The period end is a
 served field.** The report catalogue (`tabname=reports_data`, §9.6) returns **`CutOffDate`** per
@@ -1818,8 +1824,19 @@ Recorded as not run, never as passed:
 - **§4.3's reconciliation across a sample of committees** was run for contributions only. The
   expenditure side has been reconciled for the 4 filers of
   [#1386](https://github.com/alethical-org/alethical/issues/1386) and for no others.
-- **Party-unit and committee/fund label sets** come from 12 filers of each kind, not from the
-  populations of 299 and 526.
+- ~~**Party-unit and committee/fund label sets** come from 12 filers of each kind, not from the
+  populations of 299 and 526.~~ **Run, twice, and this bullet was simply never updated after the
+  first run.** The first full production run ([#1408](https://github.com/alethical-org/alethical/issues/1408),
+  2026-08-12) already read every one of the 1,603 registered filers of every kind and logged zero
+  unknown labels
+  ([`data-ingestion-onboarding.md` §H2](../product-onboarding/data-ingestion-onboarding.md)); this
+  design doc kept describing that as an open gap for 2 weeks after it closed. A second,
+  independent read for [#1757](https://github.com/alethical-org/alethical/issues/1757) on
+  2026-08-25 checked the current register directly — 299 party units, 529 political committees or
+  funds, 828 filers, 0 errors — and every distinct label stem found still matches
+  `PARTY_UNIT_LINES` exactly. 34 filers (1 party unit, 33 committees or funds) had never filed a
+  report and carried no labels either way. The Board's register held 529 committees or funds on
+  the day of this second read, not the 526 this bullet used to name.
 - **Amendment ordering before 2023** could not be tested, because the documents that would
   prove it are not served.
 - **Rate limits, blocking and error behaviour under load** were not tested deliberately; the

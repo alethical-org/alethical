@@ -143,8 +143,12 @@ MAX_REPORTED_ERRORS = 8
 #
 # The label sets below are a contract in code, and an unknown, missing or repeated
 # label stops a release (§9.3). That only works if the sets are the real
-# populations rather than a sample, so both were measured against every registered
-# filer rather than taken from the 12-of-each-kind sample §9.9 recorded as a gap.
+# populations rather than a sample. PARTY_UNIT_LINES started from a 12-of-each-kind
+# sample (design §9.9), then the first full production run measured every
+# registered filer of every kind — 1,603 filers, zero unknown labels (issue #1408,
+# 2026-08-12, docs/product-onboarding/data-ingestion-onboarding.md §H2) — and a
+# later read of the current register — 299 party units and 529 committees or
+# funds, 2026-08-25 (issue #1757) — found the same thing again.
 
 
 @dataclass(frozen=True)
