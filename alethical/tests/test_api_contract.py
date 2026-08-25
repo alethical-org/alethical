@@ -6172,9 +6172,21 @@ def test_sitemap_lists_every_bill_and_legislator(client):
     )
 
 
-def test_sitemap_bill_lastmod_prefers_latest_action_over_updated_at(client):
-    """lastmod reads Bill.latest_action_at when set, and falls back to
-    Bill.updated_at only when it is null (#1325) -- never a null lastmod."""
+def test_sitemap_bill_lastmod_is_the_newest_reader_visible_date(client):
+    """lastmod is the newest of a bill's reader-visible dates, and holds still for
+    a write that changes nothing a reader sees (#1761).
+
+    Three candidates, each a date on which something on the page can change: the
+    newest legislative action, the bill row's own last visible change, and the
+    current plain-language summary. This read the *first* non-null candidate until
+    #1761, and a bill's first candidate is its newest action -- so a corrected
+    title or a regenerated summary never moved the published date.
+
+    Every fixture below is a real row in Postgres, because both directions are
+    properties of the database rather than of Python: the newest-of is a SQL join
+    plus a max(), and holding still is a trigger (alembic 0043). The first-non-null
+    behaviour was reasonable-looking code, so only a test stops it returning.
+    """
     schema = load_schema()
     with Session(get_engine()) as db:
         seed = db.scalar(
@@ -6182,54 +6194,178 @@ def test_sitemap_bill_lastmod_prefers_latest_action_over_updated_at(client):
         )
         session_id, chamber_id = seed.session_id, seed.chamber_id
 
-    with_action_key = "94-2025-SF919191"
-    fallback_key = "94-2025-HF919292"
+    action_newest_key = "94-2025-SF919191"
+    row_newest_key = "94-2025-HF919292"
+    summary_newest_key = "94-2025-SF919393"
+    no_action_key = "94-2025-HF919494"
+    keys = [action_newest_key, row_newest_key, summary_newest_key, no_action_key]
+
+    action_at = datetime(2024, 3, 15, tzinfo=timezone.utc)
+    older_row_write = datetime(2024, 1, 5, tzinfo=timezone.utc)
+    newer_row_write = datetime(2025, 5, 20, tzinfo=timezone.utc)
+    no_action_row_write = datetime(2024, 2, 2, tzinfo=timezone.utc)
+    # Later than every other candidate can be, "now" included, so this date can
+    # only reach the response through the summary's own timestamp -- which is what
+    # makes the assertion below evidence that the column is read at all. Writing
+    # the bill row's date into the past instead is not an option: the trigger under
+    # test ignores a hand-written updated_at (see the bookkeeping check below).
+    summary_written_at = datetime(2027, 1, 4, tzinfo=timezone.utc)
+
+    def fixture_bill(
+        key, *, file_type, file_number, latest_action_at, updated_at, title
+    ):
+        return schema.Bill(
+            session_id=session_id,
+            chamber_id=chamber_id,
+            bill_key=key,
+            file_type=file_type,
+            file_number=file_number,
+            title=title,
+            current_status="Introduced",
+            latest_action_at=latest_action_at,
+            updated_at=updated_at,
+        )
+
+    def lastmod_of(key):
+        response = client.get("/api/v1/sitemap")
+        assert response.status_code == 200
+        entries = {row["id"]: row for row in response.json()["data"]["bills"]}
+        return entries[key].get("lastmod")
+
+    run_id = None
     try:
         with Session(get_engine()) as db:
             db.add_all(
                 [
-                    schema.Bill(
-                        session_id=session_id,
-                        chamber_id=chamber_id,
-                        bill_key=with_action_key,
+                    fixture_bill(
+                        action_newest_key,
                         file_type="SF",
                         file_number=919191,
-                        title="Sitemap lastmod fixture with a latest action",
-                        current_status="Introduced",
-                        latest_action_at=datetime(2024, 3, 15, tzinfo=timezone.utc),
+                        latest_action_at=action_at,
+                        updated_at=older_row_write,
+                        title="Sitemap fixture whose newest date is its action",
                     ),
-                    schema.Bill(
-                        session_id=session_id,
-                        chamber_id=chamber_id,
-                        bill_key=fallback_key,
+                    fixture_bill(
+                        row_newest_key,
                         file_type="HF",
                         file_number=919292,
-                        title="Sitemap lastmod fixture with no latest action",
-                        current_status="Introduced",
+                        latest_action_at=action_at,
+                        updated_at=newer_row_write,
+                        title="Sitemap fixture whose row changed after its action",
+                    ),
+                    fixture_bill(
+                        summary_newest_key,
+                        file_type="SF",
+                        file_number=919393,
+                        latest_action_at=action_at,
+                        updated_at=older_row_write,
+                        title="Sitemap fixture whose summary is its newest date",
+                    ),
+                    fixture_bill(
+                        no_action_key,
+                        file_type="HF",
+                        file_number=919494,
                         latest_action_at=None,
+                        updated_at=no_action_row_write,
+                        title="Sitemap fixture with no recorded action",
                     ),
                 ]
             )
             db.commit()
-            fallback_updated_at = db.scalar(
-                select(schema.Bill.updated_at).where(
-                    schema.Bill.bill_key == fallback_key
+
+            summary_bill_id = db.scalar(
+                select(schema.Bill.id).where(schema.Bill.bill_key == summary_newest_key)
+            )
+            db.add(
+                schema.AIEnrichment(
+                    bill_id=summary_bill_id,
+                    enrichment_type=schema.EnrichmentType.bill_summary,
+                    model_name="test-fixture",
+                    content_json={
+                        "summary": "A plain-language summary written later.",
+                        "short_title": "A rewritten headline",
+                    },
+                    is_current=True,
+                    updated_at=summary_written_at,
                 )
             )
+            db.commit()
 
-        response = client.get("/api/v1/sitemap")
-        assert response.status_code == 200
-        bills_by_id = {bill["id"]: bill for bill in response.json()["data"]["bills"]}
+        # The action is the newest thing that happened to this page.
+        assert lastmod_of(action_newest_key) == "2024-03-15"
+        # The row changed 14 months after the action, so that is when the page last
+        # changed. Before #1761 this reported 2024-03-15.
+        assert lastmod_of(row_newest_key) == "2025-05-20"
+        # The summary was rewritten without the bill row being touched, and it is
+        # the main content of the page.
+        assert lastmod_of(summary_newest_key) == "2027-01-04"
+        # No recorded action still carries a date rather than none at all.
+        assert lastmod_of(no_action_key) == "2024-02-02"
 
-        assert bills_by_id[with_action_key]["lastmod"] == "2024-03-15"
-        assert bills_by_id[fallback_key]["lastmod"] == (
-            fallback_updated_at.astimezone(timezone.utc).date().isoformat()
+        # A bookkeeping-only write: ingestion stamps a fresh run id on every pass,
+        # which is why updated_at had moved for all 10,517 production bills. The
+        # published date must not move for it.
+        with Session(get_engine()) as db:
+            run = schema.IngestionRun(
+                adapter="test-fixture",
+                target_type="bill",
+                status=schema.IngestionStatus.succeeded,
+            )
+            db.add(run)
+            db.flush()
+            run_id = run.id
+            row = db.scalar(
+                select(schema.Bill).where(schema.Bill.bill_key == row_newest_key)
+            )
+            row.ingestion_run_id = run_id
+            db.commit()
+            assert (
+                db.scalar(
+                    select(schema.Bill.updated_at).where(
+                        schema.Bill.bill_key == row_newest_key
+                    )
+                )
+                == newer_row_write
+            )
+        assert lastmod_of(row_newest_key) == "2025-05-20"
+
+        # A reader-visible write on the same row does move it.
+        with Session(get_engine()) as db:
+            row = db.scalar(
+                select(schema.Bill).where(schema.Bill.bill_key == row_newest_key)
+            )
+            row.title = "Sitemap fixture with a corrected title"
+            db.commit()
+        assert lastmod_of(row_newest_key) == (
+            datetime.now(timezone.utc).date().isoformat()
         )
+
+        # Legislators pass one candidate, so the newest of it is itself: their dates
+        # are untouched by any of this.
+        response = client.get("/api/v1/sitemap")
+        with Session(get_engine()) as db:
+            expected = {
+                slug: updated_at.astimezone(timezone.utc).date().isoformat()
+                for slug, updated_at in db.execute(
+                    select(schema.Legislator.slug, schema.Legislator.updated_at)
+                ).all()
+            }
+        for entry in response.json()["data"]["legislators"]:
+            assert entry["lastmod"] == expected[entry["slug"]]
     finally:
         with Session(get_engine()) as db:
-            db.execute(
-                delete(schema.Bill).where(
-                    schema.Bill.bill_key.in_([with_action_key, fallback_key])
+            bill_ids = db.scalars(
+                select(schema.Bill.id).where(schema.Bill.bill_key.in_(keys))
+            ).all()
+            if bill_ids:
+                db.execute(
+                    delete(schema.AIEnrichment).where(
+                        schema.AIEnrichment.bill_id.in_(bill_ids)
+                    )
                 )
-            )
+            db.execute(delete(schema.Bill).where(schema.Bill.bill_key.in_(keys)))
+            if run_id is not None:
+                db.execute(
+                    delete(schema.IngestionRun).where(schema.IngestionRun.id == run_id)
+                )
             db.commit()
