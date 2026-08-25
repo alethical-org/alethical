@@ -1060,3 +1060,139 @@ Decided 11 Aug 2026 for [#1405](https://github.com/alethical-org/alethical/issue
   excerpts, and the served text must not claim richer visible content than the loaded page.
 - No bill count, contact fact, generated biography, new structured data, canonical-address change,
   or ranking promise is added.
+
+---
+
+## 20. Being found at all: crawling, indexing, and the decisions taken 25 Aug 2026
+
+**Net:** Everything above is about what a page *says* to a search engine. This section is about
+whether a search engine reads it, and whether it decides to list it. They are different problems
+with different levers, and the second one is where our real exposure is: a healthy fast server buys
+no crawling, and 2 of our own surfaces are working against us today.
+
+**The first of those 2 is not a new defect. It is §18's defect on a new surface.** §18 recorded that
+`/bills` and `/legislators` served "the right title but an empty body, so the sitemap was doing almost
+all of the discovery work", and fixed it for the directories. The report page does the same thing
+today, and the explainer library is about to be built on it. Read §20.4's first bullet as a recurrence
+with a known cure rather than a discovery.
+
+Recorded from the working session that raised it. Every claim marked **measured** was checked
+against the live site or Google's own documentation on 25 Aug 2026, not inferred.
+
+### 20.1 The 2 ways a page fails to appear, in Google's own words
+
+- **"Discovered, currently not indexed"** — "The page was found by Google, but not crawled yet.
+  Typically, Google wanted to crawl the URL but this was expected to overload the site; therefore
+  Google rescheduled the crawl." That reschedule can sit indefinitely.
+- **"Crawled, currently not indexed"** — Google fetched the page and chose not to list it. Its own
+  wording: "It may or may not be indexed in the future; no need to resubmit this URL for crawling."
+
+So at scale the failure is not only slowness. Some pages never appear, and the second state is a
+judgement about the page rather than a queue.
+
+### 20.2 A fast server does not buy crawling
+
+**Measured, from Google's crawl-budget guidance:** "Even if the crawl capacity limit isn't reached,
+if crawl demand is low, Google will crawl your site less." Demand is driven by "a site's size,
+update frequency, page quality, and relevance, compared to other sites".
+
+Two consequences worth keeping:
+
+- Server capacity is a remedy only when the crawl-stats report actually shows slow responses or
+  errors. Otherwise more capacity changes nothing.
+- Page quality is a crawl lever, not only a ranking one. A thin page costs us twice.
+
+Google also warns that time spent on duplicate or unwanted addresses means "Google's crawlers might
+not explore the rest of your site". We already keep filter combinations out of the sitemap, and
+`robots.txt` still allows every address, so this is a thing to measure before blocking anything.
+
+### 20.3 Our own size, measured
+
+| sitemap | addresses |
+| --- | ---: |
+| `/sitemaps/pages.xml` | 1,076 |
+| `/sitemaps/bills.xml` | 10,517 |
+| `/sitemaps/legislators.xml` | 200 |
+| total | **11,793** |
+
+Google's guidance names 2 rough bands: sites over 1,000,000 pages changing weekly, and sites over
+10,000 pages changing daily. We are past the second figure on page count alone, and how many bill
+pages change daily during a session is not yet measured. So this is a measurement duty, not a
+diagnosed problem. **Google's only hard sitemap limit is 50,000 addresses or 50 MB per file**, so
+the existing 3-way split has plenty of room; it is a reporting convenience, not a crawl technique.
+
+### 20.4 Two defects this found, both filed
+
+- **Our own writing sends search engines no prose.** Measured: `/reports/the-money-only-goes-one-way`
+  returns 8,125 bytes carrying the title 3 times and not one sentence of the body, while
+  `/bills/94-2025-HF1` returns 11,231 bytes including its real database-driven title. Google does run
+  JavaScript, but queues those pages for a later pass and recommends serving content from the server.
+  The links out of the page are missing from the first response too, so discovery and evaluation are
+  both affected. [Issue 1760](https://github.com/alethical-org/alethical/issues/1760).
+- **The bill change date ignores anything after the last official action.** `_lastmod` in
+  `alethical/api/routers/public.py` returns the first non-null candidate, and bills pass
+  `latest_action_at` before `updated_at`, so a corrected title, regenerated summary or repaired link
+  never moves the date. Google uses the field only "if it's consistently and verifiably accurate" and
+  counts a change to the main content or the links as significant. Trust in the field is site-wide,
+  so stale dates on 10,517 pages risk the signal for all 11,793.
+  [Issue 1761](https://github.com/alethical-org/alethical/issues/1761).
+
+### 20.5 The discoverability rules for published writing
+
+Settled, and binding on the Read page and every piece that lives on it:
+
+1. **Every piece stays reachable by an ordinary link from a page search engines visit, permanently**,
+   not only while it is recent.
+2. **No "load more" button and no endless scrolling.** Google states it generally does not press
+   buttons or run actions requiring a person's click, so anything behind one is invisible. Overflow
+   means numbered pages with their own addresses and ordinary previous and next links.
+3. **The list must exist before any JavaScript runs**, which is the same requirement §20.4's first
+   defect is fixing.
+4. **Each piece has to be worth indexing on its own.** Google publishes no word count; what it does
+   publish is that a page should carry original information, cover its question completely, and add
+   value beyond rewriting another source. A short piece that answers one narrow question fully passes;
+   one that mostly points elsewhere is what "crawled, currently not indexed" is for.
+
+### 20.6 Addresses for published writing — flat, decided
+
+Every piece lives at `/reading/<name>` regardless of kind. **The kind does not go in the path**, and
+no page is published at a per-kind address.
+
+The reasoning, because it reverses 2 earlier positions in the same session and the reversals are the
+useful part:
+
+- **Folder structure is not a ranking signal.** Google's own words: keywords in a URL path "have
+  hardly any effect beyond appearing in breadcrumbs".
+- **That breadcrumb clause is what decided it.** Google "learns breadcrumbs automatically based on the
+  words in the URL", so a folder called `reports` can become reader-visible text in a search result.
+  A piece that later reads as both a report and an explainer would leave a word we no longer believe
+  sitting publicly where we cannot edit it.
+- **We do not maintain forwards, which raises the cost of any move.** On a site that forwards
+  everything, moving a piece later is nearly free and the choice barely matters. Ours does not.
+- **What flat costs, stated plainly:** Google's reporting can filter by a folder in the address even
+  with no page there, and sitemap membership is not available as a filter for clicks and views. So
+  per-kind click numbers need an exported page list joined to our own records rather than a filter.
+- **The reserved words.** `reports` and `explainers` can never be used as a piece name, or a piece
+  would collide with a per-kind listing if one is ever added.
+- **Folder grouping does help crawling at scale**, which is the one real argument the other way. It
+  is a discovery-speed benefit at sites 3 orders of magnitude larger than ours, and Google's crawl
+  guidance nowhere claims a ranking effect.
+
+**The old addresses are discontinued rather than forwarded.** `/reports` and `/money/reports` both
+answer today (`/money/reports` with a permanent forward, measured), and nothing links to them while
+the report is still marked for search engines to skip. This is a one-time exception justified by
+those 2 facts, **not a policy**: once a piece is cited, an address that has to move gets a permanent
+forward, kept indefinitely, because other people's saved links never update.
+
+### 20.7 What is deliberately not settled here
+
+- The Read page's layout, how it grows, and where the home page tells a first-time visitor we publish
+  original research. Both are open questions with Design, tracked on
+  [issue 1752](https://github.com/alethical-org/alethical/issues/1752).
+- Whether published writing carries a change date at all. The general pages sitemap carries none
+  today, which is honest and gives Google nothing to schedule on.
+- Whether any of §20.1's states are actually happening to us. §15 read Search Console on
+  11 Aug 2026 and found 557 pages indexed against 15 excluded, all 15 in classes release 1 had already
+  fixed, with the sitemap submitted that same day. What nobody has read since is the **per-sitemap**
+  split of indexed against the 2 not-indexed states, which is the only number that shows whether the
+  10,517 bill addresses are landing. Until that is read, every remedy above §20.4 is precautionary.
