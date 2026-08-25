@@ -95,6 +95,7 @@ This governs *display only* — the stored record and the text the `/ask` answer
 
     1. A report's first line is its title. Its second line is the standfirst beneath it.
     2. A report posts exactly as its author wrote it. No figure is checked before it posts, and no word is changed to fit a check.
+    2a. The Alethical team may direct a wording change to a posted report, and then the change is made (Eugene, 25 Aug 2026). Point 2 binds us, not the team: what it forbids is editing an author's words to make a check pass or a claim safer on our own initiative. It never blocks a correction, clarification or addition the team asks for. A directed change is made in full, carries the same day's date in the report's own history, and is reported back rather than negotiated. Where the change alters a figure a reader has already seen, the correction rules apply: the earlier figure stays readable, struck through and dated.
     3. Posting puts a report on the site immediately: at its own address, on the reports shelf, and in the money landing's count. Posting is never staged behind a check.
     4. A posted report is held back from search engines until Eugene opens it to them: out of the sitemap and marked for search engines to skip. Opening it is his decision, made once he is satisfied with how the checking resolved.
     5. Once live, every figure is checked against the records we hold and linked to them. A check covers that report alone.
