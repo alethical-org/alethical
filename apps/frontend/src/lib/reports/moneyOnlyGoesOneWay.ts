@@ -38,7 +38,7 @@ export const MONEY_ONLY_GOES_ONE_WAY: MoneyReport = {
       railLabel: 'Your own check',
       blocks: [
         p(
-          'The middle-of-the-road donation to a Minnesota candidate is $200. The middle-of-the-road candidate for state office raises about $13,400 for the whole campaign.',
+          'The middle-of-the-road donation to a Minnesota candidate is $200. The middle-of-the-road candidate for state office raises about $13,000 for the whole campaign.',
         ),
         p(
           "That's the scale most people picture when they think about political money: a neighbor running for the legislature, a few hundred donors, a yard sign budget.",
@@ -69,7 +69,13 @@ export const MONEY_ONLY_GOES_ONE_WAY: MoneyReport = {
         p('Those same six committees sent $730,338 back down to candidate committees.'),
         p('Nineteen dollars up for every one dollar down.'),
         p(
+          "One note on that ratio: the up and the down come from 2 different state filings, and the 2 don't fully agree. Counted from either filing alone, the ratio lands between 14.5 to 1 and 19 to 1. The direction never changes.",
+        ),
+        p(
           'So where did the rest go? Of the $58.6 million the big six paid out in contributions, $52.9 million went to other party units — sideways and upward, into state central committees and federal accounts. 1.2% reached a candidate.',
+        ),
+        p(
+          'The last slice, $4.9 million, went to political committees and funds — most of it to 3 groups that run their own independent ads.',
         ),
         p('The money does not trickle down. It pools.'),
       ],
