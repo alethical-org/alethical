@@ -73,8 +73,9 @@ function sitemapIndex(): string {
 
 function pagesUrlset(data?: SitemapPayload): string {
   const paths = [...FIXED_PAGES];
-  // A posted report is live on the site straight away, but it earns a sitemap
-  // row only once its figures are checked (grounded-answers.md rule 13).
+  // A posted report is in the sitemap from the day it posts (Eugene, 25 Aug 2026).
+  // `indexed` is true on everything we publish; it stays as a way to hold one back
+  // for a stated reason, not as a checking step every piece waits behind.
   for (const report of indexedReports()) {
     paths.push(`/reports/${encodeURIComponent(report.slug)}`);
   }

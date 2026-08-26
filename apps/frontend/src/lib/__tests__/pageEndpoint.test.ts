@@ -460,11 +460,15 @@ describe('first-response page tags', () => {
       expect(body).toContain(escapeHtml(reportSourceText(source)));
     }
 
-    // Whether a search engine may LIST the report is a separate, unchanged
-    // decision: this report is still marked to be skipped.
-    expect(report.indexed).toBe(false);
-    expect(headers.get('X-Robots-Tag')).toBe('noindex');
-    expect(body).toContain('<meta name="robots" content="noindex" />');
+    // Every published piece is visible to search engines from the day it posts
+    // (Eugene, 25 Aug 2026), so a posted report carries no skip instruction and
+    // does carry a canonical address.
+    expect(report.indexed).toBe(true);
+    expect(headers.get('X-Robots-Tag')).toBeUndefined();
+    expect(body).not.toContain('<meta name="robots" content="noindex" />');
+    expect(body).toContain(
+      '<link rel="canonical" href="https://www.alethical.com/reports/the-money-only-goes-one-way" />',
+    );
     // Rule 13 keeps a report's claims out of its share preview and tags.
     const head = body.slice(0, body.indexOf('</head>'));
     expect(head).toContain('Published Aug 20, 2026 · records through Jul 20, 2026.');

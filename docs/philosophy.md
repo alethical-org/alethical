@@ -199,6 +199,35 @@ features, no comment threads, personalization kept to tracked bills and saved pl
 quiet email when a tracked bill moves. Those are not gaps waiting to be filled. They are
 the same decision, made over and over.
 
+### 11. Reputation is the whole asset, and it is asymmetric
+
+Everything this product offers rests on one thing: that a figure on an Alethical page is
+the figure in the public record. There is no second reason to come here. Someone who finds
+one number wrong has no way to tell which of the others to trust, and no reason to spend
+the effort finding out.
+
+**Building that trust is slow and losing it is fast, so the 2 are not symmetric and must
+not be traded against each other as if they were.** A year of accurate pages buys less
+credit than a single wrong figure under a named person's photograph costs. That asymmetry
+is the reason the rules in `.claude/rules/grounded-answers.md` are strict about things that
+look small: a count we cannot reproduce, a caveat attached to the wrong dataset, an
+absence claim from a partial read, a motive inferred from a filing.
+
+Three practical consequences, each of which has already changed a decision here:
+
+- **Accuracy outranks speed, reach and polish**, every time they conflict. A page that
+  ships a week later with a checkable figure is the cheaper page.
+- **A correction is not damage control, it is the product working.** When a figure is
+  wrong we replace it with the right one and say what changed. What costs us is a wrong
+  figure left standing, not an admitted one.
+- **"Probably right" is a decision to publish something unchecked.** Every claim traces to
+  a record a reader can open, or it is marked as what we do not know. The honest gap is
+  always publishable; the confident guess never is.
+
+Eugene, 25 Aug 2026. This principle is the *why* under the strictness everywhere else, and
+it is worth stating plainly because the pressure always runs the other way: publishing
+sooner, claiming more, explaining less.
+
 ---
 
 ## The test for anything we make

@@ -120,10 +120,10 @@ the one surface allowed to add records up across members and to name a pattern, 
 conditions in
 [`.claude/rules/grounded-answers.md` rule 13](../../.claude/rules/grounded-answers.md).
 A report posts as its author wrote it, before any figure is checked, and goes live on the
-site the same day: its own address, the reports shelf, and the money landing's count. Only
-search engines wait. Until Eugene is satisfied with how the figure check resolved, the
-report is out of the sitemap and marked for search engines to skip. Every figure is checked
-against our loaded data on the live page. A figure drawn from records we do not hold yet,
+site the same day: its own address, the reports shelf, the money landing's count, and the
+sitemap search engines read (Eugene, 25 Aug 2026). Nothing waits, including search engines.
+Every figure is then checked against our loaded data on the live page, which is now the only
+thing standing between a wrong figure and a search result. A figure drawn from records we do not hold yet,
 such as lobbying (number 8 below), stays in the report, and the sources block names those
 records and the years they cover. The masthead names no undated figure (Eugene, 20 Aug 2026).
 
