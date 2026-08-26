@@ -1331,10 +1331,12 @@ committee or fund" on this list and "Ballot question committee" on its own page,
 noticed would trust neither. **The label is derived in exactly one place** —
 `committeeEyebrow` in `apps/frontend/src/lib/committeeMoney.ts`, which the committee page ships —
 so the 2 surfaces cannot diverge, and a second expansion written in the API would be that
-divergence rather than a guard against it. Only the 6 documented codes are served (`PC`, `PF`,
-`IEC`, `IEF`, `BC`, `BF`); `PCN`, `PFN` and `BCN` are documented nowhere by the Board or by us, so
-they arrive as `null` rather than as a code somebody might expand, as do the 33 registered filers
-with no money row anywhere. A client shows the register's own kind for every `null`.
+divergence rather than a guard against it. Only the 8 documented codes are served: 6 naming a
+finer kind of committee or fund (`PC`, `PF`, `IEC`, `IEF`, `BC`, `BF`) and 2 naming which layer of
+a party a party unit is (`CAU`, `SPU`, below). `PCN`, `PFN` and `BCN` are documented nowhere by
+the Board or by us, so they arrive as `null` rather than as a code somebody might expand, as do
+the 33 registered filers with no money row anywhere. A client shows the register's own kind for
+every `null`.
 
 **`office` and `district` are `null` on most rows, and that is the register, not a gap.** A
 candidate row carries office, district and party; a party-unit row and a committee-or-fund row
@@ -1343,6 +1345,34 @@ office and **0 party units carry one**. The design draws "Party unit · Ramsey C
 geography is legible only inside the printed name — #1661 rules that reading it out of the name
 is a mapping a person confirms rather than a column we hold, so nothing derives one and a party
 unit's meta line is the kind alone.
+
+**A party unit's layer: Minnesota recognises 7 and publishes 2.** `sub_type` is where both of
+them live — `CAU` a legislative caucus, `SPU` a state party committee — on 10 of the 299
+registered party units. Each reading rests on the whole population rather than a sample: all 4
+`CAU` filers are Minnesota's 4 legislative caucuses (20006 DFL House Caucus, 20011 DFL Senate
+Caucus, 20010 HRCC, 20013 Senate Victory Fund) and all 6 `SPU` filers are a party's own state
+committee (20003 MN DFL, 20008 Republican Party of Minn, 40858 Libertarian, 20905 Legal Marijuana
+Now, 20839 Grassroots-Legalize Cannabis, 20711 Forward Independence). Neither code can land on
+anything else: 0 of the 1,304 registered candidate committees and committees-or-funds carry
+either one, and 0 registration numbers absent from the register do.
+
+**The other 289 read `null`, and that means Minnesota publishes no layer — not that our loader
+missed one.** 285 of the 289 have money rows in the live release and the Board leaves the
+sub-type column blank on **all 66,486** of those rows; the remaining 4 have no money row at all.
+So congressional-district, county, legislative-district, municipal and precinct party units have
+no published layer, and the honest line for them is the register's own word, "Party unit".
+
+**A client must not fill that gap from the filer's name.** 21 registered filers are named exactly
+`Nth Congressional District <party>`, and **3 of the 21 are political committees or funds rather
+than party units** — 20733 and 20726, the Green Party's 4th and 5th district organisations, and
+41427. A layer read off a name would publish our reading of an organisation in the Board's voice
+and would already be wrong about 3 named political organisations
+(`.claude/rules/grounded-answers.md` rule 3). Measured read-only against release
+`3f2bdf90-a4e3-4cf2-b8f1-6024167da680` and register snapshot
+`9cd121a0-4fd2-467e-b4a4-5c3c600febfb` on 26 Aug 2026, and pinned by
+`test_a_party_units_layer_is_served_where_the_board_publishes_one` and
+`test_the_other_five_party_layers_are_null_and_never_read_from_the_name`
+(`alethical/tests/test_campaign_finance_lists_and_search.py`).
 
 **Two totals, deliberately.** `page.total` counts the filter the rows came from, so "showing 8 of
 778 candidate committees" is true of the list on screen; `register_total` counts the whole
