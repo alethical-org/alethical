@@ -79,7 +79,12 @@ describe('sitemap endpoint', () => {
     expect(body).toContain('<loc>https://www.alethical.com/bills?page=2</loc>');
     expect(body).toContain('<loc>https://www.alethical.com/bills?page=3</loc>');
     expect(body).toContain('<loc>https://www.alethical.com/legislators?page=2</loc>');
-    expect(body.match(/<url>/g)).toHaveLength(14);
+    // A published report is in the sitemap from the day it posts, so the count
+    // grows with every piece we publish rather than staying fixed.
+    expect(body).toContain(
+      '<loc>https://www.alethical.com/reports/the-money-only-goes-one-way</loc>',
+    );
+    expect(body.match(/<url>/g)).toHaveLength(15);
     expect(body).not.toContain('<lastmod>');
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
@@ -92,7 +97,10 @@ describe('sitemap endpoint', () => {
 
     const { body, status } = recorder.read();
     expect(status).toBe(200);
-    expect(body.match(/<url>/g)).toHaveLength(11);
+    expect(body.match(/<url>/g)).toHaveLength(12);
+    expect(body).toContain(
+      '<loc>https://www.alethical.com/reports/the-money-only-goes-one-way</loc>',
+    );
     expect(body).not.toContain('?page=');
   });
 

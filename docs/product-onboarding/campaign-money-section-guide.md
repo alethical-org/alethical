@@ -235,13 +235,15 @@ report page carries the date its records run through. With no report posted the 
 
 Posting a report puts it on the site straight away, before any of its figures have been
 checked: its own address, this shelf, and the money landing's count, all on the day it
-posts. Nothing about the report waits for our checking.
+posts. **Search engines see it the same day too (Eugene, 25 Aug 2026):** it goes into the
+site map search engines read (`/sitemap.xml`) and its page carries no instruction to skip
+it. Nothing about a report waits any more.
 
-The one thing that does wait is **search engines**. Until Eugene is satisfied with how the
-figure check resolved, the report is out of the site map that search engines read
-(`/sitemap.xml`) and its page carries an instruction telling them to skip it. So somebody
-who comes to Alethical reads the report; somebody searching Google does not find it yet.
-Opening a report to search engines is Eugene's decision, made per report.
+That used to work the other way, and the change has a cost worth knowing: a figure nobody
+has recomputed can now reach a search result on the day it posts. What stands in the way is
+the checking itself happening promptly, and a correction replacing a wrong figure the moment
+it is agreed. Holding a particular piece back stays possible, for a reason Eugene names,
+rather than being a step every piece waits behind.
 
 The shelf and every report page hand their words over in the **very first response from the
 server**, before any of the app's own code runs: the shelf its list and a plain link to

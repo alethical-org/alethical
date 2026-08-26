@@ -75,11 +75,11 @@ export interface MoneyReport {
   /** URL slug under /reports/. */
   slug: string;
   /**
-   * Whether search engines may list the report (rule 13's publishing order).
-   * Posting a report always puts it on the site: its own address, the reports
-   * shelf, and the money landing's count. This flag governs only the sitemap and
-   * the indexing tag, which is Eugene's decision, made once the figure check has
-   * resolved.
+   * Whether search engines may list the report. **Every published piece is
+   * visible from the day it posts (Eugene, 25 Aug 2026)**, so this is `true` on
+   * anything we publish and the field exists only to hold a piece back for a
+   * reason Eugene names. It governs the sitemap row, the indexing tag and the
+   * canonical link together, so all 3 follow from the one value.
    */
   indexed: boolean;
   title: string;

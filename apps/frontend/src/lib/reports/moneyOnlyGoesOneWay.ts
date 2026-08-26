@@ -17,7 +17,7 @@ const p = (text: string): ReportBlock => ({ kind: 'paragraph', runs: [{ kind: 't
 
 export const MONEY_ONLY_GOES_ONE_WAY: MoneyReport = {
   slug: 'the-money-only-goes-one-way',
-  indexed: false,
+  indexed: true,
   title: 'The Money Only Goes One Way',
   dek: "If you've ever given $50 to a candidate, this is where it went.",
   authorLine: 'ALETHICAL',
@@ -43,12 +43,14 @@ export const MONEY_ONLY_GOES_ONE_WAY: MoneyReport = {
           "That's the scale most people picture when they think about political money: a neighbor running for the legislature, a few hundred donors, a yard sign budget.",
         ),
         p('Now the actual scale.'),
-        p('Over eleven years, all 1,699 candidates for state office combined raised $108 million.'),
+        p(
+          'Over eleven years, 1,732 campaign accounts for state office took in $108 million between them. That is accounts rather than people: someone who serves in the House and later runs for the Senate has 2.',
+        ),
         p(
           'Over those same eleven years, six committees — the four legislative caucuses and the two state parties — took in $221 million.',
         ),
         p(
-          'Six organizations. Twice the money of every candidate in the state put together, counting only the donations with a name attached. Counting every dollar they each reported taking in, unnamed donors included, it is about 1.4 times.',
+          'Six organizations. Twice the money of every campaign account in the state put together, counting only the donations with a name attached. Counting every dollar they each reported taking in, unnamed donors included, it is about 1.4 times.',
         ),
         p(
           'One caution before the rest. Minnesota only requires a committee to name a donor once that person has given more than $200 in total during a calendar year, so a large share of all political money is reported as a lump figure with no names. Across the campaign accounts of sitting legislators, that unnamed share was 36.5% of the money in 2024 and 41.3% in 2025. Everything that follows below counts only the named donations.',
