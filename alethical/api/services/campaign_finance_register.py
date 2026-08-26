@@ -138,13 +138,22 @@ class CommitteeRow:
     is_closed: bool
     termination_date: Optional[date]
     #: The Board's own sub-type code from this filer's money rows, where one carries a
-    #: documented code -- the only finer kind that exists, since the register's 3 lists
-    #: carry no marker separating a ballot-question committee from a political fund
-    #: (§9.7). A **code, never a label**: the wording a reader sees is owned once, by
+    #: documented code. It carries 2 different things, both of which exist nowhere else:
+    #: the **finer kind** of a committee or fund, since the register's 3 lists carry no
+    #: marker separating a ballot-question committee from a political fund (§9.7); and
+    #: **which layer of a party** a party unit is, on the 10 party units the Board marks
+    #: `CAU` (legislative caucus) or `SPU` (state party committee).
+    #:
+    #: A **code, never a label**: the wording a reader sees is owned once, by
     #: ``committeeEyebrow`` in ``apps/frontend/src/lib/committeeMoney.ts``, so this list
     #: and the committee page cannot label the same filer 2 different ways. ``None`` for
     #: the 33 registered filers with no money row and the 73 carrying the undocumented
     #: `PCN` and `PFN` codes, and a caller renders those at the register's kind.
+    #:
+    #: ``None`` is also the answer for the other 289 party units, and it means Minnesota
+    #: publishes no layer for them rather than that we failed to read one: 285 of the 289
+    #: have money rows and the Board leaves this column blank on every one of them. A
+    #: caller prints "party unit" there and never a layer read out of the filer's name.
     sub_type: Optional[str]
 
 
@@ -526,14 +535,37 @@ def name_contains(column, typed: str):
     return column.ilike(f"%{escaped}%", escape="\\")
 
 
-#: The Board's own sub-type codes on a money row, and the only 6 anything may act on.
-#: `PCN`, `PFN` and `BCN` also appear and are **documented nowhere** -- not by the Board,
-#: whose data-downloads page publishes no legend and whose handbooks do not name them,
-#: and not by us ([#1661](https://github.com/alethical-org/alethical/issues/1661)). They
-#: are dropped here rather than served, because a code reaching a surface is a code
-#: somebody eventually expands, and there is no expansion to give: their behaviour
-#: establishes only that they are general-purpose rather than independent-expenditure.
-DOCUMENTED_SUB_TYPES = frozenset({"PC", "PF", "IEC", "IEF", "BC", "BF"})
+#: The 6 codes that name a **finer kind of committee or fund** than the register's own 3
+#: lists can. These are the codes that make a ballot-question committee knowable at all.
+FINER_KIND_SUB_TYPES = frozenset({"PC", "PF", "IEC", "IEF", "BC", "BF"})
+
+#: The 2 codes that name **which layer of a party organisation a party unit is**, and the
+#: only 2 of the Board's 7 layers that exist as data anywhere
+#: ([#1661](https://github.com/alethical-org/alethical/issues/1661) §2). `CAU` is a
+#: legislative caucus and `SPU` is a state party committee.
+#:
+#: **What establishes those 2 readings is the whole population, not a sample.** Measured
+#: on the live release and register, 26 Aug 2026: every one of the 4 `CAU` filers is one
+#: of Minnesota's 4 legislative caucuses (20006 DFL House Caucus, 20011 DFL Senate
+#: Caucus, 20010 HRCC, 20013 Senate Victory Fund), and every one of the 6 `SPU` filers is
+#: a party's own state committee (20003 MN DFL State Central Committee, 20008 Republican
+#: Party of Minn, 40858 Libertarian Party of Minn, 20905 Legal Marijuana Now Party, 20839
+#: Grassroots-Legalize Cannabis Party, 20711 Forward Independence). 4 of 4 and 6 of 6,
+#: with nothing left over to be wrong about.
+#:
+#: **And neither code can land on anything that is not a party unit.** Across the whole
+#: live release, 0 of the 1,304 registered candidate committees and committees-or-funds
+#: carry either code, and 0 registration numbers absent from the register carry either
+#: one -- so serving these cannot relabel a committee as party machinery.
+PARTY_LAYER_SUB_TYPES = frozenset({"CAU", "SPU"})
+
+#: Every code anything may act on. `PCN`, `PFN` and `BCN` also appear and are
+#: **documented nowhere** -- not by the Board, whose data-downloads page publishes no
+#: legend and whose handbooks do not name them, and not by us (#1661). They are dropped
+#: here rather than served, because a code reaching a surface is a code somebody
+#: eventually expands, and there is no expansion to give: their behaviour establishes
+#: only that they are general-purpose rather than independent-expenditure.
+DOCUMENTED_SUB_TYPES = FINER_KIND_SUB_TYPES | PARTY_LAYER_SUB_TYPES
 
 
 def sub_types_for(db: Session, release, registration_numbers) -> dict[str, str]:
@@ -545,6 +577,25 @@ def sub_types_for(db: Session, release, registration_numbers) -> dict[str, str]:
     ballot-question filer is knowable only from the code its own money rows carry. On the
     live release 493 of the 526 registered committees and funds carry one; the other 33
     have no money row anywhere, which is ordinary for a newly registered filer (#1661).
+
+    **The same column is also the only place a party unit's layer exists**, and it names
+    2 of the Board's 7 layers: `CAU` a legislative caucus, `SPU` a state party committee,
+    on 10 of the 299 registered party units. The remaining 289 are not a hole in our copy
+    and not a filer that has yet to file -- 285 of them have money rows in the live
+    release and the Board leaves this column **blank on all 66,486 of those rows**, and
+    the last 4 have no money row at all. So for congressional-district, county,
+    legislative-district, municipal and precinct party units the answer is that Minnesota
+    publishes no layer, and the honest thing a page can print is the register's own word,
+    "party unit".
+
+    **A party unit's printed name is not a substitute, and the register itself is what
+    disproves it.** 21 registered filers are named exactly `Nth Congressional District
+    <party>`, and **3 of those 21 are not party units** -- 20733 and 20726, the Green
+    Party's 4th and 5th district organisations, and 41427, all 3 registered as political
+    committees or funds. A layer read off a name would therefore publish our reading of
+    an organisation in the Board's voice, and would already be wrong about 3 named
+    political organisations. Nothing here derives a layer from a name
+    (``.claude/rules/grounded-answers.md`` rule 3).
 
     **The code is returned, never a label.** The vocabulary a reader sees is owned in one
     place -- ``committeeEyebrow`` in ``apps/frontend/src/lib/committeeMoney.ts``, which
@@ -558,8 +609,10 @@ def sub_types_for(db: Session, release, registration_numbers) -> dict[str, str]:
     Read in the same preference order as ``committee_finance.find_committee``, so 2
     surfaces asking the same question of the same filer get the same answer:
     expenditures, then contributions, then independent expenditures. Order matters only
-    in theory -- #1661 found 0 registration numbers carrying 2 different sub-types -- and
-    it is fixed anyway rather than left to whichever query returns first.
+    in theory -- 0 registration numbers carry 2 different sub-type codes, re-checked
+    across all 3 files and every filer on the live release rather than the expenditure
+    file alone -- and it is fixed anyway rather than left to whichever query returns
+    first.
 
     Scoped to the page's own filers, so the cost is a lookup for 25 rows rather than a
     scan that grows with the register. ``{}`` when no release is held: the sub-type is a

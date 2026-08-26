@@ -38,7 +38,10 @@ import pytest
 from sqlalchemy import select, text
 
 from alethical.api.services.campaign_finance_register import (
+    DOCUMENTED_SUB_TYPES,
+    FINER_KIND_SUB_TYPES,
     NO_FILINGS_SNAPSHOT,
+    PARTY_LAYER_SUB_TYPES,
     ROWS_REPLACED,
 )
 from alethical.api.services.campaign_finance_search import (
@@ -494,6 +497,120 @@ def test_an_undocumented_sub_type_code_is_withheld_rather_than_served(client, db
     rows = client.get(COMMITTEES_URL).json()["data"]["committees"]
 
     assert rows[0]["sub_type"] is None
+
+
+def test_a_party_units_layer_is_served_where_the_board_publishes_one(
+    client, db
+) -> None:
+    """Minnesota recognises 7 layers of party organisation and publishes 2 of them.
+
+    `CAU` is a legislative caucus and `SPU` is a state party committee, and they are the
+    only layer signal that exists anywhere in the data (#1661 §2). Without this a list
+    would read "Party unit" for the DFL House Caucus and for a township committee alike,
+    while the caucus's own money page already says it is a caucus -- the same 2-surfaces
+    -disagree failure the finer-kind code was served to stop.
+
+    Both readings rest on the whole population rather than a sample: all 4 `CAU` filers
+    are Minnesota's 4 legislative caucuses and all 6 `SPU` filers are a party's own state
+    committee, measured on the live release 26 Aug 2026.
+    """
+    published = Published(db)
+    snapshot = _register(db, filer_count=2)
+    _filer(db, snapshot, PARTY_UNIT, name="HRCC", kind=FilerKind.party_unit)
+    _filer(
+        db,
+        snapshot,
+        "20003",
+        name="MN DFL State Central Committee",
+        kind=FilerKind.party_unit,
+    )
+    _payment_with_sub_type(
+        db, published.expenditures, registration_number=PARTY_UNIT, sub_type="CAU"
+    )
+    _payment_with_sub_type(
+        db, published.expenditures, registration_number="20003", sub_type="SPU"
+    )
+
+    rows = {
+        row["name"]: row
+        for row in client.get(COMMITTEES_URL).json()["data"]["committees"]
+    }
+
+    assert rows["HRCC"]["sub_type"] == "CAU"
+    assert rows["MN DFL State Central Committee"]["sub_type"] == "SPU"
+    # The register kind is untouched beside it. The layer says which part of a party
+    # this is; it never reclassifies what the Board's own directory lists the filer as.
+    assert rows["HRCC"]["kind"] == "party_unit"
+    assert rows["MN DFL State Central Committee"]["kind"] == "party_unit"
+
+
+def test_the_other_five_party_layers_are_null_and_never_read_from_the_name(client, db):
+    """289 of 299 party units carry no layer, and that is Minnesota, not our loader.
+
+    285 of those 289 have money rows in the live release and the Board leaves the
+    sub-type column blank on all 66,486 of them, so a congressional-district, county,
+    legislative-district, municipal or precinct party unit has no published layer at all.
+
+    The printed name is not a substitute and the register itself disproves it: 21
+    registered filers are named exactly ``Nth Congressional District <party>`` and 3 of
+    them -- 20733 and 20726, the Green Party's 4th and 5th district organisations, and
+    41427 -- are registered as political committees or funds rather than party units. A
+    layer read off a name would publish our reading in the Board's voice and start out
+    wrong about 3 named political organisations (`.claude/rules/grounded-answers.md`
+    rule 3).
+    """
+    published = Published(db)
+    snapshot = _register(db, filer_count=2)
+    _filer(
+        db,
+        snapshot,
+        "20049",
+        name="4th Congressional District DFL",
+        kind=FilerKind.party_unit,
+    )
+    _filer(
+        db,
+        snapshot,
+        "20733",
+        name="4th Congressional District GPM",
+        kind=FilerKind.political_committee_or_fund,
+    )
+    # Both file money, and the Board's column is blank on both -- which is exactly the
+    # state the live release holds for every unlabelled party unit.
+    _payment_with_sub_type(
+        db, published.expenditures, registration_number="20049", sub_type=None
+    )
+    _payment_with_sub_type(
+        db, published.expenditures, registration_number="20733", sub_type=None
+    )
+
+    rows = {
+        row["name"]: row
+        for row in client.get(COMMITTEES_URL).json()["data"]["committees"]
+    }
+
+    # A blank column is null. Having money rows does not turn "unpublished" into a layer.
+    assert rows["4th Congressional District DFL"]["sub_type"] is None
+    # And the name-shaped trap: identical name shape, and the register calls one a party
+    # unit and the other a political committee or fund. Only the register decides.
+    assert rows["4th Congressional District DFL"]["kind"] == "party_unit"
+    assert (
+        rows["4th Congressional District GPM"]["kind"] == "political_committee_or_fund"
+    )
+    assert rows["4th Congressional District GPM"]["sub_type"] is None
+
+
+def test_the_two_layer_codes_are_the_only_ones_added_to_the_served_set() -> None:
+    """The served set is 8 codes, and each group means a different thing.
+
+    Pinned as a set rather than left to the query, because a code reaching a surface is a
+    code somebody eventually writes an expansion for. `PCN`, `PFN` and `BCN` are
+    documented nowhere by the Board or by us, so there is no expansion to write.
+    """
+    assert FINER_KIND_SUB_TYPES == {"PC", "PF", "IEC", "IEF", "BC", "BF"}
+    assert PARTY_LAYER_SUB_TYPES == {"CAU", "SPU"}
+    assert DOCUMENTED_SUB_TYPES == FINER_KIND_SUB_TYPES | PARTY_LAYER_SUB_TYPES
+    assert not DOCUMENTED_SUB_TYPES & {"PCN", "PFN", "BCN"}
 
 
 def test_no_release_leaves_the_finer_kind_absent_and_the_register_whole(client, db):

@@ -3715,12 +3715,14 @@ def campaign_finance_committees(
     "Political committee or fund" on this list and "Ballot question committee" on its own
     page, and a reader who noticed would trust neither. The label is derived in exactly
     one place -- ``committeeEyebrow`` in ``apps/frontend/src/lib/committeeMoney.ts``,
-    which the committee page ships -- so the 2 surfaces cannot diverge. 6 codes are
-    documented (``PC``, ``PF``, ``IEC``, ``IEF``, ``BC``, ``BF``) and only those are
-    served; ``PCN``, ``PFN`` and ``BCN`` are documented nowhere by the Board or by us, so
-    they arrive as ``null`` rather than as a code somebody might expand. ``null`` is also
-    the answer for the 33 registered filers with no money row at all, and a caller shows
-    the register's kind for every one of them.
+    which the committee page ships -- so the 2 surfaces cannot diverge. 8 codes are
+    documented and only those are served: 6 naming a finer kind of committee or fund
+    (``PC``, ``PF``, ``IEC``, ``IEF``, ``BC``, ``BF``) and 2 naming which layer of a
+    party a party unit is (``CAU`` a legislative caucus, ``SPU`` a state party
+    committee). ``PCN``, ``PFN`` and ``BCN`` are documented nowhere by the Board or by
+    us, so they arrive as ``null`` rather than as a code somebody might expand. ``null``
+    is also the answer for the 33 registered filers with no money row at all, and a
+    caller shows the register's kind for every one of them.
 
     Read from the download release rather than the register, which is a **second copy of
     Minnesota's data behind one response**, so ``release_id`` names it beside the
@@ -3734,6 +3736,18 @@ def campaign_finance_committees(
     unit's geography is legible only inside its printed name, and #1661 rules that
     reading it out of the name is a mapping a person confirms rather than a column we
     hold -- so nothing here derives one, and a row's meta line is the kind alone.
+
+    **What a party unit's ``sub_type`` does and does not settle.** Minnesota's Board
+    recognises 7 layers of party organisation and publishes 2 of them: ``CAU`` and
+    ``SPU``, on 10 of the 299 registered party units. For the other 289 the answer is
+    ``null``, and it means Minnesota publishes no layer rather than that we failed to
+    read one -- 285 of the 289 have money rows in the live release and the Board leaves
+    the column blank on every one of them. So a congressional-district, county,
+    legislative-district, municipal or precinct party unit reads "Party unit" and nothing
+    finer. A client must not fill that gap from the name: 21 registered filers are named
+    exactly ``Nth Congressional District <party>`` and **3 of them are political
+    committees or funds rather than party units**, so a name-derived layer starts out
+    wrong about 3 named political organisations.
 
     **Two totals, deliberately.** ``page.total`` counts the filter the rows came from, so
     "showing 8 of 778 candidate committees" is true of the list on screen.
