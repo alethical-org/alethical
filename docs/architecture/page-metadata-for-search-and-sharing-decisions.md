@@ -1238,15 +1238,17 @@ shelf, which is the list every posted piece is reachable from today.
 ### Why this does not weaken rule 13
 
 [`.claude/rules/grounded-answers.md`](../../.claude/rules/grounded-answers.md) rule 13 holds a
-report's claims out of its **share preview and metadata**, and keeps *listing* a report behind
-Eugene's separate per-report decision. Both are untouched:
+report's claims out of its **share preview and metadata**, and keeps *listing* a report on its own
+`indexed` flag. Both are untouched:
 
 - The tags still carry title and dates only. `moneyReportPageMetadata` is unchanged, and a test
   asserts the served `<head>` carries the dates line and none of the report's figures.
-- The `indexed` flag still decides listing on its own. The posted report is `indexed: false`, so the
-  response still carries `X-Robots-Tag: noindex` and the noindex tag, and the report stays out of the
-  sitemap. Serving the body and permitting the listing are different acts, and only the first one
-  changed here.
+- The `indexed` flag still decides listing on its own, and serving the body never sets it. What
+  changed there is rule 13 itself, not this work: since 25 Aug 2026 a posted report is
+  `indexed: true` from the day it posts, and the hold-back stays available for a piece Eugene names
+  ([#1767](https://github.com/alethical-org/alethical/pull/1767)). A held piece still carries
+  `X-Robots-Tag: noindex`, the noindex tag and no canonical, and stays out of the sitemap. Serving
+  the body and permitting the listing are different acts, and only the first one changed here.
 - Rule 13 forbids editing a report's words at all, so the served text is the **stored** text. Nothing
   is summarised, trimmed or re-punctuated for the server.
 

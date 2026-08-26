@@ -8,8 +8,9 @@
  * is the one door: a wording change the Alethical team directs is made in full,
  * which is a different act from us softening a line to pass a check.
  *
- * Live on the site from the day it posted. Search engines are told to skip it
- * (`indexed: false`) until the figure check resolves, which is Eugene's call.
+ * Live on the site from the day it posted, and visible to search engines from
+ * that day too (`indexed: true`, set in #1767). The figure check runs on the
+ * live page rather than gating it: rule 13's publishing order, points 3 to 5.
  */
 import type { MoneyReport, ReportBlock } from '../moneyReports';
 

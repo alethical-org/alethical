@@ -340,10 +340,12 @@ export function askPageMetadata(question?: string | null): PageMetadata {
  *
  * An indexed report carries no `nosnippet`: an ordinary search snippet always
  * links to the page holding the method, and suppressing body text on a
- * transparency product reads as hiding the thing it publishes. A report still
- * waiting on its figure check is `noindex`, and carries no canonical while it
- * is. It stays fully readable on the site either way; only search engines are
- * held off (rule 13's publishing order).
+ * transparency product reads as hiding the thing it publishes. Since 25 Aug
+ * 2026 rule 13 publishes every piece `indexed: true` on the day it posts, so
+ * the `noindex` branch below is now the hold-back for a piece Eugene names
+ * rather than the default; a held piece carries no canonical while it is held.
+ * It stays fully readable on the site either way; only search engines are held
+ * off (rule 13's publishing order).
  */
 export function moneyReportPageMetadata(report: {
   slug: string;
