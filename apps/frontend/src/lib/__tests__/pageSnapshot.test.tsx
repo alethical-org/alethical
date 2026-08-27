@@ -92,12 +92,18 @@ const {
   READING_PAGE_EMPTY_TITLE,
   READING_PAGE_HEADING,
   READING_PAGE_INTRO,
+  isoDateCapsLabel,
+  pieceMastheadLine,
+  pieceReadingMinutes,
+  piecePath,
   publishedResearch,
   researchDatesLine,
   researchRunsText,
   researchSourceText,
 } = await import('../research');
 const { MONEY_ONLY_GOES_ONE_WAY } = await import('../researchPieces/moneyOnlyGoesOneWay');
+const { WHO_HAS_TO_REPORT_THEIR_MONEY } =
+  await import('../researchPieces/whoHasToReportTheirMoney');
 const { legislatorDisplayName, legislatorDistrictLine } = await import('../legislatorProfile');
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -588,6 +594,119 @@ describe('the piece snapshot serves the piece’s own writing, unchanged', () =>
   });
 });
 
+/**
+ * The guide is the first piece served whose sources sentences each hold several
+ * links, and the first with no standfirst and no short version. So this checks
+ * the 3 things that differ from the research piece and nothing that does not.
+ */
+describe('the guide snapshot serves the guide\u2019s own writing, unchanged', () => {
+  const guide = WHO_HAS_TO_REPORT_THEIR_MONEY;
+  const snapshot = researchPageSnapshot(guide);
+  const html = renderPageSnapshot(snapshot);
+
+  it('heads the page with the title and the guide masthead line', () => {
+    expect(snapshot.heading).toBe(guide.title);
+    expect(snapshot.subheading).toBe(pieceMastheadLine(guide));
+    expect(snapshot.subheading).toBe('GUIDE \u00b7 5 MIN \u00b7 WRITTEN AUGUST 2026');
+  });
+
+  it('opens with the set\u2019s name and the prose above the first heading', () => {
+    // No standfirst to print, so nothing is invented to fill the slot.
+    expect(guide.dek).toBe('');
+    expect(snapshot.body[0]).toBe('How the Money Works');
+    expect(snapshot.body.slice(1)).toEqual(
+      (guide.intro ?? []).map((block) =>
+        block.kind === 'paragraph' ? researchRunsText(block.runs) : '',
+      ),
+    );
+  });
+
+  it('draws no short-version box for a piece that has none', () => {
+    const headings = (snapshot.sections ?? []).map((section) => section.heading);
+    expect(headings).not.toContain('Short version');
+    expect(headings).toEqual([
+      ...guide.sections.map((section) => section.heading),
+      'Where this comes from',
+    ]);
+  });
+
+  it('serves every sentence and bullet verbatim', () => {
+    const stored = new Set<string>(
+      [...(guide.intro ?? []), ...guide.sections.flatMap((section) => section.blocks)].flatMap(
+        (block) => {
+          if (block.kind === 'paragraph') return [researchRunsText(block.runs)];
+          if (block.kind === 'bullets') return block.items.map(researchRunsText);
+          return [];
+        },
+      ),
+    );
+    // The prose above the first heading is served in the page's body, the rest
+    // inside its sections, so both are collected.
+    const served: string[] = [...snapshot.body];
+    for (const section of snapshot.sections ?? []) {
+      for (const block of section.blocks ?? []) {
+        if (block.kind === 'prose') served.push(...block.lines);
+        else if (block.kind === 'bullets') served.push(...block.items);
+      }
+    }
+    for (const line of stored) {
+      expect(served).toContain(line);
+    }
+  });
+
+  it('serves each of the 11 source addresses as a real anchor', () => {
+    // Rule 13 requires a filing body to be named AND linked at its source, and
+    // rule 5 requires a citation to be reachable by address. A link that only
+    // appears once the app has run is neither.
+    const hrefs = (guide.sourceRuns ?? [])
+      .flat()
+      .filter((run) => run.kind === 'externalLink')
+      .map((run) => (run as { href: string }).href);
+    expect(hrefs).toHaveLength(11);
+    for (const href of hrefs) {
+      expect(html).toContain(`<a href="${href}">`);
+    }
+    // One anchor back to the list, plus one per source address, and no others.
+    expect(html.match(/href="/g)).toHaveLength(1 + hrefs.length);
+    expect(snapshot.links).toEqual([{ label: READING_PAGE_HEADING, href: '/reading' }]);
+  });
+
+  it('prints no piece number anywhere in the served page', () => {
+    for (const banned of ['piece 1', 'Piece 1', 'PIECE 1', '1 of 5']) {
+      expect(html).not.toContain(banned);
+    }
+  });
+
+  it('states no figure of its own', () => {
+    // Trailing punctuation is trimmed on both sides: a statute cite reads
+    // "10A.105." in the sentence and "10A.105" as the anchor's own words, and the
+    // full stop between them is not a figure.
+    const figures = (text: string) =>
+      (text.match(/\d[\d,.]*/g) ?? []).map((token) => token.replace(/[.,]+$/, ''));
+    const storedText = [
+      guide.title,
+      pieceMastheadLine(guide),
+      guide.set!.name,
+      ...(guide.intro ?? []).map((block) =>
+        block.kind === 'paragraph' ? researchRunsText(block.runs) : '',
+      ),
+      ...guide.sections.flatMap((section) => [
+        section.heading,
+        ...section.blocks.flatMap((block) => {
+          if (block.kind === 'paragraph') return [researchRunsText(block.runs)];
+          if (block.kind === 'bullets') return block.items.map(researchRunsText);
+          return [];
+        }),
+      ]),
+      ...(guide.sourceRuns ?? []).map(researchRunsText),
+    ].join(' ');
+    const stored = new Set(figures(storedText));
+    const served = figures(visibleText(html));
+    expect(served.length).toBeGreaterThan(20);
+    expect(served.filter((number) => !stored.has(number))).toEqual([]);
+  });
+});
+
 describe('the /reading page snapshot links to every posted piece', () => {
   const pieces = publishedResearch();
   const snapshot = readingPageSnapshot(pieces);
@@ -599,13 +718,23 @@ describe('the /reading page snapshot links to every posted piece', () => {
   });
 
   it('gives every posted piece a real link a crawler can follow', () => {
-    expect(pieces.length).toBeGreaterThan(0);
+    expect(pieces.length).toBeGreaterThan(1);
     expect(snapshot.records).toHaveLength(pieces.length);
     for (const piece of pieces) {
-      expect(html).toContain(`href="/reading/research/${piece.slug}"`);
+      // Each piece's own folder, from the one function that decides it.
+      expect(html).toContain(`href="${piecePath(piece)}"`);
       expect(html).toContain(piece.title);
-      expect(html).toContain(piece.dek.replace(/'/g, '&#39;'));
+      if (piece.dek) expect(html).toContain(piece.dek.replace(/'/g, '&#39;'));
     }
+  });
+
+  it('lists both kinds, each with the quiet line its card draws', () => {
+    const research = pieces.find((piece) => piece.traits.research)!;
+    const guide = pieces.find((piece) => !piece.traits.research)!;
+    // A research piece's publication date; a guide's reading time and no date.
+    expect(html).toContain(`PUBLISHED ${isoDateCapsLabel(research.publishedOn)}`);
+    expect(html).toContain(`${pieceReadingMinutes(guide)} MIN`);
+    expect(html).toContain(`href="/reading/guides/${guide.slug}"`);
   });
 
   it('says what the /reading page says when nothing is posted yet', () => {
@@ -632,9 +761,12 @@ describe('both screens keep reading the same registry the server reads', () => {
     for (const call of [
       'InlineRuns',
       'piece.dek',
-      'researchDatesLine(piece)',
+      'pieceMastheadLine(piece)',
       'piece.sources',
+      'piece.sourceRuns',
       'piece.shortVersion',
+      'piece.intro',
+      'piece.set',
       'section.blocks',
     ]) {
       expect(source).toContain(call);

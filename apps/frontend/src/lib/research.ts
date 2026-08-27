@@ -1,6 +1,13 @@
 /**
- * The published-research registry for the campaign money section
- * (`.claude/rules/grounded-answers.md` rule 13, signed pieces).
+ * The registry of everything Alethical publishes in its own name — research
+ * pieces and guides both (`.claude/rules/grounded-answers.md` rule 13;
+ * `docs/architecture/published-writing-decisions.md`).
+ *
+ * A piece carries 2 trait flags rather than 1 kind, and the label a reader sees
+ * is derived from them. The names here still say `research` throughout because
+ * the research piece shipped first; the container concept is a **piece**, and
+ * renaming the type, the constant and the screen is recorded as naming debt on
+ * issue 1752 rather than done in the same change that adds guides.
  *
  * A signed piece is the one surface allowed to add figures up across members,
  * cite filing bodies beyond Minnesota's Campaign Finance Board, and define
@@ -17,6 +24,7 @@
  */
 
 import { MONEY_ONLY_GOES_ONE_WAY } from './researchPieces/moneyOnlyGoesOneWay';
+import { WHO_HAS_TO_REPORT_THEIR_MONEY } from './researchPieces/whoHasToReportTheirMoney';
 
 /** One run of piece prose. Links are outward only in this phase — committee
  * record pages do not exist yet, and a link may not point at a page that is
@@ -80,9 +88,48 @@ export interface ResearchCorrection {
   note: string;
 }
 
+/**
+ * Which of Alethical's 2 kinds of writing a piece carries. Two flags rather
+ * than one `kind` value, because a piece can carry both and 1 of the planned
+ * pieces already does: a guide that adds a figure up across legislators needs
+ * `.claude/rules/grounded-answers.md` rule 13 in full
+ * (`docs/architecture/published-writing-decisions.md` §2.8). A single-value
+ * field would make that case impossible to state.
+ *
+ * The label a reader sees is derived, never stored: research trait present means
+ * the label reads Research (§2.7), so a both-traits piece cannot show 2 labels
+ * and claim 2 sets of promises when only the stricter one governs.
+ */
+export interface PieceTraits {
+  research: boolean;
+  guide: boolean;
+}
+
+/**
+ * A set is a group of pieces written to be read together. A piece does not need
+ * one (§2.2).
+ *
+ * `position` is the reading order inside the set and is used for ORDERING ONLY.
+ * No reader-facing surface prints it — not "piece 1", not "piece 1 of 5", not a
+ * numbered row (§2.12, Eugene 27 Aug 2026). The set's name alone is what a
+ * reader is told.
+ */
+export interface PieceSet {
+  name: string;
+  position: number;
+}
+
 export interface ResearchPiece {
-  /** URL slug under /reading/research/. */
+  /**
+   * URL slug under the piece's own folder: /reading/research/ for a piece
+   * carrying the research trait, /reading/guides/ for one carrying only the
+   * guide trait (§2.1). `pieceAddressFolder` is the single place that decides.
+   */
   slug: string;
+  /** Which kinds this piece carries. The reader-facing label derives from it. */
+  traits: PieceTraits;
+  /** The set this piece belongs to, where it belongs to one. */
+  set?: PieceSet;
   /**
    * Whether search engines may list the piece. **Every published piece is
    * visible from the day it posts (Eugene, 25 Aug 2026)**, so this is `true` on
@@ -105,8 +152,27 @@ export interface ResearchPiece {
   authorLine: string;
   /** ISO date the piece was published, e.g. "2026-08-17". */
   publishedOn: string;
-  /** ISO date the records run through, e.g. "2026-08-11". */
+  /**
+   * ISO date the records run through, e.g. "2026-08-11". A research piece's
+   * masthead prints it beside the publication date (rule 13's publishing order,
+   * point 8). A guide's masthead prints 1 date and no second one, so on a guide
+   * this is the record of which release its figures were computed from rather
+   * than a line a reader sees; the guide's own prose states that date beside the
+   * figure.
+   */
   recordsThrough: string;
+  /**
+   * ISO date somebody last re-checked the piece against the records, distinct
+   * from the publication date (settled 26 Aug 2026,
+   * `docs/architecture/published-writing-decisions.md` §4.4).
+   *
+   * Absent, the slot reads "Written August 2026" and promises nothing. Present,
+   * the same slot reads "Checked March 2027": one word swapped, never a second
+   * date. That is the point of the swap — re-verifying a piece moves its date
+   * forward, so staying accurate makes a piece look current instead of old,
+   * while a "Checked" date that never moves would say we stopped looking.
+   */
+  checkedOn?: string;
   /**
    * Every filing body the piece used. Kept on the record, rendered nowhere
    * since 20 Aug 2026: the sources block names the bodies in its own prose
@@ -121,11 +187,29 @@ export interface ResearchPiece {
    * 11).
    */
   undatedRecordsNote?: string;
-  /** The boxed opening summary ("SHORT VERSION"). */
+  /** The boxed opening summary ("SHORT VERSION"). Empty when a piece has none. */
   shortVersion: ResearchBlock[];
+  /**
+   * Prose before the first section heading, drawn as ordinary paragraphs rather
+   * than in a box. A guide opens by saying what it is about; that is not a short
+   * version of a set of findings and must not be dressed as one.
+   */
+  intro?: ResearchBlock[];
   sections: ResearchSection[];
-  /** The where-these-numbers-come-from block. */
+  /** The where-these-numbers-come-from block: 1 outward link per entry. */
   sources: ResearchSource[];
+  /**
+   * The same block for a piece whose source sentences carry MORE than 1 outward
+   * link each. The guide's closing block names 7 sources across 11 links, and
+   * `ResearchSource` holds 1 link per entry, so squeezing it into that shape
+   * would break sentences that rule 13 forbids editing.
+   *
+   * A piece sets exactly one of `sources` and `sourceRuns`; new pieces should
+   * reach for this one, which is the general shape. `sources` is kept because
+   * the posted research piece is served from it today and rearranging a live
+   * page's served text buys nothing.
+   */
+  sourceRuns?: ResearchInline[][];
   /** Set when a figure was corrected after publication. */
   correction?: ResearchCorrection;
   /**
@@ -142,12 +226,26 @@ export interface ResearchPiece {
  * (lib/pageSnapshot.ts). A second copy is how a served page and a rendered page
  * start disagreeing, which is worse than either one being wrong alone.
  */
-export const READING_PAGE_HEADING = 'Campaign money research';
+export const READING_PAGE_HEADING = 'Campaign money research and guides';
 export const READING_PAGE_INTRO =
-  'Our own research, in plain language, drawn from the filings Minnesota campaigns, parties and funds make with the state.';
+  'Our own research and plain-language guides, drawn from the filings Minnesota campaigns, parties and funds make with the state.';
 export const READING_PAGE_EMPTY_TITLE = 'Nothing published yet.';
 export const READING_PAGE_EMPTY_BODY =
-  'When we publish research on these records, it appears here, dated and carrying the date its records run through.';
+  'When we publish research or a guide on these records, it appears here, dated and carrying the date its records run through.';
+
+/**
+ * The 2 group headings on the /reading page, research first (Eugene, 27 Aug
+ * 2026, overruling the drawn order). Grouping by our own 2 kinds is deliberate
+ * and its objection is recorded: a reader arrives with a subject in mind rather
+ * than a genre, and the page is revisited at 4 sets or a dozen research pieces
+ * (§2.11).
+ *
+ * A card under one of these headings prints no kind word of its own: the heading
+ * is the source and the card inherits, or the page says "Guide" twice in one
+ * glance (§2.10).
+ */
+export const READING_RESEARCH_GROUP_HEADING = 'RESEARCH';
+export const READING_GUIDES_GROUP_HEADING = 'GUIDES';
 
 /**
  * One run of piece prose as a reader sees it: the runs joined, because the
@@ -171,11 +269,48 @@ export function researchSourceText(source: ResearchSource): string {
  * is what the /reading page, the money landing and every address-based reader
  * show. Whether a search engine may list it is the separate `indexed` flag.
  */
-export const PUBLISHED_RESEARCH: ResearchPiece[] = [MONEY_ONLY_GOES_ONE_WAY];
+export const PUBLISHED_RESEARCH: ResearchPiece[] = [
+  WHO_HAS_TO_REPORT_THEIR_MONEY,
+  MONEY_ONLY_GOES_ONE_WAY,
+];
 
-/** Every posted piece: the /reading page and the money landing's count. */
+/** Every posted piece, of either kind: the /reading page reads this. */
 export function publishedResearch(): ResearchPiece[] {
   return PUBLISHED_RESEARCH;
+}
+
+/**
+ * The label a reader sees for a piece: **Research** when it carries the research
+ * trait, otherwise **Guide** (§2.7). Derived, never stored, so a both-traits
+ * piece shows 1 label and cannot claim 2 sets of promises.
+ */
+export function pieceKindLabel(piece: Pick<ResearchPiece, 'traits'>): 'Research' | 'Guide' {
+  return piece.traits.research ? 'Research' : 'Guide';
+}
+
+/**
+ * The folder a piece's address sits in: `research` for anything carrying the
+ * research trait, including a piece that also teaches, and `guides` for a piece
+ * carrying only the guide trait (§2.1). One place decides, so a piece has
+ * exactly 1 address and the router can reject the other one.
+ */
+export function pieceAddressFolder(piece: Pick<ResearchPiece, 'traits'>): 'research' | 'guides' {
+  return piece.traits.research ? 'research' : 'guides';
+}
+
+/** A piece's own address, the only one it answers on. */
+export function piecePath(piece: Pick<ResearchPiece, 'traits' | 'slug'>): string {
+  return `/reading/${pieceAddressFolder(piece)}/${encodeURIComponent(piece.slug)}`;
+}
+
+/** Posted pieces the page labels Research, newest first. */
+export function piecesLabelledResearch(): ResearchPiece[] {
+  return PUBLISHED_RESEARCH.filter((piece) => pieceKindLabel(piece) === 'Research');
+}
+
+/** Posted pieces the page labels Guide, newest first. */
+export function piecesLabelledGuide(): ResearchPiece[] {
+  return PUBLISHED_RESEARCH.filter((piece) => pieceKindLabel(piece) === 'Guide');
 }
 
 /**
@@ -280,4 +415,160 @@ export function researchShareDescription(
 /** The quiet identity line shown inside the Share panel. */
 export function researchSharePanelDescription(piece: Pick<ResearchPiece, 'publishedOn'>): string {
   return `Published ${isoDateLabel(piece.publishedOn)}`;
+}
+
+// --- Reading time, and the written-or-checked date ---
+
+/**
+ * How many words a reader reads in the piece itself: every heading, every
+ * sentence, every bullet, every table cell, every inset, and the closing sources
+ * block. The title and the standfirst are the masthead rather than the piece, so
+ * they are left out.
+ *
+ * Counted from the piece's own stored words and never typed, because a typed
+ * number goes stale the first time a sentence changes (§4.3, and the 25 Aug 2026
+ * ruling behind it).
+ */
+export function pieceWordCount(piece: ResearchPiece): number {
+  const runs = (items: ResearchInline[]) => researchRunsText(items);
+  const fromBlocks = (blocks: readonly ResearchBlock[]): string[] =>
+    blocks.flatMap((block) => {
+      if (block.kind === 'paragraph') return [runs(block.runs)];
+      if (block.kind === 'bullets') return block.items.map(runs);
+      if (block.kind === 'note') return [block.text];
+      return [...block.columns, ...block.rows.flat()];
+    });
+
+  const text = [
+    ...fromBlocks(piece.shortVersion),
+    ...fromBlocks(piece.intro ?? []),
+    ...piece.sections.flatMap((section) => [
+      section.heading,
+      ...fromBlocks(section.blocks),
+      ...(section.methodologyInset
+        ? [section.methodologyInset.title, section.methodologyInset.body]
+        : []),
+    ]),
+    ...piece.sources.map(researchSourceText),
+    ...piece.sources.flatMap((source) => (source.noteLink ? [source.noteLink.text] : [])),
+    ...(piece.sourceRuns ?? []).map(runs),
+  ].join(' ');
+
+  return text.split(/\s+/).filter(Boolean).length;
+}
+
+/** Words a reader gets through in a minute. The ordinary adult silent-reading rate. */
+export const WORDS_PER_MINUTE = 200;
+
+/** The piece's reading time in whole minutes, never below 1. */
+export function pieceReadingMinutes(piece: ResearchPiece): number {
+  return Math.max(1, Math.round(pieceWordCount(piece) / WORDS_PER_MINUTE));
+}
+
+const FULL_MONTH_LABELS = [
+  'JANUARY',
+  'FEBRUARY',
+  'MARCH',
+  'APRIL',
+  'MAY',
+  'JUNE',
+  'JULY',
+  'AUGUST',
+  'SEPTEMBER',
+  'OCTOBER',
+  'NOVEMBER',
+  'DECEMBER',
+] as const;
+
+/**
+ * "2026-08-27" → "AUGUST 2026". Month and year only: the day a guide was written
+ * is precision nobody needs about a piece that explains a standing rule, and
+ * parsed by hand for the same reason `isoDateLabel` is, so the label cannot shift
+ * a month with the reader's time zone.
+ */
+export function isoMonthYearCapsLabel(isoDate: string): string {
+  const match = isoDate.match(/^(\d{4})-(\d{2})/);
+  if (!match) return isoDate.toUpperCase();
+  const month = FULL_MONTH_LABELS[Number(match[2]) - 1];
+  if (!month) return isoDate.toUpperCase();
+  return `${month} ${match[1]}`;
+}
+
+/**
+ * "WRITTEN AUGUST 2026" until somebody re-checks the piece, "CHECKED MARCH 2027"
+ * from then on. Same slot, 1 word swapped, and never 2 dates (§4.4).
+ */
+export function pieceWrittenLine(piece: Pick<ResearchPiece, 'publishedOn' | 'checkedOn'>): string {
+  return piece.checkedOn
+    ? `CHECKED ${isoMonthYearCapsLabel(piece.checkedOn)}`
+    : `WRITTEN ${isoMonthYearCapsLabel(piece.publishedOn)}`;
+}
+
+/** The sentence-case form of the same slot, for a share preview and a page description. */
+export function pieceWrittenSentence(
+  piece: Pick<ResearchPiece, 'publishedOn' | 'checkedOn'>,
+): string {
+  const line = pieceWrittenLine(piece);
+  const [word, ...rest] = line.split(' ');
+  const month = rest[0] ? `${rest[0][0]}${rest[0].slice(1).toLowerCase()}` : '';
+  return `${word[0]}${word.slice(1).toLowerCase()} ${[month, rest[1]].filter(Boolean).join(' ')}.`;
+}
+
+/**
+ * The masthead line under a piece's title.
+ *
+ * A research piece carries its 2 dates and nothing else — rule 13's publishing
+ * order, point 8, is explicit — so no kind word and no minutes join it there.
+ * A guide carries its kind, its reading time and its 1 date, which is the line
+ * Design settled and Eugene ruled on: "GUIDE · 5 MIN · WRITTEN AUGUST 2026",
+ * with no piece number anywhere in it (§2.12).
+ */
+export function pieceMastheadLine(piece: ResearchPiece): string {
+  if (piece.traits.research) return researchDatesLine(piece);
+  return [
+    pieceKindLabel(piece).toUpperCase(),
+    `${pieceReadingMinutes(piece)} MIN`,
+    pieceWrittenLine(piece),
+  ].join(' · ');
+}
+
+/** What a piece's own page metadata and prepared share text may carry: its dates. */
+export function pieceShareDescription(piece: ResearchPiece): string {
+  return piece.traits.research ? researchShareDescription(piece) : pieceWrittenSentence(piece);
+}
+
+/** The quiet identity line inside the Share panel, for either kind. */
+export function pieceSharePanelDescription(piece: ResearchPiece): string {
+  return piece.traits.research
+    ? researchSharePanelDescription(piece)
+    : pieceWrittenSentence(piece).replace(/\.$/, '');
+}
+
+/**
+ * The label above the closing sources block. A guide states rules rather than
+ * figures, so the piece's own wording is the honest one; the research piece keeps
+ * the words it posted with.
+ */
+export function pieceSourcesLabel(piece: ResearchPiece): string {
+  return piece.traits.research ? 'WHERE THESE NUMBERS COME FROM' : 'WHERE THIS COMES FROM';
+}
+
+/** The call to action on a piece's card, naming what the reader is about to read. */
+export function pieceCardCta(piece: ResearchPiece): string {
+  return piece.traits.research ? 'Read the research \u2192' : 'Read the guide \u2192';
+}
+
+/**
+ * The quiet meta line on a piece's card on the /reading page.
+ *
+ * A research piece's card carries its publication date, as it has since it
+ * posted. A guide's carries its reading time and no date: the date on a guide
+ * says which event it is and belongs on the piece, never on a listing row, which
+ * is where staleness reads worst and where a date does least work (settled
+ * 26 Aug 2026, §4.4).
+ */
+export function pieceCardMetaLine(piece: ResearchPiece): string {
+  return piece.traits.research
+    ? `PUBLISHED ${isoDateCapsLabel(piece.publishedOn)}`
+    : `${pieceReadingMinutes(piece)} MIN`;
 }

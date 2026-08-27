@@ -102,14 +102,19 @@ chamber profile and to the member list. Home, Find My Legislator, and the plain 
 directories arrive with their own readable text and links. Filtered lists, answer pages, and legal
 pages carry no first-response snapshot.
 
-One of **our own published research pieces** arrives with the whole thing: its title, its standfirst,
-its two
-dates, its short version, every section under its own heading, every sentence, bullet and table in the
-order the piece reads, and the "where these numbers come from" block. Until this shipped, our own
-writing was the one thing on the site whose words a search engine could only read after running the
-app, while every bill page handed its text over immediately. The **`/reading` page** arrives with its
-heading, its introduction, and an ordinary link to every posted piece, which is what keeps an older
-piece reachable on a first visit rather than only after the app starts. Not a word of a piece is
+One of **our own published pieces** arrives with the whole thing, whether it is a research piece or a
+guide: its title, its standfirst or the set it belongs to, its own masthead line, its short version
+where it has one, every section under its own heading, every sentence, bullet and table in the order
+the piece reads, and the closing sources block. **Every address that block names arrives as a real
+link**, not as words with nothing to click: the guide "Who has to report their money" cites 11 of
+them, 8 at the Campaign Finance Board and 3 at the state's own statutes, and a citation a reader can
+only follow after the app has run is not reachable by address at all
+([`.claude/rules/grounded-answers.md` rule 5](../../.claude/rules/grounded-answers.md)). Until this
+shipped, our own writing was the one thing on the site whose words a search engine could only read
+after running the app, while every bill page handed its text over immediately. The **`/reading` page**
+arrives with its heading, its introduction, and an ordinary link to every posted piece, at that
+piece's own address, which is what keeps an older piece reachable on a first visit rather than only
+after the app starts. Not a word of a piece is
 rewritten, shortened or summarised for this: the served sentences are the stored sentences
 ([`.claude/rules/grounded-answers.md` rule 13](../../.claude/rules/grounded-answers.md) forbids editing
 a piece's text at all), and whether a search engine may *list* a piece is still the separate,

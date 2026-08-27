@@ -1,8 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { runInNewContext } from 'node:vm';
 
-import { publishedResearch, researchRunsText, researchSourceText } from '../research';
+import {
+  READING_PAGE_HEADING,
+  piecePath,
+  publishedResearch,
+  researchRunsText,
+  researchSourceText,
+} from '../research';
 import { MONEY_ONLY_GOES_ONE_WAY } from '../researchPieces/moneyOnlyGoesOneWay';
+import { WHO_HAS_TO_REPORT_THEIR_MONEY } from '../researchPieces/whoHasToReportTheirMoney';
 import { escapeHtml } from '../share';
 
 const { readPageShell } = vi.hoisted(() => ({ readPageShell: vi.fn() }));
@@ -395,7 +402,7 @@ describe('first-response page tags', () => {
     for (const path of ['/reading', '/reports', '/money/reports']) {
       const { body, status } = await serve({ path });
       expect(status).toBe(200);
-      expect(body).toContain('<title>Campaign money research | Alethical</title>');
+      expect(body).toContain(`<title>${READING_PAGE_HEADING} | Alethical</title>`);
       expect(body).toContain('<link rel="canonical" href="https://www.alethical.com/reading"');
     }
   });
@@ -415,11 +422,13 @@ describe('first-response page tags', () => {
     const { body, status } = await serve({ path: '/reading' });
 
     expect(status).toBe(200);
-    expect(body).toContain('<h1>Campaign money research</h1>');
+    expect(body).toContain(`<h1>${READING_PAGE_HEADING}</h1>`);
     expect(body).toContain('drawn from the filings Minnesota campaigns, parties and funds');
-    expect(publishedResearch().length).toBeGreaterThan(0);
+    expect(publishedResearch().length).toBeGreaterThan(1);
     for (const piece of publishedResearch()) {
-      expect(body).toContain(`href="/reading/research/${piece.slug}"`);
+      // Each piece's own folder, so a crawler is never sent to an address the
+      // router rejects.
+      expect(body).toContain(`href="${piecePath(piece)}"`);
       expect(body).toContain(piece.title);
     }
     // Read from the registry the server already holds, so no data call.
@@ -476,6 +485,84 @@ describe('first-response page tags', () => {
     const head = body.slice(0, body.indexOf('</head>'));
     expect(head).toContain('Published Aug 20, 2026 · records through Jul 20, 2026.');
     expect(head).not.toContain('Six organizations');
+  });
+
+  // The guide is the first piece whose closing block carries several links in one
+  // sentence, so this is where "named and linked at its source" is measured for
+  // the shape that holds most of them (grounded-answers rule 5, rule 13).
+  it('sends a guide its whole body and every one of its source links', async () => {
+    const calls: string[] = [];
+    stubNetwork((url) => {
+      calls.push(url);
+      return { status: 500 };
+    });
+
+    const guide = WHO_HAS_TO_REPORT_THEIR_MONEY;
+    const { body, headers, status } = await serve({ path: piecePath(guide) });
+
+    expect(status).toBe(200);
+    expect(calls).toHaveLength(0);
+    expect(body).toContain(`<h1>${guide.title}</h1>`);
+    // Kind, minutes and 1 date. No second date, and no piece number.
+    expect(body).toContain('GUIDE · 5 MIN · WRITTEN AUGUST 2026');
+    expect(body).not.toContain('RECORDS THROUGH');
+    expect(body).not.toContain('piece 1');
+    // The set's name, which is all a reader is told about where the piece sits.
+    expect(body).toContain('How the Money Works');
+
+    for (const section of guide.sections) {
+      expect(body).toContain(escapeHtml(section.heading));
+    }
+    const sentences = [...(guide.intro ?? []), ...guide.sections.flatMap((s) => s.blocks)].flatMap(
+      (block) => {
+        if (block.kind === 'paragraph') return [researchRunsText(block.runs)];
+        if (block.kind === 'bullets') return block.items.map((item) => researchRunsText(item));
+        return [];
+      },
+    );
+    expect(sentences.length).toBeGreaterThan(20);
+    for (const sentence of sentences) {
+      expect(body).toContain(escapeHtml(sentence));
+    }
+
+    // Every address the sources block holds, as a real anchor: 8 at the Board and
+    // 3 at the statutes.
+    const hrefs = (guide.sourceRuns ?? [])
+      .flat()
+      .filter((run) => run.kind === 'externalLink')
+      .map((run) => (run as { href: string }).href);
+    expect(hrefs).toHaveLength(11);
+    for (const href of hrefs) {
+      expect(body).toContain(`<a href="${escapeHtml(href)}">`);
+    }
+    expect(hrefs.filter((href) => href.includes('cfb.mn.gov'))).toHaveLength(8);
+    expect(hrefs.filter((href) => href.includes('revisor.mn.gov'))).toHaveLength(3);
+
+    expect(guide.indexed).toBe(true);
+    expect(headers.get('X-Robots-Tag')).toBeUndefined();
+    expect(body).toContain(
+      '<link rel="canonical" href="https://www.alethical.com/reading/guides/who-has-to-report-their-money" />',
+    );
+    // Title and dates only in the tags: no figure and no claim.
+    const head = body.slice(0, body.indexOf('</head>'));
+    expect(head).toContain('Written August 2026.');
+    expect(head).not.toContain('$66,750');
+  });
+
+  // A piece answers on 1 address. The other folder is an absent page, not a
+  // second way in.
+  it('serves a missing page for a piece asked for under the wrong folder', async () => {
+    stubNetwork(() => ({ status: 500 }));
+
+    for (const path of [
+      '/reading/research/who-has-to-report-their-money',
+      '/reading/guides/the-money-only-goes-one-way',
+      '/reports/who-has-to-report-their-money',
+    ]) {
+      const { body, status } = await serve({ path });
+      expect(status).toBe(404);
+      expect(body).toContain('<title>Page not found | Alethical</title>');
+    }
   });
 
   it('still treats an unknown or unpublished piece address as a missing page', async () => {

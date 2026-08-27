@@ -85,7 +85,11 @@ describe('sitemap endpoint', () => {
     expect(body).toContain(
       '<loc>https://www.alethical.com/reading/research/the-money-only-goes-one-way</loc>',
     );
-    expect(body.match(/<url>/g)).toHaveLength(16);
+    // A guide is listed at its own folder, from the same registry.
+    expect(body).toContain(
+      '<loc>https://www.alethical.com/reading/guides/who-has-to-report-their-money</loc>',
+    );
+    expect(body.match(/<url>/g)).toHaveLength(17);
     // The addresses the /reading page and its pieces used to answer on are
     // forwarded, never listed: a sitemap row for an address that answers with a
     // permanent forward asks Google to crawl a redirect
@@ -105,9 +109,12 @@ describe('sitemap endpoint', () => {
 
     const { body, status } = recorder.read();
     expect(status).toBe(200);
-    expect(body.match(/<url>/g)).toHaveLength(13);
+    expect(body.match(/<url>/g)).toHaveLength(14);
     expect(body).toContain(
       '<loc>https://www.alethical.com/reading/research/the-money-only-goes-one-way</loc>',
+    );
+    expect(body).toContain(
+      '<loc>https://www.alethical.com/reading/guides/who-has-to-report-their-money</loc>',
     );
     expect(body).not.toContain('?page=');
   });

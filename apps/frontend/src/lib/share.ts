@@ -1,7 +1,13 @@
 import { plainBillSummary } from './billDetail';
 import { registrationNumberFromSlug } from './committeeMoney';
 import { directoryPagePath } from './directoryPagination';
-import { READING_PAGE_HEADING, READING_PAGE_INTRO, researchShareDescription } from './research';
+import {
+  READING_PAGE_HEADING,
+  READING_PAGE_INTRO,
+  pieceShareDescription,
+  piecePath,
+  type ResearchPiece,
+} from './research';
 
 export const PUBLIC_SITE_ORIGIN = 'https://www.alethical.com';
 export const SOCIAL_PREVIEW_IMAGE_URL = `${PUBLIC_SITE_ORIGIN}/social-preview.png`;
@@ -30,7 +36,7 @@ const LEGISLATOR_LIST_SUBJECT = 'Minnesota House and Senate members';
 export const X_SHORT_LINK_LENGTH = 23;
 const X_TEXT_LENGTH = 280 - X_SHORT_LINK_LENGTH - 1;
 
-export type ShareSubject = 'bill' | 'legislator' | 'answer' | 'research' | 'committee';
+export type ShareSubject = 'bill' | 'legislator' | 'answer' | 'research' | 'guide' | 'committee';
 
 export interface ShareContent {
   subject: ShareSubject;
@@ -343,18 +349,16 @@ export function askPageMetadata(question?: string | null): PageMetadata {
  * It stays fully readable on the site either way; only search engines are held
  * off (rule 13's publishing order).
  */
-export function researchPageMetadata(piece: {
-  slug: string;
-  title: string;
-  publishedOn: string;
-  recordsThrough: string;
-  indexed: boolean;
-}): PageMetadata {
+export function researchPageMetadata(piece: ResearchPiece): PageMetadata {
   return pageMetadata({
     title: titleFor(piece.title),
     socialTitle: piece.title,
-    description: researchShareDescription(piece),
-    canonicalPath: piece.indexed ? `/reading/research/${encodeURIComponent(piece.slug)}` : '',
+    // A research piece is described by its 2 dates; a guide by the 1 slot that
+    // reads Written or Checked. Either way, dates only.
+    description: pieceShareDescription(piece),
+    // The canonical address comes from the piece's traits, so it can only ever be
+    // the 1 address the router accepts for it.
+    canonicalPath: piece.indexed ? piecePath(piece) : '',
     noindex: !piece.indexed,
   });
 }

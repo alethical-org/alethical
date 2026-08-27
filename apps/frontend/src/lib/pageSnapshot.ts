@@ -32,10 +32,13 @@ import {
   READING_PAGE_EMPTY_TITLE,
   READING_PAGE_HEADING,
   READING_PAGE_INTRO,
-  isoDateCapsLabel,
-  researchDatesLine,
+  pieceCardMetaLine,
+  pieceMastheadLine,
+  pieceSourcesLabel,
+  piecePath,
   researchRunsText,
   researchSourceText,
+  type ResearchInline,
   type ResearchPiece,
   type ResearchBlock,
 } from './research';
@@ -480,7 +483,9 @@ export function legislatorPageSnapshot(legislator: LegislatorSnapshotSource): Pa
  * A published piece's own writing, in the first server response
  * (issue #1760). Every other snapshot in this file reads a record out of the
  * database; these two read the piece registry, so the text is already on the
- * server and no data call is involved.
+ * server and no data call is involved. One pair of functions covers both kinds:
+ * a research piece and a guide are the same document shape with different
+ * mastheads.
  *
  * Rule 13 of `.claude/rules/grounded-answers.md` keeps a piece's claims out of
  * its share preview and metadata, and that is untouched: this is the piece
@@ -515,6 +520,44 @@ function researchBlocks(blocks: readonly ResearchBlock[]): SnapshotBlock[] {
   });
 }
 
+/** Every outward link inside a run list, in order. */
+function runLinks(runs: readonly ResearchInline[]): SnapshotSectionItem[] {
+  return runs
+    .filter(
+      (run): run is Extract<ResearchInline, { kind: 'externalLink' }> =>
+        run.kind === 'externalLink',
+    )
+    .map((run) => ({ label: run.text, href: run.href }));
+}
+
+/**
+ * The closing sources block, whichever shape the piece stores it in.
+ *
+ * Both shapes serve their sentences as prose and then every address they hold as
+ * real anchors, because rule 13 requires a filing body to be named AND linked at
+ * its source, and a link the reader only gets once the app has run is not a link
+ * at all to anything reading the first response. The guide's block holds 11
+ * addresses across 7 sentences, so without the anchor list its citations would be
+ * words with nothing to follow.
+ */
+function pieceSourceBlocks(piece: ResearchPiece): SnapshotBlock[] {
+  const runLists = piece.sourceRuns ?? [];
+  const prose = [
+    ...piece.sources.map(researchSourceText),
+    ...runLists.map((runs) => researchRunsText(runs)),
+  ];
+  const links = [
+    ...piece.sources.flatMap((source) =>
+      source.noteLink ? [{ label: source.noteLink.text, href: source.noteLink.href }] : [],
+    ),
+    ...runLists.flatMap(runLinks),
+  ];
+  return [
+    { kind: 'prose', lines: prose },
+    ...(links.length ? [{ kind: 'links' as const, items: links }] : []),
+  ];
+}
+
 export function researchPageSnapshot(piece: ResearchPiece): PageSnapshot {
   // The piece's own label wording. The screen draws these same words in mono
   // caps; case is styling this file has never copied, the way a bill's
@@ -536,7 +579,9 @@ export function researchPageSnapshot(piece: ResearchPiece): PageSnapshot {
           },
         ]
       : []),
-    { heading: 'Short version', blocks: researchBlocks(piece.shortVersion) },
+    ...(piece.shortVersion.length
+      ? [{ heading: 'Short version', blocks: researchBlocks(piece.shortVersion) }]
+      : []),
     ...piece.sections.map((section) => ({
       heading: section.heading,
       blocks: [
@@ -552,35 +597,30 @@ export function researchPageSnapshot(piece: ResearchPiece): PageSnapshot {
       ],
     })),
     {
-      heading: 'Where these numbers come from',
-      blocks: [
-        { kind: 'prose', lines: piece.sources.map(researchSourceText) },
-        // Every source that stores an address contributes a real anchor. Without
-        // this the first response named the Board and linked nowhere, which is a
-        // half-kept version of rule 13's requirement to name and link a filing
-        // body, and of the piece's own closing line about not needing to trust us.
-        ...(piece.sources.some((source) => source.noteLink)
-          ? [
-              {
-                kind: 'links' as const,
-                items: piece.sources
-                  .filter((source) => source.noteLink)
-                  .map((source) => ({
-                    label: source.noteLink!.text,
-                    href: source.noteLink!.href,
-                  })),
-              },
-            ]
-          : []),
-      ],
+      heading: pieceSourcesLabel(piece)
+        .toLowerCase()
+        .replace(/^./, (first) => first.toUpperCase()),
+      blocks: pieceSourceBlocks(piece),
     },
   ];
 
   return {
     heading: piece.title,
-    subheading: researchDatesLine(piece),
+    // A research piece's 2 dates, or a guide's kind, minutes and 1 date — the
+    // same line the screen draws under the title.
+    subheading: pieceMastheadLine(piece),
     bodyHeading: '',
-    body: [piece.dek],
+    // The standfirst, where the piece has one. A guide has none and names its set
+    // instead, then opens with plain prose before its first heading — so this is
+    // the run of paragraphs the loaded page draws above the first section, in the
+    // same order.
+    body: [
+      ...(piece.dek ? [piece.dek] : []),
+      ...(piece.set ? [piece.set.name] : []),
+      ...researchBlocks(piece.intro ?? []).flatMap((block) =>
+        block.kind === 'prose' ? block.lines : [],
+      ),
+    ],
     bodyIsList: false,
     facts: [],
     sections,
@@ -605,8 +645,11 @@ export function readingPageSnapshot(pieces: readonly ResearchPiece[]): PageSnaps
     facts: [],
     records: pieces.map((piece) => ({
       label: piece.title,
-      detail: [`PUBLISHED ${isoDateCapsLabel(piece.publishedOn)}`, piece.dek].join(' · '),
-      href: `/reading/research/${encodeURIComponent(piece.slug)}`,
+      // The same quiet line the card draws: a research piece's publication date,
+      // a guide's reading time.
+      detail: [pieceCardMetaLine(piece), piece.dek].filter(Boolean).join(' · '),
+      // Each piece's own address, from the one function that decides the folder.
+      href: piecePath(piece),
     })),
     // The page's own back link, to the section the nav calls "Money in politics".
     links: [{ label: 'Money in politics', href: '/money' }],

@@ -674,6 +674,14 @@ export function RootNavigator() {
               component={ResearchScreen}
               options={{ headerShown: false, title: 'Research' }}
             />
+            {/* The same screen: a guide and a research piece are one document
+                shape with different mastheads, so 2 route names exist only to
+                write the 2 addresses. */}
+            <Stack.Screen
+              name="Guide"
+              component={ResearchScreen}
+              options={{ headerShown: false, title: 'Guide' }}
+            />
             <Stack.Screen
               name="MoneySearch"
               component={MoneySearchScreen}
