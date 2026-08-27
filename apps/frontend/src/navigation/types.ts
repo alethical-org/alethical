@@ -65,10 +65,11 @@ export type RootStackParamList = {
   // Campaign money section (campaign money IA handoff, Aug 2026). All public —
   // the section has no sign-in gate.
   MoneyLanding: undefined;
-  MoneyReports: undefined;
-  // One published research report. The slug resolves against the published-report
-  // registry (lib/moneyReports.ts); an unknown slug lands on NotFound.
-  MoneyReport: { slug: string };
+  Reading: undefined;
+  // One published piece of our own research, at /reading/research/{slug}. The
+  // slug resolves against the published-research registry (lib/research.ts); an
+  // unknown slug lands on NotFound.
+  Research: { slug: string };
   // One committee's money page and its full-payments view. The slug's trailing
   // registration number is the identity and the only part that resolves — names
   // collide, numbers do not — so an old or misspelled name part still lands on

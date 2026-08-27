@@ -12,11 +12,11 @@
  * that day too (`indexed: true`, set in #1767). The figure check runs on the
  * live page rather than gating it: rule 13's publishing order, points 3 to 5.
  */
-import type { MoneyReport, ReportBlock } from '../moneyReports';
+import type { ResearchPiece, ResearchBlock } from '../research';
 
-const p = (text: string): ReportBlock => ({ kind: 'paragraph', runs: [{ kind: 'text', text }] });
+const p = (text: string): ResearchBlock => ({ kind: 'paragraph', runs: [{ kind: 'text', text }] });
 
-export const MONEY_ONLY_GOES_ONE_WAY: MoneyReport = {
+export const MONEY_ONLY_GOES_ONE_WAY: ResearchPiece = {
   slug: 'the-money-only-goes-one-way',
   indexed: true,
   title: 'The Money Only Goes One Way',

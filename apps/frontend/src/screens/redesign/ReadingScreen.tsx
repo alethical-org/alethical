@@ -3,29 +3,32 @@ import Svg, { Path } from 'react-native-svg';
 
 import { useResponsive } from '../../hooks/useResponsive';
 import {
-  MONEY_REPORTS_SHELF_EMPTY_BODY,
-  MONEY_REPORTS_SHELF_EMPTY_TITLE,
-  MONEY_REPORTS_SHELF_HEADING,
-  MONEY_REPORTS_SHELF_INTRO,
-  publishedReports,
-  reportDateCapsLabel,
-  type MoneyReport,
-} from '../../lib/moneyReports';
+  READING_PAGE_EMPTY_BODY,
+  READING_PAGE_EMPTY_TITLE,
+  READING_PAGE_HEADING,
+  READING_PAGE_INTRO,
+  publishedResearch,
+  isoDateCapsLabel,
+  type ResearchPiece,
+} from '../../lib/research';
 import { linkProps, routePath } from '../../navigation/links';
 import type { RootScreenProps } from '../../navigation/types';
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { theme as t } from '../../theme/tokens';
 
 /**
- * The reports shelf at /reports — the site's research lane, reached from the
- * nav's Reports group and from the money landing's "What we found" card
- * (grounded-answers.md rule 13; "Money report web.dc.html", screen A). It sat
- * at /money/reports until #1698 moved it out of the money section.
+ * The /reading page — everything Alethical publishes in its own name, reached
+ * from the nav's Reading group and from the money landing's "What we found"
+ * card (grounded-answers.md rule 13; "Money report web.dc.html", screen A). It
+ * sat at /money/reports until #1698, and at /reports until 27 Aug 2026
+ * (docs/architecture/published-writing-decisions.md §2.1).
  *
- * Ships in its nothing-published state: `publishedReports()` is empty until a
- * report's text is approved for publication, and this screen renders whatever
- * that registry holds. Newest first, one card per report; a year's worth is what
- * earns grouping by year, so the shelf is a flat list.
+ * Every card here is a piece carrying the research trait, because that is all
+ * the registry holds today. Guides and sets are planned and unbuilt: the 2
+ * trait flags, set membership, reading time and the checked date the combined
+ * listing needs are the missing fields in §4 of that same file, tracked on
+ * issue 1752. Newest first, one card per piece; a year's worth is what earns
+ * grouping by year, so this is a flat list.
  */
 
 /** Left-pointing chevron for the back link, drawn — the site font has no arrow glyphs. */
@@ -43,30 +46,30 @@ function BackChevron() {
   );
 }
 
-function ReportCard({
-  report,
+function ResearchCard({
+  piece,
   onOpen,
   isMobile,
 }: {
-  report: MoneyReport;
+  piece: ResearchPiece;
   onOpen: () => void;
   isMobile: boolean;
 }) {
   return (
-    <Pressable {...linkProps(routePath.moneyReport(report.slug), onOpen)} style={styles.card}>
+    <Pressable {...linkProps(routePath.research(piece.slug), onOpen)} style={styles.card}>
       <View style={styles.cardBody}>
-        <Text style={styles.cardDates}>PUBLISHED {reportDateCapsLabel(report.publishedOn)}</Text>
-        <Text style={[styles.cardTitle, isMobile && styles.cardTitleMobile]}>{report.title}</Text>
-        <Text style={styles.cardDek}>{report.dek}</Text>
-        <Text style={styles.cardCtaText}>Read the report →</Text>
+        <Text style={styles.cardDates}>PUBLISHED {isoDateCapsLabel(piece.publishedOn)}</Text>
+        <Text style={[styles.cardTitle, isMobile && styles.cardTitleMobile]}>{piece.title}</Text>
+        <Text style={styles.cardDek}>{piece.dek}</Text>
+        <Text style={styles.cardCtaText}>Read the research →</Text>
       </View>
     </Pressable>
   );
 }
 
-export function MoneyReportsShelfScreen({ navigation }: RootScreenProps<'MoneyReports'>) {
+export function ReadingScreen({ navigation }: RootScreenProps<'Reading'>) {
   const { isMobile } = useResponsive();
-  const reports = publishedReports();
+  const pieces = publishedResearch();
 
   return (
     <PageBackground>
@@ -91,43 +94,43 @@ export function MoneyReportsShelfScreen({ navigation }: RootScreenProps<'MoneyRe
               heading is three lines of navigation furniture before the page
               says anything, and the label's words ("CAMPAIGN MONEY") are the
               subject the heading was missing, so they moved into it. The
-              heading names the things on the shelf rather than the act of
-              finding them, and stays plural so one report and a collection
+              heading names the things on the page rather than the act of
+              finding them, and stays uncountable so one piece and a collection
               both read right (header design prompt, 20 Aug 2026).
 
               The description says who wrote the research and what it was drawn
               from. It deliberately does not promise that figures link to their
-              filings: no posted report links one yet, and rule 6 of
+              filings: no posted piece links one yet, and rule 6 of
               .claude/rules/grounded-answers.md only lets copy claim what the
               shipped surface delivers. That sentence belongs here the day a
-              report carries the links. */}
+              piece carries the links. */}
           <Text
             accessibilityRole="header"
             aria-level={1}
             style={[styles.heading, isMobile && styles.headingMobile]}
           >
-            {MONEY_REPORTS_SHELF_HEADING}
+            {READING_PAGE_HEADING}
           </Text>
-          <Text style={styles.intro}>{MONEY_REPORTS_SHELF_INTRO}</Text>
+          <Text style={styles.intro}>{READING_PAGE_INTRO}</Text>
 
           <View style={styles.rule} />
 
-          {reports.length === 0 ? (
+          {pieces.length === 0 ? (
             <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>{MONEY_REPORTS_SHELF_EMPTY_TITLE}</Text>
-              {/* No promise of future reports — "an index promising work we have
+              <Text style={styles.emptyTitle}>{READING_PAGE_EMPTY_TITLE}</Text>
+              {/* No promise of future pieces — "an index promising work we have
                   not done is the one claim here we could not link" (design rule;
                   wording approved by the design-review session, 19 Aug 2026). */}
-              <Text style={styles.emptyBody}>{MONEY_REPORTS_SHELF_EMPTY_BODY}</Text>
+              <Text style={styles.emptyBody}>{READING_PAGE_EMPTY_BODY}</Text>
             </View>
           ) : (
             <View style={styles.cardList}>
-              {reports.map((report) => (
-                <ReportCard
-                  key={report.slug}
-                  report={report}
+              {pieces.map((piece) => (
+                <ResearchCard
+                  key={piece.slug}
+                  piece={piece}
                   isMobile={isMobile}
-                  onOpen={() => navigation.navigate('MoneyReport', { slug: report.slug })}
+                  onOpen={() => navigation.navigate('Research', { slug: piece.slug })}
                 />
               ))}
             </View>

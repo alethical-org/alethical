@@ -20,7 +20,7 @@ import {
   RECORD_DOES_NOT_COVER,
 } from '../../lib/moneyLanding';
 import { NAME_SEARCH_PLACEHOLDER } from '../../lib/moneyNameSearch';
-import { publishedReports, reportDatesLine } from '../../lib/moneyReports';
+import { publishedResearch, researchDatesLine } from '../../lib/research';
 import { linkProps, routePath } from '../../navigation/links';
 import type { RootScreenProps } from '../../navigation/types';
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
@@ -107,8 +107,8 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
   const { isMobile } = useResponsive();
   const summaryQuery = useCampaignFinanceSummary();
   const filingsQuery = useCampaignFinanceFilings(5);
-  const reports = publishedReports();
-  const newestReport = reports[0];
+  const pieces = publishedResearch();
+  const newestPiece = pieces[0];
 
   const summary = summaryQuery.data;
   const register = summary?.register.state === 'reported' ? summary.register : null;
@@ -180,23 +180,23 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
             </Text>
           </View>
 
-          {/* WHAT WE FOUND — the research lane, first in prominence. The shelf
-              exists, so the card links; with nothing published it says so and
-              counts 0 honestly. */}
+          {/* WHAT WE FOUND — the research lane, first in prominence. The
+              /reading page exists, so the card links; with nothing published it
+              says so and counts 0 honestly. */}
           <Pressable
-            {...linkProps(routePath.moneyReports(), () => navigation.navigate('MoneyReports'))}
+            {...linkProps(routePath.reading(), () => navigation.navigate('Reading'))}
             style={styles.featuredCard}
           >
             <Text style={styles.featuredEyebrow}>WHAT WE FOUND</Text>
-            {newestReport ? (
+            {newestPiece ? (
               <>
                 <Text style={[styles.featuredTitle, isMobile && styles.featuredTitleMobile]}>
-                  {newestReport.title}
+                  {newestPiece.title}
                 </Text>
-                <Text style={styles.featuredDek}>{newestReport.dek}</Text>
-                <Text style={styles.featuredDates}>{reportDatesLine(newestReport)}</Text>
+                <Text style={styles.featuredDek}>{newestPiece.dek}</Text>
+                <Text style={styles.featuredDates}>{researchDatesLine(newestPiece)}</Text>
                 <View style={styles.featuredCta}>
-                  <Text style={styles.featuredCtaText}>Read the report</Text>
+                  <Text style={styles.featuredCtaText}>Read the research</Text>
                   <ForwardArrow color={t.colors.text.greenOnLight} />
                 </View>
               </>
@@ -207,11 +207,11 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
                 </Text>
                 <Text style={styles.featuredDek}>
                   Nothing is published yet. When we publish research on these records, it appears on
-                  the shelf, dated and carrying the date its records run through.
+                  our research page, dated and carrying the date its records run through.
                 </Text>
-                <Text style={styles.featuredDates}>0 REPORTS PUBLISHED</Text>
+                <Text style={styles.featuredDates}>0 RESEARCH PIECES PUBLISHED</Text>
                 <View style={styles.featuredCta}>
-                  <Text style={styles.featuredCtaText}>See the shelf</Text>
+                  <Text style={styles.featuredCtaText}>See our research</Text>
                   <ForwardArrow color={t.colors.text.greenOnLight} />
                 </View>
               </>

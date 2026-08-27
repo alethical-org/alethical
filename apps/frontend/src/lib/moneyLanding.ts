@@ -16,7 +16,7 @@
  */
 
 import type { MoneyFilingRow } from '../data/types';
-import { reportDateLabel } from './moneyReports';
+import { isoDateLabel } from './research';
 
 /** The three permanent gaps, shown above anything a reader might search for.
  *  The donor sentence is rule 12's exact wording. */
@@ -64,8 +64,8 @@ export function laneCountLine(count: number | null, unit: string): string | null
  */
 export function filingPeriodLine(filing: Pick<MoneyFilingRow, 'periodStart' | 'periodEnd'>) {
   if (!filing.periodEnd) return null;
-  if (!filing.periodStart) return `covers through ${reportDateLabel(filing.periodEnd)}`;
-  return `covers ${reportDateLabel(filing.periodStart)} – ${reportDateLabel(filing.periodEnd)}`;
+  if (!filing.periodStart) return `covers through ${isoDateLabel(filing.periodEnd)}`;
+  return `covers ${isoDateLabel(filing.periodStart)} – ${isoDateLabel(filing.periodEnd)}`;
 }
 
 /**

@@ -28,17 +28,17 @@ import {
   LEGISLATOR_DIRECTORY_HEADING,
 } from './directoryPagination';
 import {
-  MONEY_REPORTS_SHELF_EMPTY_BODY,
-  MONEY_REPORTS_SHELF_EMPTY_TITLE,
-  MONEY_REPORTS_SHELF_HEADING,
-  MONEY_REPORTS_SHELF_INTRO,
-  reportDateCapsLabel,
-  reportDatesLine,
-  reportRunsText,
-  reportSourceText,
-  type MoneyReport,
-  type ReportBlock,
-} from './moneyReports';
+  READING_PAGE_EMPTY_BODY,
+  READING_PAGE_EMPTY_TITLE,
+  READING_PAGE_HEADING,
+  READING_PAGE_INTRO,
+  isoDateCapsLabel,
+  researchDatesLine,
+  researchRunsText,
+  researchSourceText,
+  type ResearchPiece,
+  type ResearchBlock,
+} from './research';
 import { formatSessionLabel } from './sessionLabel';
 import { FIND_MY_LEGISLATOR_INSTRUCTIONS } from './findMyLegislator';
 import { HOME_PUBLIC_INTRO } from './homepage';
@@ -110,7 +110,7 @@ export interface SnapshotSectionItem {
 
 /**
  * One piece of a section, in the order the page draws it. Prose, bullets and a
- * table interleave inside a published report, and the order carries meaning: a
+ * table interleave inside a published piece, and the order carries meaning: a
  * table introduced by "The biggest spenders:" has to arrive after that sentence
  * and before the ones that comment on it.
  */
@@ -119,7 +119,7 @@ export type SnapshotBlock =
   | { kind: 'bullets'; items: string[] }
   | { kind: 'table'; columns: string[]; rows: string[][] }
   /**
-   * Real anchors inside a section's blocks. A published report's sources name
+   * Real anchors inside a section's blocks. A published piece's sources name
    * official filing bodies, and rule 13 requires those to be named **and
    * linked** at their source; a link that only reaches the reader after the app
    * runs is not linked for anything reading the first response.
@@ -474,19 +474,19 @@ export function legislatorPageSnapshot(legislator: LegislatorSnapshotSource): Pa
   };
 }
 
-// --- Published reports ---
+// --- Published research ---
 
 /**
- * A published report's own writing, in the first server response
+ * A published piece's own writing, in the first server response
  * (issue #1760). Every other snapshot in this file reads a record out of the
- * database; these two read the report registry, so the text is already on the
+ * database; these two read the piece registry, so the text is already on the
  * server and no data call is involved.
  *
- * Rule 13 of `.claude/rules/grounded-answers.md` keeps a report's claims out of
- * its share preview and metadata, and that is untouched: this is the report
+ * Rule 13 of `.claude/rules/grounded-answers.md` keeps a piece's claims out of
+ * its share preview and metadata, and that is untouched: this is the piece
  * page's own body, the same words a reader sees, and the `indexed` flag still
  * decides on its own whether a search engine may list the page. The same rule
- * forbids editing a report's words at all, which is why nothing here shortens,
+ * forbids editing a piece's words at all, which is why nothing here shortens,
  * re-punctuates or summarises a stored sentence.
  *
  * An outward link inside a SENTENCE contributes its words and not its address,
@@ -496,14 +496,14 @@ export function legislatorPageSnapshot(legislator: LegislatorSnapshotSource): Pa
  * a link at all to anything reading the first response.
  */
 
-/** One report block as the screen draws it, in the report's own order. */
-function reportBlocks(blocks: readonly ReportBlock[]): SnapshotBlock[] {
+/** One piece block as the screen draws it, in the piece's own order. */
+function researchBlocks(blocks: readonly ResearchBlock[]): SnapshotBlock[] {
   return blocks.map((block): SnapshotBlock => {
     if (block.kind === 'paragraph') {
-      return { kind: 'prose', lines: [reportRunsText(block.runs)] };
+      return { kind: 'prose', lines: [researchRunsText(block.runs)] };
     }
     if (block.kind === 'bullets') {
-      return { kind: 'bullets', items: block.items.map((item) => reportRunsText(item)) };
+      return { kind: 'bullets', items: block.items.map((item) => researchRunsText(item)) };
     }
     // A note is prose in the first response. Its box is styling the screen owns,
     // and the sentence inside it qualifies a figure, so it is exactly the text a
@@ -515,32 +515,32 @@ function reportBlocks(blocks: readonly ReportBlock[]): SnapshotBlock[] {
   });
 }
 
-export function moneyReportPageSnapshot(report: MoneyReport): PageSnapshot {
-  // The report's own label wording. The screen draws these same words in mono
+export function researchPageSnapshot(piece: ResearchPiece): PageSnapshot {
+  // The piece's own label wording. The screen draws these same words in mono
   // caps; case is styling this file has never copied, the way a bill's
   // "Where it stands" is served in sentence case too.
   const sections: SnapshotSection[] = [
-    ...(report.newerFilingsNote
+    ...(piece.newerFilingsNote
       ? [
           {
             heading: 'Newer filings exist',
-            blocks: [{ kind: 'prose' as const, lines: [report.newerFilingsNote] }],
+            blocks: [{ kind: 'prose' as const, lines: [piece.newerFilingsNote] }],
           },
         ]
       : []),
-    ...(report.correction
+    ...(piece.correction
       ? [
           {
-            heading: report.correction.datedLabel,
-            blocks: [{ kind: 'prose' as const, lines: [report.correction.note] }],
+            heading: piece.correction.datedLabel,
+            blocks: [{ kind: 'prose' as const, lines: [piece.correction.note] }],
           },
         ]
       : []),
-    { heading: 'Short version', blocks: reportBlocks(report.shortVersion) },
-    ...report.sections.map((section) => ({
+    { heading: 'Short version', blocks: researchBlocks(piece.shortVersion) },
+    ...piece.sections.map((section) => ({
       heading: section.heading,
       blocks: [
-        ...reportBlocks(section.blocks),
+        ...researchBlocks(section.blocks),
         ...(section.methodologyInset
           ? [
               {
@@ -554,16 +554,16 @@ export function moneyReportPageSnapshot(report: MoneyReport): PageSnapshot {
     {
       heading: 'Where these numbers come from',
       blocks: [
-        { kind: 'prose', lines: report.sources.map(reportSourceText) },
+        { kind: 'prose', lines: piece.sources.map(researchSourceText) },
         // Every source that stores an address contributes a real anchor. Without
         // this the first response named the Board and linked nowhere, which is a
         // half-kept version of rule 13's requirement to name and link a filing
-        // body, and of the report's own closing line about not needing to trust us.
-        ...(report.sources.some((source) => source.noteLink)
+        // body, and of the piece's own closing line about not needing to trust us.
+        ...(piece.sources.some((source) => source.noteLink)
           ? [
               {
                 kind: 'links' as const,
-                items: report.sources
+                items: piece.sources
                   .filter((source) => source.noteLink)
                   .map((source) => ({
                     label: source.noteLink!.text,
@@ -577,42 +577,38 @@ export function moneyReportPageSnapshot(report: MoneyReport): PageSnapshot {
   ];
 
   return {
-    heading: report.title,
-    subheading: reportDatesLine(report),
+    heading: piece.title,
+    subheading: researchDatesLine(piece),
     bodyHeading: '',
-    body: [report.dek],
+    body: [piece.dek],
     bodyIsList: false,
     facts: [],
     sections,
-    links: [{ label: MONEY_REPORTS_SHELF_HEADING, href: '/reports' }],
+    links: [{ label: READING_PAGE_HEADING, href: '/reading' }],
   };
 }
 
 /**
- * The reports shelf, with one crawlable link per posted report. The link is the
+ * The /reading page, with one crawlable link per posted piece. The link is the
  * point: without it the route to an older piece exists only after the app has
  * run, so an archive is unreachable on a first visit.
  */
-export function moneyReportsShelfPageSnapshot(reports: readonly MoneyReport[]): PageSnapshot {
+export function readingPageSnapshot(pieces: readonly ResearchPiece[]): PageSnapshot {
   return {
-    heading: MONEY_REPORTS_SHELF_HEADING,
+    heading: READING_PAGE_HEADING,
     subheading: '',
     bodyHeading: '',
-    body: reports.length
-      ? [MONEY_REPORTS_SHELF_INTRO]
-      : [
-          MONEY_REPORTS_SHELF_INTRO,
-          MONEY_REPORTS_SHELF_EMPTY_TITLE,
-          MONEY_REPORTS_SHELF_EMPTY_BODY,
-        ],
+    body: pieces.length
+      ? [READING_PAGE_INTRO]
+      : [READING_PAGE_INTRO, READING_PAGE_EMPTY_TITLE, READING_PAGE_EMPTY_BODY],
     bodyIsList: false,
     facts: [],
-    records: reports.map((report) => ({
-      label: report.title,
-      detail: [`PUBLISHED ${reportDateCapsLabel(report.publishedOn)}`, report.dek].join(' · '),
-      href: `/reports/${encodeURIComponent(report.slug)}`,
+    records: pieces.map((piece) => ({
+      label: piece.title,
+      detail: [`PUBLISHED ${isoDateCapsLabel(piece.publishedOn)}`, piece.dek].join(' · '),
+      href: `/reading/research/${encodeURIComponent(piece.slug)}`,
     })),
-    // The shelf's own back link, to the section the nav calls "Money in politics".
+    // The page's own back link, to the section the nav calls "Money in politics".
     links: [{ label: 'Money in politics', href: '/money' }],
   };
 }

@@ -1,15 +1,18 @@
 <!-- DRAFT, NOT PUBLISHED. No page renders this file and no reader can reach it. The
-     explainer surface is not built: `apps/frontend/src/lib/moneyReports.ts` holds one
-     category of published piece (a signed report), and issue #1752 is where the second
-     one is being decided. This is the prose, written first so the words are settled
+     guide surface is not built: `apps/frontend/src/lib/research.ts` holds one
+     trait of published piece (the research trait), and issue #1752 is where the guide
+     trait is being built. This is the prose, written first so the words are settled
      before anyone builds a container for them.
 
      Declares no `describes:` code on purpose. It describes no shipped behaviour yet.
-     When the explainer page ships, whoever builds it adds the declaration.
+     When the guide surface ships, whoever builds it adds the declaration. Its address
+     is already settled: `/reading/guides/<name>`
+     (`docs/architecture/published-writing-decisions.md` §2.1).
 
      WHAT IT IS. Piece 1 of 5 in the set "How the Money Works" (#1752's comment fixes
-     the 5 and their reading order). An explainer teaches one piece of how the system
-     works and draws no conclusions.
+     the 5 and their reading order). A **Guide** teaches one piece of how the system
+     works and draws no conclusions. The word was "explainer" until 27 Aug 2026
+     (`docs/architecture/published-writing-decisions.md` §2.6).
 
      TWO READER-FACING LINES DELIBERATELY DO NOT COUNT THE SET. The position line reads
      "piece 1" and not "piece 1 of 5", and the closing paragraph names no title for the
@@ -22,8 +25,11 @@
 
      WHICH RULES BIND IT. `.claude/rules/grounded-answers.md` rules 1 to 12, like every
      other surface. NOT rule 13: adding figures up across members, defining derived
-     classifications and reaching conclusions are permitted to signed reports only, and
-     an explainer must not inherit any of it.
+     classifications and reaching conclusions are permitted to signed research only, and
+     a guide must not inherit any of it. A piece that does carry the research trait as
+     well is addressed under `/reading/research/` and labelled Research, because rule 13
+     then binds it in full (§2.6 and §2.7 of the same file); this piece carries only the
+     guide trait.
 
      THE LINE COUNTS WERE CHECKED AT THE BOARD, not taken from our code. The code
      carries 17 and 16 (`CampaignFinanceFilerKind` in alethical/db/models.py, and
@@ -55,7 +61,7 @@
         The piece links the 3 register lists instead, so a reader clicks and sees
         today's number.
 
-     2. The Optometry PAC's total giving since 2015. The live report prints $226,600
+     2. The Optometry PAC's total giving since 2015. The live research piece prints $226,600
         beside 4 rows that sum to $123,500, and issue #1687 found that nothing on the
         page says why the two differ. Unverified here, so it is not repeated. The 2
         caucus-side figures that ARE verified carry an explicit statement of what they
@@ -74,8 +80,8 @@
 
      WHERE IT LINKS FORWARD, both waiting on the piece existing:
      the $200 naming rule -> piece 2 · running your own ads about a race -> piece 4.
-     Full linking design, including the exact phrases in the live report that should
-     link here: issue #1752's second comment.
+     Full linking design, including the exact phrases in the live research piece that
+     should link here: issue #1752's second comment.
 
      NAMED BUT DELIBERATELY NOT EXPLAINED, and owned by nobody in the set of 5:
      contribution limits, the public subsidy, in-kind contributions, the political

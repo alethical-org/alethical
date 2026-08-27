@@ -1,4 +1,4 @@
-<!-- describes: apps/frontend/src/screens/redesign/MoneyLandingScreen.tsx, apps/frontend/src/screens/redesign/MoneyReportsShelfScreen.tsx, apps/frontend/src/screens/redesign/MoneyReportScreen.tsx, apps/frontend/src/screens/redesign/CommitteeMoneyScreen.tsx, apps/frontend/src/screens/redesign/CommitteePaymentsScreen.tsx, apps/frontend/src/screens/redesign/CommitteeListScreen.tsx, apps/frontend/src/screens/redesign/MoneySearchScreen.tsx, apps/frontend/src/components/campaignMoney/MoneyNameSearchField.tsx, apps/frontend/src/lib/moneyLanding.ts, apps/frontend/src/lib/moneyReports.ts, apps/frontend/src/lib/committeeMoney.ts, apps/frontend/src/lib/committeeList.ts, apps/frontend/src/lib/moneyNameSearch.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/webRoutes.ts -->
+<!-- describes: apps/frontend/src/screens/redesign/MoneyLandingScreen.tsx, apps/frontend/src/screens/redesign/ReadingScreen.tsx, apps/frontend/src/screens/redesign/ResearchScreen.tsx, apps/frontend/src/screens/redesign/CommitteeMoneyScreen.tsx, apps/frontend/src/screens/redesign/CommitteePaymentsScreen.tsx, apps/frontend/src/screens/redesign/CommitteeListScreen.tsx, apps/frontend/src/screens/redesign/MoneySearchScreen.tsx, apps/frontend/src/components/campaignMoney/MoneyNameSearchField.tsx, apps/frontend/src/lib/moneyLanding.ts, apps/frontend/src/lib/research.ts, apps/frontend/src/lib/committeeMoney.ts, apps/frontend/src/lib/committeeList.ts, apps/frontend/src/lib/moneyNameSearch.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/webRoutes.ts -->
 
 # How the Campaign money section works
 
@@ -8,7 +8,14 @@ committees has its own browsable list, and every committee page is reachable by 
 rather than only by pasting an address. One part of the section is still unbuilt and says
 so on the page: the Who got paid lane
 ([#1780](https://github.com/alethical-org/alethical/issues/1780)). Our own signed research
-lives one level up, at `/reports`, which the money landing still points at.
+lives one level up, on the `/reading` page, which the money landing points at. One piece is
+published there.
+
+**"Report" means one thing on this site: the document a campaign files with the state.** Our
+own writing is **Research**, and a short piece explaining 1 term is a **Guide** (settled
+27 Aug 2026, [`docs/architecture/published-writing-decisions.md`](../architecture/published-writing-decisions.md)
+§2.6). The `/reading` page and its pieces were addressed `/reports` until that day, and every
+old address forwards permanently and directly.
 
 ## Ways in
 
@@ -22,7 +29,7 @@ lives one level up, at `/reports`, which the money landing still points at.
 - The retired address `/track/campaign-finance` (an old greyed "Campaign Finance" tracking
   row pointed there) shows the `/money` landing instead of an error.
 
-The research shelf has its own way in, separate from this section: choose **Reports**, then
+The `/reading` page has its own way in, separate from this section: choose **Reading**, then
 **Campaign money**, in the same top menu.
 
 ## The landing page (`/money`)
@@ -40,9 +47,9 @@ Top to bottom:
    organisation. A query shorter than the search's own floor is not blocked here; the
    results page says "type at least 3 characters" instead, which is the true answer rather
    than a box that silently refuses.
-3. **What we found** — the research lane, first in prominence. It links to the reports
-   shelf. With nothing published it says "Nothing is published yet" and counts "0 REPORTS
-   PUBLISHED" honestly.
+3. **What we found** — the research lane, first in prominence. It links to the `/reading`
+   page, showing the newest piece's title, standfirst and dates. With nothing published it
+   says "Nothing is published yet" and counts "0 RESEARCH PIECES PUBLISHED" honestly.
 4. **Three lane cards**: Legislators (links to the legislator directory — a member's money
    is a tab on the profile they already have), Committees (links to the register's own list
    at `/money/committees`), and Who got paid. Only Who got paid is still inert: it is
@@ -318,26 +325,35 @@ is a measured count served with the rows, never a guess. The same naming rules a
 loan is labelled as reported on its own schedule rather than reading as a gift, transfers
 read "Money given to another campaign", and only registered filers' names open pages.
 
-## The reports shelf (`/reports`)
+## The `/reading` page (`/reading`)
 
-Reached from the top menu's **Reports** group, and from the money landing's "What we found"
-card. It sat at `/money/reports` until 20 Aug 2026, when the nav gained its own Reports
-group and the shelf moved out of the money section
-([#1698](https://github.com/alethical-org/alethical/issues/1698)); both old addresses
-redirect permanently, so a link shared before the move still opens the right page. Nothing
-about either page's contents changed with the move.
+Reached from the top menu's **Reading** group, and from the money landing's "What we found"
+card. It has moved twice: it sat at `/money/reports` until 20 Aug 2026, when the nav gained
+its own group and it left the money section
+([#1698](https://github.com/alethical-org/alethical/issues/1698)), and at `/reports` until
+27 Aug 2026, when "report" went back to meaning only the document a campaign files with the
+state. All 4 old addresses forward permanently and directly, so a link shared before either
+move still opens the right page in one hop. Nothing about either page's contents changed with
+either move.
 
-The shelf for Alethical's own signed research on these records
+This is the page listing Alethical's own signed research on these records
 ([`.claude/rules/grounded-answers.md` rule 13](../../.claude/rules/grounded-answers.md)).
-One entry per posted report, newest first, each carrying its publication date alone. The
-report page carries the date its records run through. With no report posted the shelf says
-"Nothing is published yet" and the money landing counts 0 reports.
+One card per posted piece, newest first, each carrying its publication date alone. The
+piece's own page carries the date its records run through. With nothing posted the page says
+"Nothing is published yet" and the money landing counts 0.
 
-Posting a report puts it on the site straight away, before any of its figures have been
-checked: its own address, this shelf, and the money landing's count, all on the day it
+Everything on it today carries the **research** trait, because that is all we have posted.
+Guides, sets of pieces meant to be read together, and their addresses
+(`/reading/guides/<name>` and `/reading/sets/<name>`) are settled and unbuilt: the fields the
+combined listing needs do not exist yet, and the work is tracked on
+[issue 1752](https://github.com/alethical-org/alethical/issues/1752). Those addresses show
+the ordinary "page not found" screen rather than an empty page.
+
+Posting a piece puts it on the site straight away, before any of its figures have been
+checked: its own address, this page, and the money landing's count, all on the day it
 posts. **Search engines see it the same day too (Eugene, 25 Aug 2026):** it goes into the
 site map search engines read (`/sitemap.xml`) and its page carries no instruction to skip
-it. Nothing about a report waits any more.
+it. Nothing about a piece waits any more.
 
 That used to work the other way, and the change has a cost worth knowing: a figure nobody
 has recomputed can now reach a search result on the day it posts. What stands in the way is
@@ -345,39 +361,45 @@ the checking itself happening promptly, and a correction replacing a wrong figur
 it is agreed. Holding a particular piece back stays possible, for a reason Eugene names,
 rather than being a step every piece waits behind.
 
-The shelf and every report page hand their words over in the **very first response from the
-server**, before any of the app's own code runs: the shelf its list and a plain link to
-every posted report, a report its entire text. Our own writing used to be the one thing on
-the site that a search engine could read only after running the app, while every bill page
+The `/reading` page and every piece's page hand their words over in the **very first response
+from the server**, before any of the app's own code runs: the listing its cards and a plain
+link to every posted piece, a piece its entire text. Our own writing used to be the one thing
+on the site that a search engine could read only after running the app, while every bill page
 handed its text over straight away
 ([#1760](https://github.com/alethical-org/alethical/issues/1760)). This is separate from
-whether a search engine may *list* a report, which is still Eugene's per-report decision
-above: a report marked to be skipped is served in full and still asks to be skipped.
+whether a search engine may *list* a piece, which is still Eugene's per-piece decision
+above: a piece marked to be skipped is served in full and still asks to be skipped.
 
-One report is posted: "The Money Only Goes One Way", at
-`/reports/the-money-only-goes-one-way`.
+One piece is posted: "The Money Only Goes One Way", at
+`/reading/research/the-money-only-goes-one-way`.
 
-## A report page (`/reports/{name}`)
+## One research piece's page (`/reading/research/{name}`)
 
-Every posted report has a page here; an address with no report behind it shows the
-ordinary "page not found" screen. A report's page carries:
+Every posted research piece has a page here; an address with no piece behind it shows the
+ordinary "page not found" screen. A piece carrying both the research trait and the guide
+trait is addressed here too, and its label reads Research, because rule 13 binds it in full
+([`docs/architecture/published-writing-decisions.md`](../architecture/published-writing-decisions.md)
+§2.6). A piece's page carries:
+
+- The word **RESEARCH** above the title, saying which of our two kinds of writing this is.
 
 - A masthead carrying 2 dates and nothing else: the publication date and the
-  records-through date. A report published in Alethical's own name carries no byline,
+  records-through date. A piece published in Alethical's own name carries no byline,
   because the site is the author, and the "where these numbers come from" block names every
   filing body used. Where a figure comes from records Alethical does not hold, that block
   names those records and the years they cover; the records-through date speaks only for
   Alethical's own loaded data (Eugene, 20 Aug 2026).
-- The publication date is the day the report posts, in Minnesota time, and it never moves
+- The publication date is the day the piece posts, in Minnesota time, and it never moves
   afterwards. The records-through date is separate and stays pinned to the records the
-  figures were computed from, so a report read late never looks fresher than its data.
-- Tables, where the report's own text uses one. A table is marked up as a real table, so a
+  figures were computed from, so a piece read late never looks fresher than its data.
+- Tables, where the piece's own text uses one. A table is marked up as a real table, so a
   screen reader announces each figure with its column heading, and it scrolls on its own
   rather than pushing the page sideways on a phone.
 - A contents list — a side rail on a computer, a jump list on a phone. Every entry is
   an ordinary link to its section, listed in the order the article reads, so it can be
   opened in a new tab, copied, or reached by keyboard. Choosing one puts that section's
-  name in the address bar (`/reports/the-money-only-goes-one-way#the-one-way-valve`), so
+  name in the address bar
+  (`/reading/research/the-money-only-goes-one-way#the-one-way-valve`), so
   a reader can share a link straight to a section and Back returns them to where they
   were reading. Opening an address that already names a section starts there. Each
   section's name is built from the words of its own heading, never its position in the
@@ -387,25 +409,25 @@ ordinary "page not found" screen. A report's page carries:
 - The reading column, with the short version boxed on top, and a "how we scored this" inset
   printed beside the first use of any term we defined.
 - A "where these numbers come from" block naming every source.
-- **Share**, whose link previews carry the report's title and its two dates only — no
+- **Share**, whose link previews carry the piece's title and its two dates only — no
   claims, no figures.
 - Two dated states, both built and tested: a **newer-filings notice** (the Board has
   accepted filings since the records-through date; figures stay as published, with any
   moved figure noted where it appears) and a **correction** (the text is updated to the
-  corrected figure and the wrong one is gone, and a dated note at the top of the report
+  corrected figure and the wrong one is gone, and a dated note at the top of the piece
   says what changed unless the team directs that the correction carries none, so no wrong
   number is ever left on the page).
 
-Links run one way: a report links out to record pages and official sources; no record page
-links back to a report.
+Links run one way: a piece links out to record pages and official sources; no record page
+links back to a piece.
 
 ## Limits, sources, and reader data
 
 - Every figure the section will ever show comes from official filings (Minnesota Campaign
-  Finance Board; a signed report may also name other bodies, such as the FEC, in its
+  Finance Board; a signed research piece may also name other bodies, such as the FEC, in its
   sources block). No page here shows a figure it cannot back.
 - No page sums money across members or filers, ranks committees by amount, or shows a
-  dollar figure on a list of many committees. Signed reports are the one conditioned
+  dollar figure on a list of many committees. Signed research pieces are the one conditioned
   exception, under rule 13.
 - The section collects nothing from readers. There is no sign-in gate and no form that
   stores anything. The search box sends the name typed into it to our own server to be

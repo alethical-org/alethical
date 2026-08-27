@@ -68,7 +68,7 @@ describe('sitemap endpoint', () => {
       '/find-my-legislator',
       '/money',
       '/money/committees',
-      '/reports',
+      '/reading',
       '/about',
       '/about/contact',
       '/privacy',
@@ -80,12 +80,19 @@ describe('sitemap endpoint', () => {
     expect(body).toContain('<loc>https://www.alethical.com/bills?page=2</loc>');
     expect(body).toContain('<loc>https://www.alethical.com/bills?page=3</loc>');
     expect(body).toContain('<loc>https://www.alethical.com/legislators?page=2</loc>');
-    // A published report is in the sitemap from the day it posts, so the count
+    // A published piece is in the sitemap from the day it posts, so the count
     // grows with every piece we publish rather than staying fixed.
     expect(body).toContain(
-      '<loc>https://www.alethical.com/reports/the-money-only-goes-one-way</loc>',
+      '<loc>https://www.alethical.com/reading/research/the-money-only-goes-one-way</loc>',
     );
     expect(body.match(/<url>/g)).toHaveLength(16);
+    // The addresses the /reading page and its pieces used to answer on are
+    // forwarded, never listed: a sitemap row for an address that answers with a
+    // permanent forward asks Google to crawl a redirect
+    // (docs/architecture/published-writing-decisions.md §2.8).
+    for (const retired of ['/reports', '/reports/the-money-only-goes-one-way', '/money/reports']) {
+      expect(body).not.toContain(`<loc>https://www.alethical.com${retired}</loc>`);
+    }
     expect(body).not.toContain('<lastmod>');
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
@@ -100,7 +107,7 @@ describe('sitemap endpoint', () => {
     expect(status).toBe(200);
     expect(body.match(/<url>/g)).toHaveLength(13);
     expect(body).toContain(
-      '<loc>https://www.alethical.com/reports/the-money-only-goes-one-way</loc>',
+      '<loc>https://www.alethical.com/reading/research/the-money-only-goes-one-way</loc>',
     );
     expect(body).not.toContain('?page=');
   });

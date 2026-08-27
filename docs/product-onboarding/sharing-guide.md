@@ -102,18 +102,19 @@ chamber profile and to the member list. Home, Find My Legislator, and the plain 
 directories arrive with their own readable text and links. Filtered lists, answer pages, and legal
 pages carry no first-response snapshot.
 
-One of **our own published reports** arrives with the whole thing: its title, its standfirst, its two
+One of **our own published research pieces** arrives with the whole thing: its title, its standfirst,
+its two
 dates, its short version, every section under its own heading, every sentence, bullet and table in the
-order the report reads, and the "where these numbers come from" block. Until this shipped, our own
+order the piece reads, and the "where these numbers come from" block. Until this shipped, our own
 writing was the one thing on the site whose words a search engine could only read after running the
-app, while every bill page handed its text over immediately. The **reports shelf** arrives with its
-heading, its introduction, and an ordinary link to every posted report, which is what keeps an older
-piece reachable on a first visit rather than only after the app starts. Not a word of a report is
+app, while every bill page handed its text over immediately. The **`/reading` page** arrives with its
+heading, its introduction, and an ordinary link to every posted piece, which is what keeps an older
+piece reachable on a first visit rather than only after the app starts. Not a word of a piece is
 rewritten, shortened or summarised for this: the served sentences are the stored sentences
 ([`.claude/rules/grounded-answers.md` rule 13](../../.claude/rules/grounded-answers.md) forbids editing
-a report's text at all), and whether a search engine may *list* a report is still the separate,
-per-report decision described in
-[campaign-money-section-guide.md](campaign-money-section-guide.md) — a report marked to be skipped is
+a piece's text at all), and whether a search engine may *list* a piece is still the separate,
+per-piece decision described in
+[campaign-money-section-guide.md](campaign-money-section-guide.md) — a piece marked to be skipped is
 served in full and still asks to be skipped.
 
 **Every word of it is a word the page itself then shows.** There is no separate version written for

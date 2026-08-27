@@ -35,8 +35,8 @@ import { CommitteeMoneyScreen } from '../screens/redesign/CommitteeMoneyScreen';
 import { CommitteePaymentsScreen } from '../screens/redesign/CommitteePaymentsScreen';
 import { MoneySearchScreen } from '../screens/redesign/MoneySearchScreen';
 import { MoneyLandingScreen } from '../screens/redesign/MoneyLandingScreen';
-import { MoneyReportScreen } from '../screens/redesign/MoneyReportScreen';
-import { MoneyReportsShelfScreen } from '../screens/redesign/MoneyReportsShelfScreen';
+import { ResearchScreen } from '../screens/redesign/ResearchScreen';
+import { ReadingScreen } from '../screens/redesign/ReadingScreen';
 import { NotFoundScreen } from '../screens/redesign/NotFoundScreen';
 import { SearchBillsScreen } from '../screens/redesign/SearchBillsScreen';
 import { SearchLegislatorsScreen } from '../screens/redesign/SearchLegislatorsScreen';
@@ -665,14 +665,14 @@ export function RootNavigator() {
               options={{ headerShown: false, title: 'Follow the money' }}
             />
             <Stack.Screen
-              name="MoneyReports"
-              component={MoneyReportsShelfScreen}
-              options={{ headerShown: false, title: 'Campaign money reports' }}
+              name="Reading"
+              component={ReadingScreen}
+              options={{ headerShown: false, title: 'Campaign money research' }}
             />
             <Stack.Screen
-              name="MoneyReport"
-              component={MoneyReportScreen}
-              options={{ headerShown: false, title: 'Report' }}
+              name="Research"
+              component={ResearchScreen}
+              options={{ headerShown: false, title: 'Research' }}
             />
             <Stack.Screen
               name="MoneySearch"

@@ -57,7 +57,7 @@ const NAV_ITEM_HREFS: Record<string, string> = {
   // (issue #764).
   'search-find-my-legislator': routePath.findMyLegislator(),
   'search-campaign-money': routePath.money(),
-  'reports-campaign-money': routePath.moneyReports(),
+  'reading-campaign-money': routePath.reading(),
   // Live now that Bills is an active Track row: the link lands on the Tracked page,
   // which prompts a signed-out visitor to sign in rather than advertising a
   // capability it can't deliver (grounded-answers rule 2).
@@ -237,7 +237,7 @@ function MenuRowIcon({ itemId, disabled }: { itemId: string; disabled?: boolean 
             />
           </>
         ) : null}
-        {itemId === 'reports-campaign-money' ? (
+        {itemId === 'reading-campaign-money' ? (
           // A page of prose with bars on it: our own writing about the record,
           // as opposed to the record itself (nav design, 20 Aug 2026).
           <>
@@ -378,7 +378,7 @@ function RoadmapPill({ label, large }: { label: string; large?: boolean }) {
   );
 }
 
-const PANEL_WIDTHS: Partial<Record<MenuKey, number>> = { search: 452, reports: 452, about: 320 };
+const PANEL_WIDTHS: Partial<Record<MenuKey, number>> = { search: 452, reading: 452, about: 320 };
 
 function MenuPanel({ menu, onNavigate }: { menu: MenuKey; onNavigate?: (item: IaItem) => void }) {
   const { live, roadmap } = navDropdownItems(menu);
