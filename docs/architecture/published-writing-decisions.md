@@ -32,8 +32,11 @@ Two traits, not 2 mutually exclusive kinds. §2.7 is why that distinction matter
   `/read/guides/who-has-to-report-their-money`, and *What the records name, and what they leave
   out*, at `/read/guides/what-the-records-name`. A third, *Why 2 official numbers can both be
   right*, is written and settled at
-  [`docs/reader-guides/why-2-official-numbers-can-both-be-right.md`](../reader-guides/why-2-official-numbers-can-both-be-right.md)
-  and has no page yet, so it is not posted and no reader can reach it. Nine more are planned.
+  [`docs/reader-guides/why-2-official-numbers-can-both-be-right.md`](../reader-guides/why-2-official-numbers-can-both-be-right.md),
+  and a fourth, *Money spent without a campaign's say*, at
+  [`docs/reader-guides/money-spent-without-a-campaigns-say.md`](../reader-guides/money-spent-without-a-campaigns-say.md).
+  Neither has a page yet, so neither is posted and no reader can reach either. Eight more are
+  planned.
 - **Both.** A piece may carry both traits. See §2.7, which is where the reader-facing label for
   that case is decided, and §2.8, which is why this is not hypothetical.
 
@@ -231,6 +234,24 @@ conclusions, and does it teach 1 concept. Run against the 13 pieces in
 - **Planned guide 9, "Independent spending", is arguable.** Its outline states "more than half of
   it attacks rather than supports", which is a share across the whole independent-spending dataset
   rather than across members. Classified when it is written, not now.
+
+**That one is now written, classified guide only, and its outline claim turned out to be false as
+worded.** It became the independent-spending half of *Money spent without a campaign's say*
+([`docs/reader-guides/money-spent-without-a-campaigns-say.md`](../reader-guides/money-spent-without-a-campaigns-say.md)).
+Measured on the Board's own "Itemized independent expenditures of over $200 - All" download,
+counted as served on 27 Aug 2026: **31,718 of the 41,130 rows are marked For and 9,412 are marked
+Against**, so by payment count 77% support rather than attack. By dollars the outline is right,
+$96,547,924.18 of $178,579,449.67 sitting on rows marked Against, 54.1%. The 2 answers point
+opposite ways, and the outline named neither measure.
+
+**So the classification splits along the same line.** A **count of rows in a published download**
+is a fact about the download, names nobody and sums no member's money, which is the ground §2.6's
+sibling pieces already ship on: *What the records name, and what they leave out* prints 583,152 and
+337,888 as a guide. A **sum of dollars across every spender and every affected committee in the
+file** is rule 13's first special permission. The guide therefore prints the row counts, prints no
+dollar total, and tells the reader in its own words that a count of payments is not a count of
+money and that the amounts are in the same file. The dollar split is available to a signed research
+piece and belongs to nothing else.
 
 So the both-traits case is present in our own plan today. That is the whole reason §2.7 needed a
 label rule for it and §2.1 needed an address rule for it.
