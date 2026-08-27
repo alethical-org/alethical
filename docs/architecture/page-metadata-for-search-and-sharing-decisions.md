@@ -1154,36 +1154,68 @@ Settled, and binding on the Read page and every piece that lives on it:
    value beyond rewriting another source. A short piece that answers one narrow question fully passes;
    one that mostly points elsewhere is what "crawled, currently not indexed" is for.
 
-### 20.6 Addresses for published writing — flat, decided
+### 20.6 Addresses for published writing — flat was decided here, and then withdrawn
 
-Every piece lives at `/reading/<name>` regardless of kind. **The kind does not go in the path**, and
-no page is published at a per-kind address.
+**Read this before building any address for published writing.** This section decided a flat
+`/reading/<name>` on 25 Aug 2026. **That decision is withdrawn**, because both grounds it rested on
+were checked the next day and neither survived. What replaced it is recorded below and carries one
+remaining step, so nothing should be built to either shape until that step is taken.
 
-The reasoning, because it reverses 2 earlier positions in the same session and the reversals are the
-useful part:
+#### What was decided here, and is no longer our position
+
+Every piece at `/reading/<name>` regardless of kind, with the kind out of the path and no page
+published at a per-kind address.
+
+#### Why it was withdrawn — the 2 grounds, and how each failed
+
+- **"A folder word becomes reader-visible text we cannot edit."** Google does learn a breadcrumb
+  from the words in an address, and its breadcrumb documentation also says a page's own structured
+  markup determines the breadcrumb shown in a result. So a folder word is **controllable**, not
+  permanent, and the whole force of this ground was its permanence.
+- **"We do not maintain forwards, so a move breaks the address."** False as written. `vercel.json`
+  already keeps 2 permanent forwards for this very section of the site (`/money/reports` and
+  `/money/reports/:slug`, both `"permanent": true`). Eugene's ruling covered those 2
+  specific dead addresses and was never a standing policy against forwarding. With forwards
+  available, a moved address is survivable, which removes the cost this ground was pricing.
+
+#### What both reviewers then aligned on
+
+Nested, with one combined listing:
+
+| address | what it is |
+| --- | --- |
+| `/reading` | everything, one combined listing |
+| `/reading/reports/<name>` | one report |
+| `/reading/explainers/<name>` | one explainer |
+| `/reading/sets/<name>` | one set |
+
+Recorded on [issue 1752](https://github.com/alethical-org/alethical/issues/1752) (26 Aug 2026
+comments). What nested buys: a listing address and the pieces under it agree by construction, and no
+word has to be permanently reserved as a name a piece may never take.
+
+#### The remaining step
+
+**Eugene ratifies the shape.** Until he does, this is 2 reviewers agreeing rather than a decision,
+and rule 4 of [`.claude/rules/workflow.md`](../../.claude/rules/workflow.md) keeps an option that is
+still open out of a doc as a flat assertion. A build session should treat the address as unsettled
+and build nothing that hard-codes either shape.
+
+#### What survives from the original reasoning, unchanged
 
 - **Folder structure is not a ranking signal.** Google's own words: keywords in a URL path "have
   hardly any effect beyond appearing in breadcrumbs".
-- **That breadcrumb clause is what decided it.** Google "learns breadcrumbs automatically based on the
-  words in the URL", so a folder called `reports` can become reader-visible text in a search result.
-  A piece that later reads as both a report and an explainer would leave a word we no longer believe
-  sitting publicly where we cannot edit it.
-- **We do not maintain forwards, which raises the cost of any move.** On a site that forwards
-  everything, moving a piece later is nearly free and the choice barely matters. Ours does not.
-- **What flat costs, stated plainly:** Google's reporting can filter by a folder in the address even
-  with no page there, and sitemap membership is not available as a filter for clicks and views. So
-  per-kind click numbers need an exported page list joined to our own records rather than a filter.
-- **The reserved words.** `reports` and `explainers` can never be used as a piece name, or a piece
-  would collide with a per-kind listing if one is ever added.
-- **Folder grouping does help crawling at scale**, which is the one real argument the other way. It
-  is a discovery-speed benefit at sites 3 orders of magnitude larger than ours, and Google's crawl
+- **Folder grouping helps how often Google returns to pages it already knows**, at sites orders of
+  magnitude larger than ours. It is not a lever on whether a new page is found, and Google's crawl
   guidance nowhere claims a ranking effect.
+- **Per-kind click numbers are answerable either way.** Google's reporting can filter by a folder in
+  the address, and where there is no folder the same question is answered by a sitemap per kind plus
+  a kind field in our own records.
 
-**The old addresses are discontinued rather than forwarded.** `/reports` and `/money/reports` both
-answer today (`/money/reports` with a permanent forward, measured), and nothing links to them while
-the report is still marked for search engines to skip. This is a one-time exception justified by
-those 2 facts, **not a policy**: once a piece is cited, an address that has to move gets a permanent
-forward, kept indefinitely, because other people's saved links never update.
+**The 2 old addresses stay discontinued rather than forwarded**, and that stays a one-time
+exception rather than a policy. `/reports` and `/money/reports` both answer today and nothing on
+the site links to either. How many people have arrived through them is not measured and is not
+claimed here. Once a piece is cited, an address that has to move gets a direct permanent forward
+with no chain, kept indefinitely, because other people's saved links never update.
 
 ### 20.7 What is deliberately not settled here
 
@@ -1230,9 +1262,9 @@ shelf, which is the list every posted piece is reachable from today.
 - The report registry (`apps/frontend/src/lib/moneyReports.ts`) is already on the server, so neither
   address asks the data service for anything. This is the cheapest case in this whole series: no
   query, no new field, no migration.
-- **The serving path is keyed to the resolved route, not to a path string**, so §20.6's move to
-  `/reading/<name>` needs no work here: whatever address resolves to the shelf or to a piece gets the
-  same body. That is also what "the explainer surface ships with this from its first piece" means in
+- **The serving path is keyed to the resolved route, not to a path string**, so whichever shape
+  §20.6's unsettled `/reading` move lands on needs no work here: whatever address resolves to the
+  listing or to a piece gets the same body. That is also what "the explainer surface ships with this from its first piece" means in
   practice — a new piece is a registry entry, not new serving work.
 
 ### Why this does not weaken rule 13
