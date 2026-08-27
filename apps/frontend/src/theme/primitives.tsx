@@ -15,7 +15,7 @@ import {
   ViewStyle,
 } from 'react-native';
 import Svg, { Circle, G, Path, Rect } from 'react-native-svg';
-import { ChevronDown, ChevronUp, Menu, X } from '../components/icons';
+import { ArrowRight, ChevronDown, ChevronUp, Menu, X } from '../components/icons';
 
 import { theme } from './tokens';
 import { getPageBackgroundStyle } from './pageBackground';
@@ -533,11 +533,7 @@ function NavBarLink({
   );
 }
 
-/**
- * One row in the phone drawer — a real link either way, whether it sits under a
- * group heading (Search's and About's rows) or is a bar item in its own right
- * (Read). One component so a bar item's row cannot drift from a group's row.
- */
+/** One row under a group heading in the phone drawer (Search's and About's rows). */
 function MenuDrawerRow({
   item,
   current,
@@ -555,6 +551,46 @@ function MenuDrawerRow({
     >
       <Text style={styles.menuSubRowText}>{item.label}</Text>
       {item.isNew ? <NewChip /> : null}
+    </Pressable>
+  );
+}
+
+/**
+ * The phone drawer's row for a bar item with no dropdown: Read, the only one.
+ *
+ * Drawn at top level rather than as another group row, because the nav's job is
+ * to show the shape of the site: a row identical to Search's 4 children tells a
+ * phone reader that Read is one of them, when it is 1 of the 3 things this site
+ * does. The rules above and below and the taller row are what say it sits at the
+ * top level (Design's nav drawing, ratified by Eugene 27 Aug 2026, correcting a
+ * first build that drew this row plain).
+ *
+ * No heading over it. A READ eyebrow would repeat its own child 14px below it,
+ * which is the stutter that collapsing the group removed in the first place.
+ */
+function MenuDrawerBarRow({
+  item,
+  current,
+  onNavigate,
+}: {
+  item: IaItem;
+  current: boolean;
+  onNavigate?: (item: IaItem) => void;
+}) {
+  return (
+    <Pressable
+      {...navRowLinkProps(item, onNavigate)}
+      aria-current={current ? 'page' : undefined}
+      style={styles.menuBarRow}
+    >
+      <View style={styles.menuBarRowLabel}>
+        <Text style={styles.menuBarRowText}>{item.label}</Text>
+        {item.isNew ? <NewChip /> : null}
+      </View>
+      {/* Decoration only, so it is hidden from a screen reader: the row's own
+          words already say where it goes, and `aria-current` already says
+          whether you are there. */}
+      <ArrowRight size={21} color={t.colors.text.muted} strokeWidth={2.2} aria-hidden />
     </Pressable>
   );
 }
@@ -784,16 +820,14 @@ export function TopNav({
             </View>
             <ScrollView style={styles.menuList}>
               {/* The shared menu is Ask-free on every screen and at every width.
-                  A bar item with no dropdown gets one row and no heading: a
-                  READ heading over a single Read row would repeat its own child
-                  14px below it (Design's nav drawing, 27 Aug 2026). It keeps the
-                  group's own vertical padding, so it still reads as its own
-                  block rather than a 5th Search row. */}
+                  A bar item with no dropdown gets one row and no heading, drawn
+                  at top level so it does not read as a 5th Search row
+                  (MenuDrawerBarRow above). */}
               {NAV_BAR.map((entry) => {
                 if (entry.kind === 'link') {
                   return (
                     <View key={entry.item.id} style={styles.menuGroup}>
-                      <MenuDrawerRow
+                      <MenuDrawerBarRow
                         item={entry.item}
                         current={entry.item.id === currentItemId}
                         onNavigate={navigate}
@@ -1364,6 +1398,39 @@ const styles = StyleSheet.create({
     fontSize: 21,
     fontWeight: t.fontWeights.semibold,
     letterSpacing: -0.2,
+    color: t.colors.text.primary,
+  },
+  // A bar item's own drawer row: taller than a group row, ruled top and bottom,
+  // and ending in an arrow. Every value is Design's (nav drawing, 27 Aug 2026),
+  // and the whole band between the 2 rules is the tap target, so nothing in it
+  // is dead. The 25px/800 type is full row weight on purpose: Read is a peer of
+  // Search and About, not a lesser thing.
+  menuBarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    minHeight: 60,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: t.colors.alpha.ink10,
+  },
+  // The label and its NEW chip are one group, so the chip stays beside the word
+  // and wraps with it rather than drifting toward the arrow.
+  menuBarRowLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flexShrink: 1,
+    flexWrap: 'wrap',
+  },
+  menuBarRowText: {
+    fontFamily: t.typography.title,
+    fontSize: 25,
+    fontWeight: t.fontWeights.heavy,
+    // Design gives -0.01em, which at 25px is -0.25px.
+    letterSpacing: -0.25,
     color: t.colors.text.primary,
   },
   hamburger: {

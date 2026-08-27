@@ -327,8 +327,8 @@ listed in it.
 Ratified by Eugene 27 Aug 2026, after §2.1's addresses had already shipped once at `/reading`.
 
 **The rule.** The top bar's second item is the single word **Read**. It is a destination, not a
-dropdown: one bar item on a computer with no panel behind it, and one plain row in the phone drawer
-with no heading over it. Every address takes the same word — `/read`, `/read/research/<name>`,
+dropdown: one bar item on a computer with no panel behind it, and one row in the phone drawer with no
+heading over it. Every address takes the same word — `/read`, `/read/research/<name>`,
 `/read/guides/<name>`, `/read/sets/<name>` — and so does every internal name: the screen is
 `ReadScreen.tsx`, the route is `Read`, and the registry item's id is `read`. One vocabulary for
 readers and code both, per §2.7.
@@ -355,6 +355,28 @@ working indefinitely, and §2.9 records the rule that keeps the chain from compo
 whose link is the page being viewed now carries it, at both bands. A dropdown trigger never does: a
 trigger opens a panel and is not a page, so on `/money` the Money in politics row inside Search is
 marked and the Search trigger is not.
+
+**In the phone drawer the Read row is drawn at top level, not as another group row.** Ruled by
+Eugene 27 Aug 2026, correcting a first build that drew it plain. The row is 60px tall with a 1px
+rule above and below (`alpha.ink10`), its label at 25px in the same weight as a group's rows, its
+NEW chip beside the label, and a drawn right arrow at the far end in the muted ink. The whole band
+between the 2 rules is the tap target.
+
+**Why the plain row lost.** The nav's job is to show the shape of the site. A row identical to
+Search's 4 children tells a phone reader that Read is one of them, when it is 1 of the 3 things this
+site does; the rules and the extra height are what say it sits at the top level. Design drew it this
+way and argued for it; the first build drew it plain because the brief it was given put drawer
+geometry out of scope, and the brief was what was wrong.
+
+**Still no heading over it.** A `READ` eyebrow would repeat its own child 14px below it, which is
+the stutter that collapsing the group removed. The arrow is what explains the missing heading:
+nothing else in the drawer has one, and a destination has no children to label.
+
+**The arrow is a drawn path and is hidden from a screen reader.** Drawn, because Libre Franklin
+carries no right-arrow glyph and a typed arrow renders as a missing character — the same reason
+every other arrow on the site is drawn (`ArrowRight` in
+`apps/frontend/src/components/icons.tsx`). Hidden, because the row's own words already say where it
+goes and `aria-current` already says whether you are there.
 
 ## 3. Open decisions
 
