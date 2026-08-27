@@ -261,6 +261,18 @@ one: see the box below before writing one.**
 > invisible in an attribute dump, and the second review of this work caught the first one precisely
 > because it stopped reading `aria-label` and started reading `name`.
 >
+> **And read the VISIBLE copy of the nav, because a phone page holds 2.** The route stack keeps the
+> previous screen mounted, so a phone page has 2 top bars in the DOM and 2 hamburgers, and the first
+> one a `querySelector` returns is the invisible one belonging to the screen underneath. Opening it
+> renders a real drawer over the page whose rows describe that other screen, so its current-page
+> mark is correctly absent — measured on production `/read`, 27 Aug 2026, where the first hamburger
+> gave 0 elements carrying `aria-current` and the visible one gave 1. **A reading of the wrong copy
+> looks exactly like a missing attribute.** Filter to `getClientRects().length > 0` and take the
+> last match. No reader can reach the hidden copy: its ancestor is `display: none` **and**
+> `aria-hidden="true"`, so it is out of the accessibility tree and out of the tab order. This is why
+> `apps/frontend/src/theme/__tests__/navCurrentPage.test.ts` pins the mark in the source rather than
+> in a browser.
+>
 > **For "this control is unavailable", use the one helper instead: `useUnavailableControl`**
 > (`apps/frontend/src/components/billDetail/interactions.ts`). Spread its ref onto the node. It
 > sets `aria-disabled`, optionally `aria-busy`, and `tabindex="-1"`, and — the part a plain prop
