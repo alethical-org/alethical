@@ -447,6 +447,7 @@ describe('the report snapshot serves the report’s own writing, unchanged', () 
     ...(report.newerFilingsNote ? [report.newerFilingsNote] : []),
     ...(report.correction ? [report.correction.datedLabel, report.correction.note] : []),
     ...report.sources.map((source) => reportSourceText(source)),
+    ...report.sources.flatMap((source) => (source.noteLink ? [source.noteLink.text] : [])),
     ...[report.shortVersion, ...report.sections.map((section) => section.blocks)]
       .flat()
       .flatMap((block) => {
@@ -478,12 +479,23 @@ describe('the report snapshot serves the report’s own writing, unchanged', () 
     ]);
   });
 
+  it('serves each source address as a real anchor, not just its words', () => {
+    const html = renderPageSnapshot(snapshot);
+    const linked = report.sources.filter((source) => source.noteLink);
+    expect(linked.length).toBeGreaterThan(0);
+    for (const source of linked) {
+      expect(html).toContain(`<a href="${source.noteLink!.href}">`);
+      expect(html).toContain(source.noteLink!.text);
+    }
+  });
+
   it('serves every sentence, bullet and table cell verbatim', () => {
     const served: string[] = [];
     for (const section of snapshot.sections ?? []) {
       for (const block of section.blocks ?? []) {
         if (block.kind === 'prose') served.push(...block.lines);
         else if (block.kind === 'bullets') served.push(...block.items);
+        else if (block.kind === 'links') served.push(...block.items.map((item) => item.label));
         else served.push(...block.columns, ...block.rows.flat());
       }
     }
@@ -521,9 +533,18 @@ describe('the report snapshot serves the report’s own writing, unchanged', () 
     }
   });
 
-  it('links back to the shelf and nowhere the site cannot honour', () => {
+  it('links back to the list, out to each source, and nowhere the site cannot honour', () => {
     expect(snapshot.links).toEqual([{ label: MONEY_REPORTS_SHELF_HEADING, href: '/reports' }]);
-    expect(html.match(/href="/g)).toHaveLength(1);
+    // One anchor back to the list, plus exactly one per source that stores an
+    // address, and no others. Rule 13 requires a filing body to be named AND
+    // linked at its source, and a link the reader only gets after the app runs is
+    // not a link at all to anything reading the first response.
+    const linked = report.sources.filter((source) => source.noteLink);
+    expect(linked.length).toBeGreaterThan(0);
+    expect(html.match(/href="/g)).toHaveLength(1 + linked.length);
+    for (const source of linked) {
+      expect(html).toContain(`<a href="${source.noteLink!.href}">`);
+    }
   });
 
   it('marks a table up as a table, so a figure is announced with its column', () => {

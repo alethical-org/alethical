@@ -117,7 +117,14 @@ export interface SnapshotSectionItem {
 export type SnapshotBlock =
   | { kind: 'prose'; lines: string[] }
   | { kind: 'bullets'; items: string[] }
-  | { kind: 'table'; columns: string[]; rows: string[][] };
+  | { kind: 'table'; columns: string[]; rows: string[][] }
+  /**
+   * Real anchors inside a section's blocks. A published report's sources name
+   * official filing bodies, and rule 13 requires those to be named **and
+   * linked** at their source; a link that only reaches the reader after the app
+   * runs is not linked for anything reading the first response.
+   */
+  | { kind: 'links'; items: SnapshotSectionItem[] };
 
 export interface SnapshotSection {
   heading: string;
@@ -482,9 +489,11 @@ export function legislatorPageSnapshot(legislator: LegislatorSnapshotSource): Pa
  * forbids editing a report's words at all, which is why nothing here shortens,
  * re-punctuates or summarises a stored sentence.
  *
- * An outward link inside the prose contributes its words and not its address.
- * The report's links that matter for finding the rest of the research are the
- * ones between pages, and those are real anchors below.
+ * An outward link inside a SENTENCE contributes its words and not its address,
+ * because a bare address mid-prose reads as noise. A source's link is different
+ * and does carry its address: rule 13 requires a filing body to be named and
+ * linked at its source, and a link the reader only gets after the app runs is not
+ * a link at all to anything reading the first response.
  */
 
 /** One report block as the screen draws it, in the report's own order. */
@@ -544,7 +553,26 @@ export function moneyReportPageSnapshot(report: MoneyReport): PageSnapshot {
     })),
     {
       heading: 'Where these numbers come from',
-      blocks: [{ kind: 'prose', lines: report.sources.map(reportSourceText) }],
+      blocks: [
+        { kind: 'prose', lines: report.sources.map(reportSourceText) },
+        // Every source that stores an address contributes a real anchor. Without
+        // this the first response named the Board and linked nowhere, which is a
+        // half-kept version of rule 13's requirement to name and link a filing
+        // body, and of the report's own closing line about not needing to trust us.
+        ...(report.sources.some((source) => source.noteLink)
+          ? [
+              {
+                kind: 'links' as const,
+                items: report.sources
+                  .filter((source) => source.noteLink)
+                  .map((source) => ({
+                    label: source.noteLink!.text,
+                    href: source.noteLink!.href,
+                  })),
+              },
+            ]
+          : []),
+      ],
     },
   ];
 
@@ -602,6 +630,14 @@ function renderSnapshotBlock(block: SnapshotBlock): string {
   }
   if (block.kind === 'bullets') {
     return `<ul class="ps-list">${block.items.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`;
+  }
+  if (block.kind === 'links') {
+    const links = block.items
+      .map(
+        (item) => `<li><a href="${escapeHtml(item.href ?? '')}">${escapeHtml(item.label)}</a></li>`,
+      )
+      .join('');
+    return `<ul class="ps-list">${links}</ul>`;
   }
   const head = `<tr>${block.columns.map((column) => `<th>${escapeHtml(column)}</th>`).join('')}</tr>`;
   const body = block.rows
