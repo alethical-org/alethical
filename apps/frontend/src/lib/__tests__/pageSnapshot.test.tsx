@@ -82,16 +82,16 @@ const {
   legislatorDirectoryPageSnapshot,
   legislatorPageSnapshot,
   researchPageSnapshot,
-  readingPageSnapshot,
+  readPageSnapshot,
   renderPageSnapshot,
   SNAPSHOT_MARKER_END,
   SNAPSHOT_MARKER_START,
 } = await import('../pageSnapshot');
 const {
-  READING_PAGE_EMPTY_BODY,
-  READING_PAGE_EMPTY_TITLE,
-  READING_PAGE_HEADING,
-  READING_PAGE_INTRO,
+  READ_PAGE_EMPTY_BODY,
+  READ_PAGE_EMPTY_TITLE,
+  READ_PAGE_HEADING,
+  READ_PAGE_INTRO,
   isoDateCapsLabel,
   pieceMastheadLine,
   pieceReadingMinutes,
@@ -540,7 +540,7 @@ describe('the piece snapshot serves the piece’s own writing, unchanged', () =>
   });
 
   it('links back to the list, out to each source, and nowhere the site cannot honour', () => {
-    expect(snapshot.links).toEqual([{ label: READING_PAGE_HEADING, href: '/reading' }]);
+    expect(snapshot.links).toEqual([{ label: READ_PAGE_HEADING, href: '/read' }]);
     // One anchor back to the list, plus exactly one per source that stores an
     // address, and no others. Rule 13 requires a filing body to be named AND
     // linked at its source, and a link the reader only gets after the app runs is
@@ -668,7 +668,7 @@ describe('the guide snapshot serves the guide\u2019s own writing, unchanged', ()
     }
     // One anchor back to the list, plus one per source address, and no others.
     expect(html.match(/href="/g)).toHaveLength(1 + hrefs.length);
-    expect(snapshot.links).toEqual([{ label: READING_PAGE_HEADING, href: '/reading' }]);
+    expect(snapshot.links).toEqual([{ label: READ_PAGE_HEADING, href: '/read' }]);
   });
 
   it('prints no piece number anywhere in the served page', () => {
@@ -707,14 +707,14 @@ describe('the guide snapshot serves the guide\u2019s own writing, unchanged', ()
   });
 });
 
-describe('the /reading page snapshot links to every posted piece', () => {
+describe('the /read page snapshot links to every posted piece', () => {
   const pieces = publishedResearch();
-  const snapshot = readingPageSnapshot(pieces);
+  const snapshot = readPageSnapshot(pieces);
   const html = renderPageSnapshot(snapshot);
 
-  it('uses the /reading page’s own heading and introduction', () => {
-    expect(snapshot.heading).toBe(READING_PAGE_HEADING);
-    expect(snapshot.body).toEqual([READING_PAGE_INTRO]);
+  it('uses the /read page’s own heading and introduction', () => {
+    expect(snapshot.heading).toBe(READ_PAGE_HEADING);
+    expect(snapshot.body).toEqual([READ_PAGE_INTRO]);
   });
 
   it('gives every posted piece a real link a crawler can follow', () => {
@@ -734,17 +734,13 @@ describe('the /reading page snapshot links to every posted piece', () => {
     // A research piece's publication date; a guide's reading time and no date.
     expect(html).toContain(`PUBLISHED ${isoDateCapsLabel(research.publishedOn)}`);
     expect(html).toContain(`${pieceReadingMinutes(guide)} MIN`);
-    expect(html).toContain(`href="/reading/guides/${guide.slug}"`);
+    expect(html).toContain(`href="/read/guides/${guide.slug}"`);
   });
 
-  it('says what the /reading page says when nothing is posted yet', () => {
-    const empty = readingPageSnapshot([]);
+  it('says what the /read page says when nothing is posted yet', () => {
+    const empty = readPageSnapshot([]);
     expect(empty.records).toEqual([]);
-    expect(empty.body).toEqual([
-      READING_PAGE_INTRO,
-      READING_PAGE_EMPTY_TITLE,
-      READING_PAGE_EMPTY_BODY,
-    ]);
+    expect(empty.body).toEqual([READ_PAGE_INTRO, READ_PAGE_EMPTY_TITLE, READ_PAGE_EMPTY_BODY]);
   });
 });
 
@@ -773,16 +769,16 @@ describe('both screens keep reading the same registry the server reads', () => {
     }
   });
 
-  it('the /reading page screen draws the shared wording', () => {
+  it('the /read page screen draws the shared wording', () => {
     const source = readFileSync(
-      join(HERE, '../../..', 'src/screens/redesign/ReadingScreen.tsx'),
+      join(HERE, '../../..', 'src/screens/redesign/ReadScreen.tsx'),
       'utf8',
     );
     for (const constant of [
-      'READING_PAGE_HEADING',
-      'READING_PAGE_INTRO',
-      'READING_PAGE_EMPTY_TITLE',
-      'READING_PAGE_EMPTY_BODY',
+      'READ_PAGE_HEADING',
+      'READ_PAGE_INTRO',
+      'READ_PAGE_EMPTY_TITLE',
+      'READ_PAGE_EMPTY_BODY',
     ]) {
       expect(source).toContain(constant);
     }

@@ -36,7 +36,7 @@ const FIXED_PAGES = [
   "/find-my-legislator",
   "/money",
   "/money/committees",
-  "/reading",
+  "/read",
   "/about",
   "/about/contact",
   "/privacy",

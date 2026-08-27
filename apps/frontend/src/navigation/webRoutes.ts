@@ -19,7 +19,7 @@ type WebRouteTarget =
   | { kind: 'legislators'; params: Record<string, string> }
   | { kind: 'findMyLegislator'; address?: string }
   | { kind: 'moneyLanding' }
-  | { kind: 'reading' }
+  | { kind: 'read' }
   | { kind: 'research'; slug: string }
   | { kind: 'guide'; slug: string }
   | { kind: 'moneyCommittee'; slug: string; tab?: string; year?: string }
@@ -38,15 +38,17 @@ type WebRouteTarget =
   | { kind: 'notFound'; path: string };
 
 /**
- * A piece asked for at one of the 2 retired piece addresses (`/reports/{slug}`
- * and `/money/reports/{slug}`). `vercel.json` forwards both permanently and
- * directly in production; this is what makes such a link land anyway on a host
- * without those forwards — the dev server, a local static export, or a
- * client-side link written before the move.
+ * A piece asked for at one of the 2 retired RESEARCH-only addresses
+ * (`/reports/{slug}` and `/money/reports/{slug}`). `vercel.json` forwards both
+ * permanently and directly in production; this is what makes such a link land
+ * anyway on a host without those forwards — the dev server, a local static
+ * export, or a client-side link written before the move.
  *
  * A guide is deliberately not reachable here: only research ever answered on
- * these addresses, so honouring a guide's slug would create a second address for
- * a page that has one.
+ * these 2 addresses, so honouring a guide's slug would create a second address
+ * for a page that has one. `/reading/guides/{slug}` is the third retired
+ * address and it is NOT one of these — a guide did answer there, from the
+ * evening of 27 Aug 2026, so it forwards to `/read/guides/{slug}` below.
  */
 function retiredPieceAddress(slug: string, pathname: string): WebRouteTarget {
   const piece = researchBySlug(slug);
@@ -203,12 +205,14 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
     if (segments[0] === 'money') {
       return { kind: 'moneyLanding' };
     }
-    // The /reading page, at the top level rather than inside the money section
-    // (#1698): the nav's Reading group points here, and what the group holds is
-    // not limited to money in the long run. '/reports' is the address this page
-    // held until 27 Aug 2026 and is forwarded permanently by vercel.json.
-    if (segments[0] === 'reading' || segments[0] === 'reports') {
-      return { kind: 'reading' };
+    // The /read page, at the top level rather than inside the money section
+    // (#1698): the bar's Read item points here, and what it holds is not
+    // limited to money in the long run. '/reports' and '/reading' are the 2
+    // addresses this page held before, and vercel.json forwards both
+    // permanently and directly (docs/architecture/published-writing-decisions.md
+    // §2.1).
+    if (segments[0] === 'read' || segments[0] === 'reading' || segments[0] === 'reports') {
+      return { kind: 'read' };
     }
     // '/chat' and '/account' are old-design or auth-gated surfaces with no shipped
     // page yet — redirect a stray bookmark/link to Home.
@@ -221,23 +225,26 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
     return { kind: 'contactUs' };
   }
 
-  // One piece of our own writing, at /reading/research/{slug} or
-  // /reading/guides/{slug} (docs/architecture/published-writing-decisions.md
-  // §2.1; grounded-answers.md rule 13). The piece registry is static and
-  // synchronous, so the router resolves the slug itself: an unpublished or
-  // unknown slug is a page that does not exist, and lands on NotFound rather
-  // than an empty shell.
+  // One piece of our own writing, at /read/research/{slug} or
+  // /read/guides/{slug} (docs/architecture/published-writing-decisions.md
+  // §2.1; grounded-answers.md rule 13). '/reading' is the folder these 2
+  // addresses used on 27 Aug 2026 and is honoured here as well, so a link
+  // shared that day still resolves on a host without vercel.json's forwards.
+  //
+  // The piece registry is static and synchronous, so the router resolves the
+  // slug itself: an unpublished or unknown slug is a page that does not exist,
+  // and lands on NotFound rather than an empty shell.
   //
   // The folder has to MATCH the piece, or a piece would answer on 2 addresses
   // and a reader could share the one we do not name as canonical. A piece
   // carrying both traits lives under 'research', because rule 13 binds it in
   // full, so `pieceAddressFolder` is the single decision and this is its guard.
   //
-  // Nothing is built for /reading/sets/{slug} yet, so that address falls through
+  // Nothing is built for /read/sets/{slug} yet, so that address falls through
   // to NotFound rather than promising a page.
   if (
     segments.length === 3 &&
-    segments[0] === 'reading' &&
+    (segments[0] === 'read' || segments[0] === 'reading') &&
     (segments[1] === 'research' || segments[1] === 'guides')
   ) {
     const slug = decodeURIComponent(segments[2]);
@@ -248,16 +255,16 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
     return { kind: 'notFound', path: pathname };
   }
 
-  // The two addresses this page and its pieces held before: /money/reports until
-  // #1698 moved them to /reports, and /reports until 27 Aug 2026 moved them to
-  // /reading (docs/architecture/published-writing-decisions.md §2.8).
-  // vercel.json forwards all four permanently and directly, so a shared or
-  // bookmarked link never reaches the app at an old path in production; these
-  // branches are what make it land anyway on any host without those forwards —
-  // the dev server, a local static export, or a client-side link written before
-  // a move.
+  // The 3 addresses this page and its pieces held before: /money/reports until
+  // #1698 moved them to /reports, /reports until the morning of 27 Aug 2026 when
+  // they moved to /reading, and /reading until that evening
+  // (docs/architecture/published-writing-decisions.md §2.1). vercel.json
+  // forwards every one of them permanently and DIRECTLY to its final /read
+  // address, never through the address in between; these branches are what make
+  // a stale link land anyway on any host without those forwards — the dev
+  // server, a local static export, or a client-side link written before a move.
   if (segments.length === 2 && segments[0] === 'money' && segments[1] === 'reports') {
-    return { kind: 'reading' };
+    return { kind: 'read' };
   }
   // Both old piece addresses only ever held research, so a guide does not answer
   // on them: it never had one, and honouring it would invent a second address.
@@ -482,12 +489,12 @@ export function pathForRoute(activeRoute: {
     }
     case 'MoneyLanding':
       return '/money';
-    case 'Reading':
-      return '/reading';
+    case 'Read':
+      return '/read';
     case 'Research':
-      return `/reading/research/${encodeURIComponent(String(activeRoute.params?.slug ?? ''))}`;
+      return `/read/research/${encodeURIComponent(String(activeRoute.params?.slug ?? ''))}`;
     case 'Guide':
-      return `/reading/guides/${encodeURIComponent(String(activeRoute.params?.slug ?? ''))}`;
+      return `/read/guides/${encodeURIComponent(String(activeRoute.params?.slug ?? ''))}`;
     case 'CommitteeList': {
       const params = new URLSearchParams();
       for (const key of COMMITTEE_LIST_PARAMS) {
@@ -648,9 +655,9 @@ export function stateFromPathname(pathname: string): WebNavigationState {
         routes: [homeTabs, { name: 'MoneyLanding' }],
         index: 1,
       };
-    case 'reading':
+    case 'read':
       return {
-        routes: [homeTabs, { name: 'Reading' }],
+        routes: [homeTabs, { name: 'Read' }],
         index: 1,
       };
     case 'research':

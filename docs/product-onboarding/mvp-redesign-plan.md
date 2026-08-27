@@ -17,12 +17,17 @@ roadmap noted for direction.
   ([#1698](https://github.com/alethical-org/alethical/issues/1698)): the
   personalized **Yours** group left the bar, its one row (Tracked Bills, now with
   a count) moved into the account menu behind the avatar, a new group
-  took second place holding one row (Campaign money → the `/reading` page, green
+  took second place holding one row (Campaign money → the `/read` page, green
   NEW chip),
   and Search's money row was renamed **Money in politics**. That group was
-  labelled **Reports** and pointed at `/reports` until 27 Aug 2026, when it became
-  **Reading** and took the address of the page it opens
-  (`docs/architecture/published-writing-decisions.md` §2.6 and §5). The tracked-bills page
+  labelled **Reports** and pointed at `/reports` until the morning of 27 Aug 2026,
+  when it became **Reading** and took the address of the page it opens
+  (`docs/architecture/published-writing-decisions.md` §2.6 and §5). **That evening
+  the group stopped being a group**: it held 1 child, so the bar drew a dropdown
+  containing a single item and the phone drawer drew a heading over a single row.
+  It is now 1 bar item reading **Read**, with no dropdown at either width, opening
+  `/read` directly, and every address took the same word
+  (`docs/architecture/published-writing-decisions.md` §2.13). The tracked-bills page
   keeps its address, `/tracked`.
   Before that, with the campaign money section (campaign money IA handoff,
   Aug 2026): **the personalized menu was renamed from "Track" to "Yours"** — a

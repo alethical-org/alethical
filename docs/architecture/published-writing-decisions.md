@@ -28,7 +28,7 @@ Two traits, not 2 mutually exclusive kinds. §2.7 is why that distinction matter
 - **A guide.** One term explained in plain language. A guide concludes nothing, adds nothing up
   across members, and defines no classifications, so it sits under rules 1 to 12 like every other
   surface and needs no part of rule 13's exception. Exactly 1 exists and is live: *Who has to
-  report their money*, at `/reading/guides/who-has-to-report-their-money`, posted 27 Aug 2026. Eleven
+  report their money*, at `/read/guides/who-has-to-report-their-money`, posted 27 Aug 2026. Eleven
   more are planned.
 - **Both.** A piece may carry both traits. See §2.7, which is where the reader-facing label for
   that case is decided, and §2.8, which is why this is not hypothetical.
@@ -37,19 +37,20 @@ Two traits, not 2 mutually exclusive kinds. §2.7 is why that distinction matter
 
 Ratified by Eugene, 27 Aug 2026, except where a different date is given.
 
-### 2.1 Addresses carry the trait, and the `/reading` page lists everything
+### 2.1 Addresses carry the trait, and the `/read` page lists everything
 
 | address | what it is |
 | --- | --- |
-| `/reading` | the `/reading` page: everything we publish, one combined listing |
-| `/reading/research/<name>` | one piece carrying the research trait, including a piece that also teaches |
-| `/reading/guides/<name>` | one piece carrying only the guide trait |
-| `/reading/sets/<name>` | one set of pieces meant to be read together |
+| `/read` | the `/read` page: everything we publish, one combined listing |
+| `/read/research/<name>` | one piece carrying the research trait, including a piece that also teaches |
+| `/read/guides/<name>` | one piece carrying only the guide trait |
+| `/read/sets/<name>` | one set of pieces meant to be read together |
 
 **A piece carrying both traits is addressed under `research`**, because rule 13 binds it in full and
 the address then states which promises apply to the page. See §2.7.
 
-**What flat lost on, twice.** A flat `/reading/<name>` was decided on 25 Aug 2026 and withdrawn on
+**What flat lost on, twice.** A flat address with no folder word — `/read/<name>` in today's
+terms, written `/reports/<name>` at the time — was decided on 25 Aug 2026 and withdrawn on
 26 Aug when both its grounds failed checking; the full record is
 [`page-metadata-for-search-and-sharing-decisions.md`](page-metadata-for-search-and-sharing-decisions.md)
 §20.6. It was proposed a second time on 27 Aug by the peer coding consultant, on the ground that a
@@ -81,7 +82,7 @@ instead.
 
 ### 2.3 A set names only its published pieces, never its unwritten ones
 
-Ratified by Eugene 27 Aug 2026. A set box on the `/reading` page lists the pieces that are
+Ratified by Eugene 27 Aug 2026. A set box on the `/read` page lists the pieces that are
 published and nothing else. It never lists a title a reader cannot open, and it carries no count
 of how many pieces the set is eventually meant to hold.
 
@@ -99,13 +100,13 @@ is a commitment rather than a design choice, and none exists.
 nobody looks forward to piece 3. Reversible the moment owners and dates exist, by adding the
 titles back.
 
-**A set's own page follows the same rule.** `/reading/sets/<name>` lists its published pieces and
+**A set's own page follows the same rule.** `/read/sets/<name>` lists its published pieces and
 no others.
 
 ### 2.4 A set with no published pieces hides its box and keeps its page
 
-On the `/reading` page, a set whose pieces are all unpublished shows no box. Its own
-`/reading/sets/<name>` page stays reachable and stays served.
+On the `/read` page, a set whose pieces are all unpublished shows no box. Its own
+`/read/sets/<name>` page stays reachable and stays served.
 
 **What the drawn alternative lost on.** The design drew the empty box visible. A box with no rows
 tells a reader nothing and reads as broken. Keeping the page reachable is what
@@ -231,13 +232,18 @@ label rule for it and §2.1 needed an address rule for it.
 forwards all shipped in one pull request; the 4 fields in §4 did not, and stay on
 [issue 1752](https://github.com/alethical-org/alethical/issues/1752).
 
-1. Let the 2 in-flight branches on the report page and the `/reading` page's predecessor land on
+1. Let the 2 in-flight branches on the report page and the `/read` page's predecessor land on
    `main`.
 2. Pause new edits to those 2 files for the length of the rename.
 3. One owner performs the rename from the combined `main`, in one pass.
 4. Move the live address once, with every permanent forward in the same release, direct and with no
    intermediate hop:
    `/reports/the-money-only-goes-one-way` to `/reading/research/the-money-only-goes-one-way`.
+
+**It moved a second time the same day**, to `/read/research/the-money-only-goes-one-way`, when §2.13
+settled the bar's word. The 2 moves make 3 generations of address, and the rule the sequence exists
+to protect is what stops that compounding: every retired address forwards to its FINAL destination in
+1 hop, never through the address in between. `vercel.json` carries 7 permanent forwards to prove it.
 
 Sequence recommended by the peer coding consultant on 27 Aug 2026 and adopted. Its purpose is
 [`.claude/rules/workflow.md`](../../.claude/rules/workflow.md)'s prohibition on landing work under
@@ -249,12 +255,12 @@ Ratified by Eugene 27 Aug 2026, narrowing §2.2's wording at Design's own reques
 letting Design apply the narrowing quietly.
 
 **The rule.** A card carries its kind word where nothing above it already says the kind. Under a
-`GUIDES` or `RESEARCH` heading on the `/reading` page, the heading is the source and the card
+`GUIDES` or `RESEARCH` heading on the `/read` page, the heading is the source and the card
 inherits, so the card prints no word. A card prints the word on the home page, in a search result,
 and in a related-piece list, where no heading supplies it.
 
 **Why the earlier wording needed narrowing.** §2.2 said a card outside a set box carries the word,
-without qualification. Applied literally on the `/reading` page that prints "Guide" under a heading
+without qualification. Applied literally on the `/read` page that prints "Guide" under a heading
 already reading `GUIDES`, twice in one glance. Design spotted this while drawing the page and asked
 to have the narrowing ratified rather than absorb it silently, which is the right instinct: the
 looser sentence was already written down and would have been followed by the next person.
@@ -263,7 +269,7 @@ looser sentence was already written down and would have been followed by the nex
 card component needs to know whether a heading sits above it. That is a small amount of wiring and
 1 more state to get wrong.
 
-### 2.11 The `/reading` page groups by our 2 kinds for now, and the objection is recorded
+### 2.11 The `/read` page groups by our 2 kinds for now, and the objection is recorded
 
 Ratified by Eugene 27 Aug 2026. `GUIDES` and `RESEARCH` stay as the page's headings, and
 **`RESEARCH` sits above `GUIDES`**.
@@ -304,7 +310,7 @@ there, and where are the rest. §2.3 already forbids naming an unwritten piece; 
 whole run of them without naming any.
 
 **Where it applies.** Every surface, not a list: a piece's own page, its masthead, a card on the
-`/reading` page, a row inside a set box, a share preview, a search result.
+`/read` page, a row inside a set box, a share preview, a search result.
 
 **This is the second narrowing of the same line in one day.** The guide's position line began as
 "How the Money Works, piece 1 of 5", lost "of 5" under §2.3 on the ground that the set's size was a
@@ -316,14 +322,48 @@ set's name and nothing else.
 reading order from the piece itself. The order lives on the set's own page, where the pieces are
 listed in it.
 
+### 2.13 The bar says **Read**, one item with no dropdown, and the addresses match it
+
+Ratified by Eugene 27 Aug 2026, after §2.1's addresses had already shipped once at `/reading`.
+
+**The rule.** The top bar's second item is the single word **Read**. It is a destination, not a
+dropdown: one bar item on a computer with no panel behind it, and one plain row in the phone drawer
+with no heading over it. Every address takes the same word — `/read`, `/read/research/<name>`,
+`/read/guides/<name>`, `/read/sets/<name>` — and so does every internal name: the screen is
+`ReadScreen.tsx`, the route is `Read`, and the registry item's id is `read`. One vocabulary for
+readers and code both, per §2.7.
+
+**Why the group went.** It held exactly 1 child, labelled "Campaign money". So the bar drew a
+dropdown containing a single item and the phone drawer drew a heading over a single row, which is
+furniture with nothing to disclose. Everything we publish sits on the one `/read` page, and a new set
+adds a box to that page rather than a row to the bar, so the group had no growth path either. The
+20 Aug 2026 reasoning that kept it — the child named a subject the header did not — is superseded:
+the header is now the reader-facing word, and the child is gone.
+
+**What the reader gains, and it is the point.** One tap instead of two on a phone, and the bar's
+second item now names a destination rather than a container. A reader looking for our writing reads
+one word and arrives.
+
+**What it costs, stated plainly.** A third generation of address, so every link anyone has shared
+since 20 Aug 2026 now relies on a permanent forward. Two of those addresses were public: the
+research piece at `/reading/research/the-money-only-goes-one-way` from the morning of 27 Aug 2026
+and the guide at `/reading/guides/who-has-to-report-their-money` from that evening. Both keep
+working indefinitely, and §2.9 records the rule that keeps the chain from compounding.
+
+**The bar's own item is not marked by chrome, it is marked by ARIA.** The nav had no
+`aria-current="page"` anywhere, while 4 other surfaces in the app mark their current thing. The row
+whose link is the page being viewed now carries it, at both bands. A dropdown trigger never does: a
+trigger opens a panel and is not a page, so on `/money` the Money in politics row inside Search is
+marked and the Search trigger is not.
+
 ## 3. Open decisions
 
-None. §2.3, §2.5, §2.7, §2.10, §2.11 and §2.12 all closed on 27 Aug 2026.
+None. §2.3, §2.5, §2.7, §2.10, §2.11, §2.12 and §2.13 all closed on 27 Aug 2026.
 
 ## 4. The 4 fields the design reads off a piece
 
 **All 4 shipped 27 Aug 2026**, in the change that built the guide page at
-`/reading/guides/who-has-to-report-their-money` and the 2 groups on the `/reading` page. They live on
+`/read/guides/who-has-to-report-their-money` and the 2 groups on the `/read` page. They live on
 `ResearchPiece` in `apps/frontend/src/lib/research.ts`.
 
 1. **Two trait flags on a piece** (`traits: { research, guide }`), not 1 kind. A single-value `kind`
@@ -334,7 +374,7 @@ None. §2.3, §2.5, §2.7, §2.10, §2.11 and §2.12 all closed on 27 Aug 2026.
    one.
 2. **Set membership and position** (`set: { name, position }`), optional per §2.2. The position
    orders a set and is printed nowhere a reader can see, per §2.12; the set's name is all a reader is
-   told, and it is not a link while `/reading/sets/<name>` does not exist.
+   told, and it is not a link while `/read/sets/<name>` does not exist.
 3. **Reading time**, computed by `pieceReadingMinutes` from the piece's own stored words at 200 words
    a minute, rounded to whole minutes and never below 1. Never typed. It appears on a guide's
    masthead and on a guide's card; a research piece's masthead stays at its 2 dates and nothing else,
@@ -343,7 +383,7 @@ None. §2.3, §2.5, §2.7, §2.10, §2.11 and §2.12 all closed on 27 Aug 2026.
    piece reads "Written August 2026" until someone re-checks it and "Checked March 2027" from then
    on, same slot, one word swapped, and a listing row carries no date either way.
 
-**What is still unbuilt, and is not one of these 4:** the set box on the `/reading` page, its fold
+**What is still unbuilt, and is not one of these 4:** the set box on the `/read` page, its fold
 control, and a set's own page. §2.5 makes a box a declaration that the next piece is coming shortly,
 and "How the Money Works" does not yet qualify, so the guide ships as a standalone card. Tracked on
 [issue 1752](https://github.com/alethical-org/alethical/issues/1752).
@@ -361,14 +401,15 @@ reviewable; it is recorded on
 Two items, both rode with §2.8's rename so the files were swept once. **Both are cleared, 27 Aug
 2026**; what each one was, and where it went, is below.
 
-- **"Shelf"** for the `/reading` page broke
+- **"Shelf"** for the `/read` page broke
   [`.claude/rules/workflow.md`](../../.claude/rules/workflow.md) rule 7, which requires literal
   names a newcomer can guess and bans metaphors. It arrived in a design bundle and had spread into
   `MoneyReportsShelfScreen.tsx`, its exported screen and route, 4 code comments, the navigation
   note at `apps/frontend/src/navigation/ia.ts`, and rule 13's own text. Replacement, now shipped:
-  **the `/reading` page**, named by its address, which is Eugene's standing rule for naming any
-  page. The screen is `ReadingScreen.tsx`, its route is `Reading`, and the word "shelf" appears
-  nowhere in the frontend or the API.
+  **the `/read` page**, named by its address, which is Eugene's standing rule for naming any
+  page. The screen is `ReadScreen.tsx`, its route is `Read`, and the word "shelf" appears
+  nowhere in the frontend or the API. (The screen and route were `ReadingScreen.tsx` and `Reading`
+  for the few hours between that rename and §2.13.)
 - **`explainer`** as the internal word for the guide trait, in this repo's issues, design notes and
   any code that reaches for it. Replacement: `guide`, per §2.7. Nothing is built for that trait, so
   this cost nothing beyond prose, and the prose is done: the folder-word table in

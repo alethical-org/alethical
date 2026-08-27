@@ -13,7 +13,7 @@ import {
   legislatorDirectoryPageSnapshot,
   legislatorPageSnapshot,
   researchPageSnapshot,
-  readingPageSnapshot,
+  readPageSnapshot,
   renderPageSnapshot,
   type BillDirectorySnapshotSource,
   type BillSnapshotSource,
@@ -344,14 +344,14 @@ async function contentFor(
       };
     case "moneyLanding":
       return headOnly(STATIC_PAGE_METADATA["/money"]);
-    case "reading":
-      // The /reading page's own list, so the route to every posted piece exists before
+    case "read":
+      // The /read page's own list, so the route to every posted piece exists before
       // any program runs (#1760). The registry is on the server already, so
       // this asks the data service for nothing.
       return {
-        metadata: STATIC_PAGE_METADATA["/reading"],
+        metadata: STATIC_PAGE_METADATA["/read"],
         snapshot: renderPageSnapshot(
-          readingPageSnapshot(publishedResearch()),
+          readPageSnapshot(publishedResearch()),
         ),
       };
     case "guide":

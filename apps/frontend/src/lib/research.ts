@@ -13,7 +13,7 @@
  * cite filing bodies beyond Minnesota's Campaign Finance Board, and define
  * derived classifications — under rule 13's conditions. This file holds the
  * machinery for that surface. Posting a piece means adding its entry to
- * `PUBLISHED_RESEARCH`: the piece's page, the share preview, the /reading page,
+ * `PUBLISHED_RESEARCH`: the piece's page, the share preview, the /read page,
  * the money landing and the sitemap all read this registry. A piece's `indexed` flag
  * decides only whether search engines may list it.
  *
@@ -121,8 +121,8 @@ export interface PieceSet {
 
 export interface ResearchPiece {
   /**
-   * URL slug under the piece's own folder: /reading/research/ for a piece
-   * carrying the research trait, /reading/guides/ for one carrying only the
+   * URL slug under the piece's own folder: /read/research/ for a piece
+   * carrying the research trait, /read/guides/ for one carrying only the
    * guide trait (§2.1). `pieceAddressFolder` is the single place that decides.
    */
   slug: string;
@@ -220,21 +220,21 @@ export interface ResearchPiece {
 }
 
 /**
- * The /reading page's own fixed wording, in one place because 3 surfaces draw
+ * The /read page's own fixed wording, in one place because 3 surfaces draw
  * it: the screen, its search description in lib/share.ts, and the text
  * served in the first response before any JavaScript runs
  * (lib/pageSnapshot.ts). A second copy is how a served page and a rendered page
  * start disagreeing, which is worse than either one being wrong alone.
  */
-export const READING_PAGE_HEADING = 'Campaign money research and guides';
-export const READING_PAGE_INTRO =
+export const READ_PAGE_HEADING = 'Campaign money research and guides';
+export const READ_PAGE_INTRO =
   'Our own research and plain-language guides, drawn from the filings Minnesota campaigns, parties and funds make with the state.';
-export const READING_PAGE_EMPTY_TITLE = 'Nothing published yet.';
-export const READING_PAGE_EMPTY_BODY =
+export const READ_PAGE_EMPTY_TITLE = 'Nothing published yet.';
+export const READ_PAGE_EMPTY_BODY =
   'When we publish research or a guide on these records, it appears here, dated and carrying the date its records run through.';
 
 /**
- * The 2 group headings on the /reading page, research first (Eugene, 27 Aug
+ * The 2 group headings on the /read page, research first (Eugene, 27 Aug
  * 2026, overruling the drawn order). Grouping by our own 2 kinds is deliberate
  * and its objection is recorded: a reader arrives with a subject in mind rather
  * than a genre, and the page is revisited at 4 sets or a dozen research pieces
@@ -244,8 +244,8 @@ export const READING_PAGE_EMPTY_BODY =
  * is the source and the card inherits, or the page says "Guide" twice in one
  * glance (§2.10).
  */
-export const READING_RESEARCH_GROUP_HEADING = 'RESEARCH';
-export const READING_GUIDES_GROUP_HEADING = 'GUIDES';
+export const READ_RESEARCH_GROUP_HEADING = 'RESEARCH';
+export const READ_GUIDES_GROUP_HEADING = 'GUIDES';
 
 /**
  * One run of piece prose as a reader sees it: the runs joined, because the
@@ -266,7 +266,7 @@ export function researchSourceText(source: ResearchSource): string {
 
 /**
  * Every posted piece, newest first. Posting puts a piece on the site, so this
- * is what the /reading page, the money landing and every address-based reader
+ * is what the /read page, the money landing and every address-based reader
  * show. Whether a search engine may list it is the separate `indexed` flag.
  */
 export const PUBLISHED_RESEARCH: ResearchPiece[] = [
@@ -274,7 +274,7 @@ export const PUBLISHED_RESEARCH: ResearchPiece[] = [
   MONEY_ONLY_GOES_ONE_WAY,
 ];
 
-/** Every posted piece, of either kind: the /reading page reads this. */
+/** Every posted piece, of either kind: the /read page reads this. */
 export function publishedResearch(): ResearchPiece[] {
   return PUBLISHED_RESEARCH;
 }
@@ -300,7 +300,7 @@ export function pieceAddressFolder(piece: Pick<ResearchPiece, 'traits'>): 'resea
 
 /** A piece's own address, the only one it answers on. */
 export function piecePath(piece: Pick<ResearchPiece, 'traits' | 'slug'>): string {
-  return `/reading/${pieceAddressFolder(piece)}/${encodeURIComponent(piece.slug)}`;
+  return `/read/${pieceAddressFolder(piece)}/${encodeURIComponent(piece.slug)}`;
 }
 
 /** Posted pieces the page labels Research, newest first. */
@@ -327,7 +327,7 @@ export function indexedResearch(): ResearchPiece[] {
  * with punctuation dropped and spaces turned into hyphens.
  *
  * Built from the words rather than the section's position, because a shared
- * `/reading/research/{slug}#{anchor}` link has to survive a section being inserted above
+ * `/read/research/{slug}#{anchor}` link has to survive a section being inserted above
  * it — a positional `#s3` would silently start pointing at a different section
  * (rule 13 is explicit that a posted piece's addresses are stable). Apostrophes
  * and quote marks are removed rather than hyphenated, so "the candidate's
@@ -559,7 +559,7 @@ export function pieceCardCta(piece: ResearchPiece): string {
 }
 
 /**
- * The quiet meta line on a piece's card on the /reading page.
+ * The quiet meta line on a piece's card on the /read page.
  *
  * A research piece's card carries its publication date, as it has since it
  * posted. A guide's carries its reading time and no date: the date on a guide

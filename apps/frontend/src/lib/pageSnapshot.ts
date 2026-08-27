@@ -28,10 +28,10 @@ import {
   LEGISLATOR_DIRECTORY_HEADING,
 } from './directoryPagination';
 import {
-  READING_PAGE_EMPTY_BODY,
-  READING_PAGE_EMPTY_TITLE,
-  READING_PAGE_HEADING,
-  READING_PAGE_INTRO,
+  READ_PAGE_EMPTY_BODY,
+  READ_PAGE_EMPTY_TITLE,
+  READ_PAGE_HEADING,
+  READ_PAGE_INTRO,
   pieceCardMetaLine,
   pieceMastheadLine,
   pieceSourcesLabel,
@@ -624,23 +624,23 @@ export function researchPageSnapshot(piece: ResearchPiece): PageSnapshot {
     bodyIsList: false,
     facts: [],
     sections,
-    links: [{ label: READING_PAGE_HEADING, href: '/reading' }],
+    links: [{ label: READ_PAGE_HEADING, href: '/read' }],
   };
 }
 
 /**
- * The /reading page, with one crawlable link per posted piece. The link is the
+ * The /read page, with one crawlable link per posted piece. The link is the
  * point: without it the route to an older piece exists only after the app has
  * run, so an archive is unreachable on a first visit.
  */
-export function readingPageSnapshot(pieces: readonly ResearchPiece[]): PageSnapshot {
+export function readPageSnapshot(pieces: readonly ResearchPiece[]): PageSnapshot {
   return {
-    heading: READING_PAGE_HEADING,
+    heading: READ_PAGE_HEADING,
     subheading: '',
     bodyHeading: '',
     body: pieces.length
-      ? [READING_PAGE_INTRO]
-      : [READING_PAGE_INTRO, READING_PAGE_EMPTY_TITLE, READING_PAGE_EMPTY_BODY],
+      ? [READ_PAGE_INTRO]
+      : [READ_PAGE_INTRO, READ_PAGE_EMPTY_TITLE, READ_PAGE_EMPTY_BODY],
     bodyIsList: false,
     facts: [],
     records: pieces.map((piece) => ({

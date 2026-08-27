@@ -1,5 +1,5 @@
 import { ReactNode, useEffect, useRef, useState } from 'react';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import {
   ActivityIndicator,
   Linking,
@@ -20,9 +20,16 @@ import { ChevronDown, ChevronUp, Menu, X } from '../components/icons';
 import { theme } from './tokens';
 import { getPageBackgroundStyle } from './pageBackground';
 import { useUnavailableControl } from '../components/billDetail/interactions';
-import { IaItem, MenuKey, MENUS, mobileNavRoadmapLabels, navDropdownItems } from '../navigation/ia';
+import {
+  IaItem,
+  MenuKey,
+  NAV_BAR,
+  mobileNavRoadmapLabels,
+  navDropdownItems,
+} from '../navigation/ia';
 import { externalLinkProps, linkProps, routePath } from '../navigation/links';
-import { navigateTopNavItem } from '../navigation/topNavRoutes';
+import { pathForRoute } from '../navigation/webRoutes';
+import { NAV_ITEM_HREFS, currentNavItemId, navigateTopNavItem } from '../navigation/topNavRoutes';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useResponsive } from '../hooks/useResponsive';
 import { useAuth } from '../providers/AuthProvider';
@@ -44,34 +51,32 @@ function useHover(): [boolean, { onHoverIn: () => void; onHoverOut: () => void }
   return [hovered, { onHoverIn: () => setHovered(true), onHoverOut: () => setHovered(false) }];
 }
 
-// The URL behind each interactive nav row, so the row is a real <a href> the
-// browser can open in a new tab (navigation/links.ts). Keyed to the same ids
-// every screen's onNavigate switch handles, so a row's link and its click land
-// in the same place.
-const NAV_ITEM_HREFS: Record<string, string> = {
-  ask: routePath.ask(),
-  'search-bills': routePath.bills(),
-  'search-legislators': routePath.legislators(),
-  // Restored now that /find-my-legislator reads back as its own screen instead
-  // of redirecting to Home, so this row's link lands where its click lands
-  // (issue #764).
-  'search-find-my-legislator': routePath.findMyLegislator(),
-  'search-campaign-money': routePath.money(),
-  'reading-campaign-money': routePath.reading(),
-  // Live now that Bills is an active Track row: the link lands on the Tracked page,
-  // which prompts a signed-out visitor to sign in rather than advertising a
-  // capability it can't deliver (grounded-answers rule 2).
-  'track-bills': routePath.tracked(),
-  'about-us': routePath.aboutUs(),
-  'about-site-metrics': routePath.siteMetrics(),
-  'about-contact': routePath.contactUs(),
-};
-
 /** Link props for one nav row — a real anchor when the row has somewhere to go. */
 function navRowLinkProps(item: IaItem, onPress?: (item: IaItem) => void) {
   const press = () => onPress?.(item);
   const href = NAV_ITEM_HREFS[item.id];
   return href ? linkProps(href, press) : { accessibilityRole: 'link' as const, onPress: press };
+}
+
+/**
+ * The id of the nav row that points at the page being viewed, so the bar and the
+ * phone drawer can mark it `aria-current="page"` — the same mark the bill header,
+ * the section rail, the profile tabs and the search dropdowns already put on
+ * their own current thing, and the one thing the nav never did.
+ *
+ * Read off the live route rather than `window.location`: the address bar is
+ * written in an effect after the screen renders, so reading it here would leave
+ * the mark one navigation behind. Every row that can be marked calls this
+ * itself, which keeps the id out of 3 layers of props.
+ */
+function useCurrentNavItemId(): string | null {
+  const route = useRoute();
+  return currentNavItemId(
+    pathForRoute({
+      name: route.name as Parameters<typeof pathForRoute>[0]['name'],
+      params: route.params as Record<string, unknown> | undefined,
+    }),
+  );
 }
 
 // --- Neutral page background. Phone widths use the plain base color. ---
@@ -237,7 +242,7 @@ function MenuRowIcon({ itemId, disabled }: { itemId: string; disabled?: boolean 
             />
           </>
         ) : null}
-        {itemId === 'reading-campaign-money' ? (
+        {itemId === 'read' ? (
           // A page of prose with bars on it: our own writing about the record,
           // as opposed to the record itself (nav design, 20 Aug 2026).
           <>
@@ -334,7 +339,15 @@ function NewChip() {
   );
 }
 
-function MenuPanelRow({ item, onPress }: { item: IaItem; onPress?: (item: IaItem) => void }) {
+function MenuPanelRow({
+  item,
+  current,
+  onPress,
+}: {
+  item: IaItem;
+  current: boolean;
+  onPress?: (item: IaItem) => void;
+}) {
   const [hovered, hoverProps] = useHover();
   const disabled = item.availability === 'roadmap';
   const body = (
@@ -361,6 +374,7 @@ function MenuPanelRow({ item, onPress }: { item: IaItem; onPress?: (item: IaItem
   return (
     <Pressable
       {...navRowLinkProps(item, onPress)}
+      aria-current={current ? 'page' : undefined}
       {...hoverProps}
       style={[styles.menuPanelRow, rowHoverTransition, hovered && styles.menuPanelRowHover]}
     >
@@ -378,17 +392,23 @@ function RoadmapPill({ label, large }: { label: string; large?: boolean }) {
   );
 }
 
-const PANEL_WIDTHS: Partial<Record<MenuKey, number>> = { search: 452, reading: 452, about: 320 };
+const PANEL_WIDTHS: Partial<Record<MenuKey, number>> = { search: 452, about: 320 };
 
 function MenuPanel({ menu, onNavigate }: { menu: MenuKey; onNavigate?: (item: IaItem) => void }) {
   const { live, roadmap } = navDropdownItems(menu);
+  const currentItemId = useCurrentNavItemId();
   const width = PANEL_WIDTHS[menu] ?? 452;
   return (
     <View style={[styles.menuPanel, { width }, t.shadows.panel as ViewStyle]}>
       <View style={[styles.menuPanelNotch, { left: width / 2 - 7.5 }]} />
       <View style={styles.menuPanelList}>
         {live.map((item) => (
-          <MenuPanelRow key={item.id} item={item} onPress={onNavigate} />
+          <MenuPanelRow
+            key={item.id}
+            item={item}
+            current={item.id === currentItemId}
+            onPress={onNavigate}
+          />
         ))}
         {roadmap.length > 0 ? (
           <>
@@ -476,6 +496,66 @@ function NavDropdownTrigger({
         </View>
       ) : null}
     </View>
+  );
+}
+
+/**
+ * A bar item that IS a destination rather than a dropdown: Read, today the only
+ * one. No caret, because there is no panel to disclose, and the same resting
+ * colour and vertical padding as a trigger so the 3 bar items still sit on one
+ * line (Design's nav drawing, 27 Aug 2026).
+ *
+ * `aria-current="page"` is the only thing the current page changes here. The
+ * drawing gives the item no second visual state, and inventing one is a design
+ * decision rather than a wiring one.
+ */
+function NavBarLink({
+  item,
+  current,
+  onNavigate,
+}: {
+  item: IaItem;
+  current: boolean;
+  onNavigate?: (item: IaItem) => void;
+}) {
+  const [hovered, hoverProps] = useHover();
+  return (
+    <Pressable
+      {...navRowLinkProps(item, onNavigate)}
+      aria-current={current ? 'page' : undefined}
+      {...hoverProps}
+      style={styles.navTrigger}
+    >
+      <Text style={[styles.navTriggerText, { color: hovered ? t.colors.text.primary : '#4b524b' }]}>
+        {item.label}
+      </Text>
+    </Pressable>
+  );
+}
+
+/**
+ * One row in the phone drawer — a real link either way, whether it sits under a
+ * group heading (Search's and About's rows) or is a bar item in its own right
+ * (Read). One component so a bar item's row cannot drift from a group's row.
+ */
+function MenuDrawerRow({
+  item,
+  current,
+  onNavigate,
+}: {
+  item: IaItem;
+  current: boolean;
+  onNavigate?: (item: IaItem) => void;
+}) {
+  return (
+    <Pressable
+      {...navRowLinkProps(item, onNavigate)}
+      aria-current={current ? 'page' : undefined}
+      style={styles.menuSubRow}
+    >
+      <Text style={styles.menuSubRowText}>{item.label}</Text>
+      {item.isNew ? <NewChip /> : null}
+    </Pressable>
   );
 }
 
@@ -592,7 +672,7 @@ export function TopNav({
     if (pointerOverTrigger.current) return;
     setOpenMenu(null);
   };
-  const dropdownMenus = MENUS;
+  const currentItemId = useCurrentNavItemId();
   // Mobile flattens Search's roadmap into one compact pill row, Ask AI last.
   const mobileRoadmapPills = mobileNavRoadmapLabels();
   const navigate = (item: IaItem) => {
@@ -624,18 +704,27 @@ export function TopNav({
         {isDesktop ? (
           <View style={styles.navLinks}>
             <View ref={navTriggerGroupRef as never} style={styles.navTriggerGroup}>
-              {dropdownMenus.map((menu) => (
-                <NavDropdownTrigger
-                  key={menu.key}
-                  menu={menu.key}
-                  label={menu.label}
-                  open={openMenu === menu.key}
-                  onToggle={() => toggleMenu(menu.key)}
-                  onHoverOpen={() => handleHoverOpen(menu.key)}
-                  onHoverClose={handleHoverClose}
-                  onNavigate={navigate}
-                />
-              ))}
+              {NAV_BAR.map((entry) =>
+                entry.kind === 'menu' ? (
+                  <NavDropdownTrigger
+                    key={entry.key}
+                    menu={entry.key}
+                    label={entry.label}
+                    open={openMenu === entry.key}
+                    onToggle={() => toggleMenu(entry.key)}
+                    onHoverOpen={() => handleHoverOpen(entry.key)}
+                    onHoverClose={handleHoverClose}
+                    onNavigate={navigate}
+                  />
+                ) : (
+                  <NavBarLink
+                    key={entry.item.id}
+                    item={entry.item}
+                    current={entry.item.id === currentItemId}
+                    onNavigate={navigate}
+                  />
+                ),
+              )}
             </View>
             {isSignedIn ? (
               <AccountNavButton />
@@ -694,22 +783,36 @@ export function TopNav({
               </Pressable>
             </View>
             <ScrollView style={styles.menuList}>
-              {/* The shared menu is Ask-free on every screen and at every width. */}
-              {dropdownMenus.map((menu) => {
-                const { live } = navDropdownItems(menu.key);
+              {/* The shared menu is Ask-free on every screen and at every width.
+                  A bar item with no dropdown gets one row and no heading: a
+                  READ heading over a single Read row would repeat its own child
+                  14px below it (Design's nav drawing, 27 Aug 2026). It keeps the
+                  group's own vertical padding, so it still reads as its own
+                  block rather than a 5th Search row. */}
+              {NAV_BAR.map((entry) => {
+                if (entry.kind === 'link') {
+                  return (
+                    <View key={entry.item.id} style={styles.menuGroup}>
+                      <MenuDrawerRow
+                        item={entry.item}
+                        current={entry.item.id === currentItemId}
+                        onNavigate={navigate}
+                      />
+                    </View>
+                  );
+                }
+                const { live } = navDropdownItems(entry.key);
                 if (live.length === 0) return null;
                 return (
-                  <View key={menu.key} style={styles.menuGroup}>
-                    <Text style={styles.menuGroupLabel}>{menu.label.toUpperCase()}</Text>
+                  <View key={entry.key} style={styles.menuGroup}>
+                    <Text style={styles.menuGroupLabel}>{entry.label.toUpperCase()}</Text>
                     {live.map((item) => (
-                      <Pressable
+                      <MenuDrawerRow
                         key={item.id}
-                        {...navRowLinkProps(item, navigate)}
-                        style={styles.menuSubRow}
-                      >
-                        <Text style={styles.menuSubRowText}>{item.label}</Text>
-                        {item.isNew ? <NewChip /> : null}
-                      </Pressable>
+                        item={item}
+                        current={item.id === currentItemId}
+                        onNavigate={navigate}
+                      />
                     ))}
                   </View>
                 );
@@ -1245,8 +1348,17 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   // paddingVertical 12 (not 9) gives the 21px rows more breathing room within a
-  // group and lifts each row's tap target to ~49px (clears the 44px minimum).
-  menuSubRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12 },
+  // group. That alone lands the row near 49px, which clears the 44px minimum by
+  // accident: nothing holds it there if the type size ever changes. `minHeight`
+  // is what holds it, so a smaller row size can shrink the ink and not the
+  // target (Design's nav drawing, 27 Aug 2026).
+  menuSubRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 12,
+    minHeight: 44,
+  },
   menuSubRowText: {
     fontFamily: t.typography.title,
     fontSize: 21,

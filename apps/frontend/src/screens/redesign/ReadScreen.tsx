@@ -3,12 +3,12 @@ import Svg, { Path } from 'react-native-svg';
 
 import { useResponsive } from '../../hooks/useResponsive';
 import {
-  READING_GUIDES_GROUP_HEADING,
-  READING_PAGE_EMPTY_BODY,
-  READING_PAGE_EMPTY_TITLE,
-  READING_PAGE_HEADING,
-  READING_PAGE_INTRO,
-  READING_RESEARCH_GROUP_HEADING,
+  READ_GUIDES_GROUP_HEADING,
+  READ_PAGE_EMPTY_BODY,
+  READ_PAGE_EMPTY_TITLE,
+  READ_PAGE_HEADING,
+  READ_PAGE_INTRO,
+  READ_RESEARCH_GROUP_HEADING,
   pieceCardCta,
   pieceCardMetaLine,
   piecesLabelledGuide,
@@ -21,10 +21,11 @@ import { Container, Footer, PageBackground, TopNav } from '../../theme/primitive
 import { theme as t } from '../../theme/tokens';
 
 /**
- * The /reading page — everything Alethical publishes in its own name, reached
- * from the nav's Reading group and from the money landing's "What we found"
+ * The /read page — everything Alethical publishes in its own name, reached
+ * from the bar's Read item and from the money landing's "What we found"
  * card (grounded-answers.md rule 13; "Money report web.dc.html", screen A). It
- * sat at /money/reports until #1698, and at /reports until 27 Aug 2026
+ * sat at /money/reports until #1698, at /reports until the morning of 27 Aug
+ * 2026, and at /reading until that evening
  * (docs/architecture/published-writing-decisions.md §2.1).
  *
  * The page holds both kinds of writing, in 2 groups: **RESEARCH first, then
@@ -99,14 +100,14 @@ function PieceCard({
 /** One group on the page: its heading, and the pieces under it. */
 type PieceGroup = { heading: string; pieces: ResearchPiece[] };
 
-export function ReadingScreen({ navigation }: RootScreenProps<'Reading'>) {
+export function ReadScreen({ navigation }: RootScreenProps<'Read'>) {
   const { isMobile } = useResponsive();
   // Source order, research first. An empty group is dropped here rather than
   // hidden in the markup, so the group that renders first is genuinely first for
   // a screen reader and for the keyboard as well as in ink.
   const groups: PieceGroup[] = [
-    { heading: READING_RESEARCH_GROUP_HEADING, pieces: piecesLabelledResearch() },
-    { heading: READING_GUIDES_GROUP_HEADING, pieces: piecesLabelledGuide() },
+    { heading: READ_RESEARCH_GROUP_HEADING, pieces: piecesLabelledResearch() },
+    { heading: READ_GUIDES_GROUP_HEADING, pieces: piecesLabelledGuide() },
   ].filter((group) => group.pieces.length > 0);
 
   return (
@@ -147,19 +148,19 @@ export function ReadingScreen({ navigation }: RootScreenProps<'Reading'>) {
             aria-level={1}
             style={[styles.heading, isMobile && styles.headingMobile]}
           >
-            {READING_PAGE_HEADING}
+            {READ_PAGE_HEADING}
           </Text>
-          <Text style={styles.intro}>{READING_PAGE_INTRO}</Text>
+          <Text style={styles.intro}>{READ_PAGE_INTRO}</Text>
 
           <View style={styles.rule} />
 
           {groups.length === 0 ? (
             <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>{READING_PAGE_EMPTY_TITLE}</Text>
+              <Text style={styles.emptyTitle}>{READ_PAGE_EMPTY_TITLE}</Text>
               {/* No promise of future pieces — "an index promising work we have
                   not done is the one claim here we could not link" (design rule;
                   wording approved by the design-review session, 19 Aug 2026). */}
-              <Text style={styles.emptyBody}>{READING_PAGE_EMPTY_BODY}</Text>
+              <Text style={styles.emptyBody}>{READ_PAGE_EMPTY_BODY}</Text>
             </View>
           ) : (
             groups.map((group, index) => (

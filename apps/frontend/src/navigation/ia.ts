@@ -1,6 +1,6 @@
 /**
  * Phase-0 IA contract — single source of truth for the new top-nav information
- * architecture (Search · Reading · About · auth).
+ * architecture (Search · Read · About · auth).
  *
  * Ask stays reachable through its answer route and in-page actions, but it is not
  * a global navigation item. Every page now shares the same Ask-free menu.
@@ -20,7 +20,7 @@
  * tracking capabilities below are still declared, and Tracked Bills is still a
  * real page. Only `MENUS` decides what the bar and the phone drawer render.
  */
-export type MenuKey = 'search' | 'track' | 'reading' | 'about';
+export type MenuKey = 'search' | 'track' | 'about';
 
 export type Availability = 'mvp' | 'roadmap';
 
@@ -31,7 +31,11 @@ export interface IaItem {
   label: string;
   /** Web path. Detail routes carry `:param` segments. */
   path: string;
-  /** Menu this item lives under. `null` = it IS a top-level nav entry. */
+  /**
+   * Dropdown this item lives under. `null` means it lives under none: either it
+   * is a bar item in its own right (Read, via `NAV_BAR` below) or it is reached
+   * from in-page actions rather than the bar at all (Ask).
+   */
   menu: MenuKey | null;
   /** Ships in MVP, or declared-but-hidden roadmap. */
   availability: Availability;
@@ -54,23 +58,31 @@ export interface IaItem {
 }
 
 /**
- * Top-level menus, in nav order — the same three in both auth states, which
- * differ only in the right-hand control (Sign in, or the avatar).
+ * Read — everything Alethical publishes in its own name, at `/read`.
  *
- * A "Yours" group used to sit second, holding one row: Tracked Bills. #1698
- * moved that row into the account menu, where a reader's own things belong, and
- * dropped the group from the bar. Reading took second place: it holds one child
- * for now, and holds as a group because the child names a subject rather than
- * repeating the header (nav build prompt, 20 Aug 2026). The group was labelled
- * Reports until 27 Aug 2026, when "report" went back to meaning the document a
- * campaign files with the state and the group took the name of the page it opens
- * (docs/architecture/published-writing-decisions.md §2.6 and §5).
+ * It is a bar item with no dropdown, so it appears in `NAV_BAR` below as well as
+ * in the registry. This was a `reading` menu holding a single row labelled
+ * "Campaign money" until 27 Aug 2026: the bar showed a dropdown with one item in
+ * it and the phone drawer showed a heading over one row. Everything we publish
+ * sits on the one `/read` page, so the bar has nothing to disclose and the
+ * drawer gains no nested layer (Design's nav drawing, 27 Aug 2026;
+ * docs/architecture/published-writing-decisions.md §2.1).
+ *
+ * The NEW chip rides on this item, which is where the collapsed row's chip
+ * already was. The phone drawer draws chips on its rows, and the bar draws none,
+ * so the chip shows on the phone and not on the computer, exactly as the drawing
+ * has it.
  */
-export const MENUS: { key: MenuKey; label: string }[] = [
-  { key: 'search', label: 'Search' },
-  { key: 'reading', label: 'Reading' },
-  { key: 'about', label: 'About' },
-];
+const READ_ITEM: IaItem = {
+  id: 'read',
+  label: 'Read',
+  path: '/read',
+  menu: null,
+  availability: 'mvp',
+  authGated: false,
+  isNew: true,
+  note: 'Opens the /read page. A piece of our own research is the one surface allowed to add figures up across members (.claude/rules/grounded-answers.md rule 13).',
+};
 
 /**
  * The IA registry. Order within a menu is display order. Roadmap items are
@@ -220,21 +232,9 @@ export const IA: IaItem[] = [
     authGated: false,
     inNavDropdown: true,
   },
-  // Reading — Alethical's own published writing, second in the bar. One child
-  // today; the group holds because "Campaign money" names a subject the header
-  // does not, and adding a kind word as a suffix would stutter (nav build
-  // prompt, 20 Aug 2026). The NEW pill rides on the child, not the group.
-  {
-    id: 'reading-campaign-money',
-    label: 'Campaign money',
-    path: '/reading',
-    menu: 'reading',
-    availability: 'mvp',
-    authGated: false,
-    description: 'What we found across campaign filings and how we counted it',
-    isNew: true,
-    note: 'Opens the /reading page. A piece of our own research is the one surface allowed to add figures up across members (.claude/rules/grounded-answers.md rule 13).',
-  },
+  // Read — Alethical's own published writing, second in the bar. Declared here
+  // as `READ_ITEM` above so `NAV_BAR` can point a bar entry straight at it.
+  READ_ITEM,
 
   // Track — personalized, signed-in ("your space"). Auth-gated. No longer a
   // group in the bar: Tracked Bills moved into the account menu (#1698), and
@@ -325,6 +325,29 @@ export const IA: IaItem[] = [
     availability: 'mvp',
     authGated: false,
   },
+];
+
+/**
+ * The top bar, in bar order: 3 entries in both auth states, which differ only in
+ * the right-hand control (Sign in, or the avatar).
+ *
+ * An entry is one of 2 things. A `menu` entry is a trigger that opens a panel of
+ * rows and names no destination of its own. A `link` entry IS a destination and
+ * has no panel. Read is the only `link` entry today.
+ *
+ * A "Yours" group used to sit second, holding one row: Tracked Bills. #1698
+ * moved that row into the account menu, where a reader's own things belong, and
+ * dropped the group from the bar. Read took second place, first as a group
+ * labelled Reports, then Reading, and since 27 Aug 2026 as a single item
+ * (`READ_ITEM` above records why the group went).
+ */
+export type NavBarEntry =
+  { kind: 'menu'; key: MenuKey; label: string } | { kind: 'link'; item: IaItem };
+
+export const NAV_BAR: NavBarEntry[] = [
+  { kind: 'menu', key: 'search', label: 'Search' },
+  { kind: 'link', item: READ_ITEM },
+  { kind: 'menu', key: 'about', label: 'About' },
 ];
 
 /**

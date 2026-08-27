@@ -2,8 +2,8 @@ import { plainBillSummary } from './billDetail';
 import { registrationNumberFromSlug } from './committeeMoney';
 import { directoryPagePath } from './directoryPagination';
 import {
-  READING_PAGE_HEADING,
-  READING_PAGE_INTRO,
+  READ_PAGE_HEADING,
+  READ_PAGE_INTRO,
   pieceShareDescription,
   piecePath,
   type ResearchPiece,
@@ -445,11 +445,11 @@ export const STATIC_PAGE_METADATA: Record<string, PageMetadata> = {
     canonicalPath: '/money',
   }),
   '/money/committees': committeeListPageMetadata(),
-  '/reading': pageMetadata({
-    title: titleFor(READING_PAGE_HEADING),
-    socialTitle: READING_PAGE_HEADING,
-    description: READING_PAGE_INTRO,
-    canonicalPath: '/reading',
+  '/read': pageMetadata({
+    title: titleFor(READ_PAGE_HEADING),
+    socialTitle: READ_PAGE_HEADING,
+    description: READ_PAGE_INTRO,
+    canonicalPath: '/read',
   }),
   '/confirm': pageMetadata({
     title: titleFor('Confirm email'),

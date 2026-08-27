@@ -50,7 +50,7 @@ export const routePath = {
     pathForRoute({ name: 'VoteDetail', params: { billId, voteEventId } }),
   findMyLegislator: () => pathForRoute({ name: 'FindMyLegislator' }),
   money: () => pathForRoute({ name: 'MoneyLanding' }),
-  reading: () => pathForRoute({ name: 'Reading' }),
+  read: () => pathForRoute({ name: 'Read' }),
   research: (slug: string) => pathForRoute({ name: 'Research', params: { slug } }),
   guide: (slug: string) => pathForRoute({ name: 'Guide', params: { slug } }),
   /** A piece's own address, whichever kind it is. One place decides the folder. */
