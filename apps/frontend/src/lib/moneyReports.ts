@@ -161,7 +161,9 @@ export function reportRunsText(runs: ReportInline[]): string {
 
 /** Every source line as the sources block draws it: the entry, its note, its link text. */
 export function reportSourceText(source: ReportSource): string {
-  return [source.text, source.note, source.noteLink?.text].filter(Boolean).join(' ');
+  // The link's own words are deliberately absent: a snapshot renders them as a real
+  // anchor beside this sentence, so including them here would print them twice.
+  return [source.text, source.note].filter(Boolean).join(' ');
 }
 
 /**
