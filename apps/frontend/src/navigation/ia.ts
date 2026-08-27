@@ -110,19 +110,16 @@ export const IA: IaItem[] = [
     // broader than "Campaign money" because the section will hold lobbying too.
     // Position, NEW pill and destination all unchanged.
     //
-    // The description names the search before the search works, and that is a
-    // decision rather than an oversight (Eugene, 20 Aug 2026). #1700 had removed
-    // this wording under grounded-answers.md rule 2, on the grounds that /money
-    // answers a promised search with "Search is not built yet." Eugene overruled
-    // it: /money opens with its own under-development notice, so a reader is told
-    // where they are before they try anything, and the row can say what the
-    // section is for rather than what it currently holds. Same call he made for
-    // the homepage promo's "Search the money records" button, so the menu and the
-    // homepage now say the same thing about the same destination.
+    // The description names the search, and since #1696 the search works: the
+    // field on /money answers, and its results page groups people, committees and
+    // the names that got paid exactly as this row says. Nothing here has to lean
+    // on the under-development notice any more.
     //
-    // What that notice is doing is load-bearing. If /money ever stops declaring
-    // itself unfinished while its search is still a picture, this row goes back
-    // to describing the record (#1696 ships the working front door).
+    // Kept for the next person who reads rule 2 against this row: the wording was
+    // removed once (#1700) because /money answered a promised search with "Search
+    // is not built yet", and Eugene overruled that on 20 Aug 2026 on the grounds
+    // that the page declared itself unfinished. That argument is now moot rather
+    // than load-bearing — the row describes a capability that ships.
     label: 'Money in politics',
     path: '/money',
     menu: 'search',

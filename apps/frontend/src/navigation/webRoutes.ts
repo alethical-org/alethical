@@ -23,6 +23,8 @@ type WebRouteTarget =
   | { kind: 'moneyReport'; slug: string }
   | { kind: 'moneyCommittee'; slug: string; tab?: string; year?: string }
   | { kind: 'moneyCommitteePayments'; slug: string; tab?: string; year?: string }
+  | { kind: 'moneyCommitteeList'; params: Record<string, string> }
+  | { kind: 'moneySearch'; params: Record<string, string> }
   | { kind: 'privacy' }
   | { kind: 'siteMetrics' }
   | { kind: 'terms' }
@@ -84,6 +86,28 @@ function legislatorsFilterParams(searchParams: URLSearchParams): Record<string, 
     }
   }
   return params;
+}
+
+// URL-addressable committees-list state (campaign money phase 3): the name box,
+// the register's own kind filter, and how many rows the reader asked to see. All
+// 3 live in the address so a narrowed or scrolled list can be shared and survives
+// the browser Back button after opening a committee.
+const COMMITTEE_LIST_PARAMS = ['q', 'kind', 'show'] as const;
+
+function committeeListParams(searchParams: URLSearchParams): Record<string, string> {
+  const params: Record<string, string> = {};
+  for (const key of COMMITTEE_LIST_PARAMS) {
+    const value = searchParams.get(key);
+    if (value) {
+      params[key] = value;
+    }
+  }
+  return params;
+}
+
+function moneySearchParams(searchParams: URLSearchParams): Record<string, string> {
+  const query = searchParams.get('q');
+  return query ? { q: query } : {};
 }
 
 export function targetFromPathname(pathname: string): WebRouteTarget {
@@ -205,16 +229,25 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
       : { kind: 'notFound', path: pathname };
   }
 
+  // The name search's results page (campaign money phase 3, issue #1696). The
+  // query is the whole of the state, so the address carries everything the page
+  // shows and a results link is one somebody can send. An address with no query
+  // is the page's own "type a name" state rather than a redirect, so the search
+  // field on it still has somewhere to live.
+  if (segments.length === 2 && segments[0] === 'money' && segments[1] === 'search') {
+    return { kind: 'moneySearch', params: moneySearchParams(searchParams) };
+  }
+
   // One committee's money page and its full-payments view (campaign money phase
   // 2). The trailing registration number is the identity and the only thing that
   // resolves — names collide, registration numbers do not — so an old or
   // misspelled name part still lands on the right page, which then forwards to
   // the current address. An address carrying no number is a page that does not
-  // exist. The bare /money/committees list is phase 3; until it ships that
-  // address forwards to /money rather than promising a list.
+  // exist. The bare /money/committees is the register's own list (phase 3), and
+  // its filter, name box and row count all ride in the query string.
   if (segments.length >= 2 && segments[0] === 'money' && segments[1] === 'committees') {
     if (segments.length === 2) {
-      return { kind: 'moneyLanding' };
+      return { kind: 'moneyCommitteeList', params: committeeListParams(searchParams) };
     }
     const slug = decodeURIComponent(segments[2]);
     if (!registrationNumberFromSlug(slug)) {
@@ -414,6 +447,21 @@ export function pathForRoute(activeRoute: {
       return '/reports';
     case 'MoneyReport':
       return `/reports/${encodeURIComponent(String(activeRoute.params?.slug ?? ''))}`;
+    case 'CommitteeList': {
+      const params = new URLSearchParams();
+      for (const key of COMMITTEE_LIST_PARAMS) {
+        const value = activeRoute.params?.[key];
+        if (value) {
+          params.set(key, String(value));
+        }
+      }
+      const query = params.toString();
+      return query ? `/money/committees?${query}` : '/money/committees';
+    }
+    case 'MoneySearch': {
+      const query = activeRoute.params?.q;
+      return query ? `/money/search?q=${encodeURIComponent(String(query))}` : '/money/search';
+    }
     case 'CommitteeMoney':
     case 'CommitteePayments': {
       const base = `/money/committees/${encodeURIComponent(String(activeRoute.params?.slug ?? ''))}`;
@@ -589,6 +637,16 @@ export function stateFromPathname(pathname: string): WebNavigationState {
             params: { slug: target.slug, tab: target.tab, year: target.year },
           },
         ],
+        index: 1,
+      };
+    case 'moneyCommitteeList':
+      return {
+        routes: [homeTabs, { name: 'CommitteeList', params: target.params }],
+        index: 1,
+      };
+    case 'moneySearch':
+      return {
+        routes: [homeTabs, { name: 'MoneySearch', params: target.params }],
         index: 1,
       };
     case 'privacy':

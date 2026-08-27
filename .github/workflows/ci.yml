@@ -101,6 +101,12 @@ jobs:
       - name: Check no file carries a NUL byte
         run: python scripts/check_no_nul_bytes.py
 
+      # A conflict block reached main inside a plain-English guide and sat there
+      # for 7 days (#1683): no compiler, formatter or test reads Markdown, so
+      # nothing noticed 2 contradicting accounts of the same screens.
+      - name: Check no file carries a merge-conflict marker
+        run: python scripts/check_no_merge_conflict_markers.py
+
       # Only meaningful on a PR: it compares against the merge base and reads
       # the PR body. It checks both docs that describe changed code and frozen
       # design-bundle edits. On a push to main there is no body, so skip it.

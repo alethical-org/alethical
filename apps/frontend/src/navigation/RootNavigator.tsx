@@ -30,8 +30,10 @@ import { AskAnswerScreen } from '../screens/redesign/AskAnswerScreen';
 import { AboutUsScreen } from '../screens/redesign/AboutUsScreen';
 import { BillDetailScreen } from '../screens/redesign/BillDetailScreen';
 import { HomeSignedOutScreen } from '../screens/redesign/HomeSignedOutScreen';
+import { CommitteeListScreen } from '../screens/redesign/CommitteeListScreen';
 import { CommitteeMoneyScreen } from '../screens/redesign/CommitteeMoneyScreen';
 import { CommitteePaymentsScreen } from '../screens/redesign/CommitteePaymentsScreen';
+import { MoneySearchScreen } from '../screens/redesign/MoneySearchScreen';
 import { MoneyLandingScreen } from '../screens/redesign/MoneyLandingScreen';
 import { MoneyReportScreen } from '../screens/redesign/MoneyReportScreen';
 import { MoneyReportsShelfScreen } from '../screens/redesign/MoneyReportsShelfScreen';
@@ -671,6 +673,16 @@ export function RootNavigator() {
               name="MoneyReport"
               component={MoneyReportScreen}
               options={{ headerShown: false, title: 'Report' }}
+            />
+            <Stack.Screen
+              name="MoneySearch"
+              component={MoneySearchScreen}
+              options={{ headerShown: false, title: 'Search campaign money' }}
+            />
+            <Stack.Screen
+              name="CommitteeList"
+              component={CommitteeListScreen}
+              options={{ headerShown: false, title: 'Committees' }}
             />
             <Stack.Screen
               name="CommitteeMoney"

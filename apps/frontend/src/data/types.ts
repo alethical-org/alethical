@@ -840,3 +840,119 @@ export interface CommitteeFilingsPage {
    *  can say the list's boundary instead of implying completeness. */
   cataloguedWithoutRecord: number | null;
 }
+
+/** One row of the register as the committees list draws it (GET
+ *  /campaign-finance/committees). `subType` is the Board's own code and
+ *  deliberately not a label: the wording a reader sees is derived in one place
+ *  (`committeeEyebrow` in lib/committeeMoney.ts) so this list cannot label a
+ *  filer differently from its own page. `office` and `district` are null on most
+ *  rows and that is the register, not a gap — 0 of the 299 party units carry
+ *  one. */
+export interface CommitteeRegisterRow {
+  registrationNumber: string;
+  name: string;
+  kind: string | null;
+  subType: string | null;
+  office: string | null;
+  district: string | null;
+  isClosed: boolean;
+  /** ISO date the committee terminated, beside `isClosed` and never instead of
+   *  it. */
+  terminationDate: string | null;
+}
+
+/** One page of the register, A to Z by the filed name. No row carries an amount
+ *  and nothing sorts by one: these filers file to different calendars, so 2
+ *  dollar figures side by side would set one period against another
+ *  (grounded-answers rule 12). */
+export interface CommitteeRegisterPage {
+  state: 'reported' | 'unavailable';
+  /** What the list is ordered by ("name"), so the printed order sentence and the
+   *  real order cannot drift apart. */
+  orderedBy: string;
+  committees: CommitteeRegisterRow[];
+  hasMore: boolean;
+  /** Counted with the same filter the rows came from, so "showing 50 of 778
+   *  candidate committees" is true of the list on screen. */
+  total: number | null;
+  /** The whole register, whatever filter is applied, so a count on the page can
+   *  speak for the register rather than for the filter. */
+  registerTotal: number | null;
+  /** How many of each of the register's 3 kinds, unfiltered — the filter chips
+   *  label themselves from this, and counts that moved when a filter was applied
+   *  would read as the filter having found fewer of a kind than exist. */
+  byKind: Record<string, number>;
+  /** The plain calendar date our copy of the register was counted from. */
+  asOf: string | null;
+}
+
+/** One result row of the name search. Each carries its own `kind` so a caller
+ *  reads the row rather than inferring its shape from the group it arrived in. */
+export type NameSearchRow =
+  | {
+      kind: 'person';
+      legislatorId: string;
+      slug: string;
+      fullName: string;
+      chamber: string | null;
+      districtCode: string | null;
+      party: string | null;
+    }
+  | {
+      kind: 'committee';
+      registrationNumber: string;
+      name: string;
+      filerKind: string | null;
+      subType: string | null;
+      office: string | null;
+      district: string | null;
+      isClosed: boolean;
+      terminationDate: string | null;
+    }
+  | {
+      kind: 'payment_name';
+      name: string;
+      /** The role the payments-under-a-name view takes, served verbatim so a
+       *  caller never translates it. */
+      role: string;
+      /** Records carrying this exact spelling. Never an amount. */
+      paymentCount: number | null;
+    };
+
+/** One group of the name search's answer. A group with nothing in it is still
+ *  served and still drawn, so a missing group can never be read as "no matches"
+ *  when it meant "we did not look".
+ *
+ *  Three states, and the middle one is the whole point: `not_reported` means we
+ *  searched this part of the records and nothing carried that spelling, while
+ *  `unavailable` means we could not read it at all. Collapsing them would print
+ *  "a gap on our side" over a verified nothing, which is the missing-versus-zero
+ *  failure `.claude/rules/grounded-answers.md` rule 12 forbids. */
+export interface NameSearchGroup {
+  kind: string;
+  state: 'reported' | 'not_reported' | 'unavailable';
+  results: NameSearchRow[];
+  /** Exact up to the server's counting ceiling, then null with `atLeast` saying
+   *  how far the count got. A ceiling printed as a total would be a fabricated
+   *  fact (grounded-answers rule 11). */
+  total: number | null;
+  atLeast: number | null;
+  hasMore: boolean;
+  reason: string | null;
+}
+
+/** One typed name matched across the 5 kinds of record (GET
+ *  /campaign-finance/search). `state` "unavailable" with reason
+ *  "query_too_short" is a served state, not an error: the page says "type at
+ *  least 3 characters" rather than "nothing found", which would be a false claim
+ *  about the records. */
+export interface NameSearchAnswer {
+  state: 'reported' | 'unavailable';
+  query: string;
+  /** The smallest query the name index can answer on. */
+  minQueryLength: number | null;
+  /** How many distinct names the server counts before it stops. */
+  countedUpTo: number | null;
+  groups: NameSearchGroup[];
+  reason: string | null;
+}

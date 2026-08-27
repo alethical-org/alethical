@@ -67,6 +67,7 @@ describe('sitemap endpoint', () => {
       '/legislators',
       '/find-my-legislator',
       '/money',
+      '/money/committees',
       '/reports',
       '/about',
       '/about/contact',
@@ -84,7 +85,7 @@ describe('sitemap endpoint', () => {
     expect(body).toContain(
       '<loc>https://www.alethical.com/reports/the-money-only-goes-one-way</loc>',
     );
-    expect(body.match(/<url>/g)).toHaveLength(15);
+    expect(body.match(/<url>/g)).toHaveLength(16);
     expect(body).not.toContain('<lastmod>');
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
@@ -97,7 +98,7 @@ describe('sitemap endpoint', () => {
 
     const { body, status } = recorder.read();
     expect(status).toBe(200);
-    expect(body.match(/<url>/g)).toHaveLength(12);
+    expect(body.match(/<url>/g)).toHaveLength(13);
     expect(body).toContain(
       '<loc>https://www.alethical.com/reports/the-money-only-goes-one-way</loc>',
     );

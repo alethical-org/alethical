@@ -1,18 +1,24 @@
-<!-- describes: apps/frontend/src/screens/redesign/MoneyLandingScreen.tsx, apps/frontend/src/screens/redesign/MoneyReportsShelfScreen.tsx, apps/frontend/src/screens/redesign/MoneyReportScreen.tsx, apps/frontend/src/screens/redesign/CommitteeMoneyScreen.tsx, apps/frontend/src/screens/redesign/CommitteePaymentsScreen.tsx, apps/frontend/src/lib/moneyLanding.ts, apps/frontend/src/lib/moneyReports.ts, apps/frontend/src/lib/committeeMoney.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/webRoutes.ts -->
+<!-- describes: apps/frontend/src/screens/redesign/MoneyLandingScreen.tsx, apps/frontend/src/screens/redesign/MoneyReportsShelfScreen.tsx, apps/frontend/src/screens/redesign/MoneyReportScreen.tsx, apps/frontend/src/screens/redesign/CommitteeMoneyScreen.tsx, apps/frontend/src/screens/redesign/CommitteePaymentsScreen.tsx, apps/frontend/src/screens/redesign/CommitteeListScreen.tsx, apps/frontend/src/screens/redesign/MoneySearchScreen.tsx, apps/frontend/src/components/campaignMoney/MoneyNameSearchField.tsx, apps/frontend/src/lib/moneyLanding.ts, apps/frontend/src/lib/moneyReports.ts, apps/frontend/src/lib/committeeMoney.ts, apps/frontend/src/lib/committeeList.ts, apps/frontend/src/lib/moneyNameSearch.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/webRoutes.ts -->
 
 # How the Campaign money section works
 
 **Net.** `/money` is the public front door to Minnesota's campaign-money records, open to
-everyone with no sign-in. In this first release it shows the shape of the whole section —
-what exists, what is coming, and what the record does and does not cover. Our own signed
-research reports live one level up, at `/reports`, which the money landing still points at.
-Nothing is published on that shelf yet, and it says so.
+everyone with no sign-in. Typing a name in the box on it now works, the register of
+committees has its own browsable list, and every committee page is reachable by browsing
+rather than only by pasting an address. One part of the section is still unbuilt and says
+so on the page: the Who got paid lane
+([#1780](https://github.com/alethical-org/alethical/issues/1780)). Our own signed research
+lives one level up, at `/reports`, which the money landing still points at.
 
 ## Ways in
 
 - Choose **Search**, then **Money in politics** (marked with a green NEW chip) in the shared
   top menu, on a computer or in the phone menu.
 - Open `/money` directly.
+- Type a name into the box on `/money` and press Enter or the Search button, which opens
+  the results page at `/money/search?q=…`.
+- Open `/money/committees` directly for the whole register, or `/money/search?q=…` for a
+  search somebody shared with you.
 - The retired address `/track/campaign-finance` (an old greyed "Campaign Finance" tracking
   row pointed there) shows the `/money` landing instead of an error.
 
@@ -25,20 +31,27 @@ Top to bottom:
 
 1. **Title and one sentence** saying what the record is: every contribution and expenditure
    Minnesota publishes for state campaigns.
-2. **A search box that does not work yet**, and says so in plain words ("Search is not
-   built yet."). It is drawn so a reader sees search is the plan; it cannot be typed into,
-   because a working-looking box would be a promise.
+2. **A working search box.** Type a name and press Enter or the Search button, and it opens
+   the results page. It commits on Enter rather than as you type, because every search has
+   its own address and a search that ran per keystroke would leave a browser history entry
+   for every letter. Under it, one line saying what the matching does: the name exactly as
+   it was filed, and no nearest-match guess — names in these records differ from each other
+   by a single character often enough that a guess would put a reader on the wrong
+   organisation. A query shorter than the search's own floor is not blocked here; the
+   results page says "type at least 3 characters" instead, which is the true answer rather
+   than a box that silently refuses.
 3. **What we found** — the research lane, first in prominence. It links to the reports
    shelf. With nothing published it says "Nothing is published yet" and counts "0 REPORTS
    PUBLISHED" honestly.
 4. **Three lane cards**: Legislators (links to the legislator directory — a member's money
-   is a tab on the profile they already have), Committees, and Who got paid. The last two
-   lanes' cards are visibly not clickable, carry a "NOT BUILT YET" chip, and say "This
-   page is not built yet.": each opens a *list* page that is not built yet (phase 3). Every
-   committee does have its own page already (below) — reached by address, not by browsing
-   — and the lane stays inert so it cannot promise a list that does not exist. Every lane
-   being visible — built or not — is a deliberate decision (Eugene, 18 Aug 2026), so a
-   reader sees the whole shape of the section.
+   is a tab on the profile they already have), Committees (links to the register's own list
+   at `/money/committees`), and Who got paid. Only Who got paid is still inert: it is
+   visibly not clickable, carries a "NOT BUILT YET" chip, and says "This page is not built
+   yet." Its card promises a list nothing has drawn — a name's payments are reached from a
+   search result rather than from a lane — so the card stays inert until
+   [#1780](https://github.com/alethical-org/alethical/issues/1780) settles what it opens.
+   Every lane being visible — built or not — is a deliberate decision (Eugene, 18 Aug
+   2026), so a reader sees the whole shape of the section.
 5. **What this record does not cover**: nothing before 2015; unions do not report to this
    board; and the exact sentence "Donors who gave $200 or less in total for the year are
    never named" (the $200 test is on a donor's yearly total, never on one gift's size).
@@ -77,6 +90,112 @@ served renders nothing rather than a number:
 While data loads, grey placeholder blocks pulse (the pulse stops for readers who asked
 their device for reduced motion, and a hidden "Loading" note tells screen readers).
 
+## The search results page (`/money/search?q=…`)
+
+One typed name, matched across the 5 kinds of record Minnesota's files hold, grouped by
+what each match **is**. The typed name is in the address, so a results page is a link
+somebody can send, and the browser's Back button returns to it.
+
+Matching is containment of exactly what was typed, and there is no did-you-mean anywhere.
+That is not caution: 178 registered filer names sit a single character apart from another
+registered name, and every one of those pairs is a different organisation — the Green Party
+and the Republican Party of the same district among them. A correction on this data does
+not fix a typo, it hands a reader one organisation's money under another's name with
+nothing on screen to reveal it.
+
+**What the record does not cover sits above the results, not under them.** Somebody who
+types a name, gets nothing, and is told nothing concludes that the person gave nothing,
+rather than that we do not hold the record.
+
+The 5 groups, always all 5, always in this order, and each drawn even when it holds
+nothing — a group missing from the page would read as "nothing is filed" when it meant "we
+did not look":
+
+- **People** — the 200 sitting legislators, and only them. A person is a result only where
+  we hold a record of them beyond these filings; everybody else on a filing resolves to
+  what they filed. These rows open the person's profile.
+- **Committees** — the register. The only rows that open a page, because a committee
+  carries a registration number and so keeps its address through a change of name. Where
+  more rows exist than the group shows, one link opens the committees list already narrowed
+  to the same name.
+- **Names that gave** — distinct donor names from the contributions file. A donor's name is
+  searchable and is deliberately not a profile: we never join 2 spellings into one person,
+  and the records hold "Messinger, Alida", "Messinger, Alida R" and "Messinger, Alida
+  Rockefelle" as 3 separate strings.
+- **Names that got paid** — distinct supplier names from the expenditures file.
+- **Names paid by independent spending** — the same from the independent-expenditures file.
+  A separate group on purpose, and **the two are never added**: 491 rows of the independent
+  file share a spender, name, amount and date with an ordinary expenditure row, and whether
+  that is one payment filed twice or 2 that coincide is not established.
+
+**Each group carries its own count and the page never totals them**, and says so out loud.
+The drawn design had one summary line adding the groups up; with the 2 overlapping vendor
+groups, any single number on this page would be a figure nobody can stand behind.
+
+**A count that hit the search's own ceiling reads "more than 200 matches", never "200".**
+A common name genuinely matches thousands; the server counts distinct names up to 200 and
+then stops, and printing that ceiling as a total would be a made-up figure in the largest
+type on the page. When any group reads that way, a line says where the counting stopped.
+
+The three name groups' rows are plain text with no arrow and nothing to press: a name that
+only ever appears on a payment carries no registration number, so it has no page of its own
+yet, and each group says that in its own words rather than offering a control that goes
+nowhere. Their page is
+[#1780](https://github.com/alethical-org/alethical/issues/1780).
+
+Its own states, each with its own words: nothing typed yet ("Type a name to search", with a
+link to the committees list); a query under the search's floor ("Type at least 3
+characters", and that this is a limit of ours rather than a fact about the records); no
+match at all ("Nothing is filed under '…'", the spelling advice, no nearest-match guess,
+and a link to browse all committees); one group our copy could not read (a gap on our side,
+while the other groups still answer); and loading placeholders that announce themselves to
+screen readers.
+
+## The committees list (`/money/committees`)
+
+The whole register of everyone allowed to raise or spend money in Minnesota state politics,
+ordered by the name as filed, A to Z. The address forwarded to `/money` until this shipped.
+
+**No row carries a dollar figure and nothing on the page sorts by one, ever.** These filers
+file to different calendars, so 2 amounts side by side would set one period against
+another, and a list ordered by amount would rank who is on the ballot rather than who raised
+more. The page says both things under the list: money is on each committee's own page, where
+the period it belongs to is stated, and the order is printed beside the count so a reader
+never has to infer it.
+
+Top to bottom:
+
+1. **The register's own size**, counted live from the register with the date it was copied —
+   1,603 filers today. A count of what we hold, never pasted: a pasted count is how the
+   landing once said 1,336 on a day the register held 1,603.
+2. **A find-a-committee-by-name box**, which narrows the list as you pause typing. The
+   typed name is in the address, so a narrowed list can be shared.
+3. **Four filter chips**, each with its own count: All kinds, Candidate committees, Party
+   units, and Committees and funds. Those are the register's own 3 kinds and the page offers
+   nothing finer — the finer kind is blank for 33 registered filers, so a "ballot question"
+   or "caucus" chip would quietly present "we cannot tell" as "not one of these". Each
+   chip's count is of the whole register rather than of the current filter, so a count never
+   looks like the filter found fewer of a kind than exist.
+4. **The rows.** Each shows the filed name, the register's own kind, and the registration
+   number. A candidate committee also shows the seat it registered for. A party unit shows
+   its kind and no geography: Minnesota publishes no layer for 289 of the 299 party units,
+   and reading one out of the printed name is already wrong about 3 named organisations —
+   21 filers are named exactly "Nth Congressional District <party>" and 3 of those are
+   political committees or funds, not party units. Where the Board publishes a finer word
+   itself, the row uses it: a legislative caucus, a state party committee, a ballot question
+   committee or fund. A closed committee carries a CLOSED chip with the register's own
+   termination date.
+5. **A "Show the next 50" button**, and how many rows are on screen is in the address too,
+   so a reader who loaded more and shared the link hands over the list they were looking at.
+
+Every row opens its committee **by registration number**, not by name, so a committee that
+changes its name keeps its address.
+
+Its own states: nothing matches the typed name (with the spelling advice, no nearest-match
+guess, and a way to drop the filter); our copy of the register could not be read at all
+(said as our gap, and never as a claim that Minnesota registers nobody); and loading
+placeholders that announce themselves to screen readers.
+
 ## A committee's page (`/money/committees/{name}-{number}`)
 
 One committee's money for one year, from Minnesota's own filings. The number at the end
@@ -85,10 +204,6 @@ part that has to be right: committee names collide and numbers do not, so an old
 misspelled name part still lands on the right page, and the address then quietly corrects
 itself to the current spelling. The chosen year and tab ride in the address, so a shared
 link shows the receiver exactly what the sender saw.
-
-**Until the committees list and search ship (phase 3), these pages are reached only by
-typing or sharing an address** — the Committees lane on `/money` stays unclickable so it
-cannot promise a list that does not exist.
 
 Top to bottom:
 
@@ -122,35 +237,10 @@ Top to bottom:
    subtracts. When the split is safe, a bar shows it and the unnamed figure appears with
    the sentence explaining it (donors at $200 or less in total for the year are never
    named). In each case where a split would state something false — the two figures cover
-<<<<<<< HEAD
-   different periods, the sources disagree, there are no named payments, or there is no
-   reported total — the page shows the figures it has and a plain sentence saying why it
-   will not divide them, never saying which figure is larger. A committee whose own report
-   says zero shows $0.00 with a sentence saying that is the filing's zero, not our gap.
-6. **Money out — two numbers too, and never called "spending."** The filing's own
-   reported money-out total ("Payments out this committee reported to the state", with
-   the period it covers) sits above "Payments we can list", and the two are never added
-   or subtracted — they are separate claims by separate sources, exactly like money in.
-   What stays banned is calling the listed payments "spent": broken down by the filing's
-   own kinds, money given to other campaigns gets its own plainly-labelled line —
-   statewide, a large share of money out is transfers to other committees, and for a
-   caucus that is the point. A year our copy holds no reported total for says so as our
-   copy's gap.
-7. **Two lists — Who gave and Where it went** — the six largest payments, ranked largest
-   first (honest inside one committee; never across committees), each naming the filing's
-   own type. **Every count is a count of payments, never of donors**: the filings carry
-   printed names with no identifier, and one person appears under several spellings
-   ("Messinger, Alida" / "Messinger, Alida R" / "Messinger, Alida Rockefelle" are 3
-   strings in the live files), so "N donors" would be a claim the data cannot back —
-   the same failure as vouching for a list's completeness. Donated goods and services carry a marker and stay inside the totals, because
-   that is how the state counts them. A name opens a page only when it carries a
-   registration number we hold as a filer; a private donor or a business stays plain text.
-8. **What this record covers**: filed with the Board, nothing before 2015, unions don't
-=======
-   different periods, the sources disagree, there are no named payments, our copy of the
-   donation list is missing named money the filing carries, the committee corrected its
-   report after we copied the official total, the two figures simply will not line up, or
-   there is no reported total — the page shows the figures it has and a plain sentence
+   different periods, the sources disagree, our copy of the donation list is missing
+   named money the filing carries, the committee corrected its report after we copied the
+   official total, the two figures simply will not line up, there are no named payments,
+   or there is no reported total — the page shows the figures it has and a plain sentence
    saying why it will not divide them, never saying which figure is larger. A committee
    whose own report says zero shows $0.00 with a sentence saying that is the filing's
    zero, not our gap.
@@ -167,17 +257,25 @@ Top to bottom:
    their counts is in
    [`legislator-campaign-money-guide.md`](legislator-campaign-money-guide.md), which
    owns the wording both surfaces share.
-6. **Money out — never called "spending."** The figure is "Payments we can list" (there is
-   no official total to compare it against), broken down by the filing's own kinds, with
-   money given to other campaigns on its own plainly-labelled line — statewide, a large
-   share of money out is transfers to other committees, and for a caucus that is the
-   point.
+6. **Money out — two numbers too, and never called "spending."** The filing's own
+   reported money-out total ("Payments out this committee reported to the state", with
+   the period it covers) sits above "Payments we can list", and the two are never added
+   or subtracted — they are separate claims by separate sources, exactly like money in.
+   What stays banned is calling the listed payments "spent": broken down by the filing's
+   own kinds, money given to other campaigns gets its own plainly-labelled line —
+   statewide, a large share of money out is transfers to other committees, and for a
+   caucus that is the point. A year our copy holds no reported total for says so as our
+   copy's gap.
 7. **Three tabs. The first two — Who gave and Where it went** — the six largest payments,
    ranked largest first (honest inside one committee; never across committees), each
-   naming the filing's own type. Donated goods and services carry a marker and stay
-   inside the totals, because that is how the state counts them. A name opens a page only
-   when it carries a registration number we hold as a filer; a private donor or a
-   business stays plain text.
+   naming the filing's own type. **Every count is a count of payments, never of donors**:
+   the filings carry printed names with no identifier, and one person appears under
+   several spellings ("Messinger, Alida" / "Messinger, Alida R" / "Messinger, Alida
+   Rockefelle" are 3 strings in the live files), so "N donors" would be a claim the data
+   cannot back — the same failure as vouching for a list's completeness. Donated goods
+   and services carry a marker and stay inside the totals, because that is how the state
+   counts them. A name opens a page only when it carries a registration number we hold as
+   a filer; a private donor or a business stays plain text.
 8. **The third tab — Filings**: every report the Board's catalogue records this committee
    as having filed, all years at once, with no amounts anywhere — it is a list of
    filings, not of money. Newest first by the period each report covers, and the tab says
@@ -198,7 +296,6 @@ Top to bottom:
    through a form a link cannot reach, and not at all for most years before 2023 — a row
    of dead links would be worse than one honest step.
 9. **What this record covers**: filed with the Board, nothing before 2015, unions don't
->>>>>>> origin/main
    report here — and the $200 donor sentence, except on a ballot-question committee's
    page, which prints **no** threshold figure anywhere: the statute says $500 for ballot
    questions, the Board's own handbook for those filers says $200, and we assert neither.
@@ -310,5 +407,8 @@ links back to a report.
 - No page sums money across members or filers, ranks committees by amount, or shows a
   dollar figure on a list of many committees. Signed reports are the one conditioned
   exception, under rule 13.
-- The section collects nothing from readers. There is no sign-in gate, no form that stores
-  anything, and the inert search box sends nothing anywhere.
+- The section collects nothing from readers. There is no sign-in gate and no form that
+  stores anything. The search box sends the name typed into it to our own server to be
+  matched against the filings, and to nobody else; the typed name appears in the page's own
+  web address, which is what makes a search shareable, and nothing about it is stored
+  against a reader.

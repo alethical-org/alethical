@@ -24,7 +24,9 @@ import {
   getLegislatorFromApi,
   getLegislatorOutsideSpendingFromApi,
   getLegislatorVotesFromApi,
+  getCampaignFinanceCommitteesFromApi,
   getCampaignFinanceFilingsFromApi,
+  getCampaignFinanceNameSearchFromApi,
   getCampaignFinanceSummaryFromApi,
   getCommitteeFilingsFromApi,
   getCommitteeFinanceFromApi,
@@ -53,6 +55,7 @@ import type {
   CommitteeMadePayment,
   CommitteePaymentsPage,
   CommitteeReceivedPayment,
+  CommitteeRegisterPage,
 } from '../data/types';
 import { NotificationPreference, RepresentativeLookupInput } from '../data/types';
 import { outsideSpendingLoadFailure } from '../lib/outsideSpending';
@@ -328,6 +331,75 @@ export function useCampaignFinanceFilings(limit = 5) {
     queryKey: ['campaign-finance-filings', limit],
     queryFn: () => getCampaignFinanceFilingsFromApi(limit),
     retry: false,
+  });
+}
+
+/**
+ * One page of the register for the committees list at /money/committees.
+ *
+ * `shown` comes out of the address, so a reader who asked for more rows and then
+ * shared the link hands over the list they were looking at
+ * (`.claude/rules/grounded-answers.md` rule 5). The served maximum is 100 rows a
+ * request and the list steps in 50s, so a deep link is fetched as parallel
+ * fixed-offset requests rather than a chain of "next page" calls — the order is
+ * the filed name, which does not move between requests, so the offsets are
+ * stable.
+ *
+ * `keepPreviousData` so typing in the find-a-committee box narrows the list in
+ * place instead of blanking it between keystrokes.
+ */
+export function useCampaignFinanceCommittees(options: {
+  kind?: string;
+  query?: string;
+  shown: number;
+  pageSize: number;
+}) {
+  const { kind, query, shown, pageSize } = options;
+  return useQuery({
+    queryKey: ['campaign-finance-committees', kind ?? 'all', query ?? '', shown, pageSize],
+    queryFn: async (): Promise<CommitteeRegisterPage> => {
+      const requests = Math.max(1, Math.ceil(shown / pageSize));
+      const pages = await Promise.all(
+        Array.from({ length: requests }, (_, index) =>
+          getCampaignFinanceCommitteesFromApi({
+            kind,
+            q: query,
+            limit: pageSize,
+            offset: index * pageSize,
+          }),
+        ),
+      );
+      const first = pages[0];
+      const last = pages[pages.length - 1];
+      return {
+        ...first,
+        committees: pages.flatMap((page) => page.committees),
+        // The last page fetched is the one that knows whether anything is left,
+        // and every page carries the same served totals.
+        hasMore: last.hasMore,
+      };
+    },
+    retry: false,
+    placeholderData: keepPreviousData,
+  });
+}
+
+/**
+ * One typed name matched across the 5 kinds of record, for /money/search.
+ *
+ * Runs on any non-empty query, including a 1- or 2-character one: the server
+ * answers those with its own "too short" state, and rendering that served state
+ * is how the page says "type at least 3 characters" instead of "nothing found",
+ * which would be a false claim about the records.
+ */
+export function useCampaignFinanceNameSearch(query: string, limit = 5) {
+  const trimmed = query.trim();
+  return useQuery({
+    queryKey: ['campaign-finance-name-search', trimmed, limit],
+    queryFn: () => getCampaignFinanceNameSearchFromApi(trimmed, limit),
+    enabled: trimmed.length > 0,
+    retry: false,
+    placeholderData: keepPreviousData,
   });
 }
 
