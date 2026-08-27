@@ -185,6 +185,14 @@ function Blocks({ blocks }: { blocks: ReportBlock[] }) {
             </Text>
           );
         }
+        if (block.kind === 'note') {
+          return (
+            <View key={index} style={styles.insetBox}>
+              <Text style={styles.insetLabel}>SHOWING OUR WORK</Text>
+              <Text style={styles.noteBody}>{block.text}</Text>
+            </View>
+          );
+        }
         if (block.kind === 'table') {
           return <BlockTable key={index} columns={block.columns} rows={block.rows} />;
         }
@@ -729,6 +737,15 @@ const styles = StyleSheet.create({
     fontSize: 10.5,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 1.3,
+  },
+  // Prose size, deliberately: an 18px note beside 19px prose is a 1px step nobody
+  // reads as deliberate, so the box alone does the separating (Design, 27 Aug 2026).
+  noteBody: {
+    marginTop: 13,
+    color: t.colors.ink,
+    fontFamily: t.typography.body,
+    fontSize: 19,
+    lineHeight: 32,
   },
   insetBody: {
     marginTop: 13,
