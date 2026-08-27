@@ -74,7 +74,8 @@ A set is a group of pieces written to be read together. A piece does not need on
 **Why.** Sets have no model in the code at all, so allowing this costs nothing today, and
 forbidding it forces a fake set the first time a single standalone piece is worth writing. The
 design already handles both cases: a card outside a set box carries its label, a row inside a set
-box does not.
+box does not. §2.10 narrows what "outside a set box" means, because a heading can supply the word
+instead.
 
 ### 2.3 A set names only its published pieces, never its unwritten ones
 
@@ -240,9 +241,50 @@ Sequence recommended by the peer coding consultant on 27 Aug 2026 and adopted. I
 [`.claude/rules/workflow.md`](../../.claude/rules/workflow.md)'s prohibition on landing work under
 another session's feet, not tidiness.
 
+### 2.10 A card carries its kind word only where no heading supplies one
+
+Ratified by Eugene 27 Aug 2026, narrowing §2.2's wording at Design's own request rather than
+letting Design apply the narrowing quietly.
+
+**The rule.** A card carries its kind word where nothing above it already says the kind. Under a
+`GUIDES` or `RESEARCH` heading on the `/reading` page, the heading is the source and the card
+inherits, so the card prints no word. A card prints the word on the home page, in a search result,
+and in a related-piece list, where no heading supplies it.
+
+**Why the earlier wording needed narrowing.** §2.2 said a card outside a set box carries the word,
+without qualification. Applied literally on the `/reading` page that prints "Guide" under a heading
+already reading `GUIDES`, twice in one glance. Design spotted this while drawing the page and asked
+to have the narrowing ratified rather than absorb it silently, which is the right instinct: the
+looser sentence was already written down and would have been followed by the next person.
+
+**What it costs.** The word a reader sees now depends on context rather than on the piece, so a
+card component needs to know whether a heading sits above it. That is a small amount of wiring and
+1 more state to get wrong.
+
+### 2.11 The `/reading` page groups by our 2 kinds for now, and the objection is recorded
+
+Ratified by Eugene 27 Aug 2026. `GUIDES` and `RESEARCH` stay as the page's headings.
+
+**Design's objection, which stands and is not dismissed.** Grouping the page by our own genre is the
+opposite of the reason both kinds share one page: a reader arrives with a subject in mind, not a
+genre. Design raised it, declined to restructure the page on its own authority because that is a
+decision rather than a refinement, and asked for a ruling.
+
+**Why it is not acted on yet.** Two reasons, neither of them disagreement. At 2 published pieces
+there is nothing for a subject grouping to group. And a subject grouping needs a subject on every
+piece, which is a field no piece carries and nobody has designed; it would join the 4 unbuilt fields
+in §4 rather than replacing any of them.
+
+**When to revisit.** At 4 sets or a dozen research pieces, which is the state Design's own full
+drawing shows. That is the point where a reader scanning for a subject has to read past most of the
+page to find it.
+
+**What it costs to wait.** If the answer turns out to be subject grouping, the page is restructured
+after readers have learned the current shape, and any inbound link to a heading anchor breaks.
+
 ## 3. Open decisions
 
-None. §2.3, §2.5 and §2.7 closed the last 3 on 27 Aug 2026.
+None. §2.3, §2.5, §2.7, §2.10 and §2.11 all closed on 27 Aug 2026.
 
 ## 4. What the design assumes and the code does not provide
 
