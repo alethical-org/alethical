@@ -92,7 +92,16 @@ describe('moneyFigure', () => {
 describe('the sentence explaining money with no name on it', () => {
   it('puts the $200 threshold on the donor’s yearly total, never on one gift', () => {
     expect(UNNAMED_MONEY_EXPLANATION).toContain('more than $200 in total for the year');
-    expect(UNNAMED_MONEY_EXPLANATION).toContain('$200 or less in total');
+  });
+
+  it('states the threshold as a floor on who must be named, never as a ban', () => {
+    // The statute's words are that a contributor "must then be listed" once the
+    // aggregate exceeds the threshold, and nothing in it forbids naming a smaller
+    // one. Filer 18135's 2026 pre-general itemizes 215 donors at or under $200 and
+    // reconciles to the cent (campaign-finance-system-design.md §2.3), so a reader
+    // can open a real filing that contradicts the absolute (#1755).
+    expect(UNNAMED_MONEY_EXPLANATION).toContain('may name a smaller donor but does not have to');
+    expect(UNNAMED_MONEY_EXPLANATION).not.toContain('never named');
   });
 
   it("says the state's file does not name them, not that nobody knows", () => {

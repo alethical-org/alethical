@@ -384,8 +384,17 @@ a single summary line on the filed report.
 
 **So no surface may say that gifts of $200 or less are never named.** More than half the
 itemized rows are gifts of $200 or less, and saying otherwise tells a reader that a named
-$50 payment cannot exist when 327,759 of them do. The claim a page may make is about the
-donor's yearly total: "donors who gave $200 or less in total for the year are never named."
+$50 payment cannot exist when 327,759 of them do.
+
+**And the yearly-total version of the same absolute is false too, which this section itself
+got wrong until 27 Aug 2026.** It prescribed "donors who gave $200 or less in total for the
+year are never named", and 6 shipped strings copied that sentence
+([#1755](https://github.com/alethical-org/alethical/issues/1755)). The threshold is a floor on
+who a committee **must** name, and the paragraph 3 below this one measured the disproof at the
+time this sentence was written: filer 18135's 2026 pre-general itemizes 215 donors at or under
+$200 and reconciles to the cent without excluding them. So the claim a page may make is
+"donors who gave $200 or less in total for the year **need not** be named", and where there is
+room for the reason, "a committee may name a smaller donor but does not have to".
 **Mind the boundary in shorter labels too.** The statute says *exceed*, so a donor whose yearly
 total is exactly $200.00 is never named and belongs in the unnamed bucket. A row label reads
 "donors who gave $200 or less for the year", never "donors under $200" — that phrasing shipped

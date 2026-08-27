@@ -15,13 +15,24 @@ import {
 } from '../moneyLanding';
 
 describe('the does-not-cover block', () => {
-  // Rule 12's exact sentence: the $200 test is on the donor's yearly total,
-  // never on the size of one gift — 327,759 of the 583,152 published rows are
-  // individually under $200 and are named anyway.
+  // Rule 12's exact sentence, and it carries 2 corrections a reader can be misled
+  // by. The $200 test is on the donor's YEARLY TOTAL, never on the size of one gift
+  // (327,759 of the 583,152 published rows are individually under $200 and are named
+  // anyway). And it is a FLOOR on who a committee must name, never a ban on naming
+  // anyone smaller, so the sentence says "need not be named" (#1755).
   it('states the donor threshold on the yearly total, never per gift', () => {
     expect(RECORD_DOES_NOT_COVER).toContain(
-      'Donors who gave $200 or less in total for the year are never named.',
+      'Donors who gave $200 or less in total for the year need not be named.',
     );
+  });
+
+  it('never says a small donor is not named, because a committee may name one', () => {
+    // Filer 18135's 2026 pre-general itemizes 215 donors at or under $200 and
+    // reconciles to the cent (campaign-finance-system-design.md §2.3), so the
+    // absolute is false about a real filing.
+    for (const line of RECORD_DOES_NOT_COVER) {
+      expect(line).not.toContain('are never named');
+    }
   });
 
   it('names the two permanent source gaps', () => {

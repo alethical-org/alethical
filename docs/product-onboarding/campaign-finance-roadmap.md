@@ -71,10 +71,13 @@ Every current House and Senate member gets their campaign money on their existin
 page, for 2025 and 2026: what came in, what went out, and who gave it.
 
 One thing to know about the data. Minnesota only names donors once someone has given more than
-$200 in total across a year. Everything below that appears as a single lump with no names. Note
-what that does *not* mean: once a donor crosses $200, every later gift they make is named
-however small, so most of the named gifts are individually under $200. A page must never say
-that small gifts are never named. So a page will
+$200 in total across a year. Money a campaign does not name appears as a single lump
+with no names. Note the 2 things that does *not* mean. Once a donor crosses $200, every later
+gift they make is named however small, so most of the named gifts are individually under $200,
+and a page must never say that small gifts are never named. And $200 is the point at which a
+name becomes *required*, not a line below which nobody is named: a campaign may name a smaller
+donor if it wants to, and at least one does, so a page must not say a small donor is never
+named either. So a page will
 show two numbers: the money we can name, and the official total including the money we cannot.
 We say plainly what the gap is, rather than showing one number and letting people assume it is
 everything.

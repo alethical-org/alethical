@@ -19,10 +19,13 @@
  * 2. **A missing figure and a real zero are different facts.** "Not reported" and
  *    "$0" are never interchangeable, because a member who genuinely raised nothing
  *    is not a member whose filing we do not hold.
- * 3. **The threshold is on the donor's yearly total, never on one payment.**
- *    327,759 of the 583,152 published donation rows are individually under $200 and
- *    are named anyway, because that donor's yearly total had already passed it. So
- *    no sentence here may say small gifts go unnamed.
+ * 3. **The threshold is on the donor's yearly total, never on one payment, and it
+ *    is a floor rather than a ban.** 327,759 of the 583,152 published donation rows
+ *    are individually under $200 and are named anyway, because that donor's yearly
+ *    total had already passed it. And a committee may name a donor whose yearly
+ *    total never passes it: filer 18135's 2026 pre-general itemizes 215 such donors
+ *    and reconciles to the cent. So no sentence here may say small gifts go
+ *    unnamed, and none may say a small donor is never named either (#1755).
  */
 
 /** The first year Minnesota's campaign-finance downloads reach. */
@@ -191,8 +194,10 @@ export function unnamedShareLabel(
  * The wording is fixed here and never assembled from a figure, because rule 12 is
  * specific about it: the threshold is a test on the donor's yearly total and never on
  * the size of a gift, and 327,759 of the 583,152 published rows are individually
- * under $200 and named anyway. "Candidates" rather than "committees", because a
- * ballot-question committee's threshold is $500.
+ * under $200 and named anyway. It says a committee MAY name a smaller donor rather
+ * than that such a donor is never named, because the statute sets a floor on who must
+ * be named and at least one filer names more (#1755). "Candidates" rather than
+ * "committees", because a ballot-question committee's threshold is $500.
  *
  * It says the state's file does not name them, **not** that nobody knows who they are.
  * The second is a claim about the world that this source cannot support: the committee
@@ -200,8 +205,8 @@ export function unnamedShareLabel(
  */
 export const UNNAMED_MONEY_EXPLANATION =
   'Minnesota only makes candidates name a donor once that donor has given more than ' +
-  '$200 in total for the year. Donors who gave $200 or less in total are never named, ' +
-  'so their money is counted here and the state’s public file does not say who gave it.';
+  '$200 in total for the year. A campaign may name a smaller donor but does not have ' +
+  'to, and for this money the state’s public file does not say who gave it.';
 
 /**
  * What the spending figure means, which is a different sentence when there is none.

@@ -60,8 +60,10 @@ Top to bottom:
    Every lane being visible — built or not — is a deliberate decision (Eugene, 18 Aug
    2026), so a reader sees the whole shape of the section.
 5. **What this record does not cover**: nothing before 2015; unions do not report to this
-   board; and the exact sentence "Donors who gave $200 or less in total for the year are
-   never named" (the $200 test is on a donor's yearly total, never on one gift's size).
+   board; and the exact sentence "Donors who gave $200 or less in total for the year need
+   not be named" (the $200 test is on a donor's yearly total, never on one gift's size, and
+   it is the point at which a name becomes required rather than a line below which nobody is
+   named — [#1755](https://github.com/alethical-org/alethical/issues/1755)).
    A fourth line names **lobbying**, and it is deliberately not one of the three above:
    those are permanent gaps in the record, while lobbying is published by Minnesota and
    simply not loaded by us yet, so it says "not here yet" rather than "not covered".
@@ -242,8 +244,9 @@ Top to bottom:
    the state, and the donations we can list with a donor's name. The split into named and
    unnamed money is decided by the server before the page ever sees it, and the page never
    subtracts. When the split is safe, a bar shows it and the unnamed figure appears with
-   the sentence explaining it (donors at $200 or less in total for the year are never
-   named). In each case where a split would state something false — the two figures cover
+   the sentence explaining it (a committee only has to name a donor once that donor has
+   given more than $200 in total for the year, and may name a smaller one but does not have
+   to). In each case where a split would state something false — the two figures cover
    different periods, the sources disagree, our copy of the donation list is missing
    named money the filing carries, the committee corrected its report after we copied the
    official total, the two figures simply will not line up, there are no named payments,
