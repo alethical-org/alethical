@@ -463,16 +463,174 @@ export function confirmedElsewhereExplanation(year: number): string {
 }
 
 /**
- * The line telling a reader when new money appears, so a July figure under today's
- * date does not read as a fault.
+ * Which of the 6 ways a committee-year can have nothing to show it is in.
  *
- * Minnesota publishes on a filing schedule rather than continuously: nothing new is
- * published between 21 July and 26 October 2026. A page that says "updated today"
- * over figures that stop in July, with no explanation, teaches a reader that we are
- * broken (`.claude/rules/grounded-answers.md` rules 6 and 7).
+ * Served, never worked out here: the states come from
+ * `alethical/api/services/committee_filing_schedule.py`, which reads the Board's own
+ * transcribed calendars and its own filer record.
+ *
+ * **The split down the middle is the point.** `on_the_ballot`, `not_on_the_ballot`
+ * and `registration_closed` are facts about the committee. The other 3 are all "we
+ * cannot say", and every one of them is our unfinished work rather than the
+ * committee's, which `.claude/rules/grounded-answers.md` rule 12 says may never read
+ * the same way (#1642).
  */
-export const FILING_SCHEDULE_NOTE =
-  'Minnesota publishes campaign money on a filing schedule, not day by day. The 2026 ' +
-  'schedule required members on the ballot to file by 27 July for money raised through ' +
-  '20 July, and again by 26 October. Members not on the ballot are not required to ' +
-  'report their 2026 money until 1 February 2027.';
+export type FilingScheduleState =
+  | 'on_the_ballot'
+  | 'not_on_the_ballot'
+  | 'registration_closed'
+  | 'special_election_filer'
+  | 'calendar_not_transcribed'
+  | 'filings_cannot_answer';
+
+/** One committee-year's filing schedule, exactly as the server sends it. */
+export type FilingSchedule = {
+  state: FilingScheduleState;
+  /** The Board's own name for the report, e.g. "Pre-general report of receipts and
+   *  expenditures". Printed in quotes so a reader can find that document by name. */
+  nextReportName: string | null;
+  nextReportDueOn: string | null;
+  periodStart: string | null;
+  periodEnd: string | null;
+  /** The exemption the Board prints on that report, verbatim. Never separated from
+   *  the due date: the 2026 pre-general date is right for every candidate who got
+   *  past the primary and wrong for every candidate who did not, and the printed
+   *  sentence is the only thing that tells the two apart. */
+  condition: string | null;
+  /** The day the registration closed. Read off the filer record, never off a
+   *  report: the Board copies a termination date onto every one of that
+   *  committee's report rows, including ones filed years earlier. */
+  terminatedOn: string | null;
+};
+
+/**
+ * The closing sentence on all 3 states where we are the ones who cannot answer.
+ *
+ * Repeated on purpose rather than varied. The 3 gaps have different causes and the
+ * same meaning for a reader, and a shared closing line is what makes them legible as
+ * one class beside the 3 states that are about the committee. Without it, "we have
+ * not typed in that calendar" drifts towards reading like "nothing is due", which is
+ * the rule 12 failure this whole function exists to prevent.
+ */
+const OUR_GAP_CLOSER =
+  'That gap is on our side and says nothing about this committee’s own filing.';
+
+/**
+ * Minnesota publishes on a schedule, and this says which schedule THIS committee is
+ * on and what it owes next (#1642).
+ *
+ * Returns one paragraph per sentence group, so a printed exemption sits on its own
+ * line under the date it qualifies rather than trailing it in the same block.
+ *
+ * **Two things this may never do**, and both have their own test:
+ *
+ * 1. **Never say a report is late.** The signal that marks an unfiled report is only
+ *    readable in the current year, so the claim cannot be supported — and telling a
+ *    reader that a named politician missed a deadline they may not even have is the
+ *    worst thing this tab could produce.
+ * 2. **Never print a due date without the exemption the Board prints beside it.** The
+ *    2026 pre-general is the live case: everyone who advanced past the primary owes
+ *    it, everyone who lost does not, and no record we hold says which happened.
+ *
+ * **No year is written into any sentence here.** The year and every date arrive from
+ * the server, which reads them off the Board's own calendars. That is the failure this
+ * replaces: the fixed paragraph that shipped before spelled 2026's dates out in its own
+ * words, so on 1 January 2027 it would have quietly described a finished election year.
+ */
+export function filingScheduleNote(
+  schedule: FilingSchedule | null | undefined,
+  year: number,
+): string[] {
+  // A response with no schedule block is our gap like any other, and reads as one.
+  if (!schedule) return cannotSayBecause(ourFilingsCannotAnswer(year));
+
+  switch (schedule.state) {
+    case 'on_the_ballot': {
+      const timing = nextReportSentence(schedule);
+      return [
+        `This committee is on the ${year} ballot, so Minnesota puts it on the ` +
+          'election-year filing schedule.' +
+          (timing ? ` ${timing}` : '') +
+          ' Minnesota publishes this money when a report is filed, not day by day.',
+        ...conditionParagraph(schedule),
+      ];
+    }
+    case 'not_on_the_ballot': {
+      const timing = nextReportSentence(schedule);
+      return [
+        `This committee is not on the ${year} ballot, so Minnesota puts it on the ` +
+          'schedule for candidates who are not running, which asks for a report once a ' +
+          'year rather than around each election.' +
+          (timing ? ` ${timing}` : '') +
+          ' A long stretch with nothing new here is that schedule working as written, ' +
+          'not money going unreported.',
+        ...conditionParagraph(schedule),
+      ];
+    }
+    case 'registration_closed': {
+      const closedOn = formatDay(schedule.terminatedOn);
+      return [
+        (closedOn
+          ? `This committee closed its registration with the state on ${closedOn}, so no `
+          : 'This committee has closed its registration with the state, so no ') +
+          `further report is due from it. Nothing more is expected for ${year} than what ` +
+          'it had already filed.',
+      ];
+    }
+    case 'special_election_filer':
+      return cannotSayBecause(
+        `It has a ${year} special-election report, and special elections run on their ` +
+          'own set of filing periods that we have not written down.',
+      );
+    case 'calendar_not_transcribed':
+      return cannotSayBecause(
+        'Minnesota publishes a separate filing calendar for each kind of candidate and ' +
+          `each year, and we have not yet copied in the one covering this committee for ` +
+          `${year}.`,
+      );
+    case 'filings_cannot_answer':
+      return cannotSayBecause(ourFilingsCannotAnswer(year));
+    default:
+      return cannotSayBecause(ourFilingsCannotAnswer(year));
+  }
+}
+
+/** The middle sentence of the state where our copy of the filings is what falls short. */
+function ourFilingsCannotAnswer(year: number): string {
+  return (
+    `Our copy of the state’s own list of filings cannot answer it for ${year}: it ` +
+    'either does not carry this committee yet or was taken too early to settle the ' +
+    'question.'
+  );
+}
+
+/** One of the 3 states that are about us, in the shape all 3 share. */
+function cannotSayBecause(middle: string): string[] {
+  return [`We cannot say when this committee’s next report is due. ${middle} ${OUR_GAP_CLOSER}`];
+}
+
+/**
+ * The next report, its due date and the period it covers, or nothing.
+ *
+ * Every part is dropped rather than guessed. A schedule that named a report and no
+ * date would otherwise print "due", followed by nothing.
+ */
+function nextReportSentence(schedule: FilingSchedule): string | null {
+  const due = formatDay(schedule.nextReportDueOn);
+  if (!schedule.nextReportName || !due) return null;
+  const start = formatDay(schedule.periodStart);
+  const end = formatDay(schedule.periodEnd);
+  const covering = start && end ? `, covering ${start} to ${end}` : '';
+  return `Its next report to the state is the “${schedule.nextReportName}”, due ${due}${covering}.`;
+}
+
+/**
+ * The Board's printed exemption, quoted, when the next report carries one.
+ *
+ * Its own paragraph rather than a clause, because it changes who the date above
+ * applies to and a reader who skims a long sentence must not miss it.
+ */
+function conditionParagraph(schedule: FilingSchedule): string[] {
+  if (!schedule.condition || !formatDay(schedule.nextReportDueOn)) return [];
+  return [`The state prints one exemption on that report: “${schedule.condition}”`];
+}

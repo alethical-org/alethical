@@ -135,6 +135,25 @@ NOT_FILING_SCOPE_SENTENCE = (
 )
 
 
+class UnknownBecause(enum.Enum):
+    """Which of the 3 unanswerable cases a ``Determination`` is in.
+
+    Carried as a field rather than read back out of ``reason``, because a surface has
+    to tell these apart to say the right sentence and matching on prose is how the
+    right sentence starts depending on a comma. They are genuinely 3 facts: a filer on
+    a series we never transcribed, a calendar we have not typed in, and evidence read
+    too early to prove anything -- and the last of those is about **us**, which
+    ``.claude/rules/grounded-answers.md`` rule 12 says must never read like the others
+    ([#1642](https://github.com/alethical-org/alethical/issues/1642)).
+    """
+
+    special_election_series = "special_election_series"
+    calendar_not_transcribed = "calendar_not_transcribed"
+    evidence_predates_the_first_election_report = (
+        "evidence_predates_the_first_election_report"
+    )
+
+
 class ScheduleClass(enum.Enum):
     """What we were able to establish about a committee's filing schedule.
 
@@ -203,6 +222,9 @@ class Determination:
     reason: str
     calendar: Optional[CalendarKey] = None
     next_report: Optional[CalendarEntry] = None
+    # Set only on ``ScheduleClass.unknown``, and always set there. Which of the 3
+    # unanswerable cases this is, so a caller separates them without reading prose.
+    unknown_because: Optional[UnknownBecause] = None
     # Set only for a terminated registration, and it is the date the *registration*
     # ended rather than any report's date. The catalogue copies this value onto every
     # report row including ones filed years earlier (``docs/architecture/campaign-finance-system-design.md``
@@ -505,6 +527,7 @@ def classify(
             registration_number=registration_number,
             year=year,
             schedule_class=ScheduleClass.unknown,
+            unknown_because=UnknownBecause.special_election_series,
             reason=(
                 f"this committee has a {year} special-election report, which runs on "
                 "its own series of periods that we have not established, so its next "
@@ -543,6 +566,7 @@ def classify(
             registration_number=registration_number,
             year=year,
             schedule_class=ScheduleClass.unknown,
+            unknown_because=UnknownBecause.calendar_not_transcribed,
             reason=(
                 f"the state's {year} filing calendar has not been transcribed, so "
                 "which schedule this committee is on is not known"
@@ -561,6 +585,9 @@ def classify(
             registration_number=registration_number,
             year=year,
             schedule_class=ScheduleClass.unknown,
+            unknown_because=(
+                UnknownBecause.evidence_predates_the_first_election_report
+            ),
             reason=(
                 f"the filings we hold were read on {evidence_read_on}, before the first "
                 f"{year} pre-election report was due on {opened}, so this committee "

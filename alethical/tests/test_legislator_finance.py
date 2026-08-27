@@ -22,6 +22,7 @@ The last 3 need the local Postgres on port 54329.
 
 from __future__ import annotations
 
+import hashlib
 import uuid
 from datetime import UTC, date, datetime
 from decimal import Decimal
@@ -31,6 +32,7 @@ from sqlalchemy import text
 
 from alethical.api.services.committee_finance import (
     NOT_REPORTED,
+    current_release,
     REPORTED,
     UNAVAILABLE,
     Committee,
@@ -40,6 +42,7 @@ from alethical.api.services.committee_finance import (
     MoneyOut,
 )
 from alethical.api.services.committee_stated_split import AGREES, DISAGREES, NOT_RUN
+from alethical.api.services import committee_filing_schedule as schedule_service
 from alethical.api.services.legislator_finance import (
     STATED_SPLIT_AGREES,
     STATED_SPLIT_NOT_CHECKED,
@@ -55,6 +58,7 @@ from alethical.api.services.legislator_finance import (
     SPLIT_PERIODS_DIFFER,
     SPLIT_SHOWN,
     SPLIT_SOURCES_DISAGREE,
+    legislator_finance,
     link_state,
     named_money_split,
 )
@@ -735,3 +739,118 @@ def test_a_confirmed_link_outside_the_year_still_counts_as_reviewed(db):
     db.commit()
 
     assert link_state(db, legislator_id) == LINK_CONFIRMED
+
+
+@pytest.fixture()
+def published_release(db):
+    """An empty published release, cleaned up after.
+
+    The cleanup is the point. A release row left behind holds a foreign key onto
+    ``cf_snapshot``, and the next test module to clear that table fails on the
+    constraint rather than on anything it did -- 15 errors in one run, from one row.
+    """
+    row = models.CampaignFinanceRelease(
+        contributions_snapshot_id=_finance_snapshot(
+            db, models.CampaignFinanceDataset.contributions
+        ).id,
+        expenditures_snapshot_id=_finance_snapshot(
+            db, models.CampaignFinanceDataset.expenditures
+        ).id,
+        independent_expenditures_snapshot_id=_finance_snapshot(
+            db, models.CampaignFinanceDataset.independent_expenditures
+        ).id,
+        status=models.CampaignFinanceReleaseStatus.published,
+        fetch_started_at=datetime(2026, 8, 12, 2, 52, tzinfo=UTC),
+        fetch_completed_at=datetime(2026, 8, 12, 2, 54, tzinfo=UTC),
+        published_at=datetime(2026, 8, 12, 2, 56, tzinfo=UTC),
+    )
+    db.add(row)
+    db.flush()
+    db.execute(
+        text(
+            "INSERT INTO cf_current_release (id, release_id) VALUES (true, :rid) "
+            "ON CONFLICT (id) DO UPDATE SET release_id = EXCLUDED.release_id"
+        ),
+        {"rid": row.id},
+    )
+    db.commit()
+    resolved = current_release(db)
+    assert resolved is not None
+    try:
+        yield resolved
+    finally:
+        db.rollback()
+        db.execute(text("UPDATE cf_current_release SET release_id = NULL"))
+        db.execute(text("DELETE FROM cf_release WHERE id = :rid"), {"rid": row.id})
+        db.execute(
+            text("DELETE FROM cf_snapshot WHERE id = ANY(:ids)"),
+            {
+                "ids": [
+                    row.contributions_snapshot_id,
+                    row.expenditures_snapshot_id,
+                    row.independent_expenditures_snapshot_id,
+                ]
+            },
+        )
+        db.commit()
+
+
+def _finance_snapshot(db, dataset):
+    """One loaded snapshot of a bulk download, holding no rows.
+
+    Rows are beside the point here: what is under test is that a confirmed committee
+    reaches the tab carrying a schedule at all, and an empty release is the state where
+    forgetting it would be invisible.
+    """
+    marker = f"{dataset.value}-{uuid.uuid4()}"
+    snapshot = models.CampaignFinanceSnapshot(
+        dataset=dataset,
+        download_id="-617535497",
+        source_url="https://cfb.mn.gov/reports/contributions.csv",
+        content_hash=hashlib.sha256(marker.encode()).hexdigest(),
+        record_set_hash=hashlib.sha256(f"records-{marker}".encode()).hexdigest(),
+        byte_size=1024,
+        status=models.CampaignFinanceSnapshotStatus.loaded,
+    )
+    db.add(snapshot)
+    db.flush()
+    return snapshot
+
+
+def test_every_confirmed_committee_carries_a_reason_its_year_may_be_empty(
+    db, published_release
+):
+    """The tab cannot say *why* a year is blank unless it is handed the reason (#1642).
+
+    Deliberately run against a committee the release does not hold, which is the branch
+    most likely to be forgotten: the year has no figures at all, so it is exactly the
+    year whose emptiness needs explaining. The schedule comes off the Board's filings
+    snapshot rather than off this release, so one being empty does not silence the
+    other.
+
+    With no filings snapshot published in a test database, the honest answer is that our
+    own copy cannot answer -- which is one of the 3 states rule 12 requires be worded as
+    ours rather than as the committee's.
+    """
+    legislator_id = _legislator(db)
+    db.add(
+        models.LegislatorCampaignCommittee(
+            legislator_id=legislator_id,
+            registration_number=NASH_HOUSE,
+            decision=models.CommitteeLinkReviewDecision.confirmed,
+            committee_name_as_reviewed="Nash, Jim House Committee",
+            office_as_reviewed="House",
+            reviewed_by="a person",
+        )
+    )
+    db.commit()
+
+    finance = legislator_finance(
+        db, published_release, legislator_id=legislator_id, year=2026
+    )
+
+    assert len(finance.committees) == 1
+    entry = finance.committees[0]
+    assert entry.finance is None
+    assert entry.schedule.state == schedule_service.FILINGS_CANNOT_ANSWER
+    assert entry.schedule.next_report_due_on is None

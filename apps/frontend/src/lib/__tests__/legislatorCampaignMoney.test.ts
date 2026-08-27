@@ -14,8 +14,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
   EARLIEST_CAMPAIGN_MONEY_YEAR,
-  FILING_SCHEDULE_NOTE,
   LINK_UNCONFIRMED_EXPLANATION,
+  type FilingSchedule,
   UNNAMED_MONEY_EXPLANATION,
   campaignMoneyYear,
   campaignMoneyYears,
@@ -28,6 +28,7 @@ import {
   reportedThroughLabel,
   confirmedElsewhereExplanation,
   emptyStateFor,
+  filingScheduleNote,
   statedSplitNote,
   spendingNote,
   splitExplanation,
@@ -412,20 +413,167 @@ describe('statedSplitNote', () => {
   });
 });
 
-describe('the filing schedule note', () => {
-  it('describes the schedule rather than asserting that members filed', () => {
-    // A filer's newest available report can still end on 31 March, so "members filed on
-    // 27 July" states something we did not check about every member.
-    expect(FILING_SCHEDULE_NOTE).toContain('required members on the ballot to file');
-    expect(FILING_SCHEDULE_NOTE).not.toMatch(/Members on the 2026 ballot filed on/);
+describe('the filing schedule note, one committee at a time', () => {
+  // Every fixture is dated in 2099 on purpose. The paragraph this replaced wrote 2026's
+  // dates into its own words, so on 1 January 2027 it would have described a finished
+  // election year and nothing would have announced it (#1642). A fixture a lifetime away
+  // from today makes any surviving hardcoded year visible as a stray "20xx".
+  const onTheBallot: FilingSchedule = {
+    state: 'on_the_ballot',
+    nextReportName: 'Pre-general report of receipts and expenditures',
+    nextReportDueOn: '2099-10-26',
+    periodStart: '2099-01-01',
+    periodEnd: '2099-10-19',
+    condition: 'Candidates who lost the primary election do not need to file this report.',
+    terminatedOn: null,
+  };
+  const notOnTheBallot: FilingSchedule = {
+    state: 'not_on_the_ballot',
+    nextReportName: '2099 year-end report of receipts and expenditures',
+    nextReportDueOn: '2100-02-01',
+    periodStart: '2099-01-01',
+    periodEnd: '2099-12-31',
+    condition: null,
+    terminatedOn: null,
+  };
+  const closed: FilingSchedule = {
+    state: 'registration_closed',
+    nextReportName: null,
+    nextReportDueOn: null,
+    periodStart: null,
+    periodEnd: null,
+    condition: null,
+    terminatedOn: '2099-03-04',
+  };
+  const gap = (state: FilingSchedule['state']): FilingSchedule => ({
+    state,
+    nextReportName: null,
+    nextReportDueOn: null,
+    periodStart: null,
+    periodEnd: null,
+    condition: null,
+    terminatedOn: null,
+  });
+  const all: FilingSchedule[] = [
+    onTheBallot,
+    notOnTheBallot,
+    closed,
+    gap('special_election_filer'),
+    gap('calendar_not_transcribed'),
+    gap('filings_cannot_answer'),
+  ];
+  const said = (schedule: FilingSchedule) => filingScheduleNote(schedule, 2099).join(' ');
+
+  it('says a committee on the ballot owes a named report on a named date', () => {
+    const text = said(onTheBallot);
+    expect(text).toContain('is on the 2099 ballot');
+    expect(text).toContain('“Pre-general report of receipts and expenditures”');
+    expect(text).toContain('due 26 Oct 2099');
+    expect(text).toContain('covering 1 Jan 2099 to 19 Oct 2099');
   });
 
-  it('names when new money next appears, so a July figure is not read as a fault', () => {
-    // Nothing new publishes between 21 July and 26 October 2026, and this ships in
-    // September, so without this line "checked today" over July figures reads as
-    // broken.
-    expect(FILING_SCHEDULE_NOTE).toContain('26 October');
-    expect(FILING_SCHEDULE_NOTE).toContain('1 February 2027');
+  it('says a committee not on the ballot owes nothing until its once-a-year report', () => {
+    const text = said(notOnTheBallot);
+    expect(text).toContain('is not on the 2099 ballot');
+    expect(text).toContain('once a year');
+    expect(text).toContain('due 1 Feb 2100');
+    // The whole point of this state: an empty year is the schedule, not a silence.
+    expect(text).toContain('not money going unreported');
+  });
+
+  it('says a closed registration owes nothing further, and names the day it closed', () => {
+    const text = said(closed);
+    expect(text).toContain('closed its registration with the state on 4 Mar 2099');
+    expect(text).toContain('no further report is due');
+  });
+
+  it('says a special-election filer runs on periods we have not written down', () => {
+    const text = said(gap('special_election_filer'));
+    expect(text).toContain('We cannot say when this committee’s next report is due');
+    expect(text).toContain('special elections run on their own set of filing periods');
+  });
+
+  it('says an untranscribed calendar is a calendar we have not copied in', () => {
+    const text = said(gap('calendar_not_transcribed'));
+    expect(text).toContain('We cannot say when this committee’s next report is due');
+    expect(text).toContain('we have not yet copied in the one covering this committee');
+  });
+
+  it('says our own copy of the filings is what cannot answer', () => {
+    const text = said(gap('filings_cannot_answer'));
+    expect(text).toContain('We cannot say when this committee’s next report is due');
+    expect(text).toContain('Our copy of the state’s own list of filings cannot answer it');
+  });
+
+  it('gives all 6 states different words', () => {
+    // The failure this catches is 2 states collapsing into 1 sentence, which would tell
+    // a reader something false about a named politician's filing duties.
+    expect(new Set(all.map(said)).size).toBe(6);
+  });
+
+  it('never lets one of our 3 gaps read like one of the committee’s 3 facts', () => {
+    // Rule 12's missing-versus-zero rule, applied to dates instead of to money. Our
+    // gaps say so in plain words and never name a due date; the committee-side states
+    // never blame us.
+    for (const state of [
+      'special_election_filer',
+      'calendar_not_transcribed',
+      'filings_cannot_answer',
+    ] as const) {
+      const text = said(gap(state));
+      expect(text).toContain('That gap is on our side');
+      expect(text).not.toMatch(/due \d/);
+      expect(text).not.toMatch(/nothing is due|not required to report/i);
+    }
+    for (const schedule of [onTheBallot, notOnTheBallot, closed]) {
+      expect(said(schedule)).not.toContain('We cannot say');
+      expect(said(schedule)).not.toContain('That gap is on our side');
+    }
+  });
+
+  it('never says a report is late, in any state', () => {
+    // The signal that marks an unfiled report is only readable in the current year, so
+    // the claim cannot be supported — and it would name a real person.
+    for (const schedule of all) {
+      expect(said(schedule)).not.toMatch(
+        /\blate\b|overdue|past due|delinquent|missed|failed to file|should have filed|has not filed/i,
+      );
+    }
+  });
+
+  it('never prints the pre-general date without the exemption printed beside it', () => {
+    // Everyone who advanced past the primary owes that report and everyone who lost
+    // does not, and no record we hold says which happened. The date alone invents a
+    // deadline for the losers.
+    const paragraphs = filingScheduleNote(onTheBallot, 2099);
+    expect(paragraphs.join(' ')).toContain('due 26 Oct 2099');
+    expect(paragraphs.join(' ')).toContain(
+      '“Candidates who lost the primary election do not need to file this report.”',
+    );
+    // Its own paragraph, so a reader skimming does not lose it inside the date sentence.
+    expect(paragraphs).toHaveLength(2);
+  });
+
+  it('writes no year into any sentence of its own', () => {
+    // What the old fixed paragraph failed to pin. Every year on screen has to come from
+    // the schedule or from the year the reader chose, so nothing here can go stale in
+    // silence on 1 January.
+    for (const schedule of all) {
+      const years = said(schedule).match(/\b\d{4}\b/g) ?? [];
+      expect(years.every((found) => found === '2099' || found === '2100')).toBe(true);
+    }
+  });
+
+  it('drops a half-served date rather than printing “due” and nothing', () => {
+    const text = said({ ...onTheBallot, nextReportDueOn: null });
+    expect(text).toContain('is on the 2099 ballot');
+    expect(text).not.toContain('due');
+    // And the exemption goes with the date it qualifies rather than floating alone.
+    expect(text).not.toContain('lost the primary');
+  });
+
+  it('treats a missing schedule block as our gap, never as a committee-side fact', () => {
+    expect(filingScheduleNote(undefined, 2099).join(' ')).toContain('That gap is on our side');
   });
 });
 

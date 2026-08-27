@@ -23,13 +23,13 @@ import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { CampaignCommitteeMoney, LegislatorCampaignMoney } from '../../data/types';
 import {
-  FILING_SCHEDULE_NOTE,
   LINK_UNCONFIRMED_EXPLANATION,
   UNNAMED_MONEY_EXPLANATION,
   type CampaignMoneyYear,
   campaignMoneyYears,
   confirmedElsewhereExplanation,
   emptyStateFor,
+  filingScheduleNote,
   formatDay,
   formatMoney,
   moneyFigure,
@@ -235,6 +235,39 @@ function CommitteeCard({
 
       <MoneyIn committee={committee} isDesktop={isDesktop} />
       <MoneyOut committee={committee} isDesktop={isDesktop} />
+      <FilingScheduleNote schedule={committee.filingSchedule} year={year} />
+    </View>
+  );
+}
+
+/**
+ * Why this committee has what it has for this year, in its own words.
+ *
+ * Inside the card and at its foot, because it is a statement about this committee's
+ * own reporting duty rather than about Minnesota in general. The fixed paragraph it
+ * replaces sat once at the bottom of the tab and recited the state's calendar, so a
+ * reader had to work out which half of it applied to the member on screen (#1642).
+ *
+ * Every sentence and every date comes from `lib/legislatorCampaignMoney.ts`. One
+ * paragraph per element, so a printed exemption sits under the date it qualifies
+ * instead of trailing it inside one block of text.
+ */
+function FilingScheduleNote({
+  schedule,
+  year,
+}: {
+  schedule: CampaignCommitteeMoney['filingSchedule'];
+  year: CampaignMoneyYear;
+}) {
+  const paragraphs = filingScheduleNote(schedule, year);
+  if (!paragraphs.length) return null;
+  return (
+    <View style={styles.block}>
+      {paragraphs.map((paragraph) => (
+        <Text key={paragraph} style={styles.explain}>
+          {paragraph}
+        </Text>
+      ))}
     </View>
   );
 }
@@ -468,20 +501,22 @@ function OtherOfficeNote({ count }: { count: number }) {
  *
  * The date is the day we downloaded Minnesota's files. It is never the period the
  * money covers — that is per committee, always earlier, and stated beside each
- * figure. The filing-schedule sentence is what stops a September reader seeing
- * "checked today" over figures that stop in July and concluding we are broken.
+ * figure.
+ *
+ * What stops a September reader seeing "checked today" over figures that stop in July
+ * and concluding we are broken is now the schedule note inside each committee card,
+ * which says when that committee's next report is due. It used to be a fixed
+ * paragraph here describing Minnesota's calendar in general (#1642).
  */
 function FreshnessNote({ fetchedAt }: { fetchedAt: string | null }) {
   const day = formatDay(fetchedAt);
+  if (!day) return null;
   return (
     <View style={styles.freshness}>
-      {day ? (
-        <Text style={styles.muted}>
-          We last downloaded Minnesota’s campaign finance files on {day}. That is when we checked,
-          not the period this money covers.
-        </Text>
-      ) : null}
-      <Text style={styles.muted}>{FILING_SCHEDULE_NOTE}</Text>
+      <Text style={styles.muted}>
+        We last downloaded Minnesota’s campaign finance files on {day}. That is when we checked, not
+        the period this money covers.
+      </Text>
     </View>
   );
 }

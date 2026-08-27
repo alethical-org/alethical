@@ -4033,6 +4033,21 @@ def legislator_campaign_finance(
       numbers cannot be subtracted and nothing about whether the 2 publications
       disagree. 0 committee-years today.
 
+    Every committee also carries a ``filing_schedule``, which is why a year with no
+    figures has nothing to show. It is 1 of 6 states, and the split down the middle is
+    rule 12's missing-versus-zero rule applied to dates: ``on_the_ballot``,
+    ``not_on_the_ballot`` and ``registration_closed`` are facts about the committee,
+    while ``special_election_filer``, ``calendar_not_transcribed`` and
+    ``filings_cannot_answer`` are all "we cannot say", and a page may never let one read
+    like the other. ``next_report_due_on`` never travels without ``condition`` where the
+    Board prints one, because the pre-general date is wrong for a candidate who lost the
+    primary and right for everybody else. Nothing here says a report is late, and nothing
+    can: the absent-amendment signal that marks an unfiled report is only readable in the
+    current year (``alethical/pipeline/campaign_finance_filing_calendars.py``), and
+    telling a reader a named politician missed a deadline they do not have is the worst
+    thing this surface could produce
+    ([#1642](https://github.com/alethical-org/alethical/issues/1642)).
+
     ``committees`` carries only committees for a **legislative** office. A member may
     have confirmed committees for a run at something else, and §7 forbids that race's
     money appearing under their legislative profile; ``other_office_committees`` counts
@@ -4159,6 +4174,23 @@ def legislator_campaign_finance(
                         "stated_split_state": entry.split.stated_split_state,
                         "first_payment_on": entry.split.first_payment_on,
                         "last_payment_on": entry.split.last_payment_on,
+                    },
+                    # Why this committee-year may have nothing to show, in 1 of 6
+                    # states. Every date is read off the Board's own transcribed
+                    # calendar or its own filer record; none is derived from the year
+                    # asked about, so no sentence built from this can go stale in
+                    # silence on 1 January (#1642).
+                    "filing_schedule": {
+                        "state": entry.schedule.state,
+                        "next_report_name": entry.schedule.next_report_name,
+                        "next_report_due_on": entry.schedule.next_report_due_on,
+                        "period_start": entry.schedule.period_start,
+                        "period_end": entry.schedule.period_end,
+                        # The Board's printed exemption on that report, verbatim. It
+                        # travels with the due date because the date is wrong for one
+                        # group of candidates without it.
+                        "condition": entry.schedule.condition,
+                        "terminated_on": entry.schedule.terminated_on,
                     },
                 }
                 for entry in finance.committees

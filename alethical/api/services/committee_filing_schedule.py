@@ -50,6 +50,7 @@ from alethical.pipeline.campaign_finance_filing_calendars import (
     CataloguedReport,
     Determination,
     ScheduleClass,
+    UnknownBecause,
     classify,
 )
 from alethical.pipeline.campaign_finance_filings import live_filings_snapshot
@@ -171,6 +172,128 @@ def filing_schedule(
         termination_date=termination_date,
         as_of=as_of,
         evidence_read_on=fetched_on,
+    )
+
+
+# --- The 6 states a money page has to tell apart ---------------------------------
+#
+# One vocabulary, served to the page, which owns the wording
+# (``.claude/rules/grounded-answers.md`` rule 3: the data describes records, the layout
+# frames them). The ``reason`` strings above are written for a developer and no reader
+# ever sees one.
+#
+# **Three of these are about the committee and 3 are about us, and rule 12 says those
+# must never read the same.** A page that lets "we have not typed in that calendar"
+# render like "nothing is due yet" has told a reader something false about a named
+# person's filing duties ([#1642](https://github.com/alethical-org/alethical/issues/1642)).
+
+#: On this year's ballot, so on the state's election-year calendar, with a named next
+#: report and a date. About the committee.
+ON_THE_BALLOT = "on_the_ballot"
+#: Not on this year's ballot, so nothing covering this year's money is due until the
+#: year-end report. About the committee, and the reason most sitting members' pages
+#: read empty for a whole year.
+NOT_ON_THE_BALLOT = "not_on_the_ballot"
+#: The registration is closed, so no further report is due at all. About the committee.
+REGISTRATION_CLOSED = "registration_closed"
+#: A special-election filer, whose reports run on a series of periods we have not
+#: established. About us.
+SPECIAL_ELECTION_FILER = "special_election_filer"
+#: The calendar covering this committee and this year is not transcribed -- a year we
+#: have not typed in, or a seat (statewide, appellate) on a calendar this batch did not
+#: include. About us.
+CALENDAR_NOT_TRANSCRIBED = "calendar_not_transcribed"
+#: Our copy of the state's filings cannot answer the question: none published, this
+#: committee absent from it, or read on a day that cannot speak for the day asked
+#: about. About us.
+FILINGS_CANNOT_ANSWER = "filings_cannot_answer"
+
+
+@dataclass(frozen=True)
+class CommitteeFilingSchedule:
+    """One committee-year's filing schedule, in the shape a money page renders.
+
+    Every date here is read off the Board's own transcribed calendar or its own filer
+    record. None is derived from the year asked about, which is the failure this
+    replaces: the sentence that shipped before wrote 2026's dates into its own words,
+    so on 1 January 2027 it would have described a finished election year and nothing
+    would have announced it.
+
+    ``condition`` is the exemption the Board prints on a report, verbatim, and it
+    travels with the due date because the date is wrong for one group of candidates
+    without it (``CalendarEntry.condition``). A page printing ``next_report_due_on``
+    prints this too.
+    """
+
+    state: str
+    next_report_name: Optional[str] = None
+    next_report_due_on: Optional[date] = None
+    period_start: Optional[date] = None
+    period_end: Optional[date] = None
+    condition: Optional[str] = None
+    terminated_on: Optional[date] = None
+
+
+def schedule_for_display(
+    answer: Determination | ScheduleUnavailable,
+) -> CommitteeFilingSchedule:
+    """Sort one determination into the 6 states a reader needs told apart.
+
+    The order is load-bearing in the same way ``classify``'s is. A closed registration
+    owes nothing whatever else is true of it, so it is decided first. The 2 unknowns
+    that are not about a missing calendar are decided next, because both of them can
+    reach here carrying no next report and would otherwise be swallowed by the
+    calendar case. What is left with no next report is a calendar we have not
+    transcribed -- a year we never typed in, a schedule whose entries ran out, or a
+    seat on one of the calendars this batch did not include.
+    """
+    if isinstance(answer, ScheduleUnavailable):
+        # All 3 of ``ScheduleUnavailable``'s states are the same fact to a reader: our
+        # copy of the filings cannot answer, and the committee has done nothing. They
+        # stay 3 separate values on the service so a maintainer can tell them apart.
+        return CommitteeFilingSchedule(state=FILINGS_CANNOT_ANSWER)
+    if answer.schedule_class is ScheduleClass.terminated:
+        return CommitteeFilingSchedule(
+            state=REGISTRATION_CLOSED, terminated_on=answer.terminated_on
+        )
+    if answer.unknown_because is UnknownBecause.special_election_series:
+        return CommitteeFilingSchedule(state=SPECIAL_ELECTION_FILER)
+    if (
+        answer.unknown_because
+        is UnknownBecause.evidence_predates_the_first_election_report
+    ):
+        # Our filings were read before the state had scheduled the year's first
+        # election report, so this committee carrying none proves nothing. Grouped with
+        # the unreadable-filings state rather than with the calendar one, because it is
+        # the same fact from the reader's side: what we hold cannot answer it yet.
+        return CommitteeFilingSchedule(state=FILINGS_CANNOT_ANSWER)
+    report = answer.next_report
+    if report is None:
+        return CommitteeFilingSchedule(state=CALENDAR_NOT_TRANSCRIBED)
+    return CommitteeFilingSchedule(
+        state=(
+            ON_THE_BALLOT
+            if answer.schedule_class is ScheduleClass.filing_for_office
+            else NOT_ON_THE_BALLOT
+        ),
+        next_report_name=report.report_name,
+        next_report_due_on=report.due_date,
+        period_start=report.period_start,
+        period_end=report.period_end,
+        condition=report.condition,
+    )
+
+
+def committee_filing_schedule(
+    db: Session,
+    registration_number: str,
+    *,
+    year: int,
+    as_of: Optional[date] = None,
+) -> CommitteeFilingSchedule:
+    """``filing_schedule`` sorted into the 6 states, for a page to word."""
+    return schedule_for_display(
+        filing_schedule(db, registration_number, year=year, as_of=as_of)
     )
 
 

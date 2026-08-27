@@ -75,6 +75,10 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from alethical.api.services.campaign_finance_register import report_corrections
+from alethical.api.services.committee_filing_schedule import (
+    CommitteeFilingSchedule,
+    committee_filing_schedule,
+)
 from alethical.api.services.committee_finance import (
     NOT_REPORTED,
     CommitteeFinance,
@@ -211,6 +215,11 @@ class LegislatorCommitteeMoney:
     office_as_reviewed: str | None
     finance: CommitteeFinance | None
     split: NamedMoneySplit
+    #: Which of the 6 filing-schedule states this committee-year is in, so the tab can
+    #: say *why* a year is empty for this committee rather than reciting Minnesota's
+    #: calendar in general ([#1642](https://github.com/alethical-org/alethical/issues/1642)).
+    #: Keyed on the registration number, so it needs no confirmation of its own.
+    schedule: CommitteeFilingSchedule
 
 
 @dataclass(frozen=True)
@@ -589,6 +598,11 @@ def legislator_finance(
         finance = committee_finance(
             db, release, registration_number=link.registration_number, year=year
         )
+        # Read before the money, and never skipped when the money is missing: a year
+        # with no figures is exactly the year whose emptiness needs explaining. It
+        # comes off the Board's filings snapshot rather than off this release, so a
+        # committee absent from one can still be answered from the other.
+        schedule = committee_filing_schedule(db, link.registration_number, year=year)
         if finance is None:
             # A confirmed link to a registration number the current release holds no
             # record of. That is a fact about our download, not about the committee,
@@ -600,6 +614,7 @@ def legislator_finance(
                     committee_name_as_reviewed=link.committee_name_as_reviewed,
                     office_as_reviewed=link.office_as_reviewed,
                     finance=None,
+                    schedule=schedule,
                     split=NamedMoneySplit(
                         state=SPLIT_NO_REPORTED_TOTAL,
                         reported_total=None,
@@ -622,6 +637,7 @@ def legislator_finance(
                 committee_name_as_reviewed=link.committee_name_as_reviewed,
                 office_as_reviewed=link.office_as_reviewed,
                 finance=finance,
+                schedule=schedule,
                 split=split_for_committee(
                     db,
                     release,

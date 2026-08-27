@@ -624,3 +624,139 @@ def test_a_stale_snapshot_does_not_place_a_committee_off_the_ballot_in_bulk(db) 
     assert coverage.unknown == 2
     assert coverage.with_next_due_date == 0
     assert all("read on 2026-07-01" in why for _, why in coverage.unknown_reasons)
+
+
+# --- The 6 states a money page has to tell apart (#1642) --------------------------
+#
+# ``schedule_for_display`` is pure, so these need no database. What each of the 6
+# *says* to a reader is pinned on the frontend
+# (``apps/frontend/src/lib/__tests__/legislatorCampaignMoney.test.ts``); what is pinned
+# here is that the right state comes out, because a page cannot word a state it was
+# never handed.
+
+
+def test_a_committee_on_the_ballot_carries_its_report_and_the_condition_printed_on_it() -> (
+    None
+):
+    shown = service.schedule_for_display(
+        place(catalogued=[PRE_PRIMARY], as_of=date(2026, 8, 12))
+    )
+    assert shown.state == service.ON_THE_BALLOT
+    assert shown.next_report_due_on == date(2026, 10, 26)
+    assert shown.period_start == date(2026, 1, 1)
+    assert shown.period_end == date(2026, 10, 19)
+    # The date is wrong for a candidate who lost the primary and right for everyone
+    # else, and this printed sentence is the only thing that separates them.
+    assert shown.condition == (
+        "Candidates who lost the primary election do not need to file this report."
+    )
+
+
+def test_a_committee_not_on_the_ballot_carries_its_year_end_report() -> None:
+    shown = service.schedule_for_display(place())
+    assert shown.state == service.NOT_ON_THE_BALLOT
+    assert shown.next_report_due_on == date(2027, 2, 1)
+    assert shown.condition is None
+
+
+def test_a_closed_registration_carries_the_day_it_closed_and_no_report() -> None:
+    shown = service.schedule_for_display(place(termination_date=date(2026, 3, 4)))
+    assert shown.state == service.REGISTRATION_CLOSED
+    assert shown.terminated_on == date(2026, 3, 4)
+    assert shown.next_report_due_on is None
+
+
+def test_a_special_election_filer_is_its_own_state_and_not_a_missing_calendar() -> None:
+    """Its periods are a series we never established, which is a different sentence
+    from a calendar we have not typed in."""
+    shown = service.schedule_for_display(
+        place(
+            catalogued=[
+                CataloguedReport(
+                    filing_year=2026,
+                    report_name="Special Election: 2026 Pre-Primary Report",
+                    special_election=True,
+                )
+            ]
+        )
+    )
+    assert shown.state == service.SPECIAL_ELECTION_FILER
+
+
+def test_a_year_we_never_transcribed_is_the_untranscribed_calendar_state() -> None:
+    shown = service.schedule_for_display(place(year=2028))
+    assert shown.state == service.CALENDAR_NOT_TRANSCRIBED
+    assert shown.next_report_due_on is None
+
+
+def test_a_seat_on_a_calendar_this_batch_left_out_is_the_same_state() -> None:
+    """On the ballot, and for a statewide seat whose calendar we did not transcribe. It
+    has no date, so it may not be worded as a schedule."""
+    shown = service.schedule_for_display(
+        place(catalogued=[PRE_PRIMARY], office="Gov", as_of=date(2026, 8, 12))
+    )
+    assert shown.state == service.CALENDAR_NOT_TRANSCRIBED
+
+
+def test_filings_we_cannot_read_are_never_worded_as_a_committee_side_fact(db) -> None:
+    """All 3 ways our own copy falls short land in one reader-facing state, because to
+    a reader they are one fact: we cannot say, and the committee has done nothing.
+
+    ``.claude/rules/grounded-answers.md`` rule 12, applied to dates rather than to
+    money.
+    """
+    assert (
+        service.schedule_for_display(
+            service.ScheduleUnavailable(
+                registration_number="17500",
+                year=2026,
+                state=service.NO_SNAPSHOT,
+                reason="",
+            )
+        ).state
+        == service.FILINGS_CANNOT_ANSWER
+    )
+    _publish_snapshot(db, filers=[("17500", "House", None)], reports=[])
+    absent = service.committee_filing_schedule(db, "19999", year=2026, as_of=AS_OF)
+    assert absent.state == service.FILINGS_CANNOT_ANSWER
+    # And evidence read before the year's first election report was catalogued, which
+    # proves nothing about whether this committee is on the ballot.
+    too_early = service.schedule_for_display(
+        place(as_of=date(2026, 8, 12), evidence_read_on=date(2026, 7, 1))
+    )
+    assert too_early.state == service.FILINGS_CANNOT_ANSWER
+
+
+def test_the_6_states_are_6_and_never_collapse(db) -> None:
+    """Collapsing any 2 of them states something false about a named politician."""
+    _publish_snapshot(
+        db,
+        filers=[("17500", "House", None)],
+        reports=[("17500", 2025, "2025 Year-End Report", False)],
+    )
+    reached = {
+        service.schedule_for_display(place(catalogued=[PRE_PRIMARY])).state,
+        service.schedule_for_display(place()).state,
+        service.schedule_for_display(place(termination_date=date(2026, 3, 4))).state,
+        service.schedule_for_display(
+            place(
+                catalogued=[
+                    CataloguedReport(
+                        filing_year=2026,
+                        report_name="Special Election: 2026 Pre-Primary Report",
+                        special_election=True,
+                    )
+                ]
+            )
+        ).state,
+        service.schedule_for_display(place(year=2028)).state,
+        service.committee_filing_schedule(db, "19999", year=2026, as_of=AS_OF).state,
+    }
+    assert reached == {
+        service.ON_THE_BALLOT,
+        service.NOT_ON_THE_BALLOT,
+        service.REGISTRATION_CLOSED,
+        service.SPECIAL_ELECTION_FILER,
+        service.CALENDAR_NOT_TRANSCRIBED,
+        service.FILINGS_CANNOT_ANSWER,
+    }
