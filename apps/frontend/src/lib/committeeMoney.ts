@@ -64,9 +64,14 @@ export function registerKindFromEntityType(entityType: string | null | undefined
 }
 
 /**
- * The header's eyebrow. The register kind, except for the two Board sub-type codes
- * that say "ballot question" — those name the finer kind the code itself states.
- * An unknown kind prints nothing rather than a guess.
+ * The header's eyebrow. The register kind, except where a Board sub-type code names
+ * a finer kind the register itself publishes — the 2 ballot-question codes, and the
+ * 2 party layers `CAU` and `SPU` (#1661 §2, served since #1768). Every label here is
+ * the Board's own wording; an unknown kind prints nothing rather than a guess.
+ *
+ * Why the party layers belong here: `whoseCommitteeText` below already tells a reader
+ * a `CAU` filer is a caucus committee, so an eyebrow reading "Party unit" above that
+ * sentence printed a coarser kind than the page's own body, and than the register.
  */
 export function committeeEyebrow(
   registerKind: string | null | undefined,
@@ -74,6 +79,10 @@ export function committeeEyebrow(
 ): string | null {
   if (entitySubType === 'BC') return 'Ballot question committee';
   if (entitySubType === 'BF') return 'Ballot question fund';
+  if (registerKind === 'party_unit') {
+    if (entitySubType === 'CAU') return 'Legislative caucus';
+    if (entitySubType === 'SPU') return 'State party committee';
+  }
   return registerKindLabel(registerKind);
 }
 

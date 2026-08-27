@@ -78,15 +78,37 @@ describe('the register-driven header', () => {
     expect(registerKindLabel('super_pac')).toBeNull();
   });
 
-  it('the ballot sub-type codes name the finer kind; nothing else does', () => {
+  it('names the finer kind only where the register publishes one', () => {
     expect(committeeEyebrow('political_committee_or_fund', 'BC')).toBe('Ballot question committee');
     expect(committeeEyebrow('political_committee_or_fund', 'BF')).toBe('Ballot question fund');
     expect(committeeEyebrow('political_committee_or_fund', 'PC')).toBe(
       'Political committee or fund',
     );
-    expect(committeeEyebrow('party_unit', 'CAU')).toBe('Party unit');
     expect(isBallotQuestionFiler('BC')).toBe(true);
     expect(isBallotQuestionFiler('PF')).toBe(false);
+  });
+
+  // The 2 party layers Minnesota publishes (#1661 §2, served by #1768). This
+  // assertion used to pin 'Party unit' for a CAU filer, deliberately, back when
+  // the layer codes were dropped before reaching the frontend. They are served
+  // now, so printing the coarser kind hid a fact the register states, and
+  // contradicted whoseCommitteeText on the same page.
+  it('names the party layer for the 2 codes the register carries', () => {
+    expect(committeeEyebrow('party_unit', 'CAU')).toBe('Legislative caucus');
+    expect(committeeEyebrow('party_unit', 'SPU')).toBe('State party committee');
+    expect(committeeEyebrow('party_unit', null)).toBe('Party unit');
+    expect(committeeEyebrow('party_unit', 'ZZZ')).toBe('Party unit');
+  });
+
+  // The layer is a party-unit fact. #1768 measured that 0 candidate committees
+  // and 0 political committees or funds carry either code on the live register,
+  // so a filer of another kind carrying one is data we have never seen, and the
+  // register's own kind is the honest answer rather than a party label.
+  it('never reads a party layer off a filer that is not a party unit', () => {
+    expect(committeeEyebrow('political_committee_or_fund', 'CAU')).toBe(
+      'Political committee or fund',
+    );
+    expect(committeeEyebrow('candidate_committee', 'SPU')).toBe('Candidate committee');
   });
 
   it('says what a candidate committee registered for, from the register', () => {
