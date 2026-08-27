@@ -27,9 +27,10 @@ Two traits, not 2 mutually exclusive kinds. §2.7 is why that distinction matter
   exists and is live: *The Money Only Goes One Way*.
 - **A guide.** One term explained in plain language. A guide concludes nothing, adds nothing up
   across members, and defines no classifications, so it sits under rules 1 to 12 like every other
-  surface and needs no part of rule 13's exception. Exactly 1 exists and is live: *Who has to
-  report their money*, at `/read/guides/who-has-to-report-their-money`, posted 27 Aug 2026. Eleven
-  more are planned.
+  surface and needs no part of rule 13's exception. Two exist and are live, both posted 27 Aug
+  2026 and both in the set "How the Money Works": *Who has to report their money*, at
+  `/read/guides/who-has-to-report-their-money`, and *What the records name, and what they leave
+  out*, at `/read/guides/what-the-records-name`. Ten more are planned.
 - **Both.** A piece may carry both traits. See §2.7, which is where the reader-facing label for
   that case is decided, and §2.8, which is why this is not hypothetical.
 
@@ -135,10 +136,15 @@ an unwritten piece, so nothing is promised that a reader could try to open. What
 is that the set is live and growing.
 
 **The consequence to apply before any set ships with 1 piece.** Under this rule the box is
-conditional on the next piece actually being close. "How the Money Works" has 1 published piece and
-[issue 1771](https://github.com/alethical-org/alethical/issues/1771) records that pieces 2 onward
-have no owner and no dates. So the box is correct to build and is not yet correct to show for that
-particular set. Deciding it is an editorial call about the writing schedule, not a design question.
+conditional on the next piece actually being close. Deciding it is an editorial call about the
+writing schedule, not a design question.
+
+**Spent for "How the Money Works", 27 Aug 2026.** That set had 1 published piece and
+[issue 1771](https://github.com/alethical-org/alethical/issues/1771) recorded that pieces 2 onward
+had no owner and no dates, so its box was correct to build and not yet correct to show. Piece 2
+posted the same day, so the set has 2 published pieces and its box now shows with 2 rows. The
+1-piece state is still the ratified design and is still what a new set opens with; it is simply
+not the state this set is in.
 
 **What the design recommended instead, and why it lost.** Design drew the 1-piece box as asked,
 then argued against it: at 1 piece the meta line restates the single row, the row's own reading time
@@ -381,11 +387,38 @@ None. §2.3, §2.5, §2.7, §2.10, §2.11, §2.12 and §2.13 all closed on 27 Au
    which rule 13's publishing order point 8 requires.
 4. **A "checked" date** (`checkedOn`), distinct from the publication date. Settled 26 Aug 2026: a
    piece reads "Written August 2026" until someone re-checks it and "Checked March 2027" from then
-   on, same slot, one word swapped, and a listing row carries no date either way.
+   on, same slot, one word swapped.
 
-**What is still unbuilt, and is not one of these 4:** the set box on the `/read` page, its fold
-control, and a set's own page. §2.5 makes a box a declaration that the next piece is coming shortly,
-and "How the Money Works" does not yet qualify, so the guide ships as a standalone card. Tracked on
+   **The last clause of that settlement, that a listing row carries no date either way, was
+   superseded on 27 Aug 2026 by Design's `/read` handoff, which Eugene sent to be built.** A card
+   now carries its reading time and then its date, on both kinds: `7 MIN · PUBLISHED AUG 20, 2026`
+   for a research piece and `5 MIN · WRITTEN AUGUST 2026` for a guide. The reason the 26 Aug
+   settlement gave for dropping the date was staleness reading worst on a listing row, and the
+   one-word swap it introduced in the same breath is the answer to it: re-checking a guide moves its
+   card's date forward, so staying accurate makes a piece read as current rather than old. The
+   handoff's own reason is different and also holds: every card in a column has to be one shape,
+   because a column that changes shape per kind reads as 2 columns.
+
+   **A row inside a set box still carries no date**, and no kind word and no number either. That is
+   where "no date on a listing row" now lives, and it is not a compromise: the set box says the kind
+   once for the whole set on its meta line, and a date on a row would be the third repeated thing in
+   a list whose job is to be scanned.
+
+**The set box and its fold control shipped 27 Aug 2026**, in the change that posted the set's
+second guide. The box is `apps/frontend/src/components/read/SetBox.tsx`; the count and the total
+minutes are computed from its published rows by `setMetaLine` and `setReadingMinutes`, so neither
+can drift from the list underneath them, and a set's slug is computed from its name by the same rule
+a section heading uses rather than stored as a fourth field.
+
+The fold control is hand-built, and deliberately so: React Native's web renderer makes its own
+elements, and the app has no disclosure or accordion component, so there is no browser default to
+inherit. The 3 halves that are invisible when dropped are pinned by
+`apps/frontend/src/components/read/__tests__/SetBox.test.ts`: the button sits inside its `h3`
+rather than the other way round, `aria-controls` points at a list element that stays in the document
+while the box is shut, and the chevron is hidden from assistive technology.
+
+**What is still unbuilt:** a set's own page at `/read/sets/<name>`, and the "All of <set name>"
+link Design gives a box at 6 published pieces. Tracked on
 [issue 1752](https://github.com/alethical-org/alethical/issues/1752).
 
 **One naming debt this change created and deliberately did not clear.** The container concept is a

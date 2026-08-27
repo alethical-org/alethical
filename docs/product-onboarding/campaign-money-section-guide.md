@@ -1,4 +1,4 @@
-<!-- describes: apps/frontend/src/screens/redesign/MoneyLandingScreen.tsx, apps/frontend/src/screens/redesign/ReadScreen.tsx, apps/frontend/src/screens/redesign/ResearchScreen.tsx, apps/frontend/src/screens/redesign/CommitteeMoneyScreen.tsx, apps/frontend/src/screens/redesign/CommitteePaymentsScreen.tsx, apps/frontend/src/screens/redesign/CommitteeListScreen.tsx, apps/frontend/src/screens/redesign/MoneySearchScreen.tsx, apps/frontend/src/components/campaignMoney/MoneyNameSearchField.tsx, apps/frontend/src/lib/moneyLanding.ts, apps/frontend/src/lib/research.ts, apps/frontend/src/lib/researchPieces/whoHasToReportTheirMoney.ts, apps/frontend/src/lib/committeeMoney.ts, apps/frontend/src/lib/committeeList.ts, apps/frontend/src/lib/moneyNameSearch.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/webRoutes.ts -->
+<!-- describes: apps/frontend/src/screens/redesign/MoneyLandingScreen.tsx, apps/frontend/src/screens/redesign/ReadScreen.tsx, apps/frontend/src/screens/redesign/ResearchScreen.tsx, apps/frontend/src/screens/redesign/CommitteeMoneyScreen.tsx, apps/frontend/src/screens/redesign/CommitteePaymentsScreen.tsx, apps/frontend/src/screens/redesign/CommitteeListScreen.tsx, apps/frontend/src/screens/redesign/MoneySearchScreen.tsx, apps/frontend/src/components/campaignMoney/MoneyNameSearchField.tsx, apps/frontend/src/lib/moneyLanding.ts, apps/frontend/src/lib/research.ts, apps/frontend/src/lib/researchPieces/whoHasToReportTheirMoney.ts, apps/frontend/src/lib/researchPieces/whatTheRecordsName.ts, apps/frontend/src/components/read/SetBox.tsx, apps/frontend/src/lib/committeeMoney.ts, apps/frontend/src/lib/committeeList.ts, apps/frontend/src/lib/moneyNameSearch.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/webRoutes.ts -->
 
 # How the Campaign money section works
 
@@ -347,6 +347,13 @@ This is the page listing everything Alethical publishes in its own name
 ([`.claude/rules/grounded-answers.md` rule 13](../../.claude/rules/grounded-answers.md)).
 With nothing posted the page says "Nothing is published yet" and the money landing counts 0.
 
+**The page shows no title.** The top bar says the word and so does the address, so a visible
+heading saying it a third time is what the naming rule bans. What sits where a title would is
+one grey line saying what the page holds: "What we found in Minnesota's public records, plus
+guides to how state government works". The page's name still exists for a screen reader and
+in the browser tab, on a heading that is there but not drawn; it is taken from the top bar's
+own label, so the 2 cannot end up saying different words.
+
 **Two kinds of writing, in 2 groups: RESEARCH first, then GUIDES** (Eugene, 27 Aug 2026,
 overruling the drawn order). Research is Alethical's own digging through these records, signed
 and dated. A guide explains 1 term in plain language, concludes nothing, and adds nothing up
@@ -362,26 +369,48 @@ first.
 broken. The spacing belongs to the position rather than to the group, so whichever group comes
 first sits closer to the rule above it, and if one is empty the other simply takes that place.
 
-One card per piece, newest first inside each group. A card carries:
+One card per piece, newest first inside each group. **Every card is the same shape,
+whichever kind it holds**, because a column that changes shape from one card to the next
+reads as 2 columns. A card carries, in this order:
 
-- The piece's title, and its standfirst where it has one.
-- A quiet line above the title: a research piece's publication date, or **a guide's reading
-  time**. A guide carries no date here on purpose — a date on a guide says which event it is
-  and belongs on the piece itself, never on a listing row, which is where looking old does
-  most harm and a date does least work (settled 26 Aug 2026).
+- A short line in the typewriter face: how long the piece takes to read, then its date. A
+  research piece gives the day it was published; a guide gives the month it was written, and
+  the same slot reads "checked" from the day somebody re-checks it, so a guide that is kept
+  accurate reads as current instead of old. This replaces the 26 Aug 2026 decision to leave a
+  guide's card dateless: that decision was about a date going stale on a listing row, and the
+  one-word swap is the answer to it.
+- The piece's title.
+- One smaller line: a research piece's standfirst, or the set a guide belongs to. A guide in
+  no set has neither, and the line is simply not drawn.
 - No kind word. The heading above already says Research or Guide, and printing it again on
   the card says it twice in one glance
   ([`docs/architecture/published-writing-decisions.md`](../architecture/published-writing-decisions.md)
-  §2.10).
-- "Read the research" or "Read the guide", so the reader knows which they are opening.
+  §2.10). A screen reader still hears "Research:" or "Guide:" at the start of the card,
+  because a card read out on its own has no heading above it.
+- Nothing else. There is no "Read the research" line: the whole card is the link, and the
+  border turning green under the pointer is what says so.
 
-**No set box, deliberately.** A set is a group of pieces written to be read together, and the
-one that exists, "How the Money Works", has 1 published piece. Starting a set's box on this
-page is a statement that the next piece is coming shortly (§2.5), and nobody owns or has dated
-the next one ([issue 1771](https://github.com/alethical-org/alethical/issues/1771)), so the
-guide appears as an ordinary standalone card, which §2.2 allows. The set box, its fold
-control, and a set's own page at `/read/sets/<name>` are unbuilt, and that address shows
-the ordinary "page not found" screen rather than an empty page.
+**A set of pieces written to be read together gets a box instead of a card each**, drawn
+above the loose cards under GUIDES. "How the Money Works" now has 2 published pieces, so its
+box shows. A box carries the set's name, a line reading "2 GUIDES · 10 MIN", and a row per
+published piece with its title and its reading time. A row carries no date, no kind word and
+no number: where a piece sits in its set is internal talk and reaches no reader (§2.12).
+
+The set's name is a control: clicking it folds the rows away and clicking again brings them
+back, and a small arrow at the right turns over to show which way it is. Folding hides the
+rows and keeps the count and the total, because those are how a reader decides whether to
+open it. The box itself is not a link and does not lift under the pointer, because it has
+nowhere to go: a set's own page at `/read/sets/<name>` is still unbuilt, and that address
+shows the ordinary "page not found" screen.
+
+**A set only lists what is published**, never a title a reader cannot open and never a count
+of how many the set is eventually meant to hold (§2.3). A set with nothing published shows no
+box at all (§2.4). A set with 1 published piece shows the whole box holding 1 row, because
+opening a box is a statement that the next piece is coming shortly (§2.5).
+
+**Not built yet:** a set's own page, and the "All of <set name>" link Design gives a box once
+a set reaches 6 published pieces. Sorting the page by subject rather than by our own 2 kinds
+is an open question, deferred until there are 4 sets or a dozen research pieces (§2.11).
 
 Posting a piece puts it on the site straight away, before any of its figures have been
 checked: its own address, this page, and the money landing's count, all on the day it
@@ -404,9 +433,11 @@ handed its text over straight away
 whether a search engine may *list* a piece, which is still Eugene's per-piece decision
 above: a piece marked to be skipped is served in full and still asks to be skipped.
 
-Two pieces are posted: the research piece "The Money Only Goes One Way", at
-`/read/research/the-money-only-goes-one-way`, and the guide "Who has to report their
-money", at `/read/guides/who-has-to-report-their-money`.
+Three pieces are posted: the research piece "The Money Only Goes One Way", at
+`/read/research/the-money-only-goes-one-way`, and 2 guides, "Who has to report their
+money" at `/read/guides/who-has-to-report-their-money` and "What the records name, and
+what they leave out" at `/read/guides/what-the-records-name`. The 2 guides are the set
+"How the Money Works", in that reading order.
 
 ## One research piece's page (`/read/research/{name}`)
 

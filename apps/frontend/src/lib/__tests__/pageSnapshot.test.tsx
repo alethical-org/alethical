@@ -92,7 +92,10 @@ const {
   READ_PAGE_EMPTY_TITLE,
   READ_PAGE_HEADING,
   READ_PAGE_INTRO,
+  READ_PAGE_NAME,
   isoDateCapsLabel,
+  isoDateCommaCapsLabel,
+  pieceCardMetaLine,
   pieceMastheadLine,
   pieceReadingMinutes,
   piecePath,
@@ -712,8 +715,11 @@ describe('the /read page snapshot links to every posted piece', () => {
   const snapshot = readPageSnapshot(pieces);
   const html = renderPageSnapshot(snapshot);
 
-  it('uses the /read page’s own heading and introduction', () => {
-    expect(snapshot.heading).toBe(READ_PAGE_HEADING);
+  it('names the page the way the loaded page names it, then its note', () => {
+    // The loaded page shows no title and carries its name on a visually hidden
+    // `h1`; the served document has to say the same thing, or a crawler reads a
+    // heading no reader ever sees.
+    expect(snapshot.heading).toBe(READ_PAGE_NAME);
     expect(snapshot.body).toEqual([READ_PAGE_INTRO]);
   });
 
@@ -731,10 +737,22 @@ describe('the /read page snapshot links to every posted piece', () => {
   it('lists both kinds, each with the quiet line its card draws', () => {
     const research = pieces.find((piece) => piece.traits.research)!;
     const guide = pieces.find((piece) => !piece.traits.research)!;
-    // A research piece's publication date; a guide's reading time and no date.
-    expect(html).toContain(`PUBLISHED ${isoDateCapsLabel(research.publishedOn)}`);
-    expect(html).toContain(`${pieceReadingMinutes(guide)} MIN`);
+    // One card shape: minutes for both, then the day a research piece was
+    // published or the month a guide was written.
+    expect(html).toContain(pieceCardMetaLine(research));
+    expect(html).toContain(pieceCardMetaLine(guide));
+    expect(pieceCardMetaLine(research)).toContain(
+      `PUBLISHED ${isoDateCommaCapsLabel(research.publishedOn)}`,
+    );
+    expect(pieceCardMetaLine(guide)).toContain(`${pieceReadingMinutes(guide)} MIN`);
     expect(html).toContain(`href="/read/guides/${guide.slug}"`);
+  });
+
+  it('names a guide\u2019s set on its row, the way the card does', () => {
+    const guide = pieces.find((piece) => piece.set && !piece.traits.research)!;
+    expect(html).toContain(guide.set!.name);
+    // The set's name and never its position in it (\u00a72.12).
+    expect(html).not.toContain(`piece ${guide.set!.position}`);
   });
 
   it('says what the /read page says when nothing is posted yet', () => {
@@ -775,7 +793,7 @@ describe('both screens keep reading the same registry the server reads', () => {
       'utf8',
     );
     for (const constant of [
-      'READ_PAGE_HEADING',
+      'READ_PAGE_NAME',
       'READ_PAGE_INTRO',
       'READ_PAGE_EMPTY_TITLE',
       'READ_PAGE_EMPTY_BODY',

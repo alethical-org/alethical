@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { runInNewContext } from 'node:vm';
 
 import {
-  READ_PAGE_HEADING,
+  READ_PAGE_NAME,
   piecePath,
   publishedResearch,
   researchRunsText,
@@ -404,7 +404,8 @@ describe('first-response page tags', () => {
     for (const path of ['/read', '/reading', '/reports', '/money/reports']) {
       const { body, status } = await serve({ path });
       expect(status).toBe(200);
-      expect(body).toContain(`<title>${READ_PAGE_HEADING} | Alethical</title>`);
+      // The tab carries the page's own name, because the page shows no title.
+      expect(body).toContain(`<title>${READ_PAGE_NAME} | Alethical</title>`);
       expect(body).toContain('<link rel="canonical" href="https://www.alethical.com/read"');
     }
   });
@@ -424,8 +425,8 @@ describe('first-response page tags', () => {
     const { body, status } = await serve({ path: '/read' });
 
     expect(status).toBe(200);
-    expect(body).toContain(`<h1>${READ_PAGE_HEADING}</h1>`);
-    expect(body).toContain('drawn from the filings Minnesota campaigns, parties and funds');
+    expect(body).toContain(`<h1>${READ_PAGE_NAME}</h1>`);
+    expect(body).toContain('plus guides to how state government works');
     expect(publishedResearch().length).toBeGreaterThan(1);
     for (const piece of publishedResearch()) {
       // Each piece's own folder, so a crawler is never sent to an address the

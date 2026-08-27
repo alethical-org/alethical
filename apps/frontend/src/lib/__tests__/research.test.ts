@@ -11,8 +11,10 @@ import {
   indexedResearch,
   isoMonthYearCapsLabel,
   pieceAddressFolder,
-  pieceCardCta,
   pieceCardMetaLine,
+  pieceCardSecondaryLine,
+  pieceRowTime,
+  pieceSetSlug,
   pieceKindLabel,
   pieceMastheadLine,
   pieceReadingMinutes,
@@ -24,6 +26,11 @@ import {
   piecesLabelledGuide,
   piecesLabelledResearch,
   publishedResearch,
+  publishedSets,
+  guidesOutsideEverySet,
+  setMetaLine,
+  setReadingMinutes,
+  isoDateCommaCapsLabel,
   researchBySlug,
   researchRunsText,
   isoDateCapsLabel,
@@ -322,9 +329,10 @@ describe('set membership, and the number a reader never sees', () => {
       guide!.set!.name,
       pieceMastheadLine(guide!),
       pieceCardMetaLine(guide!),
-      pieceCardCta(guide!),
+      pieceCardSecondaryLine(guide!),
+      pieceRowTime(guide!),
       pieceShareDescription(guide!),
-    ].join(' \u2014 ');
+    ].join(' | ');
     expect(readerLines).toContain('How the Money Works');
     for (const banned of ['piece 1', 'Piece 1', 'PIECE 1', '1 of 5', 'of 5']) {
       expect(readerLines).not.toContain(banned);
@@ -438,42 +446,65 @@ describe('a guide\u2019s masthead', () => {
     expect(pieceSourcesLabel(SAMPLE_PIECE)).toBe('WHERE THESE NUMBERS COME FROM');
   });
 
-  it('names what the reader is about to read on a card', () => {
-    expect(pieceCardCta(SAMPLE_GUIDE)).toBe('Read the guide \u2192');
-    expect(pieceCardCta(SAMPLE_PIECE)).toBe('Read the research \u2192');
+  it('gives both kinds of card one shape: minutes, then a date', () => {
+    // A column of cards that changes shape per kind reads as 2 columns, so the
+    // slots are the same and only the date word differs (Design, 27 Aug 2026).
+    expect(pieceCardMetaLine(SAMPLE_PIECE)).toBe(
+      `${pieceReadingMinutes(SAMPLE_PIECE)} MIN \u00b7 PUBLISHED AUG 17, 2026`,
+    );
+    expect(pieceCardMetaLine(SAMPLE_GUIDE)).toBe(
+      `${pieceReadingMinutes(SAMPLE_GUIDE)} MIN \u00b7 WRITTEN AUGUST 2026`,
+    );
   });
 
-  it('carries a guide\u2019s minutes on its card and no date', () => {
-    expect(pieceCardMetaLine(SAMPLE_GUIDE)).toBe(`${pieceReadingMinutes(SAMPLE_GUIDE)} MIN`);
-    expect(pieceCardMetaLine(SAMPLE_PIECE)).toBe('PUBLISHED AUG 17 2026');
+  it('swaps one word on a card once a guide has been re-checked', () => {
+    const checked = { ...SAMPLE_GUIDE, checkedOn: '2027-03-04' };
+    expect(pieceCardMetaLine(checked)).toBe(
+      `${pieceReadingMinutes(checked)} MIN \u00b7 CHECKED MARCH 2027`,
+    );
+    // Same slot, never a second date.
+    expect(pieceCardMetaLine(checked)).not.toContain('WRITTEN');
+  });
+
+  it('puts a comma in a card\u2019s date and none in a masthead\u2019s', () => {
+    expect(isoDateCommaCapsLabel('2026-08-20')).toBe('AUG 20, 2026');
+    expect(isoDateCapsLabel('2026-08-20')).toBe('AUG 20 2026');
+  });
+
+  it('shares one smaller line between the 2 kinds of card', () => {
+    // A research piece puts its standfirst there; a guide puts its set.
+    expect(pieceCardSecondaryLine(SAMPLE_PIECE)).toBe(SAMPLE_PIECE.dek);
+    expect(pieceCardSecondaryLine(SAMPLE_GUIDE)).toBe('A Sample Set');
+    // A guide outside every set has nothing to put there, so nothing is drawn.
+    expect(pieceCardSecondaryLine({ ...SAMPLE_GUIDE, set: undefined })).toBe('');
   });
 });
 
 /**
- * The guide's prose was written and settled in
- * `docs/reader-guides/who-has-to-report-their-money.md` before any container
- * existed for it, and rule 13 forbids editing a posted piece's words. So this
- * compares the shipped piece, word for word, against that file: a sentence
- * re-punctuated, trimmed, dropped or reordered on either side fails here rather
- * than on the live page.
+ * Every guide's prose was written and settled in `docs/reader-guides/` before any
+ * container existed for it, and rule 13 forbids editing a posted piece's words.
+ * So this compares each shipped guide, word for word, against its own file: a
+ * sentence re-punctuated, trimmed, dropped or reordered on either side fails here
+ * rather than on the live page.
  *
- * The 2 deliberate conversions are accounted for rather than excused. The set
- * line is stored as set membership, and the italic "Where this comes from."
- * lead-in becomes the sources block's own label, so the label's words are
- * reconstructed from `pieceSourcesLabel` and have to match the words in the file.
+ * The 3 deliberate conversions are accounted for rather than excused. The set
+ * line is stored as set membership; the italic "Where this comes from." lead-in
+ * becomes the sources block's own label, so the label's words are reconstructed
+ * from `pieceSourcesLabel` and have to match the words in the file; and a link's
+ * address is dropped on both sides, keeping only its words, because the page
+ * serves every address separately as a real anchor.
  */
-describe('the shipped guide is the settled prose, word for word', () => {
-  const guide = researchBySlug('who-has-to-report-their-money')!;
+const blockText = (blocks: readonly ResearchBlock[]): string[] =>
+  blocks.flatMap((block) => {
+    if (block.kind === 'paragraph') return [researchRunsText(block.runs)];
+    if (block.kind === 'bullets') return block.items.map(researchRunsText);
+    if (block.kind === 'note') return [block.text];
+    return [...block.columns, ...block.rows.flat()];
+  });
 
-  const blockText = (blocks: readonly ResearchBlock[]): string[] =>
-    blocks.flatMap((block) => {
-      if (block.kind === 'paragraph') return [researchRunsText(block.runs)];
-      if (block.kind === 'bullets') return block.items.map(researchRunsText);
-      if (block.kind === 'note') return [block.text];
-      return [...block.columns, ...block.rows.flat()];
-    });
-
-  const shipped = [
+/** Every word the shipped piece draws, in the order the page draws it. */
+function shippedWords(guide: ResearchPiece): string {
+  return [
     guide.title,
     guide.set!.name,
     ...blockText(guide.intro ?? []),
@@ -486,29 +517,55 @@ describe('the shipped guide is the settled prose, word for word', () => {
     .join(' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
 
-  const fromDoc = readFileSync(
-    join(HERE, '../../../../..', 'docs/reader-guides/who-has-to-report-their-money.md'),
-    'utf8',
-  )
-    // The opening HTML comments are the doc-sync declaration and a note to
-    // whoever maintains the page, never words a reader sees.
-    .replace(/^(?:\s*<!--[\s\S]*?-->)+/, '')
-    // Markdown marks, not words: link syntax keeps its text and drops its
-    // address, which the sources block serves separately as real anchors.
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
-    .replace(/\*\*/g, '')
-    .replace(/^---$/gm, '')
-    .replace(/^#+ /gm, '')
-    // A bullet's dash is a mark; its words are the same words the page draws.
-    .replace(/^- /gm, '')
-    .replace(/\*/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
+/** The same words as the settled draft holds them, with markdown marks removed. */
+function draftWords(file: string): string {
+  return (
+    readFileSync(join(HERE, '../../../../..', `docs/reader-guides/${file}`), 'utf8')
+      // The opening HTML comments are the doc-sync declaration and a note to
+      // whoever maintains the page, never words a reader sees.
+      .replace(/^(?:\s*<!--[\s\S]*?-->)+/, '')
+      // Markdown marks, not words: link syntax keeps its text and drops its
+      // address, which the sources block serves separately as real anchors.
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+      .replace(/\*\*/g, '')
+      .replace(/^---$/gm, '')
+      .replace(/^#+ /gm, '')
+      // A bullet's dash is a mark; its words are the same words the page draws.
+      .replace(/^- /gm, '')
+      .replace(/\*/g, '')
+      .replace(/\s+/g, ' ')
+      .trim()
+  );
+}
 
-  it('ships every word the settled draft holds, in the draft\u2019s own order', () => {
-    expect(shipped).toBe(fromDoc);
+describe('every shipped guide is its settled prose, word for word', () => {
+  const guides = [
+    { slug: 'who-has-to-report-their-money', file: 'who-has-to-report-their-money.md' },
+    { slug: 'what-the-records-name', file: 'what-the-records-name.md' },
+  ];
+
+  it('has a settled draft for every published guide, and no orphan drafts', () => {
+    // A guide that ships without its draft in this list would go unchecked, which
+    // is the whole failure this block exists to catch.
+    expect(
+      piecesLabelledGuide()
+        .map((piece) => piece.slug)
+        .sort(),
+    ).toEqual(guides.map((guide) => guide.slug).sort());
   });
+
+  it.each(guides)(
+    'ships every word the settled draft of $slug holds, in the draft\u2019s own order',
+    ({ slug, file }) => {
+      expect(shippedWords(researchBySlug(slug)!)).toBe(draftWords(file));
+    },
+  );
+});
+
+describe('the first guide carries the structure its draft gives it', () => {
+  const guide = researchBySlug('who-has-to-report-their-money')!;
 
   it('carries the structure the draft gives it', () => {
     expect(guide.sections).toHaveLength(7);
@@ -548,5 +605,170 @@ describe('the shipped guide is the settled prose, word for word', () => {
             : [],
     );
     expect(bodyRuns.some((run) => run.kind === 'externalLink')).toBe(false);
+  });
+});
+
+describe('the second guide carries the structure its draft gives it', () => {
+  const guide = researchBySlug('what-the-records-name')!;
+
+  it('sits second in the set, and says so nowhere a reader looks', () => {
+    expect(guide.set).toEqual({ name: 'How the Money Works', position: 2 });
+    const readerLines = [
+      guide.title,
+      guide.dek,
+      pieceMastheadLine(guide),
+      pieceCardMetaLine(guide),
+      pieceCardSecondaryLine(guide),
+      pieceRowTime(guide),
+      pieceShareDescription(guide),
+      ...guide.sections.map((section) => section.heading),
+    ].join(' | ');
+    for (const banned of ['piece 2', 'Piece 2', 'PIECE 2', '2 of 5', 'of 5']) {
+      expect(readerLines).not.toContain(banned);
+    }
+  });
+
+  it('is 6 sections of plain paragraphs, with 1 bold phrase and no bullets', () => {
+    expect(guide.sections).toHaveLength(6);
+    const blocks = [...(guide.intro ?? []), ...guide.sections.flatMap((s) => s.blocks)];
+    expect(blocks.every((block) => block.kind === 'paragraph')).toBe(true);
+    const bold = blocks
+      .filter((block) => block.kind === 'paragraph')
+      .flatMap((block) => block.runs)
+      .filter((run) => run.kind === 'bold');
+    // "must", in the sentence saying the $200 is a floor and not a ceiling.
+    expect(bold.map((run) => run.text)).toEqual(['must']);
+  });
+
+  it('links every source it names, at the Board and at the statutes', () => {
+    const links = (guide.sourceRuns ?? [])
+      .flat()
+      .filter((run) => run.kind === 'externalLink')
+      .map((run) => run.href);
+    expect(links).toHaveLength(7);
+    expect(links.filter((href) => href.includes('cfb.mn.gov'))).toHaveLength(6);
+    expect(links.filter((href) => href.includes('revisor.mn.gov'))).toHaveLength(1);
+    expect(links.every((href) => href.startsWith('https://'))).toBe(true);
+  });
+
+  it('links back to the first guide twice, and nowhere else, and never outward', () => {
+    // Issue 1752's linking rules: first use only, once per paragraph, and only to
+    // what exists. The draft wrote both as relative links between the 2 drafts;
+    // the shipped piece points them at the reader-facing address.
+    const bodyRuns = [...(guide.intro ?? []), ...guide.sections.flatMap((s) => s.blocks)].flatMap(
+      (block) => (block.kind === 'paragraph' ? block.runs : []),
+    );
+    const inward = bodyRuns.filter((run) => run.kind === 'internalLink');
+    expect(inward.map((run) => run.href)).toEqual([
+      '/read/guides/who-has-to-report-their-money',
+      '/read/guides/who-has-to-report-their-money',
+    ]);
+    // The destination is posted, which is the only reason the link may exist.
+    expect(researchBySlug('who-has-to-report-their-money')).toBeDefined();
+    expect(inward.map((run) => run.href)).toEqual(
+      inward.map(() => piecePath(researchBySlug('who-has-to-report-their-money')!)),
+    );
+    // The 2 uses sit in different paragraphs, not twice in one.
+    const paragraphsWithInward = [
+      ...(guide.intro ?? []),
+      ...guide.sections.flatMap((s) => s.blocks),
+    ].filter(
+      (block) =>
+        block.kind === 'paragraph' && block.runs.some((run) => run.kind === 'internalLink'),
+    );
+    expect(paragraphsWithInward).toHaveLength(2);
+    // No forward link: the next piece in the set is unwritten.
+    expect(bodyRuns.some((run) => run.kind === 'externalLink')).toBe(false);
+  });
+
+  it('never reinstates the absolute its own draft withdrew', () => {
+    // The draft's withdrawn item 4: "gifts of $200 or less are never named" is
+    // false, and 334,234 rows of the Board's own file are the disproof
+    // (grounded-answers rule 12; issue 1755).
+    const prose = [
+      ...blockText(guide.intro ?? []),
+      ...guide.sections.flatMap((section) => blockText(section.blocks)),
+    ].join(' ');
+    expect(prose).not.toContain('never named');
+    expect(prose).toContain('Some accounts name them anyway');
+    expect(prose).toContain('$200 or less');
+    expect(prose).not.toContain('under $200');
+  });
+});
+
+describe('sets, as the /read page groups them', () => {
+  it('groups the published guides into the set they were written for', () => {
+    const sets = publishedSets(piecesLabelledGuide());
+    expect(sets).toHaveLength(1);
+    expect(sets[0].name).toBe('How the Money Works');
+    expect(sets[0].slug).toBe('how-the-money-works');
+    // Reading order, which is what `position` is for and the only thing it is for.
+    expect(sets[0].pieces.map((piece) => piece.slug)).toEqual([
+      'who-has-to-report-their-money',
+      'what-the-records-name',
+    ]);
+  });
+
+  it('counts and totals from the rows, so neither can drift from the list', () => {
+    const set = publishedSets(piecesLabelledGuide())[0];
+    const rowMinutes = set.pieces.map(pieceReadingMinutes);
+    expect(setReadingMinutes(set)).toBe(rowMinutes.reduce((a, b) => a + b, 0));
+    expect(setMetaLine(set)).toBe(`${set.pieces.length} GUIDES · ${setReadingMinutes(set)} MIN`);
+  });
+
+  it('says GUIDE, not GUIDES, in a box holding 1 published piece', () => {
+    // §2.5 ratified the 1-piece box, so this is a shipped state rather than a
+    // hypothetical, and "1 GUIDES" would be visibly wrong on it.
+    const single = publishedSets([researchBySlug('who-has-to-report-their-money')!])[0];
+    expect(setMetaLine(single)).toBe(`1 GUIDE · ${pieceReadingMinutes(single.pieces[0])} MIN`);
+  });
+
+  it('draws no box for a set with nothing published', () => {
+    // §2.4: a box with no rows tells a reader nothing and reads as broken. Its
+    // own page stays reachable for anyone holding the link.
+    expect(publishedSets([])).toEqual([]);
+  });
+
+  it('never names a piece a reader cannot open', () => {
+    // §2.3: a set lists what is published and nothing else, so every row resolves.
+    for (const set of publishedSets()) {
+      for (const piece of set.pieces) {
+        expect(publishedResearch()).toContain(piece);
+        expect(researchBySlug(piece.slug)).toBe(piece);
+      }
+    }
+  });
+
+  it('holds only guides in every set that exists', () => {
+    // The set box's meta line names GUIDES, which is right because every set
+    // holds only guides. A set holding anything else needs a word nobody has
+    // chosen, so this fails the day one appears rather than printing the wrong
+    // noun at a reader.
+    for (const set of publishedSets()) {
+      expect(set.pieces.map(pieceKindLabel)).toEqual(set.pieces.map(() => 'Guide'));
+    }
+  });
+
+  it('leaves a piece outside every set out of the boxes and in the cards', () => {
+    // §2.2: a piece does not need a set, and the research piece has none.
+    const research = researchBySlug('the-money-only-goes-one-way')!;
+    expect(research.set).toBeUndefined();
+    expect(publishedSets()).not.toContainEqual(
+      expect.objectContaining({ pieces: expect.arrayContaining([research]) }),
+    );
+    // Today every published guide belongs to the one set, so no loose guide card
+    // is drawn. This is the state, not an assumption baked into the page.
+    expect(guidesOutsideEverySet()).toEqual([]);
+  });
+
+  it('slugs a set name the way a section heading is slugged', () => {
+    expect(pieceSetSlug('How the Money Works')).toBe('how-the-money-works');
+    expect(pieceSetSlug('Reading a Bill')).toBe('reading-a-bill');
+  });
+
+  it('gives a row a time and never a decimal', () => {
+    for (const piece of publishedResearch()) {
+      expect(pieceRowTime(piece)).toMatch(/^\d+ min$/);
+    }
   });
 });

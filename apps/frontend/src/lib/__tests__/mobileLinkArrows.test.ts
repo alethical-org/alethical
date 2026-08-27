@@ -18,7 +18,6 @@ const legacyTextArrowLimits: Record<string, number> = {
   'screens/redesign/HomeSignedOutScreen.tsx': 3,
   'screens/redesign/LegislatorProfileMobileScreen.tsx': 2,
   'screens/redesign/LegislatorProfileWebScreen.tsx': 1,
-  'screens/redesign/ReadingScreen.tsx': 1,
   'screens/redesign/SearchLegislatorsScreen.tsx': 1,
 };
 
