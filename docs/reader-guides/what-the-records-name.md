@@ -1,15 +1,17 @@
-<!-- DRAFT, NOT PUBLISHED. No page renders this file and no reader can reach it. The
-     guide surface is not built: `apps/frontend/src/lib/research.ts` holds one trait of
-     published piece (the research trait), and issue #1752 is where the guide trait is
-     being built. This is the prose, written first so the words are settled before
-     anyone builds a container for them.
+<!-- describes: apps/frontend/src/lib/researchPieces/whatTheRecordsName.ts -->
+<!-- POSTED 27 Aug 2026, and live at `/read/guides/what-the-records-name`.
+     This file is where the prose was written and settled before any container existed
+     for it, and it stays the source of record for the words. The shipped piece is
+     `apps/frontend/src/lib/researchPieces/whatTheRecordsName.ts`, and
+     `apps/frontend/src/lib/__tests__/research.test.ts` compares the 2 word for word, so
+     an edit here without the matching edit there fails the build, and so does the
+     reverse. The words are settled: rule 13's publishing order lets the Alethical team
+     direct a change (point 2a) and forbids us editing them on our own initiative.
 
-     Declares no `describes:` code on purpose. It describes no shipped behaviour yet.
-     When the guide surface ships, whoever builds it adds the declaration. Its address
-     follows `docs/architecture/published-writing-decisions.md` §2.1 (the address
-     carries the trait), which is deliberately not copied here: the reading section's
-     own prefix is being moved as this was written, so §2.1 is the one place that
-     should carry it.
+     Its address follows `docs/architecture/published-writing-decisions.md` §2.1 (the
+     address carries the trait), which is deliberately not copied here: the reading
+     section's own prefix moves independently, so §2.1 is the one place that should
+     carry it.
 
      WHAT IT IS. The second piece written in the set "How the Money Works", following
      `docs/reader-guides/who-has-to-report-their-money.md`. Issue #1752's first comment
@@ -206,10 +208,11 @@
 
      WHERE IT LINKS BACK: 2 links to piece 1, for the 3 kinds of registered account and
      for a political committee or fund. Both are first uses and sit in different
-     paragraphs, per issue #1752's linking rules. Written as relative links between the
-     drafts, because the reader-facing addresses do not exist yet and
-     `scripts/check_doc_references.py` requires a relative link inside `docs/` to resolve
-     to a real file; whoever builds the page swaps them for the reader-facing form.
+     paragraphs, per issue #1752's linking rules. They stay relative links between the
+     drafts HERE, because `scripts/check_doc_references.py` requires a relative link
+     inside `docs/` to resolve to a real file. The shipped piece points them at piece 1's
+     reader-facing address, `/read/guides/who-has-to-report-their-money`, which is the
+     swap this line used to ask the builder for; a test pins both to that address.
 
      WHERE IT LINKS FORWARD: nowhere yet. The closing paragraph names the next piece's
      subject and neither its title nor a link, because it does not exist.

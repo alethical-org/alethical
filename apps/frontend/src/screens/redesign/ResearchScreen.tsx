@@ -1,3 +1,4 @@
+import { NavigationProp, useNavigation } from '@react-navigation/native';
 import { useEffect, useMemo, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
@@ -22,7 +23,7 @@ import {
 } from '../../lib/research';
 import { publicPageUrl, type ShareContent } from '../../lib/share';
 import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
-import type { RootScreenProps } from '../../navigation/types';
+import type { RootScreenProps, RootStackParamList } from '../../navigation/types';
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { theme as t } from '../../theme/tokens';
 
@@ -163,7 +164,31 @@ function useActiveSection(anchors: string[], enabled: boolean): string | null {
   return enabled ? active : null;
 }
 
+/**
+ * Sends an inward link through the app's own router rather than letting the
+ * browser reload the whole app on it.
+ *
+ * The href is the destination piece's own address, which is the form the served
+ * first response needs, so the route is resolved back out of it here: the last
+ * segment is a slug, and the registry says which of the 2 piece routes it answers
+ * on. A slug the registry does not hold falls through to an ordinary page load,
+ * which still lands on the right address.
+ */
+function useInternalLinkPress() {
+  const navigation = useNavigation<NavigationProp<RootStackParamList>>();
+  return (href: string) => {
+    const slug = decodeURIComponent(href.split('/').pop() ?? '');
+    const piece = researchBySlug(slug);
+    if (!piece) return undefined;
+    return () =>
+      piece.traits.research
+        ? navigation.navigate('Research', { slug: piece.slug })
+        : navigation.navigate('Guide', { slug: piece.slug });
+  };
+}
+
 function InlineRuns({ runs }: { runs: ResearchInline[] }) {
+  const pressFor = useInternalLinkPress();
   return (
     <>
       {runs.map((run, index) => {
@@ -185,6 +210,16 @@ function InlineRuns({ runs }: { runs: ResearchInline[] }) {
           case 'externalLink':
             return (
               <Text key={index} {...externalLinkProps(run.href)} style={styles.runLink}>
+                {run.text}
+              </Text>
+            );
+          // A link to another posted piece of ours. A real anchor rather than a
+          // press handler, so it opens in a new tab on a middle click and can be
+          // copied, and so anything reading the page before the app runs can
+          // follow it (navigation/links.ts).
+          case 'internalLink':
+            return (
+              <Text key={index} {...linkProps(run.href, pressFor(run.href))} style={styles.runLink}>
                 {run.text}
               </Text>
             );

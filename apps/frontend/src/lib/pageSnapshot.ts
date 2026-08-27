@@ -32,7 +32,9 @@ import {
   READ_PAGE_EMPTY_TITLE,
   READ_PAGE_HEADING,
   READ_PAGE_INTRO,
+  READ_PAGE_NAME,
   pieceCardMetaLine,
+  pieceCardSecondaryLine,
   pieceMastheadLine,
   pieceSourcesLabel,
   piecePath,
@@ -520,12 +522,41 @@ function researchBlocks(blocks: readonly ResearchBlock[]): SnapshotBlock[] {
   });
 }
 
-/** Every outward link inside a run list, in order. */
+/** Every link inside a run list, inward or outward, in order. */
 function runLinks(runs: readonly ResearchInline[]): SnapshotSectionItem[] {
   return runs
     .filter(
-      (run): run is Extract<ResearchInline, { kind: 'externalLink' }> =>
-        run.kind === 'externalLink',
+      (run): run is Extract<ResearchInline, { kind: 'externalLink' | 'internalLink' }> =>
+        run.kind === 'externalLink' || run.kind === 'internalLink',
+    )
+    .map((run) => ({ label: run.text, href: run.href }));
+}
+
+/**
+ * Every inward link a piece's own prose carries, in document order, served as
+ * real anchors after the sections.
+ *
+ * A link inside a sentence contributes its words to the prose and not its
+ * address, because a bare address mid-prose reads as noise. An INWARD one still
+ * has to be followable: it is the route from one posted piece to another, and a
+ * route that only exists once the app has run is not a route at all to anything
+ * reading the first response. So the words stay in the sentence and the address
+ * is served beside it, the way a source's link already is.
+ */
+function pieceBodyLinks(piece: ResearchPiece): SnapshotSectionItem[] {
+  const runsIn = (blocks: readonly ResearchBlock[]): ResearchInline[] =>
+    blocks.flatMap((block) =>
+      block.kind === 'paragraph' ? block.runs : block.kind === 'bullets' ? block.items.flat() : [],
+    );
+  const runs = [
+    ...runsIn(piece.shortVersion),
+    ...runsIn(piece.intro ?? []),
+    ...piece.sections.flatMap((section) => runsIn(section.blocks)),
+  ];
+  return runs
+    .filter(
+      (run): run is Extract<ResearchInline, { kind: 'internalLink' }> =>
+        run.kind === 'internalLink',
     )
     .map((run) => ({ label: run.text, href: run.href }));
 }
@@ -562,6 +593,7 @@ export function researchPageSnapshot(piece: ResearchPiece): PageSnapshot {
   // The piece's own label wording. The screen draws these same words in mono
   // caps; case is styling this file has never copied, the way a bill's
   // "Where it stands" is served in sentence case too.
+  const bodyLinks = pieceBodyLinks(piece);
   const sections: SnapshotSection[] = [
     ...(piece.newerFilingsNote
       ? [
@@ -602,6 +634,17 @@ export function researchPageSnapshot(piece: ResearchPiece): PageSnapshot {
         .replace(/^./, (first) => first.toUpperCase()),
       blocks: pieceSourceBlocks(piece),
     },
+    // The pieces this one's own prose links to, as real anchors. A piece links to
+    // another only where a person authored the link and the destination is
+    // already posted, so this is absent on a piece that names no other.
+    ...(bodyLinks.length
+      ? [
+          {
+            heading: 'Also on Alethical',
+            blocks: [{ kind: 'links' as const, items: bodyLinks }],
+          },
+        ]
+      : []),
   ];
 
   return {
@@ -635,7 +678,10 @@ export function researchPageSnapshot(piece: ResearchPiece): PageSnapshot {
  */
 export function readPageSnapshot(pieces: readonly ResearchPiece[]): PageSnapshot {
   return {
-    heading: READ_PAGE_HEADING,
+    // The page's own name, the same word the visually hidden `h1` carries, so the
+    // served document and the loaded page name the page identically. What the page
+    // is about is the note below it, which is where the loaded page puts it too.
+    heading: READ_PAGE_NAME,
     subheading: '',
     bodyHeading: '',
     body: pieces.length
@@ -645,9 +691,9 @@ export function readPageSnapshot(pieces: readonly ResearchPiece[]): PageSnapshot
     facts: [],
     records: pieces.map((piece) => ({
       label: piece.title,
-      // The same quiet line the card draws: a research piece's publication date,
-      // a guide's reading time.
-      detail: [pieceCardMetaLine(piece), piece.dek].filter(Boolean).join(' · '),
+      // The same lines the card draws: its minutes and date, then its standfirst
+      // or the set it belongs to.
+      detail: [pieceCardMetaLine(piece), pieceCardSecondaryLine(piece)].filter(Boolean).join(' · '),
       // Each piece's own address, from the one function that decides the folder.
       href: piecePath(piece),
     })),

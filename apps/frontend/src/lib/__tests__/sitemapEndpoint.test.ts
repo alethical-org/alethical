@@ -1,6 +1,17 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import handler from '../../../../../api/sitemap';
+import { indexedResearch, piecePath } from '../research';
+
+/**
+ * The rows that are not a published piece: every fixed public page. Counted this
+ * way rather than typed, so publishing a piece adds a row here the same way it
+ * adds one to the sitemap, and this stops failing on every publish for a reason
+ * that is not a defect.
+ */
+const FIXED_PAGE_ROWS = 12;
+/** The numbered directory rows the live counts add: 2 for bills, 1 for legislators. */
+const DIRECTORY_PAGE_ROWS = 3;
 
 function responseRecorder() {
   const headers = new Map<string, string>();
@@ -89,7 +100,13 @@ describe('sitemap endpoint', () => {
     expect(body).toContain(
       '<loc>https://www.alethical.com/read/guides/who-has-to-report-their-money</loc>',
     );
-    expect(body.match(/<url>/g)).toHaveLength(17);
+    expect(body.match(/<url>/g)).toHaveLength(
+      FIXED_PAGE_ROWS + DIRECTORY_PAGE_ROWS + indexedResearch().length,
+    );
+    // Every piece a search engine may list, at its own folder, from the registry.
+    for (const piece of indexedResearch()) {
+      expect(body).toContain(`<loc>https://www.alethical.com${piecePath(piece)}</loc>`);
+    }
     // Every address the /read page and its pieces used to answer on is
     // forwarded, never listed: a sitemap row for an address that answers with a
     // permanent forward asks Google to crawl a redirect
@@ -116,7 +133,7 @@ describe('sitemap endpoint', () => {
 
     const { body, status } = recorder.read();
     expect(status).toBe(200);
-    expect(body.match(/<url>/g)).toHaveLength(14);
+    expect(body.match(/<url>/g)).toHaveLength(FIXED_PAGE_ROWS + indexedResearch().length);
     expect(body).toContain(
       '<loc>https://www.alethical.com/read/research/the-money-only-goes-one-way</loc>',
     );

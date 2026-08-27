@@ -23,17 +23,28 @@
  * content that never ships on a route.
  */
 
+import { IA } from '../navigation/ia';
 import { MONEY_ONLY_GOES_ONE_WAY } from './researchPieces/moneyOnlyGoesOneWay';
+import { WHAT_THE_RECORDS_NAME } from './researchPieces/whatTheRecordsName';
 import { WHO_HAS_TO_REPORT_THEIR_MONEY } from './researchPieces/whoHasToReportTheirMoney';
 
-/** One run of piece prose. Links are outward only in this phase — committee
- * record pages do not exist yet, and a link may not point at a page that is
- * not there. */
+/**
+ * One run of piece prose.
+ *
+ * An `externalLink` leaves the site, to a filing body or the statutes. An
+ * `internalLink` points at another page of ours, and exists only because a piece
+ * may now name a term another posted piece owns: issue 1752's linking rule 6
+ * allows a link the day its destination posts and not before, and
+ * `docs/architecture/published-writing-decisions.md` §2.6 requires a person to
+ * author each one. Nothing here matches terms automatically. A committee record
+ * page is still not a valid destination, because none exists.
+ */
 export type ResearchInline =
   | { kind: 'text'; text: string }
   | { kind: 'bold'; text: string }
   | { kind: 'italic'; text: string }
-  | { kind: 'externalLink'; text: string; href: string };
+  | { kind: 'externalLink'; text: string; href: string }
+  | { kind: 'internalLink'; text: string; href: string };
 
 export type ResearchBlock =
   | { kind: 'paragraph'; runs: ResearchInline[] }
@@ -226,9 +237,39 @@ export interface ResearchPiece {
  * (lib/pageSnapshot.ts). A second copy is how a served page and a rendered page
  * start disagreeing, which is worse than either one being wrong alone.
  */
+
+/**
+ * The page's own name, taken from the label the top bar already draws for it
+ * rather than typed again here.
+ *
+ * The page shows no visible title: the bar and the address both say the word
+ * already, and a third visible instance is what the naming rule forbids (Design,
+ * 27 Aug 2026). So this is the name a screen reader reads off the visually
+ * hidden `h1` and the name the browser tab carries, and nothing draws it in ink.
+ *
+ * Read off the bar's own item because that is Design's whole reason for hiding
+ * the title: 2 copies of the word could disagree, and this one cannot.
+ */
+export const READ_PAGE_NAME = IA.find((item) => item.id === 'read')?.label ?? 'Read';
+
+/**
+ * The page's descriptive title, for the 2 places its name has to survive out of
+ * context: the back link at the top of a piece, and the share card. Neither has
+ * the bar or the address beside it to supply the subject, so neither can use
+ * `READ_PAGE_NAME`, because "Read" alone tells a person nothing about what they
+ * would be opening.
+ */
 export const READ_PAGE_HEADING = 'Campaign money research and guides';
+
+/**
+ * The note under the hidden title. A note rather than a heading, in regular
+ * weight and grey, because the bold heads on this page are the kind sections and
+ * a reader should see the shape of what we publish before reading a sentence
+ * about it (Design, 27 Aug 2026). No terminal period: nothing on this page takes
+ * one.
+ */
 export const READ_PAGE_INTRO =
-  'Our own research and plain-language guides, drawn from the filings Minnesota campaigns, parties and funds make with the state.';
+  'What we found in Minnesota\u2019s public records, plus guides to how state government works';
 export const READ_PAGE_EMPTY_TITLE = 'Nothing published yet.';
 export const READ_PAGE_EMPTY_BODY =
   'When we publish research or a guide on these records, it appears here, dated and carrying the date its records run through.';
@@ -270,6 +311,7 @@ export function researchSourceText(source: ResearchSource): string {
  * show. Whether a search engine may list it is the separate `indexed` flag.
  */
 export const PUBLISHED_RESEARCH: ResearchPiece[] = [
+  WHAT_THE_RECORDS_NAME,
   WHO_HAS_TO_REPORT_THEIR_MONEY,
   MONEY_ONLY_GOES_ONE_WAY,
 ];
@@ -389,6 +431,16 @@ export function isoDateLabel(isoDate: string): string {
   const month = MONTH_LABELS[Number(match[2]) - 1];
   if (!month) return isoDate;
   return `${month} ${Number(match[3])}, ${match[1]}`;
+}
+
+/**
+ * The mono-caps card form: "AUG 20, 2026". The comma is Design's, and it is the
+ * only place the 2 forms differ: a card's date sits inside a sentence of mono
+ * caps beside the minutes, where the comma is what stops the day and the year
+ * running together.
+ */
+export function isoDateCommaCapsLabel(isoDate: string): string {
+  return isoDateLabel(isoDate).toUpperCase();
 }
 
 /** The mono-caps masthead form: "AUG 17 2026". */
@@ -553,22 +605,109 @@ export function pieceSourcesLabel(piece: ResearchPiece): string {
   return piece.traits.research ? 'WHERE THESE NUMBERS COME FROM' : 'WHERE THIS COMES FROM';
 }
 
-/** The call to action on a piece's card, naming what the reader is about to read. */
-export function pieceCardCta(piece: ResearchPiece): string {
-  return piece.traits.research ? 'Read the research \u2192' : 'Read the guide \u2192';
+/**
+ * The quiet mono line at the top of a piece's card on the /read page: its
+ * reading time, then its date.
+ *
+ * Every card in a column is one shape, because a column that changes shape per
+ * kind reads as 2 columns (Design, 27 Aug 2026). So both kinds carry minutes, and
+ * the date is the half that differs: a research piece states the day it was
+ * published, a guide states the month it was written and states "checked" instead
+ * from the day somebody re-checks it (§4.4).
+ *
+ * This supersedes the 26 Aug 2026 settlement that kept a guide's card dateless.
+ * That decision was about a date's staleness reading worst on a listing row, and
+ * the swap-one-word slot is the answer to it: a re-checked guide's row moves
+ * forward instead of ageing, so the date now earns its place beside the minutes.
+ */
+export function pieceCardMetaLine(piece: ResearchPiece): string {
+  const minutes = `${pieceReadingMinutes(piece)} MIN`;
+  return piece.traits.research
+    ? `${minutes} \u00b7 PUBLISHED ${isoDateCommaCapsLabel(piece.publishedOn)}`
+    : `${minutes} \u00b7 ${pieceWrittenLine(piece)}`;
 }
 
 /**
- * The quiet meta line on a piece's card on the /read page.
- *
- * A research piece's card carries its publication date, as it has since it
- * posted. A guide's carries its reading time and no date: the date on a guide
- * says which event it is and belongs on the piece, never on a listing row, which
- * is where staleness reads worst and where a date does least work (settled
- * 26 Aug 2026, §4.4).
+ * The smaller line under a card's title, one slot whatever the kind holds. A
+ * research piece puts its standfirst there; a guide puts the set it belongs to,
+ * which is the set's name and never its position in it (§2.12). A guide outside
+ * every set has neither, and the slot is not drawn.
  */
-export function pieceCardMetaLine(piece: ResearchPiece): string {
-  return piece.traits.research
-    ? `PUBLISHED ${isoDateCapsLabel(piece.publishedOn)}`
-    : `${pieceReadingMinutes(piece)} MIN`;
+export function pieceCardSecondaryLine(piece: ResearchPiece): string {
+  return piece.traits.research ? piece.dek : (piece.set?.name ?? '');
+}
+
+// --- Sets ---
+
+/**
+ * A set's own name slugged, for the id the fold control's `aria-controls` points
+ * at and for `/read/sets/{slug}` when that page is built. Computed from the
+ * name by the same rule a section heading uses, so there is no second field to
+ * fall out of step with the name a reader sees.
+ */
+export function pieceSetSlug(name: string): string {
+  return researchSectionAnchor(name);
+}
+
+/** One set as the /read page draws it: its name, and its published pieces in reading order. */
+export interface PieceSetGroup {
+  name: string;
+  slug: string;
+  /** Published pieces only, ordered by `set.position` (\u00a72.3: never an unwritten title). */
+  pieces: ResearchPiece[];
+}
+
+/**
+ * Every set holding at least 1 published piece, in the order their first piece
+ * appears in the registry.
+ *
+ * A set with nothing published has no entry, so the page draws no box for it
+ * (\u00a72.4); its own page stays reachable for anyone holding the link. Both the
+ * count and the total minutes are computed from these rows rather than stored, so
+ * neither can drift from the list underneath them (\u00a74.2).
+ */
+export function publishedSets(
+  pieces: readonly ResearchPiece[] = PUBLISHED_RESEARCH,
+): PieceSetGroup[] {
+  const byName = new Map<string, ResearchPiece[]>();
+  for (const piece of pieces) {
+    if (!piece.set) continue;
+    const existing = byName.get(piece.set.name);
+    if (existing) existing.push(piece);
+    else byName.set(piece.set.name, [piece]);
+  }
+  return [...byName.entries()].map(([name, members]) => ({
+    name,
+    slug: pieceSetSlug(name),
+    pieces: [...members].sort((a, b) => (a.set?.position ?? 0) - (b.set?.position ?? 0)),
+  }));
+}
+
+/** Posted pieces the page labels Guide that belong to no set, newest first. */
+export function guidesOutsideEverySet(): ResearchPiece[] {
+  return piecesLabelledGuide().filter((piece) => !piece.set);
+}
+
+/** A set's total reading time: the sum of its published rows, which a reader can check. */
+export function setReadingMinutes(group: PieceSetGroup): number {
+  return group.pieces.reduce((total, piece) => total + pieceReadingMinutes(piece), 0);
+}
+
+/**
+ * A set box's meta line: "2 GUIDES \u00b7 10 MIN". The count names the kind once for
+ * the set, so the rows below it carry no kind word of their own.
+ *
+ * Singular at 1 piece, which is a state \u00a72.5 ratified rather than a hypothetical.
+ * The kind word is GUIDES because every set that exists holds only guides; a set
+ * holding anything else needs a word nobody has chosen, so `research.test.ts`
+ * fails the day one appears rather than letting this print the wrong noun.
+ */
+export function setMetaLine(group: PieceSetGroup): string {
+  const count = group.pieces.length;
+  return `${count} ${count === 1 ? 'GUIDE' : 'GUIDES'} \u00b7 ${setReadingMinutes(group)} MIN`;
+}
+
+/** The time in a set row's right-hand column: "5 min", never a decimal. */
+export function pieceRowTime(piece: ResearchPiece): string {
+  return `${pieceReadingMinutes(piece)} min`;
 }
