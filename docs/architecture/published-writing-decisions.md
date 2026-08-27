@@ -19,7 +19,7 @@ this file loosens it. Sequencing and open tasks live on
 
 ## 1. What we publish
 
-Two traits, not 2 mutually exclusive kinds. §2.6 is why that distinction matters.
+Two traits, not 2 mutually exclusive kinds. §2.7 is why that distinction matters.
 
 - **Research.** We add up the campaign-finance records we hold and publish what we found, signed
   and dated, with the arithmetic reproducible by a reader from the linked records. Rule 13 is the
@@ -28,8 +28,8 @@ Two traits, not 2 mutually exclusive kinds. §2.6 is why that distinction matter
 - **A guide.** One term explained in plain language. A guide concludes nothing, adds nothing up
   across members, and defines no classifications, so it sits under rules 1 to 12 like every other
   surface and needs no part of rule 13's exception. None are live; 1 is drafted and 12 are planned.
-- **Both.** A piece may carry both traits. See §2.6, which is where the reader-facing label for
-  that case is decided, and §2.7, which is why this is not hypothetical.
+- **Both.** A piece may carry both traits. See §2.7, which is where the reader-facing label for
+  that case is decided, and §2.8, which is why this is not hypothetical.
 
 ## 2. Settled decisions
 
@@ -45,7 +45,7 @@ Ratified by Eugene, 27 Aug 2026, except where a different date is given.
 | `/reading/sets/<name>` | one set of pieces meant to be read together |
 
 **A piece carrying both traits is addressed under `research`**, because rule 13 binds it in full and
-the address then states which promises apply to the page. See §2.6.
+the address then states which promises apply to the page. See §2.7.
 
 **What flat lost on, twice.** A flat `/reading/<name>` was decided on 25 Aug 2026 and withdrawn on
 26 Aug when both its grounds failed checking; the full record is
@@ -115,7 +115,42 @@ day it posts and settles every disagreement by correcting its text, never by pul
 only empties if we deliberately unpublish its last piece. Rule 13 does not say a piece can never be
 withdrawn; it gives no procedure for doing so, which is why this is rare rather than impossible.
 
-### 2.5 A person authors every term link; software only proposes candidates
+### 2.5 A set box shows from the first published piece, and starting one commits us to the next
+
+Ratified by Eugene 27 Aug 2026, rejecting a design recommendation with a reason that changes what
+the box means.
+
+**The rule.** A set holding 1 published piece shows its box, drawn exactly as a box holding many:
+the summary, the meta line, the rule above the rows, the fold control, and 1 row. Nothing is
+stripped at 1 piece.
+
+**Why, and this is the part that matters.** Starting a box is a statement that more is coming
+shortly. So the box is not a container asserting pieces a reader cannot see; it is a declaration of
+intent, and we only open one when that intent is real. Read this beside §2.3: the box never *names*
+an unwritten piece, so nothing is promised that a reader could try to open. What its existence says
+is that the set is live and growing.
+
+**The consequence to apply before any set ships with 1 piece.** Under this rule the box is
+conditional on the next piece actually being close. "How the Money Works" has 1 published piece and
+[issue 1771](https://github.com/alethical-org/alethical/issues/1771) records that pieces 2 onward
+have no owner and no dates. So the box is correct to build and is not yet correct to show for that
+particular set. Deciding it is an editorial call about the writing schedule, not a design question.
+
+**What the design recommended instead, and why it lost.** Design drew the 1-piece box as asked,
+then argued against it: at 1 piece the meta line restates the single row, the row's own reading time
+appears twice, the dividing rule is a table header over a one-row table, and the fold control offers
+to collapse a single line. It proposed a box from 2 pieces, a plain card carrying the set's name at
+1, and nothing at 0. Every one of those observations about repeated furniture is accurate. It lost
+because it reads the box as a container, and Eugene's ruling makes it a signal: the repetition is
+the cost of saying "this is a set and it is growing" from the first piece, and the alternative
+spends a visual transition at the second piece to save it.
+
+**What it costs.** A reader meeting a 1-row box sees 4 pieces of furniture that carry no
+information beyond the row itself. The box is also a promise about our writing schedule that no
+individual title backs, so a set left at 1 piece for months makes the signal false without any
+sentence being wrong.
+
+### 2.6 A person authors every term link; software only proposes candidates
 
 Each jargon term is defined in exactly 1 piece. Where that term appears in another piece, the
 appearance may link to the piece that owns it. **A person decides each link.** Software's only role
@@ -132,7 +167,7 @@ cannot make:
 And a matcher would link terms inside quotations from Minnesota statutes, which puts our own
 explanation inside the state's words.
 
-### 2.6 The words are **Research** and **Guide**, for readers and in the code both
+### 2.7 The words are **Research** and **Guide**, for readers and in the code both
 
 One vocabulary, no mapping layer: a reader sees "Research" or "Guide", and the code says `research`
 and `guide`.
@@ -168,7 +203,7 @@ class, and a piece that adds figures up across members must obey rule 13 in full
 does. Two labels would tell a reader that 2 sets of promises apply when only the stricter one
 governs. Internally it carries both traits, so it can be found as either.
 
-### 2.7 The both-traits case is real, and was measured before it was designed for
+### 2.8 The both-traits case is real, and was measured before it was designed for
 
 The peer coding consultant proposed classifying every planned piece with 2 questions: does it draw
 conclusions, and does it teach 1 concept. Run against the 13 pieces in
@@ -184,10 +219,10 @@ conclusions, and does it teach 1 concept. Run against the 13 pieces in
   it attacks rather than supports", which is a share across the whole independent-spending dataset
   rather than across members. Classified when it is written, not now.
 
-So the both-traits case is present in our own plan today. That is the whole reason §2.6 needed a
+So the both-traits case is present in our own plan today. That is the whole reason §2.7 needed a
 label rule for it and §2.1 needed an address rule for it.
 
-### 2.8 The order the rename runs in
+### 2.9 The order the rename runs in
 
 **Ran 27 Aug 2026.** The reader-facing words, the internal names, the addresses and the permanent
 forwards all shipped in one pull request; the 4 fields in §4 did not, and stay on
@@ -207,7 +242,7 @@ another session's feet, not tidiness.
 
 ## 3. Open decisions
 
-None. §2.3 and §2.6 closed the last 2 on 27 Aug 2026.
+None. §2.3, §2.5 and §2.7 closed the last 3 on 27 Aug 2026.
 
 ## 4. What the design assumes and the code does not provide
 
@@ -215,12 +250,12 @@ Four fields, none of which exists. Every one is read by the drawings for the `/r
 none of that page can be built until they do.
 
 1. **Two trait flags on a piece**, not 1 kind: does it carry the research trait, does it carry the
-   guide trait. `ResearchPiece` (`apps/frontend/src/lib/research.ts`) has neither, and §2.8's rename
-   deliberately added neither: a single-value `kind` field would make the both-traits case in §2.7
+   guide trait. `ResearchPiece` (`apps/frontend/src/lib/research.ts`) has neither, and §2.9's rename
+   deliberately added neither: a single-value `kind` field would make the both-traits case in §2.8
    impossible to express, and the 2 flags belong with the other 3 fields on
    [issue 1752](https://github.com/alethical-org/alethical/issues/1752) rather than half-built ahead
    of them. The label a
-   reader sees is derived, per §2.6: research trait present means the label reads Research.
+   reader sees is derived, per §2.7: research trait present means the label reads Research.
 2. **Set membership, and a piece's position within its set.** The set concept has no model at all.
 3. **Reading time, computed from a piece's own words.** The page prints no minutes today.
 4. **A "checked" date**, distinct from the publication date. Settled 26 Aug 2026: a piece reads
@@ -241,7 +276,7 @@ Two items, both rode with §2.8's rename so the files were swept once. **Both ar
   page. The screen is `ReadingScreen.tsx`, its route is `Reading`, and the word "shelf" appears
   nowhere in the frontend or the API.
 - **`explainer`** as the internal word for the guide trait, in this repo's issues, design notes and
-  any code that reaches for it. Replacement: `guide`, per §2.6. Nothing is built for that trait, so
+  any code that reaches for it. Replacement: `guide`, per §2.7. Nothing is built for that trait, so
   this cost nothing beyond prose, and the prose is done: the folder-word table in
   [`page-metadata-for-search-and-sharing-decisions.md`](page-metadata-for-search-and-sharing-decisions.md)
   §20.6 and its §21 both say `guide` now. Two `explainer` uses are deliberately left: the mentions in
@@ -256,6 +291,6 @@ are not a plan we can run and are not adopted as one. What we can measure withou
 
 - Which section a person lands on from a search engine, per address folder, which §2.1's nested
   scheme makes readable directly.
-- Whether any published piece ever needs its address moved because its traits changed. §2.6 makes
+- Whether any published piece ever needs its address moved because its traits changed. §2.8 makes
   the both-traits case detectable at authoring time, so a move after publication is the signal
   that §2.1 chose wrong.
