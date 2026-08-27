@@ -30,7 +30,10 @@ Two traits, not 2 mutually exclusive kinds. §2.7 is why that distinction matter
   surface and needs no part of rule 13's exception. Two exist and are live, both posted 27 Aug
   2026 and both in the set "How the Money Works": *Who has to report their money*, at
   `/read/guides/who-has-to-report-their-money`, and *What the records name, and what they leave
-  out*, at `/read/guides/what-the-records-name`. Ten more are planned.
+  out*, at `/read/guides/what-the-records-name`. A third, *Why 2 official numbers can both be
+  right*, is written and settled at
+  [`docs/reader-guides/why-2-official-numbers-can-both-be-right.md`](../reader-guides/why-2-official-numbers-can-both-be-right.md)
+  and has no page yet, so it is not posted and no reader can reach it. Nine more are planned.
 - **Both.** A piece may carry both traits. See §2.7, which is where the reader-facing label for
   that case is decided, and §2.8, which is why this is not hypothetical.
 
