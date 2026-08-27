@@ -43,6 +43,9 @@ docs/
 │   ├── design-principles.md
 │   └── ui-copy-guide.md
 │
+├── explainers/          What we publish to teach readers how a system works
+│   └── who-has-to-report-their-money.md
+│
 ├── operations/            Running and shipping it
 │   ├── deployment.md
 │   ├── api-cdn-setup.md
@@ -59,11 +62,12 @@ docs/
 
 Each folder answers a question, and that is what lets someone find a doc by guessing:
 *what are we building and how do I learn it* (product-onboarding) · *how is it built*
-(architecture) · *how should it look* (design) · *how do I run it* (operations). The
-remaining folder holds research material. Design working files stay with their task or
+(architecture) · *how should it look* (design) · *how do I run it* (operations) ·
+*what do we publish for readers* (explainers). The remaining folder holds research
+material. Design working files stay with their task or
 pull request instead of becoming permanent documentation.
 
-Five placements aren't obvious, so they're stated:
+Six placements aren't obvious, so they're stated:
 
 - **`frontend-screen-system-design.md` is architecture, not design** — it is a system design
   for the screen layer; the visual rules live in `design/design-principles.md`. Its one
@@ -78,6 +82,13 @@ Five placements aren't obvious, so they're stated:
   temporary occupant, the sign-in bundle, was reconciled into
   `product-onboarding/sign-in-guide.md` and removed with the rev 17 sign-in build
   ([#1533](https://github.com/alethical-org/alethical/issues/1533)).
+- **`explainers/` is published prose, not a guide and not design** — a `product-onboarding/`
+  guide explains our product to whoever builds or supports it; an explainer is a page a
+  reader reads, teaching one part of how Minnesota's system works. It is kept under `docs/`
+  only while the page that renders it does not exist
+  ([#1752](https://github.com/alethical-org/alethical/issues/1752)); once a piece is a
+  published surface, its words belong in code beside the reports registry
+  (`apps/frontend/src/lib/moneyReports.ts`) and this folder keeps only what has not shipped.
 - **`user-data-retention-policy.md` is product, not operations** — it reads like an ops
   concern because it names tables and third-party services, but the question it answers is
   *what does the product keep about the people who read it, and what do we promise them*.
