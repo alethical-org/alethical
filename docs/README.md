@@ -37,6 +37,7 @@ things work in practice and are the place to start if you're new.
 - [When a committee's next money report is due](product-onboarding/campaign-finance-filing-calendar-guide.md) — why a legislator's money page can honestly show nothing for a whole year, which of the state's 4 filing calendars applies to whom, and what we refuse to claim
 - [Tracked-bill notifications](product-onboarding/tracked-bill-notifications-spec.md) — the plan for telling people their bill moved: what an email would say, how often, what it costs, and how a live send stays gated until it is proven. Nothing built yet
 - [Data ingestion onboarding guide](product-onboarding/data-ingestion-onboarding.md) — sources, URLs, and pipeline-flow diagram for new engineers
+- [Interface vocabulary](product-onboarding/interface-vocabulary.md) — one name per thing, for chat, briefs, Design prompts, code identifiers and reader copy: nav rather than top bar, a page named by its address, and the 2 places our own code already carries 2 words for 1 object
 - [AI models & billing](product-onboarding/ai-models-and-billing.md) — how Alethical uses AI (generation vs embeddings), the two billing rails (subscription vs API), and which jobs need which
 - [How Search works (plain English)](product-onboarding/search-bills-guide.md) — what each filter and result field means, written for non-engineers
 - [How Find My Legislator works (plain English)](product-onboarding/find-my-legislator-guide.md) — how to search by address, browser location, or map; what a match shows; and what location data leaves Alethical
