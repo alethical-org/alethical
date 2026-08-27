@@ -46,6 +46,14 @@ export const ArrowLeft = createIcon(
     <Path d="M19 12H5" />
   </>,
 );
+// Drawn rather than typed, like every other arrow on the site: Libre Franklin
+// carries no right-arrow glyph, so a typed one renders as a missing character.
+export const ArrowRight = createIcon(
+  <>
+    <Path d="M5 12 H19" />
+    <Path d="M14 7 L19 12 L14 17" />
+  </>,
+);
 export const BookmarkCheck = createIcon(
   <>
     <Path d="M17 3a2 2 0 0 1 2 2v15a1 1 0 0 1-1.496.868l-4.512-2.578a2 2 0 0 0-1.984 0l-4.512 2.578A1 1 0 0 1 5 20V5a2 2 0 0 1 2-2z" />
@@ -135,6 +143,7 @@ export const AlertCircle = createIcon(
 
 export const usedIconNames = [
   'ArrowLeft',
+  'ArrowRight',
   'BookmarkCheck',
   'MessageSquareText',
   'Home',

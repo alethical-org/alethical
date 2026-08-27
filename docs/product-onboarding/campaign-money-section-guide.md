@@ -32,7 +32,10 @@ permanently and straight to the `/read` address it belongs to, never through the
 
 The `/read` page has its own way in, separate from this section: choose **Read** in the same top
 menu. It is one item with no menu behind it, on a computer and in the phone menu both, so it takes
-one click or one tap (settled 27 Aug 2026, [`docs/architecture/published-writing-decisions.md`](../architecture/published-writing-decisions.md)
+one click or one tap. In the phone menu it is a taller row than the ones under SEARCH and ABOUT,
+with a thin line above and below it and a small arrow at the right, which is how the menu says it is
+one of the 3 things the site does rather than a fifth Search row (settled 27 Aug 2026,
+[`docs/architecture/published-writing-decisions.md`](../architecture/published-writing-decisions.md)
 §2.13).
 
 ## The landing page (`/money`)
