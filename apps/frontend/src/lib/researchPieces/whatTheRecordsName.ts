@@ -63,6 +63,12 @@ export const WHAT_THE_RECORDS_NAME: ResearchPiece = {
   traits: { research: false, guide: true },
   set: { name: 'How the Money Works', position: 2 },
   indexed: true,
+  // Rule 13 point 7a: the corrected wording replaces the wrong wording and this dated
+  // banner is its only trace. Eugene approved the cut on 27 Aug 2026.
+  correction: {
+    datedLabel: 'CORRECTED AUG 27 2026',
+    note: 'Two quotations from the Board\u2019s Political Party Unit Handbook were removed. The Board replaced that handbook the day this piece posted, and the served copy no longer contains them.',
+  },
   title: 'What the records name, and what they leave out',
   // No standfirst: the draft's second line is the set's name, which is stored as
   // set membership above. Inventing a sentence to fill this slot would be writing
@@ -226,7 +232,7 @@ export const WHAT_THE_RECORDS_NAME: ResearchPiece = {
           runs: [
             {
               kind: 'text',
-              text: 'The handbooks are plain about where it goes. Gifts from donors who gave $200 or less in total “should be added together and listed as a lump sum”. The reporting form has a line for exactly that, reading “Contributions from donors who each gave $200 or less”. The instruction underneath it: “Do not list the donors separately.”',
+              text: 'The handbooks are plain about where it goes. Gifts from donors who gave $200 or less in total “should be added together and listed as a lump sum”.',
             },
           ],
         },

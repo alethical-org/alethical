@@ -627,9 +627,15 @@ describe('the guide snapshot serves the guide\u2019s own writing, unchanged', ()
   it('draws no short-version box for a piece that has none', () => {
     const headings = (snapshot.sections ?? []).map((section) => section.heading);
     expect(headings).not.toContain('Short version');
+    // 'Also on Alethical' appears because guide 1 now carries an internal link, the
+    // forward link to guide 2 that its own closing paragraph promised. The snapshot
+    // builder collects a piece's internal links into that section so they are reachable
+    // by address before the app runs (rule 5). It is served writing the piece did not
+    // author, which is why it is asserted here rather than derived from the piece.
     expect(headings).toEqual([
       ...guide.sections.map((section) => section.heading),
       'Where this comes from',
+      'Also on Alethical',
     ]);
   });
 
@@ -669,8 +675,20 @@ describe('the guide snapshot serves the guide\u2019s own writing, unchanged', ()
     for (const href of hrefs) {
       expect(html).toContain(`<a href="${href}">`);
     }
-    // One anchor back to the list, plus one per source address, and no others.
-    expect(html.match(/href="/g)).toHaveLength(1 + hrefs.length);
+    // Every internal link is served as a real anchor too, for the same reason: guide 1's
+    // forward link to guide 2 is a citation of our own writing and rule 5 binds it the
+    // same way. Counted from the piece rather than hard-coded, so adding a link to a
+    // later guide does not need this number edited.
+    const internal = [...(guide.intro ?? []), ...guide.sections.flatMap((s) => s.blocks)]
+      .flatMap((block) => (block.kind === 'paragraph' ? block.runs : []))
+      .filter((run) => run.kind === 'internalLink');
+    expect(internal).toHaveLength(1);
+    for (const run of internal) {
+      expect(html).toContain(`<a href="${(run as { href: string }).href}">`);
+    }
+    // One anchor back to the list, plus one per source address and one per internal
+    // link, and no others.
+    expect(html.match(/href="/g)).toHaveLength(1 + hrefs.length + internal.length);
     expect(snapshot.links).toEqual([{ label: READ_PAGE_HEADING, href: '/read' }]);
   });
 
