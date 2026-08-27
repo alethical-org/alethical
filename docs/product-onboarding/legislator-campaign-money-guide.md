@@ -314,14 +314,73 @@ tab prints both figures and no subtraction.
 3. **One freshness date for the whole tab** — the day we downloaded Minnesota's files.
    It is not the period the money covers, and the tab says so in those words.
 
-Underneath the freshness date sits the filing-schedule note, because without it a reader
-in September sees "checked yesterday" over figures that stop in July and concludes we
-are broken:
+---
 
-> Minnesota publishes campaign money on a filing schedule, not day by day. Members on
-> the 2026 ballot filed on 27 July for money raised through 20 July, and file again on
-> 26 October. Members not on the ballot do not report their 2026 money until 1 February
-> 2027.
+## Why a year has nothing to show, in the 6 different ways it can happen
+
+Minnesota publishes campaign money **on a filing schedule, not day by day**. So a member
+whose card is thin, or blank, is usually a member the state has not asked for a report
+from yet. Without that said out loud, a reader in September sees "checked yesterday"
+over figures that stop in July and concludes we are broken.
+
+Until 27 August 2026 the tab said it **once, at the bottom, for everybody**: one fixed
+paragraph reciting Minnesota's calendar in general, which left a reader to work out
+which half of it applied to the member on screen. It also spelled 2026's dates out in
+its own words, so on 1 January 2027 it would have quietly described a finished election
+year and nothing would have announced it
+([#1642](https://github.com/alethical-org/alethical/issues/1642)).
+
+Now **each committee card carries its own sentence**, and there are 6 of them because
+there are 6 genuinely different reasons. Every date in every one is read off the Board's
+own published calendar for that committee and that year, so no date on screen is written
+into our wording.
+
+**Three of the 6 are facts about the committee:**
+
+| The reader is told | When |
+| --- | --- |
+| It is on this year's ballot, so it is on the election-year schedule, and its next report is named with its due date and the stretch of time it covers | The state has scheduled a pre-primary or pre-general report for it this year |
+| It is not on this year's ballot, so it is on the schedule for candidates who are not running, which asks for a report once a year rather than around each election | The year's election reports have come due and the state scheduled none for it |
+| It closed its registration with the state on a named day, so no further report is due from it | The Board's filer record carries a termination date |
+
+**The other 3 are our own unfinished work, and every one says so:**
+
+| The reader is told | When |
+| --- | --- |
+| We cannot say, because it filed for a special election and special elections run on their own set of periods we have not written down | It has a special-election report this year |
+| We cannot say, because we have not yet copied in the filing calendar covering this committee for this year | The year is one we have not transcribed, or the seat is a statewide or appellate one on a calendar this batch left out |
+| We cannot say, because our copy of the state's own list of filings cannot answer it | No filings copied at all, this committee absent from the copy we have, or a copy taken too early to settle the question |
+
+**Keeping those two halves apart is the whole point.** "We have not typed in that
+calendar" and "nothing is due yet" are different facts, and letting the first read like
+the second tells a reader something false about a named politician's duty to report.
+That is [grounded-answers.md rule 12](https://github.com/alethical-org/alethical/blob/main/.claude/rules/grounded-answers.md)'s
+missing-versus-zero rule applied to dates instead of to money. All 3 of ours share a
+closing line — *"That gap is on our side and says nothing about this committee's own
+filing"* — so they read as one class.
+
+**Two things this wording never does, each pinned by its own test:**
+
+- **It never says a report is late.** The signal that marks an unfiled report can only
+  be read in the current year, so the claim cannot be supported, and telling a reader
+  that a named politician missed a deadline they may not even have is the worst thing
+  this tab could produce.
+- **It never prints the pre-general date without the exemption the Board prints beside
+  it.** That exemption reads *"Candidates who lost the primary election do not need to
+  file this report."* Everyone who got past the primary owes the report and everyone who
+  lost does not, and no record we hold says which happened. The date alone would invent
+  a deadline for the losers; hiding the date would give the wrong answer to everyone
+  else. So the exemption travels with the date, on its own line under it.
+
+**One thing to expect and not mistake for a fault:** only Minnesota's 2026 calendars
+have been transcribed, so switching the year to 2025 puts most committees into the
+"we have not copied in that calendar" sentence. That is the honest answer, and copying
+in another year's calendars is an edit to one file.
+
+The states come from `alethical/api/services/committee_filing_schedule.py`, which reads
+the Board's own filer record and its own report catalogue. The words come from
+`apps/frontend/src/lib/legislatorCampaignMoney.ts`. That split is deliberate: the data
+describes records and the page frames them.
 
 ---
 

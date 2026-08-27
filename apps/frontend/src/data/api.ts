@@ -7,6 +7,7 @@ import {
   TRAILING_REFERRAL,
   TRAILING_RETURN,
 } from '../lib/billDetail';
+import type { FilingScheduleState } from '../lib/legislatorCampaignMoney';
 import type { SourceBlock } from '../lib/billText';
 import type { SiteMetricEventName, SiteMetricRecordTotals } from '../lib/traffic';
 import { contactEmail, senateProfileUrl } from '../lib/findMyLegislator';
@@ -574,6 +575,15 @@ interface ApiLegislatorCampaignMoneyPayload {
       first_payment_on?: string | null;
       last_payment_on?: string | null;
     };
+    filing_schedule?: {
+      state?: string | null;
+      next_report_name?: string | null;
+      next_report_due_on?: string | null;
+      period_start?: string | null;
+      period_end?: string | null;
+      condition?: string | null;
+      terminated_on?: string | null;
+    } | null;
   }[];
 }
 
@@ -2322,8 +2332,37 @@ export async function getLegislatorCampaignMoneyFromApi(
         firstPaymentOn: committee.split.first_payment_on ?? null,
         lastPaymentOn: committee.split.last_payment_on ?? null,
       },
+      filingSchedule: {
+        state: filingScheduleState(committee.filing_schedule?.state),
+        nextReportName: committee.filing_schedule?.next_report_name ?? null,
+        nextReportDueOn: committee.filing_schedule?.next_report_due_on ?? null,
+        periodStart: committee.filing_schedule?.period_start ?? null,
+        periodEnd: committee.filing_schedule?.period_end ?? null,
+        condition: committee.filing_schedule?.condition ?? null,
+        terminatedOn: committee.filing_schedule?.terminated_on ?? null,
+      },
     })),
   };
+}
+
+/**
+ * The server's schedule state, or the one that says we cannot answer.
+ *
+ * An unrecognised or missing value falls to `filings_cannot_answer` rather than to a
+ * committee-side state. Both directions of that choice are a claim, and only this one
+ * is safe: it says our copy cannot settle it, which is true whenever we are reading a
+ * value we do not understand.
+ */
+function filingScheduleState(raw: string | null | undefined): FilingScheduleState {
+  const known: FilingScheduleState[] = [
+    'on_the_ballot',
+    'not_on_the_ballot',
+    'registration_closed',
+    'special_election_filer',
+    'calendar_not_transcribed',
+    'filings_cannot_answer',
+  ];
+  return known.find((state) => state === raw) ?? 'filings_cannot_answer';
 }
 
 interface ApiCampaignFinanceSummaryPayload {

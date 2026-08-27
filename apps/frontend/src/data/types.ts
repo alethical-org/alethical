@@ -1,4 +1,9 @@
-import type { LinkState, MoneyBlockState, SplitState } from '../lib/legislatorCampaignMoney';
+import type {
+  FilingSchedule,
+  LinkState,
+  MoneyBlockState,
+  SplitState,
+} from '../lib/legislatorCampaignMoney';
 
 export type Chamber = 'House' | 'Senate';
 export type Party = 'DFL' | 'R' | 'I';
@@ -612,6 +617,11 @@ export interface CampaignCommitteeMoney {
     firstPaymentOn: string | null;
     lastPaymentOn: string | null;
   };
+  /** Why this committee-year may have nothing to show: which of the 6 filing-schedule
+   *  states it is in, and the dates that go with it. Three of the 6 are facts about
+   *  the committee and 3 are our own unfinished work, and rule 12 forbids a page
+   *  letting one read like the other. */
+  filingSchedule: FilingSchedule;
 }
 
 /** One row of the /money landing's filed-reports module: whose committee filed,

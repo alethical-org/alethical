@@ -29,6 +29,16 @@ politician is hiding something, or like our site is broken. Neither is true.
 **The fix is one sentence on the page: nothing is due until 1 February 2027.** That
 turns an alarming blank into a calm fact.
 
+**That sentence is now on the page**, per committee rather than once for everybody, on
+the Campaign money tab of every legislator profile
+([#1642](https://github.com/alethical-org/alethical/issues/1642), 27 August 2026). What
+this file works out becomes 1 of 6 reader-facing states, and the exact words a reader
+sees are listed in
+[legislator-campaign-money-guide.md](legislator-campaign-money-guide.md), under "Why a
+year has nothing to show, in the 6 different ways it can happen". The 4 tests below map
+onto 3 of those 6; the other 3 are the ways our own copy of the state's records falls
+short, and the page says so in each case rather than borrowing a date.
+
 ## The mistake we are most careful to avoid
 
 Getting this wrong in the other direction is far worse. If we guessed that a member was
