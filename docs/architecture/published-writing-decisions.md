@@ -263,7 +263,14 @@ card component needs to know whether a heading sits above it. That is a small am
 
 ### 2.11 The `/reading` page groups by our 2 kinds for now, and the objection is recorded
 
-Ratified by Eugene 27 Aug 2026. `GUIDES` and `RESEARCH` stay as the page's headings.
+Ratified by Eugene 27 Aug 2026. `GUIDES` and `RESEARCH` stay as the page's headings, and
+**`RESEARCH` sits above `GUIDES`**.
+
+**The order is Eugene's, against the design.** Every drawing in the accepted handoff puts `GUIDES`
+first; he overruled it and named it the only change from that handoff. Research is what Alethical
+publishes in its own name and the reason the section exists, so it leads. A guide teaches a term a
+research piece raised, which makes it the support rather than the headline. Treat any drawing showing
+`GUIDES` first as superseded on this one point and nothing else.
 
 **Design's objection, which stands and is not dismissed.** Grouping the page by our own genre is the
 opposite of the reason both kinds share one page: a reader arrives with a subject in mind, not a
