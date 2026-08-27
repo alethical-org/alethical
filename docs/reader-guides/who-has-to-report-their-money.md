@@ -14,9 +14,11 @@
      works and draws no conclusions. The word was "explainer" until 27 Aug 2026
      (`docs/architecture/published-writing-decisions.md` §2.6).
 
-     TWO READER-FACING LINES DELIBERATELY DO NOT COUNT THE SET. The position line reads
-     "piece 1" and not "piece 1 of 5", and the closing paragraph names no title for the
-     next piece. Eugene ratified on 27 Aug 2026 that a set names only its published
+     NO READER-FACING LINE NUMBERS THIS PIECE OR COUNTS THE SET. The position line names
+     the set and stops, and the closing paragraph names no title for the next piece.
+     Eugene ruled on 27 Aug 2026 that a piece's number is internal talk and never
+     reaches a reader, so "piece 1" came off after "piece 1 of 5" had already come off
+     earlier the same day. Eugene ratified on 27 Aug 2026 that a set names only its published
      pieces and never its unwritten ones, on the ground that
      `.claude/rules/grounded-answers.md` rule 2 forbids naming what we cannot deliver
      (`docs/architecture/published-writing-decisions.md` §2.3). A printed "of 5" is that
@@ -90,7 +92,7 @@
 
 # Who has to report their money
 
-*How the Money Works, piece 1*
+*How the Money Works*
 
 Look up a Minnesota politician’s money and you will not find a person. You will find an
 account.

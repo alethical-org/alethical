@@ -282,9 +282,34 @@ page to find it.
 **What it costs to wait.** If the answer turns out to be subject grouping, the page is restructured
 after readers have learned the current shape, and any inbound link to a heading anchor breaks.
 
+### 2.12 A piece's number in its set never reaches a reader
+
+Ratified by Eugene 27 Aug 2026. No reader-facing surface prints a piece's position in its set. Not
+"piece 1", not "piece 1 of 5", not "1st", and not a numbered row inside a set box. The set's name
+alone is what a reader is told.
+
+**Why.** A number is how we talk about the work internally, in this file and on
+[issue 1752](https://github.com/alethical-org/alethical/issues/1752). To a reader it answers a
+question nobody asked and raises one we do not want to answer: if this is piece 1, how many are
+there, and where are the rest. §2.3 already forbids naming an unwritten piece; a number implies the
+whole run of them without naming any.
+
+**Where it applies.** Every surface, not a list: a piece's own page, its masthead, a card on the
+`/reading` page, a row inside a set box, a share preview, a search result.
+
+**This is the second narrowing of the same line in one day.** The guide's position line began as
+"How the Money Works, piece 1 of 5", lost "of 5" under §2.3 on the ground that the set's size was a
+promise, then lost "piece 1" under this ruling on the ground that any number is internal. Both
+narrowings point the same way and the second supersedes the first, so the reader-facing form is the
+set's name and nothing else.
+
+**What it costs.** A reader arriving at the middle of a set cannot tell where they are in the
+reading order from the piece itself. The order lives on the set's own page, where the pieces are
+listed in it.
+
 ## 3. Open decisions
 
-None. §2.3, §2.5, §2.7, §2.10 and §2.11 all closed on 27 Aug 2026.
+None. §2.3, §2.5, §2.7, §2.10, §2.11 and §2.12 all closed on 27 Aug 2026.
 
 ## 4. What the design assumes and the code does not provide
 
