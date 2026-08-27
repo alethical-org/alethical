@@ -36,6 +36,7 @@ import {
   paymentsTitle,
   receivedRowMeta,
   recordCoverageLines,
+  unnamedMoneyExplanation,
   registeredForLine,
   registerKindLabel,
   registrationNumberFromSlug,
@@ -289,7 +290,9 @@ describe('the payments view', () => {
   });
 
   it('the link note drops the threshold sentence on a ballot-question page', () => {
-    expect(listLinkNote('gave', false)).toContain('$200 or less');
+    // The ordinary note names the threshold as the point a name becomes REQUIRED,
+    // rather than as a line below which nobody is named (#1755).
+    expect(listLinkNote('gave', false)).toContain('more than $200 in total for the year');
     expect(listLinkNote('gave', true)).not.toContain('$200');
     expect(listLinkNote('spent', true)).not.toContain('$200');
   });
@@ -354,10 +357,30 @@ describe('the record-coverage block', () => {
   it('drops the threshold line on a ballot-question page and keeps the rest', () => {
     const ordinary = recordCoverageLines(false);
     expect(ordinary).toHaveLength(4);
-    expect(ordinary[3]).toBe('Donors who gave $200 or less in total for the year are never named.');
+    expect(ordinary[3]).toBe(
+      'Donors who gave $200 or less in total for the year need not be named.',
+    );
     const ballot = recordCoverageLines(true);
     expect(ballot).toHaveLength(3);
     expect(ballot.join(' ')).not.toContain('$200');
+  });
+
+  // The $200 test is a floor on who a committee MUST name, never a ban on naming
+  // anyone smaller. The statute's own words are that a contributor "must then be
+  // listed" once the aggregate exceeds the threshold, and filer 18135's 2026
+  // pre-general itemizes 215 donors at or under $200 and reconciles to the cent
+  // (campaign-finance-system-design.md §2.3), so the absolute was false about a real
+  // filing a reader can open (#1755).
+  it('never tells a reader that a small donor or recipient is not named', () => {
+    for (const lines of [recordCoverageLines(false), recordCoverageLines(true)]) {
+      expect(lines.join(' ')).not.toContain('never named');
+    }
+    for (const isBallot of [false, true]) {
+      expect(unnamedMoneyExplanation(isBallot)).not.toContain('never named');
+      for (const tab of ['gave', 'spent'] as const) {
+        expect(listLinkNote(tab, isBallot)).not.toContain('never named');
+      }
+    }
   });
 });
 

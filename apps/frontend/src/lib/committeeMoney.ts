@@ -162,9 +162,16 @@ export function whoseCommitteeText(
 /**
  * Why some donations carry nobody's name, worded per filer kind. The ordinary
  * sentence states the $200 test on a donor's yearly total (rule 12's exact
- * framing). A ballot-question filer's page states no threshold at all — the
- * statute says $500 for ballot questions and the Board's own handbook for those
- * filers says $200, so we assert neither — and says only what the file shows.
+ * framing), as a floor on who a committee MUST name rather than a ban on naming
+ * anyone smaller: the statute's own words are that a contributor "must then be
+ * listed" once the aggregate exceeds the threshold, and nothing in it forbids
+ * naming a smaller one. Filer 18135's 2026 pre-general itemizes 215 donors at or
+ * under $200 and reconciles to the cent
+ * (`docs/architecture/campaign-finance-system-design.md` §2.3), so "are never
+ * named" was a false absolute (#1755). A ballot-question filer's page states no
+ * threshold at all — the statute says $500 for ballot questions and the Board's
+ * own handbook for those filers says $200, so we assert neither — and says only
+ * what the file shows.
  */
 export function unnamedMoneyExplanation(isBallot: boolean): string {
   if (isBallot) {
@@ -177,9 +184,8 @@ export function unnamedMoneyExplanation(isBallot: boolean): string {
   }
   return (
     'Minnesota only makes a committee name a donor once that donor has given more ' +
-    'than $200 in total for the year. Donors who gave $200 or less in total are ' +
-    'never named, so their money is counted here and the state’s public file does ' +
-    'not say who gave it.'
+    'than $200 in total for the year. A committee may name a smaller donor but does ' +
+    'not have to, and for this money the state’s public file does not say who gave it.'
   );
 }
 
@@ -588,8 +594,8 @@ export function listLinkNote(tab: PaymentsTab, isBallot: boolean): string {
   if (isBallot) return opens;
   const threshold =
     tab === 'gave'
-      ? ' Donors who gave $200 or less in total for the year are never named in the filing, so these payments never sum to the total on the committee’s page.'
-      : ' Recipients paid $200 or less in total for the year are never named in the filing, so these payments never sum to the total on the committee’s page.';
+      ? ' Minnesota makes a committee name a donor only once that donor has given more than $200 in total for the year, so these payments never sum to the total on the committee’s page.'
+      : ' Minnesota makes a committee name a recipient only once payments to them pass $200 in total for the year, so these payments never sum to the total on the committee’s page.';
   return opens + threshold;
 }
 
@@ -672,7 +678,7 @@ export function recordCoverageLines(isBallot: boolean): string[] {
     'Unions don’t report to this board at all.',
   ];
   if (!isBallot) {
-    lines.push('Donors who gave $200 or less in total for the year are never named.');
+    lines.push('Donors who gave $200 or less in total for the year need not be named.');
   }
   return lines;
 }

@@ -19,11 +19,13 @@ import type { MoneyFilingRow } from '../data/types';
 import { isoDateLabel } from './research';
 
 /** The three permanent gaps, shown above anything a reader might search for.
- *  The donor sentence is rule 12's exact wording. */
+ *  The donor sentence is rule 12's exact wording. It says a small donor NEED NOT
+ *  be named, never that they are not: the $200 test is a floor on who a committee
+ *  must name, and nothing stops one naming a smaller donor (#1755). */
 export const RECORD_DOES_NOT_COVER = [
   'Nothing before 2015.',
   'Unions don’t report to this board at all.',
-  'Donors who gave $200 or less in total for the year are never named.',
+  'Donors who gave $200 or less in total for the year need not be named.',
 ] as const;
 
 /**

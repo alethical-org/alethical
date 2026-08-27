@@ -116,12 +116,19 @@ dollar figure and as a share. On a typical member roughly 4 dollars in 10 land h
 sentence under it is fixed and says exactly this:
 
 > Minnesota only makes candidates name a donor once that donor has given more than $200
-> in total for the year. Donors who gave $200 or less in total are never named, so their
-> money is counted here and the state's public file does not say who gave it.
+> in total for the year. A campaign may name a smaller donor but does not have to, and for
+> this money the state's public file does not say who gave it.
 
 **Read that as the donor's yearly total, never the size of a single gift.** 327,759 of
 the 583,152 published donation rows are individually under $200 and are named anyway,
 because that donor's yearly total had already passed the line.
+
+**And read it as a floor, not a ban.** The sentence used to end "Donors who gave $200 or
+less in total are never named", which is not what the rule says: the $200 is the point at
+which a campaign *has to* name someone, and a campaign may name a smaller donor if it
+chooses. At least one does, so a reader who opened that filing and found a $75 donor listed
+by name would have caught our page saying it was impossible
+([#1755](https://github.com/alethical-org/alethical/issues/1755), corrected 27 Aug 2026).
 
 Money in that is not a donation — a loan the candidate made to their own campaign, most
 often — is listed separately under its own heading, with the state's own label. It is
