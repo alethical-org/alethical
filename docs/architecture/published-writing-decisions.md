@@ -19,59 +19,67 @@ this file loosens it. Sequencing and open tasks live on
 
 ## 1. What we publish
 
-Two kinds, and the difference is what they are allowed to do.
+Two traits, not 2 mutually exclusive kinds. §2.5 is why that distinction matters.
 
-- **Our own digging.** We add up the campaign-finance records we hold and publish what we found,
-  signed and dated, with the arithmetic reproducible by a reader from the linked records. Rule 13
-  is the exception that permits this and the only place in the product where it is permitted.
-  Exactly 1 exists and is live: *The Money Only Goes One Way*.
-- **Short teaching pieces.** One term each, in plain language. These conclude nothing, add nothing
-  up across members, and define no classifications, so they sit under rules 1 to 12 like every
-  other surface and need no part of rule 13's exception. None are live; 1 is drafted and 12 are
-  planned.
+- **Research.** We add up the campaign-finance records we hold and publish what we found, signed
+  and dated, with the arithmetic reproducible by a reader from the linked records. Rule 13 is the
+  exception that permits this and the only place in the product where it is permitted. Exactly 1
+  exists and is live: *The Money Only Goes One Way*.
+- **A guide.** One term explained in plain language. A guide concludes nothing, adds nothing up
+  across members, and defines no classifications, so it sits under rules 1 to 12 like every other
+  surface and needs no part of rule 13's exception. None are live; 1 is drafted and 12 are planned.
+- **Both.** A piece may carry both traits. See §2.5, which is where the reader-facing label for
+  that case is decided, and §2.6, which is why this is not hypothetical.
 
 ## 2. Settled decisions
 
 Ratified by Eugene, 27 Aug 2026, except where a different date is given.
 
-### 2.1 Addresses carry the kind
-
-A piece lives at a nested address, with one combined listing above them:
+### 2.1 Addresses carry the trait, and the `/reading` page lists everything
 
 | address | what it is |
 | --- | --- |
-| `/reading` | everything, one combined listing |
-| `/reading/<kind>/<name>` | one piece |
+| `/reading` | the `/reading` page: everything we publish, one combined listing |
+| `/reading/research/<name>` | one piece carrying the research trait, including a piece that also teaches |
+| `/reading/guides/<name>` | one piece carrying only the guide trait |
 | `/reading/sets/<name>` | one set of pieces meant to be read together |
 
-**What flat lost on.** A flat `/reading/<name>` was decided on 25 Aug and withdrawn on 26 Aug when
-both its grounds failed checking. Ground 1 was that a folder word becomes reader-visible text we
-cannot edit; Google does derive a breadcrumb from address words, and its own breadcrumb
-documentation also says a page's structured markup determines the breadcrumb a result shows, so
-the word is controllable rather than permanent. Ground 2 was that we do not maintain forwards;
-`vercel.json` already keeps permanent forwards for this same section of the site. The full record,
-including what survives from the flat reasoning, is
-[`docs/architecture/page-metadata-for-search-and-sharing-decisions.md`](page-metadata-for-search-and-sharing-decisions.md)
-§20.6.
+**A piece carrying both traits is addressed under `research`**, because rule 13 binds it in full and
+the address then states which promises apply to the page. See §2.5.
 
-**What nested buys.** A listing address and the pieces beneath it agree by construction, and no
-word has to be permanently reserved as a name a piece may never take.
+**What flat lost on, twice.** A flat `/reading/<name>` was decided on 25 Aug 2026 and withdrawn on
+26 Aug when both its grounds failed checking; the full record is
+[`page-metadata-for-search-and-sharing-decisions.md`](page-metadata-for-search-and-sharing-decisions.md)
+§20.6. It was proposed a second time on 27 Aug by the peer coding consultant, on the ground that a
+piece carrying both traits should not have to pick a folder. That ground is answered rather than
+denied: a both-traits piece is not ambiguous, because rule 13 governs it, so `research` in its path
+is true. And the stability argument behind flat is answered by the same fact that killed flat the
+first time: `vercel.json` keeps permanent forwards, so a piece that ever has to move survives the
+move.
 
-**The `<kind>` folder word is not settled** — see §3.1. Nothing may hard-code it yet.
+**One measured fact strengthens nested and was cited for flat.** Google stopped showing the folder
+path in mobile search results entirely, in every language and region, in January 2025, and still
+shows one on desktop where a page's own breadcrumb markup determines what it says
+([Simplifying the visible URL element on mobile search results](https://developers.google.com/search/blog/2025/01/simplifying-breadcrumbs),
+read 27 Aug 2026: "we're rolling out a change to no longer show breadcrumbs on mobile search results
+in all languages and regions where Google Search is available (they continue to appear on desktop
+search results)" and "we continue to support breadcrumb markup for use in desktop search results").
+Flat's original ground was that a folder word becomes reader-visible text we cannot edit. That
+ground is dead twice over.
 
-### 2.2 A teaching piece may exist outside every set
+### 2.2 A guide may exist outside every set
 
 A set is a group of pieces written to be read together. A piece does not need one.
 
 **Why.** Sets have no model in the code at all, so allowing this costs nothing today, and
 forbidding it forces a fake set the first time a single standalone piece is worth writing. The
-design already handles both cases: a card outside a set box carries its kind word, a row inside a
-set box does not.
+design already handles both cases: a card outside a set box carries its label, a row inside a set
+box does not.
 
 ### 2.3 A set with no published pieces hides its box and keeps its page
 
-On `/reading`, a set whose pieces are all unpublished shows no box. Its own page at
-`/reading/sets/<name>` stays reachable and stays served.
+On the `/reading` page, a set whose pieces are all unpublished shows no box. Its own
+`/reading/sets/<name>` page stays reachable and stays served.
 
 **What the drawn alternative lost on.** The design drew the empty box visible. A box with no rows
 tells a reader nothing and reads as broken. Keeping the page reachable is what
@@ -101,41 +109,87 @@ cannot make:
 And a matcher would link terms inside quotations from Minnesota statutes, which puts our own
 explanation inside the state's words.
 
+### 2.5 The words are **Research** and **Guide**, for readers and in the code both
+
+One vocabulary, no mapping layer: a reader sees "Research" or "Guide", and the code says `research`
+and `guide`.
+
+**Why not "report" for our own digging.** Minnesota's Campaign Finance Board calls a campaign's
+filed disclosure document a report, and **21 distinct reader-facing strings** in
+`apps/frontend/src/lib/committeeMoney.ts` alone use the word for that document, including a counter
+rendering "16 reports filed" and an ordering line reading "by the period each report covers".
+Counted 27 Aug 2026; every one of the 21 is about filing to the Board. Renaming a public record to
+free the word is not available, so our own writing is the half that moves.
+
+**Why "Guide" rather than "Explainer".** "Explainer" names a publishing format; "Guide" states the
+help on offer. Both are honest, and the reader-facing test is which one a person clicks when
+looking for help, not which is more precise.
+
+**Why this session's objection to "Guide" was withdrawn.** It argued that 13 internal engineering
+documents named `*-guide.md` under `docs/product-onboarding/` give the word a second meaning.
+[`.claude/rules/workflow.md`](../../.claude/rules/workflow.md) rule 7 requires names a newcomer can
+guess and bans metaphors; it nowhere requires one globally unique meaning per word. Those 13 files
+are correctly named in their own setting and no reader ever sees them. Objection dropped.
+
+**Why one vocabulary rather than reader-facing labels over different internal names.** The peer
+coding consultant recommended the split, citing rule 3 of
+[`.claude/rules/grounded-answers.md`](../../.claude/rules/grounded-answers.md), which requires
+"author" in user-facing copy while the data model keeps `SponsorshipRole.sponsor`
+(`alethical/db/models.py:100`). Eugene's ruling: one vocabulary, because the split's cost is a
+mapping every future reader of the code has to hold in their head, and here the internal word can
+simply be the reader's word. Rule 3's precedent stands where it is: `sponsor` is a genuinely
+distinct filing role, not a translation of "author".
+
+**A piece carrying both traits shows one label: Research.** Rule 13 makes research the stricter
+class, and a piece that adds figures up across members must obey rule 13 in full whatever else it
+does. Two labels would tell a reader that 2 sets of promises apply when only the stricter one
+governs. Internally it carries both traits, so it can be found as either.
+
+### 2.6 The both-traits case is real, and was measured before it was designed for
+
+The peer coding consultant proposed classifying every planned piece with 2 questions: does it draw
+conclusions, and does it teach 1 concept. Run against the 13 pieces in
+[issue 1752](https://github.com/alethical-org/alethical/issues/1752) on 27 Aug 2026:
+
+- The 1 live piece, *The Money Only Goes One Way*, is research only.
+- 11 of the 12 planned guides are guides only.
+- **Planned guide 2, "The money with no donor named", carries both.** Its outline states the
+  unnamed money "was 36.5% of the money in 2024 and 41.3% in 2025 across sitting legislators'
+  accounts". Adding a figure up across members is rule 13's first special permission, so this
+  piece needs rule 13 and every condition attached to it.
+- **Planned guide 9, "Independent spending", is arguable.** Its outline states "more than half of
+  it attacks rather than supports", which is a share across the whole independent-spending dataset
+  rather than across members. Classified when it is written, not now.
+
+So the both-traits case is present in our own plan today. That is the whole reason §2.5 needed a
+label rule for it and §2.1 needed an address rule for it.
+
+### 2.7 The order the rename runs in
+
+1. Let the 2 in-flight branches on the report page and the `/reading` page's predecessor land on
+   `main`.
+2. Pause new edits to those 2 files for the length of the rename.
+3. One owner performs the rename from the combined `main`, in one pass.
+4. Move the live address once, with every permanent forward in the same release, direct and with no
+   intermediate hop:
+   `/reports/the-money-only-goes-one-way` to `/reading/research/the-money-only-goes-one-way`.
+
+Sequence recommended by the peer coding consultant on 27 Aug 2026 and adopted. Its purpose is
+[`.claude/rules/workflow.md`](../../.claude/rules/workflow.md)'s prohibition on landing work under
+another session's feet, not tidiness.
+
 ## 3. Open decisions
 
-### 3.1 The 2 kind words
-
-What a reader sees above a title, and what the code calls each kind.
-
-Eugene's constraint, 27 Aug 2026: **the reader-facing word and the code's own name are the same
-vocabulary**, rather than a reader-facing label sitting over a different internal name.
-
-Out with the peer coding consultant as of 27 Aug 2026. The candidates and what each turns on:
-
-- **"Report"** for our own digging collides with the source's vocabulary. Minnesota's Campaign
-  Finance Board calls a campaign's filed disclosure document a report, and **21 distinct
-  reader-facing strings** in `apps/frontend/src/lib/committeeMoney.ts` alone use the word for that
-  document, including a counter rendering "16 reports filed" and an ordering line reading "by the
-  period each report covers". Counted 27 Aug 2026; every one of the 21 is about filing to the
-  Board. Our own writing is the half that can move, because renaming a public record to free the
-  word is not available.
-- **"Guide"** for the teaching pieces collides inside our own repo: 13 internal engineering
-  documents under `docs/product-onboarding/` are named `*-guide.md`.
-- **"Explainer"** collides with nothing and is already the internal word, so adopting it renames
-  nothing. Its risk is being industry vocabulary rather than the word an ordinary person uses.
-- **A display-only split** is not ruled out by argument here, and our own rules bless one
-  elsewhere: `.claude/rules/grounded-answers.md` rule 3 requires "author" in user-facing copy while
-  the data model keeps `SponsorshipRole.sponsor` (`alethical/db/models.py:100`).
-
-Until this settles, `<kind>` in §2.1's address table stays unresolved and the hardcoded `REPORT`
-at `apps/frontend/src/screens/redesign/MoneyReportScreen.tsx:434` stays as it is.
+None. §2.5 closed the last one on 27 Aug 2026.
 
 ## 4. What the design assumes and the code does not provide
 
-Four fields, none of which exists. Every one is read by the drawings for `/reading`, so none of
-that page can be built until they do.
+Four fields, none of which exists. Every one is read by the drawings for the `/reading` page, so
+none of that page can be built until they do.
 
-1. **A kind on a piece.** `MoneyReport` (`apps/frontend/src/lib/moneyReports.ts`) has no such field.
+1. **Two trait flags on a piece**, not 1 kind: does it carry the research trait, does it carry the
+   guide trait. `MoneyReport` (`apps/frontend/src/lib/moneyReports.ts`) has neither. The label a
+   reader sees is derived, per §2.5: research trait present means the label reads Research.
 2. **Set membership, and a piece's position within its set.** The set concept has no model at all.
 3. **Reading time, computed from a piece's own words.** The page prints no minutes today.
 4. **A "checked" date**, distinct from the publication date. Settled 26 Aug 2026: a piece reads
@@ -144,11 +198,26 @@ that page can be built until they do.
 
 ## 5. Naming debt to clear with the rename
 
-The word **"shelf"** for the page listing our writing breaks
-[`.claude/rules/workflow.md`](../../.claude/rules/workflow.md) rule 7, which requires literal names
-a newcomer can guess and bans metaphors. It arrived in a design bundle and has spread into
-`MoneyReportsShelfScreen.tsx`, its exported screen and route, 4 code comments, the navigation note
-at `apps/frontend/src/navigation/ia.ts:236`, and rule 13's own text. Replacement: **the reading
-page**, which is literal and holds under §2.1.
+Two items, both riding with §2.7's rename so the files are swept once.
 
-Not a separate change. It rides with whatever rename §3.1 produces, so the files are swept once.
+- **"Shelf"** for the `/reading` page breaks
+  [`.claude/rules/workflow.md`](../../.claude/rules/workflow.md) rule 7, which requires literal
+  names a newcomer can guess and bans metaphors. It arrived in a design bundle and has spread into
+  `MoneyReportsShelfScreen.tsx`, its exported screen and route, 4 code comments, the navigation
+  note at `apps/frontend/src/navigation/ia.ts:236`, and rule 13's own text. Replacement: **the
+  `/reading` page**, named by its address, which is Eugene's standing rule for naming any page.
+- **`explainer`** as the internal word for the guide trait, in this repo's issues, design notes and
+  any code that reaches for it. Replacement: `guide`, per §2.5. Nothing is built for that trait
+  yet, so this costs nothing beyond prose.
+
+## 6. How we would learn the label choice was wrong
+
+The peer coding consultant proposed 5 falsification tests, every one requiring 20 to 30 first-time
+readers. **Alethical has no reader-testing setup and no approved budget for one**, so those tests
+are not a plan we can run and are not adopted as one. What we can measure without one:
+
+- Which section a person lands on from a search engine, per address folder, which §2.1's nested
+  scheme makes readable directly.
+- Whether any published piece ever needs its address moved because its traits changed. §2.6 makes
+  the both-traits case detectable at authoring time, so a move after publication is the signal
+  that §2.1 chose wrong.

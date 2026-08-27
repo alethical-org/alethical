@@ -1193,12 +1193,24 @@ Reviewed on [issue 1752](https://github.com/alethical-org/alethical/issues/1752)
 comments) and ratified 27 Aug 2026. What nested buys: a listing address and the pieces under it agree by construction, and no
 word has to be permanently reserved as a name a piece may never take.
 
-#### The one part still open
+#### The folder words, settled 27 Aug 2026
 
-**The folder word for a kind.** The shape is settled; what fills `<kind>` is not, because the word a
-reader sees above a piece's title is itself an open decision, and the address carries that same word.
-So `/reading/sets/<name>` is buildable and `/reading/<kind>/<name>` is not, until that word lands.
-Recorded in [`published-writing-decisions.md`](published-writing-decisions.md) §3.1.
+`/reading/research/<name>` and `/reading/guides/<name>`, with sets at `/reading/sets/<name>` and one
+combined listing at `/reading`. A piece carrying both traits is addressed under `research`, because
+`.claude/rules/grounded-answers.md` rule 13 binds it in full and the address then states which
+promises apply to the page.
+
+Flat was proposed a second time on 27 Aug, by an outside review, on the ground that a both-traits
+piece should not have to pick a folder. Answered rather than denied, and the reasoning plus the
+measured both-traits case is in
+[`published-writing-decisions.md`](published-writing-decisions.md) §2.1 and §2.6.
+
+**One measured fact from that review strengthens nested and had been cited for flat.** Google
+stopped showing the folder path in mobile search results entirely, in every language and region, in
+January 2025, and still shows one on desktop where a page's own breadcrumb markup determines what it
+says ([Simplifying the visible URL element on mobile search results](https://developers.google.com/search/blog/2025/01/simplifying-breadcrumbs),
+read 27 Aug 2026). Flat's original ground, restated below, was that a folder word becomes
+reader-visible text we cannot edit. It is dead twice over.
 
 #### What survives from the original reasoning, unchanged
 
