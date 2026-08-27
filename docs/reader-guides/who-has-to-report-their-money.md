@@ -25,6 +25,14 @@
      same promise inside the prose, and it also goes stale if the set turns out to be 4
      pieces or 7. The set framing stays in this comment, which no reader sees.
 
+     THE FORWARD LINK IS PAID. This paragraph used to end "This paragraph gains a link
+     to it the day that piece posts." Guide 2 posted on 27 Aug 2026 at
+     /read/guides/what-the-records-name, so the link went in and the sentence that
+     explained its absence came out with it. That is not an edit on our own initiative,
+     which rule 13 point 2 forbids: the piece's own text instructed it, and issue #1752's
+     linking rule 6 plus published-writing-decisions.md §2.6 both say a forward link goes
+     in when its destination posts and not before.
+
      WHICH RULES BIND IT. `.claude/rules/grounded-answers.md` rules 1 to 12, like every
      other surface. NOT rule 13: adding figures up across members, defining derived
      classifications and reaching conclusions are permitted to signed research only, and
@@ -194,9 +202,8 @@ Minnesota requires an account to name a donor once that person’s giving passes
 total for the calendar year, and lets it name smaller donors too. Every figure above
 sits on one side of that line.
 
-What the records name, and what they leave out, is the other side, and it is the
-subject of the next piece in this set. This paragraph gains a link to it the day that
-piece posts.
+[What the records name, and what they leave out](what-the-records-name.md) is the other
+side.
 
 ---
 

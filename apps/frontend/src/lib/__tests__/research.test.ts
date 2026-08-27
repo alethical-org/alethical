@@ -93,6 +93,20 @@ export const SAMPLE_PIECE: ResearchPiece = {
   newerFilingsNote: 'A sample newer-filings note, dated at the figure it moves.',
 };
 
+describe("guide 1's forward link", () => {
+  // The href is a literal in whoHasToReportTheirMoney.ts rather than computed from
+  // guide 2's slug, because guide 2 imports guide 1 to build its own back link and
+  // importing back would be a module-scope cycle. This is what makes the literal safe.
+  it('resolves to guide 2, so a slug change fails here rather than dangling', () => {
+    const guideTwo = researchBySlug('what-the-records-name');
+    expect(guideTwo).toBeDefined();
+    const guideOne = researchBySlug('who-has-to-report-their-money');
+    expect(guideOne).toBeDefined();
+    const hrefs = JSON.stringify(guideOne).match(/\/read\/guides\/[a-z0-9-]+/g) ?? [];
+    expect(hrefs).toContain(piecePath(guideTwo!));
+  });
+});
+
 describe('the posted-research registry', () => {
   // Rule 13's publishing order: posting a piece puts it on the site straight
   // away, and holding it back from SEARCH ENGINES is the separate, later step.

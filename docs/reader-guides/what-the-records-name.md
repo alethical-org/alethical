@@ -283,9 +283,7 @@ a ceiling on who it may. So a reader who finds a $50 giver named in a filing is 
 at a mistake.
 
 The handbooks are plain about where it goes. Gifts from donors who gave $200 or less in
-total “should be added together and listed as a lump sum”. The reporting form has a line
-for exactly that, reading “Contributions from donors who each gave $200 or less”. The
-instruction underneath it: “Do not list the donors separately.”
+total “should be added together and listed as a lump sum”.
 
 So a filing can carry a figure with no names behind it. It is real money, correctly
 reported, and nobody was required to name it. It is not a mistake, and it is not something

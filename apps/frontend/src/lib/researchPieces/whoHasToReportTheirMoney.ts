@@ -314,9 +314,16 @@ export const WHO_HAS_TO_REPORT_THEIR_MONEY: ResearchPiece = {
           kind: 'paragraph',
           runs: [
             {
-              kind: 'text',
-              text: 'What the records name, and what they leave out, is the other side, and it is the subject of the next piece in this set. This paragraph gains a link to it the day that piece posts.',
+              // Guide 2's address as a literal, not computed from its slug: guide 2
+              // already imports this file to build its own back link, so importing it
+              // back would be a cycle resolved at module scope. A test in
+              // research.test.ts asserts this literal equals guide 2's real path, so a
+              // slug change fails loudly rather than dangling.
+              kind: 'internalLink',
+              text: 'What the records name, and what they leave out',
+              href: '/read/guides/what-the-records-name',
             },
+            { kind: 'text', text: ' is the other side.' },
           ],
         },
       ],
