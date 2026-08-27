@@ -450,6 +450,8 @@ describe('first-response page tags', () => {
       .flatMap((block) => {
         if (block.kind === 'paragraph') return [reportRunsText(block.runs)];
         if (block.kind === 'bullets') return block.items.map((item) => reportRunsText(item));
+        // A note's sentence must reach the first response like any other prose.
+        if (block.kind === 'note') return [block.text];
         return block.rows.flat();
       });
     expect(sentences.length).toBeGreaterThan(40);

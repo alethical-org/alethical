@@ -68,9 +68,10 @@ export const MONEY_ONLY_GOES_ONE_WAY: MoneyReport = {
         ),
         p('Those same six committees sent $730,338 back down to candidate committees.'),
         p('Nineteen dollars up for every one dollar down.'),
-        p(
-          "One note on that ratio: the up and the down come from 2 different state filings, and the 2 don't fully agree. Counted from either filing alone, the ratio lands between 14.5 to 1 and 19 to 1. The direction never changes.",
-        ),
+        {
+          kind: 'note',
+          text: "One note on that ratio: the up and the down come from 2 different state filings, and the 2 don't fully agree. Counted from either filing alone, the ratio lands between 14.5 to 1 and 19 to 1. The direction never changes.",
+        },
         p(
           'So where did the rest go? Of the $58.6 million the big six paid out in contributions, $52.9 million went to other party units — sideways and upward, into state central committees and federal accounts. 1.2% reached a candidate.',
         ),
@@ -130,6 +131,19 @@ export const MONEY_ONLY_GOES_ONE_WAY: MoneyReport = {
           "That is not a PAC picking a side. That's a PAC buying access to whoever wins — and it's a rounding error next to the ones doing the same thing with real money.",
         ),
       ],
+      methodologyInset: {
+        title: 'How we counted the 191',
+        body:
+          'An organization counts as giving to both sides if the Board\u2019s itemized ' +
+          'contributions download records at least one payment of any size to a DFL ' +
+          'legislative caucus and at least one to a Republican legislative caucus, across ' +
+          '2015 to 2026. Each organization is identified by the name exactly as it appears ' +
+          'on the filing. The rule changes the answer: identifying organizations by ' +
+          'registration number instead gives 187 and $39.8 million, and requiring each side ' +
+          'to be at least 5% of what an organization gave gives 170 and $25.9 million. ' +
+          '\u201cBoth-sides PAC\u201d is our term, not the Board\u2019s. Counted from the ' +
+          'download as Alethical loaded it on 12 August 2026.',
+      },
     },
     {
       heading: 'The number that dwarfs all of it',
@@ -222,7 +236,18 @@ export const MONEY_ONLY_GOES_ONE_WAY: MoneyReport = {
     {
       text: 'Minnesota Campaign Finance Board bulk data downloads — itemized contributions (583,120 records), itemized expenditures, and itemized independent expenditures over $200 (41,130 records), 2015–2026.',
       note: 'Minnesota requires a committee to name a donor once that person has given more than $200 in total during a calendar year, and permits it to name smaller donors as well. Money from donors who are not named is reported as a single figure with no names attached, and this report counts only named payments. Official filed report totals are the authoritative figures for any individual committee.',
+      noteLink: {
+        text: 'Download the same files from the Board',
+        href: 'https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/',
+      },
     },
-    { text: 'CFB lobbying principal expenditure reports, 2015–2025.' },
+    {
+      text: 'CFB lobbying principal expenditure reports, 2015–2025.',
+      note: 'Alethical holds no lobbying records, so every lobbying figure in this report is read from the Board’s own reports rather than reproduced from our own data.',
+      noteLink: {
+        text: 'Look up a lobbying principal at the Board',
+        href: 'https://cfb.mn.gov/reports-and-data/viewers/lobbying/principal/',
+      },
+    },
   ],
 };

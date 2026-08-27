@@ -452,6 +452,7 @@ describe('the report snapshot serves the report’s own writing, unchanged', () 
       .flatMap((block) => {
         if (block.kind === 'paragraph') return [reportRunsText(block.runs)];
         if (block.kind === 'bullets') return block.items.map((item) => reportRunsText(item));
+        if (block.kind === 'note') return [block.text];
         return [...block.columns, ...block.rows.flat()];
       }),
     ...report.sections.flatMap((section) =>

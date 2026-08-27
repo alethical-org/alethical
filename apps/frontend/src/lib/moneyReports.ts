@@ -32,7 +32,16 @@ export type ReportBlock =
   | { kind: 'bullets'; items: ReportInline[][] }
   /** A small table the report's prose introduces. Plain strings: a table states
    * filed figures, so it carries no links, no emphasis and no derived label. */
-  | { kind: 'table'; columns: string[]; rows: string[][] };
+  | { kind: 'table'; columns: string[]; rows: string[][] }
+  /**
+   * A short note qualifying a figure the prose has just given: where 2 official
+   * records disagree, or where a figure comes from records we do not hold. Drawn
+   * as the method box's twin, one family with `methodologyInset`, because both
+   * are us showing our work rather than warning of a problem (Design, 27 Aug
+   * 2026). The words carry the meaning; the box only helps a scanning reader
+   * notice, so nothing is lost by a reader who cannot see the styling.
+   */
+  | { kind: 'note'; text: string };
 
 export interface ReportSection {
   /** The section heading, exactly as the report's text writes it. The heading is

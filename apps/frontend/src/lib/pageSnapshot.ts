@@ -496,6 +496,12 @@ function reportBlocks(blocks: readonly ReportBlock[]): SnapshotBlock[] {
     if (block.kind === 'bullets') {
       return { kind: 'bullets', items: block.items.map((item) => reportRunsText(item)) };
     }
+    // A note is prose in the first response. Its box is styling the screen owns,
+    // and the sentence inside it qualifies a figure, so it is exactly the text a
+    // search engine must read on the first visit rather than after a script runs.
+    if (block.kind === 'note') {
+      return { kind: 'prose', lines: [block.text] };
+    }
     return { kind: 'table', columns: block.columns, rows: block.rows };
   });
 }
