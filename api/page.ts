@@ -37,8 +37,10 @@ import {
   injectPageHead,
   legislatorListPageMetadata,
   legislatorPageMetadata,
+  committeeListPageMetadata,
   committeeMoneyPageMetadata,
   moneyReportPageMetadata,
+  moneySearchPageMetadata,
   NOT_FOUND_DESCRIPTION,
   NOT_FOUND_HEADING,
   notFoundPageMetadata,
@@ -364,6 +366,16 @@ async function contentFor(
         snapshot: renderPageSnapshot(moneyReportPageSnapshot(report)),
       };
     }
+    case "moneyCommitteeList":
+      // Only the bare list is a page worth listing; a filtered or scrolled
+      // address is one of effectively unlimited query-string combinations.
+      return headOnly(
+        Object.keys(target.params).length === 0
+          ? STATIC_PAGE_METADATA["/money/committees"]
+          : committeeListPageMetadata({ noindex: true }),
+      );
+    case "moneySearch":
+      return headOnly(moneySearchPageMetadata(target.params.q));
     case "moneyCommittee":
       return headOnly(committeeMoneyPageMetadata(target.slug, "page"));
     case "moneyCommitteePayments":

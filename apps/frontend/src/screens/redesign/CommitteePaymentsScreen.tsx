@@ -131,7 +131,7 @@ export function CommitteePaymentsScreen({
       <ScrollView contentContainerStyle={styles.page}>
         <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
 
-        {/* The section is partially built (lists and search are phase 3) and
+        {/* The section is partially built (the who-got-paid page is #1780) and
             nothing else on the page says so at a glance. Deleting the element
             and its component file is the whole removal. */}
         <UnderDevelopmentNotice />

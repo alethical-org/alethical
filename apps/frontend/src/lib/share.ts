@@ -395,18 +395,56 @@ export function committeeMoneyPageMetadata(
   });
 }
 
+/**
+ * The committees list's metadata. A filtered or scrolled address carries no
+ * canonical and is noindex: the name box, the kind filter and the row count
+ * combine into effectively unlimited addresses, and only the bare list is a page
+ * worth listing — the same rule the bill and legislator directories follow.
+ */
+export function committeeListPageMetadata(options: { noindex?: boolean } = {}): PageMetadata {
+  return pageMetadata({
+    title: titleFor('Committees — campaign money'),
+    socialTitle: 'Committees — campaign money',
+    description:
+      'Everyone registered to raise or spend money in Minnesota state politics: candidate committees, party units, and the committees and funds that give to them.',
+    canonicalPath: options.noindex ? '' : '/money/committees',
+    noindex: options.noindex,
+  });
+}
+
+/**
+ * A name-search results page. Always noindex, for the same reason an Ask answer
+ * page is: the address is whatever somebody typed, so listing it would put an
+ * unbounded set of query strings into a search index. The page stays crawlable so
+ * the committee pages it links to are still reachable.
+ */
+export function moneySearchPageMetadata(query?: string | null): PageMetadata {
+  const trimmed = (query ?? '').trim();
+  const label = trimmed ? `Campaign money search: ${trimmed}` : 'Search campaign money by name';
+  return pageMetadata({
+    title: titleFor(label),
+    socialTitle: label,
+    description:
+      'Search Minnesota state campaign filings by the name each record was filed under: legislators, committees, donors, and the businesses that got paid.',
+    canonicalPath: '',
+    noindex: true,
+  });
+}
+
 /** Pages whose wording never varies. */
 export const STATIC_PAGE_METADATA: Record<string, PageMetadata> = {
-  // The campaign money landing (public, no sign-in gate). The description
-  // promises the record, not the section's still-unbuilt search and lists
-  // (grounded-answers.md rule 2).
+  // The campaign money landing (public, no sign-in gate). The description may
+  // say these records are searchable now that the field on it works and the
+  // committees list exists (issue #1696) — until they shipped it deliberately
+  // promised only the record (grounded-answers.md rule 2).
   '/money': pageMetadata({
     title: titleFor('Follow the money'),
     socialTitle: 'Follow the money',
     description:
-      'Contributions and spending for Minnesota state campaigns, as the state publishes them.',
+      'Contributions and spending for Minnesota state campaigns, as the state publishes them, searchable by the name each record was filed under.',
     canonicalPath: '/money',
   }),
+  '/money/committees': committeeListPageMetadata(),
   '/reports': pageMetadata({
     title: titleFor(MONEY_REPORTS_SHELF_HEADING),
     socialTitle: MONEY_REPORTS_SHELF_HEADING,

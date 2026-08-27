@@ -294,6 +294,64 @@ describe('campaign money routes', () => {
   it('forwards the old /track/campaign-finance address to the landing', () => {
     expect(targetFromPathname('/track/campaign-finance')).toEqual({ kind: 'moneyLanding' });
   });
+
+  // Phase 3 (#1696). /money/committees used to forward to /money because no list
+  // existed; it is the register's own list now, and its state is in the address so
+  // a narrowed or scrolled list can be shared (grounded-answers.md rule 5).
+  it('opens the committees list at /money/committees rather than forwarding', () => {
+    expect(targetFromPathname('/money/committees')).toEqual({
+      kind: 'moneyCommitteeList',
+      params: {},
+    });
+    expect(pathForRoute({ name: 'CommitteeList' })).toBe('/money/committees');
+  });
+
+  it('round-trips the committees list’s name box, kind filter and row count', () => {
+    expect(targetFromPathname('/money/committees?q=dfl&kind=party_unit&show=100')).toEqual({
+      kind: 'moneyCommitteeList',
+      params: { q: 'dfl', kind: 'party_unit', show: '100' },
+    });
+    expect(
+      pathForRoute({
+        name: 'CommitteeList',
+        params: { q: 'dfl', kind: 'party_unit', show: '100' },
+      }),
+    ).toBe('/money/committees?q=dfl&kind=party_unit&show=100');
+  });
+
+  // A committee's own page still resolves by its trailing number, so the list
+  // route may not swallow it.
+  it('still opens one committee’s page under the same prefix', () => {
+    expect(targetFromPathname('/money/committees/smith-andrew-house-committee-18833')).toEqual({
+      kind: 'moneyCommittee',
+      slug: 'smith-andrew-house-committee-18833',
+      tab: undefined,
+      year: undefined,
+    });
+  });
+
+  it('round-trips a search through /money/search', () => {
+    expect(targetFromPathname('/money/search?q=smith')).toEqual({
+      kind: 'moneySearch',
+      params: { q: 'smith' },
+    });
+    expect(pathForRoute({ name: 'MoneySearch', params: { q: 'smith' } })).toBe(
+      '/money/search?q=smith',
+    );
+  });
+
+  // An address with no query is the page's own "type a name" state, so the field
+  // on it still has somewhere to live rather than bouncing to the landing.
+  it('keeps /money/search with no query on the search page', () => {
+    expect(targetFromPathname('/money/search')).toEqual({ kind: 'moneySearch', params: {} });
+    expect(pathForRoute({ name: 'MoneySearch' })).toBe('/money/search');
+  });
+
+  it('escapes a typed name in the address rather than breaking the link', () => {
+    expect(pathForRoute({ name: 'MoneySearch', params: { q: 'smith & co' } })).toBe(
+      '/money/search?q=smith%20%26%20co',
+    );
+  });
 });
 
 describe('shared top navigation', () => {

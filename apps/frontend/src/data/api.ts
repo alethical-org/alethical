@@ -33,12 +33,17 @@ import {
   CommitteeMoney,
   CommitteePaymentsPage,
   CommitteeReceivedPayment,
+  CommitteeRegisterPage,
+  CommitteeRegisterRow,
   LegislativeSession,
   Legislator,
   LegislatorCampaignMoney,
   LegislatorVote,
   MoneyFilingsFeed,
   MoneyLandingSummary,
+  NameSearchAnswer,
+  NameSearchGroup,
+  NameSearchRow,
   RepresentativeAddressChoice,
   RepresentativeLookupInput,
   RepresentativeLookupResult,
@@ -2424,6 +2429,220 @@ export async function getCampaignFinanceFilingsFromApi(limit = 5): Promise<Money
             filingCount: payload.newest_period.filing_count,
           }
         : null,
+  };
+}
+
+interface ApiCommitteeRegisterRowPayload {
+  registration_number?: string | null;
+  name?: string | null;
+  kind?: string | null;
+  sub_type?: string | null;
+  office?: string | null;
+  district?: string | null;
+  is_closed?: boolean | null;
+  termination_date?: string | null;
+}
+
+interface ApiCommitteeRegisterPayload {
+  state?: string;
+  ordered_by?: string;
+  committees?: ApiCommitteeRegisterRowPayload[] | null;
+  page?: { has_more?: boolean; total?: number | null } | null;
+  register_total?: number | null;
+  by_kind?: Record<string, number> | null;
+  as_of?: string | null;
+}
+
+function registerRow(row: ApiCommitteeRegisterRowPayload): CommitteeRegisterRow {
+  return {
+    registrationNumber: row.registration_number ?? '',
+    name: row.name ?? '',
+    kind: row.kind ?? null,
+    subType: row.sub_type ?? null,
+    office: row.office ?? null,
+    district: row.district ?? null,
+    isClosed: row.is_closed === true,
+    terminationDate: row.termination_date ?? null,
+  };
+}
+
+/**
+ * One page of the register of filers, A to Z by the filed name, for the
+ * committees list at /money/committees.
+ *
+ * `kind` offers exactly the register's own 3 values and no finer filter: the
+ * finer sub-type is null for 33 registered filers, so a finer chip would present
+ * "we cannot tell" as "not one of these" (#1661). `q` is plain containment of
+ * what was typed with no closest-spelling suggestion of any kind.
+ *
+ * Two totals on purpose. `total` counts the filter the rows came from; the
+ * register's own total and its per-kind counts stay unfiltered, so a count on the
+ * page can speak for the register while the "showing" line speaks for the list.
+ */
+export async function getCampaignFinanceCommitteesFromApi(options: {
+  kind?: string;
+  q?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<CommitteeRegisterPage> {
+  const params = new URLSearchParams();
+  if (options.kind) params.set('kind', options.kind);
+  if (options.q) params.set('q', options.q);
+  if (options.limit !== undefined) params.set('limit', String(options.limit));
+  if (options.offset !== undefined) params.set('offset', String(options.offset));
+  const query = params.toString();
+  const response = await publicApiRequest<DetailResponse<ApiCommitteeRegisterPayload>>(
+    `/campaign-finance/committees${query ? `?${query}` : ''}`,
+  );
+  const payload = response.data;
+  const state = blockState(payload.state);
+  return {
+    state,
+    orderedBy: payload.ordered_by ?? '',
+    committees: state === 'reported' ? (payload.committees ?? []).map(registerRow) : [],
+    hasMore: payload.page?.has_more ?? false,
+    total: payload.page?.total ?? null,
+    registerTotal: payload.register_total ?? null,
+    byKind: payload.by_kind ?? {},
+    asOf: payload.as_of ?? null,
+  };
+}
+
+interface ApiNameSearchRowPayload {
+  kind?: string;
+  id?: string | null;
+  slug?: string | null;
+  full_name?: string | null;
+  chamber?: string | null;
+  district_code?: string | null;
+  party?: string | null;
+  registration_number?: string | null;
+  name?: string | null;
+  filer_kind?: string | null;
+  sub_type?: string | null;
+  office?: string | null;
+  district?: string | null;
+  is_closed?: boolean | null;
+  termination_date?: string | null;
+  role?: string | null;
+  payment_count?: number | null;
+}
+
+interface ApiNameSearchPayload {
+  state?: string;
+  q?: string;
+  min_query_length?: number | null;
+  counted_up_to?: number | null;
+  groups?:
+    | {
+        kind?: string;
+        state?: string;
+        results?: ApiNameSearchRowPayload[] | null;
+        total?: number | null;
+        at_least?: number | null;
+        has_more?: boolean | null;
+        reason?: string | null;
+      }[]
+    | null;
+  reason?: string | null;
+}
+
+/**
+ * A group's own state, keeping all 3 the server serves.
+ *
+ * `not_reported` must survive the trip: it means we searched this part of the
+ * records and nothing carried that spelling, where `unavailable` means we could
+ * not read it. Mapping the first onto the second prints "a gap on our side" over
+ * a verified nothing, which is the missing-versus-zero failure
+ * `.claude/rules/grounded-answers.md` rule 12 forbids — and it did exactly that
+ * on the first build of this page, on every zero-match group.
+ */
+function nameSearchGroupState(state: string | undefined): NameSearchGroup['state'] {
+  if (state === 'reported') return 'reported';
+  if (state === 'not_reported') return 'not_reported';
+  return 'unavailable';
+}
+
+/** One served result row, read by its own `kind` rather than by the group it
+ *  arrived in — which is what would break the day a group holds 2 shapes. */
+function nameSearchRow(row: ApiNameSearchRowPayload): NameSearchRow | null {
+  if (row.kind === 'person') {
+    return {
+      kind: 'person',
+      legislatorId: row.id ?? '',
+      slug: row.slug ?? '',
+      fullName: row.full_name ?? '',
+      chamber: row.chamber ?? null,
+      districtCode: row.district_code ?? null,
+      party: row.party ?? null,
+    };
+  }
+  if (row.kind === 'committee') {
+    return {
+      kind: 'committee',
+      registrationNumber: row.registration_number ?? '',
+      name: row.name ?? '',
+      filerKind: row.filer_kind ?? null,
+      subType: row.sub_type ?? null,
+      office: row.office ?? null,
+      district: row.district ?? null,
+      isClosed: row.is_closed === true,
+      terminationDate: row.termination_date ?? null,
+    };
+  }
+  if (row.kind === 'payment_name') {
+    return {
+      kind: 'payment_name',
+      name: row.name ?? '',
+      role: row.role ?? '',
+      paymentCount: typeof row.payment_count === 'number' ? row.payment_count : null,
+    };
+  }
+  // A shape we do not know how to draw is dropped rather than guessed at, so a
+  // new group added on the server cannot render as a blank row.
+  return null;
+}
+
+/**
+ * One typed name, matched across the 5 kinds of record and grouped by what each
+ * one is, for /money/search.
+ *
+ * Every group the server returns is kept, in the order it returns them, including
+ * the empty ones: a group dropped for being empty would let a reader read "we did
+ * not look" as "nothing is filed". A group's own state is kept too, because the
+ * register and the bulk downloads are 2 separate copies of Minnesota's data and
+ * one missing copy must not blank the groups that do not depend on it.
+ */
+export async function getCampaignFinanceNameSearchFromApi(
+  query: string,
+  limit = 5,
+): Promise<NameSearchAnswer> {
+  const params = new URLSearchParams({ q: query, limit: String(limit) });
+  const response = await publicApiRequest<DetailResponse<ApiNameSearchPayload>>(
+    `/campaign-finance/search?${params.toString()}`,
+  );
+  const payload = response.data;
+  const groups: NameSearchGroup[] = (payload.groups ?? []).map((group) => ({
+    kind: group.kind ?? '',
+    state: nameSearchGroupState(group.state),
+    results:
+      group.state === 'reported'
+        ? (group.results ?? [])
+            .map(nameSearchRow)
+            .filter((row): row is NameSearchRow => row !== null)
+        : [],
+    total: typeof group.total === 'number' ? group.total : null,
+    atLeast: typeof group.at_least === 'number' ? group.at_least : null,
+    hasMore: group.has_more === true,
+    reason: group.reason ?? null,
+  }));
+  return {
+    state: blockState(payload.state),
+    query: payload.q ?? query,
+    minQueryLength: typeof payload.min_query_length === 'number' ? payload.min_query_length : null,
+    countedUpTo: typeof payload.counted_up_to === 'number' ? payload.counted_up_to : null,
+    groups,
+    reason: payload.reason ?? null,
   };
 }
 

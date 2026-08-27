@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import Svg, { Circle, Path } from 'react-native-svg';
+import Svg, { Path } from 'react-native-svg';
 
 import { Skeleton } from '../../components/Skeleton';
+import { MoneyNameSearchField } from '../../components/campaignMoney/MoneyNameSearchField';
 import { UnderDevelopmentNotice } from '../../components/campaignMoney/UnderDevelopmentNotice';
 import { useResponsive } from '../../hooks/useResponsive';
 import { useCampaignFinanceFilings, useCampaignFinanceSummary } from '../../hooks/useAppQueries';
@@ -17,6 +19,7 @@ import {
   LOBBYING_NOT_LOADED,
   RECORD_DOES_NOT_COVER,
 } from '../../lib/moneyLanding';
+import { NAME_SEARCH_PLACEHOLDER } from '../../lib/moneyNameSearch';
 import { publishedReports, reportDatesLine } from '../../lib/moneyReports';
 import { linkProps, routePath } from '../../navigation/links';
 import type { RootScreenProps } from '../../navigation/types';
@@ -48,15 +51,6 @@ function ForwardArrow({ color }: { color: string }) {
         strokeLinecap="round"
         strokeLinejoin="round"
       />
-    </Svg>
-  );
-}
-
-function MagnifierGlyph() {
-  return (
-    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" aria-hidden>
-      <Circle cx={11} cy={11} r={6.5} stroke={t.colors.text.faint} strokeWidth={2} />
-      <Path d="M16 16 L21 21" stroke={t.colors.text.faint} strokeWidth={2} strokeLinecap="round" />
     </Svg>
   );
 }
@@ -128,6 +122,11 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
           newestConfirmationAt: summary.confirmations.newestConfirmationAt,
         }
       : null;
+  const [searchDraft, setSearchDraft] = useState('');
+  const onSearch = () => {
+    const q = searchDraft.trim();
+    navigation.navigate('MoneySearch', q ? { q } : {});
+  };
   const filesLastCopied = summary?.freshness.downloadsFetchedAt ?? null;
   const feed = filingsQuery.data;
   const filings = feed?.state === 'reported' ? feed.filings : [];
@@ -150,22 +149,35 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
           >
             Follow the money
           </Text>
+          {/* The design's own sentence, restored now that the field below works
+              and the committees list exists: until then the clause was dropped,
+              because copy may only claim what the shipped surfaces deliver
+              (grounded-answers.md rules 2 and 6). */}
           <Text style={styles.subtitle}>
-            Every contribution and expenditure Minnesota publishes for state campaigns.
+            Every contribution and expenditure Minnesota publishes for state campaigns, searchable
+            by the name it was filed under.
           </Text>
 
-          {/* The search front door, visible before it works: the section's plan
-              is search-first, and Eugene's call is to show the whole shape with
-              the unbuilt parts plainly labelled. An inert box, not a field — a
-              control a reader could focus and type into would be a promise. */}
+          {/* The search front door, working since issue #1696: it commits on
+              Enter or the button rather than as you type, because every search
+              opens its own address and a keystroke-by-keystroke commit would
+              leave a history entry per letter. A query under the index's floor is
+              not held back here — the results page renders the server's own "type
+              at least 3 characters" state, which is the honest answer rather than
+              a field that silently refuses. */}
           <View style={styles.searchModule}>
-            <View style={styles.searchBox}>
-              <MagnifierGlyph />
-              <Text style={styles.searchPlaceholder}>
-                Search any name — people, committees, who got paid
-              </Text>
-            </View>
-            <Text style={styles.searchNotBuilt}>Search is not built yet.</Text>
+            <MoneyNameSearchField
+              value={searchDraft}
+              onChangeText={setSearchDraft}
+              onSubmit={onSearch}
+              placeholder={NAME_SEARCH_PLACEHOLDER}
+              showSubmitButton
+            />
+            <Text style={styles.searchNote}>
+              Matched on the name as it was filed, exactly as typed. We offer no nearest match:
+              names here differ from each other by a single character often enough that a guess
+              would put you on the wrong organisation.
+            </Text>
           </View>
 
           {/* WHAT WE FOUND — the research lane, first in prominence. The shelf
@@ -224,8 +236,13 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
               title="Committees"
               body="Campaign committees, party units, and other registered funds."
               countLine={laneCountLine(register?.filerCount ?? null, 'registered filers')}
-              notBuiltLine="This page is not built yet."
+              href={routePath.moneyCommittees()}
+              onOpen={() => navigation.navigate('CommitteeList')}
             />
+            {/* The last inert lane. Its card promises a list the design set does
+                not draw — a name's payments are reached from a search result, not
+                from a lane — so the card stays inert and says so until issue
+                #1780 settles what it opens. */}
             <LaneCard
               title="Who got paid"
               body="Payments as filed, with no page per name."
@@ -359,30 +376,13 @@ const styles = StyleSheet.create({
     lineHeight: 29,
   },
   searchModule: { marginTop: 28 },
-  searchBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
+  searchNote: {
+    marginTop: 10,
     maxWidth: 760,
-    backgroundColor: t.colors.surfaces.base,
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink14,
-    borderRadius: 13,
-    paddingVertical: 15,
-    paddingHorizontal: 17,
-  },
-  searchPlaceholder: {
-    flex: 1,
-    minWidth: 0,
-    color: t.colors.text.faint,
-    fontFamily: t.typography.body,
-    fontSize: 16.5,
-  },
-  searchNotBuilt: {
-    marginTop: 8,
     color: t.colors.text.muted,
     fontFamily: t.typography.body,
     fontSize: 14.5,
+    lineHeight: 22,
   },
   featuredCard: {
     marginTop: 32,
