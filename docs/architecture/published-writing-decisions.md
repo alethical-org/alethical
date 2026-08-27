@@ -19,7 +19,7 @@ this file loosens it. Sequencing and open tasks live on
 
 ## 1. What we publish
 
-Two traits, not 2 mutually exclusive kinds. §2.5 is why that distinction matters.
+Two traits, not 2 mutually exclusive kinds. §2.6 is why that distinction matters.
 
 - **Research.** We add up the campaign-finance records we hold and publish what we found, signed
   and dated, with the arithmetic reproducible by a reader from the linked records. Rule 13 is the
@@ -28,8 +28,8 @@ Two traits, not 2 mutually exclusive kinds. §2.5 is why that distinction matter
 - **A guide.** One term explained in plain language. A guide concludes nothing, adds nothing up
   across members, and defines no classifications, so it sits under rules 1 to 12 like every other
   surface and needs no part of rule 13's exception. None are live; 1 is drafted and 12 are planned.
-- **Both.** A piece may carry both traits. See §2.5, which is where the reader-facing label for
-  that case is decided, and §2.6, which is why this is not hypothetical.
+- **Both.** A piece may carry both traits. See §2.6, which is where the reader-facing label for
+  that case is decided, and §2.7, which is why this is not hypothetical.
 
 ## 2. Settled decisions
 
@@ -45,7 +45,7 @@ Ratified by Eugene, 27 Aug 2026, except where a different date is given.
 | `/reading/sets/<name>` | one set of pieces meant to be read together |
 
 **A piece carrying both traits is addressed under `research`**, because rule 13 binds it in full and
-the address then states which promises apply to the page. See §2.5.
+the address then states which promises apply to the page. See §2.6.
 
 **What flat lost on, twice.** A flat `/reading/<name>` was decided on 25 Aug 2026 and withdrawn on
 26 Aug when both its grounds failed checking; the full record is
@@ -76,7 +76,30 @@ forbidding it forces a fake set the first time a single standalone piece is wort
 design already handles both cases: a card outside a set box carries its label, a row inside a set
 box does not.
 
-### 2.3 A set with no published pieces hides its box and keeps its page
+### 2.3 A set names only its published pieces, never its unwritten ones
+
+Ratified by Eugene 27 Aug 2026. A set box on the `/reading` page lists the pieces that are
+published and nothing else. It never lists a title a reader cannot open, and it carries no count
+of how many pieces the set is eventually meant to hold.
+
+**What the alternative was.** "How the Money Works" is planned as 5 pieces in a fixed reading
+order, and 1 is written ([issue 1771](https://github.com/alethical-org/alethical/issues/1771)).
+The box could have named all 5, with 4 unopenable.
+
+**Why it lost.** [`.claude/rules/grounded-answers.md`](../../.claude/rules/grounded-answers.md)
+rule 2 forbids naming an intent we cannot deliver, and it exists to stop us advertising an unbuilt
+feature. A table of contents with 4 gaps is that same promise made about our writing schedule
+instead. Naming all 5 would only be honest if each unwritten piece had a person and a date, which
+is a commitment rather than a design choice, and none exists.
+
+**What it costs, stated plainly.** A reader cannot discover that the set is meant to grow, so
+nobody looks forward to piece 3. Reversible the moment owners and dates exist, by adding the
+titles back.
+
+**A set's own page follows the same rule.** `/reading/sets/<name>` lists its published pieces and
+no others.
+
+### 2.4 A set with no published pieces hides its box and keeps its page
 
 On the `/reading` page, a set whose pieces are all unpublished shows no box. Its own
 `/reading/sets/<name>` page stays reachable and stays served.
@@ -92,7 +115,7 @@ day it posts and settles every disagreement by correcting its text, never by pul
 only empties if we deliberately unpublish its last piece. Rule 13 does not say a piece can never be
 withdrawn; it gives no procedure for doing so, which is why this is rare rather than impossible.
 
-### 2.4 A person authors every term link; software only proposes candidates
+### 2.5 A person authors every term link; software only proposes candidates
 
 Each jargon term is defined in exactly 1 piece. Where that term appears in another piece, the
 appearance may link to the piece that owns it. **A person decides each link.** Software's only role
@@ -109,7 +132,7 @@ cannot make:
 And a matcher would link terms inside quotations from Minnesota statutes, which puts our own
 explanation inside the state's words.
 
-### 2.5 The words are **Research** and **Guide**, for readers and in the code both
+### 2.6 The words are **Research** and **Guide**, for readers and in the code both
 
 One vocabulary, no mapping layer: a reader sees "Research" or "Guide", and the code says `research`
 and `guide`.
@@ -145,7 +168,7 @@ class, and a piece that adds figures up across members must obey rule 13 in full
 does. Two labels would tell a reader that 2 sets of promises apply when only the stricter one
 governs. Internally it carries both traits, so it can be found as either.
 
-### 2.6 The both-traits case is real, and was measured before it was designed for
+### 2.7 The both-traits case is real, and was measured before it was designed for
 
 The peer coding consultant proposed classifying every planned piece with 2 questions: does it draw
 conclusions, and does it teach 1 concept. Run against the 13 pieces in
@@ -161,10 +184,10 @@ conclusions, and does it teach 1 concept. Run against the 13 pieces in
   it attacks rather than supports", which is a share across the whole independent-spending dataset
   rather than across members. Classified when it is written, not now.
 
-So the both-traits case is present in our own plan today. That is the whole reason §2.5 needed a
+So the both-traits case is present in our own plan today. That is the whole reason §2.6 needed a
 label rule for it and §2.1 needed an address rule for it.
 
-### 2.7 The order the rename runs in
+### 2.8 The order the rename runs in
 
 1. Let the 2 in-flight branches on the report page and the `/reading` page's predecessor land on
    `main`.
@@ -180,7 +203,7 @@ another session's feet, not tidiness.
 
 ## 3. Open decisions
 
-None. §2.5 closed the last one on 27 Aug 2026.
+None. §2.3 and §2.6 closed the last 2 on 27 Aug 2026.
 
 ## 4. What the design assumes and the code does not provide
 
@@ -189,7 +212,7 @@ none of that page can be built until they do.
 
 1. **Two trait flags on a piece**, not 1 kind: does it carry the research trait, does it carry the
    guide trait. `MoneyReport` (`apps/frontend/src/lib/moneyReports.ts`) has neither. The label a
-   reader sees is derived, per §2.5: research trait present means the label reads Research.
+   reader sees is derived, per §2.6: research trait present means the label reads Research.
 2. **Set membership, and a piece's position within its set.** The set concept has no model at all.
 3. **Reading time, computed from a piece's own words.** The page prints no minutes today.
 4. **A "checked" date**, distinct from the publication date. Settled 26 Aug 2026: a piece reads
@@ -198,7 +221,7 @@ none of that page can be built until they do.
 
 ## 5. Naming debt to clear with the rename
 
-Two items, both riding with §2.7's rename so the files are swept once.
+Two items, both riding with §2.8's rename so the files are swept once.
 
 - **"Shelf"** for the `/reading` page breaks
   [`.claude/rules/workflow.md`](../../.claude/rules/workflow.md) rule 7, which requires literal
@@ -207,7 +230,7 @@ Two items, both riding with §2.7's rename so the files are swept once.
   note at `apps/frontend/src/navigation/ia.ts:236`, and rule 13's own text. Replacement: **the
   `/reading` page**, named by its address, which is Eugene's standing rule for naming any page.
 - **`explainer`** as the internal word for the guide trait, in this repo's issues, design notes and
-  any code that reaches for it. Replacement: `guide`, per §2.5. Nothing is built for that trait
+  any code that reaches for it. Replacement: `guide`, per §2.6. Nothing is built for that trait
   yet, so this costs nothing beyond prose.
 
 ## 6. How we would learn the label choice was wrong
