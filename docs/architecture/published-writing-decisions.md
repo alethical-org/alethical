@@ -33,10 +33,16 @@ Two traits, not 2 mutually exclusive kinds. §2.7 is why that distinction matter
   out*, at `/read/guides/what-the-records-name`. A third, *Why 2 official numbers can both be
   right*, is written and settled at
   [`docs/reader-guides/why-2-official-numbers-can-both-be-right.md`](../reader-guides/why-2-official-numbers-can-both-be-right.md),
-  and a fourth, *Money spent without a campaign's say*, at
-  [`docs/reader-guides/money-spent-without-a-campaigns-say.md`](../reader-guides/money-spent-without-a-campaigns-say.md).
-  Neither has a page yet, so neither is posted and no reader can reach either. Eight more are
-  planned.
+  a fourth, *Money spent without a campaign's say*, at
+  [`docs/reader-guides/money-spent-without-a-campaigns-say.md`](../reader-guides/money-spent-without-a-campaigns-say.md),
+  and a fifth, *Why nobody can follow a dollar*, at
+  [`docs/reader-guides/why-nobody-can-follow-a-dollar.md`](../reader-guides/why-nobody-can-follow-a-dollar.md).
+  None of the 3 has a page yet, so none is posted and no reader can reach any of them. That
+  completes the 5 pieces [issue 1752](https://github.com/alethical-org/alethical/issues/1752)
+  fixed for the set "How the Money Works", and closes what
+  [issue 1771](https://github.com/alethical-org/alethical/issues/1771) raised: the set no longer
+  has unwritten pieces waiting on an owner. Seven more guides are planned across other subjects,
+  none of them started.
 - **Both.** A piece may carry both traits. See §2.7, which is where the reader-facing label for
   that case is decided, and §2.8, which is why this is not hypothetical.
 
