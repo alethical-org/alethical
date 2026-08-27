@@ -7,16 +7,16 @@ import { SharePopover } from '../../components/billDetail/SharePopover';
 import { useHistoryScrollRestoration } from '../../hooks/useHistoryScrollRestoration';
 import { useResponsive } from '../../hooks/useResponsive';
 import {
-  reportBySlug,
-  reportDatesLine,
-  reportSectionAnchors,
-  reportShareDescription,
-  reportSharePanelDescription,
-  type MoneyReport,
-  type ReportBlock,
-  type ReportInline,
-  type ReportSection,
-} from '../../lib/moneyReports';
+  researchBySlug,
+  researchDatesLine,
+  researchSectionAnchors,
+  researchShareDescription,
+  researchSharePanelDescription,
+  type ResearchPiece,
+  type ResearchBlock,
+  type ResearchInline,
+  type ResearchSection,
+} from '../../lib/research';
 import { publicPageUrl, type ShareContent } from '../../lib/share';
 import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
 import type { RootScreenProps } from '../../navigation/types';
@@ -24,13 +24,13 @@ import { Container, Footer, PageBackground, TopNav } from '../../theme/primitive
 import { theme as t } from '../../theme/tokens';
 
 /**
- * One published research report at /reports/{slug} — the one surface that
+ * One published piece of research at /reading/research/{slug} — the one surface that
  * may add figures up across members, under `.claude/rules/grounded-answers.md`
  * rule 13's conditions ("Money report web.dc.html", screen B).
  *
- * Everything here renders from the published-report registry
- * (lib/moneyReports.ts), which ships EMPTY: no reader reaches this screen until
- * a report is approved for publication, because the router resolves unknown and
+ * Everything here renders from the published-piece registry
+ * (lib/research.ts), which ships EMPTY: no reader reaches this screen until
+ * a piece is approved for publication, because the router resolves unknown and
  * unpublished slugs to NotFound. The populated states — masthead, correction,
  * newer-filings banner, methodology inset — are pinned by tests with sample
  * content instead.
@@ -40,12 +40,12 @@ import { theme as t } from '../../theme/tokens';
  *   author line, the filing bodies, and the undated-records note were removed
  *   from it; the sources block still names every filing body and the years each
  *   set of outside records covers.
- * - Links run one way. The report may link outward to record pages and official
- *   sources; nothing here writes report claims into any record surface.
+ * - Links run one way. The piece may link outward to record pages and official
+ *   sources; nothing here writes piece claims into any record surface.
  * - Share previews carry title and dates only (lib/share.ts
- *   moneyReportPageMetadata); the Share control's prepared text says the same.
- * - A correction replaces the wrong figure in the report's own text; the dated
- *   correction banner, when the report carries one, is the only trace, and a
+ *   researchPageMetadata); the Share control's prepared text says the same.
+ * - A correction replaces the wrong figure in the piece's own text; the dated
+ *   correction banner, when the piece carries one, is the only trace, and a
  *   wrong number is never left readable (rule 13, Eugene 25 Aug 2026).
  */
 
@@ -143,7 +143,7 @@ function useActiveSection(anchors: string[], enabled: boolean): string | null {
   return enabled ? active : null;
 }
 
-function InlineRuns({ runs }: { runs: ReportInline[] }) {
+function InlineRuns({ runs }: { runs: ResearchInline[] }) {
   return (
     <>
       {runs.map((run, index) => {
@@ -174,7 +174,7 @@ function InlineRuns({ runs }: { runs: ReportInline[] }) {
   );
 }
 
-function Blocks({ blocks }: { blocks: ReportBlock[] }) {
+function Blocks({ blocks }: { blocks: ResearchBlock[] }) {
   return (
     <>
       {blocks.map((block, index) => {
@@ -214,7 +214,7 @@ function Blocks({ blocks }: { blocks: ReportBlock[] }) {
 }
 
 /**
- * A report's table. Marked up as a real table so a screen reader announces each
+ * A piece's table. Marked up as a real table so a screen reader announces each
  * figure with its column, and scrollable on its own so a long row never pushes
  * the page sideways.
  */
@@ -251,7 +251,7 @@ function BlockTable({ columns, rows }: { columns: string[]; rows: string[][] }) 
   );
 }
 
-function SectionView({ section, anchor }: { section: ReportSection; anchor: string }) {
+function SectionView({ section, anchor }: { section: ResearchSection; anchor: string }) {
   return (
     <View nativeID={anchor} style={SCROLL_MARGIN as never}>
       <Text accessibilityRole="header" aria-level={2} style={styles.sectionHeading}>
@@ -270,7 +270,7 @@ function SectionView({ section, anchor }: { section: ReportSection; anchor: stri
 
 /**
  * The contents list: one ordinary link per section, in document order, built
- * from the report's own sections so it cannot list a section the article does
+ * from the piece's own sections so it cannot list a section the article does
  * not have.
  *
  * The click is left to the browser on purpose — no onPress, so nothing cancels
@@ -282,12 +282,12 @@ function SectionView({ section, anchor }: { section: ReportSection; anchor: stri
  * — anything linked to must be URL-addressable).
  */
 function ContentsLinks({
-  report,
+  piece,
   anchors,
   activeAnchor,
   compact,
 }: {
-  report: MoneyReport;
+  piece: ResearchPiece;
   anchors: string[];
   activeAnchor?: string | null;
   compact?: boolean;
@@ -295,10 +295,10 @@ function ContentsLinks({
   return (
     <View
       accessibilityRole={isWeb ? ('navigation' as 'none') : undefined}
-      accessibilityLabel="Sections in this report"
+      accessibilityLabel="Sections in this research"
       style={compact ? styles.contentsListCompact : styles.contentsList}
     >
-      {report.sections.map((section, index) => (
+      {piece.sections.map((section, index) => (
         <ContentsLink
           key={anchors[index]}
           anchor={anchors[index]}
@@ -341,20 +341,20 @@ function ContentsLink({
   );
 }
 
-export function MoneyReportScreen({ navigation, route }: RootScreenProps<'MoneyReport'>) {
+export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'>) {
   const { isMobile } = useResponsive();
   // Back out of a #section address should return the reader to where they were
   // reading, not to the top. The browser cannot do it here — the page scrolls
   // an inner container, not the document — so this is the shared hook that
   // saves the position against the exact history entry.
   const scrollRestoration = useHistoryScrollRestoration();
-  const report = reportBySlug(route.params.slug);
+  const piece = researchBySlug(route.params.slug);
 
   // One list of section link targets, read by both the rail and the article.
-  const anchors = useMemo(() => reportSectionAnchors(report?.sections ?? []), [report]);
+  const anchors = useMemo(() => researchSectionAnchors(piece?.sections ?? []), [piece]);
   const activeAnchor = useActiveSection(anchors, !isMobile);
 
-  // A page opened at /reports/{slug}#{section} has to jump itself: the article
+  // A page opened at /reading/research/{slug}#{section} has to jump itself: the article
   // is drawn by JavaScript, so when the browser looks for the fragment's target
   // on load there is nothing there yet. Read once on the first render, then
   // re-asserted after the layout settles.
@@ -374,13 +374,13 @@ export function MoneyReportScreen({ navigation, route }: RootScreenProps<'MoneyR
 
   // The router only produces this route for published slugs, so this is a
   // belt-and-braces guard, not a reachable state.
-  if (!report) {
+  if (!piece) {
     return (
       <PageBackground>
         <ScrollView contentContainerStyle={styles.page}>
           <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
           <Container style={styles.main}>
-            <Text style={styles.paragraph}>This report is not published.</Text>
+            <Text style={styles.paragraph}>This research is not published.</Text>
           </Container>
           <Footer
             onContact={() => navigation.navigate('ContactUs')}
@@ -393,12 +393,12 @@ export function MoneyReportScreen({ navigation, route }: RootScreenProps<'MoneyR
   }
 
   const shareContent: ShareContent = {
-    subject: 'report',
-    title: report.title,
+    subject: 'research',
+    title: piece.title,
     // Title and dates only — no dek, no figures (rule 13).
-    description: reportShareDescription(report),
-    previewDescription: reportSharePanelDescription(report),
-    url: publicPageUrl(routePath.moneyReport(report.slug)),
+    description: researchShareDescription(piece),
+    previewDescription: researchSharePanelDescription(piece),
+    url: publicPageUrl(routePath.research(piece.slug)),
   };
 
   return (
@@ -408,73 +408,73 @@ export function MoneyReportScreen({ navigation, route }: RootScreenProps<'MoneyR
 
         <Container style={[styles.main, isMobile && styles.mainMobile]}>
           <Pressable
-            {...linkProps(routePath.moneyReports(), () => navigation.navigate('MoneyReports'))}
+            {...linkProps(routePath.reading(), () => navigation.navigate('Reading'))}
             style={styles.backLink}
           >
             <BackChevron />
-            <Text style={styles.backLinkText}>Campaign money reports</Text>
+            <Text style={styles.backLinkText}>Campaign money research</Text>
           </Pressable>
 
           <View style={[styles.grid, isMobile && styles.gridMobile]}>
             {!isMobile ? (
               <View style={[styles.rail, webSticky as never]}>
                 <Text style={styles.railLabel}>CONTENTS</Text>
-                <ContentsLinks report={report} anchors={anchors} activeAnchor={activeAnchor} />
+                <ContentsLinks piece={piece} anchors={anchors} activeAnchor={activeAnchor} />
               </View>
             ) : null}
 
             <View style={styles.column}>
-              {report.newerFilingsNote ? (
+              {piece.newerFilingsNote ? (
                 <View style={[styles.newerBanner, isMobile && styles.bannerMobile]}>
                   <Text style={styles.newerBannerLabel}>NEWER FILINGS EXIST</Text>
-                  <Text style={styles.newerBannerText}>{report.newerFilingsNote}</Text>
+                  <Text style={styles.newerBannerText}>{piece.newerFilingsNote}</Text>
                 </View>
               ) : null}
 
-              <Text style={styles.eyebrow}>REPORT</Text>
+              <Text style={styles.eyebrow}>RESEARCH</Text>
               <Text
                 accessibilityRole="header"
                 aria-level={1}
                 style={[styles.heading, isMobile && styles.headingMobile]}
               >
-                {report.title}
+                {piece.title}
               </Text>
-              <Text style={styles.dek}>{report.dek}</Text>
+              <Text style={styles.dek}>{piece.dek}</Text>
 
               <View style={styles.mastheadRow}>
                 <View style={styles.mastheadMeta}>
-                  <Text style={styles.mastheadLineMuted}>{reportDatesLine(report)}</Text>
+                  <Text style={styles.mastheadLineMuted}>{researchDatesLine(piece)}</Text>
                 </View>
                 <SharePopover content={shareContent} />
               </View>
 
-              {report.correction ? (
+              {piece.correction ? (
                 <View style={[styles.correctionBanner, isMobile && styles.bannerMobile]}>
-                  <Text style={styles.correctionLabel}>{report.correction.datedLabel}</Text>
-                  <Text style={styles.correctionText}>{report.correction.note}</Text>
+                  <Text style={styles.correctionLabel}>{piece.correction.datedLabel}</Text>
+                  <Text style={styles.correctionText}>{piece.correction.note}</Text>
                 </View>
               ) : null}
 
               {isMobile ? (
                 <View style={styles.mobileContents}>
                   <Text style={styles.railLabel}>CONTENTS</Text>
-                  <ContentsLinks report={report} anchors={anchors} compact />
+                  <ContentsLinks piece={piece} anchors={anchors} compact />
                 </View>
               ) : null}
 
               <View style={styles.shortVersionBox}>
                 <Text style={[styles.insetLabel, styles.shortVersionLabel]}>SHORT VERSION</Text>
-                <Blocks blocks={report.shortVersion} />
+                <Blocks blocks={piece.shortVersion} />
               </View>
 
-              {report.sections.map((section, index) => (
+              {piece.sections.map((section, index) => (
                 <SectionView key={anchors[index]} section={section} anchor={anchors[index]} />
               ))}
 
               <View style={styles.sourcesBlock}>
                 <Text style={styles.insetLabel}>WHERE THESE NUMBERS COME FROM</Text>
                 <View style={styles.sourcesList}>
-                  {report.sources.map((source, index) => (
+                  {piece.sources.map((source, index) => (
                     <Text key={index} style={styles.sourceItem}>
                       <Text>{source.text} </Text>
                       {source.note ? <Text>{source.note} </Text> : null}
@@ -526,7 +526,7 @@ const styles = StyleSheet.create({
   },
   contentsList: { marginTop: 16, gap: 13 },
   contentsListCompact: { marginTop: 12, gap: 10 },
-  // Literal inks from the report design: resting #4b524b, and #11150f for the
+  // Literal inks from the piece design: resting #4b524b, and #11150f for the
   // section being read and for hover. The ink ramp has no role name for either
   // shade at this weight, and the rest of this screen names its mockup colours
   // the same way.

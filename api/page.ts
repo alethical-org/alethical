@@ -12,8 +12,8 @@ import {
   injectPageSnapshot,
   legislatorDirectoryPageSnapshot,
   legislatorPageSnapshot,
-  moneyReportPageSnapshot,
-  moneyReportsShelfPageSnapshot,
+  researchPageSnapshot,
+  readingPageSnapshot,
   renderPageSnapshot,
   type BillDirectorySnapshotSource,
   type BillSnapshotSource,
@@ -39,7 +39,7 @@ import {
   legislatorPageMetadata,
   committeeListPageMetadata,
   committeeMoneyPageMetadata,
-  moneyReportPageMetadata,
+  researchPageMetadata,
   moneySearchPageMetadata,
   NOT_FOUND_DESCRIPTION,
   NOT_FOUND_HEADING,
@@ -48,9 +48,9 @@ import {
   type PageMetadata,
 } from "../apps/frontend/src/lib/share";
 import {
-  publishedReports,
-  reportBySlug,
-} from "../apps/frontend/src/lib/moneyReports";
+  publishedResearch,
+  researchBySlug,
+} from "../apps/frontend/src/lib/research";
 import { targetFromPathname } from "../apps/frontend/src/navigation/webRoutes";
 
 /**
@@ -344,26 +344,26 @@ async function contentFor(
       };
     case "moneyLanding":
       return headOnly(STATIC_PAGE_METADATA["/money"]);
-    case "moneyReports":
-      // The shelf's own list, so the route to every posted piece exists before
+    case "reading":
+      // The /reading page's own list, so the route to every posted piece exists before
       // any program runs (#1760). The registry is on the server already, so
       // this asks the data service for nothing.
       return {
-        metadata: STATIC_PAGE_METADATA["/reports"],
+        metadata: STATIC_PAGE_METADATA["/reading"],
         snapshot: renderPageSnapshot(
-          moneyReportsShelfPageSnapshot(publishedReports()),
+          readingPageSnapshot(publishedResearch()),
         ),
       };
-    case "moneyReport": {
-      // Title and dates only in a report's tags (grounded-answers.md rule 13);
-      // an unpublished or unknown slug is a genuinely absent page. The report's
+    case "research": {
+      // Title and dates only in a piece's tags (grounded-answers.md rule 13);
+      // an unpublished or unknown slug is a genuinely absent page. The piece's
       // own writing goes in the body instead, where the loaded page puts it
       // (#1760) — the `indexed` flag still decides listing on its own.
-      const report = reportBySlug(target.slug);
-      if (!report) throw new UnknownAddress(`no report ${target.slug}`);
+      const piece = researchBySlug(target.slug);
+      if (!piece) throw new UnknownAddress(`no piece ${target.slug}`);
       return {
-        metadata: moneyReportPageMetadata(report),
-        snapshot: renderPageSnapshot(moneyReportPageSnapshot(report)),
+        metadata: researchPageMetadata(piece),
+        snapshot: renderPageSnapshot(researchPageSnapshot(piece)),
       };
     }
     case "moneyCommitteeList":

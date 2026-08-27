@@ -61,8 +61,14 @@
   ],
   "redirects": [
     { "source": "/search", "destination": "/bills", "permanent": true },
-    { "source": "/money/reports", "destination": "/reports", "permanent": true },
-    { "source": "/money/reports/:slug", "destination": "/reports/:slug", "permanent": true },
+    { "source": "/reports", "destination": "/reading", "permanent": true },
+    { "source": "/reports/:slug", "destination": "/reading/research/:slug", "permanent": true },
+    { "source": "/money/reports", "destination": "/reading", "permanent": true },
+    {
+      "source": "/money/reports/:slug",
+      "destination": "/reading/research/:slug",
+      "permanent": true
+    },
     { "source": "/chat", "destination": "/", "permanent": false },
     { "source": "/chat/:path*", "destination": "/", "permanent": false },
     { "source": "/account", "destination": "/", "permanent": false }

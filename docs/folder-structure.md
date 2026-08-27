@@ -43,7 +43,7 @@ docs/
 │   ├── design-principles.md
 │   └── ui-copy-guide.md
 │
-├── explainers/          What we publish to teach readers how a system works
+├── reader-guides/         What we publish to teach readers how a system works
 │   └── who-has-to-report-their-money.md
 │
 ├── operations/            Running and shipping it
@@ -63,7 +63,7 @@ docs/
 Each folder answers a question, and that is what lets someone find a doc by guessing:
 *what are we building and how do I learn it* (product-onboarding) · *how is it built*
 (architecture) · *how should it look* (design) · *how do I run it* (operations) ·
-*what do we publish for readers* (explainers). The remaining folder holds research
+*what do we publish for readers* (reader-guides). The remaining folder holds research
 material. Design working files stay with their task or
 pull request instead of becoming permanent documentation.
 
@@ -82,13 +82,18 @@ Six placements aren't obvious, so they're stated:
   temporary occupant, the sign-in bundle, was reconciled into
   `product-onboarding/sign-in-guide.md` and removed with the rev 17 sign-in build
   ([#1533](https://github.com/alethical-org/alethical/issues/1533)).
-- **`explainers/` is published prose, not a guide and not design** — a `product-onboarding/`
-  guide explains our product to whoever builds or supports it; an explainer is a page a
-  reader reads, teaching one part of how Minnesota's system works. It is kept under `docs/`
+- **`reader-guides/` is published prose, not internal documentation and not design** — a
+  `product-onboarding/` guide explains our product to whoever builds or supports it; a
+  **Guide** in the published sense is a page a
+  reader reads, teaching one part of how Minnesota's system works
+  (`architecture/published-writing-decisions.md` §2.6, which settled that word on
+  27 Aug 2026 and replaced "explainer"). The folder is named `reader-guides/` rather than
+  `guides/` so the 2 senses of the word cannot be confused by their folder alone. It is kept
+  under `docs/`
   only while the page that renders it does not exist
   ([#1752](https://github.com/alethical-org/alethical/issues/1752)); once a piece is a
-  published surface, its words belong in code beside the reports registry
-  (`apps/frontend/src/lib/moneyReports.ts`) and this folder keeps only what has not shipped.
+  published surface, its words belong in code beside the research registry
+  (`apps/frontend/src/lib/research.ts`) and this folder keeps only what has not shipped.
 - **`user-data-retention-policy.md` is product, not operations** — it reads like an ops
   concern because it names tables and third-party services, but the question it answers is
   *what does the product keep about the people who read it, and what do we promise them*.

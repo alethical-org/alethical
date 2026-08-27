@@ -1,6 +1,6 @@
 /**
  * Phase-0 IA contract — single source of truth for the new top-nav information
- * architecture (Search · Reports · About · auth).
+ * architecture (Search · Reading · About · auth).
  *
  * Ask stays reachable through its answer route and in-page actions, but it is not
  * a global navigation item. Every page now shares the same Ask-free menu.
@@ -20,7 +20,7 @@
  * tracking capabilities below are still declared, and Tracked Bills is still a
  * real page. Only `MENUS` decides what the bar and the phone drawer render.
  */
-export type MenuKey = 'search' | 'track' | 'reports' | 'about';
+export type MenuKey = 'search' | 'track' | 'reading' | 'about';
 
 export type Availability = 'mvp' | 'roadmap';
 
@@ -59,13 +59,16 @@ export interface IaItem {
  *
  * A "Yours" group used to sit second, holding one row: Tracked Bills. #1698
  * moved that row into the account menu, where a reader's own things belong, and
- * dropped the group from the bar. Reports took second place: it holds one child
+ * dropped the group from the bar. Reading took second place: it holds one child
  * for now, and holds as a group because the child names a subject rather than
- * repeating the header (nav build prompt, 20 Aug 2026).
+ * repeating the header (nav build prompt, 20 Aug 2026). The group was labelled
+ * Reports until 27 Aug 2026, when "report" went back to meaning the document a
+ * campaign files with the state and the group took the name of the page it opens
+ * (docs/architecture/published-writing-decisions.md §2.6 and §5).
  */
 export const MENUS: { key: MenuKey; label: string }[] = [
   { key: 'search', label: 'Search' },
-  { key: 'reports', label: 'Reports' },
+  { key: 'reading', label: 'Reading' },
   { key: 'about', label: 'About' },
 ];
 
@@ -217,20 +220,20 @@ export const IA: IaItem[] = [
     authGated: false,
     inNavDropdown: true,
   },
-  // Reports — Alethical's own published research, second in the bar. One child
+  // Reading — Alethical's own published writing, second in the bar. One child
   // today; the group holds because "Campaign money" names a subject the header
-  // does not, and adding a "report" suffix would stutter (nav build prompt,
-  // 20 Aug 2026). The NEW pill rides on the child, not the group.
+  // does not, and adding a kind word as a suffix would stutter (nav build
+  // prompt, 20 Aug 2026). The NEW pill rides on the child, not the group.
   {
-    id: 'reports-campaign-money',
+    id: 'reading-campaign-money',
     label: 'Campaign money',
-    path: '/reports',
-    menu: 'reports',
+    path: '/reading',
+    menu: 'reading',
     availability: 'mvp',
     authGated: false,
     description: 'What we found across campaign filings and how we counted it',
     isNew: true,
-    note: 'Opens the research shelf. A signed report is the one surface allowed to add figures up across members (.claude/rules/grounded-answers.md rule 13).',
+    note: 'Opens the /reading page. A piece of our own research is the one surface allowed to add figures up across members (.claude/rules/grounded-answers.md rule 13).',
   },
 
   // Track — personalized, signed-in ("your space"). Auth-gated. No longer a

@@ -189,6 +189,10 @@ label rule for it and §2.1 needed an address rule for it.
 
 ### 2.8 The order the rename runs in
 
+**Ran 27 Aug 2026.** The reader-facing words, the internal names, the addresses and the permanent
+forwards all shipped in one pull request; the 4 fields in §4 did not, and stay on
+[issue 1752](https://github.com/alethical-org/alethical/issues/1752).
+
 1. Let the 2 in-flight branches on the report page and the `/reading` page's predecessor land on
    `main`.
 2. Pause new edits to those 2 files for the length of the rename.
@@ -211,7 +215,11 @@ Four fields, none of which exists. Every one is read by the drawings for the `/r
 none of that page can be built until they do.
 
 1. **Two trait flags on a piece**, not 1 kind: does it carry the research trait, does it carry the
-   guide trait. `MoneyReport` (`apps/frontend/src/lib/moneyReports.ts`) has neither. The label a
+   guide trait. `ResearchPiece` (`apps/frontend/src/lib/research.ts`) has neither, and §2.8's rename
+   deliberately added neither: a single-value `kind` field would make the both-traits case in §2.7
+   impossible to express, and the 2 flags belong with the other 3 fields on
+   [issue 1752](https://github.com/alethical-org/alethical/issues/1752) rather than half-built ahead
+   of them. The label a
    reader sees is derived, per §2.6: research trait present means the label reads Research.
 2. **Set membership, and a piece's position within its set.** The set concept has no model at all.
 3. **Reading time, computed from a piece's own words.** The page prints no minutes today.
@@ -221,17 +229,24 @@ none of that page can be built until they do.
 
 ## 5. Naming debt to clear with the rename
 
-Two items, both riding with §2.8's rename so the files are swept once.
+Two items, both rode with §2.8's rename so the files were swept once. **Both are cleared, 27 Aug
+2026**; what each one was, and where it went, is below.
 
-- **"Shelf"** for the `/reading` page breaks
+- **"Shelf"** for the `/reading` page broke
   [`.claude/rules/workflow.md`](../../.claude/rules/workflow.md) rule 7, which requires literal
-  names a newcomer can guess and bans metaphors. It arrived in a design bundle and has spread into
+  names a newcomer can guess and bans metaphors. It arrived in a design bundle and had spread into
   `MoneyReportsShelfScreen.tsx`, its exported screen and route, 4 code comments, the navigation
-  note at `apps/frontend/src/navigation/ia.ts:236`, and rule 13's own text. Replacement: **the
-  `/reading` page**, named by its address, which is Eugene's standing rule for naming any page.
+  note at `apps/frontend/src/navigation/ia.ts`, and rule 13's own text. Replacement, now shipped:
+  **the `/reading` page**, named by its address, which is Eugene's standing rule for naming any
+  page. The screen is `ReadingScreen.tsx`, its route is `Reading`, and the word "shelf" appears
+  nowhere in the frontend or the API.
 - **`explainer`** as the internal word for the guide trait, in this repo's issues, design notes and
-  any code that reaches for it. Replacement: `guide`, per §2.6. Nothing is built for that trait
-  yet, so this costs nothing beyond prose.
+  any code that reaches for it. Replacement: `guide`, per §2.6. Nothing is built for that trait, so
+  this cost nothing beyond prose, and the prose is done: the folder-word table in
+  [`page-metadata-for-search-and-sharing-decisions.md`](page-metadata-for-search-and-sharing-decisions.md)
+  §20.6 and its §21 both say `guide` now. Two `explainer` uses are deliberately left: the mentions in
+  this section, which are the record of what was renamed, and `styles.explainer` in 2 screens, which
+  names a block of explanatory copy and has nothing to do with the guide trait.
 
 ## 6. How we would learn the label choice was wrong
 

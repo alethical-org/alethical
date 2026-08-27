@@ -1009,16 +1009,22 @@ record.
 - Retired `/search` addresses permanently redirect to Bills. Chat and Account addresses temporarily
   redirect Home because those features may return. They still lead somewhere useful without making
   a browser remember a permanent move that later blocks the restored feature.
-- The research shelf moved from `/money/reports` to `/reports`, and one report from
-  `/money/reports/{slug}` to `/reports/{slug}`, on 20 Aug 2026
-  ([#1698](https://github.com/alethical-org/alethical/issues/1698)). Both old addresses redirect
-  **permanently**, because the page genuinely moved and is not coming back to the old address —
-  the opposite of the Chat and Account case above. `/money/reports` had been in the pages sitemap
-  since the shelf shipped, so a permanent redirect is what tells a search engine to carry its
-  standing over rather than treat `/reports` as a new page competing with a live one. The sitemap
-  and the served canonical address now name `/reports` only, so nothing we publish points at the
-  redirect. The route table resolves the old addresses too, which is what keeps them working on a
-  host with no redirect rules — the dev server and a local static export. The cost of choosing
+- Our own writing has moved twice, and every old address forwards **permanently**: from
+  `/money/reports` to `/reports` on 20 Aug 2026
+  ([#1698](https://github.com/alethical-org/alethical/issues/1698)), and from `/reports` to
+  `/reading` on 27 Aug 2026, with one piece from `/reports/{slug}` to
+  `/reading/research/{slug}` (§20.6 and
+  [`published-writing-decisions.md`](published-writing-decisions.md) §2.1). Permanent, because the
+  page genuinely moved and is not coming back to the old address — the opposite of the Chat and
+  Account case above. `/money/reports` had been in the pages sitemap since the listing shipped, and
+  `/reports/the-money-only-goes-one-way` had been visible to search engines since 25 Aug 2026, so a
+  permanent forward is what tells a search engine to carry that standing over rather than treat the
+  new address as a new page competing with a live one. **Every forward is direct**: the 2
+  `/money/reports` entries in `vercel.json` were repointed at the `/reading` addresses in the same
+  release, rather than left aimed at `/reports`, which would have made them chains. The sitemap and
+  the served canonical address name the `/reading` addresses only, so nothing we publish points at
+  a forward. The route table resolves all 4 old addresses too, which is what keeps them working on a
+  host with no forwarding rules — the dev server and a local static export. The cost of choosing
   permanent, accepted here: a browser may cache a 308 and keep forwarding even after the rule is
   removed, so this is not a cheap decision to reverse. That is the right trade for a page that
   moved for good, and the wrong one for Chat and Account above, which may come back.
@@ -1072,8 +1078,8 @@ no crawling, and 2 of our own surfaces are working against us today.
 
 **The first of those 2 is not a new defect. It is §18's defect on a new surface.** §18 recorded that
 `/bills` and `/legislators` served "the right title but an empty body, so the sitemap was doing almost
-all of the discovery work", and fixed it for the directories. The report page did the same thing, with
-the explainer library about to be built on it. Read §20.4's first bullet as a recurrence with a known
+all of the discovery work", and fixed it for the directories. The research page did the same thing, with
+the guide library about to be built on it. Read §20.4's first bullet as a recurrence with a known
 cure rather than a discovery — **the cure shipped the same day, in §21.**
 
 Recorded from the working session that raised it. Every claim marked **measured** was checked
@@ -1124,7 +1130,8 @@ the existing 3-way split has plenty of room; it is a reporting convenience, not 
 ### 20.4 Two defects this found, both filed
 
 - **Our own writing sent search engines no prose. Fixed the same day — see §21.** Measured:
-  `/reports/the-money-only-goes-one-way` returned 8,125 bytes carrying the title 3 times and not one
+  the one posted piece, then addressed `/reports/the-money-only-goes-one-way`, returned 8,125 bytes
+  carrying the title 3 times and not one
   sentence of the body, while `/bills/94-2025-HF1` returned 11,231 bytes including its real
   database-driven title. Google does run JavaScript, but queues those pages for a later pass and
   recommends serving content from the server. The links out of the page were missing from the first
@@ -1140,7 +1147,7 @@ the existing 3-way split has plenty of room; it is a reporting convenience, not 
 
 ### 20.5 The discoverability rules for published writing
 
-Settled, and binding on the Read page and every piece that lives on it:
+Settled, and binding on the `/reading` page and every piece that lives on it:
 
 1. **Every piece stays reachable by an ordinary link from a page search engines visit, permanently**,
    not only while it is recent.
@@ -1185,9 +1192,13 @@ Nested, with one combined listing:
 | address | what it is |
 | --- | --- |
 | `/reading` | everything, one combined listing |
-| `/reading/reports/<name>` | one report |
-| `/reading/explainers/<name>` | one explainer |
+| `/reading/research/<name>` | one piece carrying the research trait |
+| `/reading/guides/<name>` | one piece carrying only the guide trait |
 | `/reading/sets/<name>` | one set |
+
+The folder words were `reports` and `explainers` when this section was first written; §2.6 of
+[`published-writing-decisions.md`](published-writing-decisions.md) settled them as `research` and
+`guides` on 27 Aug 2026, and the paragraph below records that.
 
 Reviewed on [issue 1752](https://github.com/alethical-org/alethical/issues/1752) (26 Aug 2026
 comments) and ratified 27 Aug 2026. What nested buys: a listing address and the pieces under it agree by construction, and no
@@ -1203,7 +1214,7 @@ promises apply to the page.
 Flat was proposed a second time on 27 Aug, by an outside review, on the ground that a both-traits
 piece should not have to pick a folder. Answered rather than denied, and the reasoning plus the
 measured both-traits case is in
-[`published-writing-decisions.md`](published-writing-decisions.md) §2.1 and §2.6.
+[`published-writing-decisions.md`](published-writing-decisions.md) §2.1 and §2.7.
 
 **One measured fact from that review strengthens nested and had been cited for flat.** Google
 stopped showing the folder path in mobile search results entirely, in every language and region, in
@@ -1223,16 +1234,20 @@ reader-visible text we cannot edit. It is dead twice over.
   the address, and where there is no folder the same question is answered by a sitemap per kind plus
   a kind field in our own records.
 
-**The 2 old addresses stay discontinued rather than forwarded**, and that stays a one-time
-exception rather than a policy. `/reports` and `/money/reports` both answer today and nothing on
-the site links to either. How many people have arrived through them is not measured and is not
-claimed here. Once a piece is cited, an address that has to move gets a direct permanent forward
-with no chain, kept indefinitely, because other people's saved links never update.
+**Every old address is forwarded, direct and permanent, with no intermediate hop.** Shipped
+27 Aug 2026 with the move to `/reading`: `vercel.json` forwards `/reports` and `/money/reports` to
+`/reading`, and `/reports/:slug` and `/money/reports/:slug` to `/reading/research/:slug`. The 2
+`/money/reports` entries were repointed rather than left aimed at `/reports`, which would have made
+them chains. The earlier position here — that those 2 addresses stayed discontinued rather than
+forwarded — was written while nothing had been published at them; the one posted piece has been
+visible to search engines at `/reports/the-money-only-goes-one-way` since 25 Aug 2026, so a saved or
+cited link now exists and forwarding is what keeps it working. How many people have arrived through
+any old address is not measured and is not claimed here.
 
 ### 20.7 What is deliberately not settled here
 
-- The Read page's layout, how it grows, and where the home page tells a first-time visitor we publish
-  original research. Both are open questions with Design, tracked on
+- The `/reading` page's layout, how it grows, and where the home page tells a first-time visitor we
+  publish original research. Both are open questions with Design, tracked on
   [issue 1752](https://github.com/alethical-org/alethical/issues/1752).
 - Whether published writing carries a change date at all. The general pages sitemap carries none
   today, which is honest and gives Google nothing to schedule on.
@@ -1244,76 +1259,85 @@ with no chain, kept indefinitely, because other people's saved links never updat
 
 ---
 
-## 21. Our own reports in the first response
+## 21. Our own research in the first response
 
 Built 25 Aug 2026 for [#1760](https://github.com/alethical-org/alethical/issues/1760), which is
 §20.4's first defect. §20 diagnosed it and holds the before measurement; this section records what
 shipped. It also satisfies §20.5 rule 3 — "the list must exist before any JavaScript runs" — for the
-shelf, which is the list every posted piece is reachable from today.
+`/reading` page, which is the list every posted piece is reachable from today.
+
+**The addresses below are the ones that were live on 25 Aug 2026.** The move to `/reading` and
+`/reading/research/<name>` shipped 27 Aug 2026 (§20.6, and
+[`published-writing-decisions.md`](published-writing-decisions.md) §2.1); the serving path was
+already keyed to the resolved route rather than to a path string, so it needed no change, which is
+what the last bullet under Decision predicted.
 
 ### What arrives now
 
 `curl` against the built handler, 25 Aug 2026, beside §20.4's live before figures:
 
-| address | before | after | prose present |
+| address, as it was on 25 Aug 2026 | before | after | prose present |
 |---|---:|---:|---|
-| `/reports/the-money-only-goes-one-way` | 8,125 bytes | **17,223 bytes** | yes. "Six organizations", "one-way valve", "Optometry", "886 million", "Enbridge Energy" all present |
-| `/reports` | 8,402 bytes | **9,391 bytes** | yes, with an ordinary link to every posted report |
+| `/reports/the-money-only-goes-one-way`, now `/reading/research/the-money-only-goes-one-way` | 8,125 bytes | **17,223 bytes** | yes. "Six organizations", "one-way valve", "Optometry", "886 million", "Enbridge Energy" all present |
+| `/reports`, now `/reading` | 8,402 bytes | **9,391 bytes** | yes, with an ordinary link to every posted piece |
 
 ### Decision
 
-- A report address serves the report's **whole text**: title, standfirst, the two masthead dates, the
+- A piece's address serves the piece's **whole text**: title, standfirst, the two masthead dates, the
   short version, every section under its own heading, every paragraph, bullet and table in the
-  report's own order, the methodology inset where a section carries one, the dated newer-filings and
-  correction banners where the report carries them, and the "where these numbers come from" block.
-  Plus one link, back to the shelf.
-- The shelf serves its heading, its introduction, and an ordinary `<a href>` per posted report,
-  carrying that report's title, publication date and standfirst.
+  piece's own order, the methodology inset where a section carries one, the dated newer-filings and
+  correction banners where the piece carries them, and the "where these numbers come from" block.
+  Plus one link, back to the `/reading` page.
+- The `/reading` page serves its heading, its introduction, and an ordinary `<a href>` per posted
+  piece, carrying that piece's title, publication date and standfirst.
 - A table is served as a real `<table>`, matching how the loaded page marks one up, so a figure is
   announced with its column rather than as a loose run of text.
-- The report registry (`apps/frontend/src/lib/moneyReports.ts`) is already on the server, so neither
+- The research registry (`apps/frontend/src/lib/research.ts`, named `moneyReports.ts` until
+  27 Aug 2026) is already on the server, so neither
   address asks the data service for anything. This is the cheapest case in this whole series: no
   query, no new field, no migration.
-- **The serving path is keyed to the resolved route, not to a path string**, so whichever shape
-  §20.6's unsettled `/reading` move lands on needs no work here: whatever address resolves to the
-  listing or to a piece gets the same body. That is also what "the explainer surface ships with this from its first piece" means in
+- **The serving path is keyed to the resolved route, not to a path string**, so §20.6's `/reading`
+  move needed no work here: whatever address resolves to the
+  listing or to a piece gets the same body. That is also what "the guide surface ships with this from its first piece" means in
   practice — a new piece is a registry entry, not new serving work.
 
 ### Why this does not weaken rule 13
 
 [`.claude/rules/grounded-answers.md`](../../.claude/rules/grounded-answers.md) rule 13 holds a
-report's claims out of its **share preview and metadata**, and keeps *listing* a report on its own
+piece's claims out of its **share preview and metadata**, and keeps *listing* a piece on its own
 `indexed` flag. Both are untouched:
 
-- The tags still carry title and dates only. `moneyReportPageMetadata` is unchanged, and a test
-  asserts the served `<head>` carries the dates line and none of the report's figures.
+- The tags still carry title and dates only. `researchPageMetadata` (named
+  `moneyReportPageMetadata` until 27 Aug 2026) is unchanged, and a test
+  asserts the served `<head>` carries the dates line and none of the piece's figures.
 - The `indexed` flag still decides listing on its own, and serving the body never sets it. What
-  changed there is rule 13 itself, not this work: since 25 Aug 2026 a posted report is
+  changed there is rule 13 itself, not this work: since 25 Aug 2026 a posted piece is
   `indexed: true` from the day it posts, and the hold-back stays available for a piece Eugene names
   ([#1767](https://github.com/alethical-org/alethical/pull/1767)). A held piece still carries
   `X-Robots-Tag: noindex`, the noindex tag and no canonical, and stays out of the sitemap. Serving
   the body and permitting the listing are different acts, and only the first one changed here.
-- Rule 13 forbids editing a report's words at all, so the served text is the **stored** text. Nothing
+- Rule 13 forbids editing a piece's words at all, so the served text is the **stored** text. Nothing
   is summarised, trimmed or re-punctuated for the server.
 
 ### How "the served text is the drawn text" is proved here
 
-The report screen needs navigation and cannot be rendered in a test, the same limit the legislator
+The research screen needs navigation and cannot be rendered in a test, the same limit the legislator
 profile hit in §13. So the guarantee is the stronger one available in this case: every served line
-**is** one of the report's own stored strings, produced by the same helper (`reportRunsText`) the
+**is** one of the piece's own stored strings, produced by the same helper (`researchRunsText`, named
+`reportRunsText` until 27 Aug 2026) the
 screen's paragraph renderer uses, and the test asserts set membership rather than containment — a
 re-worded or shortened sentence fails. A second test asserts that no figure in the served HTML is
-absent from the report's own data
+absent from the piece's own data
 ([`.claude/rules/grounded-answers.md`](../../.claude/rules/grounded-answers.md) rule 11: a number the
 layout worked out for itself reads as a filed fact). A drift alarm reads both screen files and fails
 if either stops drawing those same fields. Seven deliberate mutations were run against the set;
 every one failed, including a table silently dropped and a sentence trimmed to 80 characters.
 
-Checked both ways on the real report: all **81** text runs in the first response appear in the live
-rendered page, and all 5 runs on the shelf do.
+Checked both ways on the real piece: all **81** text runs in the first response appear in the live
+rendered page, and all 5 runs on the listing do.
 
-The shelf's fixed wording had existed in **two** places — the screen and `lib/share.ts`'s search
-description — so it now lives once, in `lib/moneyReports.ts`, and the served, drawn and described
+The listing's fixed wording had existed in **two** places — the screen and `lib/share.ts`'s search
+description — so it now lives once, in `lib/research.ts`, and the served, drawn and described
 versions cannot drift apart.
 
 ### What this deliberately does not do
@@ -1321,9 +1345,10 @@ versions cannot drift apart.
 - **The contents rail is not served.** It is in-page navigation, like the top nav and the Share
   control, and the snapshot has never carried site chrome. A shared `#section` address still works,
   because the loaded page jumps to it.
-- **An outward link inside a report's prose contributes its words, not its address.** The links that
+- **An outward link inside a piece's prose contributes its words, not its address.** The links that
   matter for finding the rest of the research are the ones between pages, and those are real anchors.
-  No posted report carries an inline link today.
-- **No address, route or redirect changed.** §20.6's decision is separate work.
-- **Nothing about the report's text, source links or method boxes changed.** Those are separate,
+  No posted piece carries an inline link today.
+- **No address, route or redirect changed in this work.** §20.6's move shipped separately, on
+  27 Aug 2026.
+- **Nothing about the piece's text, source links or method boxes changed.** Those are separate,
   tracked work; this changed only the rendering path.

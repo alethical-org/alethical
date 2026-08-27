@@ -81,23 +81,23 @@ const {
   injectPageSnapshot,
   legislatorDirectoryPageSnapshot,
   legislatorPageSnapshot,
-  moneyReportPageSnapshot,
-  moneyReportsShelfPageSnapshot,
+  researchPageSnapshot,
+  readingPageSnapshot,
   renderPageSnapshot,
   SNAPSHOT_MARKER_END,
   SNAPSHOT_MARKER_START,
 } = await import('../pageSnapshot');
 const {
-  MONEY_REPORTS_SHELF_EMPTY_BODY,
-  MONEY_REPORTS_SHELF_EMPTY_TITLE,
-  MONEY_REPORTS_SHELF_HEADING,
-  MONEY_REPORTS_SHELF_INTRO,
-  publishedReports,
-  reportDatesLine,
-  reportRunsText,
-  reportSourceText,
-} = await import('../moneyReports');
-const { MONEY_ONLY_GOES_ONE_WAY } = await import('../reports/moneyOnlyGoesOneWay');
+  READING_PAGE_EMPTY_BODY,
+  READING_PAGE_EMPTY_TITLE,
+  READING_PAGE_HEADING,
+  READING_PAGE_INTRO,
+  publishedResearch,
+  researchDatesLine,
+  researchRunsText,
+  researchSourceText,
+} = await import('../research');
+const { MONEY_ONLY_GOES_ONE_WAY } = await import('../researchPieces/moneyOnlyGoesOneWay');
 const { legislatorDisplayName, legislatorDistrictLine } = await import('../legislatorProfile');
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -422,66 +422,66 @@ describe('both profile screens keep reading the shared name helper', () => {
 });
 
 /**
- * A published report is the one snapshot whose words are not a database record
+ * A published piece is the one snapshot whose words are not a database record
  * but a person's writing, so "the served text is the drawn text" has to be
- * checked differently: the report screen needs navigation and cannot be
+ * checked differently: the piece screen needs navigation and cannot be
  * rendered here (the same limit the legislator profile hits above), and rule 13
  * of `.claude/rules/grounded-answers.md` forbids editing that writing at all.
  *
- * So the check is that every served line IS one of the report's own stored
+ * So the check is that every served line IS one of the piece's own stored
  * strings, produced by the very helper the screen's paragraph renderer uses.
  * A snapshot that re-punctuated, trimmed or summarised a sentence fails, and so
  * does one that invented a figure. The drift alarm at the bottom of this file
  * fails if either screen stops reading those same fields.
  */
-describe('the report snapshot serves the report’s own writing, unchanged', () => {
-  const report = MONEY_ONLY_GOES_ONE_WAY;
-  const snapshot = moneyReportPageSnapshot(report);
+describe('the piece snapshot serves the piece’s own writing, unchanged', () => {
+  const piece = MONEY_ONLY_GOES_ONE_WAY;
+  const snapshot = researchPageSnapshot(piece);
   const html = renderPageSnapshot(snapshot);
 
-  /** Every string the report itself stores, exactly as the screen draws it. */
+  /** Every string the piece itself stores, exactly as the screen draws it. */
   const storedStrings = new Set<string>([
-    report.title,
-    report.dek,
-    reportDatesLine(report),
-    ...(report.newerFilingsNote ? [report.newerFilingsNote] : []),
-    ...(report.correction ? [report.correction.datedLabel, report.correction.note] : []),
-    ...report.sources.map((source) => reportSourceText(source)),
-    ...report.sources.flatMap((source) => (source.noteLink ? [source.noteLink.text] : [])),
-    ...[report.shortVersion, ...report.sections.map((section) => section.blocks)]
+    piece.title,
+    piece.dek,
+    researchDatesLine(piece),
+    ...(piece.newerFilingsNote ? [piece.newerFilingsNote] : []),
+    ...(piece.correction ? [piece.correction.datedLabel, piece.correction.note] : []),
+    ...piece.sources.map((source) => researchSourceText(source)),
+    ...piece.sources.flatMap((source) => (source.noteLink ? [source.noteLink.text] : [])),
+    ...[piece.shortVersion, ...piece.sections.map((section) => section.blocks)]
       .flat()
       .flatMap((block) => {
-        if (block.kind === 'paragraph') return [reportRunsText(block.runs)];
-        if (block.kind === 'bullets') return block.items.map((item) => reportRunsText(item));
+        if (block.kind === 'paragraph') return [researchRunsText(block.runs)];
+        if (block.kind === 'bullets') return block.items.map((item) => researchRunsText(item));
         if (block.kind === 'note') return [block.text];
         return [...block.columns, ...block.rows.flat()];
       }),
-    ...report.sections.flatMap((section) =>
+    ...piece.sections.flatMap((section) =>
       section.methodologyInset
         ? [section.methodologyInset.title, section.methodologyInset.body]
         : [],
     ),
   ]);
 
-  it('heads the page with the report’s title and its two dates, nothing else', () => {
-    expect(snapshot.heading).toBe(report.title);
-    expect(snapshot.subheading).toBe(reportDatesLine(report));
-    expect(snapshot.body).toEqual([report.dek]);
+  it('heads the page with the piece’s title and its two dates, nothing else', () => {
+    expect(snapshot.heading).toBe(piece.title);
+    expect(snapshot.subheading).toBe(researchDatesLine(piece));
+    expect(snapshot.body).toEqual([piece.dek]);
     expect(snapshot.facts).toEqual([]);
   });
 
-  it('keeps every section in the report’s own order, under the report’s own heading', () => {
+  it('keeps every section in the piece’s own order, under the piece’s own heading', () => {
     const headings = (snapshot.sections ?? []).map((section) => section.heading);
     expect(headings).toEqual([
       'Short version',
-      ...report.sections.map((section) => section.heading),
+      ...piece.sections.map((section) => section.heading),
       'Where these numbers come from',
     ]);
   });
 
   it('serves each source address as a real anchor, not just its words', () => {
     const html = renderPageSnapshot(snapshot);
-    const linked = report.sources.filter((source) => source.noteLink);
+    const linked = piece.sources.filter((source) => source.noteLink);
     expect(linked.length).toBeGreaterThan(0);
     for (const source of linked) {
       expect(html).toContain(`<a href="${source.noteLink!.href}">`);
@@ -500,18 +500,18 @@ describe('the report snapshot serves the report’s own writing, unchanged', () 
       }
     }
 
-    // Enough of the report to be the report, not a teaser.
+    // Enough of the piece to be the piece, not a teaser.
     expect(served.length).toBeGreaterThan(40);
     for (const line of served) {
       expect(storedStrings.has(line)).toBe(true);
     }
 
-    // And nothing the report holds is left behind.
-    const proseAndBullets = [report.shortVersion, ...report.sections.map((s) => s.blocks)]
+    // And nothing the piece holds is left behind.
+    const proseAndBullets = [piece.shortVersion, ...piece.sections.map((s) => s.blocks)]
       .flat()
       .flatMap((block) => {
-        if (block.kind === 'paragraph') return [reportRunsText(block.runs)];
-        if (block.kind === 'bullets') return block.items.map((item) => reportRunsText(item));
+        if (block.kind === 'paragraph') return [researchRunsText(block.runs)];
+        if (block.kind === 'bullets') return block.items.map((item) => researchRunsText(item));
         return [];
       });
     for (const line of proseAndBullets) {
@@ -534,12 +534,12 @@ describe('the report snapshot serves the report’s own writing, unchanged', () 
   });
 
   it('links back to the list, out to each source, and nowhere the site cannot honour', () => {
-    expect(snapshot.links).toEqual([{ label: MONEY_REPORTS_SHELF_HEADING, href: '/reports' }]);
+    expect(snapshot.links).toEqual([{ label: READING_PAGE_HEADING, href: '/reading' }]);
     // One anchor back to the list, plus exactly one per source that stores an
     // address, and no others. Rule 13 requires a filing body to be named AND
     // linked at its source, and a link the reader only gets after the app runs is
     // not a link at all to anything reading the first response.
-    const linked = report.sources.filter((source) => source.noteLink);
+    const linked = piece.sources.filter((source) => source.noteLink);
     expect(linked.length).toBeGreaterThan(0);
     expect(html.match(/href="/g)).toHaveLength(1 + linked.length);
     for (const source of linked) {
@@ -553,9 +553,9 @@ describe('the report snapshot serves the report’s own writing, unchanged', () 
     expect(html).toContain('<td>Enbridge Energy</td>');
   });
 
-  it('escapes the report’s own punctuation rather than breaking the markup', () => {
-    const hostile = moneyReportPageSnapshot({
-      ...report,
+  it('escapes the piece’s own punctuation rather than breaking the markup', () => {
+    const hostile = researchPageSnapshot({
+      ...piece,
       title: 'Money & <script>alert("x")</script>',
       dek: "It's 5 < 6",
       sections: [
@@ -573,9 +573,9 @@ describe('the report snapshot serves the report’s own writing, unchanged', () 
     expect(rendered).toContain('It&#39;s 5 &lt; 6');
   });
 
-  it('carries a correction banner and a newer-filings banner when the report has them', () => {
-    const withBanners = moneyReportPageSnapshot({
-      ...report,
+  it('carries a correction banner and a newer-filings banner when the piece has them', () => {
+    const withBanners = researchPageSnapshot({
+      ...piece,
       correction: { datedLabel: 'CORRECTED SEP 2 2026', note: 'The ratio moved from 20 to 19.' },
       newerFilingsNote: 'The Board has accepted filings since this ran.',
     });
@@ -588,69 +588,69 @@ describe('the report snapshot serves the report’s own writing, unchanged', () 
   });
 });
 
-describe('the reports shelf snapshot links to every posted report', () => {
-  const reports = publishedReports();
-  const snapshot = moneyReportsShelfPageSnapshot(reports);
+describe('the /reading page snapshot links to every posted piece', () => {
+  const pieces = publishedResearch();
+  const snapshot = readingPageSnapshot(pieces);
   const html = renderPageSnapshot(snapshot);
 
-  it('uses the shelf’s own heading and introduction', () => {
-    expect(snapshot.heading).toBe(MONEY_REPORTS_SHELF_HEADING);
-    expect(snapshot.body).toEqual([MONEY_REPORTS_SHELF_INTRO]);
+  it('uses the /reading page’s own heading and introduction', () => {
+    expect(snapshot.heading).toBe(READING_PAGE_HEADING);
+    expect(snapshot.body).toEqual([READING_PAGE_INTRO]);
   });
 
-  it('gives every posted report a real link a crawler can follow', () => {
-    expect(reports.length).toBeGreaterThan(0);
-    expect(snapshot.records).toHaveLength(reports.length);
-    for (const report of reports) {
-      expect(html).toContain(`href="/reports/${report.slug}"`);
-      expect(html).toContain(report.title);
-      expect(html).toContain(report.dek.replace(/'/g, '&#39;'));
+  it('gives every posted piece a real link a crawler can follow', () => {
+    expect(pieces.length).toBeGreaterThan(0);
+    expect(snapshot.records).toHaveLength(pieces.length);
+    for (const piece of pieces) {
+      expect(html).toContain(`href="/reading/research/${piece.slug}"`);
+      expect(html).toContain(piece.title);
+      expect(html).toContain(piece.dek.replace(/'/g, '&#39;'));
     }
   });
 
-  it('says what the shelf says when nothing is posted yet', () => {
-    const empty = moneyReportsShelfPageSnapshot([]);
+  it('says what the /reading page says when nothing is posted yet', () => {
+    const empty = readingPageSnapshot([]);
     expect(empty.records).toEqual([]);
     expect(empty.body).toEqual([
-      MONEY_REPORTS_SHELF_INTRO,
-      MONEY_REPORTS_SHELF_EMPTY_TITLE,
-      MONEY_REPORTS_SHELF_EMPTY_BODY,
+      READING_PAGE_INTRO,
+      READING_PAGE_EMPTY_TITLE,
+      READING_PAGE_EMPTY_BODY,
     ]);
   });
 });
 
-describe('both report screens keep reading the same registry the server reads', () => {
+describe('both screens keep reading the same registry the server reads', () => {
   // The screens need navigation and cannot be rendered here, so this is the
   // drift alarm in their place: the moment either grows its own copy of a
   // sentence, the served page and the drawn page can disagree and nothing else
   // would notice. It is the same guard the profile screens get above.
-  it('the report screen draws the report’s stored runs, dek, dates and sources', () => {
+  it('the piece screen draws the piece’s stored runs, dek, dates and sources', () => {
     const source = readFileSync(
-      join(HERE, '../../..', 'src/screens/redesign/MoneyReportScreen.tsx'),
+      join(HERE, '../../..', 'src/screens/redesign/ResearchScreen.tsx'),
       'utf8',
     );
     for (const call of [
       'InlineRuns',
-      'report.dek',
-      'reportDatesLine(report)',
-      'report.sources',
-      'report.shortVersion',
+      'piece.dek',
+      'researchDatesLine(piece)',
+      'piece.sources',
+      'piece.shortVersion',
       'section.blocks',
     ]) {
       expect(source).toContain(call);
     }
   });
 
-  it('the shelf screen draws the shared shelf wording', () => {
+  it('the /reading page screen draws the shared wording', () => {
     const source = readFileSync(
-      join(HERE, '../../..', 'src/screens/redesign/MoneyReportsShelfScreen.tsx'),
+      join(HERE, '../../..', 'src/screens/redesign/ReadingScreen.tsx'),
       'utf8',
     );
     for (const constant of [
-      'MONEY_REPORTS_SHELF_HEADING',
-      'MONEY_REPORTS_SHELF_INTRO',
-      'MONEY_REPORTS_SHELF_EMPTY_TITLE',
-      'MONEY_REPORTS_SHELF_EMPTY_BODY',
+      'READING_PAGE_HEADING',
+      'READING_PAGE_INTRO',
+      'READING_PAGE_EMPTY_TITLE',
+      'READING_PAGE_EMPTY_BODY',
     ]) {
       expect(source).toContain(constant);
     }

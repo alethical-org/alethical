@@ -31,9 +31,10 @@ own conclusion. We hand them the record, not the verdict.
 Between those two sits a third kind of claim: a pattern that really is in the records — for
 example, that two groups of candidates are funded in measurably different ways. Since
 18 Aug 2026 (Eugene's call), that kind of claim is allowed in exactly one place: a signed,
-dated research report on the site's own research shelf (`/reports`), where the method is printed beside
+dated research piece on the `/reading` page (`/reading/research/<name>`), where the method is printed
+beside
 the words, every figure links to the record behind it, and the reader can redo the arithmetic
-and argue with the counting. What a report may do, and everything still banned there — motive
+and argue with the counting. What such a piece may do, and everything still banned there — motive
 and causation above all — is
 [`.claude/rules/grounded-answers.md` rule 13](../../.claude/rules/grounded-answers.md).
 
@@ -108,23 +109,26 @@ it, which today there never is. Full explanation:
 the *Spending by outside groups* section of
 [How the Campaign money tab works](legislator-campaign-money-guide.md).
 
-### Also in the first wave: our own research reports (added 18 Aug 2026)
+### Also in the first wave: our own research (added 18 Aug 2026)
 
-Signed, dated reports on the site's own research shelf, at `/reports`, reached from the top
-menu's **Reports** group and from the money landing's "What we found" card: our research on
+Signed, dated research pieces, each at `/reading/research/<name>` and listed on the
+`/reading` page, reached from the top
+menu's **Reading** group and from the money landing's "What we found" card: our research on
 the records we hold, what they show when added up, every figure linked back to the record
-behind it. The shelf sat inside the money section, at `/money/reports`, until 20 Aug 2026
-([#1698](https://github.com/alethical-org/alethical/issues/1698)); both old addresses
-redirect permanently. This is
+behind it. The listing sat inside the money section, at `/money/reports`, until 20 Aug 2026
+([#1698](https://github.com/alethical-org/alethical/issues/1698)), and at `/reports` until
+27 Aug 2026, when "report" went back to meaning only the document a campaign files with the
+state (`docs/architecture/published-writing-decisions.md` §2.6). All 4 old addresses forward
+permanently and directly. This is
 the one surface allowed to add records up across members and to name a pattern, under the
 conditions in
 [`.claude/rules/grounded-answers.md` rule 13](../../.claude/rules/grounded-answers.md).
-A report posts as its author wrote it, before any figure is checked, and goes live on the
-site the same day: its own address, the reports shelf, the money landing's count, and the
+A piece posts as its author wrote it, before any figure is checked, and goes live on the
+site the same day: its own address, the `/reading` page, the money landing's count, and the
 sitemap search engines read (Eugene, 25 Aug 2026). Nothing waits, including search engines.
 Every figure is then checked against our loaded data on the live page, which is now the only
 thing standing between a wrong figure and a search result. A figure drawn from records we do not hold yet,
-such as lobbying (number 8 below), stays in the report, and the sources block names those
+such as lobbying (number 8 below), stays in the piece, and the sources block names those
 records and the years they cover. The masthead names no undated figure (Eugene, 20 Aug 2026).
 
 ---

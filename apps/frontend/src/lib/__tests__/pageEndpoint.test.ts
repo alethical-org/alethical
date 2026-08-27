@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { runInNewContext } from 'node:vm';
 
-import { publishedReports, reportRunsText, reportSourceText } from '../moneyReports';
-import { MONEY_ONLY_GOES_ONE_WAY } from '../reports/moneyOnlyGoesOneWay';
+import { publishedResearch, researchRunsText, researchSourceText } from '../research';
+import { MONEY_ONLY_GOES_ONE_WAY } from '../researchPieces/moneyOnlyGoesOneWay';
 import { escapeHtml } from '../share';
 
 const { readPageShell } = vi.hoisted(() => ({ readPageShell: vi.fn() }));
@@ -384,18 +384,19 @@ describe('first-response page tags', () => {
     expect(readPageShell).toHaveBeenCalledTimes(1);
   });
 
-  // The research shelf moved out of the money section on 20 Aug 2026 (#1698).
-  // The server looks its wording up by path string, so a mismatch between the
-  // route's new path and the wording table's key would compile fine and serve
-  // a page with no title at all.
-  it('titles the research shelf at its own address, and at the old one', async () => {
+  // The /reading page moved out of the money section on 20 Aug 2026 (#1698) and
+  // off /reports on 27 Aug 2026. The server looks its wording up by path string,
+  // so a mismatch between the route's new path and the wording table's key would
+  // compile fine and serve a page with no title at all. Both old addresses are
+  // checked because a host with no forwards still has to serve them.
+  it('titles the /reading page at its own address, and at both old ones', async () => {
     stubNetwork(() => ({ status: 500 }));
 
-    for (const path of ['/reports', '/money/reports']) {
+    for (const path of ['/reading', '/reports', '/money/reports']) {
       const { body, status } = await serve({ path });
       expect(status).toBe(200);
-      expect(body).toContain('<title>Campaign money reports | Alethical</title>');
-      expect(body).toContain('<link rel="canonical" href="https://www.alethical.com/reports"');
+      expect(body).toContain('<title>Campaign money research | Alethical</title>');
+      expect(body).toContain('<link rel="canonical" href="https://www.alethical.com/reading"');
     }
   });
 
@@ -404,52 +405,52 @@ describe('first-response page tags', () => {
   // sent its text straight away. These two checks are the `curl` measurement in
   // the issue, run on every pull request, because a silent reopening is exactly
   // how the gap arrived.
-  it('sends the reports shelf its list, with a followable link per posted report', async () => {
+  it('sends the /reading page its list, with a followable link per posted piece', async () => {
     const calls: string[] = [];
     stubNetwork((url) => {
       calls.push(url);
       return { status: 500 };
     });
 
-    const { body, status } = await serve({ path: '/reports' });
+    const { body, status } = await serve({ path: '/reading' });
 
     expect(status).toBe(200);
-    expect(body).toContain('<h1>Campaign money reports</h1>');
+    expect(body).toContain('<h1>Campaign money research</h1>');
     expect(body).toContain('drawn from the filings Minnesota campaigns, parties and funds');
-    expect(publishedReports().length).toBeGreaterThan(0);
-    for (const report of publishedReports()) {
-      expect(body).toContain(`href="/reports/${report.slug}"`);
-      expect(body).toContain(report.title);
+    expect(publishedResearch().length).toBeGreaterThan(0);
+    for (const piece of publishedResearch()) {
+      expect(body).toContain(`href="/reading/research/${piece.slug}"`);
+      expect(body).toContain(piece.title);
     }
     // Read from the registry the server already holds, so no data call.
     expect(calls).toHaveLength(0);
   });
 
-  it('sends a report its whole body, not only its title', async () => {
+  it('sends a piece its whole body, not only its title', async () => {
     const calls: string[] = [];
     stubNetwork((url) => {
       calls.push(url);
       return { status: 500 };
     });
 
-    const report = MONEY_ONLY_GOES_ONE_WAY;
-    const { body, headers, status } = await serve({ path: `/reports/${report.slug}` });
+    const piece = MONEY_ONLY_GOES_ONE_WAY;
+    const { body, headers, status } = await serve({ path: `/reading/research/${piece.slug}` });
 
     expect(status).toBe(200);
     expect(calls).toHaveLength(0);
-    expect(body).toContain(`<h1>${report.title}</h1>`);
+    expect(body).toContain(`<h1>${piece.title}</h1>`);
     expect(body).toContain('PUBLISHED AUG 20 2026 · RECORDS THROUGH JUL 20 2026');
 
     // Every sentence, bullet and section heading, read out of the registry so
-    // the check cannot go stale against a report the team later revises.
-    for (const section of report.sections) {
+    // the check cannot go stale against a piece the team later revises.
+    for (const section of piece.sections) {
       expect(body).toContain(escapeHtml(section.heading));
     }
-    const sentences = [report.shortVersion, ...report.sections.map((section) => section.blocks)]
+    const sentences = [piece.shortVersion, ...piece.sections.map((section) => section.blocks)]
       .flat()
       .flatMap((block) => {
-        if (block.kind === 'paragraph') return [reportRunsText(block.runs)];
-        if (block.kind === 'bullets') return block.items.map((item) => reportRunsText(item));
+        if (block.kind === 'paragraph') return [researchRunsText(block.runs)];
+        if (block.kind === 'bullets') return block.items.map((item) => researchRunsText(item));
         // A note's sentence must reach the first response like any other prose.
         if (block.kind === 'note') return [block.text];
         return block.rows.flat();
@@ -458,33 +459,51 @@ describe('first-response page tags', () => {
     for (const sentence of sentences) {
       expect(body).toContain(escapeHtml(sentence));
     }
-    for (const source of report.sources) {
-      expect(body).toContain(escapeHtml(reportSourceText(source)));
+    for (const source of piece.sources) {
+      expect(body).toContain(escapeHtml(researchSourceText(source)));
     }
 
     // Every published piece is visible to search engines from the day it posts
-    // (Eugene, 25 Aug 2026), so a posted report carries no skip instruction and
+    // (Eugene, 25 Aug 2026), so a posted piece carries no skip instruction and
     // does carry a canonical address.
-    expect(report.indexed).toBe(true);
+    expect(piece.indexed).toBe(true);
     expect(headers.get('X-Robots-Tag')).toBeUndefined();
     expect(body).not.toContain('<meta name="robots" content="noindex" />');
     expect(body).toContain(
-      '<link rel="canonical" href="https://www.alethical.com/reports/the-money-only-goes-one-way" />',
+      '<link rel="canonical" href="https://www.alethical.com/reading/research/the-money-only-goes-one-way" />',
     );
-    // Rule 13 keeps a report's claims out of its share preview and tags.
+    // Rule 13 keeps a piece's claims out of its share preview and tags.
     const head = body.slice(0, body.indexOf('</head>'));
     expect(head).toContain('Published Aug 20, 2026 · records through Jul 20, 2026.');
     expect(head).not.toContain('Six organizations');
   });
 
-  it('still treats an unknown or unpublished report address as a missing page', async () => {
+  it('still treats an unknown or unpublished piece address as a missing page', async () => {
     stubNetwork(() => ({ status: 500 }));
 
-    const { body, status } = await serve({ path: '/reports/no-such-report' });
+    for (const path of [
+      '/reading/research/no-such-piece',
+      '/reading/guides/no-such-guide',
+      '/reading/sets/no-such-set',
+    ]) {
+      const { body, status } = await serve({ path });
+      expect(status).toBe(404);
+      expect(body).toContain('<title>Page not found | Alethical</title>');
+      expect(body).not.toContain('Six organizations');
+    }
+  });
 
-    expect(status).toBe(404);
-    expect(body).toContain('<title>Page not found | Alethical</title>');
-    expect(body).not.toContain('Six organizations');
+  // The one posted piece is served in full at both addresses it used to answer
+  // on, so a host without vercel.json's forwards still opens it.
+  it('serves the posted piece at both of its old addresses too', async () => {
+    stubNetwork(() => ({ status: 500 }));
+
+    const piece = MONEY_ONLY_GOES_ONE_WAY;
+    for (const path of [`/reports/${piece.slug}`, `/money/reports/${piece.slug}`]) {
+      const { body, status } = await serve({ path });
+      expect(status).toBe(200);
+      expect(body).toContain(`<h1>${piece.title}</h1>`);
+    }
   });
 
   it('serves the normal missing-page response for the retired Traffic address', async () => {

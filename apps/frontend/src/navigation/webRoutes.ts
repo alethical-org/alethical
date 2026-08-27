@@ -1,5 +1,5 @@
 import { registrationNumberFromSlug } from '../lib/committeeMoney';
-import { reportBySlug } from '../lib/moneyReports';
+import { researchBySlug } from '../lib/research';
 import type { MainTabParamList, RootStackParamList } from './types';
 
 type WebNavigationState = {
@@ -19,8 +19,8 @@ type WebRouteTarget =
   | { kind: 'legislators'; params: Record<string, string> }
   | { kind: 'findMyLegislator'; address?: string }
   | { kind: 'moneyLanding' }
-  | { kind: 'moneyReports' }
-  | { kind: 'moneyReport'; slug: string }
+  | { kind: 'reading' }
+  | { kind: 'research'; slug: string }
   | { kind: 'moneyCommittee'; slug: string; tab?: string; year?: string }
   | { kind: 'moneyCommitteePayments'; slug: string; tab?: string; year?: string }
   | { kind: 'moneyCommitteeList'; params: Record<string, string> }
@@ -184,12 +184,12 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
     if (segments[0] === 'money') {
       return { kind: 'moneyLanding' };
     }
-    // The research shelf, at the top level rather than inside the money section
-    // (#1698): the nav's Reports group points here, and what the group holds is
-    // not limited to money in the long run. The route names stay MoneyReports /
-    // MoneyReport because every published report today is a campaign-money one.
-    if (segments[0] === 'reports') {
-      return { kind: 'moneyReports' };
+    // The /reading page, at the top level rather than inside the money section
+    // (#1698): the nav's Reading group points here, and what the group holds is
+    // not limited to money in the long run. '/reports' is the address this page
+    // held until 27 Aug 2026 and is forwarded permanently by vercel.json.
+    if (segments[0] === 'reading' || segments[0] === 'reports') {
+      return { kind: 'reading' };
     }
     // '/chat' and '/account' are old-design or auth-gated surfaces with no shipped
     // page yet — redirect a stray bookmark/link to Home.
@@ -202,31 +202,38 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
     return { kind: 'contactUs' };
   }
 
-  // One report (campaign money IA; grounded-answers.md rule 13). The registry of
-  // published reports is static and synchronous, so the router resolves the slug
-  // itself: an unpublished or unknown report is a page that does not exist, and
-  // lands on NotFound rather than an empty shell.
-  if (segments.length === 2 && segments[0] === 'reports') {
-    const slug = decodeURIComponent(segments[1]);
-    return reportBySlug(slug)
-      ? { kind: 'moneyReport', slug }
-      : { kind: 'notFound', path: pathname };
+  // One piece of our own research, at /reading/research/{slug}
+  // (docs/architecture/published-writing-decisions.md §2.1;
+  // grounded-answers.md rule 13). The registry of published research is static
+  // and synchronous, so the router resolves the slug itself: an unpublished or
+  // unknown slug is a page that does not exist, and lands on NotFound rather
+  // than an empty shell. A piece carrying both the research and the guide trait
+  // is addressed under 'research', because rule 13 binds it in full. Nothing is
+  // built for /reading/guides/{slug} or /reading/sets/{slug} yet, so those
+  // addresses fall through to NotFound rather than promising a page.
+  if (segments.length === 3 && segments[0] === 'reading' && segments[1] === 'research') {
+    const slug = decodeURIComponent(segments[2]);
+    return researchBySlug(slug) ? { kind: 'research', slug } : { kind: 'notFound', path: pathname };
   }
 
-  // The shelf and the reports used to live under /money/reports (#1698 moved
-  // them to /reports). vercel.json redirects both old addresses permanently, so
-  // a shared or bookmarked link never reaches the app at the old path in
-  // production; these two branches are what makes it land anyway on any host
-  // without those redirects — the dev server, a local static export, or a
-  // client-side link written before the move.
+  // The two addresses this page and its pieces held before: /money/reports until
+  // #1698 moved them to /reports, and /reports until 27 Aug 2026 moved them to
+  // /reading (docs/architecture/published-writing-decisions.md §2.8).
+  // vercel.json forwards all four permanently and directly, so a shared or
+  // bookmarked link never reaches the app at an old path in production; these
+  // branches are what make it land anyway on any host without those forwards —
+  // the dev server, a local static export, or a client-side link written before
+  // a move.
   if (segments.length === 2 && segments[0] === 'money' && segments[1] === 'reports') {
-    return { kind: 'moneyReports' };
+    return { kind: 'reading' };
+  }
+  if (segments.length === 2 && segments[0] === 'reports') {
+    const slug = decodeURIComponent(segments[1]);
+    return researchBySlug(slug) ? { kind: 'research', slug } : { kind: 'notFound', path: pathname };
   }
   if (segments.length === 3 && segments[0] === 'money' && segments[1] === 'reports') {
     const slug = decodeURIComponent(segments[2]);
-    return reportBySlug(slug)
-      ? { kind: 'moneyReport', slug }
-      : { kind: 'notFound', path: pathname };
+    return researchBySlug(slug) ? { kind: 'research', slug } : { kind: 'notFound', path: pathname };
   }
 
   // The name search's results page (campaign money phase 3, issue #1696). The
@@ -443,10 +450,10 @@ export function pathForRoute(activeRoute: {
     }
     case 'MoneyLanding':
       return '/money';
-    case 'MoneyReports':
-      return '/reports';
-    case 'MoneyReport':
-      return `/reports/${encodeURIComponent(String(activeRoute.params?.slug ?? ''))}`;
+    case 'Reading':
+      return '/reading';
+    case 'Research':
+      return `/reading/research/${encodeURIComponent(String(activeRoute.params?.slug ?? ''))}`;
     case 'CommitteeList': {
       const params = new URLSearchParams();
       for (const key of COMMITTEE_LIST_PARAMS) {
@@ -607,14 +614,14 @@ export function stateFromPathname(pathname: string): WebNavigationState {
         routes: [homeTabs, { name: 'MoneyLanding' }],
         index: 1,
       };
-    case 'moneyReports':
+    case 'reading':
       return {
-        routes: [homeTabs, { name: 'MoneyReports' }],
+        routes: [homeTabs, { name: 'Reading' }],
         index: 1,
       };
-    case 'moneyReport':
+    case 'research':
       return {
-        routes: [homeTabs, { name: 'MoneyReport', params: { slug: target.slug } }],
+        routes: [homeTabs, { name: 'Research', params: { slug: target.slug } }],
         index: 1,
       };
     case 'moneyCommittee':

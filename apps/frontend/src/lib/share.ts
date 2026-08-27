@@ -1,11 +1,7 @@
 import { plainBillSummary } from './billDetail';
 import { registrationNumberFromSlug } from './committeeMoney';
 import { directoryPagePath } from './directoryPagination';
-import {
-  MONEY_REPORTS_SHELF_HEADING,
-  MONEY_REPORTS_SHELF_INTRO,
-  reportShareDescription,
-} from './moneyReports';
+import { READING_PAGE_HEADING, READING_PAGE_INTRO, researchShareDescription } from './research';
 
 export const PUBLIC_SITE_ORIGIN = 'https://www.alethical.com';
 export const SOCIAL_PREVIEW_IMAGE_URL = `${PUBLIC_SITE_ORIGIN}/social-preview.png`;
@@ -34,7 +30,7 @@ const LEGISLATOR_LIST_SUBJECT = 'Minnesota House and Senate members';
 export const X_SHORT_LINK_LENGTH = 23;
 const X_TEXT_LENGTH = 280 - X_SHORT_LINK_LENGTH - 1;
 
-export type ShareSubject = 'bill' | 'legislator' | 'answer' | 'report' | 'committee';
+export type ShareSubject = 'bill' | 'legislator' | 'answer' | 'research' | 'committee';
 
 export interface ShareContent {
   subject: ShareSubject;
@@ -333,12 +329,12 @@ export function askPageMetadata(question?: string | null): PageMetadata {
 }
 
 /**
- * One posted research report's page metadata. Title and dates ONLY: report
+ * One posted research piece's page metadata. Title and dates ONLY: piece
  * claims and derived labels appear in no social-share preview or metadata
  * (.claude/rules/grounded-answers.md rule 13), so the dek and every figure stay
  * out of these tags.
  *
- * An indexed report carries no `nosnippet`: an ordinary search snippet always
+ * An indexed piece carries no `nosnippet`: an ordinary search snippet always
  * links to the page holding the method, and suppressing body text on a
  * transparency product reads as hiding the thing it publishes. Since 25 Aug
  * 2026 rule 13 publishes every piece `indexed: true` on the day it posts, so
@@ -347,7 +343,7 @@ export function askPageMetadata(question?: string | null): PageMetadata {
  * It stays fully readable on the site either way; only search engines are held
  * off (rule 13's publishing order).
  */
-export function moneyReportPageMetadata(report: {
+export function researchPageMetadata(piece: {
   slug: string;
   title: string;
   publishedOn: string;
@@ -355,11 +351,11 @@ export function moneyReportPageMetadata(report: {
   indexed: boolean;
 }): PageMetadata {
   return pageMetadata({
-    title: titleFor(report.title),
-    socialTitle: report.title,
-    description: reportShareDescription(report),
-    canonicalPath: report.indexed ? `/reports/${encodeURIComponent(report.slug)}` : '',
-    noindex: !report.indexed,
+    title: titleFor(piece.title),
+    socialTitle: piece.title,
+    description: researchShareDescription(piece),
+    canonicalPath: piece.indexed ? `/reading/research/${encodeURIComponent(piece.slug)}` : '',
+    noindex: !piece.indexed,
   });
 }
 
@@ -445,11 +441,11 @@ export const STATIC_PAGE_METADATA: Record<string, PageMetadata> = {
     canonicalPath: '/money',
   }),
   '/money/committees': committeeListPageMetadata(),
-  '/reports': pageMetadata({
-    title: titleFor(MONEY_REPORTS_SHELF_HEADING),
-    socialTitle: MONEY_REPORTS_SHELF_HEADING,
-    description: MONEY_REPORTS_SHELF_INTRO,
-    canonicalPath: '/reports',
+  '/reading': pageMetadata({
+    title: titleFor(READING_PAGE_HEADING),
+    socialTitle: READING_PAGE_HEADING,
+    description: READING_PAGE_INTRO,
+    canonicalPath: '/reading',
   }),
   '/confirm': pageMetadata({
     title: titleFor('Confirm email'),
