@@ -433,6 +433,22 @@ Its candidate handbook: "Contributions from donors who have given $200 or less, 
 should be added together and listed as a lump sum on the committee report to the Board." That
 lump sum is the figure §9.5 recovers.
 
+**But a handbook quote is only as good as the revision date printed beside it, because the
+Board overwrites each handbook in place at one permanent address.** There is no archive and no
+versioned filename: `https://cfb.mn.gov/pdf/publications/handbooks/PTU_handbook.pdf` served a
+copy whose own line read "Last Revised 3/7/2022" on the morning of 27 Aug 2026 and a copy
+reading "Last Revised 8/22/2026" that evening, with the server's `Last-Modified` header giving
+27 Aug 2026 21:08:40 GMT. The revision moved text as well as dates: the contributions-schedule
+walkthrough that carried the form line "Contributions from donors who each gave $200 or less"
+and the instruction "Do not list the donors separately" is not in the served copy any more, and
+2 sentences in a piece published that same day quote it
+([#1798](https://github.com/alethical-org/alethical/issues/1798)). So quote a handbook with the
+revision date it printed when it was read, keep the statute as the home for anything
+load-bearing, and re-read a handbook quote before relying on it rather than trusting a date
+recorded earlier. The other 3 handbooks were unchanged on the same check: candidate 30 Apr
+2026, political committee and fund 15 Jun 2026, independent expenditure and ballot question
+11 Jul 2023.
+
 So a candidate's true total is: the itemized payments, **plus** a non-itemized figure that
 exists only in the report. A page showing only the sum of visible rows understates the truth —
 by 36.5% of what sitting legislators raised in 2024 and 41.3% in 2025, measured in §9.5.
