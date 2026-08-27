@@ -1154,12 +1154,12 @@ Settled, and binding on the Read page and every piece that lives on it:
    value beyond rewriting another source. A short piece that answers one narrow question fully passes;
    one that mostly points elsewhere is what "crawled, currently not indexed" is for.
 
-### 20.6 Addresses for published writing — flat was decided here, and then withdrawn
+### 20.6 Addresses for published writing — flat was decided here, then withdrawn for nested
 
 **Read this before building any address for published writing.** This section decided a flat
 `/reading/<name>` on 25 Aug 2026. **That decision is withdrawn**, because both grounds it rested on
-were checked the next day and neither survived. What replaced it is recorded below and carries one
-remaining step, so nothing should be built to either shape until that step is taken.
+were checked the next day and neither survived. **Nested is ratified**, by Eugene on 27 Aug 2026,
+and is recorded below with what each ground lost on.
 
 #### What was decided here, and is no longer our position
 
@@ -1178,7 +1178,7 @@ published at a per-kind address.
   specific dead addresses and was never a standing policy against forwarding. With forwards
   available, a moved address is survivable, which removes the cost this ground was pricing.
 
-#### What both reviewers then aligned on
+#### What replaced it — ratified 27 Aug 2026
 
 Nested, with one combined listing:
 
@@ -1189,16 +1189,16 @@ Nested, with one combined listing:
 | `/reading/explainers/<name>` | one explainer |
 | `/reading/sets/<name>` | one set |
 
-Recorded on [issue 1752](https://github.com/alethical-org/alethical/issues/1752) (26 Aug 2026
-comments). What nested buys: a listing address and the pieces under it agree by construction, and no
+Reviewed on [issue 1752](https://github.com/alethical-org/alethical/issues/1752) (26 Aug 2026
+comments) and ratified 27 Aug 2026. What nested buys: a listing address and the pieces under it agree by construction, and no
 word has to be permanently reserved as a name a piece may never take.
 
-#### The remaining step
+#### The one part still open
 
-**Eugene ratifies the shape.** Until he does, this is 2 reviewers agreeing rather than a decision,
-and rule 4 of [`.claude/rules/workflow.md`](../../.claude/rules/workflow.md) keeps an option that is
-still open out of a doc as a flat assertion. A build session should treat the address as unsettled
-and build nothing that hard-codes either shape.
+**The folder word for a kind.** The shape is settled; what fills `<kind>` is not, because the word a
+reader sees above a piece's title is itself an open decision, and the address carries that same word.
+So `/reading/sets/<name>` is buildable and `/reading/<kind>/<name>` is not, until that word lands.
+Recorded in [`published-writing-decisions.md`](published-writing-decisions.md) §3.1.
 
 #### What survives from the original reasoning, unchanged
 
