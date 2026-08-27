@@ -270,14 +270,43 @@ describe('campaign money routes', () => {
     );
   });
 
-  // Guides and sets have their addresses settled and nothing built behind them
-  // yet (published-writing-decisions.md §2.1), so those addresses are absent
-  // pages rather than empty shells promising a page.
-  it('does not serve a guide or a set address yet', () => {
+  // The posted guide, at the folder its traits put it in
+  // (published-writing-decisions.md §2.1).
+  it('opens the posted guide under /reading/guides', () => {
     expect(targetFromPathname('/reading/guides/who-has-to-report-their-money')).toEqual({
-      kind: 'notFound',
-      path: '/reading/guides/who-has-to-report-their-money',
+      kind: 'guide',
+      slug: 'who-has-to-report-their-money',
     });
+    expect(pathForRoute({ name: 'Guide', params: { slug: 'who-has-to-report-their-money' } })).toBe(
+      '/reading/guides/who-has-to-report-their-money',
+    );
+  });
+
+  // A piece has ONE address. Asking for a real piece under the other folder is an
+  // absent page, not a second way in, or the same page would answer on 2
+  // addresses and a reader could share the one we do not name as canonical.
+  it('refuses a posted piece asked for under the wrong folder', () => {
+    expect(targetFromPathname('/reading/research/who-has-to-report-their-money')).toEqual({
+      kind: 'notFound',
+      path: '/reading/research/who-has-to-report-their-money',
+    });
+    expect(targetFromPathname('/reading/guides/the-money-only-goes-one-way')).toEqual({
+      kind: 'notFound',
+      path: '/reading/guides/the-money-only-goes-one-way',
+    });
+  });
+
+  it('sends an unpublished guide slug to NotFound', () => {
+    expect(targetFromPathname('/reading/guides/not-a-guide')).toEqual({
+      kind: 'notFound',
+      path: '/reading/guides/not-a-guide',
+    });
+  });
+
+  // A set has its address settled and nothing built behind it
+  // (published-writing-decisions.md §2.1), so it is an absent page rather than an
+  // empty shell promising one.
+  it('does not serve a set address yet', () => {
     expect(targetFromPathname('/reading/sets/where-the-money-comes-from')).toEqual({
       kind: 'notFound',
       path: '/reading/sets/where-the-money-comes-from',
@@ -307,6 +336,17 @@ describe('campaign money routes', () => {
       kind: 'notFound',
       path: '/money/reports/outsider-pattern',
     });
+  });
+
+  // Only research ever answered on the 2 retired piece addresses, so honouring a
+  // guide's slug there would invent an address it never had.
+  it('never answers a guide at a retired piece address', () => {
+    for (const path of [
+      '/reports/who-has-to-report-their-money',
+      '/money/reports/who-has-to-report-their-money',
+    ]) {
+      expect(targetFromPathname(path)).toEqual({ kind: 'notFound', path });
+    }
   });
 
   // The one posted piece resolves at all three of its addresses, so a link

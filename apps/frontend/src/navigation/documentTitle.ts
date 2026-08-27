@@ -69,6 +69,7 @@ function titleWithoutRecord(route: TitledRoute): string | null {
     }
     case 'NotFound':
       return notFoundPageMetadata().title;
+    case 'Guide':
     case 'Research': {
       const slug = route.params?.slug ? String(route.params.slug) : '';
       const piece = slug ? researchBySlug(slug) : undefined;

@@ -66,10 +66,14 @@ export type RootStackParamList = {
   // the section has no sign-in gate.
   MoneyLanding: undefined;
   Reading: undefined;
-  // One published piece of our own research, at /reading/research/{slug}. The
-  // slug resolves against the published-research registry (lib/research.ts); an
-  // unknown slug lands on NotFound.
+  // One published piece of our own writing. Both names draw the same screen and
+  // differ only in the address they write: a piece carrying the research trait
+  // lives at /reading/research/{slug}, one carrying only the guide trait at
+  // /reading/guides/{slug} (docs/architecture/published-writing-decisions.md
+  // §2.1). The slug resolves against the piece registry (lib/research.ts); an
+  // unknown slug, or the wrong folder for the piece, lands on NotFound.
   Research: { slug: string };
+  Guide: { slug: string };
   // One committee's money page and its full-payments view. The slug's trailing
   // registration number is the identity and the only part that resolves — names
   // collide, numbers do not — so an old or misspelled name part still lands on

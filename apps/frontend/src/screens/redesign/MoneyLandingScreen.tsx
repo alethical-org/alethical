@@ -20,7 +20,7 @@ import {
   RECORD_DOES_NOT_COVER,
 } from '../../lib/moneyLanding';
 import { NAME_SEARCH_PLACEHOLDER } from '../../lib/moneyNameSearch';
-import { publishedResearch, researchDatesLine } from '../../lib/research';
+import { piecesLabelledResearch, researchDatesLine } from '../../lib/research';
 import { linkProps, routePath } from '../../navigation/links';
 import type { RootScreenProps } from '../../navigation/types';
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
@@ -107,7 +107,10 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
   const { isMobile } = useResponsive();
   const summaryQuery = useCampaignFinanceSummary();
   const filingsQuery = useCampaignFinanceFilings(5);
-  const pieces = publishedResearch();
+  // Research only. This card says "Read the research", so a guide featured here
+  // would be labelled as something it is not; a reader reaches guides through the
+  // /reading page this card links to, and through the nav's Reading group.
+  const pieces = piecesLabelledResearch();
   const newestPiece = pieces[0];
 
   const summary = summaryQuery.data;
@@ -181,8 +184,9 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
           </View>
 
           {/* WHAT WE FOUND — the research lane, first in prominence. The
-              /reading page exists, so the card links; with nothing published it
-              says so and counts 0 honestly. */}
+              /reading page exists, so the card links; with no research published
+              it says so and counts 0 honestly. It features the newest RESEARCH
+              piece, never a guide. */}
           <Pressable
             {...linkProps(routePath.reading(), () => navigation.navigate('Reading'))}
             style={styles.featuredCard}

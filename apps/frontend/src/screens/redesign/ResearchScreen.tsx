@@ -7,11 +7,14 @@ import { SharePopover } from '../../components/billDetail/SharePopover';
 import { useHistoryScrollRestoration } from '../../hooks/useHistoryScrollRestoration';
 import { useResponsive } from '../../hooks/useResponsive';
 import {
+  READING_PAGE_HEADING,
+  pieceKindLabel,
+  pieceMastheadLine,
+  pieceShareDescription,
+  pieceSharePanelDescription,
+  pieceSourcesLabel,
   researchBySlug,
-  researchDatesLine,
   researchSectionAnchors,
-  researchShareDescription,
-  researchSharePanelDescription,
   type ResearchPiece,
   type ResearchBlock,
   type ResearchInline,
@@ -24,22 +27,39 @@ import { Container, Footer, PageBackground, TopNav } from '../../theme/primitive
 import { theme as t } from '../../theme/tokens';
 
 /**
- * One published piece of research at /reading/research/{slug} — the one surface that
- * may add figures up across members, under `.claude/rules/grounded-answers.md`
- * rule 13's conditions ("Money report web.dc.html", screen B).
+ * One published piece of Alethical's own writing: a research piece at
+ * /reading/research/{slug}, or a guide at /reading/guides/{slug}. One screen,
+ * because the 2 are the same document shape and differ only in their masthead
+ * ("Money report web.dc.html", screen B).
  *
- * Everything here renders from the published-piece registry
- * (lib/research.ts), which ships EMPTY: no reader reaches this screen until
- * a piece is approved for publication, because the router resolves unknown and
- * unpublished slugs to NotFound. The populated states — masthead, correction,
- * newer-filings banner, methodology inset — are pinned by tests with sample
+ * Research is the one surface that may add figures up across members, under
+ * `.claude/rules/grounded-answers.md` rule 13's conditions. A guide concludes
+ * nothing and adds nothing up, so it sits under rules 1 to 12 like every other
+ * surface (`docs/architecture/published-writing-decisions.md` §1).
+ *
+ * What differs between the 2, and nothing else does:
+ * - A research piece prints RESEARCH above its title and a masthead of 2 dates
+ *   and nothing else (rule 13's publishing order, point 8), so its kind word and
+ *   its reading time never join that line.
+ * - A guide prints no separate kind word, because its masthead already carries
+ *   it: "GUIDE · 5 MIN · WRITTEN AUGUST 2026". No piece number appears anywhere a
+ *   reader can see it (§2.12).
+ * - A piece belonging to a set names the set under its title, and only its name.
+ *   No link: `/reading/sets/{name}` is not built, and we link only to what
+ *   exists (issue 1752's linking rule 6, and grounded-answers rule 2).
+ *
+ * Everything here renders from the piece registry (lib/research.ts), and no
+ * reader reaches this screen for a slug the registry does not hold: the router
+ * resolves an unknown or unpublished slug, and the wrong folder for a known
+ * piece, to NotFound. States no posted piece is in — a correction banner, a
+ * newer-filings banner, a methodology inset — are pinned by tests with sample
  * content instead.
  *
  * Rule 13 constraints this layout owns:
- * - The masthead carries the 2 dates and nothing else (Eugene, 20 Aug 2026). The
- *   author line, the filing bodies, and the undated-records note were removed
- *   from it; the sources block still names every filing body and the years each
- *   set of outside records covers.
+ * - A research piece's masthead carries the 2 dates and nothing else (Eugene,
+ *   20 Aug 2026). The author line, the filing bodies, and the undated-records
+ *   note were removed from it; the sources block still names every filing body
+ *   and the years each set of outside records covers.
  * - Links run one way. The piece may link outward to record pages and official
  *   sources; nothing here writes piece claims into any record surface.
  * - Share previews carry title and dates only (lib/share.ts
@@ -341,7 +361,7 @@ function ContentsLink({
   );
 }
 
-export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'>) {
+export function ResearchScreen({ navigation, route }: RootScreenProps<'Research' | 'Guide'>) {
   const { isMobile } = useResponsive();
   // Back out of a #section address should return the reader to where they were
   // reading, not to the top. The browser cannot do it here — the page scrolls
@@ -380,7 +400,7 @@ export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'
         <ScrollView contentContainerStyle={styles.page}>
           <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
           <Container style={styles.main}>
-            <Text style={styles.paragraph}>This research is not published.</Text>
+            <Text style={styles.paragraph}>This piece is not published.</Text>
           </Container>
           <Footer
             onContact={() => navigation.navigate('ContactUs')}
@@ -393,12 +413,12 @@ export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'
   }
 
   const shareContent: ShareContent = {
-    subject: 'research',
+    subject: piece.traits.research ? 'research' : 'guide',
     title: piece.title,
     // Title and dates only — no dek, no figures (rule 13).
-    description: researchShareDescription(piece),
-    previewDescription: researchSharePanelDescription(piece),
-    url: publicPageUrl(routePath.research(piece.slug)),
+    description: pieceShareDescription(piece),
+    previewDescription: pieceSharePanelDescription(piece),
+    url: publicPageUrl(routePath.piece(piece)),
   };
 
   return (
@@ -412,7 +432,10 @@ export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'
             style={styles.backLink}
           >
             <BackChevron />
-            <Text style={styles.backLinkText}>Campaign money research</Text>
+            {/* The back link names its destination, and the /reading page's name
+                lives in one place so this cannot drift from the page's own
+                heading. */}
+            <Text style={styles.backLinkText}>{READING_PAGE_HEADING}</Text>
           </Pressable>
 
           <View style={[styles.grid, isMobile && styles.gridMobile]}>
@@ -431,7 +454,12 @@ export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'
                 </View>
               ) : null}
 
-              <Text style={styles.eyebrow}>RESEARCH</Text>
+              {/* Only where the masthead does not already say it: a guide's
+                  masthead opens with GUIDE, and printing the word twice in one
+                  glance is what §2.10 narrows away. */}
+              {piece.traits.research ? (
+                <Text style={styles.eyebrow}>{pieceKindLabel(piece).toUpperCase()}</Text>
+              ) : null}
               <Text
                 accessibilityRole="header"
                 aria-level={1}
@@ -439,11 +467,12 @@ export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'
               >
                 {piece.title}
               </Text>
-              <Text style={styles.dek}>{piece.dek}</Text>
+              {piece.set ? <Text style={styles.setLine}>{piece.set.name}</Text> : null}
+              {piece.dek ? <Text style={styles.dek}>{piece.dek}</Text> : null}
 
               <View style={styles.mastheadRow}>
                 <View style={styles.mastheadMeta}>
-                  <Text style={styles.mastheadLineMuted}>{researchDatesLine(piece)}</Text>
+                  <Text style={styles.mastheadLineMuted}>{pieceMastheadLine(piece)}</Text>
                 </View>
                 <SharePopover content={shareContent} />
               </View>
@@ -462,17 +491,24 @@ export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'
                 </View>
               ) : null}
 
-              <View style={styles.shortVersionBox}>
-                <Text style={[styles.insetLabel, styles.shortVersionLabel]}>SHORT VERSION</Text>
-                <Blocks blocks={piece.shortVersion} />
-              </View>
+              {piece.shortVersion.length ? (
+                <View style={styles.shortVersionBox}>
+                  <Text style={[styles.insetLabel, styles.shortVersionLabel]}>SHORT VERSION</Text>
+                  <Blocks blocks={piece.shortVersion} />
+                </View>
+              ) : null}
+
+              {/* Prose before the first heading, drawn plain. A guide opens by
+                  saying what it is about, which is not a short version of
+                  findings and must not be boxed as one. */}
+              {piece.intro?.length ? <Blocks blocks={piece.intro} /> : null}
 
               {piece.sections.map((section, index) => (
                 <SectionView key={anchors[index]} section={section} anchor={anchors[index]} />
               ))}
 
               <View style={styles.sourcesBlock}>
-                <Text style={styles.insetLabel}>WHERE THESE NUMBERS COME FROM</Text>
+                <Text style={styles.insetLabel}>{pieceSourcesLabel(piece)}</Text>
                 <View style={styles.sourcesList}>
                   {piece.sources.map((source, index) => (
                     <Text key={index} style={styles.sourceItem}>
@@ -483,6 +519,14 @@ export function ResearchScreen({ navigation, route }: RootScreenProps<'Research'
                           {source.noteLink.text}
                         </Text>
                       ) : null}
+                    </Text>
+                  ))}
+                  {/* A source sentence carrying more than 1 link is stored as runs
+                      and drawn by the same renderer the prose uses, so every one
+                      of its links is a real link. */}
+                  {(piece.sourceRuns ?? []).map((runs, index) => (
+                    <Text key={`runs-${index}`} style={styles.sourceItem}>
+                      <InlineRuns runs={runs} />
                     </Text>
                   ))}
                 </View>
@@ -594,6 +638,16 @@ const styles = StyleSheet.create({
     letterSpacing: -1.6,
   },
   headingMobile: { fontSize: 32, lineHeight: 37, letterSpacing: -0.9 },
+  // The set's name under the title, quieter than a standfirst because it names
+  // where the piece sits rather than what it says.
+  setLine: {
+    marginTop: 14,
+    color: t.colors.text.secondary,
+    fontFamily: t.typography.body,
+    fontSize: 17.5,
+    lineHeight: 27,
+    fontStyle: 'italic',
+  },
   dek: {
     marginTop: 20,
     color: t.colors.text.secondary,

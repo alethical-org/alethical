@@ -354,11 +354,14 @@ async function contentFor(
           readingPageSnapshot(publishedResearch()),
         ),
       };
+    case "guide":
     case "research": {
       // Title and dates only in a piece's tags (grounded-answers.md rule 13);
-      // an unpublished or unknown slug is a genuinely absent page. The piece's
-      // own writing goes in the body instead, where the loaded page puts it
-      // (#1760) — the `indexed` flag still decides listing on its own.
+      // an unpublished or unknown slug, or a known piece asked for under the
+      // wrong folder, is a genuinely absent page. The piece's own writing goes in
+      // the body instead, where the loaded page puts it (#1760) — the `indexed`
+      // flag still decides listing on its own. A guide and a research piece are
+      // the same document shape, so one branch serves both.
       const piece = researchBySlug(target.slug);
       if (!piece) throw new UnknownAddress(`no piece ${target.slug}`);
       return {

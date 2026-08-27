@@ -3,12 +3,16 @@ import Svg, { Path } from 'react-native-svg';
 
 import { useResponsive } from '../../hooks/useResponsive';
 import {
+  READING_GUIDES_GROUP_HEADING,
   READING_PAGE_EMPTY_BODY,
   READING_PAGE_EMPTY_TITLE,
   READING_PAGE_HEADING,
   READING_PAGE_INTRO,
-  publishedResearch,
-  isoDateCapsLabel,
+  READING_RESEARCH_GROUP_HEADING,
+  pieceCardCta,
+  pieceCardMetaLine,
+  piecesLabelledGuide,
+  piecesLabelledResearch,
   type ResearchPiece,
 } from '../../lib/research';
 import { linkProps, routePath } from '../../navigation/links';
@@ -23,12 +27,32 @@ import { theme as t } from '../../theme/tokens';
  * sat at /money/reports until #1698, and at /reports until 27 Aug 2026
  * (docs/architecture/published-writing-decisions.md §2.1).
  *
- * Every card here is a piece carrying the research trait, because that is all
- * the registry holds today. Guides and sets are planned and unbuilt: the 2
- * trait flags, set membership, reading time and the checked date the combined
- * listing needs are the missing fields in §4 of that same file, tracked on
- * issue 1752. Newest first, one card per piece; a year's worth is what earns
- * grouping by year, so this is a flat list.
+ * The page holds both kinds of writing, in 2 groups: **RESEARCH first, then
+ * GUIDES**, in source order (Eugene, 27 Aug 2026, overruling the drawn order).
+ * Source order rather than a CSS reordering, because reordering in the styling
+ * alone separates what a person sees from what a screen reader reads and what the
+ * keyboard reaches. Research is Alethical's own original work and guides exist
+ * because research needs vocabulary, so leading with guides would put the
+ * supporting material first.
+ *
+ * The vertical rhythm belongs to the SLOT rather than to the group: the first
+ * group's heading sits below the page's rule, the second below the card above it.
+ * So if the order ever swaps, or a group is empty, the spacing swaps with the
+ * position instead of travelling with the group.
+ *
+ * A group with no pieces renders no heading and no list, because a heading over
+ * nothing reads as broken; with neither group the page's own empty state stands.
+ *
+ * A card under one of these headings prints no kind word: the heading is the
+ * source and the card inherits it (§2.10). Newest first inside each group; a
+ * year's worth of pieces is what would earn grouping by year, so each group is a
+ * flat list.
+ *
+ * Not built here, deliberately: the set box, its fold control, and a set's own
+ * page. §2.5 makes a set box a declaration that the next piece is coming shortly,
+ * and "How the Money Works" has 1 published piece with no owner and no date for
+ * the next, so it does not qualify — the guide appears as a standalone card,
+ * which §2.2 allows.
  */
 
 /** Left-pointing chevron for the back link, drawn — the site font has no arrow glyphs. */
@@ -46,7 +70,7 @@ function BackChevron() {
   );
 }
 
-function ResearchCard({
+function PieceCard({
   piece,
   onOpen,
   isMobile,
@@ -56,20 +80,34 @@ function ResearchCard({
   isMobile: boolean;
 }) {
   return (
-    <Pressable {...linkProps(routePath.research(piece.slug), onOpen)} style={styles.card}>
+    <Pressable {...linkProps(routePath.piece(piece), onOpen)} style={styles.card}>
       <View style={styles.cardBody}>
-        <Text style={styles.cardDates}>PUBLISHED {isoDateCapsLabel(piece.publishedOn)}</Text>
+        {/* A research piece's card carries its publication date, as it has since
+            it posted. A guide's carries its reading time and no date: a date on a
+            guide says which event it is and belongs on the piece, never on a
+            listing row, which is where staleness reads worst and a date does
+            least work (settled 26 Aug 2026). */}
+        <Text style={styles.cardDates}>{pieceCardMetaLine(piece)}</Text>
         <Text style={[styles.cardTitle, isMobile && styles.cardTitleMobile]}>{piece.title}</Text>
-        <Text style={styles.cardDek}>{piece.dek}</Text>
-        <Text style={styles.cardCtaText}>Read the research →</Text>
+        {piece.dek ? <Text style={styles.cardDek}>{piece.dek}</Text> : null}
+        <Text style={styles.cardCtaText}>{pieceCardCta(piece)}</Text>
       </View>
     </Pressable>
   );
 }
 
+/** One group on the page: its heading, and the pieces under it. */
+type PieceGroup = { heading: string; pieces: ResearchPiece[] };
+
 export function ReadingScreen({ navigation }: RootScreenProps<'Reading'>) {
   const { isMobile } = useResponsive();
-  const pieces = publishedResearch();
+  // Source order, research first. An empty group is dropped here rather than
+  // hidden in the markup, so the group that renders first is genuinely first for
+  // a screen reader and for the keyboard as well as in ink.
+  const groups: PieceGroup[] = [
+    { heading: READING_RESEARCH_GROUP_HEADING, pieces: piecesLabelledResearch() },
+    { heading: READING_GUIDES_GROUP_HEADING, pieces: piecesLabelledGuide() },
+  ].filter((group) => group.pieces.length > 0);
 
   return (
     <PageBackground>
@@ -98,9 +136,9 @@ export function ReadingScreen({ navigation }: RootScreenProps<'Reading'>) {
               finding them, and stays uncountable so one piece and a collection
               both read right (header design prompt, 20 Aug 2026).
 
-              The description says who wrote the research and what it was drawn
-              from. It deliberately does not promise that figures link to their
-              filings: no posted piece links one yet, and rule 6 of
+              The description says who wrote what is on the page and what it was
+              drawn from. It deliberately does not promise that figures link to
+              their filings: no posted piece links one yet, and rule 6 of
               .claude/rules/grounded-answers.md only lets copy claim what the
               shipped surface delivers. That sentence belongs here the day a
               piece carries the links. */}
@@ -115,7 +153,7 @@ export function ReadingScreen({ navigation }: RootScreenProps<'Reading'>) {
 
           <View style={styles.rule} />
 
-          {pieces.length === 0 ? (
+          {groups.length === 0 ? (
             <View style={styles.emptyCard}>
               <Text style={styles.emptyTitle}>{READING_PAGE_EMPTY_TITLE}</Text>
               {/* No promise of future pieces — "an index promising work we have
@@ -124,16 +162,42 @@ export function ReadingScreen({ navigation }: RootScreenProps<'Reading'>) {
               <Text style={styles.emptyBody}>{READING_PAGE_EMPTY_BODY}</Text>
             </View>
           ) : (
-            <View style={styles.cardList}>
-              {pieces.map((piece) => (
-                <ResearchCard
-                  key={piece.slug}
-                  piece={piece}
-                  isMobile={isMobile}
-                  onOpen={() => navigation.navigate('Research', { slug: piece.slug })}
-                />
-              ))}
-            </View>
+            groups.map((group, index) => (
+              <View key={group.heading}>
+                <Text
+                  accessibilityRole="header"
+                  aria-level={2}
+                  style={[
+                    styles.groupHeading,
+                    isMobile && styles.groupHeadingMobile,
+                    // The spacing is the slot's, not the group's.
+                    index === 0
+                      ? isMobile
+                        ? styles.groupHeadingFirstMobile
+                        : styles.groupHeadingFirst
+                      : isMobile
+                        ? styles.groupHeadingLaterMobile
+                        : styles.groupHeadingLater,
+                  ]}
+                >
+                  {group.heading}
+                </Text>
+                <View style={styles.cardList}>
+                  {group.pieces.map((piece) => (
+                    <PieceCard
+                      key={piece.slug}
+                      piece={piece}
+                      isMobile={isMobile}
+                      onOpen={() =>
+                        piece.traits.research
+                          ? navigation.navigate('Research', { slug: piece.slug })
+                          : navigation.navigate('Guide', { slug: piece.slug })
+                      }
+                    />
+                  ))}
+                </View>
+              </View>
+            ))
           )}
         </Container>
 
@@ -211,7 +275,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 25,
   },
-  cardList: { marginTop: 32, gap: 16 },
+  // Structural headings rather than decorative eyebrows: a card under one of them
+  // prints no kind word and takes it from here, so this is 18px and weight 700
+  // rather than the 13px section label used elsewhere (Design, accepted in
+  // review). Letter-spacing is 0.2em, which React Native counts in pixels.
+  groupHeading: {
+    color: t.colors.text.greenOnLight,
+    fontFamily: t.typography.ui,
+    fontSize: 18,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 3.6,
+  },
+  groupHeadingMobile: { fontSize: 16, letterSpacing: 3.2 },
+  // First slot: below the page's rule. Second slot: below the card above it.
+  groupHeadingFirst: { marginTop: 32 },
+  groupHeadingLater: { marginTop: 56 },
+  groupHeadingFirstMobile: { marginTop: 22 },
+  groupHeadingLaterMobile: { marginTop: 34 },
+  cardList: { marginTop: 16, gap: 16 },
   card: {
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,

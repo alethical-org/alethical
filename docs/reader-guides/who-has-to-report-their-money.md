@@ -1,13 +1,13 @@
-<!-- DRAFT, NOT PUBLISHED. No page renders this file and no reader can reach it. The
-     guide surface is not built: `apps/frontend/src/lib/research.ts` holds one
-     trait of published piece (the research trait), and issue #1752 is where the guide
-     trait is being built. This is the prose, written first so the words are settled
-     before anyone builds a container for them.
+<!-- describes: apps/frontend/src/lib/researchPieces/whoHasToReportTheirMoney.ts -->
+<!-- POSTED 27 Aug 2026, and live at `/reading/guides/who-has-to-report-their-money`.
+     This file is where the prose was written and settled before any container
+     existed for it, and it stays the source of record for the words. The shipped
+     piece is `apps/frontend/src/lib/researchPieces/whoHasToReportTheirMoney.ts`, and
+     `apps/frontend/src/lib/__tests__/research.test.ts` compares the 2 word for word,
+     so an edit here without the matching edit there fails the build, and so does the
+     reverse. The words are settled: rule 13's publishing order lets the Alethical team
+     direct a change (point 2a) and forbids us editing them on our own initiative.
 
-     Declares no `describes:` code on purpose. It describes no shipped behaviour yet.
-     When the guide surface ships, whoever builds it adds the declaration. Its address
-     is already settled: `/reading/guides/<name>`
-     (`docs/architecture/published-writing-decisions.md` §2.1).
 
      WHAT IT IS. Piece 1 of 5 in the set "How the Money Works" (#1752's comment fixes
      the 5 and their reading order). A **Guide** teaches one piece of how the system

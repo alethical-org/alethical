@@ -1,4 +1,4 @@
-<!-- describes: apps/frontend/src/screens/redesign/MoneyLandingScreen.tsx, apps/frontend/src/screens/redesign/ReadingScreen.tsx, apps/frontend/src/screens/redesign/ResearchScreen.tsx, apps/frontend/src/screens/redesign/CommitteeMoneyScreen.tsx, apps/frontend/src/screens/redesign/CommitteePaymentsScreen.tsx, apps/frontend/src/screens/redesign/CommitteeListScreen.tsx, apps/frontend/src/screens/redesign/MoneySearchScreen.tsx, apps/frontend/src/components/campaignMoney/MoneyNameSearchField.tsx, apps/frontend/src/lib/moneyLanding.ts, apps/frontend/src/lib/research.ts, apps/frontend/src/lib/committeeMoney.ts, apps/frontend/src/lib/committeeList.ts, apps/frontend/src/lib/moneyNameSearch.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/webRoutes.ts -->
+<!-- describes: apps/frontend/src/screens/redesign/MoneyLandingScreen.tsx, apps/frontend/src/screens/redesign/ReadingScreen.tsx, apps/frontend/src/screens/redesign/ResearchScreen.tsx, apps/frontend/src/screens/redesign/CommitteeMoneyScreen.tsx, apps/frontend/src/screens/redesign/CommitteePaymentsScreen.tsx, apps/frontend/src/screens/redesign/CommitteeListScreen.tsx, apps/frontend/src/screens/redesign/MoneySearchScreen.tsx, apps/frontend/src/components/campaignMoney/MoneyNameSearchField.tsx, apps/frontend/src/lib/moneyLanding.ts, apps/frontend/src/lib/research.ts, apps/frontend/src/lib/researchPieces/whoHasToReportTheirMoney.ts, apps/frontend/src/lib/committeeMoney.ts, apps/frontend/src/lib/committeeList.ts, apps/frontend/src/lib/moneyNameSearch.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/webRoutes.ts -->
 
 # How the Campaign money section works
 
@@ -336,17 +336,44 @@ state. All 4 old addresses forward permanently and directly, so a link shared be
 move still opens the right page in one hop. Nothing about either page's contents changed with
 either move.
 
-This is the page listing Alethical's own signed research on these records
+This is the page listing everything Alethical publishes in its own name
 ([`.claude/rules/grounded-answers.md` rule 13](../../.claude/rules/grounded-answers.md)).
-One card per posted piece, newest first, each carrying its publication date alone. The
-piece's own page carries the date its records run through. With nothing posted the page says
-"Nothing is published yet" and the money landing counts 0.
+With nothing posted the page says "Nothing is published yet" and the money landing counts 0.
 
-Everything on it today carries the **research** trait, because that is all we have posted.
-Guides, sets of pieces meant to be read together, and their addresses
-(`/reading/guides/<name>` and `/reading/sets/<name>`) are settled and unbuilt: the fields the
-combined listing needs do not exist yet, and the work is tracked on
-[issue 1752](https://github.com/alethical-org/alethical/issues/1752). Those addresses show
+**Two kinds of writing, in 2 groups: RESEARCH first, then GUIDES** (Eugene, 27 Aug 2026,
+overruling the drawn order). Research is Alethical's own digging through these records, signed
+and dated. A guide explains 1 term in plain language, concludes nothing, and adds nothing up
+across members, so it needs no part of rule 13's exception. Research leads because it is the
+original work and guides exist because that work needs vocabulary.
+
+The order is the order the page is written in, not a styling trick, so what a person sees,
+what a screen reader reads out and what the keyboard reaches are the same order. Both headings
+are ordinary level-2 headings, so someone skipping through the page by heading meets RESEARCH
+first.
+
+**A group with nothing in it shows no heading and no list.** A heading over nothing reads as
+broken. The spacing belongs to the position rather than to the group, so whichever group comes
+first sits closer to the rule above it, and if one is empty the other simply takes that place.
+
+One card per piece, newest first inside each group. A card carries:
+
+- The piece's title, and its standfirst where it has one.
+- A quiet line above the title: a research piece's publication date, or **a guide's reading
+  time**. A guide carries no date here on purpose — a date on a guide says which event it is
+  and belongs on the piece itself, never on a listing row, which is where looking old does
+  most harm and a date does least work (settled 26 Aug 2026).
+- No kind word. The heading above already says Research or Guide, and printing it again on
+  the card says it twice in one glance
+  ([`docs/architecture/published-writing-decisions.md`](../architecture/published-writing-decisions.md)
+  §2.10).
+- "Read the research" or "Read the guide", so the reader knows which they are opening.
+
+**No set box, deliberately.** A set is a group of pieces written to be read together, and the
+one that exists, "How the Money Works", has 1 published piece. Starting a set's box on this
+page is a statement that the next piece is coming shortly (§2.5), and nobody owns or has dated
+the next one ([issue 1771](https://github.com/alethical-org/alethical/issues/1771)), so the
+guide appears as an ordinary standalone card, which §2.2 allows. The set box, its fold
+control, and a set's own page at `/reading/sets/<name>` are unbuilt, and that address shows
 the ordinary "page not found" screen rather than an empty page.
 
 Posting a piece puts it on the site straight away, before any of its figures have been
@@ -370,14 +397,18 @@ handed its text over straight away
 whether a search engine may *list* a piece, which is still Eugene's per-piece decision
 above: a piece marked to be skipped is served in full and still asks to be skipped.
 
-One piece is posted: "The Money Only Goes One Way", at
-`/reading/research/the-money-only-goes-one-way`.
+Two pieces are posted: the research piece "The Money Only Goes One Way", at
+`/reading/research/the-money-only-goes-one-way`, and the guide "Who has to report their
+money", at `/reading/guides/who-has-to-report-their-money`.
 
 ## One research piece's page (`/reading/research/{name}`)
 
 Every posted research piece has a page here; an address with no piece behind it shows the
-ordinary "page not found" screen. A piece carrying both the research trait and the guide
-trait is addressed here too, and its label reads Research, because rule 13 binds it in full
+ordinary "page not found" screen. **So does a real piece asked for under the wrong folder** —
+the guide's name under `/reading/research/` is a missing page, not a second way in, because a
+piece has exactly 1 address and a reader must not be able to share one we do not name as the
+real one. A piece carrying both the research trait and the guide trait is addressed here too,
+and its label reads Research, because rule 13 binds it in full
 ([`docs/architecture/published-writing-decisions.md`](../architecture/published-writing-decisions.md)
 §2.6). A piece's page carries:
 
@@ -420,6 +451,54 @@ trait is addressed here too, and its label reads Research, because rule 13 binds
 
 Links run one way: a piece links out to record pages and official sources; no record page
 links back to a piece.
+
+## One guide's page (`/reading/guides/{name}`)
+
+A guide is a short piece explaining 1 term in the words a person actually uses. It concludes
+nothing, adds no figures up across members and defines no labels of our own, so it lives under
+[`.claude/rules/grounded-answers.md`](../../.claude/rules/grounded-answers.md) rules 1 to 12
+like every other page on the site, and needs no part of rule 13's exception for signed
+research.
+
+A guide's page is the same document shape as a research piece's, drawn by the same screen. What
+differs:
+
+- **One line under the title instead of a research masthead**, reading
+  `GUIDE · 5 MIN · WRITTEN AUGUST 2026`. The kind, how long it takes to read, and one date.
+  There is no second date on it.
+- **The word GUIDE is in that line and nowhere else on the page.** A research piece prints
+  RESEARCH above its title because its own masthead is 2 dates and nothing else; a guide's line
+  already says it, and saying it twice is what §2.10 narrows away.
+- **The reading time is worked out from the guide's own words**, at 200 words a minute, rounded
+  to whole minutes. Never typed, because a typed number is wrong the first time a sentence
+  changes.
+- **The date says which event it is.** "Written August 2026" until somebody re-checks the
+  guide against the records, and "Checked March 2027" from then on: the same slot, one word
+  swapped. A guide describes rules that can change, so a reader needs to know when we last
+  looked; and because re-checking moves the date forward, staying accurate makes a guide look
+  current rather than old.
+- **The set it belongs to is named under the title, and only named.** "How the Money Works" is
+  the whole of what a reader is told: no number, not "piece 1", not "piece 1 of 5", nowhere on
+  the site (§2.12). The set's own page does not exist, so the name is not a link — we link only
+  to what is there.
+- **No short-version box**, because a guide states rules rather than findings and there is
+  nothing to summarise above it. It opens with plain prose instead.
+- **A closing "where this comes from" block**, in the guide's own words, with every source
+  linked at the body that published it.
+
+One guide is posted: **"Who has to report their money"**, which explains Minnesota's 3 kinds of
+political account — a candidate's own campaign committee, a party unit, and a political
+committee or fund — and why the kind decides what the records will tell you. Its prose was
+written and settled in
+[`docs/reader-guides/who-has-to-report-their-money.md`](../reader-guides/who-has-to-report-their-money.md)
+before the page existed, and a test compares the shipped page against that file word for word,
+so neither can drift from the other. It cites 11 sources: 8 at the Campaign Finance Board and 3
+at Minnesota's own statutes.
+
+It carries no links out of its own body yet. The 2 forward links it will gain, on the $200
+donor-naming rule and on running your own ads about a race, go in the day those guides post and
+not before, and a person decides every such link rather than software proposing one (§2.6, and
+[issue 1752](https://github.com/alethical-org/alethical/issues/1752)).
 
 ## Limits, sources, and reader data
 

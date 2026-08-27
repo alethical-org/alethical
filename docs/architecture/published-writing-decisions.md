@@ -6,8 +6,8 @@ governing that surface had been accumulating in GitHub issue comments, which
 decision. This file is that home. It records what is settled, what is open, and what each
 alternative lost on, so a build session reads decisions rather than a conversation.
 
-This file declares no code, deliberately. It is a decisions record for a surface that is mostly
-unbuilt; the behaviour of what *is* built is described in
+This file declares no code, deliberately. It is a decisions record; the behaviour of what is built is
+described in
 [`docs/product-onboarding/campaign-money-section-guide.md`](../product-onboarding/campaign-money-section-guide.md),
 which declares those files already. Declaring them twice would double the doc-sync burden on
 every PR that touches them for no gain.
@@ -27,7 +27,9 @@ Two traits, not 2 mutually exclusive kinds. §2.7 is why that distinction matter
   exists and is live: *The Money Only Goes One Way*.
 - **A guide.** One term explained in plain language. A guide concludes nothing, adds nothing up
   across members, and defines no classifications, so it sits under rules 1 to 12 like every other
-  surface and needs no part of rule 13's exception. None are live; 1 is drafted and 12 are planned.
+  surface and needs no part of rule 13's exception. Exactly 1 exists and is live: *Who has to
+  report their money*, at `/reading/guides/who-has-to-report-their-money`, posted 27 Aug 2026. Eleven
+  more are planned.
 - **Both.** A piece may carry both traits. See §2.7, which is where the reader-facing label for
   that case is decided, and §2.8, which is why this is not hypothetical.
 
@@ -311,23 +313,41 @@ listed in it.
 
 None. §2.3, §2.5, §2.7, §2.10, §2.11 and §2.12 all closed on 27 Aug 2026.
 
-## 4. What the design assumes and the code does not provide
+## 4. The 4 fields the design reads off a piece
 
-Four fields, none of which exists. Every one is read by the drawings for the `/reading` page, so
-none of that page can be built until they do.
+**All 4 shipped 27 Aug 2026**, in the change that built the guide page at
+`/reading/guides/who-has-to-report-their-money` and the 2 groups on the `/reading` page. They live on
+`ResearchPiece` in `apps/frontend/src/lib/research.ts`.
 
-1. **Two trait flags on a piece**, not 1 kind: does it carry the research trait, does it carry the
-   guide trait. `ResearchPiece` (`apps/frontend/src/lib/research.ts`) has neither, and §2.9's rename
-   deliberately added neither: a single-value `kind` field would make the both-traits case in §2.8
-   impossible to express, and the 2 flags belong with the other 3 fields on
-   [issue 1752](https://github.com/alethical-org/alethical/issues/1752) rather than half-built ahead
-   of them. The label a
-   reader sees is derived, per §2.7: research trait present means the label reads Research.
-2. **Set membership, and a piece's position within its set.** The set concept has no model at all.
-3. **Reading time, computed from a piece's own words.** The page prints no minutes today.
-4. **A "checked" date**, distinct from the publication date. Settled 26 Aug 2026: a piece reads
-   "Written August 2026" until someone re-checks it and "Checked March 2027" from then on, same
-   slot, one word swapped, and a listing row carries no date either way.
+1. **Two trait flags on a piece** (`traits: { research, guide }`), not 1 kind. A single-value `kind`
+   field would make the both-traits case in §2.8 impossible to express. The label a reader sees is
+   derived, never stored, per §2.7: `pieceKindLabel` returns Research when the research trait is
+   present and Guide otherwise, and `pieceAddressFolder` is the single place that turns the same
+   flags into the piece's folder, so a piece has exactly 1 address and the router rejects the other
+   one.
+2. **Set membership and position** (`set: { name, position }`), optional per §2.2. The position
+   orders a set and is printed nowhere a reader can see, per §2.12; the set's name is all a reader is
+   told, and it is not a link while `/reading/sets/<name>` does not exist.
+3. **Reading time**, computed by `pieceReadingMinutes` from the piece's own stored words at 200 words
+   a minute, rounded to whole minutes and never below 1. Never typed. It appears on a guide's
+   masthead and on a guide's card; a research piece's masthead stays at its 2 dates and nothing else,
+   which rule 13's publishing order point 8 requires.
+4. **A "checked" date** (`checkedOn`), distinct from the publication date. Settled 26 Aug 2026: a
+   piece reads "Written August 2026" until someone re-checks it and "Checked March 2027" from then
+   on, same slot, one word swapped, and a listing row carries no date either way.
+
+**What is still unbuilt, and is not one of these 4:** the set box on the `/reading` page, its fold
+control, and a set's own page. §2.5 makes a box a declaration that the next piece is coming shortly,
+and "How the Money Works" does not yet qualify, so the guide ships as a standalone card. Tracked on
+[issue 1752](https://github.com/alethical-org/alethical/issues/1752).
+
+**One naming debt this change created and deliberately did not clear.** The container concept is a
+**piece**, and the code still says `research` for it: the type is `ResearchPiece`, the registry is
+`PUBLISHED_RESEARCH`, the file is `lib/research.ts` and the screen is `ResearchScreen.tsx`, all of
+which now hold and draw a guide as well. Every symbol added by this change says `piece` instead. The
+rename touches 66 references across 13 files and was left out so the change that adds guides stays
+reviewable; it is recorded on
+[issue 1752](https://github.com/alethical-org/alethical/issues/1752).
 
 ## 5. Naming debt to clear with the rename
 

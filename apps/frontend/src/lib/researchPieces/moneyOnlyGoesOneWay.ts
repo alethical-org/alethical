@@ -18,6 +18,11 @@ const p = (text: string): ResearchBlock => ({ kind: 'paragraph', runs: [{ kind: 
 
 export const MONEY_ONLY_GOES_ONE_WAY: ResearchPiece = {
   slug: 'the-money-only-goes-one-way',
+  // Research only: it concludes, and it adds figures up across members, which is
+  // rule 13's exception. It teaches nothing as its purpose, so it carries no guide
+  // trait, and the label a reader sees derives from that
+  // (docs/architecture/published-writing-decisions.md §2.7 and §2.8).
+  traits: { research: true, guide: false },
   indexed: true,
   title: 'The Money Only Goes One Way',
   dek: "If you've ever given $50 to a candidate, this is where it went.",

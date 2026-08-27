@@ -1,5 +1,5 @@
 import { registrationNumberFromSlug } from '../lib/committeeMoney';
-import { researchBySlug } from '../lib/research';
+import { pieceAddressFolder, researchBySlug } from '../lib/research';
 import type { MainTabParamList, RootStackParamList } from './types';
 
 type WebNavigationState = {
@@ -21,6 +21,7 @@ type WebRouteTarget =
   | { kind: 'moneyLanding' }
   | { kind: 'reading' }
   | { kind: 'research'; slug: string }
+  | { kind: 'guide'; slug: string }
   | { kind: 'moneyCommittee'; slug: string; tab?: string; year?: string }
   | { kind: 'moneyCommitteePayments'; slug: string; tab?: string; year?: string }
   | { kind: 'moneyCommitteeList'; params: Record<string, string> }
@@ -35,6 +36,24 @@ type WebRouteTarget =
   | { kind: 'chatSession'; params: RootStackParamList['ChatSession'] }
   | { kind: 'ask'; params: RootStackParamList['Ask'] }
   | { kind: 'notFound'; path: string };
+
+/**
+ * A piece asked for at one of the 2 retired piece addresses (`/reports/{slug}`
+ * and `/money/reports/{slug}`). `vercel.json` forwards both permanently and
+ * directly in production; this is what makes such a link land anyway on a host
+ * without those forwards — the dev server, a local static export, or a
+ * client-side link written before the move.
+ *
+ * A guide is deliberately not reachable here: only research ever answered on
+ * these addresses, so honouring a guide's slug would create a second address for
+ * a page that has one.
+ */
+function retiredPieceAddress(slug: string, pathname: string): WebRouteTarget {
+  const piece = researchBySlug(slug);
+  return piece && pieceAddressFolder(piece) === 'research'
+    ? { kind: 'research', slug }
+    : { kind: 'notFound', path: pathname };
+}
 
 function normalizePathname(pathname: string) {
   const trimmed = pathname.split('?')[0].replace(/\/+$/, '');
@@ -202,18 +221,31 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
     return { kind: 'contactUs' };
   }
 
-  // One piece of our own research, at /reading/research/{slug}
-  // (docs/architecture/published-writing-decisions.md §2.1;
-  // grounded-answers.md rule 13). The registry of published research is static
-  // and synchronous, so the router resolves the slug itself: an unpublished or
+  // One piece of our own writing, at /reading/research/{slug} or
+  // /reading/guides/{slug} (docs/architecture/published-writing-decisions.md
+  // §2.1; grounded-answers.md rule 13). The piece registry is static and
+  // synchronous, so the router resolves the slug itself: an unpublished or
   // unknown slug is a page that does not exist, and lands on NotFound rather
-  // than an empty shell. A piece carrying both the research and the guide trait
-  // is addressed under 'research', because rule 13 binds it in full. Nothing is
-  // built for /reading/guides/{slug} or /reading/sets/{slug} yet, so those
-  // addresses fall through to NotFound rather than promising a page.
-  if (segments.length === 3 && segments[0] === 'reading' && segments[1] === 'research') {
+  // than an empty shell.
+  //
+  // The folder has to MATCH the piece, or a piece would answer on 2 addresses
+  // and a reader could share the one we do not name as canonical. A piece
+  // carrying both traits lives under 'research', because rule 13 binds it in
+  // full, so `pieceAddressFolder` is the single decision and this is its guard.
+  //
+  // Nothing is built for /reading/sets/{slug} yet, so that address falls through
+  // to NotFound rather than promising a page.
+  if (
+    segments.length === 3 &&
+    segments[0] === 'reading' &&
+    (segments[1] === 'research' || segments[1] === 'guides')
+  ) {
     const slug = decodeURIComponent(segments[2]);
-    return researchBySlug(slug) ? { kind: 'research', slug } : { kind: 'notFound', path: pathname };
+    const piece = researchBySlug(slug);
+    if (piece && pieceAddressFolder(piece) === segments[1]) {
+      return segments[1] === 'guides' ? { kind: 'guide', slug } : { kind: 'research', slug };
+    }
+    return { kind: 'notFound', path: pathname };
   }
 
   // The two addresses this page and its pieces held before: /money/reports until
@@ -227,13 +259,13 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
   if (segments.length === 2 && segments[0] === 'money' && segments[1] === 'reports') {
     return { kind: 'reading' };
   }
+  // Both old piece addresses only ever held research, so a guide does not answer
+  // on them: it never had one, and honouring it would invent a second address.
   if (segments.length === 2 && segments[0] === 'reports') {
-    const slug = decodeURIComponent(segments[1]);
-    return researchBySlug(slug) ? { kind: 'research', slug } : { kind: 'notFound', path: pathname };
+    return retiredPieceAddress(decodeURIComponent(segments[1]), pathname);
   }
   if (segments.length === 3 && segments[0] === 'money' && segments[1] === 'reports') {
-    const slug = decodeURIComponent(segments[2]);
-    return researchBySlug(slug) ? { kind: 'research', slug } : { kind: 'notFound', path: pathname };
+    return retiredPieceAddress(decodeURIComponent(segments[2]), pathname);
   }
 
   // The name search's results page (campaign money phase 3, issue #1696). The
@@ -454,6 +486,8 @@ export function pathForRoute(activeRoute: {
       return '/reading';
     case 'Research':
       return `/reading/research/${encodeURIComponent(String(activeRoute.params?.slug ?? ''))}`;
+    case 'Guide':
+      return `/reading/guides/${encodeURIComponent(String(activeRoute.params?.slug ?? ''))}`;
     case 'CommitteeList': {
       const params = new URLSearchParams();
       for (const key of COMMITTEE_LIST_PARAMS) {
@@ -622,6 +656,11 @@ export function stateFromPathname(pathname: string): WebNavigationState {
     case 'research':
       return {
         routes: [homeTabs, { name: 'Research', params: { slug: target.slug } }],
+        index: 1,
+      };
+    case 'guide':
+      return {
+        routes: [homeTabs, { name: 'Guide', params: { slug: target.slug } }],
         index: 1,
       };
     case 'moneyCommittee':

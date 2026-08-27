@@ -1,5 +1,5 @@
 import { publicPageUrl } from "../apps/frontend/src/lib/share";
-import { indexedResearch } from "../apps/frontend/src/lib/research";
+import { indexedResearch, piecePath } from "../apps/frontend/src/lib/research";
 import {
   BILL_DIRECTORY_PAGE_SIZE,
   directoryPagePath,
@@ -78,7 +78,9 @@ function pagesUrlset(data?: SitemapPayload): string {
   // `indexed` is true on everything we publish; it stays as a way to hold one back
   // for a stated reason, not as a checking step every piece waits behind.
   for (const piece of indexedResearch()) {
-    paths.push(`/reading/research/${encodeURIComponent(piece.slug)}`);
+    // Each piece's own address, from the one function that decides the folder, so
+    // the site map can never advertise an address the router rejects.
+    paths.push(piecePath(piece));
   }
   if (data) {
     for (
