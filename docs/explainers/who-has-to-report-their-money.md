@@ -11,6 +11,15 @@
      the 5 and their reading order). An explainer teaches one piece of how the system
      works and draws no conclusions.
 
+     TWO READER-FACING LINES DELIBERATELY DO NOT COUNT THE SET. The position line reads
+     "piece 1" and not "piece 1 of 5", and the closing paragraph names no title for the
+     next piece. Eugene ratified on 27 Aug 2026 that a set names only its published
+     pieces and never its unwritten ones, on the ground that
+     `.claude/rules/grounded-answers.md` rule 2 forbids naming what we cannot deliver
+     (`docs/architecture/published-writing-decisions.md` §2.3). A printed "of 5" is that
+     same promise inside the prose, and it also goes stale if the set turns out to be 4
+     pieces or 7. The set framing stays in this comment, which no reader sees.
+
      WHICH RULES BIND IT. `.claude/rules/grounded-answers.md` rules 1 to 12, like every
      other surface. NOT rule 13: adding figures up across members, defining derived
      classifications and reaching conclusions are permitted to signed reports only, and
@@ -75,7 +84,7 @@
 
 # Who has to report their money
 
-*How the Money Works, piece 1 of 5*
+*How the Money Works, piece 1*
 
 Look up a Minnesota politician’s money and you will not find a person. You will find an
 account.
@@ -177,7 +186,9 @@ Minnesota requires an account to name a donor once that person’s giving passes
 total for the calendar year, and lets it name smaller donors too. Every figure above
 sits on one side of that line.
 
-Piece 2, **What the records name, and what they leave out**, is about the other side.
+What the records name, and what they leave out, is the other side, and it is the
+subject of the next piece in this set. This paragraph gains a link to it the day that
+piece posts.
 
 ---
 
