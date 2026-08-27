@@ -168,17 +168,37 @@
         sentence equating them would have been wrong. Needs a home: either its own piece
         or a section added here once the financial tab is read.
 
-     4. Any claim that an account may name a smaller donor voluntarily. Piece 1's closing
-        paragraph says Minnesota "lets it name smaller donors too", and issue #1752's
-        item 1 says "a committee may name smaller donors anyway". Neither is supported by
-        the sources read for this piece: the statute says sub-threshold contributions
-        "must be reported as an aggregate total" and all 3 handbooks say they "should be
-        added together and listed as a lump sum", and searching all 4 handbooks for
-        voluntary or optional itemization returns nothing. What the sources do support is
-        the sentence this piece makes instead, about small *gifts* rather than small
-        *donors*. Piece 1's clause was left alone rather than edited, because the brief
-        for this piece asked for one new file; flagged to Eugene, and issue #1752's
-        "revisit after piece 2" list already schedules that sentence for review.
+     4. WITHDRAWN, and the prose above is corrected. This item argued that no account may
+        name a smaller giver voluntarily, on the ground that the statute says sub-threshold
+        contributions "must be reported as an aggregate total", that all 3 handbooks say
+        they "should be added together and listed as a lump sum", and that searching all 4
+        handbooks for voluntary or optional itemization returns nothing. Every one of those
+        readings is accurate and the conclusion does not follow: the absence of a stated
+        permission is not a prohibition, and we have measured the practice happening.
+
+        `docs/architecture/campaign-finance-system-design.md` §2.3 records the measurement:
+        "whether a committee names a sub-threshold donor anyway is the committee's own
+        choice. The statute sets a floor on who *must* be named and permits naming more."
+        Filer 18135's 2026 pre-general itemizes 215 donors at or under $200 in the period,
+        $10,136.05 of them, and reconciles to the cent WITHOUT excluding them; filer 18336's
+        2026 pre-primary over-corrects by $9,713.50 WITH the exclusion.
+
+        One caveat on those 215, because it is easy to overstate them and an earlier draft of
+        this correction did: they are at or under $200 FOR THE PERIOD, and a giver at $150 in
+        one period can be at $400 for the year and so required to be named. So the 215 prove
+        that committees itemize below the period threshold; they do not each prove a naming
+        nobody required. That is why the reader-facing sentence above rests on the statutory
+        floor rather than on a figure.
+
+        This piece's own count carries the same evidence and it went unread here. Of the
+        337,888 named payments of $200 or less, 334,234 come from a giver whose year total
+        to that account exceeds $200. The remaining 3,654 are named payments from givers
+        whose total does not, which is naming that nothing required.
+
+        So piece 1's "lets it name smaller donors too" is correct and stays, and
+        [issue #1755](https://github.com/alethical-org/alethical/issues/1755) is the live
+        record: 4 shipped pages carry the false absolute "are never named" and are queued
+        for the same correction this file just took.
 
      WHAT THIS PIECE OWNS, so the rest of the set links here rather than re-explaining:
      the $200 naming rule (the year's total, not the gift) - the exceed boundary at
@@ -230,7 +250,7 @@ So a $25 gift can carry a name. Not because $25 is a lot. Because the person who
 reached $200 with that account by the end of the year.
 
 The law says the total has to exceed $200. So a giver whose total for the year is exactly
-$200 is not named.
+$200 does not have to be named.
 
 ## More than half the named payments are small
 
@@ -253,16 +273,20 @@ every named payment Minnesota publishes is a gift of $200 or less.
 Now the other side of it.
 
 Somebody who gives $50 once and never gives again never reaches $200. The money is still
-reported. The name is not.
+reported. The name does not have to be.
+
+Some accounts name them anyway. The $200 is a floor on who a committee **must** name, not
+a ceiling on who it may. So a reader who finds a $50 giver named in a filing is not looking
+at a mistake.
 
 The handbooks are plain about where it goes. Gifts from donors who gave $200 or less in
 total “should be added together and listed as a lump sum”. The reporting form has a line
 for exactly that, reading “Contributions from donors who each gave $200 or less”. The
 instruction underneath it: “Do not list the donors separately.”
 
-So every filing carries a figure with no names behind it. It is real money, correctly
-reported, and nameless by law. It is not a mistake, and it is not something Alethical
-failed to collect.
+So a filing can carry a figure with no names behind it. It is real money, correctly
+reported, and nobody was required to name it. It is not a mistake, and it is not something
+Alethical failed to collect.
 
 That leaves one thing worth carrying around. Add up the payments in a list of names and
 you have not added up the money. You have added up the named part of it.
