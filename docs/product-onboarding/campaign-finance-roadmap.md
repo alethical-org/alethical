@@ -31,7 +31,7 @@ own conclusion. We hand them the record, not the verdict.
 Between those two sits a third kind of claim: a pattern that really is in the records — for
 example, that two groups of candidates are funded in measurably different ways. Since
 18 Aug 2026 (Eugene's call), that kind of claim is allowed in exactly one place: a signed,
-dated research piece on the `/reading` page (`/reading/research/<name>`), where the method is printed
+dated research piece on the `/read` page (`/read/research/<name>`), where the method is printed
 beside
 the words, every figure links to the record behind it, and the reader can redo the arithmetic
 and argue with the counting. What such a piece may do, and everything still banned there — motive
@@ -111,20 +111,22 @@ the *Spending by outside groups* section of
 
 ### Also in the first wave: our own research (added 18 Aug 2026)
 
-Signed, dated research pieces, each at `/reading/research/<name>` and listed on the
-`/reading` page, reached from the top
-menu's **Reading** group and from the money landing's "What we found" card: our research on
+Signed, dated research pieces, each at `/read/research/<name>` and listed on the
+`/read` page, reached from the top
+menu's **Read** item and from the money landing's "What we found" card: our research on
 the records we hold, what they show when added up, every figure linked back to the record
 behind it. The listing sat inside the money section, at `/money/reports`, until 20 Aug 2026
-([#1698](https://github.com/alethical-org/alethical/issues/1698)), and at `/reports` until
-27 Aug 2026, when "report" went back to meaning only the document a campaign files with the
-state (`docs/architecture/published-writing-decisions.md` §2.6). All 4 old addresses forward
-permanently and directly. This is
+([#1698](https://github.com/alethical-org/alethical/issues/1698)), at `/reports` until the
+morning of 27 Aug 2026, when "report" went back to meaning only the document a campaign files
+with the state, and at `/reading` until that evening, when the menu item became the single word
+**Read** and every address followed it
+(`docs/architecture/published-writing-decisions.md` §2.6 and §2.13). All 7 old addresses forward
+permanently and directly, each to its final `/read` address in 1 hop. This is
 the one surface allowed to add records up across members and to name a pattern, under the
 conditions in
 [`.claude/rules/grounded-answers.md` rule 13](../../.claude/rules/grounded-answers.md).
 A piece posts as its author wrote it, before any figure is checked, and goes live on the
-site the same day: its own address, the `/reading` page, the money landing's count, and the
+site the same day: its own address, the `/read` page, the money landing's count, and the
 sitemap search engines read (Eugene, 25 Aug 2026). Nothing waits, including search engines.
 Every figure is then checked against our loaded data on the live page, which is now the only
 thing standing between a wrong figure and a search result. A figure drawn from records we do not hold yet,

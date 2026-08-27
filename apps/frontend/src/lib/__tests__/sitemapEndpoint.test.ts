@@ -68,7 +68,7 @@ describe('sitemap endpoint', () => {
       '/find-my-legislator',
       '/money',
       '/money/committees',
-      '/reading',
+      '/read',
       '/about',
       '/about/contact',
       '/privacy',
@@ -83,18 +83,25 @@ describe('sitemap endpoint', () => {
     // A published piece is in the sitemap from the day it posts, so the count
     // grows with every piece we publish rather than staying fixed.
     expect(body).toContain(
-      '<loc>https://www.alethical.com/reading/research/the-money-only-goes-one-way</loc>',
+      '<loc>https://www.alethical.com/read/research/the-money-only-goes-one-way</loc>',
     );
     // A guide is listed at its own folder, from the same registry.
     expect(body).toContain(
-      '<loc>https://www.alethical.com/reading/guides/who-has-to-report-their-money</loc>',
+      '<loc>https://www.alethical.com/read/guides/who-has-to-report-their-money</loc>',
     );
     expect(body.match(/<url>/g)).toHaveLength(17);
-    // The addresses the /reading page and its pieces used to answer on are
+    // Every address the /read page and its pieces used to answer on is
     // forwarded, never listed: a sitemap row for an address that answers with a
     // permanent forward asks Google to crawl a redirect
-    // (docs/architecture/published-writing-decisions.md §2.8).
-    for (const retired of ['/reports', '/reports/the-money-only-goes-one-way', '/money/reports']) {
+    // (docs/architecture/published-writing-decisions.md §2.1).
+    for (const retired of [
+      '/reports',
+      '/reports/the-money-only-goes-one-way',
+      '/money/reports',
+      '/reading',
+      '/reading/research/the-money-only-goes-one-way',
+      '/reading/guides/who-has-to-report-their-money',
+    ]) {
       expect(body).not.toContain(`<loc>https://www.alethical.com${retired}</loc>`);
     }
     expect(body).not.toContain('<lastmod>');
@@ -111,10 +118,10 @@ describe('sitemap endpoint', () => {
     expect(status).toBe(200);
     expect(body.match(/<url>/g)).toHaveLength(14);
     expect(body).toContain(
-      '<loc>https://www.alethical.com/reading/research/the-money-only-goes-one-way</loc>',
+      '<loc>https://www.alethical.com/read/research/the-money-only-goes-one-way</loc>',
     );
     expect(body).toContain(
-      '<loc>https://www.alethical.com/reading/guides/who-has-to-report-their-money</loc>',
+      '<loc>https://www.alethical.com/read/guides/who-has-to-report-their-money</loc>',
     );
     expect(body).not.toContain('?page=');
   });

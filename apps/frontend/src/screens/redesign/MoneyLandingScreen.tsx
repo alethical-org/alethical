@@ -109,7 +109,7 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
   const filingsQuery = useCampaignFinanceFilings(5);
   // Research only. This card says "Read the research", so a guide featured here
   // would be labelled as something it is not; a reader reaches guides through the
-  // /reading page this card links to, and through the nav's Reading group.
+  // /read page this card links to, and through the bar's Read item.
   const pieces = piecesLabelledResearch();
   const newestPiece = pieces[0];
 
@@ -184,11 +184,11 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
           </View>
 
           {/* WHAT WE FOUND — the research lane, first in prominence. The
-              /reading page exists, so the card links; with no research published
+              /read page exists, so the card links; with no research published
               it says so and counts 0 honestly. It features the newest RESEARCH
               piece, never a guide. */}
           <Pressable
-            {...linkProps(routePath.reading(), () => navigation.navigate('Reading'))}
+            {...linkProps(routePath.read(), () => navigation.navigate('Read'))}
             style={styles.featuredCard}
           >
             <Text style={styles.featuredEyebrow}>WHAT WE FOUND</Text>

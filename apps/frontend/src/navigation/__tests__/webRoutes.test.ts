@@ -12,7 +12,7 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { IA, MENUS, mobileNavRoadmapLabels, navDropdownItems } from '../ia';
+import { IA, NAV_BAR, mobileNavRoadmapLabels, navDropdownItems } from '../ia';
 import { pathForRoute, stateFromPathname, targetFromPathname } from '../webRoutes';
 
 const routeSource = readFileSync(join(__dirname, '..', 'webRoutes.ts'), 'utf8');
@@ -245,40 +245,41 @@ describe('campaign money routes', () => {
     expect(pathForRoute({ name: 'MoneyLanding' })).toBe('/money');
   });
 
-  // The /reading page left the money section for the top level (#1698), and left
-  // /reports on 27 Aug 2026, when "report" went back to meaning only the document
-  // a campaign files with the state
+  // The /read page left the money section for the top level (#1698), left
+  // /reports on the morning of 27 Aug 2026, when "report" went back to meaning
+  // only the document a campaign files with the state, and left /reading that
+  // evening for the single word the bar now shows
   // (docs/architecture/published-writing-decisions.md §2.1 and §2.6).
-  it('round-trips the /reading page through /reading', () => {
-    expect(targetFromPathname('/reading')).toEqual({ kind: 'reading' });
-    expect(pathForRoute({ name: 'Reading' })).toBe('/reading');
+  it('round-trips the /read page through /read', () => {
+    expect(targetFromPathname('/read')).toEqual({ kind: 'read' });
+    expect(pathForRoute({ name: 'Read' })).toBe('/read');
   });
 
   // An unknown slug is a page that does not exist — NotFound, not an empty shell
   // (grounded-answers.md rule 13; the registry in lib/research.ts holds only
   // pieces that have actually posted).
   it('sends an unpublished research slug to NotFound', () => {
-    expect(targetFromPathname('/reading/research/outsider-pattern')).toEqual({
+    expect(targetFromPathname('/read/research/outsider-pattern')).toEqual({
       kind: 'notFound',
-      path: '/reading/research/outsider-pattern',
+      path: '/read/research/outsider-pattern',
     });
   });
 
-  it('writes a research URL under /reading/research', () => {
+  it('writes a research URL under /read/research', () => {
     expect(pathForRoute({ name: 'Research', params: { slug: 'outsider-pattern' } })).toBe(
-      '/reading/research/outsider-pattern',
+      '/read/research/outsider-pattern',
     );
   });
 
   // The posted guide, at the folder its traits put it in
   // (published-writing-decisions.md §2.1).
-  it('opens the posted guide under /reading/guides', () => {
-    expect(targetFromPathname('/reading/guides/who-has-to-report-their-money')).toEqual({
+  it('opens the posted guide under /read/guides', () => {
+    expect(targetFromPathname('/read/guides/who-has-to-report-their-money')).toEqual({
       kind: 'guide',
       slug: 'who-has-to-report-their-money',
     });
     expect(pathForRoute({ name: 'Guide', params: { slug: 'who-has-to-report-their-money' } })).toBe(
-      '/reading/guides/who-has-to-report-their-money',
+      '/read/guides/who-has-to-report-their-money',
     );
   });
 
@@ -286,20 +287,20 @@ describe('campaign money routes', () => {
   // absent page, not a second way in, or the same page would answer on 2
   // addresses and a reader could share the one we do not name as canonical.
   it('refuses a posted piece asked for under the wrong folder', () => {
-    expect(targetFromPathname('/reading/research/who-has-to-report-their-money')).toEqual({
+    expect(targetFromPathname('/read/research/who-has-to-report-their-money')).toEqual({
       kind: 'notFound',
-      path: '/reading/research/who-has-to-report-their-money',
+      path: '/read/research/who-has-to-report-their-money',
     });
-    expect(targetFromPathname('/reading/guides/the-money-only-goes-one-way')).toEqual({
+    expect(targetFromPathname('/read/guides/the-money-only-goes-one-way')).toEqual({
       kind: 'notFound',
-      path: '/reading/guides/the-money-only-goes-one-way',
+      path: '/read/guides/the-money-only-goes-one-way',
     });
   });
 
   it('sends an unpublished guide slug to NotFound', () => {
-    expect(targetFromPathname('/reading/guides/not-a-guide')).toEqual({
+    expect(targetFromPathname('/read/guides/not-a-guide')).toEqual({
       kind: 'notFound',
-      path: '/reading/guides/not-a-guide',
+      path: '/read/guides/not-a-guide',
     });
   });
 
@@ -307,21 +308,22 @@ describe('campaign money routes', () => {
   // (published-writing-decisions.md §2.1), so it is an absent page rather than an
   // empty shell promising one.
   it('does not serve a set address yet', () => {
-    expect(targetFromPathname('/reading/sets/where-the-money-comes-from')).toEqual({
+    expect(targetFromPathname('/read/sets/where-the-money-comes-from')).toEqual({
       kind: 'notFound',
-      path: '/reading/sets/where-the-money-comes-from',
+      path: '/read/sets/where-the-money-comes-from',
     });
   });
 
-  // All three old addresses still land, so a link shared before either move works
-  // on any host — the production forwards in vercel.json never see the app, but
-  // the dev server and a local static export have none.
-  it('lands an old /reports or /money/reports link on the /reading page', () => {
-    expect(targetFromPathname('/reports')).toEqual({ kind: 'reading' });
-    expect(targetFromPathname('/money/reports')).toEqual({ kind: 'reading' });
-    expect(targetFromPathname('/money/reports/')).toEqual({ kind: 'reading' });
+  // All 3 old addresses still land, so a link shared before any of the moves
+  // works on any host — the production forwards in vercel.json never see the
+  // app, but the dev server and a local static export have none.
+  it('lands an old /reading, /reports or /money/reports link on the /read page', () => {
+    expect(targetFromPathname('/reading')).toEqual({ kind: 'read' });
+    expect(targetFromPathname('/reports')).toEqual({ kind: 'read' });
+    expect(targetFromPathname('/money/reports')).toEqual({ kind: 'read' });
+    expect(targetFromPathname('/money/reports/')).toEqual({ kind: 'read' });
     expect(targetFromPathname('/money/reports?utm_source=newsletter')).toEqual({
-      kind: 'reading',
+      kind: 'read',
     });
   });
 
@@ -338,7 +340,7 @@ describe('campaign money routes', () => {
     });
   });
 
-  // Only research ever answered on the 2 retired piece addresses, so honouring a
+  // Only research ever answered on the 2 retired REPORT addresses, so honouring a
   // guide's slug there would invent an address it never had.
   it('never answers a guide at a retired piece address', () => {
     for (const path of [
@@ -349,12 +351,22 @@ describe('campaign money routes', () => {
     }
   });
 
+  // /reading/guides IS different: a guide genuinely answered there from the
+  // evening of 27 Aug 2026, so that address keeps opening it.
+  it('opens the posted guide at the /reading folder it did answer on', () => {
+    expect(targetFromPathname('/reading/guides/who-has-to-report-their-money')).toEqual({
+      kind: 'guide',
+      slug: 'who-has-to-report-their-money',
+    });
+  });
+
   // The one posted piece resolves at all three of its addresses, so a link
   // shared under either old address still opens the piece on a host with no
   // forwards.
-  it('opens the posted piece at its new address and at both old ones', () => {
+  it('opens the posted piece at its new address and at all 3 old ones', () => {
     const slug = 'the-money-only-goes-one-way';
     for (const path of [
+      `/read/research/${slug}`,
       `/reading/research/${slug}`,
       `/reports/${slug}`,
       `/money/reports/${slug}`,
@@ -429,31 +441,48 @@ describe('campaign money routes', () => {
 });
 
 describe('shared top navigation', () => {
-  // Yours left the bar for the account menu and Reading took second place
-  // (#1698; labelled Reports until 27 Aug 2026). Both auth states carry these
-  // same three groups.
-  it('offers Search, Reading and About without an active Ask entry', () => {
-    expect(MENUS.map((menu) => menu.key)).toEqual(['search', 'reading', 'about']);
-    expect(MENUS.map((menu) => menu.label)).toEqual(['Search', 'Reading', 'About']);
+  // Yours left the bar for the account menu and Read took second place (#1698;
+  // labelled Reports, then Reading, until 27 Aug 2026). Both auth states carry
+  // these same 3 entries.
+  it('offers Search, Read and About without an active Ask entry', () => {
+    expect(NAV_BAR.map((entry) => (entry.kind === 'menu' ? entry.key : entry.item.id))).toEqual([
+      'search',
+      'read',
+      'about',
+    ]);
+    expect(
+      NAV_BAR.map((entry) => (entry.kind === 'menu' ? entry.label : entry.item.label)),
+    ).toEqual(['Search', 'Read', 'About']);
   });
 
   it('keeps no Yours group in the bar', () => {
-    expect(MENUS.map((menu) => menu.key)).not.toContain('track');
+    expect(NAV_BAR.map((entry) => (entry.kind === 'menu' ? entry.key : null))).not.toContain(
+      'track',
+    );
   });
 });
 
-// Reading holds one child, and the child is what carries the NEW pill. The row
-// has to open a page that exists, so its path is the /reading page's own address.
-describe('Reading group', () => {
-  it('lists Campaign money as its one live row, pointed at the /reading page', () => {
-    const { live, roadmap } = navDropdownItems('reading');
-    expect(live.map((item) => item.id)).toEqual(['reading-campaign-money']);
-    expect(roadmap).toEqual([]);
-    expect(live[0].label).toBe('Campaign money');
-    expect(live[0].description).toBe('What we found across campaign filings and how we counted it');
-    expect(live[0].path).toBe('/reading');
-    expect(live[0].isNew).toBe(true);
-    expect(live[0].authGated).toBe(false);
+// Read is 1 destination with no dropdown, not a group holding a single row: the
+// bar drew a dropdown with 1 item in it and the phone drawer drew a heading over
+// 1 row until 27 Aug 2026 (Design's nav drawing;
+// docs/architecture/published-writing-decisions.md §2.1).
+describe('the bar\u2019s Read item', () => {
+  it('is a plain destination with no dropdown behind it', () => {
+    const read = NAV_BAR.find((entry) => entry.kind === 'link');
+    expect(read).toBeDefined();
+    if (read?.kind !== 'link') throw new Error('Read is not a link entry');
+    expect(read.item.id).toBe('read');
+    expect(read.item.label).toBe('Read');
+    expect(read.item.path).toBe('/read');
+    expect(read.item.menu).toBeNull();
+    expect(read.item.isNew).toBe(true);
+    expect(read.item.authGated).toBe(false);
+    // Nothing hangs off it, at either band.
+    expect(IA.filter((item) => item.id !== 'read' && item.path.startsWith('/read'))).toEqual([]);
+  });
+
+  it('is the only bar entry that is a destination', () => {
+    expect(NAV_BAR.filter((entry) => entry.kind === 'link')).toHaveLength(1);
   });
 });
 

@@ -1,5 +1,5 @@
 <!-- describes: apps/frontend/src/lib/researchPieces/whoHasToReportTheirMoney.ts -->
-<!-- POSTED 27 Aug 2026, and live at `/reading/guides/who-has-to-report-their-money`.
+<!-- POSTED 27 Aug 2026, and live at `/read/guides/who-has-to-report-their-money`.
      This file is where the prose was written and settled before any container
      existed for it, and it stays the source of record for the words. The shipped
      piece is `apps/frontend/src/lib/researchPieces/whoHasToReportTheirMoney.ts`, and
@@ -29,7 +29,7 @@
      other surface. NOT rule 13: adding figures up across members, defining derived
      classifications and reaching conclusions are permitted to signed research only, and
      a guide must not inherit any of it. A piece that does carry the research trait as
-     well is addressed under `/reading/research/` and labelled Research, because rule 13
+     well is addressed under `/read/research/` and labelled Research, because rule 13
      then binds it in full (§2.6 and §2.7 of the same file); this piece carries only the
      guide trait.
 

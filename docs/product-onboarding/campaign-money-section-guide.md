@@ -1,4 +1,4 @@
-<!-- describes: apps/frontend/src/screens/redesign/MoneyLandingScreen.tsx, apps/frontend/src/screens/redesign/ReadingScreen.tsx, apps/frontend/src/screens/redesign/ResearchScreen.tsx, apps/frontend/src/screens/redesign/CommitteeMoneyScreen.tsx, apps/frontend/src/screens/redesign/CommitteePaymentsScreen.tsx, apps/frontend/src/screens/redesign/CommitteeListScreen.tsx, apps/frontend/src/screens/redesign/MoneySearchScreen.tsx, apps/frontend/src/components/campaignMoney/MoneyNameSearchField.tsx, apps/frontend/src/lib/moneyLanding.ts, apps/frontend/src/lib/research.ts, apps/frontend/src/lib/researchPieces/whoHasToReportTheirMoney.ts, apps/frontend/src/lib/committeeMoney.ts, apps/frontend/src/lib/committeeList.ts, apps/frontend/src/lib/moneyNameSearch.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/webRoutes.ts -->
+<!-- describes: apps/frontend/src/screens/redesign/MoneyLandingScreen.tsx, apps/frontend/src/screens/redesign/ReadScreen.tsx, apps/frontend/src/screens/redesign/ResearchScreen.tsx, apps/frontend/src/screens/redesign/CommitteeMoneyScreen.tsx, apps/frontend/src/screens/redesign/CommitteePaymentsScreen.tsx, apps/frontend/src/screens/redesign/CommitteeListScreen.tsx, apps/frontend/src/screens/redesign/MoneySearchScreen.tsx, apps/frontend/src/components/campaignMoney/MoneyNameSearchField.tsx, apps/frontend/src/lib/moneyLanding.ts, apps/frontend/src/lib/research.ts, apps/frontend/src/lib/researchPieces/whoHasToReportTheirMoney.ts, apps/frontend/src/lib/committeeMoney.ts, apps/frontend/src/lib/committeeList.ts, apps/frontend/src/lib/moneyNameSearch.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/webRoutes.ts -->
 
 # How the Campaign money section works
 
@@ -8,14 +8,15 @@ committees has its own browsable list, and every committee page is reachable by 
 rather than only by pasting an address. One part of the section is still unbuilt and says
 so on the page: the Who got paid lane
 ([#1780](https://github.com/alethical-org/alethical/issues/1780)). Our own signed research
-lives one level up, on the `/reading` page, which the money landing points at. One piece is
+lives one level up, on the `/read` page, which the money landing points at. One piece is
 published there.
 
 **"Report" means one thing on this site: the document a campaign files with the state.** Our
 own writing is **Research**, and a short piece explaining 1 term is a **Guide** (settled
 27 Aug 2026, [`docs/architecture/published-writing-decisions.md`](../architecture/published-writing-decisions.md)
-§2.6). The `/reading` page and its pieces were addressed `/reports` until that day, and every
-old address forwards permanently and directly.
+§2.6). The `/read` page and its pieces were addressed `/money/reports`, then `/reports`, then
+`/read` before landing on `/read` on 27 Aug 2026, and every one of those old addresses forwards
+permanently and straight to the `/read` address it belongs to, never through the one in between.
 
 ## Ways in
 
@@ -29,8 +30,10 @@ old address forwards permanently and directly.
 - The retired address `/track/campaign-finance` (an old greyed "Campaign Finance" tracking
   row pointed there) shows the `/money` landing instead of an error.
 
-The `/reading` page has its own way in, separate from this section: choose **Reading**, then
-**Campaign money**, in the same top menu.
+The `/read` page has its own way in, separate from this section: choose **Read** in the same top
+menu. It is one item with no menu behind it, on a computer and in the phone menu both, so it takes
+one click or one tap (settled 27 Aug 2026, [`docs/architecture/published-writing-decisions.md`](../architecture/published-writing-decisions.md)
+§2.13).
 
 ## The landing page (`/money`)
 
@@ -47,7 +50,7 @@ Top to bottom:
    organisation. A query shorter than the search's own floor is not blocked here; the
    results page says "type at least 3 characters" instead, which is the true answer rather
    than a box that silently refuses.
-3. **What we found** — the research lane, first in prominence. It links to the `/reading`
+3. **What we found** — the research lane, first in prominence. It links to the `/read`
    page, showing the newest piece's title, standfirst and dates. With nothing published it
    says "Nothing is published yet" and counts "0 RESEARCH PIECES PUBLISHED" honestly.
 4. **Three lane cards**: Legislators (links to the legislator directory — a member's money
@@ -325,15 +328,16 @@ is a measured count served with the rows, never a guess. The same naming rules a
 loan is labelled as reported on its own schedule rather than reading as a gift, transfers
 read "Money given to another campaign", and only registered filers' names open pages.
 
-## The `/reading` page (`/reading`)
+## The `/read` page (`/read`)
 
-Reached from the top menu's **Reading** group, and from the money landing's "What we found"
-card. It has moved twice: it sat at `/money/reports` until 20 Aug 2026, when the nav gained
+Reached from the top menu's **Read** item, and from the money landing's "What we found"
+card. It has moved 3 times: it sat at `/money/reports` until 20 Aug 2026, when the nav gained
 its own group and it left the money section
-([#1698](https://github.com/alethical-org/alethical/issues/1698)), and at `/reports` until
-27 Aug 2026, when "report" went back to meaning only the document a campaign files with the
-state. All 4 old addresses forward permanently and directly, so a link shared before either
-move still opens the right page in one hop. Nothing about either page's contents changed with
+([#1698](https://github.com/alethical-org/alethical/issues/1698)), at `/reports` until the
+morning of 27 Aug 2026, when "report" went back to meaning only the document a campaign files
+with the state, and at `/read` until that evening, when the menu item became the single word
+**Read** and the addresses followed it. All 7 old addresses forward permanently and directly, so a
+link shared before any of the moves still opens the right page in one hop. Nothing about either page's contents changed with
 either move.
 
 This is the page listing everything Alethical publishes in its own name
@@ -373,7 +377,7 @@ one that exists, "How the Money Works", has 1 published piece. Starting a set's 
 page is a statement that the next piece is coming shortly (§2.5), and nobody owns or has dated
 the next one ([issue 1771](https://github.com/alethical-org/alethical/issues/1771)), so the
 guide appears as an ordinary standalone card, which §2.2 allows. The set box, its fold
-control, and a set's own page at `/reading/sets/<name>` are unbuilt, and that address shows
+control, and a set's own page at `/read/sets/<name>` are unbuilt, and that address shows
 the ordinary "page not found" screen rather than an empty page.
 
 Posting a piece puts it on the site straight away, before any of its figures have been
@@ -388,7 +392,7 @@ the checking itself happening promptly, and a correction replacing a wrong figur
 it is agreed. Holding a particular piece back stays possible, for a reason Eugene names,
 rather than being a step every piece waits behind.
 
-The `/reading` page and every piece's page hand their words over in the **very first response
+The `/read` page and every piece's page hand their words over in the **very first response
 from the server**, before any of the app's own code runs: the listing its cards and a plain
 link to every posted piece, a piece its entire text. Our own writing used to be the one thing
 on the site that a search engine could read only after running the app, while every bill page
@@ -398,14 +402,14 @@ whether a search engine may *list* a piece, which is still Eugene's per-piece de
 above: a piece marked to be skipped is served in full and still asks to be skipped.
 
 Two pieces are posted: the research piece "The Money Only Goes One Way", at
-`/reading/research/the-money-only-goes-one-way`, and the guide "Who has to report their
-money", at `/reading/guides/who-has-to-report-their-money`.
+`/read/research/the-money-only-goes-one-way`, and the guide "Who has to report their
+money", at `/read/guides/who-has-to-report-their-money`.
 
-## One research piece's page (`/reading/research/{name}`)
+## One research piece's page (`/read/research/{name}`)
 
 Every posted research piece has a page here; an address with no piece behind it shows the
 ordinary "page not found" screen. **So does a real piece asked for under the wrong folder** —
-the guide's name under `/reading/research/` is a missing page, not a second way in, because a
+the guide's name under `/read/research/` is a missing page, not a second way in, because a
 piece has exactly 1 address and a reader must not be able to share one we do not name as the
 real one. A piece carrying both the research trait and the guide trait is addressed here too,
 and its label reads Research, because rule 13 binds it in full
@@ -430,7 +434,7 @@ and its label reads Research, because rule 13 binds it in full
   an ordinary link to its section, listed in the order the article reads, so it can be
   opened in a new tab, copied, or reached by keyboard. Choosing one puts that section's
   name in the address bar
-  (`/reading/research/the-money-only-goes-one-way#the-one-way-valve`), so
+  (`/read/research/the-money-only-goes-one-way#the-one-way-valve`), so
   a reader can share a link straight to a section and Back returns them to where they
   were reading. Opening an address that already names a section starts there. Each
   section's name is built from the words of its own heading, never its position in the
@@ -452,7 +456,7 @@ and its label reads Research, because rule 13 binds it in full
 Links run one way: a piece links out to record pages and official sources; no record page
 links back to a piece.
 
-## One guide's page (`/reading/guides/{name}`)
+## One guide's page (`/read/guides/{name}`)
 
 A guide is a short piece explaining 1 term in the words a person actually uses. It concludes
 nothing, adds no figures up across members and defines no labels of our own, so it lives under

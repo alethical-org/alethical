@@ -111,7 +111,7 @@ them, 8 at the Campaign Finance Board and 3 at the state's own statutes, and a c
 only follow after the app has run is not reachable by address at all
 ([`.claude/rules/grounded-answers.md` rule 5](../../.claude/rules/grounded-answers.md)). Until this
 shipped, our own writing was the one thing on the site whose words a search engine could only read
-after running the app, while every bill page handed its text over immediately. The **`/reading` page**
+after running the app, while every bill page handed its text over immediately. The **`/read` page**
 arrives with its heading, its introduction, and an ordinary link to every posted piece, at that
 piece's own address, which is what keeps an older piece reachable on a first visit rather than only
 after the app starts. Not a word of a piece is

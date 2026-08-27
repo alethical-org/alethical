@@ -61,14 +61,21 @@
   ],
   "redirects": [
     { "source": "/search", "destination": "/bills", "permanent": true },
-    { "source": "/reports", "destination": "/reading", "permanent": true },
-    { "source": "/reports/:slug", "destination": "/reading/research/:slug", "permanent": true },
-    { "source": "/money/reports", "destination": "/reading", "permanent": true },
+    { "source": "/reports", "destination": "/read", "permanent": true },
+    { "source": "/reports/:slug", "destination": "/read/research/:slug", "permanent": true },
+    { "source": "/money/reports", "destination": "/read", "permanent": true },
     {
       "source": "/money/reports/:slug",
-      "destination": "/reading/research/:slug",
+      "destination": "/read/research/:slug",
       "permanent": true
     },
+    { "source": "/reading", "destination": "/read", "permanent": true },
+    {
+      "source": "/reading/research/:slug",
+      "destination": "/read/research/:slug",
+      "permanent": true
+    },
+    { "source": "/reading/guides/:slug", "destination": "/read/guides/:slug", "permanent": true },
     { "source": "/chat", "destination": "/", "permanent": false },
     { "source": "/chat/:path*", "destination": "/", "permanent": false },
     { "source": "/account", "destination": "/", "permanent": false }

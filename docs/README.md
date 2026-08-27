@@ -41,7 +41,7 @@ things work in practice and are the place to start if you're new.
 - [How Search works (plain English)](product-onboarding/search-bills-guide.md) — what each filter and result field means, written for non-engineers
 - [How Find My Legislator works (plain English)](product-onboarding/find-my-legislator-guide.md) — how to search by address, browser location, or map; what a match shows; and what location data leaves Alethical
 - [How the Campaign money tab works (plain English)](product-onboarding/legislator-campaign-money-guide.md) — what a legislator's campaign raised and spent, why roughly 4 dollars in 10 have no donor's name, and when the page shows two figures rather than working out the difference
-- [How the Campaign money section works (plain English)](product-onboarding/campaign-money-section-guide.md) — the public /money landing and its lanes, the working name search and its results page, the register's own committees list, the `/reading` page that lists Alethical's own research, and what a research piece's page carries
+- [How the Campaign money section works (plain English)](product-onboarding/campaign-money-section-guide.md) — the public /money landing and its lanes, the working name search and its results page, the register's own committees list, the `/read` page that lists Alethical's own research, and what a research piece's page carries
 - [How sharing works](product-onboarding/sharing-guide.md) — what each page and destination receives, why Instagram has no direct button, and how link previews are built
 - [How Contact us works](product-onboarding/contact-us-guide.md) — the page, its 5 states, message delivery, and what reader data leaves Alethical
 - [How the Site metrics page works](product-onboarding/traffic-guide.md) — the 4 public totals, Vercel source, privacy boundary, team-account exclusion, and page states
@@ -52,7 +52,7 @@ things work in practice and are the place to start if you're new.
 - [Design principles](design/design-principles.md) — green system's design intent + visual/interaction/accessibility rules; brief for Claude Design
 - [UI copy guide](design/ui-copy-guide.md) — voice and tone
 - [Committee money page design prompt](design/committee-money-page-design-prompt.md) — frozen Claude Design request for #1442's committee money screen (dated 18 Aug 2026)
-- [Campaign money design handoff](design/handoff-campaign-money/) — the accepted Claude Design set for the whole money section (round 6, 18 Aug 2026): the plan and landing, the route map, the 4 list screens, the committee page, the report and its shelf, both profile surfaces, and the measured facts they rest on. Includes [the first piece's source text](design/handoff-campaign-money/follow-the-money-report.md), which has since posted as our live research at `/reading/research/the-money-only-goes-one-way`
+- [Campaign money design handoff](design/handoff-campaign-money/) — the accepted Claude Design set for the whole money section (round 6, 18 Aug 2026): the plan and landing, the route map, the 4 list screens, the committee page, the report and its shelf, both profile surfaces, and the measured facts they rest on. Includes [the first piece's source text](design/handoff-campaign-money/follow-the-money-report.md), which has since posted as our live research at `/read/research/the-money-only-goes-one-way`
 
 ## Reader guides
 

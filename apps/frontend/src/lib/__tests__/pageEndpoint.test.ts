@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { runInNewContext } from 'node:vm';
 
 import {
-  READING_PAGE_HEADING,
+  READ_PAGE_HEADING,
   piecePath,
   publishedResearch,
   researchRunsText,
@@ -391,19 +391,21 @@ describe('first-response page tags', () => {
     expect(readPageShell).toHaveBeenCalledTimes(1);
   });
 
-  // The /reading page moved out of the money section on 20 Aug 2026 (#1698) and
-  // off /reports on 27 Aug 2026. The server looks its wording up by path string,
-  // so a mismatch between the route's new path and the wording table's key would
-  // compile fine and serve a page with no title at all. Both old addresses are
-  // checked because a host with no forwards still has to serve them.
-  it('titles the /reading page at its own address, and at both old ones', async () => {
+  // The /read page moved out of the money section on 20 Aug 2026 (#1698), off
+  // /reports on the morning of 27 Aug 2026 and off /reading that evening. The
+  // server looks its wording up by path string, so a mismatch between the
+  // route's new path and the wording table's key would compile fine and serve a
+  // page with no title at all. All 3 old addresses are checked because a host
+  // with no forwards still has to serve them, and each one serves the /read
+  // canonical rather than its own.
+  it('titles the /read page at its own address, and at all 3 old ones', async () => {
     stubNetwork(() => ({ status: 500 }));
 
-    for (const path of ['/reading', '/reports', '/money/reports']) {
+    for (const path of ['/read', '/reading', '/reports', '/money/reports']) {
       const { body, status } = await serve({ path });
       expect(status).toBe(200);
-      expect(body).toContain(`<title>${READING_PAGE_HEADING} | Alethical</title>`);
-      expect(body).toContain('<link rel="canonical" href="https://www.alethical.com/reading"');
+      expect(body).toContain(`<title>${READ_PAGE_HEADING} | Alethical</title>`);
+      expect(body).toContain('<link rel="canonical" href="https://www.alethical.com/read"');
     }
   });
 
@@ -412,17 +414,17 @@ describe('first-response page tags', () => {
   // sent its text straight away. These two checks are the `curl` measurement in
   // the issue, run on every pull request, because a silent reopening is exactly
   // how the gap arrived.
-  it('sends the /reading page its list, with a followable link per posted piece', async () => {
+  it('sends the /read page its list, with a followable link per posted piece', async () => {
     const calls: string[] = [];
     stubNetwork((url) => {
       calls.push(url);
       return { status: 500 };
     });
 
-    const { body, status } = await serve({ path: '/reading' });
+    const { body, status } = await serve({ path: '/read' });
 
     expect(status).toBe(200);
-    expect(body).toContain(`<h1>${READING_PAGE_HEADING}</h1>`);
+    expect(body).toContain(`<h1>${READ_PAGE_HEADING}</h1>`);
     expect(body).toContain('drawn from the filings Minnesota campaigns, parties and funds');
     expect(publishedResearch().length).toBeGreaterThan(1);
     for (const piece of publishedResearch()) {
@@ -443,7 +445,7 @@ describe('first-response page tags', () => {
     });
 
     const piece = MONEY_ONLY_GOES_ONE_WAY;
-    const { body, headers, status } = await serve({ path: `/reading/research/${piece.slug}` });
+    const { body, headers, status } = await serve({ path: `/read/research/${piece.slug}` });
 
     expect(status).toBe(200);
     expect(calls).toHaveLength(0);
@@ -479,7 +481,7 @@ describe('first-response page tags', () => {
     expect(headers.get('X-Robots-Tag')).toBeUndefined();
     expect(body).not.toContain('<meta name="robots" content="noindex" />');
     expect(body).toContain(
-      '<link rel="canonical" href="https://www.alethical.com/reading/research/the-money-only-goes-one-way" />',
+      '<link rel="canonical" href="https://www.alethical.com/read/research/the-money-only-goes-one-way" />',
     );
     // Rule 13 keeps a piece's claims out of its share preview and tags.
     const head = body.slice(0, body.indexOf('</head>'));
@@ -541,7 +543,7 @@ describe('first-response page tags', () => {
     expect(guide.indexed).toBe(true);
     expect(headers.get('X-Robots-Tag')).toBeUndefined();
     expect(body).toContain(
-      '<link rel="canonical" href="https://www.alethical.com/reading/guides/who-has-to-report-their-money" />',
+      '<link rel="canonical" href="https://www.alethical.com/read/guides/who-has-to-report-their-money" />',
     );
     // Title and dates only in the tags: no figure and no claim.
     const head = body.slice(0, body.indexOf('</head>'));
@@ -555,6 +557,8 @@ describe('first-response page tags', () => {
     stubNetwork(() => ({ status: 500 }));
 
     for (const path of [
+      '/read/research/who-has-to-report-their-money',
+      '/read/guides/the-money-only-goes-one-way',
       '/reading/research/who-has-to-report-their-money',
       '/reading/guides/the-money-only-goes-one-way',
       '/reports/who-has-to-report-their-money',
@@ -569,9 +573,9 @@ describe('first-response page tags', () => {
     stubNetwork(() => ({ status: 500 }));
 
     for (const path of [
-      '/reading/research/no-such-piece',
-      '/reading/guides/no-such-guide',
-      '/reading/sets/no-such-set',
+      '/read/research/no-such-piece',
+      '/read/guides/no-such-guide',
+      '/read/sets/no-such-set',
     ]) {
       const { body, status } = await serve({ path });
       expect(status).toBe(404);

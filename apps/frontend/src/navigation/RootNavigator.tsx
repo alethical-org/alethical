@@ -36,7 +36,7 @@ import { CommitteePaymentsScreen } from '../screens/redesign/CommitteePaymentsSc
 import { MoneySearchScreen } from '../screens/redesign/MoneySearchScreen';
 import { MoneyLandingScreen } from '../screens/redesign/MoneyLandingScreen';
 import { ResearchScreen } from '../screens/redesign/ResearchScreen';
-import { ReadingScreen } from '../screens/redesign/ReadingScreen';
+import { ReadScreen } from '../screens/redesign/ReadScreen';
 import { NotFoundScreen } from '../screens/redesign/NotFoundScreen';
 import { SearchBillsScreen } from '../screens/redesign/SearchBillsScreen';
 import { SearchLegislatorsScreen } from '../screens/redesign/SearchLegislatorsScreen';
@@ -665,8 +665,8 @@ export function RootNavigator() {
               options={{ headerShown: false, title: 'Follow the money' }}
             />
             <Stack.Screen
-              name="Reading"
-              component={ReadingScreen}
+              name="Read"
+              component={ReadScreen}
               options={{ headerShown: false, title: 'Campaign money research' }}
             />
             <Stack.Screen

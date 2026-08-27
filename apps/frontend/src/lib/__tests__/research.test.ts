@@ -90,9 +90,9 @@ describe('the posted-research registry', () => {
   // Rule 13's publishing order: posting a piece puts it on the site straight
   // away, and holding it back from SEARCH ENGINES is the separate, later step.
   // These pins are what keep those two apart, so neither can drag the other.
-  it('puts every posted piece on the site, at its address and on the /reading page', () => {
+  it('puts every posted piece on the site, at its address and on the /read page', () => {
     expect(PUBLISHED_RESEARCH.length).toBeGreaterThan(0);
-    // publishedResearch() is what the /reading page and the money landing's count read.
+    // publishedResearch() is what the /read page and the money landing's count read.
     expect(publishedResearch()).toEqual(PUBLISHED_RESEARCH);
     for (const piece of PUBLISHED_RESEARCH) {
       expect(researchBySlug(piece.slug)).toBe(piece);
@@ -114,7 +114,7 @@ describe('the posted-research registry', () => {
 
     const open = researchPageMetadata(SAMPLE_PIECE);
     expect(open.noindex).toBe(false);
-    expect(open.canonicalPath).toBe('/reading/research/sample-piece');
+    expect(open.canonicalPath).toBe('/read/research/sample-piece');
   });
 
   it('names records it does not hold rather than dating them', () => {
@@ -276,8 +276,8 @@ describe('the 2 trait flags decide the label and the address', () => {
   it('addresses a both-traits piece under research, because rule 13 binds it in full', () => {
     expect(pieceAddressFolder({ traits: { research: true, guide: true } })).toBe('research');
     expect(pieceAddressFolder({ traits: { research: false, guide: true } })).toBe('guides');
-    expect(piecePath(SAMPLE_GUIDE)).toBe('/reading/guides/sample-guide');
-    expect(piecePath(SAMPLE_PIECE)).toBe('/reading/research/sample-piece');
+    expect(piecePath(SAMPLE_GUIDE)).toBe('/read/guides/sample-guide');
+    expect(piecePath(SAMPLE_PIECE)).toBe('/read/research/sample-piece');
   });
 
   it('sorts every posted piece into exactly 1 of the page\u2019s 2 groups', () => {
@@ -291,7 +291,7 @@ describe('the 2 trait flags decide the label and the address', () => {
   it('gives every posted piece 1 address, and never the other folder', () => {
     for (const piece of PUBLISHED_RESEARCH) {
       expect(piecePath(piece)).toBe(
-        `/reading/${pieceAddressFolder(piece)}/${encodeURIComponent(piece.slug)}`,
+        `/read/${pieceAddressFolder(piece)}/${encodeURIComponent(piece.slug)}`,
       );
       // A piece with neither trait would be labelled Guide by default, which
       // would be an accident rather than a decision.
