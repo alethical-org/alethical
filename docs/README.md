@@ -61,6 +61,7 @@ Published reader-facing pieces that teach one part of how a system works and dra
 **How the Money Works** — 5 pieces in a fixed reading order, because each defines the words the next one uses.
 
 - [Who has to report their money](reader-guides/who-has-to-report-their-money.md) — piece 1: Minnesota's 3 kinds of registered political account, what a party unit and a legislative caucus are, what a PAC is, why the 3 kinds file different forms, and why counting campaign accounts is not counting candidates
+- [What the records name, and what they leave out](reader-guides/what-the-records-name.md) — piece 2: the $200 naming rule read correctly, as a test on one giver's total for the calendar year and never on the size of a single gift, why more than half of every named payment Minnesota publishes is a gift of $200 or less, and the lump sum with no donor named that the rule leaves behind
 
 ## Architecture
 
