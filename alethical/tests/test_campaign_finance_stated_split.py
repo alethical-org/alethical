@@ -644,6 +644,135 @@ def test_a_row_with_no_date_is_counted_inside_the_period(db, board, store) -> No
     assert total == Decimal("1459.5678")
 
 
+# --- The donors a part-year report need not name (#1647) -----------------------
+#
+# Our fixture rows for 19200 in 2025, bounded to 31 August: Jane Smith $250.00, Zachary
+# Wivoda $30.00 twice, Paula Penny $1,234.5678, Amazon Prime $6.49 in-kind, Janet
+# Phillippe $15.00 in-kind and Ray Refund minus $40.00, which is $1,526.0578. Only Smith
+# and Penny are above $200 for the period, so a report naming only the donors it had to
+# name states $1,484.5678 -- $41.49 less, for a reason that is neither publication's
+# fault.
+MIDYEAR_CUT_OFF = date(2025, 8, 31)
+HELD_THROUGH_AUGUST = Decimal("1526.0578")
+ABOVE_THRESHOLD_THROUGH_AUGUST = Decimal("1484.5678")
+
+
+def seed_part_year_report(db, snapshot, *, registration="19200", year=2025) -> None:
+    """Catalogue a part-year report and point the filing's coverage end at it.
+
+    ``targets`` chooses the catalogued report whose cut-off equals the filing's own
+    ``reported_through``, so both halves are needed or the year-end row keeps winning.
+    """
+    db.add(
+        models.CampaignFinanceFilingReport(
+            snapshot_id=snapshot.id,
+            row_number=902,
+            registration_number=registration,
+            filing_year=year,
+            report_type="A",
+            report_name=f"{year} Pre-Primary Report",
+            cut_off_date=MIDYEAR_CUT_OFF,
+            special_election=False,
+            effective_amendment_index=0,
+            amendment_count=1,
+        )
+    )
+    db.commit()
+
+
+def test_a_part_year_report_is_the_only_place_the_second_reading_applies() -> None:
+    """A year-end report and the calendar year coincide, so a difference there is real.
+
+    Read off the cut-off date rather than the Board's report-type code, because the date
+    is the fact that makes the 2 populations differ.
+    """
+    assert split.covers_part_of_a_year(2025, date(2025, 8, 31)) is True
+    assert split.covers_part_of_a_year(2025, date(2025, 12, 31)) is False
+    # A 2026 cut-off on a 2025 filing is not a part-year report either.
+    assert split.covers_part_of_a_year(2025, date(2026, 1, 31)) is False
+
+
+def test_the_second_reading_drops_only_the_donors_below_the_threshold(
+    db, board, store
+) -> None:
+    """The statute says *exceed*, so the boundary itself is a donor who need not be named.
+
+    Zachary Wivoda's 2 payments aggregate to $60.00 and go; Paula Penny's single
+    $1,234.5678 stays. Aggregating per donor rather than per payment is the whole rule
+    (§2.3): 327,759 of the real file's rows are individually under $200 and belong to
+    donors who had already crossed it.
+    """
+    seed_filings_snapshot(db, reported={("19200", 2025): "2000.00"})
+    publish_first(db, board, store)
+    above = split.ours_itemized_above_threshold(
+        db, live(db), "19200", 2025, MIDYEAR_CUT_OFF
+    )
+    assert above == ABOVE_THRESHOLD_THROUGH_AUGUST
+    total, _, _ = split.ours_itemized(db, live(db), "19200", 2025, MIDYEAR_CUT_OFF)
+    assert total == HELD_THROUGH_AUGUST
+    # The boundary itself, which §2.3 says has already been drafted wrong for a real
+    # screen. A donor at exactly $200.00 has not *exceeded* $200.00, so the filing need
+    # not name them and the second reading drops them. One cent more and it keeps them.
+    for row_number, amount in ((9010, "200.0000"), (9011, "0.0100")):
+        db.execute(
+            text(
+                "INSERT INTO cf_contribution_row (snapshot_id, row_number, "
+                "  recipient_reg_num, amount, receipt_date, year, contributor, "
+                "  receipt_type) "
+                "SELECT snapshot_id, :row_number, '19200', CAST(:amount AS numeric), "
+                "  DATE '2025-04-01', 2025, 'Exactly, Two Hundred', 'Contribution' "
+                "  FROM cf_contribution_row WHERE recipient_reg_num = '19200' LIMIT 1"
+            ),
+            {"row_number": row_number, "amount": amount},
+        )
+        db.commit()
+        above = split.ours_itemized_above_threshold(
+            db, live(db), "19200", 2025, MIDYEAR_CUT_OFF
+        )
+        if row_number == 9010:
+            assert above == ABOVE_THRESHOLD_THROUGH_AUGUST
+        else:
+            assert above == ABOVE_THRESHOLD_THROUGH_AUGUST + Decimal("200.01")
+
+
+def test_a_donor_is_their_registration_number_before_their_name(
+    db, board, store
+) -> None:
+    """1,103 registration numbers in the real file carry more than 1 spelling of a name.
+
+    Grouping on the name alone would split one organisation's giving into 2 totals of
+    $150.00, drop both, and understate what the filing itemized. The number holds them
+    together at $300.00 and keeps the donor in.
+    """
+    seed_filings_snapshot(db, reported={("19200", 2025): "2000.00"})
+    publish_first(db, board, store)
+    db.execute(
+        text(
+            "INSERT INTO cf_contribution_row (snapshot_id, row_number, "
+            "  recipient_reg_num, amount, receipt_date, year, contributor, "
+            "  contrib_reg_num, receipt_type) "
+            "SELECT snapshot_id, 9001, '19200', 150.0000, DATE '2025-04-01', 2025, "
+            "  'Acme Political Fund', '30777', 'Contribution' "
+            "  FROM cf_contribution_row WHERE recipient_reg_num = '19200' LIMIT 1"
+        )
+    )
+    db.execute(
+        text(
+            "INSERT INTO cf_contribution_row (snapshot_id, row_number, "
+            "  recipient_reg_num, amount, receipt_date, year, contributor, "
+            "  contrib_reg_num, receipt_type) "
+            "SELECT snapshot_id, 9002, '19200', 150.0000, DATE '2025-04-02', 2025, "
+            "  'ACME POLITICAL FUND (MN)', '30777', 'Contribution' "
+            "  FROM cf_contribution_row WHERE recipient_reg_num = '19200' LIMIT 1"
+        )
+    )
+    db.commit()
+    above = split.ours_itemized_above_threshold(
+        db, live(db), "19200", 2025, MIDYEAR_CUT_OFF
+    )
+    assert above == ABOVE_THRESHOLD_THROUGH_AUGUST + Decimal("300")
+
+
 # --- End to end ---------------------------------------------------------------
 
 
@@ -730,6 +859,112 @@ def test_holding_no_rows_at_all_is_a_disagreement_and_says_so(
     assert verdict.status is Status.disagrees
     assert verdict.ours_itemized == Decimal("0")
     assert "no rows at all" in verdict.reason
+
+
+def test_a_part_year_filing_naming_only_its_required_donors_is_not_a_disagreement(
+    db, board, store, documents_server
+) -> None:
+    """The 37 committee-years of #1647, in one fixture.
+
+    The filing names the donors it had to name by 31 August and the download carries the
+    whole year's itemization decision, so the 2 figures count different donors. Before
+    this, the page told a reader that Minnesota's own report and Minnesota's own
+    spreadsheet contradicted each other -- live, under a named politician's photograph,
+    on 37 committee pages.
+    """
+    base_url, served = documents_server
+    snapshot = seed_filings_snapshot(
+        db,
+        reported={("19200", 2025): "2000.00"},
+        reported_through={("19200", 2025): MIDYEAR_CUT_OFF},
+    )
+    seed_part_year_report(db, snapshot)
+    publish_first(db, board, store)
+    served["19200"] = pdf_of(candidate_lines(individuals=("1,484.5678", "515.4322")))
+    verdict = _check(db, snapshot, base_url)
+    assert verdict.status is Status.agrees
+    assert verdict.cut_off_date == MIDYEAR_CUT_OFF
+    # Rule 12 nets no figure away: what our copy holds is still the unfiltered sum.
+    assert verdict.ours_itemized == HELD_THROUGH_AUGUST
+    # And the reason says which of the 2 readings agreed, so a developer auditing this
+    # row can tell it apart from the 2 figures simply matching.
+    assert str(ABOVE_THRESHOLD_THROUGH_AUGUST) in verdict.reason
+    assert "not the 2 publications disagreeing" in verdict.reason
+
+
+def test_the_same_difference_on_a_year_end_filing_still_disagrees(
+    db, board, store, documents_server
+) -> None:
+    """The acceptance criterion that keeps this a fix and not a way to tidy up.
+
+    At year end the download's itemization decision and the report's are the same
+    decision, so the populations cannot legitimately differ and a difference is a real
+    finding. Identical figures to the test above, and the answer must be the opposite.
+    """
+    base_url, served = documents_server
+    snapshot, pdf = _prepare(
+        db,
+        board,
+        store,
+        itemized="1,484.5678",
+        non_itemized="515.4322",
+        figure="2000.00",
+    )
+    served["19200"] = pdf
+    verdict = _check(db, snapshot, base_url)
+    assert verdict.status is Status.disagrees
+    assert verdict.cut_off_date == date(2025, 12, 31)
+    # The second reading was never offered, so the reason never mentions it.
+    assert "threshold does not explain" not in verdict.reason
+
+
+def test_a_part_year_filing_naming_more_than_we_hold_is_never_rescued(
+    db, board, store, documents_server
+) -> None:
+    """The direction this whole check exists for, and the second reading cannot reach it.
+
+    Dropping donors only makes our figure smaller, so a filing that already names more
+    than we hold moves further away rather than closer. That is what keeps the large
+    genuine shortfalls short -- filers 41170, 41122, 41349 and 41412 are $3.7M short
+    between them on the live release and must stay so.
+    """
+    base_url, served = documents_server
+    snapshot = seed_filings_snapshot(
+        db,
+        reported={("19200", 2025): "2000.00"},
+        reported_through={("19200", 2025): MIDYEAR_CUT_OFF},
+    )
+    seed_part_year_report(db, snapshot)
+    publish_first(db, board, store)
+    served["19200"] = pdf_of(candidate_lines(individuals=("1,826.0578", "173.9422")))
+    verdict = _check(db, snapshot, base_url)
+    assert verdict.status is Status.disagrees
+    assert "threshold does not explain this difference" in verdict.reason
+
+
+def test_a_part_year_filing_that_already_agrees_is_left_alone(
+    db, board, store, documents_server
+) -> None:
+    """Filer 18135's case, which is why the second reading is offered and not applied.
+
+    Its 2026 pre-general itemizes 215 donors at or under $200, $10,136.05 of them, and
+    reconciles to the cent. Applying the exclusion as a rule would break it; accepting
+    either reading cannot, because the plain comparison is tried first and wins.
+    """
+    base_url, served = documents_server
+    snapshot = seed_filings_snapshot(
+        db,
+        reported={("19200", 2025): "2000.00"},
+        reported_through={("19200", 2025): MIDYEAR_CUT_OFF},
+    )
+    seed_part_year_report(db, snapshot)
+    publish_first(db, board, store)
+    served["19200"] = pdf_of(candidate_lines(individuals=("1,526.0578", "473.9422")))
+    verdict = _check(db, snapshot, base_url)
+    assert verdict.status is Status.agrees
+    assert verdict.ours_itemized == HELD_THROUGH_AUGUST
+    # Agreed outright, so no second reading is mentioned and none was computed.
+    assert str(ABOVE_THRESHOLD_THROUGH_AUGUST) not in verdict.reason
 
 
 def test_a_reader_that_cannot_prove_itself_blames_itself_and_not_the_data(

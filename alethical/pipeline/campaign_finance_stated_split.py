@@ -22,6 +22,16 @@ committee-year the route cannot reach is recorded as **not checked**, never as p
 which is what `docs/architecture/campaign-finance-system-design.md` §9.9 exists to
 enforce.
 
+**A part-year filing and the download name different donors, and that is not a
+disagreement.** Minnesota itemizes the donors who had passed $200 by a report's own
+cut-off date, while the bulk download carries the whole year's itemization decision, so
+the 2 figures count different populations for a reason that is neither publication's
+fault. Bounding our rows to the period is necessary and not sufficient, so a part-year
+committee-year reconciles on **either** reading -- the plain in-period sum or that sum
+less the donors the report need not name. Naming a smaller donor is the committee's own
+choice, so this is offered as a second reading and never applied as a correction
+([#1647](https://github.com/alethical-org/alethical/issues/1647), §2.3).
+
 **And the reader proves itself before it may accuse anyone.** Each contributor-type line
 the Board's totals route returns equals its `Schedule A1 - <code>` block's itemized plus
 non-itemized cash, so the parser's own figures are checked against figures we already
@@ -78,6 +88,13 @@ DOCUMENT_FIRST_YEAR = 2023
 # filter made 19 of 202 legislator-years disagree where 3 really do (§2.1), and it is
 # 6.57% of party-unit rows against 0.36% of candidate-committee ones.
 CONTRIBUTION_RECEIPT_TYPE = "Contribution"
+
+# The aggregate a donor's giving must **exceed** before Minnesota obliges a committee to
+# name them (Minnesota Statutes 10A.20 subd. 3(c), §2.3). "Exceed", so a donor sitting at
+# exactly $200.00 is one the filing need not name. It is a floor on who *must* be named
+# and never a ban on naming anyone smaller, which is why the reading below is offered as
+# an alternative and never applied as a correction.
+ITEMIZATION_THRESHOLD = Decimal("200")
 
 
 @dataclass
@@ -402,6 +419,9 @@ def ours_itemized(
     An **undated** row is counted as inside the period, which is deliberately the
     direction that can cause a false disagreement: a false disagreement withholds a split
     loudly and a missed shortfall publishes a wrong figure quietly.
+
+    **The cut-off bound fixes the period and leaves the population wrong**, which is a
+    separate defect with its own fix: see ``ours_itemized_above_threshold``.
     """
     total, cash, rows_held = db.execute(
         text(_OURS_SQL),
@@ -414,6 +434,90 @@ def ours_itemized(
         },
     ).one()
     return Decimal(total), Decimal(cash), int(rows_held)
+
+
+_OURS_ABOVE_THRESHOLD_SQL = """
+WITH per_donor AS (
+    SELECT COALESCE(
+               NULLIF(btrim(contrib_reg_num), ''),
+               btrim(lower(COALESCE(contributor, '')))
+           ) AS donor,
+           SUM(amount) AS given
+      FROM cf_contribution_row
+     WHERE snapshot_id = :contributions
+       AND recipient_reg_num = :registration_number
+       AND year = :filing_year
+       AND receipt_type = :contribution
+       AND (receipt_date IS NULL OR receipt_date <= :cut_off_date)
+     GROUP BY 1
+)
+SELECT COALESCE(SUM(given), 0)
+  FROM per_donor
+ WHERE given > :threshold
+"""
+
+
+def covers_part_of_a_year(filing_year: int, cut_off: date) -> bool:
+    """Whether this report stops before its filing year does.
+
+    The whole reason the reading below exists, so it is named rather than inlined. A
+    year-end report and the calendar year coincide, so the download's own itemization
+    decision and the report's are the same decision and a difference between them is a
+    real difference. A part-year report is the only place the two can legitimately count
+    different donors.
+
+    Read off the cut-off date rather than off the Board's report-type code, because the
+    date is the fact that makes the populations differ and the code is a label for it.
+    """
+    return cut_off < date(filing_year, 12, 31)
+
+
+def ours_itemized_above_threshold(
+    db: Session,
+    release: reader.Release,
+    registration_number: str,
+    filing_year: int,
+    cut_off_date: date,
+) -> Decimal:
+    """The same payments as ``ours_itemized``, less the donors this report need not name.
+
+    **The second reading of a part-year filing, and never a correction to the first.** On
+    a report covering part of a year Minnesota itemizes only the donors who had passed
+    $200 *by that report's cut-off*, while the bulk download carries the whole year's
+    itemization decision -- so a donor who crosses $200 in October is absent from a report
+    closing 31 March while their March payments sit in the file (§2.3). Bounding our rows
+    to the period fixes *when*; this fixes *who*, and without it the difference reads as
+    Minnesota's 2 publications contradicting each other when it is a definitional
+    artefact ([#1647](https://github.com/alethical-org/alethical/issues/1647)).
+
+    **It cannot be applied as a rule, which is why the caller accepts either figure.**
+    Naming a sub-threshold donor is the committee's own choice, so the population is not
+    derivable: filer 18135's 2026 pre-general itemizes 215 donors at or under $200 and
+    reconciles to the cent *without* this, and filer 18336's 2026 pre-primary
+    over-corrects by $9,713.50 *with* it.
+
+    A donor is their contributor registration number where the file carries one and their
+    name otherwise. The number is preferred because 1,103 registration numbers carry more
+    than one spelling of their own name, and grouping on the name alone would split one
+    organisation's giving into several smaller totals and could drop a donor the filing
+    did name. Measured on contributions snapshot ``8dc821e4`` (published 12 Aug 2026), the
+    two groupings return the same verdict for every one of the 3,561 committee-years that
+    have both figures and a cut-off, so this is the defensible reading rather than a
+    change in the answer.
+    """
+    return Decimal(
+        db.execute(
+            text(_OURS_ABOVE_THRESHOLD_SQL),
+            {
+                "contributions": release.contributions.snapshot_id,
+                "registration_number": registration_number,
+                "filing_year": filing_year,
+                "contribution": CONTRIBUTION_RECEIPT_TYPE,
+                "cut_off_date": cut_off_date,
+                "threshold": ITEMIZATION_THRESHOLD,
+            },
+        ).scalar()
+    )
 
 
 def stored_figures(
@@ -563,6 +667,23 @@ def check_one(
     )
     difference = stated.itemized - held
     agrees = abs(difference) <= TOLERANCE
+    # The second reading, asked for only where it can legitimately apply and only where
+    # the first reading already failed. A part-year filing itemizes the donors who had
+    # passed $200 by its own cut-off while the download carries the whole year's
+    # decision, so the two count different donors for a reason that is neither
+    # publication's fault (§2.3, #1647). Either figure matching is an explanation, so
+    # either one clears the check; the stored ``ours_itemized`` stays the unfiltered sum,
+    # because what our copy holds is a fact and rule 12 nets no figure away.
+    held_above_threshold: Optional[Decimal] = None
+    if not agrees and covers_part_of_a_year(target.filing_year, cut_off):
+        held_above_threshold = ours_itemized_above_threshold(
+            db,
+            release,
+            target.registration_number,
+            target.filing_year,
+            cut_off,
+        )
+        agrees = abs(stated.itemized - held_above_threshold) <= TOLERANCE
     verdict = Verdict(
         status=Status.agrees if agrees else Status.disagrees,
         reason=_comparison_reason(
@@ -576,6 +697,7 @@ def check_one(
             self_test=stated.self_test,
             self_test_detail=stated.self_test_detail,
             cut_off=cut_off,
+            held_above_threshold=held_above_threshold,
         ),
         self_test=stated.self_test.value,
         document_hash=document_hash,
@@ -602,8 +724,24 @@ def _comparison_reason(
     self_test: SelfTest,
     self_test_detail: str,
     cut_off: date,
+    held_above_threshold: Optional[Decimal] = None,
 ) -> str:
     if agrees:
+        if held_above_threshold is not None:
+            # Agreed only on the second reading, and the reason says so outright. An
+            # agreement reached this way is a different fact from the 2 figures simply
+            # matching, and a developer auditing this row must be able to tell which one
+            # they are looking at without re-running the check (#1647).
+            return (
+                f"the filing states {stated_total} of itemized contributions through "
+                f"{cut_off}, and we hold {rows_held:,} rows totalling {held}. Those 2 "
+                f"figures differ by {abs(stated_total - held)} and the difference is the "
+                f"donors this part-year report need not name: our rows for donors above "
+                f"{ITEMIZATION_THRESHOLD} in the period total {held_above_threshold}, "
+                f"which is the filing's figure. Both readings are of the same named "
+                f"money, so this is not the 2 publications disagreeing. "
+                f"Reader check: {self_test_detail}"
+            )
         return (
             f"the filing states {stated_total} of itemized contributions through "
             f"{cut_off} and we hold {rows_held:,} rows totalling {held}. "
@@ -629,10 +767,23 @@ def _comparison_reason(
             "this committee-year, because the Board's totals route reports none: "
             + self_test_detail
         )
+    threshold_note = ""
+    if held_above_threshold is not None:
+        # Tried and missed. Saying so is what keeps a residual difference a finding
+        # rather than a leftover: the reader of this row knows the definitional
+        # explanation was offered and did not account for the gap (#1647).
+        threshold_note = (
+            f" Reading the filing as naming only the donors above "
+            f"{ITEMIZATION_THRESHOLD} by {cut_off} puts our rows at "
+            f"{held_above_threshold}, still "
+            f"{abs(stated_total - held_above_threshold)} apart, so the threshold does "
+            f"not explain this difference."
+        )
     return (
         f"the filing states {stated_total} of itemized contributions through {cut_off}, "
         f"which is {abs(difference)} {direction} what we hold; {missing}."
         + cash_note
+        + threshold_note
         + unproven
     )
 

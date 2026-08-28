@@ -503,6 +503,54 @@ so the ambiguity is narrow and real rather than widespread. The consequence for 
 "we hold more" difference must not be published as Minnesota's two publications disagreeing, which is
 [#1647](https://github.com/alethical-org/alethical/issues/1647).
 
+**Settled 28 Aug 2026: a part-year committee-year reconciles on _either_ reading, and the
+loser of each rejected option is recorded here rather than in the issue.** §9.4's check asks
+for the plain in-period sum first and, only where that fails and only on a report whose
+cut-off falls before the end of its filing year, also asks for that sum less the donors the
+report need not name. Either figure matching the filing clears the check. On the live release
+(contributions snapshot `8dc821e4`, published 12 Aug 2026) that **fixes 20 committee-years,
+breaks 0, and leaves 27 mid-year differences standing** — 17 where we hold more and 10 where
+the filing names more.
+
+Three properties make this safe rather than merely convenient, and each is a reason one of the
+alternatives lost:
+
+- **It cannot break a committee-year that already reconciles**, because the plain comparison is
+  tried first and wins. That is why *excluding sub-threshold donors outright* was rejected: it
+  fixes the same 20 and **breaks filer 18135's 2026 pre-general**, the committee-year measured 3
+  paragraphs above as reconciling to the cent *with* its 215 sub-threshold donors present. It
+  also re-derives a population rule Minnesota never published.
+- **It cannot rescue a shortfall**, because dropping donors only makes our figure smaller, so a
+  filing already naming more than we hold moves further away. Filers 41170, 41122, 41349 and
+  41412 are $3.7M short between them and stay short; this is a structural property of the
+  arithmetic, not a threshold that happens to miss them.
+- **It applies only where the two populations can legitimately differ.** Read off the cut-off
+  date rather than the Board's report-type code, because the date is the fact and the code is a
+  label for it. Applying it at year end, where the download's itemization decision and the
+  report's are the same decision, would tidy away real findings; that is why *leaving it alone*
+  also lost, but only after this boundary was drawn — with the boundary, the option that fixes
+  nothing has no remaining argument.
+
+**A donor is their contributor registration number where the file carries one and their name
+otherwise.** 1,103 registration numbers carry more than one spelling of their own name, so
+grouping on the name alone would split one organisation's giving into several smaller totals and
+could drop a donor the filing did name. Both groupings return the same verdict for all 3,561
+committee-years on that snapshot that hold both figures and a cut-off, so this is the defensible
+reading rather than a change in the answer.
+
+**The stored `ours_itemized` stays the unfiltered in-period sum**, because what our copy holds is
+a fact and rule 12 nets no figure away. The second reading appears only in the verdict's `reason`,
+which states which of the two readings agreed — an agreement reached the second way is a different
+fact from the two figures simply matching, and a row that did not say so would be unauditable.
+
+**What the 27 survivors are, measured the same day, because a residual difference is a finding and
+not a leftover.** 9 of the 17 "we hold more" cases have every in-period donor already above the
+threshold, so the reading is a no-op on them and their differences ($50.00 to $239.00) are
+unexplained. 8 move and do not close: filer 19369's 2026 pre-primary falls from $126,657.82 to
+$273.00, and filer 18336's would **over-correct** from $3,590.50 short to $9,713.50 long, so
+neither reading matches and it correctly keeps standing. The 10 "filing names more" cases are a
+different question and are untouched by design.
+
 **The unnamed money is a single line on the filing, and the Board says so in its own words.**
 Its candidate handbook: "Contributions from donors who have given $200 or less, in total,
 should be added together and listed as a lump sum on the committee report to the Board." That

@@ -258,7 +258,7 @@ says why.
 | What the reader sees | When | How common |
 | --- | --- | --- |
 | "These two figures cover different stretches of time." | The committee's own report stops earlier than the donation spreadsheet does | 16 committee-years |
-| "Minnesota publishes these two figures separately, and for this committee and year they do not agree." | The comparison against the committee's own filed report found the two official figures differ, in **either** direction | 62 committee-years |
+| "Minnesota publishes these two figures separately, and for this committee and year they do not agree." | The comparison against the committee's own filed report found the two official figures differ, in **either** direction | 62 committee-years, and **42** once the part-year correction below is applied |
 | "The state's separate list of donations holds none of them for this year — so the names are missing from what we can show you, not from what the committee filed." | The filing names donors and our copy of the donation spreadsheet carries no row at all for that committee-year | 14 committee-years |
 | "This committee filed its report for this year and then corrected it." | A subtraction refuses to run and the Board's catalogue records that the committee refiled the year's report | 1 committee-year |
 | "These two figures will not line up, and we cannot tell why." | A subtraction refuses to run and nothing we hold says why | 0 committee-years |
@@ -270,6 +270,23 @@ the release covers rather than candidate committees alone. They are evidence, no
 requirement. Read them together: the 7,442 is mostly committee-years whose official total
 was never published rather than a failure of anything, and 3,062 committee-years do show a
 full split.
+
+**And 20 of those 62 were never a disagreement, which is the correction of 28 August 2026.**
+Minnesota names only the donors who had passed $200 by a report's own cut-off date. Its
+separate donation spreadsheet carries the whole year's naming decision. So on a report
+covering part of a year the two figures count different sets of donors, for a reason that is
+nobody's mistake, and the check read the difference as the state contradicting itself. It now
+accepts either reading of the same named money on a part-year report, which takes 20
+committee-years out of this row. The 37 pages that carried the sentence for this reason
+included the committees of Amy Klobuchar, Lisa Demuth, Keith Ellison and Steve Simon, both
+legislative caucuses and both major state parties.
+
+Two things this correction deliberately does not do. It leaves the other 27 differences
+standing, because a difference the threshold does not explain is a real finding and 17 of
+those 27 are our records holding more named money than the filing itemized for reasons
+nothing we hold accounts for. And it never rescues a shortfall: dropping donors only makes
+our figure smaller, so a filing that already names more than we hold moves further away, and
+the largest genuine gaps stay visible.
 
 **Three of those rows used to be one, and the shared sentence was false on two of them.**
 Until 19 August 2026 a committee-year with no donation rows at all, and one whose two

@@ -405,6 +405,18 @@ Top to bottom:
    their counts is in
    [`legislator-campaign-money-guide.md`](legislator-campaign-money-guide.md), which
    owns the wording both surfaces share.
+
+   **That check itself was wrong about 37 committee-years until 28 August 2026, and 20 of
+   them are now fixed.** Minnesota names only the donors who had passed $200 by a report's
+   own cut-off date, while its separate donation spreadsheet carries the whole year's
+   naming decision, so on a part-year report the two figures count different sets of
+   donors for a reason that is nobody's mistake. All 37 pages carried the disagreement
+   sentence, in the HTML the server sends before any JavaScript runs, and all 37 were in
+   the sitemap for search engines — the committees of Amy Klobuchar, Lisa Demuth, Keith
+   Ellison and Steve Simon among them
+   ([#1647](https://github.com/alethical-org/alethical/issues/1647)). Nothing we hold can
+   say whether a reader loaded one. The other 17 keep the sentence, because a difference
+   the threshold does not explain is a real finding.
 6. **Money out — two numbers too, and never called "spending."** The filing's own
    reported money-out total ("Payments out this committee reported to the state", with
    the period it covers) sits above "Payments we can list", and the two are never added
