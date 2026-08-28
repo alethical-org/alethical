@@ -63,6 +63,29 @@ export function registerKindFromEntityType(entityType: string | null | undefined
   return null;
 }
 
+/** The Board's 6 codes for a finer kind of committee or fund, to the words the Board
+ *  itself uses for them, defined in
+ *  `docs/product-onboarding/campaign-finance-entities-guide.md`. None of these labels is
+ *  ours, which is what the earlier restraint was guarding against (#1694).
+ *
+ *  Measured on production across all 526 registered committees and funds, 20 Aug 2026:
+ *  163 `PF`, 155 `PC`, 58 `IEC`, 27 `IEF`, 14 `BC`, 3 `BF`, and 106 carrying no
+ *  documented code. So 403 filers carried a documented code that read as the register's
+ *  broad 3-way kind, against 17 that were spelled out.
+ *
+ *  `PCN`, `PFN` and `BCN` are deliberately absent: the Board documents them nowhere and
+ *  the API withholds them, so nothing reaches this map to expand (#1661). Do not add a
+ *  guess. `CAU` and `SPU` are party-unit LAYERS rather than kinds, handled below.
+ */
+const FINER_KIND_LABELS: Record<string, string> = {
+  PC: 'Political committee',
+  PF: 'Political fund',
+  IEC: 'Independent-expenditure committee',
+  IEF: 'Independent-expenditure fund',
+  BC: 'Ballot question committee',
+  BF: 'Ballot question fund',
+};
+
 /**
  * The header's eyebrow. The register kind, except where a Board sub-type code names
  * a finer kind the register itself publishes — the 2 ballot-question codes, and the
@@ -77,8 +100,8 @@ export function committeeEyebrow(
   registerKind: string | null | undefined,
   entitySubType: string | null | undefined,
 ): string | null {
-  if (entitySubType === 'BC') return 'Ballot question committee';
-  if (entitySubType === 'BF') return 'Ballot question fund';
+  const finer = FINER_KIND_LABELS[entitySubType ?? ''];
+  if (finer) return finer;
   if (registerKind === 'party_unit') {
     if (entitySubType === 'CAU') return 'Legislative caucus';
     if (entitySubType === 'SPU') return 'State party committee';
