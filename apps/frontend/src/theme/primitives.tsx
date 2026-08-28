@@ -584,7 +584,7 @@ function MenuDrawerBarRow({
       style={styles.menuBarRow}
     >
       <View style={styles.menuBarRowLabel}>
-        <Text style={styles.menuBarRowText}>{item.label}</Text>
+        <Text style={styles.menuSubRowText}>{item.label}</Text>
         {item.isNew ? <NewChip /> : null}
       </View>
       {/* Decoration only, so it is hidden from a screen reader: the row's own
@@ -1401,12 +1401,11 @@ const styles = StyleSheet.create({
     color: t.colors.text.primary,
   },
   // A bar item's own drawer row: taller than a group row, ruled top and bottom,
-  // and ending in an arrow. Every value is Design's (nav drawing, 27 Aug 2026),
-  // and the whole band between the 2 rules is the tap target, so nothing in it
-  // is dead. The 25px size is what marks Read as a peer of Search and About
-  // rather than a lesser thing; its weight matches the group rows, so the row
-  // reads as a peer without shouting (Eugene, 28 Aug 2026, replacing the 800
-  // this row shipped with).
+  // and ending in an arrow, and the whole band between the 2 rules is the tap
+  // target, so nothing in it is dead. Its words are set exactly like a group
+  // row's (menuSubRowText): the rules, the height and the arrow are what say
+  // Read sits at the top level, not louder type (Eugene, 28 Aug 2026, replacing
+  // the 25px/800 this row shipped with).
   menuBarRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1426,14 +1425,6 @@ const styles = StyleSheet.create({
     gap: 10,
     flexShrink: 1,
     flexWrap: 'wrap',
-  },
-  menuBarRowText: {
-    fontFamily: t.typography.title,
-    fontSize: 25,
-    fontWeight: t.fontWeights.semibold,
-    // Design gives -0.01em, which at 25px is -0.25px.
-    letterSpacing: -0.25,
-    color: t.colors.text.primary,
   },
   hamburger: {
     padding: 10,
