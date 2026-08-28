@@ -24,6 +24,15 @@ that make a plausible query silently wrong (both expenditure labels counted, rec
 filtered to ``Contribution``, the file's own ``Year`` column rather than a row's date,
 a release resolved once) all live in the reader and are not restated.
 
+**And nothing here may sum a person's committees, ever.** A candidate who closes one
+committee and opens another transfers the leftover money, and Minnesota records that
+transfer as a ``Contribution`` from the old committee to the new one -- so the same
+dollars sit in both committees' figures and a combined total counts them twice. Every
+figure this module hands out is tagged with the committee that reported it by
+``reported_by_one_committee``, and adding 2 of them raises ``CrossCommitteeTotal``
+(``alethical/api/services/committee_amount.py``,
+[#1663](https://github.com/alethical-org/alethical/issues/1663)).
+
 The one query this module owns reads **dates and not money**: the first and last
 payment date among a committee-year's named contributions. It is here because the
 split cannot be honest without it, for a reason §7 states and no code enforced until
@@ -72,7 +81,7 @@ shown, no split, no composition bar -- and only the sentence differs.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
 from decimal import Decimal
 from uuid import UUID
@@ -81,6 +90,7 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from alethical.api.services.campaign_finance_register import report_corrections
+from alethical.api.services.committee_amount import reported_by
 from alethical.api.services.committee_filing_schedule import (
     CommitteeFilingSchedule,
     committee_filing_schedule,
@@ -232,6 +242,12 @@ class LegislatorCommitteeMoney:
 class LegislatorFinance:
     """Everything a legislator's campaign money tab may show for one year.
 
+    ``committees`` is a list and never a total, and it cannot be turned into one: every
+    money figure on it is a ``CommitteeAmount`` tagged with the committee that reported
+    it, so adding 2 of them raises ``CrossCommitteeTotal`` (#1663). A person's
+    committees pass money between each other, and Minnesota records that transfer the
+    same way it records a donation, so the same dollars sit in both figures.
+
     ``other_office_committees`` counts this member's confirmed committees that this page
     deliberately leaves out because they are for a race other than a legislative seat.
     It is served rather than dropped in silence: a reader who knows their member ran for
@@ -244,6 +260,23 @@ class LegislatorFinance:
     link_state: str
     committees: tuple[LegislatorCommitteeMoney, ...]
     other_office_committees: int
+
+    def __post_init__(self) -> None:
+        """Tag every figure with the committee that reported it, on construction.
+
+        Here rather than at the one call site that builds this, deliberately. A call
+        can be deleted while every test still passes, and then a person's committees
+        quietly become summable again; a constructor cannot. Whatever builds a
+        ``LegislatorFinance`` -- this module, a future one, a test -- gets figures that
+        refuse to be added across committees (#1663).
+
+        Tagging twice is harmless: it rewrites the same registration number.
+        """
+        object.__setattr__(
+            self,
+            "committees",
+            tuple(reported_by_one_committee(entry) for entry in self.committees),
+        )
 
 
 #: The 2 offices a sitting member of the Minnesota Legislature holds, spelled exactly as
@@ -635,6 +668,71 @@ def split_for_committee(
     )
 
 
+def reported_by_one_committee(
+    entry: LegislatorCommitteeMoney,
+) -> LegislatorCommitteeMoney:
+    """Tag every money figure on this card with the committee that reported it.
+
+    The whole guard for [#1663](https://github.com/alethical-org/alethical/issues/1663).
+    After this, adding 2 of a person's committees together raises
+    ``CrossCommitteeTotal`` rather than returning a number, so a page that sums them
+    fails the moment it is written instead of publishing a figure that looks right.
+
+    Why a person's committees may never be added, in 1 sentence: a candidate who closes
+    one committee and opens another transfers the leftover money, Minnesota records
+    that transfer as a ``Contribution`` from the old committee to the new one, so the
+    same dollars sit in both committees' figures and a combined total counts them
+    twice. Measured on the live release: 9 candidates, 30 payments, $121,241.64, and
+    for 2 candidate-years **every dollar** a combined figure would show is the same
+    money twice.
+
+    Applied here rather than in ``committee_finance``, deliberately. A committee's own
+    page shows 1 committee and its figure is correct; the risk exists only where a
+    person's committees sit together, which is this page and nowhere else.
+
+    Payment *counts* are left as plain integers. Rule 12's harm is a wrong dollar
+    figure under a named person's photograph, and counts are not that; guarding them
+    would widen the change without widening what it prevents.
+    """
+    number = entry.registration_number
+    finance = entry.finance
+    if finance is not None:
+        finance = replace(
+            finance,
+            money_in=replace(
+                finance.money_in,
+                itemized_contribution_total=reported_by(
+                    number, finance.money_in.itemized_contribution_total
+                ),
+                reported_total=reported_by(number, finance.money_in.reported_total),
+                other_receipts=tuple(
+                    replace(receipt, total=reported_by(number, receipt.total))
+                    for receipt in finance.money_in.other_receipts
+                ),
+            ),
+            money_out=replace(
+                finance.money_out,
+                itemized_payment_total=reported_by(
+                    number, finance.money_out.itemized_payment_total
+                ),
+                reported_total=reported_by(number, finance.money_out.reported_total),
+                by_type=tuple(
+                    replace(bucket, total=reported_by(number, bucket.total))
+                    for bucket in finance.money_out.by_type
+                ),
+            ),
+        )
+    split = replace(
+        entry.split,
+        reported_total=reported_by(number, entry.split.reported_total),
+        named_total=reported_by(number, entry.split.named_total),
+        named_cash_total=reported_by(number, entry.split.named_cash_total),
+        named_in_kind_total=reported_by(number, entry.split.named_in_kind_total),
+        unnamed_total=reported_by(number, entry.split.unnamed_total),
+    )
+    return replace(entry, finance=finance, split=split)
+
+
 def legislator_finance(
     db: Session, release: Release, *, legislator_id: UUID, year: int
 ) -> LegislatorFinance:
@@ -716,6 +814,9 @@ def legislator_finance(
         legislator_id=legislator_id,
         year=year,
         link_state=state,
+        # Tagged by ``LegislatorFinance.__post_init__``, not here: from here on, adding
+        # 2 of this person's committees together raises rather than returning a
+        # number (#1663).
         committees=tuple(committees),
         other_office_committees=other_office,
     )

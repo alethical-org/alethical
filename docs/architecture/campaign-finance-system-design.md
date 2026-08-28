@@ -34,13 +34,18 @@ decisions were taken against text which had already been replaced. One session r
 keeping downloaded files in the database an hour after its own merged work had settled on
 Supabase Storage; another merged a display rule that a third had already measured to be wrong.
 
-- **The owner today** is the session working in the worktree
-  **`.claude/worktrees/clever-mclaren-6c4785`** (the campaign finance assessment and design-review
-  session), which took the pen 19 Aug 2026 under the handover rule below. Its content came from
-  Eugene's signed-reports decision of 18 Aug 2026, landed as
-  [PR #1659](https://github.com/alethical-org/alethical/pull/1659) and amended by
-  [PR #1665](https://github.com/alethical-org/alethical/pull/1665), written up here as §7.1.
-  - The previous claim named the worktree `.claude/worktrees/elastic-jemison-ced6bb`, appointed
+- **The owner today** is the session `distracted-lewin-868f0b-ae`, working in the worktree
+  **`.claude/worktrees/distracted-lewin-868f0b`**, which took the pen 28 Aug 2026 under the
+  handover rule below. Its measurement came from
+  [#1663](https://github.com/alethical-org/alethical/issues/1663) and is written up in §7 as
+  "A person's committees are never added together".
+  - The previous claim named the worktree `.claude/worktrees/clever-mclaren-6c4785` (the campaign
+    finance assessment and design-review session), appointed 19 Aug 2026. It is in no live session
+    list as of 28 Aug 2026, which is what triggered this handover. Its content came from Eugene's
+    signed-reports decision of 18 Aug 2026, landed as
+    [PR #1659](https://github.com/alethical-org/alethical/pull/1659) and amended by
+    [PR #1665](https://github.com/alethical-org/alethical/pull/1665), written up here as §7.1.
+  - The claim before that named the worktree `.claude/worktrees/elastic-jemison-ced6bb`, appointed
     18 Aug 2026 by way of [PR #1417](https://github.com/alethical-org/alethical/pull/1417). That
     session confirmed in writing that it published nothing, discarded its in-progress edit, and
     stopped, so the claim lapsed. The session briefed to pick it up
@@ -1293,6 +1298,43 @@ senator's name asserts something about their legislative work that no filing sup
 result therefore resolves a name to a *committee*, not to a person: the same file holds
 `Fateh, Omar Senate Committee` and `Fatehi, Leili House Committee`, one character apart and two
 different people, which is the concrete case behind §5.
+
+**A person's committees are never added together, and the code cannot do it.** This is the other
+half of the paragraph above, and it is sharper than "a figure says which committee it belongs to".
+A candidate who closes one committee and opens another transfers the leftover money, and Minnesota
+records that transfer exactly as it records a donation: a `Contribution`, from the old committee to
+the new one. So the same dollars are reported by both committees, correctly, and a combined figure
+counts them twice. **20 candidates currently hold more than one committee across 40 committees**,
+and on the live release **9 candidates moved $121,241.64 across 30 payments** between committees
+they both control ([#1663](https://github.com/alethical-org/alethical/issues/1663)). For 2 of those
+candidate-years the moved amount is **100.0%** of what a combined figure would show, read from the
+Board's own records on 28 Aug 2026: Diane Napper's Senate committee (19520) reports one itemized
+contribution for 2026, **$3,000.00 on 15 June 2026 from her own House committee (19121)**, and her
+House committee reports nothing for the year; Frank Pafko's House committee (19512) reports
+**$2,851.97 on 16 June 2026 from his own Senate committee (18920)**, and 18920 reports nothing for
+the year. So a combined 2026 figure for either would be **entirely** one movement of their own
+money, printed under their photograph as what they raised.
+
+Three consequences, and the third is what makes this a design rule rather than a warning:
+
+- **Each committee shows its own figures with its own period, and a member holding more than one
+  gets a sentence saying the accounts are separate and that we do not add them.** Placed above the
+  cards, because the reader most at risk of adding 2 figures is the one who reads least.
+- **A transfer is never netted out of a committee's own total.** The money really did arrive and
+  the filing says so; subtracting it would put our figure at odds with the Board's own, and rule 12
+  already forbids implying that the same dollars travelled onward.
+- **The guard is in the code, not in this paragraph.** Every money figure on a legislator's profile
+  is a `CommitteeAmount` tagged with the committee that reported it, and adding 2 of them raises
+  `CrossCommitteeTotal` (`alethical/api/services/committee_amount.py`), applied by
+  `LegislatorFinance.__post_init__` so no future call site can forget it. The frontend receives
+  plain strings and so has no runtime guard; `scripts/check_no_cross_committee_total.py` fails CI
+  there instead, on the one step a combined figure cannot skip -- turning 2 committees' amounts
+  into numbers.
+
+**Independent spending is the exception, and summing it across a person's committees is correct.**
+Every row of `cf_independent_expenditure_row` names exactly 1 affected committee, and a transfer
+between a person's own committees never appears in that file at all, so no dollar there can sit in
+2 of one person's committees. Do not copy the guard above onto it.
 
 **Never rank, total or sort members by amount for the current year.** Sitting members are on two
 different filing calendars, so on any day in 2026 a side-by-side list compares one member's

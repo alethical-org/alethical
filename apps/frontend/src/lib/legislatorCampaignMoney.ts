@@ -430,6 +430,59 @@ export function otherOfficeNote(count: number | null | undefined): string | null
 }
 
 /**
+ * The sentence a member with more than one committee gets, above their cards.
+ *
+ * A candidate can register more than one campaign committee, usually after moving
+ * between offices or starting a new run. When they close one and open another, the
+ * leftover money moves across, and Minnesota records that move exactly as it records a
+ * donation: a contribution from the old committee to the new one. So the same dollars
+ * are reported by both committees, correctly, and adding the two together would count
+ * them twice.
+ *
+ * Measured on the live release and recorded on
+ * [#1663](https://github.com/alethical-org/alethical/issues/1663): 9 candidates, 30
+ * payments, $121,241.64 moved between committees the same person controls, and for
+ * Diane Napper in 2026 and Frank Pafko in 2026 **every dollar** a combined figure would
+ * show is the same money counted twice.
+ *
+ * So the sentence does 2 things and no more. It tells the reader these are separate
+ * accounts each reporting on its own, and it says we do not add them and why. It never
+ * subtracts the moved money from either committee's own figure: the money really did
+ * arrive, the filing says so, and netting it out would put our figure at odds with the
+ * Board's own (rule 12).
+ *
+ * `null` for the ordinary case of one committee, where there is nothing to explain.
+ */
+export function severalCommitteesNote(count: number | null | undefined): string | null {
+  if (!count || !Number.isFinite(count) || count < 2) return null;
+  return (
+    `This member has ${count} campaign committees for their seat in the Legislature, ` +
+    'and each one reports to the state separately. Each is shown on its own below and ' +
+    'we never add them together: when a candidate closes one committee and opens ' +
+    'another, the money left over moves across, and the state records that move as a ' +
+    'donation to the new committee. So the same money is in both reports, and one ' +
+    'combined figure would count it twice.'
+  );
+}
+
+/**
+ * Whether a served money figure is a real amount above zero.
+ *
+ * The only place a committee's amount is turned into a number, deliberately. Two of
+ * them turned into numbers is the first step of the combined figure #1663 forbids, so
+ * `scripts/check_no_cross_committee_total.py` fails any other conversion of these
+ * fields anywhere in the app, and this helper is what a surface uses instead.
+ *
+ * A missing figure is `false` rather than zero, because "not reported" and "$0.00" are
+ * different facts (rule 12) and neither of them is an amount to show a line for.
+ */
+export function isAmountAboveZero(value: string | number | null | undefined): boolean {
+  if (value === null || value === undefined || value === '') return false;
+  const amount = typeof value === 'string' ? Number(value) : value;
+  return Number.isFinite(amount) && amount > 0;
+}
+
+/**
  * Which empty state the tab is in, when it has no committee to draw.
  *
  * `'unconfirmed'` and `'confirmed-elsewhere'` are different facts and an earlier version

@@ -32,11 +32,13 @@ import {
   filingScheduleNote,
   formatDay,
   formatMoney,
+  isAmountAboveZero,
   moneyFigure,
   otherOfficeNote,
   paymentCountLabel,
   paymentDateRangeLabel,
   reportedThroughLabel,
+  severalCommitteesNote,
   statedSplitNote,
   spendingNote,
   splitExplanation,
@@ -133,14 +135,19 @@ export function CampaignMoneyTab({
           <Text style={styles.body}>{confirmedElsewhereExplanation(year)}</Text>
         </View>
       ) : (
-        money.committees.map((committee) => (
-          <CommitteeCard
-            key={committee.registrationNumber}
-            committee={committee}
-            year={year}
-            isDesktop={isDesktop}
-          />
-        ))
+        <>
+          {/* Above the cards, not below: a reader who stops after the first figure
+              is exactly the reader who would otherwise add the second one to it. */}
+          <SeveralCommitteesNote count={money.committees.length} />
+          {money.committees.map((committee) => (
+            <CommitteeCard
+              key={committee.registrationNumber}
+              committee={committee}
+              year={year}
+              isDesktop={isDesktop}
+            />
+          ))}
+        </>
       )}
 
       {money && !isLoading && !isError ? (
@@ -285,8 +292,13 @@ function MoneyIn({
   const reported = formatMoney(split.reportedTotal);
   const unnamed = formatMoney(split.unnamedTotal);
   // Only a real amount earns the goods-and-services line; a filed $0.00 of it is
-  // ordinary, not a caveat.
-  const inKind = Number(split.namedInKindTotal) > 0 ? formatMoney(split.namedInKindTotal) : null;
+  // ordinary, not a caveat. Read through the shared helper rather than `Number()`
+  // here: turning a committee's amount into a number is the first step of the
+  // combined figure #1663 forbids, so it happens in one place the whole app can be
+  // checked against.
+  const inKind = isAmountAboveZero(split.namedInKindTotal)
+    ? formatMoney(split.namedInKindTotal)
+    : null;
   const checkNote = statedSplitNote(split.statedSplitState);
 
   return (
@@ -486,6 +498,24 @@ function SourceLink({ label, url }: { label: string; url: string }) {
  * committees are on this page rather than a figure about any one of them, and putting
  * it inside a card would read as a caveat on that card's numbers.
  */
+/**
+ * Why a member with 2 committees gets 2 sets of figures and no combined one (#1663).
+ *
+ * A card of its own rather than a footnote, and above the committee cards rather than
+ * below them, because the reader most at risk of adding the 2 figures is the one who
+ * reads least. The wording lives in `lib/legislatorCampaignMoney.ts` with the
+ * measurement behind it.
+ */
+function SeveralCommitteesNote({ count }: { count: number }) {
+  const note = severalCommitteesNote(count);
+  if (!note) return null;
+  return (
+    <View style={styles.card}>
+      <Text style={styles.explain}>{note}</Text>
+    </View>
+  );
+}
+
 function OtherOfficeNote({ count }: { count: number }) {
   const note = otherOfficeNote(count);
   if (!note) return null;

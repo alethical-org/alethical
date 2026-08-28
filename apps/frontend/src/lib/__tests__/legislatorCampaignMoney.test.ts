@@ -21,8 +21,10 @@ import {
   campaignMoneyYears,
   formatDay,
   formatMoney,
+  isAmountAboveZero,
   moneyFigure,
   otherOfficeNote,
+  severalCommitteesNote,
   paymentCountLabel,
   paymentDateRangeLabel,
   reportedThroughLabel,
@@ -605,5 +607,57 @@ describe('campaignMoneyYear', () => {
     expect(campaignMoneyYear('1999', on13Aug2026)).toBe(2026);
     expect(campaignMoneyYear('banana', on13Aug2026)).toBe(2026);
     expect(campaignMoneyYear(undefined, on13Aug2026)).toBe(2026);
+  });
+});
+
+describe('a member holding more than one committee (#1663)', () => {
+  it('says the accounts are separate and that we never add them, before the figures', () => {
+    // The double count this prevents is real and measured. Diane Napper's Senate
+    // committee (19520) reports $3,000.00 for 2026, and all of it arrived on
+    // 15 June 2026 from her own House committee (19121) as a payment the state types
+    // `Contribution`. Frank Pafko's House committee (19512) reports $2,851.97, all of
+    // it from his own Senate committee (18920) on 16 June 2026. A combined figure for
+    // either would be 100% the same money counted twice.
+    const note = severalCommitteesNote(2);
+    expect(note).toContain('2 campaign committees');
+    expect(note).toContain('each one reports to the state separately');
+    expect(note).toContain('we never add them together');
+    expect(note).toContain('count it twice');
+  });
+
+  it('never offers to subtract the moved money from either committee', () => {
+    // The money really did arrive and the filing says so, so netting it out would put
+    // our figure at odds with the Board's own. Rule 12: separate transfers, never a
+    // chain, and never a figure that disagrees with the source it cites.
+    const note = severalCommitteesNote(2) ?? '';
+    for (const banned of ['subtract', 'minus', 'net', 'excluding', 'total for this member']) {
+      expect(note.toLowerCase()).not.toContain(banned);
+    }
+  });
+
+  it('says nothing at all for the ordinary member with one committee', () => {
+    expect(severalCommitteesNote(1)).toBeNull();
+    expect(severalCommitteesNote(0)).toBeNull();
+    expect(severalCommitteesNote(null)).toBeNull();
+    expect(severalCommitteesNote(undefined)).toBeNull();
+  });
+});
+
+describe('isAmountAboveZero', () => {
+  it('is the only place a committee amount becomes a number, and it cannot build a total', () => {
+    // It returns a boolean, so 2 committees' amounts cannot be combined through it.
+    // `scripts/check_no_cross_committee_total.py` fails any other conversion of these
+    // fields anywhere in the app (#1663).
+    expect(isAmountAboveZero('120.50')).toBe(true);
+    expect(isAmountAboveZero('0.00')).toBe(false);
+  });
+
+  it('reads a missing figure as no line to draw, never as a zero', () => {
+    // "Not reported" and "$0.00" are different facts (rule 12), and neither of them is
+    // an amount worth a goods-and-services line.
+    expect(isAmountAboveZero(null)).toBe(false);
+    expect(isAmountAboveZero(undefined)).toBe(false);
+    expect(isAmountAboveZero('')).toBe(false);
+    expect(isAmountAboveZero('not a number')).toBe(false);
   });
 });
