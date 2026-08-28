@@ -110,9 +110,14 @@ describe('the lobbying total carries the method box that stands in for a recompu
     expect(html).toContain('The rows run through the report due 16 March 2026');
   });
 
-  it('says which counting choice could have moved the answer', () => {
-    expect(html).toContain('That is the choice that could have moved these figures, and it does');
+  it('says which counting choices could have moved the answer', () => {
+    // Two of them, and the box has to name both. The report-year one decides whether
+    // "2015 through 2025" is a spending window; the identity one decides the 3,056
+    // count and the 5-name table, which is the part a reader quotes. Neither moves
+    // the figures, and saying so is what lets a reader check rather than trust.
+    expect(html).toContain('Two choices in that counting could have moved these figures');
     expect(html).toContain('A report year is a calendar year of spending rather than of filing');
+    expect(html).toContain('no registration number in the file carries 2 filed names');
   });
 });
 
