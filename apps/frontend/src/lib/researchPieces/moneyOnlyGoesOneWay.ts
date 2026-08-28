@@ -180,6 +180,28 @@ export const MONEY_ONLY_GOES_ONE_WAY: ResearchPiece = {
           "Campaign money is what gets spent before the vote. Lobbying is what gets spent after — every day of every year, whether or not there's an election on.",
         ),
       ],
+      // Rule 13 lets a research piece add figures up across members, and conditions
+      // that on the figure recomputing from a pinned release of OUR loaded data. We
+      // hold no lobbying records, so that safeguard cannot reach these totals and
+      // this box is what stands in for it: where the rows came from, what column was
+      // summed, the one counting choice that could have moved the answer, and how far
+      // the records run. Verified against the Board's own file and its Lobbying
+      // Handbook on 28 Aug 2026 (#1802).
+      methodologyInset: {
+        title: 'How we counted the lobbying total',
+        body:
+          'The Board publishes 1 row per principal per report year, and no multi-year ' +
+          'or all-principals total across those rows, so the 11-year figures here are ' +
+          'our own addition of them, from its Total spent column. A report year is a ' +
+          'calendar year of spending rather than of filing: the Board\u2019s Lobbying ' +
+          'Handbook has each principal filing by 15 March for \u201cthe amount spent by ' +
+          'the principal in the preceding calendar year\u201d, so nothing here straddles ' +
+          '2 years. That is the choice that could have moved these figures, and it does ' +
+          'not. What the records cannot do is separate the 4 kinds of lobbying before ' +
+          '2024; everything earlier sits in a single general column. The rows run ' +
+          'through the report due 16 March 2026, and are published at ' +
+          'cfb.mn.gov/reports-and-data/self-help/data-downloads/lobbying/.',
+      },
     },
     {
       heading: 'What the shape actually looks like',
