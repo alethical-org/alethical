@@ -377,17 +377,27 @@ def test_the_failed_action_name_is_what_the_report_counts(db, tmp_path) -> None:
 
 
 def test_every_table_holding_a_stored_body_is_found_by_the_schema_walk() -> None:
-    """The 3 kinds of body we keep today, discovered rather than listed.
+    """The 4 kinds of body we keep today, discovered rather than listed.
 
     This job was written for ``cf_snapshot_body`` alone. By the time anybody checked,
     ``cf_filing_snapshot`` held 2 totals archives with 0 rows recording a second copy,
     and ``cf_report_document``'s documents were not being kept at all. Naming tables in
     the job is what let that happen, so the assertion here is that the *schema* is the
     work list.
+
+    ``published_source_copy`` is the fourth kind, and the proof that discovery works:
+    our own copy of every source the published research and guides cite (#1798) is
+    covered by this job with no edit to it at all, because its table names the same 3
+    columns.
     """
     found = {model.__tablename__ for model in body_tables()}
 
-    assert found == {"cf_snapshot_body", "cf_filing_snapshot", "cf_report_document"}
+    assert found == {
+        "cf_snapshot_body",
+        "cf_filing_snapshot",
+        "cf_report_document",
+        "published_source_copy",
+    }
 
 
 def test_a_stored_body_missing_a_mirror_column_fails_this_test_by_name() -> None:
