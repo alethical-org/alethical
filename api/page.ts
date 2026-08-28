@@ -8,18 +8,33 @@ import {
 import {
   billDirectoryPageSnapshot,
   billPageSnapshot,
+  committeeDirectoryPageSnapshot,
+  committeePageSnapshot,
+  committeePaymentsPageSnapshot,
+  committeeSnapshotName,
+  committeeSnapshotPath,
   findMyLegislatorPageSnapshot,
   injectPageSnapshot,
   legislatorDirectoryPageSnapshot,
   legislatorPageSnapshot,
+  moneyLandingPageSnapshot,
   researchPageSnapshot,
   readPageSnapshot,
   renderPageSnapshot,
   type BillDirectorySnapshotSource,
   type BillSnapshotSource,
+  type CommitteeDirectorySnapshotSource,
+  type CommitteeMoneySnapshotSource,
   type LegislatorDirectorySnapshotSource,
   type LegislatorSnapshotSource,
 } from "../apps/frontend/src/lib/pageSnapshot";
+import { COMMITTEE_PAGE_SIZE } from "../apps/frontend/src/lib/committeeList";
+import {
+  PAGE_CAP as COMMITTEE_PAYMENTS_PAGE_SIZE,
+  receivedPaymentRow,
+  registrationNumberFromSlug,
+} from "../apps/frontend/src/lib/committeeMoney";
+import { campaignMoneyYear } from "../apps/frontend/src/lib/legislatorCampaignMoney";
 import {
   BILL_DIRECTORY_PAGE_SIZE,
   compareLegislatorNames,
@@ -295,6 +310,210 @@ async function legislatorListContent(page: number): Promise<PageContent> {
   };
 }
 
+// --- The campaign money section (#1783) ---
+
+/** The 3 money payloads this file reads, each only as far as it prints. */
+type MoneySummaryPayload = {
+  register?: { state?: string | null; filer_count?: number | null } | null;
+  freshness?: { downloads_fetched_at?: string | null } | null;
+};
+
+type CommitteeRegisterPayload = {
+  state?: string | null;
+  committees?: CommitteeDirectorySnapshotSource[] | null;
+  page?: { total?: number | null } | null;
+  register_total?: number | null;
+  as_of?: string | null;
+};
+
+type CommitteePaymentsPayload = {
+  state?: string | null;
+  payments?:
+    | {
+        contributor?: string | null;
+        contributor_registration_number?: string | null;
+        contributor_type?: string | null;
+        amount?: string | null;
+        received_on?: string | null;
+        receipt_type?: string | null;
+        in_kind?: string | null;
+      }[]
+    | null;
+  page?: { total_payments?: number | null } | null;
+  linkable_registration_numbers?: string[] | null;
+};
+
+//
+// The landing, the register, one committee's record and its full payments list
+// all sent a title and an empty body until now, so 1,603 committee records had
+// no sentence and no link anything could read before a script ran. §22 of
+// docs/architecture/page-metadata-for-search-and-sharing-decisions.md records
+// which of these addresses are records and which are filtered views.
+
+/** The filing year both the app and this function default to, so the served
+ *  figures are the ones the loaded page then draws. */
+function defaultMoneyYear(): number {
+  return campaignMoneyYear(undefined);
+}
+
+async function moneyLandingContent(): Promise<PageContent> {
+  // The register's size and the copy date are read live, never pasted — a pasted
+  // count is how this page once said 1,336 on a day the register held 1,603
+  // (.claude/rules/grounded-answers.md rule 12). A count that cannot be read is
+  // left out; the landing is still a real page without it, so this never 503s.
+  let summary: MoneySummaryPayload | null = null;
+  try {
+    summary = await getApiData<MoneySummaryPayload>(
+      "/campaign-finance/summary",
+    );
+  } catch {
+    summary = null;
+  }
+  return {
+    metadata: STATIC_PAGE_METADATA["/money"],
+    snapshot: renderPageSnapshot(
+      moneyLandingPageSnapshot({
+        registerFilerCount:
+          summary?.register?.state === "reported"
+            ? (summary.register.filer_count ?? null)
+            : null,
+        filesLastCopiedAt: summary?.freshness?.downloads_fetched_at ?? null,
+      }),
+    ),
+  };
+}
+
+async function committeeListContent(page: number): Promise<PageContent> {
+  const offset = (page - 1) * COMMITTEE_PAGE_SIZE;
+  const params = new URLSearchParams({
+    limit: String(COMMITTEE_PAGE_SIZE),
+    offset: String(offset),
+  });
+  const payload = await getDirectoryApiResponse<{
+    data: CommitteeRegisterPayload;
+  }>(`/campaign-finance/committees?${params.toString()}`);
+  const register = payload.data;
+  const total = register.page?.total;
+  if (register.state !== "reported" || typeof total !== "number") {
+    throw new DataUnavailable(
+      "committee register response has no rows to serve",
+    );
+  }
+  if (page > directoryTotalPages(total, COMMITTEE_PAGE_SIZE)) {
+    throw new UnknownAddress(`committee register page ${page} does not exist`);
+  }
+  const expectedRecords = Math.min(
+    COMMITTEE_PAGE_SIZE,
+    Math.max(0, total - offset),
+  );
+  if ((register.committees ?? []).length !== expectedRecords) {
+    throw new DataUnavailable("committee register response is incomplete");
+  }
+  return {
+    metadata: committeeListPageMetadata(page),
+    snapshot: renderPageSnapshot(
+      committeeDirectoryPageSnapshot(
+        register.committees ?? [],
+        {
+          listTotal: total,
+          registerTotal: register.register_total ?? null,
+          asOf: register.as_of ?? null,
+        },
+        page,
+        COMMITTEE_PAGE_SIZE,
+      ),
+    ),
+  };
+}
+
+async function committeeFinance(
+  slug: string,
+): Promise<{
+  money: CommitteeMoneySnapshotSource;
+  registrationNumber: string;
+}> {
+  const registrationNumber = registrationNumberFromSlug(slug);
+  // The route reader already refuses an address with no number, so this is the
+  // belt-and-braces case rather than the ordinary one.
+  if (!registrationNumber) throw new UnknownAddress(`no committee in ${slug}`);
+  const money = await getApiData<CommitteeMoneySnapshotSource>(
+    `/committees/${encodeURIComponent(registrationNumber)}/finance?year=${defaultMoneyYear()}`,
+  );
+  return { money, registrationNumber };
+}
+
+async function committeeContent(slug: string): Promise<PageContent> {
+  const { money, registrationNumber } = await committeeFinance(slug);
+  return {
+    metadata: committeeMoneyPageMetadata(slug, "page", {
+      name: committeeSnapshotName(money, registrationNumber),
+      canonicalSlug:
+        committeeSnapshotPath(money, registrationNumber).split("/").pop() ??
+        slug,
+    }),
+    snapshot: renderPageSnapshot(
+      committeePageSnapshot(money, registrationNumber),
+    ),
+  };
+}
+
+async function committeePaymentsContent(slug: string): Promise<PageContent> {
+  const { money, registrationNumber } = await committeeFinance(slug);
+  const params = new URLSearchParams({
+    direction: "received",
+    year: String(defaultMoneyYear()),
+    sort: "amount",
+    limit: String(COMMITTEE_PAYMENTS_PAGE_SIZE),
+    offset: "0",
+  });
+  // The list is an addition to a page that already reads correctly, so losing it
+  // serves the committee's identity and period with the list's own absent state
+  // rather than taking the address down.
+  let payments: CommitteePaymentsPayload | null = null;
+  try {
+    payments = await getApiData<CommitteePaymentsPayload>(
+      `/committees/${encodeURIComponent(registrationNumber)}/payments?${params.toString()}`,
+    );
+  } catch {
+    payments = null;
+  }
+  const linkable = new Set<string>(
+    payments?.linkable_registration_numbers ?? [],
+  );
+  return {
+    metadata: committeeMoneyPageMetadata(slug, "payments", {
+      name: committeeSnapshotName(money, registrationNumber),
+      canonicalSlug:
+        committeeSnapshotPath(money, registrationNumber).split("/").pop() ??
+        slug,
+    }),
+    snapshot: renderPageSnapshot(
+      committeePaymentsPageSnapshot(money, registrationNumber, {
+        state: payments?.state ?? null,
+        rows:
+          payments?.state === "reported"
+            ? (payments.payments ?? []).map((row) =>
+                receivedPaymentRow(
+                  {
+                    contributor: row.contributor ?? null,
+                    contributorRegistrationNumber:
+                      row.contributor_registration_number ?? null,
+                    contributorType: row.contributor_type ?? null,
+                    amount: row.amount ?? null,
+                    receivedOn: row.received_on ?? null,
+                    receiptType: row.receipt_type ?? null,
+                    inKind: row.in_kind ?? null,
+                  },
+                  linkable,
+                ),
+              )
+            : [],
+        totalPayments: payments?.page?.total_payments ?? null,
+      }),
+    ),
+  };
+}
+
 function pathWithQuery(query: Record<string, QueryValue>): string {
   const path = one(query.path) || "/";
   const params = new URLSearchParams();
@@ -343,16 +562,14 @@ async function contentFor(
         snapshot: renderPageSnapshot(findMyLegislatorPageSnapshot()),
       };
     case "moneyLanding":
-      return headOnly(STATIC_PAGE_METADATA["/money"]);
+      return moneyLandingContent();
     case "read":
       // The /read page's own list, so the route to every posted piece exists before
       // any program runs (#1760). The registry is on the server already, so
       // this asks the data service for nothing.
       return {
         metadata: STATIC_PAGE_METADATA["/read"],
-        snapshot: renderPageSnapshot(
-          readPageSnapshot(publishedResearch()),
-        ),
+        snapshot: renderPageSnapshot(readPageSnapshot(publishedResearch())),
       };
     case "guide":
     case "research": {
@@ -370,19 +587,18 @@ async function contentFor(
       };
     }
     case "moneyCommitteeList":
-      // Only the bare list is a page worth listing; a filtered or scrolled
-      // address is one of effectively unlimited query-string combinations.
-      return headOnly(
-        Object.keys(target.params).length === 0
-          ? STATIC_PAGE_METADATA["/money/committees"]
-          : committeeListPageMetadata({ noindex: true }),
-      );
+      // Only the plain register is a page worth listing, one numbered page at a
+      // time; a typed name or a kind chip is one of effectively unlimited
+      // query-string combinations and gets no body and no canonical address.
+      return isUnfilteredDirectory(target.params)
+        ? committeeListContent(directoryPageNumber(target.params.page))
+        : headOnly(committeeListPageMetadata(1, { noindex: true }));
     case "moneySearch":
       return headOnly(moneySearchPageMetadata(target.params.q));
     case "moneyCommittee":
-      return headOnly(committeeMoneyPageMetadata(target.slug, "page"));
+      return committeeContent(target.slug);
     case "moneyCommitteePayments":
-      return headOnly(committeeMoneyPageMetadata(target.slug, "payments"));
+      return committeePaymentsContent(target.slug);
     case "privacy":
       return headOnly(STATIC_PAGE_METADATA["/privacy"]);
     case "siteMetrics":

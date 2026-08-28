@@ -10,8 +10,9 @@ import { indexedResearch, piecePath } from '../research';
  * that is not a defect.
  */
 const FIXED_PAGE_ROWS = 12;
-/** The numbered directory rows the live counts add: 2 for bills, 1 for legislators. */
-const DIRECTORY_PAGE_ROWS = 3;
+/** The numbered directory rows the live counts add: 2 for bills, 1 for
+ *  legislators, 2 for the register of campaign committees. */
+const DIRECTORY_PAGE_ROWS = 5;
 
 function responseRecorder() {
   const headers = new Map<string, string>();
@@ -37,7 +38,7 @@ afterEach(() => {
 });
 
 describe('sitemap endpoint', () => {
-  it('lists exactly the three child sitemaps and makes no network call', async () => {
+  it('lists exactly the four child sitemaps and makes no network call', async () => {
     const fetchSpy = vi.fn();
     vi.stubGlobal('fetch', fetchSpy);
     const recorder = responseRecorder();
@@ -50,7 +51,8 @@ describe('sitemap endpoint', () => {
     expect(body).toContain('<loc>https://www.alethical.com/sitemaps/pages.xml</loc>');
     expect(body).toContain('<loc>https://www.alethical.com/sitemaps/bills.xml</loc>');
     expect(body).toContain('<loc>https://www.alethical.com/sitemaps/legislators.xml</loc>');
-    expect(body.match(/<sitemap>/g)).toHaveLength(3);
+    expect(body).toContain('<loc>https://www.alethical.com/sitemaps/committees.xml</loc>');
+    expect(body.match(/<sitemap>/g)).toHaveLength(4);
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
@@ -61,8 +63,10 @@ describe('sitemap endpoint', () => {
         data: {
           bill_directory_total: 21,
           legislator_directory_total: 13,
+          committee_directory_total: 120,
           bills: Array.from({ length: 21 }, (_, index) => ({ id: `bill-${index + 1}` })),
           legislators: Array.from({ length: 13 }, (_, index) => ({ slug: `member-${index + 1}` })),
+          committees: [{ registration_number: '18833', name: 'Andrew Smith House Committee' }],
         },
       }),
     });
@@ -91,6 +95,11 @@ describe('sitemap endpoint', () => {
     expect(body).toContain('<loc>https://www.alethical.com/bills?page=2</loc>');
     expect(body).toContain('<loc>https://www.alethical.com/bills?page=3</loc>');
     expect(body).toContain('<loc>https://www.alethical.com/legislators?page=2</loc>');
+    // Every numbered page of the register, counted from the WHOLE register rather
+    // than from the shorter indexable list: 120 filers at 50 a page is 3 pages.
+    expect(body).toContain('<loc>https://www.alethical.com/money/committees?page=2</loc>');
+    expect(body).toContain('<loc>https://www.alethical.com/money/committees?page=3</loc>');
+    expect(body).not.toContain('<loc>https://www.alethical.com/money/committees?page=4</loc>');
     // A published piece is in the sitemap from the day it posts, so the count
     // grows with every piece we publish rather than staying fixed.
     expect(body).toContain(
@@ -220,6 +229,52 @@ describe('sitemap endpoint', () => {
     expect(status).toBe(503);
     expect(headers.get('Retry-After')).toBe('120');
     expect(headers.get('Cache-Control')).toBe('no-store');
+  });
+
+  // A committee page is worth a sitemap entry when it holds a filed record. The
+  // API decides that; this asserts the address is built by the same slug rule the
+  // router reads, so the sitemap can never advertise an address it rejects.
+  it('renders one dateless entry per indexable committee, by name and number', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          data: {
+            bills: [],
+            legislators: [],
+            committees: [
+              { registration_number: '18833', name: 'Andrew Smith (House Committee)' },
+              { registration_number: '41363', name: '100 Percent Future Fund' },
+            ],
+          },
+        }),
+      }),
+    );
+    const recorder = responseRecorder();
+
+    await handler({ query: { section: 'committees' } }, recorder.response);
+
+    const { body, status } = recorder.read();
+    expect(status).toBe(200);
+    expect(body).toContain(
+      '<url><loc>https://www.alethical.com/money/committees/andrew-smith-house-committee-18833</loc></url>',
+    );
+    expect(body).toContain(
+      '<url><loc>https://www.alethical.com/money/committees/100-percent-future-fund-41363</loc></url>',
+    );
+    // No lastmod anywhere: we hold no date on which a committee's own record
+    // changed, and Google trusts the field site-wide only when it is accurate.
+    expect(body).not.toContain('<lastmod>');
+  });
+
+  it('responds 503 rather than an empty committee sitemap when the backend fails', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500 }));
+    const recorder = responseRecorder();
+
+    await handler({ query: { section: 'committees' } }, recorder.response);
+
+    expect(recorder.read().status).toBe(503);
   });
 
   it('responds 404 for an unknown section', async () => {

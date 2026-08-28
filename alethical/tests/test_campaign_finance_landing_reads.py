@@ -32,6 +32,7 @@ import pytest
 from sqlalchemy import select, text
 
 from alethical.api.services.campaign_finance_register import (
+    committees_worth_indexing,
     report_corrections,
     NO_FILINGS_SNAPSHOT,
     ROWS_REPLACED,
@@ -961,3 +962,73 @@ def test_the_years_latest_version_is_the_years_answer(db) -> None:
     )
 
     assert report_corrections(db, CANDIDATE, 2026) == 2
+
+
+def _reported_figures(db, snapshot, registration: str, *, year: int = 2026) -> None:
+    """One year of a filer's own reported totals, which is the second way a
+    committee page has something on it besides its register row."""
+    db.add(
+        models.CampaignFinanceFiling(
+            snapshot_id=snapshot.id,
+            registration_number=registration,
+            filer_kind=FilerKind.candidate_committee,
+            filing_year=year,
+            segment_start=year,
+            segment_end=year + 1,
+            block_heading=f"{year} - Election year",
+            reported_through=date(year, 7, 20),
+            response_hash=hashlib.sha256(f"{registration}-{year}".encode()).hexdigest(),
+            archive_line=1,
+        )
+    )
+    db.commit()
+
+
+def test_the_committee_sitemap_carries_only_pages_with_something_on_them(db) -> None:
+    """A sitemap entry is a claim that a page is worth reading.
+
+    A registered filer with no filed report and no reported figures draws its register
+    row and its "no figures cover this year" state and nothing else. Google's own
+    guidance is that a page has to carry original information to be worth listing
+    (``docs/architecture/page-metadata-for-search-and-sharing-decisions.md`` §20.5
+    rule 4), and a thin page costs crawling twice: it is fetched and then not indexed.
+    Those pages still work and are still reachable from the register's numbered pages;
+    they are simply not advertised.
+    """
+    snapshot = _filings_snapshot(db, filer_count=3, report_count=2)
+    _filer(db, snapshot, CANDIDATE, name="Port, Lindsey Senate Committee")
+    _filer(db, snapshot, PARTY_UNIT, kind=FilerKind.party_unit, name="HRCC")
+    _filer(db, snapshot, "19086", name="Russell, Wynfred House Committee")
+    # A filed report: the Board's own amendment record is the positive signal.
+    _report(db, snapshot, CANDIDATE, amendment_index=0)
+    # Reported figures with no catalogued report still make a real page.
+    _reported_figures(db, snapshot, PARTY_UNIT)
+
+    listed = committees_worth_indexing(db)
+
+    assert [row.registration_number for row in listed] == [PARTY_UNIT, CANDIDATE]
+    assert [row.name for row in listed] == [
+        "HRCC",
+        "Port, Lindsey Senate Committee",
+    ]
+    # 19086 is registered and has nothing filed, so it is left out.
+    assert "19086" not in {row.registration_number for row in listed}
+
+
+def test_a_scheduled_report_nobody_filed_does_not_earn_a_sitemap_entry(db) -> None:
+    """The catalogue lists a report from the moment its period opens (§9.6).
+
+    Counting a scheduled row would advertise a page whose only content is a report
+    that does not exist yet, under a named committee.
+    """
+    snapshot = _filings_snapshot(db, filer_count=1, report_count=1)
+    _filer(db, snapshot, CANDIDATE)
+    _report(db, snapshot, CANDIDATE, amendment_index=None, amendment_count=None)
+
+    assert committees_worth_indexing(db) == ()
+
+
+def test_no_register_at_all_lists_no_committees_rather_than_refusing(db) -> None:
+    """No published snapshot is our own gap, and a sitemap without a section is a
+    smaller failure than a 503 that removes the bills and legislators with it."""
+    assert committees_worth_indexing(db) == ()

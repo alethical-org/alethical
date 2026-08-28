@@ -110,10 +110,16 @@ function legislatorsFilterParams(searchParams: URLSearchParams): Record<string, 
 }
 
 // URL-addressable committees-list state (campaign money phase 3): the name box,
-// the register's own kind filter, and how many rows the reader asked to see. All
-// 3 live in the address so a narrowed or scrolled list can be shared and survives
+// the register's own kind filter, and which numbered page the reader is on. All
+// 3 live in the address so a narrowed or paged list can be shared and survives
 // the browser Back button after opening a committee.
-const COMMITTEE_LIST_PARAMS = ['q', 'kind', 'show'] as const;
+//
+// `page` joined them when the register's overflow became numbered pages instead
+// of a "Show more" button (#1783). Google states it does not press buttons, so
+// every committee past the first 50 was unreachable to it; a numbered address per
+// page is what makes the other 1,553 walkable
+// (`docs/architecture/page-metadata-for-search-and-sharing-decisions.md` §20.5).
+const COMMITTEE_LIST_PARAMS = ['q', 'kind', 'page'] as const;
 
 function committeeListParams(searchParams: URLSearchParams): Record<string, string> {
   const params: Record<string, string> = {};

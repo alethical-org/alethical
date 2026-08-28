@@ -38,6 +38,17 @@ one of the 3 things the site does rather than a fifth Search row (settled 27 Aug
 [`docs/architecture/published-writing-decisions.md`](../architecture/published-writing-decisions.md)
 §2.13).
 
+**And search engines have their own way in, which is new.** Since 27 Aug 2026 every page in
+this section arrives from the server with its words and its links already in it, rather than
+as an empty frame the browser fills in afterwards. That matters because a search engine will
+not press a button and does not always wait for a page's programs to run: before this, the
+register served no link at all and none of the 1,603 committee pages was listed anywhere.
+There is now a list of committee addresses handed to search engines
+(`/sitemaps/committees.xml`), holding every committee whose page has a filed record on it.
+A committee with nothing filed keeps its page and stays reachable through the register's own
+numbered pages; it is just not advertised, because a page with nothing on it is not worth
+sending anyone to. What a person sees is unchanged.
+
 ## The landing page (`/money`)
 
 Top to bottom:
@@ -171,6 +182,9 @@ screen readers.
 The whole register of everyone allowed to raise or spend money in Minnesota state politics,
 ordered by the name as filed, A to Z. The address forwarded to `/money` until this shipped.
 
+The line above the rows says which of them this page holds: "Showing 551–600 of 1,603
+registered filers".
+
 **No row carries a dollar figure and nothing on the page sorts by one, ever.** These filers
 file to different calendars, so 2 amounts side by side would set one period against
 another, and a list ordered by amount would rank who is on the ballot rather than who raised
@@ -200,8 +214,14 @@ Top to bottom:
    itself, the row uses it: a legislative caucus, a state party committee, a ballot question
    committee or fund. A closed committee carries a CLOSED chip with the register's own
    termination date.
-5. **A "Show the next 50" button**, and how many rows are on screen is in the address too,
-   so a reader who loaded more and shared the link hands over the list they were looking at.
+5. **Numbered pages**, 50 filers each, so the whole register is 33 addresses rather than one
+   endless list. Previous, Next and jumps of 10 and 100 pages are ordinary links, and the
+   page number is in the address, so the list a reader is looking at is one they can send and
+   the Back button returns to it. This replaced a "Show the next 50" button on 27 Aug 2026:
+   Google says plainly that it does not press buttons, so every filer past the first 50 had
+   no link anywhere on the site and 1,553 of the 1,603 committee pages were unreachable to
+   it. Asking for a page past the last real one shows the page-not-found screen rather than
+   quietly snapping back to the last page that exists.
 
 Every row opens its committee **by registration number**, not by name, so a committee that
 changes its name keeps its address.
@@ -329,7 +349,10 @@ motion and announce themselves to screen readers.
 The full list behind a committee's figures — every named payment, largest first, with each
 payment's own date. The Who gave / Where it went choice and the year are in the address.
 The page loads 250 at a time; the capped-list card says the cap is ours, not the filing's,
-offers the next 250, and links to the filing itself on the Board's site. "Showing X of Y"
+offers the next 250, and links to the filing itself on the Board's site. The version that
+arrives from the server carries the first 250 rows of the Who gave list, which is the one
+the page opens on; the Where it went list and any other year arrive when the page's programs
+run, exactly as a bill page serves its Summary whichever tab the address names. "Showing X of Y"
 is a measured count served with the rows, never a guess. The same naming rules apply: a
 loan is labelled as reported on its own schedule rather than reading as a gift, transfers
 read "Money given to another campaign", and only registered filers' names open pages.

@@ -16,8 +16,15 @@ import {
   laneCountLine,
   legislatorsLaneSentence,
   orderingSentence,
+  FILES_LAST_COPIED_LABEL,
+  FILES_LAST_COPIED_NOTE,
   LOBBYING_NOT_LOADED,
+  MONEY_LANDING_HEADING,
+  MONEY_LANDING_SUBTITLE,
+  MONEY_LANE_COMMITTEES,
+  MONEY_LANE_LEGISLATORS,
   RECORD_DOES_NOT_COVER,
+  RECORD_DOES_NOT_COVER_HEADING,
 } from '../../lib/moneyLanding';
 import { NAME_SEARCH_PLACEHOLDER } from '../../lib/moneyNameSearch';
 import { piecesLabelledResearch, researchDatesLine } from '../../lib/research';
@@ -150,16 +157,13 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
             aria-level={1}
             style={[styles.heading, isMobile && styles.headingMobile]}
           >
-            Follow the money
+            {MONEY_LANDING_HEADING}
           </Text>
           {/* The design's own sentence, restored now that the field below works
               and the committees list exists: until then the clause was dropped,
               because copy may only claim what the shipped surfaces deliver
               (grounded-answers.md rules 2 and 6). */}
-          <Text style={styles.subtitle}>
-            Every contribution and expenditure Minnesota publishes for state campaigns, searchable
-            by the name it was filed under.
-          </Text>
+          <Text style={styles.subtitle}>{MONEY_LANDING_SUBTITLE}</Text>
 
           {/* The search front door, working since issue #1696: it commits on
               Enter or the button rather than as you type, because every search
@@ -227,9 +231,9 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
               or do not appear. */}
           <View style={[styles.laneRow, isMobile && styles.laneRowMobile]}>
             <LaneCard
-              title="Legislators"
+              title={MONEY_LANE_LEGISLATORS.title}
               body={
-                'Their money is a tab on the profile they already have.' +
+                MONEY_LANE_LEGISLATORS.body +
                 (confirmations ? ` ${legislatorsLaneSentence(confirmations)}` : '')
               }
               countLine={laneCountLine(confirmations?.total ?? null, 'members')}
@@ -237,8 +241,8 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
               onOpen={() => navigation.navigate('Legislators')}
             />
             <LaneCard
-              title="Committees"
-              body="Campaign committees, party units, and other registered funds."
+              title={MONEY_LANE_COMMITTEES.title}
+              body={MONEY_LANE_COMMITTEES.body}
               countLine={laneCountLine(register?.filerCount ?? null, 'registered filers')}
               href={routePath.moneyCommittees()}
               onOpen={() => navigation.navigate('CommitteeList')}
@@ -268,12 +272,9 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
             </View>
           ) : filesLastCopied ? (
             <View style={styles.freshnessBox}>
-              <Text style={styles.freshnessLabel}>FILES LAST COPIED</Text>
+              <Text style={styles.freshnessLabel}>{FILES_LAST_COPIED_LABEL.toUpperCase()}</Text>
               <Text style={styles.freshnessDate}>{centralDateLabel(filesLastCopied)}</Text>
-              <Text style={styles.freshnessNote}>
-                When we last copied new filings from the Board. Not the period the money covers —
-                every figure carries its own period, and each one ends earlier than this date.
-              </Text>
+              <Text style={styles.freshnessNote}>{FILES_LAST_COPIED_NOTE}</Text>
             </View>
           ) : null}
 
@@ -281,7 +282,9 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
               someone who types a name and gets nothing must not conclude the
               person gave nothing. */}
           <View style={styles.notCoveredBox}>
-            <Text style={styles.notCoveredLabel}>WHAT THIS RECORD DOES NOT COVER</Text>
+            <Text style={styles.notCoveredLabel}>
+              {RECORD_DOES_NOT_COVER_HEADING.toUpperCase()}
+            </Text>
             <View style={styles.notCoveredList}>
               {RECORD_DOES_NOT_COVER.map((line) => (
                 <Text key={line} style={styles.notCoveredLine}>

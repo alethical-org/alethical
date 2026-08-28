@@ -6113,9 +6113,17 @@ def test_sitemap_lists_every_bill_and_legislator(client):
     assert set(payload.keys()) == {
         "bill_directory_total",
         "legislator_directory_total",
+        "committee_directory_total",
         "bills",
         "legislators",
+        "committees",
     }
+    # This corpus holds no campaign-finance register, so the committee sitemap is
+    # empty and its directory total is None rather than 0: "we hold no register"
+    # and "Minnesota registers nobody" are different facts (rule 12). The register
+    # cases live in test_campaign_finance_landing_reads.py, which seeds one.
+    assert payload["committees"] == []
+    assert payload["committee_directory_total"] is None
 
     bill_ids = [bill["id"] for bill in payload["bills"]]
     assert set(bill_ids) == expected_bill_ids

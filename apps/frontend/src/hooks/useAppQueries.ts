@@ -335,15 +335,13 @@ export function useCampaignFinanceFilings(limit = 5) {
 }
 
 /**
- * One page of the register for the committees list at /money/committees.
+ * One numbered page of the register for the committees list at /money/committees.
  *
- * `shown` comes out of the address, so a reader who asked for more rows and then
- * shared the link hands over the list they were looking at
- * (`.claude/rules/grounded-answers.md` rule 5). The served maximum is 100 rows a
- * request and the list steps in 50s, so a deep link is fetched as parallel
- * fixed-offset requests rather than a chain of "next page" calls — the order is
- * the filed name, which does not move between requests, so the offsets are
- * stable.
+ * `page` comes out of the address, so the list a reader is looking at is a link
+ * they can send and the browser's Back button returns to it
+ * (`.claude/rules/grounded-answers.md` rule 5). One request per page: 50 rows is
+ * half the register endpoint's own maximum, and the order is the filed name,
+ * which does not move between requests, so a fixed offset is stable.
  *
  * `keepPreviousData` so typing in the find-a-committee box narrows the list in
  * place instead of blanking it between keystrokes.
@@ -351,34 +349,20 @@ export function useCampaignFinanceFilings(limit = 5) {
 export function useCampaignFinanceCommittees(options: {
   kind?: string;
   query?: string;
-  shown: number;
+  /** 1-based numbered page, straight off the address. */
+  page: number;
   pageSize: number;
 }) {
-  const { kind, query, shown, pageSize } = options;
+  const { kind, query, page, pageSize } = options;
   return useQuery({
-    queryKey: ['campaign-finance-committees', kind ?? 'all', query ?? '', shown, pageSize],
-    queryFn: async (): Promise<CommitteeRegisterPage> => {
-      const requests = Math.max(1, Math.ceil(shown / pageSize));
-      const pages = await Promise.all(
-        Array.from({ length: requests }, (_, index) =>
-          getCampaignFinanceCommitteesFromApi({
-            kind,
-            q: query,
-            limit: pageSize,
-            offset: index * pageSize,
-          }),
-        ),
-      );
-      const first = pages[0];
-      const last = pages[pages.length - 1];
-      return {
-        ...first,
-        committees: pages.flatMap((page) => page.committees),
-        // The last page fetched is the one that knows whether anything is left,
-        // and every page carries the same served totals.
-        hasMore: last.hasMore,
-      };
-    },
+    queryKey: ['campaign-finance-committees', kind ?? 'all', query ?? '', page, pageSize],
+    queryFn: (): Promise<CommitteeRegisterPage> =>
+      getCampaignFinanceCommitteesFromApi({
+        kind,
+        q: query,
+        limit: pageSize,
+        offset: (page - 1) * pageSize,
+      }),
     retry: false,
     placeholderData: keepPreviousData,
   });

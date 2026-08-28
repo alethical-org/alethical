@@ -887,6 +887,64 @@ def freshness(db: Session, release) -> Freshness:
     )
 
 
+@dataclass(frozen=True)
+class SitemapCommittee:
+    """One committee whose own page is worth listing in the sitemap."""
+
+    registration_number: str
+    name: str
+
+
+def committees_worth_indexing(db: Session) -> tuple[SitemapCommittee, ...]:
+    """Every registered filer whose own page carries a filed record, A to Z by name.
+
+    **Not the whole register.** A committee page is worth a sitemap entry when it has
+    something on it: a report the Board's catalogue records as filed, or a year of
+    reported figures we hold. A filer with neither draws its register row and its
+    "no figures cover this year" state and nothing else, and Google's own guidance is
+    that a page has to carry original information to be worth listing
+    (``docs/architecture/page-metadata-for-search-and-sharing-decisions.md`` §20.5
+    rule 4). Those pages still work, still say plainly what our records hold for them,
+    and are still reachable from the register's own numbered pages -- they are simply
+    not advertised.
+
+    ``effective_amendment_index IS NOT NULL`` is what "filed" means, the same positive
+    signal ``recent_filings`` reads: the catalogue lists a report from the moment its
+    period opens, and every filed report carries at least ``['0']`` while an unfiled one
+    carries none (design doc §9.6). Reported figures count on their own because a
+    committee can carry a year of totals whose report rows predate the catalogue's
+    amendment record.
+
+    Returns an empty tuple when no filings snapshot is published, which a caller renders
+    as "no committee sitemap today" rather than as an empty register.
+    """
+    snapshot = live_filings_snapshot(db)
+    if snapshot is None:
+        return ()
+    filer = schema.CampaignFinanceFiler
+    report = schema.CampaignFinanceFilingReport
+    filing = schema.CampaignFinanceFiling
+    filed_reports = select(report.registration_number).where(
+        report.snapshot_id == snapshot.id,
+        report.effective_amendment_index.is_not(None),
+    )
+    reported_years = select(filing.registration_number).where(
+        filing.snapshot_id == snapshot.id
+    )
+    rows = db.execute(
+        select(filer.registration_number, filer.name)
+        .where(
+            filer.snapshot_id == snapshot.id,
+            filer.registration_number.in_(filed_reports.union(reported_years)),
+        )
+        .order_by(filer.name.asc(), filer.registration_number.asc())
+    ).all()
+    return tuple(
+        SitemapCommittee(registration_number=registration_number, name=name)
+        for registration_number, name in rows
+    )
+
+
 def recent_filings(
     db: Session, *, limit: int, offset: int, as_of: Optional[date] = None
 ) -> FilingsPage:

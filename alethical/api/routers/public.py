@@ -59,6 +59,7 @@ from alethical.api.services.campaign_finance_register import (
     MAX_FILINGS,
     committee_filings,
     committees as register_committees,
+    committees_worth_indexing,
     freshness,
     legislator_committee_confirmations,
     recent_filings,
@@ -760,13 +761,27 @@ def _lastmod(*candidates: datetime | None) -> dict[str, str]:
 
 @router.get("/sitemap", response_model=DetailResponse)
 def sitemap(db: Session = Depends(get_db), response: Response = None):  # type: ignore[assignment]
-    """Every bill and legislator URL the sitemap needs, in one request (#1325).
+    """Every bill, legislator and committee URL the sitemap needs, in one request.
 
     A Vercel function turns this into sitemap.xml; without it, building that file
     would mean paging /bills 100 rows at a time -- ~105 round trips for the
-    ~10,517 bills alone. Two column-only selects, never the full ORM row or the
-    normal bill serializer, keep this cheap at that size -- the bill one joined to
-    each bill's current summary row for its timestamp alone, never its content.
+    ~10,517 bills alone, and 17 more for the register of filers. Column-only
+    selects, never the full ORM row or the normal bill serializer, keep this cheap
+    at that size -- the bill one joined to each bill's current summary row for its
+    timestamp alone, never its content (#1325, and #1783 for the committees).
+
+    **The committee list is deliberately shorter than the register.** It carries the
+    filers whose own page holds a filed record; a filer with none draws its register
+    row and nothing else, and a page has to be worth listing on its own
+    (``docs/architecture/page-metadata-for-search-and-sharing-decisions.md`` §20.5
+    rule 4). Those pages still work and are still reachable from the register's own
+    numbered pages.
+
+    **No committee carries a lastmod.** We hold no date on which a committee's own
+    record changed -- the register has one fetch date for all 1,603 rows -- and Google
+    uses the field only "if it's consistently and verifiably accurate", site-wide. A
+    fetch date copied onto every entry would be exactly the untrustworthy signal
+    §20.4 warns about, so the field is omitted rather than filled.
     """
     response.headers["Cache-Control"] = PUBLIC_CACHE_CONTROL
     # Three dates per bill, all of them things a reader can see change, because
@@ -825,6 +840,12 @@ def sitemap(db: Session = Depends(get_db), response: Response = None):  # type: 
             # only bills with a current plain-language summary.
             "bill_directory_total": bill_directory_total,
             "legislator_directory_total": len(legislator_rows),
+            # The WHOLE register, so every numbered page of /money/committees is
+            # named -- deliberately not the shorter indexable list below, because
+            # a page of the list exists even when its 50 rows hold no filed
+            # record. ``None`` when the register cannot be counted, which the
+            # caller renders as no numbered committee pages rather than as 0.
+            "committee_directory_total": register_summary(db).filer_count,
             "bills": [
                 {
                     "id": bill_key,
@@ -837,6 +858,17 @@ def sitemap(db: Session = Depends(get_db), response: Response = None):  # type: 
             "legislators": [
                 {"slug": slug, **_lastmod(updated_at)}
                 for slug, updated_at in legislator_rows
+            ],
+            # Registration number and filed name; the caller builds the address,
+            # because the name-plus-number form is decided in one place on the
+            # client (`committeeSlug` in apps/frontend/src/lib/committeeMoney.ts)
+            # and a second copy here could advertise an address the router rejects.
+            "committees": [
+                {
+                    "registration_number": committee.registration_number,
+                    "name": committee.name,
+                }
+                for committee in committees_worth_indexing(db)
             ],
         }
     )

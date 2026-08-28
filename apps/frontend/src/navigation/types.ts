@@ -81,10 +81,10 @@ export type RootStackParamList = {
   // the sender saw.
   CommitteeMoney: { slug: string; tab?: string; year?: string };
   CommitteePayments: { slug: string; tab?: string; year?: string };
-  // The register of filers, A to Z. The name box, the kind filter and how many
-  // rows are shown all ride in the address, so a narrowed or scrolled list is
+  // The register of filers, A to Z. The name box, the kind filter and the
+  // numbered page all ride in the address, so a narrowed or paged list is
   // shareable and survives Back (grounded-answers.md rule 5).
-  CommitteeList: { q?: string; kind?: string; show?: string } | undefined;
+  CommitteeList: { q?: string; kind?: string; page?: string } | undefined;
   // One typed name matched across the 5 kinds of record. The query is the whole
   // state, so a results page is a link somebody can send.
   MoneySearch: { q?: string } | undefined;
