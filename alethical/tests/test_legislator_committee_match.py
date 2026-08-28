@@ -1166,9 +1166,10 @@ def test_the_batch_screen_never_calls_a_listed_committee_absent_from_the_directo
     for verdict in FilerVerdict:
         if verdict is not FilerVerdict.unknown:
             assert "not in Board directory" not in DIRECTORY_IN_BRIEF[verdict.value]
-    assert "not flagged current" in DIRECTORY_IN_BRIEF[
-        FilerVerdict.same_seat_not_current.value
-    ]
+    assert (
+        "not flagged current"
+        in DIRECTORY_IN_BRIEF[FilerVerdict.same_seat_not_current.value]
+    )
 
 
 def test_party_money_disagreeing_sends_an_otherwise_perfect_match_to_a_person():
