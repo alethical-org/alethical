@@ -33,7 +33,10 @@ from __future__ import annotations
 
 import pytest
 
-from scripts.review_legislator_campaign_committees import describe
+from scripts.review_legislator_campaign_committees import (
+    DIRECTORY_IN_BRIEF,
+    describe,
+)
 from alethical.pipeline.legislator_committee_match import (
     CommitteeRecord,
     ConfirmedLink,
@@ -1148,6 +1151,25 @@ def test_no_party_on_record_is_never_shown_to_a_reviewer_as_a_disagreement():
         party_by_registration={"17674": "R"},
     ).proposals[0]
     assert "DISAGREES with our record" in describe(disagrees)
+
+
+def test_the_batch_screen_never_calls_a_listed_committee_absent_from_the_directory():
+    # The shipped bug this pins: the batch screen printed "Board confirms seat" for
+    # ``same_seat`` and "not in Board directory" for every other verdict, so a committee the
+    # Board registers for this member's own seat and party -- merely without flagging them as
+    # its current holder -- read to a reviewer as absent from the directory altogether. That
+    # understates the strongest evidence on the screen, in the case a reviewer most needs the
+    # truth on: a special-election winner, or a lagging incumbent flag.
+    assert set(DIRECTORY_IN_BRIEF) == {verdict.value for verdict in FilerVerdict}
+    assert len(set(DIRECTORY_IN_BRIEF.values())) == len(DIRECTORY_IN_BRIEF)
+    assert DIRECTORY_IN_BRIEF[FilerVerdict.unknown.value] == "not in Board directory"
+    for verdict in FilerVerdict:
+        if verdict is not FilerVerdict.unknown:
+            assert "not in Board directory" not in DIRECTORY_IN_BRIEF[verdict.value]
+    assert (
+        "not flagged current"
+        in DIRECTORY_IN_BRIEF[FilerVerdict.same_seat_not_current.value]
+    )
 
 
 def test_party_money_disagreeing_sends_an_otherwise_perfect_match_to_a_person():

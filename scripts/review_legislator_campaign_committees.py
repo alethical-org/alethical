@@ -475,6 +475,15 @@ def link_row(
     )
 
 
+DIRECTORY_IN_BRIEF: dict[str, str] = {
+    FilerVerdict.same_seat.value: "Board confirms seat",
+    FilerVerdict.same_seat_not_current.value: "Board has this seat and party, not flagged current",
+    FilerVerdict.different_race.value: "Board registers it for another office",
+    FilerVerdict.different_person.value: "Board registers it to another seat or party",
+    FilerVerdict.unknown.value: "not in Board directory",
+}
+
+
 def run_batch_review(
     results: list[LegislatorProposals], session: Session, reviewer: str
 ) -> int:
@@ -511,11 +520,14 @@ def run_batch_review(
     )
     for index, (result, proposal) in enumerate(eligible, start=1):
         seat = f"{result.member.chamber_slug} {result.member.district}"
-        directory = (
-            "Board confirms seat"
-            if proposal.filer_verdict == FilerVerdict.same_seat.value
-            else "not in Board directory"
-        )
+        # Every verdict gets its own words. Collapsing the other 4 into "not in Board
+        # directory" understated the strongest evidence on the screen: a committee the Board
+        # registers for this member's own seat and party, merely without flagging them as its
+        # current holder, read to a reviewer as absent from the directory altogether. It
+        # fires on 0 of the 144 uncontested proposals today, and the case it is wrong about
+        # -- a special-election winner, or a lagging incumbent flag -- is exactly the one a
+        # reviewer needs the truth on.
+        directory = DIRECTORY_IN_BRIEF[proposal.filer_verdict]
         party = (
             f", party money {proposal.party_of_party_unit_money} agrees"
             if proposal.party_agrees
