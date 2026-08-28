@@ -27,22 +27,26 @@ Two traits, not 2 mutually exclusive kinds. §2.7 is why that distinction matter
   exists and is live: *The Money Only Goes One Way*.
 - **A guide.** One term explained in plain language. A guide concludes nothing, adds nothing up
   across members, and defines no classifications, so it sits under rules 1 to 12 like every other
-  surface and needs no part of rule 13's exception. Two exist and are live, both posted 27 Aug
-  2026 and both in the set "How the Money Works": *Who has to report their money*, at
-  `/read/guides/who-has-to-report-their-money`, and *What the records name, and what they leave
-  out*, at `/read/guides/what-the-records-name`. A third, *Why 2 official numbers can both be
-  right*, is written and settled at
-  [`docs/reader-guides/why-2-official-numbers-can-both-be-right.md`](../reader-guides/why-2-official-numbers-can-both-be-right.md),
-  a fourth, *Money spent without a campaign's say*, at
-  [`docs/reader-guides/money-spent-without-a-campaigns-say.md`](../reader-guides/money-spent-without-a-campaigns-say.md),
-  and a fifth, *Why nobody can follow a dollar*, at
-  [`docs/reader-guides/why-nobody-can-follow-a-dollar.md`](../reader-guides/why-nobody-can-follow-a-dollar.md).
-  None of the 3 has a page yet, so none is posted and no reader can reach any of them. That
+  surface and needs no part of rule 13's exception. Five exist and are live, all posted 27 Aug
+  2026 and all in the set "How the Money Works", in its reading order: *Who has to report their
+  money* at `/read/guides/who-has-to-report-their-money`, *What the records name, and what they
+  leave out* at `/read/guides/what-the-records-name`, *Why 2 official numbers can both be right*
+  at `/read/guides/why-2-official-numbers-can-both-be-right`, *Money spent without a campaign's
+  say* at `/read/guides/money-spent-without-a-campaigns-say`, and *Why nobody can follow a
+  dollar* at `/read/guides/why-nobody-can-follow-a-dollar`. That
   completes the 5 pieces [issue 1752](https://github.com/alethical-org/alethical/issues/1752)
   fixed for the set "How the Money Works", and closes what
   [issue 1771](https://github.com/alethical-org/alethical/issues/1771) raised: the set no longer
   has unwritten pieces waiting on an owner. Seven more guides are planned across other subjects,
   none of them started.
+
+  **A guide is finished when it is live, not when its words merge.** The 3 pieces above were
+  written on 27 Aug 2026 as manuscripts under `docs/reader-guides/` with no page, on the
+  understanding that registration was somebody else's step. Nobody held that step, so 3,010 words
+  of checked writing sat where no reader could reach them until it was noticed. From now on the
+  writing and the registration land together: a piece's words, its entry in `PUBLISHED_RESEARCH`,
+  its slug in the word-for-word check, its forward link paid if its own text promised one, and
+  the page opened in a browser.
 - **Both.** A piece may carry both traits. See §2.7, which is where the reader-facing label for
   that case is decided, and §2.8, which is why this is not hypothetical.
 

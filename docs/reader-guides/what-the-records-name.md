@@ -214,8 +214,14 @@
      reader-facing address, `/read/guides/who-has-to-report-their-money`, which is the
      swap this line used to ask the builder for; a test pins both to that address.
 
-     WHERE IT LINKS FORWARD: nowhere yet. The closing paragraph names the next piece's
-     subject and neither its title nor a link, because it does not exist.
+     WHERE IT LINKS FORWARD: 1 link to piece 3, in the closing paragraph. This paragraph
+     used to end "This paragraph gains a link to it the day that piece posts". Piece 3
+     posted at /read/guides/why-2-official-numbers-can-both-be-right, so the link went in
+     and the sentence explaining its absence came out with it, because that sentence
+     becomes false the moment the link exists. That is not an edit on our own initiative,
+     which rule 13 point 2 forbids: the piece's own text instructed it, and issue #1752's
+     linking rule 6 plus published-writing-decisions.md §2.6 both say a forward link goes
+     in when its destination posts and not before.
 
      NAMED BUT DELIBERATELY NOT EXPLAINED: reporting periods and why 2 official figures
      disagree, which the next piece in the set owns and which this piece's closing
@@ -316,8 +322,10 @@ and the Board’s own handbook for those accounts are both linked below.
 
 The lump sum with no names is why 2 official figures about the same account can both be
 right. Add up the payments a filing lists, compare that against the total the same filing
-reports, and the 2 numbers will not match. Neither one is wrong. That is the subject of
-the next piece in this set. This paragraph gains a link to it the day that piece posts.
+reports, and the 2 numbers will not match. Neither one is wrong.
+
+[Why 2 official numbers can both be right](why-2-official-numbers-can-both-be-right.md) is
+the next piece in this set.
 
 ---
 

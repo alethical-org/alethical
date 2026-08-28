@@ -96,6 +96,7 @@ const {
   isoDateCapsLabel,
   isoDateCommaCapsLabel,
   pieceCardMetaLine,
+  pieceKindLabel,
   pieceMastheadLine,
   pieceReadingMinutes,
   piecePath,
@@ -858,4 +859,91 @@ describe('rendering', () => {
     expect(shell).toContain('id="alethical-page-snapshot"');
     expect(shell).toContain('.page-snapshot');
   });
+});
+
+/**
+ * Every posted guide, not just the first one. A guide's page is served before any
+ * JavaScript runs, and that first response is what a search engine and a reader on
+ * a slow connection get: `.claude/rules/grounded-answers.md` rule 1 needs its
+ * citations present and rule 5 needs each one reachable by address. Guide 1 has its
+ * own block above checking the shape; this checks the promise, on all of them, so
+ * publishing a guide without its sentences or its links fails here.
+ */
+describe('every posted guide is served whole, before the app runs', () => {
+  const guides = publishedResearch().filter((piece) => pieceKindLabel(piece) === 'Guide');
+
+  it('posts more than one, or this block is checking nothing', () => {
+    expect(guides.length).toBeGreaterThan(1);
+  });
+
+  it.each(guides.map((guide) => ({ slug: guide.slug, guide })))(
+    'serves every sentence of $slug verbatim',
+    ({ guide }) => {
+      const snapshot = researchPageSnapshot(guide);
+      const stored = [
+        ...(guide.intro ?? []),
+        ...guide.sections.flatMap((section) => section.blocks),
+      ].flatMap((block) => {
+        if (block.kind === 'paragraph') return [researchRunsText(block.runs)];
+        if (block.kind === 'bullets') return block.items.map((item) => researchRunsText(item));
+        return [];
+      });
+      const served: string[] = [...snapshot.body];
+      for (const section of snapshot.sections ?? []) {
+        for (const block of section.blocks ?? []) {
+          if (block.kind === 'prose') served.push(...block.lines);
+          else if (block.kind === 'bullets') served.push(...block.items);
+        }
+      }
+      for (const line of stored) {
+        expect(served).toContain(line);
+      }
+      // Its own headings are served too, in the piece's own order.
+      expect((snapshot.sections ?? []).map((section) => section.heading)).toEqual(
+        expect.arrayContaining(guide.sections.map((section) => section.heading)),
+      );
+    },
+  );
+
+  it.each(guides.map((guide) => ({ slug: guide.slug, guide })))(
+    'serves every source address of $slug as a real anchor',
+    ({ guide }) => {
+      const html = renderPageSnapshot(researchPageSnapshot(guide));
+      const sourceHrefs = (guide.sourceRuns ?? [])
+        .flat()
+        .filter((run) => run.kind === 'externalLink')
+        .map((run) => (run as { href: string }).href);
+      expect(sourceHrefs.length).toBeGreaterThan(0);
+      for (const href of sourceHrefs) {
+        expect(html).toContain(`<a href="${href}">`);
+      }
+      // A link to our own writing is a citation too, and rule 5 binds it the same
+      // way, so it is served as an anchor rather than waiting for the app.
+      const internal = [...(guide.intro ?? []), ...guide.sections.flatMap((s) => s.blocks)]
+        .flatMap((block) =>
+          block.kind === 'paragraph'
+            ? block.runs
+            : block.kind === 'bullets'
+              ? block.items.flat()
+              : [],
+        )
+        .filter((run) => run.kind === 'internalLink');
+      for (const run of internal) {
+        const href = (run as { href: string }).href;
+        expect(html).toContain(`<a href="${href}">`);
+        // And it resolves: every inward link points at a piece the registry holds.
+        expect(publishedResearch().map(piecePath)).toContain(href);
+      }
+    },
+  );
+
+  it.each(guides.map((guide) => ({ slug: guide.slug, guide, position: guide.set?.position })))(
+    'prints no piece number on the served page for $slug',
+    ({ guide, position }) => {
+      const html = renderPageSnapshot(researchPageSnapshot(guide));
+      for (const banned of [`piece ${position}`, `Piece ${position}`, `${position} of 5`]) {
+        expect(html).not.toContain(banned);
+      }
+    },
+  );
 });

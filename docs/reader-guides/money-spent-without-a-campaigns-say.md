@@ -1,15 +1,13 @@
-<!-- NOT POSTED. This is the settled prose only; no page exists for it yet.
-     This file is where the words were written and settled before any container
-     existed for them, exactly as the 3 guides before it were written, and it stays
-     the source of record for the words. Whoever builds the shipped piece adds 3
-     things in the same change: the piece itself at
-     `apps/frontend/src/lib/researchPieces/`, its slug in the guide list inside
-     `apps/frontend/src/lib/__tests__/research.test.ts` so the word-for-word check
-     covers it, and a `describes:` declaration comment at the top of this file naming
-     that new piece. This file declares nothing today because the file it would name
-     does not exist. Its address, when it posts, is
-     `/read/guides/money-spent-without-a-campaigns-say`
-     (`docs/architecture/published-writing-decisions.md` §2.1).
+<!-- describes: apps/frontend/src/lib/researchPieces/moneySpentWithoutACampaignsSay.ts -->
+<!-- POSTED 27 Aug 2026, and live at `/read/guides/money-spent-without-a-campaigns-say`.
+     This file is where the prose was written and settled before any container
+     existed for it, exactly as the 3 guides before it were written, and it stays the source of
+     record for the words. The shipped piece is
+     `apps/frontend/src/lib/researchPieces/moneySpentWithoutACampaignsSay.ts`, and
+     `apps/frontend/src/lib/__tests__/research.test.ts` compares the 2 word for word,
+     so an edit here without the matching edit there fails the build, and so does the
+     reverse. The words are settled: rule 13's publishing order lets the Alethical team
+     direct a change (point 2a) and forbids us editing them on our own initiative.
 
      WHAT IT IS. The fourth piece written in the set "How the Money Works", following
      `docs/reader-guides/why-2-official-numbers-can-both-be-right.md`. Issue #1752's
@@ -179,8 +177,12 @@
      own heading is quoted as the Board's title for the file and no claim is made about
      how that threshold is worked out for spending, which is not established.
 
-     WHERE IT LINKS FORWARD: nowhere. The closing paragraph names the next piece's
-     subject and neither its title nor a link, because it does not exist.
+     WHERE IT LINKS FORWARD: 1 link to piece 5, in the closing paragraph, added the day
+     that piece posted. It used to end "This paragraph gains a link to it the day that
+     piece posts", and that sentence came out with the link because it becomes false the
+     moment the link exists. The shipped piece holds the address as a literal, for the
+     same cycle reason the piece before this one does, and a test asserts it equals piece
+     5's real path.
 -->
 
 # Money spent without a campaign’s say
@@ -282,8 +284,8 @@ Money that has been reported honestly can still be impossible to follow. Once a 
 in an account it stops being that payment and becomes part of a balance, and the next thing
 paid out of that account is not traceable back to it.
 
-That is the subject of the next piece in this set. This paragraph gains a link to it the day
-that piece posts.
+[Why nobody can follow a dollar](why-nobody-can-follow-a-dollar.md) is the next piece in
+this set.
 
 ---
 
