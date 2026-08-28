@@ -394,9 +394,17 @@ Administrative / MGU / General lobbying amounts, then Total spent.
 - **One row per principal per year, with 0 duplicate (Entity ID, Report Year) pairs**, so nothing
   double counts. Across 2015–2025 every Entity ID carries exactly one principal name and every name
   exactly one Entity ID, so no filer is split across identities in that window.
-- **The 4-way type split begins in 2023, not 2024.** 2014–2022 carry only PUC and General; 2023
-  adds Legislative and MGU alongside General; from 2024 the General column is empty. A pre-2023
-  figure cannot be broken out by lobbying type at all.
+- **The 4-way type split begins in 2024. One filer used the new columns in 2023, and 1 filer is
+  not a transition year.** 2014–2022 carry only PUC and General, with 0 rows in the Legislative
+  or MGU columns. 2023 has exactly **1 row** in each: M A Mortenson Co, $4,000.00 legislative and
+  $30,000.00 MGU, **$34,000.00 of that year's $98,464,489.00, or 0.03%**, against 1,282 of its
+  1,610 rows still reporting through General. From 2024 the General column is empty and 1,295 rows
+  carry a Legislative figure. So no figure before 2024 can be broken out by lobbying type in
+  practice, and a reader told 2023 is "partially split" would look for a split that 1 filer made.
+  Corrected 28 Aug 2026 from a version of this bullet that read "begins in 2023, not 2024" and
+  called 2023 a partial transition year: both halves are true of the 2 rows they were measured on
+  and false of the year, which is `.claude/rules/workflow.md` rule 5's one-instance-is-not-a-count
+  in its own habitat.
 - **The Board publishes no multi-year and no all-principals total.** Any cross-year figure is the
   reader's own arithmetic on its rows, and a published one says so, per
   `.claude/rules/grounded-answers.md` rule 13.
