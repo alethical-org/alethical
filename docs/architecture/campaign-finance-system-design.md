@@ -710,14 +710,22 @@ summing the 3 row tables' live sets in production). An earlier 51 MB in this sen
 dataset rather than the set. Pruning successful bodies to save space would give up exactly
 the record this section exists to hold.
 
-**Three kinds of body, one store, one retention rule.** The 3 bulk downloads
+**Four kinds of body, one store, one retention rule.** The 3 bulk downloads
 (`campaign-finance/<dataset>/<sha256>.csv.gz`), one archive per totals run
-(`campaign-finance/filings/<sha256>.jsonl.gz`, §9.3) and one object per report document
-(`campaign-finance/report-document/<sha256>.pdf.gz`, §9.4). All 3 are content-addressed, gzipped
+(`campaign-finance/filings/<sha256>.jsonl.gz`, §9.3), one object per report document
+(`campaign-finance/report-document/<sha256>.pdf.gz`, §9.4) and one object per version of every
+source our published writing cites (`published-sources/<sha256>.<extension>.gz`, §4.6). All 4 are
+content-addressed, gzipped
 with `mtime=0` and `filename=""`, read back and hashed before the row that names them exists,
 kept indefinitely, and never deleted from either store. Measured 18 August 2026, after the #1501
 backfill: 3 download bodies (29 MB stored), 2 totals archives (19 MB stored), and 3,643 report
 documents (386 MB stored; 411 MB as originally read — PDFs barely compress).
+
+The fourth kind is the one that proves the contract above works. It ships with no edit to the
+second-copy job at all: `published_source_copy` names `object_key`, `compressed_hash` and
+`mirrored_at`, and that is the whole of what the job reads. Its prefix deliberately sits outside
+`campaign-finance/` because what our published writing cites is not only campaign finance — 3 of
+the 16 cited addresses are Minnesota statutes at revisor.mn.gov.
 
 "Every body" means one per distinct set of records, not one per download. Because the export
 shuffles (§2.1), keeping every download would store the same data repeatedly in a different order;
@@ -731,6 +739,68 @@ The general facility is [#1346](https://github.com/alethical-org/alethical/issue
 source in this repo retains bodies today, though `layer-1-source-ingestion-system-design.md`
 Stage 2 and `product-scope.md` both require it. Campaign finance is the first source to do it,
 and does it this way.
+
+---
+
+### 4.6 Our own copy of every source our published writing cites
+
+**The promise a sources block makes is that a reader can go and look.** Minnesota can take
+that away with nothing looking wrong, and did so twice on 27 August 2026:
+
+- The Board replaced its *Political Party Unit Handbook* in place, at a permanent address with
+  no archive and no versioned filename, **4 hours after** a guide quoting it posted. The served
+  copy's own line moved from 7 March 2022 to 22 August 2026 and 2 quoted sentences were gone
+  ([#1798](https://github.com/alethical-org/alethical/issues/1798)).
+- The lobbying page behind our largest published figure, $886 million, started answering
+  **HTTP 200** with a page whose only heading reads "This page is not available"
+  ([#1802](https://github.com/alethical-org/alethical/issues/1802)). Its 2025 filing calendars
+  had gone the same way at all 4 addresses, found by accident while checking something else.
+
+So each cited document gets an object in the store above and a row in
+`published_source_copy`, and a free weekly job re-reads every cited address and compares the
+bytes (`.github/workflows/published-source-archive.yml`).
+
+**One row per version, keyed on the address plus the sha256 of the bytes it served.** A
+replaced document becomes a second row beside the first, so the copy a figure was published
+from outlives the replacement. `object_key` is deliberately **not** unique on this table,
+unlike on `cf_report_document`: 2 addresses may serve byte-identical documents, and the key is
+a hash of the bytes, so sharing one object is honest.
+
+**A plain byte comparison is quiet enough to be the test, and that was measured before it was
+built.** All 18 addresses in the test set were fetched twice on 28 August 2026 and every one
+returned byte-identical responses both times — no session id, no nonce, no rendering timestamp.
+The bytes are also the only thing that catches #1798, where the address, the status code and the
+page's own appearance were all unchanged and 2 sentences were gone. The honest residual risk: a
+weekly cadence is 604,800 times longer than the gap those 2 fetches measured, so a page carrying
+a daily-changing footer would report a change every Monday. The response is not to loosen the
+test but to keep both versions and name what moved, because a document changing under a
+published quotation is the thing we are watching for.
+
+**A status code decides nothing, and a response that is not the document is never stored.**
+An address ending `.pdf` that answers 200 with the site's HTML shell is reported as gone, and
+so is a page whose title or headings carry the error wording §2.1 and §2.2 record. Storing
+those bytes would make them the baseline, and the run after it would call the failure
+"unchanged". Proved against 2 real addresses on 28 August 2026, both answering 200:
+`https://cfb.mn.gov/pdf/calendars/2025_senate_house_district_court.pdf` served 30,085 bytes of
+`text/html` and is reported gone; the 2026 equivalent served 172,586 bytes of `application/pdf`
+and is the document.
+
+**A client-rendered viewer is archived as what it served, which is not the data behind it.**
+The 5 campaign-finance and lobbying viewers and the current-lists page each return 30 to 35 KB
+of HTML shell and fetch their table separately, so the kept copy proves what that address served
+and does not preserve the figures a reader would have seen. Keeping the shell still earns its
+place: it is what catches the address turning into an error page, which is how 2 of them died.
+Preserving the table itself needs each page's own data request, which is separate work and is
+not done here. §9.3 is the one route where we do hold the underlying figures.
+
+**What is not archived, and why.** 4 `github.com` addresses appear in the pieces' source files,
+in comments addressed to the next builder rather than in anything a reader can click. They are
+our own issues and pull requests, not a record we cite for a figure, and nothing a reader sees
+depends on them.
+
+**What a reader sees when our copy and Minnesota's disagree is not settled here.** That is a
+product judgement, and it sits with the Alethical team on #1798. Nothing in this section adds a
+reader-facing link to an archived copy.
 
 ---
 

@@ -418,9 +418,40 @@ every other arrow on the site is drawn (`ArrowRight` in
 `apps/frontend/src/components/icons.tsx`). Hidden, because the row's own words already say where it
 goes and `aria-current` already says whether you are there.
 
+### 2.14 We keep our own copy of every source a published piece cites
+
+**Settled 28 Aug 2026.** A sources block promises a reader they can go and check the record. That
+promise now rests on our own copy as well as Minnesota's, because Minnesota's copy can change or
+disappear with nothing looking wrong. Twice on 27 Aug 2026: a handbook was replaced in place 4
+hours after a guide quoting it posted, and 2 quoted sentences vanished
+([issue 1798](https://github.com/alethical-org/alethical/issues/1798)); and the lobbying page behind
+our largest published figure began answering HTTP 200 with a page reading that it is not available
+([issue 1802](https://github.com/alethical-org/alethical/issues/1802)).
+
+Where the copies live, how a soft failure is told from a real document, what a client-rendered
+viewer's copy does and does not preserve, and the byte-stability measurement behind the weekly
+comparison are all in
+[`campaign-finance-system-design.md`](campaign-finance-system-design.md) §4.6 (our own copy of every
+source our published writing cites). Two decisions belong here rather than there, because they are
+about the writing:
+
+**Only what a reader can click is archived.** The 4 `github.com` addresses in the pieces sit in the
+source files' own comments to the next builder. They are our own issues and pull requests, not a
+record a figure rests on.
+
+**A published piece gains nothing a reader sees.** No archived-copy link, no "we hold a copy" badge,
+no change to any piece's text. The archive is evidence we can produce when asked, and rule 13 puts
+any change to a posted piece with the Alethical team.
+
 ## 3. Open decisions
 
-None. §2.3, §2.5, §2.7, §2.10, §2.11, §2.12 and §2.13 all closed on 27 Aug 2026.
+**What a reader sees when our copy and Minnesota's disagree.** Today the disagreement is reported to
+the team and nothing on any published page changes. The options — a dated note on the piece, a link
+to our copy beside the source link, a correction, or nothing at all — are laid out on
+[issue 1798](https://github.com/alethical-org/alethical/issues/1798) for the team to settle. The
+weekly check runs and reports either way, so nothing waits on this.
+
+§2.3, §2.5, §2.7, §2.10, §2.11, §2.12 and §2.13 all closed on 27 Aug 2026, and §2.14 on 28 Aug 2026.
 
 ## 4. The 4 fields the design reads off a piece
 

@@ -2664,6 +2664,77 @@ class CampaignFinanceReportDocument(TimestampMixin, Base):
     )
 
 
+class PublishedSourceCopy(TimestampMixin, Base):
+    """Our own copy of one document that Alethical's published writing cites.
+
+    Every research piece and guide ends in a sources block whose whole promise is
+    that a reader can go and check the record themselves. Minnesota can take that
+    away without anything looking wrong: on 27 August 2026 the Board replaced its
+    *Political Party Unit Handbook* in place 4 hours after a guide quoting it
+    posted, and 2 quoted sentences vanished from the served copy
+    ([#1798](https://github.com/alethical-org/alethical/issues/1798)); the same day
+    the lobbying page behind our largest published figure started answering HTTP
+    200 with a page reading "This page is not available"
+    ([#1802](https://github.com/alethical-org/alethical/issues/1802)).
+
+    **One row per version, not per address.** The primary key is the address plus
+    the sha256 of the bytes it served, so a document the Board replaces becomes a
+    second row beside the first rather than an overwrite, and the copy a figure was
+    published from survives the replacement. That is the same choice
+    ``cf_report_document`` makes and for the same reason
+    (``docs/architecture/campaign-finance-system-design.md`` §4.5, where the
+    downloaded files live and for how long).
+
+    ``object_key`` is deliberately **not** unique here, unlike on
+    ``cf_report_document``: 2 addresses may serve byte-identical documents, and the
+    key is a hash of the bytes, so they share one object honestly.
+
+    The 3 columns named ``object_key``, ``compressed_hash`` and ``mirrored_at`` are
+    what makes the second copy cover this table from the day it ships. That job
+    reads which tables hold a stored body out of the schema rather than from a list
+    (#1501), so nothing in it needs editing for this to be protected.
+    """
+
+    __tablename__ = "published_source_copy"
+
+    # The address as our published writing cites it, character for character. A
+    # different address serving the same document is a different citation, because
+    # what we promise a reader is that *this* link shows them the record.
+    url: Mapped[str] = mapped_column(Text, primary_key=True)
+    # sha256 of the response bytes, never of decoded text: the bytes are what the
+    # reader would download, and decoding one document 2 ways would hash 2 ways.
+    content_hash: Mapped[str] = mapped_column(String(64), primary_key=True)
+    object_key: Mapped[str] = mapped_column(Text, nullable=False)
+    byte_size: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    # Hash and size of the compressed object as stored, so the store can be audited
+    # without decompressing. Same pair, same reason, as cf_snapshot_body.
+    compressed_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    compressed_byte_size: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    compression: Mapped[str] = mapped_column(String(20), nullable=False, default="gzip")
+    mirrored_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+    # What the server called it. Recorded because it is informative and never
+    # trusted: the address that answered 200 with an error page in place of a PDF
+    # called itself text/html, and an address that lied about the type would be
+    # caught by reading the bytes, not this column.
+    media_type: Mapped[Optional[str]] = mapped_column(String(120))
+    # Which pieces cite this address, by file name, as of the last time a run saw
+    # it. A record of who depends on the document, so a person told the document
+    # changed knows which published page is affected.
+    cited_by: Mapped[str] = mapped_column(Text, nullable=False)
+    # The last time Minnesota's own copy still hashed to this row. NULL means the
+    # copy was stored and has not been re-read since. ``created_at`` is when we
+    # first held these bytes, which for the first row of an address is the closest
+    # thing we have to when we started citing it.
+    last_confirmed_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True)
+    )
+
+    # No index on ``url`` alone: it is the first column of the primary key, so the
+    # primary key's own index already answers "every version we hold of this
+    # address" without a second one to keep.
+
+
 def bill_detail_stmt(
     bill_id: uuid.UUID,
     user_id: Optional[uuid.UUID] = None,
