@@ -289,6 +289,34 @@ numbers of any to hold back, then the word `confirm`. Nothing is written until t
 anything held back joins the 56 in the one-at-a-time pass. So it is one screen to read and one word
 to type, followed by 56 individual answers.
 
+**The commands, in the order a sitting runs them.** `PYTHONPATH=.` is required and is not
+optional politeness: the package is not installed into the virtual environment, so running the
+script by its path puts `scripts/` on the import path instead of the repository root and the run
+dies on `ModuleNotFoundError: No module named 'alethical'` before it reads anything. Run all 3
+from the repository root. `--download` resolves the Board's contributions link from its page every
+time and fetches about 83 MB, which takes a few minutes; pass `--contributions PATH` instead to
+reuse a file already on disk. `coverage` and `propose` write nothing, so there is no way to do
+harm by looking first.
+
+```bash
+# 1. What the proposer found, and how much of the roster it narrowed down. Writes nothing.
+PYTHONPATH=. uv run python scripts/review_legislator_campaign_committees.py coverage \
+  --download /tmp/contributions.csv --target production
+
+# 2. The 144 uncontested as one numbered list, confirmed together after typing 'confirm'.
+PYTHONPATH=. uv run python scripts/review_legislator_campaign_committees.py review --batch \
+  --contributions /tmp/contributions.csv --target production --reviewer "Eugene Lopin"
+
+# 3. The rest, one question at a time, answered y / n / s / q.
+PYTHONPATH=. uv run python scripts/review_legislator_campaign_committees.py review \
+  --contributions /tmp/contributions.csv --target production --reviewer "Eugene Lopin"
+```
+
+Re-running `coverage` between sittings is how progress is read: its first block counts what a
+person has actually confirmed, and every command skips anything already decided, so a sitting can
+stop at any question and the next one resumes there. Verified on 28 Aug 2026 against production
+and that day's download: 144 uncontested, 56 contested, 0 confirmed.
+
 **One person signs, and no second reviewer is asked for.** Two people reading the same committee
 name share the same evidence, so they share its mistakes; a name that is genuinely ambiguous does
 not become clearer for being read twice. What is independent of the reader is the sources, so a
