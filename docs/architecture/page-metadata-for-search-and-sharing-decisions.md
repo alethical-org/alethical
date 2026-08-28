@@ -1418,7 +1418,7 @@ that is still right: a filter combination is not a record. Sorted for this secti
 
 | address | verdict | what it serves |
 |---|---|---|
-| `/money` | front door | a short body: heading, its one sentence, the live register count, the copy date, the gaps, and links into the 2 lanes that have pages |
+| `/money` | front door | a short body: heading, its one sentence, the live register count, the copy date, the gaps, and links into the 2 lanes that lead to an indexable page. The 3rd lane opens the name search, which is `noindex`, so it is left out of the served body and reaches a reader when the app renders |
 | `/money/committees` and `?page=N` | record list | the page's 50 filers as ordinary anchors, plus previous/next/jump links |
 | `/money/committees?q=…` or `?kind=…` | filtered view | head only, `noindex`, no canonical — unchanged |
 | `/money/committees/{slug}` | **record** | the committee's own register facts and its money for the current filing year |

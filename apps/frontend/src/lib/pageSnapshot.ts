@@ -825,8 +825,11 @@ export function moneyLandingPageSnapshot(source: MoneyLandingSnapshotSource): Pa
     bodyHeading: '',
     body: [MONEY_LANDING_SUBTITLE],
     bodyIsList: false,
-    // The 2 lanes that lead somewhere. The 3rd card on the drawn page has no page
-    // behind it yet, so there is nothing here for a reader or a crawler to follow.
+    // The 2 lanes that lead to something worth crawling. All 3 cards on the drawn
+    // page open a page since #1780, but the 3rd opens the name search, which is
+    // `noindex` because its address is whatever somebody typed — so a link to it
+    // here would hand a crawler a page it is told not to index. A reader still
+    // gets all 3 the moment the app renders.
     records: [
       {
         label: MONEY_LANE_LEGISLATORS.title,
