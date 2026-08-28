@@ -378,7 +378,7 @@ export function committeeMoneyPageMetadata(
   // the record has been read. Committee names collide and a name part in an
   // address may be old or misspelled, so the page a reader shares has to be the
   // one address we call canonical, not whichever spelling they arrived on
-  // (#1783). Absent = the record could not be read, and the number stands in.
+  // (#1812). Absent = the record could not be read, and the number stands in.
   record?: { name: string; canonicalSlug: string },
 ): PageMetadata {
   const number = registrationNumberFromSlug(slug);

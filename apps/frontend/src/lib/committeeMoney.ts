@@ -311,7 +311,7 @@ export function staleHoldNote(checkedOn: string | null): string {
  *
  * Structurally typed rather than tied to the app's mapped record, because the
  * page function builds the same state straight off the API payload for the text
- * it serves before any script runs (#1783). One rule, 2 callers.
+ * it serves before any script runs (#1812). One rule, 2 callers.
  */
 export function yearDisplayState(money: {
   register: { terminationDate: string | null };
@@ -710,7 +710,7 @@ export const UNNAMED_PAYMENT_PARTY = 'Name not given in the filing';
 
 /**
  * One donation as a row. Shared by the full-payments screen and by the text the
- * first server response carries (#1783), so the served line and the drawn line
+ * first server response carries (#1812), so the served line and the drawn line
  * are the same characters rather than 2 similar sentences.
  */
 export function receivedPaymentRow(

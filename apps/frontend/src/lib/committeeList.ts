@@ -76,7 +76,7 @@ export function kindFilterFromParam(raw: string | null | undefined): CommitteeKi
  * How many rows one numbered page holds. 50 is half the register endpoint's own
  * maximum, so a page is always one request.
  *
- * The register was a "Show more" button until #1783. Google states it does not
+ * The register was a "Show more" button until #1812. Google states it does not
  * press buttons or run actions that need a person's click, so every filer past
  * the first 50 was unreachable to it and 1,553 of 1,603 committee pages had no
  * ordinary link anywhere on the site

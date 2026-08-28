@@ -777,7 +777,7 @@ export function readPageSnapshot(pieces: readonly ResearchPiece[]): PageSnapshot
 /**
  * The money section's first server response: the landing, the register of
  * filers, one committee's record, and that committee's full payments list
- * (issue #1783).
+ * (issue #1812).
  *
  * Until this, all 4 addresses sent a title and an empty body, so the 1,603
  * committee records had no sentence and no link a search engine could read, and
