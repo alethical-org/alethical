@@ -159,9 +159,25 @@
      Mortenson Co's $4,000.00 and $30,000.00, which is 0.03% of that year and 2 rows out of
      1,610. True of those rows, false of the year
      (`docs/architecture/campaign-finance-system-design.md` §2.2, the principal
-     expenditures file). Also held back: that political subdivisions and public colleges are
+     expenditures file). Also held back, and CORRECTED
+     28 AUG 2026: this comment said political subdivisions and public colleges are
      excluded from the principal report and report to the Office of the State Auditor
-     instead, which is a real hole in the record; the $50,000 grass-roots threshold
+     instead, calling it a real hole in the record. The first half is false, measured
+     against the Board's own principal expenditure file: 53 genuine public bodies are in
+     it, 40 of them spending more than $0, including 19 cities (Duluth, Mankato,
+     Burnsville, Roseville, Coon Rapids and 14 more), Martin, Hennepin and Sherburne
+     counties, and about a dozen school districts. The largest are the St Paul Port
+     Authority at $376,552 and SouthWest Transit at $319,830. So political subdivisions
+     file principal reports.
+
+     The public-college half is UNSETTLED rather than confirmed. The University of
+     Minnesota does not appear in the file at all, which is consistent with an exclusion
+     and is not proof of one: absence is not a rule. Anyone building a piece on this must
+     establish why it is missing before writing that public colleges are excluded, which
+     is exactly the trap this correction exists to stop, because this item is listed as
+     the seed of a future piece and a future piece would have inherited the error.
+
+     Also held back: the $50,000 grass-roots threshold
      that makes an organisation a principal with no lobbyist at all; and the gift
      prohibition.
 
