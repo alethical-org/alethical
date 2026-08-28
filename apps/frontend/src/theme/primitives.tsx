@@ -1403,8 +1403,10 @@ const styles = StyleSheet.create({
   // A bar item's own drawer row: taller than a group row, ruled top and bottom,
   // and ending in an arrow. Every value is Design's (nav drawing, 27 Aug 2026),
   // and the whole band between the 2 rules is the tap target, so nothing in it
-  // is dead. The 25px/800 type is full row weight on purpose: Read is a peer of
-  // Search and About, not a lesser thing.
+  // is dead. The 25px size is what marks Read as a peer of Search and About
+  // rather than a lesser thing; its weight matches the group rows, so the row
+  // reads as a peer without shouting (Eugene, 28 Aug 2026, replacing the 800
+  // this row shipped with).
   menuBarRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1428,7 +1430,7 @@ const styles = StyleSheet.create({
   menuBarRowText: {
     fontFamily: t.typography.title,
     fontSize: 25,
-    fontWeight: t.fontWeights.heavy,
+    fontWeight: t.fontWeights.semibold,
     // Design gives -0.01em, which at 25px is -0.25px.
     letterSpacing: -0.25,
     color: t.colors.text.primary,
