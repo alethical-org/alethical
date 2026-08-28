@@ -153,11 +153,11 @@
      records well enough to mistake lobbying for more of the same, and the correction
      is 1 section, not a piece. What was held back, and what a later piece would be
      made of: the 4 lobbying types and the fact that the Board's published file only
-     splits them from 2023 onward, everything before that sitting in a single "General
-     lobbying amount" column beside PUC. Corrected 27 Aug 2026 from "2024", measured over
-     all 12 years in the file: 2014 to 2022 carry only PUC and General, 2023 adds
-     Legislative and MGU alongside General, and the General column only empties in 2024,
-     so 2023 is a partial transition year rather than a pre-split one
+     splits them from 2024 onward, everything before that sitting in a single "General
+     lobbying amount" column beside PUC. This sentence was changed to "2023" on 27 Aug 2026
+     and changed back on 28 Aug 2026: 2023 carries exactly 1 row in each new column, M A
+     Mortenson Co's $4,000.00 and $30,000.00, which is 0.03% of that year and 2 rows out of
+     1,610. True of those rows, false of the year
      (`docs/architecture/campaign-finance-system-design.md` §2.2, the principal
      expenditures file). Also held back: that political subdivisions and public colleges are
      excluded from the principal report and report to the Office of the State Auditor
