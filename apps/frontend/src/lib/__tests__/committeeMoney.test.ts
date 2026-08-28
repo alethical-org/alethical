@@ -81,10 +81,39 @@ describe('the register-driven header', () => {
     expect(registerKindLabel('super_pac')).toBeNull();
   });
 
+  // All 6 of the Board's finer-kind codes, in its own words (#1694). Measured on
+  // production 20 Aug 2026: 403 of 526 registered committees and funds carried a
+  // documented code that read as the register's broad 3-way kind, against 17 spelled out.
+  it('spells out all 6 of the Board\u2019s finer kind codes', () => {
+    expect(committeeEyebrow('political_committee_or_fund', 'PC')).toBe('Political committee');
+    expect(committeeEyebrow('political_committee_or_fund', 'PF')).toBe('Political fund');
+    expect(committeeEyebrow('political_committee_or_fund', 'IEC')).toBe(
+      'Independent-expenditure committee',
+    );
+    expect(committeeEyebrow('political_committee_or_fund', 'IEF')).toBe(
+      'Independent-expenditure fund',
+    );
+    expect(committeeEyebrow('political_committee_or_fund', 'BC')).toBe('Ballot question committee');
+    expect(committeeEyebrow('political_committee_or_fund', 'BF')).toBe('Ballot question fund');
+  });
+
+  // The Board documents none of these and the API withholds them, so nothing reaches the
+  // label layer to expand. A guess here would invent a kind (#1661).
+  it('never guesses at an undocumented code', () => {
+    for (const code of ['PCN', 'PFN', 'BCN']) {
+      expect(committeeEyebrow('political_committee_or_fund', code)).toBe(
+        'Political committee or fund',
+      );
+    }
+  });
+
   it('names the finer kind only where the register publishes one', () => {
     expect(committeeEyebrow('political_committee_or_fund', 'BC')).toBe('Ballot question committee');
     expect(committeeEyebrow('political_committee_or_fund', 'BF')).toBe('Ballot question fund');
-    expect(committeeEyebrow('political_committee_or_fund', 'PC')).toBe(
+    // 'PC' used to be pinned here as 'Political committee or fund', deliberately, back
+    // when only the 2 ballot-question codes were expanded. Issue #1694 expands all 6, so
+    // that pin now lives in the test above with the Board's own word for it.
+    expect(committeeEyebrow('political_committee_or_fund', null)).toBe(
       'Political committee or fund',
     );
     expect(isBallotQuestionFiler('BC')).toBe(true);

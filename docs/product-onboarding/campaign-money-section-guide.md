@@ -340,11 +340,15 @@ Top to bottom:
 1. **The header, from the state's register of filers.** The kind line above the name is
    the register's own vocabulary — Candidate committee, Party unit, or Political committee
    or fund — never a finer kind we invented. Where the Board's own codes name a finer kind,
-   the line says that instead, because the finer word is the register's too: a filer whose
-   money rows carry a ballot-question code is headed Ballot question committee (or fund),
-   and a party unit carrying one of the 2 layer codes Minnesota publishes is headed
-   Legislative caucus or State party committee. A layer code is read only off a party unit,
-   because no filer of another kind carries one. A candidate committee shows the office and
+   the line says that instead, because the finer word is the register's too. All 6 of the
+   Board's finer codes are spelled out: Political committee, Political fund,
+   Independent-expenditure committee, Independent-expenditure fund, Ballot question
+   committee and Ballot question fund. Three more codes the Board documents nowhere stay
+   unexpanded rather than being guessed at. A party unit carrying one of the 2 layer codes
+   Minnesota publishes is headed Legislative caucus or State party committee, and a layer
+   code is read only off a party unit, because no filer of another kind carries one.
+   Wherever the finer kind and the register's broad kind differ, the broad one follows it
+   on the same line, so a reader sees both. A candidate committee shows the office and
    district it registered for; a closed committee carries a CLOSED chip with the register's
    own termination date, on every year's view.
 2. **Whose committee it is.** Until a person at Alethical has checked, the page attaches

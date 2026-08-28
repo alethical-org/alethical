@@ -1039,7 +1039,17 @@ describe('a committee’s record in the first response', () => {
 
   it('is headed by the register’s own name and its registration number', () => {
     expect(snapshot.heading).toBe('Jane Fonda Climate PAC');
-    expect(snapshot.subheading).toBe('Political committee or fund · REG 41326');
+    // Reads 'Political committee', not the register's broad 3-way kind: this fixture is
+    // a `PC` filer and issue #1694 spells out all 6 of the Board's finer codes. The
+    // served line proves the finer label reaches the first response and not only the
+    // running app, which is what a search engine and a reader with no JavaScript get.
+    // The register's own broad kind now follows, because the finer label and the
+    // register's kind differ for the first time on this fixture. That clause was
+    // suppressed before only because they were the same string. Same shape a caucus
+    // page already serves: the finer kind, then what the register files it as.
+    expect(snapshot.subheading).toBe(
+      'Political committee · REG 41326 · Kind as registered: political committee or fund',
+    );
   });
 
   // The drawn page puts the kind above the title and the registered-for line
