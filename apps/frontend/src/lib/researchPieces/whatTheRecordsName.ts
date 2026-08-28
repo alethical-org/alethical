@@ -313,11 +313,31 @@ export const WHAT_THE_RECORDS_NAME: ResearchPiece = {
           kind: 'paragraph',
           runs: [
             {
-              // Names the next piece's subject and neither its title nor a link,
-              // because it does not exist (§2.3, and issue 1752's linking rule 6).
               kind: 'text',
-              text: 'The lump sum with no names is why 2 official figures about the same account can both be right. Add up the payments a filing lists, compare that against the total the same filing reports, and the 2 numbers will not match. Neither one is wrong. That is the subject of the next piece in this set. This paragraph gains a link to it the day that piece posts.',
+              text: 'The lump sum with no names is why 2 official figures about the same account can both be right. Add up the payments a filing lists, compare that against the total the same filing reports, and the 2 numbers will not match. Neither one is wrong.',
             },
+          ],
+        },
+        {
+          kind: 'paragraph',
+          runs: [
+            {
+              // Piece 3's address as a literal, not computed from its slug: piece 3
+              // imports this file to build its own back link, so importing it back
+              // would be a cycle resolved at module scope. A test in
+              // research.test.ts asserts this literal equals piece 3's real path, so
+              // a slug change fails loudly rather than dangling.
+              //
+              // This paragraph used to end "This paragraph gains a link to it the day
+              // that piece posts". Piece 3 posted, so the link went in and that
+              // sentence came out with it, because it becomes false the moment the
+              // link exists. Not an edit on our own initiative, which rule 13 point 2
+              // forbids: the piece's own text instructed it.
+              kind: 'internalLink',
+              text: 'Why 2 official numbers can both be right',
+              href: '/read/guides/why-2-official-numbers-can-both-be-right',
+            },
+            { kind: 'text', text: ' is the next piece in this set.' },
           ],
         },
       ],

@@ -1,15 +1,13 @@
-<!-- NOT POSTED. This is the settled prose only; no page exists for it yet.
-     This file is where the words were written and settled before any container
-     existed for them, exactly as the 4 guides before it were written, and it stays
-     the source of record for the words. Whoever builds the shipped piece adds 3
-     things in the same change: the piece itself at
-     `apps/frontend/src/lib/researchPieces/`, its slug in the guide list inside
-     `apps/frontend/src/lib/__tests__/research.test.ts` so the word-for-word check
-     covers it, and a `describes:` declaration comment at the top of this file naming
-     that new piece. This file declares nothing today because the file it would name
-     does not exist. Its address, when it posts, is
-     `/read/guides/why-nobody-can-follow-a-dollar`
-     (`docs/architecture/published-writing-decisions.md` §2.1).
+<!-- describes: apps/frontend/src/lib/researchPieces/whyNobodyCanFollowADollar.ts -->
+<!-- POSTED 27 Aug 2026, and live at `/read/guides/why-nobody-can-follow-a-dollar`.
+     This file is where the prose was written and settled before any container
+     existed for it, exactly as the 4 guides before it were written, and it stays the source of
+     record for the words. The shipped piece is
+     `apps/frontend/src/lib/researchPieces/whyNobodyCanFollowADollar.ts`, and
+     `apps/frontend/src/lib/__tests__/research.test.ts` compares the 2 word for word,
+     so an edit here without the matching edit there fails the build, and so does the
+     reverse. The words are settled: rule 13's publishing order lets the Alethical team
+     direct a change (point 2a) and forbids us editing them on our own initiative.
 
      WHAT IT IS. The fifth piece written in the set "How the Money Works", following
      `docs/reader-guides/money-spent-without-a-campaigns-say.md`. Issue #1752's first
@@ -139,7 +137,9 @@
      `/read/guides/who-has-to-report-their-money` and
      `/read/guides/why-2-official-numbers-can-both-be-right`.
 
-     WHERE IT LINKS FORWARD: nowhere, per the paragraph above.
+     WHERE IT LINKS FORWARD: nowhere, per the paragraph above. A test asserts the
+     shipped piece carries no section headed "Next" and never says "the next piece in
+     this set", so a hand-off cannot be added without a sixth piece to point at.
 -->
 
 # Why nobody can follow a dollar

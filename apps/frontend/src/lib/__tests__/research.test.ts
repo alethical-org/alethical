@@ -93,17 +93,45 @@ export const SAMPLE_PIECE: ResearchPiece = {
   newerFilingsNote: 'A sample newer-filings note, dated at the figure it moves.',
 };
 
-describe("guide 1's forward link", () => {
-  // The href is a literal in whoHasToReportTheirMoney.ts rather than computed from
-  // guide 2's slug, because guide 2 imports guide 1 to build its own back link and
-  // importing back would be a module-scope cycle. This is what makes the literal safe.
-  it('resolves to guide 2, so a slug change fails here rather than dangling', () => {
-    const guideTwo = researchBySlug('what-the-records-name');
-    expect(guideTwo).toBeDefined();
-    const guideOne = researchBySlug('who-has-to-report-their-money');
-    expect(guideOne).toBeDefined();
-    const hrefs = JSON.stringify(guideOne).match(/\/read\/guides\/[a-z0-9-]+/g) ?? [];
-    expect(hrefs).toContain(piecePath(guideTwo!));
+describe('every forward link in the set', () => {
+  // Each forward href is a LITERAL in the piece that carries it, never computed
+  // from its destination's slug, because the destination imports the piece back to
+  // build its own return link and importing both ways would be a module-scope
+  // cycle. These assertions are what make the literals safe: a slug change fails
+  // here rather than dangling on a live page.
+  const chain = [
+    { from: 'who-has-to-report-their-money', to: 'what-the-records-name' },
+    { from: 'what-the-records-name', to: 'why-2-official-numbers-can-both-be-right' },
+    { from: 'why-2-official-numbers-can-both-be-right', to: 'money-spent-without-a-campaigns-say' },
+    { from: 'money-spent-without-a-campaigns-say', to: 'why-nobody-can-follow-a-dollar' },
+  ];
+
+  it.each(chain)('resolves $from to $to rather than dangling', ({ from, to }) => {
+    const destination = researchBySlug(to);
+    expect(destination).toBeDefined();
+    const source = researchBySlug(from);
+    expect(source).toBeDefined();
+    const hrefs = JSON.stringify(source).match(/\/read\/guides\/[a-z0-9-]+/g) ?? [];
+    expect(hrefs).toContain(piecePath(destination!));
+  });
+
+  it('leaves the last piece promising nothing, because nothing is committed', () => {
+    // §2.3 and rule 2: a set names only its published pieces, so the last piece
+    // carries no hand-off. This fails the day someone adds one without a sixth
+    // piece to point at.
+    const last = researchBySlug('why-nobody-can-follow-a-dollar')!;
+    const text = [
+      ...(last.intro ?? []),
+      ...last.sections.flatMap((section) => section.blocks),
+    ].flatMap((block) =>
+      block.kind === 'paragraph'
+        ? [researchRunsText(block.runs)]
+        : block.kind === 'bullets'
+          ? block.items.map(researchRunsText)
+          : [],
+    );
+    expect(last.sections.map((section) => section.heading)).not.toContain('Next');
+    expect(text.join(' ')).not.toContain('the next piece in this set');
   });
 });
 
@@ -558,6 +586,15 @@ describe('every shipped guide is its settled prose, word for word', () => {
   const guides = [
     { slug: 'who-has-to-report-their-money', file: 'who-has-to-report-their-money.md' },
     { slug: 'what-the-records-name', file: 'what-the-records-name.md' },
+    {
+      slug: 'why-2-official-numbers-can-both-be-right',
+      file: 'why-2-official-numbers-can-both-be-right.md',
+    },
+    {
+      slug: 'money-spent-without-a-campaigns-say',
+      file: 'money-spent-without-a-campaigns-say.md',
+    },
+    { slug: 'why-nobody-can-follow-a-dollar', file: 'why-nobody-can-follow-a-dollar.md' },
   ];
 
   it('has a settled draft for every published guide, and no orphan drafts', () => {
@@ -665,10 +702,10 @@ describe('the second guide carries the structure its draft gives it', () => {
     expect(links.every((href) => href.startsWith('https://'))).toBe(true);
   });
 
-  it('links back to the first guide twice, and nowhere else, and never outward', () => {
+  it('links back to the first guide twice, forward to the third once, and never outward', () => {
     // Issue 1752's linking rules: first use only, once per paragraph, and only to
-    // what exists. The draft wrote both as relative links between the 2 drafts;
-    // the shipped piece points them at the reader-facing address.
+    // what exists. The draft wrote all 3 as relative links between the drafts; the
+    // shipped piece points them at the reader-facing addresses.
     const bodyRuns = [...(guide.intro ?? []), ...guide.sections.flatMap((s) => s.blocks)].flatMap(
       (block) => (block.kind === 'paragraph' ? block.runs : []),
     );
@@ -676,13 +713,13 @@ describe('the second guide carries the structure its draft gives it', () => {
     expect(inward.map((run) => run.href)).toEqual([
       '/read/guides/who-has-to-report-their-money',
       '/read/guides/who-has-to-report-their-money',
+      '/read/guides/why-2-official-numbers-can-both-be-right',
     ]);
-    // The destination is posted, which is the only reason the link may exist.
-    expect(researchBySlug('who-has-to-report-their-money')).toBeDefined();
-    expect(inward.map((run) => run.href)).toEqual(
-      inward.map(() => piecePath(researchBySlug('who-has-to-report-their-money')!)),
-    );
-    // The 2 uses sit in different paragraphs, not twice in one.
+    // Every destination is posted, which is the only reason a link may exist.
+    for (const href of inward.map((run) => run.href)) {
+      expect(PUBLISHED_RESEARCH.map(piecePath)).toContain(href);
+    }
+    // Each use sits in its own paragraph, never twice in one.
     const paragraphsWithInward = [
       ...(guide.intro ?? []),
       ...guide.sections.flatMap((s) => s.blocks),
@@ -690,8 +727,7 @@ describe('the second guide carries the structure its draft gives it', () => {
       (block) =>
         block.kind === 'paragraph' && block.runs.some((run) => run.kind === 'internalLink'),
     );
-    expect(paragraphsWithInward).toHaveLength(2);
-    // No forward link: the next piece in the set is unwritten.
+    expect(paragraphsWithInward).toHaveLength(3);
     expect(bodyRuns.some((run) => run.kind === 'externalLink')).toBe(false);
   });
 
@@ -720,6 +756,9 @@ describe('sets, as the /read page groups them', () => {
     expect(sets[0].pieces.map((piece) => piece.slug)).toEqual([
       'who-has-to-report-their-money',
       'what-the-records-name',
+      'why-2-official-numbers-can-both-be-right',
+      'money-spent-without-a-campaigns-say',
+      'why-nobody-can-follow-a-dollar',
     ]);
   });
 
@@ -784,5 +823,107 @@ describe('sets, as the /read page groups them', () => {
     for (const piece of publishedResearch()) {
       expect(pieceRowTime(piece)).toMatch(/^\d+ min$/);
     }
+  });
+});
+
+describe('the 3 guides that complete the set', () => {
+  const later = [
+    { slug: 'why-2-official-numbers-can-both-be-right', position: 3, sections: 5 },
+    { slug: 'money-spent-without-a-campaigns-say', position: 4, sections: 5 },
+    { slug: 'why-nobody-can-follow-a-dollar', position: 5, sections: 5 },
+  ];
+
+  it.each(later)('posts $slug at its own address, labelled Guide', ({ slug }) => {
+    const guide = researchBySlug(slug)!;
+    expect(guide).toBeDefined();
+    expect(pieceKindLabel(guide)).toBe('Guide');
+    expect(pieceAddressFolder(guide)).toBe('guides');
+    expect(piecePath(guide)).toBe(`/read/guides/${slug}`);
+    // Rule 13's publishing order point 4: everything we publish is visible to
+    // search engines from the day it posts.
+    expect(guide.indexed).toBe(true);
+    expect(indexedResearch()).toContain(guide);
+  });
+
+  it.each(later)('sits at position $position and prints no number', ({ slug, position }) => {
+    const guide = researchBySlug(slug)!;
+    expect(guide.set).toEqual({ name: 'How the Money Works', position });
+    const readerLines = [
+      guide.title,
+      guide.dek,
+      pieceMastheadLine(guide),
+      pieceCardMetaLine(guide),
+      pieceCardSecondaryLine(guide),
+      pieceRowTime(guide),
+      pieceShareDescription(guide),
+      ...guide.sections.map((section) => section.heading),
+    ].join(' | ');
+    for (const banned of [`piece ${position}`, `Piece ${position}`, 'of 5', 'of 12']) {
+      expect(readerLines).not.toContain(banned);
+    }
+  });
+
+  it.each(later)('carries $sections sections and opens with an intro', ({ slug, sections }) => {
+    const guide = researchBySlug(slug)!;
+    expect(guide.sections).toHaveLength(sections);
+    expect(guide.intro?.length).toBeGreaterThan(0);
+    // A guide states rules rather than findings, so no SHORT VERSION box is drawn.
+    expect(guide.shortVersion).toEqual([]);
+    expect(guide.dek).toBe('');
+  });
+
+  it.each(later)('sources $slug entirely at the Board or the statutes', ({ slug }) => {
+    const guide = researchBySlug(slug)!;
+    const links = (guide.sourceRuns ?? [])
+      .flat()
+      .filter((run) => run.kind === 'externalLink')
+      .map((run) => run.href);
+    expect(links.length).toBeGreaterThan(0);
+    expect(
+      links.every((href) => href.includes('cfb.mn.gov') || href.includes('revisor.mn.gov')),
+    ).toBe(true);
+    expect(links.every((href) => href.startsWith('https://'))).toBe(true);
+    expect(guide.sources).toEqual([]);
+  });
+
+  it.each(later)('points every inward link in $slug at a posted piece', ({ slug }) => {
+    // Issue 1752's linking rule 6: a link goes in when its destination posts and
+    // not before. Nothing in a body may leave the site, and no body link may point
+    // at a page the registry does not hold.
+    const guide = researchBySlug(slug)!;
+    const bodyRuns = [...(guide.intro ?? []), ...guide.sections.flatMap((s) => s.blocks)].flatMap(
+      (block) =>
+        block.kind === 'paragraph'
+          ? block.runs
+          : block.kind === 'bullets'
+            ? block.items.flat()
+            : [],
+    );
+    expect(bodyRuns.some((run) => run.kind === 'externalLink')).toBe(false);
+    const inward = bodyRuns.filter((run) => run.kind === 'internalLink');
+    expect(inward.length).toBeGreaterThan(0);
+    const posted = PUBLISHED_RESEARCH.map(piecePath);
+    for (const run of inward) {
+      expect(posted).toContain(run.href);
+    }
+    // First use only, once per paragraph: no paragraph carries 2 inward links.
+    const perParagraph = [...(guide.intro ?? []), ...guide.sections.flatMap((s) => s.blocks)]
+      .filter((block) => block.kind === 'paragraph')
+      .map((block) => block.runs.filter((run) => run.kind === 'internalLink').length);
+    expect(Math.max(0, ...perParagraph)).toBeLessThanOrEqual(1);
+  });
+
+  it('completes the set at 5 published guides, in reading order', () => {
+    const inSet = piecesLabelledGuide()
+      .filter((piece) => piece.set?.name === 'How the Money Works')
+      .sort((a, b) => (a.set!.position ?? 0) - (b.set!.position ?? 0));
+    expect(inSet.map((piece) => piece.set!.position)).toEqual([1, 2, 3, 4, 5]);
+    expect(inSet.map((piece) => piece.slug)).toEqual([
+      'who-has-to-report-their-money',
+      'what-the-records-name',
+      'why-2-official-numbers-can-both-be-right',
+      'money-spent-without-a-campaigns-say',
+      'why-nobody-can-follow-a-dollar',
+    ]);
   });
 });

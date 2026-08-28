@@ -25,8 +25,11 @@
 
 import { IA } from '../navigation/ia';
 import { MONEY_ONLY_GOES_ONE_WAY } from './researchPieces/moneyOnlyGoesOneWay';
+import { MONEY_SPENT_WITHOUT_A_CAMPAIGNS_SAY } from './researchPieces/moneySpentWithoutACampaignsSay';
 import { WHAT_THE_RECORDS_NAME } from './researchPieces/whatTheRecordsName';
 import { WHO_HAS_TO_REPORT_THEIR_MONEY } from './researchPieces/whoHasToReportTheirMoney';
+import { WHY_NOBODY_CAN_FOLLOW_A_DOLLAR } from './researchPieces/whyNobodyCanFollowADollar';
+import { WHY_TWO_OFFICIAL_NUMBERS_CAN_BOTH_BE_RIGHT } from './researchPieces/whyTwoOfficialNumbersCanBothBeRight';
 
 /**
  * One run of piece prose.
@@ -313,6 +316,9 @@ export function researchSourceText(source: ResearchSource): string {
 export const PUBLISHED_RESEARCH: ResearchPiece[] = [
   WHAT_THE_RECORDS_NAME,
   WHO_HAS_TO_REPORT_THEIR_MONEY,
+  WHY_TWO_OFFICIAL_NUMBERS_CAN_BOTH_BE_RIGHT,
+  MONEY_SPENT_WITHOUT_A_CAMPAIGNS_SAY,
+  WHY_NOBODY_CAN_FOLLOW_A_DOLLAR,
   MONEY_ONLY_GOES_ONE_WAY,
 ];
 

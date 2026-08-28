@@ -1,15 +1,13 @@
-<!-- NOT POSTED. This is the settled prose only; no page exists for it yet.
-     This file is where the words were written and settled before any container
-     existed for them, exactly as the 2 guides before it were written, and it stays
-     the source of record for the words. Whoever builds the shipped piece adds 3
-     things in the same change: the piece itself at
-     `apps/frontend/src/lib/researchPieces/`, its slug in the guide list inside
-     `apps/frontend/src/lib/__tests__/research.test.ts` so the word-for-word check
-     covers it, and a `describes:` declaration comment at the top of this
-     file naming that new piece. This file declares nothing today because the file it
-     would name does not exist. Its address, when it posts, is
-     `/read/guides/why-2-official-numbers-can-both-be-right`
-     (`docs/architecture/published-writing-decisions.md` §2.1).
+<!-- describes: apps/frontend/src/lib/researchPieces/whyTwoOfficialNumbersCanBothBeRight.ts -->
+<!-- POSTED 27 Aug 2026, and live at `/read/guides/why-2-official-numbers-can-both-be-right`.
+     This file is where the prose was written and settled before any container
+     existed for it, exactly as the 2 guides before it were written, and it stays the source of
+     record for the words. The shipped piece is
+     `apps/frontend/src/lib/researchPieces/whyTwoOfficialNumbersCanBothBeRight.ts`, and
+     `apps/frontend/src/lib/__tests__/research.test.ts` compares the 2 word for word,
+     so an edit here without the matching edit there fails the build, and so does the
+     reverse. The words are settled: rule 13's publishing order lets the Alethical team
+     direct a change (point 2a) and forbids us editing them on our own initiative.
 
      WHAT IT IS. The third piece written in the set "How the Money Works", following
      `docs/reader-guides/who-has-to-report-their-money.md` and
@@ -127,23 +125,17 @@
      file underneath it, so a handbook quote is only as good as the revision date
      printed beside it, and the statute is the safer home for anything load-bearing.
 
-     PIECE 2'S FORWARD LINK IS NOT IN, AND THIS IS WHY. Piece 2's closing paragraph
-     says "This paragraph gains a link to it the day that piece posts". Under rule 13's
-     publishing order point 3, a piece posts when it is on the site at its own address,
-     and this piece is a settled draft with no page. Issue #1752's linking rule 6 and
+     THE FORWARD LINKS ARE PAID, IN BOTH DIRECTIONS. Piece 2's closing paragraph used
+     to end "This paragraph gains a link to it the day that piece posts"; this piece
+     posted, so that link went in and the sentence explaining its absence came out with
+     it, because it becomes false the moment the link exists. This piece's own closing
+     paragraph did the same for piece 4 on the same day. Neither is an edit on our own
+     initiative, which rule 13 point 2 forbids: each piece's own text instructed it, and
+     issue #1752's linking rule 6 plus
      `docs/architecture/published-writing-decisions.md` §2.6 both say a forward link
-     goes in when its destination posts, not before, so shipping one now would put a
-     link to a page that answers not-found on a live page. The edit that lands with
-     this piece's page, in the same change and in both files at once because the
-     word-for-word check compares them: in
-     `docs/reader-guides/what-the-records-name.md` and in
-     `apps/frontend/src/lib/researchPieces/whatTheRecordsName.ts`, replace "That is the
-     subject of the next piece in this set. This paragraph gains a link to it the day
-     that piece posts." with "That is the subject of the next piece in this set.", and
-     make "the next piece in this set" a link to
-     `/read/guides/why-2-official-numbers-can-both-be-right`. Piece 1 carries the same
-     unpaid debt: its closing paragraph still promises a link to piece 2, which posted
-     on 27 Aug 2026.
+     goes in when its destination posts and not before. Piece 1's link to piece 2 was
+     paid the same way in
+     [PR #1801](https://github.com/alethical-org/alethical/pull/1801).
 
      WHAT WAS DELIBERATELY LEFT OUT, each for its own reason.
 
@@ -187,8 +179,11 @@
      them at the reader-facing addresses, `/read/guides/what-the-records-name` and
      `/read/guides/who-has-to-report-their-money`.
 
-     WHERE IT LINKS FORWARD: nowhere. The closing paragraph names the next piece's
-     subject and neither its title nor a link, because it does not exist.
+     WHERE IT LINKS FORWARD: 1 link to piece 4, in the closing paragraph, added the day
+     that piece posted. The shipped piece holds the address as a literal rather than
+     computing it from piece 4's slug: piece 4 would otherwise be imported here while
+     importing this file back, which is a module-scope cycle. A test in
+     `research.test.ts` asserts the literal equals piece 4's real path.
 
      NAMED BUT DELIBERATELY NOT EXPLAINED: a group paying for its own advertising about
      a race, which the next piece in the set owns and which this piece's closing
@@ -289,8 +284,8 @@ account. Some political money never goes near one. A group can pay for its own a
 about a race without the campaign being involved, and none of that money passes through the
 campaign’s books.
 
-That is the subject of the next piece in this set. This paragraph gains a link to it the day
-that piece posts.
+[Money spent without a campaign’s say](money-spent-without-a-campaigns-say.md) is the next
+piece in this set.
 
 ---
 
