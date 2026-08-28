@@ -26,6 +26,15 @@
      and the closing paragraph names no title for the next piece
      (`docs/architecture/published-writing-decisions.md` §2.3).
 
+     THE SOURCES BLOCK WAS SWEPT ON 28 AUG 2026, finishing a job the day before left
+     half done. PR #1801 cut 2 quotations from the body, because the Board replaced the
+     Political Party Unit Handbook hours after this piece posted and the served copy no
+     longer contains them. It did not sweep the sources block, which kept 2 pieces of
+     residue live: the handbook was dated 7 March 2022 when the served file reads
+     "Last Revised 8/22/2026", and a sentence still credited the deleted walkthrough as
+     the source of text no longer in the piece. Both are gone. Neither was a fresh
+     decision: the date is a fact and the sentence sourced nothing.
+
      WHICH RULES BIND IT. `.claude/rules/grounded-answers.md` rules 1 to 12. Rule 12 is
      directly about this piece's subject and its 2 traps are handled below. NOT rule 13:
      adding figures up across members, defining derived classifications and reaching
@@ -336,11 +345,9 @@ the test means for whoever keeps the books, in the same words in all 3: the Boar
 [Legislative and Constitutional Office Candidate Handbook](https://cfb.mn.gov/pdf/publications/handbooks/candidate_handbook.pdf)
 (last revised 30 April 2026), its
 [Political Party Unit Handbook](https://cfb.mn.gov/pdf/publications/handbooks/PTU_handbook.pdf)
-(last revised 7 March 2022) and its
+(last revised 22 August 2026) and its
 [Political Committee and Political Fund Handbook](https://cfb.mn.gov/pdf/publications/handbooks/PCF_handbook.pdf)
-(last revised 15 June 2026). The reporting form’s own line for the lump sum, and the
-instruction not to list its donors: the Political Party Unit Handbook, in its walkthrough
-of a contributions schedule. The heading on the download, and the file itself: the Board’s
+(last revised 15 June 2026). The heading on the download, and the file itself: the Board’s
 [campaign finance data downloads](https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/)
 page. The counts of payments in it, as Alethical loaded that file on 12 August 2026.
 Ballot question committees and funds: Minnesota Statutes 10A.20 subdivision 3 again, and
