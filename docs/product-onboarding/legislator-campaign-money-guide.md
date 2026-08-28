@@ -1,6 +1,6 @@
 # How the Campaign money tab works (plain-English guide)
 
-<!-- describes: apps/frontend/src/components/campaignMoney/CampaignMoneyTab.tsx, apps/frontend/src/components/legislator/OutsideSpendingCard.tsx, apps/frontend/src/lib/outsideSpending.ts, alethical/api/services/independent_spending.py, apps/frontend/src/components/campaignMoney/LegislatorProfileTabs.tsx, apps/frontend/src/lib/legislatorCampaignMoney.ts, apps/frontend/src/screens/redesign/LegislatorProfileWebScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/navigation/links.ts, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, alethical/api/services/legislator_finance.py, alethical/api/routers/public.py -->
+<!-- describes: apps/frontend/src/components/campaignMoney/CampaignMoneyTab.tsx, apps/frontend/src/components/legislator/OutsideSpendingCard.tsx, apps/frontend/src/lib/outsideSpending.ts, alethical/api/services/independent_spending.py, apps/frontend/src/components/campaignMoney/LegislatorProfileTabs.tsx, apps/frontend/src/lib/legislatorCampaignMoney.ts, apps/frontend/src/screens/redesign/LegislatorProfileWebScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/navigation/links.ts, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, alethical/api/services/legislator_finance.py, alethical/api/services/committee_amount.py, alethical/api/routers/public.py -->
 
 Every current Minnesota House and Senate member's profile page has two tabs:
 **Overview**, which is the page as it has always been, and **Campaign money**, which
@@ -71,6 +71,34 @@ A member can hold more than one committee, because Minnesota registers one per o
 17 sitting members tie to more than one, and 8 have 2 or more live at the same time. So
 the tab shows **one card per committee**, each headed with the office it is for, the
 year, and the committee's registration number.
+
+**The cards are never added together, and a member with more than one is told so before
+they read a single figure.** Above their cards the tab says:
+
+> This member has 2 campaign committees for their seat in the Legislature, and each one
+> reports to the state separately. Each is shown on its own below and we never add them
+> together: when a candidate closes one committee and opens another, the money left over
+> moves across, and the state records that move as a donation to the new committee. So
+> the same money is in both reports, and one combined figure would count it twice.
+
+**This is a real double count, not a theoretical one.** Looking at every candidate rather
+than only sitting members, 20 hold more than one committee across 40 committees, and 9 of
+them have moved $121,241.64 between their own committees across 30 payments. For 2 of
+those candidate-years the moved money is **all** of it, read from the Board's own records
+on 28 August 2026:
+
+- **Diane Napper.** Her Senate committee (19520) reports one named donation for 2026:
+  $3,000.00 on 15 June 2026, from her own House committee (19121). Her House committee
+  reports nothing at all for 2026. So a combined figure would read $3,000.00, and every
+  dollar of it is money she moved from one of her own accounts to the other.
+- **Frank Pafko.** The same shape. His House committee (19512) reports $2,851.97 on
+  16 June 2026, from his own Senate committee (18920), which reports nothing for the year.
+
+**The moved money is never subtracted out of a committee's own figure either.** It really
+did arrive, the committee's own filed report says so, and taking it back out would leave
+our number disagreeing with the state's. What the page does instead is show each account
+on its own and say plainly that they are not added
+([#1663](https://github.com/alethical-org/alethical/issues/1663)).
 
 **Money from a race for a different office never appears here.** A member may have run
 for Attorney General or Governor, and those committees are real public records, but
@@ -388,6 +416,11 @@ describes records and the page frames them.
 
 - It never says money caused anything. No filing establishes that a donation changed a
   vote, and the tab shows records and connects nothing.
+- It never adds a member's committees together into one figure, and it cannot: every
+  amount the server sends is stamped with the committee that reported it, and adding 2
+  stamped with different committees makes the code stop rather than answer. A separate
+  check fails the build if the app is ever taught to do the same sum in the browser
+  ([#1663](https://github.com/alethical-org/alethical/issues/1663)).
 - It never ranks or compares members. Members sit on two different filing calendars, so
   on any day in 2026 one member's part-year total sits beside another member's figure
   covering different months, with nothing on screen to say so. Each member's figures
@@ -411,7 +444,9 @@ describes records and the page frames them.
 - **The reading and the split** are
   `alethical/api/services/legislator_finance.py`, served by
   `GET /api/v1/legislators/{id}/campaign-finance?year=YYYY`. No money is summed there:
-  every figure comes from `alethical/pipeline/campaign_finance_reader.py`.
+  every figure comes from `alethical/pipeline/campaign_finance_reader.py`, and every
+  figure is stamped with the committee that reported it so a person's committees cannot
+  be added together (`alethical/api/services/committee_amount.py`).
 
 ## What happens to reader data
 

@@ -107,6 +107,14 @@ jobs:
       - name: Check no file carries a merge-conflict marker
         run: python scripts/check_no_merge_conflict_markers.py
 
+      # 20 candidates hold more than one campaign committee, and money moved
+      # between a person's own committees is reported by both of them, so a
+      # combined figure counts it twice -- by 100% for 2 of them (#1663). The
+      # backend cannot build one; this is the frontend's half, and it runs on
+      # every event because a frontend-only PR skips the backend job.
+      - name: Check no surface adds a person's campaign committees together
+        run: python scripts/check_no_cross_committee_total.py
+
       # Only meaningful on a PR: it compares against the merge base and reads
       # the PR body. It checks both docs that describe changed code and frozen
       # design-bundle edits. On a push to main there is no body, so skip it.
