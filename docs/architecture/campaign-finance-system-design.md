@@ -1144,6 +1144,40 @@ So a member with every proposal rejected means their committee exists and we did
 which wants a person's attention rather than a card. The "none registered" card is honest only on a
 standalone money page for someone we hold no legislator record for.
 
+**The link reads both ways, and the committee page is the side that could not speak until
+[#1680](https://github.com/alethical-org/alethical/issues/1680).** A legislator's tab asks
+"which committees are this member's"; a committee page asks the reverse, "whose committee
+is this", and the answer is the same person-checked row. It is one indexed lookup rather
+than a new store: the partial unique index that makes a confirmed registration number
+appear once in the whole table (§5.1) is keyed on exactly the column this reads, so the
+reverse direction was already free and only unserved. Measured on a table loaded with
+10,000 rows, 28 August 2026: an index scan, 0.03 ms, with sequential scans left enabled.
+Three constraints on what that page may then say, each of them a rule rather than a
+preference:
+
+- **It names a person as the decider, never only the fact.** §5.1's point is that no
+  score, threshold or agreement between rules ever produces a link, because a wrong name
+  match is exactly the failure nothing downstream would notice. A bare "Confirmed" reads
+  to a member of the public as our software having matched a name, which is the one thing
+  it is not.
+- **It never implies this is the member's only committee.** Minnesota registers a
+  committee per office, 17 sitting members hold more than one, and 20 candidates do
+  ([#1663](https://github.com/alethical-org/alethical/issues/1663)), 2 of whom would have
+  every dollar of a combined figure be the same money twice. So the sentence says the
+  money on that page is that committee's own record and that a candidate can register
+  more than one. The arithmetic guard against ever adding two together is #1663's; this
+  is only the sentence.
+- **A rejection changes nothing on the page.** It is a decision about our own proposal
+  and is never a reader-facing claim about the committee, exactly as the paragraphs above
+  require of a profile, so it reaches the page as no confirmation at all and the page
+  keeps its existing words.
+
+Whose committee it is does not move with the filing year on screen, for the same reason
+``link_state`` is asked without one and the CLOSED chip is drawn on every year: the
+reviewed first and last years bound which *money* belongs on a profile, not whose
+committee this is. A confirmation that disappeared when a reader switched from 2025 to
+2026 would read as the link having been withdrawn.
+
 **What shipped for the period stamp is richer than the rule above, and the rule is the floor.** The
 built panel binds four facts that move with the record — the period, which report it comes from, the
 day we checked, and the next date something is due — and deliberately shows **no date range at all**

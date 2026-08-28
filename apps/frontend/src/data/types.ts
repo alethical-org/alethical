@@ -717,6 +717,14 @@ export interface CommitteeRegisterEntry {
 
 /** One committee's money for one year (GET /committees/{n}/finance), keyed on the
  *  registration number — the identity, since names collide and numbers do not. */
+/** Who a committee has been confirmed to belong to, and where their money lives. */
+export interface ConfirmedCommitteeMember {
+  legislatorId: string;
+  /** The profile's own address part (`/legislators/melissa-hortman`). */
+  slug: string;
+  fullName: string;
+}
+
 export interface CommitteeMoney {
   registrationNumber: string;
   /** The name the current download carries (the filer's own wording). */
@@ -730,6 +738,13 @@ export interface CommitteeMoney {
    *  freshness date, printed in Central time. Never the period money covers. */
   fetchedAt: string | null;
   register: CommitteeRegisterEntry;
+  /** The one legislator a **person** has confirmed this committee belongs to, or
+   *  null. Never derived from a name, a score, or any agreement between rules: it
+   *  is a row somebody signed (design §5.1). Null is the ordinary answer and means
+   *  only that nobody has confirmed one — never that the committee is nobody's, and
+   *  never that a rejection was recorded, which is a decision about our own proposal
+   *  rather than a claim about the committee (§7). */
+  confirmedFor: ConfirmedCommitteeMember | null;
   moneyIn: {
     state: MoneyBlockState;
     itemizedContributionTotal: string | null;

@@ -12,6 +12,12 @@ needs that a committee page does not.
   which is the one figure on the page that nothing upstream computes and that
   ``.claude/rules/grounded-answers.md`` rule 12 is mostly about.
 
+**One thing here is not about a profile**: ``confirmed_member_for_committee`` answers
+the committee page's version of the same question -- which legislator, if anyone, a
+person has confirmed a committee belongs to. It lives beside ``link_state`` so both
+directions of one person-checked fact are read in one place and cannot drift apart
+([#1680](https://github.com/alethical-org/alethical/issues/1680)).
+
 **Every money figure comes from ``committee_finance``, which comes from
 ``campaign_finance_reader``.** Nothing here sums a payment. The 4 source behaviours
 that make a plausible query silently wrong (both expenditure labels counted, receipts
@@ -296,6 +302,64 @@ def link_state(db: Session, legislator_id: UUID) -> str:
     if decisions:
         return LINK_REVIEWED_NONE_CONFIRMED
     return LINK_UNCONFIRMED
+
+
+@dataclass(frozen=True)
+class ConfirmedCommitteeMember:
+    """The one legislator a person has confirmed a committee belongs to.
+
+    ``slug`` rather than the id alone, because a profile's address is the slug
+    (``/legislators/melissa-hortman``) and a committee page's whole job here is to
+    carry a reader there.
+    """
+
+    legislator_id: UUID
+    slug: str
+    full_name: str
+
+
+def confirmed_member_for_committee(
+    db: Session, registration_number: str
+) -> ConfirmedCommitteeMember | None:
+    """Which legislator, if any, a person has confirmed this committee belongs to.
+
+    The reverse of ``link_state``: that one asks a legislator's question and this one
+    asks a committee's, off the same table and the same single fact -- a row a named
+    person wrote (§5.1). Nothing here infers, matches or scores; with no confirmed row
+    the answer is ``None`` and the page keeps saying what it says today.
+
+    **At most one row can come back, and the database is what guarantees it.** The
+    partial unique index ``uq_legislator_campaign_committee_confirmed_registration``
+    (migration ``0028_legislator_committee_link``) makes a *confirmed* registration
+    number appear once in the whole table, which is also the index this query reads,
+    so a committee cannot be published under 2 people's names and this lookup cannot
+    be expensive. Rejections carry no such constraint -- the same number may be ruled
+    out for several legislators -- and none of them reaches here.
+
+    **Asked without a year, deliberately**, exactly as ``link_state`` is. Whose
+    committee this is does not change when a reader switches filing year; the reviewed
+    period bounds which *money* belongs on a profile, and that question is answered on
+    the profile by ``confirmed_committees``.
+    """
+    row = db.execute(
+        select(
+            schema.Legislator.id,
+            schema.Legislator.slug,
+            schema.Legislator.full_name,
+        )
+        .join(
+            LegislatorCampaignCommittee,
+            LegislatorCampaignCommittee.legislator_id == schema.Legislator.id,
+        )
+        .where(
+            LegislatorCampaignCommittee.registration_number == registration_number,
+            LegislatorCampaignCommittee.decision
+            == CommitteeLinkReviewDecision.confirmed,
+        )
+    ).first()
+    if row is None:
+        return None
+    return ConfirmedCommitteeMember(legislator_id=row[0], slug=row[1], full_name=row[2])
 
 
 def payment_dates(

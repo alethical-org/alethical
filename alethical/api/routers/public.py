@@ -90,6 +90,7 @@ from alethical.api.services.independent_spending import (
 )
 from alethical.api.services.issue_bills import MIN_ISSUE_LENGTH, matched_issue_bill_ids
 from alethical.api.services.legislator_finance import (
+    confirmed_member_for_committee,
     legislator_finance,
     split_for_committee,
 )
@@ -2939,6 +2940,18 @@ def committee_finance_for_year(
     number, which can happen while the downloads still hold its rows, and
     ``unavailable`` means we hold no register to ask.
 
+    ``confirmed_for`` is the one legislator a **person** has confirmed this committee
+    belongs to, or ``null``. Minnesota publishes no link between a committee and a
+    human, so this is never derived from a name, a score, or any agreement between
+    rules: it is a row somebody signed
+    (``docs/architecture/campaign-finance-system-design.md`` §5.1, What counts as a
+    confirmed match). ``null`` is the ordinary answer and says only that nobody has
+    confirmed one -- never that the committee belongs to nobody, and never that a
+    rejection was recorded, which is a decision about *our* proposal and no
+    reader-facing claim about the committee (§7). At most one legislator can come back,
+    guaranteed by the partial unique index on a confirmed registration number rather
+    than by this code.
+
     Read ``state`` on each block before its numbers:
 
     * ``reported`` -- we hold itemized rows and the figures are real.
@@ -3050,6 +3063,9 @@ def committee_finance_for_year(
             ),
         )
     spending = finance.independent_spending
+    # Read after the money, and never allowed to change it: whose committee this is
+    # is a fact a person wrote down, and a committee page is complete without it.
+    confirmed_member = confirmed_member_for_committee(db, registration_number)
     return DetailResponse(
         data={
             "registration_number": finance.committee.registration_number,
@@ -3071,6 +3087,15 @@ def committee_finance_for_year(
                 "as_of": register.as_of,
                 "reason": register.reason,
             },
+            "confirmed_for": (
+                {
+                    "legislator_id": str(confirmed_member.legislator_id),
+                    "slug": confirmed_member.slug,
+                    "full_name": confirmed_member.full_name,
+                }
+                if confirmed_member is not None
+                else None
+            ),
             "split": {
                 "state": split.state,
                 "reported_total": split.reported_total,
