@@ -180,6 +180,17 @@ export const MONEY_ONLY_GOES_ONE_WAY: ResearchPiece = {
           "Campaign money is what gets spent before the vote. Lobbying is what gets spent after — every day of every year, whether or not there's an election on.",
         ),
       ],
+      // WHY THE IDENTITY RULE IS SAFE HERE AND NOT IN THE BOX ABOVE, so nobody reasons
+      // from that one to this one. "How we counted the 191" has to publish its identity
+      // rule because the rule moves its answer: by registration number instead of filed
+      // name it becomes 187 and $39.8 million. That file carries a contributor name the
+      // FILER typed, so 1 organization drifts across spellings. This file carries 1 name
+      // attached to 1 entity the BOARD registered, and it shows: across all 3,184
+      // principals and all 12 years, 0 registration numbers carry more than 1 filed name,
+      // 0 names carry more than 1 number, and normalizing case and whitespace merges 0
+      // groups. So filed name, registration number and normalized name give the same
+      // 3,056 organizations and the same 5 largest, to the cent. Measured 28 Aug 2026.
+      //
       // Rule 13 lets a research piece add figures up across members, and conditions
       // that on the figure recomputing from a pinned release of OUR loaded data. We
       // hold no lobbying records, so that safeguard cannot reach these totals and
@@ -192,14 +203,19 @@ export const MONEY_ONLY_GOES_ONE_WAY: ResearchPiece = {
         body:
           'The Board publishes 1 row per principal per report year, and no multi-year ' +
           'or all-principals total across those rows, so the 11-year figures here are ' +
-          'our own addition of them, from its Total spent column. A report year is a ' +
+          'our own addition of them, from its Total spent column, taking each ' +
+          'organization as the Board\u2019s own registered entity. Two choices in that ' +
+          'counting could have moved these figures, and neither does. A report year is a ' +
           'calendar year of spending rather than of filing: the Board\u2019s Lobbying ' +
           'Handbook has each principal filing by 15 March for \u201cthe amount spent by ' +
-          'the principal in the preceding calendar year\u201d, so nothing here straddles ' +
-          '2 years. That is the choice that could have moved these figures, and it does ' +
-          'not. What the records cannot do is separate the 4 kinds of lobbying before ' +
-          '2024; everything earlier sits in a single general column. The rows run ' +
-          'through the report due 16 March 2026, and are published at ' +
+          'the principal in the preceding calendar year\u201d, so nothing straddles 2 ' +
+          'years. And no registration number in the file carries 2 filed names and no ' +
+          'name carries 2 numbers, so identifying an organization by its filed name, by ' +
+          'its registration number, or by name with case and spacing normalized gives ' +
+          'the same 3,056 organizations and the same 5 largest, to the cent. What the ' +
+          'records cannot do is separate the 4 kinds of lobbying before 2024; everything ' +
+          'earlier sits in a single general column. The rows run through the report due ' +
+          '16 March 2026, and are published at ' +
           'cfb.mn.gov/reports-and-data/self-help/data-downloads/lobbying/.',
       },
     },
