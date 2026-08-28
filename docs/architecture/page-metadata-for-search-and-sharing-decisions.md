@@ -1125,6 +1125,10 @@ not explore the rest of your site". We already keep filter combinations out of t
 | `/sitemaps/legislators.xml` | 200 |
 | total | **11,793** |
 
+Measured again on 28 Aug 2026, after §22 added the money section: `pages.xml` 1,115,
+`bills.xml` 10,517, `legislators.xml` 200, and a new `committees.xml` of 1,556, so
+**13,388** in total. Google's 50,000-per-file limit is still a long way off.
+
 Google's guidance names 2 rough bands: sites over 1,000,000 pages changing weekly, and sites over
 10,000 pages changing daily. We are past the second figure on page count alone, and how many bill
 pages change daily during a session is not yet measured. So this is a measurement duty, not a
@@ -1374,16 +1378,32 @@ different section, and by some distance the largest set of records it has hit.
 
 ### What was measured, 27 Aug 2026
 
-`curl` against the live site, before any JavaScript. The **before** column is the live
-measurement; the **after** column is the live measurement taken once this shipped:
+`curl` against the live site, before any JavaScript. Both columns are live measurements: the
+**before** on 27 Aug 2026 and the **after** on 28 Aug 2026, once this had deployed.
 
 | address | before | after |
 |---|---|---|
-| `/money` | 9,005 bytes, **0 anchors** | see the release note below |
-| `/money/committees` | 9,117 bytes, **0 anchors** | see the release note below |
-| `/money/committees/jane-fonda-climate-pac-41326` | title only, no body | see the release note below |
+| `/money` | 9,005 bytes, **0 anchors** | 10,356 bytes, 3 anchors |
+| `/money/committees` | 9,117 bytes, **0 anchors** | 20,232 bytes, **54 anchors** |
+| `/money/committees?page=12` | did not exist as its own address | 22,008 bytes, 57 anchors |
+| `/money/committees/jane-fonda-climate-pac-41326` | title only, no body | 11,704 bytes, 3 anchors |
+| `/money/committees/jane-fonda-climate-pac-41326/payments` | title only, no body | 10,570 bytes, 2 anchors |
 | `/read` (then addressed `/reading`), for contrast | 9,816 bytes, 3 anchors | unchanged |
 | `/bills/94-2025-HF1`, for contrast | 11,799 bytes, 12 anchors | unchanged |
+
+The sitemaps, measured the same day:
+
+| sitemap | before | after |
+| --- | ---: | ---: |
+| `/sitemaps/pages.xml` | 1,079 | 1,115 — the 32 numbered register pages and 4 published pieces added since |
+| `/sitemaps/committees.xml` | did not exist | **1,556** |
+
+**1,556 of 1,603, so 47 registered filers are deliberately absent**: those are the ones whose
+page holds neither a filed report nor a year of reported figures, which is the thin-page test
+below. Every one of them still has a working page and is still reachable from the register's
+own numbered pages. Spot-checked across the new file, addresses 1, 321, 641, 961 and 1,281 all
+answer 200 with a served body; `?page=33` answers 200 and `?page=34` answers 404 with
+`noindex`; and `?q=dfl` still answers with `X-Robots-Tag: noindex`.
 
 `/sitemaps/pages.xml` carried 1,079 addresses and exactly 2 of them were in the money section:
 `/money` and `/money/committees`. **None of the 1,603 individual committee pages was in any
