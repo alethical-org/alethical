@@ -268,8 +268,18 @@ export const MONEY_ONLY_GOES_ONE_WAY: ResearchPiece = {
   // never produce the total. Measured on the live page 28 Aug 2026 before this
   // changed: that address appeared exactly once, as text inside the method box,
   // inside 0 anchors. The contributions sentence is carried over word for word,
-  // its wrong 583,120 included, because correcting a printed figure is a separate
-  // decision that sits with the Alethical team (rule 13 point 2a).
+  // CORRECTED 28 AUG 2026: 583,120 became 583,152. The file holds 583,152 rows, which
+  // is what our own loaded snapshot carries and what guide 2 has printed since it
+  // posted, so 2 live pages were giving different counts of one file and this one
+  // matched neither our data nor the Board's. Eugene directed the correction under
+  // rule 13 point 2a. No dated note: the piece already carries the 27 Aug note about
+  // the 2 quotations the Board's handbook replacement removed, and a reader does not
+  // need 2 notices for a row count that describes nobody and moves no money figure.
+  //
+  // Not to be confused with a gap that is NOT an error, since 2 sessions nearly filed
+  // it as one: rule 12's "327,759 of the 583,152 published rows are individually under
+  // $200" and guide 2's "337,888 of $200 or less" differ by exactly the 10,129 rows at
+  // $200.00. Both are right; "under" excludes the threshold and "or less" includes it.
   sources: [],
   sourceRuns: [
     [
@@ -277,7 +287,7 @@ export const MONEY_ONLY_GOES_ONE_WAY: ResearchPiece = {
         kind: 'text',
         text:
           'Minnesota Campaign Finance Board bulk data downloads \u2014 itemized ' +
-          'contributions (583,120 records), itemized expenditures, and itemized ' +
+          'contributions (583,152 records), itemized expenditures, and itemized ' +
           'independent expenditures over $200 (41,130 records), 2015\u20132026. ' +
           'Minnesota requires a committee to name a donor once that person has given ' +
           'more than $200 in total during a calendar year, and permits it to name ' +
