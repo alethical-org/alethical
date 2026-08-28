@@ -350,7 +350,7 @@ const PEGGY_SCOTT_LEGISLATOR_ID = '2ebc386c-bf7e-4b9c-9d81-81f3bef1f971';
 // from the bill's Governor-approval and Secretary-of-State actions; the effective date
 // from `effective_date`; House 132–2 / Senate 66–0 from the two passage roll calls; all
 // three excerpts are verbatim from the enacted text (version 5).
-function CitedSectionCard({ title, quote, note }: { title: string; quote: string; note?: string }) {
+function CitedSectionCard({ title, quote }: { title: string; quote: string }) {
   const { isMobile } = useResponsive();
   return (
     <View style={styles.sectionCardBox}>
@@ -362,7 +362,6 @@ function CitedSectionCard({ title, quote, note }: { title: string; quote: string
           {quote}
         </Text>
       </View>
-      {note ? <Text style={styles.sectionCardNote}>{note}</Text> : null}
     </View>
   );
 }
@@ -534,7 +533,6 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
         <CitedSectionCard
           title="Addictive features"
           quote="A covered social media platform may not present addictive interface features in the display or feed of any account of a child."
-          note="Such as infinite scrolling, autoplay video, and push notifications"
         />
         <CitedSectionCard
           title="Privacy by default"
@@ -2342,7 +2340,10 @@ const styles = StyleSheet.create({
     display: 'grid',
     gridTemplateColumns: 'repeat(3, 1fr)',
     gap: 14,
-    alignItems: 'stretch',
+    // Each box ends under its own last line rather than stretching to the tallest
+    // card's. The quotes are the bill's, so their lengths differ and a stretched
+    // box left empty grey under the shortest one. Columns stay equal in width.
+    alignItems: 'start',
   } as never,
   sectionCardBox: {
     backgroundColor: '#f7f9f8',
@@ -2376,13 +2377,6 @@ const styles = StyleSheet.create({
     ...(isWeb ? ({ maxWidth: '34em', textWrap: 'pretty' } as object) : null),
   },
   sectionCardQuoteTextMobile: { fontSize: 16, lineHeight: 24 },
-  sectionCardNote: {
-    marginTop: 10,
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.small,
-    lineHeight: 20.3,
-    color: '#6f756f',
-  },
   answerFooter: {
     marginTop: 12,
     paddingLeft: t.spacing.underCardText,

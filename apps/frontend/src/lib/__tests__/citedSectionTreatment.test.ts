@@ -33,9 +33,9 @@ describe('cited sections distinguish quoted statute without decorative rules', (
     expect(home).not.toMatch(/sectionCardQuote: \{[^}]*width/);
   });
 
-  it('lays homepage cited sections into 3 equal, stretching desktop tracks', () => {
+  it('lays homepage cited sections into 3 equal tracks that end at their own text', () => {
     expect(home).toMatch(
-      /sectionCardStack: \{\n    display: 'grid',\n    gridTemplateColumns: 'repeat\(3, 1fr\)',\n    gap: 14,\n    alignItems: 'stretch',\n  \} as never,/,
+      /sectionCardStack: \{\n    display: 'grid',\n    gridTemplateColumns: 'repeat\(3, 1fr\)',\n    gap: 14,\n(?:.*\n)*?    alignItems: 'start',\n  \} as never,/,
     );
   });
 
@@ -59,10 +59,9 @@ describe('cited sections distinguish quoted statute without decorative rules', (
     expect(answer).toContain('marginTop: 14,\n    paddingLeft: t.spacing.underCardText,');
   });
 
-  it('separates the homepage gloss without indenting or italicizing it', () => {
-    expect(home).toContain('sectionCardNote: {\n    marginTop: 10,');
-    expect(home).not.toContain('paddingLeft: 15');
-    expect(home).toContain("lineHeight: 20.3,\n    color: '#6f756f',");
+  it('carries no gloss line under a homepage cited quote', () => {
+    expect(home).not.toContain('sectionCardNote');
+    expect(home).not.toContain('Such as infinite scrolling');
   });
 
   it('reuses the 17px under-card inset on trailing rows and footnotes', () => {
