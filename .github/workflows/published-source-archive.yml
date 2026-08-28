@@ -33,6 +33,14 @@ name: Keep a copy of every source our published writing cites
 
 on:
   workflow_dispatch:
+    inputs:
+      mode:
+        description: "What to do"
+        type: choice
+        default: read-every-cited-source
+        options:
+          - read-every-cited-source
+          - read-back-every-copy-we-hold
   schedule:
     # 10:00 UTC Mondays (~4-5am America/Chicago). Weekly, matching the link check:
     # a government site's documents are replaced on the scale of months, and the
@@ -112,12 +120,25 @@ jobs:
       #     `shell: bash` runs `bash -eo pipefail`.
       - name: Read every cited source and compare it with our copy
         id: archive
+        if: inputs.mode != 'read-back-every-copy-we-hold'
         shell: bash
         run: |
           set +o pipefail
           PYTHONPATH=. uv run python scripts/archive_published_sources.py \
             --target production 2>&1 | tee archive-report.txt
           echo "status=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      # On demand only, never on the schedule. Reads every copy we hold back out of the
+      # store, decompresses it and hashes it against what its row records, so a person
+      # can answer "is our archive still the thing we published from" without holding
+      # the store credentials on their own machine. Reads nothing from Minnesota.
+      # Re-proving the WHOLE store and proving a restore works is #802, not this.
+      - name: Read back every copy we hold
+        if: inputs.mode == 'read-back-every-copy-we-hold'
+        shell: bash
+        run: |
+          PYTHONPATH=. uv run python scripts/archive_published_sources.py \
+            --target production --verify-stored
 
       - name: Open or update an issue when a cited source has gone or changed
         if: steps.archive.outputs.status != '0'
