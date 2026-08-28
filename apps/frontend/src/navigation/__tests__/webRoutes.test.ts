@@ -448,6 +448,55 @@ describe('campaign money routes', () => {
       '/money/search?q=smith%20%26%20co',
     );
   });
+
+  // Both halves of the state ride in the address, so a name a reader opened is a
+  // link they can send (grounded-answers.md rule 5).
+  it('round-trips a name and its role through /money/payments', () => {
+    expect(targetFromPathname('/money/payments?name=Facebook&role=vendor')).toEqual({
+      kind: 'paymentsUnderName',
+      name: 'Facebook',
+      role: 'vendor',
+    });
+    expect(
+      pathForRoute({ name: 'PaymentsUnderName', params: { name: 'Facebook', role: 'vendor' } }),
+    ).toBe('/money/payments?name=Facebook&role=vendor');
+  });
+
+  // Filed names really carry these characters: "AT&T", "Heat & Frost Insulators
+  // Local #34" and "EveryAction Inc d/b/a NGP VAN" are all in the live release. An
+  // ampersand would split the query, a hash would cut the address short, and a
+  // slash in a path segment is a character hosts and proxies may normalise before
+  // we ever see it — which is why the name is a query parameter.
+  it('carries a name holding an ampersand, a hash and a slash, both ways', () => {
+    const awkward = 'Heat & Frost Insulators Local #34 d/b/a Local 34';
+    const path = pathForRoute({
+      name: 'PaymentsUnderName',
+      params: { name: awkward, role: 'contributor' },
+    });
+    expect(path).toBe(
+      '/money/payments?name=Heat+%26+Frost+Insulators+Local+%2334+d%2Fb%2Fa+Local+34&role=contributor',
+    );
+    expect(targetFromPathname(path)).toEqual({
+      kind: 'paymentsUnderName',
+      name: awkward,
+      role: 'contributor',
+    });
+  });
+
+  // A page about a question we did not ask does not exist. `employer` is the
+  // server's 4th role and is deliberately among the ones that do not resolve.
+  it('sends a missing name or an unserved role to NotFound', () => {
+    expect(targetFromPathname('/money/payments')).toEqual({
+      kind: 'notFound',
+      path: '/money/payments',
+    });
+    expect(targetFromPathname('/money/payments?name=Facebook')).toEqual({
+      kind: 'notFound',
+      path: '/money/payments?name=Facebook',
+    });
+    expect(targetFromPathname('/money/payments?name=Facebook&role=employer').kind).toBe('notFound');
+    expect(targetFromPathname('/money/payments?name=Facebook&role=landlord').kind).toBe('notFound');
+  });
 });
 
 describe('shared top navigation', () => {

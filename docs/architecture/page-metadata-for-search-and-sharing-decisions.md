@@ -1424,6 +1424,7 @@ that is still right: a filter combination is not a record. Sorted for this secti
 | `/money/committees/{slug}` | **record** | the committee's own register facts and its money for the current filing year |
 | `/money/committees/{slug}/payments` | **record** | the same identity and period plus the first 250 named donations |
 | `/money/search?q=…` | filtered view | head only, `noindex` — unchanged |
+| `/money/payments?name=…&role=…` | **filtered view** | head only, `noindex`, no canonical — added by [#1780](https://github.com/alethical-org/alethical/issues/1780) |
 
 ### Decisions
 
@@ -1489,6 +1490,35 @@ $2,150.00, with the same 5 names, amounts and dates the served payments page car
 payments out totalling $2,700.00, all of them transfers to other campaigns, matching the served
 "Payments we can list: $2,700.00 · 3 payments". A served figure is a published claim about a named
 organisation, so this is checked at the source rather than against our own API.
+
+### The payments filed under one name are a filtered view, ruled 28 Aug 2026
+
+[#1780](https://github.com/alethical-org/alethical/issues/1780) added
+`/money/payments?name=…&role=…`, and it sorts into the table above as a **filtered view**:
+head only, `noindex`, no canonical, no served body. Two independent reasons, either of
+which would settle it:
+
+- **The key is a free-text spelling, so the address space is unbounded and every page in it
+  is thin.** A committee page is a record because a committee carries a registration number;
+  a payee carries no identifier at all, so there is one address per distinct spelling across
+  3 downloads. §20.5 rule 4 requires a page to be worth indexing on its own, and §20.2
+  records that a thin page costs us twice — crawled, then not indexed.
+- **A page indexed under a name reads as a profile of whoever carries it**, which is the one
+  thing that page may never be. The endpoint's own contract is that the printed string is
+  the whole of the key and never an identity, and `.claude/rules/grounded-answers.md` rule 3
+  forbids the page from being read as a business's record. A search result carrying the bare
+  name would assert exactly that, outside any context the page itself provides.
+
+It stays crawlable rather than `nofollow`, so the committee pages its rows link to remain
+reachable — the same treatment `/money/search?q=…` already gets.
+
+**The address shape is a query string rather than a path segment, and that is a measured
+choice, not a preference.** The live release holds filed names carrying every character that
+breaks an address: "AT&T", "Heat & Frost Insulators Local #34" and "EveryAction Inc d/b/a NGP
+VAN". An ampersand splits the address, a hash truncates it, and a slash inside a path segment
+must travel as `%2F`, which hosts, CDNs and proxies are free to normalise before the app sees
+it. `encodeURIComponent` in a query parameter survives all 3 intact, and it matches what the
+section's other filtered views already do.
 
 ### What this deliberately does not do
 

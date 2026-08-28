@@ -23,6 +23,7 @@ import {
   MONEY_LANDING_SUBTITLE,
   MONEY_LANE_COMMITTEES,
   MONEY_LANE_LEGISLATORS,
+  MONEY_LANE_WHO_GOT_PAID,
   RECORD_DOES_NOT_COVER,
   RECORD_DOES_NOT_COVER_HEADING,
 } from '../../lib/moneyLanding';
@@ -35,9 +36,10 @@ import { theme as t } from '../../theme/tokens';
 
 /**
  * The campaign money landing at /money — public, no sign-in gate ("Campaign
- * money IA.dc.html" §01, plus Eugene's 18 Aug 2026 decision that every lane
- * card is visible: a lane whose page is not built yet shows, is plainly not
- * clickable, and says so, so a reader sees the whole shape of the section).
+ * money IA.dc.html" §01, plus Eugene's 18 Aug 2026 decision that every lane card
+ * is visible, so a reader sees the whole shape of the section). All 3 lanes open
+ * something since #1780 settled the who-got-paid lane as search-only, so no card
+ * is inert any more.
  *
  * What this page may never do (IA §04): no lane counts money, no top raisers,
  * no amount on any row that lists more than one member, and no count that is
@@ -62,52 +64,28 @@ function ForwardArrow({ color }: { color: string }) {
   );
 }
 
-/** Mono chip marking a part of the section that exists on the plan but has no
- *  page yet. Neutral ink, not an alert color. */
-function NotBuiltChip() {
-  return (
-    <View style={styles.notBuiltChip}>
-      <Text style={styles.notBuiltChipText}>NOT BUILT YET</Text>
-    </View>
-  );
-}
-
 function LaneCard({
   title,
   body,
   countLine,
   href,
   onOpen,
-  notBuiltLine,
 }: {
   title: string;
   body: string;
   countLine: string | null;
-  /** Present = the lane's page exists and the card is a link. */
-  href?: string;
-  onOpen?: () => void;
-  /** Present = the page is not built yet; the card is inert and says so. */
-  notBuiltLine?: string;
+  href: string;
+  onOpen: () => void;
 }) {
-  const inner = (
-    <>
+  return (
+    <Pressable {...linkProps(href, onOpen)} style={[styles.laneCard, styles.laneCardLive]}>
       <View style={styles.laneTitleRow}>
         <Text style={styles.laneTitle}>{title}</Text>
-        {notBuiltLine ? <NotBuiltChip /> : null}
       </View>
       <Text style={styles.laneBody}>{body}</Text>
-      {notBuiltLine ? <Text style={styles.laneNotBuilt}>{notBuiltLine}</Text> : null}
       {countLine ? <Text style={styles.laneCount}>{countLine}</Text> : null}
-    </>
+    </Pressable>
   );
-  if (href && onOpen) {
-    return (
-      <Pressable {...linkProps(href, onOpen)} style={[styles.laneCard, styles.laneCardLive]}>
-        {inner}
-      </Pressable>
-    );
-  }
-  return <View style={[styles.laneCard, styles.laneCardInert]}>{inner}</View>;
 }
 
 export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding'>) {
@@ -226,9 +204,9 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
             )}
           </Pressable>
 
-          {/* The lanes into the records. All visible; the unbuilt two are inert
-              and say so (Eugene, 18 Aug 2026). Counts bind to the live register
-              or do not appear. */}
+          {/* The lanes into the records. All 3 open something now that the
+              who-got-paid lane is settled as search-only (#1780). Counts bind to
+              the live register or do not appear. */}
           <View style={[styles.laneRow, isMobile && styles.laneRowMobile]}>
             <LaneCard
               title={MONEY_LANE_LEGISLATORS.title}
@@ -247,15 +225,16 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
               href={routePath.moneyCommittees()}
               onOpen={() => navigation.navigate('CommitteeList')}
             />
-            {/* The last inert lane. Its card promises a list the design set does
-                not draw — a name's payments are reached from a search result, not
-                from a lane — so the card stays inert and says so until issue
-                #1780 settles what it opens. */}
+            {/* Search-only, and the card says so rather than promising a list the
+                design set does not draw. There is no honest ordering for a
+                browse-all-payees list, so the lane opens the name search and one
+                name opens every payment filed under that spelling (#1780). */}
             <LaneCard
-              title="Who got paid"
-              body="Payments as filed, with no page per name."
+              title={MONEY_LANE_WHO_GOT_PAID.title}
+              body={MONEY_LANE_WHO_GOT_PAID.body}
               countLine={null}
-              notBuiltLine="This page is not built yet."
+              href={routePath.moneySearch()}
+              onOpen={() => navigation.navigate('MoneySearch')}
             />
           </View>
 
@@ -452,10 +431,6 @@ const styles = StyleSheet.create({
     backgroundColor: t.colors.surfaces.base,
     borderColor: t.colors.alpha.ink10,
   },
-  laneCardInert: {
-    backgroundColor: t.colors.surfaces.s100,
-    borderColor: t.colors.alpha.ink08,
-  },
   laneTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
   laneTitle: {
     color: t.colors.text.primary,
@@ -471,12 +446,6 @@ const styles = StyleSheet.create({
     fontSize: 15.5,
     lineHeight: 24,
   },
-  laneNotBuilt: {
-    marginTop: 8,
-    color: t.colors.text.muted,
-    fontFamily: t.typography.body,
-    fontSize: 14.5,
-  },
   laneCount: {
     marginTop: 14,
     color: t.colors.text.muted,
@@ -484,20 +453,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: t.fontWeights.bold,
     letterSpacing: 0.9,
-  },
-  notBuiltChip: {
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink18,
-    borderRadius: 7,
-    paddingVertical: 3,
-    paddingHorizontal: 7,
-  },
-  notBuiltChipText: {
-    color: t.colors.text.secondary,
-    fontFamily: t.typography.mono,
-    fontSize: 9.5,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 0.8,
   },
   freshnessBox: {
     marginTop: 32,

@@ -1,4 +1,5 @@
 import { registrationNumberFromSlug } from '../lib/committeeMoney';
+import { paymentNameRole } from '../lib/paymentsUnderName';
 import { pieceAddressFolder, researchBySlug } from '../lib/research';
 import type { MainTabParamList, RootStackParamList } from './types';
 
@@ -26,6 +27,7 @@ type WebRouteTarget =
   | { kind: 'moneyCommitteePayments'; slug: string; tab?: string; year?: string }
   | { kind: 'moneyCommitteeList'; params: Record<string, string> }
   | { kind: 'moneySearch'; params: Record<string, string> }
+  | { kind: 'paymentsUnderName'; name: string; role: string }
   | { kind: 'privacy' }
   | { kind: 'siteMetrics' }
   | { kind: 'terms' }
@@ -290,6 +292,31 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
     return { kind: 'moneySearch', params: moneySearchParams(searchParams) };
   }
 
+  // Every payment filed under one printed name (issue #1780). Both halves of the
+  // state are in the query string, so a result somebody opened is a link they can
+  // send (grounded-answers.md rule 5).
+  //
+  // The name is in the query string rather than the path because it is free text
+  // that is matched character for character: filed names carry ampersands
+  // ("AT&T"), hashes ("Heat & Frost Insulators Local #34") and slashes
+  // ("EveryAction Inc d/b/a NGP VAN"), and a path segment would need those
+  // encoded as %2F and friends, which hosts and proxies are free to normalise
+  // before we ever see them. A query parameter survives `encodeURIComponent`
+  // intact everywhere.
+  //
+  // An address carrying no name, or a role we do not answer for, is a page that
+  // does not exist rather than a page about something else. `employer` is the
+  // server's 4th role and is deliberately among the ones that do not resolve —
+  // see lib/paymentsUnderName.ts.
+  if (segments.length === 2 && segments[0] === 'money' && segments[1] === 'payments') {
+    const name = searchParams.get('name') ?? '';
+    const role = paymentNameRole(searchParams.get('role'));
+    if (!name || !role) {
+      return { kind: 'notFound', path: pathname };
+    }
+    return { kind: 'paymentsUnderName', name, role };
+  }
+
   // One committee's money page and its full-payments view (campaign money phase
   // 2). The trailing registration number is the identity and the only thing that
   // resolves — names collide, registration numbers do not — so an old or
@@ -516,6 +543,13 @@ export function pathForRoute(activeRoute: {
       const query = activeRoute.params?.q;
       return query ? `/money/search?q=${encodeURIComponent(String(query))}` : '/money/search';
     }
+    case 'PaymentsUnderName': {
+      const params = new URLSearchParams({
+        name: String(activeRoute.params?.name ?? ''),
+        role: String(activeRoute.params?.role ?? ''),
+      });
+      return `/money/payments?${params.toString()}`;
+    }
     case 'CommitteeMoney':
     case 'CommitteePayments': {
       const base = `/money/committees/${encodeURIComponent(String(activeRoute.params?.slug ?? ''))}`;
@@ -706,6 +740,14 @@ export function stateFromPathname(pathname: string): WebNavigationState {
     case 'moneySearch':
       return {
         routes: [homeTabs, { name: 'MoneySearch', params: target.params }],
+        index: 1,
+      };
+    case 'paymentsUnderName':
+      return {
+        routes: [
+          homeTabs,
+          { name: 'PaymentsUnderName', params: { name: target.name, role: target.role } },
+        ],
         index: 1,
       };
     case 'privacy':

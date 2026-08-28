@@ -60,6 +60,10 @@ export const routePath = {
     pathForRoute({ name: 'CommitteeList', params }),
   moneySearch: (params?: RootStackParamList['MoneySearch']) =>
     pathForRoute({ name: 'MoneySearch', params }),
+  /** Every payment filed under one printed name. Both the spelling and the role
+   *  ride in the address, so the page a reader opened is one they can send. */
+  moneyPaymentsUnderName: (name: string, role: string) =>
+    pathForRoute({ name: 'PaymentsUnderName', params: { name, role } }),
   moneyCommittee: (slug: string, params?: Omit<RootStackParamList['CommitteeMoney'], 'slug'>) =>
     pathForRoute({ name: 'CommitteeMoney', params: { slug, ...params } }),
   moneyCommitteePayments: (

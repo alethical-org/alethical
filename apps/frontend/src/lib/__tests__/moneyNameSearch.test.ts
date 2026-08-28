@@ -18,7 +18,6 @@ import {
   groupCountLabel,
   groupHeading,
   groupNote,
-  groupRowsOpenAPage,
   hasAnyResult,
   nameSearchHeading,
   noMatchTitle,
@@ -57,16 +56,16 @@ describe('all 5 groups are drawn, in the server’s own order', () => {
     expect(NAME_SEARCH_MATCHED_ON).toContain('never added');
   });
 
-  it('says only committees and sitting members open a page', () => {
-    expect(groupRowsOpenAPage('people')).toBe(true);
-    expect(groupRowsOpenAPage('committees')).toBe(true);
-    expect(groupRowsOpenAPage('gave')).toBe(false);
-    expect(groupRowsOpenAPage('got_paid')).toBe(false);
-    expect(groupRowsOpenAPage('got_paid_independent')).toBe(false);
-  });
-
-  it('says in the group’s own words why a payment name has no page', () => {
-    expect(groupNote('got_paid')).toContain('no registration number');
+  // A payment name's row opens its payments since #1780, and a committee's opens
+  // the committee. Both are links now, so each group's note has to say which of
+  // the 2 kinds its rows are: rows that looked alike would promise a profile of a
+  // business, which nothing in these records can support.
+  it('says a payment name opens its payments and not a page about anybody', () => {
+    expect(groupNote('got_paid')).toContain('no page about it');
+    expect(groupNote('got_paid')).toContain('exactly as spelled');
+    expect(groupNote('gave')).toContain('deliberately not a profile');
+    expect(groupNote('gave')).toContain('opens the payments filed under that exact spelling');
+    expect(groupNote('committees')).toContain('page about the committee');
   });
 });
 

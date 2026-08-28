@@ -56,6 +56,7 @@ import {
   committeeMoneyPageMetadata,
   researchPageMetadata,
   moneySearchPageMetadata,
+  paymentsUnderNamePageMetadata,
   NOT_FOUND_DESCRIPTION,
   NOT_FOUND_HEADING,
   notFoundPageMetadata,
@@ -595,6 +596,10 @@ async function contentFor(
         : headOnly(committeeListPageMetadata(1, { noindex: true }));
     case "moneySearch":
       return headOnly(moneySearchPageMetadata(target.params.q));
+    // A filtered view of one free-text spelling, not a record, so head only with
+    // noindex — see §22's table of which money addresses are which.
+    case "paymentsUnderName":
+      return headOnly(paymentsUnderNamePageMetadata(target.name, target.role));
     case "moneyCommittee":
       return committeeContent(target.slug);
     case "moneyCommitteePayments":
