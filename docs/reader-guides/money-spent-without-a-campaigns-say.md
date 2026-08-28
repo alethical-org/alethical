@@ -153,8 +153,13 @@
      records well enough to mistake lobbying for more of the same, and the correction
      is 1 section, not a piece. What was held back, and what a later piece would be
      made of: the 4 lobbying types and the fact that the Board's published file only
-     splits them from 2024 onward, everything before that sitting in a single "General
-     lobbying amount" column; that political subdivisions and public colleges are
+     splits them from 2023 onward, everything before that sitting in a single "General
+     lobbying amount" column beside PUC. Corrected 27 Aug 2026 from "2024", measured over
+     all 12 years in the file: 2014 to 2022 carry only PUC and General, 2023 adds
+     Legislative and MGU alongside General, and the General column only empties in 2024,
+     so 2023 is a partial transition year rather than a pre-split one
+     (`docs/architecture/campaign-finance-system-design.md` §2.2, the principal
+     expenditures file). Also held back: that political subdivisions and public colleges are
      excluded from the principal report and report to the Office of the State Auditor
      instead, which is a real hole in the record; the $50,000 grass-roots threshold
      that makes an organisation a principal with no lobbyist at all; and the gift
