@@ -222,10 +222,10 @@ and Minnesota Statutes 10A.01 subdivisions 27 and 28. Naming a donor at $200:
 [Minnesota Statutes 10A.20](https://www.revisor.mn.gov/statutes/cite/10A.20)
 subdivision 3. The 6 party units named above, and who is registered today: the Board’s
 own registers of
-[candidates](https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/candidate/),
+[candidates](https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/candidates/),
 [party units](https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/party-unit/)
 and
-[committees and funds](https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/committee-fund/),
+[committees and funds](https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/political-committee-fund/),
 where the reporting forms for each kind can also be read. The optometrists’ figures and
 the 1,732 committees: the Board’s
 [itemized contributions bulk download](https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/),

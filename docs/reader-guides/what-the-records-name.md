@@ -354,4 +354,4 @@ Ballot question committees and funds: Minnesota Statutes 10A.20 subdivision 3 ag
 the Board’s
 [Independent Expenditure and Ballot Question Political Committee and Fund Handbook](https://cfb.mn.gov/pdf/publications/handbooks/IE_BQ_handbook.pdf)
 (last revised 11 July 2023); who is registered as one today is on the Board’s register of
-[committees and funds](https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/committee-fund/).
+[committees and funds](https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/political-committee-fund/).

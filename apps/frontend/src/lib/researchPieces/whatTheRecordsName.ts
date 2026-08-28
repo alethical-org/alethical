@@ -415,7 +415,7 @@ export const WHAT_THE_RECORDS_NAME: ResearchPiece = {
       {
         kind: 'externalLink',
         text: 'committees and funds',
-        href: 'https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/committee-fund/',
+        href: 'https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/political-committee-fund/',
       },
       { kind: 'text', text: '.' },
     ],

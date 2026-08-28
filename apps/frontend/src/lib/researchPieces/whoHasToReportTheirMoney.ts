@@ -398,7 +398,7 @@ export const WHO_HAS_TO_REPORT_THEIR_MONEY: ResearchPiece = {
       {
         kind: 'externalLink',
         text: 'candidates',
-        href: 'https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/candidate/',
+        href: 'https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/candidates/',
       },
       { kind: 'text', text: ', ' },
       {
@@ -410,7 +410,7 @@ export const WHO_HAS_TO_REPORT_THEIR_MONEY: ResearchPiece = {
       {
         kind: 'externalLink',
         text: 'committees and funds',
-        href: 'https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/committee-fund/',
+        href: 'https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/political-committee-fund/',
       },
       { kind: 'text', text: ', where the reporting forms for each kind can also be read.' },
     ],
