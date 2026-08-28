@@ -378,19 +378,13 @@ export const WHAT_THE_RECORDS_NAME: ResearchPiece = {
         text: 'Political Party Unit Handbook',
         href: 'https://cfb.mn.gov/pdf/publications/handbooks/PTU_handbook.pdf',
       },
-      { kind: 'text', text: ' (last revised 7 March 2022) and its ' },
+      { kind: 'text', text: ' (last revised 22 August 2026) and its ' },
       {
         kind: 'externalLink',
         text: 'Political Committee and Political Fund Handbook',
         href: 'https://cfb.mn.gov/pdf/publications/handbooks/PCF_handbook.pdf',
       },
       { kind: 'text', text: ' (last revised 15 June 2026).' },
-    ],
-    [
-      {
-        kind: 'text',
-        text: 'The reporting form’s own line for the lump sum, and the instruction not to list its donors: the Political Party Unit Handbook, in its walkthrough of a contributions schedule.',
-      },
     ],
     [
       { kind: 'text', text: 'The heading on the download, and the file itself: the Board’s ' },
