@@ -1,0 +1,127 @@
+name: Check the links in Alethical's published writing
+
+# Every published research piece and guide ends in a sources block, and the whole
+# point of that block is that a reader can go and check the record themselves.
+# "Nothing here requires trusting us. It requires looking," says the first
+# research piece. A link that no longer resolves takes that away.
+#
+# Nothing in normal CI can catch it: the drift comes from the Campaign Finance
+# Board moving a page, not from a commit. And a status-code checker cannot catch
+# it either, because every soft failure measured against cfb.mn.gov answers
+# HTTP 200 with a page reading "This page is not available"
+# (docs/architecture/campaign-finance-system-design.md 2.1 and 2.2). So the check
+# reads each page's own words.
+#
+# Two hand-run sweeps in 2 days each found dead links on live pages (#1802, then
+# #1815, which found 2 more in 2 different guides). This is the third sweep, and
+# the last one anybody has to remember to run.
+#
+# Free: about 16 public page reads a week, no database, no credentials, no paid
+# call. Quiet: it opens an issue only when a link actually fails, and comments on
+# the open one rather than filing a second.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "apps/frontend/src/lib/researchPieces/**"
+      - "scripts/check_published_piece_links.py"
+      - ".github/workflows/published-piece-links.yml"
+  schedule:
+    # 13:00 UTC Mondays (~7-8am America/Chicago). Weekly rather than daily
+    # because a government site's addresses change on the scale of months: the 2
+    # dead links found in one week were a backlog nobody had ever swept, not a
+    # rate. Weekly holds a dead link to about a week and keeps the issue volume
+    # in a normal month at zero.
+    - cron: "0 13 * * 1"
+
+concurrency:
+  group: published-piece-links
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # A pull request checks only what a pull request can break: that every
+      # piece still yields links, and that a guide's link to another guide points
+      # at a slug that exists. It deliberately fetches nothing. Rule 13 puts a
+      # change to a posted piece with the Alethical team, so a link the Board
+      # moved is not something the author of an unrelated pull request may fix -
+      # blocking them on it would only teach everyone to merge past this check.
+      - name: Check the pieces' own links, without touching the network
+        if: github.event_name == 'pull_request'
+        run: python scripts/check_published_piece_links.py --offline
+
+      - name: Read every outward link's own page
+        id: check
+        if: github.event_name != 'pull_request'
+        run: |
+          set +e
+          python scripts/check_published_piece_links.py > check-output.txt 2>&1
+          echo "status=$?" >> "$GITHUB_OUTPUT"
+          cat check-output.txt
+
+      - name: Open or update an issue when a link has died
+        if: steps.check.outputs.status != '0' && github.event_name != 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const output = fs.readFileSync('check-output.txt', 'utf8');
+            const title = "A published piece links to a page that is no longer there";
+            const body = [
+              "Net: one of Alethical's published pieces sends readers to a page that no",
+              "longer exists, so a reader who goes to check a figure for themselves finds",
+              "nothing. The failure below answers HTTP 200 in every case measured so far,",
+              "which is why no ordinary link checker reports it.",
+              "",
+              "A change to a posted piece is the Alethical team's to direct",
+              "(`.claude/rules/grounded-answers.md` rule 13), so report the replacement",
+              "rather than editing the piece. Resolve it from the Board's own index page",
+              "and confirm it by reading the page, never by its status code.",
+              "",
+              "```",
+              output.trim(),
+              "```",
+              "",
+              `Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+            ].join("\n");
+
+            const existing = await github.paginate(github.rest.issues.listForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "open",
+              per_page: 100,
+            });
+            const open = existing.find((issue) => issue.title === title);
+            if (open) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: open.number,
+                body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels: ["documentation", "frontend"],
+              });
+            }
+
+      - name: Fail the run when a link has died
+        if: steps.check.outputs.status != '0'
+        run: exit 1
