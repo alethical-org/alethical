@@ -911,6 +911,44 @@ describe('addresses that are not real pages', () => {
     expect(body).not.toContain('page-snapshot');
   });
 
+  // A filtered view of one free-text spelling, not a record: an indexable page
+  // per spelling would put an unbounded set of thin pages in front of search
+  // engines, and a page indexed under a name reads as a profile of whoever
+  // carries it — the one thing this page may never be
+  // (page-metadata-for-search-and-sharing-decisions.md §22, §20.5 rule 4).
+  it('keeps a payments-under-a-name address out of the index, and asks the API for nothing', async () => {
+    const calls: string[] = [];
+    stubNetwork((url) => {
+      calls.push(url);
+      return { status: 500 };
+    });
+
+    const { body, headers, status } = await serve({
+      path: '/money/payments',
+      name: 'Heat & Frost Insulators Local #34',
+      role: 'contributor',
+    });
+
+    expect(status).toBe(200);
+    expect(headers.get('X-Robots-Tag')).toBe('noindex');
+    expect(body).not.toContain('rel="canonical"');
+    expect(body).toContain(
+      '<title>Money given under the name “Heat &amp; Frost Insulators Local #34” | Alethical</title>',
+    );
+    expect(body).toContain(
+      '<div id="root"><!--alethical:page-snapshot--><!--/alethical:page-snapshot--></div>',
+    );
+    expect(calls).toHaveLength(0);
+  });
+
+  it('returns 404 for a payments-under-a-name address with no name or an unserved role', async () => {
+    stubNetwork(() => ({ status: 500 }));
+    expect((await serve({ path: '/money/payments' })).status).toBe(404);
+    expect(
+      (await serve({ path: '/money/payments', name: 'Facebook', role: 'employer' })).status,
+    ).toBe(404);
+  });
+
   it('returns 404 for an address with no page behind it', async () => {
     stubNetwork(() => ({ status: 500 }));
     const { status, body, headers } = await serve({ path: '/not-a-page' });

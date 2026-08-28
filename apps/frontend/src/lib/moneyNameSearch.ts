@@ -70,20 +70,21 @@ const GROUP_NOTES: Record<NameSearchGroupKind, string> = {
     'A person is a result only where we hold a record of them beyond these filings — the 200 ' +
     'sitting legislators. Everyone else on a filing resolves to what they filed.',
   committees:
-    'The only rows that open a page: a committee carries a registration number, so its address ' +
-    'survives a change of name. Two committees registered under one person’s name are never ' +
-    'added together — money moved between committees one person controls is filed as a ' +
-    'contribution in both, so a combined figure would count the same dollars twice.',
+    'A committee carries a registration number, so its row opens a page about the committee ' +
+    'itself and that address survives a change of name. Two committees registered under one ' +
+    'person’s name are never added together — money moved between committees one person ' +
+    'controls is filed as a contribution in both, so a combined figure would count the same ' +
+    'dollars twice.',
   gave:
-    'A donor’s name is searchable and is deliberately not a profile. Each row is one spelling ' +
-    'exactly as it was filed, and we never join 2 spellings into one person: the records hold ' +
-    '“Messinger, Alida”, “Messinger, Alida R” and “Messinger, Alida Rockefelle” as 3 separate ' +
-    'strings, and the same file holds 2 spellings of another name that any rule loose enough to ' +
-    'join the first 3 would join to each other.',
+    'A row opens the payments filed under that exact spelling, and is deliberately not a ' +
+    'profile. We never join 2 spellings into one person: the records hold “Messinger, Alida”, ' +
+    '“Messinger, Alida R” and “Messinger, Alida Rockefelle” as 3 separate strings, and the same ' +
+    'file holds 2 spellings of another name that any rule loose enough to join the first 3 ' +
+    'would join to each other.',
   got_paid:
-    'A name that only ever got paid carries no registration number, so it has no page of its ' +
-    'own. The number beside it counts payment records filed under that exact spelling, and it ' +
-    'is never an amount.',
+    'A name that only ever got paid carries no registration number, so it has no page about ' +
+    'it — a row opens the payments filed under that name, exactly as spelled here. The number ' +
+    'beside it counts payment records under that spelling, and it is never an amount.',
   got_paid_independent:
     'A separate filing from the one above, and the 2 are never added: 491 rows of the ' +
     'independent-spending file share a spender, name, amount and date with an ordinary ' +
@@ -93,13 +94,6 @@ const GROUP_NOTES: Record<NameSearchGroupKind, string> = {
 
 export function groupNote(kind: NameSearchGroupKind): string {
   return GROUP_NOTES[kind];
-}
-
-/** Whether a group's rows open a page. Only committees and sitting members have
- *  one; a payment name has no identifier at all, so its row is plain text with no
- *  arrow, no pointer and nothing to press. */
-export function groupRowsOpenAPage(kind: NameSearchGroupKind): boolean {
-  return kind === 'people' || kind === 'committees';
 }
 
 /** "1 MATCH" / "12 MATCHES" / "MORE THAN 200 MATCHES", or null when the server

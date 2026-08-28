@@ -18,7 +18,6 @@ import {
   groupCountLabel,
   groupHeading,
   groupNote,
-  groupRowsOpenAPage,
   hasAnyResult,
   NAME_SEARCH_EMPTY_QUERY_TITLE,
   NAME_SEARCH_EMPTY_QUERY_WHY,
@@ -39,6 +38,7 @@ import {
   type NameSearchGroupKind,
 } from '../../lib/moneyNameSearch';
 import { RECORD_DOES_NOT_COVER } from '../../lib/moneyLanding';
+import { paymentNameRole } from '../../lib/paymentsUnderName';
 import { useDocumentTitle } from '../../navigation/documentTitle';
 import { linkProps, routePath } from '../../navigation/links';
 import type { RootScreenProps } from '../../navigation/types';
@@ -62,10 +62,12 @@ import { theme as t } from '../../theme/tokens';
  * - **A capped count reads "more than N".** The server counts distinct names up
  *   to its own ceiling and then says "at least"; printing that ceiling as a total
  *   would be a made-up figure in the largest type on the page (rule 11).
- * - **A name row does not open anything.** Only committees and sitting members
- *   carry an identifier, so those rows are links; a payment name is one spelling
- *   with no identifier at all, and its page is issue #1780. A row with no
- *   destination stays plain text rather than promising one.
+ * - **A name row opens its payments, never a profile.** Committees and sitting
+ *   members carry an identifier, so those rows open a page ABOUT them. A payment
+ *   name is one spelling with no identifier at all, so its row opens every payment
+ *   filed under that exact spelling and nothing more (issue #1780). Each group's
+ *   note says which of the 2 its rows are, because rows that looked alike would
+ *   promise a profile that cannot exist.
  *
  * What this record does not cover sits ABOVE the results, not under them
  * ("Campaign money IA.dc.html" §06): somebody who types a name, gets nothing and
@@ -105,8 +107,9 @@ export function MoneySearchScreen({ navigation, route }: RootScreenProps<'MoneyS
       <ScrollView contentContainerStyle={styles.page}>
         <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
 
-        {/* The section is still being built (the who-got-paid page is issue
-            #1780) and nothing else on the page says so at a glance. */}
+        {/* The money section is still being built — lobbying is not loaded, and no
+            sitting member's committee has been confirmed by a person yet — and
+            nothing else on the page says so at a glance. */}
         <UnderDevelopmentNotice />
 
         <Container style={[styles.main, isMobile && styles.mainMobile]}>
@@ -275,12 +278,7 @@ function ResultGroup({
       ) : (
         <View style={styles.rows}>
           {group.results.map((row, index) => (
-            <ResultRow
-              key={`${group.kind}-${index}`}
-              row={row}
-              opensAPage={groupRowsOpenAPage(kind)}
-              navigation={navigation}
-            />
+            <ResultRow key={`${group.kind}-${index}`} row={row} navigation={navigation} />
           ))}
         </View>
       )}
@@ -301,11 +299,9 @@ function ResultGroup({
 
 function ResultRow({
   row,
-  opensAPage,
   navigation,
 }: {
   row: NameSearchRow;
-  opensAPage: boolean;
   navigation: RootScreenProps<'MoneySearch'>['navigation'];
 }) {
   if (row.kind === 'person') {
@@ -327,8 +323,13 @@ function ResultRow({
   if (row.kind === 'committee') {
     const slug = committeeSlug(row.name, row.registrationNumber);
     const closed = row.isClosed ? closedChipLabel(row.terminationDate) : null;
-    const inner = (
-      <>
+    return (
+      <Pressable
+        {...linkProps(routePath.moneyCommittee(slug), () =>
+          navigation.push('CommitteeMoney', { slug }),
+        )}
+        style={styles.row}
+      >
         <View style={styles.rowText}>
           <View style={styles.rowNameLine}>
             <Text style={styles.rowName}>{row.name}</Text>
@@ -344,32 +345,33 @@ function ResultRow({
           </Text>
         </View>
         <Text style={styles.rowReg}>REG {row.registrationNumber}</Text>
-      </>
-    );
-    if (!opensAPage) {
-      return <View style={styles.row}>{inner}</View>;
-    }
-    return (
-      <Pressable
-        {...linkProps(routePath.moneyCommittee(slug), () =>
-          navigation.push('CommitteeMoney', { slug }),
-        )}
-        style={styles.row}
-      >
-        {inner}
       </Pressable>
     );
   }
 
-  // A payment name. No registration number, so no page and no control: a row
-  // with nothing to open stays plain text (issue #1780 builds its page).
-  return (
-    <View style={styles.row}>
-      <View style={styles.rowText}>
-        <Text style={styles.rowName}>{row.name}</Text>
-        <Text style={styles.rowMeta}>{paymentNameMeta(row.paymentCount)}</Text>
-      </View>
+  // A payment name. It carries no registration number, so it opens the payments
+  // filed under that exact spelling rather than a page about anybody (#1780). The
+  // served `role` is handed straight back to that page, so the group a row came
+  // from and the file its payments are read out of cannot drift apart.
+  const inner = (
+    <View style={styles.rowText}>
+      <Text style={styles.rowName}>{row.name}</Text>
+      <Text style={styles.rowMeta}>{paymentNameMeta(row.paymentCount)}</Text>
     </View>
+  );
+  const role = paymentNameRole(row.role);
+  if (!role) {
+    return <View style={styles.row}>{inner}</View>;
+  }
+  return (
+    <Pressable
+      {...linkProps(routePath.moneyPaymentsUnderName(row.name, role), () =>
+        navigation.push('PaymentsUnderName', { name: row.name, role }),
+      )}
+      style={styles.row}
+    >
+      {inner}
+    </Pressable>
   );
 }
 

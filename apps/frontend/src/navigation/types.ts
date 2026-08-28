@@ -88,6 +88,13 @@ export type RootStackParamList = {
   // One typed name matched across the 5 kinds of record. The query is the whole
   // state, so a results page is a link somebody can send.
   MoneySearch: { q?: string } | undefined;
+  // Every payment filed under exactly one printed name (issue #1780). The name is
+  // free text and is the whole of the key — a payee carries no identifier in
+  // Minnesota's data — so it rides in the query string rather than the path, where
+  // a slash, a hash or an ampersand in a filed name would have to survive path
+  // encoding. `role` names which of the 3 downloads is being read and is the
+  // server's own value, verbatim; a role we do not answer for lands on NotFound.
+  PaymentsUnderName: { name: string; role: string };
   Privacy: undefined;
   SiteMetrics: undefined;
   Terms: undefined;

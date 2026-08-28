@@ -1132,9 +1132,13 @@ different day's data.
   question.
 - **503** — no usable release at all. A fact about us.
 
-**Neither is wired to any client yet.** Nothing under `apps/frontend/src` references either; the
-clicking belongs to [#1331](https://github.com/alethical-org/alethical/issues/1331)'s remaining
-half, which waits on [#1329](https://github.com/alethical-org/alethical/issues/1329).
+**Both are wired now.** The committee route draws
+`/money/committees/{slug}/payments` (#1331), and the name route draws
+`/money/payments?name=…&role=…` ([#1780](https://github.com/alethical-org/alethical/issues/1780)),
+reached by opening a name from the search results page. That page passes `role` back exactly as
+the search served it, uses no `year`, and never prints a total across the rows — which is why
+`total_payments` staying `null` here costs it nothing: it says how many rows it is showing and
+that more are filed, never "of N".
 
 #### `GET /api/v1/campaign-finance/summary`
 

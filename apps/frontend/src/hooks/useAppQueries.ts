@@ -32,6 +32,7 @@ import {
   getCommitteeFinanceFromApi,
   getCommitteePaymentsMadeFromApi,
   getCommitteePaymentsReceivedFromApi,
+  getPaymentsUnderNameFromApi,
   ListPagination,
   LegislatorListFilters,
   listChatSessionsFromApi,
@@ -59,6 +60,11 @@ import type {
 } from '../data/types';
 import { NotificationPreference, RepresentativeLookupInput } from '../data/types';
 import { outsideSpendingLoadFailure } from '../lib/outsideSpending';
+import {
+  PAYMENTS_UNDER_NAME_PAGE_SIZE,
+  type PaymentNameRole,
+  type PaymentUnderName,
+} from '../lib/paymentsUnderName';
 import { trackState, TrackState } from '../lib/trackedState';
 import { useAuth } from '../providers/AuthProvider';
 
@@ -458,6 +464,35 @@ export function useCommitteePaymentsList(
     getNextPageParam: (lastPage, allPages) =>
       lastPage && lastPage.hasMore ? allPages.length * 250 : undefined,
     enabled: Boolean(registrationNumber),
+    retry: false,
+  });
+}
+
+/**
+ * Every payment filed under exactly one printed name, for /money/payments (issue
+ * #1780): pages of 250, newest first, accumulated as the reader asks for more.
+ *
+ * Newest first because that is the only order the server serves on a name-keyed
+ * lookup, and the page says so where a reader can see it. 250 matches the served
+ * maximum, so one press is one request.
+ *
+ * No `year` is passed, so this is every year our copy of the downloads reaches.
+ * A payment carries its own date and reads honestly in a list spanning years,
+ * which is why the name route makes the year optional where the committee route
+ * does not.
+ */
+export function usePaymentsUnderName(name: string, role: PaymentNameRole | null) {
+  return useInfiniteQuery({
+    queryKey: ['payments-under-name', name, role],
+    queryFn: ({ pageParam }): Promise<CommitteePaymentsPage<PaymentUnderName>> =>
+      getPaymentsUnderNameFromApi(name, role as PaymentNameRole, {
+        limit: PAYMENTS_UNDER_NAME_PAGE_SIZE,
+        offset: pageParam,
+      }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) =>
+      lastPage.hasMore ? allPages.length * PAYMENTS_UNDER_NAME_PAGE_SIZE : undefined,
+    enabled: name.length > 0 && role !== null,
     retry: false,
   });
 }

@@ -178,8 +178,10 @@ export function confirmationDateLine(newestConfirmationAt: string | null): strin
  * `lib/research.ts`: the served page and the drawn page must be the same words,
  * and 2 copies of a sentence is how one gets fixed and the other does not.
  *
- * The 3rd lane card ("Who got paid") is deliberately absent. It has no page yet,
- * so it is inert on the screen and there is nothing for a first response to link.
+ * All 3 lane cards live here now. The "Who got paid" card was inert until #1780,
+ * because the design set draws no browse-all-payees list and its card promised
+ * one; it now opens the name search, which is the only honest way in — see
+ * MONEY_LANE_WHO_GOT_PAID below.
  */
 export const MONEY_LANDING_HEADING = 'Follow the money';
 
@@ -195,6 +197,28 @@ export const MONEY_LANE_LEGISLATORS = {
 export const MONEY_LANE_COMMITTEES = {
   title: 'Committees',
   body: 'Campaign committees, party units, and other registered funds.',
+} as const;
+
+/**
+ * The 3rd lane, and the one whose wording had to be settled rather than drawn
+ * (issue #1780).
+ *
+ * **This lane is a search, not a list, and the card says so.** A payee carries no
+ * identifier in Minnesota's data — the printed spelling is the whole of the key —
+ * so a browse-all-payees list could only be ordered 4 ways, and 3 of them are
+ * forbidden and the 4th is useless: by amount, by number of records, or by most
+ * recent payment are all rankings across filers on different filing calendars,
+ * which `.claude/rules/grounded-answers.md` rule 12 forbids outright; and
+ * alphabetical is honest and useless across hundreds of thousands of spellings.
+ * There is no honest ordering, so the lane opens the search field, and one name
+ * opens every payment filed under that exact spelling.
+ */
+export const MONEY_LANE_WHO_GOT_PAID = {
+  title: 'Who got paid',
+  body:
+    'Search a name to see every payment filed under that exact spelling. There is no list of ' +
+    'every payee: these names carry no identifier, so any order across committees on different ' +
+    'filing calendars would set one period against another.',
 } as const;
 
 /** The one freshness date the landing shows, worded as the screen words it: the

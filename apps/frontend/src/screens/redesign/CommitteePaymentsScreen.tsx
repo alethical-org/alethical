@@ -130,9 +130,10 @@ export function CommitteePaymentsScreen({
       <ScrollView contentContainerStyle={styles.page}>
         <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
 
-        {/* The section is partially built (the who-got-paid page is #1780) and
-            nothing else on the page says so at a glance. Deleting the element
-            and its component file is the whole removal. */}
+        {/* The money section is still being built — lobbying is not loaded, and no
+            sitting member's committee has been confirmed by a person yet — and
+            nothing else on the page says so at a glance. Deleting the element and
+            its component file is the whole removal. */}
         <UnderDevelopmentNotice />
 
         <Container style={[styles.main, isMobile && styles.mainMobile]}>

@@ -1,15 +1,20 @@
-<!-- describes: apps/frontend/src/screens/redesign/MoneyLandingScreen.tsx, apps/frontend/src/screens/redesign/ReadScreen.tsx, apps/frontend/src/screens/redesign/ResearchScreen.tsx, apps/frontend/src/screens/redesign/CommitteeMoneyScreen.tsx, apps/frontend/src/screens/redesign/CommitteePaymentsScreen.tsx, apps/frontend/src/screens/redesign/CommitteeListScreen.tsx, apps/frontend/src/screens/redesign/MoneySearchScreen.tsx, apps/frontend/src/components/campaignMoney/MoneyNameSearchField.tsx, apps/frontend/src/lib/moneyLanding.ts, apps/frontend/src/lib/research.ts, apps/frontend/src/lib/researchPieces/whoHasToReportTheirMoney.ts, apps/frontend/src/lib/researchPieces/whatTheRecordsName.ts, apps/frontend/src/components/read/SetBox.tsx, apps/frontend/src/lib/committeeMoney.ts, apps/frontend/src/lib/committeeList.ts, apps/frontend/src/lib/moneyNameSearch.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/webRoutes.ts -->
+<!-- describes: apps/frontend/src/screens/redesign/MoneyLandingScreen.tsx, apps/frontend/src/screens/redesign/ReadScreen.tsx, apps/frontend/src/screens/redesign/ResearchScreen.tsx, apps/frontend/src/screens/redesign/CommitteeMoneyScreen.tsx, apps/frontend/src/screens/redesign/CommitteePaymentsScreen.tsx, apps/frontend/src/screens/redesign/CommitteeListScreen.tsx, apps/frontend/src/screens/redesign/MoneySearchScreen.tsx, apps/frontend/src/screens/redesign/PaymentsUnderNameScreen.tsx, apps/frontend/src/components/campaignMoney/MoneyNameSearchField.tsx, apps/frontend/src/lib/moneyLanding.ts, apps/frontend/src/lib/research.ts, apps/frontend/src/lib/researchPieces/whoHasToReportTheirMoney.ts, apps/frontend/src/lib/researchPieces/whatTheRecordsName.ts, apps/frontend/src/components/read/SetBox.tsx, apps/frontend/src/lib/committeeMoney.ts, apps/frontend/src/lib/committeeList.ts, apps/frontend/src/lib/moneyNameSearch.ts, apps/frontend/src/lib/paymentsUnderName.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/webRoutes.ts -->
 
 # How the Campaign money section works
 
 **Net.** `/money` is the public front door to Minnesota's campaign-money records, open to
 everyone with no sign-in. Typing a name in the box on it now works, the register of
-committees has its own browsable list, and every committee page is reachable by browsing
-rather than only by pasting an address. One part of the section is still unbuilt and says
-so on the page: the Who got paid lane
+committees has its own browsable list, every committee page is reachable by browsing rather
+than only by pasting an address, and a name that got paid opens every payment filed under
+that exact spelling
 ([#1780](https://github.com/alethical-org/alethical/issues/1780)). Our own signed research
 lives one level up, on the `/read` page, which the money landing points at. One piece is
 published there.
+
+The section is still marked under development on every page, because 2 things a reader
+might expect are genuinely missing: **lobbying** is published by Minnesota and not loaded by
+us, and **no sitting member's committee has been confirmed by a person yet**, so no
+legislator profile shows money.
 
 **"Report" means one thing on this site: the document a campaign files with the state.** Our
 own writing is **Research**, and a short piece explaining 1 term is a **Guide** (settled
@@ -27,6 +32,8 @@ permanently and straight to the `/read` address it belongs to, never through the
   the results page at `/money/search?q=…`.
 - Open `/money/committees` directly for the whole register, or `/money/search?q=…` for a
   search somebody shared with you.
+- Open a name that gave or got paid from a search result, which opens
+  `/money/payments?name=…&role=…` — a link somebody can share, showing the same list.
 - The retired address `/track/campaign-finance` (an old greyed "Campaign Finance" tracking
   row pointed there) shows the `/money` landing instead of an error.
 
@@ -67,15 +74,20 @@ Top to bottom:
 3. **What we found** — the research lane, first in prominence. It links to the `/read`
    page, showing the newest piece's title, standfirst and dates. With nothing published it
    says "Nothing is published yet" and counts "0 RESEARCH PIECES PUBLISHED" honestly.
-4. **Three lane cards**: Legislators (links to the legislator directory — a member's money
-   is a tab on the profile they already have), Committees (links to the register's own list
-   at `/money/committees`), and Who got paid. Only Who got paid is still inert: it is
-   visibly not clickable, carries a "NOT BUILT YET" chip, and says "This page is not built
-   yet." Its card promises a list nothing has drawn — a name's payments are reached from a
-   search result rather than from a lane — so the card stays inert until
-   [#1780](https://github.com/alethical-org/alethical/issues/1780) settles what it opens.
-   Every lane being visible — built or not — is a deliberate decision (Eugene, 18 Aug
-   2026), so a reader sees the whole shape of the section.
+4. **Three lane cards, and all 3 open something**: Legislators (links to the legislator
+   directory — a member's money is a tab on the profile they already have), Committees
+   (links to the register's own list at `/money/committees`), and Who got paid, which opens
+   the name search. **That last lane is a search rather than a list, and its card says so.**
+   There is no browse-all-payees list and there deliberately never will be one: a payee
+   carries no identifier in Minnesota's data, so such a list could only be ordered 4 ways
+   and 3 of them are forbidden while the 4th is useless. By amount, by how many records
+   carry the name, or by most recent payment are all rankings across committees on
+   different filing calendars, which sets one period against another
+   ([`.claude/rules/grounded-answers.md`](../../.claude/rules/grounded-answers.md) rule 12);
+   alphabetical is honest and useless across hundreds of thousands of spellings. Ruled
+   27 Aug 2026 on [#1780](https://github.com/alethical-org/alethical/issues/1780). Every
+   lane being visible is a deliberate decision (Eugene, 18 Aug 2026), so a reader sees the
+   whole shape of the section.
 5. **What this record does not cover**: nothing before 2015; unions do not report to this
    board; and the exact sentence "Donors who gave $200 or less in total for the year need
    not be named" (the $200 test is on a donor's yearly total, never on one gift's size, and
@@ -163,11 +175,12 @@ A common name genuinely matches thousands; the server counts distinct names up t
 then stops, and printing that ceiling as a total would be a made-up figure in the largest
 type on the page. When any group reads that way, a line says where the counting stopped.
 
-The three name groups' rows are plain text with no arrow and nothing to press: a name that
-only ever appears on a payment carries no registration number, so it has no page of its own
-yet, and each group says that in its own words rather than offering a control that goes
-nowhere. Their page is
-[#1780](https://github.com/alethical-org/alethical/issues/1780).
+**Every row opens something now, and the 2 kinds of destination are different on purpose.**
+A person or a committee opens a page **about them**, because both carry an identifier that
+survives a change of name. A name from one of the 3 payment groups carries no identifier at
+all, so it opens **the payments filed under that exact spelling** and nothing else. Each
+group says which of the 2 its rows are, because rows that looked alike would promise a
+profile of a business that these records cannot support.
 
 Its own states, each with its own words: nothing typed yet ("Type a name to search", with a
 link to the committees list); a query under the search's floor ("Type at least 3
@@ -176,6 +189,88 @@ match at all ("Nothing is filed under '…'", the spelling advice, no nearest-ma
 and a link to browse all committees); one group our copy could not read (a gap on our side,
 while the other groups still answer); and loading placeholders that announce themselves to
 screen readers.
+
+## Payments filed under one name (`/money/payments?name=…&role=…`)
+
+Every payment Minnesota's filings record under **one printed name, exactly as it was
+spelled**. Reached by opening a name from one of the 3 payment groups on the search results
+page. Built by [#1780](https://github.com/alethical-org/alethical/issues/1780).
+
+**This page is a spelling, not an organisation, and everything about it follows from that.**
+A donor, an employer and a business that got paid carry no identifier anywhere in
+Minnesota's data, so the printed string is the whole of the key. The records hold
+"Messinger, Alida", "Messinger, Alida R" and "Messinger, Alida Rockefelle" as 3 separate
+strings, and the same file holds "Messinger, William Frye" beside "Messinger, Wiiiam Frey" —
+so any rule loose enough to join the first 3 joins those 2 as well, and we join none of
+them. The heading therefore quotes the spelling with words in front of it ("Money paid under
+the name 'Facebook'") rather than standing the bare name up as a title, and the sentence
+under it says out loud that spellings vary, that this may not be everything, and that a name
+is all this is.
+
+**There is no total, and that is the single most important thing about the page.** Every row
+carries its own amount and nothing adds them up: the rows come from committees on different
+filing calendars, so any combined figure would set one period against another
+([`.claude/rules/grounded-answers.md`](../../.claude/rules/grounded-answers.md) rule 12).
+A test fails the build if a total, subtotal, average or any other cross-row figure appears
+in either the page or the library behind it.
+
+**Three separate addresses, never one.** The `role` in the address says which of Minnesota's
+3 downloads is being read, and the 3 are never combined:
+
+- `role=contributor` — money **given** under that name. Each row names the committee that
+  received it.
+- `role=vendor` — money **paid** to that name by a committee, from the expenditures file.
+- `role=independent_vendor` — money paid to that name out of **independent spending**, from
+  a separate file. Its page carries an extra sentence saying the 2 are never added: 491 rows
+  of the independent file share a spender, name, amount and date with an ordinary
+  expenditure row, and whether that is one payment filed twice or 2 that coincide is not
+  established.
+
+A 4th role exists on the server, reading the box a donor types their employer into. Nothing
+links to it and this page does not accept it: that box is free text whose commonest entries
+are "Not Employed" and "Retired", so it is never a company's giving and it would need
+wording of its own.
+
+**Why both halves of the state are in the query string rather than the path.** Filed names
+really do carry the characters that break an address: "AT&T", "Heat & Frost Insulators Local
+#34" and "EveryAction Inc d/b/a NGP VAN" are all in the live release. An ampersand would
+split the address into 2, a hash would cut everything after it off, and a slash inside a
+path segment has to be encoded as `%2F`, which hosts and proxies are free to rewrite before
+we ever see it. A query parameter survives all 3 intact, and it matches the section's other
+filtered views. An address with no name, or a role we do not serve, is a page that does not
+exist rather than a page about something else.
+
+**Search engines are not sent here, deliberately.** The page carries a "do not index"
+instruction: there is one address per spelling out of hundreds of thousands, and a page
+listed under a name would read as a profile of whoever carries it — the one thing this page
+may never be
+([`docs/architecture/page-metadata-for-search-and-sharing-decisions.md`](../architecture/page-metadata-for-search-and-sharing-decisions.md)
+§22). It stays crawlable, so the committee pages its rows link to are still reachable.
+
+Each row names **the committee whose filing carries it**, with the filing's own words
+underneath (the kind of committee that received a donation, or an expenditure's own stated
+purpose, or which candidate independent spending was for or against), its own date and its
+own amount. A row opens that committee's page wherever our records hold that number as a
+filer; where they do not, the name stays plain text rather than offering a link that dies.
+
+Above the rows, one line says what is on the page, and it never says more than that. When
+nothing is held back it reads "9 payments, from 7 committees" — both counted from the rows
+themselves. When more are filed than we loaded it reads "Showing the first 250 payments,
+newest first" and drops the committee count entirely: the server serves no count on a
+name-keyed lookup, so "of 1,284" would be a number we invented, and a committee count over a
+partial list would read as how many committees filed in all.
+
+Rows arrive **newest first**, which the page states, and 250 at a time. The design drew this
+list largest-first; the server serves only date order for a name, so the page prints the
+order it actually has. The cap card says the cap is ours rather than the filings', and its
+button asks for the next batch without claiming how many are left.
+
+Its own states: nothing filed under that spelling ("Nothing is filed under '…' as spelled",
+the same spelling advice the search gives, no nearest-match guess, and a button back to the
+search); our copy of that download not answering, which says it is a gap on our side and
+never that nothing is filed; a load failure; and loading placeholders that announce
+themselves to screen readers. At the bottom, the same "what this record does not cover"
+block the landing and the search carry.
 
 ## The committees list (`/money/committees`)
 

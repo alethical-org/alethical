@@ -8,6 +8,7 @@ import {
   TRAILING_RETURN,
 } from '../lib/billDetail';
 import type { FilingScheduleState } from '../lib/legislatorCampaignMoney';
+import type { PaymentNameRole, PaymentUnderName } from '../lib/paymentsUnderName';
 import type { SourceBlock } from '../lib/billText';
 import type { SiteMetricEventName, SiteMetricRecordTotals } from '../lib/traffic';
 import { contactEmail, senateProfileUrl } from '../lib/findMyLegislator';
@@ -3138,6 +3139,82 @@ async function committeePaymentsRequest(
     if (isNotFoundError(error)) return null;
     throw error;
   }
+}
+
+/**
+ * Every payment filed under exactly one printed name, for /money/payments
+ * (issue #1780). Shares the committee route's envelope, so the same page shaper
+ * reads it.
+ *
+ * The 3 roles come from 3 different downloads with 3 different column sets, and
+ * they are flattened here into the one row the page draws — which committee filed
+ * it, what the filing calls it, its own amount and its own date. Flattening in
+ * one place is what keeps the 3 answers from being added together anywhere later:
+ * a caller asks for exactly one role and gets exactly that file's rows.
+ *
+ * `total_payments` is never served on a name-keyed lookup, so `totalPayments` is
+ * always null here and the page may not print "of N" (grounded-answers rule 11).
+ */
+export async function getPaymentsUnderNameFromApi(
+  name: string,
+  role: PaymentNameRole,
+  options: { limit?: number; offset?: number } = {},
+): Promise<CommitteePaymentsPage<PaymentUnderName>> {
+  const params = new URLSearchParams({ name, role });
+  if (options.limit !== undefined) params.set('limit', String(options.limit));
+  if (options.offset !== undefined) params.set('offset', String(options.offset));
+  const response = await publicApiRequest<DetailResponse<ApiCommitteePaymentsPayload>>(
+    `/campaign-finance/payments-under-name?${params.toString()}`,
+  );
+  return committeePaymentsPage(response.data, (row) => paymentUnderName(row, role));
+}
+
+/** One served row, whichever of the 3 downloads it came from. */
+function paymentUnderName(row: Record<string, unknown>, role: PaymentNameRole): PaymentUnderName {
+  if (role === 'contributor') {
+    return {
+      filerName: asText(row.recipient_name),
+      filerRegistrationNumber: asText(row.recipient_registration_number),
+      filerEntityType: asText(row.recipient_type),
+      receiptType: asText(row.receipt_type),
+      purpose: null,
+      expenditureType: null,
+      affectedCommitteeName: null,
+      stance: null,
+      amount: asText(row.amount),
+      paidOn: asText(row.received_on),
+      inKind: asText(row.in_kind),
+    };
+  }
+  if (role === 'vendor') {
+    return {
+      filerName: asText(row.committee_name),
+      filerRegistrationNumber: asText(row.committee_registration_number),
+      filerEntityType: null,
+      receiptType: null,
+      purpose: asText(row.purpose),
+      expenditureType: asText(row.expenditure_type),
+      affectedCommitteeName: null,
+      stance: null,
+      amount: asText(row.amount),
+      paidOn: asText(row.paid_on),
+      inKind: asText(row.in_kind),
+    };
+  }
+  return {
+    filerName: asText(row.spender),
+    filerRegistrationNumber: asText(row.spender_registration_number),
+    filerEntityType: null,
+    receiptType: null,
+    purpose: asText(row.purpose),
+    expenditureType: asText(row.expenditure_type),
+    affectedCommitteeName: asText(row.affected_committee_name),
+    stance: asText(row.stance),
+    amount: asText(row.amount),
+    paidOn: asText(row.paid_on),
+    // The independent-expenditures download carries no in-kind column at all.
+    inKind: null,
+  };
 }
 
 interface ApiCommitteeFilingPayload {

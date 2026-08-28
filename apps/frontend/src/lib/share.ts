@@ -1,6 +1,7 @@
 import { plainBillSummary } from './billDetail';
 import { registrationNumberFromSlug } from './committeeMoney';
 import { directoryPagePath } from './directoryPagination';
+import { paymentNameRole, paymentsUnderNameHeading } from './paymentsUnderName';
 import {
   READ_PAGE_HEADING,
   READ_PAGE_INTRO,
@@ -439,6 +440,36 @@ export function moneySearchPageMetadata(query?: string | null): PageMetadata {
     socialTitle: label,
     description:
       'Search Minnesota state campaign filings by the name each record was filed under: legislators, committees, donors, and the businesses that got paid.',
+    canonicalPath: '',
+    noindex: true,
+  });
+}
+
+/**
+ * The payments filed under one printed name. Always noindex, and for a reason
+ * stronger than the search page's: the address is one free-text spelling out of
+ * hundreds of thousands, so listing it would put an unbounded set of thin pages
+ * in front of search engines
+ * (`docs/architecture/page-metadata-for-search-and-sharing-decisions.md` §20.5
+ * rule 4), and a page indexed under a name reads as a profile of whoever carries
+ * it — which is the one thing this page may never be
+ * (`.claude/rules/grounded-answers.md` rule 3, and the endpoint's own contract:
+ * the printed string is the whole of the key and never an identity).
+ *
+ * The page stays crawlable, so the committee pages its rows link to are still
+ * reachable.
+ */
+export function paymentsUnderNamePageMetadata(name: string, role: string): PageMetadata {
+  const validRole = paymentNameRole(role);
+  const label = validRole
+    ? paymentsUnderNameHeading(name, validRole)
+    : 'Payments filed under one name';
+  return pageMetadata({
+    title: titleFor(label),
+    socialTitle: label,
+    description:
+      'Every payment Minnesota’s campaign filings record under one printed name, exactly as it ' +
+      'was spelled, each row opening the committee that filed it.',
     canonicalPath: '',
     noindex: true,
   });
