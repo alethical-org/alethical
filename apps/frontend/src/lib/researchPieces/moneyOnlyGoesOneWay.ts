@@ -259,27 +259,65 @@ export const MONEY_ONLY_GOES_ONE_WAY: ResearchPiece = {
       ],
     },
   ],
-  sources: [
-    {
-      text: 'Minnesota Campaign Finance Board bulk data downloads — itemized contributions (583,120 records), itemized expenditures, and itemized independent expenditures over $200 (41,130 records), 2015–2026.',
-      note: 'Minnesota requires a committee to name a donor once that person has given more than $200 in total during a calendar year, and permits it to name smaller donors as well. Money from donors who are not named is reported as a single figure with no names attached, and this report counts only named payments. Official filed report totals are the authoritative figures for any individual committee.',
-      noteLink: {
+  // Both entries are runs rather than `sources` entries, because the lobbying one
+  // carries 2 links and that shape holds 1, and a piece sets exactly 1 of the 2
+  // shapes (pinned by research.test.ts). Rule 13 requires the records behind a
+  // cross-member figure computed from records we do not hold to be named AND
+  // LINKED, and the download is the only address from which the $886 million
+  // reproduces: the list beside it lets a reader look up 1 organisation and can
+  // never produce the total. Measured on the live page 28 Aug 2026 before this
+  // changed: that address appeared exactly once, as text inside the method box,
+  // inside 0 anchors. The contributions sentence is carried over word for word,
+  // its wrong 583,120 included, because correcting a printed figure is a separate
+  // decision that sits with the Alethical team (rule 13 point 2a).
+  sources: [],
+  sourceRuns: [
+    [
+      {
+        kind: 'text',
+        text:
+          'Minnesota Campaign Finance Board bulk data downloads \u2014 itemized ' +
+          'contributions (583,120 records), itemized expenditures, and itemized ' +
+          'independent expenditures over $200 (41,130 records), 2015\u20132026. ' +
+          'Minnesota requires a committee to name a donor once that person has given ' +
+          'more than $200 in total during a calendar year, and permits it to name ' +
+          'smaller donors as well. Money from donors who are not named is reported as ' +
+          'a single figure with no names attached, and this report counts only named ' +
+          'payments. Official filed report totals are the authoritative figures for ' +
+          'any individual committee. ',
+      },
+      {
+        kind: 'externalLink',
         text: 'Download the same files from the Board',
         href: 'https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/',
       },
-    },
-    {
-      text: 'CFB lobbying principal expenditure reports, 2015–2025.',
-      note: 'Alethical holds no lobbying records, so every lobbying figure in this report is read from the Board’s own reports rather than reproduced from our own data.',
-      noteLink: {
+      { kind: 'text', text: '.' },
+    ],
+    [
+      {
+        kind: 'text',
+        text:
+          'CFB lobbying principal expenditure reports, 2015\u20132025. Alethical holds ' +
+          'no lobbying records, so every lobbying figure in this report is read from ' +
+          'the Board\u2019s own reports rather than reproduced from our own data. ',
+      },
+      {
         // The Board moved this list and left the old address answering 200 with a page
         // reading "not available", so a reader checking our largest figure found nothing
         // (#1802). Verified live on 28 Aug 2026: this address renders "Historical
         // spending by principals on lobbying activities", covering 2007 through the
         // report due 16 Mar 2026, with a Total spent column per principal per year.
+        kind: 'externalLink',
         text: 'Look up a lobbying principal at the Board',
         href: 'https://cfb.mn.gov/reports-and-data/searches-and-lists/other-reports-and-lists/current-lists/#/principal-historical-spending/all/',
       },
-    },
+      { kind: 'text', text: ', or ' },
+      {
+        kind: 'externalLink',
+        text: 'download the rows these totals are added up from',
+        href: 'https://cfb.mn.gov/reports-and-data/self-help/data-downloads/lobbying/',
+      },
+      { kind: 'text', text: '.' },
+    ],
   ],
 };

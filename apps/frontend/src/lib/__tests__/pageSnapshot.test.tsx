@@ -484,6 +484,21 @@ describe('the piece snapshot serves the piece’s own writing, unchanged', () =>
   const snapshot = researchPageSnapshot(piece);
   const html = renderPageSnapshot(snapshot);
 
+  /**
+   * Every outward address the piece stores, across both source shapes. Counted
+   * from the piece rather than hard-coded, so adding or moving a source cannot
+   * leave these checks quietly covering fewer links than the page carries.
+   */
+  const sourceAddresses: { href: string; text: string }[] = [
+    ...piece.sources.flatMap((source) =>
+      source.noteLink ? [{ href: source.noteLink.href, text: source.noteLink.text }] : [],
+    ),
+    ...(piece.sourceRuns ?? [])
+      .flat()
+      .filter((run) => run.kind === 'externalLink')
+      .map((run) => ({ href: run.href, text: run.text })),
+  ];
+
   /** Every string the piece itself stores, exactly as the screen draws it. */
   const storedStrings = new Set<string>([
     piece.title,
@@ -493,6 +508,14 @@ describe('the piece snapshot serves the piece’s own writing, unchanged', () =>
     ...(piece.correction ? [piece.correction.datedLabel, piece.correction.note] : []),
     ...piece.sources.map((source) => researchSourceText(source)),
     ...piece.sources.flatMap((source) => (source.noteLink ? [source.noteLink.text] : [])),
+    // A piece stores its sources in exactly 1 of the 2 shapes, so this set has to
+    // know both or it silently stops covering whichever one the piece uses. This
+    // one moved to runs when its lobbying entry gained a second link (#1802).
+    ...(piece.sourceRuns ?? []).map((runs) => researchRunsText(runs)),
+    ...(piece.sourceRuns ?? [])
+      .flat()
+      .filter((run) => run.kind === 'externalLink')
+      .map((run) => run.text),
     ...[piece.shortVersion, ...piece.sections.map((section) => section.blocks)]
       .flat()
       .flatMap((block) => {
@@ -526,12 +549,29 @@ describe('the piece snapshot serves the piece’s own writing, unchanged', () =>
 
   it('serves each source address as a real anchor, not just its words', () => {
     const html = renderPageSnapshot(snapshot);
-    const linked = piece.sources.filter((source) => source.noteLink);
-    expect(linked.length).toBeGreaterThan(0);
-    for (const source of linked) {
-      expect(html).toContain(`<a href="${source.noteLink!.href}">`);
-      expect(html).toContain(source.noteLink!.text);
+    expect(sourceAddresses.length).toBeGreaterThan(0);
+    for (const { href, text } of sourceAddresses) {
+      expect(html).toContain(`<a href="${href}">`);
+      expect(html).toContain(text);
     }
+  });
+
+  it('links the records its largest figure is added up from', () => {
+    // Rule 13, as amended 28 Aug 2026: a cross-member figure computed from records
+    // we do NOT hold carries an inset, and the records behind it are named AND
+    // LINKED, because "a reader must be able to reproduce the total from the linked
+    // source". The $886 million lobbying total is exactly that figure, and this is
+    // the only address it reproduces from: the historical-spending list beside it
+    // lets a reader look up 1 organisation and can never produce a total.
+    //
+    // Pinned to the literal address rather than counted from the piece. Every other
+    // check here compares the served page against what the piece stores, so all of
+    // them stay green when the piece simply stops storing a link. Measured: deleting
+    // this anchor failed 0 tests before this one existed, and the page had already
+    // shipped for 2 hours carrying the address as unclickable text (#1802).
+    const DOWNLOAD = 'https://cfb.mn.gov/reports-and-data/self-help/data-downloads/lobbying/';
+    expect(sourceAddresses.map((source) => source.href)).toContain(DOWNLOAD);
+    expect(renderPageSnapshot(snapshot)).toContain(`<a href="${DOWNLOAD}">`);
   });
 
   it('serves every sentence, bullet and table cell verbatim', () => {
@@ -584,11 +624,10 @@ describe('the piece snapshot serves the piece’s own writing, unchanged', () =>
     // address, and no others. Rule 13 requires a filing body to be named AND
     // linked at its source, and a link the reader only gets after the app runs is
     // not a link at all to anything reading the first response.
-    const linked = piece.sources.filter((source) => source.noteLink);
-    expect(linked.length).toBeGreaterThan(0);
-    expect(html.match(/href="/g)).toHaveLength(1 + linked.length);
-    for (const source of linked) {
-      expect(html).toContain(`<a href="${source.noteLink!.href}">`);
+    expect(sourceAddresses.length).toBeGreaterThan(0);
+    expect(html.match(/href="/g)).toHaveLength(1 + sourceAddresses.length);
+    for (const { href } of sourceAddresses) {
+      expect(html).toContain(`<a href="${href}">`);
     }
   });
 
