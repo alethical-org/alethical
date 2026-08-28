@@ -158,8 +158,15 @@ export const MONEY_ONLY_GOES_ONE_WAY: ResearchPiece = {
         p(
           'Companies and organizations reported spending $886 million lobbying Minnesota government from 2015 through 2025.',
         ),
+        // The comparison's own half was unstated until 29 Aug 2026: a reader could check
+        // the $886 million against the method box and the linked download, and had
+        // nothing at all for the side it is being compared with. Eugene directed the
+        // figure and the ratio into the sentence. $329,576,005.47 is every candidate
+        // committee, party unit and political committee or fund's receipts for the same
+        // report years, recomputed from the Board's itemized contributions download that
+        // this piece's sources already name.
         p(
-          'That is more than every candidate, every caucus, and both state parties combined — with room to spare.',
+          'That is more than every candidate, every caucus, and both state parties combined — with room to spare. All of them together took in $329.6 million over the same years, so lobbying is 2.69 times as much.',
         ),
         p('The biggest spenders:'),
         {
