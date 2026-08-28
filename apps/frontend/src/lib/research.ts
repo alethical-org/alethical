@@ -218,10 +218,20 @@ export interface ResearchPiece {
    * `ResearchSource` holds 1 link per entry, so squeezing it into that shape
    * would break sentences that rule 13 forbids editing.
    *
-   * A piece sets exactly one of `sources` and `sourceRuns`; new pieces should
-   * reach for this one, which is the general shape. `sources` is kept because
-   * the posted research piece is served from it today and rearranging a live
-   * page's served text buys nothing.
+   * A piece sets exactly one of `sources` and `sourceRuns` (pinned by
+   * research.test.ts); new pieces should reach for this one, which is the general
+   * shape.
+   *
+   * This used to add that `sources` is kept "because the posted research piece is
+   * served from it today and rearranging a live page's served text buys nothing".
+   * That was true when written and stopped being true on 28 Aug 2026, so the
+   * research piece has moved. Rule 13 now requires the records behind a
+   * cross-member figure computed from records we do not hold to be named AND
+   * LINKED, and *The Money Only Goes One Way*'s lobbying entry needs 2 addresses
+   * to satisfy it: the list a reader looks 1 organisation up in, and the download
+   * its $886 million total reproduces from. One entry, 2 links, and this shape
+   * holds 1. So the conversion now buys the thing the old note priced at nothing.
+   * `sources` stays for the pieces still served from it.
    */
   sourceRuns?: ResearchInline[][];
   /** Set when a figure was corrected after publication. */
