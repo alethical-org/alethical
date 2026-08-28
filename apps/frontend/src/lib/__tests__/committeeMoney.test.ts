@@ -17,6 +17,8 @@ import {
   closedPeriodLine,
   committeeEyebrow,
   committeeSlug,
+  confirmedMemberLinkLabel,
+  confirmedMemberMoneyPath,
   coveredPeriodDetail,
   coveredPeriodLine,
   emptyListTitle,
@@ -140,17 +142,65 @@ describe('the register-driven header', () => {
 });
 
 describe('whose committee', () => {
+  const HORTMAN = { slug: 'melissa-hortman', fullName: 'Melissa Hortman' };
+
   it('a party unit and a fund never imply a person is missing', () => {
-    expect(whoseCommitteeText('party_unit', null)).toContain('not a candidate’s committee');
-    expect(whoseCommitteeText('party_unit', 'CAU')).toContain('caucus');
-    expect(whoseCommitteeText('political_committee_or_fund', 'PC')).toContain('fund');
-    expect(whoseCommitteeText('political_committee_or_fund', 'BC')).toContain('ballot');
+    expect(whoseCommitteeText('party_unit', null, null)).toContain('not a candidate’s committee');
+    expect(whoseCommitteeText('party_unit', 'CAU', null)).toContain('caucus');
+    expect(whoseCommitteeText('political_committee_or_fund', 'PC', null)).toContain('fund');
+    expect(whoseCommitteeText('political_committee_or_fund', 'BC', null)).toContain('ballot');
   });
 
   it('a candidate committee’s filed name is never treated as a confirmation', () => {
-    const text = whoseCommitteeText('candidate_committee', null);
+    const text = whoseCommitteeText('candidate_committee', null, null);
     expect(text).toContain('not a confirmation');
     expect(text).not.toContain('confirmed');
+  });
+
+  // The state this page could not describe until #1680: a person read Minnesota's
+  // records and wrote down whose committee this is.
+  it('a confirmed committee names the member and says a person decided it', () => {
+    const text = whoseCommitteeText('candidate_committee', null, HORTMAN);
+    expect(text).toContain('Melissa Hortman’s');
+    // Design §5.1: no score, threshold or rule ever produces a link, so the
+    // sentence has to carry the person, not just the word "confirmed". A bare
+    // "Confirmed" reads as our software having matched a name.
+    expect(text).toContain('Someone at Alethical');
+    expect(text).toContain('a decision a person made and signed');
+    // And the filed name is still never the evidence.
+    expect(text).toContain('on the strength of its filed name');
+  });
+
+  // #1663: 20 candidates hold more than one committee, and 2 of them would have
+  // 100% of a combined figure be the same money twice. The arithmetic guard is that
+  // issue's; this is the sentence's half, and "the committee of X" is what it bans.
+  it('a confirmed committee never claims to be the member’s only one', () => {
+    const text = whoseCommitteeText('candidate_committee', null, HORTMAN);
+    expect(text).toContain('a candidate can register more than one committee');
+    expect(text).toContain('this committee’s own record');
+    expect(text).not.toContain('the committee of');
+  });
+
+  // A rejection is a decision about our own proposal and never a reader-facing claim
+  // about the committee (§7), so it reaches this function as no confirmation at all
+  // and the page keeps the words it already had. The route is what proves a stored
+  // rejection arrives as null (alethical/tests/test_committee_page_reads.py).
+  it('reviewed-and-none-confirmed reads exactly as nobody-has-looked', () => {
+    expect(whoseCommitteeText('candidate_committee', null, null)).toBe(
+      whoseCommitteeText('candidate_committee', null, null),
+    );
+    expect(whoseCommitteeText('candidate_committee', null, null)).not.toContain(
+      'Someone at Alethical',
+    );
+  });
+
+  it('the link out names the member and lands on their money', () => {
+    expect(confirmedMemberLinkLabel('Melissa Hortman')).toBe(
+      'See Melissa Hortman’s campaign money',
+    );
+    expect(confirmedMemberMoneyPath('melissa-hortman')).toBe(
+      '/legislators/melissa-hortman?tab=money',
+    );
   });
 });
 

@@ -61,6 +61,8 @@ import {
   closedPeriodLine,
   committeeEyebrow,
   committeeSlug,
+  confirmedMemberLinkLabel,
+  confirmedMemberMoneyPath,
   coveredPeriodDetail,
   coveredPeriodLine,
   emptyListTitle,
@@ -951,6 +953,10 @@ export interface CommitteeMoneySnapshotSource {
     registration_date?: string | null;
     termination_date?: string | null;
   } | null;
+  confirmed_for?: {
+    slug?: string | null;
+    full_name?: string | null;
+  } | null;
   money_in?: {
     state?: string | null;
     other_receipts?: { receipt_type: string; total: string; payments: number }[] | null;
@@ -1127,6 +1133,12 @@ export function committeePageSnapshot(
   const moneyOut = money.money_out ?? {};
   const year = money.year ?? new Date().getFullYear();
   const closed = identity.state === 'closed-empty';
+  // Both fields or nothing, matching the app's own mapper: the sentence naming a
+  // member is also the link to them, so a name with no address is half a fact.
+  const confirmedMember =
+    money.confirmed_for?.slug && money.confirmed_for.full_name
+      ? { slug: money.confirmed_for.slug, fullName: money.confirmed_for.full_name }
+      : null;
 
   const moneyInBlocks: SnapshotBlock[] = [];
   const moneyOutBlocks: SnapshotBlock[] = [];
@@ -1250,7 +1262,7 @@ export function committeePageSnapshot(
     heading: identity.name,
     subheading: identity.subheading,
     bodyHeading: '',
-    body: [whoseCommitteeText(identity.registerKind, money.entity_sub_type)],
+    body: [whoseCommitteeText(identity.registerKind, money.entity_sub_type, confirmedMember)],
     bodyIsList: false,
     facts: [],
     sections: [
@@ -1267,6 +1279,17 @@ export function committeePageSnapshot(
       },
     ],
     links: [
+      // First, and only when a person confirmed it: this is the crossing from a
+      // committee record to the member it belongs to, and it has to be a real anchor
+      // in the first response or nothing outside the running app can follow it.
+      ...(confirmedMember
+        ? [
+            {
+              label: confirmedMemberLinkLabel(confirmedMember.fullName),
+              href: confirmedMemberMoneyPath(confirmedMember.slug),
+            },
+          ]
+        : []),
       {
         label: paymentsTitle('gave'),
         href: `/money/committees/${encodeURIComponent(identity.slug)}/payments`,

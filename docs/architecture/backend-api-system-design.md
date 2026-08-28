@@ -932,6 +932,20 @@ against $10,155.00 — the gap in each is legitimate small-donor money, not an e
 special-election filer whose second report series the Board's route does not return, because
 §9.5 is explicit that those read "Not reported" rather than being compared.
 
+**`confirmed_for` is the reverse of the legislator endpoint's `link_state`, added
+[#1680](https://github.com/alethical-org/alethical/issues/1680).** It carries `legislator_id`,
+`slug` and `full_name` where a **person** has confirmed this committee belongs to that member,
+and `null` otherwise, which is every committee in production today. Never derived: no score,
+threshold or name match ever creates one, and a stored *rejection* answers `null`, exactly as
+nobody having looked does, because a rejection is a decision about our own proposal and never a
+reader-facing claim about the committee (§7). At most one legislator can come back, and the
+guarantee is the partial unique index on a confirmed registration number
+(`uq_legislator_campaign_committee_confirmed_registration`) rather than anything in this layer.
+That same index is what the lookup reads, so this costs one index scan and no schema change was
+needed — the reverse direction was already stored and only unserved. `slug` travels with the id
+because a profile's address is its slug, and the point of the field is carrying a reader from a
+committee record to that member's money.
+
 **`split` is served here too, identically**, from `legislator_finance.split_for_committee`.
 Its 8 states, their counts, and the 2 rules that ride on them are tabled under
 `GET /api/v1/legislators/{legislator_id}/campaign-finance` above rather than repeated, because

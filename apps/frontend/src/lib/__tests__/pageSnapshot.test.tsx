@@ -1037,13 +1037,54 @@ describe('a committee’s record in the first response', () => {
   });
 
   it('says whose committee this is in the shared sentence, never inferring a person', () => {
-    expect(snapshot.body).toEqual([whoseCommitteeText('political_committee_or_fund', 'PC')]);
+    expect(snapshot.body).toEqual([whoseCommitteeText('political_committee_or_fund', 'PC', null)]);
   });
 
   it('links its own payments list and the register it came from', () => {
     const hrefs = snapshot.links.map((link) => link.href);
     expect(hrefs).toContain('/money/committees/jane-fonda-climate-pac-41326/payments');
     expect(hrefs).toContain('/money/committees');
+  });
+
+  /**
+   * The crossing from a committee record to its confirmed member has to be in the
+   * FIRST response, not only once the app runs: a search engine, a reader with a
+   * broken script and a shared link all see this one and nothing else (#1809's
+   * finding, that 1,553 of 1,603 committee pages had no link anywhere on the site).
+   */
+  it('serves the confirmed member’s sentence and a real link to their money', () => {
+    const confirmed = committeePageSnapshot(
+      {
+        ...committeeFixture,
+        confirmed_for: { slug: 'melissa-hortman', full_name: 'Melissa Hortman' },
+      },
+      '41326',
+    );
+    expect(confirmed.body).toEqual([
+      whoseCommitteeText('political_committee_or_fund', 'PC', {
+        slug: 'melissa-hortman',
+        fullName: 'Melissa Hortman',
+      }),
+    ]);
+    // Asserted on the served prose specifically, not on the whole page: the link
+    // label below also carries her name, so a body check that only looked for the
+    // name would pass with the sentence gone.
+    expect(visibleText(renderPageSnapshot(confirmed))).toContain(
+      'Someone at Alethical read Minnesota’s own records',
+    );
+    expect(confirmed.links[0]).toEqual({
+      label: 'See Melissa Hortman’s campaign money',
+      href: '/legislators/melissa-hortman?tab=money',
+    });
+    expect(renderPageSnapshot(confirmed)).toContain(
+      'href="/legislators/melissa-hortman?tab=money"',
+    );
+  });
+
+  it('adds no member link when nobody has confirmed one', () => {
+    expect(snapshot.links.some((link) => (link.href ?? '').startsWith('/legislators/'))).toBe(
+      false,
+    );
   });
 
   /**
@@ -1211,6 +1252,7 @@ describe('the money screens keep reading the helpers the server reads', () => {
     for (const call of [
       'yearDisplayState',
       'whoseCommitteeText',
+      'confirmedMemberLinkLabel',
       'committeeEyebrow',
       'registeredForLine',
       'unnamedMoneyExplanation',

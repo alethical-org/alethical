@@ -2919,6 +2919,11 @@ interface ApiCommitteeMoneyPayload {
   year: number;
   fetched_at?: string | null;
   register?: ApiCommitteeRegisterPayload | null;
+  confirmed_for?: {
+    legislator_id?: string | null;
+    slug?: string | null;
+    full_name?: string | null;
+  } | null;
   money_in?: {
     state: string;
     itemized_contribution_total?: string | null;
@@ -3006,6 +3011,18 @@ export async function getCommitteeFinanceFromApi(
       terminationDate: register?.termination_date ?? null,
       asOf: register?.as_of ?? null,
     },
+    // All 3 fields or nothing: a confirmed member with no address to send a reader
+    // to is a half-fact, and the sentence that names them is also the link out.
+    confirmedFor:
+      payload.confirmed_for?.legislator_id &&
+      payload.confirmed_for.slug &&
+      payload.confirmed_for.full_name
+        ? {
+            legislatorId: payload.confirmed_for.legislator_id,
+            slug: payload.confirmed_for.slug,
+            fullName: payload.confirmed_for.full_name,
+          }
+        : null,
     moneyIn: {
       state: committeeBlockState(payload.money_in?.state),
       itemizedContributionTotal: payload.money_in?.itemized_contribution_total ?? null,

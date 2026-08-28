@@ -18,6 +18,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { GestureResponderEvent } from 'react-native';
 
+import { confirmedMemberMoneyPath } from '../../lib/committeeMoney';
 import { backLinkProps, externalLinkProps, linkProps, pressInsideLink, routePath } from '../links';
 
 /** A click event shaped like the one react-native-web hands to `onPress` on web. */
@@ -49,6 +50,16 @@ describe('routePath builds the URL the router will land on', () => {
     expect(routePath.bill('94-2025-SF334')).toBe('/bills/94-2025-SF334');
     expect(routePath.legislator('abc-123')).toBe('/legislators/abc-123');
     expect(routePath.findMyLegislator()).toBe('/find-my-legislator');
+  });
+
+  // A committee page's confirmed-member link is drawn twice: once by the running
+  // app through `routePath`, and once by the server into the first response, which
+  // cannot import the router. The 2 spellings live apart, so this pins them
+  // together (#1680).
+  it('agrees with the address the served committee page writes for a member', () => {
+    expect(confirmedMemberMoneyPath('melissa-hortman')).toBe(
+      routePath.legislator('melissa-hortman', { tab: 'money' }),
+    );
   });
 
   it('carries a bill tab and an ask question and sort as query params', () => {

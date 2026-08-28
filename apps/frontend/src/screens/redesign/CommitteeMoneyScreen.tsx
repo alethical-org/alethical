@@ -26,6 +26,7 @@ import {
   committeeSlug,
   committeeTabFromParam,
   COMMITTEE_TAB_LABELS,
+  confirmedMemberLinkLabel,
   coveredPeriodDetail,
   coveredPeriodLine,
   EMPTY_YEAR_VALUE,
@@ -365,8 +366,26 @@ function CommitteeBody({
 
       <View style={styles.whoseCard}>
         <Text style={styles.whoseText}>
-          {whoseCommitteeText(registerKind, money.entitySubType)}
+          {whoseCommitteeText(registerKind, money.entitySubType, money.confirmedFor)}
         </Text>
+        {/* Only where a person confirmed it. The reader came to a money page, so
+            the crossing lands on the member's money rather than their overview. */}
+        {money.confirmedFor ? (
+          <Pressable
+            {...linkProps(routePath.legislator(money.confirmedFor.slug, { tab: 'money' }), () =>
+              navigation.push('LegislatorProfile', {
+                legislatorId: money.confirmedFor!.slug,
+                tab: 'money',
+              }),
+            )}
+            style={styles.seeAll}
+          >
+            <Text style={styles.seeAllLabel}>
+              {confirmedMemberLinkLabel(money.confirmedFor.fullName)}
+            </Text>
+            <ForwardArrow color={t.colors.brand.base} />
+          </Pressable>
+        ) : null}
       </View>
 
       <View style={styles.yearRow}>

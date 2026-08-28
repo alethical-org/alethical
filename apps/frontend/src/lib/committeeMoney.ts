@@ -116,17 +116,53 @@ export function closedChipLabel(terminationDate: string | null | undefined): str
   return day ? `Closed ${day}` : null;
 }
 
+/** The one legislator a person has confirmed a committee belongs to, as served.
+ *  Null on every committee nobody has confirmed, which is the ordinary answer. */
+export interface ConfirmedCommitteeMember {
+  slug: string;
+  fullName: string;
+}
+
 /**
  * Whose committee this is. A committee page is complete where a profile is empty —
  * the money is filed BY committee — and the only thing missing is the link to a
  * person. The filed name is not that link: it is the filer's own wording, not a
  * confirmation by anyone (design doc §5.1). Party units, funds and ballot-question
  * committees are nobody's, so their sentence must not imply a person is missing.
+ *
+ * `confirmedMember` is the one case where the missing link is present, and it comes
+ * first because a person's checked decision outranks anything read off a name or a
+ * kind code. Three things the confirmed sentence has to do, each of them a rule
+ * rather than a preference:
+ *
+ * - **Say a person did it, not that it is "confirmed".** §5.1's whole point is that
+ *   no score, threshold or agreement between rules ever produces a link, because if
+ *   a name match is wrong nothing downstream would ever notice. A bare "Confirmed"
+ *   reads as our software having matched a name, which is the one thing this is not.
+ * - **Never imply this is the member's only committee.** Minnesota registers a
+ *   committee per office, 17 sitting members hold more than one, and 20 candidates
+ *   currently do (#1663). "The committee of X" would state something no filing
+ *   supports, so the sentence says the money here is this committee's own and that a
+ *   candidate can register more than one. The arithmetic guard against ever adding
+ *   two of them together is #1663's; this is only the sentence.
+ * - **Change nothing when nobody has confirmed.** A rejection is a decision about our
+ *   own proposal, never a reader-facing claim about the committee (§7), so it arrives
+ *   here as no confirmation at all and the page keeps its existing words.
  */
 export function whoseCommitteeText(
   registerKind: string | null | undefined,
   entitySubType: string | null | undefined,
+  confirmedMember: ConfirmedCommitteeMember | null,
 ): string {
+  if (confirmedMember) {
+    return (
+      'Someone at Alethical read Minnesota’s own records and confirmed this ' +
+      `committee is ${confirmedMember.fullName}’s. We never attach a committee to a ` +
+      'person on the strength of its filed name, so this is a decision a person made ' +
+      'and signed. The money on this page is this committee’s own record, and a ' +
+      'candidate can register more than one committee.'
+    );
+  }
   if (isBallotQuestionFiler(entitySubType)) {
     return (
       'A ballot-question committee raises and spends about a question on the ' +
@@ -157,6 +193,24 @@ export function whoseCommitteeText(
     'confirmation by anyone, so we do not put these figures under a person’s name ' +
     'on the strength of it. The money on this page is the committee’s own record.'
   );
+}
+
+/** The link out of the confirmed sentence, to the member's own money.
+ *  Worded so it is true whichever committees that tab ends up showing. */
+export function confirmedMemberLinkLabel(fullName: string): string {
+  return `See ${fullName}’s campaign money`;
+}
+
+/**
+ * Where that link goes: the member's profile, opened on its money tab, because the
+ * money is what a reader following it from a money page is after.
+ *
+ * Spelled here rather than in the screen so the first server response and the running
+ * app carry the same address, and pinned against the router's own builder by a test
+ * (`navigation/__tests__/links.test.ts`) so the 2 spellings cannot drift.
+ */
+export function confirmedMemberMoneyPath(slug: string): string {
+  return `/legislators/${encodeURIComponent(slug)}?tab=money`;
 }
 
 /**

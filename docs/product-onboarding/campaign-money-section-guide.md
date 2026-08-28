@@ -252,10 +252,23 @@ Top to bottom:
    because no filer of another kind carries one. A candidate committee shows the office and
    district it registered for; a closed committee carries a CLOSED chip with the register's
    own termination date, on every year's view.
-2. **Whose committee it is — deliberately unanswered.** The filed name is the filer's own
-   wording, not a confirmation by anyone, so the page says the money is the committee's
-   own record and attaches it to no person. A party unit, caucus, fund, or ballot-question
-   committee gets its own sentence, because for those there is no person to attach.
+2. **Whose committee it is.** Until a person at Alethical has checked, the page attaches
+   the money to nobody and says why: the filed name is the filer's own wording, not a
+   confirmation by anyone. A party unit, caucus, fund, or ballot-question committee gets
+   its own sentence, because for those there is no person to attach at all.
+
+   Once someone here has read Minnesota's own records and written down whose committee
+   it is, the card says so, names the member, and carries a link straight to that
+   member's campaign money. The sentence says a person decided it rather than only that
+   it is "confirmed", because nothing about this comes from software matching names: no
+   score, threshold, or agreement between rules ever creates one of these links, and if a
+   name match were wrong nothing later in the system would notice. It also never claims
+   to be the member's only committee — a candidate can register more than one, 20
+   currently do, and adding two of them together would count the same money twice
+   ([#1663](https://github.com/alethical-org/alethical/issues/1663)) — so it says the
+   money on the page is this committee's own record. A committee somebody looked at and
+   ruled out reads exactly like one nobody has looked at yet: that decision is about our
+   own proposal, and it is not a claim about the committee.
 3. **A year switch** (this calendar year and the one before), each year its own address.
 4. **The period panel**: what the committee's own report covers. The end is read off the
    filing; the start appears only when the Board's own published filing calendar prints

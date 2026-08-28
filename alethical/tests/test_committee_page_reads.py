@@ -51,6 +51,7 @@ def _clear(session) -> None:
     ):
         session.execute(text(f"DELETE FROM {table}"))
     session.execute(text("DELETE FROM cf_snapshot"))
+    session.execute(text("DELETE FROM legislator_campaign_committee"))
     session.commit()
 
 
@@ -285,6 +286,166 @@ def test_a_number_in_neither_place_is_404_about_our_records(db, client):
     response = client.get("/api/v1/committees/99999/finance", params={"year": 2025})
     assert response.status_code == 404
     assert "register we hold" in response.json()["detail"]
+
+
+# --- Whose committee it is, read from the committee's side ------------------------
+
+
+def _confirm(db, registration: str, *, decision, name="Novotny, Paul House Committee"):
+    """One review decision about this committee, signed, exactly as a person writes it.
+
+    ``reviewed_by`` has no default in the model on purpose: a link nobody signed
+    cannot exist (§5.1), so a fixture has to name someone too.
+    """
+    legislator = db.execute(
+        text("SELECT id, slug, full_name FROM legislator LIMIT 1")
+    ).first()
+    assert legislator is not None, "the seeded corpus should hold a legislator"
+    db.add(
+        models.LegislatorCampaignCommittee(
+            legislator_id=legislator[0],
+            registration_number=registration,
+            decision=decision,
+            committee_name_as_reviewed=name,
+            reviewed_by="a person",
+        )
+    )
+    db.commit()
+    return legislator
+
+
+def _committee_with_money(db):
+    published = Published(db)
+    _receipt(db, published.contributions, reg_num=CANDIDATE, amount="250.00")
+    db.commit()
+    snapshot = _filings_snapshot(db)
+    _filer(db, snapshot, CANDIDATE)
+
+
+def test_nobody_has_confirmed_this_committee_so_it_belongs_to_nobody_on_the_page(
+    db, client
+):
+    """The ordinary answer, and the one every committee gives until a person decides.
+
+    ``null`` here says nobody has confirmed a member, never that the committee has no
+    member. The page's own sentence then keeps saying that the filed name is the
+    filer's wording rather than a confirmation, which is what §5.1 requires of every
+    surface that has not been told otherwise by a person.
+    """
+    _committee_with_money(db)
+
+    response = client.get(
+        f"/api/v1/committees/{CANDIDATE}/finance", params={"year": 2025}
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["data"]["confirmed_for"] is None
+
+
+def test_a_confirmed_link_names_the_member_and_carries_their_address(db, client):
+    """The one thing this route could not say before: a person checked, and said who.
+
+    Served as the profile's own ``slug`` rather than the id alone, because a committee
+    page's job here is to carry a reader to that member's money, and a profile's
+    address is its slug.
+    """
+    _committee_with_money(db)
+    legislator = _confirm(
+        db, CANDIDATE, decision=models.CommitteeLinkReviewDecision.confirmed
+    )
+
+    response = client.get(
+        f"/api/v1/committees/{CANDIDATE}/finance", params={"year": 2025}
+    )
+    assert response.status_code == 200, response.text
+    confirmed = response.json()["data"]["confirmed_for"]
+    assert confirmed == {
+        "legislator_id": str(legislator[0]),
+        "slug": legislator[1],
+        "full_name": legislator[2],
+    }
+
+
+def test_a_rejection_is_never_served_as_a_confirmation(db, client):
+    """ "We looked, and it is not theirs" must reach a reader as nothing at all.
+
+    §5.1 stores a rejection rather than discarding it, so the row exists and is about
+    this exact registration number. §7 then forbids a reader-facing surface stating it
+    as a finding: on a sitting member, every proposal rejected means their committee
+    exists and we failed to surface it, which wants a person's attention rather than a
+    card. So this route answers exactly as it does when nobody has looked.
+    """
+    _committee_with_money(db)
+    _confirm(db, CANDIDATE, decision=models.CommitteeLinkReviewDecision.rejected)
+
+    response = client.get(
+        f"/api/v1/committees/{CANDIDATE}/finance", params={"year": 2025}
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["data"]["confirmed_for"] is None
+
+
+def test_a_confirmation_of_another_committee_never_reaches_this_one(db, client):
+    """The link is keyed on the registration number, which is the identity (§5).
+
+    A member's confirmed House committee says nothing about the committee next to it
+    in the register, and a page that read the member instead of the number would put
+    one person's money under another's name -- the failure §5.1 exists to make
+    impossible.
+    """
+    _committee_with_money(db)
+    snapshot = db.execute(
+        text("SELECT snapshot_id FROM cf_filing_current WHERE id = true")
+    ).scalar()
+    db.add(
+        models.CampaignFinanceFiler(
+            snapshot_id=snapshot,
+            registration_number=NEIGHBOUR,
+            kind=FilerKind.candidate_committee,
+            name="Demuth, Lisa House Committee",
+            office="House",
+            district="13A",
+            termination_date=None,
+            is_incumbent=False,
+        )
+    )
+    db.commit()
+    _confirm(
+        db,
+        NEIGHBOUR,
+        decision=models.CommitteeLinkReviewDecision.confirmed,
+        name="Demuth, Lisa House Committee",
+    )
+
+    response = client.get(
+        f"/api/v1/committees/{CANDIDATE}/finance", params={"year": 2025}
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["data"]["confirmed_for"] is None
+
+    neighbour = client.get(
+        f"/api/v1/committees/{NEIGHBOUR}/finance", params={"year": 2025}
+    )
+    assert neighbour.status_code == 200, neighbour.text
+    assert neighbour.json()["data"]["confirmed_for"] is not None
+
+
+def test_whose_committee_it_is_does_not_change_with_the_filing_year(db, client):
+    """Year-independent, exactly as ``link_state`` is and as the CLOSED chip is.
+
+    A reviewer's recorded first and last year bound which *money* belongs on a
+    profile; they do not bound whose committee it is. A confirmation that vanished
+    when a reader switched from 2025 to 2026 would read as the link having been
+    withdrawn.
+    """
+    _committee_with_money(db)
+    _confirm(db, CANDIDATE, decision=models.CommitteeLinkReviewDecision.confirmed)
+
+    for year in (2025, 2026):
+        response = client.get(
+            f"/api/v1/committees/{CANDIDATE}/finance", params={"year": year}
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["data"]["confirmed_for"] is not None
 
 
 # --- The split block on /finance ------------------------------------------------

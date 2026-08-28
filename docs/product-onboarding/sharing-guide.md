@@ -109,8 +109,9 @@ ordinary link to every committee on the page**, 50 at a time on numbered address
 that was actually broken: it used to serve no link at all, and behind a "Show more" button Google will
 not press, 1,553 of the 1,603 committee pages had no link anywhere on the site. **One committee**
 arrives with its filed name, the register's kind and its registration number, the seat it registered
-for where the register states one, the sentence saying whose committee it is, the period its figures
-cover, both money-in figures and both money-out figures with the sentences that say why they differ,
+for where the register states one, the sentence saying whose committee it is — carrying, once a
+person here has confirmed the link, that member's name and an ordinary link to their campaign money
+— the period its figures cover, both money-in figures and both money-out figures with the sentences that say why they differ,
 and the day we copied the files. **Its payments page** arrives with the same identity and period plus
 the first 250 named donations, each with its own date and amount. Every one of those figures goes
 through the same functions the screen uses, so a missing figure reads "Not reported" and a filed zero
