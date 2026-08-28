@@ -768,7 +768,7 @@ def sitemap(db: Session = Depends(get_db), response: Response = None):  # type: 
     ~10,517 bills alone, and 17 more for the register of filers. Column-only
     selects, never the full ORM row or the normal bill serializer, keep this cheap
     at that size -- the bill one joined to each bill's current summary row for its
-    timestamp alone, never its content (#1325, and #1783 for the committees).
+    timestamp alone, never its content (#1325, and #1812 for the committees).
 
     **The committee list is deliberately shorter than the register.** It carries the
     filers whose own page holds a filed record; a filer with none draws its register

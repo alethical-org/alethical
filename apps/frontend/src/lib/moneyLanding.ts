@@ -173,7 +173,7 @@ export function confirmationDateLine(newestConfirmationAt: string | null): strin
  * The heading, the sentence under it, and the 2 lane cards that lead somewhere.
  *
  * These lived as literals inside `screens/redesign/MoneyLandingScreen.tsx` until
- * the first server response started carrying the landing's own text (#1783). They
+ * the first server response started carrying the landing's own text (#1812). They
  * are here now for the same reason the /reading page's wording moved into
  * `lib/research.ts`: the served page and the drawn page must be the same words,
  * and 2 copies of a sentence is how one gets fixed and the other does not.

@@ -407,7 +407,7 @@ describe('campaign money routes', () => {
 
   // Every filer past the first 50 was behind a "Show more" button, which Google
   // states it does not press, so the numbered address is what makes the other
-  // 1,553 committee pages walkable (#1783).
+  // 1,553 committee pages walkable (#1812).
   it('keeps a numbered register page as its own address', () => {
     expect(targetFromPathname('/money/committees?page=12')).toEqual({
       kind: 'moneyCommitteeList',

@@ -319,7 +319,7 @@ function PaymentRows({
 }) {
   // The 2 row shapers live in lib/committeeMoney.ts, so the line this screen
   // draws and the line the first server response carries are the same characters
-  // rather than 2 similar sentences (#1783).
+  // rather than 2 similar sentences (#1812).
   const shaped = rows.map((payment, index) => {
     const row =
       tab === 'gave'

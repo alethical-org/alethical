@@ -115,7 +115,7 @@ function legislatorsFilterParams(searchParams: URLSearchParams): Record<string, 
 // the browser Back button after opening a committee.
 //
 // `page` joined them when the register's overflow became numbered pages instead
-// of a "Show more" button (#1783). Google states it does not press buttons, so
+// of a "Show more" button (#1812). Google states it does not press buttons, so
 // every committee past the first 50 was unreachable to it; a numbered address per
 // page is what makes the other 1,553 walkable
 // (`docs/architecture/page-metadata-for-search-and-sharing-decisions.md` §20.5).

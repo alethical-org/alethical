@@ -310,7 +310,7 @@ async function legislatorListContent(page: number): Promise<PageContent> {
   };
 }
 
-// --- The campaign money section (#1783) ---
+// --- The campaign money section (#1812) ---
 
 /** The 3 money payloads this file reads, each only as far as it prints. */
 type MoneySummaryPayload = {

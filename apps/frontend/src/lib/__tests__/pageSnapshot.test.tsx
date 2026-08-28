@@ -860,7 +860,7 @@ describe('both screens keep reading the same registry the server reads', () => {
 });
 
 /**
- * The money section's 4 snapshots (issue #1783). Every test below is one way a
+ * The money section's 4 snapshots (issue #1812). Every test below is one way a
  * served figure could become a published falsehood about a named organisation,
  * which is what `.claude/rules/grounded-answers.md` rule 12 exists to stop.
  *

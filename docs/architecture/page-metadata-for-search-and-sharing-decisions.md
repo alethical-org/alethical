@@ -1372,7 +1372,7 @@ versions cannot drift apart.
 
 ## 22. The money section in the first response, and a sitemap for 1,603 committees
 
-Built 27 Aug 2026 for [#1783](https://github.com/alethical-org/alethical/issues/1783). **This is
+Built 27 Aug 2026 for [#1812](https://github.com/alethical-org/alethical/issues/1812). **This is
 §20.4's first defect on a third surface, with §21's cure applied again** — the same shape, a
 different section, and by some distance the largest set of records it has hit.
 
