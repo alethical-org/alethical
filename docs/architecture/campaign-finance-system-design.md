@@ -385,10 +385,24 @@ landing page under its **Principal expenditures** heading, row "Principal expend
 Present"). Nine columns: Principal, Entity ID, Report Year, then PUC / Legislative /
 Administrative / MGU / General lobbying amounts, then Total spent.
 
-- **Its title misstates its own coverage.** Titled "2009 - Present", described on the page as
-  "2015 - Present", it holds **2014 through 2025** — 12 years. A principal's annual report is due
-  15 March for the *preceding* calendar year, so the newest year present is one behind the current
-  one, and 2026 is correctly absent rather than missing.
+- **`Report Year` is the calendar year the money was spent, not the year the report was filed**,
+  and reading it that way makes 3 things agree that otherwise look like the Board contradicting
+  itself. The Board's [Lobbying Handbook](https://cfb.mn.gov/pdf/publications/handbooks/lobbyist_handbook.pdf)
+  says it 4 separate times: a principal files by 15 March each year for "the amount spent by the
+  principal in the preceding calendar year", and "prior calendar year" again for legislative,
+  administrative and Public Utilities Commission lobbying. So the file's newest `Report Year` is
+  2025 while the Board's own coverage runs through the report **due 16 March 2026**, which is that
+  2025 report; if the column held filing years the newest row would read 2026.
+- **So the title is counting a different thing, not lying.** The download is titled
+  "2009 - Present" and described on its page as "2015 - Present", and it holds report years
+  **2014 through 2025**. Under year-spent those are consistent: spending from calendar 2014
+  onward is exactly the filings made from March 2015 onward, so the description names filing
+  years while the column names spending years. **This bullet said "its title misstates its own
+  coverage" until 28 Aug 2026**, which was the reading before the handbook was checked; the
+  correction came out of establishing whether *The Money Only Goes One Way*'s "from 2015 through
+  2025" describes a spending window ([#1802](https://github.com/alethical-org/alethical/issues/1802)).
+  It does. Nothing about the 11-year total changes; what changes is that a reader of this section
+  is no longer told the Board mislabelled a file it labelled correctly.
 - **`Total spent` is exactly the sum of the 5 type columns on every row**, largest disagreement
   $0.00. So a total carries no ambiguity about which lobbying types are in scope: all 5 always are.
 - **One row per principal per year, with 0 duplicate (Entity ID, Report Year) pairs**, so nothing
