@@ -853,7 +853,7 @@ committee-years it covers:
 | `shown` | `unnamed_total` is real: the reported total minus the named **cash** payments we hold | 3,062 |
 | `no_reported_total` | No official total this page may print for the year, so there is no whole to divide | 7,442 |
 | `no_named_payments` | The filing reports money, we hold no named payment of it, and nobody has read the filing to find out whether it named any | 468 |
-| `sources_disagree` | The check against the committee's own filed report found the 2 official figures differ | 62 |
+| `sources_disagree` | The check against the committee's own filed report found the 2 official figures differ | 62, and **42** once the part-year reading below is applied |
 | `periods_differ` | The 2 figures cover different periods, so their difference is not a fact about donors | 16 |
 | `named_payments_not_in_our_copy` | The filing names donors and our copy of the download holds no row at all for the committee-year | 14 |
 | `reported_total_predates_a_correction` | The subtraction refuses to run and the Board's catalogue records the committee refiling the year's report | 1 |
@@ -868,6 +868,25 @@ of the 2 figures is the larger one, because 33 of the 76 disagreeing committee-y
 way and 43 the other; and `named_payments_not_in_our_copy` may never be explained by the
 filing calendar, because the report was filed on time and a deadline sentence would be true
 about the calendar and false about the money.
+
+**And 20 of those 62 were not a disagreement at all, which is the correction of 28 Aug 2026.**
+On a report covering part of a year Minnesota names only the donors who had passed $200 by
+that report's own cut-off, while the bulk download carries the whole year's naming decision,
+so the 2 figures count different donors for a reason that is neither publication's fault. A
+part-year committee-year now reconciles on either reading of the same named money, which
+takes 20 committee-years out of `sources_disagree` and leaves 42
+([#1647](https://github.com/alethical-org/alethical/issues/1647);
+`campaign-finance-system-design.md` §2.3 carries the rule, the 2 rejected options and the 27
+differences that remain). The larger-figure rule above survives it unchanged and still binds:
+of the 56 verdicts that still disagree, 33 run one way and 23 the other. **The counts above
+are the stored answers, so they move when the check is re-run and not when this rule ships** —
+the page reads what the check wrote.
+
+**None of the 20 can reach a disagreement sentence by another route.** The `disagrees` branch
+is the only path to `sources_disagree`, and the 2 states reached when a subtraction simply
+refuses -- `figures_do_not_line_up` and `reported_total_predates_a_correction` -- were
+deliberately stripped of that claim in Aug 2026 above. So a committee-year leaving `disagrees`
+lands only in a state that describes our own gap or shows the split.
 
 Every state except `shown` leaves `unnamed_total` null and shows both official figures
 un-subtracted. `stated_split_state` travels alongside and says whether the committee's own
