@@ -250,8 +250,13 @@ export const MONEY_ONLY_GOES_ONE_WAY: ResearchPiece = {
       text: 'CFB lobbying principal expenditure reports, 2015–2025.',
       note: 'Alethical holds no lobbying records, so every lobbying figure in this report is read from the Board’s own reports rather than reproduced from our own data.',
       noteLink: {
+        // The Board moved this list and left the old address answering 200 with a page
+        // reading "not available", so a reader checking our largest figure found nothing
+        // (#1802). Verified live on 28 Aug 2026: this address renders "Historical
+        // spending by principals on lobbying activities", covering 2007 through the
+        // report due 16 Mar 2026, with a Total spent column per principal per year.
         text: 'Look up a lobbying principal at the Board',
-        href: 'https://cfb.mn.gov/reports-and-data/viewers/lobbying/principal/',
+        href: 'https://cfb.mn.gov/reports-and-data/searches-and-lists/other-reports-and-lists/current-lists/#/principal-historical-spending/all/',
       },
     },
   ],

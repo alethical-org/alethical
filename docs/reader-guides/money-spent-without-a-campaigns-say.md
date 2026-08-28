@@ -117,6 +117,16 @@
      figure is given a records-through date**, because we hold no lobbying records to
      date.
 
+     RESOLVED 28 AUG 2026, and the finding below is kept as the record of what was
+     wrong. The data was never withdrawn, only moved: the Board now serves it as
+     "Historical spending by principals on lobbying activities" at
+     `https://cfb.mn.gov/reports-and-data/searches-and-lists/other-reports-and-lists/current-lists/#/principal-historical-spending/all/`,
+     covering 2007 through the report due 16 Mar 2026, with a Total spent column per
+     principal per year. The research piece's link now points there, verified rendering
+     in a browser rather than by status code, since the dead address returned 200 too.
+     The report's $886 million figure is a separate question and is NOT re-verified by
+     that fix: summing it means every principal across 11 years, which is its own task.
+
      A LIVE FINDING ABOUT THE RESEARCH PIECE, REPORTED RATHER THAN FIXED HERE. *The
      Money Only Goes One Way* links "Look up a lobbying principal at the Board" to
      `https://cfb.mn.gov/reports-and-data/viewers/lobbying/principal/`. That address
