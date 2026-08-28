@@ -302,10 +302,19 @@ def test_the_frontend_check_catches_the_summing_code_and_passes_on_the_app():
     A check that has never been seen to fail is not a check, so this writes the summing
     code, confirms the check reports it, and confirms the real app is clean.
     """
-    import sys
+    import importlib.util
 
-    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "scripts"))
-    import check_no_cross_committee_total as guard
+    script = (
+        Path(__file__).resolve().parents[2]
+        / "scripts"
+        / "check_no_cross_committee_total.py"
+    )
+    spec = importlib.util.spec_from_file_location(
+        "check_no_cross_committee_total", script
+    )
+    assert spec is not None and spec.loader is not None
+    guard = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(guard)
 
     assert guard.violations() == []
 
