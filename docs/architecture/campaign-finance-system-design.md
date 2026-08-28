@@ -367,9 +367,57 @@ means beyond that is not established here.
 
 Landing page: `https://cfb.mn.gov/reports-and-data/self-help/data-downloads/lobbying/`
 
-Principal expenditures, 2015 to present, plus lobbyist and lobbying-entity registration.
-Minnesota publishes the lobbyist-to-client relationships here that the retired system was
-almost entirely missing (it held 63 relationships for 1,709 lobbyists).
+Principal expenditures, plus lobbyist and lobbying-entity registration. Minnesota publishes
+the lobbyist-to-client relationships here that the retired system was almost entirely missing
+(it held 63 relationships for 1,709 lobbyists).
+
+**We hold none of this, and that is a separate fact from whether it can be checked.** Alethical
+has no lobbying table, ingestion or model, and the published pieces say so in their own words.
+[#1687](https://github.com/alethical-org/alethical/issues/1687) recorded the research piece *The
+Money Only Goes One Way*'s lobbying figures as **unreproducible** on that ground, 3 times. They
+are reproducible: the principal report is a bulk CSV like the campaign-finance files, and every
+lobbying figure on that page was checked against it on 27 Aug 2026
+([#1802](https://github.com/alethical-org/alethical/issues/1802)). Holding no records means we
+cannot serve them or date them; it never meant a figure drawn from them could not be verified.
+
+**The principal expenditures file, measured 27 Aug 2026** (17,842 rows, 1.5 MB, resolved from the
+landing page under its **Principal expenditures** heading, row "Principal expenditures - 2009 -
+Present"). Nine columns: Principal, Entity ID, Report Year, then PUC / Legislative /
+Administrative / MGU / General lobbying amounts, then Total spent.
+
+- **Its title misstates its own coverage.** Titled "2009 - Present", described on the page as
+  "2015 - Present", it holds **2014 through 2025** — 12 years. A principal's annual report is due
+  15 March for the *preceding* calendar year, so the newest year present is one behind the current
+  one, and 2026 is correctly absent rather than missing.
+- **`Total spent` is exactly the sum of the 5 type columns on every row**, largest disagreement
+  $0.00. So a total carries no ambiguity about which lobbying types are in scope: all 5 always are.
+- **One row per principal per year, with 0 duplicate (Entity ID, Report Year) pairs**, so nothing
+  double counts. Across 2015–2025 every Entity ID carries exactly one principal name and every name
+  exactly one Entity ID, so no filer is split across identities in that window.
+- **The 4-way type split begins in 2023, not 2024.** 2014–2022 carry only PUC and General; 2023
+  adds Legislative and MGU alongside General; from 2024 the General column is empty. A pre-2023
+  figure cannot be broken out by lobbying type at all.
+- **The Board publishes no multi-year and no all-principals total.** Any cross-year figure is the
+  reader's own arithmetic on its rows, and a published one says so, per
+  `.claude/rules/grounded-answers.md` rule 13.
+
+**The bulk file is not the same extract as the Board's on-screen list**, so do not treat one's
+coverage as the other's. Its interactive *Historical spending by principals on lobbying activities*
+list, at
+`https://cfb.mn.gov/reports-and-data/searches-and-lists/other-reports-and-lists/current-lists/#/principal-historical-spending/all/`,
+is recorded in [#1808](https://github.com/alethical-org/alethical/pull/1808) as covering **2007**
+onward, where the bulk file measured above starts at 2014. That list is where a reader looks up one
+principal; the bulk file is the only address from which a multi-year or all-principals figure can be
+reproduced. Its own coverage has not been measured here: it is client-rendered and paginated, so
+reading it costs many requests.
+
+**Two reader-facing viewer addresses are dead and answer HTTP 200** with a page reading "This page
+is not available": `/reports-and-data/viewers/lobbying/principal/` and
+`/reports-and-data/viewers/lobbying/lobbyist/`, both singular. The working tools are the
+**Lobbying Organizations Search Tool** at `/reports-and-data/viewers/lobbying/lobbying-organizations/`
+and the **Lobbyist Search Tool** at `/reports-and-data/viewers/lobbying/lobbyists/`, plural. This is
+§2.1's soft-failure shape again, so confirm a lobbying address by reading its rendered page and
+never by its status code.
 
 ### 2.3 Filed reports, and the $200 rule
 
