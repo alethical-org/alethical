@@ -15,7 +15,10 @@ export function directoryPageNumber(value: string | null | undefined): number {
   return Number.isSafeInteger(parsed) ? Math.max(1, parsed) : 1;
 }
 
-export function directoryPagePath(basePath: '/bills' | '/legislators', page: number): string {
+/** The 3 public directories that page by a numbered address. */
+export type DirectoryBasePath = '/bills' | '/legislators' | '/money/committees';
+
+export function directoryPagePath(basePath: DirectoryBasePath, page: number): string {
   return page > 1 ? `${basePath}?page=${page}` : basePath;
 }
 

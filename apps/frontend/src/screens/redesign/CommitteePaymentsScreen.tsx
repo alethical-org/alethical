@@ -16,17 +16,16 @@ import {
   emptyListTitle,
   emptyListWhy,
   isBallotQuestionFiler,
-  isInKind,
   IN_KIND_CHIP,
   listLinkNote,
-  madeRowMeta,
+  madePaymentRow,
   notFoundBody,
   notFoundTitle,
   PAYMENTS_TAB_LABELS,
   paymentsEyebrow,
   paymentsTabFromParam,
   paymentsTitle,
-  receivedRowMeta,
+  receivedPaymentRow,
   registerKindFromEntityType,
   registrationNumberFromSlug,
   showingLine,
@@ -35,7 +34,7 @@ import {
   uncoveredPeriodLine,
   type PaymentsTab,
 } from '../../lib/committeeMoney';
-import { campaignMoneyYear, formatDay, formatMoney } from '../../lib/legislatorCampaignMoney';
+import { campaignMoneyYear } from '../../lib/legislatorCampaignMoney';
 import { centralDateLabel } from '../../lib/moneyLanding';
 import { useDocumentTitle } from '../../navigation/documentTitle';
 import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
@@ -318,52 +317,15 @@ function PaymentRows({
   onMore: () => void;
   navigation: RootScreenProps<'CommitteePayments'>['navigation'];
 }) {
+  // The 2 row shapers live in lib/committeeMoney.ts, so the line this screen
+  // draws and the line the first server response carries are the same characters
+  // rather than 2 similar sentences (#1783).
   const shaped = rows.map((payment, index) => {
-    if (tab === 'gave') {
-      const row = payment as CommitteeReceivedPayment;
-      return {
-        key: `${index}-${row.contributor}-${row.receivedOn}`,
-        name: row.contributor ?? 'Name not given in the filing',
-        meta: receivedRowMeta({
-          contributorType: row.contributorType,
-          receiptType: row.receiptType,
-          inKind: row.inKind,
-        }),
-        date: formatDay(row.receivedOn),
-        amount: formatMoney(row.amount),
-        inKind: isInKind(row.inKind),
-        linkNumber:
-          row.contributorRegistrationNumber && linkable.has(row.contributorRegistrationNumber)
-            ? row.contributorRegistrationNumber
-            : null,
-        linkName: row.contributor,
-      };
-    }
-    const row = payment as CommitteeMadePayment;
-    const isTransfer = row.expenditureType === 'Contribution';
-    const displayName =
-      (isTransfer ? (row.affectedCommitteeName ?? row.vendorName) : row.vendorName) ??
-      'Name not given in the filing';
-    return {
-      key: `${index}-${displayName}-${row.paidOn}`,
-      name: displayName,
-      meta: madeRowMeta({
-        expenditureType: row.expenditureType,
-        purpose: row.purpose,
-        vendorCity: row.vendorCity,
-        vendorState: row.vendorState,
-        inKind: row.inKind,
-      }),
-      date: formatDay(row.paidOn),
-      amount: formatMoney(row.amount),
-      inKind: isInKind(row.inKind),
-      linkNumber:
-        row.affectedCommitteeRegistrationNumber &&
-        linkable.has(row.affectedCommitteeRegistrationNumber)
-          ? row.affectedCommitteeRegistrationNumber
-          : null,
-      linkName: row.affectedCommitteeName,
-    };
+    const row =
+      tab === 'gave'
+        ? receivedPaymentRow(payment as CommitteeReceivedPayment, linkable)
+        : madePaymentRow(payment as CommitteeMadePayment, linkable);
+    return { ...row, key: `${index}-${row.name}-${row.date ?? ''}` };
   });
 
   return (

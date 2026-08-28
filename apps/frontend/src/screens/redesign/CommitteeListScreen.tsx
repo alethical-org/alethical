@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { MoneyNameSearchField } from '../../components/campaignMoney/MoneyNameSearchField';
+import { Pagination } from '../../components/search/searchPieces';
 import { UnderDevelopmentNotice } from '../../components/campaignMoney/UnderDevelopmentNotice';
 import { Skeleton } from '../../components/Skeleton';
 import { useCampaignFinanceCommittees } from '../../hooks/useAppQueries';
@@ -19,17 +20,26 @@ import {
   COMMITTEE_KIND_FILTERS,
   committeeEmptyTitle,
   committeeEmptyWhy,
-  committeeMoreLabel,
   committeeRowMeta,
   committeeShowingLine,
   kindFilterFromParam,
   kindFilterLabel,
   registerCountLine,
-  shownCountFromParam,
   type CommitteeKindFilter,
 } from '../../lib/committeeList';
 import { closedChipLabel, committeeSlug } from '../../lib/committeeMoney';
-import { formatCount, RECORD_DOES_NOT_COVER } from '../../lib/moneyLanding';
+import {
+  directoryJumpPages,
+  directoryPageNumber,
+  directoryPagePath,
+  directoryTotalPages,
+  loadedDirectoryPageIsOutOfRange,
+} from '../../lib/directoryPagination';
+import {
+  formatCount,
+  RECORD_DOES_NOT_COVER,
+  RECORD_DOES_NOT_COVER_HEADING,
+} from '../../lib/moneyLanding';
 import { useDocumentTitle } from '../../navigation/documentTitle';
 import { linkProps, routePath } from '../../navigation/links';
 import type { RootScreenProps } from '../../navigation/types';
@@ -48,9 +58,12 @@ import { theme as t } from '../../theme/tokens';
  * the cut homepage module). The order is the filed name, A to Z, printed on the
  * page so it is never inferred.
  *
- * The name box, the kind filter and how many rows are shown all ride in the
- * address, so a narrowed or scrolled list is a link somebody can send and the
- * browser's Back button returns to it after opening a committee (rule 5).
+ * The name box, the kind filter and the numbered page all ride in the address,
+ * so a narrowed or paged list is a link somebody can send and the browser's Back
+ * button returns to it after opening a committee (rule 5). Numbered pages rather
+ * than a "Show more" button: Google states it does not press buttons, so behind
+ * one the other 1,553 filers had no ordinary link anywhere on the site
+ * (`docs/architecture/page-metadata-for-search-and-sharing-decisions.md` §20.5).
  *
  * Every row opens by its registration number, not its name: 178 register names
  * sit a single character apart from another register name and every one of those
@@ -61,7 +74,7 @@ export function CommitteeListScreen({ navigation, route }: RootScreenProps<'Comm
   const { isMobile } = useResponsive();
   const query = typeof route.params?.q === 'string' ? route.params.q : '';
   const filter = kindFilterFromParam(route.params?.kind);
-  const shown = shownCountFromParam(route.params?.show);
+  const page = directoryPageNumber(route.params?.page);
 
   const [queryInput, setQueryInput] = useState(query);
   // Resync the draft when the address changes from outside the field: Back,
@@ -71,24 +84,51 @@ export function CommitteeListScreen({ navigation, route }: RootScreenProps<'Comm
   }, [query]);
 
   const applyQuery = (next: string) =>
-    navigation.setParams({ q: next || undefined, show: undefined });
+    navigation.setParams({ q: next || undefined, page: undefined });
   useDebouncedSearchCommit(queryInput, query, applyQuery);
 
   const list = useCampaignFinanceCommittees({
     kind: filter === 'all' ? undefined : filter,
     query: query.trim() || undefined,
-    shown,
+    page,
     pageSize: COMMITTEE_PAGE_SIZE,
   });
 
-  useDocumentTitle('/money/committees', `${COMMITTEE_LIST_TITLE} — campaign money | Alethical`);
+  useDocumentTitle(
+    directoryPagePath('/money/committees', page),
+    `${COMMITTEE_LIST_TITLE}${page > 1 ? ` — page ${page}` : ''} — campaign money | Alethical`,
+  );
 
-  const page = list.data ?? null;
-  const rows = page?.committees ?? [];
-  const served = page?.state === 'reported';
+  const register = list.data ?? null;
+  // Only the plain register pages by a numbered address a search engine may list.
+  // A typed name or a kind chip is one of unlimited query-string combinations, so
+  // its pages get working controls and no shareable page addresses (§18).
+  const unfiltered = !query.trim() && filter === 'all';
+  const rows = register?.committees ?? [];
+  const served = register?.state === 'reported';
+  const totalPages =
+    register?.total != null ? directoryTotalPages(register.total, COMMITTEE_PAGE_SIZE) : null;
+  const goToPage = (target: number) =>
+    navigation.setParams({ page: target > 1 ? String(target) : undefined });
 
   const onSelectKind = (next: CommitteeKindFilter) =>
-    navigation.setParams({ kind: next === 'all' ? undefined : next, show: undefined });
+    navigation.setParams({ kind: next === 'all' ? undefined : next, page: undefined });
+
+  // A numbered page past the real last one is a page that does not exist, exactly
+  // as it is on /bills and /legislators — never clamped to the last real page,
+  // which would answer 200 for an address with nothing behind it.
+  const outOfRange = loadedDirectoryPageIsOutOfRange({
+    isSuccess: list.isSuccess && served,
+    isDefaultDirectory: unfiltered,
+    page,
+    total: register?.total,
+    pageSize: COMMITTEE_PAGE_SIZE,
+  });
+  useEffect(() => {
+    if (outOfRange) {
+      navigation.replace('NotFound', { path: directoryPagePath('/money/committees', page) });
+    }
+  }, [navigation, outOfRange, page]);
 
   return (
     <PageBackground>
@@ -124,9 +164,9 @@ export function CommitteeListScreen({ navigation, route }: RootScreenProps<'Comm
             <View style={styles.countRow} accessible accessibilityLabel="Loading the register">
               <Skeleton width={300} height={13} />
             </View>
-          ) : registerCountLine(page?.registerTotal ?? null, page?.asOf ?? null) ? (
+          ) : registerCountLine(register?.registerTotal ?? null, register?.asOf ?? null) ? (
             <Text style={styles.countLine}>
-              {registerCountLine(page?.registerTotal ?? null, page?.asOf ?? null)}
+              {registerCountLine(register?.registerTotal ?? null, register?.asOf ?? null)}
             </Text>
           ) : null}
 
@@ -150,7 +190,9 @@ export function CommitteeListScreen({ navigation, route }: RootScreenProps<'Comm
             {COMMITTEE_KIND_FILTERS.map((option) => {
               const active = option === filter;
               const count =
-                option === 'all' ? (page?.registerTotal ?? null) : (page?.byKind?.[option] ?? null);
+                option === 'all'
+                  ? (register?.registerTotal ?? null)
+                  : (register?.byKind?.[option] ?? null);
               return (
                 <Pressable
                   key={option}
@@ -217,7 +259,7 @@ export function CommitteeListScreen({ navigation, route }: RootScreenProps<'Comm
             <View>
               <View style={styles.listHead}>
                 <Text style={styles.listCount}>
-                  {committeeShowingLine(rows.length, page?.total ?? null, filter) ?? ''}
+                  {committeeShowingLine(page, rows.length, register?.total ?? null, filter) ?? ''}
                 </Text>
                 <Text style={styles.listSort}>{COMMITTEE_ORDER_LABEL}</Text>
               </View>
@@ -249,31 +291,44 @@ export function CommitteeListScreen({ navigation, route }: RootScreenProps<'Comm
                 })}
               </View>
 
-              {page?.hasMore ? (
-                <View style={styles.moreRow}>
-                  <Pressable
-                    onPress={() =>
-                      navigation.setParams({ show: String(rows.length + COMMITTEE_PAGE_SIZE) })
-                    }
-                    accessibilityRole="button"
-                    aria-disabled={list.isFetching}
-                    style={styles.capButton}
-                  >
-                    <Text style={styles.capButtonLabel}>
-                      {list.isFetching
-                        ? 'Loading…'
-                        : committeeMoreLabel(rows.length, page?.total ?? null)}
-                    </Text>
-                  </Pressable>
-                </View>
-              ) : null}
+              {/* Numbered pages, each with its own address, and the same control
+                  the bills and legislators directories use. The Previous/Next and
+                  jump links are real anchors, so the whole register is walkable
+                  without a script (§20.5 rule 2). */}
+              <Pagination
+                page={page}
+                totalPages={totalPages ?? undefined}
+                hasPrev={page > 1}
+                hasNext={totalPages != null ? page < totalPages : (register?.hasMore ?? false)}
+                onPrev={() => goToPage(page - 1)}
+                onNext={() => goToPage(page + 1)}
+                prevHref={
+                  unfiltered && page > 1
+                    ? directoryPagePath('/money/committees', page - 1)
+                    : undefined
+                }
+                nextHref={
+                  unfiltered && totalPages != null && page < totalPages
+                    ? directoryPagePath('/money/committees', page + 1)
+                    : undefined
+                }
+                jumpPages={
+                  unfiltered && totalPages != null
+                    ? directoryJumpPages(page, totalPages)
+                    : undefined
+                }
+                pageHref={(target) => directoryPagePath('/money/committees', target)}
+                onPageSelect={goToPage}
+              />
 
               <Text style={styles.listNote}>{COMMITTEE_LIST_NOTE}</Text>
             </View>
           )}
 
           <View style={styles.notCoveredBox}>
-            <Text style={styles.notCoveredLabel}>WHAT THIS RECORD DOES NOT COVER</Text>
+            <Text style={styles.notCoveredLabel}>
+              {RECORD_DOES_NOT_COVER_HEADING.toUpperCase()}
+            </Text>
             <View style={styles.notCoveredList}>
               {RECORD_DOES_NOT_COVER.map((line) => (
                 <Text key={line} style={styles.notCoveredLine}>
@@ -437,21 +492,6 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
     paddingHorizontal: 7,
     overflow: 'hidden',
-  },
-  moreRow: { marginTop: 18, flexDirection: 'row' },
-  capButton: {
-    backgroundColor: t.colors.surfaces.base,
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink16,
-    borderRadius: 11,
-    paddingVertical: 12,
-    paddingHorizontal: 18,
-  },
-  capButtonLabel: {
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.body,
-    fontWeight: t.fontWeights.bold,
-    color: t.colors.text.primary,
   },
   listNote: {
     marginTop: 20,

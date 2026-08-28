@@ -72,26 +72,19 @@ export function kindFilterFromParam(raw: string | null | undefined): CommitteeKi
   return match ?? 'all';
 }
 
-/** How many rows one load asks for. 50 is half the served maximum, so a
- *  "Show more" is always one request. */
-export const COMMITTEE_PAGE_SIZE = 50;
-
-/** The hard ceiling on how many rows one address may ask for at once, so a
- *  hand-edited `show` cannot turn into 1,603 requests. */
-export const COMMITTEE_MAX_SHOWN = 600;
-
 /**
- * How many rows the address asks to have shown. It rides in the address so a
- * reader who scrolled through 4 loads can share what they were looking at
- * (`.claude/rules/grounded-answers.md` rule 5) — a "Show more" that lived in
- * component state would leave the link pointing at the first 50 rows.
+ * How many rows one numbered page holds. 50 is half the register endpoint's own
+ * maximum, so a page is always one request.
+ *
+ * The register was a "Show more" button until #1783. Google states it does not
+ * press buttons or run actions that need a person's click, so every filer past
+ * the first 50 was unreachable to it and 1,553 of 1,603 committee pages had no
+ * ordinary link anywhere on the site
+ * (`docs/architecture/page-metadata-for-search-and-sharing-decisions.md` §20.5
+ * rule 2). Numbered pages with their own addresses are what fixed that, and they
+ * are the same shape the bills and legislators directories already use.
  */
-export function shownCountFromParam(raw: string | null | undefined): number {
-  const parsed = Number.parseInt(raw ?? '', 10);
-  if (!Number.isFinite(parsed) || parsed < COMMITTEE_PAGE_SIZE) return COMMITTEE_PAGE_SIZE;
-  const rounded = Math.ceil(parsed / COMMITTEE_PAGE_SIZE) * COMMITTEE_PAGE_SIZE;
-  return Math.min(rounded, COMMITTEE_MAX_SHOWN);
-}
+export const COMMITTEE_PAGE_SIZE = 50;
 
 export const COMMITTEE_LIST_TITLE = 'Committees';
 
@@ -123,29 +116,26 @@ export function registerCountLine(total: number | null, asOf: string | null): st
 }
 
 /**
- * "Showing 50 of 778 candidate committees", or the plain count once every row is
- * on screen. Null when no total is served: a list with no served count says
- * nothing about how long it is rather than guessing from the rows it holds.
+ * "Showing 51–100 of 1,603 registered filers", or the plain count when every row
+ * is on this one page. Null when no total is served: a list with no served count
+ * says nothing about how long it is rather than guessing from the rows it holds.
+ *
+ * The range rather than a bare count, because the page a reader is on is part of
+ * what the sentence is about: "Showing 50 of 1,603" was true on page 1 and told a
+ * reader on page 12 nothing about which 50 they were looking at.
  */
 export function committeeShowingLine(
+  page: number,
   shown: number,
   total: number | null,
   filter: CommitteeKindFilter,
 ): string | null {
   if (total === null) return null;
   const noun = kindFilterNoun(filter, total);
-  if (shown < total) {
-    return `Showing ${formatCount(shown)} of ${formatCount(total)} ${noun}`;
-  }
-  return `${formatCount(total)} ${noun}`;
-}
-
-/** "Show the next 50" — the same shape as the payments view's cap button, so the
- *  2 lists behave alike. */
-export function committeeMoreLabel(shown: number, total: number | null): string {
-  if (total === null) return `Show ${formatCount(COMMITTEE_PAGE_SIZE)} more`;
-  const next = Math.min(COMMITTEE_PAGE_SIZE, Math.max(total - shown, 0));
-  return `Show the next ${formatCount(next)}`;
+  if (shown >= total) return `${formatCount(total)} ${noun}`;
+  const first = (page - 1) * COMMITTEE_PAGE_SIZE + 1;
+  const last = first + shown - 1;
+  return `Showing ${formatCount(first)}–${formatCount(last)} of ${formatCount(total)} ${noun}`;
 }
 
 /**

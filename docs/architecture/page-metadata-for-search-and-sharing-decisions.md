@@ -1363,3 +1363,122 @@ versions cannot drift apart.
   27 Aug 2026.
 - **Nothing about the piece's text, source links or method boxes changed.** Those are separate,
   tracked work; this changed only the rendering path.
+
+---
+
+## 22. The money section in the first response, and a sitemap for 1,603 committees
+
+Built 27 Aug 2026 for [#1783](https://github.com/alethical-org/alethical/issues/1783). **This is
+§20.4's first defect on a third surface, with §21's cure applied again** — the same shape, a
+different section, and by some distance the largest set of records it has hit.
+
+### What was measured, 27 Aug 2026
+
+`curl` against the live site, before any JavaScript. The **before** column is the live
+measurement; the **after** column is the live measurement taken once this shipped:
+
+| address | before | after |
+|---|---|---|
+| `/money` | 9,005 bytes, **0 anchors** | see the release note below |
+| `/money/committees` | 9,117 bytes, **0 anchors** | see the release note below |
+| `/money/committees/jane-fonda-climate-pac-41326` | title only, no body | see the release note below |
+| `/read` (then addressed `/reading`), for contrast | 9,816 bytes, 3 anchors | unchanged |
+| `/bills/94-2025-HF1`, for contrast | 11,799 bytes, 12 anchors | unchanged |
+
+`/sitemaps/pages.xml` carried 1,079 addresses and exactly 2 of them were in the money section:
+`/money` and `/money/committees`. **None of the 1,603 individual committee pages was in any
+sitemap**, while 10,517 bill pages and 200 legislator pages were in their own and carried a
+factual served snapshot each. The register's own list served 0 anchors, so a crawler that reached
+the list page found no route to a single committee.
+
+### Which addresses are records, and which are filtered views
+
+`api/page.ts` has said since §18 that "filtered, answer, and static pages send no snapshot", and
+that is still right: a filter combination is not a record. Sorted for this section:
+
+| address | verdict | what it serves |
+|---|---|---|
+| `/money` | front door | a short body: heading, its one sentence, the live register count, the copy date, the gaps, and links into the 2 lanes that have pages |
+| `/money/committees` and `?page=N` | record list | the page's 50 filers as ordinary anchors, plus previous/next/jump links |
+| `/money/committees?q=…` or `?kind=…` | filtered view | head only, `noindex`, no canonical — unchanged |
+| `/money/committees/{slug}` | **record** | the committee's own register facts and its money for the current filing year |
+| `/money/committees/{slug}/payments` | **record** | the same identity and period plus the first 250 named donations |
+| `/money/search?q=…` | filtered view | head only, `noindex` — unchanged |
+
+### Decisions
+
+- **The register pages by numbered address, and the "Show more" button is gone.** §20.5 rule 2 is
+  explicit that Google does not press buttons, so everything behind one is invisible; 1,553 of
+  1,603 committee pages were behind that button. `/money/committees?page=N` is now a real address
+  in the app as well as in the served text, using the same `Pagination` control and the same
+  `directoryPagination` helpers the Bills and Legislators directories already use. A page past the
+  last real one answers 404 with `noindex`, as §18 settled for those 2 directories. The retired
+  `show` parameter is dropped: a link carrying it lands on page 1, which is where its reader
+  started.
+- **A year or a tab in the address does not change the served body.** The body is the page's
+  canonical state, exactly as a bill's body is its Summary whichever tab the address names. The app
+  then draws the requested year. The alternative — serving what the address asks for — would put
+  several bodies under one canonical address for no gain, since a search engine follows the
+  canonical anyway.
+- **The canonical address is built from the register's own spelling of the name.** A committee's
+  address resolves by its trailing registration number alone, so an old or misspelled name part
+  still lands on the page and the app then rewrites the address in place. Before this the served
+  canonical pointed at whichever spelling the reader arrived on, which is a duplicate of the real
+  page; it is now the same address the app rewrites to, computed by the same `committeeSlug`.
+  The title tag gains the committee's real name for the same reason — it read "Committee 41326".
+- **A committee is in the sitemap only when its page holds a filed record.** §20.5 rule 4 requires
+  each page to be worth indexing on its own, and §20.2 records that a thin page costs us twice: it
+  is crawled and then not indexed. "Filed" is the Board's own positive signal — a catalogue row
+  carrying an amendment record, since the catalogue lists a report from the moment its period opens
+  (design doc §9.6) — or a year of reported figures. A filer with neither keeps its page, says
+  plainly what our records hold for it, and stays reachable through the register's numbered pages.
+  It is simply not advertised.
+- **No committee entry carries `lastmod`.** We hold no date on which one committee's record
+  changed; the register has a single fetch date for all 1,603 rows. §20.4's second defect is
+  exactly this trap, and Google's trust in the field is site-wide, so a copied date would risk the
+  signal for all 11,793 addresses. Absent is honest.
+- **The committee list rides on the existing `/api/v1/sitemap` endpoint rather than 17 paged
+  public calls.** The register endpoint caps a request at 100 rows, so building the file from it
+  would mean 17 round trips per request and would still not know which pages are thin. One extra
+  column-only query on the endpoint that already exists for exactly this reason is cheaper and
+  carries the filed-record test with it.
+- **Rule 12 binds every served figure, and the enforcement is shared code rather than care.**
+  Nothing in `pageSnapshot.ts` formats a number of its own: amounts go through `formatMoney`,
+  absent ones through `moneyFigure`, and the reported total and the payments we can list are served
+  together with the sentence that says they are different figures and are not subtracted. A test
+  asserts that every amount in the served HTML is one the payload carries — the same arithmetic
+  guard the published pieces get, because a figure the layout worked out for itself reads to a
+  reader as a filed fact (rule 11).
+
+### How "the served text is the drawn text" is proved here
+
+The 4 money screens need navigation and cannot be rendered in a test, the same limit §21 and §13
+hit. So the guarantee is the same 2-part one, and it was strengthened rather than asserted: 5
+pieces of wording and 3 pieces of logic that lived inside the screens moved into the framework-free
+libraries the server reads — the landing's heading, its sentence, its 2 lane cards and its
+freshness note into `lib/moneyLanding.ts`; the year's display state and the 2 payment-row shapers
+into `lib/committeeMoney.ts`. The screens now import what they used to spell out, so a served line
+and a drawn line are the same characters. A drift alarm reads all 4 screen files and fails if any
+of them stops calling those helpers, or grows a literal copy of one.
+
+### Checked against the Board's own file
+
+Filer 41326 (Jane Fonda Climate PAC), against the Campaign Finance Board's published
+contributions and expenditures downloads, 27 Aug 2026: 5 named 2026 donations totalling
+$2,150.00, with the same 5 names, amounts and dates the served payments page carries; and 3
+payments out totalling $2,700.00, all of them transfers to other campaigns, matching the served
+"Payments we can list: $2,700.00 · 3 payments". A served figure is a published claim about a named
+organisation, so this is checked at the source rather than against our own API.
+
+### What this deliberately does not do
+
+- **It does not make a filtered or searched list indexable.** Those stay head-only with no
+  canonical, exactly as §18 settled for Bills and Legislators.
+- **It does not put the payments page in a sitemap.** It is a second view of one record, reachable
+  by an ordinary link from the record itself, and listing both would ask Google to crawl the same
+  committee twice.
+- **It does not serve the committee page's 6-row payment previews.** Those are a preview of a list
+  that has its own page, and that page serves the list in full.
+- **It does not change what a person sees**, apart from the register's numbered pages replacing its
+  "Show more" button — which is the change §20.5 rule 2 requires and the whole reason the other
+  1,553 pages were unreachable.

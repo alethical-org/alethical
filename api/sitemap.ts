@@ -1,5 +1,7 @@
 import { publicPageUrl } from "../apps/frontend/src/lib/share";
 import { indexedResearch, piecePath } from "../apps/frontend/src/lib/research";
+import { committeeSlug } from "../apps/frontend/src/lib/committeeMoney";
+import { COMMITTEE_PAGE_SIZE } from "../apps/frontend/src/lib/committeeList";
 import {
   BILL_DIRECTORY_PAGE_SIZE,
   directoryPagePath,
@@ -18,8 +20,14 @@ type ResponseLike = {
 type SitemapPayload = {
   bill_directory_total: number;
   legislator_directory_total: number;
+  /** The whole register, so every numbered page of the list is named — not the
+   *  shorter indexable set below. Null when the register cannot be counted. */
+  committee_directory_total?: number | null;
   bills: Array<{ id: string; lastmod?: string }>;
   legislators: Array<{ slug: string; lastmod?: string }>;
+  /** Only the filers whose own page holds a filed record — see the API's own
+   *  docstring, and §20.5 rule 4 on a page being worth listing. */
+  committees?: Array<{ registration_number: string; name: string }>;
 };
 
 const API_ORIGIN = (
@@ -65,7 +73,7 @@ function urlset(entries: string[]): string {
 }
 
 function sitemapIndex(): string {
-  const children = ["pages", "bills", "legislators"].map(
+  const children = ["pages", "bills", "legislators", "committees"].map(
     (name) =>
       `  <sitemap><loc>${escapeXml(publicPageUrl(`/sitemaps/${name}.xml`))}</loc></sitemap>`,
   );
@@ -102,8 +110,48 @@ function pagesUrlset(data?: SitemapPayload): string {
     ) {
       paths.push(directoryPagePath("/legislators", page));
     }
+    // The register's own numbered pages. Page 1 is already in FIXED_PAGES, and
+    // this counts the WHOLE register rather than the shorter indexable list
+    // below: every page of the list exists and is walkable, including one whose
+    // 50 rows happen to hold no filed record.
+    const committeeTotal = data.committee_directory_total ?? 0;
+    for (
+      let page = 2;
+      page <= directoryTotalPages(committeeTotal, COMMITTEE_PAGE_SIZE);
+      page += 1
+    ) {
+      if (committeeTotal <= 0) break;
+      paths.push(directoryPagePath("/money/committees", page));
+    }
   }
   return urlset(paths.map((path) => urlEntry(publicPageUrl(path))));
+}
+
+/**
+ * One entry per committee whose own page holds a filed record.
+ *
+ * No `lastmod`: we hold no date on which a committee's own record changed, and
+ * Google trusts the field site-wide only when it is consistently accurate, so an
+ * absent date is better than the register's one fetch date copied onto 1,603
+ * entries (§20.4).
+ *
+ * The address is built by the same `committeeSlug` the app and the route reader
+ * use, so the sitemap can never advertise an address the router rejects.
+ */
+function committeesUrlset(
+  committees: NonNullable<SitemapPayload["committees"]>,
+): string {
+  return urlset(
+    committees.map((committee) =>
+      urlEntry(
+        publicPageUrl(
+          `/money/committees/${encodeURIComponent(
+            committeeSlug(committee.name, committee.registration_number),
+          )}`,
+        ),
+      ),
+    ),
+  );
 }
 
 function billsUrlset(bills: SitemapPayload["bills"]): string {
@@ -186,12 +234,20 @@ export default async function handler(
     return;
   }
 
-  if (section === "bills" || section === "legislators") {
+  if (
+    section === "bills" ||
+    section === "legislators" ||
+    section === "committees"
+  ) {
     let data: SitemapPayload;
     try {
       data = await fetchSitemapData();
     } catch {
       sendUnavailable(response);
+      return;
+    }
+    if (section === "committees") {
+      sendXml(response, committeesUrlset(data.committees ?? []));
       return;
     }
     sendXml(

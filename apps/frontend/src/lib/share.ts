@@ -374,10 +374,16 @@ export function researchPageMetadata(piece: ResearchPiece): PageMetadata {
 export function committeeMoneyPageMetadata(
   slug: string,
   view: 'page' | 'payments' = 'page',
+  // The register's own spelling of the name, and the address built from it, once
+  // the record has been read. Committee names collide and a name part in an
+  // address may be old or misspelled, so the page a reader shares has to be the
+  // one address we call canonical, not whichever spelling they arrived on
+  // (#1783). Absent = the record could not be read, and the number stands in.
+  record?: { name: string; canonicalSlug: string },
 ): PageMetadata {
   const number = registrationNumberFromSlug(slug);
-  const label = number ? `Committee ${number}` : 'Committee';
-  const base = `/money/committees/${encodeURIComponent(slug)}`;
+  const label = record?.name || (number ? `Committee ${number}` : 'Committee');
+  const base = `/money/committees/${encodeURIComponent(record?.canonicalSlug ?? slug)}`;
   if (view === 'payments') {
     return pageMetadata({
       title: titleFor(`${label} — every payment named`),
@@ -402,13 +408,19 @@ export function committeeMoneyPageMetadata(
  * combine into effectively unlimited addresses, and only the bare list is a page
  * worth listing — the same rule the bill and legislator directories follow.
  */
-export function committeeListPageMetadata(options: { noindex?: boolean } = {}): PageMetadata {
+export function committeeListPageMetadata(
+  page = 1,
+  options: { noindex?: boolean } = {},
+): PageMetadata {
+  const subject =
+    page > 1 ? `Committees, page ${page} — campaign money` : 'Committees — campaign money';
   return pageMetadata({
-    title: titleFor('Committees — campaign money'),
-    socialTitle: 'Committees — campaign money',
+    title: titleFor(subject),
+    socialTitle: subject,
     description:
-      'Everyone registered to raise or spend money in Minnesota state politics: candidate committees, party units, and the committees and funds that give to them.',
-    canonicalPath: options.noindex ? '' : '/money/committees',
+      'Everyone registered to raise or spend money in Minnesota state politics: candidate committees, party units, and the committees and funds that give to them.' +
+      (page > 1 ? ` Page ${page}.` : ''),
+    canonicalPath: options.noindex ? '' : directoryPagePath('/money/committees', page),
     noindex: options.noindex,
   });
 }

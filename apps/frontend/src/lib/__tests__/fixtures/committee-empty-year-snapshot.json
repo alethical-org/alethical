@@ -1,0 +1,65 @@
+{
+  "registration_number": "18173",
+  "committee_name": "Jackson, Carolyn C House Committee",
+  "entity_type": "PCC",
+  "entity_sub_type": null,
+  "year": 2026,
+  "release_id": "3f2bdf90-a4e3-4cf2-b8f1-6024167da680",
+  "fetched_at": "2026-08-12T02:54:22.402100Z",
+  "register": {
+    "state": "reported",
+    "kind": "candidate_committee",
+    "name": "Jackson, Carolyn C House Committee",
+    "party": "DFL",
+    "office": "House",
+    "district": "49A",
+    "registration_date": "2017-09-11",
+    "termination_date": null,
+    "as_of": "2026-08-12",
+    "reason": null
+  },
+  "split": {
+    "state": "no_reported_total",
+    "reported_total": null,
+    "reported_through": null,
+    "named_total": null,
+    "named_payments": null,
+    "named_cash_total": null,
+    "named_in_kind_total": null,
+    "unnamed_total": null,
+    "stated_split_state": "not_checked",
+    "first_payment_on": null,
+    "last_payment_on": null
+  },
+  "money_in": {
+    "state": "not_reported",
+    "itemized_contribution_total": null,
+    "itemized_contribution_payments": null,
+    "other_receipts": [],
+    "reported_total": null,
+    "reported_through": null,
+    "reported_period_start": null,
+    "source_url": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/?download=-2113865252"
+  },
+  "money_out": {
+    "state": "not_reported",
+    "itemized_payment_total": null,
+    "itemized_payments": null,
+    "reported_total": null,
+    "reported_through": null,
+    "by_type": [],
+    "source_url": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/?download=-1890073264"
+  },
+  "independent_spending": {
+    "state": "reported",
+    "supporting": "0",
+    "opposing": "0",
+    "direction_not_recorded": "0",
+    "supporting_payments": 0,
+    "opposing_payments": 0,
+    "direction_not_recorded_payments": 0,
+    "first_payment_on": null,
+    "last_payment_on": null,
+    "source_url": "https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/?download=-617535497"
+  }
+}

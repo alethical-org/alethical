@@ -5,6 +5,9 @@ import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import billFixture from './fixtures/bill-page-snapshot.json';
+import committeeFixture from './fixtures/committee-money-page-snapshot.json';
+import committeeEmptyYearFixture from './fixtures/committee-empty-year-snapshot.json';
+import committeePaymentsFixture from './fixtures/committee-payments-page-snapshot.json';
 import legislatorFixture from './fixtures/legislator-page-snapshot.json';
 
 /**
@@ -77,16 +80,48 @@ const { mapBillDetail } = await import('../../data/api');
 const {
   billDirectoryPageSnapshot,
   billPageSnapshot,
+  committeeDirectoryPageSnapshot,
+  committeePageSnapshot,
+  committeePaymentsPageSnapshot,
   homePageSnapshot,
   injectPageSnapshot,
   legislatorDirectoryPageSnapshot,
   legislatorPageSnapshot,
+  moneyLandingPageSnapshot,
   researchPageSnapshot,
   readPageSnapshot,
   renderPageSnapshot,
   SNAPSHOT_MARKER_END,
   SNAPSHOT_MARKER_START,
 } = await import('../pageSnapshot');
+const {
+  committeeSlug,
+  EMPTY_YEAR_MONEY_OUT_WHY,
+  EMPTY_YEAR_VALUE,
+  emptyYearMoneyInWhy,
+  coveredPeriodLine,
+  listLinkNote,
+  MONEY_OUT_FIGURE_LABEL,
+  MONEY_OUT_REPORTED_LABEL,
+  moneyOutNote,
+  receivedPaymentRow,
+  showingLine,
+  uncoveredPeriodLine,
+  unnamedMoneyExplanation,
+  whoseCommitteeText,
+  ZERO_REPORTED_NOTE,
+} = await import('../committeeMoney');
+const { registerCountLine } = await import('../committeeList');
+const { formatDay, formatMoney } = await import('../legislatorCampaignMoney');
+const {
+  centralDateLabel,
+  FILES_LAST_COPIED_LABEL,
+  FILES_LAST_COPIED_NOTE,
+  LOBBYING_NOT_LOADED,
+  MONEY_LANDING_HEADING,
+  MONEY_LANDING_SUBTITLE,
+  RECORD_DOES_NOT_COVER,
+} = await import('../moneyLanding');
 const {
   READ_PAGE_EMPTY_BODY,
   READ_PAGE_EMPTY_TITLE,
@@ -821,6 +856,412 @@ describe('both screens keep reading the same registry the server reads', () => {
     }
     // The wording lives in one place now, so a literal copy is the regression.
     expect(source).not.toContain('Our own research, in plain language');
+  });
+});
+
+/**
+ * The money section's 4 snapshots (issue #1783). Every test below is one way a
+ * served figure could become a published falsehood about a named organisation,
+ * which is what `.claude/rules/grounded-answers.md` rule 12 exists to stop.
+ *
+ * The committee screens need navigation and cannot be rendered here, the same
+ * limit the legislator profile and the piece screen hit above. So the guarantee
+ * is the same 2-part one: every served sentence IS the output of the helper the
+ * screen calls, and a drift alarm at the end fails if a screen stops calling it.
+ */
+describe('the money landing serves the section’s own words and a live count', () => {
+  const snapshot = moneyLandingPageSnapshot({
+    registerFilerCount: 1603,
+    filesLastCopiedAt: '2026-08-12T02:54:22.402100Z',
+  });
+  const text = visibleText(renderPageSnapshot(snapshot));
+
+  it('draws its heading and its one sentence from the shared wording', () => {
+    expect(snapshot.heading).toBe(MONEY_LANDING_HEADING);
+    expect(snapshot.body).toEqual([MONEY_LANDING_SUBTITLE]);
+  });
+
+  it('links the 2 lanes that lead somewhere, and only those', () => {
+    expect(snapshot.records?.map((record) => record.href)).toEqual([
+      '/legislators',
+      '/money/committees',
+    ]);
+  });
+
+  // A pasted count is how this page once said 1,336 filers on a day the register
+  // held 1,603, so the number has to arrive from the request that drew it.
+  it('counts the register from what was served, not from a constant', () => {
+    expect(text).toContain('1,603 REGISTERED FILERS');
+    const unserved = moneyLandingPageSnapshot({
+      registerFilerCount: null,
+      filesLastCopiedAt: null,
+    });
+    expect(visibleText(renderPageSnapshot(unserved))).not.toContain('REGISTERED FILERS');
+  });
+
+  it('carries the day we copied the files, labelled as the day we checked', () => {
+    expect(text).toContain(FILES_LAST_COPIED_LABEL);
+    expect(text).toContain(FILES_LAST_COPIED_NOTE);
+    expect(text).toContain(centralDateLabel('2026-08-12T02:54:22.402100Z'));
+  });
+
+  it('says what the record does not cover, in the same words the page draws', () => {
+    for (const line of [...RECORD_DOES_NOT_COVER, LOBBYING_NOT_LOADED]) {
+      expect(text).toContain(line);
+    }
+  });
+
+  // No lane counts money and the landing shows no amount at all (campaign money
+  // IA §04). The $200 naming threshold in the gaps list is a rule, not a figure.
+  it('prints no money amount anywhere', () => {
+    expect(text).not.toMatch(/\$[\d,]+\.\d{2}/);
+  });
+});
+
+describe('the register serves an ordinary link per filer, on numbered pages', () => {
+  const rows = [
+    {
+      registration_number: '41326',
+      name: 'Jane Fonda Climate PAC',
+      kind: 'political_committee_or_fund',
+      sub_type: 'PC',
+      office: null,
+      district: null,
+      termination_date: null,
+    },
+    {
+      registration_number: '18833',
+      name: 'Smith, Andrew House Committee',
+      kind: 'candidate_committee',
+      sub_type: null,
+      office: 'House',
+      district: '12A',
+      termination_date: '2026-07-28',
+    },
+  ];
+  const snapshot = committeeDirectoryPageSnapshot(
+    rows,
+    { listTotal: 1603, registerTotal: 1603, asOf: '2026-08-12' },
+    12,
+    50,
+  );
+  const html = renderPageSnapshot(snapshot);
+
+  // The whole defect this fixes: Google states it does not press buttons, so
+  // behind the old "Show more" the other 1,553 filers had no link at all.
+  it('gives every row on the page a real anchor at its own address', () => {
+    expect(snapshot.records?.map((record) => record.href)).toEqual([
+      '/money/committees/jane-fonda-climate-pac-41326',
+      '/money/committees/smith-andrew-house-committee-18833',
+    ]);
+    expect(html).toContain('href="/money/committees/jane-fonda-climate-pac-41326"');
+  });
+
+  it('builds each address with the same slug rule the router reads', () => {
+    for (const row of rows) {
+      expect(
+        snapshot.records?.some((record) =>
+          record.href.endsWith(committeeSlug(row.name, row.registration_number)),
+        ),
+      ).toBe(true);
+    }
+  });
+
+  it('carries previous, next and jump links so the whole register is walkable', () => {
+    const hrefs = snapshot.links.map((link) => link.href);
+    expect(hrefs).toContain('/money/committees?page=11');
+    expect(hrefs).toContain('/money/committees?page=13');
+    expect(hrefs).toContain('/money/committees');
+    expect(hrefs).toContain('/money');
+  });
+
+  it('names which rows of the register this page holds', () => {
+    expect(visibleText(html)).toContain('Showing 551–552 of 1,603 registered filers');
+  });
+
+  // No row carries an amount and nothing here sorts by one: these filers file to
+  // different calendars, so 2 figures side by side would set one period against
+  // another (rule 12; design doc §7).
+  it('puts no money on a list of many committees', () => {
+    expect(visibleText(html)).not.toMatch(/\$[\d,]+\.\d{2}/);
+  });
+
+  it('states the register’s own size and its own date', () => {
+    expect(snapshot.subheading).toBe(registerCountLine(1603, '2026-08-12'));
+  });
+});
+
+describe('a committee’s record in the first response', () => {
+  const snapshot = committeePageSnapshot(committeeFixture, '41326');
+  const html = renderPageSnapshot(snapshot);
+  const text = visibleText(html);
+  const split = committeeFixture.split;
+  const moneyOut = committeeFixture.money_out;
+
+  it('is headed by the register’s own name and its registration number', () => {
+    expect(snapshot.heading).toBe('Jane Fonda Climate PAC');
+    expect(snapshot.subheading).toBe('Political committee or fund · REG 41326');
+  });
+
+  // The drawn page puts the kind above the title and the registered-for line
+  // below it. On one served line "Political committee or fund · Kind as
+  // registered: political committee or fund" reads as a stutter.
+  it('says the register’s kind once, and the seat when there is one', () => {
+    expect(committeePageSnapshot(committeeEmptyYearFixture, '18173').subheading).toBe(
+      'Candidate committee · REG 18173 · Registered for House District 49A',
+    );
+  });
+
+  // Rule 12's first requirement: the total the committee reported and the
+  // payments we can list are different figures, and both are shown.
+  it('shows the reported total AND the named total, and never subtracts them', () => {
+    expect(text).toContain(formatMoney(split.reported_total));
+    expect(text).toContain(formatMoney(split.named_total));
+    expect(text).toContain(formatMoney(split.unnamed_total));
+    expect(text).toContain(unnamedMoneyExplanation(false));
+  });
+
+  it('labels money out as payments rather than as spending', () => {
+    expect(text).toContain(MONEY_OUT_REPORTED_LABEL);
+    expect(text).toContain(MONEY_OUT_FIGURE_LABEL);
+    expect(text).not.toContain('spent');
+    expect(text).toContain(
+      moneyOutNote('reported', false, true, Number(moneyOut.reported_total) === 0),
+    );
+  });
+
+  // Every page carrying a money figure carries one clearly labelled date for it.
+  it('carries the period the figures cover and the day we copied the files', () => {
+    expect(text).toContain(coveredPeriodLine(split.reported_through, '2026-01-01'));
+    expect(text).toContain(centralDateLabel(committeeFixture.fetched_at));
+  });
+
+  it('says whose committee this is in the shared sentence, never inferring a person', () => {
+    expect(snapshot.body).toEqual([whoseCommitteeText('political_committee_or_fund', 'PC')]);
+  });
+
+  it('links its own payments list and the register it came from', () => {
+    const hrefs = snapshot.links.map((link) => link.href);
+    expect(hrefs).toContain('/money/committees/jane-fonda-climate-pac-41326/payments');
+    expect(hrefs).toContain('/money/committees');
+  });
+
+  /**
+   * Rule 11's arithmetic guard, the same one the published-piece snapshot gets:
+   * a figure the layout worked out for itself reads to a reader as a filed fact.
+   * Every amount in the served HTML has to be one the payload carries.
+   */
+  it('invents no money figure — every amount served is one the filing carries', () => {
+    const servedAmounts = [...text.matchAll(/\$[\d,]+\.\d{2}/g)].map((match) => match[0]);
+    const filed = new Set(
+      [
+        split.reported_total,
+        split.named_total,
+        split.unnamed_total,
+        split.named_in_kind_total,
+        moneyOut.reported_total,
+        moneyOut.itemized_payment_total,
+        ...moneyOut.by_type.map((entry) => entry.total),
+      ].map((value) => formatMoney(value)),
+    );
+    expect(servedAmounts.length).toBeGreaterThan(0);
+    for (const amount of servedAmounts) expect(filed.has(amount)).toBe(true);
+  });
+});
+
+describe('a committee-year with nothing filed', () => {
+  const snapshot = committeePageSnapshot(committeeEmptyYearFixture, '18173');
+  const text = visibleText(renderPageSnapshot(snapshot));
+
+  // Missing is "Not reported"; a verified zero is "0". Collapsing the two would
+  // invent a fact about a named organisation (rule 12).
+  it('reads "Not reported" and never prints a figure it does not hold', () => {
+    expect(text).toContain(EMPTY_YEAR_VALUE);
+    expect(text).not.toContain('$0.00');
+    expect(text).toContain(uncoveredPeriodLine(2026));
+  });
+
+  it('still says what the record holds rather than serving an empty shell', () => {
+    expect(snapshot.heading).toBe('Jackson, Carolyn C House Committee');
+    expect(text).toContain(emptyYearMoneyInWhy(2026));
+    expect(text).toContain(EMPTY_YEAR_MONEY_OUT_WHY);
+  });
+});
+
+describe('a filed zero is a number, not a gap', () => {
+  const zeroed = {
+    ...committeeFixture,
+    split: {
+      ...committeeFixture.split,
+      reported_total: '0.0000',
+      named_total: null,
+      named_payments: null,
+      named_cash_total: null,
+      named_in_kind_total: '0.0000',
+      unnamed_total: null,
+    },
+    money_in: { ...committeeFixture.money_in, state: 'not_reported' },
+  };
+  const text = visibleText(renderPageSnapshot(committeePageSnapshot(zeroed, '41326')));
+
+  it('draws $0.00 and the filing’s own sentence for it', () => {
+    expect(text).toContain('$0.00');
+    expect(text).toContain(ZERO_REPORTED_NOTE);
+  });
+
+  it('never turns a missing total into a zero', () => {
+    const missing = {
+      ...committeeFixture,
+      split: { ...committeeFixture.split, state: 'no_reported_total', reported_total: null },
+      money_in: { ...committeeFixture.money_in, state: 'not_reported' },
+      money_out: { ...committeeFixture.money_out, reported_total: null },
+    };
+    const missingText = visibleText(renderPageSnapshot(committeePageSnapshot(missing, '41326')));
+    expect(missingText).toContain('Not reported');
+  });
+});
+
+describe('a committee’s full payments list in the first response', () => {
+  const linkable = new Set<string>(committeePaymentsFixture.linkable_registration_numbers ?? []);
+  // The same field mapping api/page.ts does, so the rows under test are the rows
+  // the first response actually carries.
+  const rows = committeePaymentsFixture.payments.map((row) =>
+    receivedPaymentRow(
+      {
+        contributor: row.contributor,
+        contributorRegistrationNumber: row.contributor_registration_number,
+        contributorType: row.contributor_type,
+        amount: row.amount,
+        receivedOn: row.received_on,
+        receiptType: row.receipt_type,
+        inKind: row.in_kind,
+      },
+      linkable,
+    ),
+  );
+  const snapshot = committeePaymentsPageSnapshot(committeeFixture, '41326', {
+    state: committeePaymentsFixture.state,
+    rows,
+    totalPayments: committeePaymentsFixture.page.total_payments,
+  });
+  const html = renderPageSnapshot(snapshot);
+  const text = visibleText(html);
+
+  it('serves every named payment the request returned', () => {
+    expect(snapshot.sections?.[1]?.items).toHaveLength(committeePaymentsFixture.payments.length);
+    for (const payment of committeePaymentsFixture.payments) {
+      expect(text).toContain(payment.contributor);
+      expect(text).toContain(formatMoney(payment.amount));
+    }
+  });
+
+  it('gives each payment its own date, as the row draws it', () => {
+    for (const payment of committeePaymentsFixture.payments) {
+      expect(text).toContain(formatDay(payment.received_on));
+    }
+  });
+
+  it('counts the list from what was served and says the naming rule', () => {
+    expect(text).toContain(showingLine(rows.length, committeePaymentsFixture.page.total_payments));
+    expect(text).toContain(listLinkNote('gave', false));
+  });
+
+  it('links back to the committee whose payments these are', () => {
+    expect(snapshot.links.map((link) => link.href)).toContain(
+      '/money/committees/jane-fonda-climate-pac-41326',
+    );
+  });
+
+  // Only a name carrying a registration number this release holds opens a page: a
+  // private donor's name is not a profile and never becomes one here.
+  it('opens a page only for a payer the register can identify', () => {
+    const withCommittee = receivedPaymentRow(
+      {
+        contributor: 'Some Party Unit',
+        contributorRegistrationNumber: '20982',
+        contributorType: 'Committee',
+        amount: '500.0000',
+        receivedOn: '2026-07-09',
+        receiptType: 'Contribution',
+        inKind: 'No',
+      },
+      new Set(['20982']),
+    );
+    const linked = committeePaymentsPageSnapshot(committeeFixture, '41326', {
+      state: 'reported',
+      rows: [withCommittee],
+      totalPayments: 1,
+    });
+    expect(linked.sections?.[1]?.items?.[0].href).toBe('/money/committees/some-party-unit-20982');
+    // The individual donors in the fixture carry no registration number at all.
+    expect(snapshot.sections?.[1]?.items?.every((item) => item.href === undefined)).toBe(true);
+  });
+});
+
+describe('the money screens keep reading the helpers the server reads', () => {
+  // The 3 screens need navigation and cannot be rendered here, so this is the
+  // drift alarm in their place: the moment one grows its own copy of a sentence,
+  // the served page and the drawn page can disagree and nothing else would
+  // notice. Same guard the profile and piece screens get above.
+  it('the committee page draws the same money sentences the snapshot serves', () => {
+    const source = readFileSync(
+      join(HERE, '../../..', 'src/screens/redesign/CommitteeMoneyScreen.tsx'),
+      'utf8',
+    );
+    for (const call of [
+      'yearDisplayState',
+      'whoseCommitteeText',
+      'committeeEyebrow',
+      'registeredForLine',
+      'unnamedMoneyExplanation',
+      'moneyOutNote',
+      'coveredPeriodDetail',
+      'recordCoverageLines',
+      'MONEY_OUT_REPORTED_LABEL',
+      'MONEY_OUT_FIGURE_LABEL',
+      'centralDateLabel',
+    ]) {
+      expect(source).toContain(call);
+    }
+  });
+
+  it('the payments page shapes its rows with the shared shapers', () => {
+    const source = readFileSync(
+      join(HERE, '../../..', 'src/screens/redesign/CommitteePaymentsScreen.tsx'),
+      'utf8',
+    );
+    expect(source).toContain('receivedPaymentRow');
+    expect(source).toContain('madePaymentRow');
+    // A literal copy of the stand-in name is the regression this catches.
+    expect(source).not.toContain("'Name not given in the filing'");
+  });
+
+  it('the register list and the landing draw the shared wording', () => {
+    const list = readFileSync(
+      join(HERE, '../../..', 'src/screens/redesign/CommitteeListScreen.tsx'),
+      'utf8',
+    );
+    for (const call of ['committeeRowMeta', 'registerCountLine', 'committeeShowingLine']) {
+      expect(list).toContain(call);
+    }
+    // Numbered pages, never a button Google will not press (§20.5 rule 2).
+    expect(list).toContain('Pagination');
+    expect(list).not.toContain('Show the next');
+
+    const landing = readFileSync(
+      join(HERE, '../../..', 'src/screens/redesign/MoneyLandingScreen.tsx'),
+      'utf8',
+    );
+    for (const constant of [
+      'MONEY_LANDING_HEADING',
+      'MONEY_LANDING_SUBTITLE',
+      'MONEY_LANE_COMMITTEES',
+      'MONEY_LANE_LEGISLATORS',
+      'FILES_LAST_COPIED_NOTE',
+    ]) {
+      expect(landing).toContain(constant);
+    }
+    expect(landing).not.toContain('Follow the money<');
   });
 });
 

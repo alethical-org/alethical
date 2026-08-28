@@ -44,6 +44,76 @@ import {
   type ResearchPiece,
   type ResearchBlock,
 } from './research';
+import {
+  COMMITTEE_LIST_DEK,
+  COMMITTEE_LIST_NOTE,
+  COMMITTEE_LIST_TITLE,
+  committeeRowMeta,
+  committeeShowingLine,
+  registerCountLine,
+} from './committeeList';
+import {
+  CLOSED_EMPTY_VALUE,
+  CLOSED_MONEY_IN_WHY,
+  CLOSED_MONEY_OUT_WHY,
+  closedChipLabel,
+  closedPeriodDetail,
+  closedPeriodLine,
+  committeeEyebrow,
+  committeeSlug,
+  coveredPeriodDetail,
+  coveredPeriodLine,
+  emptyListTitle,
+  emptyListWhy,
+  EMPTY_YEAR_MONEY_OUT_WHY,
+  EMPTY_YEAR_VALUE,
+  emptyYearMoneyInWhy,
+  IN_KIND_CHIP,
+  isBallotQuestionFiler,
+  listLinkNote,
+  MONEY_OUT_FIGURE_LABEL,
+  MONEY_OUT_REPORTED_LABEL,
+  moneyOutKindLabel,
+  moneyOutNote,
+  NOT_IN_REGISTER_LINE,
+  paymentsEyebrow,
+  paymentsTitle,
+  RECORD_COVERS_HEADING,
+  recordCoverageLines,
+  registeredForLine,
+  registerKindFromEntityType,
+  showingLine,
+  uncoveredPeriodDetail,
+  uncoveredPeriodLine,
+  unnamedMoneyExplanation,
+  whoseCommitteeText,
+  yearDisplayState,
+  ZERO_REPORTED_NOTE,
+  type PaymentRow,
+} from './committeeMoney';
+import {
+  formatMoney,
+  moneyFigure,
+  paymentCountLabel,
+  reportedThroughLabel,
+  splitExplanation,
+  statedSplitNote,
+  type MoneyBlockState,
+  type SplitState,
+} from './legislatorCampaignMoney';
+import {
+  centralDateLabel,
+  FILES_LAST_COPIED_LABEL,
+  FILES_LAST_COPIED_NOTE,
+  laneCountLine,
+  LOBBYING_NOT_LOADED,
+  MONEY_LANDING_HEADING,
+  MONEY_LANDING_SUBTITLE,
+  MONEY_LANE_COMMITTEES,
+  MONEY_LANE_LEGISLATORS,
+  RECORD_DOES_NOT_COVER,
+  RECORD_DOES_NOT_COVER_HEADING,
+} from './moneyLanding';
 import { formatSessionLabel } from './sessionLabel';
 import { FIND_MY_LEGISLATOR_INSTRUCTIONS } from './findMyLegislator';
 import { HOME_PUBLIC_INTRO } from './homepage';
@@ -699,6 +769,582 @@ export function readPageSnapshot(pieces: readonly ResearchPiece[]): PageSnapshot
     })),
     // The page's own back link, to the section the nav calls "Money in politics".
     links: [{ label: 'Money in politics', href: '/money' }],
+  };
+}
+
+// --- The campaign money section ---
+
+/**
+ * The money section's first server response: the landing, the register of
+ * filers, one committee's record, and that committee's full payments list
+ * (issue #1783).
+ *
+ * Until this, all 4 addresses sent a title and an empty body, so the 1,603
+ * committee records had no sentence and no link a search engine could read, and
+ * the register's own list served 0 anchors. This is exactly the defect §20.4
+ * recorded on the research page and §21 cured there, applied to the money
+ * section — the addresses in
+ * `docs/architecture/page-metadata-for-search-and-sharing-decisions.md` §22.
+ *
+ * **Rule 12 of `.claude/rules/grounded-answers.md` binds every figure below, and
+ * a served figure is a published claim about a named organisation.** So none of
+ * these functions formats a number of its own: every amount goes through
+ * `formatMoney`, every absent one through `moneyFigure`, and both the total the
+ * committee reported and the payments we can list are served with the sentence
+ * that says they are different figures. Nothing here subtracts one from the
+ * other, nothing implies one payment funded another, and every page carrying a
+ * money figure carries the day we copied the Board's files.
+ *
+ * The year and the tab in an address are deliberately ignored: the body serves
+ * the page's canonical state, exactly as a bill's body serves its Summary
+ * whichever tab the address names. The app then draws the requested year.
+ */
+
+/** The server's own vocabulary for whether a block of figures may be read at
+ *  all. Anything it does not name is "we could not tell", never a 0. */
+function committeeBlockState(state: string | null | undefined): MoneyBlockState {
+  if (state === 'reported') return 'reported';
+  if (state === 'not_reported') return 'not_reported';
+  return 'unavailable';
+}
+
+export interface MoneyLandingSnapshotSource {
+  /** The register's own size, read live. Null when the count is not served. */
+  registerFilerCount: number | null;
+  /** When we last copied the Board's files, as the served instant. */
+  filesLastCopiedAt: string | null;
+}
+
+export function moneyLandingPageSnapshot(source: MoneyLandingSnapshotSource): PageSnapshot {
+  const committeeCount = laneCountLine(source.registerFilerCount, 'registered filers');
+  return {
+    heading: MONEY_LANDING_HEADING,
+    subheading: '',
+    bodyHeading: '',
+    body: [MONEY_LANDING_SUBTITLE],
+    bodyIsList: false,
+    // The 2 lanes that lead somewhere. The 3rd card on the drawn page has no page
+    // behind it yet, so there is nothing here for a reader or a crawler to follow.
+    records: [
+      {
+        label: MONEY_LANE_LEGISLATORS.title,
+        detail: MONEY_LANE_LEGISLATORS.body,
+        href: '/legislators',
+      },
+      {
+        label: MONEY_LANE_COMMITTEES.title,
+        detail: [MONEY_LANE_COMMITTEES.body, committeeCount].filter(Boolean).join(' · '),
+        href: '/money/committees',
+      },
+    ],
+    // The one freshness date this page shows, with the sentence that says what it
+    // is: the day we copied the files, never the period any money covers.
+    facts: source.filesLastCopiedAt
+      ? [
+          {
+            label: FILES_LAST_COPIED_LABEL,
+            lines: [centralDateLabel(source.filesLastCopiedAt), FILES_LAST_COPIED_NOTE],
+          },
+        ]
+      : [],
+    sections: [
+      {
+        heading: RECORD_DOES_NOT_COVER_HEADING,
+        body: [...RECORD_DOES_NOT_COVER, LOBBYING_NOT_LOADED],
+        bodyIsList: true,
+      },
+    ],
+    links: [{ label: READ_PAGE_HEADING, href: '/read' }],
+  };
+}
+
+export interface CommitteeDirectorySnapshotSource {
+  registration_number?: string | null;
+  name?: string | null;
+  kind?: string | null;
+  sub_type?: string | null;
+  office?: string | null;
+  district?: string | null;
+  termination_date?: string | null;
+}
+
+/**
+ * One numbered page of the register, with an ordinary link per filer.
+ *
+ * The links are the whole point: the register was a "Show more" button, and
+ * Google states it does not press buttons, so 1,553 of the 1,603 committee pages
+ * had no ordinary link anywhere on the site (§20.5 rule 2).
+ */
+export function committeeDirectoryPageSnapshot(
+  committees: readonly CommitteeDirectorySnapshotSource[],
+  totals: { listTotal: number; registerTotal: number | null; asOf: string | null },
+  page: number,
+  pageSize: number,
+): PageSnapshot {
+  const totalPages = directoryTotalPages(totals.listTotal, pageSize);
+  const showing = committeeShowingLine(page, committees.length, totals.listTotal, 'all');
+  return {
+    heading: COMMITTEE_LIST_TITLE,
+    subheading: registerCountLine(totals.registerTotal, totals.asOf) ?? '',
+    bodyHeading: '',
+    body: [COMMITTEE_LIST_DEK, ...(showing ? [showing] : []), COMMITTEE_LIST_NOTE],
+    bodyIsList: false,
+    facts: [],
+    records: committees.map((committee) => {
+      const registrationNumber = clean(committee.registration_number);
+      const name = clean(committee.name);
+      const closed = closedChipLabel(committee.termination_date);
+      return {
+        label: name,
+        detail: [
+          committeeRowMeta({
+            kind: committee.kind ?? null,
+            subType: committee.sub_type ?? null,
+            office: committee.office ?? null,
+            district: committee.district ?? null,
+          }),
+          closed,
+          `REG ${registrationNumber}`,
+        ]
+          .filter(Boolean)
+          .join(' · '),
+        href: `/money/committees/${encodeURIComponent(committeeSlug(name, registrationNumber))}`,
+      };
+    }),
+    sections: [
+      {
+        heading: RECORD_DOES_NOT_COVER_HEADING,
+        body: [...RECORD_DOES_NOT_COVER],
+        bodyIsList: true,
+      },
+    ],
+    links: [
+      ...(page > 1
+        ? [{ label: 'Previous', href: directoryPagePath('/money/committees', page - 1) }]
+        : []),
+      ...(page < totalPages
+        ? [{ label: 'Next', href: directoryPagePath('/money/committees', page + 1) }]
+        : []),
+      ...directoryJumpPages(page, totalPages).map((target) => ({
+        label: `Page ${target}`,
+        href: directoryPagePath('/money/committees', target),
+      })),
+      { label: MONEY_LANDING_HEADING, href: '/money' },
+    ],
+  };
+}
+
+/** One committee-year, exactly as `/committees/{number}/finance` serves it. */
+export interface CommitteeMoneySnapshotSource {
+  registration_number?: string | null;
+  committee_name?: string | null;
+  entity_type?: string | null;
+  entity_sub_type?: string | null;
+  year?: number | null;
+  fetched_at?: string | null;
+  register?: {
+    state?: string | null;
+    kind?: string | null;
+    name?: string | null;
+    office?: string | null;
+    district?: string | null;
+    registration_date?: string | null;
+    termination_date?: string | null;
+  } | null;
+  money_in?: {
+    state?: string | null;
+    other_receipts?: { receipt_type: string; total: string; payments: number }[] | null;
+    reported_period_start?: string | null;
+    source_url?: string | null;
+  } | null;
+  money_out?: {
+    state?: string | null;
+    itemized_payment_total?: string | null;
+    itemized_payments?: number | null;
+    by_type?: { type: string; total: string; payments: number }[] | null;
+    reported_total?: string | null;
+    reported_through?: string | null;
+    source_url?: string | null;
+  } | null;
+  split?: {
+    state?: string | null;
+    reported_total?: string | null;
+    reported_through?: string | null;
+    named_total?: string | null;
+    named_payments?: number | null;
+    named_in_kind_total?: string | null;
+    unnamed_total?: string | null;
+    stated_split_state?: string | null;
+  } | null;
+}
+
+/** The one shape both money snapshots read, so they cannot disagree about a
+ *  committee's identity, its state, or the day we copied its figures. */
+interface CommitteeIdentity {
+  registrationNumber: string;
+  name: string;
+  slug: string;
+  registerKind: string | null;
+  isBallot: boolean;
+  isPartyUnit: boolean;
+  eyebrow: string | null;
+  subheading: string;
+  checkedOn: string | null;
+  state: 'closed-empty' | 'empty-year' | 'figures';
+  periodLine: string | null;
+  periodDetail: string;
+}
+
+/**
+ * The header's one line: the register's kind, the registration number, what the
+ * committee registered for, and the closed chip.
+ *
+ * The drawn page puts the kind in an eyebrow above the title and the
+ * registered-for line in a chip below it, so a filer whose register entry states
+ * only its kind reads correctly there. On one served line the same 2 strings
+ * would read "Political committee or fund · Kind as registered: political
+ * committee or fund", so the second is dropped when it only repeats the first.
+ */
+function subheadingFor(parts: {
+  eyebrow: string | null;
+  registrationNumber: string;
+  registeredFor: string | null;
+  notInRegister: boolean;
+  closed: string | null;
+}): string {
+  const eyebrow = clean(parts.eyebrow).toLowerCase();
+  const registeredFor = clean(parts.registeredFor);
+  const repeatsTheKind = Boolean(eyebrow) && registeredFor.toLowerCase().endsWith(eyebrow);
+  return [
+    parts.eyebrow ?? '',
+    `REG ${parts.registrationNumber}`,
+    repeatsTheKind ? '' : registeredFor,
+    parts.notInRegister ? NOT_IN_REGISTER_LINE : '',
+    parts.closed ?? '',
+  ]
+    .filter(Boolean)
+    .join(' · ');
+}
+
+function committeeIdentity(
+  money: CommitteeMoneySnapshotSource,
+  fallbackRegistrationNumber: string,
+): CommitteeIdentity {
+  const register = money.register ?? {};
+  const split = money.split ?? {};
+  const moneyIn = money.money_in ?? {};
+  const moneyOut = money.money_out ?? {};
+  const registrationNumber = clean(money.registration_number) || fallbackRegistrationNumber;
+  // The register's own spelling wins, exactly as the screen's canonical forward
+  // decides it, so the served address is the one the app rewrites to.
+  const name =
+    clean(register.name) || clean(money.committee_name) || `Committee ${registrationNumber}`;
+  const registerKind =
+    register.state === 'reported'
+      ? (register.kind ?? null)
+      : registerKindFromEntityType(money.entity_type);
+  const state = yearDisplayState({
+    register: { terminationDate: register.termination_date ?? null },
+    split: { reportedTotal: split.reported_total ?? null },
+    moneyIn: {
+      state: moneyIn.state ?? '',
+      otherReceipts: moneyIn.other_receipts ?? [],
+    },
+    moneyOut: {
+      state: moneyOut.state ?? '',
+      reportedTotal: moneyOut.reported_total ?? null,
+      byType: moneyOut.by_type ?? [],
+    },
+  });
+  const checkedOn = money.fetched_at ? centralDateLabel(money.fetched_at) : null;
+  const year = money.year ?? new Date().getFullYear();
+  const isPartyUnit = registerKind === 'party_unit';
+  return {
+    registrationNumber,
+    name,
+    slug: committeeSlug(name, registrationNumber),
+    registerKind,
+    isBallot: isBallotQuestionFiler(money.entity_sub_type),
+    isPartyUnit,
+    eyebrow: committeeEyebrow(registerKind, money.entity_sub_type),
+    subheading: subheadingFor({
+      eyebrow: committeeEyebrow(registerKind, money.entity_sub_type),
+      registrationNumber,
+      registeredFor: registeredForLine({
+        kind: registerKind,
+        office: register.office ?? null,
+        district: register.district ?? null,
+      }),
+      notInRegister: register.state === 'not_registered',
+      closed: closedChipLabel(register.termination_date),
+    }),
+    state,
+    checkedOn,
+    periodLine:
+      state === 'closed-empty'
+        ? closedPeriodLine(register.termination_date)
+        : state === 'empty-year'
+          ? uncoveredPeriodLine(year)
+          : coveredPeriodLine(split.reported_through, moneyIn.reported_period_start),
+    periodDetail:
+      state === 'closed-empty'
+        ? closedPeriodDetail(register.termination_date, checkedOn)
+        : state === 'empty-year'
+          ? uncoveredPeriodDetail(year, checkedOn)
+          : coveredPeriodDetail(split.reported_through, checkedOn, {
+              isPartyUnit,
+              reportedPeriodStart: moneyIn.reported_period_start ?? null,
+            }),
+  };
+}
+
+/** The address a committee's record actually lives at, from its register name. */
+export function committeeSnapshotPath(
+  money: CommitteeMoneySnapshotSource,
+  fallbackRegistrationNumber: string,
+  view: 'page' | 'payments' = 'page',
+): string {
+  const { slug } = committeeIdentity(money, fallbackRegistrationNumber);
+  const base = `/money/committees/${encodeURIComponent(slug)}`;
+  return view === 'payments' ? `${base}/payments` : base;
+}
+
+/** The heading a committee's record carries, for its own title tag. */
+export function committeeSnapshotName(
+  money: CommitteeMoneySnapshotSource,
+  fallbackRegistrationNumber: string,
+): string {
+  return committeeIdentity(money, fallbackRegistrationNumber).name;
+}
+
+export function committeePageSnapshot(
+  money: CommitteeMoneySnapshotSource,
+  fallbackRegistrationNumber: string,
+): PageSnapshot {
+  const identity = committeeIdentity(money, fallbackRegistrationNumber);
+  const split = money.split ?? {};
+  const moneyIn = money.money_in ?? {};
+  const moneyOut = money.money_out ?? {};
+  const year = money.year ?? new Date().getFullYear();
+  const closed = identity.state === 'closed-empty';
+
+  const moneyInBlocks: SnapshotBlock[] = [];
+  const moneyOutBlocks: SnapshotBlock[] = [];
+
+  if (identity.state !== 'figures') {
+    // A missing year says which of the 2 reasons it is, and never prints a 0.
+    moneyInBlocks.push({
+      kind: 'prose',
+      lines: [
+        `Donations this committee reported to the state: ${
+          closed ? CLOSED_EMPTY_VALUE : EMPTY_YEAR_VALUE
+        }`,
+        closed ? CLOSED_MONEY_IN_WHY : emptyYearMoneyInWhy(year),
+      ],
+    });
+    moneyOutBlocks.push({
+      kind: 'prose',
+      lines: [
+        `${MONEY_OUT_FIGURE_LABEL}: ${closed ? CLOSED_EMPTY_VALUE : EMPTY_YEAR_VALUE}`,
+        closed ? CLOSED_MONEY_OUT_WHY : EMPTY_YEAR_MONEY_OUT_WHY,
+      ],
+    });
+  } else {
+    const reported = formatMoney(split.reported_total ?? null);
+    const named = moneyFigure(committeeBlockState(moneyIn.state), split.named_total ?? null);
+    const unnamed = split.state === 'shown' ? formatMoney(split.unnamed_total ?? null) : null;
+    const inKind =
+      Number(split.named_in_kind_total ?? 0) > 0
+        ? formatMoney(split.named_in_kind_total ?? null)
+        : null;
+    // A reported zero is a verified zero: the total draws as $0.00 and its own
+    // sentence carries the story, with no named/unnamed division of nothing.
+    const reportedZero =
+      split.state === 'shown' &&
+      Number(split.reported_total) === 0 &&
+      (split.named_total ?? null) === null;
+    const inLines = [
+      // Rule 12's 2 numbers. A missing total reads "Not reported"; a filed 0 reads
+      // "$0.00"; and the 2 are never subtracted from one another.
+      `Donations this committee reported to the state: ${reported ?? 'Not reported'}`,
+      ...(reported ? [reportedThroughLabel(split.reported_through) ?? ''] : []),
+      ...(reportedZero
+        ? [ZERO_REPORTED_NOTE]
+        : [
+            `Donations with a donor’s name: ${named.text}`,
+            paymentCountLabel(split.named_payments ?? null) ?? '',
+          ]),
+      ...(inKind
+        ? [
+            `${inKind} of the donations above were goods and services rather than money ` +
+              `(${IN_KIND_CHIP.toLowerCase()}). The state counts those separately from the ` +
+              `reported total.`,
+          ]
+        : []),
+      ...(split.state === 'shown' && unnamed !== null && !reportedZero
+        ? [
+            `Donations with nobody’s name on them: ${unnamed}`,
+            unnamedMoneyExplanation(identity.isBallot),
+            statedSplitNote(split.stated_split_state) ?? '',
+          ]
+        : []),
+      splitExplanation((split.state ?? 'no_reported_total') as SplitState) ?? '',
+    ].filter(Boolean);
+    moneyInBlocks.push({ kind: 'prose', lines: inLines });
+    if ((moneyIn.other_receipts ?? []).length) {
+      moneyInBlocks.push({
+        kind: 'bullets',
+        items: (moneyIn.other_receipts ?? []).map((receipt) =>
+          [
+            receipt.receipt_type,
+            formatMoney(receipt.total) ?? '',
+            paymentCountLabel(receipt.payments) ?? '',
+          ]
+            .filter(Boolean)
+            .join(' · '),
+        ),
+      });
+    }
+
+    const outTotal = moneyFigure(
+      committeeBlockState(moneyOut.state),
+      moneyOut.itemized_payment_total ?? null,
+    );
+    const reportedOut = formatMoney(moneyOut.reported_total ?? null);
+    moneyOutBlocks.push({
+      kind: 'prose',
+      lines: [
+        ...(reportedOut
+          ? [
+              `${MONEY_OUT_REPORTED_LABEL}: ${reportedOut}`,
+              reportedThroughLabel(moneyOut.reported_through) ?? '',
+            ]
+          : []),
+        `${MONEY_OUT_FIGURE_LABEL}: ${outTotal.text}`,
+        paymentCountLabel(moneyOut.itemized_payments ?? null) ?? '',
+        moneyOutNote(
+          committeeBlockState(moneyOut.state),
+          identity.isBallot,
+          reportedOut !== null,
+          Number(moneyOut.reported_total) === 0,
+        ),
+      ].filter(Boolean),
+    });
+    if ((moneyOut.by_type ?? []).length) {
+      moneyOutBlocks.push({
+        kind: 'bullets',
+        items: (moneyOut.by_type ?? []).map((entry) =>
+          [
+            moneyOutKindLabel(entry.type),
+            formatMoney(entry.total) ?? '',
+            paymentCountLabel(entry.payments) ?? '',
+          ]
+            .filter(Boolean)
+            .join(' · '),
+        ),
+      });
+    }
+  }
+
+  return {
+    heading: identity.name,
+    subheading: identity.subheading,
+    bodyHeading: '',
+    body: [whoseCommitteeText(identity.registerKind, money.entity_sub_type)],
+    bodyIsList: false,
+    facts: [],
+    sections: [
+      {
+        heading: identity.periodLine ?? 'Filing period',
+        blocks: [{ kind: 'prose', lines: [identity.periodDetail] }],
+      },
+      { heading: 'Money in', blocks: moneyInBlocks },
+      { heading: 'Money out', blocks: moneyOutBlocks },
+      {
+        heading: RECORD_COVERS_HEADING,
+        body: recordCoverageLines(identity.isBallot),
+        bodyIsList: true,
+      },
+    ],
+    links: [
+      {
+        label: paymentsTitle('gave'),
+        href: `/money/committees/${encodeURIComponent(identity.slug)}/payments`,
+      },
+      ...(moneyIn.source_url
+        ? [{ label: 'Minnesota’s list of named donations', href: moneyIn.source_url }]
+        : []),
+      { label: COMMITTEE_LIST_TITLE, href: '/money/committees' },
+    ],
+  };
+}
+
+/**
+ * One committee's full payments list. Amounts appear here, largest first:
+ * ranking payments inside one committee is a fact about that committee, not a
+ * comparison between filers on different filing calendars (design doc §7).
+ *
+ * Every row is built by the same 2 shapers the screen calls, so a served line is
+ * a drawn line rather than a second wording of it.
+ */
+export function committeePaymentsPageSnapshot(
+  money: CommitteeMoneySnapshotSource,
+  fallbackRegistrationNumber: string,
+  payments: {
+    state?: string | null;
+    rows: readonly PaymentRow[];
+    totalPayments: number | null;
+  },
+): PageSnapshot {
+  const identity = committeeIdentity(money, fallbackRegistrationNumber);
+  const year = money.year ?? new Date().getFullYear();
+  const served = payments.state === 'reported';
+  const showing = served ? showingLine(payments.rows.length, payments.totalPayments) : null;
+  return {
+    heading: paymentsTitle('gave'),
+    subheading: [identity.name, `REG ${identity.registrationNumber}`].join(' · '),
+    bodyHeading: '',
+    body: [
+      ...(showing ? [showing] : []),
+      ...(served ? [] : [emptyListTitle('gave', year), emptyListWhy(year)]),
+      listLinkNote('gave', identity.isBallot),
+    ],
+    bodyIsList: false,
+    facts: [],
+    sections: [
+      {
+        heading: identity.periodLine ?? 'Filing period',
+        blocks: [{ kind: 'prose', lines: [identity.periodDetail] }],
+      },
+      ...(payments.rows.length
+        ? [
+            {
+              heading: paymentsEyebrow('gave'),
+              items: payments.rows.map((row) => ({
+                label: [
+                  row.name,
+                  row.inKind ? IN_KIND_CHIP : '',
+                  row.meta,
+                  row.date ?? '',
+                  row.amount ?? '',
+                ]
+                  .filter(Boolean)
+                  .join(' · '),
+                href:
+                  row.linkNumber && row.linkName
+                    ? `/money/committees/${encodeURIComponent(
+                        committeeSlug(row.linkName, row.linkNumber),
+                      )}`
+                    : undefined,
+              })),
+            },
+          ]
+        : []),
+    ],
+    links: [
+      { label: identity.name, href: `/money/committees/${encodeURIComponent(identity.slug)}` },
+      { label: COMMITTEE_LIST_TITLE, href: '/money/committees' },
+    ],
   };
 }
 

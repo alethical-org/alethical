@@ -304,6 +304,32 @@ export function staleHoldNote(checkedOn: string | null): string {
   );
 }
 
+/**
+ * Which display state a whole committee-year is in, decided once so the period
+ * stamp, the 2 cards, the lists and the first server response cannot disagree
+ * about it.
+ *
+ * Structurally typed rather than tied to the app's mapped record, because the
+ * page function builds the same state straight off the API payload for the text
+ * it serves before any script runs (#1783). One rule, 2 callers.
+ */
+export function yearDisplayState(money: {
+  register: { terminationDate: string | null };
+  split: { reportedTotal: string | null };
+  moneyIn: { state: string; otherReceipts: readonly unknown[] };
+  moneyOut: { state: string; reportedTotal: string | null; byType: readonly unknown[] };
+}): 'closed-empty' | 'empty-year' | 'figures' {
+  const hasFigures =
+    money.split.reportedTotal !== null ||
+    money.moneyOut.reportedTotal !== null ||
+    money.moneyIn.state === 'reported' ||
+    money.moneyOut.state === 'reported' ||
+    money.moneyIn.otherReceipts.length > 0 ||
+    money.moneyOut.byType.length > 0;
+  if (hasFigures) return 'figures';
+  return money.register.terminationDate ? 'closed-empty' : 'empty-year';
+}
+
 // --- The empty and closed money cards ---------------------------------------------
 
 export const CLOSED_MONEY_IN_WHY =
@@ -664,6 +690,93 @@ export function isInKind(inKind: string | null | undefined): boolean {
   return inKind === 'Yes';
 }
 
+/** What a payments row shows, whichever direction it came from. */
+export interface PaymentRow {
+  /** The filing's own name for the other side, or the plain stand-in below. */
+  name: string;
+  meta: string;
+  /** "20 Jul 2026", or null when the filing carries no date for the payment. */
+  date: string | null;
+  /** "$1,250.00", or null when the filing carries no readable amount. */
+  amount: string | null;
+  inKind: boolean;
+  /** Set only when the other side is a filer whose own page we can open. */
+  linkNumber: string | null;
+  linkName: string | null;
+}
+
+/** A filing that names no counterparty says so, rather than showing a blank. */
+export const UNNAMED_PAYMENT_PARTY = 'Name not given in the filing';
+
+/**
+ * One donation as a row. Shared by the full-payments screen and by the text the
+ * first server response carries (#1783), so the served line and the drawn line
+ * are the same characters rather than 2 similar sentences.
+ */
+export function receivedPaymentRow(
+  payment: {
+    contributor: string | null;
+    contributorRegistrationNumber: string | null;
+    contributorType: string | null;
+    amount: string | null;
+    receivedOn: string | null;
+    receiptType: string | null;
+    inKind: string | null;
+  },
+  linkable: ReadonlySet<string>,
+): PaymentRow {
+  return {
+    name: payment.contributor ?? UNNAMED_PAYMENT_PARTY,
+    meta: receivedRowMeta(payment),
+    date: formatDay(payment.receivedOn),
+    amount: formatMoney(payment.amount),
+    inKind: isInKind(payment.inKind),
+    linkNumber:
+      payment.contributorRegistrationNumber && linkable.has(payment.contributorRegistrationNumber)
+        ? payment.contributorRegistrationNumber
+        : null,
+    linkName: payment.contributor,
+  };
+}
+
+/**
+ * One payment out as a row. Money given to another campaign is named by the
+ * committee it reached rather than by the vendor field, because that is the fact
+ * the filing records; everything else keeps the vendor's own name.
+ */
+export function madePaymentRow(
+  payment: {
+    vendorName: string | null;
+    vendorCity: string | null;
+    vendorState: string | null;
+    affectedCommitteeName: string | null;
+    affectedCommitteeRegistrationNumber: string | null;
+    amount: string | null;
+    paidOn: string | null;
+    expenditureType: string | null;
+    purpose: string | null;
+    inKind: string | null;
+  },
+  linkable: ReadonlySet<string>,
+): PaymentRow {
+  const isTransfer = payment.expenditureType === 'Contribution';
+  return {
+    name:
+      (isTransfer ? (payment.affectedCommitteeName ?? payment.vendorName) : payment.vendorName) ??
+      UNNAMED_PAYMENT_PARTY,
+    meta: madeRowMeta(payment),
+    date: formatDay(payment.paidOn),
+    amount: formatMoney(payment.amount),
+    inKind: isInKind(payment.inKind),
+    linkNumber:
+      payment.affectedCommitteeRegistrationNumber &&
+      linkable.has(payment.affectedCommitteeRegistrationNumber)
+        ? payment.affectedCommitteeRegistrationNumber
+        : null,
+    linkName: payment.affectedCommitteeName,
+  };
+}
+
 // --- The record-coverage block ---------------------------------------------------------
 
 /**
@@ -671,6 +784,8 @@ export function isInKind(inKind: string | null | undefined): boolean {
  * off a ballot-question filer's page: the statute and the Board's own handbook
  * disagree about that threshold, and we assert neither (rule 12, as amended).
  */
+export const RECORD_COVERS_HEADING = 'What this record covers';
+
 export function recordCoverageLines(isBallot: boolean): string[] {
   const lines = [
     'Money filed with the Minnesota Campaign Finance and Public Disclosure Board.',

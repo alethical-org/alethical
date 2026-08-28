@@ -54,6 +54,7 @@ import {
   notFoundBody,
   notFoundTitle,
   receivedRowMeta,
+  RECORD_COVERS_HEADING,
   recordCoverageLines,
   registeredForLine,
   registerKindFromEntityType,
@@ -66,6 +67,7 @@ import {
   unlistedReportsLine,
   unnamedMoneyExplanation,
   whoseCommitteeText,
+  yearDisplayState,
   ZERO_REPORTED_NOTE,
   type CommitteeTab,
 } from '../../lib/committeeMoney';
@@ -145,20 +147,6 @@ function ForwardArrow({ color }: { color: string }) {
       />
     </Svg>
   );
-}
-
-/** Which display state the whole year is in, decided once so the stamp, the two
- *  cards and the lists cannot disagree about it. */
-export function yearDisplayState(money: CommitteeMoney): 'closed-empty' | 'empty-year' | 'figures' {
-  const hasFigures =
-    money.split.reportedTotal !== null ||
-    money.moneyOut.reportedTotal !== null ||
-    money.moneyIn.state === 'reported' ||
-    money.moneyOut.state === 'reported' ||
-    money.moneyIn.otherReceipts.length > 0 ||
-    money.moneyOut.byType.length > 0;
-  if (hasFigures) return 'figures';
-  return money.register.terminationDate ? 'closed-empty' : 'empty-year';
 }
 
 export function CommitteeMoneyScreen({ navigation, route }: RootScreenProps<'CommitteeMoney'>) {
@@ -419,7 +407,7 @@ function CommitteeBody({
       />
 
       <View style={styles.coverageCard}>
-        <Text style={styles.coverageHead}>WHAT THIS RECORD COVERS</Text>
+        <Text style={styles.coverageHead}>{RECORD_COVERS_HEADING.toUpperCase()}</Text>
         {recordCoverageLines(isBallot).map((line) => (
           <Text key={line} style={styles.coverageLine}>
             {line}

@@ -166,3 +166,44 @@ export function confirmationDateLine(newestConfirmationAt: string | null): strin
     ? `Read live from the confirmation log · newest confirmation ${centralDateLabel(newestConfirmationAt)}`
     : null;
 }
+
+// --- The landing's own fixed wording ----------------------------------------
+
+/**
+ * The heading, the sentence under it, and the 2 lane cards that lead somewhere.
+ *
+ * These lived as literals inside `screens/redesign/MoneyLandingScreen.tsx` until
+ * the first server response started carrying the landing's own text (#1783). They
+ * are here now for the same reason the /reading page's wording moved into
+ * `lib/research.ts`: the served page and the drawn page must be the same words,
+ * and 2 copies of a sentence is how one gets fixed and the other does not.
+ *
+ * The 3rd lane card ("Who got paid") is deliberately absent. It has no page yet,
+ * so it is inert on the screen and there is nothing for a first response to link.
+ */
+export const MONEY_LANDING_HEADING = 'Follow the money';
+
+export const MONEY_LANDING_SUBTITLE =
+  'Every contribution and expenditure Minnesota publishes for state campaigns, searchable by ' +
+  'the name it was filed under.';
+
+export const MONEY_LANE_LEGISLATORS = {
+  title: 'Legislators',
+  body: 'Their money is a tab on the profile they already have.',
+} as const;
+
+export const MONEY_LANE_COMMITTEES = {
+  title: 'Committees',
+  body: 'Campaign committees, party units, and other registered funds.',
+} as const;
+
+/** The one freshness date the landing shows, worded as the screen words it: the
+ *  day we copied the files, never the period any money covers (rule 12). */
+export const FILES_LAST_COPIED_LABEL = 'Files last copied';
+
+export const FILES_LAST_COPIED_NOTE =
+  'When we last copied new filings from the Board. Not the period the money covers — every ' +
+  'figure carries its own period, and each one ends earlier than this date.';
+
+/** The heading over the permanent gaps, on the landing and on the committees list. */
+export const RECORD_DOES_NOT_COVER_HEADING = 'What this record does not cover';

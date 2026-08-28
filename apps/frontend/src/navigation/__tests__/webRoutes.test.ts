@@ -392,17 +392,27 @@ describe('campaign money routes', () => {
     expect(pathForRoute({ name: 'CommitteeList' })).toBe('/money/committees');
   });
 
-  it('round-trips the committees list’s name box, kind filter and row count', () => {
-    expect(targetFromPathname('/money/committees?q=dfl&kind=party_unit&show=100')).toEqual({
+  it('round-trips the committees list’s name box, kind filter and numbered page', () => {
+    expect(targetFromPathname('/money/committees?q=dfl&kind=party_unit&page=3')).toEqual({
       kind: 'moneyCommitteeList',
-      params: { q: 'dfl', kind: 'party_unit', show: '100' },
+      params: { q: 'dfl', kind: 'party_unit', page: '3' },
     });
     expect(
       pathForRoute({
         name: 'CommitteeList',
-        params: { q: 'dfl', kind: 'party_unit', show: '100' },
+        params: { q: 'dfl', kind: 'party_unit', page: '3' },
       }),
-    ).toBe('/money/committees?q=dfl&kind=party_unit&show=100');
+    ).toBe('/money/committees?q=dfl&kind=party_unit&page=3');
+  });
+
+  // Every filer past the first 50 was behind a "Show more" button, which Google
+  // states it does not press, so the numbered address is what makes the other
+  // 1,553 committee pages walkable (#1783).
+  it('keeps a numbered register page as its own address', () => {
+    expect(targetFromPathname('/money/committees?page=12')).toEqual({
+      kind: 'moneyCommitteeList',
+      params: { page: '12' },
+    });
   });
 
   // A committee's own page still resolves by its trailing number, so the list

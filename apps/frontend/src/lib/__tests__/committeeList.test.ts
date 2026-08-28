@@ -8,18 +8,15 @@ import { describe, expect, it } from 'vitest';
 import {
   COMMITTEE_KIND_FILTERS,
   COMMITTEE_LIST_NOTE,
-  COMMITTEE_MAX_SHOWN,
   COMMITTEE_PAGE_SIZE,
   committeeEmptyTitle,
   committeeEmptyWhy,
-  committeeMoreLabel,
   committeeRowMeta,
   committeeShowingLine,
   kindFilterFromParam,
   kindFilterLabel,
   kindFilterNoun,
   registerCountLine,
-  shownCountFromParam,
 } from '../committeeList';
 
 describe('the kind filter offers exactly the register’s own 3 kinds', () => {
@@ -57,19 +54,11 @@ describe('the kind filter offers exactly the register’s own 3 kinds', () => {
   });
 });
 
-describe('how many rows the address asks for', () => {
-  // A "Show more" that lived in component state would leave the shared link
-  // pointing at the first page (grounded-answers rule 5).
-  it('starts at one page and rounds a hand-edited value up to a whole page', () => {
-    expect(shownCountFromParam(undefined)).toBe(COMMITTEE_PAGE_SIZE);
-    expect(shownCountFromParam('0')).toBe(COMMITTEE_PAGE_SIZE);
-    expect(shownCountFromParam('not a number')).toBe(COMMITTEE_PAGE_SIZE);
-    expect(shownCountFromParam('51')).toBe(COMMITTEE_PAGE_SIZE * 2);
-    expect(shownCountFromParam('100')).toBe(COMMITTEE_PAGE_SIZE * 2);
-  });
-
-  it('caps a hand-edited value so one address cannot fetch the whole register', () => {
-    expect(shownCountFromParam('999999')).toBe(COMMITTEE_MAX_SHOWN);
+describe('how many rows one numbered page holds', () => {
+  // Half the register endpoint's own maximum, so a page is always one request,
+  // and small enough that 1,603 filers fit in 33 walkable addresses.
+  it('is 50', () => {
+    expect(COMMITTEE_PAGE_SIZE).toBe(50);
   });
 });
 
@@ -96,23 +85,32 @@ describe('the count line', () => {
 });
 
 describe('the showing line speaks for the list on screen', () => {
-  it('names the filter’s own total while rows are held back', () => {
-    expect(committeeShowingLine(50, 778, 'candidate_committee')).toBe(
-      'Showing 50 of 778 candidate committees',
+  it('names which rows of the filter’s own total this page holds', () => {
+    expect(committeeShowingLine(1, 50, 778, 'candidate_committee')).toBe(
+      'Showing 1–50 of 778 candidate committees',
     );
   });
 
-  it('drops the "showing" once every row is on screen', () => {
-    expect(committeeShowingLine(299, 299, 'party_unit')).toBe('299 party units');
+  // "Showing 50 of 1,603" was true on page 1 and told a reader on page 12
+  // nothing about which 50 rows they were looking at.
+  it('counts from the page the reader is on, not from the first row', () => {
+    expect(committeeShowingLine(12, 50, 1603, 'all')).toBe(
+      'Showing 551–600 of 1,603 registered filers',
+    );
+  });
+
+  it('names a short last page by its real range', () => {
+    expect(committeeShowingLine(33, 3, 1603, 'all')).toBe(
+      'Showing 1,601–1,603 of 1,603 registered filers',
+    );
+  });
+
+  it('drops the "showing" once every row is on one page', () => {
+    expect(committeeShowingLine(1, 29, 29, 'party_unit')).toBe('29 party units');
   });
 
   it('says nothing rather than guessing a length from the rows it holds', () => {
-    expect(committeeShowingLine(50, null, 'all')).toBeNull();
-  });
-
-  it('never offers more rows than are left', () => {
-    expect(committeeMoreLabel(1600, 1603)).toBe('Show the next 3');
-    expect(committeeMoreLabel(50, 1603)).toBe('Show the next 50');
+    expect(committeeShowingLine(1, 50, null, 'all')).toBeNull();
   });
 });
 
