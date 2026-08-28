@@ -80,7 +80,14 @@ jobs:
             const fs = require('fs');
             const output = fs.readFileSync('check-output.txt', 'utf8');
             const title = "A published piece links to a page that is no longer there";
+            // The issue a run reports into is found by this marker, never by its
+            // title. Rule 13 puts fixing a posted piece with the Alethical team, so a
+            // finding here can stay open for weeks, and the run has to land in the
+            // issue a person is already working rather than file a fresh one every
+            // Monday. Paste the marker into any issue to adopt it as this home.
+            const marker = "<!-- published-piece-links -->";
             const body = [
+              marker,
               "Net: one of Alethical's published pieces sends readers to a page that no",
               "longer exists, so a reader who goes to check a figure for themselves finds",
               "nothing. The failure below answers HTTP 200 in every case measured so far,",
@@ -104,7 +111,9 @@ jobs:
               state: "open",
               per_page: 100,
             });
-            const open = existing.find((issue) => issue.title === title);
+            const open = existing.find(
+              (issue) => (issue.body || "").includes(marker) || issue.title === title,
+            );
             if (open) {
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
