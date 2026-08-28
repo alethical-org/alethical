@@ -368,6 +368,57 @@ two decimals and sometimes omits the integer part (`.51`).
 date year on 234 contribution and 468 expenditure rows, so both are stored. What the field
 means beyond that is not established here.
 
+#### Which figures a name spelling can move, and which it cannot
+
+A contributor's name in this file is typed by the filer, so one donor can appear under two
+spellings and any figure that groups rows by name inherits that. **The useful question is not
+whether a figure groups across entities. Almost all of them do. It is what the grouping is
+for:**
+
+> **A cross-entity figure is exposed to how an entity is identified when the grouping
+> attributes or ranks. It is nearly immune when the grouping counts, or tests a threshold.**
+
+That is a prediction, not a caution: it says where to look, and the mechanism for each class
+says why.
+
+- **Attribute or rank** — merging two spellings changes *which* entity is largest and *what
+  total is printed beside its name*. The change is outright, and it lands on a named party.
+- **Test a threshold** — merging only flips a group that was sitting on the boundary, and
+  almost none are. The great majority clear it or miss it by a wide margin.
+- **Count distinct values** — merging can only ever shrink the count, never reorder anything,
+  and only by the number of genuine duplicate spellings.
+
+**Measured on four published figures, 28 Aug 2026** ([#1802](https://github.com/alethical-org/alethical/issues/1802)).
+Every one was re-run under name-as-filed, case-and-whitespace-normalised name, and registration
+number where the file carries one:
+
+| published figure | class | moves by |
+|---|---|---|
+| "both-sides PACs": 191 organisations, $36.4M (*The Money Only Goes One Way*) | attribute + rank | **187 and $39.8M** by registration number |
+| top 5 lobbying principals and the 3,056 count (same piece) | attribute + rank | **0**, to the cent — see §2.2 |
+| 334,234 of 337,888 small payments in a group summing over $200 (*What the records name*) | threshold | **6 rows in 334,255**, 0.002% |
+| 699 and 551 distinct names giving to the 2 house caucuses in 2024 (*Why nobody can follow a dollar*) | distinct count | **0 and 1** |
+
+**The lobbying result is the one that looks like a counter-example and is not.** It attributes
+and ranks, so the rule predicts exposure, and it moves 0 — because that file carries no
+duplicate name to merge. Across all 3,184 principals and all 12 years, no registration number
+holds more than one filed name and no name holds more than one number (§2.2). The Board
+attaches one name to one entity it registered; a contributor name is typed. So the rule
+predicts the exposure and the file removes it, which are two different facts.
+
+**The consequence, and it is the opposite of the obvious one: the contributions download is not
+uniformly dangerous. It is dangerous where we name somebody or put them in order.** "The
+contributions file is the risky one" is the wrong lesson and would send the next reader
+checking figures that cannot move while missing the ones that can.
+
+**Guide 2 and guide 5 are measured and neither moves, so nobody need re-run them.** Both were
+computed against a copy of the contributions download holding 583,218 rows, 66 more than the
+583,152 in the release those guides were written from. They agree rather than matching
+byte-for-byte, which is the stronger evidence: guide 2's `$200 or less` population is +21 on
+the newer copy and its in-group figure is +21 with it, and the remainder is **3,654 on both**.
+Guide 2's largest mover is not identity at all — using the receipt date's year instead of the
+`Year` column moves 33 rows, five times what any identity rule does.
+
 ### 2.2 Lobbying
 
 Landing page: `https://cfb.mn.gov/reports-and-data/self-help/data-downloads/lobbying/`
