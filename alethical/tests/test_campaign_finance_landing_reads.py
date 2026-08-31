@@ -1059,7 +1059,9 @@ def test_the_feed_breaks_a_shared_period_by_the_day_the_board_received_each_repo
     """
     snapshot = _filings_snapshot(db, report_count=2)
     _filer(db, snapshot, CANDIDATE, name="Anderson, Amy House Committee")
-    _filer(db, snapshot, PARTY_UNIT, kind=FilerKind.party_unit, name="Zumbro County DFL")
+    _filer(
+        db, snapshot, PARTY_UNIT, kind=FilerKind.party_unit, name="Zumbro County DFL"
+    )
     _report(db, snapshot, CANDIDATE, filed_date=date(2026, 7, 21))
     _report(db, snapshot, PARTY_UNIT, filed_date=date(2026, 7, 25))
 
@@ -1070,7 +1072,10 @@ def test_the_feed_breaks_a_shared_period_by_the_day_the_board_received_each_repo
         "Zumbro County DFL",
         "Anderson, Amy House Committee",
     ]
-    assert [row["filed_date"] for row in data["filings"]] == ["2026-07-25", "2026-07-21"]
+    assert [row["filed_date"] for row in data["filings"]] == [
+        "2026-07-25",
+        "2026-07-21",
+    ]
     # Same period on both rows, so the period end explains none of the order above.
     assert {row["period_end"] for row in data["filings"]} == {"2026-07-20"}
 

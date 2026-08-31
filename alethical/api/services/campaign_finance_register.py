@@ -992,7 +992,9 @@ def _order_name(db: Session, report, filters) -> str:
     the set the caller is paging through rather than the table.
     """
     present = db.scalar(
-        select(report.row_number).where(*filters, report.filed_date.is_not(None)).limit(1)
+        select(report.row_number)
+        .where(*filters, report.filed_date.is_not(None))
+        .limit(1)
     )
     return (
         ORDERED_BY_FILED_DATE_THEN_PERIOD_END

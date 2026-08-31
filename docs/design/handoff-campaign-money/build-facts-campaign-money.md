@@ -2,8 +2,10 @@
 
 Recorded because these are measurements from the real Campaign Finance Board data, not design
 assumptions. Every one of them overrides whatever our mocks previously drew. Cite these, not our old
-figures, in any future spec. Last updated Aug 18 2026 with data census #1661 (final section — the
-census is the single source for entity and payment-kind facts).
+figures, in any future spec. Last updated Aug 31 2026: filing dates are now stored
+([#1670](https://github.com/alethical-org/alethical/issues/1670)) and 242 committee links are
+confirmed, so 2 facts below changed rather than being added to. The data census #1661 (final
+section) is still the single source for entity and payment-kind facts.
 
 ## Matching a legislator to a committee
 
@@ -11,9 +13,11 @@ census is the single source for entity and payment-kind facts).
   test and it is decisive. Therefore **"no committee is registered for this person" is not a state a
   legislator profile can ever reach** — not rare, not empty at launch, never. It stays valid only on a
   standalone money page for someone we hold no legislator record for (a challenger, a former member).
-- **Confirmed matches today: 0.** 144 matched and 56 ambiguous are *proposals* — a question the machine
-  asks — and nobody has answered any of them. So the unconfirmed state is what all 200 profiles show,
-  draining one at a time. It is the tab's primary frame, not a gap state. (The old "111 of 200
+- **Confirmed matches: 242, covering all 200 sitting members, with 33 ruled out** (measured on
+  production 31 Aug 2026; it was 0 when this line was first written, and the design was drawn against
+  that). 144 matched and 56 ambiguous were *proposals* — a question the machine asks — and a person
+  has now answered them, so the confirmed state rather than the unconfirmed one is what a profile
+  shows. It is the tab's primary frame, not a gap state. (The old "111 of 200
   automatically matched" figure is dead; do not cite it.)
 - **Every remaining ambiguous case is a member with two or more committees of their own.** The machine
   now reads the Board's registered-candidate list, which carries each member's district, so it settles
@@ -100,8 +104,14 @@ payments only**, labelled as named payments, with no total and no composition ba
   for bill/law-code identity and OMNIBUS, and at a third of all reports an alert colour is wrong. It is
   a neutral mono chip (border `palette.ink18`, ink `colors.text.secondary`) in the period panel, plus
   "Previously reported as {figure} on {date}" under the one figure that actually moved.
-- **The chip's date is served** — the report catalogue's "Received by the Board" per version, rising
-  with the amendment index in 21 of 21 version sets tested.
+- **The chip's date is served, and it does NOT come from the catalogue.** The catalogue serves 17
+  fields per report and no date at all; "Received by the Board" is printed inside the report
+  document, and it rises with the amendment index in 21 of 21 version sets tested. It is now stored
+  per report and served as `filed_date`
+  ([#1670](https://github.com/alethical-org/alethical/issues/1670)) — **null on most rows**, because
+  the Board serves no readable document for most reports before 2023, so a dated chip is a state and
+  an undated one is the ordinary state. An earlier version of this line said the catalogue served
+  the date, which it never has.
 - **The prior figure is not guaranteed.** It lives in the superseded document; documents are served
   from 2023 onward (so 2025–26 are in range), but the route **fails softly** — a failed fetch returns
   HTTP 200 with a ~30KB HTML page instead of an error. So it goes missing per report, unpredictably,
@@ -289,11 +299,15 @@ which the report list tells us — never at a fixed number of weeks.
 - **Built since this file was written (19 Aug 2026), so do not design around their absence:** the live
   lane counts and the newest-filings feed, serving from `GET /api/v1/campaign-finance/summary` and
   `/campaign-finance/filings` ([PR #1672](https://github.com/alethical-org/alethical/pull/1672),
-  verified on production: 1,603 registered filers as 778 / 299 / 526, and 0 of 200 confirmed links).
-  The filings feed returns only filings whose period has ended, because with no filing date stored
-  "newest" would otherwise mean the furthest-reaching period and lead with reports covering months of
-  the future ([PR #1673](https://github.com/alethical-org/alethical/pull/1673); storing a real filed
-  date is [#1670](https://github.com/alethical-org/alethical/issues/1670)).
+  verified on production: 1,603 registered filers as 778 / 299 / 526). Confirmed links were 0 when
+  that was written and are **242, across all 200 sitting members, with 33 ruled out** (measured on
+  production 31 Aug 2026), so the unconfirmed state is no longer what a profile shows by default.
+  The filings feed returns only filings whose period has ended
+  ([PR #1673](https://github.com/alethical-org/alethical/pull/1673)). That cutoff was the missing
+  filing date's fault, and it still holds for the rows that have none: filing dates are now stored
+  ([#1670](https://github.com/alethical-org/alethical/issues/1670)) but null on most rows, so
+  "newest" would still mean the furthest-reaching period for those and lead with reports covering
+  months of the future.
 - Still not built: the name-search service and its 3 indexes (#1486 — lands with the results+list pass),
   the committees-list endpoint, the payee-list endpoint (deferred with the Who got paid index), the
   /track/campaign-finance and /congressional* forwards, and the nav rename.

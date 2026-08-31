@@ -57,7 +57,9 @@ HEADER = [
     # here only because ``pdf_of`` writes latin-1, and nothing under test reads it.
     "Amendment This report amends a previously filed report for the same period.",
 ]
-PRINTED = "Campaign Finance Reporter Online 1.0.4439 XSD Version: 2.6 Printed 07/27/2026"
+PRINTED = (
+    "Campaign Finance Reporter Online 1.0.4439 XSD Version: 2.6 Printed 07/27/2026"
+)
 
 
 def _document(*extra: str) -> list[str]:
@@ -214,7 +216,9 @@ def test_a_sentence_mentioning_the_phrase_is_not_a_stamp() -> None:
     call. Both halves are needed: with only one of them this line hands back a date.
     """
     filed_date, errors = filed_date_from_lines(
-        _document("The report was Received by the Board July 24, 2026 after the deadline")
+        _document(
+            "The report was Received by the Board July 24, 2026 after the deadline"
+        )
     )
 
     assert filed_date is None
@@ -232,7 +236,9 @@ def test_a_stamp_with_anything_after_the_year_is_refused_rather_than_trimmed() -
     [#1670](https://github.com/alethical-org/alethical/issues/1670) exists to prevent.
     """
     filed_date, errors = filed_date_from_lines(
-        _document("Received by the Board July 24, 2026 Amendment #1 for the same period")
+        _document(
+            "Received by the Board July 24, 2026 Amendment #1 for the same period"
+        )
     )
 
     assert filed_date is None
