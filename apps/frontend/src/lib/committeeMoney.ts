@@ -246,27 +246,32 @@ export function confirmedMemberMoneyPath(slug: string): string {
  * naming a smaller one. Filer 18135's 2026 pre-general itemizes 215 donors at or
  * under $200 and reconciles to the cent
  * (`docs/architecture/campaign-finance-system-design.md` §2.3), so "are never
- * named" was a false absolute (#1755). A ballot-question filer's page states no
- * threshold at all, and **it must not say why in terms of the sources disagreeing.**
- * This sentence claimed "official sources disagree about that threshold for
- * ballot-question committees" and that was false, live, on the pages of ballot-question
- * filers with an unnamed figure — verified on production 31 Aug 2026 on filer 60083's
- * 2025 page, which prints $8,459.00 of unnamed money. The statute says $500 for ballot
- * questions ([10A.20 subd. 3(c)]) and the Board's own *Independent Expenditure and
- * Ballot Question Political Committee and Fund Handbook* (revised 08/27/2026, its
- * newest) says $500 for them too, repeatedly. The $200 reading came from the *Political
- * Committee and Political Fund Handbook*, whose reporting instructions are written for
- * the general-purpose kind — a handbook for different filers, not a source that
- * disagrees. So the sentence now states no figure and blames nobody for the silence;
- * whether to print $500 is a product decision under rule 12, not a reading.
+ * named" was a false absolute (#1755). A ballot-question filer's page carries a
+ * threshold of **$500** rather than the $200 a candidate's committee carries, because
+ * that is what both sources covering these filers say: Minnesota Statutes 10A.20
+ * subd. 3(c), and the Board's own *Independent Expenditure and Ballot Question Political
+ * Committee and Fund Handbook* (revised 08/27/2026, its newest), in its itemization
+ * passage and a worked example. Both read at source 31 Aug 2026.
+ *
+ * **Two earlier versions of this sentence were wrong, in opposite directions, and both
+ * are worth remembering.** It first told readers "official sources disagree about that
+ * threshold for ballot-question committees", which was false and was live on filer
+ * 60083's 2025 page beside $8,459.00 of unnamed money. The $200 reading it rested on
+ * came from the *Political Committee and Political Fund Handbook*, whose reporting
+ * instructions are written for the general-purpose kind of filer: a handbook for
+ * different filers, not a source that contradicts. It then stated no figure at all,
+ * which was honest but told a reader less than Minnesota publishes. Eugene lifted the
+ * ban on 31 Aug 2026.
  */
 export function unnamedMoneyExplanation(isBallot: boolean): string {
   if (isBallot) {
     return (
       'These donations are inside the committee’s own reported total, and the ' +
-      'state’s public file does not say who gave them. Minnesota names a donor ' +
-      'only once their giving passes a yearly total for the year, and we do not ' +
-      'state that figure for a ballot-question committee.'
+      'state’s public file does not say who gave them. Minnesota only makes a ' +
+      'ballot-question committee name a donor once that donor has given more than ' +
+      '$500 in total for the year, which is a higher line than the $200 a ' +
+      'candidate’s committee carries. A committee may name a smaller donor but ' +
+      'does not have to.'
     );
   }
   return (
@@ -943,9 +948,19 @@ export function madePaymentRow(
 // --- The record-coverage block ---------------------------------------------------------
 
 /**
- * What this record covers, for the page's foot. The donor-threshold line is left
- * off a ballot-question filer's page: the statute and the Board's own handbook
- * disagree about that threshold, and we assert neither (rule 12, as amended).
+ * What this record covers, for the page's foot.
+ *
+ * **A ballot-question filer gets its own threshold line, and the figure is $500.**
+ * Minnesota Statutes 10A.20 subd. 3(c) attaches its figures to what the money is FOR,
+ * a candidate or a ballot question, rather than to who files, and sets $500 for a
+ * ballot question. The Board's own *Independent Expenditure and Ballot Question
+ * Political Committee and Fund Handbook*, its newest at 08/27/2026, says $500 for these
+ * filers as well, in its itemization passage and in a worked example.
+ *
+ * This line used to be omitted, on a recorded belief that the 2 sources disagreed. They
+ * do not: the $200 reading came from the *Political Committee and Political Fund
+ * Handbook*, whose reporting instructions are written for the general-purpose kind of
+ * filer. Both read at source 31 Aug 2026; Eugene lifted the ban the same day.
  */
 export const RECORD_COVERS_HEADING = 'What this record covers';
 
@@ -955,9 +970,14 @@ export function recordCoverageLines(isBallot: boolean): string[] {
     'Nothing before 2015.',
     'Unions don’t report to this board at all.',
   ];
-  if (!isBallot) {
-    lines.push('Donors who gave $200 or less in total for the year need not be named.');
-  }
+  // Same shape as the $200 sentence, and it respects the same 2 rules: the test is on
+  // the donor's total for the YEAR rather than on the size of a gift, and it is a floor
+  // on who must be named rather than a bar on naming anyone smaller (#1755).
+  lines.push(
+    isBallot
+      ? 'Donors who gave $500 or less in total for the year need not be named.'
+      : 'Donors who gave $200 or less in total for the year need not be named.',
+  );
   return lines;
 }
 

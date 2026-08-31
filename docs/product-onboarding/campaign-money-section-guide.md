@@ -484,12 +484,14 @@ Top to bottom:
    through a form a link cannot reach, and not at all for most years before 2023 — a row
    of dead links would be worse than one honest step.
 9. **What this record covers**: filed with the Board, nothing before 2015, unions don't
-   report here — and the $200 donor sentence, except on a ballot-question committee's
-   page, which prints **no** threshold figure anywhere. That silence is a choice we have
-   made and not a gap in the records: the law says $500 for a ballot question, and the
-   Board's own guide for those committees says $500 as well, so we could print it and
-   have decided not to yet. The page used to explain the silence by saying official
-   sources disagreed about the figure, which was not true, and it no longer says that.
+   report here — and the donor sentence, which names **$200** on most pages and **$500**
+   on a ballot-question committee's page. Each page states only its own figure, because
+   the risk is a reader taking one kind of committee's line for another's. $500 is what
+   the law says for a ballot question and what the Board's own guide for those committees
+   says, and it went up on 31 Aug 2026 after a check of both. Before that these pages
+   printed no figure at all and explained the gap by saying official sources disagreed
+   about it, which was not true: the $200 came from a guide written for a different kind
+   of committee.
 
 Empty and edge states, each its own honest sentence: a year no report covers ("Not
 reported", never a zero, and never last year's money under this year's heading); a closed
