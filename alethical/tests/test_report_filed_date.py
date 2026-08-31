@@ -207,11 +207,32 @@ def test_the_same_stamp_printed_twice_is_still_one_date() -> None:
 
 
 def test_a_sentence_mentioning_the_phrase_is_not_a_stamp() -> None:
-    """The stamp is a whole line. A document whose prose happens to contain the words
-    must not hand a date to a feed, which is why the pattern is anchored at both ends.
+    """The stamp is a whole line, and prose containing the words must not date a feed.
+
+    The start is anchored by reading the line with ``match`` rather than ``search``, and
+    the pattern carries ``^`` as well so the anchoring survives someone changing that
+    call. Both halves are needed: with only one of them this line hands back a date.
     """
     filed_date, errors = filed_date_from_lines(
         _document("The report was Received by the Board July 24, 2026 after the deadline")
+    )
+
+    assert filed_date is None
+    assert errors == []
+
+
+def test_a_stamp_with_anything_after_the_year_is_refused_rather_than_trimmed() -> None:
+    """A line that opens like the stamp and carries more is not a shape we have seen.
+
+    All 36 measured documents print the stamp alone on its line, so trailing text means
+    either the extraction merged 2 lines or the Board changed its layout. The end anchor
+    refuses it, which costs a date we might have salvaged and rules out returning one
+    from a line we do not understand. That is the right way round: silence on 1 report is
+    honest, and a filing date invented from a mangled line is the harm
+    [#1670](https://github.com/alethical-org/alethical/issues/1670) exists to prevent.
+    """
+    filed_date, errors = filed_date_from_lines(
+        _document("Received by the Board July 24, 2026 Amendment #1 for the same period")
     )
 
     assert filed_date is None

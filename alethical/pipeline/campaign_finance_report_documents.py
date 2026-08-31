@@ -583,8 +583,14 @@ def _self_test(
 
 
 # "Received by the Board July 24, 2026", printed on its own line near the top of every
-# report document. Anchored to the start of the line and to the end of the date so a
-# sentence mentioning the phrase mid-paragraph cannot be read as the stamp.
+# report document.
+#
+# The stamp has to be a WHOLE line, and the 2 anchors do different jobs. The end anchor
+# is the one that works here: it refuses a line that opens like the stamp and carries
+# more, which would mean the extraction merged 2 lines or the Board changed its layout,
+# and returning a date read out of a line we do not understand is the harm #1670 exists
+# to prevent. The start is anchored by ``match`` rather than by ``^``, so the ``^`` is
+# belt-and-braces against someone switching that call to ``search``.
 #
 # Both zero-padded and bare day numbers occur and both are real: filer 12339's 2025
 # year-end reads "July 01, 2026" and filer 11880's 2022 year-end reads "June 1, 2023".
