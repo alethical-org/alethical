@@ -34,11 +34,27 @@ decisions were taken against text which had already been replaced. One session r
 keeping downloaded files in the database an hour after its own merged work had settled on
 Supabase Storage; another merged a display rule that a third had already measured to be wrong.
 
-- **The owner today** is the session `distracted-lewin-868f0b-ae`, working in the worktree
-  **`.claude/worktrees/distracted-lewin-868f0b`**, which took the pen 28 Aug 2026 under the
-  handover rule below. Its measurement came from
-  [#1663](https://github.com/alethical-org/alethical/issues/1663) and is written up in §7 as
-  "A person's committees are never added together".
+- **The owner today** is the session `nervous-booth-d2e68e-13`, working in the worktree
+  **`.claude/worktrees/nervous-booth-d2e68e`**, which took the pen 31 Aug 2026 under the
+  handover rule below. Its measurements came from
+  [#1670](https://github.com/alethical-org/alethical/issues/1670) and are written up in §9.6
+  as "The received date is now stored" and in §9.4 as the sixth response shape.
+  - **The pen had been stuck rather than held, and clearing that is why this claim exists.**
+    The rule below treats an open pull request against this file as the pen being held, and
+    draft [PR #1335](https://github.com/alethical-org/alethical/pull/1335) held it from
+    11 Aug to 31 Aug. In those 3 weeks it sent 3 separate pieces of work somewhere other than
+    here: [#1661](https://github.com/alethical-org/alethical/issues/1661)'s §9.7/§7/§2.1/§2.3
+    wording, which is still unlanded; [PR #1768](https://github.com/alethical-org/alethical/pull/1768)'s
+    party-unit findings, written into `backend-api-system-design.md` instead; and this
+    issue's, posted as a comment on that draft. Eugene had it marked ready and merged on
+    31 Aug 2026, which is what freed the pen. **The flaw the episode exposes is real and is
+    not fixed here:** the rule has no tie-break between "an open pull request holds the pen"
+    and "the named owner session is gone", and a parked draft is nobody mid-sentence.
+  - The previous claim named the session `distracted-lewin-868f0b-ae` in the worktree
+    `.claude/worktrees/distracted-lewin-868f0b`, appointed 28 Aug 2026. It is in no live
+    session list as of 31 Aug 2026, which is what permits this handover. Its measurement came
+    from [#1663](https://github.com/alethical-org/alethical/issues/1663) and is written up in
+    §7 as "A person's committees are never added together".
   - The previous claim named the worktree `.claude/worktrees/clever-mclaren-6c4785` (the campaign
     finance assessment and design-review session), appointed 19 Aug 2026. It is in no live session
     list as of 28 Aug 2026, which is what triggered this handover. Its content came from Eugene's
@@ -1961,6 +1977,13 @@ HTML page above is one. The rest:
   is the one that matters, because a stale future-tense date would be worse than no date at all.
 - An **empty body**, 0 bytes, on one 2014 year-end.
 
+**A sixth shape, and it is not a refusal: a document that is a scan.** Filer 13481's 2025 year-end
+answers with 1,511,095 bytes starting `%PDF` over 1 page, and `pypdf` extracts **0 lines** from it;
+its 2023 year-end is the same. It passes the `%PDF` rule correctly, because it genuinely is the
+document. So any figure or date read out of a document needs a "served but unreadable" outcome
+distinct from all 5 refusals above, or a scan reads as a filing that states nothing
+([#1670](https://github.com/alethical-org/alethical/issues/1670)).
+
 **The third of those is the genuine third cause of a missing prior figure**, and it is worse than the
 one it replaced, because **a check testing "is the body HTML" passes four of the five as success**, and
 one testing "did I get bytes back" passes four as well. §9.4's `%PDF` rule catches all five. It has now
@@ -2220,6 +2243,45 @@ flag).** The evidence:
   tested. Five more could not be, and nothing before 2023 could be tested at all, because those
   documents are not served (§9.4). No contrary case was found; that is not the same as none
   existing.
+
+**The received date is now stored, and it is the only filing date anywhere in this system**
+([#1670](https://github.com/alethical-org/alethical/issues/1670)). The catalogue serves no date
+a report was filed — 17 fields per report and none of them is one — so it cannot be loaded with
+the rest of the catalogue. It is printed inside the document, on its own line, as
+`Received by the Board July 24, 2026`, and `filed_date` on `cf_filing_report` holds it for the
+effective version. `scripts/backfill_campaign_finance_filed_dates.py` reads it after a catalogue
+load; a fresh load leaves the column NULL, and the script's first pass copies a date forward from
+an identical report version in the retained previous snapshot, so a post-load run costs almost no
+requests.
+
+**Do not read the `Printed` line 1 line below it.** Both are dates in the header and only one is
+when the Board received the report: filer 11880's 2026 pre-primary was received 24 Jul 2026 and
+printed 27 Jul 2026. On filer 12682's 2023 year-end the 2 agree, which is what makes the near-miss
+hard to notice.
+
+**The day is sometimes zero-padded and sometimes not**, so a pattern taking only one form drops
+half the corpus: filer 12339's 2025 year-end reads `July 01, 2026` and filer 11880's 2022 year-end
+reads `June 1, 2023`.
+
+**The stamp does not sit at a fixed line** — line 31 on a candidate committee and line 29 on a
+party unit, because the header above it differs by filer kind. Same failure this section's
+neighbours record for reading schedule totals by offset (§9.4).
+
+**NULL is the ordinary answer and never means the report was unfiled.** Measured 31 Aug 2026 on a
+54-report sample spanning 2021 to 2026: all 9 sampled 2021 reports and 5 of 9 sampled 2022 ones
+returned the HTML page §9.4 measures at 30,424 bytes, and **2 of the 38 served documents were
+scans `pypdf` reads as 0 lines**. On the other 36 the stamp appeared exactly once and parsed.
+
+**An amended report's date is the amendment's own**, which is the bullet above with the dates
+attached: filer 16807's 2026 pre-primary reads 24 Jul 2026 at index 0 and 10 Aug 2026 at index 1;
+filer 20008's 2025 year-end reads 30 Jan 2026 at index 0 and 28 Jul 2026 at index 2.
+
+**Nothing may fall back to `cut_off_date`.** A period end relabelled as a filing date is a
+fabricated fact about a named committee, and it is the substitution a reader cannot catch, because
+it is a real date on a real report. Ranking may use the period end — the feed orders by
+`COALESCE(filed_date, cut_off_date)`, since a report is always received after its period closes —
+but the served value stays NULL, and
+`test_the_feed_never_dates_a_report_from_the_period_it_covers` fails if it does not.
 
 **Do not use the "Amendment" checkbox printed on the document.** Davids' 2024 year-end has it
 ticked on index 0 and clear on index 1; one of the 21 sets tested (filer 18760's 2024 year-end)
