@@ -277,6 +277,47 @@
   .legend li { display: flex; align-items: center; gap: 8px; }
   .legend svg { flex: none; }
 
+  /* ---- Then / now trend table ---- */
+  .trend-wrap { overflow-x: auto; margin: 22px 0 8px; }
+  table.trend {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 460px;
+    font-size: .9rem;
+  }
+  table.trend caption {
+    text-align: left;
+    font-family: var(--mono);
+    font-size: .72rem;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    color: var(--ink-mute);
+    padding-bottom: 10px;
+  }
+  table.trend th {
+    text-align: left;
+    font-weight: 600;
+    font-size: .78rem;
+    color: var(--ink-mute);
+    border-bottom: 1px solid var(--rule);
+    padding: 0 14px 7px 0;
+  }
+  table.trend th.num, table.trend td.num { text-align: right; }
+  table.trend td {
+    border-bottom: 1px solid var(--rule-soft);
+    padding: 9px 14px 9px 0;
+    vertical-align: baseline;
+  }
+  table.trend td.num {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  table.trend td.now { font-weight: 700; }
+  table.trend td:last-child, table.trend th:last-child { padding-right: 0; }
+  .worse  { color: var(--hotfix); font-weight: 600; }
+  .better { color: var(--trunk); font-weight: 600; }
+
   /* ---- Two-column compare ---- */
   .compare {
     display: grid;
@@ -408,8 +449,8 @@
         repository, measured, not imagined. The second is the flow with separate
         dev, staging, and production branches, which is what most teams mean by
         "good branching". Read them side by side: time runs left to right in both.</p>
-      <p class="stamp">Measured from <span class="mono">origin/main</span> on 13 August 2026 at commit
-        <span class="mono">bbbe433e</span>. Every number on this page came from the commands in the
+      <p class="stamp">Measured from <span class="mono">origin/main</span> on 31 August 2026 at commit
+        <span class="mono">45576b90</span>. Every number on this page came from the commands in the
         footer, so you can re-run them and watch them change.</p>
     </div>
   </header>
@@ -423,16 +464,16 @@
         else is temporary. A branch is cut from <code>main</code>, gets one topic of work,
         becomes a pull request, and is squashed back into <code>main</code> as a single
         commit before being deleted. That pattern is called <b>trunk based</b>
-        development, and 971 pull requests have gone through it.</p>
+        development, and 1,233 pull requests have gone through it.</p>
     </div>
 
     <div class="stats">
       <div class="stat good"><b>1</b><span>branch that lives forever (<span class="mono">main</span>)</span></div>
-      <div class="stat good"><b>971</b><span>pull requests merged into it</span></div>
-      <div class="stat good"><b>28</b><span>merged in the last 24 hours</span></div>
-      <div class="stat"><b>16</b><span>pull requests open right now</span></div>
-      <div class="stat bad"><b>53</b><span>shared branches that never came back</span></div>
-      <div class="stat warn"><b>178</b><span>finished branches still on this laptop</span></div>
+      <div class="stat good"><b>1,233</b><span>pull requests merged into it</span></div>
+      <div class="stat good"><b>81</b><span>merged in the last 7 days</span></div>
+      <div class="stat"><b>9</b><span>pull requests open right now</span></div>
+      <div class="stat bad"><b>67</b><span>shared branches that never came back</span></div>
+      <div class="stat warn"><b>300</b><span>finished branches still on this laptop</span></div>
     </div>
 
     <figure class="plot">
@@ -529,7 +570,7 @@
             <circle cx="914" cy="82" r="5"></circle>
           </g>
           <circle cx="932" cy="82" r="6" fill="var(--plot)" stroke="var(--feature)" stroke-width="2.2"></circle>
-          <text class="branch-label" x="666" y="67">cf-retain-every-artifact &middot; PR #1502 &middot; open</text>
+          <text class="branch-label" x="640" y="67">legislator-persona-chat-on-main &middot; PR #1629 &middot; open</text>
 
           <!-- ========== abandoned branch 1 ========== -->
           <g fill="none" stroke="var(--stale)" stroke-width="2.2">
@@ -542,8 +583,8 @@
             <line x1="594" y1="356" x2="606" y2="368"></line>
             <line x1="606" y1="356" x2="594" y2="368"></line>
           </g>
-          <text class="branch-label t-stale" x="330" y="347">feat/rag-chat &middot; 1 commit &middot; 3 months old</text>
-          <text class="branch-label t-stale" x="620" y="366">987 commits behind main</text>
+          <text class="branch-label t-stale" x="330" y="347">feat/rag-chat &middot; 1 commit &middot; 4 months old</text>
+          <text class="branch-label t-stale" x="620" y="366">1,249 commits behind main</text>
 
           <!-- ========== abandoned branch 2 ========== -->
           <g fill="none" stroke="var(--stale)" stroke-width="2.2">
@@ -560,13 +601,13 @@
             <line x1="746" y1="422" x2="758" y2="434"></line>
             <line x1="758" y1="422" x2="746" y2="434"></line>
           </g>
-          <text class="branch-label t-stale" x="340" y="413">joe/lc-integration &middot; PR #397 open since 19 July</text>
-          <text class="branch-label t-stale" x="772" y="432">732 behind</text>
+          <text class="branch-label t-stale" x="340" y="413">joe/lc-integration &middot; PR #397 closed unmerged</text>
+          <text class="branch-label t-stale" x="772" y="432">994 behind</text>
         </svg>
       </div>
       <figcaption>Drawn from real branches. The 3 blue arcs above the trunk are the healthy
         pattern: leave, do one thing, come back within a day. The 2 grey lines below it left
-        and never returned, and the trunk has moved hundreds of commits since.</figcaption>
+        and never returned, and the trunk has moved more than a thousand commits since.</figcaption>
     </figure>
 
     <ul class="legend">
@@ -578,23 +619,83 @@
 
     <div class="col">
       <h3>What is working</h3>
-      <p>Short branches. Work leaves <code>main</code> and comes back the same day, so
-        nobody spends an afternoon untangling 2 versions of the same file. 28 pull requests
-        merged in the last 24 hours, and the 3 newest open ones are 0 or 1 commits behind
-        <code>main</code>.</p>
+      <p>The merge habit itself. Work leaves <code>main</code>, comes back, and gets
+        squashed into 1 commit: 1,233 pull requests have made that trip, 81 of them in the
+        last 7 days. For every branch that finishes, this model is doing its job.</p>
 
       <h3>What is not</h3>
-      <p>53 of the 64 shared branches never merged into <code>main</code> and never will.
+      <p>67 of the 77 shared branches never merged into <code>main</code> and never will.
         The worst is <code>feat/rag-chat</code>, which sat still while <code>main</code>
-        moved 987 commits ahead of it. Anyone who opens that branch is reading a version of
-        this product from 3 months ago, and there is nothing on the branch to tell them so.</p>
-      <p>6 open pull requests are more than 240 commits behind <code>main</code>. A pull
+        moved 1,249 commits ahead of it. Anyone who opens that branch is reading a version of
+        this product from 4 months ago, and there is nothing on the branch to tell them so.</p>
+      <p>Branches are also no longer coming back quickly. The 3 most recently opened pull
+        requests sit 173, 173 and 222 commits behind <code>main</code>. That is the habit in
+        habit 3 below going unpractised: nothing is wrong with those branches yet, and every
+        day nobody rebases them, the merge gets harder.</p>
+      <p>5 open pull requests are more than 240 commits behind <code>main</code>. A pull
         request that far behind is not really a proposal any more: it is a guess about a
         codebase that no longer exists. The fix is a habit, not a tool. Rebase it onto
         current <code>main</code> and merge it, or close it and say why.</p>
-      <p>178 branches on this laptop have already been merged and can be deleted today.
+      <p>300 branches on this laptop have already been merged and can be deleted today.
         They are noise in every branch list, every autocomplete, and every search for
         "which branch was that on".</p>
+
+      <h3>What 18 days changed</h3>
+      <p>This page was first measured on 13 August 2026 and measured again on 31 August.
+        Nothing about the setup changed in between, so the movement is purely the habits at
+        work:</p>
+
+      <div class="trend-wrap">
+        <table class="trend">
+          <caption>13 August to 31 August 2026</caption>
+          <thead>
+            <tr>
+              <th scope="col">What was counted</th>
+              <th scope="col" class="num">13 Aug</th>
+              <th scope="col" class="num">31 Aug</th>
+              <th scope="col">Direction</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Shared branches that never merged</td>
+              <td class="num">53</td>
+              <td class="num now">67</td>
+              <td class="worse">worse</td>
+            </tr>
+            <tr>
+              <td>Finished branches left on this laptop</td>
+              <td class="num">178</td>
+              <td class="num now">300</td>
+              <td class="worse">worse</td>
+            </tr>
+            <tr>
+              <td>How far behind the 3 newest open branches sit</td>
+              <td class="num">0 to 1</td>
+              <td class="num now">173 to 222</td>
+              <td class="worse">worse</td>
+            </tr>
+            <tr>
+              <td>Pull requests waiting to merge</td>
+              <td class="num">16</td>
+              <td class="num now">9</td>
+              <td class="better">better</td>
+            </tr>
+            <tr>
+              <td>Spare copies of the code left lying around</td>
+              <td class="num">187</td>
+              <td class="num now">89</td>
+              <td class="better">better</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p>The pattern is worth more than any single number here. Everything that finishes by
+        itself got better: pull requests merged, and spare copies of the code got cleared
+        away. Everything that needs a person to decide something got worse: no branch deletes
+        itself, and no branch rebases itself. Those 2 chores are habits 3 and 5 below, and
+        they are the only 2 on the list that nothing else will do for you.</p>
     </div>
   </section>
 
@@ -810,7 +911,7 @@
         <h3>Trunk based</h3>
         <ul>
           <li>1 permanent branch. Short branches off it, squashed back in.</li>
-          <li>Nothing waits. 28 changes reached real people in the last 24 hours.</li>
+          <li>Nothing waits. 81 changes reached real people in the last 7 days.</li>
           <li>Branches live hours, so merge conflicts stay small.</li>
           <li>Safety comes from automated checks and small changes, not from a staging queue.</li>
           <li>Costs you this: there is no rehearsal environment holding a full release, so a
@@ -835,7 +936,7 @@
       <p style="margin-top:22px">Pick the second one when a release needs human sign off,
         when you ship on a schedule rather than continuously, or when a broken production
         is expensive enough that a rehearsal is worth the delay. Pick the first when you can
-        make releasing boring enough to do 28 times a day. The mistake is running the second
+        make releasing boring enough to do a dozen times a day. The mistake is running the second
         model's branch names with none of its discipline: a <code>develop</code> branch that
         nothing deploys, and a staging branch nobody tests, buy the delay without the
         safety.</p>
@@ -865,12 +966,12 @@
           <p><code>feature/bill-search-filters</code> tells the next person what is in it.
             <code>fix-stuff</code> and <code>my-branch-2</code> do not, and a branch nobody
             can identify is a branch nobody dares delete. That is exactly how this repo
-            reached 53 abandoned ones.</p>
+            reached 67 abandoned ones.</p>
         </li>
         <li>
           <h3>Bring the base to you every day, not once at the end</h3>
           <p>Run <code>git fetch origin</code> and rebase onto your base branch daily.
-            Conflicts are cheap when they are 1 day wide and brutal when they are 987
+            Conflicts are cheap when they are 1 day wide and brutal when they are 1,249
             commits wide. This single habit is the difference between the blue arcs and the
             grey dead ends in the first graph.</p>
         </li>
@@ -886,7 +987,7 @@
           <h3>Delete the branch the moment it merges</h3>
           <p>Its commits are safely on the base branch, so nothing is lost. Turn on the
             repository setting that deletes the remote branch automatically, then prune your
-            own copies. 178 already merged branches are sitting on this laptop right now.</p>
+            own copies. 300 already merged branches are sitting on this laptop right now.</p>
         </li>
       </ol>
     </div>
@@ -984,10 +1085,10 @@ git fetch --prune</pre>
         the same questions against <code>origin/develop</code> as well, since that is where
         its feature branches are supposed to land.</p>
     </div>
-    <pre><span class="cmt"># how many shared branches never came back (53 here)</span>
+    <pre><span class="cmt"># how many shared branches never came back (67 here)</span>
 git branch -r --no-merged origin/main | wc -l
 
-<span class="cmt"># how many of your local branches are finished and deletable (178 here)</span>
+<span class="cmt"># how many of your local branches are finished and deletable (300 here)</span>
 git branch --merged origin/main | wc -l
 
 <span class="cmt"># how far behind the trunk each unmerged branch has drifted</span>
@@ -1008,19 +1109,20 @@ git log --graph --oneline -20 origin/main</pre>
         </li>
         <li>
           <span class="sym">The number that lies</span>
-          <p><b>Total branch count.</b> 408 branches on this laptop sounds alarming and
-            mostly is not: 178 are finished work awaiting cleanup, and none is older than
-            30 days. Split the count by merged and unmerged before drawing any conclusion
-            from it.</p>
+          <p><b>Total branch count.</b> 634 branches on this laptop sounds alarming, and
+            about half of it is not: 300 are finished work awaiting cleanup, which is a
+            chore rather than a risk. Split the count by merged and unmerged before drawing
+            any conclusion from it. The part that does matter is age, and 49 of them are now
+            more than 30 days old.</p>
         </li>
       </ul>
     </div>
   </section>
 
   <footer>
-    <p>Measured on 13 August 2026 against <span class="mono">origin/main</span> at
-      <span class="mono">bbbe433e</span>: 1007 commits, 971 merged pull requests, 16 open,
-      64 shared branches, 408 local branches, 187 worktrees. This repository merges by
+    <p>Measured on 31 August 2026 against <span class="mono">origin/main</span> at
+      <span class="mono">45576b90</span>: 1,269 commits, 1,233 merged pull requests, 9 open,
+      77 shared branches, 634 local branches, 89 worktrees. This repository merges by
       squash only, deletes branches on merge, requires 3 checks
       (<span class="mono">changes</span>, <span class="mono">backend</span>,
       <span class="mono">frontend</span>) plus a branch tested against current
