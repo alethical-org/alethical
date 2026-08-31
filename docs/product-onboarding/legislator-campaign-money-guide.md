@@ -224,19 +224,30 @@ schedule and the Board's own totals exclude it.
 
 ### Money out
 
-**Payments we can list**, with a count and a breakdown by the state's own labels for the
-kind of payment. **There is no second, bigger number here, and the sentence the tab gives
-for why is wrong** — it says Minnesota "publishes no official total for a committee's
-spending", and Minnesota publishes one. It is the filed report's own "Total Expenditures
-and Disbursements" line, our copy holds it for 3,630 filer-years in
-`cf_filing_figure.total_expenditures`, `MoneyOut.reported_total` already serves it, and
-the committee page prints it 2 clicks away as "Payments out this committee reported to
-the state". The sentence prints on **369 legislator-years** (207 in 2025 across 197
-members, 162 in 2026 across 162 members) and is false on **355** of them; the 14 where no
-figure can be served are special-election filer-years, and even there the honest reason is
-the one money in already gives on the same screen, that we hold no total we can stand
-behind. Fix and full measurement:
-[#1875](https://github.com/alethical-org/alethical/issues/1875).
+**Payments out this committee reported to the state**, where we hold that figure, above
+**Payments we can list** with its count and its breakdown by the state's own labels for
+the kind of payment. Two figures, exactly as money in has 2, and never subtracted:
+`.claude/rules/grounded-answers.md` rule 12 wants a second number beside every money
+figure, and until 31 Aug 2026 money out was the only figure on this tab with none.
+
+**What used to be here, and it was false.** The tab said Minnesota "publishes no official
+total for a committee's spending". Minnesota publishes one: the filed report's own "Total
+Expenditures and Disbursements" line, held in `cf_filing_figure.total_expenditures` for
+**3,630 filer-years**, which the committee page had always printed 2 clicks away. The
+committee route served it and the legislator route did not, so the tab drew nothing and
+then explained the absence by blaming Minnesota. Both halves are fixed
+([#1875](https://github.com/alethical-org/alethical/issues/1875)): the route serves it,
+the tab draws it, and the sentence beneath says the 2 are separate claims never subtracted.
+
+**Where the figure is genuinely absent, the sentence says the gap is ours.** Counted
+across the 242 confirmed committees on 31 Aug 2026: for 2025 the figure can be shown on
+199, is held back on 7, and does not exist in our copy on 36; for 2026 it can be shown on
+168 and does not exist on 74. The 7 held back are **special-election filer-years**, of
+which the live snapshot holds 39 in total: we have the number and refuse to stand behind
+it, because a special-election filing's totals copy cannot speak for a whole year. Rep. Xp
+Lee's committee 19223 for 2025 is one of them and holds $16,923.32 we will not publish.
+Nothing is drawn as a zero in any of those cases, because a missing figure and a zero are
+different facts.
 
 **And read "payments over $200" the way this guide already reads the donor threshold —
 as a floor on who a committee must name, never as a filter on the file.** 41,978 of the
