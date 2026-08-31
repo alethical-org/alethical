@@ -437,6 +437,19 @@ Top to bottom:
    statewide, a large share of money out is transfers to other committees, and for a
    caucus that is the point. A year our copy holds no reported total for says so as our
    copy's gap.
+
+   **And the note under those 2 figures changes when ours is the larger one, because the
+   usual explanation runs only one way.** The $200 naming threshold holds payments back,
+   so it can only make our list smaller. Where our list is bigger, the note says instead
+   that the 2 figures can disagree in either direction and names why: the committee's own
+   report counts money it paid, while the state's payments file also carries goods and
+   services given to it. Measured across every filer-year where a reader can see both
+   figures, 389 of 3,613 are in that shape, $17,267,605.45 in total, and 25 of those sit
+   on a committee confirmed for a sitting legislator, so they render inside a legislator
+   profile as well as on a committee page. Goods and services fully account for the excess
+   on 254 of the 389, which is most and not all, so the note names the mechanism and never
+   claims it explains the committee on screen. The money-in card can be specific because
+   the served figures include an in-kind total; money out has no equivalent yet.
 7. **Three tabs. The first two — Who gave and Where it went** — the six largest payments,
    ranked largest first (honest inside one committee; never across committees), each
    naming the filing's own type. **Every count is a count of payments, never of donors**:

@@ -30,6 +30,7 @@ import {
   MONEY_OUT_FIGURE_LABEL,
   MONEY_OUT_REPORTED_LABEL,
   moneyOutKindLabel,
+  listedExceedsReported,
   moneyOutNote,
   notFoundBody,
   notFoundTitle,
@@ -486,5 +487,53 @@ describe('the money-out threshold sentence describes a yearly total, never a per
 
   it('still prints no threshold figure at all on a ballot-question page', () => {
     expect(moneyOutNote('reported', true)).not.toContain('$200');
+  });
+});
+
+describe('money out never blames the naming threshold for a list that is bigger', () => {
+  // The shipped defect: our listable payments total can EXCEED the committee's own
+  // reported total, and the note blamed the $200 naming threshold, which can only ever
+  // hold payments back and so can only make our list smaller. Measured on Lisa Demuth's
+  // Governor committee for 2025: our list $60,286.21 against the filing's $41,331.05,
+  // $18,955.16 larger, with the false sentence under it on a live page. Across every
+  // filer-year where a reader sees both figures, 389 of 3,613 are in that shape, and 25
+  // of those sit on a committee confirmed for a sitting legislator.
+  it('drops the threshold-only explanation when our list is the larger figure', () => {
+    const note = moneyOutNote('reported', false, true, false, true);
+    expect(note).toContain('can disagree in either direction');
+    expect(note).toContain('goods and services');
+    expect(note).not.toContain('The total above is the filing’s own figure');
+  });
+
+  it('keeps the threshold explanation when the filing is the larger figure', () => {
+    const note = moneyOutNote('reported', false, true, false, false);
+    expect(note).toContain('The total above is the filing’s own figure');
+    expect(note).toContain('$200');
+    expect(note).not.toContain('can disagree in either direction');
+  });
+
+  // In-kind explains 254 of the 389, which is most and not all, so the sentence names the
+  // mechanism and never claims it explains THIS committee's gap. Naming a cause that is
+  // right 254 times out of 389 on a named person's page is the same failure in a new coat.
+  it('names the mechanism without claiming it explains this committee', () => {
+    const note = moneyOutNote('reported', false, true, false, true);
+    expect(note).not.toMatch(/because this committee|the difference is|accounts for/i);
+    expect(note).toContain('we never subtract one from the other');
+  });
+
+  it('compares the 2 figures and never subtracts them', () => {
+    expect(listedExceedsReported('41331.05', '60286.21')).toBe(true);
+    expect(listedExceedsReported('60286.21', '41331.05')).toBe(false);
+    expect(listedExceedsReported('100.00', '100.00')).toBe(false);
+  });
+
+  // A missing figure on either side must never produce a claim about a gap. This is the
+  // missing-versus-zero rule applied to a comparison rather than to a figure.
+  it('says nothing about a gap when either figure is missing', () => {
+    expect(listedExceedsReported(null, '60286.21')).toBe(false);
+    expect(listedExceedsReported('41331.05', null)).toBe(false);
+    expect(listedExceedsReported('', '60286.21')).toBe(false);
+    expect(listedExceedsReported(undefined, undefined)).toBe(false);
+    expect(listedExceedsReported('not a number', '60286.21')).toBe(false);
   });
 });

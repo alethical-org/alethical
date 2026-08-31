@@ -486,11 +486,33 @@ export const MONEY_OUT_REPORTED_LABEL = 'Payments out this committee reported to
  * for the donor side, because the statute's ballot-question figures and the
  * Board's own handbook disagree and we assert neither.
  */
+/**
+ * Whether our listable payments total is larger than the committee's own reported total.
+ *
+ * The one comparison the money-out note has to make, and it is a comparison rather than a
+ * subtraction: the 2 figures are never subtracted, only asked which is bigger, because
+ * which is bigger decides which sentence is true. Blank or unreadable on either side is
+ * false, so a missing figure never produces a claim about a gap.
+ */
+export function listedExceedsReported(
+  reportedTotal: string | number | null | undefined,
+  listedTotal: string | number | null | undefined,
+): boolean {
+  // Blank before numeric, and this order is the whole guard. `Number(null)` and
+  // `Number('')` are both 0, so a missing reported total would read as 0 and every
+  // listable figure would look like a gap. A non-numeric string needs no check: it
+  // becomes NaN and every comparison against NaN is already false.
+  if (reportedTotal === null || reportedTotal === undefined || reportedTotal === '') return false;
+  if (listedTotal === null || listedTotal === undefined || listedTotal === '') return false;
+  return Number(listedTotal) > Number(reportedTotal);
+}
+
 export function moneyOutNote(
   state: 'reported' | 'not_reported' | 'unavailable',
   isBallot: boolean,
   hasReportedTotal = false,
   reportedTotalIsZero = false,
+  ourListExceedsReportedTotal = false,
 ): string {
   if (state === 'unavailable') {
     return 'We could not read this committee’s payments out of our copy of Minnesota’s file.';
@@ -518,7 +540,37 @@ export function moneyOutNote(
       : 'Minnesota only names a recipient once payments to them pass $200 in total for the year, and it named none for this committee this year. That does not mean the committee paid out nothing.';
   }
   if (hasReportedTotal) {
-    // Two numbers, both correct, never subtracted — the same rule as money in.
+    // **The naming threshold cannot explain a list that is BIGGER than the filing's own
+    // total, and saying it does is a false claim on a named politician's page.** The
+    // threshold only ever holds payments back, so it can only make our list smaller. On
+    // Lisa Demuth's Governor committee for 2025 our list is $60,286.21 against the
+    // filing's $41,331.05 — $18,955.16 larger — and the sentence below used to blame the
+    // threshold for it. Measured across every filer-year where a reader can see both
+    // figures: 389 of 3,613 have our list larger, $17,267,605.45 in total, and 25 of
+    // those sit on a committee a person has confirmed for a sitting legislator, so they
+    // render inside a legislator profile as well as on a committee page.
+    //
+    // What actually causes it, measured to the cent on that committee: the filing's total
+    // counts cash, and the state's payments file also carries goods and services. In-kind
+    // fully accounts for the excess on 254 of the 389, which is most of them and not all
+    // of them, so this sentence names the mechanism WITHOUT claiming it explains this
+    // committee's gap. Naming a cause that is right 254 times out of 389 on a named
+    // person's page is the same failure in a new coat.
+    //
+    // The money-IN card can be specific because the split serves it a figure
+    // (`named_in_kind_total`). Money out has no equivalent, which is [#1869] — until it
+    // does, the honest sentence is the general one.
+    if (ourListExceedsReportedTotal) {
+      return (
+        'These are 2 different figures from Minnesota and we never subtract one from the ' +
+        'other. They can disagree in either direction because they count different ' +
+        'things: the committee’s own report counts money it paid, while the state’s ' +
+        'payments file also carries goods and services given to it, and the file names a ' +
+        'recipient only once payments to them pass $200 in total for the year. ' +
+        'Money out is not all spending: some of it is money given to other campaigns, ' +
+        'listed below.'
+      );
+    }
     return isBallot
       ? 'The total above is the filing’s own figure for the period it names. The payments we can list come from the state’s payments file, which names only payments above a naming threshold, so the two are different figures and we do not subtract one from the other. Money out is not all spending: some of it is money given to other campaigns, listed below.'
       : 'The total above is the filing’s own figure for the period it names. The payments we can list come from the state’s payments file, which names a recipient only once payments to them pass $200 in total for the year, so the two are different figures and we do not subtract one from the other. Money out is not all spending: some of it is money given to other campaigns, listed below.';
