@@ -194,11 +194,13 @@ export interface ResearchPiece {
    */
   filingBodies: string[];
   /**
-   * Set when the piece draws a figure from records Alethical does not hold, so
-   * that figure has no records-through date. Kept on the record, rendered
-   * nowhere since 20 Aug 2026 (Eugene's call): the sources block names those
-   * records and the years they cover instead (rule 13's publishing order, point
-   * 11).
+   * Set when the piece draws a figure the masthead's records-through date does
+   * not speak for — records Alethical does not hold, or ones it holds on a
+   * separate filing cycle with its own coverage end. Kept on the record,
+   * rendered nowhere since 20 Aug 2026 (Eugene's call): the sources block names
+   * those records and the years they cover instead (rule 13's publishing order,
+   * point 11). Reworded 31 Aug 2026, when the lobbying file became the second
+   * kind rather than the first (#1862).
    */
   undatedRecordsNote?: string;
   /** The boxed opening summary ("SHORT VERSION"). Empty when a piece has none. */

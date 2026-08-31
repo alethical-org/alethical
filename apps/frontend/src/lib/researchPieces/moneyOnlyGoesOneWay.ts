@@ -31,7 +31,7 @@ export const MONEY_ONLY_GOES_ONE_WAY: ResearchPiece = {
   recordsThrough: '2026-07-20',
   filingBodies: ['Minnesota Campaign Finance Board'],
   undatedRecordsNote:
-    'The lobbying figures come from records Alethical does not hold, so they carry no records-through date.',
+    'The lobbying figures come from a yearly filing on its own cycle, held as our own dated copy since 31 August 2026 and running through the report due 16 March 2026, so the masthead’s records-through date does not speak for them.',
   shortVersion: [
     p(
       'Every number below comes from public Minnesota Campaign Finance Board records, 2015 through 2026. You can look up every one of them yourself. Nothing here is an opinion about a party.',
@@ -199,12 +199,17 @@ export const MONEY_ONLY_GOES_ONE_WAY: ResearchPiece = {
       // 3,056 organizations and the same 5 largest, to the cent. Measured 28 Aug 2026.
       //
       // Rule 13 lets a research piece add figures up across members, and conditions
-      // that on the figure recomputing from a pinned release of OUR loaded data. We
-      // hold no lobbying records, so that safeguard cannot reach these totals and
-      // this box is what stands in for it: where the rows came from, what column was
-      // summed, the one counting choice that could have moved the answer, and how far
-      // the records run. Verified against the Board's own file and its Lobbying
-      // Handbook on 28 Aug 2026 (#1802).
+      // that on the figure recomputing from a pinned release of OUR loaded data. This
+      // box was written on 28 Aug 2026 as the substitute safeguard for a figure that
+      // condition could not reach, because we held no lobbying records. Since
+      // 31 Aug 2026 we do (#1862): the file is loaded as dated snapshots and
+      // `scripts/recompute_lobbying_published_figures.py` reproduces $886,298,059.00
+      // across 3,056 organisations and this section's 5 largest, to the cent. So the
+      // ordinary condition now applies AND the box stays, because what it states is
+      // the counting a reader would have to repeat: where the rows came from, what
+      // column was summed, the one counting choice that could have moved the answer,
+      // and how far the records run. Verified against the Board's own file and its
+      // Lobbying Handbook on 28 Aug 2026 (#1802).
       methodologyInset: {
         title: 'How we counted the lobbying total',
         body:
@@ -223,7 +228,9 @@ export const MONEY_ONLY_GOES_ONE_WAY: ResearchPiece = {
           'records cannot do is separate the 4 kinds of lobbying before 2024; everything ' +
           'earlier sits in a single general column. The rows run through the report due ' +
           '16 March 2026, and are published at ' +
-          'cfb.mn.gov/reports-and-data/self-help/data-downloads/lobbying/.',
+          'cfb.mn.gov/reports-and-data/self-help/data-downloads/lobbying/. Alethical ' +
+          'has kept its own dated copy of that file since 31 August 2026, and every ' +
+          'figure in this section is recomputed from it.',
       },
     },
     {
@@ -330,9 +337,10 @@ export const MONEY_ONLY_GOES_ONE_WAY: ResearchPiece = {
       {
         kind: 'text',
         text:
-          'CFB lobbying principal expenditure reports, 2015\u20132025. Alethical holds ' +
-          'no lobbying records, so every lobbying figure in this report is read from ' +
-          'the Board\u2019s own reports rather than reproduced from our own data. ',
+          'CFB lobbying principal expenditure reports, 2015\u20132025. Alethical has ' +
+          'kept its own dated copy of the Board\u2019s file since 31 August 2026, so ' +
+          'every lobbying figure in this report is recomputed from records we hold ' +
+          'and can be checked against the Board\u2019s own. ',
       },
       {
         // The Board moved this list and left the old address answering 200 with a page
