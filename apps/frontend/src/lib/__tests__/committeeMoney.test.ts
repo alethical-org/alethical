@@ -462,6 +462,26 @@ describe('the record-coverage block', () => {
       }
     }
   });
+
+  // This sentence told readers "official sources disagree about that threshold for
+  // ballot-question committees", live on production, on filer 60083's 2025 page beside
+  // $8,459.00 of unnamed money (verified 31 Aug 2026). It was false: the statute says
+  // $500 for ballot questions and the Board's own Independent Expenditure and Ballot
+  // Question handbook (revised 08/27/2026) says $500 too. The $200 reading came from a
+  // handbook written for the general-purpose kind of filer, which is a different
+  // audience rather than a contradicting source. The page still prints no figure —
+  // that ban is rule 12's and Eugene's to lift — but it may not explain the silence by
+  // accusing Minnesota's own records of contradicting each other.
+  it('never blames the silence on official sources disagreeing', () => {
+    const ballot = unnamedMoneyExplanation(true);
+    expect(ballot).not.toMatch(/sources disagree/i);
+    expect(ballot).not.toMatch(/do not agree/i);
+    // And it still prints no threshold figure of any kind.
+    expect(ballot).not.toContain('$200');
+    expect(ballot).not.toContain('$500');
+    // It still says what is true: the state's file does not name this money.
+    expect(ballot).toContain('does not say who gave them');
+  });
 });
 
 describe('the money-out threshold sentence describes a yearly total, never a per-payment cut-off', () => {

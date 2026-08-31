@@ -210,8 +210,17 @@ export function unnamedShareLabel(
  * the size of a gift, and 327,759 of the 583,152 published rows are individually
  * under $200 and named anyway. It says a committee MAY name a smaller donor rather
  * than that such a donor is never named, because the statute sets a floor on who must
- * be named and at least one filer names more (#1755). "Candidates" rather than
- * "committees", because a ballot-question committee's threshold is $500.
+ * be named and at least one filer names more (#1755).
+ *
+ * **"Candidates" rather than "committees", and the reason is narrower than it looks.**
+ * A ballot-question committee's itemization threshold is $500, not $200: the statute
+ * (10A.20 subd. 3(c)) attaches its figures to what the money is for, and the Board's own
+ * handbook for those filers says $500 outright. So a sentence saying "committees" would
+ * be wrong about that one kind. It does not follow that a page may print $500 anywhere:
+ * rule 12 holds a ballot-question filer's page to no threshold sentence at all until
+ * Eugene decides otherwise, and that ban is a product choice rather than a reading of
+ * the sources. This screen never reaches it either way — it draws a legislator's own
+ * committee, which is never a ballot-question one.
  *
  * It says the state's file does not name them, **not** that nobody knows who they are.
  * The second is a claim about the world that this source cannot support: the committee
