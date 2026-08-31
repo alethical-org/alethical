@@ -107,10 +107,12 @@ from alethical.api.services.committee_stated_split import (
 )
 from alethical.api.services.independent_spending import (
     REPORTED,
+    committees_outside_the_year,
     confirmed_committees,
 )
 from alethical.db.schema import load_schema
 from alethical.pipeline import campaign_finance_reader as reader
+from alethical.pipeline.campaign_finance_filings import live_filings_snapshot
 
 schema = load_schema()
 CommitteeLinkReviewDecision = schema.CommitteeLinkReviewDecision
@@ -239,6 +241,28 @@ class LegislatorCommitteeMoney:
 
 
 @dataclass(frozen=True)
+class CommitteeOutsideThisYear:
+    """One confirmed committee this year's page leaves out, and whether it is closed.
+
+    Served because "we left this out" and "there is nothing here" look identical to a
+    reader, and the page used to say the first as though it were a fact about the
+    committee's registration. The years on a link are the years money was **reported**
+    (§5.1), so landing here means nothing was reported for that year and says nothing
+    about whether the registration ran.
+
+    ``closed_on`` is the only thing that may licence saying a registration ended, and it
+    comes from the Board's own filer record rather than from the reported years.
+    ``None`` therefore means 2 different things -- open, or absent from the filer list we
+    hold -- and the page's wording for both is the same honest one, because we cannot
+    tell them apart and must not guess.
+    """
+
+    registration_number: str
+    committee_name_as_reviewed: str
+    closed_on: date | None
+
+
+@dataclass(frozen=True)
 class LegislatorFinance:
     """Everything a legislator's campaign money tab may show for one year.
 
@@ -260,6 +284,7 @@ class LegislatorFinance:
     link_state: str
     committees: tuple[LegislatorCommitteeMoney, ...]
     other_office_committees: int
+    committees_outside_this_year: tuple[CommitteeOutsideThisYear, ...] = ()
 
     def __post_init__(self) -> None:
         """Tag every figure with the committee that reported it, on construction.
@@ -819,4 +844,58 @@ def legislator_finance(
         # number (#1663).
         committees=tuple(committees),
         other_office_committees=other_office,
+        committees_outside_this_year=_committees_outside_this_year(
+            db, legislator_id=legislator_id, year=year
+        ),
     )
+
+
+def _committees_outside_this_year(
+    db: Session, *, legislator_id: UUID, year: int
+) -> tuple[CommitteeOutsideThisYear, ...]:
+    """The confirmed committees this year leaves out, each with its closing date if any.
+
+    The closing date is read from the Board's filer record, never inferred from the
+    reported years: 22 of the 23 committees that landed here on the day the first 200
+    matches were confirmed are open, with no closing date, and had simply reported no
+    money for the year on screen. Saying their registration had ended would have been
+    false on a named person's page.
+    """
+    links = committees_outside_the_year(db, legislator_id, year=year)
+    if not links:
+        return ()
+    closed_on = _closing_dates(db, [link.registration_number for link in links])
+    return tuple(
+        CommitteeOutsideThisYear(
+            registration_number=link.registration_number,
+            committee_name_as_reviewed=link.committee_name_as_reviewed,
+            closed_on=closed_on.get(link.registration_number),
+        )
+        for link in sorted(links, key=lambda row: row.registration_number)
+    )
+
+
+def _closing_dates(
+    db: Session, registration_numbers: list[str]
+) -> dict[str, date | None]:
+    """Each committee's closing date from the newest filer snapshot we hold.
+
+    A missing row is a missing key, not a False: the filer list we hold not carrying a
+    committee is our gap, and it may never render as the committee being open.
+    """
+    schema = load_schema()
+    # The same snapshot ``committee_filing_schedule`` reads, through the same pointer, so
+    # a committee cannot read as closed on one part of the page and open on another.
+    snapshot = live_filings_snapshot(db)
+    if snapshot is None:
+        return {}
+    rows = db.execute(
+        select(
+            schema.CampaignFinanceFiler.registration_number,
+            schema.CampaignFinanceFiler.termination_date,
+        ).where(
+            schema.CampaignFinanceFiler.snapshot_id == snapshot.id,
+            schema.CampaignFinanceFiler.registration_number.in_(registration_numbers),
+        )
+    ).all()
+    return {row[0]: row[1] for row in rows}

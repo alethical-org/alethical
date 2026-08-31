@@ -4160,6 +4160,20 @@ def legislator_campaign_finance(
             # reader who knows their member ran for Attorney General should be told the
             # money exists and is not this, instead of concluding we missed it.
             "other_office_committees": finance.other_office_committees,
+            # Confirmed committees this page leaves out because they reported no money
+            # in this year, each with its closing date if the Board's filer record
+            # carries one. Served so the empty year can say which of 2 different things
+            # is true: the registration ended, or nothing was reported. A page that
+            # asserts the first when only the second is known has told a reader
+            # something false about a named person (rule 12, missing versus zero).
+            "committees_outside_this_year": [
+                {
+                    "registration_number": entry.registration_number,
+                    "committee_name_as_reviewed": entry.committee_name_as_reviewed,
+                    "closed_on": entry.closed_on,
+                }
+                for entry in finance.committees_outside_this_year
+            ],
             "release_id": str(release.id),
             "fetched_at": release.fetched_at,
             "committees": [
