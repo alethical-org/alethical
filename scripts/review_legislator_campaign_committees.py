@@ -456,8 +456,16 @@ def link_row(
     *,
     confirmed: bool,
     note: str | None,
+    records_through: str | None,
 ) -> schema.LegislatorCampaignCommittee:
-    """Build one decision row. The single place a link is constructed, in either flow."""
+    """Build one decision row. The single place a link is constructed, in either flow.
+
+    Records the basis as well as the choice. The ``_as_reviewed`` name, office and years
+    say which committee was picked; the 3 signal columns say why, and
+    ``records_through_as_reviewed`` says from which snapshot. The screen is gone when a
+    sitting ends and the Board's download changes daily, so a decision's basis is either
+    written here as it is made or lost.
+    """
     return schema.LegislatorCampaignCommittee(
         legislator_id=member.legislator_id,
         registration_number=proposal.committee.registration_number,
@@ -472,7 +480,61 @@ def link_row(
         last_year_as_reviewed=proposal.committee.last_year,
         reviewed_by=reviewer,
         evidence=note,
+        name_evidence_as_reviewed=proposal.given_name_evidence.value,
+        filer_directory_as_reviewed=proposal.filer_verdict,
+        party_agreement_as_reviewed=party_agreement_as_reviewed(proposal),
+        records_through_as_reviewed=records_through,
     )
+
+
+PARTY_AGREEMENT_AGREES = "agrees"
+PARTY_AGREEMENT_DISAGREES = "disagrees"
+PARTY_AGREEMENT_NO_PARTY_ON_RECORD = "no_party_on_record"
+PARTY_AGREEMENT_NO_PARTY_MONEY = "no_party_money"
+
+
+def party_agreement_as_reviewed(proposal: Proposal) -> str:
+    """Which of the 4 party-money states this proposal was in, as the screen showed it.
+
+    Four, not two. ``party_agrees`` is False only when party money exists and names the
+    other party; it is None both when no party unit has ever paid this committee and when
+    we hold no party for the legislator, and those 2 are different facts about different
+    sides of the comparison. Collapsing them would record "we could not compare" as though
+    it said something about the committee.
+    """
+    if proposal.party_of_party_unit_money is None:
+        return PARTY_AGREEMENT_NO_PARTY_MONEY
+    if proposal.party_agrees is True:
+        return PARTY_AGREEMENT_AGREES
+    if proposal.party_agrees is False:
+        return PARTY_AGREEMENT_DISAGREES
+    return PARTY_AGREEMENT_NO_PARTY_ON_RECORD
+
+
+def newest_receipt_date(path: str) -> str | None:
+    """The newest payment date in this download, as ``YYYY-MM-DD``.
+
+    Stored on every decision so an auditor knows which snapshot would reproduce it: any
+    download carrying data through this date holds the rows the decision rested on. A date
+    rather than a file name or a hash, because a hash identifies a file nobody else has and
+    a name identifies nothing at all.
+
+    Its own pass over the file, on purpose. The shared reader
+    (``read_contributions_csv``) has a second caller in the campaign-finance pipeline, and
+    widening its return value to carry a fact only this script needs would change that
+    caller for nothing. One extra read of a column costs a few seconds, once per sitting.
+
+    Read as text and compared as text: the Board writes ``YYYY-MM-DD``, so string order is
+    date order, and parsing would only add a way to fail on a row we could otherwise skip.
+    """
+    newest: str | None = None
+    with open(path, newline="", encoding="utf-8-sig", errors="replace") as handle:
+        for row in csv.DictReader(handle):
+            value = (row.get("Receipt date") or "").strip()[:10]
+            if len(value) == 10 and value[4] == "-" and value[7] == "-":
+                if newest is None or value > newest:
+                    newest = value
+    return newest
 
 
 DIRECTORY_IN_BRIEF: dict[str, str] = {
@@ -485,7 +547,10 @@ DIRECTORY_IN_BRIEF: dict[str, str] = {
 
 
 def run_batch_review(
-    results: list[LegislatorProposals], session: Session, reviewer: str
+    results: list[LegislatorProposals],
+    session: Session,
+    reviewer: str,
+    records_through: str | None,
 ) -> int:
     """Confirm the uncontested proposals as one reviewed list, in a single sitting.
 
@@ -569,7 +634,14 @@ def run_batch_review(
         if index in held:
             continue
         session.add(
-            link_row(result.member, proposal, reviewer, confirmed=True, note=note)
+            link_row(
+                result.member,
+                proposal,
+                reviewer,
+                confirmed=True,
+                note=note,
+                records_through=records_through,
+            )
         )
         written += 1
     session.commit()
@@ -652,6 +724,7 @@ def run_review(
     session: Session,
     reviewer: str,
     only_tier: ProposalTier | None,
+    records_through: str | None,
 ) -> int:
     """Ask about each proposal and write only what the reviewer confirms or rejects.
 
@@ -712,6 +785,7 @@ def run_review(
                     reviewer,
                     confirmed=answer.startswith("y"),
                     note=note,
+                    records_through=records_through,
                 )
             )
             session.commit()
@@ -823,6 +897,18 @@ def main() -> None:
         filers_by_registration=filers,
     )
 
+    # Only 'review' writes, so only 'review' pays for the extra pass over the file. Read
+    # before the first question rather than after the last: a sitting can be answered over
+    # an hour, and the snapshot a decision was made against is the file as it was opened.
+    records_through = (
+        newest_receipt_date(contributions_path) if args.command == "review" else None
+    )
+    if args.command == "review":
+        print(
+            f"decisions will record this download as reaching {records_through}",
+            file=sys.stderr,
+        )
+
     engine = create_engine(
         database_url, echo=False, connect_args=NO_PREPARED_STATEMENTS
     )
@@ -842,13 +928,14 @@ def main() -> None:
                 )
             )
         elif args.batch:
-            run_batch_review(results, session, args.reviewer)
+            run_batch_review(results, session, args.reviewer, records_through)
         else:
             run_review(
                 results,
                 session,
                 args.reviewer,
                 ProposalTier(args.tier) if args.tier else None,
+                records_through,
             )
 
 

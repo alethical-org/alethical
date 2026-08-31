@@ -1007,6 +1007,36 @@ is filed or updated as a GitHub issue instead, using the same alerting `gh` alre
 sibling ingestion jobs. Zero confirmed links — true of every database until the first review
 sitting lands — is a pass, not a failure.
 
+**A decision records why it was made, not only which committee was picked, and that had to land
+before the first sitting rather than after ([#1354](https://github.com/alethical-org/alethical/issues/1354)).**
+The `_as_reviewed` name, office and years snapshot the committee, so *which* account a person
+chose survives whatever the Board does next. The reasoning did not survive anything: the review
+screen is gone when a sitting ends, the contributions download changes daily, and re-running reads
+a different file, so on the weaker proposals a re-run may not reach the same answer. 4 nullable
+columns therefore record the basis as the screen printed it: `name_evidence_as_reviewed` (which of
+the 4 name states held), `filer_directory_as_reviewed` (the registered-filer directory's verdict,
+§9.7), `party_agreement_as_reviewed`, and `records_through_as_reviewed`. Nullable because a
+decision written before they landed genuinely has no stored basis and a backfilled guess about
+what a person saw would be worse than an honest blank; 0 rows existed when they shipped, so
+nothing is blank in practice.
+
+**Party money has 4 recorded states, and 2 of them are not disagreements.** `party_agrees` is
+False only when party money exists and names the other party. It is None both when no party unit
+has ever paid the committee and when we hold no party for the legislator, and those are facts
+about opposite sides of the comparison, so the stored values are `agrees`, `disagrees`,
+`no_party_on_record` and `no_party_money`. Collapsing the last 2 would record "we could not
+compare" as though it said something about the committee, which is the same failure the review
+screen already fixed once by printing 3 states rather than 2.
+
+**The snapshot is stored as a date, not a file name or a hash.** A hash identifies a file nobody
+else holds and a name identifies nothing at all, whereas any download carrying data through
+`records_through_as_reviewed` holds the rows the decision rested on. It is the newest payment date
+in the file, read in its own pass over it: the shared reader has a second caller in the
+campaign-finance pipeline, and widening its return value to carry a fact only the review script
+needs would change that caller for nothing. Worth knowing how far behind the file runs: the
+download taken 28 Aug 2026 reaches 20 July 2026, so a sitting's stored snapshot is 5 to 6 weeks
+older than the day it happened.
+
 **One legislator holds several committees, so the link is one-to-many** (§7, Display rules, has
 the counts). A legislator whose second committee were refused would show one year of money and
 silently drop the rest.

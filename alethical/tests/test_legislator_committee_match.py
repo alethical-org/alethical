@@ -36,6 +36,9 @@ import pytest
 from scripts.review_legislator_campaign_committees import (
     DIRECTORY_IN_BRIEF,
     describe,
+    link_row,
+    newest_receipt_date,
+    party_agreement_as_reviewed,
 )
 from alethical.pipeline.legislator_committee_match import (
     CommitteeRecord,
@@ -1151,6 +1154,124 @@ def test_no_party_on_record_is_never_shown_to_a_reviewer_as_a_disagreement():
         party_by_registration={"17674": "R"},
     ).proposals[0]
     assert "DISAGREES with our record" in describe(disagrees)
+
+
+def test_a_decision_records_why_it_was_made_and_from_which_snapshot():
+    # The other _as_reviewed columns say which committee was picked. These say on what
+    # basis, which is the question an audit asks and the only part of the record that
+    # expires: the screen is gone when a sitting ends and the Board's download changes
+    # daily, so a re-run reads a different file and may not agree with itself.
+    result = only(
+        [member("Patty Acomb", "house", first="Patty", last="Acomb", party="DFL")],
+        [committee("18272", "Acomb, Patty House Committee")],
+        party_by_registration={"18272": "DFL"},
+    )
+    row = link_row(
+        result.member,
+        result.proposals[0],
+        "Eugene Lopin",
+        confirmed=True,
+        note=None,
+        records_through="2026-08-27",
+    )
+    assert row.name_evidence_as_reviewed == "exact"
+    assert row.filer_directory_as_reviewed == FilerVerdict.unknown.value
+    assert row.party_agreement_as_reviewed == "agrees"
+    assert row.records_through_as_reviewed == "2026-08-27"
+    # The choice is still recorded too, so the basis is an addition and not a replacement.
+    assert row.committee_name_as_reviewed == "Acomb, Patty House Committee"
+    assert row.reviewed_by == "Eugene Lopin"
+
+
+def test_a_rejection_records_its_basis_as_well_as_a_confirmation():
+    # Rejections are kept so "checked, not theirs" never reads as "nobody has looked", and
+    # a rejection with no stored basis cannot be defended any more than a confirmation can.
+    result = only(
+        [member("Patty Acomb", "house", first="Patty", last="Acomb", party="DFL")],
+        [committee("18272", "Acomb, Patty House Committee")],
+        party_by_registration={"18272": "R"},
+    )
+    row = link_row(
+        result.member,
+        result.proposals[0],
+        "Eugene Lopin",
+        confirmed=False,
+        note="different person",
+        records_through="2026-08-27",
+    )
+    assert row.party_agreement_as_reviewed == "disagrees"
+    assert row.records_through_as_reviewed == "2026-08-27"
+
+
+def test_party_money_has_4_recorded_states_because_2_of_them_are_not_a_disagreement():
+    # Collapsing these would record "we could not compare" as though it said something
+    # about the committee. No party unit has ever paid it, and we hold no party for the
+    # legislator, are facts about opposite sides of the comparison.
+    agrees = only(
+        [member("Patty Acomb", "house", first="Patty", last="Acomb", party="DFL")],
+        [committee("18272", "Acomb, Patty House Committee")],
+        party_by_registration={"18272": "DFL"},
+    ).proposals[0]
+    disagrees = only(
+        [member("Patty Acomb", "house", first="Patty", last="Acomb", party="DFL")],
+        [committee("18272", "Acomb, Patty House Committee")],
+        party_by_registration={"18272": "R"},
+    ).proposals[0]
+    no_party_on_record = only(
+        [member("Patty Acomb", "house", first="Patty", last="Acomb", party=None)],
+        [committee("18272", "Acomb, Patty House Committee")],
+        party_by_registration={"18272": "DFL"},
+    ).proposals[0]
+    no_party_money = only(
+        [member("Patty Acomb", "house", first="Patty", last="Acomb", party="DFL")],
+        [committee("18272", "Acomb, Patty House Committee")],
+    ).proposals[0]
+
+    assert party_agreement_as_reviewed(agrees) == "agrees"
+    assert party_agreement_as_reviewed(disagrees) == "disagrees"
+    assert party_agreement_as_reviewed(no_party_on_record) == "no_party_on_record"
+    assert party_agreement_as_reviewed(no_party_money) == "no_party_money"
+    assert (
+        len(
+            {
+                party_agreement_as_reviewed(agrees),
+                party_agreement_as_reviewed(disagrees),
+                party_agreement_as_reviewed(no_party_on_record),
+                party_agreement_as_reviewed(no_party_money),
+            }
+        )
+        == 4
+    )
+
+
+def test_the_snapshot_recorded_is_the_newest_payment_date_in_the_file(tmp_path):
+    # A date rather than a file name or a hash: any download carrying data through this
+    # date holds the rows the decision rested on. Rows the Board wrote in another shape are
+    # skipped rather than crashing a sitting, and the answer is not the last row in the
+    # file, because the download is not in date order.
+    path = tmp_path / "contributions.csv"
+    path.write_text(
+        "Recipient reg num,Amount,Receipt date,Year\n"
+        "18272,100.00,2026-08-27,2026\n"
+        "18272,100.00,2026-08-31,2026\n"
+        "18272,100.00,2025-01-02,2025\n"
+        "18272,100.00,,2025\n"
+        "18272,100.00,not a date,2025\n"
+        "18272,100.00,2026-08-30,2026\n",
+        encoding="utf-8",
+    )
+    assert newest_receipt_date(str(path)) == "2026-08-31"
+
+
+def test_a_file_with_no_usable_payment_date_records_no_snapshot_rather_than_a_guess():
+    # An honest blank beats a fabricated date. Nothing downstream reads this column as a
+    # promise that a snapshot exists.
+    import tempfile
+
+    with tempfile.NamedTemporaryFile("w", suffix=".csv", delete=False) as handle:
+        handle.write("Recipient reg num,Receipt date\n18272,\n18272,nonsense\n")
+        name = handle.name
+    assert newest_receipt_date(name) is None
 
 
 def test_the_batch_screen_never_calls_a_listed_committee_absent_from_the_directory():

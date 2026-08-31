@@ -1633,6 +1633,21 @@ class LegislatorCampaignCommittee(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     # What the reviewer checked, in their own words. Free text on purpose: the cases that
     # need a person are the ones no field anticipated.
     evidence: Mapped[Optional[str]] = mapped_column(Text)
+    # Why this decision was made, as the 3 signals the review screen printed plus the
+    # snapshot they were computed from. The other ``_as_reviewed`` columns record which
+    # committee was chosen; these record on what basis, which is the question an audit
+    # actually asks and the only part of the record that expires. The screen is gone once a
+    # sitting ends, the Board's download changes daily, and re-running reads a different
+    # file -- so a decision's basis is either captured as it is made or lost. Nullable
+    # because a decision written before this landed genuinely has no stored basis, and a
+    # backfilled guess would be worse than an honest blank.
+    name_evidence_as_reviewed: Mapped[Optional[str]] = mapped_column(String(30))
+    filer_directory_as_reviewed: Mapped[Optional[str]] = mapped_column(String(30))
+    party_agreement_as_reviewed: Mapped[Optional[str]] = mapped_column(String(30))
+    # The newest payment date in the download the decision was read from, so an auditor
+    # knows which snapshot would reproduce it. A date rather than a file name or a hash:
+    # any download carrying data through this date holds the rows this decision rested on.
+    records_through_as_reviewed: Mapped[Optional[str]] = mapped_column(String(10))
 
     legislator: Mapped["Legislator"] = relationship()
 
