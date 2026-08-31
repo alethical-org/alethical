@@ -10,6 +10,14 @@ are `docs/architecture/campaign-finance-system-design.md` §7 and
 `.claude/rules/grounded-answers.md` rule 12; every constraint below restates one of them
 as a settled fact, so the prompt can be pasted into Claude Design as-is.
 
+**Corrected 31 Aug 2026.** The donation-gap sentence below said donors at $200 or less
+are never named. That is false: the threshold is a floor on who a committee *must* name,
+never a ban on naming a smaller donor, and one 2026 filer itemises 215 of them. The
+sentence now matches `.claude/rules/grounded-answers.md` rule 12
+([#1755](https://github.com/alethical-org/alethical/issues/1755)). This file is frozen as
+a record of the 18 Aug request, but its body is meant to be pasted verbatim, so a false
+sentence in it is a false sentence waiting to be built.
+
 **How to run it:** paste everything below the rule into Claude Design, attaching the two
 screenshots from [PR #1499](https://github.com/alethical-org/alethical/pull/1499)
 (`not-yet-matched-desktop-1280px.png` and `overview-pointer-desktop-1280px.png`, in that
@@ -92,8 +100,9 @@ show the unnamed remainder and its share ("52% of the donations the committee
 reported"), with this fixed explanation:
 
 > Minnesota only makes candidates name a donor once that donor has given more than
-> $200 in total for the year. Donors who gave $200 or less in total are never named,
-> so their money is counted here and the state's public file does not say who gave it.
+> $200 in total for the year. A donor who gave $200 or less in total for the year need
+> not be named, though a committee may name one anyway. The money counted here is the
+> money the state's public file does not say who gave.
 
 The threshold is on the donor's **yearly total**, never on the size of one gift —
 most named payments are individually under $200 — so no wording anywhere on the page
