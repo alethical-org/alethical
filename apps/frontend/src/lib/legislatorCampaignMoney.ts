@@ -225,18 +225,38 @@ export const UNNAMED_MONEY_EXPLANATION =
 /**
  * What the spending figure means, which is a different sentence when there is none.
  *
- * Minnesota publishes no official total for a committee's spending, so unlike money
- * in there is no second number here and no split. Under "Not reported" the
- * no-bigger-number sentence would explain a figure that is not on the screen, and a
- * reader would take the absence as a spending of zero, which is the exact
- * missing-versus-zero failure rule 12 exists to stop.
+ * **This used to state that Minnesota publishes no official total for a committee's
+ * spending. Minnesota publishes one.** `cf_filing_figure` holds a `total_expenditures`
+ * line for **3,630 filer-years**, our own committee route serves it as money out's
+ * reported total, and Alethical's own committee page prints it 2 clicks away as
+ * "Payments out this committee reported to the state". The sentence was a claim about
+ * Minnesota and it was false, which is worse than a missing sentence: a reader who
+ * wanted the official figure was told not to look for it.
+ *
+ * The money-IN block on the same screen already says the true version of this, and the
+ * difference is which side the gap is on: "We do not have an official total for this
+ * committee covering this year that we can stand behind" is a claim about us. Money out's
+ * has to be the same shape.
+ *
+ * **Why the comparison is genuinely absent on this tab even so.** The profile route
+ * serves a money-out reported total, and this block does not draw one, so there is no
+ * second number here to compare against yet — a layout gap rather than a fact about
+ * Minnesota. And on 7 of the 242 confirmed committees for 2025 we hold the total and
+ * deliberately withhold it: 39 filer-years in the live snapshot are special-election
+ * filings whose totals copy cannot speak for the year, and Rep. Xp Lee's committee 19223
+ * for 2025 is one of them, holding $16,923.32 we will not stand behind.
+ *
+ * Under "Not reported" the no-bigger-number sentence would explain a figure that is not
+ * on the screen, and a reader would take the absence as a spending of zero, which is the
+ * exact missing-versus-zero failure rule 12 exists to stop.
  */
 export function spendingNote(state: MoneyBlockState): string {
   if (state === 'reported') {
     return (
       'Minnesota only names a recipient once payments to them pass $200 in total for ' +
-      'the year, and publishes no official total for a committee’s spending, so there ' +
-      'is no bigger number to compare this against.'
+      'the year, so this list is not everything the committee paid out. The committee’s ' +
+      'own reported total for the period is on its committee page; we do not repeat it ' +
+      'here yet.'
     );
   }
   if (state === 'unavailable') {

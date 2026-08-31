@@ -244,7 +244,10 @@ describe('splitExplanation', () => {
 
 describe('spendingNote', () => {
   it('says there is no bigger number, beside a real figure', () => {
-    expect(spendingNote('reported')).toContain('no bigger number');
+    // Was 'no bigger number', which sat beside the claim that Minnesota publishes no
+    // spending total. Minnesota publishes one for 3,630 filer-years, so what has to
+    // survive is the $200 sentence and nothing that speaks for Minnesota's records.
+    expect(spendingNote('reported')).toContain('$200 in total for the year');
   });
 
   it('says an absent figure is not a spending of zero', () => {
@@ -778,5 +781,39 @@ describe('what the card says about who checked the match', () => {
       partyAgreement: null,
     });
     expect(sentences).toEqual(['Checked by Alethical on August 31, 2026.']);
+  });
+});
+
+describe('the spending note never speaks for what Minnesota publishes', () => {
+  // The shipped defect: this block told readers Minnesota "publishes no official total
+  // for a committee's spending". Minnesota publishes one. cf_filing_figure holds a
+  // total_expenditures line for 3,630 filer-years, our own committee route serves it, and
+  // our own committee page prints it 2 clicks away. A reader who wanted the official
+  // figure was told not to look for it.
+  const everyState = ['reported', 'not_reported', 'unavailable'] as const;
+
+  it('never claims Minnesota publishes no spending total, in any state', () => {
+    for (const state of everyState) {
+      expect(spendingNote(state)).not.toMatch(/publishes no official total/i);
+      expect(spendingNote(state)).not.toMatch(/Minnesota[^.]*no (?:official )?total/i);
+    }
+  });
+
+  // The money-in block on the same screen already says the true version, and the
+  // difference is which side the gap is on: ours, not Minnesota's.
+  it('puts a missing comparison on our side of the line', () => {
+    const note = spendingNote('reported');
+    expect(note).toContain('we do not repeat it here yet');
+    expect(note).not.toContain('no bigger number');
+  });
+
+  it('still says the list is not everything, which is the true half', () => {
+    expect(spendingNote('reported')).toContain('$200 in total for the year');
+    expect(spendingNote('reported')).toContain('not everything');
+  });
+
+  // Unchanged and load-bearing: an absent figure must never read as a spending of zero.
+  it('keeps refusing to let nothing named read as nothing spent', () => {
+    expect(spendingNote('not_reported')).toContain('does not mean the committee spent nothing');
   });
 });
