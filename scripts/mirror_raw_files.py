@@ -9,9 +9,10 @@ that names it that it did. Running it twice copies nothing the second time.
 
 **Every kind of stored body, not only the bulk downloads (#1501).** Which tables hold
 one is read out of the schema — any table carrying ``object_key``, ``compressed_hash``
-and ``mirrored_at`` — so the 3 kinds today (bulk downloads, the totals archives, and
-#1433's report documents) and any fourth kind added later are covered without editing
-this script.
+and ``mirrored_at`` — so the 5 kinds today (bulk downloads, the totals archives,
+#1433's report documents, #1798's published-source copies, and #1862's lobbying
+principal-expenditures download) and any sixth kind added later are covered without
+editing this script.
 
 Why losing one matters more than a normal backup: Minnesota's Board publishes no
 archive, the download links never change, and the file behind each is replaced as it
