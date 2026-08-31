@@ -1234,7 +1234,7 @@ def test_a_row_with_no_candidate_name_is_never_treated_as_a_match():
     )
 
 
-def test_only_what_the_register_can_speak_to_is_grouped():
+def test_only_a_stated_reason_is_grouped_and_a_bare_surname_never_is():
     who = member("Ben Bakeberg", "house", first="Ben", last="Bakeberg")
     proposal = only(
         [who], [committee("18905", "Bakeberg, Ben House Committee")]
@@ -1252,32 +1252,138 @@ def test_only_what_the_register_can_speak_to_is_grouped():
         )
         == "own_other_office"
     )
+    # The account's own filed name outranks the register's row, because it is a fact about
+    # the account rather than about who is currently running. So a rejection needs the filed
+    # name to be a bare surname as well: that is the only shape a stranger's account takes.
+    assert (
+        group_of(
+            who,
+            replace(other_office, given_name_evidence=GivenNameEvidence.surname_only),
+            filer("19239", candidate="Bakeberg, Amy", office="Senate"),
+        )
+        == "another_person"
+    )
     assert (
         group_of(
             who,
             other_office,
             filer("19239", candidate="Bakeberg, Amy", office="Senate"),
         )
-        == "another_person"
+        == "own_name_race_over"
     )
 
-    # The register saying nothing is the case that stays one at a time: a dormant account it
-    # does not list is exactly where the alternatives have to be read.
+    # The register saying nothing no longer ends the question: the account's own filed name
+    # decides, and an exact match on this member's name is its own group. What stays one at a
+    # time is a bare surname, the one value a stranger also earns.
     silent = replace(proposal, filer_verdict=FilerVerdict.unknown.value)
-    assert group_of(who, silent, None) is None
+    assert group_of(who, silent, None) == "own_name_race_over"
+    assert (
+        group_of(
+            who,
+            replace(silent, given_name_evidence=GivenNameEvidence.surname_only),
+            None,
+        )
+        is None
+    )
     not_current = replace(
-        proposal, filer_verdict=FilerVerdict.same_seat_not_current.value
+        proposal,
+        filer_verdict=FilerVerdict.same_seat_not_current.value,
+        given_name_evidence=GivenNameEvidence.surname_only,
     )
     assert group_of(who, not_current, None) is None
 
 
 def test_every_group_has_its_own_words_and_says_which_way_it_answers():
     keys = [key for key, _, _, _ in GROUPS]
-    assert keys == ["own_seat", "own_other_office", "another_person"]
+    assert keys == [
+        "own_seat",
+        "own_other_office",
+        "another_person",
+        "own_name_race_over",
+    ]
     assert len({title for _, title, _, _ in GROUPS}) == len(GROUPS)
-    # 2 groups confirm and 1 rejects. A group that could do either would be a group whose
+    # 3 groups confirm and 1 rejects. A group that could do either would be a group whose
     # single stated reason does not actually decide anything.
-    assert [confirms for _, _, _, confirms in GROUPS] == [True, True, False]
+    assert [confirms for _, _, _, confirms in GROUPS] == [True, True, False, True]
+    # The one rejecting group is the only one whose rule cannot be trusted without reading
+    # every row, and it says so in its own text.
+    rejecting = [b for _, _, b, confirms in GROUPS if not confirms]
+    assert len(rejecting) == 1 and "READ EVERY ROW" in rejecting[0]
+
+
+def test_an_account_filed_under_the_members_own_name_is_grouped_even_with_no_register_row():
+    # The register lists current candidates, so a finished race has no row and the account's
+    # own filed name is all there is. That is enough for a group when the name is this
+    # member's: a shortening or nickname is computed against their name and a stranger
+    # cannot earn one. 33 of the 40 left after the register-settled groups are this shape.
+    who = member("Steve Green", "senate", first="Steve", last="Green")
+    proposal = only(
+        [who], [committee("17483", "Green, Steve House Committee")]
+    ).proposals[0]
+    for value in ("exact", "published_nickname", "shortened", "middle_name", "initial"):
+        assert (
+            group_of(
+                who,
+                replace(
+                    proposal,
+                    given_name_evidence=GivenNameEvidence(value),
+                    filer_verdict=FilerVerdict.unknown.value,
+                ),
+                None,
+            )
+            == "own_name_race_over"
+        ), value
+
+
+def test_a_bare_surname_with_no_register_row_is_never_grouped():
+    # This is the one value a stranger sharing a last name also earns, and it is where Bruce
+    # D Anderson and Jeff Johnson sit. Nothing may batch it in either direction.
+    who = member("Patti Anderson", "house", first="Patti", last="Anderson")
+    proposal = only(
+        [who], [committee("17362", "Anderson, Bruce D Senate Committee")]
+    ).proposals[0]
+    assert (
+        group_of(
+            who,
+            replace(
+                proposal,
+                given_name_evidence=GivenNameEvidence.surname_only,
+                filer_verdict=FilerVerdict.unknown.value,
+            ),
+            None,
+        )
+        is None
+    )
+
+
+def test_the_reject_group_warns_that_it_cannot_tell_a_nickname_from_a_stranger():
+    # Measured: of 31 rows it offered, 3 were the same member under a formal first name --
+    # Bernadette for Bernie, Michael for Mike, Daniel for Dan. The rule cannot see that, so
+    # the group's own text has to tell the reviewer to read every row.
+    because = next(b for key, _, b, _ in GROUPS if key == "another_person")
+    assert "READ EVERY ROW" in because
+    assert "nickname" in because
+
+
+def test_an_other_office_account_under_the_members_own_name_is_never_rejected():
+    # The register naming somebody else's office for an account whose filed name is this
+    # member's is their own earlier run for that office, not a stranger's account.
+    who = member("Dan Wolgamott", "house", first="Dan", last="Wolgamott")
+    proposal = only(
+        [who], [committee("19253", "Wolgamott, Daniel State Aud Committee")]
+    ).proposals[0]
+    assert (
+        group_of(
+            who,
+            replace(
+                proposal,
+                given_name_evidence=GivenNameEvidence.shortened,
+                filer_verdict=FilerVerdict.different_race.value,
+            ),
+            filer("19253", candidate="Wolgamott, Daniel", office="State Auditor"),
+        )
+        == "own_name_race_over"
+    )
 
 
 def test_a_decision_is_recorded_against_the_company_not_the_person_who_typed_it():
