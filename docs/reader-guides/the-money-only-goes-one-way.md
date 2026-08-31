@@ -202,7 +202,9 @@ case and spacing normalized gives the same 3,056 organizations and the same 5 la
 the cent. What the records cannot do is separate the 4 kinds of lobbying before 2024;
 everything earlier sits in a single general column. The rows run through the report due 16
 March 2026, and are published at
-cfb.mn.gov/reports-and-data/self-help/data-downloads/lobbying/.
+cfb.mn.gov/reports-and-data/self-help/data-downloads/lobbying/. Alethical has kept its own
+dated copy of that file since 31 August 2026, and every figure in this section is
+recomputed from it.
 
 ## What the shape actually looks like
 
@@ -252,8 +254,8 @@ as a single figure with no names attached, and this report counts only named pay
 Official filed report totals are the authoritative figures for any individual committee.
 [Download the same files from the Board](https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/).
 
-CFB lobbying principal expenditure reports, 2015–2025. Alethical holds no lobbying
-records, so every lobbying figure in this report is read from the Board’s own reports
-rather than reproduced from our own data.
+CFB lobbying principal expenditure reports, 2015–2025. Alethical has kept its own dated
+copy of the Board’s file since 31 August 2026, so every lobbying figure in this report is
+recomputed from records we hold and can be checked against the Board’s own.
 [Look up a lobbying principal at the Board](https://cfb.mn.gov/reports-and-data/searches-and-lists/other-reports-and-lists/current-lists/#/principal-historical-spending/all/), or
 [download the rows these totals are added up from](https://cfb.mn.gov/reports-and-data/self-help/data-downloads/lobbying/).

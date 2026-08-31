@@ -107,15 +107,15 @@
         subject. Not printed as a figure; used only to state what the record is shaped
         like, which the handbook's own sentence already says.
 
-     WE HOLD NO LOBBYING RECORDS, AND THE PIECE SAYS SO. There is no lobbying table, no
-     ingestion and no model in this repository. The live research piece already states
-     it in its own published words, "Alethical holds no lobbying records, so every
-     lobbying figure in this report is read from the Board's own reports rather than
-     reproduced from our own data", and this piece keeps the 2 halves' sourcing visibly
-     apart: the independent-spending figures are counted from a file, and the lobbying
-     half carries no figure at all beyond the 2 statutory thresholds. **No lobbying
-     figure is given a records-through date**, because we hold no lobbying records to
-     date.
+     WE HELD NO LOBBYING RECORDS WHEN THIS POSTED, AND WE DO NOW (31 Aug 2026,
+     issue 1862). The Board's yearly principal-expenditure file is loaded as dated
+     snapshots, and both published pieces were corrected the same day to say so under
+     rule 13 point 2a, on Eugene's direction. What did NOT change is this piece's
+     shape: the 2 halves' sourcing stays visibly apart, the independent-spending
+     figures are counted from a file, and the lobbying half still carries no spending
+     figure beyond the 2 statutory thresholds. **No lobbying figure here is given the
+     masthead's records-through date**, because the lobbying file is a separate yearly
+     filing with its own coverage end, the report due 16 March 2026.
 
      RESOLVED 28 AUG 2026, and the finding below is kept as the record of what was
      wrong. The data was never withdrawn, only moved: the Board now serves it as
@@ -304,10 +304,10 @@ lobbying”. A yearly total, in other words, and not a list of payments.
 So you can see how much an organization reported spending. You cannot see which bill, which
 official, or which day, because none of that reaches the report.
 
-**Alethical holds none of these records.** Every campaign-money figure in this set comes from
-files we load and can check again. The lobbying records are not among them, so anything we say
-about lobbying is read at the Board and linked to, never reproduced from our own data. It
-carries no freshness date from us either, because we have nothing to keep fresh.
+**Alethical holds these yearly totals now.** Since 31 August 2026 we keep our own dated copy
+of the Board’s principal spending file, alongside the campaign-money files this set is built
+from, so a principal’s yearly total is something we can show and recheck rather than only link
+to. Holding it adds nothing the report leaves out.
 
 ## Next
 
@@ -333,7 +333,7 @@ Minnesota Statutes 10A.01
 subdivisions 21 and 33. What a principal reports and when, and the plain question at the top of
 it: the Board’s
 [Lobbying Handbook](https://cfb.mn.gov/pdf/publications/handbooks/lobbyist_handbook.pdf)
-(issued January 2026). Minnesota’s lobbying records themselves, which Alethical does not hold,
+(issued January 2026). Minnesota’s lobbying registration records, which Alethical does not hold,
 are at the Board’s
 [Lobbying Organizations Search Tool](https://cfb.mn.gov/reports-and-data/viewers/lobbying/lobbying-organizations/)
 and its

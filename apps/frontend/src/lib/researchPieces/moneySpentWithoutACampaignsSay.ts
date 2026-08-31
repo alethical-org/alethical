@@ -18,9 +18,12 @@
  * special permission; `docs/architecture/published-writing-decisions.md` §2.8
  * records that classification and the measurement behind it.
  *
- * **Alethical holds no lobbying records at all**, so the lobbying half carries no
- * figure beyond the 2 statutory thresholds and no freshness date of ours. The 2
- * halves' sourcing is kept visibly apart for that reason.
+ * **The lobbying half carries no spending figure beyond the 2 statutory
+ * thresholds**, and that is unchanged by #1862: since 31 Aug 2026 Alethical does
+ * hold the Board's yearly principal-expenditure file, so this piece says so, but
+ * holding it adds nothing this piece needed a figure for. The 2 halves' sourcing
+ * stays visibly apart, because they are 2 different filings on 2 different
+ * cycles.
  */
 
 import type { ResearchPiece } from '../research';
@@ -308,10 +311,10 @@ export const MONEY_SPENT_WITHOUT_A_CAMPAIGNS_SAY: ResearchPiece = {
         {
           kind: 'paragraph',
           runs: [
-            { kind: 'bold', text: 'Alethical holds none of these records.' },
+            { kind: 'bold', text: 'Alethical holds these yearly totals now.' },
             {
               kind: 'text',
-              text: ' Every campaign-money figure in this set comes from files we load and can check again. The lobbying records are not among them, so anything we say about lobbying is read at the Board and linked to, never reproduced from our own data. It carries no freshness date from us either, because we have nothing to keep fresh.',
+              text: ' Since 31 August 2026 we keep our own dated copy of the Board’s principal spending file, alongside the campaign-money files this set is built from, so a principal’s yearly total is something we can show and recheck rather than only link to. Holding it adds nothing the report leaves out.',
             },
           ],
         },
@@ -392,7 +395,7 @@ export const MONEY_SPENT_WITHOUT_A_CAMPAIGNS_SAY: ResearchPiece = {
     [
       {
         kind: 'text',
-        text: 'Minnesota’s lobbying records themselves, which Alethical does not hold, are at the Board’s ',
+        text: 'Minnesota’s lobbying registration records, which Alethical does not hold, are at the Board’s ',
       },
       {
         kind: 'externalLink',

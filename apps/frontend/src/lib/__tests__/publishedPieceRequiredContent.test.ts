@@ -61,10 +61,14 @@ describe('the pieces this file speaks for are the pieces we publish', () => {
  * things — where the records came from, named and linked; what was added up;
  * how far the records run; and which counting choice could have moved the answer.
  *
- * *The Money Only Goes One Way*'s $886 million of lobbying spending is that
- * figure, and the only one on the site. Alethical holds no lobbying records, so
- * the recompute that protects every other cross-member figure we publish cannot
- * reach it and this box is the whole safeguard.
+ * *The Money Only Goes One Way*'s $886 million of lobbying spending was that
+ * figure, and the box was the whole safeguard while we held no lobbying records.
+ * Since 31 Aug 2026 we hold them (#1862), so rule 13's ordinary condition applies
+ * too: the figure recomputes from a pinned snapshot, and
+ * `scripts/recompute_lobbying_published_figures.py` reproduces $886,298,059.00
+ * across 3,056 organisations and this section's 5 largest, to the cent. The box
+ * is kept, because what it states is the counting a reader would have to repeat,
+ * and these checks keep it whole.
  */
 describe('the lobbying total carries the method box that stands in for a recompute', () => {
   const piece = researchBySlug('the-money-only-goes-one-way')!;
@@ -178,15 +182,28 @@ describe('every published piece names the body whose filings it read', () => {
     );
   });
 
-  it('names the lobbying records it does not hold, and the years they cover', () => {
+  it('names the lobbying records behind the figure, and the years they cover', () => {
     // Rule 13's publishing order point 11: the masthead's records-through date
-    // speaks only for our own loaded data, so the sources block is where the
-    // outside records and their years are named.
+    // speaks only for our campaign-finance loaded data, and the lobbying file is a
+    // separate yearly filing with its own coverage end, so the sources block is
+    // still where those records and their years are named.
     const html = servedPage('the-money-only-goes-one-way');
     expect(html).toContain('CFB lobbying principal expenditure reports, 2015');
     expect(html).toContain(
-      'Alethical holds no lobbying records, so every lobbying figure in this report is read from',
+      'Alethical has kept its own dated copy of the Board’s file since 31 August 2026',
     );
+  });
+
+  it('never tells a reader we hold no lobbying records', () => {
+    // The claim was true when the piece posted and false from 31 Aug 2026, and it
+    // stood in 4 places across 2 published pieces. This is the guard that stops it
+    // coming back: a sentence nobody would think to re-check, because it reads as
+    // background rather than as a figure.
+    for (const slug of ['the-money-only-goes-one-way', 'money-spent-without-a-campaigns-say']) {
+      const html = servedPage(slug);
+      expect(html).not.toContain('holds no lobbying records');
+      expect(html).not.toContain('holds none of these records');
+    }
   });
 });
 
