@@ -498,12 +498,13 @@ export function listedExceedsReported(
   reportedTotal: string | number | null | undefined,
   listedTotal: string | number | null | undefined,
 ): boolean {
-  const reported = Number(reportedTotal);
-  const listed = Number(listedTotal);
-  if (!Number.isFinite(reported) || !Number.isFinite(listed)) return false;
+  // Blank before numeric, and this order is the whole guard. `Number(null)` and
+  // `Number('')` are both 0, so a missing reported total would read as 0 and every
+  // listable figure would look like a gap. A non-numeric string needs no check: it
+  // becomes NaN and every comparison against NaN is already false.
   if (reportedTotal === null || reportedTotal === undefined || reportedTotal === '') return false;
   if (listedTotal === null || listedTotal === undefined || listedTotal === '') return false;
-  return listed > reported;
+  return Number(listedTotal) > Number(reportedTotal);
 }
 
 export function moneyOutNote(
