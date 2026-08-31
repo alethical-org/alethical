@@ -51,6 +51,7 @@ import {
   MONEY_OUT_FIGURE_LABEL,
   MONEY_OUT_REPORTED_LABEL,
   moneyOutKindLabel,
+  listedExceedsReported,
   moneyOutNote,
   notFoundBody,
   notFoundTitle,
@@ -717,6 +718,7 @@ function MoneyOutCard({
           isBallot,
           reportedOut !== null,
           Number(moneyOut.reportedTotal) === 0,
+          listedExceedsReported(moneyOut.reportedTotal, moneyOut.itemizedPaymentTotal),
         )}
       </Text>
       {moneyOut.byType.length ? (

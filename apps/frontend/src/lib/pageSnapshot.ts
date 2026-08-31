@@ -76,6 +76,7 @@ import {
   MONEY_OUT_FIGURE_LABEL,
   MONEY_OUT_REPORTED_LABEL,
   moneyOutKindLabel,
+  listedExceedsReported,
   moneyOutNote,
   NOT_IN_REGISTER_LINE,
   paymentsEyebrow,
@@ -1242,6 +1243,7 @@ export function committeePageSnapshot(
           identity.isBallot,
           reportedOut !== null,
           Number(moneyOut.reported_total) === 0,
+          listedExceedsReported(moneyOut.reported_total, moneyOut.itemized_payment_total),
         ),
       ].filter(Boolean),
     });
