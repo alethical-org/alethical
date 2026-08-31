@@ -32,13 +32,17 @@ const TEXT = '#8f2a20';
 const ICON = '#c0392b';
 
 /**
- * The wording, chosen because every figure the money surfaces render today comes
- * from a live query against filed data — there is no placeholder figure anywhere
- * in the section, so the honest sentence is that figures may change, not that
- * nothing is final.
+ * The wording names what a reader might expect and will not find — lobbying
+ * records are not loaded (#1862), and the challenger and fuller outside-spending
+ * surfaces do not exist — rather than casting doubt on the figures. Since
+ * 31 Aug 2026 every figure sits under an account a person confirmed and carries
+ * its own period and freshness date, so "the figures shown may change" stopped
+ * being the honest sentence and became a contradiction of the page below it
+ * (#1863).
  */
 const LEAD = 'Under development.';
-const SENTENCE = 'Parts of this page are missing and the figures shown may change.';
+const SENTENCE =
+  'This section does not yet cover lobbying, challengers, or the full picture of outside spending.';
 
 function WarningGlyph({ size, nudgeTop }: { size: number; nudgeTop: boolean }) {
   return (
