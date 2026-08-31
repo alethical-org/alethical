@@ -1078,6 +1078,8 @@ NAME_EVIDENCE_IN_WORDS = {
     "shortened": "is a shortened form",
     "published_nickname": "is a nickname the state prints",
     "surname_only": "shares only the last name",
+    "middle_name": "is a middle name the state prints",
+    "initial": "is an initial only",
 }
 DIRECTORY_IN_WORDS = {
     FilerVerdict.same_seat.value: "confirms this seat and party",
@@ -1134,9 +1136,24 @@ def closing_dates(registration_numbers: list[str]) -> dict[str, str]:
     return {row[0]: row[1].isoformat() for row in rows if row[1] is not None}
 
 
+def read_decisions(session: Session) -> list[ConfirmedLink]:
+    """Every decision a person has made, with the basis each was made on.
+
+    ``load_existing_decisions`` answers "has this pair been decided", which is what the
+    review flows need. The public record needs the whole row: what was chosen, why, by whom,
+    and from which snapshot.
+    """
+    rows = session.execute(
+        select(schema.LegislatorCampaignCommittee).order_by(
+            schema.LegislatorCampaignCommittee.reviewed_at
+        )
+    ).scalars()
+    return list(rows)
+
+
 def write_audit_record(
     results: list[LegislatorProposals],
-    decisions: dict[tuple[str, str], str],
+    session: Session,
     *,
     path: str,
     records_through: str | None,
@@ -1144,165 +1161,180 @@ def write_audit_record(
 ) -> None:
     """Rewrite the generated half of the public audit record.
 
-    Generated rather than typed, because half of what an audit needs moves: a count is
-    wrong the hour after a sitting, and a hand-kept table nobody trusts is worse than none.
-    The prose around the markers is written by hand and never touched here.
+    Generated rather than typed, because half of what an audit needs moves: a count is wrong
+    the hour after a sitting, and a hand-kept table nobody trusts is worse than none. The
+    prose around the markers is written by hand and never touched here.
 
-    What it names and what it counts is a deliberate split. Every case whose evidence is
-    weaker than ``STRONGEST`` is named, because those are the ones worth an outsider's
-    scrutiny; the strongest are given as a count with 1 example, because there is nothing
-    in them to scrutinise. The full per-legislator record is in the database either way,
-    and the prose says how to read it.
+    **Organised around what a person decided, not around what the proposer suggested.** The
+    first version of this reported the proposer's own split -- how many accounts had one
+    obvious answer and how many did not -- which was the only thing there was to report when
+    nothing had been decided. Now that every member has an answer, that split describes how
+    hard the reading was and says nothing about what is published, so the record leads with
+    the decisions and their evidence.
 
     Every hard case is worded as a fact about a record, never as a doubt about a person:
-    "the Board's register does not list account 18472", never "we are unsure about X".
+    "the Board registers this account to Bruce D Anderson", never "we are unsure about X".
     """
-    counts = coverage_counts(results)
-    confirmed_links = sum(1 for value in decisions.values() if value == "confirmed")
-    rejected_links = sum(1 for value in decisions.values() if value == "rejected")
-    confirmed_legislators = {
-        legislator_id
-        for (legislator_id, _), decision in decisions.items()
-        if decision == "confirmed"
-    }
+    decisions = read_decisions(session)
+    confirmed = [d for d in decisions if d.decision.value == "confirmed"]
+    rejected = [d for d in decisions if d.decision.value == "rejected"]
+    by_member = {}
+    for r in results:
+        by_member[str(r.member.legislator_id)] = r
 
-    matched = [r for r in results if r.outcome == "matched"]
-    ambiguous = [r for r in results if r.outcome == "ambiguous"]
-    unmatched = [r for r in results if r.outcome == "unmatched"]
+    def member_of(row) -> str:
+        entry = by_member.get(str(row.legislator_id))
+        if entry is None:
+            return "(a legislator this database no longer holds)"
+        return f"{entry.member.full_name} ({entry.member.chamber_slug} {entry.member.district})"
+
+    decided_pairs = {(str(d.legislator_id), d.registration_number) for d in decisions}
+    open_rows = [
+        (r, p)
+        for r in results
+        for p in r.proposals
+        if (str(r.member.legislator_id), p.committee.registration_number)
+        not in decided_pairs
+    ]
+    members_with_one = {str(d.legislator_id) for d in confirmed}
 
     lines: list[str] = [GENERATED_OPENS, ""]
     lines.append(
         f"Read on {read_on} from a contributions download reaching "
-        f"{records_through or 'an unknown date'}, against "
-        f"{counts['total']} sitting legislators."
+        f"{records_through or 'an unknown date'}, against {len(results)} sitting "
+        f"legislators."
     )
     lines.append("")
     lines.append("| What | How many |")
     lines.append("| --- | --- |")
-    lines.append(f"| Sitting legislators | {counts['total']} |")
+    lines.append(f"| Sitting legislators | {len(results)} |")
     lines.append(
-        f"| Matches a person has confirmed | {confirmed_links} "
-        f"(covering {len(confirmed_legislators)} legislators) |"
+        f"| Legislators with at least one confirmed account | {len(members_with_one)} |"
     )
-    lines.append(f"| Proposals a person has rejected | {rejected_links} |")
-    lines.append(f"| One account proposed, nothing competing | {len(matched)} |")
-    lines.append(f"| More than one account in play | {len(ambiguous)} |")
-    lines.append(f"| No account proposed at all | {len(unmatched)} |")
+    lines.append(f"| Accounts confirmed as a member's own | {len(confirmed)} |")
+    lines.append(f"| Accounts checked and ruled out | {len(rejected)} |")
+    lines.append(f"| Accounts read and left undecided | {len(open_rows)} |")
     lines.append("")
 
-    strongest = [r for r in matched if _basis(r.proposals[0]) == STRONGEST]
-    weaker = [r for r in matched if _basis(r.proposals[0]) != STRONGEST]
-    lines.append(f"## The {len(matched)} with one account and nothing competing")
+    # --- What every confirmation rests on -------------------------------------------
+    lines.append("## What every confirmation rests on")
     lines.append("")
-    if strongest:
-        example = strongest[0]
-        lines.append(
-            f"**{len(strongest)} carry the strongest evidence there is**: the filed name "
-            f"matches exactly, the Board's own register confirms the member's seat and "
-            f"party, and the party money agrees. Nothing in that shape is open to "
-            f"argument, so they are a count here rather than {len(strongest)} rows. "
-            f"{example.member.full_name} "
-            f"({example.member.chamber_slug} {example.member.district}), account "
-            f"{example.proposals[0].committee.registration_number}, is one of them."
-        )
-        lines.append("")
-    if weaker:
-        lines.append(
-            f"**{len(weaker)} are weaker in exactly one way each, and every one is named "
-            f"here.** No case among them carries a signal that contradicts the match; a "
-            f"missing signal and a conflicting signal are different things, and a "
-            f"conflicting one sends a case to the group below instead."
-        )
-        lines.append("")
-        lines.append(
-            "| Legislator | Seat | Account | Filed name | Board's register | Party money |"
-        )
-        lines.append("| --- | --- | --- | --- | --- | --- |")
-        for r in sorted(weaker, key=lambda row: row.member.full_name):
-            name_ev, verdict, party = _basis(r.proposals[0])
-            lines.append(
-                f"| {r.member.full_name} "
-                f"| {r.member.chamber_slug} {r.member.district} "
-                f"| {r.proposals[0].committee.registration_number} "
-                f"| {NAME_EVIDENCE_IN_WORDS.get(name_ev, name_ev)} "
-                f"| {DIRECTORY_IN_WORDS.get(verdict, verdict)} "
-                f"| {PARTY_IN_WORDS.get(party, party)} |"
-            )
-        lines.append("")
-
-    # An account absent from the register is the weakest single case on the page, and the
-    # reason matters more than the absence: a closed registration drops out of a list of
-    # *current* candidates, which is an explanation rather than a hole in our data. Left
-    # unexplained, a reader concludes the second.
-    absent = [
-        r for r in matched if r.proposals[0].filer_verdict == FilerVerdict.unknown.value
+    register_confirmed = [
+        d
+        for d in confirmed
+        if d.filer_directory_as_reviewed == FilerVerdict.same_seat.value
     ]
-    if absent:
-        closing = closing_dates(
-            [r.proposals[0].committee.registration_number for r in absent]
-        )
-        lines.append("### Why an account can be missing from the state's register")
-        lines.append("")
-        lines.append(
-            "The register lists *current* candidates, so a committee that has closed "
-            "drops out of it. Where Minnesota's own filer record gives a closing date, "
-            "the absence is explained and is not a gap in our data."
-        )
-        lines.append("")
-        for r in sorted(absent, key=lambda row: row.member.full_name):
-            registration = r.proposals[0].committee.registration_number
-            closed_on = closing.get(registration)
-            if closed_on:
-                lines.append(
-                    f"- **{r.member.full_name}** "
-                    f"({r.member.chamber_slug} {r.member.district}), account "
-                    f"{registration}: Minnesota's filer record shows the registration "
-                    f"closed on {closed_on}, which is why the register of current "
-                    f"candidates does not list it."
-                )
-            else:
-                lines.append(
-                    f"- **{r.member.full_name}** "
-                    f"({r.member.chamber_slug} {r.member.district}), account "
-                    f"{registration}: we hold no closing date for it, so why the "
-                    f"register does not list it is unexplained. The match rests on the "
-                    f"filed name and the party money alone."
-                )
-        lines.append("")
-
-    lines.append(f"## The {len(ambiguous)} where more than one account is in play")
+    own_name = [
+        d
+        for d in confirmed
+        if d.name_evidence_as_reviewed != GivenNameEvidence.surname_only.value
+    ]
+    lines.append(
+        f"**{len(register_confirmed)} of the {len(confirmed)} rest on Minnesota's own "
+        f"register** naming that account for that member's own seat and party and flagging "
+        f"them as its current holder. That is the state making the link rather than us "
+        f"inferring it, and it is the strongest evidence available on any of these."
+    )
     lines.append("")
-    if ambiguous:
-        ruled_out = sum(len(r.ruled_out_by_directory) for r in ambiguous)
-        with_ruled_out = sum(1 for r in ambiguous if r.ruled_out_by_directory)
+    lines.append(
+        f"**{len(own_name)} of the {len(confirmed)} carry the member's own name** as the "
+        f"state filed it: the same name, a shortening of it, a nickname the state itself "
+        f"prints in quotes, or a middle name. The remaining "
+        f"{len(confirmed) - len(own_name)} share only a last name, and every one of those "
+        f"also has the register confirming the seat or the party money agreeing."
+    )
+    lines.append("")
+    lines.append("| Accounts | Filed name | Minnesota's register | Party money |")
+    lines.append("| --- | --- | --- | --- |")
+    counted: dict[tuple[str, str, str], int] = {}
+    for d in confirmed:
+        key = (
+            d.name_evidence_as_reviewed or "not recorded",
+            d.filer_directory_as_reviewed or "not recorded",
+            d.party_agreement_as_reviewed or "not recorded",
+        )
+        counted[key] = counted.get(key, 0) + 1
+    for key, count in sorted(counted.items(), key=lambda item: -item[1]):
+        name_ev, verdict, party = key
         lines.append(
-            f"These are not unidentified people. Almost every one is a member holding "
-            f"more than one account of their own, so the question is which to show. "
-            f"Between them they carry "
-            f"{sum(len(r.proposals) for r in ambiguous)} accounts. The Board's own "
-            f"register had already removed {ruled_out} wrong accounts across "
-            f"{with_ruled_out} of them before any person read a line, so the narrowing "
-            f"is Minnesota's records rather than our judgement."
+            f"| {count} "
+            f"| {NAME_EVIDENCE_IN_WORDS.get(name_ev, name_ev)} "
+            f"| {DIRECTORY_IN_WORDS.get(verdict, verdict)} "
+            f"| {PARTY_IN_WORDS.get(party, party)} |"
+        )
+    lines.append("")
+
+    # --- What every rejection rests on ----------------------------------------------
+    if rejected:
+        lines.append("## What every rejection rests on")
+        lines.append("")
+        surname_only = [
+            d
+            for d in rejected
+            if d.name_evidence_as_reviewed == GivenNameEvidence.surname_only.value
+        ]
+        lines.append(
+            f"A rejection is a claim we publish, not a shrug: it records that a person "
+            f"checked this account and it belongs to somebody else. "
+            f"**{len(surname_only)} of the {len(rejected)} carry only a shared last "
+            f"name**, which is the shape a stranger's account takes; not one rejection was "
+            f"made against an account filed under the member's own name."
         )
         lines.append("")
-        lines.append(
-            "| Legislator | Seat | Accounts in play | Why each needs a person |"
-        )
+        lines.append("| Legislator | Account | Filed as | Minnesota's register |")
         lines.append("| --- | --- | --- | --- |")
-        for r in sorted(ambiguous, key=lambda row: row.member.full_name):
-            reasons: list[str] = []
-            for proposal in r.proposals:
-                for reason in proposal.reasons:
-                    if reason not in reasons:
-                        reasons.append(reason)
+        for d in sorted(rejected, key=member_of):
             lines.append(
-                f"| {r.member.full_name} "
-                f"| {r.member.chamber_slug} {r.member.district} "
-                f"| {len(r.proposals)} "
-                f"| {'; '.join(reasons) or 'more than one account of their own'} |"
+                f"| {member_of(d)} "
+                f"| {d.registration_number} "
+                f"| {d.committee_name_as_reviewed} "
+                f"| {DIRECTORY_IN_WORDS.get(d.filer_directory_as_reviewed or '', d.filer_directory_as_reviewed or 'not recorded')} |"
             )
         lines.append("")
 
+    # --- What is still open ----------------------------------------------------------
+    lines.append("## What is still open")
+    lines.append("")
+    if not open_rows:
+        lines.append(
+            "Nothing. Every account the proposer put in front of a person has an answer."
+        )
+    else:
+        lines.append(
+            f"{len(open_rows)} accounts were read and deliberately left undecided. Leaving "
+            "one open is the honest answer when the records cannot settle it, and nothing "
+            "on the site claims anything about these either way."
+        )
+        lines.append("")
+        lines.append("| Legislator | Account | Filed as | Why it is open |")
+        lines.append("| --- | --- | --- | --- |")
+        for r, p in sorted(open_rows, key=lambda pair: pair[0].member.full_name):
+            lines.append(
+                f"| {r.member.full_name} ({r.member.chamber_slug} {r.member.district}) "
+                f"| {p.committee.registration_number} "
+                f"| {p.committee.name} "
+                f"| the records do not separate this member from another person of the "
+                f"same name |"
+            )
+    lines.append("")
+
+    # --- What the reviewer wrote down -----------------------------------------------
+    lines.append("## What the reviewer wrote down")
+    lines.append("")
+    lines.append(
+        "Each decision stores a note in the reviewer's own words alongside the evidence "
+        "the tool printed. These are those notes, with how many decisions each covers."
+    )
+    lines.append("")
+    lines.append("| Decisions | Answer | The note |")
+    lines.append("| --- | --- | --- |")
+    notes: dict[tuple[str, str], int] = {}
+    for d in decisions:
+        key = (d.decision.value, d.evidence or "(no note)")
+        notes[key] = notes.get(key, 0) + 1
+    for (answer, note), count in sorted(notes.items(), key=lambda item: -item[1]):
+        lines.append(f"| {count} | {answer} | {note} |")
+    lines.append("")
     lines.append(GENERATED_CLOSES)
     generated = "\n".join(lines)
 
@@ -1446,7 +1478,7 @@ def main() -> None:
         elif args.command == "record":
             write_audit_record(
                 results,
-                load_existing_decisions(session),
+                session,
                 path=args.audit_record,
                 records_through=newest_receipt_date(contributions_path),
                 read_on=date.today().isoformat(),
