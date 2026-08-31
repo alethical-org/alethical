@@ -2948,6 +2948,12 @@ interface ApiCommitteeMoneyPayload {
     legislator_id?: string | null;
     slug?: string | null;
     full_name?: string | null;
+    checked?: {
+      checked_on: string;
+      name_evidence?: string | null;
+      register_verdict?: string | null;
+      party_agreement?: string | null;
+    } | null;
   } | null;
   money_in?: {
     state: string;
@@ -3046,6 +3052,17 @@ export async function getCommitteeFinanceFromApi(
             legislatorId: payload.confirmed_for.legislator_id,
             slug: payload.confirmed_for.slug,
             fullName: payload.confirmed_for.full_name,
+            // Separately optional from the 3 above: a decision written before the basis
+            // columns landed is still a real confirmation, and the page says so without
+            // describing evidence it does not hold.
+            checked: payload.confirmed_for.checked
+              ? {
+                  checkedOn: payload.confirmed_for.checked.checked_on,
+                  nameEvidence: payload.confirmed_for.checked.name_evidence ?? null,
+                  registerVerdict: payload.confirmed_for.checked.register_verdict ?? null,
+                  partyAgreement: payload.confirmed_for.checked.party_agreement ?? null,
+                }
+              : null,
           }
         : null,
     moneyIn: {

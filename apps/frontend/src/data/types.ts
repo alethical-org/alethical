@@ -737,6 +737,10 @@ export interface ConfirmedCommitteeMember {
   /** The profile's own address part (`/legislators/melissa-hortman`). */
   slug: string;
   fullName: string;
+  /** What the person read when they decided, and the day. Read off the stored decision
+   *  and never recomputed. Null only for a decision written before those columns
+   *  existed, where the page says the match was made and nothing about its basis. */
+  checked: CommitteeMatchCheck | null;
 }
 
 export interface CommitteeMoney {

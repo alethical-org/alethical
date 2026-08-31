@@ -291,7 +291,14 @@ def test_a_number_in_neither_place_is_404_about_our_records(db, client):
 # --- Whose committee it is, read from the committee's side ------------------------
 
 
-def _confirm(db, registration: str, *, decision, name="Novotny, Paul House Committee"):
+def _confirm(
+    db,
+    registration: str,
+    *,
+    decision,
+    name="Novotny, Paul House Committee",
+    basis=None,
+):
     """One review decision about this committee, signed, exactly as a person writes it.
 
     ``reviewed_by`` has no default in the model on purpose: a link nobody signed
@@ -308,6 +315,7 @@ def _confirm(db, registration: str, *, decision, name="Novotny, Paul House Commi
             decision=decision,
             committee_name_as_reviewed=name,
             reviewed_by="a person",
+            **(basis or {}),
         )
     )
     db.commit()
@@ -362,7 +370,72 @@ def test_a_confirmed_link_names_the_member_and_carries_their_address(db, client)
         "legislator_id": str(legislator[0]),
         "slug": legislator[1],
         "full_name": legislator[2],
+        # A decision written before the basis columns existed is still a real
+        # confirmation. The route says so and describes no evidence it does not hold.
+        "checked": None,
     }
+
+
+def test_a_confirmed_link_carries_what_the_person_read(db, client):
+    """The basis travels with the name, so a reader can weigh the match rather than take it.
+
+    A reader who arrives at a committee page came asking whose committee this is, which
+    is the exact question a person answered by hand. Serving the answer without its
+    grounds asks them to trust us; serving the grounds lets them check us against
+    Minnesota's own register (§5.1).
+
+    Read off the stored decision and never recomputed. A later download can rename a
+    committee or move a candidate's register row, and this still describes what the
+    reviewer saw on the day they signed.
+    """
+    _committee_with_money(db)
+    _confirm(
+        db,
+        CANDIDATE,
+        decision=models.CommitteeLinkReviewDecision.confirmed,
+        basis={
+            "name_evidence_as_reviewed": "surname_only",
+            "filer_directory_as_reviewed": "unknown",
+            "party_agreement_as_reviewed": "no_party_money",
+            "records_through_as_reviewed": "2026-07-20",
+        },
+    )
+
+    response = client.get(
+        f"/api/v1/committees/{CANDIDATE}/finance", params={"year": 2025}
+    )
+    assert response.status_code == 200, response.text
+    checked = response.json()["data"]["confirmed_for"]["checked"]
+    assert checked["name_evidence"] == "surname_only"
+    assert checked["register_verdict"] == "unknown"
+    assert checked["party_agreement"] == "no_party_money"
+    assert checked["checked_on"]
+
+
+def test_a_rejection_carries_no_basis_to_a_reader_either(db, client):
+    """A ruled-out account reaches the page as nothing, evidence included.
+
+    §7 is explicit that a rejection changes nothing on the page, and adding the basis to
+    this route must not become a side door for it: the grounds on which we declined are
+    as much a non-claim about the committee as the decision itself.
+    """
+    _committee_with_money(db)
+    _confirm(
+        db,
+        CANDIDATE,
+        decision=models.CommitteeLinkReviewDecision.rejected,
+        basis={
+            "name_evidence_as_reviewed": "surname_only",
+            "filer_directory_as_reviewed": "different_person",
+            "party_agreement_as_reviewed": "disagrees",
+        },
+    )
+
+    response = client.get(
+        f"/api/v1/committees/{CANDIDATE}/finance", params={"year": 2025}
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["data"]["confirmed_for"] is None
 
 
 def test_a_rejection_is_never_served_as_a_confirmation(db, client):

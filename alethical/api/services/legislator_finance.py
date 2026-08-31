@@ -397,6 +397,11 @@ class ConfirmedCommitteeMember:
     legislator_id: UUID
     slug: str
     full_name: str
+    #: What the person read when they decided, and the day they decided it. The profile
+    #: side already prints this per account; a reader who arrives at the committee first
+    #: is the one who most needs it, because they came asking whose committee this is.
+    #: None only for a decision written before those columns existed.
+    checked: CommitteeMatchCheck | None = None
 
 
 def confirmed_member_for_committee(
@@ -427,6 +432,7 @@ def confirmed_member_for_committee(
             schema.Legislator.id,
             schema.Legislator.slug,
             schema.Legislator.full_name,
+            LegislatorCampaignCommittee,
         )
         .join(
             LegislatorCampaignCommittee,
@@ -440,7 +446,12 @@ def confirmed_member_for_committee(
     ).first()
     if row is None:
         return None
-    return ConfirmedCommitteeMember(legislator_id=row[0], slug=row[1], full_name=row[2])
+    return ConfirmedCommitteeMember(
+        legislator_id=row[0],
+        slug=row[1],
+        full_name=row[2],
+        checked=_match_check(row[3]),
+    )
 
 
 def payment_dates(

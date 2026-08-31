@@ -76,6 +76,7 @@ import {
   campaignMoneyYear,
   formatDay,
   formatMoney,
+  matchCheckSentences,
   moneyFigure,
   paymentCountLabel,
   reportedThroughLabel,
@@ -369,6 +370,14 @@ function CommitteeBody({
         <Text style={styles.whoseText}>
           {whoseCommitteeText(registerKind, money.entitySubType, money.confirmedFor)}
         </Text>
+        {/* What the person read, under the sentence saying they read it. A reader who
+            arrived here rather than at a profile came asking whose committee this is,
+            so the evidence belongs on this page more than on that one. */}
+        {matchCheckSentences(money.confirmedFor?.checked).map((sentence) => (
+          <Text key={sentence} style={styles.whoseEvidence}>
+            {sentence}
+          </Text>
+        ))}
         {/* Only where a person confirmed it. The reader came to a money page, so
             the crossing lands on the member's money rather than their overview. */}
         {money.confirmedFor ? (
@@ -1210,6 +1219,15 @@ const styles = StyleSheet.create({
     fontSize: t.fontSizes.body,
     lineHeight: 23,
     color: t.colors.text.secondary,
+  },
+  // A step down from the sentence above it: the reader needs the claim first and the
+  // evidence second, and 4 lines at body size would outweigh the money on the page.
+  whoseEvidence: {
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.small,
+    lineHeight: 20,
+    color: t.colors.text.muted,
+    marginTop: 6,
   },
   yearRow: { marginTop: 20, flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
   yearLabel: {
