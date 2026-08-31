@@ -76,6 +76,7 @@ from alethical.pipeline.legislator_committee_match import (
     ConfirmedLink,
     FilerRecord,
     FilerVerdict,
+    GivenNameEvidence,
     LegislatorProposals,
     Proposal,
     ProposalTier,
@@ -598,6 +599,24 @@ def register_names_this_member(member: RosterMember, filer: FilerRecord | None) 
     return bool(given & member_given)
 
 
+#: Name evidence that ties an account's filed name to this member rather than to a name
+#: shared with strangers. ``exact`` and ``published_nickname`` are the source's own words;
+#: ``shortened``, ``middle_name`` and ``initial`` are this module's reading of how names
+#: work, and are grouped with them because each is computed **against this member's own
+#: name** and so cannot be satisfied by an unrelated person's given name. ``surname_only``
+#: is deliberately absent: it is the one value a stranger sharing a last name also earns,
+#: and it is where Bruce D Anderson and Jeff Johnson sit.
+NAMES_THIS_MEMBER = frozenset(
+    {
+        GivenNameEvidence.exact.value,
+        GivenNameEvidence.published_nickname.value,
+        GivenNameEvidence.shortened.value,
+        GivenNameEvidence.middle_name.value,
+        GivenNameEvidence.initial.value,
+    }
+)
+
+
 #: One batchable group: its key, the title, the single stated reason every row shares, and
 #: whether answering the group means the account is theirs or is somebody else's.
 GROUPS: tuple[tuple[str, str, str, bool], ...] = (
@@ -617,8 +636,17 @@ GROUPS: tuple[tuple[str, str, str, bool], ...] = (
     (
         "another_person",
         "The Board registers this account to a different named candidate",
-        "so it reached this list on a shared surname alone",
+        "so it reached this list on a shared surname alone. READ EVERY ROW: this rule "
+        "cannot tell a stranger from a nickname, so a row where the Board prints the "
+        "formal first name of this same member will appear here and must be held back",
         False,
+    ),
+    (
+        "own_name_race_over",
+        "The account is filed under this member's own name and the race it was for has ended",
+        "so the Board's register of current candidates does not list it, and the filed "
+        "name is theirs rather than one they share with a stranger",
+        True,
     ),
 )
 
@@ -642,7 +670,18 @@ def group_of(
     }:
         if register_names_this_member(member, filer):
             return "own_other_office"
+        if proposal.given_name_evidence.value in NAMES_THIS_MEMBER:
+            # The register names somebody else's office for it, and the account itself is
+            # filed under this member's own name. Their own earlier run for that office is
+            # the reading that fits both facts, and it is the group below, not a rejection.
+            return "own_name_race_over"
         return "another_person"
+    # The register saying nothing is our gap, not evidence, so the account's own filed name
+    # is all there is. That is enough for a group only when the name is this member's own:
+    # a shortening or a nickname is computed against their name and a stranger cannot earn
+    # it, where a bare surname is exactly what a stranger does earn.
+    if proposal.given_name_evidence.value in NAMES_THIS_MEMBER:
+        return "own_name_race_over"
     return None
 
 
