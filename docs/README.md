@@ -57,7 +57,7 @@ things work in practice and are the place to start if you're new.
 
 ## Reader guides
 
-Published reader-facing pieces that teach one part of how a system works and draw no conclusions. Alethical calls one of these a **Guide**, and calls its own digging **Research** (`docs/architecture/published-writing-decisions.md` §2.6, settled 27 Aug 2026). A signed research piece may add records up and reach a conclusion (`.claude/rules/grounded-answers.md` rule 13); a guide may not, and sits under rules 1 to 12 like every other surface. Drafts live here until the page that renders them is built ([#1752](https://github.com/alethical-org/alethical/issues/1752)).
+The words of every published reader-facing piece, one file each. Alethical calls a piece that teaches one part of how a system works and draws no conclusions a **Guide**, and calls its own digging **Research** (`docs/architecture/published-writing-decisions.md` §2.6, settled 27 Aug 2026). A signed research piece may add records up and reach a conclusion (`.claude/rules/grounded-answers.md` rule 13); a guide may not, and sits under rules 1 to 12 like every other surface. `apps/frontend/src/lib/__tests__/research.test.ts` compares every file here against the piece the site draws, word for word, so a sentence cannot be dropped or reworded in one place alone ([#1832](https://github.com/alethical-org/alethical/issues/1832)). Every page is built; the folder's name predates the Research word and is wrong for the 1 research file in it.
 
 **How the Money Works** — 5 pieces in a fixed reading order, because each defines the words the next one uses.
 
@@ -66,6 +66,10 @@ Published reader-facing pieces that teach one part of how a system works and dra
 - [Why 2 official numbers can both be right](reader-guides/why-2-official-numbers-can-both-be-right.md) — piece 3: the named payments on a filing against the total the same filing reports, why every report in a year restates that year from 1 January so a year's reports must never be added together, and why a giver can sit in the unnamed figure on one report and be named on the next
 - [Money spent without a campaign's say](reader-guides/money-spent-without-a-campaigns-say.md) — piece 4: independent spending and the 6 kinds of involvement the law rules out, the For and Against marker no contribution record carries, and lobbying as a separate set of records filed by whoever is doing the asking, which Alethical does not hold
 - [Why nobody can follow a dollar](reader-guides/why-nobody-can-follow-a-dollar.md) — piece 5: why 2 filed transfers in a row are not a route, why an account's opening balance makes the question unanswerable rather than merely unanswered, and what a picture of the flows may and may not be allowed to say
+
+**Research** — our own digging, in no set.
+
+- [The Money Only Goes One Way](reader-guides/the-money-only-goes-one-way.md) — where a $50 donation actually goes: $13.9 million leaving candidate accounts for the 6 party and caucus committees against $730,338 coming back down, the 191 PACs funding both parties' caucuses, and the $886 million of reported lobbying that dwarfs every election dollar. Unlike the 5 files above, this one was written from the shipped piece rather than settled before it, so it pins what shipped and says so in its own opening comment
 
 ## Architecture
 
