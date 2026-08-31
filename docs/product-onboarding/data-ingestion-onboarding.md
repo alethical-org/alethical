@@ -142,6 +142,7 @@ specifically the ingestion that _builds the retrieval corpus_ those depend on.
 | G   | Map tiles                                | OpenStreetMap                                                                          | HTTP tiles                                 | none             | frontend `MapPinPicker.tsx`                                                                                                          |
 | H   | Campaign finance (money in and out)      | MN Campaign Finance Board data downloads                                               | HTTP `GET`, 3 whole CSV files              | none to fetch; storage credentials to keep the files | [campaign_finance.py](../../alethical/pipeline/campaign_finance.py), [raw_file_store.py](../../alethical/pipeline/raw_file_store.py) |
 | H2  | What each committee itself reported, and Minnesota's registered-filer list | MN Campaign Finance Board per-filer services (undocumented) | HTTP `POST`, JSON — and money inside an HTML table inside JSON | none to fetch; storage credentials to keep the responses | [campaign_finance_filings.py](../../alethical/pipeline/campaign_finance_filings.py) |
+| H3  | Lobbying (what each principal spent per year) | MN Campaign Finance Board lobbying data downloads | HTTP `GET`, 1 whole CSV file | none to fetch; storage credentials to keep the file | [lobbying_expenditures.py](../../alethical/pipeline/lobbying_expenditures.py) |
 
 **Every one of those `GET`s decodes through one helper, and it has to**
 ([http_text.py](../../alethical/pipeline/http_text.py)). Sources A, B and C each
@@ -863,6 +864,42 @@ that publishes is a later one whose own responses were numbered against an archi
 nobody kept. When the figures are unchanged the run therefore rebuilds itself **from the
 archive that was kept** and re-checks that it still reproduces the recorded figures,
 which doubles as a full integrity check of the stored object.
+
+### H3 — Lobbying principal expenditures
+
+_Verified against the code and the live source on 2026-08-31
+([#1862](https://github.com/alethical-org/alethical/issues/1862))._
+
+The same snapshot-and-replace shape as H, for one file: the Board's "Principal
+expenditures - 2009 - Present" download, one row per lobbying organisation
+(**principal**) per calendar year of spending. It exists because our research piece
+*The Money Only Goes One Way* publishes $886 million of lobbying spending summed
+across 3,056 organisations from this file's rows, and until this loader we held none
+of the records behind that figure. Source measurements:
+[`campaign-finance-system-design.md`](../architecture/campaign-finance-system-design.md)
+§2.2 (Lobbying).
+
+**What to run.** `just load-lobbying` is a dry run; `just load-lobbying local false`
+publishes locally and `just load-lobbying production false` publishes to production.
+A first import quarantines by design, exactly like H: publish it by naming the record
+hash it printed (`uv run python scripts/load_lobbying_expenditures.py --target local
+--publish-hash H`). After a publish,
+`uv run python scripts/recompute_lobbying_published_figures.py --target production`
+recomputes the piece's figures from the loaded rows and says whether they still
+reproduce.
+
+**It is its own pipeline, not a 4th file inside H**, because the release table there
+deliberately holds exactly 3 named files, lobbying lives on a different landing page,
+and its rhythm is annual (reports due 15 March) where H's files grow daily. One
+snapshot is the release; a single-row pointer (`lobbying_expenditure_current`) names
+the live one.
+
+**Two differences from H's files worth knowing.** This export returned byte-identical
+files on 2 downloads a minute apart (H's exports reshuffle on every download) — the
+record-set hash still decides "did the data change", because 2 fetches of 1 file are
+not a property of the source. And 48 of its 17,842 rows carry no amounts at all:
+blank money lands as NULL ("not reported"), never as 0, while `.0000` is the file's
+explicit zero and stays one.
 
 ## E & F: the credentialed AI sources (Anthropic and OpenAI)
 

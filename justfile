@@ -163,6 +163,19 @@ pipeline-work target:
 load-campaign-finance target="local" dry="true":
   uv run python scripts/load_campaign_finance.py --target {{target}} {{ if dry == "true" { "--dry-run" } else { "" } }}
 
+# Load Minnesota's lobbying principal-expenditure download as a dated set that
+# replaces the previous one (#1862). It exists so the $886 million lobbying figure in
+# our research piece "The Money Only Goes One Way" recomputes from data we hold.
+# Dry-run by default, same as above, and a real run needs the same 4 storage values.
+#   just load-lobbying                               # dry run against local
+#   just load-lobbying local false                   # publish locally
+#   just load-lobbying production false              # publish to production
+# A first import has nothing to compare against, so it quarantines by design. Read
+# the printed measurements, then publish it by naming its record hash:
+#   uv run python scripts/load_lobbying_expenditures.py --target local --publish-hash H
+load-lobbying target="local" dry="true":
+  uv run python scripts/load_lobbying_expenditures.py --target {{target}} {{ if dry == "true" { "--dry-run" } else { "" } }}
+
 # Copy every stored source file to Cloudflare R2, and prove the copy arrived (#1402).
 # The daily job .github/workflows/mirror-raw-files.yml already does this; run it by
 # hand to check the second copy now or after a failed run. It only ever adds, and a
