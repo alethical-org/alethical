@@ -17,10 +17,16 @@ and
 
 ## What every profile shows today
 
-**Nothing yet, and that is the honest answer rather than a fault.** Minnesota registers
-a campaign committee by number and never records which person it belongs to, so
-somebody has to read each committee's name and confirm whose it is by hand. Nobody has
-done that sitting yet, so all 200 sitting members show the same panel:
+**Figures, on every sitting member's profile — and this section described the opposite
+until 31 August 2026.** Minnesota registers a campaign committee by number and never
+records which person it belongs to, so somebody has to read each committee's name and
+confirm whose it is by hand. **That reading has now been done for all 200 sitting
+members**: `legislator_campaign_committee` holds 275 reviewed accounts, 242 of them
+confirmed and 33 rejected, every one reviewed on 31 August 2026, and **0 sitting members
+are left unmatched.** Counted against production on 31 August 2026.
+
+Until that sitting, every profile showed the panel below instead, and it is still the
+panel a member with no confirmed account would get:
 
 > **We have not matched this member to their committee yet**
 >
@@ -219,9 +225,25 @@ schedule and the Board's own totals exclude it.
 ### Money out
 
 **Payments we can list**, with a count and a breakdown by the state's own labels for the
-kind of payment. There is no second, bigger number here, and the tab says so: Minnesota
-publishes payments over $200 but publishes no official total for a committee's spending,
-so there is nothing to compare against and no split to draw.
+kind of payment. **There is no second, bigger number here, and the sentence the tab gives
+for why is wrong** — it says Minnesota "publishes no official total for a committee's
+spending", and Minnesota publishes one. It is the filed report's own "Total Expenditures
+and Disbursements" line, our copy holds it for 3,630 filer-years in
+`cf_filing_figure.total_expenditures`, `MoneyOut.reported_total` already serves it, and
+the committee page prints it 2 clicks away as "Payments out this committee reported to
+the state". The sentence prints on **369 legislator-years** (207 in 2025 across 197
+members, 162 in 2026 across 162 members) and is false on **355** of them; the 14 where no
+figure can be served are special-election filer-years, and even there the honest reason is
+the one money in already gives on the same screen, that we hold no total we can stand
+behind. Fix and full measurement:
+[#1875](https://github.com/alethical-org/alethical/issues/1875).
+
+**And read "payments over $200" the way this guide already reads the donor threshold —
+as a floor on who a committee must name, never as a filter on the file.** 41,978 of the
+96,772 payment rows for 2024 to 2026 are individually $200.00 or less (157,121 of 377,860
+across the whole file), because a committee must name a recipient once the year's payments
+to them pass $200 and may name a smaller one if it chooses. Same correction as
+[#1755](https://github.com/alethical-org/alethical/issues/1755) made for donors.
 
 ### Spending by outside groups
 
@@ -285,8 +307,10 @@ saying zero:
 2. **A checked zero** — no outside group reported spending anything about this legislator
    that year. The committee is confirmed and the download covers the year, so this is a
    published finding.
-3. **No confirmed committee yet** — 56 of the 200 sitting members, since the first
-   review sitting confirmed 144 on 31 August 2026.
+3. **No confirmed committee yet** — **0 of the 200 sitting members, as of the end of the
+   31 August 2026 review sitting.** Every one of the 200 now has at least one confirmed
+   account. This read "56 of the 200" earlier the same day, while that sitting was still
+   running.
 4. **A gap in our own copy** — a stale snapshot, a payment whose amount is blank, or a year
    the files do not reach. All 3 figures are withheld rather than published short by an
    unknown amount, because a figure short by an unknown amount and printed without a mark
@@ -356,9 +380,12 @@ and nothing about why. Splitting them apart is
 Kristin Robbins's governor committee (2025), IBEW - COPE (2024, 2025 and 2026), the Great
 River Energy Action Team (2025), the 2nd Congressional District RPM (2025), and Wynfred
 Russell's House committee (2026). The legislator tab this guide describes reached none of
-them, because it needs a confirmed member-to-committee match and there are still none of
-those; the committee pages shipped on 17 August need no such match, and they share this
+them, because it needs a confirmed member-to-committee match and **on 19 August there were
+none**; the committee pages shipped on 17 August need no such match, and they share this
 wording. So this was a live wrong sentence about named committees, not a near miss.
+**That shield is gone**: the 31 August 2026 review sitting confirmed 242 accounts covering
+all 200 sitting members, so the tab now draws for everybody and any wording still wrong on
+it is read rather than merely shipped.
 
 **The disagreement row used to name a direction and it was the wrong one on 33 of those
 76.** It said the listed donations "add up to more than the committee reported raising",
@@ -369,17 +396,24 @@ having no donor at all. Filer 20010's 2025 is the plain case: its filing itemize
 $1,493,418.08 and the spreadsheet holds $1,488,168.08. The sentence on screen now names
 no direction, and a test pins that it never does again.
 
-**Nobody had read it on a legislator's tab, and the first version of this paragraph
-wrongly implied nobody could read it anywhere.** This tab only draws once a person has
-confirmed which committee belongs to a member, and **no such confirmation exists yet** —
-the table holding them (`legislator_campaign_committee`) has 0 rows in production, so
-every member's tab currently shows the "nobody has confirmed which committee is theirs"
-panel and never reaches a split or its explanation. **The committee pages are a different
-story**: they arrived on 17 August 2026, they key on a registration number rather than a
-person, and they print these same sentences today. So this was a wrong sentence sitting in shipped code, fixed before the
-first confirmation made it visible, rather than a wrong sentence a reader saw. Recorded
-this way round because the difference is the whole distance between a near miss and a
-published falsehood, and the first telling of it took the credit for the wrong one.
+**Nobody had read it on a legislator's tab when it was fixed, and the first version of
+this paragraph wrongly implied nobody could read it anywhere.** This tab only draws once a
+person has confirmed which committee belongs to a member, and **on 19 August 2026 no such
+confirmation existed** — `legislator_campaign_committee` held 0 rows in production, so
+every member's tab showed the "nobody has confirmed which committee is theirs" panel and
+never reached a split or its explanation. **The committee pages were a different story**:
+they arrived on 17 August 2026, they key on a registration number rather than a person, and
+they printed these same sentences. So this was a wrong sentence sitting in shipped code,
+fixed before the first confirmation made it visible, rather than a wrong sentence a reader
+saw. Recorded this way round because the difference is the whole distance between a near
+miss and a published falsehood, and the first telling of it took the credit for the wrong
+one.
+
+**Do not read that as still true: the emptiness was a date, not a property.** The
+31 August 2026 review sitting put 275 reviewed accounts in that table, 242 of them
+confirmed, covering all 200 sitting members. Every sentence on this tab is now read on a
+named politician's page, so "no reader can reach it" has stopped being available as a
+reason a wrong string is only a near miss.
 
 The sharpest real case is the House Republican Campaign Committee's 2026: it reported
 $399,275.76 through 31 March, and the donation spreadsheet names $881,816.24 of
