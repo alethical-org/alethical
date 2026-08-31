@@ -3092,6 +3092,23 @@ def committee_finance_for_year(
                     "legislator_id": str(confirmed_member.legislator_id),
                     "slug": confirmed_member.slug,
                     "full_name": confirmed_member.full_name,
+                    # What the person read, and when. The profile prints this per
+                    # account already; a reader who arrives at the committee page came
+                    # asking whose committee this is, so it belongs here most of all.
+                    "checked": (
+                        {
+                            "checked_on": confirmed_member.checked.checked_on,
+                            "name_evidence": confirmed_member.checked.name_evidence,
+                            "register_verdict": (
+                                confirmed_member.checked.register_verdict
+                            ),
+                            "party_agreement": (
+                                confirmed_member.checked.party_agreement
+                            ),
+                        }
+                        if confirmed_member.checked
+                        else None
+                    ),
                 }
                 if confirmed_member is not None
                 else None
