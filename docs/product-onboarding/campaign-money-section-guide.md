@@ -11,10 +11,11 @@ that exact spelling
 lives one level up, on the `/read` page, which the money landing points at. One piece is
 published there.
 
-The section is still marked under development on every page, because 2 things a reader
+The section is still marked under development on every page, because things a reader
 might expect are genuinely missing: **lobbying** is published by Minnesota and not loaded by
-us, and **no sitting member's committee has been confirmed by a person yet**, so no
-legislator profile shows money.
+us, and the pages for **challengers** and the fuller picture of **outside spending** do not
+exist yet. The strip names those gaps; it makes no claim about the figures, which each carry
+their own period and freshness date.
 
 **"Report" means one thing on this site: the document a campaign files with the state.** Our
 own writing is **Research**, and a short piece explaining 1 term is a **Guide** (settled
@@ -121,9 +122,9 @@ served renders nothing rather than a number:
   the words and the order cannot drift apart.
 - The lanes' **live counts**: registered filers on the Committees lane, and sitting members
   on the Legislators lane, whose text also states how many members' committees a person has
-  confirmed (0 of 200 today — a verified zero, shown as the number it is, because the
-  confirmation log is ours and it is empty). A count that is not served does not appear; a
-  null is our gap and never renders as 0.
+  confirmed, read live from the confirmation log so it moves as confirmations land. A count
+  that is not served does not appear; a null is our gap and never renders as 0, while a
+  served 0 from our own empty log is a verified zero and shows as the number it is.
 
 While data loads, grey placeholder blocks pulse (the pulse stops for readers who asked
 their device for reduced motion, and a hidden "Loading" note tells screen readers).
@@ -368,6 +369,7 @@ Top to bottom:
    money on the page is this committee's own record. A committee somebody looked at and
    ruled out reads exactly like one nobody has looked at yet: that decision is about our
    own proposal, and it is not a claim about the committee.
+
 3. **A year switch** (this calendar year and the one before), each year its own address.
 4. **The period panel**: what the committee's own report covers. The end is read off the
    filing; the start appears only when the Board's own published filing calendar prints
@@ -417,6 +419,7 @@ Top to bottom:
    ([#1647](https://github.com/alethical-org/alethical/issues/1647)). Nothing we hold can
    say whether a reader loaded one. The other 17 keep the sentence, because a difference
    the threshold does not explain is a real finding.
+
 6. **Money out — two numbers too, and never called "spending."** The filing's own
    reported money-out total ("Payments out this committee reported to the state", with
    the period it covers) sits above "Payments we can list", and the two are never added
@@ -580,7 +583,7 @@ link to every posted piece, a piece its entire text. Our own writing used to be 
 on the site that a search engine could read only after running the app, while every bill page
 handed its text over straight away
 ([#1760](https://github.com/alethical-org/alethical/issues/1760)). This is separate from
-whether a search engine may *list* a piece, which is still Eugene's per-piece decision
+whether a search engine may _list_ a piece, which is still Eugene's per-piece decision
 above: a piece marked to be skipped is served in full and still asks to be skipped.
 
 Three pieces are posted: the research piece "The Money Only Goes One Way", at
