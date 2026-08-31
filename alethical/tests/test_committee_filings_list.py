@@ -146,8 +146,15 @@ def _report(
     special_election: bool = False,
     amendment_index: int | None = 0,
     amendment_count: int | None = 1,
+    filed_date: date | None = None,
 ):
-    """One catalogue row. ``amendment_index=None`` is what an unfiled report looks like."""
+    """One catalogue row.
+
+    ``amendment_index=None`` is what an unfiled report looks like. ``filed_date=None`` is
+    the default because it is the ordinary state: the loader can never set it (the
+    catalogue serves no filing date) and the Board serves no readable document for most
+    reports (#1670).
+    """
     _ROW_COUNTER[snapshot.id] = _ROW_COUNTER.get(snapshot.id, 0) + 1
     db.add(
         models.CampaignFinanceFilingReport(
@@ -161,6 +168,7 @@ def _report(
             special_election=special_election,
             effective_amendment_index=amendment_index,
             amendment_count=amendment_count,
+            filed_date=filed_date,
         )
     )
     db.commit()
@@ -460,3 +468,123 @@ def test_the_limit_is_capped_so_one_request_cannot_ask_for_the_catalogue(
     client, db
 ) -> None:
     assert client.get(_filings_url(CANDIDATE), params={"limit": 101}).status_code == 422
+
+
+def test_a_report_with_no_filed_date_is_never_dated_from_its_period_end(
+    client, db
+) -> None:
+    """The one substitution a reader could not catch, so it is pinned rather than trusted.
+
+    This report covers a period ending 20 Jul 2026 and the Board states no day it was
+    received. The honest row serves ``filed_date: null`` and the page prints no filed
+    date. The tempting shortcut serves 20 Jul 2026 under a "filed" label, and a reader
+    has no way to tell the difference -- it is a plausible date on a real committee's
+    real report, which is exactly why
+    [#1670](https://github.com/alethical-org/alethical/issues/1670) was filed rather
+    than closed with a coalesce.
+
+    So this asserts the absence of the value as well as the null: no field on the row may
+    carry the period end other than ``period_end`` itself.
+    """
+    snapshot = _filings_snapshot(db, report_count=1)
+    _filer(db, snapshot, CANDIDATE)
+    _report(db, snapshot, CANDIDATE, cut_off=PRE_PRIMARY_END, filed_date=None)
+
+    data = client.get(_filings_url(CANDIDATE)).json()["data"]
+    row = data["filings"][0]
+
+    assert row["filed_date"] is None
+    assert row["period_end"] == PRE_PRIMARY_END.isoformat()
+    dated_like_the_period = [
+        key
+        for key, value in row.items()
+        if key != "period_end" and value == PRE_PRIMARY_END.isoformat()
+    ]
+    assert dated_like_the_period == []
+    # And the order is named for what it is. Nothing here carries a filing date, so
+    # claiming a filing order would be a claim about rows that have none.
+    assert data["ordered_by"] == "period_end"
+
+
+def test_the_list_puts_the_report_the_board_received_latest_first(client, db) -> None:
+    """Two reports, one period end, and only the received date separates them.
+
+    This is the whole point of #1670 on a committee's own page: a committee amends a
+    report weeks after filing it, both versions cover the same period, and ordering by
+    the period end alone leaves which one is newer to a tiebreak on the row number. The
+    Board's own received dates put them in the order they actually arrived.
+    """
+    snapshot = _filings_snapshot(db, report_count=2)
+    _filer(db, snapshot, CANDIDATE)
+    _report(
+        db,
+        snapshot,
+        CANDIDATE,
+        report_name="2026 Pre-Primary Report",
+        filed_date=date(2026, 7, 24),
+    )
+    _report(
+        db,
+        snapshot,
+        CANDIDATE,
+        report_name="2026 Pre-Primary Report, Amendment 1",
+        amendment_index=1,
+        amendment_count=2,
+        filed_date=date(2026, 8, 10),
+    )
+
+    data = client.get(_filings_url(CANDIDATE)).json()["data"]
+
+    assert [row["report_name"] for row in data["filings"]] == [
+        "2026 Pre-Primary Report, Amendment 1",
+        "2026 Pre-Primary Report",
+    ]
+    assert [row["filed_date"] for row in data["filings"]] == [
+        "2026-08-10",
+        "2026-07-24",
+    ]
+    assert data["ordered_by"] == "filed_date_then_period_end"
+
+
+def test_an_undated_report_keeps_its_place_by_period_instead_of_sinking(
+    client, db
+) -> None:
+    """A row the Board serves no document for still sits where its period puts it.
+
+    The alternative -- every dated row above every undated one -- would drop a 2026
+    report whose document is an unreadable scan below dated reports from 2023, on a page
+    whose first row a reader takes for the committee's latest filing. A report is always
+    received after its period closes, so the period end is the earliest its filing can
+    have been, and using it to *rank* the row invents nothing. The served ``filed_date``
+    stays null, which is the difference between ranking and claiming.
+    """
+    snapshot = _filings_snapshot(db, report_count=2)
+    _filer(db, snapshot, CANDIDATE)
+    _report(
+        db,
+        snapshot,
+        CANDIDATE,
+        report_name="2026 Pre-Primary Report",
+        cut_off=PRE_PRIMARY_END,
+        filed_date=None,
+    )
+    _report(
+        db,
+        snapshot,
+        CANDIDATE,
+        year=2025,
+        report_type="YE",
+        report_name="2025 Year-End Report",
+        cut_off=YEAR_END_2025,
+        filed_date=date(2026, 1, 27),
+    )
+
+    data = client.get(_filings_url(CANDIDATE)).json()["data"]
+
+    # 20 Jul 2026 as a rank beats 27 Jan 2026, so the undated 2026 report stays on top.
+    assert [row["report_name"] for row in data["filings"]] == [
+        "2026 Pre-Primary Report",
+        "2025 Year-End Report",
+    ]
+    assert [row["filed_date"] for row in data["filings"]] == [None, "2026-01-27"]
+    assert data["ordered_by"] == "filed_date_then_period_end"
