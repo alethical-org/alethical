@@ -515,6 +515,73 @@ export function emptyStateFor(
   return state === 'confirmed' ? 'confirmed-elsewhere' : 'unconfirmed';
 }
 
+/** What a person read when they confirmed one account is one member's, as stored. */
+export interface CommitteeMatchCheck {
+  checkedOn: string;
+  nameEvidence: string | null;
+  registerVerdict: string | null;
+  partyAgreement: string | null;
+}
+
+/** How the filed name related to the member's, in a reader's words. */
+const NAME_EVIDENCE_SENTENCE: Record<string, string> = {
+  exact: 'The filed name matches theirs exactly.',
+  published_nickname: 'The account is filed under a nickname the state itself prints.',
+  shortened: 'The account is filed under a longer form of their first name.',
+  middle_name: 'The account is filed under a middle name the state prints.',
+  initial: 'The account is filed under an initial rather than a first name.',
+  surname_only: 'The account shares their last name and the first name is filed differently.',
+};
+
+/** What Minnesota's register of registered candidates said about the account. */
+const REGISTER_SENTENCE: Record<string, string> = {
+  same_seat:
+    "Minnesota's register of registered candidates lists this account for their own seat and party.",
+  same_seat_not_current:
+    "Minnesota's register lists this account for their seat and party, without naming them as its current holder.",
+  different_race: "Minnesota's register lists this account for a different office.",
+  different_person: "Minnesota's register lists this account for a different seat or party.",
+  unknown: "Minnesota's register of current candidates does not list this account.",
+};
+
+/** What the party money said, in the 4 states it can be in. */
+const PARTY_SENTENCE: Record<string, string> = {
+  agrees: 'Party organisations of their own party pay into it.',
+  disagrees: 'Party organisations of the other party pay into it.',
+  no_party_money: 'No party organisation has ever paid into it.',
+  no_party_on_record: 'We hold no party for this member, so the party money cannot be compared.',
+};
+
+/**
+ * What the card says at its foot about the person who checked this match.
+ *
+ * Why a card says this at all: the whole standard this product holds itself to on identity
+ * is that a named entity read the evidence and signed, because a wrong match is invisible
+ * to every later check and would render perfectly under the wrong person's photograph. A
+ * reader who cannot see that a person checked has to take the match on trust, which is the
+ * opposite of what the rest of this page is for.
+ *
+ * **Read off the stored decision, never recomputed.** The 3 sentences describe what the
+ * reviewer saw on the day, so a later download changing a committee's published name or a
+ * candidate's register row does not silently rewrite the basis of a decision already made.
+ *
+ * Returns null when the decision carries no stored basis, which is true only of decisions
+ * written before those columns existed. Saying nothing is the honest reading of an absent
+ * record; inventing a basis would be the failure this whole line exists to prevent.
+ */
+export function matchCheckSentences(check: CommitteeMatchCheck | null | undefined): string[] {
+  if (!check) return [];
+  const day = formatClosingDay(check.checkedOn);
+  const sentences = [`Checked by Alethical on ${day}.`];
+  const name = check.nameEvidence ? NAME_EVIDENCE_SENTENCE[check.nameEvidence] : undefined;
+  if (name) sentences.push(name);
+  const register = check.registerVerdict ? REGISTER_SENTENCE[check.registerVerdict] : undefined;
+  if (register) sentences.push(register);
+  const party = check.partyAgreement ? PARTY_SENTENCE[check.partyAgreement] : undefined;
+  if (party) sentences.push(party);
+  return sentences;
+}
+
 /**
  * The heading above the explanation below, in the same 2 voices as the sentence itself.
  *

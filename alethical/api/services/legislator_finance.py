@@ -219,6 +219,22 @@ class NamedMoneySplit:
 
 
 @dataclass(frozen=True)
+class CommitteeMatchCheck:
+    """The basis a person recorded when they confirmed one account belongs to one member.
+
+    Read off the stored decision, never recomputed. A recomputed basis would describe
+    today's records rather than what the reviewer saw, and the point of showing it is that a
+    reader can hold us to the decision we actually made.
+    """
+
+    checked_on: date
+    name_evidence: str | None
+    register_verdict: str | None
+    party_agreement: str | None
+    party_of_party_unit_money: str | None
+
+
+@dataclass(frozen=True)
 class LegislatorCommitteeMoney:
     """One confirmed committee of this legislator's, with the year's money.
 
@@ -238,6 +254,13 @@ class LegislatorCommitteeMoney:
     #: calendar in general ([#1642](https://github.com/alethical-org/alethical/issues/1642)).
     #: Keyed on the registration number, so it needs no confirmation of its own.
     schedule: CommitteeFilingSchedule
+    #: What a person read when they decided this account is this member's, and the day they
+    #: decided it. Served so the card can say so in its own words: the whole standard this
+    #: product holds itself to on identity is that a named entity checked and signed, and a
+    #: reader who cannot see that has to take it on trust (§5.1). The 3 values are the same
+    #: ones stored on the decision, never recomputed here, so the page shows the basis of the
+    #: decision that was actually made rather than what today's data would suggest.
+    checked: CommitteeMatchCheck | None = None
 
 
 @dataclass(frozen=True)
@@ -802,6 +825,7 @@ def legislator_finance(
                     office_as_reviewed=link.office_as_reviewed,
                     finance=None,
                     schedule=schedule,
+                    checked=_match_check(link),
                     split=NamedMoneySplit(
                         state=SPLIT_NO_REPORTED_TOTAL,
                         reported_total=None,
@@ -825,6 +849,7 @@ def legislator_finance(
                 office_as_reviewed=link.office_as_reviewed,
                 finance=finance,
                 schedule=schedule,
+                checked=_match_check(link),
                 split=split_for_committee(
                     db,
                     release,
@@ -847,6 +872,32 @@ def legislator_finance(
         committees_outside_this_year=_committees_outside_this_year(
             db, legislator_id=legislator_id, year=year
         ),
+    )
+
+
+def _match_check(link) -> CommitteeMatchCheck | None:
+    """The stored basis for one confirmed link, or None when it predates the columns.
+
+    None rather than a guess: 4 nullable columns were added the day before the first sitting
+    and a decision written before them genuinely has no stored basis (§5.1). The page says
+    nothing at all in that case, which is the honest reading of an absent record.
+    """
+    if link.reviewed_at is None:
+        return None
+    if not any(
+        (
+            link.name_evidence_as_reviewed,
+            link.filer_directory_as_reviewed,
+            link.party_agreement_as_reviewed,
+        )
+    ):
+        return None
+    return CommitteeMatchCheck(
+        checked_on=link.reviewed_at.date(),
+        name_evidence=link.name_evidence_as_reviewed,
+        register_verdict=link.filer_directory_as_reviewed,
+        party_agreement=link.party_agreement_as_reviewed,
+        party_of_party_unit_money=None,
     )
 
 

@@ -29,6 +29,7 @@ import {
   campaignMoneyYears,
   confirmedElsewhereExplanation,
   confirmedElsewhereHeading,
+  matchCheckSentences,
   emptyStateFor,
   filingScheduleNote,
   formatDay,
@@ -246,6 +247,7 @@ function CommitteeCard({
       <MoneyIn committee={committee} isDesktop={isDesktop} />
       <MoneyOut committee={committee} isDesktop={isDesktop} />
       <FilingScheduleNote schedule={committee.filingSchedule} year={year} />
+      <MatchCheckNote checked={committee.checked} />
     </View>
   );
 }
@@ -262,6 +264,29 @@ function CommitteeCard({
  * paragraph per element, so a printed exemption sits under the date it qualifies
  * instead of trailing it inside one block of text.
  */
+/**
+ * Who checked that this account is this member's, and what they read.
+ *
+ * At the foot of the card and inside it, beside the filing-schedule note and for the same
+ * reason: it is a statement about this one account rather than about Minnesota in general.
+ *
+ * Renders nothing when the decision carries no stored basis. An absent record is not a
+ * weaker record to describe loosely, it is nothing to say.
+ */
+function MatchCheckNote({ checked }: { checked: CampaignCommitteeMoney['checked'] }) {
+  const sentences = matchCheckSentences(checked);
+  if (!sentences.length) return null;
+  return (
+    <View style={styles.matchCheck}>
+      {sentences.map((sentence) => (
+        <Text key={sentence} style={styles.muted}>
+          {sentence}
+        </Text>
+      ))}
+    </View>
+  );
+}
+
 function FilingScheduleNote({
   schedule,
   year,
@@ -556,6 +581,7 @@ function FreshnessNote({ fetchedAt }: { fetchedAt: string | null }) {
 
 const styles = StyleSheet.create({
   wrap: { gap: 24 },
+  matchCheck: { gap: 2, marginTop: 12 },
   head: {
     flexDirection: 'row',
     alignItems: 'center',

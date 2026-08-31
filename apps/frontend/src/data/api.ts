@@ -554,6 +554,12 @@ interface ApiLegislatorCampaignMoneyPayload {
     committee_name_as_reviewed: string;
     committee_name?: string | null;
     office?: string | null;
+    checked?: {
+      checked_on: string;
+      name_evidence?: string | null;
+      register_verdict?: string | null;
+      party_agreement?: string | null;
+    } | null;
     money_in?: {
       state: NonNullable<LegislatorCampaignMoney['committees'][number]['moneyIn']>['state'];
       itemized_contribution_total?: string | null;
@@ -2304,6 +2310,14 @@ export async function getLegislatorCampaignMoneyFromApi(
       committeeNameAsReviewed: committee.committee_name_as_reviewed,
       committeeName: committee.committee_name ?? null,
       office: committee.office ?? null,
+      checked: committee.checked
+        ? {
+            checkedOn: committee.checked.checked_on,
+            nameEvidence: committee.checked.name_evidence ?? null,
+            registerVerdict: committee.checked.register_verdict ?? null,
+            partyAgreement: committee.checked.party_agreement ?? null,
+          }
+        : null,
       moneyIn: committee.money_in
         ? {
             state: committee.money_in.state,

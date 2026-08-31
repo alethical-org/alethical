@@ -1,5 +1,6 @@
 import type {
   FilingSchedule,
+  CommitteeMatchCheck,
   CommitteeOutsideThisYear,
   LinkState,
   MoneyBlockState,
@@ -584,6 +585,11 @@ export interface CampaignCommitteeMoney {
   /** Which office the committee is for. Keeps a race for another office off this
    *  page, which no filing supports putting here. */
   office: string | null;
+  /** What a person read when they confirmed this account is this member's, and the day
+   *  they did. Read off the stored decision and never recomputed, so a later download
+   *  changing a name does not rewrite the basis of a decision already made. Null only for
+   *  a decision written before those columns existed, where the card says nothing. */
+  checked: CommitteeMatchCheck | null;
   moneyIn: {
     state: MoneyBlockState;
     itemizedContributionTotal: string | null;
