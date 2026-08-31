@@ -12,6 +12,7 @@ docs/
 ├── README.md              the index
 ├── philosophy.md          the why beneath the product
 ├── folder-structure.md    this doc
+├── published-writing-corrections.md   what we changed after publishing it
 │
 ├── product-onboarding/    What we're building (and won't), plus how to learn how it works
 │   ├── product-scope.md
@@ -67,7 +68,15 @@ Each folder answers a question, and that is what lets someone find a doc by gues
 material. Design working files stay with their task or
 pull request instead of becoming permanent documentation.
 
-Six placements aren't obvious, so they're stated:
+Seven placements aren't obvious, so they're stated:
+
+- **`published-writing-corrections.md` sits at the root, not in a folder** — every folder here
+  answers a question asked by someone building or running Alethical, and this file answers a
+  question asked by someone outside it: *is the figure I quoted from you still the figure?* Its
+  reader is a journalist or researcher holding an old number, who will never think to look in
+  `architecture/`. It is not `reader-guides/` either, because that folder is published prose and
+  this is a record about it. Root also keeps its address short, which matters when the whole point
+  of the file is being citable ([#1770](https://github.com/alethical-org/alethical/issues/1770)).
 
 - **`frontend-screen-system-design.md` is architecture, not design** — it is a system design
   for the screen layer; the visual rules live in `design/design-principles.md`. Its one
