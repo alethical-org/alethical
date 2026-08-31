@@ -343,3 +343,25 @@ which the report list tells us — never at a fixed number of weeks.
   payments route for largest-first order, the 250 cap with true totals, the coverage-end year gate and a
   per-row donated-goods flag (small); the per-name payments route already exists. **Pagination mechanics
   are the build’s, deliberately not drawn.**
+
+## Two facts a new money drawing needs, and the drawings do not carry (31 Aug 2026)
+
+- **The $200 sentence in these drawings is the retired wording, and it is false.** Counted across the
+  bundle: "donors who gave $200 or less in total for the year are **never named**" appears 7 times, in
+  `Campaign money IA.dc.html` (3), both `LIVE Legislator profile` files, `Money committee web.dc.html`
+  and `Money lists web.dc.html`; the corrected wording appears 0 times. $200 is the point at which a
+  name becomes **required**, not a line below which nobody is named: a committee may itemize a smaller
+  donor and at least one does, and 327,759 of 583,152 published rows are individually under $200.
+  `.claude/rules/grounded-answers.md` rule 12 carries the correction and the evidence, the shipped
+  string was fixed in [#1755](https://github.com/alethical-org/alethical/issues/1755), and
+  `RECORD_DOES_NOT_COVER` in `apps/frontend/src/lib/moneyLanding.ts` now reads "**need not** be named".
+  **The drawings were not updated**, so anything drawn or rebuilt from this bundle reintroduces a
+  sentence our own rules record as false. A ballot-question filer's page prints no threshold sentence
+  at all — the statute says $500 and the Board's own handbook for those filers says $200, and rule 12
+  makes silence the honest third option.
+- **Nothing in this bundle was drawn at phone width except the legislator profile.** Counted:
+  `LIVE Legislator profile mobile.dc.html` plus 2 phone mentions in its web twin; the IA, the committee
+  page, the lists, the report and the route map carry **0**. Those pages are live at phone widths on the
+  build's own judgment, on the one `isMobile` split at 768px (`apps/frontend/src/hooks/useResponsive.ts`),
+  with no treatment for the 768–1100 tablet band the hook also exposes. A phone drawing for the money
+  section is undrawn work, not a build detail already settled here.
