@@ -118,6 +118,34 @@ of hers. A committee with no office recorded is kept, because a blank field is n
 evidence of another race and hiding a member's real money is the worse of the two
 mistakes available.
 
+### Who checked this match, at the foot of every account
+
+**Every account box ends with the day a person confirmed it is this member's, and what they
+read.** The first line is always the same shape, "Checked by Alethical on 31 August 2026",
+and the 3 lines under it come off that decision's own stored record: how the filed name
+related to the member's, what Minnesota's register of registered candidates said about the
+account, and what the party money said.
+
+**Read off the decision, never recomputed.** A later download can rename a committee or move
+a candidate's register row, and the card still describes what the reviewer actually saw. The
+point of showing it is that a reader can hold us to the decision we made rather than to what
+today's records would suggest.
+
+**The weakest cases say so.** Where Minnesota's register has no row for the account, the card
+says the register of current candidates does not list it, and never anything that reads as
+the state agreeing. Where only the last name matched, it says the first name is filed
+differently. Measured against the 242 accounts confirmed on 31 August 2026: 195 have the
+register confirming the member's seat, 22 have no register row at all, and 12 share only a
+last name.
+
+**Party money keeps its 4 answers here too**, because 2 of them are not disagreements: the
+money agrees, it names the other party, no party organisation has ever paid in, or we hold no
+party for this member to compare. A missing comparison never renders as a conflict.
+
+**A decision with no stored basis shows nothing.** The 4 columns holding that basis landed
+the day before the first sitting, so every decision on the site has one; a decision written
+before them would print no lines at all rather than a vaguer version.
+
 ### The year switch
 
 Two buttons, top right: **this calendar year and the one before it**. Today that reads
