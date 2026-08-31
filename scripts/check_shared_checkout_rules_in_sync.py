@@ -45,9 +45,15 @@ REQUIRED = [
     ("git stash", "scooping up other sessions' in-flight edits"),
     ("update-ref", "moving or deleting a branch another worktree holds"),
     ("worktree remove --force", "deleting a worktree and its uncommitted work"),
-    ("ignore-other-worktrees", "overriding git's own refusal to touch someone else's branch"),
+    (
+        "ignore-other-worktrees",
+        "overriding git's own refusal to touch someone else's branch",
+    ),
     ("/usr/bin/git", "Apple's older git, which lacks the guard the newer one has"),
-    ("git show origin/main", "the safe way to read another revision without touching the tree"),
+    (
+        "git show origin/main",
+        "the safe way to read another revision without touching the tree",
+    ),
 ]
 
 
