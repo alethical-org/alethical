@@ -560,6 +560,216 @@ DIRECTORY_IN_BRIEF: dict[str, str] = {
 }
 
 
+def name_words(value: str | None) -> set[str]:
+    """The name words in a value, lowercased, with punctuation and hyphens as spaces.
+
+    Hyphens matter: the Board writes "Momanyi Hiltsley, Huldah Nyamisa" for a member our
+    roster holds as "Huldah Momanyi-Hiltsley", so a comparison that keeps the hyphen reads a
+    real match as a different person. Single letters are dropped, because an initial
+    separates nobody.
+    """
+    cleaned = re.sub(r"[^a-z ]+", " ", (value or "").lower())
+    return {word for word in cleaned.split() if len(word) > 1}
+
+
+def register_names_this_member(member: RosterMember, filer: FilerRecord | None) -> bool:
+    """Whether the Board's own row for this account names this member as its candidate.
+
+    The one check ``compare_to_filer_directory`` never makes. That function decides
+    ``different_race`` from the office alone and returns before the candidate name is read,
+    which is right for its purpose and leaves the strongest available fact unused: the row
+    carries ``CandidateFullName``. Measured across the 37 other-office accounts the
+    contested group holds, the Board names the same member on 9 and a different person on
+    the rest -- Angie Hanson against Jessica Hanson, Keri Heintzeman against Josh
+    Heintzeman, Mark T Johnson and Cherie Johnson against Pete and Wayne Johnson, Erin
+    Murphy against Tom Murphy.
+
+    Surname and at least one further given-name word, both required. A surname alone is what
+    put those strangers on the list in the first place.
+    """
+    if filer is None or not filer.candidate_name:
+        return False
+    surname = name_words(filer.candidate_name.split(",")[0])
+    member_surname = name_words(member.last_name or member.full_name.split()[-1])
+    if not surname or surname != member_surname:
+        return False
+    given = name_words(filer.candidate_name) - surname
+    member_given = name_words(member.full_name) - member_surname
+    return bool(given & member_given)
+
+
+#: One batchable group: its key, the title, the single stated reason every row shares, and
+#: whether answering the group means the account is theirs or is somebody else's.
+GROUPS: tuple[tuple[str, str, str, bool], ...] = (
+    (
+        "own_seat",
+        "The Board registers this account for this member's own seat and party",
+        "and flags them as its current holder, which is the state making the link rather "
+        "than us inferring it",
+        True,
+    ),
+    (
+        "own_other_office",
+        "The Board registers this account to this member under another office",
+        "naming the same candidate, so it is their own run for something else",
+        True,
+    ),
+    (
+        "another_person",
+        "The Board registers this account to a different named candidate",
+        "so it reached this list on a shared surname alone",
+        False,
+    ),
+)
+
+
+def group_of(
+    member: RosterMember, proposal: Proposal, filer: FilerRecord | None
+) -> str | None:
+    """Which batchable group a contested proposal falls in, or None for one at a time.
+
+    Deliberately narrow. A group exists only where every row in it shares **one** stated
+    fact from the Board's own register, so reading the list is checking that one fact 52
+    times rather than weighing alternatives. Everything the register cannot speak to -- a
+    dormant account it does not list, a member whose seat it never names -- falls through to
+    the one-at-a-time pass, where the alternatives are the point.
+    """
+    if proposal.filer_verdict == FilerVerdict.same_seat.value:
+        return "own_seat"
+    if proposal.filer_verdict in {
+        FilerVerdict.different_race.value,
+        FilerVerdict.different_person.value,
+    }:
+        if register_names_this_member(member, filer):
+            return "own_other_office"
+        return "another_person"
+    return None
+
+
+def run_grouped_review(
+    results: list[LegislatorProposals],
+    session: Session,
+    reviewer: str,
+    records_through: str | None,
+    filers_by_registration: dict[str, FilerRecord],
+) -> int:
+    """Answer the contested proposals in groups that share one stated reason.
+
+    The one-at-a-time pass exists because contested cases need their alternatives read.
+    That is true of the cases the Board's register cannot speak to, and not true of the ones
+    it can: where the register names exactly one account for a member's own seat, the
+    alternatives are demonstrably other people's accounts, and reading them one at a time is
+    the same single check 52 times. Measured on the 56 contested legislators, the register
+    settles 52 of them.
+
+    Same safety as the uncontested batch, for the same reason: the whole group is printed
+    with its evidence, any row can be held back by number, the word ``confirm`` has to be
+    typed, and nothing is written before that. A held-back row joins the one-at-a-time pass.
+    """
+    decisions = load_existing_decisions(session)
+    pending: dict[str, list[tuple[LegislatorProposals, Proposal]]] = {
+        key: [] for key, _, _, _ in GROUPS
+    }
+    for result in results:
+        if result.outcome != "ambiguous":
+            continue
+        for proposal in result.proposals:
+            if (
+                result.member.legislator_id,
+                proposal.committee.registration_number,
+            ) in decisions:
+                continue
+            key = group_of(
+                result.member,
+                proposal,
+                filers_by_registration.get(proposal.committee.registration_number),
+            )
+            if key:
+                pending[key].append((result, proposal))
+
+    written = 0
+    for key, title, because, confirms in GROUPS:
+        rows = pending[key]
+        if not rows:
+            continue
+        verb = "confirmed as theirs" if confirms else "rejected as somebody else's"
+        print()
+        print(f"=== {title} ===")
+        print(f"    {because}.")
+        print(
+            f"    {len(rows)} accounts, all {verb} together. Each line is the legislator, "
+            "the account, and what the Board's own row says."
+        )
+        print()
+        for index, (result, proposal) in enumerate(rows, start=1):
+            filer = filers_by_registration.get(proposal.committee.registration_number)
+            board = (
+                f"Board: {filer.candidate_name!r} for {filer.office or '(no office)'} "
+                f"{filer.district or ''} {filer.party or ''}".rstrip()
+                if filer
+                else "Board: not in the register"
+            )
+            print(
+                f"{index:4}. {result.member.full_name} "
+                f"({result.member.chamber_slug} {result.member.district} "
+                f"{result.member.party})"
+            )
+            print(
+                f"       {proposal.committee.registration_number}  "
+                f"{proposal.committee.name}  "
+                f"({proposal.committee.first_year}-{proposal.committee.last_year})"
+            )
+            print(f"       {board}")
+        print()
+        print(f"Type 'confirm' to record all {len(rows)} as {verb} by {reviewer}.")
+        print("To hold some back for the one-at-a-time pass, list their numbers first.")
+        held: set[int] = set()
+        while True:
+            answer = (
+                input("  numbers to hold back, or 'confirm', or 'quit': ")
+                .strip()
+                .lower()
+            )
+            if answer.startswith("q"):
+                print(f"\nstopped. {written} decisions written.")
+                return written
+            if answer == "confirm":
+                break
+            numbers = {int(part) for part in answer.split() if part.isdigit()}
+            unknown = {n for n in numbers if not 1 <= n <= len(rows)}
+            if unknown or not numbers:
+                print(f"  did not understand that. Expected numbers 1 to {len(rows)}.")
+                continue
+            held |= numbers
+            print(
+                f"  holding back {len(held)}: {sorted(held)}. "
+                f"{len(rows) - len(held)} left."
+            )
+        note = (
+            input("  What did you check, for the record? (optional): ").strip() or None
+        )
+        for index, (result, proposal) in enumerate(rows, start=1):
+            if index in held:
+                continue
+            session.add(
+                link_row(
+                    result.member,
+                    proposal,
+                    reviewer,
+                    confirmed=confirms,
+                    note=note,
+                    records_through=records_through,
+                )
+            )
+            session.commit()
+            written += 1
+        print(f"  recorded {len(rows) - len(held)}.")
+    if written == 0:
+        print("nothing is left that a shared reason can answer.")
+    print(f"\ndone. {written} decisions written.")
+    return written
+
+
 def run_batch_review(
     results: list[LegislatorProposals],
     session: Session,
@@ -1119,8 +1329,11 @@ def main() -> None:
     parser.add_argument(
         "--batch",
         action="store_true",
-        help="For 'review': show every uncontested proposal as one list and confirm them "
-        "together after the reviewer types 'confirm'. The rest stay one at a time.",
+        help="For 'review': answer in lists rather than one question at a time. First "
+        "every uncontested proposal as one list, then the contested ones grouped by the "
+        "single fact from the Board's register that answers them. Each list prints in full, "
+        "any row can be held back by number, and nothing is written until the word "
+        "'confirm' is typed. Whatever the register cannot speak to stays one at a time.",
     )
     parser.add_argument(
         "--tier",
@@ -1211,6 +1424,7 @@ def main() -> None:
             )
         elif args.batch:
             run_batch_review(results, session, args.reviewer, records_through)
+            run_grouped_review(results, session, args.reviewer, records_through, filers)
         else:
             run_review(
                 results,
