@@ -4189,6 +4189,20 @@ def legislator_campaign_finance(
                         entry.finance.committee.name if entry.finance else None
                     ),
                     "office": entry.office_as_reviewed,
+                    # What a person read when they confirmed this account is this member's,
+                    # and the day they did. Served rather than recomputed, so the card
+                    # states the basis of the decision that was made instead of what
+                    # today's records would suggest (§5.1).
+                    "checked": (
+                        {
+                            "checked_on": entry.checked.checked_on,
+                            "name_evidence": entry.checked.name_evidence,
+                            "register_verdict": entry.checked.register_verdict,
+                            "party_agreement": entry.checked.party_agreement,
+                        }
+                        if entry.checked
+                        else None
+                    ),
                     "money_in": (
                         {
                             "state": entry.finance.money_in.state,

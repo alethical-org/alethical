@@ -30,6 +30,7 @@ import {
   reportedThroughLabel,
   confirmedElsewhereExplanation,
   confirmedElsewhereHeading,
+  matchCheckSentences,
   emptyStateFor,
   filingScheduleNote,
   statedSplitNote,
@@ -710,5 +711,72 @@ describe('an empty year says which of 2 things is true', () => {
     expect(confirmedElsewhereExplanation(2026)).toContain('reported no money in 2026');
     expect(confirmedElsewhereExplanation(2026)).not.toContain('does not run forever');
     expect(confirmedElsewhereHeading(2026)).toBe('Nothing reported for 2026');
+  });
+});
+
+describe('what the card says about who checked the match', () => {
+  const acomb = {
+    checkedOn: '2026-08-31',
+    nameEvidence: 'exact',
+    registerVerdict: 'same_seat',
+    partyAgreement: 'agrees',
+  };
+
+  it('names the entity and the day, then what was read', () => {
+    expect(matchCheckSentences(acomb)).toEqual([
+      'Checked by Alethical on August 31, 2026.',
+      'The filed name matches theirs exactly.',
+      "Minnesota's register of registered candidates lists this account for their own seat and party.",
+      'Party organisations of their own party pay into it.',
+    ]);
+  });
+
+  // The weakest case among the 242 confirmed on 31 Aug 2026, and the one a reader most
+  // deserves to see: the register has no row for it at all. It may never read as though the
+  // state agreed.
+  it('says plainly when the state has no row, rather than implying it agreed', () => {
+    const sentences = matchCheckSentences({ ...acomb, registerVerdict: 'unknown' });
+    expect(sentences).toContain(
+      "Minnesota's register of current candidates does not list this account.",
+    );
+    expect(sentences.join(' ')).not.toContain('lists this account for their own seat');
+  });
+
+  // Liish Kozlowski's shape: filed as "Kozlowski, Alicia". The card says so rather than
+  // claiming a match the filed name does not show.
+  it('says the first name is filed differently when only the last name matched', () => {
+    const sentences = matchCheckSentences({ ...acomb, nameEvidence: 'surname_only' });
+    expect(sentences).toContain(
+      'The account shares their last name and the first name is filed differently.',
+    );
+    expect(sentences).not.toContain('The filed name matches theirs exactly.');
+  });
+
+  // All 4 party states get their own words, and 2 of them are not disagreements.
+  it('never renders a missing party comparison as a disagreement', () => {
+    expect(matchCheckSentences({ ...acomb, partyAgreement: 'no_party_money' })).toContain(
+      'No party organisation has ever paid into it.',
+    );
+    expect(
+      matchCheckSentences({ ...acomb, partyAgreement: 'no_party_on_record' }).join(' '),
+    ).not.toContain('other party');
+    expect(matchCheckSentences({ ...acomb, partyAgreement: 'disagrees' })).toContain(
+      'Party organisations of the other party pay into it.',
+    );
+  });
+
+  it('says nothing at all when the decision carries no stored basis', () => {
+    expect(matchCheckSentences(null)).toEqual([]);
+    expect(matchCheckSentences(undefined)).toEqual([]);
+  });
+
+  it('drops only the part it has no words for, and keeps the signature line', () => {
+    const sentences = matchCheckSentences({
+      checkedOn: '2026-08-31',
+      nameEvidence: null,
+      registerVerdict: null,
+      partyAgreement: null,
+    });
+    expect(sentences).toEqual(['Checked by Alethical on August 31, 2026.']);
   });
 });
