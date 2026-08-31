@@ -434,14 +434,25 @@ describe('a verified zero and an unregistered number', () => {
 });
 
 describe('the record-coverage block', () => {
-  it('drops the threshold line on a ballot-question page and keeps the rest', () => {
+  // A ballot-question filer's threshold is $500 and everyone else's is $200: the
+  // statute (10A.20 subd. 3(c)) attaches its figures to what the money is for rather
+  // than to who files, and the Board's own Independent Expenditure and Ballot Question
+  // handbook says $500 for these filers too. Each page states its OWN figure and never
+  // the other, because the whole risk here is a reader taking one filer kind's line for
+  // another's.
+  it('states the threshold each filer kind actually carries, and never the other one', () => {
     const ordinary = recordCoverageLines(false);
     expect(ordinary).toHaveLength(4);
     expect(ordinary[3]).toBe(
       'Donors who gave $200 or less in total for the year need not be named.',
     );
+    expect(ordinary.join(' ')).not.toContain('$500');
+
     const ballot = recordCoverageLines(true);
-    expect(ballot).toHaveLength(3);
+    expect(ballot).toHaveLength(4);
+    expect(ballot[3]).toBe('Donors who gave $500 or less in total for the year need not be named.');
+    // The $200 line must not also appear here: 2 thresholds on one page is worse than
+    // the silence this replaced.
     expect(ballot.join(' ')).not.toContain('$200');
   });
 
@@ -463,23 +474,25 @@ describe('the record-coverage block', () => {
     }
   });
 
-  // This sentence told readers "official sources disagree about that threshold for
-  // ballot-question committees", live on production, on filer 60083's 2025 page beside
-  // $8,459.00 of unnamed money (verified 31 Aug 2026). It was false: the statute says
-  // $500 for ballot questions and the Board's own Independent Expenditure and Ballot
-  // Question handbook (revised 08/27/2026) says $500 too. The $200 reading came from a
-  // handbook written for the general-purpose kind of filer, which is a different
-  // audience rather than a contradicting source. The page still prints no figure —
-  // that ban is rule 12's and Eugene's to lift — but it may not explain the silence by
-  // accusing Minnesota's own records of contradicting each other.
-  it('never blames the silence on official sources disagreeing', () => {
+  // This sentence has been wrong twice, in opposite directions, and both are pinned.
+  // It first told readers "official sources disagree about that threshold for
+  // ballot-question committees" — live on filer 60083's 2025 page beside $8,459.00 of
+  // unnamed money — which is a claim about Minnesota's own records contradicting each
+  // other that Minnesota's records do not support. It then printed no figure at all,
+  // which was honest but told a reader less than Minnesota publishes. Eugene lifted the
+  // ban on 31 Aug 2026, so it now names $500 and says what the $200 line is.
+  it('names $500 and never blames Minnesota for disagreeing with itself', () => {
     const ballot = unnamedMoneyExplanation(true);
     expect(ballot).not.toMatch(/sources disagree/i);
     expect(ballot).not.toMatch(/do not agree/i);
-    // And it still prints no threshold figure of any kind.
-    expect(ballot).not.toContain('$200');
-    expect(ballot).not.toContain('$500');
-    // It still says what is true: the state's file does not name this money.
+    expect(ballot).toContain('$500');
+    // The $200 appears only as the contrast, so the reader knows which line is theirs.
+    expect(ballot).toContain('higher line than the $200');
+    // The 2 rules the figure carries with it, same as the $200 one (#1755): a yearly
+    // total rather than a per-gift cut-off, and a floor rather than a bar.
+    expect(ballot).toContain('in total for the year');
+    expect(ballot).toContain('may name a smaller donor but');
+    // And it still says what is true about this money.
     expect(ballot).toContain('does not say who gave them');
   });
 });
