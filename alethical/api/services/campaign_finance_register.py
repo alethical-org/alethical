@@ -36,13 +36,21 @@ so ``recent_filings`` returns only rows that carry one. Without that filter a "f
 they arrive" module would print a report as filed under a named politician who has not
 filed it.
 
-**We hold no filing date, so nothing here orders by one.** The catalogue serves 17 fields
-per report and none of them is the date the report was filed (§9.6's field list); the
-"Received by the Board" date is printed inside the report document, which is served only
-from 2023 and fails softly. So the feed is newest-first by the period end the catalogue
-does serve, and says so in ``ordered_by`` rather than letting a caller assume it has a
-filing order. Storing a real filing date is
-[#1670](https://github.com/alethical-org/alethical/issues/1670).
+**A filing date is held per report where the Board's own document states one, and it is
+never invented where it does not** ([#1670](https://github.com/alethical-org/alethical/issues/1670)).
+The catalogue serves 17 fields per report and none of them is a filing date (§9.6's field
+list), so it arrives from a separate read of the report document, which prints
+``Received by the Board July 24, 2026`` on its own line. ``filed_date`` is therefore NULL
+on a great many rows -- the Board serves no document before 2023 for most reports, answers
+HTTP 200 with an HTML page when it will not serve one, and serves some documents as scans
+carrying no text (§9.4).
+
+So the order is **mixed and says which mix it is**: rows sort by the filing date where
+there is one and by the period end where there is not, and ``ordered_by`` names that
+rather than letting a caller read a chronology of arrivals into a list that is partly one.
+A NULL filing date is served as NULL and is never filled in from the period end -- a
+period end relabelled "filed on" is a fabricated fact about a named committee, which is
+the whole reason #1670 was filed rather than closed inline.
 """
 
 from __future__ import annotations
@@ -77,9 +85,16 @@ NO_CURRENT_SESSION = "no_current_legislative_session"
 #: The only source this module will name for a start; there is deliberately no value
 #: meaning "we worked it out".
 BOARD_CALENDAR = "board_calendar"
-#: The only order this feed has, served on every page. Named once because the string
-#: appears in 3 returns and a drifting copy would tell a caller the order changed.
+#: The order when no row in the filtered set carries a filing date, so the order
+#: genuinely is the period end and nothing else. Named once because the string appears in
+#: several returns and a drifting copy would tell a caller the order changed.
 ORDERED_BY_PERIOD_END = "period_end"
+#: The order when some rows carry a filing date and some do not, which is the ordinary
+#: state and will stay so: the Board serves no document for most reports before 2023
+#: (§9.4), so those rows can never have one. Named as the mix it is rather than as
+#: ``filed_date``, because a caller told the list is in filing order would read the
+#: undated rows as having arrived when their period closed.
+ORDERED_BY_FILED_DATE_THEN_PERIOD_END = "filed_date_then_period_end"
 #: The only order the committees list has, served on every page so a caller never has to
 #: assume one. Alphabetical by the name as filed, and there is deliberately no way to ask
 #: for another: ordering 1,603 filers by money would rank filing calendars rather than
@@ -252,6 +267,11 @@ class FilingRow:
     designed row rather than a defect: it reads "covers through {period_end}". It is
     populated only from a Board calendar (``period_start_source``), and never for a filer
     with a special-election report in that year, whose period does not open on 1 January.
+
+    ``filed_date`` is the day the Board received this report's effective version, and it
+    is ``None`` wherever the Board's document does not state one (#1670). **A ``None``
+    here means a page prints no filed date on that row** -- not that the report was
+    unfiled, and never the period end wearing a "filed" label.
     """
 
     registration_number: str
@@ -263,6 +283,7 @@ class FilingRow:
     period_end: Optional[date]
     period_start: Optional[date]
     period_start_source: Optional[str]
+    filed_date: Optional[date]
     special_election: bool
     amendment_count: Optional[int]
     effective_amendment_index: Optional[int]
@@ -272,9 +293,10 @@ class FilingRow:
 class FilingsPage:
     """One page of the newest filings we hold, newest by period end.
 
-    ``ordered_by`` is served rather than assumed, because the order is not the one the
-    design asked for: we hold no filing date (see this module's docstring), so a caller
-    must not label these rows "filed on" anything.
+    ``ordered_by`` is served rather than assumed, because the order is a mix: rows with a
+    filing date sort by it and rows without sort by their period end (see this module's
+    docstring). A caller may label a row "filed on" **only** where that row's own
+    ``filed_date`` is populated.
     """
 
     state: str
@@ -945,6 +967,40 @@ def committees_worth_indexing(db: Session) -> tuple[SitemapCommittee, ...]:
     )
 
 
+def _filed_date_order(report):
+    """The ORDER BY that puts the newest arrival first without inventing an arrival.
+
+    ``COALESCE(filed_date, cut_off_date)`` rather than ``filed_date DESC NULLS LAST``,
+    and the difference is what a reader sees. Sinking every undated row below every dated
+    one would drop a 2026 report whose document is an unreadable scan to the bottom of a
+    feed of the newest filings, behind dated reports from 2023. Coalescing keeps it near
+    where it belongs, because a report is always filed *after* its period closes, so the
+    period end is the earliest the filing can have been.
+
+    This is a **ranking** fallback and never a displayed one: the served ``filed_date``
+    stays NULL, so no row can print a period end as the day it was filed. That
+    distinction is pinned by
+    ``test_a_report_with_no_filed_date_is_never_dated_from_its_period_end``.
+    """
+    return func.coalesce(report.filed_date, report.cut_off_date).desc()
+
+
+def _order_name(db: Session, report, filters) -> str:
+    """Whether any row this page is drawn from carries a filing date.
+
+    Asked over the identical filter the rows use, so the served name always describes
+    the set the caller is paging through rather than the table.
+    """
+    present = db.scalar(
+        select(report.row_number).where(*filters, report.filed_date.is_not(None)).limit(1)
+    )
+    return (
+        ORDERED_BY_FILED_DATE_THEN_PERIOD_END
+        if present is not None
+        else ORDERED_BY_PERIOD_END
+    )
+
+
 def recent_filings(
     db: Session, *, limit: int, offset: int, as_of: Optional[date] = None
 ) -> FilingsPage:
@@ -959,8 +1015,10 @@ def recent_filings(
       reports from 2002 to 2007, whose amendment record the catalogue does not serve;
       that is the safe direction on a feed of the newest filings, and rule 11 forbids
       claiming a list is complete in either case.
-    * **Reports with no period end.** Nothing orders them and no row can be drawn from
-      them, since we hold no filing date either.
+    * **Reports with no period end.** Nothing places them on a feed of the newest
+      filings: a filing date is held for only a minority of reports (§9.4), so a row
+      with neither cannot be ordered at all. The committee's own page lists them last
+      rather than dropping them.
     * **A filer the register does not hold.** The name comes from ``cf_filer`` in the
       same snapshot, and a nameless row is not worth showing.
     * **Reports whose period has not ended yet.** Found on production the day this
@@ -1037,13 +1095,14 @@ def recent_filings(
             report.special_election,
             report.effective_amendment_index,
             report.amendment_count,
+            report.filed_date,
             filer.name,
             filer.kind,
         )
         .join(*joined_to_filer)
         .where(*filed_and_ended)
         .order_by(
-            report.cut_off_date.desc(),
+            _filed_date_order(report),
             filer.name.asc(),
             report.registration_number.asc(),
             report.row_number.asc(),
@@ -1114,7 +1173,7 @@ def recent_filings(
     ).first()
     return FilingsPage(
         state=REPORTED,
-        ordered_by=ORDERED_BY_PERIOD_END,
+        ordered_by=_order_name(db, report, filed_and_ended),
         periods_ended_on_or_before=as_of,
         filings=filings,
         limit=limit,
@@ -1181,10 +1240,12 @@ def committee_filings(
       ``catalogued_without_record`` instead, because for pre-2008 rows the missing
       record means "the Board serves no history", not "never filed", and the page must
       not pretend the boundary away.
-    * **Ordered by period end, and it says so.** We hold no filing date for any report
-      ([#1670](https://github.com/alethical-org/alethical/issues/1670)), so ``ordered_by``
-      is served and no caller may print "filed on" beside these rows. If a filing date
-      ever lands, this order — and the served ``ordered_by`` — is where it changes.
+    * **Ordered newest arrival first, and it says which order that is.** A row sorts by
+      its filing date where the Board's document states one and by its period end where
+      it does not ([#1670](https://github.com/alethical-org/alethical/issues/1670)), so
+      ``ordered_by`` is served and a caller may print "filed on" beside a row **only**
+      where that row's own ``filed_date`` is populated. Most of a committee's history
+      will carry none: the Board serves no document before 2023 for most reports (§9.4).
     * **A period start comes off a Board calendar or not at all**, and never for a
       filer-year that carries a special-election report, whose year does not open on
       1 January (§9.5).
@@ -1235,15 +1296,17 @@ def committee_filings(
             report.special_election,
             report.effective_amendment_index,
             report.amendment_count,
+            report.filed_date,
             filer.name,
             filer.kind,
         )
         .join(*joined_to_filer)
         .where(*filed_for_this_committee)
         .order_by(
-            # A row with no period end sorts last rather than being dropped: it is a
-            # real filing we simply cannot place, and its row carries no period line.
-            report.cut_off_date.desc().nulls_last(),
+            # A row with neither a filing date nor a period end sorts last rather than
+            # being dropped: it is a real filing we simply cannot place, and its row
+            # carries no period line.
+            _filed_date_order(report).nulls_last(),
             report.filing_year.desc(),
             report.row_number.asc(),
         )
@@ -1286,6 +1349,7 @@ def committee_filings(
         )
         or 0
     )
+    ordered_by = _order_name(db, report, filed_for_this_committee)
     without_record = (
         db.scalar(
             select(func.count())
@@ -1300,7 +1364,7 @@ def committee_filings(
     )
     return CommitteeFilingsPage(
         state=REPORTED,
-        ordered_by=ORDERED_BY_PERIOD_END,
+        ordered_by=ordered_by,
         filings=filings,
         limit=limit,
         offset=offset,
@@ -1351,6 +1415,7 @@ def _filing_row(row, *, special_years: set[tuple[str, int]]) -> FilingRow:
         special_election,
         effective_amendment_index,
         amendment_count,
+        filed_date,
         filer_name,
         filer_kind,
     ) = row
@@ -1369,6 +1434,9 @@ def _filing_row(row, *, special_years: set[tuple[str, int]]) -> FilingRow:
         period_end=cut_off_date,
         period_start=start,
         period_start_source=BOARD_CALENDAR if start is not None else None,
+        # Passed straight through, never defaulted. `or cut_off_date` here is the one
+        # line that would turn this whole module into a liar (#1670).
+        filed_date=filed_date,
         special_election=special_election,
         amendment_count=amendment_count,
         effective_amendment_index=effective_amendment_index,

@@ -2439,6 +2439,22 @@ class CampaignFinanceFilingReport(Base):
     # missing marker in an older year means the document is unavailable.
     effective_amendment_index: Mapped[Optional[int]] = mapped_column(Integer)
     amendment_count: Mapped[Optional[int]] = mapped_column(Integer)
+    # When the Board received this report's effective version, read off the line the
+    # document prints as "Received by the Board July 24, 2026" (#1670). The catalogue
+    # serves no filing date at all, so this arrives from a separate document read and is
+    # NULL on a freshly loaded snapshot.
+    #
+    # NULL is the ordinary answer and has 3 causes, none of which is "not filed": the
+    # Board serves no document before 2023 for most reports, it answers HTTP 200 with an
+    # HTML page when it will not serve one, and some documents it does serve are scans
+    # with no readable text (SS 9.4). **Nothing may fill this from ``cut_off_date``** --
+    # a period end relabelled as a filing date is a fabricated fact about a named
+    # committee, which is the whole reason #1670 was filed rather than closed inline.
+    #
+    # An amended report's date is the amendment's own: filer 16807's 2026 pre-primary
+    # reads 24 Jul 2026 at index 0 and 10 Aug 2026 at index 1. This column carries the
+    # effective version's date, matching ``effective_amendment_index`` beside it.
+    filed_date: Mapped[Optional[date]] = mapped_column(Date)
 
     __table_args__ = (
         Index(

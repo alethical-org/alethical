@@ -10,9 +10,12 @@ stands in for a way that list could put a false sentence under a named committee
   counted, because before 2008 a missing record means the Board serves no version
   history, not "never filed", and the page says that boundary out loud.
 * **No row carries an amount.** This is a list of filings, not of money.
-* **No row carries a filing date or an amendment date**, because we hold neither
-  ([#1670](https://github.com/alethical-org/alethical/issues/1670)); the order is by
-  period end and ``ordered_by`` says so.
+* **A row's filing date is the Board's own or nothing at all.** A report's document
+  states the day the Board received it and most of them do not exist to be read
+  ([#1670](https://github.com/alethical-org/alethical/issues/1670)), so a row carries
+  either that date or ``null`` -- never its period end under a "filed" label, which is
+  the one substitution nobody would notice. There is still no amendment date at all.
+  ``ordered_by`` names which order the list came back in.
 * **A period start is read off a Board calendar or omitted.** §7 forbids hardcoding
   1 January because a special-election filer's period does not open there.
 * **A committee's final report is listed even though its period has not ended.** A
@@ -168,8 +171,9 @@ def test_the_list_is_newest_period_end_first_and_scoped_to_the_committee(
 ) -> None:
     """Another committee's reports never appear, and no row carries an amount.
 
-    The order is stated rather than implied: these rows are ordered by the period end we
-    hold, and we hold no filing date (#1670) and no amendment date.
+    The order is stated rather than implied. No report here has a stored filing date, so
+    the order genuinely is the period end and ``ordered_by`` says exactly that rather
+    than naming an order the rows are not in.
     """
     snapshot = _filings_snapshot(db, report_count=3)
     _filer(db, snapshot, CANDIDATE)
@@ -198,7 +202,10 @@ def test_the_list_is_newest_period_end_first_and_scoped_to_the_committee(
     for row in data["filings"]:
         assert row["registration_number"] == CANDIDATE
         assert not [key for key in row if "amount" in key or "total" in key]
-        assert not [key for key in row if "filed" in key or "date" in key]
+        # A filing date is served, and on these rows it is null -- the Board states
+        # none. What must never appear is an amendment date, which no source gives us.
+        assert row["filed_date"] is None
+        assert "amendment_date" not in row
 
 
 def test_a_report_nobody_has_filed_is_excluded_and_counted(client, db) -> None:

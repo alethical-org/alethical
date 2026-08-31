@@ -11,6 +11,7 @@ import {
   centralDateLabel,
   confirmationDateLine,
   confirmationLine,
+  filedDateSentence,
   filingsTieSentence,
   filingPeriodLine,
   laneCountLine,
@@ -287,12 +288,14 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
             </View>
           </View>
 
-          {/* The most recent completed filing period — NOT "filings as they
-              arrive": the Board serves no filed date (issue #1670), the feed
-              orders by period end, and 1,200+ filers can share one period end
-              with the tie broken alphabetically, so the copy says exactly what
-              the rows are. Never an amount — five rows with five dollar figures
-              is a ranking whether we sort it or not. */}
+          {/* The most recent completed filing period. A row carries the day the
+              Board received it where the report's own document states one and
+              nothing where it does not (issue #1670), so the ordering sentence
+              and the tie sentence both derive from the served `ordered_by` —
+              1,200+ filers can share one period end, and which rows are on top
+              depends entirely on how many of them are dated. Never an amount:
+              five rows with five dollar figures is a ranking whether we sort it
+              or not. */}
           {filingsQuery.isLoading ? (
             <View style={styles.filingsBlock} accessible accessibilityLabel="Loading filed reports">
               <Text style={styles.notCoveredLabel}>THE MOST RECENT COMPLETED FILING PERIOD</Text>
@@ -311,7 +314,7 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
                 </Text>
               ) : null}
               <Text style={styles.filingsSort}>
-                {filingsTieSentence(feed?.newestPeriod?.filingCount ?? null)}
+                {filingsTieSentence(feed?.newestPeriod?.filingCount ?? null, feed?.orderedBy ?? '')}
               </Text>
               <View style={styles.filingsList}>
                 {filings.map((filing, index) => (
@@ -321,6 +324,9 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
                       <Text style={styles.filingReport}>
                         {filing.reportName}
                         {filingPeriodLine(filing) ? ` · ${filingPeriodLine(filing)}` : ''}
+                        {filedDateSentence(filing.filedDate)
+                          ? ` · ${filedDateSentence(filing.filedDate)}`
+                          : ''}
                       </Text>
                     </View>
                   </View>

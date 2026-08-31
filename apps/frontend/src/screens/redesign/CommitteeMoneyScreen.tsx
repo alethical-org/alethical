@@ -35,6 +35,7 @@ import {
   emptyYearMoneyInWhy,
   EMPTY_YEAR_MONEY_OUT_WHY,
   filingIsAmended,
+  filedDateLine,
   filingRowPeriodLine,
   filingsCountLine,
   filingsOrderingLine,
@@ -983,9 +984,13 @@ function PaymentsSection({
  * having filed, newest period first ("Money committee web.dc.html", #1679).
  *
  * What the drawn design shows that this list deliberately does not:
- * - No "FILED {date}" label and no ordering by date filed — we hold no filing
- *   date for any report (#1670), so the list orders by the period each report
- *   covers and says so.
+ * - No flat "by the date filed" ordering sentence. A row carries the day the Board
+ *   received it where the report's own document states one (#1670), and nothing
+ *   where it does not — which is most of a committee's history, since the Board
+ *   serves no readable document for most reports before 2023. So the list sorts by
+ *   the filed date where there is one and the period end where there is not, an
+ *   undated row prints no filed date at all rather than showing its period end
+ *   under a "filed" label, and the ordering sentence names the mix.
  * - No date on the AMENDED chip — the catalogue's amendment record is version
  *   indexes only. The chip itself is never suppressed: a missing prior figure is
  *   a fact about old documents, not about whether the report was amended.
@@ -1050,6 +1055,7 @@ function FilingsList({ registrationNumber }: { registrationNumber: string }) {
       <View style={styles.listRows}>
         {rows.map((filing, index) => {
           const period = filingRowPeriodLine(filing);
+          const filed = filedDateLine(filing.filedDate);
           return (
             <View
               key={`${filing.filingYear}-${filing.reportType}-${filing.periodEnd ?? 'no-end'}-${index}`}
@@ -1058,6 +1064,7 @@ function FilingsList({ registrationNumber }: { registrationNumber: string }) {
               <View style={styles.listRowText}>
                 <Text style={styles.listName}>{filing.reportName}</Text>
                 {period ? <Text style={styles.listMeta}>{period}</Text> : null}
+                {filed ? <Text style={styles.listMeta}>{filed}</Text> : null}
               </View>
               {filingIsAmended(filing.effectiveAmendmentIndex) ? (
                 <Text style={styles.amendedChip}>{AMENDED_CHIP}</Text>
