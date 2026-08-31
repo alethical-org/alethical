@@ -2,8 +2,8 @@
 
 <!-- describes: .github/workflows/**, scripts/**, alethical/pipeline/**, alethical/api/routers/ask.py, alethical/api/routers/me.py, alethical/api/services/ask_router.py -->
 
-Net: The repository has 17 GitHub Actions workflows. 14 can start automatically
-and 3 run only when a person starts them. Scheduled checks, releases, and local
+Net: The repository has 17 GitHub Actions workflows. 13 can start automatically
+and 4 run only when a person starts them. Scheduled checks, releases, and local
 backups do not call paid AI services. Reader questions and deliberately started
 AI work do.
 
@@ -15,10 +15,12 @@ AI work do.
 | New votes (`.github/workflows/vote-backfill.yml`) | Daily at 09:00 UTC | Adds newly published House and Senate roll-call votes | No paid AI call; reads free government sources |
 | Missing bill sections (`.github/workflows/bill-section-gaps.yml`) | Daily at 11:00 UTC | Opens or updates an issue when stored bill text is incomplete | No paid AI call; reads the database |
 | Committee links still agree (`.github/workflows/committee-link-contradictions.yml`) | Weekly, Mondays at 15:00 UTC | Re-reads every campaign account a person confirmed as a politician's against Minnesota's own records, and opens or updates an issue when one no longer agrees | No paid AI call; 2 free government downloads and one read of the database |
+| Copy of every cited source (`.github/workflows/published-source-archive.yml`) | Weekly, Mondays at 10:00 UTC | Re-reads every outside address our published research and guides cite, keeps our own copy of each version, and opens or updates an issue when one has gone or changed | No paid AI call; free government page reads and storage in a bucket we already pay for |
+| Published piece links still work (`.github/workflows/published-piece-links.yml`) | Weekly, Mondays at 13:00 UTC, and on relevant pull requests | Opens or updates an issue when a link inside a published piece no longer reaches a real page; a pull request only checks the pieces' own links, without reading the network | No paid AI call; free government page reads |
 | Bills missing from search (`.github/workflows/rag-coverage-gaps.yml`) | Daily at 12:00 UTC | Opens or updates an issue when a stored bill has no current search index | No paid AI call; reads the database and does not rebuild the index |
-| Second copy of source files (`.github/workflows/mirror-raw-files.yml`) | Daily at 13:00 UTC | Copies new campaign-finance stored files from Supabase to Cloudflare R2, then verifies them. Covers all 3 kinds of stored body (bulk downloads, totals archives, report documents), discovered from the database schema so a later 4th kind is copied from the day it ships | No paid AI call; [Cloudflare R2 includes 10 GB of Standard storage and large monthly operation allowances](https://developers.cloudflare.com/r2/pricing/) before charges |
+| Second copy of source files (`.github/workflows/mirror-raw-files.yml`) | Daily at 13:00 UTC | Copies new stored files from Supabase to Cloudflare R2, then verifies them. Covers all 5 kinds of stored body (bulk downloads, totals archives, report documents, published-source copies, and the lobbying principal-expenditures download), discovered from the database schema so a later 6th kind is copied from the day it ships | No paid AI call; [Cloudflare R2 includes 10 GB of Standard storage and large monthly operation allowances](https://developers.cloudflare.com/r2/pricing/) before charges |
 | Bills with summary gaps (`.github/workflows/bill-summary-coverage.yml`) | Daily at 14:00 UTC | Opens or updates 1 issue when a bill has complete current text but its full summary is missing or was made from older text or instructions | No paid AI call; reads the database and does not create or change a summary |
-| Homepage fact check (`.github/workflows/home-hero-card-facts.yml`) | Monthly at 12:00 UTC on day 1, and on relevant pull requests | Checks the homepage's 5 bill claims against Minnesota's published record | No paid AI call; reads public government pages |
+| Homepage fact check (`.github/workflows/home-hero-card-facts.yml`) | Daily at 12:00 UTC, and on relevant pull requests | Checks the homepage's 5 bill claims against Minnesota's published record | No paid AI call; reads public government pages |
 | Technology health (`.github/workflows/technology-health.yml`) | Monthly at 13:17 UTC on day 1, and by hand | Checks saved tool versions, package safety, support dates, and whether the 3-month major-release review is overdue | No paid AI call; reads public package lists on GitHub's standard computer |
 | Hosted service settings (`.github/workflows/hosted-service-settings.yml`) | Monthly at 09:30 UTC on day 1, on relevant pull requests, and after relevant changes reach `main` | Compares the intended GitHub, Vercel, Railway, and Supabase settings with their live read routes; keeps Supabase's rotating read grant as 2 encrypted 90-day artifacts; lists every setting it cannot safely read | No paid AI call; reads existing service APIs on GitHub's standard free runner |
 | Traffic access key (`.github/workflows/traffic-token-expiry.yml`) | Daily at 12:00 UTC | Opens 1 issue 60 days before the private Vercel Traffic key expires and adds 1 urgent note 14 days before | No paid AI call; reads 1 date stored in the repository |
@@ -26,12 +28,12 @@ AI work do.
 | Website release (Vercel Git connection) | A relevant commit reaches `main` | Builds and releases the web app | No paid AI call; build and hosting usage stays on the existing Vercel account |
 | Unsaved-work backup (`com.alethical.wip-backup`) | Every 5 minutes after `just install-wip-backup` is installed on Eugene's Mac | Saves uncommitted work from each worktree to a local Git reference and an outside bundle | No outside service |
 
-The 9 clock-based GitHub jobs use UTC. Minnesota moves between Central Standard
+The 12 clock-based GitHub jobs use UTC. Minnesota moves between Central Standard
 Time and Central Daylight Time, so their local hour changes by 1 during the year.
 
 ## What GitHub runs only by hand
 
-These 4 workflows complete the total of 14:
+These 4 workflows complete the total of 17:
 
 | Workflow | Purpose | Usage-based cost |
 | --- | --- | --- |
@@ -45,19 +47,21 @@ owns the workflow count, triggers, and costs.
 
 ## Command-line tools
 
-The `scripts/` folder has 48 runnable files. GitHub jobs call 14 of them, and the
-Mac backup above calls 1. The complete list is grouped here so a new file cannot
-hide inside a total:
+The `scripts/` folder has 55 runnable files. GitHub jobs call 22 of them, and the
+Mac backup above calls 1. A workflow also calls
+`apps/frontend/scripts/traffic-token-expiry.mjs`, a similarly named script that
+lives in a different folder and is not part of this list or its totals. The
+complete list is grouped here so a new file cannot hide inside a total:
 
 | Purpose | Files |
 | --- | --- |
 | Import official records or test data | `build_legislative_district_boundaries.py`, `load_campaign_finance.py`, `load_campaign_finance_filings.py`, `load_lobbying_expenditures.py`, `load_minnesota_data.py`, `load_sample_data.py` |
-| Check data, code, documents, local tools, and hosted settings | `audit_repaired_bill_prompt_context.py`, `check_bill_section_gaps.py`, `check_bill_summary_coverage.py`, `check_campaign_finance_stated_split.py`, `check_declared_dependencies.py`, `check_doc_quotes.py`, `check_doc_references.py`, `check_doc_sync.py`, `check_home_hero_card_literals.py`, `check_hosted_service_settings.py`, `check_local_env.py`, `check_no_nul_bytes.py`, `check_rag_coverage.py`, `check_schema_drift.py`, `check_technology_health.py` |
+| Check data, code, documents, local tools, and hosted settings | `audit_repaired_bill_prompt_context.py`, `check_bill_section_gaps.py`, `check_bill_summary_coverage.py`, `check_campaign_finance_stated_split.py`, `check_declared_dependencies.py`, `check_doc_quotes.py`, `check_doc_references.py`, `check_doc_sync.py`, `check_home_hero_card_literals.py`, `check_hosted_service_settings.py`, `check_local_env.py`, `check_no_cross_committee_total.py`, `check_no_merge_conflict_markers.py`, `check_no_nul_bytes.py`, `check_published_piece_links.py`, `check_rag_coverage.py`, `check_schema_drift.py`, `check_shared_checkout_rules_in_sync.py`, `check_technology_health.py` |
 | Fill missing fields on older records | `backfill_bill_action_committee_name.py`, `backfill_bill_section_body_blocks.py`, `backfill_bill_title_from_current_version.py`, `backfill_campaign_finance_report_documents.py`, `backfill_companion_links.py`, `backfill_rag_bulk.py`, `backfill_vote_event_dates.py` |
 | Repair damage from past bugs | `clean_stale_bill_versions.py`, `correct_bill_current_statuses.py`, `dedupe_ai_enrichment.py`, `delete_fixture_bills.py`, `dump_evidence_document.py`, `reanchor_rag_to_current_version.py`, `repair_companion_links.py`, `repair_incomplete_vote_records.py`, `repair_missing_bill_sections.py`, `repair_mojibake_text.py`, `repair_vote_roster_identities.py` |
 | Review campaign-finance records | `recompute_lobbying_published_figures.py`, `review_legislator_campaign_committees.py`, `show_party_and_caucus_money.py` |
 | Measure AI answers and search | `answer_eval.py`, `retrieval_eval.py`, `try_queries.py`, `validate_query_rubric.py` |
-| Maintain search and stored files | `build_rag_hnsw_index.py`, `mirror_raw_files.py` |
+| Maintain search and stored files | `archive_published_sources.py`, `build_rag_hnsw_index.py`, `mirror_raw_files.py` |
 | Protect unfinished work and rotating read grants | `back-up-uncommitted-worktree-work.sh`, `supabase_oauth_state.mjs` |
 
 Most of these commands use shared code in `alethical/pipeline/`. The queue in
