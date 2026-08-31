@@ -122,13 +122,17 @@ export function orderingSentence(orderedBy: string): string | null {
  */
 export function filingsTieSentence(filingCount: number | null, orderedBy = ''): string {
   if (orderedBy === 'filed_date_then_period_end') {
+    // A full stop rather than a second "and". Joined with one, the live sentence read
+    // "...cover this period, and the rows shown are..., and a report it states no date
+    // for...", which is 2 "and" clauses in a row and hard to follow on one read. "the
+    // Board" rather than "it", because the nearest noun to that pronoun was the period.
     const arrival =
-      'the rows shown are the ones the Board received most recently, and a report it ' +
-      'states no date for sits by the period it covers instead — never the largest.';
+      'The rows shown are the ones the Board received most recently, and a report the ' +
+      'Board states no date for sits by the period it covers instead — never the largest.';
     if (filingCount === null) {
-      return `Every committee that filed for this period is listed, and ${arrival}`;
+      return `Every committee that filed for this period is listed. ${arrival}`;
     }
-    return `${filingCount.toLocaleString('en-US')} reports cover this period, and ${arrival}`;
+    return `${filingCount.toLocaleString('en-US')} reports cover this period. ${arrival}`;
   }
   if (filingCount === null) {
     return 'Every committee that filed for this period is listed alphabetically — the rows shown are the first by name, not the newest and not the largest.';
