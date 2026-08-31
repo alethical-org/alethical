@@ -33,6 +33,7 @@ import {
   isoDateCommaCapsLabel,
   researchBySlug,
   researchRunsText,
+  researchSourceText,
   isoDateCapsLabel,
   isoDateLabel,
   researchDatesLine,
@@ -523,18 +524,28 @@ describe('a guide\u2019s masthead', () => {
 });
 
 /**
- * Every guide's prose was written and settled in `docs/reader-guides/` before any
- * container existed for it, and rule 13 forbids editing a posted piece's words.
- * So this compares each shipped guide, word for word, against its own file: a
- * sentence re-punctuated, trimmed, dropped or reordered on either side fails here
- * rather than on the live page.
+ * Rule 13 forbids editing a posted piece's words, so this compares each shipped
+ * piece, word for word, against its own file in `docs/reader-guides/`: a sentence
+ * re-punctuated, trimmed, dropped or reordered on either side fails here rather
+ * than on the live page.
  *
- * The 3 deliberate conversions are accounted for rather than excused. The set
- * line is stored as set membership; the italic "Where this comes from." lead-in
- * becomes the sources block's own label, so the label's words are reconstructed
- * from `pieceSourcesLabel` and have to match the words in the file; and a link's
- * address is dropped on both sides, keeping only its words, because the page
- * serves every address separately as a real anchor.
+ * THE 6 FILES CARRY 2 DIFFERENT GUARANTEES, and each file's opening comment says
+ * which one it is. The 5 guides' prose was written and settled in that folder
+ * before any container existed for it, so the file is the author's manuscript and
+ * the page is the copy. *The Money Only Goes One Way* was transcribed straight
+ * into `researchPieces/moneyOnlyGoesOneWay.ts` in August 2026 and never had a
+ * file, so its file was written from the shipped piece on 31 Aug 2026 and pins
+ * what shipped rather than what the author wrote. The weaker guarantee is still
+ * the one this block needs: from here on a sentence cannot change in the code
+ * alone (issue 1832).
+ *
+ * The 4 deliberate conversions are accounted for rather than excused. A guide's
+ * set line is stored as set membership; the italic "Where this comes from."
+ * lead-in becomes the sources block's own label, so the label's words are
+ * reconstructed from `pieceSourcesLabel` and have to match the words in the file;
+ * a link's address is dropped on both sides, keeping only its words, because the
+ * page serves every address separately as a real anchor; and a table's pipes are
+ * dropped, because the page draws the same cells as a real table.
  */
 const blockText = (blocks: readonly ResearchBlock[]): string[] =>
   blocks.flatMap((block) => {
@@ -544,24 +555,45 @@ const blockText = (blocks: readonly ResearchBlock[]): string[] =>
     return [...block.columns, ...block.rows.flat()];
   });
 
-/** Every word the shipped piece draws, in the order the page draws it. */
-function shippedWords(guide: ResearchPiece): string {
+/**
+ * Every word the shipped piece draws, in the order `ResearchScreen.tsx` draws it.
+ *
+ * Every field a piece can draw words from is read here, including the ones no
+ * piece uses today, because a field left out is a field where a sentence can be
+ * dropped and no test notices — which is the whole reason issue 1832 exists.
+ */
+function shippedWords(piece: ResearchPiece): string {
   return [
-    guide.title,
-    guide.set!.name,
-    ...blockText(guide.intro ?? []),
-    ...guide.sections.flatMap((section) => [section.heading, ...blockText(section.blocks)]),
-    pieceSourcesLabel(guide)
+    piece.title,
+    // The 2 lines under the title, in the order the masthead draws them: a guide
+    // names its set there, a research piece its standfirst, and no piece has both.
+    piece.set?.name ?? '',
+    piece.dek,
+    ...blockText(piece.shortVersion),
+    ...blockText(piece.intro ?? []),
+    ...piece.sections.flatMap((section) => [
+      section.heading,
+      ...blockText(section.blocks),
+      // The method box, drawn after its section's prose. Its title is stored in
+      // sentence case and uppercased by the layout, so the stored words are what
+      // the file holds.
+      ...(section.methodologyInset
+        ? [section.methodologyInset.title, section.methodologyInset.body]
+        : []),
+    ]),
+    pieceSourcesLabel(piece)
       .toLowerCase()
       .replace(/^./, (first) => first.toUpperCase()) + '.',
-    ...(guide.sourceRuns ?? []).map(researchRunsText),
+    ...piece.sources.map(researchSourceText),
+    ...piece.sources.flatMap((source) => (source.noteLink ? [source.noteLink.text] : [])),
+    ...(piece.sourceRuns ?? []).map(researchRunsText),
   ]
     .join(' ')
     .replace(/\s+/g, ' ')
     .trim();
 }
 
-/** The same words as the settled draft holds them, with markdown marks removed. */
+/** The same words as the file holds them, with markdown marks removed. */
 function draftWords(file: string): string {
   return (
     readFileSync(join(HERE, '../../../../..', `docs/reader-guides/${file}`), 'utf8')
@@ -576,14 +608,19 @@ function draftWords(file: string): string {
       .replace(/^#+ /gm, '')
       // A bullet's dash is a mark; its words are the same words the page draws.
       .replace(/^- /gm, '')
+      // A table's header rule and its cell separators are marks too. The rule
+      // goes first, or its dashes survive as words. The page draws the header
+      // cells then each row, which is this file's own reading order.
+      .replace(/^\|(?: *:?-+:? *\|)+$/gm, '')
+      .replace(/\|/g, ' ')
       .replace(/\*/g, '')
       .replace(/\s+/g, ' ')
       .trim()
   );
 }
 
-describe('every shipped guide is its settled prose, word for word', () => {
-  const guides = [
+describe('every shipped piece is its settled prose, word for word', () => {
+  const pieces = [
     { slug: 'who-has-to-report-their-money', file: 'who-has-to-report-their-money.md' },
     { slug: 'what-the-records-name', file: 'what-the-records-name.md' },
     {
@@ -595,20 +632,22 @@ describe('every shipped guide is its settled prose, word for word', () => {
       file: 'money-spent-without-a-campaigns-say.md',
     },
     { slug: 'why-nobody-can-follow-a-dollar', file: 'why-nobody-can-follow-a-dollar.md' },
+    { slug: 'the-money-only-goes-one-way', file: 'the-money-only-goes-one-way.md' },
   ];
 
-  it('has a settled draft for every published guide, and no orphan drafts', () => {
-    // A guide that ships without its draft in this list would go unchecked, which
-    // is the whole failure this block exists to catch.
+  it('has a settled file for every published piece, and no orphan files', () => {
+    // Every published piece, not every guide: for 8 days the research piece was
+    // the one posted thing no word-for-word check covered, and a guide-only list
+    // is what let that sit unnoticed (issue 1832).
     expect(
-      piecesLabelledGuide()
+      publishedResearch()
         .map((piece) => piece.slug)
         .sort(),
-    ).toEqual(guides.map((guide) => guide.slug).sort());
+    ).toEqual(pieces.map((piece) => piece.slug).sort());
   });
 
-  it.each(guides)(
-    'ships every word the settled draft of $slug holds, in the draft\u2019s own order',
+  it.each(pieces)(
+    'ships every word the settled file of $slug holds, in that file\u2019s own order',
     ({ slug, file }) => {
       expect(shippedWords(researchBySlug(slug)!)).toBe(draftWords(file));
     },
