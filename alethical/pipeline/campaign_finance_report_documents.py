@@ -579,6 +579,231 @@ def _self_test(
     )
 
 
+# --- The same reading for the money going out (#1645) -------------------------
+
+# Minnesota's B series is a filing's money going out, and its A series is the money
+# coming in. Read as a prefix rather than as a list of the 16 codes the corpus happens
+# to hold, because a code nobody has met yet would otherwise be dropped silently and a
+# dropped schedule reads as a shortfall in our own records.
+SPENDING_SCHEDULE_PREFIX = "B"
+
+# What a committee spent for or against somebody. Minnesota publishes these as their
+# **own** download and the Board's own report summary gives them their own line, so a
+# comparison against ``cf_expenditure_row`` that counts them invents a shortfall
+# wherever a filer spends independently -- across 2024-2026 the 2 downloads share only
+# 16 rows (§2.1). Matched on the suffix, so ``B3A - IE``, ``B3B - LOC IE`` and
+# ``B3B - HEN IE`` are all caught and so is a fourth nobody has met.
+INDEPENDENT_EXPENDITURE_SUFFIX = " IE"
+
+# Which stored figure proves which money-out schedule was read correctly, per filer
+# kind. Discovered from the corpus rather than assumed, by testing every route line
+# against every schedule present in a document: each pair below matches on at least 98%
+# of the filer-years where that schedule is printed, and no other pair comes close.
+#
+# **Three quarters of the money-out schedule codes have no line of their own**, which is
+# why ``total_expenditures`` is tested separately below. ``B4B - LOC BQ`` is the sharpest
+# case: the route reports ``ballot_question_expenditure`` as 0.00 for a filer whose local
+# ballot-question schedule carries $61,222.96, so mapping that line to the local schedule
+# would fail a reader that read the document correctly.
+STORED_FIGURE_FOR_SPENDING_SCHEDULE: dict[FilerKind, dict[str, str]] = {
+    FilerKind.candidate_committee: {
+        "B1 - CE": "campaign_expenditures",
+        "B1 - NCD": "noncampaign_disbursements",
+        "B3 - OTH": "other_expenditures",
+    },
+    FilerKind.party_unit: {
+        "B1 - EXP": "general_expenditures",
+        "B2A - CAN": "contributions_to_candidate",
+        "B2B - CAN": "approved_expenditures",
+        "B2 - PTY": "contributions_to_party_units",
+        "B2 - PCF": "contributions_to_committee_funds",
+        "B3A - IE": "independent_expenditure",
+        "B4A - BQ": "ballot_question_expenditure",
+    },
+}
+# A party unit and a committee or fund report the same lines under the same names.
+STORED_FIGURE_FOR_SPENDING_SCHEDULE[FilerKind.political_committee_or_fund] = (
+    STORED_FIGURE_FOR_SPENDING_SCHEDULE[FilerKind.party_unit]
+)
+
+# The one line that speaks for the whole document, and the only thing that proves the
+# schedules with no line of their own. It equals every money-out schedule's paid column,
+# independent expenditures included, on 3,485 of the 3,568 stored documents whose filer
+# reports it -- so it is what stops a reader that missed an entire schedule from passing.
+TOTAL_SPENDING_LINE = "total_expenditures"
+
+# The narrowest money-out schedule prints paid, in-kind and total; the widest adds
+# unpaid. Both put paid first and total last, and every column before the last sums to
+# it on all 11,902 money-out rows in the stored corpus, so this reads by position at
+# both ends and checks the arithmetic rather than assuming a width.
+MINIMUM_SPENDING_COLUMNS = 3
+
+
+def is_spending_schedule(code: str) -> bool:
+    return code.startswith(SPENDING_SCHEDULE_PREFIX)
+
+
+def is_independent_expenditure_schedule(code: str) -> bool:
+    return code.endswith(INDEPENDENT_EXPENDITURE_SUFFIX)
+
+
+@dataclass(frozen=True)
+class StatedSpending:
+    """What a filing says about the money it paid out, and how well we proved we read it.
+
+    ``itemized`` and ``non_itemized`` are the **total** column -- paid plus in-kind plus
+    unpaid -- because that is what our expenditure rows' ``amount`` sums to.
+    ``itemized_paid`` is the first column, kept beside it because the Board's totals
+    route reports paid and so the self-test can only prove paid.
+
+    ``independent_itemized`` is deliberately **outside** ``itemized``: Minnesota
+    publishes independent expenditures as their own download, so a page or a person
+    reading this needs to see that the money exists without it being added to a figure
+    our expenditure rows can never contain.
+    """
+
+    itemized: Decimal
+    non_itemized: Decimal
+    itemized_paid: Decimal
+    independent_itemized: Decimal
+    self_test: SelfTest
+    self_test_detail: str
+    schedules_read: tuple[str, ...]
+
+
+def stated_spending(
+    document: ReportDocument,
+    kind: FilerKind,
+    stored_figures: dict[str, Decimal],
+) -> tuple[Optional[StatedSpending], list[str]]:
+    """Add up what this filing says it paid out, and prove the reading first.
+
+    The money-out twin of ``stated_contributions``, and the same 3 rules hold: an absent
+    schedule is a real zero rather than a gap, the totals are found by code and never by
+    position, and the reader is proved against figures we already trust before it may
+    say anything disagrees.
+
+    Returns ``(None, errors)`` when the document cannot support a claim at all.
+    """
+    errors = list(document.errors)
+    itemized = Decimal("0")
+    non_itemized = Decimal("0")
+    itemized_paid = Decimal("0")
+    independent = Decimal("0")
+    read: list[str] = []
+    for code, totals in sorted(document.schedules.items()):
+        if not is_spending_schedule(code):
+            continue
+        if totals.columns < MINIMUM_SPENDING_COLUMNS:
+            errors.append(
+                f"schedule {code} prints {totals.columns} columns where a money-out "
+                f"schedule prints at least {MINIMUM_SPENDING_COLUMNS} (paid, in-kind, "
+                "total)"
+            )
+            continue
+        # Every column before the last must add up to the last, on both rows. This is
+        # what catches a column shifting under us, which would otherwise read as a real
+        # disagreement about a named committee's spending.
+        for label, row in (
+            ("itemized", totals.itemized),
+            ("non-itemized", totals.non_itemized),
+        ):
+            if abs(sum(row[:-1]) - row[-1]) > TOLERANCE:
+                errors.append(
+                    f"schedule {code}'s {label} row does not add up: {list(row[:-1])} "
+                    f"against a printed total of {row[-1]}"
+                )
+        if is_independent_expenditure_schedule(code):
+            independent += totals.itemized[-1]
+            continue
+        itemized += totals.itemized[-1]
+        non_itemized += totals.non_itemized[-1]
+        itemized_paid += totals.itemized[0]
+        read.append(code)
+    if errors:
+        return None, errors
+    passed, detail = _spending_self_test(document, kind, stored_figures)
+    return (
+        StatedSpending(
+            itemized=itemized,
+            non_itemized=non_itemized,
+            itemized_paid=itemized_paid,
+            independent_itemized=independent,
+            self_test=passed,
+            self_test_detail=detail,
+            schedules_read=tuple(read),
+        ),
+        [],
+    )
+
+
+def _spending_paid(totals: Optional[ScheduleTotals]) -> Decimal:
+    """One money-out schedule's paid column, itemized plus non-itemized.
+
+    An absent schedule is a claim of zero and is compared against its stored figure
+    exactly as a present one is, which is what stops a reader that found nothing at all
+    from passing its own test.
+    """
+    if totals is None:
+        return Decimal("0")
+    return totals.itemized[0] + totals.non_itemized[0]
+
+
+def _spending_self_test(
+    document: ReportDocument,
+    kind: FilerKind,
+    stored_figures: dict[str, Decimal],
+) -> tuple[SelfTest, str]:
+    checked: list[str] = []
+    wrong: list[str] = []
+    for code, line_key in STORED_FIGURE_FOR_SPENDING_SCHEDULE[kind].items():
+        stored = stored_figures.get(line_key)
+        if stored is None:
+            continue
+        ours = _spending_paid(document.schedules.get(code))
+        checked.append(code)
+        if abs(ours - stored) > TOLERANCE:
+            wrong.append(
+                f"{code}: this reader makes it {ours} where the Board's own totals "
+                f"route says {stored}"
+            )
+    # The whole-document check, which is the only thing that proves the schedules with
+    # no line of their own -- a candidate committee's transfers to party units, and
+    # every local and Hennepin County schedule. Independent expenditures are counted
+    # here and excluded from the comparison figure, because this line is the Board's
+    # total for the filing rather than for one of its 2 downloads.
+    stored_total = stored_figures.get(TOTAL_SPENDING_LINE)
+    if stored_total is not None:
+        every_schedule = sum(
+            (
+                _spending_paid(totals)
+                for code, totals in document.schedules.items()
+                if is_spending_schedule(code)
+            ),
+            Decimal("0"),
+        )
+        checked.append(TOTAL_SPENDING_LINE)
+        if abs(every_schedule - stored_total) > TOLERANCE:
+            wrong.append(
+                f"every money-out schedule together: this reader makes it "
+                f"{every_schedule} where the Board's own totals route reports "
+                f"{stored_total} of total expenditures"
+            )
+    if wrong:
+        return SelfTest.failed, "; ".join(wrong)
+    if not checked:
+        return (
+            SelfTest.not_available,
+            "no money-out figure is stored for this filer-year, so nothing already "
+            "trusted can prove this reading",
+        )
+    return (
+        SelfTest.passed,
+        f"{len(checked)} of {len(checked)} money-out figures match the Board's own "
+        f"totals route ({', '.join(checked)})",
+    )
+
+
 # --- The date the Board received a report ------------------------------------
 
 

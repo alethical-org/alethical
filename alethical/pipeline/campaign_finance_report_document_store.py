@@ -254,12 +254,68 @@ def stored_document_hashes(db: Session) -> set[str]:
     )
 
 
+@dataclass(frozen=True)
+class StoredDocument:
+    """One kept document: which filing it is, and the bytes themselves."""
+
+    document_hash: str
+    byte_size: int
+    body: bytes
+
+
+@dataclass
+class DocumentLibrary:
+    """Reads a filing's document back out of the store, by filing rather than by hash.
+
+    Every sweep before this one asked the Board for each document as it went. The money
+    going out is checked against the same documents the money-in sweeps already read and
+    #1501 already kept, so it reads them from here and asks the Board for nothing --
+    which matters beyond politeness: §9.4 measured that the Board serves a document for
+    only about 1 report in 4 and has never promised the route exists at all.
+
+    ``None`` for a filing we hold no document of is the ordinary answer and the caller
+    records it as not checked, never as passed.
+    """
+
+    db: Session
+    store: Any
+    directory: str
+
+    def body_for(
+        self,
+        *,
+        registration_number: str,
+        filing_year: int,
+        report_type: Optional[str],
+        amendment_index: Optional[int],
+    ) -> Optional[StoredDocument]:
+        row = (
+            self.db.query(schema.CampaignFinanceReportDocument)
+            .filter_by(
+                registration_number=registration_number,
+                filing_year=filing_year,
+                report_type=report_type,
+                amendment_index=amendment_index,
+            )
+            .one_or_none()
+        )
+        if row is None:
+            return None
+        return StoredDocument(
+            document_hash=row.document_hash,
+            byte_size=row.byte_size,
+            body=read_document(self.store, row, self.directory),
+        )
+
+
 __all__ = [
     "ALREADY_STORED",
     "FAILED",
     "STORED",
     "DocumentKeeper",
+    "DocumentLibrary",
     "DocumentStoreReport",
+    "StoredDocument",
     "gzip_bytes_to",
     "object_key",
     "read_document",
