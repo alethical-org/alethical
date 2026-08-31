@@ -3549,16 +3549,19 @@ def campaign_finance_filings(
     the reason it would mislead: 2 periods can end 20 Jul 2026 while 2 more end 31 Dec
     2025, nearly 7 months earlier.
 
-    **``ordered_by`` is served because the order is not the one the design asked for.**
-    The Board's report catalogue serves 17 fields per report and none of them is the date
-    a report was filed (``docs/architecture/campaign-finance-system-design.md`` §9.6); the
+    **``ordered_by`` is served because the order is a mix, and it names which mix.** The
+    Board's report catalogue serves 17 fields per report and none of them is the date a
+    report was filed (``docs/architecture/campaign-finance-system-design.md`` §9.6); the
     "Received by the Board" date is printed inside the report document, which is served
-    only from 2023 and answers a failure with HTTP 200 and an HTML page. So this is
-    ordered by ``period_end``, the period end the catalogue does serve, and **no filing
-    date field exists here at all** -- a period end relabelled as a filing date would be a
-    fabricated fact about a named committee. Storing a real one is
-    [#1670](https://github.com/alethical-org/alethical/issues/1670), and until it lands no
-    surface may print "filed on" beside these rows.
+    only from 2023 and answers a failure with HTTP 200 and an HTML page
+    ([#1670](https://github.com/alethical-org/alethical/issues/1670)). So each row sorts
+    by its ``filed_date`` where one is held and by its ``period_end`` where none is, and
+    ``ordered_by`` is ``filed_date_then_period_end`` whenever any row in the filtered set
+    carries one and ``period_end`` when none does. **A row's ``filed_date`` is ``null``
+    wherever the Board's document states none, and a client must then print no filed date
+    at all** -- a period end relabelled as a filing date would be a fabricated fact about
+    a named committee, so "filed on" may only ever be printed from a populated
+    ``filed_date``.
 
     **Only reports somebody actually filed.** The catalogue is a schedule: it lists a
     report from the moment its filing period opens, filed or not, and 7 of the 1,261
@@ -3633,6 +3636,12 @@ def campaign_finance_filings(
                     "period_end": row.period_end,
                     "period_start": row.period_start,
                     "period_start_source": row.period_start_source,
+                    # The day the Board received this report's effective version, or
+                    # `null` where its document states none (#1670). `null` is the
+                    # ordinary answer, it never means the report was unfiled, and a
+                    # client must print no filed date at all rather than falling back to
+                    # `period_end`.
+                    "filed_date": row.filed_date,
                     "special_election": row.special_election,
                     "amendment_count": row.amendment_count,
                     "effective_amendment_index": row.effective_amendment_index,
@@ -3700,11 +3709,15 @@ def committee_filings_list(
       missing record means the Board serves no version history rather than "never
       filed", and the page says that boundary out loud instead of claiming to list
       every report ever filed.
-    * **Ordered by period end, and ``ordered_by`` says so.** We hold no filing date for
-      any report ([#1670](https://github.com/alethical-org/alethical/issues/1670)) and
-      no amendment date either — the catalogue's amendment record is a list of version
-      indexes, nothing more — so no surface may print "filed on" or date an AMENDED
-      marker from these rows.
+    * **Ordered newest arrival first, and ``ordered_by`` says which order that is.** A
+      row sorts by its ``filed_date`` where the Board's report document states one and by
+      its ``period_end`` where it does not
+      ([#1670](https://github.com/alethical-org/alethical/issues/1670)). Most of a
+      committee's history carries none, because the Board serves no document before 2023
+      for most reports. There is still **no amendment date** — the catalogue's amendment
+      record is a list of version indexes, nothing more — so an AMENDED marker may not be
+      dated from these rows, and "filed on" may be printed only from a populated
+      ``filed_date``.
     * **A period start comes off one of the Board's own transcribed disclosure
       calendars or not at all** (``period_start_source: "board_calendar"``), and never
       for a filer-year carrying a special-election report, whose year does not open on
@@ -3738,6 +3751,12 @@ def committee_filings_list(
                     "period_end": row.period_end,
                     "period_start": row.period_start,
                     "period_start_source": row.period_start_source,
+                    # The day the Board received this report's effective version, or
+                    # `null` where its document states none (#1670). `null` is the
+                    # ordinary answer, it never means the report was unfiled, and a
+                    # client must print no filed date at all rather than falling back to
+                    # `period_end`.
+                    "filed_date": row.filed_date,
                     "special_election": row.special_election,
                     "amendment_count": row.amendment_count,
                     "effective_amendment_index": row.effective_amendment_index,

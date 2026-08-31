@@ -112,14 +112,18 @@ served renders nothing rather than a number:
   filings from the Board, not the period any money covers. Every served timestamp on these
   pages prints as its Minnesota (Central time) day, so an instant recorded just after
   midnight UTC reads as the evening it was in Minnesota.
-- The **most recent completed filing period** — the newest filed reports, ordered by the
-  period each report covers, never an amount and never a "filed on" date, because the
-  Board's catalogue serves no filing date (storing a real one is
-  [issue #1670](https://github.com/alethical-org/alethical/issues/1670)). More than a
-  thousand filers can share one period end and the tie breaks alphabetically, so the module
-  says plainly that its rows are the first by name, not the newest or the largest. The
-  ordering sentence is derived from the feed's own ordering field through one mapping, so
-  the words and the order cannot drift apart.
+- The **most recent completed filing period** — the newest filed reports, never an amount.
+  A row shows the day the Board received the report where the report itself says so, and
+  shows no date at all where it does not, which is most reports: the Board only publishes
+  the document that carries the date from 2023 onwards, and a few of those are picture
+  scans nothing can read ([issue #1670](https://github.com/alethical-org/alethical/issues/1670)).
+  A row with no date **never borrows the end of the period it covers** — that would be a
+  date we made up about a named committee. The rows sort by the day the Board received a
+  report where there is one and by the period it covers where there is not, so which
+  sentence the module prints depends on how many of them are dated: with dates it says the
+  rows arrived most recently, and with none it says more than a thousand filers can share
+  one period end and the tie breaks on the name. Both sentences are derived from the feed's
+  own ordering field through one mapping, so the words and the order cannot drift apart.
 - The lanes' **live counts**: registered filers on the Committees lane, and sitting members
   on the Legislators lane, whose text also states how many members' committees a person has
   confirmed, read live from the confirmation log so it moves as confirmations land. A count

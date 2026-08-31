@@ -73,22 +73,42 @@ export function filingPeriodLine(filing: Pick<MoneyFilingRow, 'periodStart' | 'p
 /**
  * The printed ordering sentence, derived from the feed's own `ordered_by`
  * through this one mapping so the words and the order can never drift apart.
- * There is deliberately no filed date anywhere: the Board's catalogue serves
- * none (issue #1670), so the drawn "newest first, by the date filed" sentence
- * would be false and does not ship. An `ordered_by` this mapping does not know
- * prints no sentence rather than a guess.
+ *
+ * The drawn "newest first, by the date filed" sentence still does not ship even
+ * now that filing dates are held (issue #1670): the Board serves no readable
+ * report document for most reports before 2023, so the feed is normally a mix,
+ * and a flat "by the date filed" would be false about every undated row. The
+ * mixed sentence says which rows are which. An `ordered_by` this mapping does
+ * not know prints no sentence rather than a guess.
  */
 export function orderingSentence(orderedBy: string): string | null {
   if (orderedBy === 'period_end') return 'Newest first, by the period each report covers';
+  if (orderedBy === 'filed_date_then_period_end') {
+    return (
+      'Newest first — by the day the Board received a report where its filing says so, ' +
+      'and by the period it covers where it does not'
+    );
+  }
   return null;
 }
 
 /**
- * Why the listed rows are these rows: over a thousand filers can share one
- * period end (1,203 share 20 Jul 2026), and the tie breaks alphabetically. Said
- * plainly so a reader never takes the first rows for the newest or the largest.
+ * Why the listed rows are these rows, which depends on the order the feed served.
  *
- * The count says REPORTS, not committees, and that wording is load-bearing. The
+ * **The alphabetical wording is only true while no row carries a filing date.**
+ * Over a thousand filers share one period end (1,203 share 20 Jul 2026), so with
+ * nothing else to sort by the tie breaks on the name and the first rows are simply
+ * the first by name. Once filing dates are held (#1670) the dated rows genuinely
+ * are the ones that arrived most recently, and calling them "the first by name,
+ * not the newest" would be false about exactly the rows a reader is looking at. So
+ * `orderedBy` picks the sentence, from the same served value the ordering sentence
+ * derives from.
+ *
+ * **"Not the largest" survives both wordings and is the load-bearing half.** No row
+ * carries an amount and nothing here ever sorts by one; 5 rows with 5 dollar
+ * figures would read as a ranking whether anyone sorted them or not.
+ *
+ * The count says REPORTS, not committees, and that wording is load-bearing too. The
  * served figure is `newest_period.filing_count`, and a committee that corrects a
  * filing files a second report for the same period — 367 of 1,005 catalogued
  * reports carry at least one amendment (#1661), so filings exceed committees by
@@ -100,11 +120,32 @@ export function orderingSentence(orderedBy: string): string | null {
  * else, so a count can never appear beside a period it does not describe
  * (grounded-answers rule 12: every total states the period it covers).
  */
-export function filingsTieSentence(filingCount: number | null): string {
+export function filingsTieSentence(filingCount: number | null, orderedBy = ''): string {
+  if (orderedBy === 'filed_date_then_period_end') {
+    const arrival =
+      'the rows shown are the ones the Board received most recently, and a report it ' +
+      'states no date for sits by the period it covers instead — never the largest.';
+    if (filingCount === null) {
+      return `Every committee that filed for this period is listed, and ${arrival}`;
+    }
+    return `${filingCount.toLocaleString('en-US')} reports cover this period, and ${arrival}`;
+  }
   if (filingCount === null) {
     return 'Every committee that filed for this period is listed alphabetically — the rows shown are the first by name, not the newest and not the largest.';
   }
   return `${filingCount.toLocaleString('en-US')} reports cover this period, listed alphabetically by filer — the rows shown are the first by name, not the newest and not the largest.`;
+}
+
+/**
+ * "filed Jul 24, 2026", or null on a row the Board states no filing date for.
+ *
+ * Null prints nothing at all. The tempting alternative — falling back to the period
+ * end — is the fabricated fact #1670 exists to prevent, and the row still shows its
+ * period, so nothing is hidden except the one claim we cannot make.
+ */
+export function filedDateSentence(filedDate: string | null | undefined): string | null {
+  if (!filedDate) return null;
+  return `filed ${isoDateLabel(filedDate)}`;
 }
 
 /** Retained for callers that render the feed before a count is served. */

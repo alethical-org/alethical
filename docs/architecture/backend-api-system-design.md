@@ -1242,16 +1242,36 @@ amount**: 5 rows with 5 dollar figures is a ranking whether anyone sorted it or 
 rows are why it would mislead — 2 periods can end 20 Jul 2026 while 2 more end 31 Dec 2025,
 nearly 7 months earlier.
 
-**`ordered_by` is served because the order is not the one the design asked for.** The design
-draws a filed date on every row and **we hold none**: the Board's report catalogue serves 17
-fields per report and no filing date among them
-(`docs/architecture/campaign-finance-system-design.md` §9.6), and the "Received by the Board"
-date is printed inside the report document, which is served only from 2023 and answers a failure
-with HTTP 200 and an HTML page. So this is ordered by `period_end` and **no filing-date field
-exists here at all** — a period end relabelled as a filing date would be a fabricated fact about
-a named committee. Storing a real one is
-[#1670](https://github.com/alethical-org/alethical/issues/1670); until it lands no surface may
-print "filed on" beside these rows.
+**`ordered_by` is served because the order is a mix, and it names which mix.** A row carries the
+day the Board received the report where the report's own document states one and `null` where it
+does not, and rows sort by that date where there is one and by `period_end` where there is not
+([#1670](https://github.com/alethical-org/alethical/issues/1670)). `ordered_by` is
+`filed_date_then_period_end` whenever any row in the filtered set carries a date and `period_end`
+when none does, computed over the identical filter the rows use rather than hardcoded, so the
+served name always describes the set the caller is paging through.
+
+**Where the date comes from, and why most rows have none.** The Board's report catalogue serves
+17 fields per report and no filing date among them
+(`docs/architecture/campaign-finance-system-design.md` §9.6), so it cannot be loaded with the
+catalogue. It is printed inside the report document, on its own line, as
+`Received by the Board July 24, 2026`, and is read by
+`scripts/backfill_campaign_finance_filed_dates.py` after a catalogue load. Measured 31 Aug 2026
+on a 54-report sample spanning 2021 to 2026: all 9 sampled 2021 reports and 5 of 9 sampled 2022
+ones came back as the HTML page §9.4 measures at 30,424 bytes, and 2 of the 38 served documents
+were scans `pypdf` reads as 0 lines. So `null` is the ordinary answer, it never means the report
+was unfiled, and **a client must print no filed date at all on a null row** — a period end
+relabelled as a filing date would be a fabricated fact about a named committee, which is why the
+substitution is pinned by
+`test_the_feed_never_dates_a_report_from_the_period_it_covers`
+(`alethical/tests/test_campaign_finance_landing_reads.py`) rather than left to review.
+
+**Ranking uses the period end as a fallback; display never does.** The order is
+`COALESCE(filed_date, cut_off_date) DESC`, not `filed_date DESC NULLS LAST`: sinking every
+undated row below every dated one would drop a 2026 report whose document is an unreadable scan
+below dated reports from 2023, at the top of a feed of the newest filings. A report is always
+received after its period closes, so the period end is the earliest its filing can have been, and
+using it to place a row invents nothing. The served `filed_date` stays `null`, which is the whole
+difference between ranking and claiming.
 
 **Only reports somebody actually filed.** The catalogue is a schedule: it lists a report from the
 moment its filing period opens, filed or not, and 7 of the 1,261 catalogued 2026 pre-primary
@@ -1267,12 +1287,16 @@ Measured on production on 19 Aug 2026: the 5 newest rows were 2026 year-end repo
 its final report at termination rather than waiting for the period to close, and Paul Novotny's is
 the measured case (`docs/architecture/campaign-finance-system-design.md` §9.8) — but a list of the
 newest filings whose top row covers 4 months of the future reads as an error or as a claim about
-money nobody has raised. It is the missing filing date again: "newest" can only mean the latest
-period, and an unfinished period outranks every finished one.
+money nobody has raised. The cutoff was originally the missing filing date's fault — with no
+filing date, "newest" could only mean the latest period, and an unfinished period outranks every
+finished one. It still holds for the rows that carry no filing date, which is most of them, so
+the cutoff is unchanged; a filed report whose period has not ended is still listed on the
+committee's own page, where it is that committee's newest filing rather than noise at the top of
+a feed.
 
 Each row: `registration_number`, `filer_name`, `filer_kind`, `report_name`, `report_type`,
-`filing_year`, `period_end`, `period_start`, `period_start_source`, `special_election`,
-`amendment_count`, `effective_amendment_index`.
+`filing_year`, `period_end`, `period_start`, `period_start_source`, `filed_date`,
+`special_election`, `amendment_count`, `effective_amendment_index`.
 
 **`period_start` is `null` on many rows and that is a designed state**, not a gap: the row then
 reads "covers through {period_end}". §7 forbids hardcoding 1 January, so a start is served only

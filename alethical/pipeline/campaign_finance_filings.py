@@ -2168,6 +2168,12 @@ def publish_filings(
                 special_election=report.special_election,
                 effective_amendment_index=report.effective_amendment_index,
                 amendment_count=report.amendment_count,
+                # ``filed_date`` is deliberately not set. The catalogue serves 17 fields
+                # per report and none of them is a filing date, so there is nothing here
+                # to write it from: it comes from a separate read of the report document
+                # (``scripts/backfill_campaign_finance_filed_dates.py``, #1670). Never
+                # fill it from ``cut_off_date`` -- a period end relabelled as a filing
+                # date is a fabricated fact about a named committee.
             )
         )
     for filing in run.filings:

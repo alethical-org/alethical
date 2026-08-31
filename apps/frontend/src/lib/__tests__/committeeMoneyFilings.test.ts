@@ -7,6 +7,7 @@ import {
   filingIsAmended,
   filingRowPeriodLine,
   filingsCountLine,
+  filedDateLine,
   filingsOrderingLine,
   FILINGS_EMPTY_WHY,
   FILINGS_HEADLINE,
@@ -29,24 +30,54 @@ describe('the committee page tabs', () => {
 });
 
 describe('the ordering sentence', () => {
-  // We hold no filing date for any report (issue #1670), so the drawn "by the
-  // date filed" sentence does not ship — the words derive from the served order.
+  // A row carries the day the Board received it where the report's own document says so
+  // and nothing where it does not (issue #1670), so the drawn flat "by the date filed"
+  // sentence still does not ship: it would be false about every undated row, and those
+  // are the majority. The words derive from the served order in both cases.
   it('names the period order the server actually serves', () => {
     expect(filingsOrderingLine('period_end')).toBe(
       'Newest first, by the period each report covers — never by amount',
     );
   });
 
+  it('names the mixed order, saying which rows are which', () => {
+    const mixed = filingsOrderingLine('filed_date_then_period_end');
+    expect(mixed).toContain('the day the Board received a report');
+    expect(mixed).toContain('by the period it covers where it does not');
+    // No row carries an amount and nothing sorts by one, in either order.
+    expect(mixed).toContain('Never by amount');
+  });
+
   it('prints nothing for an order it does not know, never a guess', () => {
+    // `filed_date` alone is deliberately unknown: the server never serves a pure
+    // filing order, because most rows carry no filing date to order by.
     expect(filingsOrderingLine('filed_date')).toBeNull();
     expect(filingsOrderingLine('')).toBeNull();
   });
 
   it('never claims a filed-date order anywhere in the fixed copy', () => {
+    // Fixed copy speaks for every row, and most rows have no filing date, so no fixed
+    // sentence may imply one. A per-row date is a different thing: it is printed only
+    // from that row's own served value.
     for (const text of [FILINGS_HEADLINE, FILINGS_PERIOD_NOTE, FILINGS_EMPTY_WHY]) {
       expect(text.toLowerCase()).not.toContain('date filed');
       expect(text.toLowerCase()).not.toContain('filed on');
     }
+  });
+});
+
+describe('the per-row filed date', () => {
+  // The substitution nobody could catch is the period end printed under a "filed"
+  // label: a real date, on a real committee's real report, 4 days off on filer 11880's
+  // 2026 pre-primary. So a row with no served date prints no date (issue #1670).
+  it('prints nothing when the Board states no filing date', () => {
+    expect(filedDateLine(null)).toBeNull();
+    expect(filedDateLine(undefined)).toBeNull();
+    expect(filedDateLine('')).toBeNull();
+  });
+
+  it('prints the day the Board received the report when there is one', () => {
+    expect(filedDateLine('2026-07-24')).toBe('Filed 24 Jul 2026');
   });
 });
 

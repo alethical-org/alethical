@@ -38,6 +38,7 @@ from __future__ import annotations
 import io
 import re
 from dataclasses import dataclass, field
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from enum import Enum
 from typing import Optional
@@ -576,3 +577,88 @@ def _self_test(
         f"{len(checked)} of {len(checked)} schedules match the Board's own totals "
         f"route ({', '.join(checked)})",
     )
+
+
+# --- The date the Board received a report ------------------------------------
+
+
+# "Received by the Board July 24, 2026", printed on its own line near the top of every
+# report document.
+#
+# The stamp has to be a WHOLE line, and the 2 anchors do different jobs. The end anchor
+# is the one that works here: it refuses a line that opens like the stamp and carries
+# more, which would mean the extraction merged 2 lines or the Board changed its layout,
+# and returning a date read out of a line we do not understand is the harm #1670 exists
+# to prevent. The start is anchored by ``match`` rather than by ``^``, so the ``^`` is
+# belt-and-braces against someone switching that call to ``search``.
+#
+# Both zero-padded and bare day numbers occur and both are real: filer 12339's 2025
+# year-end reads "July 01, 2026" and filer 11880's 2022 year-end reads "June 1, 2023".
+RECEIVED_BY_BOARD = re.compile(
+    r"^Received by the Board\s+"
+    r"(?P<month>[A-Z][a-z]+)\s+(?P<day>\d{1,2}),\s+(?P<year>\d{4})$"
+)
+# The line the document prints 1 line below the stamp, and **not** the same fact. Filer
+# 11880's 2026 pre-primary was received 24 Jul 2026 and printed 27 Jul 2026, so a reader
+# that scanned for any date near the bottom of the header would be 3 days wrong on a
+# real filing. Kept only so a test can prove this line is never read.
+PRINTED_STAMP = re.compile(r"Printed\s+(\d{2})/(\d{2})/(\d{4})")
+
+
+def filed_date_from_lines(lines: list[str]) -> tuple[Optional[date], list[str]]:
+    """The date the Board received this document, or ``None`` and why not.
+
+    ``None`` is the ordinary answer rather than a failure, and the caller must keep it
+    as ``None``: #1670 exists because a period end relabelled as a filing date is a
+    fabricated fact about a named committee. Three measured causes, 31 Aug 2026:
+
+    * **The Board serves no document.** Of a 54-report sample spanning 2021 to 2026, all
+      9 sampled 2021 reports and 5 of 9 sampled 2022 ones came back as the HTML page
+      SS 9.4 measures at 30,424 bytes. That never reaches this function.
+    * **The document is a scan with no text.** Filer 13481's 2025 year-end is a
+      1,511,095-byte, 1-page document that ``pypdf`` reads as 0 lines, and its 2023
+      year-end is the same. 2 of the 38 served documents in that sample.
+    * **The stamp is missing or unreadable** on a document that otherwise reads.
+
+    On the other 36 the stamp appeared **exactly once** and parsed. Two stamps carrying
+    2 different dates is a shape nothing has been seen to serve, so it is reported as an
+    error rather than resolved by taking the first: picking one would silently choose
+    between 2 filing dates for the same document.
+    """
+    errors: list[str] = []
+    found: set[date] = set()
+    for line in lines:
+        match = RECEIVED_BY_BOARD.match(line.strip())
+        if match is None:
+            continue
+        parsed = _received_date(match)
+        if parsed is None:
+            errors.append(
+                "the Board's received stamp names a date this reader cannot read: "
+                f"{line.strip()!r}"
+            )
+            continue
+        found.add(parsed)
+    if not found:
+        return None, errors
+    if len(found) > 1:
+        errors.append(
+            "this document carries 2 different received stamps "
+            f"({', '.join(str(day) for day in sorted(found))}), so which date it was "
+            "filed on cannot be read from it"
+        )
+        return None, errors
+    return found.pop(), errors
+
+
+def _received_date(match: re.Match[str]) -> Optional[date]:
+    """``July 24, 2026`` as a date, or ``None`` when the month name is not one.
+
+    ``%B`` is the full month name the Board prints. A day is padded here rather than in
+    the pattern because ``%d`` will not read a bare ``1``.
+    """
+    stamp = f"{match['month']} {int(match['day']):02d}, {match['year']}"
+    try:
+        return datetime.strptime(stamp, "%B %d, %Y").date()
+    except ValueError:
+        return None

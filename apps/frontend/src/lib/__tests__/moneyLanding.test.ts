@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  filedDateSentence,
   filingsTieSentence,
   centralDateLabel,
   confirmationDateLine,
@@ -166,5 +167,53 @@ describe('the filings tie sentence counts reports, never committees', () => {
 
   it('renders a served zero as a number, since a verified zero is a fact', () => {
     expect(filingsTieSentence(0)).toContain('0 reports');
+  });
+});
+
+describe('the filed date, which is the one fact a page may not substitute for', () => {
+  // The Board states the day it received a report inside the report's own document, and
+  // serves no readable document for most reports before 2023 (issue #1670). So a null is
+  // the ordinary answer, and the substitution nobody would catch is the period end
+  // printed under a "filed" label -- a real date, on a real committee's real report.
+  it('prints nothing at all when the Board states no filing date', () => {
+    expect(filedDateSentence(null)).toBeNull();
+    expect(filedDateSentence(undefined)).toBeNull();
+    expect(filedDateSentence('')).toBeNull();
+  });
+
+  it('prints the day the Board received the report when there is one', () => {
+    expect(filedDateSentence('2026-07-24')).toBe('filed Jul 24, 2026');
+  });
+
+  it('says the order is a mix, because a flat "by the date filed" would be false', () => {
+    // Every undated row would be described wrongly by a flat filing-order sentence, and
+    // undated rows are the majority.
+    const mixed = orderingSentence('filed_date_then_period_end');
+    expect(mixed).toContain('the day the Board received a report');
+    expect(mixed).toContain('by the period it covers where it does not');
+  });
+
+  it('drops the alphabetical claim once rows are ordered by arrival', () => {
+    // The alphabetical wording is true only while nothing is dated: 1,203 filers share
+    // one period end, so with no other key the first rows really are the first by name.
+    // Once dated rows lead, "the first by name, not the newest" is false about exactly
+    // the rows a reader is looking at.
+    const byName = filingsTieSentence(1203, 'period_end');
+    expect(byName).toContain('listed alphabetically');
+    expect(byName).toContain('not the newest');
+
+    const byArrival = filingsTieSentence(1203, 'filed_date_then_period_end');
+    expect(byArrival).not.toContain('alphabetically');
+    expect(byArrival).not.toContain('not the newest');
+    expect(byArrival).toContain('received most recently');
+    // The anti-ranking half survives both wordings: no row carries an amount.
+    expect(byArrival).toContain('never the largest');
+    expect(byArrival).toContain('1,203 reports');
+  });
+
+  it('keeps the no-count wording under the arrival order too', () => {
+    const sentence = filingsTieSentence(null, 'filed_date_then_period_end');
+    expect(sentence).not.toMatch(/\d/);
+    expect(sentence).toContain('received most recently');
   });
 });

@@ -154,12 +154,17 @@ def _report(
     special_election: bool = False,
     amendment_index: int | None = 0,
     amendment_count: int | None = 1,
+    filed_date: date | None = None,
 ):
     """One catalogue row.
 
     ``amendment_index=None`` is what an unfiled report looks like: the Board serves a null
     amendment list for a report nobody has filed, and every filed report carries at least
     ``['0']`` (§9.6).
+
+    ``filed_date=None`` by default because it is the ordinary state: the catalogue serves
+    no filing date, so the loader can never set one, and the Board serves no readable
+    document for most reports (#1670).
     """
     _ROW_COUNTER[snapshot.id] = _ROW_COUNTER.get(snapshot.id, 0) + 1
     db.add(
@@ -174,6 +179,7 @@ def _report(
             special_election=special_election,
             effective_amendment_index=amendment_index,
             amendment_count=amendment_count,
+            filed_date=filed_date,
         )
     )
     db.commit()
@@ -466,9 +472,11 @@ def test_a_missing_download_release_does_not_blank_the_register_lane(
 def test_the_feed_is_newest_period_end_first_and_carries_no_amount(client, db) -> None:
     """5 rows with 5 dollar figures is a ranking whether anyone sorted it or not.
 
-    So no row has an amount field at all, and the order is stated rather than implied:
-    these rows are ordered by the period end we hold, and we hold no filing date
-    ([#1670](https://github.com/alethical-org/alethical/issues/1670)).
+    So no row has an amount field at all, and the order is stated rather than implied.
+    No report here has a stored filing date -- the ordinary state, since the Board serves
+    no readable document for most of them
+    ([#1670](https://github.com/alethical-org/alethical/issues/1670)) -- so ``ordered_by``
+    says ``period_end``, which is what the order genuinely is.
     """
     snapshot = _filings_snapshot(db, report_count=2)
     _filer(db, snapshot, CANDIDATE)
@@ -1032,3 +1040,64 @@ def test_no_register_at_all_lists_no_committees_rather_than_refusing(db) -> None
     """No published snapshot is our own gap, and a sitemap without a section is a
     smaller failure than a 503 that removes the bills and legislators with it."""
     assert committees_worth_indexing(db) == ()
+
+
+def test_the_feed_breaks_a_shared_period_by_the_day_the_board_received_each_report(
+    client, db
+) -> None:
+    """The tie this whole issue is about, on the feed a reader actually lands on.
+
+    Every 2026 pre-primary report shares the period end 20 Jul 2026 -- 1,203 of them on
+    production -- so with nothing else to sort by, the top of a "newest filings" feed is
+    one enormous tie broken alphabetically. Here the 2 committees are deliberately named
+    so that alphabetical order and arrival order disagree: "Anderson" would come first by
+    name and filed 4 days earlier, so a feed still ordering by name would put it on top.
+
+    ``ordered_by`` changes with the rows rather than being hardcoded, because a caller
+    printing "the ones received most recently" over a list where nothing is dated would
+    be describing rows that do not exist.
+    """
+    snapshot = _filings_snapshot(db, report_count=2)
+    _filer(db, snapshot, CANDIDATE, name="Anderson, Amy House Committee")
+    _filer(
+        db, snapshot, PARTY_UNIT, kind=FilerKind.party_unit, name="Zumbro County DFL"
+    )
+    _report(db, snapshot, CANDIDATE, filed_date=date(2026, 7, 21))
+    _report(db, snapshot, PARTY_UNIT, filed_date=date(2026, 7, 25))
+
+    data = client.get(FILINGS, params={"limit": 5}).json()["data"]
+
+    assert data["ordered_by"] == "filed_date_then_period_end"
+    assert [row["filer_name"] for row in data["filings"]] == [
+        "Zumbro County DFL",
+        "Anderson, Amy House Committee",
+    ]
+    assert [row["filed_date"] for row in data["filings"]] == [
+        "2026-07-25",
+        "2026-07-21",
+    ]
+    # Same period on both rows, so the period end explains none of the order above.
+    assert {row["period_end"] for row in data["filings"]} == {"2026-07-20"}
+
+
+def test_the_feed_never_dates_a_report_from_the_period_it_covers(client, db) -> None:
+    """The substitution a reader could not possibly catch, pinned on the landing feed.
+
+    A report covering a period that ended 20 Jul 2026, with no received date on record,
+    must serve ``filed_date: null``. Serving 20 Jul 2026 instead reads as "filed on 20
+    July" under a named committee, which is a fabricated fact and the reason
+    [#1670](https://github.com/alethical-org/alethical/issues/1670) exists.
+    """
+    snapshot = _filings_snapshot(db, report_count=1)
+    _filer(db, snapshot, CANDIDATE)
+    _report(db, snapshot, CANDIDATE, cut_off=PRE_PRIMARY_END, filed_date=None)
+
+    row = client.get(FILINGS, params={"limit": 5}).json()["data"]["filings"][0]
+
+    assert row["filed_date"] is None
+    assert row["period_end"] == PRE_PRIMARY_END.isoformat()
+    assert [
+        key
+        for key, value in row.items()
+        if key != "period_end" and value == PRE_PRIMARY_END.isoformat()
+    ] == []

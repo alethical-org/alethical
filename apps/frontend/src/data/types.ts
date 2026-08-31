@@ -632,9 +632,8 @@ export interface CampaignCommitteeMoney {
 }
 
 /** One row of the /money landing's filed-reports module: whose committee filed,
- *  which report, and the period it covers — never an amount, and never a filed
- *  date, because the Board's catalogue serves none (storing a real one is
- *  issue #1670; a period end relabelled "filed" would be a fabricated fact). */
+ *  which report, the period it covers, and the day the Board received it where
+ *  the report's own document states one — never an amount. */
 export interface MoneyFilingRow {
   /** The filer's name exactly as registered. */
   filerName: string;
@@ -645,13 +644,20 @@ export interface MoneyFilingRow {
   periodStart: string | null;
   /** ISO date the period ends (the filing's cutoff). */
   periodEnd: string | null;
+  /** ISO date the Board received this report's effective version, read off the
+   *  document's own "Received by the Board" line (issue #1670). Null wherever
+   *  the Board serves no readable document — the ordinary answer before 2023 —
+   *  and null NEVER means unfiled. A null row prints no filed date at all;
+   *  falling back to `periodEnd` would be a fabricated fact. */
+  filedDate: string | null;
 }
 
 /** The filed-reports feed (GET /campaign-finance/filings). `state`
  *  "unavailable" means our gap, never that nobody filed. */
 export interface MoneyFilingsFeed {
   state: 'reported' | 'unavailable';
-  /** What the feed is ordered by (e.g. "period_end"). The printed ordering
+  /** What the feed is ordered by: "filed_date_then_period_end" when some rows
+   *  carry a filed date, "period_end" when none does. The printed ordering
    *  sentence derives from this through one mapping (lib/moneyLanding.ts), so
    *  the words and the order cannot drift apart. */
   orderedBy: string;
@@ -847,8 +853,9 @@ export interface CommitteePaymentsPage<Payment> {
 }
 
 /** One report a committee filed, as the Board's own catalogue records it — never
- *  an amount, never a filed date (we hold none, issue #1670), and never an
- *  amendment date (the catalogue's amendment record is version indexes only). */
+ *  an amount and never an amendment date (the catalogue's amendment record is
+ *  version indexes only). It carries the day the Board received it where the
+ *  report's own document states one (issue #1670). */
 export interface CommitteeFilingRow {
   /** The report's name as catalogued, e.g. "2026 Pre-Primary Report". */
   reportName: string;
@@ -860,6 +867,12 @@ export interface CommitteeFilingRow {
   /** ISO date the period ends (the filing's cutoff). Null on a filed report the
    *  catalogue gives no period end for; the row then carries no period line. */
   periodEnd: string | null;
+  /** ISO date the Board received this report's effective version, read off the
+   *  document's own "Received by the Board" line (issue #1670). Null wherever
+   *  the Board serves no readable document, which is most of a committee's
+   *  history before 2023 — and null never means unfiled. A null row prints no
+   *  filed date rather than falling back to `periodEnd`. */
+  filedDate: string | null;
   /** The effective version's index: 0 is the original, 1 and up mean the report
    *  was amended. The AMENDED chip draws from this and carries no date. */
   effectiveAmendmentIndex: number | null;
@@ -870,8 +883,9 @@ export interface CommitteeFilingRow {
  *  first. `state` "unavailable" is our gap, never that nobody filed. */
 export interface CommitteeFilingsPage {
   state: 'reported' | 'unavailable';
-  /** What the list is ordered by ("period_end"); the printed ordering sentence
-   *  derives from this so the words and the order cannot drift apart. */
+  /** What the list is ordered by: "filed_date_then_period_end" when some rows
+   *  carry a filed date, "period_end" when none does. The printed ordering
+   *  sentence derives from this so the words and the order cannot drift apart. */
   orderedBy: string;
   filings: CommitteeFilingRow[];
   hasMore: boolean;

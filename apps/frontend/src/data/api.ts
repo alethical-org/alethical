@@ -2411,6 +2411,7 @@ interface ApiMoneyFilingPayload {
   report_name: string;
   period_start?: string | null;
   period_end?: string | null;
+  filed_date?: string | null;
 }
 
 interface ApiCampaignFinanceFilingsPayload {
@@ -2459,11 +2460,13 @@ export async function getCampaignFinanceSummaryFromApi(): Promise<MoneyLandingSu
 }
 
 /**
- * The newest filed reports for the landing (no amounts and no filed date — the
- * Board's catalogue serves no filing date, and a period end relabelled "filed"
- * would be a fabricated fact; a real one is issue #1670). Ordered by the period
- * each report covers; the printed ordering sentence derives from `ordered_by`
- * through lib/moneyLanding.ts so the words and the order cannot drift apart.
+ * The newest filed reports for the landing (no amounts of any kind). A row
+ * carries the day the Board received it where its own document states one, and
+ * `null` where it does not — the ordinary answer, and never a fallback to the
+ * period end, which would be a fabricated fact (issue #1670). Rows sort by the
+ * filed date where there is one and by the period end where there is not; the
+ * printed ordering sentence derives from `ordered_by` through
+ * lib/moneyLanding.ts so the words and the order cannot drift apart.
  */
 export async function getCampaignFinanceFilingsFromApi(limit = 5): Promise<MoneyFilingsFeed> {
   const params = new URLSearchParams({ limit: String(limit) });
@@ -2481,6 +2484,7 @@ export async function getCampaignFinanceFilingsFromApi(limit = 5): Promise<Money
             reportName: filing.report_name,
             periodStart: filing.period_start ?? null,
             periodEnd: filing.period_end ?? null,
+            filedDate: filing.filed_date ?? null,
           }))
         : [],
     // Only a real number becomes a count. A missing or null figure leaves the
@@ -3283,6 +3287,7 @@ interface ApiCommitteeFilingPayload {
   period_end?: string | null;
   effective_amendment_index?: number | null;
   amendment_count?: number | null;
+  filed_date?: string | null;
 }
 
 interface ApiCommitteeFilingsPayload {
@@ -3295,9 +3300,11 @@ interface ApiCommitteeFilingsPayload {
 
 /**
  * Every report a committee is recorded as having filed (the Filings tab). No
- * amounts, no filed date and no amendment date — we hold none of those (issue
- * #1670; the catalogue's amendment record is version indexes only) — so the
- * list orders by the period each report covers and `ordered_by` says so.
+ * amounts and still no amendment date — the catalogue's amendment record is
+ * version indexes only. A row carries the day the Board received it where its
+ * own document states one and `null` where it does not (issue #1670), so the
+ * list sorts by the filed date where there is one and by the period end where
+ * there is not, and `ordered_by` says which.
  */
 export async function getCommitteeFilingsFromApi(
   registrationNumber: string,
@@ -3323,6 +3330,7 @@ export async function getCommitteeFilingsFromApi(
             filingYear: filing.filing_year ?? 0,
             periodStart: filing.period_start ?? null,
             periodEnd: filing.period_end ?? null,
+            filedDate: filing.filed_date ?? null,
             effectiveAmendmentIndex: filing.effective_amendment_index ?? null,
             amendmentCount: filing.amendment_count ?? null,
           }))

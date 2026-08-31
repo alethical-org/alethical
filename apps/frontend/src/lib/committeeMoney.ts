@@ -625,16 +625,40 @@ export const FILINGS_HEADLINE = 'REPORTS THIS COMMITTEE HAS FILED';
 
 /**
  * The printed ordering sentence, derived from the served `ordered_by` through this
- * one mapping so the words and the order can never drift apart. The drawn design
- * says "by the date filed", and that sentence does not ship: we hold no filing
- * date for any report (issue #1670), so nothing here may print or imply one. An
- * `ordered_by` this mapping does not know prints no sentence rather than a guess.
+ * one mapping so the words and the order can never drift apart.
+ *
+ * The drawn design says "by the date filed", and that sentence still does not ship
+ * even now that we hold filing dates (issue #1670), because it would be false about
+ * the rows that carry none: the Board serves no readable report document for most
+ * of a committee's history before 2023, so a list is normally a mix. The mixed
+ * sentence says which rows are which, so a reader never takes an undated row's
+ * position for an arrival date. An `ordered_by` this mapping does not know prints no
+ * sentence rather than a guess.
  */
 export function filingsOrderingLine(orderedBy: string): string | null {
   if (orderedBy === 'period_end') {
     return 'Newest first, by the period each report covers — never by amount';
   }
+  if (orderedBy === 'filed_date_then_period_end') {
+    return (
+      'Newest first — by the day the Board received a report where its filing says so, ' +
+      'and by the period it covers where it does not. Never by amount'
+    );
+  }
   return null;
+}
+
+/**
+ * "Filed 24 Jul 2026", or null on a row the Board states no filing date for.
+ *
+ * Null is the ordinary answer and it prints nothing at all: the alternative a reader
+ * would never notice is this line falling back to the period end, which is the
+ * fabricated fact issue #1670 exists to prevent. The row still shows its period, so
+ * nothing is hidden — only the one claim we cannot make.
+ */
+export function filedDateLine(filedDate: string | null | undefined): string | null {
+  const day = formatDay(filedDate);
+  return day ? `Filed ${day}` : null;
 }
 
 /**
