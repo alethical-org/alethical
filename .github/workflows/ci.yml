@@ -95,6 +95,12 @@ jobs:
         run: python scripts/check_doc_references.py
       - name: Check quoted doc claims still exist
         run: python scripts/check_doc_quotes.py
+      # AGENTS.md deliberately repeats workflow.md rule 10's git prohibitions,
+      # because only Claude Code auto-loads .claude/rules/ — every other agent
+      # reads AGENTS.md alone. That makes the two copies drifting apart the real
+      # risk, and nothing checked for it before this step.
+      - name: Check shared-checkout git prohibitions stayed in sync
+        run: python scripts/check_shared_checkout_rules_in_sync.py
 
       # A NUL byte makes git and grep treat a file as binary, hiding its code
       # from searches and diffs. This guard is cheap enough to always run.
