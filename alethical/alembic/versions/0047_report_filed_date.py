@@ -25,15 +25,15 @@ Additive only: 1 nullable column on 1 table, no enum, no index, no existing row 
 The downgrade is a clean drop of the same column. Round-tripped
 upgrade -> downgrade -> upgrade against real Postgres.
 
-Revision ID: 0046_report_filed_date
-Revises: 0045_committee_link_basis
+Revision ID: 0047_report_filed_date
+Revises: 0046_lobbying_expenditures
 """
 
 import sqlalchemy as sa
 from alembic import op
 
-revision = "0046_report_filed_date"
-down_revision = "0045_committee_link_basis"
+revision = "0047_report_filed_date"
+down_revision = "0046_lobbying_expenditures"
 branch_labels = None
 depends_on = None
 
