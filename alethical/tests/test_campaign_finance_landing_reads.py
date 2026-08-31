@@ -1101,3 +1101,32 @@ def test_the_feed_never_dates_a_report_from_the_period_it_covers(client, db) -> 
         for key, value in row.items()
         if key != "period_end" and value == PRE_PRIMARY_END.isoformat()
     ] == []
+
+
+def test_the_order_is_named_from_the_rows_a_caller_can_see(client, db) -> None:
+    """A dated row the feed drops must not name the order for the rows it keeps.
+
+    The feed joins every report to ``cf_filer`` in the same snapshot, and that join is
+    part of the filter rather than decoration: a report whose filer the register does not
+    hold is dropped, because a nameless row is not worth showing. So the served
+    ``ordered_by`` has to be asked over that same join. Asked without it, this page says
+    ``filed_date_then_period_end`` on the strength of a row nobody can see, and then
+    prints "the ones the Board received most recently" over a single visible row that
+    carries no filing date at all.
+
+    0 report rows are in this state on the live snapshot (measured 31 Aug 2026), so this
+    is the filter being consistent rather than a live fault — and it is the only case
+    that can tell the 2 versions of the query apart.
+    """
+    snapshot = _filings_snapshot(db, report_count=2)
+    # Only one of the 2 filers exists in the register.
+    _filer(db, snapshot, CANDIDATE)
+    _report(db, snapshot, CANDIDATE, filed_date=None)
+    _report(db, snapshot, PARTY_UNIT, filed_date=date(2026, 7, 25))
+
+    data = client.get(FILINGS, params={"limit": 5}).json()["data"]
+
+    # The dated row is not on the page, so the order it would have set is not claimed.
+    assert [row["registration_number"] for row in data["filings"]] == [CANDIDATE]
+    assert data["filings"][0]["filed_date"] is None
+    assert data["ordered_by"] == "period_end"
