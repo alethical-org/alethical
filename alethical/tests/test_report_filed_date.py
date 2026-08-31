@@ -38,6 +38,7 @@ from datetime import date
 import pytest
 
 from alethical.pipeline.campaign_finance_report_documents import (
+    PRINTED_STAMP,
     extract_lines,
     filed_date_from_lines,
 )
@@ -79,6 +80,21 @@ def test_the_received_stamp_is_read_out_of_a_real_document() -> None:
 
     assert filed_date == date(2026, 7, 24)
     assert errors == []
+
+
+def test_the_printed_line_really_carries_a_date_that_is_not_the_filing_date() -> None:
+    """The near-miss is measured, not imagined, which is what gives the next test force.
+
+    The line 1 below the stamp genuinely parses as a date, and on filer 11880's 2026
+    pre-primary that date is 27 Jul 2026 while the Board received the report on 24 Jul.
+    So a reader widening the search to "any date in the header" gets a plausible answer
+    that is 3 days wrong on a real filing — and on filer 12682's 2023 year-end the 2
+    agree, which is what makes it hard to notice.
+    """
+    match = PRINTED_STAMP.search(PRINTED)
+
+    assert match is not None
+    assert (match.group(3), match.group(1), match.group(2)) == ("2026", "07", "27")
 
 
 def test_the_printed_line_is_never_read_as_the_filing_date() -> None:

@@ -351,6 +351,15 @@ def main() -> int:
             args.database_url or database_url_for_target(args.target)
         ),
         connect_args=NO_PREPARED_STATEMENTS,
+        # A run of thousands of documents holds one database connection for the better
+        # part of an hour while spending almost all of it waiting on the Board, and the
+        # pooler in front of Postgres will drop an idle one. Without this the first
+        # commit after a drop raises and the whole pass dies -- measured on the first
+        # production run, which stopped after 248 rows on
+        # ``psycopg.OperationalError: Can't assign requested address`` while rolling back
+        # a dead connection. Every long-running script in this repo sets it; this one
+        # should have from the start.
+        pool_pre_ping=True,
     )
     with Session(engine) as session:
         # Said plainly rather than as a traceback: on a database whose migrations have

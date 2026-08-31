@@ -985,14 +985,21 @@ def _filed_date_order(report):
     return func.coalesce(report.filed_date, report.cut_off_date).desc()
 
 
-def _order_name(db: Session, report, filters) -> str:
+def _order_name(db: Session, report, filters, joined_to_filer) -> str:
     """Whether any row this page is drawn from carries a filing date.
 
-    Asked over the identical filter the rows use, so the served name always describes
-    the set the caller is paging through rather than the table.
+    **The filer join is part of the filter, not decoration**, exactly as it is for the
+    rows and for the count: it is what drops a report whose filer the register does not
+    hold. Without it this could answer "some rows are dated" on the strength of a row the
+    caller can never see, and the page would then print an arrival order over rows that
+    have none. 0 report rows are in that state on the live snapshot (measured 31 Aug
+    2026), so this is the shape being right rather than a fault being fixed — and it is
+    what lets the served name be described as coming from the identical filter the rows
+    use, which is the claim `backend-api-system-design.md` makes for it.
     """
     present = db.scalar(
         select(report.row_number)
+        .join(*joined_to_filer)
         .where(*filters, report.filed_date.is_not(None))
         .limit(1)
     )
@@ -1175,7 +1182,7 @@ def recent_filings(
     ).first()
     return FilingsPage(
         state=REPORTED,
-        ordered_by=_order_name(db, report, filed_and_ended),
+        ordered_by=_order_name(db, report, filed_and_ended, joined_to_filer),
         periods_ended_on_or_before=as_of,
         filings=filings,
         limit=limit,
@@ -1351,7 +1358,7 @@ def committee_filings(
         )
         or 0
     )
-    ordered_by = _order_name(db, report, filed_for_this_committee)
+    ordered_by = _order_name(db, report, filed_for_this_committee, joined_to_filer)
     without_record = (
         db.scalar(
             select(func.count())
