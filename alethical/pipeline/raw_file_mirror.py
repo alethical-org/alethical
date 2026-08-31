@@ -42,7 +42,7 @@ they are what happens when covering a new kind of body depends on somebody
 remembering that this file exists.
 
 So the work list is every mapped table carrying all 3 of ``object_key``,
-``compressed_hash`` and ``mirrored_at``. A future fourth kind of stored body is
+``compressed_hash`` and ``mirrored_at``. A future sixth kind of stored body is
 covered the day its table ships, with no edit here, and
 ``test_raw_file_mirror.py`` fails if a table gains an ``object_key`` without the
 other two columns -- which is the one way this discovery could silently miss
