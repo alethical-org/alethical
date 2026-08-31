@@ -31,13 +31,19 @@ Named cases and why each one is here:
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pytest
 
 from alethical.db import models as schema
 
 from scripts.review_legislator_campaign_committees import (
     DIRECTORY_IN_BRIEF,
+    GROUPS,
     REVIEWER_OF_RECORD,
+    group_of,
+    name_words,
+    register_names_this_member,
     describe,
     link_row,
     newest_receipt_date,
@@ -1157,6 +1163,121 @@ def test_no_party_on_record_is_never_shown_to_a_reviewer_as_a_disagreement():
         party_by_registration={"17674": "R"},
     ).proposals[0]
     assert "DISAGREES with our record" in describe(disagrees)
+
+
+def test_a_hyphenated_surname_is_not_read_as_a_different_person():
+    # The Board writes "Momanyi Hiltsley, Huldah Nyamisa" for a member our roster holds as
+    # "Huldah Momanyi-Hiltsley". A comparison that keeps the hyphen reads a real match as a
+    # stranger, and a stranger is exactly what this check exists to catch.
+    assert name_words("Momanyi Hiltsley, Huldah Nyamisa") == {
+        "momanyi",
+        "hiltsley",
+        "huldah",
+        "nyamisa",
+    }
+    assert name_words("Huldah Momanyi-Hiltsley") == {"huldah", "momanyi", "hiltsley"}
+    assert register_names_this_member(
+        member(
+            "Huldah Momanyi-Hiltsley", "house", first="Huldah", last="Momanyi-Hiltsley"
+        ),
+        filer("18720", candidate="Momanyi Hiltsley, Huldah Nyamisa", office="Senate"),
+    )
+
+
+def test_a_shared_surname_alone_never_counts_as_the_same_person():
+    # Every one of these is a real pair off the 56: the Board names a different candidate on
+    # an account that reached the list because the surname matched.
+    strangers = [
+        (
+            member("Jessica Hanson", "house", first="Jessica", last="Hanson"),
+            "Hanson, Angie",
+        ),
+        (
+            member("Josh Heintzeman", "house", first="Josh", last="Heintzeman"),
+            "Heintzeman, Keri",
+        ),
+        (
+            member("Pete Johnson", "house", first="Pete", last="Johnson"),
+            "Johnson, Mark T",
+        ),
+        (
+            member("Wayne Johnson", "house", first="Wayne", last="Johnson"),
+            "Johnson, Cherie",
+        ),
+        (member("Tom Murphy", "house", first="Tom", last="Murphy"), "Murphy, Erin"),
+    ]
+    for who, candidate in strangers:
+        assert not register_names_this_member(
+            who, filer("19219", candidate=candidate, office="Senate")
+        ), candidate
+
+
+def test_the_same_member_running_for_another_office_is_recognised():
+    assert register_names_this_member(
+        member("Ben Bakeberg", "house", first="Ben", last="Bakeberg"),
+        filer("19239", candidate="Bakeberg, Ben", office="Senate"),
+    )
+    assert register_names_this_member(
+        member("Peggy Bennett", "house", first="Peggy", last="Bennett"),
+        filer("19340", candidate="Bennett, Peggy", office="Governor"),
+    )
+
+
+def test_a_row_with_no_candidate_name_is_never_treated_as_a_match():
+    # An absent name is our gap, not evidence, and it may not read as agreement.
+    assert not register_names_this_member(
+        member("Ben Bakeberg", "house", first="Ben", last="Bakeberg"),
+        filer("19239", candidate="", office="Senate"),
+    )
+    assert not register_names_this_member(
+        member("Ben Bakeberg", "house", first="Ben", last="Bakeberg"), None
+    )
+
+
+def test_only_what_the_register_can_speak_to_is_grouped():
+    who = member("Ben Bakeberg", "house", first="Ben", last="Bakeberg")
+    proposal = only(
+        [who], [committee("18905", "Bakeberg, Ben House Committee")]
+    ).proposals[0]
+
+    own_seat = replace(proposal, filer_verdict=FilerVerdict.same_seat.value)
+    assert group_of(who, own_seat, None) == "own_seat"
+
+    other_office = replace(proposal, filer_verdict=FilerVerdict.different_race.value)
+    assert (
+        group_of(
+            who,
+            other_office,
+            filer("19239", candidate="Bakeberg, Ben", office="Senate"),
+        )
+        == "own_other_office"
+    )
+    assert (
+        group_of(
+            who,
+            other_office,
+            filer("19239", candidate="Bakeberg, Amy", office="Senate"),
+        )
+        == "another_person"
+    )
+
+    # The register saying nothing is the case that stays one at a time: a dormant account it
+    # does not list is exactly where the alternatives have to be read.
+    silent = replace(proposal, filer_verdict=FilerVerdict.unknown.value)
+    assert group_of(who, silent, None) is None
+    not_current = replace(
+        proposal, filer_verdict=FilerVerdict.same_seat_not_current.value
+    )
+    assert group_of(who, not_current, None) is None
+
+
+def test_every_group_has_its_own_words_and_says_which_way_it_answers():
+    keys = [key for key, _, _, _ in GROUPS]
+    assert keys == ["own_seat", "own_other_office", "another_person"]
+    assert len({title for _, title, _, _ in GROUPS}) == len(GROUPS)
+    # 2 groups confirm and 1 rejects. A group that could do either would be a group whose
+    # single stated reason does not actually decide anything.
+    assert [confirms for _, _, _, confirms in GROUPS] == [True, True, False]
 
 
 def test_a_decision_is_recorded_against_the_company_not_the_person_who_typed_it():
