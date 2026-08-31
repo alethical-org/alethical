@@ -485,8 +485,11 @@ Top to bottom:
    of dead links would be worse than one honest step.
 9. **What this record covers**: filed with the Board, nothing before 2015, unions don't
    report here — and the $200 donor sentence, except on a ballot-question committee's
-   page, which prints **no** threshold figure anywhere: the statute says $500 for ballot
-   questions, the Board's own handbook for those filers says $200, and we assert neither.
+   page, which prints **no** threshold figure anywhere. That silence is a choice we have
+   made and not a gap in the records: the law says $500 for a ballot question, and the
+   Board's own guide for those committees says $500 as well, so we could print it and
+   have decided not to yet. The page used to explain the silence by saying official
+   sources disagreed about the figure, which was not true, and it no longer says that.
 
 Empty and edge states, each its own honest sentence: a year no report covers ("Not
 reported", never a zero, and never last year's money under this year's heading); a closed

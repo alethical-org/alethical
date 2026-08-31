@@ -295,10 +295,11 @@ export const WHAT_THE_RECORDS_NAME: ResearchPiece = {
             { kind: 'internalLink', text: 'committees and funds', href: PIECE_ONE_PATH },
             {
               kind: 'text',
-              // No figure for a ballot-question filer, either the statute's $500
-              // or the handbooks' $200: rule 12 forbids printing one while our 2
-              // sources disagree, so the piece names only that a different figure
-              // applies and links both.
+              // No figure for a ballot-question filer: rule 12 forbids printing one,
+              // and since 31 Aug 2026 that ban is a product decision rather than 2
+              // sources disagreeing — the statute and the Board's own handbook for
+              // those filers both say $500. The piece names only that a different
+              // figure applies and links both sources, which stays correct either way.
               text: ' set up to campaign on a ballot question, which is a vote on a proposal rather than on a person. A different figure applies to money given to those, so nothing above describes them. The law and the Board’s own handbook for those accounts are both linked below.',
             },
           ],

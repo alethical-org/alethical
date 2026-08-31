@@ -19,9 +19,10 @@
  * - The register's own kind is the only kind label a page may print. A ballot
  *   question filer is known by the Board's own sub-type code on its money rows
  *   (`BC` / `BF`), never by its name.
- * - A ballot-question page asserts no donor-naming threshold anywhere: the statute
- *   says $500 for ballot questions, the Board's own handbook for those filers says
- *   $200, and we print neither.
+ * - A ballot-question page asserts no donor-naming threshold anywhere. The statute
+ *   says $500 for ballot questions and the Board's own handbook for those filers says
+ *   $500 as well, so the silence is a product decision under rule 12 rather than 2
+ *   sources disagreeing — and no page may say it is the latter.
  * - Missing is "Not reported"; a verified zero is "0"; a closed committee is its
  *   own state with its own date, because "not reported" and "nothing is due" are
  *   both false for it.
@@ -246,17 +247,26 @@ export function confirmedMemberMoneyPath(slug: string): string {
  * under $200 and reconciles to the cent
  * (`docs/architecture/campaign-finance-system-design.md` §2.3), so "are never
  * named" was a false absolute (#1755). A ballot-question filer's page states no
- * threshold at all — the statute says $500 for ballot questions and the Board's
- * own handbook for those filers says $200, so we assert neither — and says only
- * what the file shows.
+ * threshold at all, and **it must not say why in terms of the sources disagreeing.**
+ * This sentence claimed "official sources disagree about that threshold for
+ * ballot-question committees" and that was false, live, on the pages of ballot-question
+ * filers with an unnamed figure — verified on production 31 Aug 2026 on filer 60083's
+ * 2025 page, which prints $8,459.00 of unnamed money. The statute says $500 for ballot
+ * questions ([10A.20 subd. 3(c)]) and the Board's own *Independent Expenditure and
+ * Ballot Question Political Committee and Fund Handbook* (revised 08/27/2026, its
+ * newest) says $500 for them too, repeatedly. The $200 reading came from the *Political
+ * Committee and Political Fund Handbook*, whose reporting instructions are written for
+ * the general-purpose kind — a handbook for different filers, not a source that
+ * disagrees. So the sentence now states no figure and blames nobody for the silence;
+ * whether to print $500 is a product decision under rule 12, not a reading.
  */
 export function unnamedMoneyExplanation(isBallot: boolean): string {
   if (isBallot) {
     return (
       'These donations are inside the committee’s own reported total, and the ' +
       'state’s public file does not say who gave them. Minnesota names a donor ' +
-      'only once their giving passes a yearly threshold; official sources disagree ' +
-      'about that threshold for ballot-question committees, so we do not state it.'
+      'only once their giving passes a yearly total for the year, and we do not ' +
+      'state that figure for a ballot-question committee.'
     );
   }
   return (
