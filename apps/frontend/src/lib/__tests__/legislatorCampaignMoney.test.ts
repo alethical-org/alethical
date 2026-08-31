@@ -29,6 +29,7 @@ import {
   paymentDateRangeLabel,
   reportedThroughLabel,
   confirmedElsewhereExplanation,
+  confirmedElsewhereHeading,
   emptyStateFor,
   filingScheduleNote,
   statedSplitNote,
@@ -365,10 +366,12 @@ describe('the unconfirmed state, which is every profile today', () => {
     expect(emptyStateFor('confirmed', 1)).toBeNull();
   });
 
-  it('names the year a checked match does not cover, and blames no one', () => {
+  it('names the year an empty match covers, and blames no one', () => {
+    // The 'not a gap in the record' phrasing this used to assert was removed: it sat
+    // beside a claim that the registration had ended, which was false on 22 live pages.
+    // What has to survive is naming the year and never blaming our own unfinished work.
     const text = confirmedElsewhereExplanation(2026);
     expect(text).toContain('2026');
-    expect(text).toContain('not a gap in the record');
     expect(text).not.toMatch(/have not yet confirmed|nobody has/i);
   });
 });
@@ -659,5 +662,53 @@ describe('isAmountAboveZero', () => {
     expect(isAmountAboveZero(undefined)).toBe(false);
     expect(isAmountAboveZero('')).toBe(false);
     expect(isAmountAboveZero('not a number')).toBe(false);
+  });
+});
+
+describe('an empty year says which of 2 things is true', () => {
+  const open = {
+    registrationNumber: '15163',
+    committeeNameAsReviewed: 'Rest, Ann H Senate Committee',
+    closedOn: null,
+  };
+  const closed = {
+    registrationNumber: '18472',
+    committeeNameAsReviewed: 'Novotny, Paul House Committee',
+    closedOn: '2026-07-28',
+  };
+
+  // The shipped bug: on the day the first 144 matches were confirmed, 23 profiles showed
+  // this panel and Minnesota's own filer record had 22 of those committees open with no
+  // closing date. The page told 22 named politicians' readers that a registration had
+  // ended when it had not.
+  it('never says a registration ended when we only know nothing was reported', () => {
+    const body = confirmedElsewhereExplanation(2026, [open]);
+    expect(body).toContain('reported no money in 2026');
+    expect(body).toContain('not a statement that the committee has closed');
+    expect(body).not.toContain('does not run forever');
+    expect(body).not.toContain('the years it covers');
+    expect(confirmedElsewhereHeading(2026, [open])).toBe('Nothing reported for 2026');
+  });
+
+  it('says the registration closed, and names the day, when the Board says so', () => {
+    const body = confirmedElsewhereExplanation(2026, [closed]);
+    expect(body).toContain('closed on July 28, 2026');
+    expect(body).toContain('no further money will be reported');
+    expect(confirmedElsewhereHeading(2026, [closed])).toBe('This committee has closed');
+  });
+
+  it('falls back to the honest wording when only some are closed', () => {
+    const body = confirmedElsewhereExplanation(2026, [open, closed]);
+    expect(body).toContain('not a statement that the committee has closed');
+    expect(body).not.toContain('closed on');
+    expect(confirmedElsewhereHeading(2026, [open, closed])).toBe('Nothing reported for 2026');
+  });
+
+  // A page that served nothing for this field, an older API or a cached response, must
+  // still read truthfully rather than falling back to the claim this fix removed.
+  it('says the honest thing when the server told it nothing', () => {
+    expect(confirmedElsewhereExplanation(2026)).toContain('reported no money in 2026');
+    expect(confirmedElsewhereExplanation(2026)).not.toContain('does not run forever');
+    expect(confirmedElsewhereHeading(2026)).toBe('Nothing reported for 2026');
   });
 });

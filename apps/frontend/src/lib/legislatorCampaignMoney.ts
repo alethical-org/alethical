@@ -73,6 +73,20 @@ export type SplitState =
 export type LinkState = 'unconfirmed' | 'reviewed_none_confirmed' | 'confirmed';
 
 /**
+ * One confirmed committee a year's page leaves out, and whether it is closed.
+ *
+ * `closedOn` is the Board's own closing date for the registration and the only thing that
+ * licenses saying a registration ended. Null covers 2 cases we cannot tell apart, still
+ * open and absent from the filer list we hold, so both take the same honest wording.
+ * Never infer it from the years on a link: those are the years money was reported.
+ */
+export interface CommitteeOutsideThisYear {
+  registrationNumber: string;
+  committeeNameAsReviewed: string;
+  closedOn: string | null;
+}
+
+/**
  * The year a reader asked for, or this tab's default.
  *
  * Anything unparseable falls back rather than erroring: a URL is something people
@@ -502,17 +516,79 @@ export function emptyStateFor(
 }
 
 /**
- * What the page says when the match is checked and covers a different year.
+ * The heading above the explanation below, in the same 2 voices as the sentence itself.
+ *
+ * A heading is the part a reader skims, so it may not be the looser of the 2. "No
+ * committee of theirs covers 2026" said the same false thing the old body said, about the
+ * same 22 pages: the committee does cover 2026, and reported nothing into it.
+ */
+export function confirmedElsewhereHeading(
+  year: number,
+  outside: CommitteeOutsideThisYear[] = [],
+): string {
+  const closed = outside.filter((entry) => entry.closedOn);
+  if (closed.length === outside.length && closed.length > 0) {
+    return closed.length > 1 ? 'These committees have closed' : 'This committee has closed';
+  }
+  return `Nothing reported for ${year}`;
+}
+
+/**
+ * What the page says when the match is checked and this year has nothing to show.
  *
  * Takes the year so the sentence names it. A reader who switched to 2026 and found
  * nothing needs to be told which year they are looking at, not a general statement.
+ *
+ * **Two different facts, and an earlier version asserted the wrong one on live pages.**
+ * It read "the years it covers do not include 2026 ... a committee is registered for a
+ * particular race and does not run forever", which is a claim about the registration. The
+ * only thing the years on a link establish is that no money was *reported* for that year:
+ * those years come out of the contributions download. Measured on the day the first 144
+ * matches were confirmed, 23 profiles showed this panel and Minnesota's own filer record
+ * had **22 of those committees open, with no closing date** -- so 22 named politicians'
+ * pages asserted a registration had ended when it had not. The 1 it was right about, Paul
+ * Novotny (house 30B), closed his committee on 28 July 2026, which is also why the
+ * state's register of current candidates does not list it.
+ *
+ * So a closing date says the registration ended and names the day; its absence says only
+ * that nothing was reported. `closedOn` is null both when a committee is open and when the
+ * filer list we hold does not carry it, and those take the same wording because we cannot
+ * tell them apart and may not guess (`.claude/rules/grounded-answers.md` rule 12).
  */
-export function confirmedElsewhereExplanation(year: number): string {
+export function confirmedElsewhereExplanation(
+  year: number,
+  outside: CommitteeOutsideThisYear[] = [],
+): string {
+  const closed = outside.filter((entry) => entry.closedOn);
+  const opening = `We have confirmed which committee is this member's, and it reported no money in ${year}.`;
+  if (closed.length === outside.length && closed.length > 0) {
+    // Every committee left out is closed, so the stronger sentence is true of all of
+    // them. Name the day: a reader can check a date against the state's own record.
+    const days = closed
+      .map((entry) => formatClosingDay(entry.closedOn as string))
+      .filter((day, index, all) => all.indexOf(day) === index);
+    return (
+      `${opening} Minnesota's records show the registration closed on ${days.join(' and ')}, ` +
+      `so no further money will be reported to it. Try an earlier year.`
+    );
+  }
   return (
-    `We have confirmed which committee is this member's, and the years it covers do ` +
-    `not include ${year}. Try another year. This is not a gap in the record: a ` +
-    `committee is registered for a particular race and does not run forever.`
+    `${opening} Try another year. That is what Minnesota's file says about this year, ` +
+    `not a statement that the committee has closed: a committee can be registered and ` +
+    `report nothing for a year.`
   );
+}
+
+/** A closing date as a reader-facing day, or the raw value if it is not a date. */
+function formatClosingDay(value: string): string {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    timeZone: 'UTC',
+  });
 }
 
 /**

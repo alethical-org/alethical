@@ -1,5 +1,6 @@
 import type {
   FilingSchedule,
+  CommitteeOutsideThisYear,
   LinkState,
   MoneyBlockState,
   SplitState,
@@ -694,6 +695,13 @@ export interface LegislatorCampaignMoney {
    *  legislative seat. Counted rather than dropped in silence, so a reader who knows
    *  their member ran for something else is told the money exists and is not this. */
   otherOfficeCommittees: number;
+  /** Confirmed committees left out because they reported no money in this year.
+   *  `closedOn` is the Board's own closing date for the registration, and the only
+   *  thing that licenses saying a registration ended. `null` covers 2 cases we cannot
+   *  tell apart, still open and absent from the filer list we hold, so both get the
+   *  same honest wording. Never infer a closing date from the years on the link:
+   *  those are the years money was reported. */
+  committeesOutsideThisYear: CommitteeOutsideThisYear[];
 }
 
 /** One filer as our copy of the Board's registered-filer directory lists them.

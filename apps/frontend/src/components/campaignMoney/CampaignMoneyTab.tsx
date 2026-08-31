@@ -28,6 +28,7 @@ import {
   type CampaignMoneyYear,
   campaignMoneyYears,
   confirmedElsewhereExplanation,
+  confirmedElsewhereHeading,
   emptyStateFor,
   filingScheduleNote,
   formatDay,
@@ -130,9 +131,11 @@ export function CampaignMoneyTab({
       ) : emptyStateFor(money.linkState, money.committees.length) === 'confirmed-elsewhere' ? (
         <View style={styles.card}>
           <Text accessibilityRole="header" aria-level={3} style={styles.h3}>
-            No committee of theirs covers {year}
+            {confirmedElsewhereHeading(year, money.committeesOutsideThisYear)}
           </Text>
-          <Text style={styles.body}>{confirmedElsewhereExplanation(year)}</Text>
+          <Text style={styles.body}>
+            {confirmedElsewhereExplanation(year, money.committeesOutsideThisYear)}
+          </Text>
         </View>
       ) : (
         <>

@@ -299,6 +299,37 @@ def confirmed_committees(
     ]
 
 
+def committees_outside_the_year(
+    db: Session, legislator_id: UUID, *, year: int
+) -> list[LegislatorCampaignCommittee]:
+    """This legislator's confirmed **legislative** committees that do not cover ``year``.
+
+    The other half of ``confirmed_committees``, and served for the same reason
+    ``count_committees_for_another_race`` is: an excluded record and an absent record look
+    identical to a reader, so a page that shows nothing for a year has to be able to say
+    *which* of its member's committees it left out and why (rule 12's missing-versus-zero).
+
+    Read the period test in ``_period_covers`` before wording anything from this. The years
+    on a link are what the reviewer saw in the contributions download, which is the last
+    year money was **reported**, not the last year the registration ran. So a committee
+    landing here has reported nothing for that year; whether it is still registered is a
+    separate question the Board's own filer record answers, and only that record may be
+    used to say a registration ended.
+    """
+    return [
+        link
+        for link in db.scalars(
+            select(LegislatorCampaignCommittee).where(
+                LegislatorCampaignCommittee.legislator_id == legislator_id,
+                LegislatorCampaignCommittee.decision
+                == CommitteeLinkReviewDecision.confirmed,
+            )
+        ).all()
+        if is_for_a_legislative_office(link.office_as_reviewed)
+        and not _period_covers(link, year)
+    ]
+
+
 def count_committees_for_another_race(
     db: Session, legislator_id: UUID, *, year: int
 ) -> int:
