@@ -1631,6 +1631,29 @@ and it describes **what a report page must do**. The drawn design is
   ([PR #1720](https://github.com/alethical-org/alethical/pull/1720)), because two copies of one
   report and no way to tell which is current is the failure this product exists to avoid.
 
+**Two arithmetic traps a cross-member figure falls into, both measured on the first report's own
+draft ([#1687](https://github.com/alethical-org/alethical/issues/1687), recomputed 19 Aug 2026).**
+Neither reached a reader: the recompute was run against the design-handoff draft and the piece
+that published carries none of the flagged figures. They are written here rather than left on the
+issue because both are traps for whoever writes the *next* one, and an issue is the wrong home
+for a rule somebody needs while doing arithmetic 3 months from now.
+
+- **A party label on a candidate committee is not that party's money.** The draft's "$1.5 million
+  for all minor parties" reproduced at $507,493, differing by 3×, and reaching the draft's figure
+  needed 17 judicial candidate committees whose `cf_filer.party` reads `N/A` — Supreme Court,
+  Appellate Court and District Court candidates, for non-partisan offices. Any figure added up by
+  party has to say which side of that line it drew, because the field will happily be grouped by
+  and the grouping means something different for a party unit than for a candidate.
+- **An eleven-year total built from named donors is not a total raised, and the shortfall differs
+  by who is raising.** Minnesota only requires a donor to be named once their giving passes $200
+  for the year (§2.3), so a named-donor total is a *fraction* of money raised: measured across the
+  first report's years, about 58% for candidates against about 88% for the party machinery. A
+  comparison between 2 such totals is therefore comparing 2 different fractions. That is what
+  inflated the draft's machinery-versus-candidates ratio from roughly 1.4× to 2×: the direction of
+  the claim survived, its size did not. This is rule 12's missing-versus-zero failure wearing an
+  arithmetic hat, and the fix is the same, compare reported totals to reported totals or say in
+  the sentence which coverage each side has.
+
 ---
 
 ## 8. Row counts are measurements, not requirements
