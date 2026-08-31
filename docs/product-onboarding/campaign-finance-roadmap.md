@@ -154,6 +154,14 @@ The full version of number 5: who spends it, on whom, and in which races.
 Who is registered to lobby, who they work for, and what their clients spend. Minnesota
 publishes all of it and almost nobody looks at it.
 
+The spending half of the data is loaded: since 31 Aug 2026 the Board's
+principal-expenditures file (what each organisation spent lobbying, per year) is held
+as dated snapshots, so the $886 million figure our research piece publishes rechecks
+against data we hold
+([#1862](https://github.com/alethical-org/alethical/issues/1862)). The lobbyist and
+client registration lists are not loaded yet, and no lobbying page exists — the pages
+are their own later design work.
+
 ### 9. The money map
 
 A picture of who gave to whom, built from the payments we already hold.

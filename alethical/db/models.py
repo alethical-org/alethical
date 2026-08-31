@@ -2754,6 +2754,241 @@ class PublishedSourceCopy(TimestampMixin, Base):
     # address" without a second one to keep.
 
 
+# --- Lobbying: principal expenditures ----------------------------------------
+#
+# Minnesota's lobbying disclosure, from the Board's lobbying downloads page —
+# a different landing page and a different filing cycle (annual, due 15 March)
+# from the campaign-finance downloads above, so it is its own snapshot-and-replace
+# pipeline (`alethical/pipeline/lobbying_expenditures.py`) rather than a 4th slot
+# in `cf_release`, whose 3-named-columns shape deliberately cannot grow one.
+# Same rules as the campaign-finance tables, for the same reasons: a dated set,
+# checked before anything is published, published by replacing the previous set
+# entirely, and traceable to the exact bytes the Board served. Source measurements:
+# docs/architecture/campaign-finance-system-design.md §2.2 (Lobbying).
+#
+# The published figure this data exists to check: *The Money Only Goes One Way*
+# states $886 million across 3,056 organisations, spending years 2015–2025, summed
+# from this file's `Total spent` column (issue #1862).
+
+
+class LobbyingExpenditureSnapshot(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """One distinct set of principal-expenditure records, and the bytes they came in.
+
+    The same two hashes as ``cf_snapshot``, with the same jobs: ``content_hash``
+    is the sha256 of the response bytes we kept and identifies the retained
+    object; ``record_set_hash`` is order-independent over the records and is the
+    change detector. This export returned byte-identical files on 2 downloads a
+    minute apart on 31 Aug 2026 — unlike the shuffling campaign-finance exports —
+    but 2 fetches of 1 file are not a property of the source, so the record-set
+    hash still decides.
+
+    The body columns are folded onto this row rather than split into a body
+    table, the way ``cf_filing_snapshot`` does it and for the same reason: there
+    is exactly one 1.5 MB body per snapshot. Naming ``object_key``,
+    ``compressed_hash`` and ``mirrored_at`` is what gets the object mirrored to
+    the second store from the day this ships (#1501).
+
+    The fetch window lives here because there is no release table for it to live
+    on: one dataset means the snapshot is the release, and ``publish()`` compares
+    windows to refuse replacing newer data with older data.
+    """
+
+    __tablename__ = "lobbying_expenditure_snapshot"
+
+    # Signed integer, as text. The file we want is NEGATIVE (-728390027), so a
+    # `\d+` pattern silently resolves a different address (§2.1, §2.2).
+    download_id: Mapped[str] = mapped_column(String(32), nullable=False)
+    source_url: Mapped[str] = mapped_column(Text, nullable=False)
+    content_disposition_filename: Mapped[Optional[str]] = mapped_column(Text)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    record_set_hash: Mapped[Optional[str]] = mapped_column(String(64))
+    byte_size: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    fetch_started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    fetch_completed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    row_count: Mapped[Optional[int]] = mapped_column(Integer)
+    column_names: Mapped[Optional[list]] = mapped_column(JSONB)
+    status: Mapped[CampaignFinanceSnapshotStatus] = mapped_column(
+        SQLEnum(CampaignFinanceSnapshotStatus, name="cf_snapshot_status"),
+        nullable=False,
+    )
+
+    # The measurements validation compares a candidate against, kept on the
+    # snapshot rather than recomputed from rows so a superseded set's rows can be
+    # pruned without losing the ability to check the next download.
+    total_spent_sum: Mapped[Optional[Decimal]] = mapped_column(Numeric(20, 4))
+    negative_amount_sum: Mapped[Optional[Decimal]] = mapped_column(Numeric(20, 4))
+    distinct_row_count: Mapped[Optional[int]] = mapped_column(Integer)
+    distinct_entity_count: Mapped[Optional[int]] = mapped_column(Integer)
+    # How many (Entity ID, Report Year) pairs appear more than once: 0 on every
+    # measured file, and a duplicate would double a principal's year wherever
+    # rows are summed per principal, so growth here quarantines.
+    duplicate_entity_year_count: Mapped[Optional[int]] = mapped_column(Integer)
+    # Rows where `Total spent` is not the sum of the 5 type columns (blank read
+    # as 0; rows with every money cell blank skipped). 0 on every measured file,
+    # and the published figure sums `Total spent`, so drift here quarantines.
+    total_mismatch_count: Mapped[Optional[int]] = mapped_column(Integer)
+    # Whether the file still maps each Entity ID to exactly 1 principal name and
+    # back. Both 0 on every measured file. The research piece's method inset
+    # leans on this being true of the records it described.
+    entity_ids_with_multiple_names_count: Mapped[Optional[int]] = mapped_column(Integer)
+    names_with_multiple_entity_ids_count: Mapped[Optional[int]] = mapped_column(Integer)
+    rows_by_report_year: Mapped[Optional[dict]] = mapped_column(JSONB)
+    blank_counts_by_column: Mapped[Optional[dict]] = mapped_column(JSONB)
+    malformed_quote_record_count: Mapped[Optional[int]] = mapped_column(Integer)
+
+    validation_json: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    error_text: Mapped[Optional[str]] = mapped_column(Text)
+
+    # The retained body. Written only after the upload is read back and verified,
+    # because a row pointing at a missing object destroys the evidence it claims.
+    object_key: Mapped[Optional[str]] = mapped_column(Text, unique=True)
+    compressed_hash: Mapped[Optional[str]] = mapped_column(String(64))
+    compressed_byte_size: Mapped[Optional[int]] = mapped_column(BigInteger)
+    compression: Mapped[str] = mapped_column(String(20), nullable=False, default="gzip")
+    mirrored_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+    __table_args__ = (
+        # The real identity of the data. Partial, because an unparseable download
+        # has no record set and more than one of those can be retained.
+        Index(
+            "uq_lobbying_expenditure_snapshot_record_set_hash",
+            "record_set_hash",
+            unique=True,
+            postgresql_where=text("record_set_hash IS NOT NULL"),
+        ),
+        Index("ix_lobbying_expenditure_snapshot_status", "status"),
+    )
+
+
+class LobbyingExpenditureRow(Base):
+    """One record of the "Principal expenditures - 2009 - Present" download.
+
+    9 source columns, mirrored one for one, and nothing else — the same rules as
+    the campaign-finance row tables above, for the same measured reasons: the
+    primary key is ``(snapshot_id, row_number)`` with ``row_number`` the 1-based
+    CSV record number, money is ``numeric(18,4)``, ``entity_id`` stays text
+    exactly as printed, blank becomes NULL and never an invented 0 — 48 rows on
+    the 31 Aug 2026 file carry no amounts at all, which is "not reported", not
+    "spent nothing" (`.claude/rules/grounded-answers.md` rule 12). No timestamps,
+    and nothing human may live here: the published set is rebuilt on every load.
+
+    ``report_year`` is the calendar year the money was SPENT, not the year the
+    report was filed — the Board's Lobbying Handbook says so 4 times, and §2.2
+    records the measurement. The 4-way type split only begins in 2024; earlier
+    years carry only the PUC and General columns.
+    """
+
+    __tablename__ = "lobbying_expenditure_row"
+
+    # The foreign keys in this block carry explicit names because the naming
+    # convention's fk_<table>_<column>_<referred table> exceeds Postgres's
+    # 63-character identifier cap with these table names, and a truncated name
+    # would make the migration and the models disagree.
+    snapshot_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey(
+            "lobbying_expenditure_snapshot.id",
+            ondelete="CASCADE",
+            name="fk_lobbying_expenditure_row_snapshot",
+        ),
+        primary_key=True,
+    )
+    row_number: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+    principal: Mapped[Optional[str]] = mapped_column(Text)  # Principal
+    entity_id: Mapped[Optional[str]] = mapped_column(Text)  # Entity ID
+    report_year: Mapped[Optional[int]] = mapped_column(Integer)  # Report Year
+    puc_lobbying_amount: Mapped[Optional[Decimal]] = mapped_column(
+        Numeric(18, 4)
+    )  # PUC lobbying amount
+    legislative_lobbying_amount: Mapped[Optional[Decimal]] = mapped_column(
+        Numeric(18, 4)
+    )  # Legislative lobbying amount
+    administrative_lobbying_amount: Mapped[Optional[Decimal]] = mapped_column(
+        Numeric(18, 4)
+    )  # Administrative lobbying amount
+    mgu_lobbying_amount: Mapped[Optional[Decimal]] = mapped_column(
+        Numeric(18, 4)
+    )  # MGU lobbying amount
+    general_lobbying_amount: Mapped[Optional[Decimal]] = mapped_column(
+        Numeric(18, 4)
+    )  # General lobbying amount
+    total_spent: Mapped[Optional[Decimal]] = mapped_column(
+        Numeric(18, 4)
+    )  # Total spent
+
+    __table_args__ = (
+        Index("ix_lobbying_expenditure_row_entity", "entity_id", "report_year"),
+    )
+
+
+class LobbyingExpenditureCurrentSnapshot(TimestampMixin, Base):
+    """A single row naming the live lobbying snapshot. One row, forever.
+
+    Exists for the same reason ``cf_current_release`` does: publishing takes
+    ``SELECT ... FOR UPDATE`` on it, re-reads the candidate inside the lock, and
+    refuses a candidate whose fetch window opened before the live one's, because
+    a rule limiting how many snapshots are published limits quantity, not age.
+    """
+
+    __tablename__ = "lobbying_expenditure_current"
+
+    id: Mapped[bool] = mapped_column(
+        Boolean, primary_key=True, default=True, server_default=text("true")
+    )
+    snapshot_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey(
+            "lobbying_expenditure_snapshot.id",
+            name="fk_lobbying_expenditure_current_snapshot",
+        )
+    )
+
+    __table_args__ = (CheckConstraint("id", name="single_row"),)
+
+
+class LobbyingExpenditureFetchObservation(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """One row per download, append-only, whether or not anything changed.
+
+    The same job as ``cf_fetch_observation``: it makes "the file was confirmed
+    current on this date" a recorded fact rather than an assumption, which is
+    what a freshness date has to stand on, and it keeps each download's own byte
+    hash and size even when the bytes were already on file.
+    """
+
+    __tablename__ = "lobbying_fetch_observation"
+
+    snapshot_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey(
+            "lobbying_expenditure_snapshot.id",
+            name="fk_lobbying_fetch_observation_snapshot",
+        ),
+        nullable=False,
+    )
+    ingestion_run_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("ingestion_run.id")
+    )
+    download_id: Mapped[str] = mapped_column(String(32), nullable=False)
+    requested_url: Mapped[str] = mapped_column(Text, nullable=False)
+    final_url: Mapped[Optional[str]] = mapped_column(Text)
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    completed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    byte_size: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    response_headers: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    reused_existing_snapshot: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False
+    )
+
+    __table_args__ = (Index("ix_lobbying_fetch_observation_started", "started_at"),)
+
+
 def bill_detail_stmt(
     bill_id: uuid.UUID,
     user_id: Optional[uuid.UUID] = None,

@@ -427,14 +427,39 @@ Principal expenditures, plus lobbyist and lobbying-entity registration. Minnesot
 the lobbyist-to-client relationships here that the retired system was almost entirely missing
 (it held 63 relationships for 1,709 lobbyists).
 
-**We hold none of this, and that is a separate fact from whether it can be checked.** Alethical
-has no lobbying table, ingestion or model, and the published pieces say so in their own words.
-[#1687](https://github.com/alethical-org/alethical/issues/1687) recorded the research piece *The
-Money Only Goes One Way*'s lobbying figures as **unreproducible** on that ground, 3 times. They
-are reproducible: the principal report is a bulk CSV like the campaign-finance files, and every
-lobbying figure on that page was checked against it on 27 Aug 2026
-([#1802](https://github.com/alethical-org/alethical/issues/1802)). Holding no records means we
-cannot serve them or date them; it never meant a figure drawn from them could not be verified.
+**The principal-expenditures file is loaded and held, since 31 Aug 2026
+([#1862](https://github.com/alethical-org/alethical/issues/1862)).**
+`alethical/pipeline/lobbying_expenditures.py` snapshots it under §4's
+snapshot-and-replace pattern — its own pipeline rather than a 4th slot in
+`cf_release`, because lobbying lives on a different landing page with an annual
+rhythm (reports due 15 March) and `cf_release`'s 3-named-columns shape deliberately
+cannot grow a slot. One snapshot is the release; `lobbying_expenditure_current` names
+the live one, and `scripts/recompute_lobbying_published_figures.py` recomputes the
+published figures from it. On the 31 Aug 2026 load the piece's figures reproduce to
+the dollar: $886,298,059.00 across 3,056 entity IDs, report years 2015–2025, and the
+same 5 largest spenders. An earlier version of this paragraph, before the loader
+existed, noted that holding no records never meant the figures could not be verified —
+[#1687](https://github.com/alethical-org/alethical/issues/1687) had recorded them as
+unreproducible 3 times, and they were checked directly against the bulk file on
+27 Aug 2026 ([#1802](https://github.com/alethical-org/alethical/issues/1802)). The
+lobbyist and lobbying-entity registration lists on the same landing page are still
+**not** loaded; they belong to the later lobbying design work, which needs them
+before any lobbying page ships.
+
+Three more source facts, measured 31 Aug 2026 while building the loader:
+
+- **48 of the 17,842 rows carry no amounts at all** — every one of the 6 money cells
+  blank, never a partial blank. Blank is "not reported" and lands as NULL;
+  `.0000` is the file's explicit zero (`.claude/rules/grounded-answers.md` rule 12,
+  missing versus zero). The blank rows change no totals.
+- **2 downloads a minute apart returned byte-identical files**, unlike §2.1's
+  shuffling exports. The loader still decides "did the data change" on the record-set
+  hash, because 2 fetches of 1 file are not a property of the source.
+- **LF line endings, no byte-order mark, 0 backslash bytes, 0 negative amounts, and
+  nothing finer than 4 decimals** — where the §2.1 files are CRLF and carry both
+  backslash-escaped quotes and negative amounts. The 1:1 name-to-id mapping also
+  holds across all years including 2014, not only the 2015–2025 window measured
+  above.
 
 **The principal expenditures file, measured 27 Aug 2026** (17,842 rows, 1.5 MB, resolved from the
 landing page under its **Principal expenditures** heading, row "Principal expenditures - 2009 -
@@ -828,11 +853,15 @@ summing the 3 row tables' live sets in production). An earlier 51 MB in this sen
 dataset rather than the set. Pruning successful bodies to save space would give up exactly
 the record this section exists to hold.
 
-**Four kinds of body, one store, one retention rule.** The 3 bulk downloads
+**Five kinds of body, one store, one retention rule.** The 3 bulk downloads
 (`campaign-finance/<dataset>/<sha256>.csv.gz`), one archive per totals run
 (`campaign-finance/filings/<sha256>.jsonl.gz`, §9.3), one object per report document
-(`campaign-finance/report-document/<sha256>.pdf.gz`, §9.4) and one object per version of every
-source our published writing cites (`published-sources/<sha256>.<extension>.gz`, §4.6). All 4 are
+(`campaign-finance/report-document/<sha256>.pdf.gz`, §9.4), one object per version of every
+source our published writing cites (`published-sources/<sha256>.<extension>.gz`, §4.6), and
+the lobbying principal-expenditures download
+(`lobbying/principal-expenditures/<sha256>.csv.gz`, §2.2 and #1862 — its prefix sits outside
+`campaign-finance/` because lobbying disclosure is a different filing regime, and its body
+columns fold onto `lobbying_expenditure_snapshot` the way `cf_filing_snapshot`'s do). All 5 are
 content-addressed, gzipped
 with `mtime=0` and `filename=""`, read back and hashed before the row that names them exists,
 kept indefinitely, and never deleted from either store. Measured 18 August 2026, after the #1501
