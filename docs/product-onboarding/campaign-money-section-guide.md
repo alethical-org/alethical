@@ -365,7 +365,15 @@ Top to bottom:
    to be the member's only committee — a candidate can register more than one, 20
    currently do, and adding two of them together would count the same money twice
    ([#1663](https://github.com/alethical-org/alethical/issues/1663)) — so it says the
-   money on the page is this committee's own record. A committee somebody looked at and
+   Under that sentence sit up to 3 short lines saying what the person actually read: the
+   day they decided, how the account's filed name related to the member's, what
+   Minnesota's register of registered candidates said about it, and what the party money
+   said. They are read off that decision's own stored record rather than recomputed, so a
+   later download renaming a committee does not rewrite the basis of a decision already
+   made, and the weak cases say they are weak: where the register has no row, the line
+   says so rather than anything a reader could mistake for the state agreeing.
+
+   A committee somebody looked at and
    ruled out reads exactly like one nobody has looked at yet: that decision is about our
    own proposal, and it is not a claim about the committee.
 3. **A year switch** (this calendar year and the one before), each year its own address.
