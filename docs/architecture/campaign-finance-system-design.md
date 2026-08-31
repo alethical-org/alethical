@@ -997,15 +997,34 @@ It reports and never repairs: a contradiction wants a person's eyes, and a renam
 what changed rather than as a mistake.
 
 **`verify` runs on its own account, whether or not anything is confirmed to check
-([#1398](https://github.com/alethical-org/alethical/issues/1398)).** It has no schedule of its
-own — it rides inside the campaign-finance load (#1328's `load_campaign_finance`), every time
-that load runs, reading the contributions file that run already downloaded and the
-registered-filer directory (§9.7) that run's sibling filings pipeline (#1408) already holds in
-`cf_filer`, so it never triggers a second fetch of either. It never blocks that load: the money
-data a run publishes is correct whether or not a committee's identity changed, so a contradiction
-is filed or updated as a GitHub issue instead, using the same alerting `gh` already does for the
-sibling ingestion jobs. Zero confirmed links — true of every database until the first review
-sitting lands — is a pass, not a failure.
+([#1398](https://github.com/alethical-org/alethical/issues/1398)).** It runs in 2 places. Inside
+the campaign-finance load (#1328's `load_campaign_finance`), every time that load runs, reading
+the contributions file that run already downloaded and the registered-filer directory (§9.7) that
+run's sibling filings pipeline (#1408) already holds in `cf_filer`, so it never triggers a second
+fetch of either. And on its own weekly schedule, `.github/workflows/committee-link-contradictions.yml`,
+which fetches both sources itself and files the alert. Zero confirmed links — true of every
+database until the first review sitting lands — is a pass, not a failure. It never blocks the
+load: the money data a run publishes is correct whether or not a committee's identity changed.
+
+**That second place exists because the first one left the guard switched off for 19 days, and the
+paragraph above claimed otherwise ([#1861](https://github.com/alethical-org/alethical/issues/1861)).**
+Until 31 Aug 2026 this section said a contradiction "is filed or updated as a GitHub issue …
+using the same alerting `gh` already does for the sibling ingestion jobs". No such code existed:
+the contradictions reached `LoadReport.committee_link_contradictions` and were printed, and
+nothing else. The load is also on no schedule and is triggered by hand, and its last run was
+12 Aug 2026 — 19 days before the first sitting confirmed 242 links, so the only thing watching
+those links had never looked at one. Both halves are now built, and the sentence describes what
+exists rather than what was intended. **The general lesson, which is why this correction is
+written out rather than quietly edited: a design document describing a safeguard reads as
+evidence the safeguard is armed, and this file loads into every session.**
+
+**Weekly rather than per-load, and that is a decision.** The Board republishes the contributions
+file on filing deadlines, so a daily run would fetch 83 MB from a government site 6 extra times
+a week to compare the same rows against the same rows. Weekly also makes the check's own result
+readable: a re-check against the *same* download a decision was made from can only catch an
+internal inconsistency, and the useful form is a re-check against a download the Board has since
+replaced. Measured on 31 Aug 2026, the first time anything looked: all 242 links agreed with both
+sources, against the download they were decided from.
 
 **The reviewer of record is `Alethical, LLC`, not the individual who typed the keystroke (Eugene,
 31 Aug 2026).** A person still answers every question, and `reviewed_by` is still `NOT NULL` with

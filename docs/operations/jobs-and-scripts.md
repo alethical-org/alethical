@@ -2,8 +2,8 @@
 
 <!-- describes: .github/workflows/**, scripts/**, alethical/pipeline/**, alethical/api/routers/ask.py, alethical/api/routers/me.py, alethical/api/services/ask_router.py -->
 
-Net: The repository has 14 GitHub Actions workflows. 10 can start automatically
-and 4 run only when a person starts them. Scheduled checks, releases, and local
+Net: The repository has 17 GitHub Actions workflows. 14 can start automatically
+and 3 run only when a person starts them. Scheduled checks, releases, and local
 backups do not call paid AI services. Reader questions and deliberately started
 AI work do.
 
@@ -14,6 +14,7 @@ AI work do.
 | Project checks (`.github/workflows/ci.yml`) | Every pull request and push to `main` | Runs the code, formatting, security, and document checks | No paid AI call; [standard GitHub-hosted runners are free for public repositories](https://docs.github.com/en/actions/concepts/billing-and-usage) |
 | New votes (`.github/workflows/vote-backfill.yml`) | Daily at 09:00 UTC | Adds newly published House and Senate roll-call votes | No paid AI call; reads free government sources |
 | Missing bill sections (`.github/workflows/bill-section-gaps.yml`) | Daily at 11:00 UTC | Opens or updates an issue when stored bill text is incomplete | No paid AI call; reads the database |
+| Committee links still agree (`.github/workflows/committee-link-contradictions.yml`) | Weekly, Mondays at 15:00 UTC | Re-reads every campaign account a person confirmed as a politician's against Minnesota's own records, and opens or updates an issue when one no longer agrees | No paid AI call; 2 free government downloads and one read of the database |
 | Bills missing from search (`.github/workflows/rag-coverage-gaps.yml`) | Daily at 12:00 UTC | Opens or updates an issue when a stored bill has no current search index | No paid AI call; reads the database and does not rebuild the index |
 | Second copy of source files (`.github/workflows/mirror-raw-files.yml`) | Daily at 13:00 UTC | Copies new campaign-finance stored files from Supabase to Cloudflare R2, then verifies them. Covers all 3 kinds of stored body (bulk downloads, totals archives, report documents), discovered from the database schema so a later 4th kind is copied from the day it ships | No paid AI call; [Cloudflare R2 includes 10 GB of Standard storage and large monthly operation allowances](https://developers.cloudflare.com/r2/pricing/) before charges |
 | Bills with summary gaps (`.github/workflows/bill-summary-coverage.yml`) | Daily at 14:00 UTC | Opens or updates 1 issue when a bill has complete current text but its full summary is missing or was made from older text or instructions | No paid AI call; reads the database and does not create or change a summary |
