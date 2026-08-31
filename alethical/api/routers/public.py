@@ -4270,6 +4270,16 @@ def legislator_campaign_finance(
                             "itemized_payments": (
                                 entry.finance.money_out.itemized_payments
                             ),
+                            # The committee's own reported figure for the period, which
+                            # the committee route has always served and this one never
+                            # did. Rule 12 wants a second number beside every money
+                            # figure, and money out was the only figure on a profile
+                            # with none, which is also why the page said Minnesota
+                            # published no such total (#1875).
+                            "reported_total": entry.finance.money_out.reported_total,
+                            "reported_through": (
+                                entry.finance.money_out.reported_through
+                            ),
                             "by_type": [
                                 {
                                     "type": bucket.expenditure_type,

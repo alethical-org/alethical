@@ -259,14 +259,21 @@ export const UNNAMED_MONEY_EXPLANATION =
  * on the screen, and a reader would take the absence as a spending of zero, which is the
  * exact missing-versus-zero failure rule 12 exists to stop.
  */
-export function spendingNote(state: MoneyBlockState): string {
+export function spendingNote(state: MoneyBlockState, hasReportedTotal = false): string {
   if (state === 'reported') {
-    return (
-      'Minnesota only names a recipient once payments to them pass $200 in total for ' +
-      'the year, so this list is not everything the committee paid out. The committee’s ' +
-      'own reported total for the period is on its committee page; we do not repeat it ' +
-      'here yet.'
-    );
+    // With both figures on screen the sentence has the same job the committee page's
+    // does: say they are 2 separate claims and are never subtracted. Without the
+    // reported figure it has to say where the gap is, and the gap is ours — we hold no
+    // total for that committee-year, or we hold one and will not stand behind it.
+    return hasReportedTotal
+      ? 'These are 2 different figures from Minnesota and we never subtract one from ' +
+          'the other. The committee’s own report counts money it paid; the state’s ' +
+          'payments file names a recipient only once payments to them pass $200 in ' +
+          'total for the year, so this list is not everything the committee paid out.'
+      : 'Minnesota only names a recipient once payments to them pass $200 in total for ' +
+          'the year, so this list is not everything the committee paid out. We hold no ' +
+          'reported total for this committee covering this year that we can stand ' +
+          'behind, so there is nothing here to compare it against.';
   }
   if (state === 'unavailable') {
     return 'We could not read this committee’s payments out of our copy of Minnesota’s file.';
