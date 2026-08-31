@@ -802,8 +802,11 @@ describe('the spending note never speaks for what Minnesota publishes', () => {
   // The money-in block on the same screen already says the true version, and the
   // difference is which side the gap is on: ours, not Minnesota's.
   it('puts a missing comparison on our side of the line', () => {
+    // Was 'we do not repeat it here yet', which was true for the hours between removing
+    // the false claim about Minnesota and drawing the figure. The page draws it now, so
+    // what has to survive is that a missing comparison is described as ours.
     const note = spendingNote('reported');
-    expect(note).toContain('we do not repeat it here yet');
+    expect(note).toContain('that we can stand behind');
     expect(note).not.toContain('no bigger number');
   });
 
@@ -815,5 +818,40 @@ describe('the spending note never speaks for what Minnesota publishes', () => {
   // Unchanged and load-bearing: an absent figure must never read as a spending of zero.
   it('keeps refusing to let nothing named read as nothing spent', () => {
     expect(spendingNote('not_reported')).toContain('does not mean the committee spent nothing');
+  });
+});
+
+describe('money out finally has its second number', () => {
+  // Rule 12 wants a second figure beside every money figure, so a reader can see what
+  // our list does and does not cover. Money out was the only figure on this tab with
+  // none: the route served the committee's own reported total, the client mapping
+  // dropped it, and the page then told readers Minnesota published no such total. It
+  // publishes one for 3,630 filer-years.
+  it('says the 2 figures are separate claims when both are on screen', () => {
+    const note = spendingNote('reported', true);
+    expect(note).toContain('2 different figures from Minnesota');
+    expect(note).toContain('never subtract one from the other');
+    expect(note).toContain('$200 in total for the year');
+  });
+
+  // Null is not zero and not Minnesota's fault. We hold no total for some
+  // committee-years, and on a special-election filer-year we hold one and refuse to
+  // stand behind it: 39 such filer-years are in the live snapshot, including Rep. Xp
+  // Lee's committee 19223 for 2025, which holds $16,923.32 we will not publish.
+  it('puts a missing comparison on our side when only our list is on screen', () => {
+    const note = spendingNote('reported', false);
+    expect(note).toContain('that we can stand behind');
+    expect(note).not.toContain('2 different figures from Minnesota');
+  });
+
+  it('still never claims Minnesota publishes no spending total, either way', () => {
+    for (const has of [true, false]) {
+      expect(spendingNote('reported', has)).not.toMatch(/publishes no official total/i);
+      expect(spendingNote('reported', has)).not.toMatch(/Minnesota[^.]*no (?:official )?total/i);
+    }
+  });
+
+  it('defaults to the honest sentence when the caller says nothing', () => {
+    expect(spendingNote('reported')).toBe(spendingNote('reported', false));
   });
 });

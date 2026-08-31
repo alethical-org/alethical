@@ -427,11 +427,29 @@ function MoneyOut({
   const { moneyOut } = committee;
   if (!moneyOut) return null;
   const total = moneyFigure(moneyOut.state, moneyOut.itemizedPaymentTotal);
+  const reportedOut = formatMoney(moneyOut.reportedTotal);
   return (
     <View style={styles.block}>
       <Text accessibilityRole="header" aria-level={4} style={styles.h4}>
         Money out
       </Text>
+      {/* The committee's own reported figure, above our list, exactly as money in
+          draws its own reported total above the named donations. Rule 12 wants a
+          second number beside every money figure, and until now money out was the
+          only figure on this tab with none — which is also how the page came to tell
+          readers Minnesota published no such total when it publishes one (#1875).
+          Null is left blank rather than filled: our copy holds no total for some
+          committee-years, and on a special-election filer-year we hold one and refuse
+          to stand behind it, so a zero here would be the missing-versus-zero failure
+          in the most literal form. */}
+      {reportedOut ? (
+        <Figure
+          label="Payments out this committee reported to the state"
+          value={reportedOut}
+          note={reportedThroughLabel(moneyOut.reportedThrough)}
+          isDesktop={isDesktop}
+        />
+      ) : null}
       <Figure
         label="Payments we can list"
         value={total.text}
@@ -443,7 +461,7 @@ function MoneyOut({
           one" and "here is no figure" are two different things to explain. Under
           "Not reported" the first sentence would be explaining a number that is not
           on the screen, and a reader would take the absence as a spending of zero. */}
-      <Text style={styles.explain}>{spendingNote(moneyOut.state)}</Text>
+      <Text style={styles.explain}>{spendingNote(moneyOut.state, Boolean(reportedOut))}</Text>
       {moneyOut.byType.length ? (
         <View style={styles.rows}>
           {moneyOut.byType.map((entry) => (

@@ -601,6 +601,13 @@ export interface CampaignCommitteeMoney {
     state: MoneyBlockState;
     itemizedPaymentTotal: string | null;
     itemizedPayments: number | null;
+    /** The committee's own reported figure for the period, and the day that period
+     *  ends. Rule 12's second number for money out, which this tab drew nowhere until
+     *  now. Null where our copy holds none, and null on a special-election filer-year
+     *  whose totals copy cannot speak for the year: 39 such filer-years exist in the
+     *  live snapshot, and Rep. Xp Lee's committee 19223 for 2025 is one of them. */
+    reportedTotal: string | null;
+    reportedThrough: string | null;
     byType: { type: string; total: string; payments: number }[];
     sourceUrl: string | null;
   } | null;
