@@ -17,8 +17,8 @@ Four commands, of which one writes:
     ... propose --contributions /path/to/contributions.csv
 
     # confirm or reject. The only command that writes.
-    ... review --contributions ... --reviewer "Eugene Lopin"          # one at a time
-    ... review --batch --contributions ... --reviewer "Eugene Lopin"  # uncontested as one list
+    ... review --contributions ...          # one at a time
+    ... review --batch --contributions ...  # uncontested as one list
 
     # re-check every confirmed link against both sources. Writes nothing; exits non-zero
     # if any link now contradicts them. Run after each campaign-finance load.
@@ -487,6 +487,15 @@ def link_row(
     )
 
 
+# Who a decision is recorded against. The company, not the individual who typed the
+# keystroke: Alethical, LLC is the entity accountable for the match, and it is the entity a
+# reader is told checked it, so the stored value and the published one are the same words
+# (Eugene, 31 Aug 2026). The tradeoff is real and accepted: the row no longer says which
+# human answered, so if 2 people ever hold sittings the record cannot say which of them to
+# ask about one decision. ``--reviewer`` still overrides, for the day that matters.
+REVIEWER_OF_RECORD = "Alethical, LLC"
+
+
 PARTY_AGREEMENT_AGREES = "agrees"
 PARTY_AGREEMENT_DISAGREES = "disagrees"
 PARTY_AGREEMENT_NO_PARTY_ON_RECORD = "no_party_on_record"
@@ -830,9 +839,10 @@ def main() -> None:
     )
     parser.add_argument(
         "--reviewer",
-        default=None,
-        help="Who is confirming. Required by 'review' -- an unattributed link is not a "
-        "checked link.",
+        default=REVIEWER_OF_RECORD,
+        help=f"Who is confirming. Defaults to {REVIEWER_OF_RECORD!r}, the entity "
+        "accountable for the match and the words a reader is shown. A default rather than "
+        "a prompt because 144 rows stamped with a typo cannot be corrected by retyping it.",
     )
     parser.add_argument(
         "--no-filer-directory",
@@ -854,10 +864,8 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    if args.command == "review" and not args.reviewer:
-        parser.error(
-            "--reviewer is required for 'review': a link records who checked it."
-        )
+    if args.command == "review" and not args.reviewer.strip():
+        parser.error("--reviewer cannot be blank: a link records who checked it.")
     if not args.contributions and not args.download:
         parser.error("pass --contributions PATH or --download PATH.")
 
