@@ -34,9 +34,13 @@ done that sitting yet, so all 200 sitting members show the same panel:
 
 Three things that wording is careful about, because a shorter sentence gets each wrong:
 
-- **It never says no committee is registered for this member.** All 200 sitting members
-  do appear in the Board's own list of registered filers, so that sentence would be
-  false for every one of them.
+- **It never says no committee is registered for this member.** Measured when this was
+  written, all 200 sitting members appeared in the Board's own list of registered filers,
+  so that sentence would have been false for every one of them. It is now false for 199:
+  Paul Novotny (house 30B) closed his committee on 28 July 2026, and a closed registration
+  drops out of the list of current candidates. The wording is unaffected, because the
+  reason it never says that sentence is that a blank page is our unfinished work, and
+  199 of 200 still make it factually wrong as well.
 - **It says the unfinished work is ours.** A reader must not take a blank page as
   something the member did.
 - **It says nothing about the other 199 members.** "No figures are on any profile" is
@@ -127,6 +131,27 @@ legislature.
 
 Early in a year the newest option can be genuinely empty, and it says so rather than
 showing a zero.
+
+**An empty year says which of 2 things is true, and never the wrong one.** A committee is
+left out of a year when the download shows it reporting no money that year, and that is a
+fact about Minnesota's file rather than about the registration:
+
+- **Nothing reported for 2026.** The heading, when the Board's filer record carries no
+  closing date for the committee. The sentence says the committee reported no money that
+  year and adds, in these words, that this is not a statement that the committee has
+  closed, because a committee can be registered and report nothing for a year.
+- **This committee has closed.** The heading only when the Board's own record gives a
+  closing date, and the sentence names the day.
+
+The distinction is not decoration. On 31 August 2026, the day the first 144 matches were
+confirmed, 23 profiles landed on an empty 2026 and the panel told every one of their
+readers that "the years it covers do not include 2026 ... a committee is registered for a
+particular race and does not run forever". Minnesota's filer record had **22 of those 23
+committees open, with no closing date**, so 22 named politicians' pages asserted a
+registration had ended when it had not. The 1 it was right about is Paul Novotny's, closed
+28 July 2026. A closing date is now the only thing that licenses the stronger sentence, and
+its absence covers 2 cases we cannot tell apart, still open and missing from the filer list
+we hold, which is why both get the same honest wording.
 
 ### Money in
 
@@ -232,7 +257,8 @@ saying zero:
 2. **A checked zero** — no outside group reported spending anything about this legislator
    that year. The committee is confirmed and the download covers the year, so this is a
    published finding.
-3. **No confirmed committee yet** — today's answer for everybody.
+3. **No confirmed committee yet** — 56 of the 200 sitting members, since the first
+   review sitting confirmed 144 on 31 August 2026.
 4. **A gap in our own copy** — a stale snapshot, a payment whose amount is blank, or a year
    the files do not reach. All 3 figures are withheld rather than published short by an
    unknown amount, because a figure short by an unknown amount and printed without a mark
