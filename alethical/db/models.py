@@ -1591,7 +1591,11 @@ class LegislatorCampaignCommittee(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     Nothing writes here without a person confirming. There is no upsert-from-proposal path
     and deliberately no default for ``reviewed_by``: a row with no reviewer is a row that
-    cannot be written.
+    cannot be written. What that column holds is the *accountable entity* rather than the
+    individual who typed the keystroke -- ``Alethical, LLC``, the same words a reader is
+    shown on the profile (Eugene, 31 Aug 2026). A person still answers every question; what
+    the row no longer records is which person, which is a real cost if 2 people ever hold
+    sittings and is why the reviewing tool keeps an override.
     """
 
     __tablename__ = "legislator_campaign_committee"

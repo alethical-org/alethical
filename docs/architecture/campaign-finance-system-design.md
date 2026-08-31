@@ -1007,6 +1007,18 @@ is filed or updated as a GitHub issue instead, using the same alerting `gh` alre
 sibling ingestion jobs. Zero confirmed links — true of every database until the first review
 sitting lands — is a pass, not a failure.
 
+**The reviewer of record is `Alethical, LLC`, not the individual who typed the keystroke (Eugene,
+31 Aug 2026).** A person still answers every question, and `reviewed_by` is still `NOT NULL` with
+no default, so an unsigned decision still cannot exist. What changed is who the signature names:
+the company is the entity accountable for the match, and it is the entity a reader is told checked
+it, so the stored words and the published words are the same. Two consequences, both accepted. The
+row no longer says *which* human answered, so if 2 people ever hold sittings the record cannot say
+which of them to ask about one decision; the reviewing tool keeps a `--reviewer` override for the
+day that matters. And the sentence above this section that a confirmed match is "a row a named
+person wrote" now means a row a named *entity* wrote, on a person's answer. The default is set in
+code (`REVIEWER_OF_RECORD`) rather than typed, because 144 rows stamped with a typo cannot be
+corrected by retyping it.
+
 **A decision records why it was made, not only which committee was picked, and that had to land
 before the first sitting rather than after ([#1354](https://github.com/alethical-org/alethical/issues/1354)).**
 The `_as_reviewed` name, office and years snapshot the committee, so *which* account a person

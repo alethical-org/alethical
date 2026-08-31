@@ -33,8 +33,11 @@ from __future__ import annotations
 
 import pytest
 
+from alethical.db import models as schema
+
 from scripts.review_legislator_campaign_committees import (
     DIRECTORY_IN_BRIEF,
+    REVIEWER_OF_RECORD,
     describe,
     link_row,
     newest_receipt_date,
@@ -1154,6 +1157,31 @@ def test_no_party_on_record_is_never_shown_to_a_reviewer_as_a_disagreement():
         party_by_registration={"17674": "R"},
     ).proposals[0]
     assert "DISAGREES with our record" in describe(disagrees)
+
+
+def test_a_decision_is_recorded_against_the_company_not_the_person_who_typed_it():
+    # Ruled by Eugene on 31 Aug 2026: the row names the accountable entity, and the same
+    # words a reader is shown on the profile. A person still answers every question; the row
+    # no longer says which person, and that cost is accepted and written down in
+    # campaign-finance-system-design.md 5.1.
+    assert REVIEWER_OF_RECORD == "Alethical, LLC"
+    result = only(
+        [member("Patty Acomb", "house", first="Patty", last="Acomb", party="DFL")],
+        [committee("18272", "Acomb, Patty House Committee")],
+        party_by_registration={"18272": "DFL"},
+    )
+    row = link_row(
+        result.member,
+        result.proposals[0],
+        REVIEWER_OF_RECORD,
+        confirmed=True,
+        note=None,
+        records_through="2026-07-20",
+    )
+    assert row.reviewed_by == "Alethical, LLC"
+    # Still a column no row may omit: the standard is that a decision is signed, and only
+    # who signs it changed.
+    assert schema.LegislatorCampaignCommittee.__table__.c.reviewed_by.nullable is False
 
 
 def test_a_decision_records_why_it_was_made_and_from_which_snapshot():
