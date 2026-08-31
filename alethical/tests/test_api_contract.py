@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 import requests
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from alethical.api.serializers import current_bill_summary_enrichment
@@ -26,6 +26,10 @@ def test_health_and_meta_endpoints(client):
     health_response = client.get("/healthz")
     assert health_response.status_code == 200
     assert health_response.json() == {"status": "ok"}
+
+    ready_response = client.get("/readyz")
+    assert ready_response.status_code == 200
+    assert ready_response.json() == {"status": "ready"}
 
     meta_response = client.get("/api/v1/meta")
     assert meta_response.status_code == 200
@@ -162,6 +166,55 @@ def test_bill_list_and_bill_detail_support_public_and_signed_in_views(
         "passed_senate",
         "signed_into_law",
     ]
+
+
+def test_bill_directory_view_returns_only_first_response_fields(client):
+    response = client.get(
+        "/api/v1/bills",
+        params={
+            "scope": "legislature",
+            "sort": "progress",
+            "view": "directory",
+            "limit": 2,
+        },
+    )
+
+    assert response.status_code == 200
+    rows = response.json()["data"]
+    assert len(rows) == 2
+    for row in rows:
+        assert set(row) == {
+            "id",
+            "current_status",
+            "status_key",
+            "session",
+            "ai_analysis",
+        }
+        assert set(row["ai_analysis"]) == {"short_title"}
+        assert "actions" not in row
+        assert "chief_sponsors" not in row
+        assert "stats" not in row
+
+
+def test_huge_empty_offset_counts_before_attempting_the_page_query():
+    from alethical.api.routers.public import paginated_scalars_with_total
+
+    schema = load_schema()
+
+    class CountOnlyDb:
+        def scalar(self, _stmt):
+            return 25
+
+        def execute(self, _stmt):
+            raise AssertionError("a huge empty offset must not reach the page query")
+
+    rows, has_more, total = paginated_scalars_with_total(
+        CountOnlyDb(), select(schema.Bill), limit=10, offset=1_000_000
+    )
+
+    assert rows == []
+    assert has_more is False
+    assert total == 25
 
 
 def test_featured_bills_returns_requested_summaries_in_order_and_skips_missing(client):
@@ -413,6 +466,10 @@ def test_legislator_list_supports_offset_pagination_and_total(client):
         params={"session": "94-2025-regular", "limit": 1, "offset": 0},
     )
     assert first_response.status_code == 200
+    assert (
+        first_response.headers["cache-control"]
+        == "public, max-age=60, stale-while-revalidate=300"
+    )
     first_payload = first_response.json()
     assert len(first_payload["data"]) == 1
     assert first_payload["page"]["offset"] == 0
@@ -1196,7 +1253,10 @@ def test_bill_detail_exposes_normalized_ai_analysis_without_metadata(client):
     detail_payload = detail_response.json()["data"]
 
     assert detail_payload["ai_analysis"] == {
-        "short_title": None,
+        # The plain-language headline every surface shows in place of the official
+        # legal title. Also copied onto ``bill.short_title`` by a trigger so
+        # keyword search can match it (#1456).
+        "short_title": "Statewide Jobs and Worker Training Budget",
         "summary": (
             "SF 1832 is an omnibus jobs, labor, and economic development package. "
             "It combines agency appropriations with policy changes for workforce programs, "
@@ -1410,6 +1470,50 @@ def test_bill_search_matches_inflected_word_roots(client):
     assert 1832 in [b["file_number"] for b in combined.json()["data"]["bills"]]
 
 
+def test_bill_search_finds_a_bill_by_the_headline_its_card_displays(client):
+    """Search matches the plain-language headline a reader can actually see
+    (#1456), not only the bill's official legal title.
+
+    The reported failure, on production: searching the exact words on SF 3458's
+    card — "Repeal of Political Contribution Refund Program" — returned nothing,
+    because search read only ``bill.title`` and ``bill.description`` while every
+    surface *displays* the AI-written ``short_title``. SF 1832's fixture headline
+    is "Statewide Jobs and Worker Training Budget"; "Statewide" and "Training"
+    appear in neither its official title nor its description, so each assertion
+    below returned zero results before the headline became searchable."""
+    session = {"session": "94-2025-regular"}
+
+    headline = client.get(
+        "/api/v1/bills",
+        params={**session, "q": "Statewide Jobs and Worker Training Budget"},
+    )
+    assert headline.status_code == 200
+    assert 1832 in [b["file_number"] for b in headline.json()["data"]]
+
+    # One word that exists only in the headline is enough, and it ranks the bill
+    # first: a headline match is as strong a subject signal as a legal-title one.
+    single = client.get("/api/v1/bills", params={**session, "q": "Statewide"})
+    assert single.status_code == 200
+    single_numbers = [b["file_number"] for b in single.json()["data"]]
+    assert single_numbers and single_numbers[0] == 1832
+
+    # Filler words no longer gate the match. "with" appears nowhere in SF 1832's
+    # title, description or headline, so requiring it dropped the bill entirely.
+    filler = client.get(
+        "/api/v1/bills", params={**session, "q": "jobs budget with worker training"}
+    )
+    assert filler.status_code == 200
+    assert 1832 in [b["file_number"] for b in filler.json()["data"]]
+
+    # The multi-type /search typeahead matches the same text, so a bill cannot be
+    # findable in one search box and invisible in the other.
+    combined = client.get(
+        "/api/v1/search", params={"q": "Statewide Training", "types": "bills"}
+    )
+    assert combined.status_code == 200
+    assert 1832 in [b["file_number"] for b in combined.json()["data"]["bills"]]
+
+
 def test_bill_search_tolerates_typos_and_ranks_by_relevance(client):
     """Fuzzy trigram matching + relevance ranking (#573). A misspelled query still
     resolves via the pg_trgm ``%>`` word-similarity branch, and the closest match
@@ -1449,26 +1553,32 @@ def test_legislator_detail_returns_ordered_service_history(client):
     (issue #486), not just current_service: one chamber-qualified election line
     per tenure in chronological order, with the term counting the current
     chamber alone. The sample data seeds a multi-chamber (House → Senate) member
-    and a single-chamber House member."""
-    directory = client.get(
-        "/api/v1/legislators", params={"session": "94-2025-regular"}
-    ).json()["data"]
+    and a single-chamber House member.
 
-    histories = []
-    for item in directory:
+    Each member is addressed by the slug `scripts/load_sample_data.py` gives it,
+    rather than searched for in the directory listing (#1491, #1490). That
+    listing defaults to `limit=20` ordered by `sort_name`, so the two members
+    this test is about fall off the first page as soon as the database holds 20
+    legislators sorting ahead of them -- and then the test failed for good, with
+    a message that reads like a real regression in a feature nobody touched.
+    """
+
+    def service_history(slug: str) -> dict:
         payload = client.get(
-            f"/api/v1/legislators/{item['id']}",
+            f"/api/v1/legislators/{slug}",
             params={"session": "94-2025-regular", "include": "service_history"},
         ).json()["data"]
-        if "service_history" in payload:
-            histories.append(payload["service_history"])
+        assert "service_history" in payload, f"expected service history for {slug}"
+        return payload["service_history"]
 
-    multi = [h for h in histories if len(h["periods"]) == 2]
-    single = [h for h in histories if len(h["periods"]) == 1]
-    assert multi, "expected at least one multi-chamber member"
-    assert single, "expected at least one single-chamber member"
+    # ingest_election_history() in scripts/load_sample_data.py: the Senate member
+    # gets the House → Senate history, the House member a single tenure.
+    house_then_senate = service_history("senator-jim-abeler")
+    only_house = service_history("rep-michael-howard")
 
-    house_then_senate = multi[0]
+    assert len(house_then_senate["periods"]) == 2, "expected a multi-chamber member"
+    assert len(only_house["periods"]) == 1, "expected a single-chamber member"
+
     assert [p["chamber"] for p in house_then_senate["periods"]] == ["house", "senate"]
     house_period, senate_period = house_then_senate["periods"]
     assert house_period["initial_year"] == 2012
@@ -1479,7 +1589,6 @@ def test_legislator_detail_returns_ordered_service_history(client):
     # summed in.
     assert house_then_senate["term"] == 1
 
-    only_house = single[0]
     assert only_house["periods"][0]["chamber"] == "house"
     assert only_house["term"] == 2
 
@@ -2661,6 +2770,7 @@ def test_signed_in_bill_tracking_and_notification_preferences(client, auth_heade
     me_response = client.get("/api/v1/me", headers=auth_headers)
     assert me_response.status_code == 200
     assert me_response.json()["data"]["primary_email"] == "ada@example.com"
+    assert me_response.json()["data"]["sign_in_methods"] is None
 
     tracked_response = client.get("/api/v1/me/tracked-bills", headers=auth_headers)
     assert tracked_response.status_code == 200
@@ -2834,11 +2944,10 @@ def test_tracked_bills_last_visit_is_read_once_then_advanced(client, auth_header
     or a retry, be handed a mark the first had just written, and the page would
     report that nothing had moved.
 
-    Also pinned here: this is a column of its own, NOT ``last_signed_in_at``.
-    ``alethical/api/auth.py`` rewrites that on every authenticated request, so by
-    the time any page rendered it would already read "just now" and nothing could
-    ever be newer than it. An ordinary authenticated GET must leave the new column
-    exactly where it was.
+    Also pinned here: this is a column of its own, NOT
+    ``last_identity_linked_at``. That account date records when a sign-in identity
+    was added, not when someone looked at their tracked list. An ordinary
+    authenticated GET must leave both dates exactly where they were.
     """
     schema = load_schema()
     with Session(get_engine()) as db:
@@ -2872,43 +2981,40 @@ def test_tracked_bills_last_visit_is_read_once_then_advanced(client, auth_header
         assert first_mark
 
         # An ordinary authenticated read must not touch the mark. This is the
-        # last_signed_in_at trap: that column WOULD have moved here.
+        # The identity-link date is independent from this tracked-list visit.
         me_before = client.get("/api/v1/me", headers=auth_headers)
         assert me_before.status_code == 200
         client.get("/api/v1/me/tracked-bills", headers=auth_headers)
         with Session(get_engine()) as db:
-            unchanged, signed_in = db.execute(
+            unchanged, identity_linked = db.execute(
                 select(
                     schema.UserAccount.tracked_bills_last_viewed_at,
-                    schema.UserAccount.last_signed_in_at,
+                    schema.UserAccount.last_identity_linked_at,
                 ).where(schema.UserAccount.id == user_id)
             ).one()
         assert unchanged is not None
         assert unchanged.isoformat() == first_mark
-        # ``last_signed_in_at`` is NOT the tracked-bills mark and cannot stand in for
-        # it. This assertion used to prove that by the opposite fact -- that the read
-        # path rewrote it on every authenticated request, so it always read "just
-        # now". #990 stopped those writes (#108), so it is now set only when an
-        # identity is first provisioned. Both facts rule it out, for opposite
-        # reasons: it used to be always-now, and it is now effectively fixed at
-        # sign-up. What matters either way is that it does not track *looking at your
-        # tracked list*, so the two must move independently.
-        assert signed_in != unchanged, (
-            "last_signed_in_at and the tracked-bills mark must be distinct values -- "
+        # ``last_identity_linked_at`` is NOT the tracked-bills mark and cannot
+        # stand in for it. It changes only when an identity is added, so the two
+        # dates must move independently.
+        assert identity_linked != unchanged, (
+            "last_identity_linked_at and the tracked-bills mark must be distinct "
+            "values -- "
             "if they ever coincide, one is standing in for the other"
         )
-        signed_in_before_more_reads = signed_in
+        identity_linked_before_more_reads = identity_linked
         client.get("/api/v1/me", headers=auth_headers)
         client.get("/api/v1/me/tracked-bills", headers=auth_headers)
         with Session(get_engine()) as db:
-            signed_in_after = db.scalar(
-                select(schema.UserAccount.last_signed_in_at).where(
+            identity_linked_after = db.scalar(
+                select(schema.UserAccount.last_identity_linked_at).where(
                     schema.UserAccount.id == user_id
                 )
             )
-        assert signed_in_after == signed_in_before_more_reads, (
-            "ordinary authenticated reads must not write last_signed_in_at (#108); "
-            "if this fails, the read path has started writing again"
+        assert identity_linked_after == identity_linked_before_more_reads, (
+            "ordinary authenticated reads must not write "
+            "last_identity_linked_at (#108); if this fails, the read path has "
+            "started writing again"
         )
 
         # The second visit is handed the FIRST visit's mark, and moves it on.
@@ -5978,3 +6084,296 @@ def test_sponsor_party_falls_back_within_the_same_legislature(client):
         "a period from a different Legislature must not be used"
     )
     assert other_member["district"] is None
+
+
+def test_sitemap_lists_every_bill_and_legislator(client):
+    """The sitemap endpoint (#1325) replaces ~105 paged /bills round trips with
+    one request, so it must actually carry every row -- not a page of them."""
+    schema = load_schema()
+    with Session(get_engine()) as db:
+        expected_bill_ids = set(db.scalars(select(schema.Bill.bill_key)).all())
+        current_session = db.scalar(
+            select(schema.LegislativeSession).where(
+                schema.LegislativeSession.is_current.is_(True)
+            )
+        )
+        expected_slugs = set(
+            db.execute(
+                schema.legislator_directory_stmt(current_session.id).with_only_columns(
+                    schema.Legislator.slug
+                )
+            )
+            .scalars()
+            .all()
+        )
+
+    response = client.get("/api/v1/sitemap")
+    assert response.status_code == 200
+    payload = response.json()["data"]
+    assert set(payload.keys()) == {
+        "bill_directory_total",
+        "legislator_directory_total",
+        "committee_directory_total",
+        "bills",
+        "legislators",
+        "committees",
+    }
+    # This corpus holds no campaign-finance register, so the committee sitemap is
+    # empty and its directory total is None rather than 0: "we hold no register"
+    # and "Minnesota registers nobody" are different facts (rule 12). The register
+    # cases live in test_campaign_finance_landing_reads.py, which seeds one.
+    assert payload["committees"] == []
+    assert payload["committee_directory_total"] is None
+
+    bill_ids = [bill["id"] for bill in payload["bills"]]
+    assert set(bill_ids) == expected_bill_ids
+
+    legislator_slugs = [legislator["slug"] for legislator in payload["legislators"]]
+    assert set(legislator_slugs) == expected_slugs
+    with Session(get_engine()) as db:
+        current_session = db.scalar(
+            select(schema.LegislativeSession).where(
+                schema.LegislativeSession.is_current.is_(True)
+            )
+        )
+        legislature_ids = tuple(
+            db.scalars(
+                select(schema.LegislativeSession.id).where(
+                    schema.LegislativeSession.jurisdiction_id
+                    == current_session.jurisdiction_id,
+                    schema.LegislativeSession.session_number
+                    == current_session.session_number,
+                )
+            ).all()
+        )
+        expected_directory_bills = db.scalar(
+            select(func.count())
+            .select_from(schema.Bill)
+            .where(
+                schema.Bill.session_id.in_(legislature_ids),
+                schema.Bill.has_current_summary.is_(True),
+            )
+        )
+    assert payload["bill_directory_total"] == expected_directory_bills
+    assert payload["legislator_directory_total"] == len(expected_slugs)
+
+    # The property that matters is a STABLE order, so a cached sitemap does not
+    # churn between rebuilds -- not one specific order. This deliberately does not
+    # compare against Python's sorted(): Postgres orders text by the database's
+    # collation, which is not codepoint order, and the two disagree on ids with
+    # punctuation in them. '94-2025s1-HF5' vs '94-2025-SF2483' sorts one way under
+    # en_US.UTF-8 and the other under C, so a sorted() assertion passes on one
+    # machine and fails on another -- which is exactly what it did (green locally,
+    # red in CI) before this was changed.
+    again = client.get("/api/v1/sitemap").json()["data"]
+    assert [bill["id"] for bill in again["bills"]] == bill_ids
+    assert [row["slug"] for row in again["legislators"]] == legislator_slugs
+
+    # Every entry that carries a lastmod reports a plain YYYY-MM-DD date.
+    for entry in payload["bills"] + payload["legislators"]:
+        if "lastmod" in entry:
+            datetime.strptime(entry["lastmod"], "%Y-%m-%d")
+
+    assert (
+        response.headers["Cache-Control"]
+        == "public, max-age=60, stale-while-revalidate=300"
+    )
+
+
+def test_sitemap_bill_lastmod_is_the_newest_reader_visible_date(client):
+    """lastmod is the newest of a bill's reader-visible dates, and holds still for
+    a write that changes nothing a reader sees (#1761).
+
+    Three candidates, each a date on which something on the page can change: the
+    newest legislative action, the bill row's own last visible change, and the
+    current plain-language summary. This read the *first* non-null candidate until
+    #1761, and a bill's first candidate is its newest action -- so a corrected
+    title or a regenerated summary never moved the published date.
+
+    Every fixture below is a real row in Postgres, because both directions are
+    properties of the database rather than of Python: the newest-of is a SQL join
+    plus a max(), and holding still is a trigger (alembic 0043). The first-non-null
+    behaviour was reasonable-looking code, so only a test stops it returning.
+    """
+    schema = load_schema()
+    with Session(get_engine()) as db:
+        seed = db.scalar(
+            select(schema.Bill).where(schema.Bill.bill_key == "94-2025-SF1832")
+        )
+        session_id, chamber_id = seed.session_id, seed.chamber_id
+
+    action_newest_key = "94-2025-SF919191"
+    row_newest_key = "94-2025-HF919292"
+    summary_newest_key = "94-2025-SF919393"
+    no_action_key = "94-2025-HF919494"
+    keys = [action_newest_key, row_newest_key, summary_newest_key, no_action_key]
+
+    action_at = datetime(2024, 3, 15, tzinfo=timezone.utc)
+    older_row_write = datetime(2024, 1, 5, tzinfo=timezone.utc)
+    newer_row_write = datetime(2025, 5, 20, tzinfo=timezone.utc)
+    no_action_row_write = datetime(2024, 2, 2, tzinfo=timezone.utc)
+    # Later than every other candidate can be, "now" included, so this date can
+    # only reach the response through the summary's own timestamp -- which is what
+    # makes the assertion below evidence that the column is read at all. Writing
+    # the bill row's date into the past instead is not an option: the trigger under
+    # test ignores a hand-written updated_at (see the bookkeeping check below).
+    summary_written_at = datetime(2027, 1, 4, tzinfo=timezone.utc)
+
+    def fixture_bill(
+        key, *, file_type, file_number, latest_action_at, updated_at, title
+    ):
+        return schema.Bill(
+            session_id=session_id,
+            chamber_id=chamber_id,
+            bill_key=key,
+            file_type=file_type,
+            file_number=file_number,
+            title=title,
+            current_status="Introduced",
+            latest_action_at=latest_action_at,
+            updated_at=updated_at,
+        )
+
+    def lastmod_of(key):
+        response = client.get("/api/v1/sitemap")
+        assert response.status_code == 200
+        entries = {row["id"]: row for row in response.json()["data"]["bills"]}
+        return entries[key].get("lastmod")
+
+    run_id = None
+    try:
+        with Session(get_engine()) as db:
+            db.add_all(
+                [
+                    fixture_bill(
+                        action_newest_key,
+                        file_type="SF",
+                        file_number=919191,
+                        latest_action_at=action_at,
+                        updated_at=older_row_write,
+                        title="Sitemap fixture whose newest date is its action",
+                    ),
+                    fixture_bill(
+                        row_newest_key,
+                        file_type="HF",
+                        file_number=919292,
+                        latest_action_at=action_at,
+                        updated_at=newer_row_write,
+                        title="Sitemap fixture whose row changed after its action",
+                    ),
+                    fixture_bill(
+                        summary_newest_key,
+                        file_type="SF",
+                        file_number=919393,
+                        latest_action_at=action_at,
+                        updated_at=older_row_write,
+                        title="Sitemap fixture whose summary is its newest date",
+                    ),
+                    fixture_bill(
+                        no_action_key,
+                        file_type="HF",
+                        file_number=919494,
+                        latest_action_at=None,
+                        updated_at=no_action_row_write,
+                        title="Sitemap fixture with no recorded action",
+                    ),
+                ]
+            )
+            db.commit()
+
+            summary_bill_id = db.scalar(
+                select(schema.Bill.id).where(schema.Bill.bill_key == summary_newest_key)
+            )
+            db.add(
+                schema.AIEnrichment(
+                    bill_id=summary_bill_id,
+                    enrichment_type=schema.EnrichmentType.bill_summary,
+                    model_name="test-fixture",
+                    content_json={
+                        "summary": "A plain-language summary written later.",
+                        "short_title": "A rewritten headline",
+                    },
+                    is_current=True,
+                    updated_at=summary_written_at,
+                )
+            )
+            db.commit()
+
+        # The action is the newest thing that happened to this page.
+        assert lastmod_of(action_newest_key) == "2024-03-15"
+        # The row changed 14 months after the action, so that is when the page last
+        # changed. Before #1761 this reported 2024-03-15.
+        assert lastmod_of(row_newest_key) == "2025-05-20"
+        # The summary was rewritten without the bill row being touched, and it is
+        # the main content of the page.
+        assert lastmod_of(summary_newest_key) == "2027-01-04"
+        # No recorded action still carries a date rather than none at all.
+        assert lastmod_of(no_action_key) == "2024-02-02"
+
+        # A bookkeeping-only write: ingestion stamps a fresh run id on every pass,
+        # which is why updated_at had moved for all 10,517 production bills. The
+        # published date must not move for it.
+        with Session(get_engine()) as db:
+            run = schema.IngestionRun(
+                adapter="test-fixture",
+                target_type="bill",
+                status=schema.IngestionStatus.succeeded,
+            )
+            db.add(run)
+            db.flush()
+            run_id = run.id
+            row = db.scalar(
+                select(schema.Bill).where(schema.Bill.bill_key == row_newest_key)
+            )
+            row.ingestion_run_id = run_id
+            db.commit()
+            assert (
+                db.scalar(
+                    select(schema.Bill.updated_at).where(
+                        schema.Bill.bill_key == row_newest_key
+                    )
+                )
+                == newer_row_write
+            )
+        assert lastmod_of(row_newest_key) == "2025-05-20"
+
+        # A reader-visible write on the same row does move it.
+        with Session(get_engine()) as db:
+            row = db.scalar(
+                select(schema.Bill).where(schema.Bill.bill_key == row_newest_key)
+            )
+            row.title = "Sitemap fixture with a corrected title"
+            db.commit()
+        assert lastmod_of(row_newest_key) == (
+            datetime.now(timezone.utc).date().isoformat()
+        )
+
+        # Legislators pass one candidate, so the newest of it is itself: their dates
+        # are untouched by any of this.
+        response = client.get("/api/v1/sitemap")
+        with Session(get_engine()) as db:
+            expected = {
+                slug: updated_at.astimezone(timezone.utc).date().isoformat()
+                for slug, updated_at in db.execute(
+                    select(schema.Legislator.slug, schema.Legislator.updated_at)
+                ).all()
+            }
+        for entry in response.json()["data"]["legislators"]:
+            assert entry["lastmod"] == expected[entry["slug"]]
+    finally:
+        with Session(get_engine()) as db:
+            bill_ids = db.scalars(
+                select(schema.Bill.id).where(schema.Bill.bill_key.in_(keys))
+            ).all()
+            if bill_ids:
+                db.execute(
+                    delete(schema.AIEnrichment).where(
+                        schema.AIEnrichment.bill_id.in_(bill_ids)
+                    )
+                )
+            db.execute(delete(schema.Bill).where(schema.Bill.bill_key.in_(keys)))
+            if run_id is not None:
+                db.execute(
+                    delete(schema.IngestionRun).where(schema.IngestionRun.id == run_id)
+                )
+            db.commit()

@@ -23,9 +23,16 @@ import { useResponsive } from '../../hooks/useResponsive';
 import {
   useLegislator,
   useLegislatorBills,
+  useLegislatorCampaignMoney,
   useLegislatorVotes,
   useSessions,
 } from '../../hooks/useAppQueries';
+import { CampaignMoneyTab } from '../../components/campaignMoney/CampaignMoneyTab';
+import {
+  LegislatorProfileTabs,
+  type ProfileTab,
+} from '../../components/campaignMoney/LegislatorProfileTabs';
+import { campaignMoneyYear, type CampaignMoneyYear } from '../../lib/legislatorCampaignMoney';
 import {
   billStage,
   coAuthorCount,
@@ -36,13 +43,20 @@ import {
 } from '../../lib/billDetail';
 import {
   buildAskChips,
+  legislatorDisplayName,
+  legislatorDistrictLine,
   legislatorVoteLabel,
   splitOfficeAddress,
 } from '../../lib/legislatorProfile';
 import { SearchPageShell } from '../../components/search/searchPieces';
 import { useHover, isWeb } from '../../components/billDetail/interactions';
 import { SharePopover } from '../../components/billDetail/SharePopover';
-import { buildLegislatorShareContent, publicPageUrl } from '../../lib/share';
+import {
+  buildLegislatorShareContent,
+  legislatorPageMetadata,
+  publicPageUrl,
+} from '../../lib/share';
+import { useDocumentTitle } from '../../navigation/documentTitle';
 import { Skeleton } from '../../components/Skeleton';
 import { VoteCountLinkChip } from '../../components/VoteCountLinkChip';
 import { formatLegislatureLabel, type SessionDisplaySource } from '../../lib/sessionLabel';
@@ -54,7 +68,7 @@ import {
   CARD_LINK_LAYER,
 } from '../../lib/billCardControlLayers';
 
-// Web Legislator Profile (docs/mockups/legislator-profile-web). Aggregates a
+// Web Legislator Profile (docs/product-onboarding/legislator-profile-guide.md). Aggregates a
 // member's public record — identity, committees (with leadership), chief-authored
 // bills, contact — with a link back to the official source, plus a clearly-labeled
 // "On the roadmap" zone. Chamber-parameterized from member data; the two design
@@ -87,8 +101,35 @@ export function LegislatorProfileWebScreen() {
   const legislatorId = String(route.params?.legislatorId ?? '');
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
 
+  // The money lives on its own address so it can carry its own freshness date and
+  // its own year, neither of which the rest of the profile shares (#1329).
+  const activeTab: ProfileTab = route.params?.tab === 'money' ? 'money' : 'overview';
+  const moneyYear = campaignMoneyYear(route.params?.year);
+
   const legislatorQuery = useLegislator(legislatorId);
   const legislator = legislatorQuery.data;
+  const moneyQuery = useLegislatorCampaignMoney(legislatorId, moneyYear, {
+    enabled: activeTab === 'money',
+  });
+
+  const selectTab = (tab: ProfileTab) => {
+    navigation.setParams({ tab: tab === 'overview' ? undefined : tab });
+  };
+  const selectMoneyYear = (year: CampaignMoneyYear) => {
+    navigation.setParams({ tab: 'money', year: String(year) });
+  };
+  // A person's name cannot be guessed from the address, so the tab keeps what
+  // the server sent until the profile loads (#1325).
+  useDocumentTitle(
+    legislatorId ? `/legislators/${legislatorId}` : null,
+    legislator
+      ? legislatorPageMetadata({
+          slug: legislator.slug ?? legislator.id,
+          displayName: legislatorDisplayName(legislator.name, legislator.chamber),
+          districtLine: `${legislator.chamber} District ${legislator.district}`,
+        }).title
+      : null,
+  );
   // Show the first two chief-authored bills; "See more" hands off to the member's
   // full chief-author list on the Revisor (the official source).
   const billsQuery = useLegislatorBills(legislatorId, { role: 'chief_author', limit: 2 });
@@ -177,15 +218,14 @@ export function LegislatorProfileWebScreen() {
   }
 
   const chamberWord = legislator.chamber; // "House" | "Senate"
-  const displayName = officialName(legislator.name, chamberWord);
+  const displayName = legislatorDisplayName(legislator.name, chamberWord);
   const partyLabel = partyFull(legislator.party);
-  const districtLine = `${chamberWord} District ${legislator.district}`;
+  const districtLine = legislatorDistrictLine(chamberWord, legislator.district);
   // Share the readable slug URL (falls back to the UUID only for a row served
   // without a slug); the backend resolves either form.
   const shareSlug = legislator.slug ?? legislator.id;
   const shareContent = buildLegislatorShareContent({
     displayName,
-    partyLabel,
     districtLine,
     url: publicPageUrl(`/legislators/${encodeURIComponent(shareSlug)}`),
   });
@@ -210,19 +250,45 @@ export function LegislatorProfileWebScreen() {
   // peel it off so it gets its own labeled row (never inlined into the address).
   const office = legislator.officeAddress ? splitOfficeAddress(legislator.officeAddress) : null;
 
-  const body = (
+  const overview = (
     <View style={[styles.grid, isDesktop && styles.gridDesktop]}>
       {/* LEFT COLUMN — the record */}
       <View style={styles.leftColumn}>
+        {/* A pointer to the money, with no figure on it. A number here would drag a
+            second freshness date onto this tab, which is the problem the tab split
+            solved (#1329). */}
+        <View style={styles.card}>
+          <Text accessibilityRole="header" aria-level={2} style={[styles.h2, styles.h2Spaced]}>
+            Campaign money
+          </Text>
+          <Text style={styles.emptyNote}>
+            What this member’s campaign raised and spent, and who is named as giving it, comes from
+            the Minnesota Campaign Finance Board rather than the Legislature.{' '}
+            <Text
+              style={styles.moneyTabLink}
+              {...linkProps(routePath.legislator(legislatorId, { tab: 'money' }), () =>
+                selectTab('money'),
+              )}
+            >
+              Open the Campaign money tab
+            </Text>
+            .
+          </Text>
+        </View>
+
         {bioText ? (
           <View style={styles.card}>
-            <Text style={styles.h2}>Biography</Text>
+            <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
+              Biography
+            </Text>
             <Text style={styles.bio}>{bioText}</Text>
           </View>
         ) : null}
 
         <View style={styles.card}>
-          <Text style={[styles.h2, styles.h2Spaced]}>Committees</Text>
+          <Text accessibilityRole="header" aria-level={2} style={[styles.h2, styles.h2Spaced]}>
+            Committees
+          </Text>
           {committees.length > 0 ? (
             <View style={styles.committeeList}>
               {committees.map((committee) => (
@@ -236,7 +302,9 @@ export function LegislatorProfileWebScreen() {
 
         <View>
           <View style={styles.authoredHead}>
-            <Text style={styles.h2}>Chief-Authored Bills</Text>
+            <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
+              Chief-Authored Bills
+            </Text>
             <SessionFilter currentSessionLabel={currentSessionLabel} />
           </View>
           <View style={styles.billStack}>
@@ -277,7 +345,9 @@ export function LegislatorProfileWebScreen() {
       {/* RIGHT COLUMN — contact / source of record */}
       <View style={styles.rightColumn}>
         <View style={styles.card}>
-          <Text style={[styles.h3, styles.h3Spaced]}>Contact</Text>
+          <Text accessibilityRole="header" aria-level={2} style={[styles.h3, styles.h3Spaced]}>
+            Contact
+          </Text>
           <View style={styles.contactStack}>
             {office?.leadership ? (
               <View>
@@ -312,7 +382,9 @@ export function LegislatorProfileWebScreen() {
 
         {service && service.lines.length > 0 ? (
           <View style={styles.card}>
-            <Text style={[styles.h3, styles.h3Spaced]}>Legislative Service</Text>
+            <Text accessibilityRole="header" aria-level={2} style={[styles.h3, styles.h3Spaced]}>
+              Legislative Service
+            </Text>
             <View style={styles.serviceStack}>
               {service.lines.map((line, index) => (
                 <Text key={`${line.label}-${index}`} style={styles.serviceRow}>
@@ -332,6 +404,32 @@ export function LegislatorProfileWebScreen() {
 
         <AskCard chips={askChips} onAsk={openAsk} />
       </View>
+    </View>
+  );
+
+  const body = (
+    <View style={styles.tabbed}>
+      <LegislatorProfileTabs
+        legislatorId={legislatorId}
+        active={activeTab}
+        year={String(moneyYear)}
+        onSelect={selectTab}
+      />
+      {activeTab === 'money' ? (
+        <CampaignMoneyTab
+          legislatorName={displayName}
+          year={moneyYear}
+          onSelectYear={selectMoneyYear}
+          money={moneyQuery.data}
+          isLoading={moneyQuery.isLoading}
+          isError={moneyQuery.isError}
+          isDesktop={isDesktop}
+          legislatorId={legislatorId}
+          onOpenSource={openUrl}
+        />
+      ) : (
+        overview
+      )}
     </View>
   );
 
@@ -356,16 +454,6 @@ function chiefAuthorListUrl(legislator: Legislator): string {
     'https://www.revisor.mn.gov/revisor/pages/search_status/status_result.php' +
     `?body=${body}&session=${REVISOR_SESSION_CODE}&legid1=${legid}`
   );
-}
-
-// Normalize a member's name to the official title form the design uses
-// ("Sen. Omar Fateh" / "Rep. Patty Acomb"): strip any existing title prefix
-// (the source is inconsistent — "Senator Omar Fateh", "Patty Acomb") and prefix
-// the chamber-appropriate abbreviation.
-function officialName(name: string, chamber: string): string {
-  const bare = name.replace(/^(sen\.|senator|rep\.|representative)\s+/i, '').trim();
-  const title = chamber === 'Senate' ? 'Sen.' : chamber === 'House' ? 'Rep.' : '';
-  return title ? `${title} ${bare}` : bare;
 }
 
 // --- Hero: breadcrumb + eyebrow + portrait + identity + Share ---
@@ -398,7 +486,11 @@ function Hero({
         <View style={styles.identityRow}>
           <Portrait uri={legislator.photoUrl} name={displayName} />
           <View style={styles.identityText}>
-            <Text style={[styles.h1, !isDesktop && styles.h1Mobile]} accessibilityRole="header">
+            <Text
+              style={[styles.h1, !isDesktop && styles.h1Mobile]}
+              accessibilityRole="header"
+              aria-level={1}
+            >
               {displayName}
             </Text>
             <View style={styles.metaRow}>
@@ -434,7 +526,9 @@ function Portrait({ uri, name }: { uri?: string; name: string }) {
         <Image
           source={{ uri }}
           accessibilityLabel={name}
-          resizeMode="cover"
+          // Fit-inside, never fill — see LEGISLATOR_PORTRAIT_HEIGHT in
+          // lib/legislatorSearch.ts for why cropping is off the table (#1334).
+          resizeMode="contain"
           onError={() => setFailed(true)}
           style={styles.portraitImage}
         />
@@ -638,7 +732,9 @@ function LinkChip({ label, href, onPress }: { label: string; href: string; onPre
 function AskCard({ chips, onAsk }: { chips: string[]; onAsk: (q: string) => void }) {
   return (
     <View style={styles.card}>
-      <Text style={styles.h3}>Ask about these issues</Text>
+      <Text accessibilityRole="header" aria-level={2} style={styles.h3}>
+        Ask about these issues
+      </Text>
       <Text style={styles.askSubtext}>
         Topics from this legislator’s bills. Answers cite the public record.
       </Text>
@@ -793,11 +889,15 @@ function RoadmapZone({ legislatorName, vote }: { legislatorName: string; vote?: 
   const { isDesktop } = useResponsive();
   return (
     <View style={styles.roadmap}>
-      <Text style={styles.roadmapEyebrow}>ON THE ROADMAP</Text>
+      <Text accessibilityRole="header" aria-level={2} style={styles.roadmapEyebrow}>
+        ON THE ROADMAP
+      </Text>
       <Text style={styles.roadmapSubtitle}>Features we plan to build.</Text>
       <View style={[styles.roadmapGrid, isDesktop && styles.roadmapGridDesktop]}>
         <View style={styles.dashedCard}>
-          <Text style={styles.roadmapH3}>Claim this profile</Text>
+          <Text accessibilityRole="header" aria-level={3} style={styles.roadmapH3}>
+            Claim this profile
+          </Text>
           <Text style={styles.roadmapBody}>
             Are you {legislatorName}? Claiming links you to this existing record, so you can manage
             your biography, write up the bills you’ve worked on, and add your own context. Verified
@@ -806,7 +906,9 @@ function RoadmapZone({ legislatorName, vote }: { legislatorName: string; vote?: 
           <ClaimPreview />
         </View>
         <View style={styles.dashedCard}>
-          <Text style={styles.roadmapH3}>Why the votes?</Text>
+          <Text accessibilityRole="header" aria-level={3} style={styles.roadmapH3}>
+            Why the votes?
+          </Text>
           <Text style={styles.roadmapBody}>
             Wonder why {legislatorName} voted that way? Once claimed, a legislator will have the
             option to explain any vote they cast — right here, in their own words, alongside the
@@ -955,7 +1057,7 @@ const styles = StyleSheet.create({
   identityText: { flexShrink: 1 },
   portrait: {
     width: 128,
-    height: 146,
+    height: 166,
     borderRadius: 18,
     overflow: 'hidden',
     borderWidth: 1,
@@ -1013,6 +1115,8 @@ const styles = StyleSheet.create({
     color: t.colors.text.primary,
   },
   h2Spaced: { marginBottom: 20 },
+  tabbed: { gap: 24 },
+  moneyTabLink: { color: t.colors.brand.base, textDecorationLine: 'underline' },
   h3: {
     fontFamily: t.typography.title,
     fontSize: 26,
@@ -1209,7 +1313,7 @@ const styles = StyleSheet.create({
     color: t.colors.text.primary,
   },
   sessionBackdrop: {
-    ...(StyleSheet.absoluteFillObject as object),
+    ...(StyleSheet.absoluteFill as object),
     position: (isWeb ? 'fixed' : 'absolute') as 'absolute',
     top: -2000,
     left: -2000,

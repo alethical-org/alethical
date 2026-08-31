@@ -3,6 +3,7 @@ import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-nativ
 import Svg, { Circle, Path } from 'react-native-svg';
 
 import { ChangeBlock } from '../ChangeBlock';
+import { LinkArrow } from '../LinkArrow';
 import { Skeleton } from '../Skeleton';
 import { isWeb, useHover } from '../billDetail/interactions';
 import type { Bill } from '../../data/types';
@@ -38,28 +39,35 @@ export function SessionWatchCard({
   onAllTracked,
   onSearchBills,
   onWhatsMoving,
+  onRetry,
 }: {
   watch: SessionWatch<WatchBill>;
   onBill: (billId: string) => void;
   onAllTracked: () => void;
   onSearchBills: () => void;
   onWhatsMoving: () => void;
+  /** Ask again. Nothing else will: the tracked-list query does not retry. */
+  onRetry: () => void;
 }) {
   const pending = watch.state === 'pending';
 
   return (
     <View style={styles.card}>
       <View style={styles.header}>
-        <Text accessibilityRole="header" style={styles.title}>
-          Session watch
+        <Text accessibilityRole="header" aria-level={2} style={styles.title}>
+          Legislative session watch
         </Text>
-        {watch.state !== 'tracking-nothing' ? (
+        {watch.state !== 'tracking-nothing' && watch.state !== 'failed' ? (
           <CardLink label="All tracked bills" href={routePath.tracked()} onPress={onAllTracked} />
         ) : null}
       </View>
       <View style={styles.rule} />
 
       {pending ? <PendingFrame /> : null}
+
+      {watch.state === 'failed' ? (
+        <CouldNotCheckFrame onRetry={onRetry} onWhatsMoving={onWhatsMoving} />
+      ) : null}
 
       {watch.state === 'tracking-nothing' ? (
         <TrackFirstBillFrame onSearchBills={onSearchBills} onWhatsMoving={onWhatsMoving} />
@@ -164,6 +172,64 @@ function Spinner() {
   );
 }
 
+// The check ran and could not finish. A frame of its own rather than a variant of
+// the pending one, because the two mean opposite things to a reader: pending says
+// we are working and resolves itself, this says we stopped and nothing else will
+// start again. The tracked-list query does not retry, so without the button here
+// the hero sat on "Checking your tracked bills…" with a spinner forever.
+//
+// Amber, not red. Nothing is broken for the reader and nothing was lost — their
+// bills are still tracked; the list of what moved is the part we could not reach.
+// The same amber the bill-code badge uses, at the same AA-clearing #8f5a12 ink.
+function CouldNotCheckFrame({
+  onRetry,
+  onWhatsMoving,
+}: {
+  onRetry: () => void;
+  onWhatsMoving: () => void;
+}) {
+  const [hovered, hover] = useHover();
+  return (
+    <View style={styles.frame}>
+      <View style={styles.warningTile}>
+        <Svg width={27} height={27} viewBox="0 0 24 24" fill="none" aria-hidden>
+          <Path
+            d="M12 4 L21 20 H3 Z"
+            stroke={t.colors.omnibus.text}
+            strokeWidth={2}
+            strokeLinejoin="round"
+          />
+          <Path
+            d="M12 10 v4"
+            stroke={t.colors.omnibus.text}
+            strokeWidth={2}
+            strokeLinecap="round"
+          />
+          <Circle cx={12} cy={17} r={1.1} fill={t.colors.omnibus.text} />
+        </Svg>
+      </View>
+      <Text accessibilityRole="header" aria-level={3} style={styles.emptyHeading}>
+        We couldn’t check your tracked bills
+      </Text>
+      <Text style={styles.emptyBody}>
+        Your bills are still tracked and nothing has been lost. The list of what moved is what we
+        could not reach.
+      </Text>
+      <View style={styles.emptyActions}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={onRetry}
+          {...hover}
+          style={[styles.cta, hovered && styles.ctaHover]}
+        >
+          <Text style={styles.ctaText}>Try again</Text>
+        </Pressable>
+        <CardLink label="Or start from what’s moving now" onPress={onWhatsMoving} />
+      </View>
+    </View>
+  );
+}
+
 // Tracking nothing. A first-class frame: the card becomes the explainer rather than
 // an emptier version of itself. The mechanic is stated in plain words, and the
 // second link sends someone to the bill activity already further down this page,
@@ -188,7 +254,7 @@ function TrackFirstBillFrame({
           />
         </Svg>
       </View>
-      <Text accessibilityRole="header" style={styles.emptyHeading}>
+      <Text accessibilityRole="header" aria-level={3} style={styles.emptyHeading}>
         Track your first bill
       </Text>
       <Text style={styles.emptyBody}>
@@ -266,12 +332,8 @@ function CardLink({ label, href, onPress }: { label: string; href?: string; onPr
   const press = href ? linkProps(href, onPress) : { onPress: pressInsideLink(onPress) };
   return (
     <Pressable accessibilityRole="link" {...press} {...hover} style={styles.cardLink}>
-      <Text style={[styles.cardLinkText, hovered && styles.cardLinkTextHover]}>
-        {label}{' '}
-        <Text style={styles.cardLinkArrow} aria-hidden>
-          →
-        </Text>
-      </Text>
+      <Text style={[styles.cardLinkText, hovered && styles.cardLinkTextHover]}>{label}</Text>
+      <LinkArrow color={t.colors.text.green} style={styles.cardLinkArrow} />
     </Pressable>
   );
 }
@@ -383,6 +445,16 @@ const styles = StyleSheet.create({
   },
   latestLabel: { color: t.colors.text.muted },
   latestValue: { color: t.colors.text.primary, fontWeight: t.fontWeights.semibold },
+  warningTile: {
+    width: 56,
+    height: 56,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: t.colors.omnibus.fill,
+    borderWidth: 1,
+    borderColor: t.colors.omnibus.border,
+  },
   bookmarkTile: {
     width: 56,
     height: 56,
@@ -433,7 +505,7 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.onGreen,
   },
-  cardLink: { flexShrink: 0 },
+  cardLink: { flexShrink: 0, flexDirection: 'row', alignItems: 'center', gap: 4 },
   cardLinkText: {
     fontFamily: t.typography.ui,
     fontSize: t.fontSizes.small,
@@ -441,5 +513,5 @@ const styles = StyleSheet.create({
     color: t.colors.text.green,
   },
   cardLinkTextHover: { color: t.colors.text.green },
-  cardLinkArrow: { fontWeight: t.fontWeights.regular },
+  cardLinkArrow: { width: 14, height: 14, top: 0 },
 });

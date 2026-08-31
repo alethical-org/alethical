@@ -41,7 +41,12 @@ export type RootStackParamList = {
     // return to their exact source page and no longer create this parameter.
     track?: boolean;
   };
-  LegislatorProfile: { legislatorId: string };
+  // `tab` is absent for the profile a reader lands on and only ever carries
+  // 'money', so the ordinary URL stays /legislators/<slug> with no query string.
+  // `year` rides in the URL for the same reason the tab does: a figure someone
+  // sends to somebody else has to arrive showing the year they were looking at
+  // (grounded-answers.md rule 5, "Anything linked to must be URL-addressable").
+  LegislatorProfile: { legislatorId: string; tab?: 'money'; year?: string };
   // The address to look up rides in the route (and the URL query) so the home
   // page's Find field can hand off what the visitor typed, and so the results
   // are reload-safe / shareable (grounded-answers.md rule 5). Absent = the
@@ -57,10 +62,47 @@ export type RootStackParamList = {
         locationFailure?: HomeLocationFailure;
       }
     | undefined;
+  // Campaign money section (campaign money IA handoff, Aug 2026). All public —
+  // the section has no sign-in gate.
+  MoneyLanding: undefined;
+  Read: undefined;
+  // One published piece of our own writing. Both names draw the same screen and
+  // differ only in the address they write: a piece carrying the research trait
+  // lives at /read/research/{slug}, one carrying only the guide trait at
+  // /read/guides/{slug} (docs/architecture/published-writing-decisions.md
+  // §2.1). The slug resolves against the piece registry (lib/research.ts); an
+  // unknown slug, or the wrong folder for the piece, lands on NotFound.
+  Research: { slug: string };
+  Guide: { slug: string };
+  // One committee's money page and its full-payments view. The slug's trailing
+  // registration number is the identity and the only part that resolves — names
+  // collide, numbers do not — so an old or misspelled name part still lands on
+  // the page. `tab` and `year` ride in the address so a shared link carries what
+  // the sender saw.
+  CommitteeMoney: { slug: string; tab?: string; year?: string };
+  CommitteePayments: { slug: string; tab?: string; year?: string };
+  // The register of filers, A to Z. The name box, the kind filter and the
+  // numbered page all ride in the address, so a narrowed or paged list is
+  // shareable and survives Back (grounded-answers.md rule 5).
+  CommitteeList: { q?: string; kind?: string; page?: string } | undefined;
+  // One typed name matched across the 5 kinds of record. The query is the whole
+  // state, so a results page is a link somebody can send.
+  MoneySearch: { q?: string } | undefined;
+  // Every payment filed under exactly one printed name (issue #1780). The name is
+  // free text and is the whole of the key — a payee carries no identifier in
+  // Minnesota's data — so it rides in the query string rather than the path, where
+  // a slash, a hash or an ampersand in a filed name would have to survive path
+  // encoding. `role` names which of the 3 downloads is being read and is the
+  // server's own value, verbatim; a role we do not answer for lands on NotFound.
+  PaymentsUnderName: { name: string; role: string };
   Privacy: undefined;
+  SiteMetrics: undefined;
   Terms: undefined;
   AboutUs: undefined;
   ContactUs: undefined;
+  ConfirmEmail: undefined;
+  ResetPassword: undefined;
+  NotFound: { path: string };
   VoteDetail: { billId: string; voteEventId: string };
   ChatSession: {
     sessionId?: string;

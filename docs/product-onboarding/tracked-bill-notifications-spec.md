@@ -25,12 +25,17 @@ reasons, and they compound: fixing any one of them alone still sends nothing.
 
 `record_bill_status_change` (`alethical/api/services/notifications.py`) has no caller
 anywhere in the codebase except its own test file
-(`alethical/tests/test_notifications.py`). The ingestion pipeline writes a bill's status
-at `alethical/pipeline/minnesota.py:1761` and never tells the notification service:
+(`alethical/tests/test_notifications.py`). The ingestion pipeline selects the current action
+without telling the notification service:
 
 ```python
-bill.current_status = latest_action.get("action_text") if latest_action else None
+latest_action = select_current_bill_action(actions_by_chamber)
+bill.current_status = latest_action.action_text if latest_action else None
 ```
+
+That selection now keeps House and Senate action counters separate and protects enactment and veto
+milestones ([#1322](https://github.com/alethical-org/alethical/issues/1322)). It still has no
+notification caller, so the gap described here remains.
 
 ### 1.2 Gap two — the recorder reads a column nothing populates
 

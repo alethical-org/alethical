@@ -21,6 +21,7 @@ import {
   locationFailureFromBrowserError,
 } from '../../lib/homeLegislatorFinder';
 import type { HomeFinderDestination, HomeFinderLayout } from '../../lib/homeLegislatorFinder';
+import { browserFillTextInputProps } from '../../theme/browserFill';
 import { fieldFocusRing, fieldOutlineReset } from '../../theme/fieldFocus';
 import { prefersReducedMotion, theme as t } from '../../theme/tokens';
 
@@ -180,6 +181,7 @@ export function HomeLegislatorFinderForm({
           <MapPin size={22} color={t.colors.text.faint} strokeWidth={2} aria-hidden />
           <TextInput
             ref={inputRef}
+            {...browserFillTextInputProps}
             accessibilityLabel="Full street address"
             aria-describedby={HOME_FINDER_HELP_ID}
             autoComplete="street-address"

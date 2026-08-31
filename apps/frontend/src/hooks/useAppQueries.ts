@@ -1,4 +1,11 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback } from 'react';
+import {
+  keepPreviousData,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 
 import {
   askFromApi,
@@ -13,8 +20,19 @@ import {
   getCurrentUserFromApi,
   getLegislatorBillsFromApi,
   getMetaFromApi,
+  getLegislatorCampaignMoneyFromApi,
   getLegislatorFromApi,
+  getLegislatorOutsideSpendingFromApi,
   getLegislatorVotesFromApi,
+  getCampaignFinanceCommitteesFromApi,
+  getCampaignFinanceFilingsFromApi,
+  getCampaignFinanceNameSearchFromApi,
+  getCampaignFinanceSummaryFromApi,
+  getCommitteeFilingsFromApi,
+  getCommitteeFinanceFromApi,
+  getCommitteePaymentsMadeFromApi,
+  getCommitteePaymentsReceivedFromApi,
+  getPaymentsUnderNameFromApi,
   ListPagination,
   LegislatorListFilters,
   listChatSessionsFromApi,
@@ -33,7 +51,20 @@ import {
   listSavedPlaces,
   updateNotificationPreference,
 } from '../data/mockData';
+import type {
+  CommitteeFilingsPage,
+  CommitteeMadePayment,
+  CommitteePaymentsPage,
+  CommitteeReceivedPayment,
+  CommitteeRegisterPage,
+} from '../data/types';
 import { NotificationPreference, RepresentativeLookupInput } from '../data/types';
+import { outsideSpendingLoadFailure } from '../lib/outsideSpending';
+import {
+  PAYMENTS_UNDER_NAME_PAGE_SIZE,
+  type PaymentNameRole,
+  type PaymentUnderName,
+} from '../lib/paymentsUnderName';
 import { trackState, TrackState } from '../lib/trackedState';
 import { useAuth } from '../providers/AuthProvider';
 
@@ -63,8 +94,8 @@ export function useAskAnswer(question?: string, identity?: SuggestedAnswerIdenti
   const trimmed = question?.trim();
   const validIdentity = Boolean(
     identity?.billId &&
-      Number.isSafeInteger(identity.suggestionIndex) &&
-      identity.suggestionIndex >= 0,
+    Number.isSafeInteger(identity.suggestionIndex) &&
+    identity.suggestionIndex >= 0,
   );
   const savedQuery = useQuery({
     queryKey: validIdentity ? suggestedAnswerQueryKey(identity!) : ['saved-ask-suggestion', 'none'],
@@ -224,12 +255,290 @@ export function useLegislator(legislatorId: string) {
   });
 }
 
+/**
+ * Outside spending about one legislator, one request per calendar year (#1332).
+ *
+ * A year is its own request because the endpoint answers one year at a time and each
+ * year carries its own state: a year our download does not reach must be able to say
+ * so without blanking a year it does.
+ *
+ * `allSettled`, not `all`, and that is the whole point of this comment. With `all`, one
+ * year's request failing rejected the combined query, so the other year's real figures
+ * were thrown away and replaced by a whole-card error -- a year we could answer, silently
+ * turned into a year we could not. A failed year now becomes its own placeholder that
+ * says only what happened to it. Found by an automated review on #1332.
+ */
+export function useLegislatorOutsideSpending(legislatorId: string, years: number[]) {
+  return useQuery({
+    queryKey: ['legislator-outside-spending', legislatorId, years],
+    queryFn: async () => {
+      const settled = await Promise.allSettled(
+        years.map((year) => getLegislatorOutsideSpendingFromApi(legislatorId, year)),
+      );
+      return settled.map((result, index) =>
+        result.status === 'fulfilled' ? result.value : outsideSpendingLoadFailure(years[index]),
+      );
+    },
+    enabled: Boolean(legislatorId),
+    retry: false,
+  });
+}
+
 export function useLegislatorVotes(legislatorId: string, limit = 1) {
   return useQuery({
     queryKey: ['legislator-votes', legislatorId, limit],
     queryFn: () => getLegislatorVotesFromApi(legislatorId, limit),
     enabled: Boolean(legislatorId),
     retry: false,
+  });
+}
+
+/**
+ * One legislator's own campaign money for one year (#1329).
+ *
+ * `enabled` gates on the tab being open rather than on the legislator existing,
+ * because the money tab is a second address on the same page and a reader who never
+ * opens it should never pay for the request.
+ */
+export function useLegislatorCampaignMoney(
+  legislatorId: string,
+  year: number,
+  options: { enabled?: boolean } = {},
+) {
+  return useQuery({
+    queryKey: ['legislator-campaign-money', legislatorId, year],
+    queryFn: () => getLegislatorCampaignMoneyFromApi(legislatorId, year),
+    enabled: Boolean(legislatorId) && (options.enabled ?? true),
+    retry: false,
+  });
+}
+
+/**
+ * The /money landing's counts and dates (register, confirmations, freshness).
+ * Each block carries its own state; a block that is not served renders its
+ * designed absent state rather than a number.
+ */
+export function useCampaignFinanceSummary(options: { enabled?: boolean } = {}) {
+  return useQuery({
+    queryKey: ['campaign-finance-summary'],
+    queryFn: getCampaignFinanceSummaryFromApi,
+    retry: false,
+    // The homepage reads this too, and Home stays mounted beneath a deep-linked
+    // stack screen, so an ungated read there would contend with the visible
+    // screen's first load. The /money landing passes nothing and gets the
+    // previous always-on behaviour.
+    enabled: options.enabled ?? true,
+  });
+}
+
+/** The landing's newest filed reports (no amounts, no filed date). */
+export function useCampaignFinanceFilings(limit = 5) {
+  return useQuery({
+    queryKey: ['campaign-finance-filings', limit],
+    queryFn: () => getCampaignFinanceFilingsFromApi(limit),
+    retry: false,
+  });
+}
+
+/**
+ * One numbered page of the register for the committees list at /money/committees.
+ *
+ * `page` comes out of the address, so the list a reader is looking at is a link
+ * they can send and the browser's Back button returns to it
+ * (`.claude/rules/grounded-answers.md` rule 5). One request per page: 50 rows is
+ * half the register endpoint's own maximum, and the order is the filed name,
+ * which does not move between requests, so a fixed offset is stable.
+ *
+ * `keepPreviousData` so typing in the find-a-committee box narrows the list in
+ * place instead of blanking it between keystrokes.
+ */
+export function useCampaignFinanceCommittees(options: {
+  kind?: string;
+  query?: string;
+  /** 1-based numbered page, straight off the address. */
+  page: number;
+  pageSize: number;
+}) {
+  const { kind, query, page, pageSize } = options;
+  return useQuery({
+    queryKey: ['campaign-finance-committees', kind ?? 'all', query ?? '', page, pageSize],
+    queryFn: (): Promise<CommitteeRegisterPage> =>
+      getCampaignFinanceCommitteesFromApi({
+        kind,
+        q: query,
+        limit: pageSize,
+        offset: (page - 1) * pageSize,
+      }),
+    retry: false,
+    placeholderData: keepPreviousData,
+  });
+}
+
+/**
+ * One typed name matched across the 5 kinds of record, for /money/search.
+ *
+ * Runs on any non-empty query, including a 1- or 2-character one: the server
+ * answers those with its own "too short" state, and rendering that served state
+ * is how the page says "type at least 3 characters" instead of "nothing found",
+ * which would be a false claim about the records.
+ */
+export function useCampaignFinanceNameSearch(query: string, limit = 5) {
+  const trimmed = query.trim();
+  return useQuery({
+    queryKey: ['campaign-finance-name-search', trimmed, limit],
+    queryFn: () => getCampaignFinanceNameSearchFromApi(trimmed, limit),
+    enabled: trimmed.length > 0,
+    retry: false,
+    placeholderData: keepPreviousData,
+  });
+}
+
+/**
+ * One committee's money for one year, keyed on its registration number. Resolves
+ * `null` on "in neither the register nor the downloads we hold", so the page can
+ * tell that fact about our records apart from a fault. When a refetch fails, the
+ * last accepted data stays in `data` and the screen labels it as held figures
+ * rather than blanking (design's service-unreachable state).
+ */
+export function useCommitteeMoney(registrationNumber: string | null, year: number) {
+  return useQuery({
+    queryKey: ['committee-money', registrationNumber, year],
+    queryFn: () => getCommitteeFinanceFromApi(registrationNumber ?? '', year),
+    enabled: Boolean(registrationNumber),
+    retry: false,
+  });
+}
+
+/** The largest payments into a committee for one year, for the page's short list. */
+export function useCommitteePaymentsReceived(
+  registrationNumber: string | null,
+  year: number,
+  options: { limit?: number; offset?: number; enabled?: boolean } = {},
+) {
+  const limit = options.limit ?? 6;
+  const offset = options.offset ?? 0;
+  return useQuery({
+    queryKey: ['committee-payments', registrationNumber, 'received', year, limit, offset],
+    queryFn: () =>
+      getCommitteePaymentsReceivedFromApi(registrationNumber ?? '', {
+        year,
+        sort: 'amount',
+        limit,
+        offset,
+      }),
+    enabled: Boolean(registrationNumber) && (options.enabled ?? true),
+    retry: false,
+    placeholderData: keepPreviousData,
+  });
+}
+
+/**
+ * The full-payments view's list: pages of 250, largest first, accumulated as the
+ * reader asks for more. 250 matches the served maximum, so "Show the next 250"
+ * is one request.
+ */
+export function useCommitteePaymentsList(
+  registrationNumber: string | null,
+  direction: 'received' | 'made',
+  year: number,
+) {
+  return useInfiniteQuery({
+    queryKey: ['committee-payments-list', registrationNumber, direction, year],
+    queryFn: ({
+      pageParam,
+    }): Promise<CommitteePaymentsPage<CommitteeReceivedPayment | CommitteeMadePayment> | null> =>
+      direction === 'received'
+        ? getCommitteePaymentsReceivedFromApi(registrationNumber ?? '', {
+            year,
+            sort: 'amount',
+            limit: 250,
+            offset: pageParam,
+          })
+        : getCommitteePaymentsMadeFromApi(registrationNumber ?? '', {
+            year,
+            sort: 'amount',
+            limit: 250,
+            offset: pageParam,
+          }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) =>
+      lastPage && lastPage.hasMore ? allPages.length * 250 : undefined,
+    enabled: Boolean(registrationNumber),
+    retry: false,
+  });
+}
+
+/**
+ * Every payment filed under exactly one printed name, for /money/payments (issue
+ * #1780): pages of 250, newest first, accumulated as the reader asks for more.
+ *
+ * Newest first because that is the only order the server serves on a name-keyed
+ * lookup, and the page says so where a reader can see it. 250 matches the served
+ * maximum, so one press is one request.
+ *
+ * No `year` is passed, so this is every year our copy of the downloads reaches.
+ * A payment carries its own date and reads honestly in a list spanning years,
+ * which is why the name route makes the year optional where the committee route
+ * does not.
+ */
+export function usePaymentsUnderName(name: string, role: PaymentNameRole | null) {
+  return useInfiniteQuery({
+    queryKey: ['payments-under-name', name, role],
+    queryFn: ({ pageParam }): Promise<CommitteePaymentsPage<PaymentUnderName>> =>
+      getPaymentsUnderNameFromApi(name, role as PaymentNameRole, {
+        limit: PAYMENTS_UNDER_NAME_PAGE_SIZE,
+        offset: pageParam,
+      }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) =>
+      lastPage.hasMore ? allPages.length * PAYMENTS_UNDER_NAME_PAGE_SIZE : undefined,
+    enabled: name.length > 0 && role !== null,
+    retry: false,
+  });
+}
+
+/**
+ * Every report a committee is recorded as having filed, for the Filings tab:
+ * pages of 100, newest period first, accumulated as the reader asks for more.
+ * 100 matches the served maximum, and no committee in the live catalogue holds
+ * more than 74 filed reports, so the whole history is usually one request.
+ */
+export function useCommitteeFilingsList(
+  registrationNumber: string | null,
+  options: { enabled?: boolean } = {},
+) {
+  return useInfiniteQuery({
+    queryKey: ['committee-filings', registrationNumber],
+    queryFn: ({ pageParam }): Promise<CommitteeFilingsPage> =>
+      getCommitteeFilingsFromApi(registrationNumber ?? '', { limit: 100, offset: pageParam }),
+    initialPageParam: 0,
+    getNextPageParam: (lastPage, allPages) =>
+      lastPage.hasMore ? allPages.length * 100 : undefined,
+    enabled: Boolean(registrationNumber) && (options.enabled ?? true),
+    retry: false,
+  });
+}
+
+/** The largest payments out of a committee for one year. */
+export function useCommitteePaymentsMade(
+  registrationNumber: string | null,
+  year: number,
+  options: { limit?: number; offset?: number; enabled?: boolean } = {},
+) {
+  const limit = options.limit ?? 6;
+  const offset = options.offset ?? 0;
+  return useQuery({
+    queryKey: ['committee-payments', registrationNumber, 'made', year, limit, offset],
+    queryFn: () =>
+      getCommitteePaymentsMadeFromApi(registrationNumber ?? '', {
+        year,
+        sort: 'amount',
+        limit,
+        offset,
+      }),
+    enabled: Boolean(registrationNumber) && (options.enabled ?? true),
+    retry: false,
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -355,18 +664,45 @@ export function useTrackedListState(): {
   };
 }
 
-export function useSetTrackedBill(userId?: string) {
+/**
+ * Throw away what we hold about this reader's watchlist, so the next read comes
+ * from the server. Every write to the watchlist calls this, from wherever it is
+ * made, because a write that skips it leaves a stale list on screen that looks
+ * exactly like a current one.
+ *
+ * It exists as a shared hook rather than an inline call because there are TWO
+ * write paths and only one of them used to refresh anything. The other is a
+ * Track press made while signed out, which the server holds and completes at
+ * sign-in (`SignInModalProvider`): it wrote the row and refreshed nothing, so
+ * the reader landed back on the bill with the Track button still offering to
+ * track a bill they now tracked, and — since #1698 — the account menu printing
+ * a count one short of the truth. Nothing corrected it until a tab focus or a
+ * later mount happened to refetch.
+ *
+ * `refetchType: 'all'` refreshes the query even when nothing is watching it,
+ * which is the case here: the account menu is shut while the write happens.
+ */
+export function useRefreshTrackedBills(userId?: string) {
   const queryClient = useQueryClient();
+
+  return useCallback(() => {
+    void queryClient.invalidateQueries({
+      queryKey: ['tracked-bills', userId ?? 'anon'],
+      refetchType: 'all',
+    });
+    void queryClient.invalidateQueries({ queryKey: ['bills'] });
+    void queryClient.invalidateQueries({ queryKey: ['bill'] });
+  }, [queryClient, userId]);
+}
+
+export function useSetTrackedBill(userId?: string) {
   const { accessToken } = useAuth();
+  const refreshTrackedBills = useRefreshTrackedBills(userId);
 
   return useMutation({
     mutationFn: ({ billId, tracked }: { billId: string; tracked: boolean }) =>
       setTrackedBillFromApi(accessToken ?? '', billId, tracked),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['tracked-bills', userId ?? 'anon'] });
-      void queryClient.invalidateQueries({ queryKey: ['bills'] });
-      void queryClient.invalidateQueries({ queryKey: ['bill'] });
-    },
+    onSuccess: refreshTrackedBills,
   });
 }
 

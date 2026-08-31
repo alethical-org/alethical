@@ -9,6 +9,8 @@ import sys
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
+from alethical.monitoring import configure_error_monitoring
+
 DEFAULT_LOG_DIR = Path("logs")
 DEFAULT_LOG_FILE = "alethical-backend.log"
 DEFAULT_LOG_LEVEL = "INFO"
@@ -27,6 +29,7 @@ class PrivacySafeFormatter(logging.Formatter):
 
 def configure_logging() -> None:
     """Keep local file logs and also expose privacy-safe logs on Railway."""
+    configure_error_monitoring()
     log_dir = Path(os.environ.get("ALETHICAL_LOG_DIR", DEFAULT_LOG_DIR))
     log_file = os.environ.get("ALETHICAL_LOG_FILE", DEFAULT_LOG_FILE)
     log_level_name = os.environ.get("ALETHICAL_LOG_LEVEL", DEFAULT_LOG_LEVEL).upper()

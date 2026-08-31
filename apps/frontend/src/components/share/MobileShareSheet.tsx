@@ -104,11 +104,13 @@ export function MobileShareSheet({
             <View style={styles.iconTile}>
               <ShareIcon />
             </View>
-            <Text accessibilityRole="header" style={styles.title}>
+            <Text accessibilityRole="header" aria-level={2} style={styles.title}>
               {`Share this ${content.subject}`}
             </Text>
             <Text style={styles.contentTitle}>{content.title}</Text>
-            <Text style={styles.description}>{content.description}</Text>
+            <Text style={styles.description}>
+              {content.previewDescription ?? content.description}
+            </Text>
 
             <View style={styles.urlField}>
               <Text numberOfLines={1} style={styles.urlText}>
@@ -259,8 +261,8 @@ const styles = StyleSheet.create({
   },
   close: {
     position: 'absolute',
-    top: 16,
-    right: 16,
+    top: 22,
+    right: 22,
     zIndex: 1,
     width: 36,
     height: 36,

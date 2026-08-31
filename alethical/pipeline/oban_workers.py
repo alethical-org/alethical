@@ -4,11 +4,13 @@ import asyncio
 import json
 import math
 import subprocess
+import uuid
 from argparse import Namespace
 from pathlib import Path
 from typing import Any
 
 from oban import Record, worker
+from sqlalchemy.engine import make_url
 
 from alethical.db.session import (
     NO_PREPARED_STATEMENTS,
@@ -64,6 +66,16 @@ def _resolve_rag_write_url(args: dict[str, Any]) -> str:
     if rag_target != "production":
         raise ValueError("RAG writes require rag_target=production")
     return _database_url({"database_target": rag_target})
+
+
+def _database_identity(url: str) -> tuple[str, int | None, str, str]:
+    parsed = make_url(url)
+    return (
+        (parsed.host or "").lower(),
+        parsed.port,
+        parsed.database or "",
+        parsed.username or "",
+    )
 
 
 @worker(queue="maintenance", max_attempts=1, tags=["smoke"])
@@ -297,6 +309,8 @@ class BillSyncChunkWorker:
                     "dry_run": _bool_arg(job.args, "dry_run", True),
                     "bills_ingested": 0,
                     "bill_keys": [],
+                    "text_changed_bill_keys": [],
+                    "summary_changed_bill_keys": [],
                 }
             if _bool_arg(job.args, "dry_run", True):
                 return {
@@ -312,42 +326,96 @@ class BillSyncChunkWorker:
                     "Bill sync chunk requires allow_writes=true when dry_run=false"
                 )
 
+            database_url = _database_url(job.args)
+            include_rag = _bool_arg(job.args, "include_rag", True)
+            if include_rag:
+                rag_url = _resolve_rag_write_url(job.args)
+                if _database_identity(database_url) != _database_identity(rag_url):
+                    raise ValueError(
+                        "Inline RAG requires bill text and search rows to use the "
+                        "same database"
+                    )
+
             engine = create_engine(
-                _database_url(job.args),
+                database_url,
                 pool_pre_ping=True,
                 connect_args=NO_PREPARED_STATEMENTS,
             )
             with Session(engine) as db:
                 pipeline = MinnesotaIngestionPipeline(db)
                 stats = pipeline.ingest_bills(targets)
-                if _bool_arg(job.args, "include_rag", True):
+                ready_request_ids = {
+                    str(request_id)
+                    for request_id in stats.get("summary_request_ids", [])
+                }
+                if include_rag:
                     from alethical.pipeline.rag_ingest import (
                         DEFAULT_RAG_MODEL,
                         build_rag_rows_for_bill_keys,
                     )
 
-                    rag_db = _resolve_rag_write_url(job.args)
-                    rag_engine = create_engine(
-                        rag_db, pool_pre_ping=True, connect_args=NO_PREPARED_STATEMENTS
+                    db.flush()
+                    rag_database_target = str(
+                        job.args.get("rag_target")
+                        or job.args.get("database_target")
+                        or "local"
                     )
-                    with Session(rag_engine) as rag_db_session:
-                        rag_stats = build_rag_rows_for_bill_keys(
-                            rag_db_session,
-                            bill_keys=stats.get("bill_keys", []),
-                            dry_run=False,
+                    search_changed_bill_keys = list(
+                        dict.fromkeys(
+                            [
+                                *stats.get("text_changed_bill_keys", []),
+                                *stats.get("summary_changed_bill_keys", []),
+                            ]
+                        )
+                    )
+                    rag_stats = build_rag_rows_for_bill_keys(
+                        db,
+                        bill_keys=search_changed_bill_keys,
+                        dry_run=False,
+                        rag_model=str(job.args.get("rag_model") or DEFAULT_RAG_MODEL),
+                        rag_embedding_batch_size=int(
+                            job.args.get("rag_embedding_batch_size") or 32
+                        ),
+                        database_target=rag_database_target,
+                    )
+                    from alethical.pipeline.bill_summary_requests import (
+                        mark_summary_requests_ready,
+                    )
+
+                    ready_request_ids.update(
+                        str(request_id)
+                        for request_id in rag_stats.get("ready_summary_request_ids", [])
+                    )
+                    ready_request_ids.update(
+                        str(request_id)
+                        for request_id in mark_summary_requests_ready(
+                            db,
+                            stats.get("summary_changed_bill_keys", []),
                             rag_model=str(
                                 job.args.get("rag_model") or DEFAULT_RAG_MODEL
                             ),
-                            rag_embedding_batch_size=int(
-                                job.args.get("rag_embedding_batch_size") or 32
-                            ),
+                            database_target=rag_database_target,
                         )
-                        rag_db_session.commit()
-                        stats.update(rag_stats)
+                    )
+                    rag_stats.pop("bill_keys", None)
+                    stats.update(rag_stats)
+                stats["ready_summary_request_ids"] = sorted(ready_request_ids)
                 db.commit()
                 return {"dry_run": False, **stats}
 
-        return Record(await asyncio.to_thread(run))
+        result = await asyncio.to_thread(run)
+        from alethical.pipeline.bill_summary_requests import enqueue_ready_requests
+
+        result["summary_children"] = await enqueue_ready_requests(
+            result.get("ready_summary_request_ids", []),
+            database_target=job.args.get("database_target"),
+            database_url=(
+                _database_url(job.args) if job.args.get("database_url") else None
+            ),
+            oban_target=job.args.get("oban_target"),
+            oban_dsn=job.args.get("oban_dsn"),
+        )
+        return Record(result)
 
 
 @worker(queue="rag_sync", max_attempts=3, tags=["rag", "backfill"])
@@ -452,6 +520,10 @@ class RagBackfillChunkWorker:
             build_rag_rows_for_bill_keys,
         )
 
+        rag_database_target = str(
+            job.args.get("rag_target") or job.args.get("database_target") or "local"
+        )
+
         def run() -> dict[str, Any]:
             bill_keys = list(job.args.get("bill_keys", []))
             if not bill_keys:
@@ -470,6 +542,7 @@ class RagBackfillChunkWorker:
                     rag_embedding_batch_size=int(
                         job.args.get("rag_embedding_batch_size") or 32
                     ),
+                    database_target=rag_database_target,
                 )
                 db.commit()
             return {
@@ -477,9 +550,63 @@ class RagBackfillChunkWorker:
                 "rag_skipped": stats.get("rag_skipped", 0),
                 "rag_already_exists": stats.get("rag_already_exists", 0),
                 "bill_keys": bill_keys,
+                "ready_summary_request_ids": [
+                    str(request_id)
+                    for request_id in stats.get("ready_summary_request_ids", [])
+                ],
             }
 
-        return Record(await asyncio.to_thread(run))
+        result = await asyncio.to_thread(run)
+        from alethical.pipeline.bill_summary_requests import enqueue_ready_requests
+
+        result["summary_children"] = await enqueue_ready_requests(
+            result.get("ready_summary_request_ids", []),
+            database_target=rag_database_target,
+            oban_target=job.args.get("oban_target"),
+            oban_dsn=job.args.get("oban_dsn"),
+        )
+        return Record(result)
+
+
+@worker(queue="ai_summary", max_attempts=1, tags=["ai", "bill-summary"])
+class BillSummaryRequestWorker:
+    """Run 1 durable request. Provider retries stay inside this one job."""
+
+    async def process(self, job):
+        from alethical.pipeline.bill_summary_requests import (
+            enqueue_ready_requests,
+            run_summary_request,
+        )
+
+        request_id = str(job.args.get("request_id") or "")
+        if not request_id:
+            raise ValueError("bill summary request_id is required")
+        database_url = _database_url(job.args)
+        result = await asyncio.to_thread(
+            run_summary_request,
+            database_url,
+            uuid.UUID(request_id),
+            claim_job_id=int(job.id),
+        )
+        successor_children = await enqueue_ready_requests(
+            result.ready_successor_request_ids,
+            database_target=job.args.get("database_target"),
+            database_url=database_url if job.args.get("database_url") else None,
+            oban_target=job.args.get("oban_target"),
+            oban_dsn=job.args.get("oban_dsn"),
+        )
+        return Record(
+            {
+                "request_id": str(result.request_id),
+                "outcome": result.outcome,
+                "provider_attempts": result.provider_attempts,
+                "actual_cost_microusd": result.actual_cost_microusd,
+                "ready_successor_request_ids": [
+                    str(value) for value in result.ready_successor_request_ids
+                ],
+                "successor_children": successor_children,
+            }
+        )
 
 
 @worker(queue="committee_sync", max_attempts=3, tags=["ingestion", "committee"])

@@ -1,3 +1,12 @@
+import type {
+  FilingSchedule,
+  CommitteeMatchCheck,
+  CommitteeOutsideThisYear,
+  LinkState,
+  MoneyBlockState,
+  SplitState,
+} from '../lib/legislatorCampaignMoney';
+
 export type Chamber = 'House' | 'Senate';
 export type Party = 'DFL' | 'R' | 'I';
 export type ChatSubjectType = 'bill' | 'legislator' | 'general';
@@ -554,4 +563,453 @@ export interface AskCitation {
   sectionTopic: string;
   /** Whether this exact section still exists in the bill's current version. */
   sectionAvailable?: boolean;
+}
+
+/**
+ * One committee's campaign money for one year, as
+ * `GET /api/v1/legislators/{id}/campaign-finance` reports it (#1329).
+ *
+ * Amounts arrive as strings, deliberately. They are decimals in Postgres and JSON
+ * numbers are doubles, so parsing every one into a float here would round cents on
+ * figures in the millions — and a figure a reader cannot check against Minnesota's
+ * own filing is the one thing this page cannot ship
+ * (`.claude/rules/grounded-answers.md` rule 12).
+ */
+export interface CampaignCommitteeMoney {
+  registrationNumber: string;
+  /** The committee's name as the reviewer read it when they confirmed the link. */
+  committeeNameAsReviewed: string;
+  /** The name the current download carries. Can legitimately differ from the above:
+   *  the Board publishes a committee's current name against all of its history. */
+  committeeName: string | null;
+  /** Which office the committee is for. Keeps a race for another office off this
+   *  page, which no filing supports putting here. */
+  office: string | null;
+  /** What a person read when they confirmed this account is this member's, and the day
+   *  they did. Read off the stored decision and never recomputed, so a later download
+   *  changing a name does not rewrite the basis of a decision already made. Null only for
+   *  a decision written before those columns existed, where the card says nothing. */
+  checked: CommitteeMatchCheck | null;
+  moneyIn: {
+    state: MoneyBlockState;
+    itemizedContributionTotal: string | null;
+    itemizedContributionPayments: number | null;
+    otherReceipts: { receiptType: string; total: string; payments: number }[];
+    sourceUrl: string | null;
+  } | null;
+  moneyOut: {
+    state: MoneyBlockState;
+    itemizedPaymentTotal: string | null;
+    itemizedPayments: number | null;
+    byType: { type: string; total: string; payments: number }[];
+    sourceUrl: string | null;
+  } | null;
+  /** How much of the year's money carried a donor's name and how much did not.
+   *  `state` decides whether the numbers may be drawn at all. */
+  split: {
+    state: SplitState;
+    reportedTotal: string | null;
+    reportedThrough: string | null;
+    namedTotal: string | null;
+    namedPayments: number | null;
+    /** The cash part of `namedTotal`, which is the only part the subtraction may use:
+     *  the state's reported figure excludes donated goods and services. */
+    namedCashTotal: string | null;
+    /** Named donations of goods and services rather than money. */
+    namedInKindTotal: string | null;
+    unnamedTotal: string | null;
+    /** Whether the committee's own filed report was checked against our rows.
+     *  'agrees' is the only value that means verified. */
+    statedSplitState: string;
+    firstPaymentOn: string | null;
+    lastPaymentOn: string | null;
+  };
+  /** Why this committee-year may have nothing to show: which of the 6 filing-schedule
+   *  states it is in, and the dates that go with it. Three of the 6 are facts about
+   *  the committee and 3 are our own unfinished work, and rule 12 forbids a page
+   *  letting one read like the other. */
+  filingSchedule: FilingSchedule;
+}
+
+/** One row of the /money landing's filed-reports module: whose committee filed,
+ *  which report, the period it covers, and the day the Board received it where
+ *  the report's own document states one — never an amount. */
+export interface MoneyFilingRow {
+  /** The filer's name exactly as registered. */
+  filerName: string;
+  /** The report's name, e.g. "2026 Pre-Primary Report". */
+  reportName: string;
+  /** ISO date the period starts, when the filing resolves one — never an
+   *  assumed 1 January. */
+  periodStart: string | null;
+  /** ISO date the period ends (the filing's cutoff). */
+  periodEnd: string | null;
+  /** ISO date the Board received this report's effective version, read off the
+   *  document's own "Received by the Board" line (issue #1670). Null wherever
+   *  the Board serves no readable document — the ordinary answer before 2023 —
+   *  and null NEVER means unfiled. A null row prints no filed date at all;
+   *  falling back to `periodEnd` would be a fabricated fact. */
+  filedDate: string | null;
+}
+
+/** The filed-reports feed (GET /campaign-finance/filings). `state`
+ *  "unavailable" means our gap, never that nobody filed. */
+export interface MoneyFilingsFeed {
+  state: 'reported' | 'unavailable';
+  /** What the feed is ordered by: "filed_date_then_period_end" when some rows
+   *  carry a filed date, "period_end" when none does. The printed ordering
+   *  sentence derives from this through one mapping (lib/moneyLanding.ts), so
+   *  the words and the order cannot drift apart. */
+  orderedBy: string;
+  filings: MoneyFilingRow[];
+  /** The newest completed filing period and how many REPORTS cover it, carried
+   *  together because a count must never appear beside a period it does not
+   *  describe (grounded-answers rule 12). Null when the server serves no such
+   *  block. The count is reports, not committees: a committee that corrects a
+   *  filing files a second report for the same period. */
+  newestPeriod: { periodEnd: string | null; filingCount: number } | null;
+}
+
+/** The landing's counts and dates (GET /campaign-finance/summary). Three
+ *  independent blocks, each with its own state, so one gap cannot blank the
+ *  others. A null count is our gap and never renders as 0; a served 0 is a
+ *  verified zero and renders as the number it is. */
+export interface MoneyLandingSummary {
+  register: {
+    state: 'reported' | 'unavailable';
+    filerCount: number | null;
+  };
+  confirmations: {
+    state: 'reported' | 'unavailable';
+    confirmedMemberCount: number | null;
+    sittingMemberCount: number | null;
+    /** ISO timestamp of the newest confirmation; null while there is none. */
+    newestConfirmationAt: string | null;
+  };
+  freshness: {
+    /** ISO timestamp we last copied new filings from the Board — the page's one
+     *  freshness date. Printed in Central time. */
+    downloadsFetchedAt: string | null;
+  };
+}
+
+/** A legislator's own campaign money for one year. Read `linkState` before
+ *  `committees`: an empty list is never on its own a statement about the person. */
+export interface LegislatorCampaignMoney {
+  legislatorId: string;
+  year: number;
+  linkState: LinkState;
+  /** The day we downloaded Minnesota's files. Not the period the money covers,
+   *  which is per committee and always earlier. */
+  fetchedAt: string | null;
+  committees: CampaignCommitteeMoney[];
+  /** Confirmed committees left out because they are for a race other than a
+   *  legislative seat. Counted rather than dropped in silence, so a reader who knows
+   *  their member ran for something else is told the money exists and is not this. */
+  otherOfficeCommittees: number;
+  /** Confirmed committees left out because they reported no money in this year.
+   *  `closedOn` is the Board's own closing date for the registration, and the only
+   *  thing that licenses saying a registration ended. `null` covers 2 cases we cannot
+   *  tell apart, still open and absent from the filer list we hold, so both get the
+   *  same honest wording. Never infer a closing date from the years on the link:
+   *  those are the years money was reported. */
+  committeesOutsideThisYear: CommitteeOutsideThisYear[];
+}
+
+/** One filer as our copy of the Board's registered-filer directory lists them.
+ *  `state` "not_registered" means our copy does not carry the number — a fact
+ *  about our copy, never "no such committee". `kind` is the register's own
+ *  vocabulary and the only kind label a page may print. */
+export interface CommitteeRegisterEntry {
+  state: 'reported' | 'not_registered' | 'unavailable';
+  kind: string | null;
+  name: string | null;
+  party: string | null;
+  office: string | null;
+  district: string | null;
+  registrationDate: string | null;
+  /** Set when the Board records the committee as terminated. Registration-level:
+   *  it makes a closed committee its own display state on every year's view. */
+  terminationDate: string | null;
+  /** The day our copy of the register was taken (ISO date). */
+  asOf: string | null;
+}
+
+/** One committee's money for one year (GET /committees/{n}/finance), keyed on the
+ *  registration number — the identity, since names collide and numbers do not. */
+/** Who a committee has been confirmed to belong to, and where their money lives. */
+export interface ConfirmedCommitteeMember {
+  legislatorId: string;
+  /** The profile's own address part (`/legislators/melissa-hortman`). */
+  slug: string;
+  fullName: string;
+  /** What the person read when they decided, and the day. Read off the stored decision
+   *  and never recomputed. Null only for a decision written before those columns
+   *  existed, where the page says the match was made and nothing about its basis. */
+  checked: CommitteeMatchCheck | null;
+}
+
+export interface CommitteeMoney {
+  registrationNumber: string;
+  /** The name the current download carries (the filer's own wording). */
+  committeeName: string | null;
+  /** The Board's filer-kind code on the money rows (PCC / PTU / PCF). */
+  entityType: string | null;
+  /** The Board's sub-type code (CAU a caucus, BC/BF a ballot-question filer). */
+  entitySubType: string | null;
+  year: number;
+  /** ISO timestamp we last copied Minnesota's downloads — the page's one
+   *  freshness date, printed in Central time. Never the period money covers. */
+  fetchedAt: string | null;
+  register: CommitteeRegisterEntry;
+  /** The one legislator a **person** has confirmed this committee belongs to, or
+   *  null. Never derived from a name, a score, or any agreement between rules: it
+   *  is a row somebody signed (design §5.1). Null is the ordinary answer and means
+   *  only that nobody has confirmed one — never that the committee is nobody's, and
+   *  never that a rejection was recorded, which is a decision about our own proposal
+   *  rather than a claim about the committee (§7). */
+  confirmedFor: ConfirmedCommitteeMember | null;
+  moneyIn: {
+    state: MoneyBlockState;
+    itemizedContributionTotal: string | null;
+    itemizedContributionPayments: number | null;
+    otherReceipts: { receiptType: string; total: string; payments: number }[];
+    /** The period start the Board's own transcribed disclosure calendars print
+     *  against this filing's period end — never an assumed 1 January. Null is
+     *  the covers-through state, not a fault. */
+    reportedPeriodStart: string | null;
+    sourceUrl: string | null;
+  };
+  moneyOut: {
+    state: MoneyBlockState;
+    itemizedPaymentTotal: string | null;
+    itemizedPayments: number | null;
+    byType: { type: string; total: string; payments: number }[];
+    /** The filing's own "Total expenditures" figure — rule 12's second number for
+     *  money out. A separate claim by a separate source, never added to or
+     *  subtracted from the payments we can list. */
+    reportedTotal: string | null;
+    reportedThrough: string | null;
+    sourceUrl: string | null;
+  };
+  /** Served, never computed by the page: the 4 withheld states are each a way a
+   *  client-side subtraction would state something false (rule 12; design §7). */
+  split: {
+    state: SplitState;
+    reportedTotal: string | null;
+    reportedThrough: string | null;
+    namedTotal: string | null;
+    namedPayments: number | null;
+    namedCashTotal: string | null;
+    namedInKindTotal: string | null;
+    unnamedTotal: string | null;
+    statedSplitState: string;
+    firstPaymentOn: string | null;
+    lastPaymentOn: string | null;
+  };
+}
+
+/** One payment into a committee, as its own filing lists it. */
+export interface CommitteeReceivedPayment {
+  contributor: string | null;
+  contributorRegistrationNumber: string | null;
+  contributorType: string | null;
+  employer: string | null;
+  amount: string | null;
+  receivedOn: string | null;
+  receiptType: string | null;
+  inKind: string | null;
+}
+
+/** One payment out of a committee. A `Contribution`-typed row names another
+ *  committee (the affected fields); every other row names a supplier. */
+export interface CommitteeMadePayment {
+  vendorName: string | null;
+  vendorCity: string | null;
+  vendorState: string | null;
+  affectedCommitteeName: string | null;
+  affectedCommitteeRegistrationNumber: string | null;
+  amount: string | null;
+  paidOn: string | null;
+  expenditureType: string | null;
+  purpose: string | null;
+  inKind: string | null;
+}
+
+/** One page of a committee's payments (GET /committees/{n}/payments). Read
+ *  `state` before the rows: an empty list is 3 different facts. */
+export interface CommitteePaymentsPage<Payment> {
+  state: MoneyBlockState;
+  payments: Payment[];
+  hasMore: boolean;
+  /** Every matching row, counted with the same filter as the rows, so a capped
+   *  list can say what it is not showing. Null when no count is served. */
+  totalPayments: number | null;
+  /** Counterparty numbers on this page that this release holds as a filer — the
+   *  only names that may render as links. */
+  linkableRegistrationNumbers: string[];
+  sourceUrl: string | null;
+  fetchedAt: string | null;
+}
+
+/** One report a committee filed, as the Board's own catalogue records it — never
+ *  an amount and never an amendment date (the catalogue's amendment record is
+ *  version indexes only). It carries the day the Board received it where the
+ *  report's own document states one (issue #1670). */
+export interface CommitteeFilingRow {
+  /** The report's name as catalogued, e.g. "2026 Pre-Primary Report". */
+  reportName: string;
+  reportType: string;
+  filingYear: number;
+  /** ISO date the period starts, only when one of the Board's own filing
+   *  calendars prints it — never an assumed 1 January. */
+  periodStart: string | null;
+  /** ISO date the period ends (the filing's cutoff). Null on a filed report the
+   *  catalogue gives no period end for; the row then carries no period line. */
+  periodEnd: string | null;
+  /** ISO date the Board received this report's effective version, read off the
+   *  document's own "Received by the Board" line (issue #1670). Null wherever
+   *  the Board serves no readable document, which is most of a committee's
+   *  history before 2023 — and null never means unfiled. A null row prints no
+   *  filed date rather than falling back to `periodEnd`. */
+  filedDate: string | null;
+  /** The effective version's index: 0 is the original, 1 and up mean the report
+   *  was amended. The AMENDED chip draws from this and carries no date. */
+  effectiveAmendmentIndex: number | null;
+  amendmentCount: number | null;
+}
+
+/** One committee's filed reports (GET /committees/{n}/filings), newest period
+ *  first. `state` "unavailable" is our gap, never that nobody filed. */
+export interface CommitteeFilingsPage {
+  state: 'reported' | 'unavailable';
+  /** What the list is ordered by: "filed_date_then_period_end" when some rows
+   *  carry a filed date, "period_end" when none does. The printed ordering
+   *  sentence derives from this so the words and the order cannot drift apart. */
+  orderedBy: string;
+  filings: CommitteeFilingRow[];
+  hasMore: boolean;
+  /** Every filed report, counted with the same filter as the rows. Null when no
+   *  count is served. */
+  total: number | null;
+  /** Catalogue rows for this committee with no filing record — either never
+   *  filed, or too old for the Board to serve a version history — so the page
+   *  can say the list's boundary instead of implying completeness. */
+  cataloguedWithoutRecord: number | null;
+}
+
+/** One row of the register as the committees list draws it (GET
+ *  /campaign-finance/committees). `subType` is the Board's own code and
+ *  deliberately not a label: the wording a reader sees is derived in one place
+ *  (`committeeEyebrow` in lib/committeeMoney.ts) so this list cannot label a
+ *  filer differently from its own page. `office` and `district` are null on most
+ *  rows and that is the register, not a gap — 0 of the 299 party units carry
+ *  one. */
+export interface CommitteeRegisterRow {
+  registrationNumber: string;
+  name: string;
+  kind: string | null;
+  subType: string | null;
+  office: string | null;
+  district: string | null;
+  isClosed: boolean;
+  /** ISO date the committee terminated, beside `isClosed` and never instead of
+   *  it. */
+  terminationDate: string | null;
+}
+
+/** One page of the register, A to Z by the filed name. No row carries an amount
+ *  and nothing sorts by one: these filers file to different calendars, so 2
+ *  dollar figures side by side would set one period against another
+ *  (grounded-answers rule 12). */
+export interface CommitteeRegisterPage {
+  state: 'reported' | 'unavailable';
+  /** What the list is ordered by ("name"), so the printed order sentence and the
+   *  real order cannot drift apart. */
+  orderedBy: string;
+  committees: CommitteeRegisterRow[];
+  hasMore: boolean;
+  /** Counted with the same filter the rows came from, so "showing 50 of 778
+   *  candidate committees" is true of the list on screen. */
+  total: number | null;
+  /** The whole register, whatever filter is applied, so a count on the page can
+   *  speak for the register rather than for the filter. */
+  registerTotal: number | null;
+  /** How many of each of the register's 3 kinds, unfiltered — the filter chips
+   *  label themselves from this, and counts that moved when a filter was applied
+   *  would read as the filter having found fewer of a kind than exist. */
+  byKind: Record<string, number>;
+  /** The plain calendar date our copy of the register was counted from. */
+  asOf: string | null;
+}
+
+/** One result row of the name search. Each carries its own `kind` so a caller
+ *  reads the row rather than inferring its shape from the group it arrived in. */
+export type NameSearchRow =
+  | {
+      kind: 'person';
+      legislatorId: string;
+      slug: string;
+      fullName: string;
+      chamber: string | null;
+      districtCode: string | null;
+      party: string | null;
+    }
+  | {
+      kind: 'committee';
+      registrationNumber: string;
+      name: string;
+      filerKind: string | null;
+      subType: string | null;
+      office: string | null;
+      district: string | null;
+      isClosed: boolean;
+      terminationDate: string | null;
+    }
+  | {
+      kind: 'payment_name';
+      name: string;
+      /** The role the payments-under-a-name view takes, served verbatim so a
+       *  caller never translates it. */
+      role: string;
+      /** Records carrying this exact spelling. Never an amount. */
+      paymentCount: number | null;
+    };
+
+/** One group of the name search's answer. A group with nothing in it is still
+ *  served and still drawn, so a missing group can never be read as "no matches"
+ *  when it meant "we did not look".
+ *
+ *  Three states, and the middle one is the whole point: `not_reported` means we
+ *  searched this part of the records and nothing carried that spelling, while
+ *  `unavailable` means we could not read it at all. Collapsing them would print
+ *  "a gap on our side" over a verified nothing, which is the missing-versus-zero
+ *  failure `.claude/rules/grounded-answers.md` rule 12 forbids. */
+export interface NameSearchGroup {
+  kind: string;
+  state: 'reported' | 'not_reported' | 'unavailable';
+  results: NameSearchRow[];
+  /** Exact up to the server's counting ceiling, then null with `atLeast` saying
+   *  how far the count got. A ceiling printed as a total would be a fabricated
+   *  fact (grounded-answers rule 11). */
+  total: number | null;
+  atLeast: number | null;
+  hasMore: boolean;
+  reason: string | null;
+}
+
+/** One typed name matched across the 5 kinds of record (GET
+ *  /campaign-finance/search). `state` "unavailable" with reason
+ *  "query_too_short" is a served state, not an error: the page says "type at
+ *  least 3 characters" rather than "nothing found", which would be a false claim
+ *  about the records. */
+export interface NameSearchAnswer {
+  state: 'reported' | 'unavailable';
+  query: string;
+  /** The smallest query the name index can answer on. */
+  minQueryLength: number | null;
+  /** How many distinct names the server counts before it stops. */
+  countedUpTo: number | null;
+  groups: NameSearchGroup[];
+  reason: string | null;
 }

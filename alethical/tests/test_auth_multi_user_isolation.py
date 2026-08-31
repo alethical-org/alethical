@@ -33,6 +33,9 @@ from fastapi.testclient import TestClient
 
 schema = load_schema()
 AuthIdentity = schema.AuthIdentity
+NotificationPreference = schema.NotificationPreference
+SavedPlace = schema.SavedPlace
+TrackedBill = schema.TrackedBill
 UserAccount = schema.UserAccount
 
 ADA_BILL = "94-2025-SF1832"
@@ -70,6 +73,11 @@ def _delete_accounts(*subjects: str) -> None:
             )
         ).all()
         user_ids = {identity.user_id for identity in identities}
+        for model in (TrackedBill, SavedPlace, NotificationPreference):
+            for row in db.scalars(
+                select(model).where(model.user_id.in_(user_ids))
+            ).all():
+                db.delete(row)
         for identity in identities:
             db.delete(identity)
         db.flush()
@@ -235,6 +243,132 @@ def test_a_second_identity_with_the_same_verified_email_joins_the_existing_accou
     assert identity_count == 2, "both identities should hang off the one account"
 
     _delete_accounts(first_subject, second_subject)
+
+
+def test_google_and_password_sign_in_share_the_same_account_and_saved_data():
+    """Confirmed Google and password methods never fork product information.
+
+    Supabase owns both sign-in methods. Alethical sees their confirmed email and
+    stable Supabase identity, then maps each method to one UserAccount. This test
+    deliberately uses two provider subjects, the harder case, so it also proves
+    Alethical's confirmed-email fallback cannot create a second empty account.
+    """
+    password_subject = "supabase-password-shared-data-1487"
+    google_subject = "supabase-google-shared-data-1487"
+    shared_email = "google-password-shared-data-1487@example.com"
+    _delete_accounts(password_subject, google_subject)
+
+    password_client = _client_for(password_subject, shared_email)
+    google_client = _client_for(google_subject, shared_email)
+
+    password_account = _me(password_client, ANY_TOKEN)
+    with Session(get_engine()) as db:
+        account = db.scalar(
+            select(UserAccount).where(UserAccount.id == password_account["id"])
+        )
+        account.display_name = "Shared account setting"
+        db.commit()
+
+    tracked = password_client.put(
+        f"/api/v1/me/tracked-bills/{ADA_BILL}",
+        headers=ANY_TOKEN,
+        json={"alerts_enabled": False, "note": "Keep this with both methods"},
+    )
+    assert tracked.status_code == 200
+
+    place = password_client.post(
+        "/api/v1/me/saved-places",
+        headers=ANY_TOKEN,
+        json={
+            "label": "Capitol",
+            "address_text": "75 Rev Dr Martin Luther King Jr Blvd",
+            "city": "Saint Paul",
+            "state_code": "MN",
+            "is_default": True,
+        },
+    )
+    assert place.status_code == 201
+
+    alert_setting = password_client.put(
+        "/api/v1/me/notification-preferences/email",
+        headers=ANY_TOKEN,
+        json={"frequency": "weekly_digest", "is_enabled": False},
+    )
+    assert alert_setting.status_code == 200
+
+    google_account = _me(google_client, ANY_TOKEN)
+    password_account = _me(password_client, ANY_TOKEN)
+    assert (
+        google_account
+        == password_account
+        == {
+            "id": password_account["id"],
+            "display_name": "Shared account setting",
+            "primary_email": shared_email,
+            "sign_in_methods": None,
+            "features": ["tracked_bills", "notifications", "chat"],
+        }
+    )
+
+    password_tracked = password_client.get(
+        "/api/v1/me/tracked-bills", headers=ANY_TOKEN
+    ).json()["data"]
+    google_tracked = google_client.get(
+        "/api/v1/me/tracked-bills", headers=ANY_TOKEN
+    ).json()["data"]
+    assert google_tracked == password_tracked
+    saved_bill = next(row for row in google_tracked if row["bill_id"] == ADA_BILL)
+    assert saved_bill["alerts_enabled"] is False
+    assert saved_bill["note"] == "Keep this with both methods"
+
+    password_places = password_client.get(
+        "/api/v1/me/saved-places", headers=ANY_TOKEN
+    ).json()["data"]
+    google_places = google_client.get(
+        "/api/v1/me/saved-places", headers=ANY_TOKEN
+    ).json()["data"]
+    assert google_places == password_places
+    assert google_places == [
+        {
+            "id": place.json()["data"]["id"],
+            "label": "Capitol",
+            "address_text": "75 Rev Dr Martin Luther King Jr Blvd",
+            "city": "Saint Paul",
+            "state_code": "MN",
+            "is_default": True,
+        }
+    ]
+
+    password_alerts = password_client.get(
+        "/api/v1/me/notification-preferences", headers=ANY_TOKEN
+    ).json()["data"]
+    google_alerts = google_client.get(
+        "/api/v1/me/notification-preferences", headers=ANY_TOKEN
+    ).json()["data"]
+    assert (
+        google_alerts
+        == password_alerts
+        == [{"channel": "email", "frequency": "weekly_digest", "is_enabled": False}]
+    )
+
+    with Session(get_engine()) as db:
+        user_count = db.scalar(
+            select(func.count())
+            .select_from(UserAccount)
+            .where(UserAccount.primary_email == shared_email)
+        )
+        identities = db.scalars(
+            select(AuthIdentity).where(
+                AuthIdentity.provider_subject.in_([password_subject, google_subject])
+            )
+        ).all()
+    assert user_count == 1
+    assert len(identities) == 2
+    assert {str(identity.user_id) for identity in identities} == {
+        password_account["id"]
+    }
+
+    _delete_accounts(password_subject, google_subject)
 
 
 def test_an_unconfirmed_email_gets_its_own_account_instead_of_joining():

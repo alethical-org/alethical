@@ -71,6 +71,11 @@ export function BillHeader({
   const { isMobile } = useResponsive();
   // Keep the authoritative statutory title reachable as a hover tooltip on web.
   // RN-Web doesn't forward the DOM `title` attribute, so set it on the host node.
+  // The tooltip is the ONLY place it goes: it must never become the heading's
+  // accessibilityLabel, because a label *replaces* the visible text for a screen
+  // reader rather than adding to it, which announced 900 characters of statute
+  // where everyone else read 43 plain-language ones (#1362, grounded-answers
+  // rule 10). A tooltip is additive; a label is a substitution.
   const headingRef = useRef<any>(null);
   useEffect(() => {
     const node = headingRef.current;
@@ -89,7 +94,7 @@ export function BillHeader({
       <Text
         ref={headingRef}
         accessibilityRole="header"
-        accessibilityLabel={fullTitle}
+        aria-level={1}
         style={[styles.h1, isMobile && styles.h1Mobile]}
       >
         {title}

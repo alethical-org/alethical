@@ -174,15 +174,20 @@ export function FullTextTab({
   targetSectionAnchor,
   onAnchorConsumed,
   updatedLabel,
+  sectionHeadingLevel = 2,
 }: {
   bill: Bill;
-  /** Anchor value a citation chip asked us to jump to — `laws.0.1.0-4`, the same
-   *  string a shared `#ft-` fragment carries. A chip whose section could not be
-   *  pinned to one position passes the bare id and lands on the first section
-   *  carrying it. */
+  /** Anchor value a citation link asked us to jump to — `laws.0.1.0-4`, the same
+   *  string a shared `#ft-` fragment carries. Old id-only links still land on the
+   *  first matching section, but new citation links require an exact position. */
   targetSectionAnchor?: string | null;
   onAnchorConsumed?: () => void;
   updatedLabel: string;
+  /** Heading level for each statutory section's caption. The desktop screen shows
+   *  this tab directly under the bill's own title, so its sections are h2; the
+   *  phone screen stacks it under a visible "Bill Text" h2, so there they are h3.
+   *  Without a level react-native-web renders every one as an <h1> (#1355). */
+  sectionHeadingLevel?: 2 | 3;
 }) {
   const version = bill.versions.find((v) => v.isCurrent) ?? bill.versions[0];
   const versionCode = version?.versionCode;
@@ -500,7 +505,11 @@ export function FullTextTab({
               ) : null}
 
               {heading ? (
-                <Text accessibilityRole="header" style={styles.sectionHeading}>
+                <Text
+                  accessibilityRole="header"
+                  aria-level={sectionHeadingLevel}
+                  style={styles.sectionHeading}
+                >
                   {heading}
                 </Text>
               ) : null}

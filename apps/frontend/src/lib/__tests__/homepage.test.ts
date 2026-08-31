@@ -6,6 +6,48 @@ import { describe, expect, it } from 'vitest';
 
 import { HOME_BILL_GROUP_CONTINUATIONS } from '../homepage';
 
+const cardSource = () =>
+  readFileSync(
+    resolve(
+      dirname(fileURLToPath(import.meta.url)),
+      '../../screens/redesign/HomeSignedOutScreen.tsx',
+    ),
+    'utf8',
+  );
+
+describe('the example answer names the law in the record’s own words', () => {
+  // The string itself is held to the record by scripts/check_home_hero_card_literals.py,
+  // which runs daily and on any PR touching this file. These cases guard the parts of
+  // the decision that no record can check: that the name is not re-cased or tidied, that
+  // it is typed rather than fetched, and that "Minnesota’s" stays dropped in front of a
+  // string already carrying "Minors'".
+  it('quotes the record’s short title character for character', () => {
+    expect(cardSource()).toContain(
+      "<Text style={styles.answerSummaryBold}>New Rules For Minors' Social Media Accounts</Text>",
+    );
+  });
+
+  it('keeps the record’s straight apostrophe rather than the page’s curly one', () => {
+    expect(cardSource()).not.toContain('New Rules For Minors\u2019 Social Media Accounts');
+  });
+
+  it('drops the possessive that used to sit in front of the name', () => {
+    const [, summary = ''] = cardSource().split('<Text style={styles.answerSummary}>');
+    expect(summary.slice(0, 200)).not.toContain('Minnesota');
+  });
+
+  it('reuses the sentence’s own weight-600 emphasis, with no link or new colour', () => {
+    expect(cardSource()).toContain('answerSummaryBold: { fontWeight: t.fontWeights.semibold },');
+  });
+
+  it('starts the privacy promise on the second summary line', () => {
+    expect(cardSource()).toContain(
+      String.raw`ban addictive features,{'\n'}and default
+        their accounts to the strictest privacy.`,
+    );
+  });
+});
+
 describe('home bill groups continue into the matching Bill Search view', () => {
   it('uses unique names and preserves each group’s filter and order', () => {
     expect(HOME_BILL_GROUP_CONTINUATIONS).toEqual({
@@ -148,7 +190,7 @@ describe('home bill groups continue into the matching Bill Search view', () => {
       'utf8',
     ).replace(/\s+/g, ' ');
     const description =
-      'See who represents you in the Minnesota House and Senate, and learn about their work and how to contact them.';
+      'See who represents you in the Minnesota House and Senate. Learn about their work and how to contact them.';
 
     expect(source.split(description)).toHaveLength(3);
   });

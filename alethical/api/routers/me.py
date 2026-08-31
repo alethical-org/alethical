@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 
 import requests
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import case, select, text
 from sqlalchemy.orm import Session
 
@@ -28,6 +28,7 @@ from alethical.api.serializers import (
     chat_message_payload,
     chat_session_payload,
 )
+from alethical.api.services.sign_in_methods import current_supabase_sign_in_methods
 from alethical.db.schema import load_schema
 from alethical.db.session import get_db
 from alethical.pipeline.rag_ingest import (
@@ -35,6 +36,7 @@ from alethical.pipeline.rag_ingest import (
     _build_embeddings,
     effective_embedding_model,
 )
+from alethical.monitoring import capture_operational_error
 
 schema = load_schema()
 Bill = schema.Bill
@@ -613,6 +615,12 @@ def synthesize_grounded_answer(
                 text_value = narrow_bill_absence_claims(text_value)
             return strip_list_completeness_claims(text_value)
     except requests.RequestException as exc:
+        capture_operational_error(
+            exc,
+            area="chat",
+            operation="provider-request",
+            tags={"bill_key": bill_key, "provider": provider},
+        )
         raise HTTPException(
             status_code=502, detail=f"{label} RAG chat synthesis failed"
         ) from exc
@@ -623,12 +631,22 @@ def synthesize_grounded_answer(
 
 
 @router.get("/me", response_model=DetailResponse)
-def me(current_user=Depends(get_current_user)):
+def me(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    provider_subject = (
+        getattr(request.state, "auth_provider_subject", None)
+        if getattr(request.state, "auth_provider", None) == "supabase"
+        else None
+    )
     return DetailResponse(
         data={
             "id": str(current_user.id),
             "display_name": current_user.display_name,
             "primary_email": current_user.primary_email,
+            "sign_in_methods": current_supabase_sign_in_methods(db, provider_subject),
             "features": ["tracked_bills", "notifications", "chat"],
         }
     )

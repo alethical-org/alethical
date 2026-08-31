@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+from collections.abc import Iterable
 import hashlib
 import json
 import os
@@ -31,10 +32,10 @@ from alethical.db.session import supabase_database_url as _supabase_database_url
 AIEnrichment = schema.AIEnrichment
 Bill = schema.Bill
 BillVersion = schema.BillVersion
+BillVersionAppendixReference = schema.BillVersionAppendixReference
 BillVersionSection = schema.BillVersionSection
 EnrichmentType = schema.EnrichmentType
 LegislativeSession = schema.LegislativeSession
-RagSectionDocument = schema.RagSectionDocument
 Sponsorship = schema.Sponsorship
 
 OPENAI_API_BASE = "https://api.openai.com/v1"
@@ -46,6 +47,20 @@ TITLE_MODEL = "gpt-4o-mini"
 DEFAULT_OUTPUT_DIR = Path(".tmp/openai-batches")
 MAX_BATCH_REQUESTS = 50_000
 MAX_BATCH_FILE_BYTES = 200 * 1024 * 1024
+PROPOSED_TEXT_CHAR_LIMIT = 825_000
+APPENDIX_TEXT_CHAR_LIMIT = 150_000
+COMBINED_TEXT_CHAR_LIMIT = 900_000
+WHOLE_REQUEST_CHAR_LIMIT = 925_000
+BILL_SUMMARY_PROMPT_CONTEXT_VERSION = "mn-bill-summary-context-v3"
+APPENDIX_WARNING = (
+    "APPENDIX: REPEALED EXISTING LAW. Use only to explain an explicit repeal; "
+    "never describe it as a new duty, service, program, or appropriation."
+)
+CHANGE_ROLE_WARNING = (
+    "PROPOSED TEXT CHANGE ROLES: Unmarked S text is carried-forward existing "
+    "law. Only [+]...[/+] text is added by this bill. Only [-]...[/-] text is "
+    "deleted by this bill. Never present carried-forward text as a new bill effect."
+)
 
 
 SUMMARY_SCHEMA: dict[str, Any] = {
@@ -196,7 +211,9 @@ However many bullets remain after consolidating is the right number. AIM FOR ABO
 - Do NOT drop, truncate, or compress away the bill's later substance to get down to six. If a genuine omnibus still has eight distinct subjects after every merge above, return eight. Losing what a bill does is a far worse outcome than a list one or two bullets longer than the target, and merging two things that are NOT the same fact makes both unreadable.
 - Only stop merging when the remaining bullets are genuinely different facts. If two bullets can still merge under the rules above, merge them even if you are already at or below six.
 
-Each bill text excerpt is prefixed with a bracketed anchor token like `[S1]`, `[S2]`. Add an entry to `key_point_citations` only for those key points that need verbatim proof — do NOT pair a citation to every bullet. Each entry's `point` repeats its key point verbatim, its `section_id` is the anchor token (e.g. `S3`) of the single excerpt it is most directly drawn from, and its `quote` is a short verbatim span (a phrase or sentence, at most ~30 words) copied exactly from that excerpt's text. Only use anchor tokens that actually appear in the supplied excerpts, and only quote text that appears verbatim there.
+In each proposed `[S#]` excerpt, unmarked words are carried-forward existing law. Only words inside `[+]...[/+]` are added by this bill, and only words inside `[-]...[/-]` are deleted by this bill. Never describe carried-forward words as a new bill effect. An APPENDIX `[A#]` excerpt is repealed existing law. Use it only to explain an explicit repeal in proposed S text. Never describe A text as a new duty, service, program, or appropriation, and never cite an A anchor.
+
+Each bill text excerpt is prefixed with a bracketed anchor token like `[S1]`, `[S2]`. Add an entry to `key_point_citations` only for those key points that need verbatim proof — do NOT pair a citation to every bullet. Each entry's `point` repeats its key point verbatim, its `section_id` is the anchor token (e.g. `S3`) of the single excerpt it is most directly drawn from, and its `quote` is a short verbatim span (a phrase or sentence, at most ~30 words) copied exactly from that excerpt's text. Only use S anchor tokens that actually appear in the supplied excerpts, and only quote text that appears verbatim there.
 
 A `quote` must read as a finished quotation, because it is displayed on its own: quote a COMPLETE clause and end it at the source's own sentence-ending period. Never stop mid-clause on no punctuation at all (for example, never end at "consists of the following members"). Where you must cut the source short, end the quote with a single ellipsis character "…" and no other terminal mark — never three periods. Add no quotation marks of your own; the display supplies the quotation styling.
 
@@ -216,6 +233,17 @@ class ManifestItem:
     bill_version_id: str
     model: str
     source_version_hash: str
+    prompt_context_version: str | None = None
+    prepared_prompt_fingerprint: str | None = None
+
+
+@dataclass(frozen=True)
+class FullSummaryApplyResult:
+    applied: bool
+    outdated: bool
+    rejected: bool = False
+    citation_points: int = 0
+    citation_anchored: int = 0
 
 
 def supabase_database_url() -> str | None:
@@ -255,6 +283,21 @@ class SectionAnchor:
     text: str
     source_hash: str
     section_id_text: str | None
+    section_source_order: int | None = None
+    change_role_segments: list[dict[str, str]] | None = None
+    change_role_source_hash: str | None = None
+    change_role_parse_complete: bool = False
+
+
+@dataclass(frozen=True)
+class AppendixAnchor:
+    anchor_id: str
+    label: str
+    text: str
+    source_hash: str
+    reference_kind: str
+    source_order: int
+    complete: bool
 
 
 def _section_label(section: Any) -> str:
@@ -269,41 +312,14 @@ def _section_label(section: Any) -> str:
     )
 
 
-def section_anchors(db: Session, version: Any) -> list[SectionAnchor]:
-    """Ordered bill-text excerpts for the prompt, each tagged with a stable
-    ordinal anchor token. Deterministic ordering so the same list rebuilds at
-    apply time and the `S#` tokens the model cited resolve back to sections."""
-    rag_rows = db.execute(
-        select(RagSectionDocument, BillVersionSection)
-        .outerjoin(
-            BillVersionSection,
-            BillVersionSection.id == RagSectionDocument.bill_version_section_id,
-        )
-        .where(RagSectionDocument.bill_version_id == version.id)
-        .order_by(
-            BillVersionSection.source_order.asc().nulls_last(),
-            RagSectionDocument.citation_label.asc(),
-        )
-    ).all()
-    if rag_rows:
-        return [
-            SectionAnchor(
-                anchor_id=f"S{index + 1}",
-                label=row.citation_label,
-                text=row.clean_text,
-                source_hash=row.source_hash,
-                section_id_text=(
-                    section.section_id_text if section is not None else None
-                ),
-            )
-            for index, (row, section) in enumerate(rag_rows)
-        ]
-
-    section_rows = db.scalars(
-        select(BillVersionSection)
-        .where(BillVersionSection.bill_version_id == version.id)
-        .order_by(BillVersionSection.source_order.asc())
-    ).all()
+def section_anchors_from_rows(
+    section_rows: Iterable[Any], *, linked_section_ids: set[uuid.UUID]
+) -> list[SectionAnchor]:
+    """Build prompt anchors from a complete set of already loaded saved rows."""
+    proposed_rows = sorted(
+        (section for section in section_rows if section.id not in linked_section_ids),
+        key=lambda section: section.source_order,
+    )
     return [
         SectionAnchor(
             anchor_id=f"S{index + 1}",
@@ -314,9 +330,411 @@ def section_anchors(db: Session, version: Any) -> list[SectionAnchor]:
                 or hashlib.sha256(section.raw_text.encode("utf-8")).hexdigest()
             ),
             section_id_text=section.section_id_text,
+            section_source_order=section.source_order,
+            change_role_segments=section.change_role_segments,
+            change_role_source_hash=section.change_role_source_hash,
+            change_role_parse_complete=section.change_role_parse_complete,
         )
-        for index, section in enumerate(section_rows)
+        for index, section in enumerate(proposed_rows)
     ]
+
+
+def section_anchors(db: Session, version: Any) -> list[SectionAnchor]:
+    """Ordered saved bill text with stable citable ``S#`` anchor tokens."""
+    linked_section_ids = set(
+        db.scalars(
+            select(BillVersionAppendixReference.bill_version_section_id).where(
+                BillVersionAppendixReference.bill_version_id == version.id,
+                BillVersionAppendixReference.bill_version_section_id.is_not(None),
+            )
+        ).all()
+    )
+    section_rows = db.scalars(
+        select(BillVersionSection)
+        .where(BillVersionSection.bill_version_id == version.id)
+        .order_by(BillVersionSection.source_order.asc())
+    ).all()
+    return section_anchors_from_rows(
+        section_rows, linked_section_ids=linked_section_ids
+    )
+
+
+def appendix_anchors_from_rows(
+    rows: Iterable[tuple[Any, Any | None]],
+) -> list[AppendixAnchor]:
+    """Build non-citable ``A#`` anchors from already loaded saved rows."""
+    ordered_rows = sorted(rows, key=lambda row: row[0].source_order)
+    anchors: list[AppendixAnchor] = []
+    for index, (reference, section) in enumerate(ordered_rows, start=1):
+        linked = reference.bill_version_section_id is not None
+        text_value = (
+            section.raw_text if linked and section is not None else reference.raw_text
+        )
+        text_value = str(text_value or "")
+        current_hash = hashlib.sha256(text_value.encode("utf-8")).hexdigest()
+        label = reference.official_reference
+        if linked and section is not None and section.section_heading:
+            label = f"{label} | {section.section_heading}"
+        anchors.append(
+            AppendixAnchor(
+                anchor_id=f"A{index}",
+                label=label,
+                text=text_value,
+                source_hash=current_hash,
+                reference_kind=reference.reference_kind,
+                source_order=reference.source_order,
+                complete=bool(
+                    reference.source_hash == current_hash
+                    and (not linked or section is not None)
+                ),
+            )
+        )
+    return anchors
+
+
+def appendix_anchors(db: Session, version: Any) -> list[AppendixAnchor]:
+    rows = db.execute(
+        select(BillVersionAppendixReference, BillVersionSection)
+        .outerjoin(
+            BillVersionSection,
+            BillVersionSection.id
+            == BillVersionAppendixReference.bill_version_section_id,
+        )
+        .where(BillVersionAppendixReference.bill_version_id == version.id)
+        .order_by(BillVersionAppendixReference.source_order.asc())
+    ).all()
+    return appendix_anchors_from_rows(rows)
+
+
+def _change_role_hash(segments: list[dict[str, str]] | None) -> str:
+    digest = hashlib.sha256()
+    for segment in segments or []:
+        digest.update(str(segment.get("role") or "").encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(str(segment.get("text") or "").encode("utf-8"))
+        digest.update(b"\0")
+    return digest.hexdigest()
+
+
+_REVISOR_CHANGE_MARKER_RE = re.compile(
+    r"(?:new|deleted)\s+text\s+(?:begin|end)", flags=re.IGNORECASE
+)
+
+
+def change_roles_match_raw_text(
+    raw_text: str, segments: list[dict[str, str]] | None
+) -> bool:
+    """Prove that the role stream contains every saved official-text character.
+
+    The reader-facing text deliberately keeps the Revisor's deletion screen-reader
+    words, while the role stream carries the same fact in its ``deleted`` field.
+    HTML boundaries can change display spacing around punctuation. Removing only
+    those 4 official marker phrases and comparing lexical tokens keeps word and
+    punctuation boundaries meaningful without treating display spacing as law.
+    The saved reader text has 2 known legacy run-ons, so 1 saved word may equal
+    consecutive role words; the reverse is never allowed.
+    """
+    if not isinstance(segments, list) or not segments:
+        return False
+    segment_text = "".join(
+        str(segment.get("text") or "")
+        for segment in segments
+        if isinstance(segment, dict)
+    )
+    saved_text = _REVISOR_CHANGE_MARKER_RE.sub("", raw_text)
+
+    def tokens(value: str) -> list[str]:
+        return re.findall(r"\w+|[^\w\s]", value, re.UNICODE)
+
+    saved_tokens = tokens(saved_text)
+    role_tokens = tokens(segment_text)
+    role_index = 0
+    for saved_token in saved_tokens:
+        if role_index >= len(role_tokens):
+            return False
+        if not re.fullmatch(r"\w+", saved_token, re.UNICODE):
+            if role_tokens[role_index] != saved_token:
+                return False
+            role_index += 1
+            continue
+
+        combined = ""
+        while role_index < len(role_tokens) and re.fullmatch(
+            r"\w+", role_tokens[role_index], re.UNICODE
+        ):
+            combined += role_tokens[role_index]
+            role_index += 1
+            if len(combined) >= len(saved_token):
+                break
+        if combined != saved_token:
+            return False
+    return role_index == len(role_tokens)
+
+
+def _is_sha256(value: object) -> bool:
+    text_value = str(value or "")
+    return len(text_value) == 64 and all(
+        character in "0123456789abcdef" for character in text_value
+    )
+
+
+def prompt_context_complete_from_rows(
+    version: Any,
+    official_sections: Iterable[Any],
+    appendix_rows: Iterable[tuple[Any, Any | None]],
+) -> bool:
+    """Validate complete saved prompt context without another database read."""
+    from alethical.pipeline.minnesota import (
+        APPENDIX_PARSER_VERSION,
+        CHANGE_ROLE_PARSER_VERSION,
+        compute_appendix_source_hash,
+    )
+
+    if not (
+        version.appendix_parse_complete
+        and version.appendix_parser_version == APPENDIX_PARSER_VERSION
+        and _is_sha256(version.appendix_source_hash)
+        and version.appendix_present is not None
+        and version.change_role_parse_complete
+        and version.change_role_parser_version == CHANGE_ROLE_PARSER_VERSION
+    ):
+        return False
+
+    sections = sorted(official_sections, key=lambda section: section.source_order)
+    if [section.source_order for section in sections] != list(
+        range(1, len(sections) + 1)
+    ):
+        return False
+
+    reference_rows = sorted(appendix_rows, key=lambda row: row[0].source_order)
+    if [reference.source_order for reference, _section in reference_rows] != list(
+        range(1, len(reference_rows) + 1)
+    ):
+        return False
+    if reference_rows and not version.appendix_present:
+        return False
+    if version.appendix_source_hash != compute_appendix_source_hash(
+        bool(version.appendix_present),
+        (
+            (
+                reference.reference_kind,
+                reference.official_reference,
+                reference.source_hash,
+            )
+            for reference, _section in reference_rows
+        ),
+    ):
+        return False
+
+    linked_section_ids: set[uuid.UUID] = set()
+    for reference, linked_section in reference_rows:
+        if (
+            reference.reference_kind
+            not in {"repealed_statute", "repealed_session_law", "repealed_rule"}
+            or not reference.official_reference.strip()
+            or not _is_sha256(reference.source_hash)
+        ):
+            return False
+        if reference.bill_version_section_id is not None:
+            if (
+                linked_section is None
+                or linked_section.bill_version_id != version.id
+                or linked_section.id in linked_section_ids
+                or reference.raw_text is not None
+                or reference.body_blocks is not None
+            ):
+                return False
+            text_value = linked_section.raw_text
+            linked_section_ids.add(linked_section.id)
+        else:
+            if reference.raw_text is None or not reference.raw_text.strip():
+                return False
+            text_value = reference.raw_text
+        if (
+            reference.source_hash
+            != hashlib.sha256(text_value.encode("utf-8")).hexdigest()
+        ):
+            return False
+
+    proposed_count = 0
+    for section in sections:
+        raw_hash = hashlib.sha256(section.raw_text.encode("utf-8")).hexdigest()
+        if section.source_hash != raw_hash:
+            return False
+        if section.id in linked_section_ids:
+            continue
+        if not section.raw_text.strip():
+            return False
+        segments = section.change_role_segments
+        if (
+            not section.change_role_parse_complete
+            or not isinstance(segments, list)
+            or not segments
+            or any(
+                not isinstance(segment, dict)
+                or segment.get("role") not in {"added", "deleted", "carried_forward"}
+                or not str(segment.get("text") or "")
+                for segment in segments
+            )
+            or section.change_role_source_hash != _change_role_hash(segments)
+            or not change_roles_match_raw_text(section.raw_text, segments)
+        ):
+            return False
+        proposed_count += 1
+    return proposed_count > 0
+
+
+def _prompt_context_complete(db: Session, version: Any) -> bool:
+    sections = list(
+        db.scalars(
+            select(BillVersionSection)
+            .where(BillVersionSection.bill_version_id == version.id)
+            .order_by(BillVersionSection.source_order.asc())
+        )
+    )
+    reference_rows = db.execute(
+        select(BillVersionAppendixReference, BillVersionSection)
+        .outerjoin(
+            BillVersionSection,
+            BillVersionSection.id
+            == BillVersionAppendixReference.bill_version_section_id,
+        )
+        .where(BillVersionAppendixReference.bill_version_id == version.id)
+        .order_by(BillVersionAppendixReference.source_order.asc())
+    ).all()
+    return prompt_context_complete_from_rows(version, sections, reference_rows)
+
+
+def prepared_prompt_fingerprint_from_rows(
+    bill: Any,
+    version: Any,
+    official_sections: Iterable[Any],
+    appendix_rows: Iterable[tuple[Any, Any | None]],
+) -> str | None:
+    """Exact prompt identity from complete saved rows already held in memory."""
+    sections = sorted(official_sections, key=lambda section: section.source_order)
+    reference_rows = sorted(appendix_rows, key=lambda row: row[0].source_order)
+    if not prompt_context_complete_from_rows(version, sections, reference_rows):
+        return None
+    linked_appendix_section_ids = {
+        reference.bill_version_section_id
+        for reference, _section in reference_rows
+        if reference.bill_version_section_id is not None
+    }
+    parts = [
+        BILL_SUMMARY_PROMPT_CONTEXT_VERSION,
+        SYSTEM_PROMPT,
+        _summary_schema_note(),
+        CHANGE_ROLE_WARNING,
+        APPENDIX_WARNING,
+        str(PROPOSED_TEXT_CHAR_LIMIT),
+        str(APPENDIX_TEXT_CHAR_LIMIT),
+        str(COMBINED_TEXT_CHAR_LIMIT),
+        str(WHOLE_REQUEST_CHAR_LIMIT),
+        str(version.change_role_parser_version),
+        str(version.appendix_parser_version),
+        str(version.appendix_source_hash),
+        str(bill.id),
+        bill.bill_key,
+        str(version.id),
+    ]
+    for section in sections:
+        parts.extend(
+            [
+                str(section.source_order),
+                hashlib.sha256(section.raw_text.encode("utf-8")).hexdigest(),
+                (
+                    "appendix-reference"
+                    if section.id in linked_appendix_section_ids
+                    else str(section.change_role_source_hash)
+                ),
+            ]
+        )
+    for anchor in section_anchors_from_rows(
+        sections, linked_section_ids=linked_appendix_section_ids
+    ):
+        parts.extend(
+            [
+                anchor.anchor_id,
+                anchor.label,
+                str(anchor.section_source_order),
+                str(anchor.change_role_source_hash),
+            ]
+        )
+    for anchor in appendix_anchors_from_rows(reference_rows):
+        parts.extend(
+            [
+                str(anchor.source_order),
+                anchor.reference_kind,
+                anchor.label,
+                anchor.source_hash,
+            ]
+        )
+    return source_hash(parts)
+
+
+def prepared_prompt_fingerprint(db: Session, bill: Any, version: Any) -> str | None:
+    """Query wrapper for the exact legal source and versioned prompt rules."""
+    official_sections = list(
+        db.scalars(
+            select(BillVersionSection)
+            .where(BillVersionSection.bill_version_id == version.id)
+            .order_by(BillVersionSection.source_order.asc())
+        )
+    )
+    appendix_rows = db.execute(
+        select(BillVersionAppendixReference, BillVersionSection)
+        .outerjoin(
+            BillVersionSection,
+            BillVersionSection.id
+            == BillVersionAppendixReference.bill_version_section_id,
+        )
+        .where(BillVersionAppendixReference.bill_version_id == version.id)
+        .order_by(BillVersionAppendixReference.source_order.asc())
+    ).all()
+    return prepared_prompt_fingerprint_from_rows(
+        bill, version, official_sections, appendix_rows
+    )
+
+
+def source_version_matches_current_text(
+    db: Session, bill: Any, version: Any, candidate_hash: str
+) -> bool:
+    """Whether a prepared prompt hash still represents current official text."""
+    if not version.is_current or version.bill_id != bill.id:
+        return False
+
+    current_prompt_hash = prepared_prompt_fingerprint(db, bill, version)
+    if current_prompt_hash is not None:
+        return candidate_hash == current_prompt_hash
+
+    official_sections = list(
+        db.scalars(
+            select(BillVersionSection)
+            .where(BillVersionSection.bill_version_id == version.id)
+            .order_by(BillVersionSection.source_order.asc())
+        )
+    )
+    raw_hashes = [
+        hashlib.sha256((section.raw_text or "").encode("utf-8")).hexdigest()
+        for section in official_sections
+    ]
+    prefix = [bill.bill_key, str(version.id)]
+    valid_hashes = {
+        source_hash([*prefix, *raw_hashes]),
+        source_hash([*prefix, *[value[:16] for value in raw_hashes]]),
+    }
+
+    stored_hashes: list[str] = []
+    for section, raw_hash in zip(official_sections, raw_hashes, strict=True):
+        stored_hash = section.source_hash or raw_hash
+        if stored_hash not in {raw_hash, raw_hash[:16]}:
+            break
+        stored_hashes.append(stored_hash)
+    else:
+        valid_hashes.add(source_hash([*prefix, *stored_hashes]))
+
+    return candidate_hash in valid_hashes
 
 
 def chief_sponsor_names(bill: Any) -> list[str]:
@@ -331,47 +749,218 @@ def chief_sponsor_names(bill: Any) -> list[str]:
 
 
 def bill_prompt(
-    db: Session, bill: Any, version: Any, *, max_input_chars: int
+    db: Session,
+    bill: Any,
+    version: Any,
+    *,
+    max_input_chars: int,
+    max_appendix_chars: int = APPENDIX_TEXT_CHAR_LIMIT,
+    max_combined_chars: int = COMBINED_TEXT_CHAR_LIMIT,
+    max_request_chars: int = WHOLE_REQUEST_CHAR_LIMIT,
 ) -> tuple[str, str, bool]:
-    sections = section_anchors(db, version)
-    version_hash = source_hash(
-        [bill.bill_key, str(version.id), *[item.source_hash for item in sections]]
+    prompt, version_hash, measurement = _build_bill_prompt(
+        db,
+        bill,
+        version,
+        max_proposed_chars=max_input_chars,
+        max_appendix_chars=max_appendix_chars,
+        max_combined_chars=max_combined_chars,
+        max_request_chars=max_request_chars,
     )
-    metadata = {
-        "bill_key": bill.bill_key,
-        "title": bill.title,
-        "description": bill.description,
-        "current_status": bill.current_status,
-        "latest_action_at": bill.latest_action_at.isoformat()
-        if bill.latest_action_at
-        else None,
-        "chief_sponsors": chief_sponsor_names(bill),
-        "official_url": bill.official_url,
-        "version_code": version.version_code,
-        "version_name": version.version_name,
+    return prompt, version_hash, not bool(measurement["is_complete"])
+
+
+def _format_proposed_anchor(anchor: SectionAnchor) -> str:
+    formatted: list[str] = []
+    for segment in anchor.change_role_segments or []:
+        role = segment.get("role")
+        text_value = str(segment.get("text") or "")
+        if not text_value.strip():
+            continue
+        if role == "added":
+            formatted.append(f"[+]{text_value}[/+]")
+        elif role == "deleted":
+            formatted.append(f"[-]{text_value}[/-]")
+        else:
+            formatted.append(text_value)
+    body = "".join(formatted).strip() if formatted else anchor.text.strip()
+    return f"[{anchor.anchor_id}] {anchor.label}\n{body}"
+
+
+def _lane_payload(
+    blocks: list[str], *, warning: str, limit: int
+) -> tuple[str, dict[str, int | bool]]:
+    separator = "\n\n---\n\n"
+    prefix = f"{warning}\n\n" if blocks else ""
+    full = prefix + separator.join(blocks)
+    over_limit = len(full) > limit
+    return full, {
+        "total_chars": len(full),
+        "included_chars": len(full),
+        "omitted_chars": 0,
+        "total_references": len(blocks),
+        "included_references": len(blocks),
+        "truncated": False,
+        "over_limit": over_limit,
     }
 
-    remaining = max_input_chars
-    text_blocks: list[str] = []
-    for anchor in sections:
-        block = f"[{anchor.anchor_id}] {anchor.label}\n{anchor.text.strip()}"
-        if len(block) > remaining:
-            if remaining > 500:
-                text_blocks.append(block[:remaining])
-            break
-        text_blocks.append(block)
-        remaining -= len(block)
-    truncated = len(text_blocks) < len(sections)
-    metadata["truncated_source"] = truncated
-    metadata["included_section_count"] = len(text_blocks)
-    metadata["total_section_count"] = len(sections)
 
-    prompt = (
-        "Analyze this Minnesota bill for a public-facing product. Produce neutral JSON only.\n\n"
-        f"Bill metadata:\n{json.dumps(metadata, ensure_ascii=False, indent=2)}\n\n"
-        "Bill text excerpts:\n" + "\n\n---\n\n".join(text_blocks)
+def _summary_schema_note() -> str:
+    return (
+        "\n\nReturn ONLY a single JSON object matching this schema. No prose, no "
+        "markdown fences:\n" + json.dumps(SUMMARY_SCHEMA)
     )
-    return prompt, version_hash, truncated
+
+
+def _build_bill_prompt(
+    db: Session,
+    bill: Any,
+    version: Any,
+    *,
+    max_proposed_chars: int,
+    max_appendix_chars: int,
+    max_combined_chars: int,
+    max_request_chars: int,
+) -> tuple[str, str, dict[str, Any]]:
+    sections = section_anchors(db, version)
+    appendix = appendix_anchors(db, version)
+    context_complete = _prompt_context_complete(db, version)
+    prompt_hash = prepared_prompt_fingerprint(db, bill, version)
+    if prompt_hash is None:
+        prompt_hash = source_hash(
+            [bill.bill_key, str(version.id), *[item.source_hash for item in sections]]
+        )
+
+    proposed_blocks = [_format_proposed_anchor(anchor) for anchor in sections]
+    appendix_blocks = [
+        f"[{anchor.anchor_id}] {anchor.label}\n{anchor.text.strip()}"
+        for anchor in appendix
+    ]
+    proposed_text, proposed_measurement = _lane_payload(
+        proposed_blocks,
+        warning=CHANGE_ROLE_WARNING,
+        limit=max_proposed_chars,
+    )
+    appendix_text, appendix_measurement = _lane_payload(
+        appendix_blocks,
+        warning=APPENDIX_WARNING,
+        limit=max_appendix_chars,
+    )
+    combined_chars = int(proposed_measurement["total_chars"]) + int(
+        appendix_measurement["total_chars"]
+    )
+    if proposed_blocks and appendix_blocks:
+        combined_chars += len("\n\n")
+
+    metadata = {
+        "bill_id": str(bill.id),
+        "bill_key": bill.bill_key,
+        "bill_version_id": str(version.id),
+        "prompt_context_version": BILL_SUMMARY_PROMPT_CONTEXT_VERSION,
+        "proposed_total_references": len(proposed_blocks),
+        "proposed_included_references": proposed_measurement["included_references"],
+        "appendix_total_references": len(appendix_blocks),
+        "appendix_included_references": appendix_measurement["included_references"],
+    }
+    reasons: list[str] = []
+    if not context_complete:
+        reasons.append("source_context_incomplete")
+    if proposed_measurement["over_limit"]:
+        reasons.append("proposed_lane_over_limit")
+    if appendix_measurement["over_limit"]:
+        reasons.append("appendix_lane_over_limit")
+    if combined_chars > max_combined_chars:
+        reasons.append("combined_lanes_over_limit")
+
+    def assemble(meta: dict[str, Any], proposed: str, appendix_value: str) -> str:
+        source_parts = [
+            "Proposed bill text:\n" + proposed,
+        ]
+        if appendix_value:
+            source_parts.append("Appendix reference material:\n" + appendix_value)
+        return (
+            "Analyze this Minnesota bill for a public-facing product. "
+            "Produce neutral JSON only.\n\n"
+            f"Bill metadata:\n{json.dumps(meta, ensure_ascii=False, indent=2)}\n\n"
+            + "\n\n".join(source_parts)
+        )
+
+    metadata["truncated_source"] = False
+    metadata["source_refusal_reasons"] = reasons
+    metadata["source_input_complete"] = not reasons
+    metadata["whole_request_chars"] = 0
+
+    def request_size() -> int:
+        return (
+            len(SYSTEM_PROMPT)
+            + len(_summary_schema_note())
+            + len(assemble(metadata, proposed_text, appendix_text))
+        )
+
+    request_chars = request_size()
+    for _ in range(4):
+        if metadata["whole_request_chars"] == request_chars:
+            break
+        metadata["whole_request_chars"] = request_chars
+        request_chars = request_size()
+    if request_chars > max_request_chars:
+        reasons.append("whole_request_over_limit")
+    metadata["source_refusal_reasons"] = reasons
+    metadata["source_input_complete"] = not reasons
+    for _ in range(4):
+        metadata["whole_request_chars"] = request_chars
+        next_size = request_size()
+        if next_size == request_chars:
+            break
+        request_chars = next_size
+    metadata["whole_request_chars"] = request_chars
+
+    prompt = assemble(metadata, proposed_text, appendix_text)
+    if reasons:
+        prompt = (
+            "SOURCE REFUSAL: Do not generate a summary from this input. "
+            "The complete official legal context did not pass every safety gate.\n\n"
+            + prompt
+        )
+    measurement = {
+        "proposed": proposed_measurement,
+        "appendix": appendix_measurement,
+        "combined": {
+            "total_chars": combined_chars,
+            "limit_chars": max_combined_chars,
+            "over_limit": combined_chars > max_combined_chars,
+        },
+        "request": {
+            "total_chars": request_chars,
+            "limit_chars": max_request_chars,
+            "over_limit": request_chars > max_request_chars,
+        },
+        "is_complete": not reasons,
+        "refusal_reasons": reasons,
+    }
+    return prompt, prompt_hash, measurement
+
+
+def bill_prompt_measurement(
+    db: Session,
+    bill: Any,
+    version: Any,
+    *,
+    max_proposed_chars: int,
+    max_appendix_chars: int,
+    max_combined_chars: int = COMBINED_TEXT_CHAR_LIMIT,
+    max_request_chars: int = WHOLE_REQUEST_CHAR_LIMIT,
+) -> dict[str, Any]:
+    _prompt, _prompt_hash, measurement = _build_bill_prompt(
+        db,
+        bill,
+        version,
+        max_proposed_chars=max_proposed_chars,
+        max_appendix_chars=max_appendix_chars,
+        max_combined_chars=max_combined_chars,
+        max_request_chars=max_request_chars,
+    )
+    return measurement
 
 
 def _normalize_for_match(value: str) -> str:
@@ -556,6 +1145,22 @@ def resolve_key_point_citations(
         "anchored": len(seen_points),
         "dropped": len(original_points) - len(seen_points),
     }
+
+
+def _uses_non_citable_appendix_anchor(content: dict[str, Any]) -> bool:
+    citations = content.get("key_point_citations")
+    if not isinstance(citations, list):
+        return False
+    return any(
+        isinstance(entry, dict)
+        and isinstance(entry.get("section_id"), str)
+        and re.search(
+            r"(?<![A-Za-z0-9])A[^A-Za-z0-9]*\d+(?![A-Za-z0-9])",
+            entry["section_id"],
+            flags=re.I,
+        )
+        for entry in citations
+    )
 
 
 @dataclass(frozen=True)
@@ -798,6 +1403,7 @@ def prepare_batch(args: argparse.Namespace) -> None:
     skipped_existing_title = 0
     skipped_no_summary = 0
     skipped_key_points_below = 0
+    skipped_source_refused = 0
     min_key_points = getattr(args, "min_key_points", None)
     with Session(engine) as db, jsonl_path.open("w", encoding="utf-8") as handle:
         for bill in bills_for_batch(
@@ -841,9 +1447,12 @@ def prepare_batch(args: argparse.Namespace) -> None:
                 custom_id = f"bill_title:{bill.bill_key}:{version_hash[:16]}"
                 request = short_title_batch_request(custom_id, model, prompt)
             else:
-                prompt, version_hash, _truncated = bill_prompt(
+                prompt, version_hash, source_refused = bill_prompt(
                     db, bill, version, max_input_chars=args.max_input_chars
                 )
+                if source_refused:
+                    skipped_source_refused += 1
+                    continue
                 if not should_enqueue(bill, model, version_hash, force=args.force):
                     continue
                 custom_id = f"bill_summary:{bill.bill_key}:{version_hash[:16]}"
@@ -868,6 +1477,12 @@ def prepare_batch(args: argparse.Namespace) -> None:
                     bill_version_id=str(version.id),
                     model=model,
                     source_version_hash=version_hash,
+                    prompt_context_version=(
+                        BILL_SUMMARY_PROMPT_CONTEXT_VERSION if not titles_only else None
+                    ),
+                    prepared_prompt_fingerprint=(
+                        version_hash if not titles_only else None
+                    ),
                 )
             )
 
@@ -896,6 +1511,7 @@ def prepare_batch(args: argparse.Namespace) -> None:
                 "skipped_existing_title": skipped_existing_title,
                 "skipped_no_summary": skipped_no_summary,
                 "skipped_key_points_below": skipped_key_points_below,
+                "skipped_source_refused": skipped_source_refused,
                 "jsonl_path": str(jsonl_path),
                 "manifest_path": str(manifest_path),
             },
@@ -1013,6 +1629,99 @@ def pending_manifest_custom_ids(
     return custom_ids
 
 
+def apply_full_summary(
+    db: Session,
+    item: ManifestItem,
+    content: dict[str, Any],
+    *,
+    provider_batch_id: str | None,
+) -> FullSummaryApplyResult:
+    """Apply one full summary through the shared lock and freshness boundary."""
+    bill_id = uuid.UUID(item.bill_id)
+    bill_version_id = uuid.UUID(item.bill_version_id)
+    # The accepted refresh path takes the same row lock before it reads or changes
+    # official text. Whichever transaction starts first finishes first, so this
+    # freshness decision cannot race a refresh that would otherwise commit between
+    # the check and the upsert.
+    bill = db.scalar(select(Bill).where(Bill.id == bill_id).with_for_update())
+    version = current_bill_version(db, bill_id)
+    current_prepared_prompt_fingerprint = (
+        prepared_prompt_fingerprint(db, bill, version)
+        if bill is not None and version is not None
+        else None
+    )
+    if (
+        bill is None
+        or version is None
+        or version.id != bill_version_id
+        or item.bill_key != bill.bill_key
+        or not source_version_matches_current_text(
+            db, bill, version, item.source_version_hash
+        )
+        or current_prepared_prompt_fingerprint is None
+        or item.source_version_hash != current_prepared_prompt_fingerprint
+        or item.prompt_context_version != BILL_SUMMARY_PROMPT_CONTEXT_VERSION
+        or item.prepared_prompt_fingerprint != item.source_version_hash
+    ):
+        return FullSummaryApplyResult(applied=False, outdated=True)
+
+    if _uses_non_citable_appendix_anchor(content):
+        return FullSummaryApplyResult(
+            applied=False,
+            outdated=False,
+            rejected=True,
+        )
+
+    # Ground per-key-point citations against the bill's sections before persisting
+    # (#377): unanchorable points are dropped, never invented.
+    stats = resolve_key_point_citations(db, bill_version_id, content)
+    content["_meta"] = {
+        "model": item.model,
+        "source_version_hash": item.source_version_hash,
+        "prompt_context_version": item.prompt_context_version,
+        "prepared_prompt_fingerprint": item.prepared_prompt_fingerprint,
+        "openai_batch_id": provider_batch_id,
+    }
+
+    db.execute(
+        update(AIEnrichment)
+        .where(
+            AIEnrichment.bill_id == bill_id,
+            AIEnrichment.enrichment_type == EnrichmentType.bill_summary,
+            AIEnrichment.is_current.is_(True),
+        )
+        .values(is_current=False)
+    )
+    # Upsert on the row's identity, rather than SELECT-then-insert (#927). The
+    # database constraint makes 2 concurrent writers settle on the same row.
+    insert_enrichment = pg_insert(AIEnrichment).values(
+        bill_id=bill_id,
+        bill_version_id=bill_version_id,
+        enrichment_type=EnrichmentType.bill_summary,
+        model_name=item.model,
+        source_version_hash=item.source_version_hash,
+        content_json=content,
+        is_current=True,
+    )
+    db.execute(
+        insert_enrichment.on_conflict_do_update(
+            constraint="uq_ai_enrichment_bill_version_type_model_hash",
+            set_={
+                "content_json": insert_enrichment.excluded.content_json,
+                "is_current": True,
+                # ON CONFLICT DO UPDATE does not run the column's onupdate hook.
+                "updated_at": func.now(),
+            },
+        )
+    )
+    return FullSummaryApplyResult(
+        applied=True,
+        outdated=False,
+        citation_points=stats["points"],
+        citation_anchored=stats["anchored"],
+    )
+
+
 def apply_output(args: argparse.Namespace) -> None:
     api_key = args.api_key or os.environ.get("OPENAI_API_KEY")
     output_path = Path(args.output_path) if args.output_path else None
@@ -1039,6 +1748,7 @@ def apply_output(args: argparse.Namespace) -> None:
     )
     applied = 0
     failed = 0
+    outdated = 0
     citation_points = 0
     citation_anchored = 0
     with Session(engine) as db:
@@ -1096,59 +1806,19 @@ def apply_output(args: argparse.Namespace) -> None:
                 applied += 1
                 continue
 
-            bill_version_id = uuid.UUID(item.bill_version_id)
-            # Ground per-key-point citations against the bill's sections before
-            # persisting (#377): unanchorable points are dropped, never invented.
-            stats = resolve_key_point_citations(db, bill_version_id, content)
-            citation_points += stats["points"]
-            citation_anchored += stats["anchored"]
-
-            content["_meta"] = {
-                "model": item.model,
-                "source_version_hash": item.source_version_hash,
-                "openai_batch_id": args.batch_id,
-            }
-
-            db.execute(
-                update(AIEnrichment)
-                .where(
-                    AIEnrichment.bill_id == bill_id,
-                    AIEnrichment.enrichment_type == EnrichmentType.bill_summary,
-                    AIEnrichment.is_current.is_(True),
-                )
-                .values(is_current=False)
+            result = apply_full_summary(
+                db, item, content, provider_batch_id=args.batch_id
             )
-            # Upsert on the row's identity, rather than SELECT-then-insert (#927).
-            # The old shape was a check-then-insert: two workers in one parallel
-            # batch both found nothing and both inserted, which is where
-            # production's 2,219 duplicate pairs came from. Worse, that SELECT
-            # carried no ordering, so once a pair existed it returned an arbitrary
-            # one and marked it current -- a coin flip between two different
-            # summaries. Handing the decision to the database settles it: the
-            # second writer waits for the first and updates its row instead.
-            insert_enrichment = pg_insert(AIEnrichment).values(
-                bill_id=bill_id,
-                bill_version_id=bill_version_id,
-                enrichment_type=EnrichmentType.bill_summary,
-                model_name=item.model,
-                source_version_hash=item.source_version_hash,
-                content_json=content,
-                is_current=True,
-            )
-            db.execute(
-                insert_enrichment.on_conflict_do_update(
-                    constraint="uq_ai_enrichment_bill_version_type_model_hash",
-                    set_={
-                        "content_json": insert_enrichment.excluded.content_json,
-                        "is_current": True,
-                        # ON CONFLICT DO UPDATE is not an UPDATE construct, so the
-                        # column's own `onupdate` never fires. Set it here or a
-                        # rewritten row keeps its original timestamp.
-                        "updated_at": func.now(),
-                    },
-                )
-            )
-            applied += 1
+            if result.outdated:
+                outdated += 1
+                continue
+            if result.rejected:
+                failed += 1
+                continue
+            citation_points += result.citation_points
+            citation_anchored += result.citation_anchored
+            if result.applied:
+                applied += 1
         if args.dry_run:
             db.rollback()
         else:
@@ -1166,6 +1836,7 @@ def apply_output(args: argparse.Namespace) -> None:
         "dry_run": args.dry_run,
     }
     if not merge:
+        summary["outdated"] = outdated
         summary["key_points"] = citation_points
         summary["key_points_anchored"] = citation_anchored
     print(json.dumps(summary, indent=2))
@@ -1194,7 +1865,9 @@ def build_parser() -> argparse.ArgumentParser:
     prepare.add_argument("--session", default=CURRENT_SESSION_SLUG)
     prepare.add_argument("--bill-key", default=None)
     prepare.add_argument("--limit", type=int, default=None)
-    prepare.add_argument("--max-input-chars", type=int, default=60_000)
+    prepare.add_argument(
+        "--max-input-chars", type=int, default=PROPOSED_TEXT_CHAR_LIMIT
+    )
     prepare.add_argument("--force", action="store_true")
     prepare.add_argument("--only-missing-current", action="store_true")
     prepare.add_argument(

@@ -120,16 +120,21 @@ describe('Search Legislators presentation', () => {
     expect([0, 1].map((index) => isLegislatorPortraitEager(index, false))).toEqual([true, false]);
   });
 
+  // 64x83 is the 160:207 shape of the tallest source portrait. Sources measured
+  // 160 wide by 197-207 tall across 50 members of both chambers, so this box
+  // plus fit-inside rendering never crops any of them — which both chambers'
+  // photo policies require (#1334). Changing this height without re-measuring
+  // the sources reintroduces the crop.
   it('gives portrait files a stable size and non-blocking browser hints', () => {
     expect(LEGISLATOR_PORTRAIT_WIDTH).toBe(64);
-    expect(LEGISLATOR_PORTRAIT_HEIGHT).toBe(74);
+    expect(LEGISLATOR_PORTRAIT_HEIGHT).toBe(83);
     expect(LEGISLATOR_PORTRAIT_LOOKAHEAD).toBe(320);
     expect(legislatorPortraitImageProps(true)).toEqual({
       'aria-hidden': true,
       alt: '',
       decoding: 'async',
       fetchPriority: 'high',
-      height: 74,
+      height: 83,
       loading: 'eager',
       width: 64,
     });
@@ -138,7 +143,7 @@ describe('Search Legislators presentation', () => {
       alt: '',
       decoding: 'async',
       fetchPriority: 'low',
-      height: 74,
+      height: 83,
       loading: 'lazy',
       width: 64,
     });

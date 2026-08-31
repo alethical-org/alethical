@@ -1,6 +1,7 @@
 # How Search works on Alethical (plain-English guide)
 
 <!-- describes: apps/frontend/src/screens/redesign/SearchBillsScreen.tsx, apps/frontend/src/components/search/BillResultCard.tsx, apps/frontend/src/components/VoteCountLinkChip.tsx, apps/frontend/src/components/search/searchPieces.tsx, apps/frontend/src/hooks/useDebouncedSearchCommit.ts, apps/frontend/src/lib/billDetail.ts, apps/frontend/src/lib/sessionLabel.ts, apps/frontend/src/navigation/links.ts, alethical/api/routers/public.py, alethical/api/services/issue_bills.py, alethical/api/issue_taxonomy.py, alethical/api/serializers.py, alethical/pipeline/policy_area_counts.py, alethical/pipeline/sessions.py -->
+<!-- check-quoted-code: true -->
 
 A quick, non-technical walkthrough of the **Search Bills** page — what you type, what
 you can narrow by, and what each result shows. This is the "browse the library" page:
@@ -12,9 +13,18 @@ it finds bills by keyword or bill number. If you have a real *question*
 ## Searching
 
 - **Results update as you type** — no need to hit a button or press Enter.
-- **Every word has to appear.** If you type `school funding`, you'll only see bills
-  that mention *both* "school" *and* "funding" — in any order. Adding words narrows
-  things down; it never broadens them.
+- **It searches the words you can see, and the legal wording behind them.** Each
+  result's plain-language headline is searchable, so typing a card's headline back
+  finds that card. So is the bill's official legal title and its one-line official
+  description, which is how a search for `repealing the political contribution
+  refund program` also lands on the same bill.
+- **Every meaningful word has to appear.** If you type `school funding`, you'll only
+  see bills that mention *both* "school" *and* "funding" — in any order. Adding
+  meaningful words narrows things down; it never broadens them.
+- **Little joining words are ignored.** Words like "of", "the", "and" and "for" are
+  skipped, so `repeal of the refund program` searches for "repeal", "refund" and
+  "program". They add little search signal, and requiring them used to throw away
+  the whole search when a bill happened not to use one of them.
 - **Near-misses still count.** Common word variations match too, so `tax` also finds
   "taxes" and "taxing". Typos are forgiven in longer words (5 letters or more), so
   `establishng` still finds "establishing" — but a typo in a short word like `tax`
@@ -65,7 +75,7 @@ one session yourself.
 
 | What you do | Tag shown | What it checks | Starting scope |
 |---|---|---|---|
-| Type `taxation` | **Search: “taxation”** | Every typed word in the official title or description | Regular + special sessions |
+| Type `taxation` | **Search: “taxation”** | Every meaningful typed word, in the plain-language headline, the official title, or the official description | Regular + special sessions |
 | Click **Taxation** | **Issue: Taxation** | Hidden tax-related issue labels | Regular + special sessions |
 | Ask about taxation, then open Search | **Issue: Taxation** | The exact same Issue filter as clicking **Taxation** | Regular + special sessions |
 
@@ -113,6 +123,7 @@ Above the list you always see:
 - **An "OMNIBUS" tag** when the bill is one of the big bundled bills.
 - **Chief author** — the lead legislator, clickable to their profile.
 - **The latest action and its date** — e.g. "Referred to Ways and Means · Mar 12, 2026".
+  <!-- quote-check-ignore: Referred to Ways and Means · Mar 12, 2026 | illustrative record data assembled at runtime -->
 - **Effective date** — for bills that became law, when the law takes effect.
 - **Issue tags** for the bill.
 - **An outlined votes link** when there were recorded votes. It shows the count, such as
@@ -125,7 +136,8 @@ Above the list you always see:
   Once saved, it turns mint and reads "Tracked", so saved bills stand out without
   reading every button. Press it again to remove the bill.
 
-Tap a card to open the full bill; results are split into pages with Previous / Next.
+Tap a card to open the full bill; results are split into pages with Previous / Next and numbered page
+jumps on the plain Bills list.
 
 Cards behave like ordinary web links, so you can right-click one and pick "Open link in
 new tab" (or hold ⌘ / Ctrl and click, or middle-click) to line several bills up in tabs

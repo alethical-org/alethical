@@ -1,12 +1,11 @@
 """Equivalence + drift guards for the denormalized bill signals (#505).
 
 These pin the DB-maintained columns (``has_current_summary``, ``status_key``,
-``status_rank``) to the Python expressions that remain the source of truth
-(``current_bill_summary_enrichment_bill_ids``, ``bill_status_key_expr``,
-``bill_progress_rank``). If the SQL cascade in alembic 0007/0014 ever drifts from
-the Python cascade — in either direction — a test here fails. This is the CI face of
-#505's accuracy gate; the corpus byte-identical proof runs the same comparison
-against real production data.
+``status_rank``, ``short_title``) to the source records or Python expressions they
+derive from. Corpus comparisons cover the summary flag and status columns; the
+short-title lifecycle test covers every insert, rewrite, retirement, blank and
+delete path that can change its source. This is the CI face of #505's accuracy
+gate; the older columns' byte-identical proof also runs against production data.
 """
 
 from __future__ import annotations
@@ -71,7 +70,12 @@ def _make_bill(
 
 
 def _add_summary(
-    db: Session, bill_id: uuid.UUID, *, summary: str, is_current: bool = True
+    db: Session,
+    bill_id: uuid.UUID,
+    *,
+    summary: str,
+    is_current: bool = True,
+    short_title: str | None = None,
 ):
     version = schema.BillVersion(
         bill_id=bill_id,
@@ -87,7 +91,11 @@ def _add_summary(
         enrichment_type=schema.EnrichmentType.bill_summary,
         model_name="test-model",
         source_version_hash=uuid.uuid4().hex,
-        content_json={"summary": summary},
+        content_json=(
+            {"summary": summary}
+            if short_title is None
+            else {"summary": summary, "short_title": short_title}
+        ),
         is_current=is_current,
     )
     db.add(enrichment)
@@ -389,6 +397,76 @@ def test_status_recomputes_when_actions_change(seed_database) -> None:
 
 
 # --- has_current_summary trigger maintenance (insert / update / delete) -------
+
+
+def test_short_title_trigger_lifecycle(seed_database) -> None:
+    """``bill.short_title`` tracks the current summary's headline (alembic 0033).
+
+    Search matches this column, so a stale copy means a reader searching the words
+    on a card finds the wrong bill, or none — the same class of failure as the
+    missing column it replaced (#1456). Every enrichment write path has to keep it
+    honest, which is what the trigger guarantees and this pins.
+    """
+    bid = None
+    try:
+        with _session() as db:
+            bid = _make_bill(
+                db, bill_key="denorm-title", file_number=920002, status="Introduced"
+            )
+            # No enrichment yet → nothing to display, so nothing to search.
+            assert db.get(Bill, bid).short_title is None
+
+            enr_id = _add_summary(
+                db, bid, summary="A real summary.", short_title="First Headline"
+            )
+            db.expire_all()
+            assert db.get(Bill, bid).short_title == "First Headline"
+
+            # A re-enrichment that rewrites the headline moves the column with it.
+            db.get(schema.AIEnrichment, enr_id).content_json = {
+                "summary": "A real summary.",
+                "short_title": "Rewritten Headline",
+            }
+            db.commit()
+            db.expire_all()
+            assert db.get(Bill, bid).short_title == "Rewritten Headline"
+
+            # Superseded row → no current headline. A search must not keep matching
+            # text the bill no longer shows.
+            db.get(schema.AIEnrichment, enr_id).is_current = False
+            db.commit()
+            db.expire_all()
+            assert db.get(Bill, bid).short_title is None
+
+            # Whitespace is normalized to NULL, not stored as a blank that would
+            # make every query's ILIKE '%%' branch match this bill.
+            db.get(schema.AIEnrichment, enr_id).is_current = True
+            db.get(schema.AIEnrichment, enr_id).content_json = {
+                "summary": "A real summary.",
+                "short_title": "   ",
+            }
+            db.commit()
+            db.expire_all()
+            assert db.get(Bill, bid).short_title is None
+
+            # Deleting the enrichment clears it too.
+            db.get(schema.AIEnrichment, enr_id).content_json = {
+                "summary": "A real summary.",
+                "short_title": "Final Headline",
+            }
+            db.commit()
+            db.expire_all()
+            assert db.get(Bill, bid).short_title == "Final Headline"
+            db.execute(
+                delete(schema.AIEnrichment).where(schema.AIEnrichment.id == enr_id)
+            )
+            db.commit()
+            db.expire_all()
+            assert db.get(Bill, bid).short_title is None
+    finally:
+        if bid:
+            with _session() as db:
+                _cleanup(db, bid)
 
 
 def test_has_current_summary_trigger_lifecycle(seed_database) -> None:

@@ -18,8 +18,8 @@ import { theme as t } from '../../theme/tokens';
 
 const isWeb = Platform.OS === 'web';
 
-// Legislator card for the redesigned Search Legislators screen
-// (docs/mockups/search-legislators). The whole card links to the profile. There
+// Legislator card for the Search Legislators screen
+// (docs/architecture/frontend-screen-system-design.md §7). The whole card links to the profile. There
 // is NO follow/track action on this screen (follow-a-legislator is #151, v2).
 
 type LegislatorCardData = Pick<
@@ -93,9 +93,14 @@ function WebPortrait({
     style: {
       display: 'block',
       width: '100%',
-      height: '100%',
-      objectFit: 'cover',
-      objectPosition: 'center top',
+      // Height follows the photo's own proportions, so the frame ends exactly
+      // where the picture does. Sources are 160 wide but 197-207 tall, so a
+      // fixed height left a sliver of frame background showing under the
+      // shorter ones (#1334). Letting the photo set the height needs no
+      // fitting rule at all: there is nothing to crop and nothing left over.
+      // The width/height attributes still reserve the right space before the
+      // file arrives, so the row does not jump when it loads.
+      height: 'auto',
     },
   });
 }
@@ -144,6 +149,7 @@ export function LegislatorResultCard({
   const authored = authoredCount(legislator);
   const authorshipLabel = billAuthorshipLabel(authored);
   const portraitUrl = legislator.photoUrl;
+  const showingPortrait = shouldShowLegislatorPortrait(portraitUrl, photoFailed);
 
   return (
     <Pressable
@@ -157,8 +163,8 @@ export function LegislatorResultCard({
       style={[styles.card, hovered && styles.cardHover]}
     >
       <View style={styles.topRow}>
-        <View style={styles.avatar}>
-          {shouldShowLegislatorPortrait(portraitUrl, photoFailed) ? (
+        <View style={[styles.avatar, showingPortrait && styles.avatarPhotoFrame]}>
+          {showingPortrait ? (
             // Decorative: the name is already text beside it, so labelling the
             // portrait would make a screen reader read the name twice inside
             // this one link.
@@ -172,7 +178,8 @@ export function LegislatorResultCard({
               <Image
                 accessibilityElementsHidden
                 source={{ uri: portraitUrl }}
-                resizeMode="cover"
+                // Matches the web branch above: fit inside, never crop (#1334).
+                resizeMode="contain"
                 onError={() => setPhotoFailed(true)}
                 style={styles.avatarPhoto}
               />
@@ -253,7 +260,14 @@ const styles = StyleSheet.create({
     // Clips the portrait and initials fallback to the same rounded rectangle.
     overflow: 'hidden',
   },
-  avatarPhoto: { width: '100%', height: '100%' },
+  // Applied only when a real photo is showing. The fixed height above exists to
+  // give the initials fallback a box; a photo sets its own height, and the tint
+  // behind it would only ever be visible as a sliver where the two disagree.
+  avatarPhotoFrame: { height: 'auto', backgroundColor: 'transparent' },
+  // Phone builds cannot read the file's proportions before it arrives, so they
+  // use the shape of the common source (160x206) and still fit-inside, which
+  // leaves at most a hairline on the few shorter photos and never crops.
+  avatarPhoto: { width: '100%', aspectRatio: 160 / 206 },
   avatarText: {
     fontFamily: t.typography.title,
     fontSize: t.fontSizes.subhead,

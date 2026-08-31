@@ -41,6 +41,12 @@ export function pendingSignInRequest(raw: string | null): SignInRequest | null {
       billCode: value.billCode,
       returnTo: value.returnTo,
       scrollY: value.scrollY,
+      ...(typeof value.pendingReference === 'string' && value.pendingReference.length >= 32
+        ? { pendingReference: value.pendingReference }
+        : null),
+      ...(value.pendingCompletion === 'ordinary' || value.pendingCompletion === 'email-link'
+        ? { pendingCompletion: value.pendingCompletion }
+        : null),
     };
   } catch {
     return null;

@@ -60,6 +60,28 @@ describe('the five frames are chosen by what we actually know', () => {
     );
   });
 
+  // The state this exists to prevent: the tracked-list query does not retry, so
+  // before this state a single failure left the hero on "Checking your tracked
+  // bills…" with a spinner permanently, indistinguishable from a slow load.
+  it('renders FAILED as its own terminal state, not as a pending that never ends', () => {
+    const watch = sessionWatch([], { state: 'not-checked' }, NOW, '', true);
+    expect(watch.state).toBe('failed');
+    expect(watch.heroLine).toBe('We couldn’t check your tracked bills just now');
+    expect(watch.rows).toHaveLength(0);
+    expect(watch.movedCount).toBe(0);
+  });
+
+  it('reports FAILED even when bills and a visit did arrive, so a stale set never reads as the answer', () => {
+    const watch = sessionWatch([moved('b1')], VISITED, NOW, 'Mar 12', true);
+    expect(watch.state).toBe('failed');
+    expect(watch.heroLine).not.toMatch(/moved since/);
+  });
+
+  it('is unchanged when nothing failed', () => {
+    const watch = sessionWatch([moved('b1')], VISITED, NOW, 'Mar 12', false);
+    expect(watch.state).toBe('moved');
+  });
+
   it('renders FIRST VISIT plainly, with no "since" it does not have', () => {
     const watch = sessionWatch([moved('b1')], FIRST_VISIT, NOW, '');
     expect(watch.state).toBe('first-visit');
@@ -72,7 +94,7 @@ describe('the five frames are chosen by what we actually know', () => {
     const watch = sessionWatch([quiet('b1'), quiet('b2')], VISITED, NOW, 'Mar 20');
     expect(watch.state).toBe('quiet');
     expect(watch.heroLine).toBe(
-      'Nothing has moved since you last opened the list on Mar 20 — the most recent change was Jan 5, 2026',
+      'None of your 2 tracked bills moved since you last opened the list on Mar 20 — the most recent change was Jan 5, 2026',
     );
     // The card still lists the bills, so the page is never blank.
     expect(watch.rows).toHaveLength(2);
@@ -81,7 +103,22 @@ describe('the five frames are chosen by what we actually know', () => {
 
   it('drops the trailing clause when no tracked bill has a dated action at all', () => {
     const watch = sessionWatch([{ id: 'b1', actions: [] }], VISITED, NOW, 'Mar 20');
-    expect(watch.heroLine).toBe('Nothing has moved since you last opened the list on Mar 20');
+    expect(watch.heroLine).toBe(
+      'Your tracked bill has not moved since you last opened the list on Mar 20',
+    );
+  });
+
+  // One tracked bill drops the numeral: "your 1 tracked bill" says with a digit
+  // what the singular noun already says, and "none of 1" reports a proportion
+  // that cannot vary. The verb changes with it, which is why this is a separate
+  // sentence rather than a conditional noun.
+  it('names ONE tracked bill without a numeral, and still dates the last change', () => {
+    const watch = sessionWatch([quiet('b1')], VISITED, NOW, 'Mar 20');
+    expect(watch.state).toBe('quiet');
+    expect(watch.heroLine).toBe(
+      'Your tracked bill has not moved since you last opened the list on Mar 20 — the most recent change was Jan 5, 2026',
+    );
+    expect(watch.heroLine).not.toMatch(/\b1 tracked\b/);
   });
 
   it('renders MOVED with the count and the date', () => {

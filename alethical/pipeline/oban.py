@@ -19,10 +19,12 @@ from alethical.db.session import (
     get_database_url,
     normalize_database_url,
 )
+from alethical.monitoring import capture_operational_error
 from alethical.pipeline.sessions import CURRENT_SESSION_SLUG, DEFAULT_SESSION_CODE
 from alethical.pipeline.oban_workers import (
     AiBatchApplyWorker,
     AiBatchPrepareWorker,
+    BillSummaryRequestWorker,
     BillSyncChunkWorker,
     CodexAiCombineWorker,
     CodexAiEnqueueWorker,
@@ -37,6 +39,28 @@ from alethical.pipeline.oban_workers import (
 )
 
 ACTIVE_STATES = ("available", "scheduled", "retryable", "executing", "completed")
+IN_FLIGHT_STATES = ("available", "scheduled", "retryable", "executing")
+
+
+class ObanDrainFailure(RuntimeError):
+    """One queue drain finished with jobs still failed or discarded."""
+
+
+def report_drain_failures(queue: str, result: dict[str, int]) -> None:
+    retryable = int(result.get("retryable", 0))
+    discarded = int(result.get("discarded", 0))
+    if retryable == 0 and discarded == 0:
+        return
+    capture_operational_error(
+        ObanDrainFailure("Queued ingestion jobs failed"),
+        area="ingestion",
+        operation="queue-drain-failed",
+        tags={
+            "ingestion.discarded": str(discarded),
+            "ingestion.queue": queue,
+            "ingestion.retryable": str(retryable),
+        },
+    )
 
 
 WORKERS = {
@@ -48,6 +72,7 @@ WORKERS = {
     "rag-backfill-chunk": RagBackfillChunkWorker,
     "ai-prepare": AiBatchPrepareWorker,
     "ai-apply": AiBatchApplyWorker,
+    "bill-summary-request": BillSummaryRequestWorker,
     "codex-ai-enqueue": CodexAiEnqueueWorker,
     "codex-ai-request": CodexAiRequestWorker,
     "codex-ai-combine": CodexAiCombineWorker,
@@ -89,6 +114,11 @@ async def open_pool(dsn: str) -> AsyncConnectionPool:
 async def existing_job_id(
     pool: AsyncConnectionPool, *, worker: str, queue: str, task_key: str
 ) -> int | None:
+    # A completed summary job may have made no provider call because the default-off
+    # switch or API-key gate stopped it. The durable request row remains ``ready``;
+    # a later reconciliation must be able to enqueue it again. Other queues keep
+    # their established completed-job dedupe.
+    active_states = IN_FLIGHT_STATES if queue == "ai_summary" else ACTIVE_STATES
     async with pool.connection() as conn:
         row = await conn.execute(
             """
@@ -101,7 +131,7 @@ async def existing_job_id(
             order by id desc
             limit 1
             """,
-            (worker, queue, task_key, list(ACTIVE_STATES)),
+            (worker, queue, task_key, list(active_states)),
         )
         result = await row.fetchone()
         return int(result[0]) if result else None
@@ -265,6 +295,8 @@ async def enqueue(args: argparse.Namespace) -> None:
                     "allow_writes": args.allow_writes,
                 }
             )
+        elif args.kind == "bill-summary-request":
+            job_args.update({"request_id": args.request_id})
         elif args.kind == "codex-ai-enqueue":
             job_args.update(
                 {
@@ -312,6 +344,16 @@ async def enqueue(args: argparse.Namespace) -> None:
 
 
 async def drain(args: argparse.Namespace) -> None:
+    if args.queue == "ai_summary":
+        from alethical.pipeline.bill_summary_requests import (
+            reconcile_ready_requests,
+        )
+
+        await reconcile_ready_requests(
+            database_target=args.target,
+            oban_target=args.target,
+            oban_dsn=args.dsn,
+        )
     pool = await open_pool(dsn_for_args(args))
     try:
         oban = Oban(pool=pool, queues={args.queue: args.concurrency})
@@ -336,6 +378,7 @@ async def drain(args: argparse.Namespace) -> None:
             }
     finally:
         await pool.close()
+    report_drain_failures(args.queue, result)
     print(json.dumps(result, indent=2))
 
 
@@ -391,6 +434,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--run-dir", default=".tmp/codex-ai-runs/production-missing-current"
     )
     enqueue_parser.add_argument("--custom-id", default=None)
+    enqueue_parser.add_argument("--request-id", default=None)
     enqueue_parser.add_argument("--prompt-path", default=None)
     enqueue_parser.add_argument("--schema-path", default=None)
     enqueue_parser.add_argument("--codex-model", default="gpt-5.5")

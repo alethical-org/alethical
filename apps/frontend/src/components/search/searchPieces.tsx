@@ -28,11 +28,12 @@ import {
 import { CLEAR_SEARCH_TARGET_SIZE } from '../../lib/legislatorSearch';
 import { useUnavailableControl } from '../billDetail/interactions';
 import { useHistoryScrollRestoration } from '../../hooks/useHistoryScrollRestoration';
+import { linkProps } from '../../navigation/links';
 
-// Shared building blocks for the redesigned Search Bills / Search Legislators
-// screens (docs/mockups/search-bills + search-legislators). The two screens
+// Shared building blocks for Search Bills / Search Legislators
+// (docs/product-onboarding/bill-search-screen-spec.md and frontend-screen-system-design.md §7). The two screens
 // compose these; the per-page cards live in BillResultCard/LegislatorResultCard.
-// High-fidelity: literal hex/px come from the .dc.html references.
+// Exact values come from theme/tokens.ts and docs/design/design-principles.md.
 
 const isWeb = Platform.OS === 'web';
 const t = theme;
@@ -118,10 +119,7 @@ export function SearchPageShell({
               overlay it (rather than being painted under the white block). */}
           <View style={[styles.heroWrap, heroGradientWeb]}>
             {isWeb ? (
-              <View
-                pointerEvents="none"
-                style={[StyleSheet.absoluteFillObject as object, heroDotsWeb]}
-              />
+              <View pointerEvents="none" style={[StyleSheet.absoluteFill as object, heroDotsWeb]} />
             ) : null}
 
             <TopNav
@@ -179,7 +177,11 @@ export function SearchHero({
   return (
     <View>
       <View style={styles.heroTitleRow}>
-        <Text accessibilityRole="header" style={[styles.heroH1, isMobile && styles.heroH1Mobile]}>
+        <Text
+          accessibilityRole="header"
+          aria-level={1}
+          style={[styles.heroH1, isMobile && styles.heroH1Mobile]}
+        >
           {title}
         </Text>
       </View>
@@ -1120,6 +1122,7 @@ export function NoResults({
       </View>
       <Text
         accessibilityRole="header"
+        aria-level={2}
         style={[
           styles.noResultsHeading,
           variant === 'bills' && WRAP_ANYWHERE,
@@ -1198,6 +1201,11 @@ export function Pagination({
   onPrev,
   onNext,
   onPageChange,
+  prevHref,
+  nextHref,
+  jumpPages,
+  pageHref,
+  onPageSelect,
 }: {
   page: number;
   totalPages?: number;
@@ -1208,32 +1216,58 @@ export function Pagination({
   // Fired after a Prev/Next press (see usePaginatedListScroll): lands the first
   // result at the top of the viewport and moves keyboard focus onto the list.
   onPageChange?: () => void;
+  prevHref?: string;
+  nextHref?: string;
+  jumpPages?: readonly number[];
+  pageHref?: (page: number) => string;
+  onPageSelect?: (page: number) => void;
 }) {
   if (!hasPrev && !hasNext) return null;
   return (
-    <View style={styles.pagination}>
-      <PageButton
-        direction="prev"
-        disabled={!hasPrev}
-        onPress={() => {
-          onPrev();
-          onPageChange?.();
-        }}
-      />
-      {/* aria-live: announce the new page number to screen readers, since the
-          results below swap silently. */}
-      <Text style={styles.pageLabel} accessibilityLiveRegion="polite">
-        Page <Text style={styles.pageLabelNum}>{page}</Text>
-        {typeof totalPages === 'number' ? ` of ${totalPages}` : ''}
-      </Text>
-      <PageButton
-        direction="next"
-        disabled={!hasNext}
-        onPress={() => {
-          onNext();
-          onPageChange?.();
-        }}
-      />
+    <View style={styles.paginationWrap}>
+      <View style={styles.pagination}>
+        <PageButton
+          direction="prev"
+          disabled={!hasPrev}
+          href={prevHref}
+          onPress={() => {
+            onPrev();
+            onPageChange?.();
+          }}
+        />
+        {/* aria-live: announce the new page number to screen readers, since the
+            results below swap silently. */}
+        <Text style={styles.pageLabel} accessibilityLiveRegion="polite">
+          Page <Text style={styles.pageLabelNum}>{page}</Text>
+          {typeof totalPages === 'number' ? ` of ${totalPages}` : ''}
+        </Text>
+        <PageButton
+          direction="next"
+          disabled={!hasNext}
+          href={nextHref}
+          onPress={() => {
+            onNext();
+            onPageChange?.();
+          }}
+        />
+      </View>
+      {jumpPages?.length && pageHref && onPageSelect ? (
+        <View style={styles.pageJumps}>
+          <Text style={styles.pageJumpLabel}>Jump to page</Text>
+          {jumpPages.map((target) => (
+            <Pressable
+              key={target}
+              {...linkProps(pageHref(target), () => {
+                onPageSelect(target);
+                onPageChange?.();
+              })}
+              style={styles.pageJumpLink}
+            >
+              <Text style={styles.pageJumpText}>{`Page ${target}`}</Text>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -1242,10 +1276,12 @@ function PageButton({
   direction,
   disabled,
   onPress,
+  href,
 }: {
   direction: 'prev' | 'next';
   disabled: boolean;
   onPress: () => void;
+  href?: string;
 }) {
   const [hovered, hover] = useHover();
   const color = disabled
@@ -1256,11 +1292,12 @@ function PageButton({
   const Icon = direction === 'prev' ? ChevronLeft : ChevronRight;
   return (
     <Pressable
-      accessibilityRole="button"
+      {...(href && !disabled
+        ? linkProps(href, onPress)
+        : { accessibilityRole: 'button' as const, onPress })}
       accessibilityLabel={direction === 'prev' ? 'Previous page' : 'Next page'}
       accessibilityState={{ disabled }}
       disabled={disabled}
-      onPress={onPress}
       {...hover}
       style={[
         styles.pageBtn,
@@ -1889,8 +1926,8 @@ const styles = StyleSheet.create({
   },
 
   // pagination
+  paginationWrap: { marginTop: 28, alignItems: 'center', gap: 14 },
   pagination: {
-    marginTop: 28,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1927,4 +1964,24 @@ const styles = StyleSheet.create({
     color: t.colors.text.secondary,
   },
   pageLabelNum: { fontWeight: t.fontWeights.heavy, color: t.colors.text.primary },
+  pageJumps: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  pageJumpLabel: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.small,
+    color: t.colors.text.muted,
+  },
+  pageJumpLink: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  pageJumpText: {
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.small,
+    fontWeight: t.fontWeights.bold,
+    color: t.colors.brand.deep,
+    textDecorationLine: 'underline',
+  },
 });

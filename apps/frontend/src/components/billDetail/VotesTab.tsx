@@ -479,7 +479,7 @@ function NoVotes({
             />
           </Svg>
         </View>
-        <Text accessibilityRole="header" style={styles.emptyTitle}>
+        <Text accessibilityRole="header" aria-level={2} style={styles.emptyTitle}>
           No recorded roll-call votes
         </Text>
         <Text style={styles.emptyBody}>

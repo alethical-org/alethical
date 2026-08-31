@@ -21,6 +21,9 @@ its branches without duplicating it.
 
 from __future__ import annotations
 
+import uuid
+from types import SimpleNamespace
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -36,7 +39,7 @@ from alethical.api.services.auth import (
 # The error a rejected or expired token really raises. `supabase` re-exports the
 # AuthError base class but not this subclass, so `supabase-auth` is declared in
 # pyproject.toml rather than reached through supabase's own requirements (#701).
-from supabase_auth.errors import AuthInvalidJwtError
+from supabase_auth.errors import AuthInvalidJwtError, AuthRetryableError
 
 SUPABASE_ENV = {
     "SUPABASE_URL": "https://project.supabase.co",
@@ -57,17 +60,34 @@ class _FakeGoTrue:
     def __init__(self):
         self._response = None
         self._error: Exception | None = None
+        self._user_response = None
+        self._user_error: Exception | None = None
         self.tokens_seen: list[str] = []
+        self.user_tokens_seen: list[str] = []
 
-    def configure(self, response=None, error: Exception | None = None) -> None:
+    def configure(
+        self,
+        response=None,
+        error: Exception | None = None,
+        user_response=None,
+        user_error: Exception | None = None,
+    ) -> None:
         self._response = response
         self._error = error
+        self._user_response = user_response
+        self._user_error = user_error
 
     def get_claims(self, bearer_token: str):
         self.tokens_seen.append(bearer_token)
         if self._error is not None:
             raise self._error
         return self._response
+
+    def get_user(self, bearer_token: str):
+        self.user_tokens_seen.append(bearer_token)
+        if self._user_error is not None:
+            raise self._user_error
+        return self._user_response
 
 
 class _FakeSupabaseClient:
@@ -110,24 +130,44 @@ def _clean_auth_env(monkeypatch):
     auth_module.get_supabase_auth_service.cache_clear()
 
 
-def _service_returning(claims_response=None, *, error: Exception | None = None):
+def _service_returning(
+    claims_response=None,
+    *,
+    error: Exception | None = None,
+    user_response=None,
+    user_error: Exception | None = None,
+):
     """A real SupabaseAuthService set up to receive one fixed claims response."""
     service = SupabaseAuthService(
         supabase_url=SUPABASE_ENV["SUPABASE_URL"],
         supabase_publishable_key=SUPABASE_ENV["SUPABASE_PUBLISHABLE_KEY"],
     )
-    service._client.auth.configure(response=claims_response, error=error)
+    service._client.auth.configure(
+        response=claims_response,
+        error=error,
+        user_response=user_response,
+        user_error=user_error,
+    )
     return service, service._client.auth
 
 
-def test_a_valid_token_produces_the_matching_principal():
-    """The live claim shape: `ClaimsResponse` is a dict subclass."""
+def _trusted_user_response(*, subject: str, email: str | None, email_confirmed_at=None):
+    return SimpleNamespace(
+        user=SimpleNamespace(
+            id=subject,
+            email=email,
+            email_confirmed_at=email_confirmed_at,
+        )
+    )
+
+
+def test_a_valid_token_produces_the_matching_unconfirmed_principal():
+    """The real JWT shape has no trusted email-confirmation field (#1466)."""
     service, gotrue = _service_returning(
         {
             "claims": {
                 "sub": "5f3a0c0e-2c2b-4b9f-9c1a-0f2c8f6d7e11",
                 "email": "Ada@Example.com",
-                "email_confirmed_at": "2026-08-01T12:00:00Z",
             }
         }
     )
@@ -137,7 +177,7 @@ def test_a_valid_token_produces_the_matching_principal():
     assert principal.provider == "supabase"
     assert principal.provider_subject == "5f3a0c0e-2c2b-4b9f-9c1a-0f2c8f6d7e11"
     assert principal.email == "Ada@Example.com"
-    assert principal.email_verified is True
+    assert principal.email_verified is False
     # The token reaches the verifier unchanged -- no trimming or re-encoding.
     assert gotrue.tokens_seen == ["header.payload.signature"]
 
@@ -146,14 +186,74 @@ def test_a_claims_response_exposing_an_attribute_is_read_too():
     """The fallback branch, for a client that returns an object not a mapping."""
     service, _ = _service_returning(
         _ClaimsResponseObject(
-            {"sub": "attribute-shaped", "email_confirmed_at": "2026-08-01T12:00:00Z"}
+            {"sub": "attribute-shaped", "email": "attribute@example.com"}
         )
     )
 
     principal = service.authenticate("token")
 
     assert principal.provider_subject == "attribute-shaped"
+    assert principal.email_verified is False
+
+
+def test_a_trusted_confirmed_user_record_marks_the_email_verified():
+    subject = "trusted-confirmed-subject"
+    service, gotrue = _service_returning(
+        {"claims": {"sub": subject, "email": "stale@example.com"}},
+        user_response=_trusted_user_response(
+            subject=subject,
+            email="Current@Example.com",
+            email_confirmed_at="2026-08-01T12:00:00Z",
+        ),
+    )
+
+    principal = service.resolve_confirmed_email(
+        "header.payload.signature", service.authenticate("header.payload.signature")
+    )
+
+    assert principal.email == "Current@Example.com"
     assert principal.email_verified is True
+    assert gotrue.user_tokens_seen == ["header.payload.signature"]
+
+
+def test_an_unconfirmed_user_record_cannot_mark_the_email_verified():
+    subject = "trusted-unconfirmed-subject"
+    service, _ = _service_returning(
+        {"claims": {"sub": subject, "email": "pending@example.com"}},
+        user_response=_trusted_user_response(
+            subject=subject,
+            email="pending@example.com",
+            email_confirmed_at=None,
+        ),
+    )
+
+    principal = service.resolve_confirmed_email("token", service.authenticate("token"))
+
+    assert principal.email == "pending@example.com"
+    assert principal.email_verified is False
+
+
+def test_a_user_record_for_a_different_subject_is_refused():
+    service, _ = _service_returning(
+        {"claims": {"sub": "token-subject", "email": "owner@example.com"}},
+        user_response=_trusted_user_response(
+            subject="different-subject",
+            email="owner@example.com",
+            email_confirmed_at="2026-08-01T12:00:00Z",
+        ),
+    )
+
+    with pytest.raises(ValueError, match="subject does not match"):
+        service.resolve_confirmed_email("token", service.authenticate("token"))
+
+
+def test_a_missing_trusted_user_record_is_refused():
+    service, _ = _service_returning(
+        {"claims": {"sub": "missing-user", "email": "missing@example.com"}}
+    )
+
+    with pytest.raises(ValueError, match="Unable to read Supabase user"):
+        service.resolve_confirmed_email("token", service.authenticate("token"))
 
 
 def test_an_unverifiable_token_is_refused():
@@ -239,21 +339,22 @@ def test_a_confirmed_phone_alone_does_not_mark_the_email_verified():
     assert service.authenticate("token").email_verified is False
 
 
-def test_a_confirmed_email_marks_the_email_verified_whatever_the_phone_says():
-    """The one claim that does count, with and without a phone alongside it."""
-    for claims in (
-        {"sub": "confirmed-subject", "email": "confirmed@example.com"},
+def test_a_sign_in_pass_alone_never_marks_an_email_verified():
+    """Even invented confirmation fields in a JWT cannot claim an account (#1466)."""
+    service, gotrue = _service_returning(
         {
-            "sub": "confirmed-subject",
-            "email": "confirmed@example.com",
-            "phone_confirmed_at": "2026-08-01T12:00:00Z",
-        },
-    ):
-        service, _ = _service_returning(
-            {"claims": {**claims, "email_confirmed_at": "2026-08-01T12:00:00Z"}}
-        )
+            "claims": {
+                "sub": "claims-only-subject",
+                "email": "claims-only@example.com",
+                "email_confirmed_at": "2026-08-01T12:00:00Z",
+                "phone_confirmed_at": "2026-08-01T12:00:00Z",
+                "user_metadata": {"email_verified": True},
+            }
+        }
+    )
 
-        assert service.authenticate("token").email_verified is True
+    assert service.authenticate("token").email_verified is False
+    assert gotrue.user_tokens_seen == []
 
 
 def test_the_local_dev_service_accepts_only_its_own_token():
@@ -326,9 +427,16 @@ def test_the_factory_accepts_the_older_anon_key_name(_clean_auth_env, monkeypatc
     assert isinstance(auth_module.get_supabase_auth_service(), SupabaseAuthService)
 
 
-def _client_with_real_verification(claims_response=None, *, error=None):
+def _client_with_real_verification(
+    claims_response=None, *, error=None, user_response=None, user_error=None
+):
     """An app whose auth dependency is the real service over a stubbed client."""
-    service, _ = _service_returning(claims_response, error=error)
+    service, _ = _service_returning(
+        claims_response,
+        error=error,
+        user_response=user_response,
+        user_error=user_error,
+    )
     app = create_app()
     app.dependency_overrides[get_auth_service] = lambda: service
     return TestClient(app)
@@ -368,6 +476,26 @@ def test_a_rejected_token_is_unauthorized_rather_than_a_server_error():
     assert response.json()["title"] == "Unauthorized"
 
 
+def test_a_temporary_trusted_user_lookup_failure_is_service_unavailable(monkeypatch):
+    from alethical.api import problems
+
+    captured = []
+    monkeypatch.setattr(
+        problems,
+        "capture_operational_error",
+        lambda exception, **kwargs: captured.append((exception, kwargs)),
+    )
+    response = _client_with_real_verification(
+        {"claims": {"sub": "temporary-failure", "email": "later@example.com"}},
+        user_error=AuthRetryableError("Supabase is temporarily unavailable", 503),
+    ).get("/api/v1/me", headers={"Authorization": "Bearer retry.this.request"})
+
+    assert response.status_code == 503
+    assert response.json()["title"] == "Service Unavailable"
+    assert captured[0][1]["area"] == "auth"
+    assert captured[0][1]["operation"] == "http-503"
+
+
 def test_a_verified_token_reaches_the_account_it_names(client, auth_headers):
     """End to end: real verification code, real provisioning, real /me payload."""
     verified = _client_with_real_verification(
@@ -375,9 +503,13 @@ def test_a_verified_token_reaches_the_account_it_names(client, auth_headers):
             "claims": {
                 "sub": "supabase-user-real-verification-115",
                 "email": "real-verification-115@example.com",
-                "email_confirmed_at": "2026-08-01T12:00:00Z",
             }
-        }
+        },
+        user_response=_trusted_user_response(
+            subject="supabase-user-real-verification-115",
+            email="real-verification-115@example.com",
+            email_confirmed_at="2026-08-01T12:00:00Z",
+        ),
     )
 
     response = verified.get(
@@ -393,3 +525,76 @@ def test_a_verified_token_reaches_the_account_it_names(client, auth_headers):
         client.get("/api/v1/me", headers=auth_headers).json()["data"]["primary_email"]
         == "ada@example.com"
     )
+
+
+def test_2_confirmed_sign_in_methods_with_the_same_email_open_1_account():
+    shared_email = f"shared-sign-in-{uuid.uuid4()}@example.com"
+    first_subject = f"first-sign-in-{uuid.uuid4()}"
+    second_subject = f"second-sign-in-{uuid.uuid4()}"
+    service, gotrue = _service_returning(
+        {"claims": {"sub": first_subject, "email": shared_email}},
+        user_response=_trusted_user_response(
+            subject=first_subject,
+            email=shared_email,
+            email_confirmed_at="2026-08-01T12:00:00Z",
+        ),
+    )
+    app = create_app()
+    app.dependency_overrides[get_auth_service] = lambda: service
+    sign_in_client = TestClient(app)
+    headers = {"Authorization": "Bearer same.person.first.method"}
+
+    first = sign_in_client.get("/api/v1/me", headers=headers)
+
+    gotrue.configure(
+        response={"claims": {"sub": second_subject, "email": shared_email}},
+        user_response=_trusted_user_response(
+            subject=second_subject,
+            email=shared_email,
+            email_confirmed_at="2026-08-01T12:00:00Z",
+        ),
+    )
+    headers = {"Authorization": "Bearer same.person.second.method"}
+    second = sign_in_client.get("/api/v1/me", headers=headers)
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    assert second.json()["data"]["id"] == first.json()["data"]["id"]
+
+
+def test_an_existing_blank_email_repairs_once_then_skips_the_user_lookup():
+    """The 2 known live accounts repair on use without slowing later reads (#1466)."""
+    subject = f"supabase-user-email-repair-{uuid.uuid4()}"
+    email = f"email-repair-{uuid.uuid4()}@example.com"
+    claims_response = {"claims": {"sub": subject, "email": email}}
+    service, gotrue = _service_returning(
+        claims_response,
+        user_response=_trusted_user_response(
+            subject=subject,
+            email=email,
+            email_confirmed_at=None,
+        ),
+    )
+    app = create_app()
+    app.dependency_overrides[get_auth_service] = lambda: service
+    repair_client = TestClient(app)
+    headers = {"Authorization": "Bearer repair.this.email"}
+
+    first = repair_client.get("/api/v1/me", headers=headers)
+    assert first.status_code == 200
+    assert first.json()["data"]["primary_email"] is None
+
+    gotrue.configure(
+        response=claims_response,
+        user_response=_trusted_user_response(
+            subject=subject,
+            email=email,
+            email_confirmed_at="2026-08-01T12:00:00Z",
+        ),
+    )
+    second = repair_client.get("/api/v1/me", headers=headers)
+    third = repair_client.get("/api/v1/me", headers=headers)
+
+    assert second.json()["data"]["primary_email"] == email
+    assert third.json()["data"]["primary_email"] == email
+    assert gotrue.user_tokens_seen == ["repair.this.email", "repair.this.email"]

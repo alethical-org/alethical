@@ -14,6 +14,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   citationSectionAnchor,
+  citationSectionHref,
   parseSectionAnchor,
   resolveSectionAnchor,
   sectionAnchorFromHash,
@@ -132,11 +133,40 @@ describe('a citation chip jumps to the section it cites', () => {
   });
 
   it('falls back to the bare id when it did not', () => {
-    // One production citation resolves to no single section. The chip still jumps
-    // — to the first section carrying the id, as before — rather than becoming
-    // dead.
+    // Keep the old anchor readable for grouping and existing id-only links. New
+    // citation links use citationSectionHref below and refuse this guess.
     for (const sectionOrder of [null, undefined]) {
       expect(citationSectionAnchor({ sectionId: 'laws.0.1.0', sectionOrder })).toBe('laws.0.1.0');
     }
+  });
+
+  it('gives a confirmed citation one exact, copyable bill-text address', () => {
+    expect(
+      citationSectionHref('94-2026-HF4301', {
+        sectionId: 'laws.0.1.0',
+        sectionOrder: 1,
+      }),
+    ).toBe('/bills/94-2026-HF4301?tab=text#ft-laws.0.1.0-1');
+  });
+
+  it.each([null, undefined, 0, 1.5])(
+    'does not link a citation whose section position is not exact (%s)',
+    (sectionOrder) => {
+      expect(
+        citationSectionHref('94-2026-HF4301', {
+          sectionId: 'laws.0.1.0',
+          sectionOrder,
+        }),
+      ).toBeNull();
+    },
+  );
+
+  it('does not link a citation with no section id', () => {
+    expect(
+      citationSectionHref('94-2026-HF4301', {
+        sectionId: '',
+        sectionOrder: 1,
+      }),
+    ).toBeNull();
   });
 });

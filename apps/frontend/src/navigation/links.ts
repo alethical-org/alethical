@@ -21,9 +21,11 @@
  */
 import { Platform, type GestureResponderEvent } from 'react-native';
 
+import type { PieceTraits } from '../lib/research';
 import type { RootStackParamList } from './types';
 import { hasInAppBackEntry } from './webHistory';
 import { pathForRoute } from './webRoutes';
+import { recordOfficialSourceOpen } from '../lib/siteMetricEvents';
 
 const isWeb = Platform.OS === 'web';
 
@@ -40,12 +42,36 @@ export const routePath = {
   tracked: () => pathForRoute({ name: 'Tracked' }),
   bill: (billId: string, params?: Omit<RootStackParamList['BillDetail'], 'billId'>) =>
     pathForRoute({ name: 'BillDetail', params: { billId, ...params } }),
-  legislator: (legislatorId: string) =>
-    pathForRoute({ name: 'LegislatorProfile', params: { legislatorId } }),
+  legislator: (
+    legislatorId: string,
+    params?: Omit<RootStackParamList['LegislatorProfile'], 'legislatorId'>,
+  ) => pathForRoute({ name: 'LegislatorProfile', params: { legislatorId, ...params } }),
   vote: (billId: string, voteEventId: string) =>
     pathForRoute({ name: 'VoteDetail', params: { billId, voteEventId } }),
   findMyLegislator: () => pathForRoute({ name: 'FindMyLegislator' }),
+  money: () => pathForRoute({ name: 'MoneyLanding' }),
+  read: () => pathForRoute({ name: 'Read' }),
+  research: (slug: string) => pathForRoute({ name: 'Research', params: { slug } }),
+  guide: (slug: string) => pathForRoute({ name: 'Guide', params: { slug } }),
+  /** A piece's own address, whichever kind it is. One place decides the folder. */
+  piece: (piece: { slug: string; traits: PieceTraits }) =>
+    piece.traits.research ? routePath.research(piece.slug) : routePath.guide(piece.slug),
+  moneyCommittees: (params?: RootStackParamList['CommitteeList']) =>
+    pathForRoute({ name: 'CommitteeList', params }),
+  moneySearch: (params?: RootStackParamList['MoneySearch']) =>
+    pathForRoute({ name: 'MoneySearch', params }),
+  /** Every payment filed under one printed name. Both the spelling and the role
+   *  ride in the address, so the page a reader opened is one they can send. */
+  moneyPaymentsUnderName: (name: string, role: string) =>
+    pathForRoute({ name: 'PaymentsUnderName', params: { name, role } }),
+  moneyCommittee: (slug: string, params?: Omit<RootStackParamList['CommitteeMoney'], 'slug'>) =>
+    pathForRoute({ name: 'CommitteeMoney', params: { slug, ...params } }),
+  moneyCommitteePayments: (
+    slug: string,
+    params?: Omit<RootStackParamList['CommitteePayments'], 'slug'>,
+  ) => pathForRoute({ name: 'CommitteePayments', params: { slug, ...params } }),
   privacy: () => pathForRoute({ name: 'Privacy' }),
+  siteMetrics: () => pathForRoute({ name: 'SiteMetrics' }),
   terms: () => pathForRoute({ name: 'Terms' }),
   aboutUs: () => pathForRoute({ name: 'AboutUs' }),
   contactUs: () => pathForRoute({ name: 'ContactUs' }),
@@ -77,10 +103,10 @@ function browserHandlesClick(event: GestureResponderEvent | undefined) {
   }
   return Boolean(
     click.metaKey ||
-      click.ctrlKey ||
-      click.shiftKey ||
-      click.altKey ||
-      (typeof click.button === 'number' && click.button !== 0),
+    click.ctrlKey ||
+    click.shiftKey ||
+    click.altKey ||
+    (typeof click.button === 'number' && click.button !== 0),
   );
 }
 
@@ -213,12 +239,19 @@ export function externalLinkProps(
   onPress?: (event: GestureResponderEvent) => void;
 } {
   if (!isWeb) {
-    return { accessibilityRole: 'link', onPress };
+    return {
+      accessibilityRole: 'link',
+      onPress: (event: GestureResponderEvent) => {
+        recordOfficialSourceOpen(url);
+        onPress?.(event);
+      },
+    };
   }
 
   return {
     accessibilityRole: 'link',
     href: url,
     hrefAttrs: { target: '_blank', rel: 'noopener noreferrer' },
+    onPress: () => recordOfficialSourceOpen(url),
   };
 }

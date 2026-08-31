@@ -1,0 +1,42 @@
+diff --git a/cjs/index.d.ts b/cjs/index.d.ts
+index 0566e1652c815e655d1d8f0370793eca99dd7884..b00477968ab761858613a9fffec946d9405bf5ad 100644
+--- a/cjs/index.d.ts
++++ b/cjs/index.d.ts
+@@ -18,6 +18,7 @@ export declare const merge: {
+     options: IOptions;
+     withOptions<T extends IObject[]>(options: Partial<IOptions>, ...objects: T): TMerged<T[number]>;
+ };
++export default merge;
+ interface IOptions {
+     /**
+      * When `true`, values explicitly provided as `undefined` will override existing values, though properties that are simply omitted won't affect anything.
+diff --git a/cjs/index.js b/cjs/index.js
+index e0ceffbb03d26728fec3bf2db9f3a585bf165181..5245a70a757422b0e80853f1d1f9cae3a1f13a46 100644
+--- a/cjs/index.js
++++ b/cjs/index.js
+@@ -71,3 +71,4 @@ exports.merge.withOptions = (options, ...objects) => {
+     exports.merge.options = defaultOptions;
+     return result;
+ };
++exports.default = exports.merge;
+diff --git a/esm/index.d.ts b/esm/index.d.ts
+index 0566e1652c815e655d1d8f0370793eca99dd7884..b00477968ab761858613a9fffec946d9405bf5ad 100644
+--- a/esm/index.d.ts
++++ b/esm/index.d.ts
+@@ -18,6 +18,7 @@ export declare const merge: {
+     options: IOptions;
+     withOptions<T extends IObject[]>(options: Partial<IOptions>, ...objects: T): TMerged<T[number]>;
+ };
++export default merge;
+ interface IOptions {
+     /**
+      * When `true`, values explicitly provided as `undefined` will override existing values, though properties that are simply omitted won't affect anything.
+diff --git a/esm/index.js b/esm/index.js
+index 34bf94fecd6921b12176ce7ff0e02f117f2c3af9..919dd73af5bd86eb3977b3c27ec59663ac918fd0 100644
+--- a/esm/index.js
++++ b/esm/index.js
+@@ -67,3 +67,4 @@ merge.withOptions = (options, ...objects) => {
+     merge.options = defaultOptions;
+     return result;
+ };
++export default merge;

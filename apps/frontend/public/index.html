@@ -3,15 +3,32 @@
   <head>
     <meta charset="utf-8" />
     <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
-    <title>%WEB_TITLE%</title>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, shrink-to-fit=no, interactive-widget=resizes-content"
+    />
+    <!--
+      Everything between the two markers below is this page's own head, and
+      api/page.ts replaces it per address before the response is sent, so a search
+      engine and a person receive identical HTML (issue #1325). The wording is
+      generated from apps/frontend/src/lib/share.ts — never hand-edit these tags;
+      edit the builders there. What sits here is the home page's version, which
+      ships as written because Vercel serves `/` straight off the filesystem and
+      never reaches a rewrite. A test pins the two together so they cannot drift.
+    -->
+    <!--alethical:page-head-->
+    <title>Alethical: Minnesota’s legislative record in plain language</title>
     <meta
       name="description"
       content="Minnesota’s legislative record, in plain language, with links to official sources."
     />
+    <link rel="canonical" href="https://www.alethical.com/" />
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Alethical" />
-    <meta property="og:title" content="Alethical" />
+    <meta
+      property="og:title"
+      content="Alethical: Minnesota’s legislative record in plain language"
+    />
     <meta
       property="og:description"
       content="Minnesota’s legislative record, in plain language, with links to official sources."
@@ -20,14 +37,42 @@
     <meta property="og:image" content="https://www.alethical.com/social-preview.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
-    <meta property="og:image:alt" content="Alethical" />
+    <meta
+      property="og:image:alt"
+      content="Alethical: Minnesota’s legislative record in plain language, with links to official sources."
+    />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Alethical" />
+    <meta
+      name="twitter:title"
+      content="Alethical: Minnesota’s legislative record in plain language"
+    />
     <meta
       name="twitter:description"
       content="Minnesota’s legislative record, in plain language, with links to official sources."
     />
     <meta name="twitter:image" content="https://www.alethical.com/social-preview.png" />
+    <meta
+      name="twitter:image:alt"
+      content="Alethical: Minnesota’s legislative record in plain language, with links to official sources."
+    />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "Alethical",
+        "url": "https://www.alethical.com/"
+      }
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "Alethical",
+        "url": "https://www.alethical.com/",
+        "logo": "https://www.alethical.com/icon-512.png"
+      }
+    </script>
+    <!--/alethical:page-head-->
     <link rel="preconnect" href="https://api.alethical.com" crossorigin />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -52,6 +97,128 @@
         display: flex;
         height: 100%;
         flex: 1;
+      }
+    </style>
+    <!--
+      The look of the factual snapshot api/page.ts puts inside #root for a record
+      or public directory (issues #1325 and #1396). It is static and ships with
+      the shell, so no address carries CSS of its own. The colours mirror
+      apps/frontend/src/theme/tokens.ts, so what arrives first does not flash a
+      different palette than the app that replaces it.
+    -->
+    <style id="alethical-page-snapshot">
+      .page-snapshot {
+        flex: 1;
+        overflow-y: auto;
+        background: #ffffff;
+        color: #11150f;
+        font-family: 'Libre Franklin', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        line-height: 1.55;
+      }
+      .page-snapshot .ps-inner {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 48px 24px 64px;
+      }
+      .page-snapshot h1 {
+        font-size: 32px;
+        font-weight: 700;
+        line-height: 1.2;
+        margin: 0 0 8px;
+      }
+      .page-snapshot h2 {
+        font-size: 13px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #4f5651;
+        margin: 32px 0 12px;
+      }
+      .page-snapshot .ps-sub {
+        margin: 0;
+        color: #4f5651;
+        font-size: 14px;
+      }
+      .page-snapshot .ps-list {
+        margin: 0;
+        padding-left: 20px;
+      }
+      .page-snapshot .ps-list li {
+        margin-bottom: 8px;
+      }
+      .page-snapshot .ps-prose {
+        margin: 0 0 12px;
+      }
+      .page-snapshot .ps-facts {
+        margin: 24px 0 0;
+        border-top: 1px solid #cfd6d2;
+        padding-top: 16px;
+      }
+      .page-snapshot .ps-facts dt {
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #4f5651;
+        margin-top: 12px;
+      }
+      .page-snapshot .ps-facts dd {
+        margin: 2px 0 0;
+      }
+      .page-snapshot .ps-records {
+        list-style: none;
+        margin: 28px 0 0;
+        padding: 0;
+        border-top: 1px solid #cfd6d2;
+      }
+      .page-snapshot .ps-records li {
+        border-bottom: 1px solid #cfd6d2;
+      }
+      .page-snapshot .ps-records a {
+        display: block;
+        padding: 16px 0;
+        color: #11150f;
+        text-decoration: none;
+      }
+      .page-snapshot .ps-record-label {
+        display: block;
+        color: #0f7a45;
+        font-weight: 700;
+      }
+      .page-snapshot .ps-record-detail {
+        display: block;
+        margin-top: 3px;
+      }
+      .page-snapshot .ps-table {
+        margin: 0 0 16px;
+        border-collapse: collapse;
+        width: 100%;
+        display: block;
+        overflow-x: auto;
+      }
+      .page-snapshot .ps-table th,
+      .page-snapshot .ps-table td {
+        border-bottom: 1px solid #cfd6d2;
+        padding: 8px 12px 8px 0;
+        text-align: left;
+        vertical-align: top;
+      }
+      .page-snapshot .ps-table th {
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: #4f5651;
+      }
+      .page-snapshot .ps-links {
+        margin-top: 28px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+      }
+      .page-snapshot .ps-links a {
+        color: #0f7a45;
+        font-weight: 600;
       }
     </style>
   </head>
@@ -101,6 +268,20 @@
     <noscript>
       You need to enable JavaScript to run this app.
     </noscript>
-    <div id="root"></div>
+    <!--
+      The snapshot goes inside the app's own mount point on purpose (issue #1325):
+      React clears this element's children on its first render, so the app
+      replacing the snapshot is one paint, with no moment where both are on screen
+      and no extra script to run. `/` carries Home's text here because the home
+      page is served straight off the filesystem and never reaches api/page.ts.
+    -->
+    <div id="root"><!--alethical:page-snapshot--><div class="page-snapshot"><div class="ps-inner"><h1>Grounded answers on Minnesota politics</h1><p class="ps-sub">TRUTH, UNCONCEALED</p><p class="ps-prose">We read every bill so you don’t have to — what it says, where it stands, and how legislators voted. And the money: who gives, who spends, who gets paid, and who lobbies. Plain language, with every claim linked to the official record.</p><nav class="ps-links"><a href="/bills">Search Bills</a><a href="/legislators">Search Legislators</a><a href="/find-my-legislator">Find My Legislator</a></nav></div></div><!--/alethical:page-snapshot--></div>
+    <!-- Cloudflare Web Analytics -->
+    <script
+      type="module"
+      src="https://static.cloudflareinsights.com/beacon.min.js"
+      data-cf-beacon='{"token": "2054b504329c4586a515de9083e6164e"}'
+    ></script>
+    <!-- End Cloudflare Web Analytics -->
   </body>
 </html>

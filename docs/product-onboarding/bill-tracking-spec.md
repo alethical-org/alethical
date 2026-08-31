@@ -2,8 +2,9 @@
 
 <!-- describes: apps/frontend/src/components/billDetail/BillTrackButton.tsx, apps/frontend/src/components/billDetail/TrackedListUnavailableNotice.tsx, apps/frontend/src/components/search/BillResultCard.tsx, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, apps/frontend/src/hooks/useBillTracking.ts, apps/frontend/src/lib/billCardControlLayers.ts, apps/frontend/src/lib/signIn.ts, apps/frontend/src/lib/trackIntent.ts, apps/frontend/src/lib/trackReturn.ts, apps/frontend/src/navigation/types.ts, apps/frontend/src/providers/SignInModalProvider.tsx, apps/frontend/src/providers/TrackedBillWriteProvider.tsx, apps/frontend/src/providers/trackedBillWriteContext.ts, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileWebScreen.tsx -->
 
-Status: shipped behavior. The sign-in dialog's visual design remains in
-`docs/mockups/sign-in/`; this document owns the Track interaction that opens it.
+Status: shipped behavior. The sign-in dialog's flows, states and copy are documented in
+`docs/product-onboarding/sign-in-guide.md`; this document owns the Track interaction that
+opens it.
 
 ## One behavior on every surface
 
@@ -17,23 +18,32 @@ and the tracked-bills list. Every surface uses the same states and behavior.
   `✓ Tracked` removes.
 - A signed-out press opens the shared sign-in dialog over the current page. It never opens
   the bill, navigates to a sign-in page, or changes the current URL.
-- The Track dialog uses the bell and this exact copy: “Track bills across sessions and
-  pick up where you left off. Your tracked list is saved to your account.”
+- The Track dialog uses the bell and says: “Save {bill} to your tracked bills and check where it
+  stands whenever you come back.” It uses **this bill** when no bill number is available.
 - Closing the dialog changes nothing. The page, scroll position, and `+ Track` state stay
   as they were, with no error notice.
 
-## Returning from Google
+## Returning from sign-in
 
-Google replaces the page during sign-in, so the Track request is saved before leaving.
-The saved request includes the bill id, the exact local path with query and fragment, and
-the current vertical scroll position. The same return URL is sent through the OAuth state.
-Component memory is not relied on.
+Before Google replaces the page or Alethical requests an account code, the app asks the
+server for a random, single-use pending-action reference. The server row contains only the
+reference fingerprint, action type, bill id, a checked Alethical return path, and an expiration
+time. It is not attached to an account before sign-in. The browser holds the random reference
+and may also hold the current scroll position for the Google return; the server holds the
+pending action used by both Google and account-code completion.
 
-After a successful return, the app restores that exact page and scroll position and sends
-an idempotent request to save the bill. Successful cache refreshes make every copy of its
-button read `✓ Tracked`; the reader never has to press Track a second time. Old incoming
-`?track=1` links remain accepted for compatibility, but new Track requests do not create
-them or redirect to a bill page.
+After a successful Google return or proved email code, the server saves the bill and consumes the
+reference in one protected transaction. A retry or second tab cannot save it twice. The app
+restores the safe return page and, for Google in the same browser, its scroll position.
+Successful cache refreshes make every copy of the button read `✓ Tracked`; the reader never
+has to press Track a second time. Old incoming `?track=1` links remain accepted for
+compatibility, but new Track requests do not create them or redirect to a bill page.
+
+The app waits for its saved-session check before deciding whether a Google return error is
+still real. A valid signed-in session wins over an old or repeated return error, and the
+saved Track request still finishes. With no valid session, the dialog shows the real error
+and keeps the same Track request ready for **Try again**. One fast double press can start
+only one Google sign-in attempt.
 
 ## Honest failures
 

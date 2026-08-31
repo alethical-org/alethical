@@ -11,8 +11,9 @@ Status: **partly superseded — read the note below before building from this.**
 > is the typed registry in `apps/frontend/src/navigation/ia.ts`, with decisions recorded in
 > `docs/product-onboarding/mvp-redesign-plan.md` § Locked decisions — including the top-nav shell (this doc
 > predates it and describes a tab-based mobile shell) and the Search split into `/bills` +
-> `/legislators`. Per-screen truth now lives in the screen specs
-> (`docs/product-onboarding/bill-search-screen-spec.md`) and the mockup bundles under `docs/mockups/`. Visual,
+> `/legislators`. Per-screen truth now lives in the feature guides and specs under
+> `docs/product-onboarding/`, including `bill-search-screen-spec.md`,
+> `bill-detail-guide.md`, and `legislator-profile-guide.md`. Visual,
 > interaction and accessibility rules are in `docs/design/design-principles.md`.
 >
 > Native iOS and Android are not built yet ([#91](https://github.com/alethical-org/alethical/issues/91));
@@ -668,7 +669,8 @@ Requirements:
 
 ## 10. Tracked Bills
 
-> **Superseded by what shipped.** Per-screen truth is `docs/mockups/tracked-bills-changed/`.
+> **Superseded by what shipped.** Per-screen behavior is owned by
+> `docs/product-onboarding/bill-tracking-spec.md` and the current tracked-list screen.
 > The sketches below show an All / Updates tab pair and a "Sort by latest update" control;
 > both were considered and **declined** ([#1009](https://github.com/alethical-org/alethical/issues/1009)):
 > a watchlist is short and self-curated, so the page groups what moved above what did not

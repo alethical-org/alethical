@@ -1,12 +1,12 @@
-<!-- describes: alethical/db/models.py, alethical/api/auth.py, alethical/api/routers/me.py, alethical/api/routers/contact.py, alethical/api/services/auth.py, alethical/api/services/contact.py, alethical/api/services/representative_lookup.py, alethical/logging.py, apps/frontend/src/screens/LegalScreens.tsx -->
+<!-- describes: alethical/db/models.py, alethical/api/auth.py, alethical/api/routers/me.py, alethical/api/routers/contact.py, alethical/api/services/auth.py, alethical/api/services/contact.py, alethical/api/services/representative_lookup.py, alethical/logging.py, alethical/monitoring.py, apps/frontend/src/screens/LegalScreens.tsx -->
 
 # What we keep about readers, and for how long
 
 **Net.** The bills are public. The people reading them are not. This says exactly what
 Alethical stores about a reader, why each piece exists, how long we keep it, and what
-happens when someone asks us to delete their account. It also says the two things that
-are not true yet: there is no way to delete an account, and the published Privacy Policy
-does not yet explain everything we collect or every host that can see it.
+happens when someone asks us to delete their account. It also says the thing that is not
+true yet: there is no way for a reader to delete an account, so we do it by hand. The
+published Privacy Policy was brought in line with this document on 14 August 2026 (§7).
 
 **Why this doc exists.** Google sign-in went live on 5 August 2026. Before that, an
 account was a thing we had designed but almost nobody had. Now real people have real
@@ -42,11 +42,11 @@ yet, which makes this the cheapest possible moment to adopt one.
 recommendation with no owner:
 [#1040](https://github.com/alethical-org/alethical/issues/1040) (build deletion) ·
 [#1041](https://github.com/alethical-org/alethical/issues/1041) (fix the public Privacy
-Policy) · [#1042](https://github.com/alethical-org/alethical/issues/1042) (drop the nine
+Policy, now done) · [#1042](https://github.com/alethical-org/alethical/issues/1042) (drop the nine
 dead columns) · [#1043](https://github.com/alethical-org/alethical/issues/1043) (the
 unwired "active" switch) ·
-[#1045](https://github.com/alethical-org/alethical/issues/1045) (the timestamp whose name
-lies) · [#1046](https://github.com/alethical-org/alethical/issues/1046) (make production
+[#1045](https://github.com/alethical-org/alethical/issues/1045) (give the identity-link
+timestamps honest names) · [#1046](https://github.com/alethical-org/alethical/issues/1046) (make production
 logs readable, now built) · [#1047](https://github.com/alethical-org/alethical/issues/1047) (backup retention
 and the leftover test account).
 
@@ -72,18 +72,20 @@ the job that queues them is not wired into anything yet (§2.5).
 ### 2.1 The account itself
 
 **What it holds.** A display name, a switch marked "active", the moment the account was
-first created, the last time the reader opened their tracked-bills page, and — only once
-the sign-in service has confirmed it — an email address.
+first created, the most recent time it gained a new sign-in method, the last time the
+reader opened their tracked-bills page, and — only once the sign-in service has
+confirmed it — an email address.
 
 **Why "only once confirmed".** `user_account.primary_email` is the address one sign-in
 method uses to find and join an account another sign-in method already made, so it is a
 key, not a contact detail. Since [#1039](https://github.com/alethical-org/alethical/issues/1039)
 nothing writes an unconfirmed address there, in either direction: an unconfirmed sign-in
 cannot use it to reach an existing account, and cannot reserve it so that the person who
-does own the address later joins _theirs_. All 5 accounts in production today came from
-Google, which always confirms, so all 5 have one. An account created from an unconfirmed
-sign-in would have none, and the address that sign-in claimed would sit on the Google-link
-row (`auth_identity.email`) instead, where it is not a key and opens nothing.
+does own the address later joins _theirs_. Alethical reads confirmation from Supabase's
+trusted user record, not from the sign-in token or a profile field the signed-in person can
+edit ([#1466](https://github.com/alethical-org/alethical/issues/1466)). An account created
+from an unconfirmed sign-in has no main email; the address that sign-in claimed sits on the
+Google-link row (`auth_identity.email`) instead, where it is not a key and opens nothing.
 
 **Where the name comes from.** Nobody types it. When someone signs in for the first
 time we take the part of their email address before the `@` and use that as their
@@ -120,14 +122,20 @@ All 6 accounts in production are active, and none has ever been set inactive (ch
 is left as the snapshot it says it is, but one account has been added since, so read §1
 as history rather than as today's numbers.
 
-**One timestamp does not mean what its name says.** `last_signed_in_at` reads like "the
-last time this person signed in." Since [#990](https://github.com/alethical-org/alethical/pull/990)
-merged on 5 August 2026 it is written only when an account gains a _new_ sign-in method
-— not when someone signs in, and not on any request. The values sitting in production
-today were written by the older behaviour, which updated it on every single request, so
-from today onward they are frozen and misleading. Nothing reads the column, so nothing
-is currently wrong; the moment a support question makes someone read it, it will be.
-Same story for `auth_identity.last_used_at`. Tracked as [#1045](https://github.com/alethical-org/alethical/issues/1045).
+**The 2 identity-link timestamps now say what they record.**
+`user_account.last_identity_linked_at` records when the account most recently gained a
+sign-in identity, and `auth_identity.linked_at` records when that identity was attached.
+Both are set in the same provisioning step and stay unchanged on ordinary sign-ins and
+requests. Alethical does not record login events. [Issue
+#991](https://github.com/alethical-org/alethical/issues/991) owns that work only if a
+real screen, report, or security feature later needs it.
+
+The rename kept every existing value exactly. That creates 1 known limit: values written
+before [#990](https://github.com/alethical-org/alethical/pull/990) merged on 5 August 2026
+may be the time of the last authenticated request under the old behaviour, not the true
+time the identity was linked. The original link time cannot be reconstructed. No product
+feature reads either field today, so old rows remain an explicitly limited historical
+record rather than being cleared or presented as exact.
 
 **Retention: as long as the account exists.** This row _is_ the account — everything else
 a reader has hangs off it — so it lasts exactly as long as the account does. Note that an
@@ -137,8 +145,9 @@ sign-in is matched on the Google-link row, which never looks at the email.
 ### 2.2 The link to Google
 
 **What it holds.** Which sign-in service was used, the permanent id that service gave
-us for this person, their email address as that service reported it, and when the
-address was confirmed.
+us for this person, their email address as that service reported it, when the identity
+was linked, and when the address was confirmed. The pre-5 August 2026 limit on old link
+dates is recorded in §2.1.
 
 **Why it is a separate table from the account.** So we can change how people sign in
 without rewriting the product. Today it is Google through Supabase; if that ever
@@ -283,18 +292,23 @@ no.
 Three kinds of reader data travel to third parties. Only one of the three is named in
 the published Privacy Policy.
 
-| Who gets it                                 | What they get                                                           | When                                                                                                 | Named in our Privacy Policy? |
-| ------------------------------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ---------------------------- |
-| Google (through Supabase)                   | Name, email address, profile picture, a sign-in id                      | Every sign-in                                                                                        | Yes                          |
-| Supabase                                    | The same, plus it hosts the whole database                              | Always                                                                                               | Yes                          |
-| **OpenAI**                                  | **A reader-written question, word for word; or public suggestion text** | Every reader-written Ask and chat message when configured; the first uncached public suggestion only | **Yes**                      |
-| **Anthropic**                               | **A reader-written question, word for word; or public suggestion text** | Every reader-written Ask and chat message when configured; the first uncached public suggestion only | **Yes**                      |
-| **US Census Bureau**                        | **The full street address, with surrounding spaces removed**            | Every Find My Legislator address search                                                              | **Yes**                      |
-| **Minnesota Geospatial Information Office** | **The house number and street-name prefix, without city or ZIP**        | While suggestions are open; also after Census retries find no match                                  | **Yes**                      |
-| Vercel                                      | Hosts the web app, so its request logs see every page address (§7)      | Every page load                                                                                      | No, and it should be         |
-| Cloudflare                                  | Sits in front of the API                                                | Every API call                                                                                       | No, and it should be         |
-| Resend                                      | Contact name, email, phone, subject, and message                        | Every Contact us send                                                                                | Yes                          |
-| Google Workspace                            | Alethical's delivered copy of the same contact message                  | Every Contact us send                                                                                | Yes, through the Resend line |
+| Who gets it                                 | What they get                                                                                                         | When                                                                                                 | Named in our Privacy Policy? |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- | ---------------------------- |
+| Google (through Supabase)                   | Name, email address, profile picture, a sign-in id                                                                    | Every sign-in                                                                                        | Yes                          |
+| Supabase                                    | The same, plus it hosts the whole database                                                                            | Always                                                                                               | Yes                          |
+| **OpenAI**                                  | **A reader-written question, word for word; or public suggestion text**                                               | Every reader-written Ask and chat message when configured; the first uncached public suggestion only | **Yes**                      |
+| **Anthropic**                               | **A reader-written question, word for word; or public suggestion text**                                               | Every reader-written Ask and chat message when configured; the first uncached public suggestion only | **Yes**                      |
+| **US Census Bureau**                        | **The full street address, with surrounding spaces removed**                                                          | Every Find My Legislator address search                                                              | **Yes**                      |
+| **Minnesota Geospatial Information Office** | **The house number and street-name prefix, without city or ZIP**                                                      | While suggestions are open; also after Census retries find no match                                  | **Yes**                      |
+| Vercel                                      | Hosts the web app, so its request logs see every page address (§7)                                                    | Every page load                                                                                      | Yes                          |
+| Cloudflare                                  | Sits in front of the API; its Web Analytics script also receives page-speed and broad browser details                 | Every API call; every website visit after the script loads                                           | Yes                          |
+| Google Search Console                       | Sitewide search appearances and visits; Alethical publishes no search phrase, page, country, device, or person detail | When the public Site metrics totals refresh                                                          | Yes                          |
+| Bing Webmaster Tools                        | The same sitewide search totals and the same public limits                                                            | When the public Site metrics totals refresh                                                          | Yes                          |
+| Checkly                                     | The 3 public Alethical addresses it tests                                                                             | Every 2 minutes from North Virginia                                                                  | Yes                          |
+| Railway                                     | Runs the API and captures its log stream (§7)                                                                         | Every API call                                                                                       | Yes                          |
+| Sentry                                      | Error class, code stack, safe route pattern, and public operating labels; **no reader data**                          | Only when an import, sign-in service, answer provider, or API request fails                          | Yes                          |
+| Resend                                      | Contact name, email, phone, subject, and message                                                                      | Every Contact us send                                                                                | Yes                          |
+| Google Workspace                            | Alethical's delivered copy of the same contact message                                                                | Every Contact us send                                                                                | Yes, through the Resend line |
 
 **The good half.** No account identifier ever reaches a model. The prompt we send is
 built from the bill's identifier, the reader's question, and passages of bill text
@@ -309,10 +323,10 @@ sent to the Minnesota Legislative Coordinating Commission.
 The lookup endpoint does not require sign-in and never reads the caller's account.
 
 **The bad half.** A reader's typed question leaves our systems on every single Ask and
-every chat message. The Privacy Policy now names the AI and government services that
-receive question or location data, but it still does not name the hosting layers that
-see requests or explain every category we collect. Closing the remaining gap is
-[#1041](https://github.com/alethical-org/alethical/issues/1041).
+every chat message. The Privacy Policy names every recipient in the table above, including
+the hosting layers, as of 14 August 2026
+([#1041](https://github.com/alethical-org/alethical/issues/1041)). Naming them does not
+make the question stop travelling; it makes the reader able to see that it does.
 
 ---
 
@@ -438,20 +452,33 @@ delete their data, honouring it means someone hand-writing SQL against productio
 nothing to check their work against. **Everything in §6 above is a proposal, not a
 description.** Building it is [#1040](https://github.com/alethical-org/alethical/issues/1040).
 
-**The published Privacy Policy is narrower than what we collect.** The live page
-(`apps/frontend/src/screens/LegalScreens.tsx`, effective 16 June 2026, updated 7 August 2026) says under
-_Information We Collect_ that we collect Google profile information, authentication
-data, and usage data. It does not mention the questions people type, the bills they
-follow, their alert settings, or a saved address. Under _How We Share Information_ it
-names Supabase, Google, OpenAI, Anthropic, the US Census Bureau, the Minnesota
-Geospatial Information Office. It no longer names the Minnesota Legislative
-Coordinating Commission because the commission no longer receives a reader's location
-during a lookup; the map itself still credits the commission as its source. The page
-still does not name Vercel or Cloudflare (§4). Under _Data Retention_ it says we keep
-things "as long as your account is active," which is a real answer but not a
-per-category one. Under _Your Rights_ it
-offers access, correction, export and deletion on request, which is a promise we
-currently have no mechanism to keep. Bringing the page in line is [#1041](https://github.com/alethical-org/alethical/issues/1041).
+**The published Privacy Policy now matches this document** (`apps/frontend/src/screens/LegalScreens.tsx`,
+effective and updated 15 August 2026, [#1041](https://github.com/alethical-org/alethical/issues/1041)).
+_Information We Collect_ lists every category in §2 that a reader can actually reach: the
+manufactured display name, followed bills and their notes, the alert switch, messages typed
+into a bill conversation, and Ask questions. Under _How We Share Information_ it names
+Supabase, Google, OpenAI, Anthropic, the US Census Bureau, the Minnesota Geospatial
+Information Office, Resend, Vercel, Cloudflare, Railway, Sentry, Google Search Console,
+Bing Webmaster Tools, and Checkly (§4). It no longer names
+the Minnesota Legislative Coordinating Commission because the commission no longer receives a
+reader's location during a lookup; the map itself still credits the commission as its source.
+_Data Retention_ carries the per-category periods from §9 rather than one blanket sentence,
+and _Your Rights_ says plainly that deletion and export are done by hand because no button
+exists.
+
+**One deliberate omission remains because the page may only describe what a reader can
+reach.** A saved home address is not mentioned, because nothing in the app can save one
+(§2.3). The page would be describing a feature that does not exist. No saved-address
+promise ships before the feature that can write one. The 4 installed
+analytics services and the outside availability check are named because their collection
+and disclosure ship together.
+
+**The page does not claim an automatic sweeper, because there is none.** §9's periods are
+stated on the page as limits we keep to. Nothing enforces the 24-month conversation limit or
+the 90-day sent-alert limit in code, and nothing has reached either yet — the oldest message
+was 129 days old on 5 August 2026, and no alert has ever been sent (§2.6). Enforcing them
+falls out of [#1040](https://github.com/alethical-org/alethical/issues/1040), which builds
+the deletion path they would run on.
 
 **Server-side logs are readable in Railway.** The API keeps its rotating local file and,
 when Railway's own environment marker is present, also writes to the log stream Railway
@@ -480,21 +507,45 @@ nothing outside our own database, it is what makes a bug report actionable, and 
 disappears when the account is deleted. The formatter is a final safety net, not
 permission for new code to log a request body, address, location, or question.
 
-**Reader questions travel in the page address, by design.** `/ask?q=<the question>` and
-`/chat/new?prompt=<the question>` both put typed text into the URL
-(`apps/frontend/src/navigation/webRoutes.ts`). This is deliberate and correct —
-[`grounded-answers.md`](../../.claude/rules/grounded-answers.md) rule 5 requires every
-answer to be reachable by a link someone can share. The cost is that the question lands
-in browser history, in the referrer sent to any link the reader clicks next, and in the
-web host's request logs. The API itself is clean: every path that carries a question is
-a POST with the text in the body, so nothing in front of the API ever sees it in a URL.
+**Sentry error alerts follow a narrower rule than Railway logs.** Sentry receives an
+error class and code stack, the release and environment, a route pattern with real ids
+removed, and a small set of public operating labels such as a bill key or provider name.
+It receives no request, request body, web-address query, log line, exception message,
+local variable, performance trace, account id, name, email address, typed address,
+location, question, message, or answer. Sentry's automatic framework and logging hooks
+are off; Alethical sends only the failures named in
+[`docs/operations/error-monitoring.md`](../operations/error-monitoring.md).
+
+**Reader questions travel in the page address, by design.** `/ask?q=<the question>` puts typed text
+into a shareable URL. An old `/chat/new?prompt=<the question>` address now redirects Home, but its
+question can remain in browser history and in the host's redirect request log. The cost is that a
+question in either address can reach browser history, the referrer sent to a later link, and the web
+host's request logs. The API itself is clean: every API path that carries a question is a POST with
+the text in the body, so nothing in front of the API ever sees it in an API URL.
 **The tension is real and the shareable link wins**, but the consequence should be named
 in the Privacy Policy rather than discovered.
 
-**No analytics of any kind are installed.** No Google Analytics, no PostHog, no Vercel
-Analytics, nothing. There is no analytics retention question to answer because there is
-no analytics. Worth recording, because the next person to add a product-metrics tool
-needs to know they are the first, and that §5 rule 3 applies to them.
+**Vercel Web Analytics counts page loads.** It uses no analytics cookie and receives no
+name, email address, or account identifier. Before a page address is sent, everything
+after `?` or `#` is removed. Vercel receives no custom action events. Vercel produces
+combined page-view counts and a daily anonymous visitor estimate; Alethical keeps no
+per-reader analytics record of its own. The public `/site-metrics` page reads only combined
+24-hour, 7-day, and 30-day totals through a server route whose Vercel access token never
+reaches the browser.
+
+Analytics waits for the sign-in check. A signed-in account identifier goes only to an
+Alethical server route that decides whether the account is on a server-only exclusion
+list. If that decision cannot be read, analytics stays off for the signed-in visit. The
+identifier is never sent to Vercel. The lasting behavior and server settings are in
+`docs/product-onboarding/traffic-guide.md`.
+
+**Search discovery, availability, and speed stay combined.** Google Search Console and
+Bing Webmaster Tools feed only sitewide 30-day appearance and visit totals to the public
+Site metrics page. Checkly opens only 3 public Alethical addresses. Cloudflare Web Analytics
+uses no cookies, local storage, or fingerprinting, but it receives speed measurements,
+cleaned page paths, referrers, broad place and browser facts, and some element or resource
+details. Alethical publishes only sitewide 30-day speed scores after 50 measured visits.
+No reader-level record from any of these sources is stored in Alethical's database.
 
 ---
 
@@ -526,13 +577,15 @@ in the change that adds this document.
 now read on every authenticated request, so it locks the account it claimed to lock. See
 §2.1.
 
-**Deliberately kept even though nothing reads them.** `user_account.last_signed_in_at`,
-`auth_identity.last_used_at`, and `auth_identity.email_verified_at`. Unlike a latitude
-we could recompute from a live lookup, a timestamp cannot be reconstructed after the
-fact — once you did not write it down, it is gone. All three have obvious future
-readers: answering "when did this person last use the account" (once [#1045](https://github.com/alethical-org/alethical/issues/1045) makes that true), investigating abuse, and
-knowing whether an address was ever confirmed. They keep the account's retention period.
-The naming problem in §2.1 is a separate fix.
+**Deliberately kept even though nothing reads them.**
+`user_account.last_identity_linked_at`, `auth_identity.linked_at`, and
+`auth_identity.email_verified_at`. Unlike a latitude we could recompute from a live
+lookup, a timestamp cannot be reconstructed after the fact — once you did not write it
+down, it is gone. Their honest future readers are an account's sign-in-method history,
+an abuse investigation, and proof that an address was confirmed. They keep the
+account's retention period. They do not answer when someone last signed in; [issue
+#991](https://github.com/alethical-org/alethical/issues/991) owns a separate login-event
+write path if a real product need appears.
 
 ---
 
@@ -550,6 +603,7 @@ The naming problem in §2.1 is a separate fix.
 | Conversations and messages                           | **24 months from the last message**, then deleted whether or not the account is active | Matches the two-year biennium the record is organised by                                                  |
 | Contact us message                                   | No Alethical database copy; inbox and provider copies follow §2.8                      | The message exists only to answer the person and keep the support record                                  |
 | Server logs                                          | Whatever the host keeps; no reader data in them at all (§7 rule)                       | Redaction beats retention — the cheapest data to keep safe is data you never wrote                        |
+| Sentry error events                                  | 30 days on Sentry's free plan; no reader data in them (§7)                             | Enough time to fix a failure without creating another copy of anything a reader supplied                  |
 | Anonymous counts                                     | Indefinitely                                                                           | Nothing in them points at a person                                                                        |
 
 ---
@@ -563,8 +617,10 @@ The naming problem in §2.1 is a separate fix.
   before it is switched on.
 - **Any new column on a user table.** Comes with an answer to "what reads this?" at the
   moment it is added. §8 is what happens when that question goes unasked for a year.
-- **The public Privacy Policy.** Should be brought in line with §2 and §4. It is the
-  version of this document that readers actually see, and right now the two disagree.
+- **The public Privacy Policy.** It is the version of this document that readers actually
+  see, and since 14 August 2026 the two agree (§7). Any change to what we collect, who
+  receives it, or how long we keep it updates both in the same change, or they drift apart
+  again.
 
 ---
 

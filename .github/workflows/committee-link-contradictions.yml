@@ -1,0 +1,110 @@
+name: Re-check which committee belongs to which legislator
+
+# Catches a confirmed identity link that Minnesota's own records no longer agree with
+# (#1861). This is the only thing watching after a person signs one of these, and until
+# this workflow existed nothing was: the check was wired into `load_campaign_finance`,
+# which is on no schedule and is run by hand from a laptop, and the last run was
+# 12 Aug 2026 — 19 days before the first review sitting confirmed 242 links. So the
+# guard had never once looked at what it protects.
+#
+# Why it needs a schedule of its own rather than riding the load. A wrong link publishes
+# one person's money under another named politician's photograph, and nothing else in the
+# system would notice: the money service carries no committee name, no registration
+# number and no filer identifier, so 2 different filers return structurally identical
+# documents (campaign-finance-system-design.md §5.1). A second human reviewer was
+# considered and rejected, because 2 people reading one committee name share its
+# mistakes. What is independent of the reviewer is the sources, and this is what re-reads
+# them.
+#
+# Weekly, not daily, and that is a decision rather than a default. Minnesota republishes
+# the contributions file on filing deadlines, so a daily run would download 83 MB from a
+# government website 6 extra times a week to compare the same rows against the same
+# rows. The next reporting deadline is 26 Oct 2026.
+#
+# Free: 2 public downloads from cfb.mn.gov, one read-only query against production, no
+# paid API. Quiet: it opens an issue only when a link actually contradicts its sources,
+# and comments on the existing open one rather than filing a second.
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 15:00 UTC Mondays. Every other slot in this repo is taken: 09:00, 11:00, 12:00,
+    # 13:00 and 14:00 daily, plus 10:00 and 13:00 on Mondays, so this contends with
+    # nothing for the database or for the Board's servers.
+    - cron: "0 15 * * 1"
+
+concurrency:
+  group: production-committee-link-recheck
+  cancel-in-progress: false
+
+jobs:
+  recheck:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    # The same Supabase inputs the app, the migrations and every other scheduled check
+    # use, so there is no second copy of the password to rotate out of date.
+    env:
+      ALETHICAL_DATABASE_TARGET: production
+      SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          version: 0.12.5
+          enable-cache: true
+          prune-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version-file: ".python-version"
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Check database secrets are set
+        run: test -n "$SUPABASE_PROJECT_URL" && test -n "$SUPABASE_DB_PASSWORD"
+
+      # Read-only, and it writes no link either way: it reports and never repairs,
+      # because a contradiction wants a person's eyes and deleting a link somebody signed
+      # would be the same overreach in the other direction.
+      #
+      # Three things here are load-bearing:
+      #   * --download resolves the contributions link off the Board's own page every
+      #     run rather than hardcoding it. The download numbers are signed and negative
+      #     and a stale one answers HTTP 200 with a 39 KB HTML error page, so the script
+      #     checks the header line before using the file.
+      #   * PYTHONPATH=. — the script lives in scripts/, so a plain `uv run python
+      #     scripts/...` puts scripts/ on sys.path instead of the repository root and
+      #     dies on `import alethical`. That failure would fire the alert below and file
+      #     an issue claiming a link contradicts its sources when nothing was compared.
+      #   * shell: bash — GitHub's default is `bash -e` WITHOUT pipefail, so the `| tee`
+      #     would hand back tee's exit code and swallow the script's non-zero.
+      - name: Re-check every confirmed link against both sources
+        shell: bash
+        run: |
+          PYTHONPATH=. uv run python scripts/review_legislator_campaign_committees.py \
+            verify --download contributions.csv --target production \
+            | tee recheck-report.txt
+
+      - name: Open an alert issue if any link contradicts its sources
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          title="A confirmed committee link no longer agrees with Minnesota's records"
+          report=$(cat recheck-report.txt 2>/dev/null || echo "(the check produced no output — it may have failed before querying)")
+          body=$(printf '**Net:** At least one campaign account confirmed as belonging to a named politician no longer matches what Minnesota publishes about it. That account'"'"'s money is on that person'"'"'s profile right now, and a wrong one publishes somebody else'"'"'s money under a real politician'"'"'s photograph. Nothing else in the product would notice, which is why this check exists.\n\n```\n%s\n```\n\n**What to do.** A person decides, and the check never repairs — deleting a link somebody signed would be the same overreach in the other direction. Read the case, then answer it in the reviewing tool:\n\n```\nPYTHONPATH=. uv run python scripts/review_legislator_campaign_committees.py propose --download /tmp/contributions.csv --target production\nPYTHONPATH=. uv run python scripts/review_legislator_campaign_committees.py review --contributions /tmp/contributions.csv --target production\n```\n\n**Three of these are not mistakes**, and the report says which it found. A committee renaming between downloads is a thing to notice rather than a contradiction, because the Board publishes a committee'"'"'s CURRENT name against all of its history. A candidate'"'"'s register row moving to another office is their own new race. A row leaving the register of current candidates usually means the committee closed. A changed seat, a changed party, or a different named candidate is the one that needs the link revisited.\n\nBackground: [#1861](https://github.com/alethical-org/alethical/issues/1861), and the standard every link is held to is in [campaign-finance-system-design.md §5.1](https://github.com/alethical-org/alethical/blob/main/docs/architecture/campaign-finance-system-design.md). Run: %s. Auto-filed by `.github/workflows/committee-link-contradictions.yml`.' "$report" "$RUN_URL")
+          existing=$(gh issue list --state open --search "$title in:title" --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "Still contradicting as of this run — $RUN_URL"$'\n\n```\n'"$report"$'\n```'
+          else
+            gh issue create --title "🚨 $title" --label backend --body "$body"
+          fi

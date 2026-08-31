@@ -3,13 +3,29 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { PNG } from 'pngjs';
+import { Resvg } from '@resvg/resvg-js';
+
+const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 export const BRAND_GREEN = [46, 212, 126];
 export const BRAND_INK = [17, 21, 15];
 export const MARK_PATH = 'M0 82 L38 0 L38 82 Z M84 82 L46 0 L46 82 Z';
 
 export const BRAND_ASSETS = [
-  { path: 'assets/favicon.png', size: 512, background: null, color: BRAND_GREEN, scale: 0.78 },
+  // The browser tab / search-result icon. Both values below are load-bearing,
+  // driven by how Google Search redraws a favicon. Measured against live Google
+  // data Aug 2026; full evidence and the rejected alternative are in
+  // docs/architecture/page-metadata-for-search-and-sharing-decisions.md §13.
+  //  - `background` must stay opaque. Google trims a favicon's transparent margin
+  //    away and rescales the artwork to fill the square, so padding inside a
+  //    transparent icon is discarded: the mark ends up edge to edge, and the
+  //    results page's circular crop then cuts its two bottom corners. An opaque
+  //    square has no transparent margin to trim, so this framing survives.
+  //  - `scale` must stay at or below 0.65. The mark's widest points are its bottom
+  //    corners, sqrt(1 + (84/82)^2) / 2 = 0.716 of the mark's height from center,
+  //    so a circular crop starts clipping them once the mark passes 0.699 of the
+  //    canvas. 0.65 keeps a ~7% margin inside that circle.
+  { path: 'assets/favicon.png', size: 512, background: BRAND_INK, color: BRAND_GREEN, scale: 0.65 },
   { path: 'assets/icon.png', size: 1024, background: BRAND_INK, color: BRAND_GREEN, scale: 0.52 },
   {
     path: 'assets/android-icon-foreground.png',
@@ -55,16 +71,61 @@ export const BRAND_ASSETS = [
   },
   {
     path: 'public/social-preview.png',
+    kind: 'social-card',
     width: 1200,
     height: 630,
-    background: BRAND_INK,
-    color: BRAND_GREEN,
-    scale: 0.62,
   },
 ];
 
-const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const sampleOffsets = [0.125, 0.375, 0.625, 0.875];
+
+function renderSocialPreviewAsset() {
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+      <rect width="1200" height="630" fill="#11150f" />
+
+      <g transform="translate(84 72) scale(0.48)" fill="#2ed47e">
+        <path d="${MARK_PATH}" />
+      </g>
+      <text
+        x="142"
+        y="105"
+        fill="#f8fbf9"
+        font-family="Space Grotesk"
+        font-size="28"
+        font-weight="500"
+        letter-spacing="4.48"
+      >ALETHICAL</text>
+
+      <g fill="#ffffff" font-family="Libre Franklin" font-size="64" font-weight="700">
+        <text x="84" y="252">Minnesota’s legislative</text>
+        <text x="84" y="328">record in plain language.</text>
+      </g>
+      <text
+        x="84"
+        y="416"
+        fill="#eaf6ef"
+        font-family="Libre Franklin"
+        font-size="30"
+        font-weight="400"
+      >With links to official sources.</text>
+
+      <g transform="translate(910 194) scale(2.92)" fill="#2ed47e">
+        <path d="${MARK_PATH}" />
+      </g>
+    </svg>
+  `;
+  const fontFiles = [
+    resolve(projectRoot, 'assets/fonts/libre-franklin/LibreFranklin-Regular.ttf'),
+    resolve(projectRoot, 'assets/fonts/libre-franklin/LibreFranklin-Bold.ttf'),
+    resolve(projectRoot, 'assets/fonts/space-grotesk/SpaceGrotesk-Medium.ttf'),
+  ];
+  return new Resvg(svg, {
+    font: { fontFiles, loadSystemFonts: false },
+  })
+    .render()
+    .asPng();
+}
 
 function triangleContains(px, py, [ax, ay], [bx, by], [cx, cy]) {
   const edge = (x1, y1, x2, y2, x, y) => (x - x1) * (y2 - y1) - (y - y1) * (x2 - x1);
@@ -74,7 +135,12 @@ function triangleContains(px, py, [ax, ay], [bx, by], [cx, cy]) {
   return (d1 <= 0 && d2 <= 0 && d3 <= 0) || (d1 >= 0 && d2 >= 0 && d3 >= 0);
 }
 
-export function renderBrandAsset({ size, width = size, height = size, background, color, scale }) {
+export function renderBrandAsset(asset) {
+  if (asset.kind === 'social-card') {
+    return renderSocialPreviewAsset();
+  }
+
+  const { size, width = size, height = size, background, color, scale } = asset;
   const png = new PNG({ width, height });
   const markHeight = Math.min(width, height) * scale;
   const markWidth = markHeight * (84 / 82);

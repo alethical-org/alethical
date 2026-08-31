@@ -22,6 +22,7 @@ import { VoteCountLinkChip } from '../../components/VoteCountLinkChip';
 import { coAuthorCount, formatMonoDate, partyFull, plainBillSummary } from '../../lib/billDetail';
 import {
   buildAskChips,
+  legislatorDisplayName,
   legislatorVoteLabel,
   splitOfficeAddress,
 } from '../../lib/legislatorProfile';
@@ -30,9 +31,16 @@ import { externalLinkProps, linkProps, pressInsideLink, routePath } from '../../
 import {
   useLegislator,
   useLegislatorBills,
+  useLegislatorCampaignMoney,
   useLegislatorVotes,
   useSessions,
 } from '../../hooks/useAppQueries';
+import { CampaignMoneyTab } from '../../components/campaignMoney/CampaignMoneyTab';
+import {
+  LegislatorProfileTabs,
+  type ProfileTab,
+} from '../../components/campaignMoney/LegislatorProfileTabs';
+import { campaignMoneyYear, type CampaignMoneyYear } from '../../lib/legislatorCampaignMoney';
 import { Bill, Legislator } from '../../data/types';
 import { formatLegislatureLabel } from '../../lib/sessionLabel';
 import { BillTrackButton } from '../../components/billDetail/BillTrackButton';
@@ -43,7 +51,12 @@ import {
   CARD_CONTROL_LAYER,
   CARD_LINK_LAYER,
 } from '../../lib/billCardControlLayers';
-import { buildLegislatorShareContent, publicPageUrl } from '../../lib/share';
+import {
+  buildLegislatorShareContent,
+  legislatorPageMetadata,
+  publicPageUrl,
+} from '../../lib/share';
+import { useDocumentTitle } from '../../navigation/documentTitle';
 
 const isWeb = Platform.OS === 'web';
 const COLUMN_MAX = 640;
@@ -74,13 +87,6 @@ const claimPreviewStyle: CSSProperties = {
 function useHover(): [boolean, { onHoverIn: () => void; onHoverOut: () => void }] {
   const [hovered, setHovered] = useState(false);
   return [hovered, { onHoverIn: () => setHovered(true), onHoverOut: () => setHovered(false) }];
-}
-
-// Official title form: "Sen. …" / "Rep. …", stripping any existing chamber prefix
-// on the stored name so we don't double it up.
-function honorificName(name: string, chamber: Legislator['chamber']) {
-  const stripped = name.replace(/^(Senator|Representative|Sen\.|Rep\.)\s+/i, '').trim();
-  return `${chamber === 'House' ? 'Rep.' : 'Sen.'} ${stripped}`;
 }
 
 function initialsOf(name: string) {
@@ -330,6 +336,7 @@ function AskCard({ chips, onAsk }: { chips: string[]; onAsk: (q: string) => void
     <View style={styles.askCard}>
       <Text
         accessibilityRole="header"
+        aria-level={2}
         accessibilityLabel="Ask about these issues"
         style={styles.askTitle}
       >
@@ -368,12 +375,38 @@ export function LegislatorProfileMobileScreen() {
   const votesQuery = useLegislatorVotes(legislatorId, 1);
   const sessionsQuery = useSessions();
 
+  // The money lives on its own address so it can carry its own freshness date and its
+  // own year, neither of which the rest of the profile shares (#1329).
+  const activeTab: ProfileTab = params.tab === 'money' ? 'money' : 'overview';
+  const moneyYear = campaignMoneyYear(typeof params.year === 'string' ? params.year : undefined);
+  const moneyQuery = useLegislatorCampaignMoney(legislatorId, moneyYear, {
+    enabled: activeTab === 'money',
+  });
+
+  const selectTab = (tab: ProfileTab) => {
+    navigation.setParams({ tab: tab === 'overview' ? undefined : tab });
+  };
+  const selectMoneyYear = (year: CampaignMoneyYear) => {
+    navigation.setParams({ tab: 'money', year: String(year) });
+  };
+
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [sessionOpen, setSessionOpen] = useState(false);
   const [showAllBills, setShowAllBills] = useState(false);
 
   const leg = legQuery.data;
+  // Same shared builder api/page.ts used for the first response (#1325).
+  useDocumentTitle(
+    legislatorId ? `/legislators/${legislatorId}` : null,
+    leg
+      ? legislatorPageMetadata({
+          slug: leg.slug ?? leg.id,
+          displayName: legislatorDisplayName(leg.name, leg.chamber),
+          districtLine: `${leg.chamber} District ${leg.district}`,
+        }).title
+      : null,
+  );
   const currentSession = useMemo(
     () => sessionsQuery.data?.find((s) => s.isCurrent) ?? sessionsQuery.data?.[0],
     [sessionsQuery.data],
@@ -421,8 +454,7 @@ export function LegislatorProfileMobileScreen() {
 
   const shareContent = leg
     ? buildLegislatorShareContent({
-        displayName: honorificName(leg.name, leg.chamber),
-        partyLabel: partyFull(leg.party),
+        displayName: legislatorDisplayName(leg.name, leg.chamber),
         districtLine: `${leg.chamber} District ${leg.district}`,
         url: publicPageUrl(`/legislators/${encodeURIComponent(leg.slug ?? leg.id)}`),
       })
@@ -487,13 +519,17 @@ export function LegislatorProfileMobileScreen() {
                         source={{ uri: leg.photoUrl }}
                         accessibilityLabel={leg.name}
                         style={styles.portraitImg}
-                        resizeMode="cover"
+                        // Fit-inside, never fill — see LEGISLATOR_PORTRAIT_HEIGHT
+                        // in lib/legislatorSearch.ts for why (#1334).
+                        resizeMode="contain"
                       />
                     ) : (
                       <Text style={styles.portraitInitials}>{initialsOf(leg.name)}</Text>
                     )}
                   </View>
-                  <Text style={styles.heroName}>{honorificName(leg.name, leg.chamber)}</Text>
+                  <Text accessibilityRole="header" aria-level={1} style={styles.heroName}>
+                    {legislatorDisplayName(leg.name, leg.chamber)}
+                  </Text>
                 </View>
                 <View style={styles.metaRow}>
                   <View style={styles.metaLeft}>
@@ -517,291 +553,363 @@ export function LegislatorProfileMobileScreen() {
               </View>
             </View>
 
-            {/* BIOGRAPHY */}
-            {hasRealBio ? (
-              <View style={styles.section}>
-                <View style={styles.column}>
-                  <View style={styles.card}>
-                    <Text accessibilityRole="header" style={styles.cardTitle}>
-                      Biography
-                    </Text>
-                    <Text style={styles.bodyText}>{hasRealBio}</Text>
-                  </View>
-                </View>
-              </View>
-            ) : null}
-
-            {/* COMMITTEES */}
-            {committees.length > 0 ? (
-              <View style={styles.section}>
-                <View style={styles.column}>
-                  <View style={styles.card}>
-                    <Text accessibilityRole="header" style={styles.cardTitle}>
-                      Committees
-                    </Text>
-                    <View style={styles.committeeList}>
-                      {committees.map((c) => (
-                        <CommitteeRow key={c.name} name={c.name} role={c.role} />
-                      ))}
-                    </View>
-                  </View>
-                </View>
-              </View>
-            ) : null}
-
-            {/* LEGISLATIVE SERVICE (issue #486) — renders only with real data */}
-            {service && service.lines.length > 0 ? (
-              <View style={styles.section}>
-                <View style={styles.column}>
-                  <View style={styles.card}>
-                    <Text accessibilityRole="header" style={styles.cardTitle}>
-                      Legislative Service
-                    </Text>
-                    <View style={styles.serviceList}>
-                      {service.lines.map((line, index) => (
-                        <Text key={`${line.label}-${index}`} style={styles.serviceLine}>
-                          <Text style={styles.serviceLabel}>{line.label}: </Text>
-                          {line.elected}
-                        </Text>
-                      ))}
-                      {service.term ? (
-                        <Text style={styles.serviceLine}>
-                          <Text style={styles.serviceLabel}>Term: </Text>
-                          {service.term}
-                        </Text>
-                      ) : null}
-                    </View>
-                  </View>
-                </View>
-              </View>
-            ) : null}
-
-            {/* CONTACT */}
-            {leg.officeAddress || leg.phone || leg.profileUrl ? (
-              <View style={styles.section}>
-                <View style={styles.column}>
-                  <View style={styles.card}>
-                    <Text accessibilityRole="header" style={styles.cardTitle}>
-                      Contact
-                    </Text>
-                    <View style={styles.contactList}>
-                      {office?.leadership ? (
-                        <View>
-                          <Text style={styles.contactLabel}>LEADERSHIP</Text>
-                          <Text style={styles.contactValue}>{office.leadership}</Text>
-                        </View>
-                      ) : null}
-                      {office?.address ? (
-                        <View>
-                          <Text style={styles.contactLabel}>CAPITOL OFFICE</Text>
-                          <Text style={styles.contactValue}>{office.address}</Text>
-                        </View>
-                      ) : null}
-                      {leg.phone ? (
-                        <View>
-                          <Text style={styles.contactLabel}>PHONE</Text>
-                          <Text style={styles.contactValue}>{leg.phone}</Text>
-                        </View>
-                      ) : null}
-                      {leg.profileUrl ? (
-                        <TextLink
-                          label={`Official ${leg.chamber} profile →`}
-                          href={leg.profileUrl}
-                          onPress={() => openExternal(leg.profileUrl as string)}
-                          external
-                        />
-                      ) : null}
-                    </View>
-                  </View>
-                </View>
-              </View>
-            ) : null}
-
-            {/* CHIEF-AUTHORED BILLS */}
+            {/* TABS — Overview and Campaign money, each its own address (#1329) */}
             <View style={styles.section}>
               <View style={styles.column}>
-                <Text accessibilityRole="header" style={styles.sectionHeading}>
-                  Chief-Authored Bills
-                </Text>
-                <View style={styles.sessionFilterWrap}>
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={() => setSessionOpen((v) => !v)}
-                    style={styles.sessionBtn}
-                  >
-                    <Text style={styles.sessionBtnText}>
-                      {currentSession ? formatLegislatureLabel(currentSession) : 'Current session'}
-                    </Text>
-                    <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-                      <Path
-                        d="M6 9 L12 15 L18 9"
-                        stroke={t.colors.text.faint}
-                        strokeWidth={2.2}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </Svg>
-                  </Pressable>
-                  {sessionOpen ? (
-                    <>
-                      <Pressable
-                        style={styles.popoverScrim}
-                        onPress={() => setSessionOpen(false)}
-                        accessibilityLabel="Close"
-                      />
-                      <View style={styles.popover} accessibilityRole="menu">
-                        <View style={styles.popoverActive}>
-                          <Text style={styles.popoverActiveText}>
-                            {currentSession
-                              ? formatLegislatureLabel(currentSession)
-                              : 'Current session'}
-                          </Text>
-                          <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
-                            <Path
-                              d="M5 12.5 L10 17.5 L19 7"
-                              stroke={t.colors.brand.graphics}
-                              strokeWidth={2.4}
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </Svg>
-                        </View>
-                        {pastSessions.map((s) => (
-                          <View key={s.slug} style={styles.popoverPast}>
-                            <Text style={styles.popoverPastText}>{formatLegislatureLabel(s)}</Text>
-                            <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
-                              <Path
-                                d="M5 11 h14 v9 h-14 Z"
-                                stroke={t.colors.text.faint}
-                                strokeWidth={2}
-                                strokeLinejoin="round"
-                              />
-                              <Path
-                                d="M8 11 V8 a4 4 0 0 1 8 0 v3"
-                                stroke={t.colors.text.faint}
-                                strokeWidth={2}
-                                strokeLinecap="round"
-                              />
-                            </Svg>
-                          </View>
-                        ))}
-                        <Text style={styles.popoverNote}>
-                          Past-session archives — including retired legislators — are on the
-                          roadmap.
-                        </Text>
-                      </View>
-                    </>
-                  ) : null}
-                </View>
-
-                {billsQuery.isLoading ? (
-                  <View style={styles.billsLoading}>
-                    <ActivityIndicator color={t.colors.brand.base} />
-                  </View>
-                ) : allBills.length === 0 ? (
-                  <Text style={styles.emptyBills}>
-                    No chief-authored bills in{' '}
-                    {currentSession ? formatLegislatureLabel(currentSession) : 'this session'}.
-                  </Text>
-                ) : (
-                  <View style={styles.billList}>
-                    {visibleBills.map((bill) => (
-                      <BillCardView
-                        key={bill.id}
-                        bill={bill}
-                        legislatorId={legislatorId}
-                        onOpen={() => navigation.navigate('BillDetail', { billId: bill.id })}
-                        onVotes={() =>
-                          navigation.navigate('BillDetail', { billId: bill.id, tab: 'votes' })
-                        }
-                        onOpenLegislator={(id) =>
-                          navigation.navigate('LegislatorProfile', { legislatorId: id })
-                        }
-                        tracked={isTracked(bill.id)}
-                        onToggleTrack={() => toggleTrack(bill.id, bill.identifier)}
-                      />
-                    ))}
-                    {allBills.length > 2 && !showAllBills ? (
-                      <Pressable
-                        accessibilityRole="button"
-                        onPress={() => setShowAllBills(true)}
-                        style={styles.seeMore}
-                      >
-                        <Text style={styles.seeMoreText}>See more →</Text>
-                      </Pressable>
-                    ) : null}
-                  </View>
-                )}
-              </View>
-            </View>
-
-            {/* ASK ABOUT THIS LEGISLATOR */}
-            <View style={styles.section}>
-              <View style={styles.column}>
-                <AskCard
-                  chips={buildAskChips(allBills)}
-                  onAsk={(q) => navigation.navigate('Ask', { q, legislatorId })}
+                <LegislatorProfileTabs
+                  legislatorId={legislatorId}
+                  active={activeTab}
+                  year={String(moneyYear)}
+                  onSelect={selectTab}
                 />
               </View>
             </View>
 
-            {/* ON THE ROADMAP */}
-            <View style={styles.section}>
-              <View style={styles.column}>
-                <View style={styles.roadmapZone}>
-                  <Text style={styles.roadmapEyebrow}>ON THE ROADMAP</Text>
-                  <Text style={styles.roadmapSub}>Features we plan to build.</Text>
-
-                  <View style={styles.roadmapCard}>
-                    <Text accessibilityRole="header" style={styles.roadmapCardTitle}>
-                      Claim this profile
-                    </Text>
-                    <Text style={styles.roadmapCardBody}>
-                      Are you {honorificName(leg.name, leg.chamber)}? Claiming links you to this
-                      existing record, so you can manage your biography, write up the bills you’ve
-                      worked on, and add your own context. Verified against official legislative
-                      records.
-                    </Text>
-                    <span aria-disabled={true} style={claimPreviewStyle}>
-                      <ShieldCheck color={t.colors.brand.deep} />
-                      <Text style={styles.claimBtnText}>Claim this profile</Text>
-                    </span>
-                  </View>
-
-                  <View style={styles.roadmapCard}>
-                    <Text accessibilityRole="header" style={styles.roadmapCardTitle}>
-                      Why the votes?
-                    </Text>
-                    <Text style={styles.roadmapCardBody}>
-                      Wonder why {leg.shortName} voted that way? Once claimed, a legislator will
-                      have the option to explain any vote they cast — right here, in their own
-                      words, alongside the record.
-                    </Text>
-                    {previewVote ? (
-                      <View style={styles.votePreview}>
-                        <View style={styles.votePreviewTopRow}>
-                          <View style={styles.votePreviewCheck}>
-                            <Text style={styles.votePreviewCheckText}>✓</Text>
-                          </View>
-                          <Text style={styles.votePreviewVoted}>
-                            {legislatorVoteLabel(previewVote.vote)}
-                          </Text>
-                          <Text style={styles.votePreviewCode}>{previewVote.billCode}</Text>
-                          <Text style={styles.votePreviewMeta}>
-                            {formatMonoDate(previewVote.date)} · {previewVote.chamber.toUpperCase()}
-                          </Text>
-                        </View>
-                        <View style={styles.votePreviewLines}>
-                          <View style={[styles.votePreviewLine, { width: '100%' }]} />
-                          <View style={[styles.votePreviewLine, { width: '72%' }]} />
-                        </View>
-                        <Text style={styles.votePreviewLabel}>LEGISLATOR’S EXPLANATION</Text>
-                      </View>
-                    ) : null}
-                  </View>
+            {activeTab === 'money' ? (
+              <View style={styles.section}>
+                <View style={styles.column}>
+                  <CampaignMoneyTab
+                    legislatorName={legislatorDisplayName(leg.name, leg.chamber)}
+                    year={moneyYear}
+                    onSelectYear={selectMoneyYear}
+                    money={moneyQuery.data}
+                    isLoading={moneyQuery.isLoading}
+                    isError={moneyQuery.isError}
+                    isDesktop={false}
+                    legislatorId={legislatorId}
+                    onOpenSource={openExternal}
+                  />
                 </View>
               </View>
-            </View>
+            ) : (
+              <>
+                {/* CAMPAIGN MONEY POINTER — no figure on it, so this tab keeps one date */}
+                <View style={styles.section}>
+                  <View style={styles.column}>
+                    <View style={styles.card}>
+                      <Text accessibilityRole="header" aria-level={2} style={styles.cardTitle}>
+                        Campaign money
+                      </Text>
+                      <Text style={styles.bodyText}>
+                        What this member’s campaign raised and spent, who is named as giving it, and
+                        what outside groups spent about them, all come from the Minnesota Campaign
+                        Finance Board rather than the Legislature.{' '}
+                        <Text
+                          style={styles.moneyTabLink}
+                          {...linkProps(routePath.legislator(legislatorId, { tab: 'money' }), () =>
+                            selectTab('money'),
+                          )}
+                        >
+                          Open the Campaign money tab
+                        </Text>
+                        .
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* BIOGRAPHY */}
+                {hasRealBio ? (
+                  <View style={styles.section}>
+                    <View style={styles.column}>
+                      <View style={styles.card}>
+                        <Text accessibilityRole="header" aria-level={2} style={styles.cardTitle}>
+                          Biography
+                        </Text>
+                        <Text style={styles.bodyText}>{hasRealBio}</Text>
+                      </View>
+                    </View>
+                  </View>
+                ) : null}
+
+                {/* COMMITTEES */}
+                {committees.length > 0 ? (
+                  <View style={styles.section}>
+                    <View style={styles.column}>
+                      <View style={styles.card}>
+                        <Text accessibilityRole="header" aria-level={2} style={styles.cardTitle}>
+                          Committees
+                        </Text>
+                        <View style={styles.committeeList}>
+                          {committees.map((c) => (
+                            <CommitteeRow key={c.name} name={c.name} role={c.role} />
+                          ))}
+                        </View>
+                      </View>
+                    </View>
+                  </View>
+                ) : null}
+
+                {/* LEGISLATIVE SERVICE (issue #486) — renders only with real data */}
+                {service && service.lines.length > 0 ? (
+                  <View style={styles.section}>
+                    <View style={styles.column}>
+                      <View style={styles.card}>
+                        <Text accessibilityRole="header" aria-level={2} style={styles.cardTitle}>
+                          Legislative Service
+                        </Text>
+                        <View style={styles.serviceList}>
+                          {service.lines.map((line, index) => (
+                            <Text key={`${line.label}-${index}`} style={styles.serviceLine}>
+                              <Text style={styles.serviceLabel}>{line.label}: </Text>
+                              {line.elected}
+                            </Text>
+                          ))}
+                          {service.term ? (
+                            <Text style={styles.serviceLine}>
+                              <Text style={styles.serviceLabel}>Term: </Text>
+                              {service.term}
+                            </Text>
+                          ) : null}
+                        </View>
+                      </View>
+                    </View>
+                  </View>
+                ) : null}
+
+                {/* CONTACT */}
+                {leg.officeAddress || leg.phone || leg.profileUrl ? (
+                  <View style={styles.section}>
+                    <View style={styles.column}>
+                      <View style={styles.card}>
+                        <Text accessibilityRole="header" aria-level={2} style={styles.cardTitle}>
+                          Contact
+                        </Text>
+                        <View style={styles.contactList}>
+                          {office?.leadership ? (
+                            <View>
+                              <Text style={styles.contactLabel}>LEADERSHIP</Text>
+                              <Text style={styles.contactValue}>{office.leadership}</Text>
+                            </View>
+                          ) : null}
+                          {office?.address ? (
+                            <View>
+                              <Text style={styles.contactLabel}>CAPITOL OFFICE</Text>
+                              <Text style={styles.contactValue}>{office.address}</Text>
+                            </View>
+                          ) : null}
+                          {leg.phone ? (
+                            <View>
+                              <Text style={styles.contactLabel}>PHONE</Text>
+                              <Text style={styles.contactValue}>{leg.phone}</Text>
+                            </View>
+                          ) : null}
+                          {leg.profileUrl ? (
+                            <TextLink
+                              label={`Official ${leg.chamber} profile →`}
+                              href={leg.profileUrl}
+                              onPress={() => openExternal(leg.profileUrl as string)}
+                              external
+                            />
+                          ) : null}
+                        </View>
+                      </View>
+                    </View>
+                  </View>
+                ) : null}
+
+                {/* CHIEF-AUTHORED BILLS */}
+                <View style={styles.section}>
+                  <View style={styles.column}>
+                    <Text accessibilityRole="header" aria-level={2} style={styles.sectionHeading}>
+                      Chief-Authored Bills
+                    </Text>
+                    <View style={styles.sessionFilterWrap}>
+                      <Pressable
+                        accessibilityRole="button"
+                        onPress={() => setSessionOpen((v) => !v)}
+                        style={styles.sessionBtn}
+                      >
+                        <Text style={styles.sessionBtnText}>
+                          {currentSession
+                            ? formatLegislatureLabel(currentSession)
+                            : 'Current session'}
+                        </Text>
+                        <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+                          <Path
+                            d="M6 9 L12 15 L18 9"
+                            stroke={t.colors.text.faint}
+                            strokeWidth={2.2}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </Svg>
+                      </Pressable>
+                      {sessionOpen ? (
+                        <>
+                          <Pressable
+                            style={styles.popoverScrim}
+                            onPress={() => setSessionOpen(false)}
+                            accessibilityLabel="Close"
+                          />
+                          <View style={styles.popover} accessibilityRole="menu">
+                            <View style={styles.popoverActive}>
+                              <Text style={styles.popoverActiveText}>
+                                {currentSession
+                                  ? formatLegislatureLabel(currentSession)
+                                  : 'Current session'}
+                              </Text>
+                              <Svg width={16} height={16} viewBox="0 0 24 24" fill="none">
+                                <Path
+                                  d="M5 12.5 L10 17.5 L19 7"
+                                  stroke={t.colors.brand.graphics}
+                                  strokeWidth={2.4}
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                />
+                              </Svg>
+                            </View>
+                            {pastSessions.map((s) => (
+                              <View key={s.slug} style={styles.popoverPast}>
+                                <Text style={styles.popoverPastText}>
+                                  {formatLegislatureLabel(s)}
+                                </Text>
+                                <Svg width={14} height={14} viewBox="0 0 24 24" fill="none">
+                                  <Path
+                                    d="M5 11 h14 v9 h-14 Z"
+                                    stroke={t.colors.text.faint}
+                                    strokeWidth={2}
+                                    strokeLinejoin="round"
+                                  />
+                                  <Path
+                                    d="M8 11 V8 a4 4 0 0 1 8 0 v3"
+                                    stroke={t.colors.text.faint}
+                                    strokeWidth={2}
+                                    strokeLinecap="round"
+                                  />
+                                </Svg>
+                              </View>
+                            ))}
+                            <Text style={styles.popoverNote}>
+                              Past-session archives — including retired legislators — are on the
+                              roadmap.
+                            </Text>
+                          </View>
+                        </>
+                      ) : null}
+                    </View>
+
+                    {billsQuery.isLoading ? (
+                      <View style={styles.billsLoading}>
+                        <ActivityIndicator color={t.colors.brand.base} />
+                      </View>
+                    ) : allBills.length === 0 ? (
+                      <Text style={styles.emptyBills}>
+                        No chief-authored bills in{' '}
+                        {currentSession ? formatLegislatureLabel(currentSession) : 'this session'}.
+                      </Text>
+                    ) : (
+                      <View style={styles.billList}>
+                        {visibleBills.map((bill) => (
+                          <BillCardView
+                            key={bill.id}
+                            bill={bill}
+                            legislatorId={legislatorId}
+                            onOpen={() => navigation.navigate('BillDetail', { billId: bill.id })}
+                            onVotes={() =>
+                              navigation.navigate('BillDetail', { billId: bill.id, tab: 'votes' })
+                            }
+                            onOpenLegislator={(id) =>
+                              navigation.navigate('LegislatorProfile', { legislatorId: id })
+                            }
+                            tracked={isTracked(bill.id)}
+                            onToggleTrack={() => toggleTrack(bill.id, bill.identifier)}
+                          />
+                        ))}
+                        {allBills.length > 2 && !showAllBills ? (
+                          <Pressable
+                            accessibilityRole="button"
+                            onPress={() => setShowAllBills(true)}
+                            style={styles.seeMore}
+                          >
+                            <Text style={styles.seeMoreText}>See more →</Text>
+                          </Pressable>
+                        ) : null}
+                      </View>
+                    )}
+                  </View>
+                </View>
+
+                {/* ASK ABOUT THIS LEGISLATOR */}
+                <View style={styles.section}>
+                  <View style={styles.column}>
+                    <AskCard
+                      chips={buildAskChips(allBills)}
+                      onAsk={(q) => navigation.navigate('Ask', { q, legislatorId })}
+                    />
+                  </View>
+                </View>
+
+                {/* ON THE ROADMAP */}
+                <View style={styles.section}>
+                  <View style={styles.column}>
+                    <View style={styles.roadmapZone}>
+                      <Text accessibilityRole="header" aria-level={2} style={styles.roadmapEyebrow}>
+                        ON THE ROADMAP
+                      </Text>
+                      <Text style={styles.roadmapSub}>Features we plan to build.</Text>
+
+                      <View style={styles.roadmapCard}>
+                        <Text
+                          accessibilityRole="header"
+                          aria-level={3}
+                          style={styles.roadmapCardTitle}
+                        >
+                          Claim this profile
+                        </Text>
+                        <Text style={styles.roadmapCardBody}>
+                          Are you {legislatorDisplayName(leg.name, leg.chamber)}? Claiming links you
+                          to this existing record, so you can manage your biography, write up the
+                          bills you’ve worked on, and add your own context. Verified against
+                          official legislative records.
+                        </Text>
+                        <span aria-disabled={true} style={claimPreviewStyle}>
+                          <ShieldCheck color={t.colors.brand.deep} />
+                          <Text style={styles.claimBtnText}>Claim this profile</Text>
+                        </span>
+                      </View>
+
+                      <View style={styles.roadmapCard}>
+                        <Text
+                          accessibilityRole="header"
+                          aria-level={3}
+                          style={styles.roadmapCardTitle}
+                        >
+                          Why the votes?
+                        </Text>
+                        <Text style={styles.roadmapCardBody}>
+                          Wonder why {leg.shortName} voted that way? Once claimed, a legislator will
+                          have the option to explain any vote they cast — right here, in their own
+                          words, alongside the record.
+                        </Text>
+                        {previewVote ? (
+                          <View style={styles.votePreview}>
+                            <View style={styles.votePreviewTopRow}>
+                              <View style={styles.votePreviewCheck}>
+                                <Text style={styles.votePreviewCheckText}>✓</Text>
+                              </View>
+                              <Text style={styles.votePreviewVoted}>
+                                {legislatorVoteLabel(previewVote.vote)}
+                              </Text>
+                              <Text style={styles.votePreviewCode}>{previewVote.billCode}</Text>
+                              <Text style={styles.votePreviewMeta}>
+                                {formatMonoDate(previewVote.date)} ·{' '}
+                                {previewVote.chamber.toUpperCase()}
+                              </Text>
+                            </View>
+                            <View style={styles.votePreviewLines}>
+                              <View style={[styles.votePreviewLine, { width: '100%' }]} />
+                              <View style={[styles.votePreviewLine, { width: '72%' }]} />
+                            </View>
+                            <Text style={styles.votePreviewLabel}>LEGISLATOR’S EXPLANATION</Text>
+                          </View>
+                        ) : null}
+                      </View>
+                    </View>
+                  </View>
+                </View>
+              </>
+            )}
           </>
         )}
 
@@ -864,7 +972,7 @@ const styles = StyleSheet.create({
   heroIdentity: { marginTop: 14, flexDirection: 'row', alignItems: 'center', gap: 16 },
   portrait: {
     width: 88,
-    height: 104,
+    height: 114,
     borderRadius: 14,
     overflow: 'hidden',
     borderWidth: 1,
@@ -934,6 +1042,7 @@ const styles = StyleSheet.create({
     padding: 22,
     ...(t.shadows.card as object),
   },
+  moneyTabLink: { color: t.colors.brand.base, textDecorationLine: 'underline' },
   cardTitle: {
     fontFamily: t.typography.title,
     fontSize: t.fontSizes.h3,

@@ -5,12 +5,14 @@ import Svg, { Circle, Path } from 'react-native-svg';
 
 import { theme, prefersReducedMotion } from '../../theme/tokens';
 import { Container, Footer, MNMap, PageBackground, TopNav } from '../../theme/primitives';
+import { getHomeDotVisibility } from '../../theme/pageBackground';
 import { IaItem, MenuKey } from '../../navigation/ia';
 import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
 import { useResponsive } from '../../hooks/useResponsive';
 import { useBillTracking } from '../../hooks/useBillTracking';
 import {
   useBills,
+  useCampaignFinanceSummary,
   useFeaturedBills,
   useSessions,
   useTrackedBills,
@@ -18,21 +20,17 @@ import {
 import { useLastVisitWithoutAdvancing } from '../../hooks/useTrackedBillsLastVisit';
 import { useAuth } from '../../providers/AuthProvider';
 import { SessionWatchCard } from '../../components/home/SessionWatchCard';
+import { MoneyPromoCard } from '../../components/home/MoneyPromoCard';
 import { sessionWatch } from '../../lib/sessionWatch';
 import { lastVisitFrom } from '../../lib/trackedBillsLastVisit';
 import { BillResultCard } from '../../components/search/BillResultCard';
 import { formatNiceDate, plainBillSummary } from '../../lib/billDetail';
 import { HOT_ISSUE_BILL_KEYS } from '../../lib/hotIssues';
 import { HomeLegislatorFinder } from '../../components/home/HomeLegislatorFinder';
-import { HOME_BILL_GROUP_CONTINUATIONS } from '../../lib/homepage';
+import { HOME_BILL_GROUP_CONTINUATIONS, HOME_PUBLIC_INTRO } from '../../lib/homepage';
 import { formatSessionLabel, SESSION_LABEL_FALLBACK } from '../../lib/sessionLabel';
 import { LinkArrow } from '../../components/LinkArrow';
 import type { Bill } from '../../data/types';
-
-// The v2 signed-out home — docs/mockups/home-signed-out-v2 (README = state/token/copy
-// spec; the .dc.html = literal values). The answer card and the bill cards are STATIC
-// marketing illustration built from researched data — not ingestion, not generated
-// answers (held decision 2026-07-12, see #143). Do not wire them to data here.
 
 const t = theme;
 const isWeb = Platform.OS === 'web';
@@ -204,6 +202,13 @@ function BillGroupContinuationLink({
   fullWidth?: boolean;
 }) {
   const [hovered, hoverProps] = useHover();
+  // Rest/hover color is shared by the label and the drawn arrow, so the mark never
+  // diverges from the text it trails (LinkArrow takes a color, not `currentColor`).
+  const color = fullWidth
+    ? hovered
+      ? t.colors.text.green
+      : t.colors.text.primary
+    : t.colors.text.green;
   return (
     <View style={fullWidth ? undefined : styles.billGroupContinuationRow}>
       <Pressable
@@ -219,23 +224,20 @@ function BillGroupContinuationLink({
             : undefined
         }
       >
-        <Text
-          style={[
-            fullWidth ? m.billGroupContinuationText : styles.billGroupContinuationText,
-            hovered &&
-              (fullWidth
-                ? m.billGroupContinuationTextHover
-                : styles.billGroupContinuationTextHover),
-          ]}
-        >
-          {label}{' '}
+        {/* Row, not an inline glyph: the arrow is drawn (LinkArrow), and `alignItems:
+            center` is what puts it on the label's midline at every font size. */}
+        <View style={styles.billGroupContinuationContent}>
           <Text
-            style={fullWidth ? m.billGroupContinuationArrow : styles.billGroupContinuationArrow}
-            aria-hidden
+            style={[
+              fullWidth ? m.billGroupContinuationText : styles.billGroupContinuationText,
+              hovered && !fullWidth && styles.billGroupContinuationTextHover,
+              { color },
+            ]}
           >
-            →
+            {label}
           </Text>
-        </Text>
+          <LinkArrow color={color} style={styles.billGroupContinuationArrow} />
+        </View>
       </Pressable>
     </View>
   );
@@ -313,11 +315,10 @@ function HeroEntryButton({
         )}
       </Svg>
       <Text style={[styles.heroEntryLabel, searchBand && m.searchActionLabel]}>{label}</Text>
-      {searchBand ? (
-        <LinkArrow color={t.colors.text.green} style={m.searchActionArrow} />
-      ) : (
-        <Text style={styles.heroEntryArrow}>→</Text>
-      )}
+      <LinkArrow
+        color={searchBand ? t.colors.text.green : green}
+        style={searchBand ? m.searchActionArrow : styles.heroEntryArrow}
+      />
     </Pressable>
   );
 }
@@ -342,7 +343,14 @@ const HF4138_BILL_ID = '94-2026-HF4138';
 // badge and footer link. Her official House profile is reachable from that profile page.
 const PEGGY_SCOTT_LEGISLATOR_ID = '2ebc386c-bf7e-4b9c-9d81-81f3bef1f971';
 
-function CitedSectionCard({ title, quote, note }: { title: string; quote: string; note?: string }) {
+// Every literal below was re-verified against the ingested record on 2026-08-12, and
+// `scripts/check_home_hero_card_literals.py` re-runs that check against the published
+// API on a schedule (`.github/workflows/home-hero-card-facts.yml`, which files an issue
+// on drift) so this card cannot go stale in silence (#1444, #1467). Signed 05/26/26 and Chapter 111 come
+// from the bill's Governor-approval and Secretary-of-State actions; the effective date
+// from `effective_date`; House 132–2 / Senate 66–0 from the two passage roll calls; all
+// three excerpts are verbatim from the enacted text (version 5).
+function CitedSectionCard({ title, quote }: { title: string; quote: string }) {
   const { isMobile } = useResponsive();
   return (
     <View style={styles.sectionCardBox}>
@@ -354,7 +362,6 @@ function CitedSectionCard({ title, quote, note }: { title: string; quote: string
           {quote}
         </Text>
       </View>
-      {note ? <Text style={styles.sectionCardNote}>{note}</Text> : null}
     </View>
   );
 }
@@ -371,14 +378,11 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
       }
     : { backgroundColor: 'rgba(255,255,255,0.75)' };
   return (
-    <View style={[styles.answerCard, isMobile && styles.answerCardMobile, t.shadows.lg as object]}>
-      {/* The bold question is the first element (the "ASKED" eyebrow was removed). */}
-      <Text style={styles.askedQuestion}>What’s in the new social media law for kids?</Text>
-
-      {/* Full-width divider between the question and the bill facts. */}
-      <View style={styles.billDividerRow}>
-        <View style={styles.hairlineFlex} />
-      </View>
+    <View style={[styles.answerCard, isMobile && styles.answerCardMobile, t.shadows.md as object]}>
+      {/* The card opens at the bill facts. The question moved out to the section
+          above when the card left the hero: it is the example being shown, so it
+          belongs beside the section's own heading rather than repeated inside the
+          thing it labels. The divider that separated the two went with it. */}
 
       {/* badge + meta. Mobile: compact 2×2 grid (fixed 90px left column shared by
           badge + votes; right column holds dates and chief author, both aligned
@@ -492,11 +496,19 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
         </View>
       )}
 
+      {/* The bolded string is the record's own `short_title` for HF 4138, character for
+          character and capitalised as the record holds it, so this sentence and the bill
+          profile this card links to name the law identically. It is a headline we wrote
+          from the bill, not a legal name - HF 4138 carries no "may be cited as" clause -
+          and nothing here calls it one. Typed, not fetched: it sits mid-sentence, so a
+          pending state would be a hole in a sentence and an unreachable API would need a
+          second name typed in as a fallback. `scripts/check_home_hero_card_literals.py`
+          holds it to the record nightly instead. The straight apostrophe in "Minors'" is
+          the record's; do not curl it to match the surrounding copy. */}
       <Text style={styles.answerSummary}>
-        Minnesota’s{' '}
-        <Text style={styles.answerSummaryBold}>Stop Harms from Addictive Social Media Act</Text>{' '}
-        will require parental consent for kids under 16, ban addictive features, and default their
-        accounts to the strictest privacy.
+        <Text style={styles.answerSummaryBold}>New Rules For Minors' Social Media Accounts</Text>{' '}
+        will require parental consent for kids under 16, ban addictive features,{'\n'}and default
+        their accounts to the strictest privacy.
       </Text>
 
       <View style={styles.citedRow}>
@@ -521,7 +533,6 @@ function AnswerCard({ dimmed }: { dimmed: boolean }) {
         <CitedSectionCard
           title="Addictive features"
           quote="A covered social media platform may not present addictive interface features in the display or feed of any account of a child."
-          note="Such as infinite scrolling, autoplay video, and push notifications"
         />
         <CitedSectionCard
           title="Privacy by default"
@@ -574,10 +585,21 @@ function ProgressSteps({ filled, vetoed }: { filled: number; vetoed?: boolean })
 
 // --- The screen ---
 
-// Route entry. Mobile is an intentional redesign (docs/mockups/home-signed-out-mobile),
+// Route entry. Mobile is an intentional separate layout (docs/product-onboarding/home-screen-guide.md),
 // not a reflow of the desktop layout, so it renders as its own component. Switching
 // on a whole component (rather than an early return inside one) keeps each layout's
 // hook order stable across a resize that crosses the breakpoint.
+/**
+ * The hero headline is the page's `<h1>` — but only while Home is the screen you
+ * are looking at. Home stays mounted beneath a deep-linked stack screen (see the
+ * `isFocused` query gating below), so an unconditional header role ships this
+ * headline into the markup of every bill and legislator page as a second,
+ * competing `<h1>` ([#1355]). It is `display: none` there, so no screen reader
+ * reads it, but a crawler that renders the page still finds it.
+ */
+const heroHeadingProps = (isFocused: boolean) =>
+  isFocused ? ({ accessibilityRole: 'header', 'aria-level': 1 } as const) : {};
+
 export function HomeSignedOutScreen() {
   const { isDesktop } = useResponsive();
   const isFocused = useIsFocused();
@@ -592,8 +614,23 @@ export function HomeSignedOutScreen() {
   );
 }
 
-// Editorially flagged "🔥 Hot issue" bills (NEXT-home-spec §Bill Activity — Card
-// chrome, web). A card carries the flag only when its bill is in the shared set
+/** The money card's count, read live from the register on every homepage load.
+ *
+ *  `filerCount` is already null unless the register block came back `reported`
+ *  (data/api.ts), so a stale or refused read reaches the card as "no number"
+ *  rather than as a zero — which is the whole of rule 12's missing-versus-zero
+ *  line, kept out of the card so the card cannot get it wrong.
+ */
+function useMoneyPromoCount(enabled: boolean) {
+  const summary = useCampaignFinanceSummary({ enabled });
+  return {
+    filerCount: summary.data?.register.filerCount ?? null,
+    countLoading: summary.isLoading,
+  };
+}
+
+// Editorially flagged "🔥 Hot issue" bills (docs/product-onboarding/home-screen-guide.md).
+// A card carries the flag only when its bill is in the shared set
 // (../../lib/hotIssues). The desktop feed is recency-driven (not curated), so a
 // flagged bill shows the pill when it happens to appear in the top-2 passed /
 // top-3 introduced.
@@ -605,13 +642,15 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
   // everything below it — Bills Moving, Find My Legislator, the footer, the nav —
   // is identical either way, so signing in never takes a capability away.
   const { isSignedIn, user } = useAuth();
+  const dotVisibility = getHomeDotVisibility(isWeb, false);
   // Only fetch when Home is the visible screen. Under a bottom-tabs navigator Home
   // stays mounted beneath a deep-linked stack screen (e.g. a bill), so ungated it
   // would fire these queries and contend with the visible screen's first load.
   const isFocused = useIsFocused();
+  const { filerCount, countLoading } = useMoneyPromoCount(isFocused);
   // Bill Activity — real, date-ordered data (#342: the section previously showed
   // fabricated bills under real legislators' names). Mirrors the mobile home feed
-  // (#341); web shows more per NEXT-home-spec (§"Bill Activity"): 2 passed, 3
+  // (#341); web shows more per home-screen-guide.md §Bill activity: 2 passed, 3
   // introduced. "Recently Passed" = enacted (signed_into_law) by latest action;
   // "Recently Introduced" = real introduction date desc.
   const recentlyPassed = useBills(
@@ -640,17 +679,22 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
   );
   const lastVisitData = lastVisitQuery.data;
   const trackedBills = trackedQuery.data;
+  // The query does not retry, so one failure is terminal until the reader asks.
+  const trackedFailed = trackedQuery.isError;
   const watchNow = useRef(new Date()).current;
   const watch = useMemo(() => {
     const lastVisit = lastVisitFrom(lastVisitData);
     // The tracked list itself is still loading, so we do not yet know what to
     // compare — the same "we have not asked" case, and it renders as pending
     // rather than as an empty watchlist (#1026, #1034).
+    // A failed load has no bills and no visit answer either, so it must be told
+    // apart here rather than inferred from those absences downstream.
+    if (trackedFailed) return sessionWatch([], { state: 'not-checked' }, watchNow, '', true);
     if (!trackedBills) return sessionWatch([], { state: 'not-checked' }, watchNow, '');
     const visitedOn =
       lastVisit.state === 'previous-visit' ? formatNiceDate(localDay(lastVisit.at)) : '';
     return sessionWatch(trackedBills, lastVisit, watchNow, visitedOn);
-  }, [trackedBills, lastVisitData, watchNow]);
+  }, [trackedBills, trackedFailed, lastVisitData, watchNow]);
 
   // "Or start from what's moving now" scrolls to the Bill Activity section already
   // further down this page, so someone tracking nothing is never at a dead end.
@@ -689,7 +733,7 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
   const heroGradientWeb: object = isWeb
     ? { backgroundImage: 'linear-gradient(180deg,#f4f5f7 0%,#f7f8fa 55%,#fdfdfe 90%,#ffffff 100%)' }
     : { backgroundColor: t.colors.surfaces.s300 };
-  const heroDotsWeb: object = isWeb
+  const heroDotsWeb: object = dotVisibility.hero
     ? {
         backgroundImage: t.gradients.dotInk,
         backgroundSize: '30px 30px',
@@ -702,7 +746,7 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
   const finderGradientWeb: object = isWeb
     ? { backgroundImage: 'linear-gradient(180deg,#eaf6ef 0%,#f2f9f5 45%,#ffffff 100%)' }
     : { backgroundColor: t.colors.tint.t100 };
-  const finderDotsWeb: object = isWeb
+  const finderDotsWeb: object = dotVisibility.finder
     ? {
         backgroundImage: t.gradients.dotGreen,
         backgroundSize: '30px 30px',
@@ -717,11 +761,8 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
         <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent}>
           {/* HERO WRAPPER */}
           <View style={[styles.heroWrap, heroGradientWeb]}>
-            {isWeb ? (
-              <View
-                pointerEvents="none"
-                style={[StyleSheet.absoluteFillObject as object, heroDotsWeb]}
-              />
+            {dotVisibility.hero ? (
+              <View pointerEvents="none" style={[StyleSheet.absoluteFill as object, heroDotsWeb]} />
             ) : null}
 
             <TopNav
@@ -732,9 +773,27 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
             />
 
             <Container style={styles.heroBody}>
-              <View style={[styles.heroGrid, styles.heroGridDesktop]}>
+              {/* The grid branches on auth, and this is the one place the 2 states
+                  genuinely want different proportions: signed out the right column
+                  is a promo we are pitching, signed in it is the reader's own
+                  tracked bills. Signed in keeps what shipped (even columns, 40px);
+                  signed out widens the text and narrows the card, because a white
+                  card with a shadow outweighs plain text at equal width. */}
+              <View
+                style={[
+                  styles.heroGrid,
+                  styles.heroGridDesktop,
+                  isSignedIn ? styles.heroGridSignedIn : styles.heroGridSignedOut,
+                ]}
+              >
                 {/* LEFT */}
-                <View style={[styles.heroLeft, styles.heroLeftDesktop]}>
+                <View
+                  style={[
+                    styles.heroLeft,
+                    styles.heroLeftDesktop,
+                    isSignedIn ? styles.heroLeftSignedIn : undefined,
+                  ]}
+                >
                   {isSignedIn ? (
                     <>
                       {/* The STATE LINE is the headline and the greeting is a small
@@ -749,7 +808,7 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
                       </Text>
                       <View style={styles.heroStateRow}>
                         <HeroStateGlyph glyph={watch.glyph} />
-                        <Text accessibilityRole="header" style={styles.heroStateLine}>
+                        <Text {...heroHeadingProps(isFocused)} style={styles.heroStateLine}>
                           {watch.heroLine}
                         </Text>
                       </View>
@@ -757,15 +816,11 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
                   ) : (
                     <>
                       <Text style={styles.heroEyebrow}>TRUTH, UNCONCEALED</Text>
-                      <Text accessibilityRole="header" style={styles.heroH1}>
+                      <Text {...heroHeadingProps(isFocused)} style={styles.heroH1}>
                         Grounded answers{'\n'}
-                        <Text style={styles.heroH1Green}>on Minnesota law</Text>
+                        <Text style={styles.heroH1Green}>on Minnesota politics</Text>
                       </Text>
-                      <Text style={styles.heroSubhead}>
-                        We read every bill so you don’t have to — what it says, where it stands, and
-                        how legislators voted. Plain language, with every claim linked to the
-                        official record.
-                      </Text>
+                      <Text style={styles.heroSubhead}>{HOME_PUBLIC_INTRO}</Text>
                     </>
                   )}
 
@@ -789,11 +844,21 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
                   </View>
                 </View>
 
-                {/* RIGHT: the Session watch card replaces the example answer card in
-                    the same slot, footprint and shadow — not a band above the hero,
-                    which would stack two heroes and make a signed-in reader scroll
-                    past a pitch that already worked. */}
-                <View style={[styles.heroRight, styles.heroRightDesktop]}>
+                {/* RIGHT: signed in this is the Legislative session watch card,
+                    signed out it is the money promo. The signed-in slot is NOT a
+                    pitch and must not become one — a band above the hero would
+                    stack two heroes and make a returning reader scroll past a
+                    pitch that already worked, which is why the money card sits in
+                    its own band BELOW this hero when signed in. The example answer
+                    that used to fill this slot signed out now has its own
+                    full-width section further down. */}
+                <View
+                  style={[
+                    styles.heroRight,
+                    styles.heroRightDesktop,
+                    isSignedIn ? undefined : styles.heroRightSignedOut,
+                  ]}
+                >
                   {isSignedIn ? (
                     <SessionWatchCard
                       watch={watch}
@@ -801,22 +866,83 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
                       onAllTracked={() => navigation.navigate('Tracked')}
                       onSearchBills={() => navigation.navigate('Bills')}
                       onWhatsMoving={scrollToBillActivity}
+                      onRetry={() => void trackedQuery.refetch()}
                     />
                   ) : (
-                    <AnswerCard dimmed={openMenu !== null} />
+                    <MoneyPromoCard
+                      variant="desktop"
+                      filerCount={filerCount}
+                      countLoading={countLoading}
+                      dimmed={openMenu !== null}
+                      onPress={() => navigation.navigate('MoneyLanding')}
+                    />
                   )}
                 </View>
               </View>
             </Container>
-            <View style={styles.heroBottomSpace} />
+
+            {/* MONEY IN POLITICS — signed in only, and INSIDE the hero wrapper
+                rather than in a band of its own. Outside it, the wrapper's
+                gradient ended above the card and the page background took over,
+                and those two gradients turn white at different points (55% here,
+                60% on the page) — so a full-width edge ran across the page and
+                the promo read as a separate section.
+                The card is not a section: it is the tail of the hero.
+
+                Two knock-on effects, both accepted (Eugene, 20 Aug 2026), and
+                both follow from the backgrounds staying in percentages of the
+                wrapper rather than being pinned to pixels or split into a second
+                layer. The wrapper is now ~700px taller when signed in, so its
+                gradient reaches white further down and the region around the
+                Search pair sits lighter than before; and the dot grid runs behind
+                and around the card, fading out 180px above the new bottom instead
+                of above the Search pair. */}
+            <View style={isSignedIn ? styles.heroMoneySpace : styles.heroBottomSpaceSignedOut} />
+            {isSignedIn ? (
+              <>
+                <Container>
+                  <MoneyPromoCard
+                    variant="desktop"
+                    filerCount={filerCount}
+                    countLoading={countLoading}
+                    dimmed={openMenu !== null}
+                    onPress={() => navigation.navigate('MoneyLanding')}
+                  />
+                </Container>
+                {/* The gradient has already reached #ffffff by here, so the white
+                    section below starts with no visible edge either. */}
+                <View style={styles.heroMoneySpace} />
+              </>
+            ) : null}
           </View>
+
+          {/* WHAT AN ANSWER LOOKS LIKE — the example answer, moved out of the hero
+              when the money card took that slot. Full width now, and the SECTION
+              is the heading: the sample question used to be the h2, so heading
+              navigation announced one bill as a section of the homepage with
+              nothing marking it as an example. Signed-out only, as it always was. */}
+          {!isSignedIn ? (
+            <View style={styles.answerSection}>
+              <Container>
+                <Text accessibilityRole="header" aria-level={2} style={styles.answerSectionH2}>
+                  What an answer looks like
+                </Text>
+                <Text style={styles.answerSectionQuestion}>
+                  What’s in the new social media law for kids?
+                </Text>
+                <View style={styles.answerSectionCard}>
+                  <AnswerCard dimmed={openMenu !== null} />
+                </View>
+              </Container>
+            </View>
+          ) : null}
 
           {/* BILLS MOVING THROUGH THE LEGISLATURE */}
           <View ref={billActivityRef} style={styles.billsSection}>
             <Container>
               <Text style={styles.sectionEyebrow}>{sessionLabel}</Text>
               <View style={styles.billsHeadRow}>
-                <Text accessibilityRole="header" style={styles.billsH2}>
+                <Text accessibilityRole="header" aria-level={2} style={styles.billsH2}>
                   Bills Moving Through the Legislature
                 </Text>
               </View>
@@ -890,21 +1016,21 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
 
           {/* FIND MY LEGISLATOR */}
           <View style={[styles.finderBand, finderGradientWeb]}>
-            {isWeb ? (
+            {dotVisibility.finder ? (
               <View
                 pointerEvents="none"
-                style={[StyleSheet.absoluteFillObject as object, finderDotsWeb]}
+                style={[StyleSheet.absoluteFill as object, finderDotsWeb]}
               />
             ) : null}
             <Container>
               <View style={[styles.finderGrid, styles.finderGridDesktop]}>
                 <View style={styles.finderLeft}>
-                  <Text accessibilityRole="header" style={styles.finderH2}>
+                  <Text accessibilityRole="header" aria-level={2} style={styles.finderH2}>
                     Find My Legislator
                   </Text>
                   <Text style={styles.finderSub}>
-                    See who represents you in the Minnesota House and Senate, and learn about their
-                    work and how to contact them.
+                    See who represents you in the Minnesota House and Senate. Learn about their work
+                    and how to contact them.
                   </Text>
                   <HomeLegislatorFinder
                     layout="desktop"
@@ -935,7 +1061,7 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
 }
 
 // ============================================================================
-// MOBILE HOME (v3) — docs/mockups/home-signed-out-mobile. An intentional redesign
+// MOBILE HOME — docs/product-onboarding/home-screen-guide.md. An intentional redesign
 // for mobile web (a separate web redesign follows), so it's a distinct single-
 // column composition, not a reflow of the desktop layout above. Everything here
 // is wired to REAL data (no static marketing cards):
@@ -947,23 +1073,13 @@ function HomeSignedOutDesktop({ sessionLabel }: { sessionLabel: string }) {
 // ============================================================================
 
 // Editorial "In the News" pins — keys verified against production 2026-07-15.
-// Inclusion + order are editorial (docs/mockups/home-signed-out-mobile/NEXT-home-spec.md);
+// Inclusion + order are editorial (docs/product-onboarding/home-screen-guide.md);
 // each card shows that bill's real data. HF 4138 is the enacted social-media law
 // the design's card 1 depicts (the mock labeled it "SF 3933", which is a different
 // bill in our corpus). SF 856 is the enacted Office of the Inspector General bill.
-// `effectiveDate` is editorial metadata verified from the enacted primary source
-// (grounded-answers rule 9). The API now derives a statutory effective date for
-// enacted bills whose act resolves to one (#483 / #562 / #706) — HF 4138 is one of
-// them, and `bill.effectiveDate` serves the same July 1, 2027 shown here. SF 856 is
-// NOT: the Revisor flags it "various dates", so its value stays editorial and these
-// literals stay the single source for both cards rather than one card silently
-// switching sources.
-// HF 4138 → 2026 Ch. 111 §§1–2 (325M), both "effective July 1, 2027";
-// SF 856 → 2026 Ch. 92, Minnesota's default effective date (Aug 1 following the
-// May 14, 2026 signing) for the act's general provisions (some sections stagger).
-const IN_THE_NEWS: { key: string; hotIssue: boolean; effectiveDate?: string }[] = [
-  { key: '94-2026-HF4138', hotIssue: true, effectiveDate: 'July 1, 2027' },
-  { key: '94-2025-SF856', hotIssue: true, effectiveDate: 'Aug 1, 2026' },
+const IN_THE_NEWS: { key: string; hotIssue: boolean }[] = [
+  { key: '94-2026-HF4138', hotIssue: true },
+  { key: '94-2025-SF856', hotIssue: true },
 ];
 
 // status text → filled progress steps (of 5), mirroring BillResultCard.billStage
@@ -995,12 +1111,10 @@ function BillBadge({ label }: { label: string }) {
 function NewsCardMobile({
   bill,
   hotIssue,
-  effectiveDate,
   onPress,
 }: {
   bill: Bill;
   hotIssue: boolean;
-  effectiveDate?: string;
   onPress: () => void;
 }) {
   const [hovered, hoverProps] = useHover();
@@ -1030,13 +1144,15 @@ function NewsCardMobile({
       ) : null}
       <View style={m.cardMeta}>
         <Text style={m.metaStatus}>{bill.status}</Text>
-        {effectiveDate ? <Text style={m.metaEffective}>Effective {effectiveDate}</Text> : null}
+        {bill.effectiveDate ? (
+          <Text style={m.metaEffective}>Effective {bill.effectiveDate}</Text>
+        ) : null}
       </View>
     </Pressable>
   );
 }
 
-// Card meta line freshness treatment (#329, NEXT-home-spec.md §"Card meta line").
+// Card meta line freshness treatment (#329, home-screen-guide.md §Bill activity).
 // updatedAt arrives as "YYYY-MM-DD" (formatUpdatedAt) or the "Unknown" sentinel
 // when a bill still has no dated action; render it as a plain "Mon D, YYYY".
 const META_MONTHS = [
@@ -1188,11 +1304,13 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
   // breakpoints — phone under 768 and tablet 768-1100 — which differ in layout, not
   // in content.
   const { isSignedIn, user } = useAuth();
-  const { isTablet } = useResponsive();
+  const { isMobile, isTablet } = useResponsive();
+  const dotVisibility = getHomeDotVisibility(isWeb, isMobile);
   // Only fetch when Home is the visible screen. Under a bottom-tabs navigator Home
   // stays mounted beneath a deep-linked stack screen (e.g. a bill), so ungated it
   // would fire these queries and contend with the visible screen's first load.
   const isFocused = useIsFocused();
+  const { filerCount, countLoading } = useMoneyPromoCount(isFocused);
   // The signed-in hero's inputs. READS the last-looked mark and never advances it —
   // only opening the tracked list does that (#1034).
   const trackedQuery = useTrackedBills(isSignedIn && isFocused ? user?.id : undefined);
@@ -1201,14 +1319,19 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
   );
   const lastVisitData = lastVisitQuery.data;
   const trackedBills = trackedQuery.data;
+  // The query does not retry, so one failure is terminal until the reader asks.
+  const trackedFailed = trackedQuery.isError;
   const watchNow = useRef(new Date()).current;
   const watch = useMemo(() => {
     const lastVisit = lastVisitFrom(lastVisitData);
+    // A failed load has no bills and no visit answer either, so it must be told
+    // apart here rather than inferred from those absences downstream.
+    if (trackedFailed) return sessionWatch([], { state: 'not-checked' }, watchNow, '', true);
     if (!trackedBills) return sessionWatch([], { state: 'not-checked' }, watchNow, '');
     const visitedOn =
       lastVisit.state === 'previous-visit' ? formatNiceDate(localDay(lastVisit.at)) : '';
     return sessionWatch(trackedBills, lastVisit, watchNow, visitedOn);
-  }, [trackedBills, lastVisitData, watchNow]);
+  }, [trackedBills, trackedFailed, lastVisitData, watchNow]);
   const billActivityRef = useRef<Text>(null);
   const scrollToBillActivity = () => {
     if (!isWeb || !billActivityRef.current) return;
@@ -1271,10 +1394,9 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
   const newsLoading = news.isLoading;
   const activityLoading = introduced.isLoading || signed.isLoading;
 
-  // Masked dot textures — only two sections carry them (Hero, Find My
-  // Legislator), each contained to its own section and faded soft at the edges
-  // (mask stops lifted from the mock source). No page-wide dot field.
-  const heroDotsWeb: object = isWeb
+  // Find My Legislator keeps its masked dots at every web width. The hero keeps
+  // them on tablets but drops them on phones for a plain upper background.
+  const heroDotsWeb: object = dotVisibility.hero
     ? {
         backgroundImage: t.gradients.dotInk, // rgba(17,21,15,0.07)
         backgroundSize: '30px 30px',
@@ -1284,7 +1406,7 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
           'linear-gradient(to bottom, transparent 0px, transparent 110px, #000 230px, #000 calc(100% - 40px), transparent 100%)',
       }
     : {};
-  const finderDotsWeb: object = isWeb
+  const finderDotsWeb: object = dotVisibility.finder
     ? {
         backgroundImage: t.gradients.dotGreen, // rgba(20,157,91,0.09)
         backgroundSize: '30px 30px',
@@ -1314,14 +1436,11 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
     <PageBackground>
       <View style={m.root}>
         <ScrollView style={m.scroll} contentContainerStyle={m.scrollContent}>
-          {/* HERO — TopNav + copy share one wrapper so the masked dot texture
-              spans them, faded off the top bar and out before In the News. */}
+          {/* HERO — TopNav + copy share one wrapper. Tablets keep its masked dots;
+              phones use the plain background. */}
           <View style={m.heroWrap}>
-            {isWeb ? (
-              <View
-                pointerEvents="none"
-                style={[StyleSheet.absoluteFillObject as object, heroDotsWeb]}
-              />
+            {dotVisibility.hero ? (
+              <View pointerEvents="none" style={[StyleSheet.absoluteFill as object, heroDotsWeb]} />
             ) : null}
             <TopNav
               onNavigate={(item: IaItem) => {
@@ -1357,7 +1476,7 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
                   <View style={m.heroStateRow}>
                     <HeroStateGlyph glyph={watch.glyph} />
                     <Text
-                      accessibilityRole="header"
+                      {...heroHeadingProps(isFocused)}
                       style={[m.heroStateLine, isTablet && m.heroStateLineTablet]}
                       numberOfLines={isTablet ? 4 : 6}
                     >
@@ -1371,6 +1490,7 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
                       onAllTracked={() => navigation.navigate('Tracked')}
                       onSearchBills={openSearchBills}
                       onWhatsMoving={scrollToBillActivity}
+                      onRetry={() => void trackedQuery.refetch()}
                     />
                   </View>
                   {/* Side by side on a tablet, stacked full-width on a phone. */}
@@ -1390,18 +1510,27 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
                       fullWidth={!isTablet}
                     />
                   </View>
+                  {/* The money card is the third thing in this cluster because its
+                      own action is a third search. It sits below the actions, not
+                      above them, for the same reason they sit below the watch card:
+                      what the reader came back for stays first (#1069). */}
+                  <View style={m.heroMoneyCard}>
+                    <MoneyPromoCard
+                      variant={isTablet ? 'tabletSignedIn' : 'phoneSignedIn'}
+                      filerCount={filerCount}
+                      countLoading={countLoading}
+                      onPress={() => navigation.navigate('MoneyLanding')}
+                    />
+                  </View>
                 </>
               ) : (
                 <>
                   <Text style={m.heroEyebrow}>TRUTH, UNCONCEALED</Text>
-                  <Text accessibilityRole="header" style={m.heroH1}>
+                  <Text {...heroHeadingProps(isFocused)} style={m.heroH1}>
                     Grounded answers{'\n'}
-                    <Text style={m.heroH1Green}>on Minnesota law</Text>
+                    <Text style={m.heroH1Green}>on Minnesota politics</Text>
                   </Text>
-                  <Text style={m.heroSubhead}>
-                    We read every bill so you don’t have to — what it says, where it stands, and how
-                    legislators voted. Plain language, every answer linked to official sources.
-                  </Text>
+                  <Text style={m.heroSubhead}>{HOME_PUBLIC_INTRO}</Text>
                 </>
               )}
             </Container>
@@ -1427,7 +1556,6 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
                     key={bill.id}
                     bill={bill}
                     hotIssue={pin.hotIssue}
-                    effectiveDate={pin.effectiveDate}
                     onPress={() => openBill(bill.id)}
                   />
                 ))}
@@ -1452,6 +1580,14 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
                 onPress={() => navigation.navigate('Legislators')}
                 fullWidth
                 searchBand
+              />
+              {/* Third in the search cluster rather than above In the news: a
+                  partly-built section does not go ahead of today's news. */}
+              <MoneyPromoCard
+                variant="phoneSignedOut"
+                filerCount={filerCount}
+                countLoading={countLoading}
+                onPress={() => navigation.navigate('MoneyLanding')}
               />
             </View>
           ) : null}
@@ -1556,10 +1692,10 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
               account card (no hard section break). Green dots mask to the finder. */}
           <View style={[m.greenBand, greenBandGradientWeb]}>
             <View style={m.finderInner}>
-              {isWeb ? (
+              {dotVisibility.finder ? (
                 <View
                   pointerEvents="none"
-                  style={[StyleSheet.absoluteFillObject as object, finderDotsWeb]}
+                  style={[StyleSheet.absoluteFill as object, finderDotsWeb]}
                 />
               ) : null}
               <Container style={[m.section, m.lastSectionBottom]}>
@@ -1567,8 +1703,8 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
                   Find My Legislator
                 </Text>
                 <Text style={m.finderSub}>
-                  See who represents you in the Minnesota House and Senate, and learn about their
-                  work and how to contact them.
+                  See who represents you in the Minnesota House and Senate. Learn about their work
+                  and how to contact them.
                 </Text>
                 <HomeLegislatorFinder
                   layout={isTablet ? 'tablet' : 'phone'}
@@ -1590,6 +1726,13 @@ function HomeSignedOutMobile({ sessionLabel }: { sessionLabel: string }) {
     </PageBackground>
   );
 }
+
+// The narrow layout's one section break. Every top-level section pads this much top
+// and bottom (m.section), so two stacked sections always sit SECTION_BREAK apart —
+// the gap under the signed-in hero's money card, above IN THE NEWS. Named so the
+// hero can reuse the same number rather than restate it (see m.heroActions).
+const SECTION_PADDING = 40;
+const SECTION_BREAK = SECTION_PADDING * 2;
 
 const m = StyleSheet.create({
   root: { flex: 1 },
@@ -1648,7 +1791,13 @@ const m = StyleSheet.create({
   heroStateLineTablet: { fontSize: 32, lineHeight: 40, letterSpacing: -0.64 },
   heroWatchCard: { marginTop: 22 },
   // Stacked and full-width on a phone; side by side on a tablet.
-  heroActions: { marginTop: 20, gap: 12 },
+  // SECTION_BREAK, not 20 or 36: the pair and the money card under it are a section
+  // of their own, so the space above the pair is the page's section break — the same
+  // number the money card gets below it, before IN THE NEWS. At anything smaller the
+  // pair read as the tail of the watch card's stack. The 12px between the buttons and
+  // the 22px down to the money card are unchanged, so the pair and the card stay one
+  // group, separated from the card above.
+  heroActions: { marginTop: SECTION_BREAK, gap: 12 },
   heroActionsTablet: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center' },
   heroSubhead: {
     marginTop: 18,
@@ -1657,12 +1806,14 @@ const m = StyleSheet.create({
     lineHeight: 27,
     color: t.colors.text.muted,
   },
-  // Even section rhythm: every top-level section gets 40 top / 40 bottom, so the
-  // gaps between stacked sections read as a consistent ~80px. 20px sides from
-  // Container mobile. The last section before the footer overrides its bottom to
-  // 96 (lastSectionBottom) so its content isn't crowded against the black footer.
-  section: { paddingTop: 40, paddingBottom: 40 },
+  // Even section rhythm: every top-level section gets SECTION_PADDING top and bottom,
+  // so the gaps between stacked sections read as a consistent SECTION_BREAK. 24px
+  // sides from Container mobile. The last section before the footer overrides its
+  // bottom to 96 (lastSectionBottom) so its content isn't crowded against the black
+  // footer.
+  section: { paddingTop: SECTION_PADDING, paddingBottom: SECTION_PADDING },
   newsSectionBeforeSearchBand: { paddingBottom: 0 },
+  heroMoneyCard: { marginTop: 22 },
   searchActionsBand: {
     position: 'relative',
     marginTop: 64,
@@ -1905,8 +2056,6 @@ const m = StyleSheet.create({
     letterSpacing: -0.4,
     color: t.colors.text.primary,
   },
-  billGroupContinuationTextHover: { color: t.colors.text.green },
-  billGroupContinuationArrow: { fontWeight: t.fontWeights.regular },
   // Continuous green→white band spanning Find My Legislator + Be in the Know
   // (see greenBandGradientWeb). No hard break; section rhythm comes from the inner
   // Containers. finderInner is overflow:hidden to contain the masked green dots.
@@ -1953,6 +2102,18 @@ const m = StyleSheet.create({
   },
 });
 
+/** The small green section label: 13px, bold, 0.2em of tracking (2.6px at 13px),
+ *  #0f7a45. Two consumers spread this rather than repeating the values — the
+ *  section eyebrows above each band, and the answer example's own label, which
+ *  must read as the same thing. */
+const sectionLabel = {
+  fontFamily: t.typography.ui,
+  fontSize: t.fontSizes.meta,
+  fontWeight: t.fontWeights.bold,
+  letterSpacing: 2.6,
+  color: t.colors.text.green,
+} as const;
+
 const styles = StyleSheet.create({
   root: { flex: 1, position: 'relative' },
   scroll: { flex: 1 },
@@ -1966,7 +2127,7 @@ const styles = StyleSheet.create({
   heroBody: { paddingTop: 80 },
   heroGrid: { gap: 40 },
   heroGridDesktop: { flexDirection: 'row', alignItems: 'flex-start' },
-  heroLeft: { flex: 1, minWidth: 0, maxWidth: 720 },
+  heroLeft: { flex: 1, minWidth: 0 },
   // Nudge the left column down ~40px so it sits above center, headline anchored high.
   // The answer card on the right runs taller, so with a top-aligned grid the left
   // column's buttons left an empty pocket at the lower-left; this offset shrinks that
@@ -2049,23 +2210,65 @@ const styles = StyleSheet.create({
     color: t.colors.text.primary,
   },
   heroEntryArrow: {
-    fontFamily: t.typography.ui,
-    fontSize: 19,
-    fontWeight: t.fontWeights.regular,
-    color: t.colors.brand.graphics,
+    width: 19,
+    height: 19,
+    top: 0,
   },
   heroRight: { minWidth: 0 },
   heroRightDesktop: { flex: 1, alignItems: 'flex-end', marginTop: -10 },
-  // Tightened 88 -> 48: the answer card runs much taller than the left column, so
-  // a tall bottom spacer left the hero reading bottom-heavy with a large trailing
-  // gap down to "Bills Moving". Trimming it pulls that section up without moving the
-  // card or the Search buttons.
-  heroBottomSpace: { height: 48 },
+  // 120 above the card and 120 below, replacing the old 48 + 120 = 168. Even on
+  // both sides deliberately: the card is the tail of the hero, not an intro to
+  // the white section under it.
+  heroMoneySpace: { height: 120 },
+  // Signed out the next section's eyebrow peeks on a laptop while its heading
+  // falls below the fold, which is the drawn rhythm for a hero that now ends on
+  // a card rather than on the buttons.
+  heroBottomSpaceSignedOut: { height: 140 },
+  // 1fr / 0.72fr. Equal columns read as UNBALANCED here: a white card with a
+  // shadow outweighs plain text at the same width.
+  heroGridSignedOut: { gap: 96 },
+  heroGridSignedIn: { gap: 40 },
+  // The 720 cap belongs to the signed-in hero, which is unchanged. Signed out the
+  // ratio sets the width: capping the left column at 720 leaves the extra space in
+  // the right column instead, which strands the 583px card 89px short of the page
+  // edge at 1600px. A style object cannot unset a value in React Native — an
+  // override of `undefined` merges as absent — so the cap has to move rather than
+  // be cancelled.
+  heroLeftSignedIn: { maxWidth: 720 },
+  heroRightSignedOut: { flex: 0.72 },
+  answerSection: { backgroundColor: t.colors.surfaces.base, paddingTop: 60, paddingBottom: 80 },
+  // The section label, not a headline. At 44px it matched "Bills Moving Through
+  // the Legislature" and ranked one worked example equal to a whole section of
+  // bills. These are sectionEyebrow's own values rather than a copy of them, so
+  // the two labels cannot drift apart; marginBottom is the one difference (14
+  // here against 22 there).
+  //
+  // Capitals come from textTransform rather than from typing the words in caps:
+  // this element is a heading, and a heading whose text is literally uppercase
+  // can be announced letter by letter.
+  answerSectionH2: {
+    ...sectionLabel,
+    marginBottom: 14,
+    textTransform: 'uppercase',
+  },
+  // With the headline gone this is the loudest line in the section, which is
+  // right — the example is the content. Still not a heading: heading navigation
+  // names the section, never a specific bill.
+  answerSectionQuestion: {
+    fontFamily: t.typography.ui,
+    fontSize: 26,
+    lineHeight: 35,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: -0.26,
+    color: t.colors.text.primary,
+  },
+  answerSectionCard: { marginTop: 28 },
 
   // answer card
   answerCard: {
-    width: 600,
-    maxWidth: '100%',
+    width: '100%',
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink08,
     backgroundColor: t.colors.surfaces.base,
     borderRadius: 20,
     paddingVertical: 32,
@@ -2073,17 +2276,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   answerCardMobile: { paddingVertical: 24, paddingHorizontal: 22 },
-  answerOverlay: { ...StyleSheet.absoluteFillObject, borderRadius: 20, zIndex: 5 },
-  askedQuestion: {
-    fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.subheadLg,
-    fontWeight: t.fontWeights.bold,
-    lineHeight: 25,
-    color: t.colors.text.primary,
-    marginBottom: 16,
-  },
-  billDividerRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
-  hairlineFlex: { flex: 1, height: 1, backgroundColor: t.colors.alpha.ink08 },
+  answerOverlay: { ...StyleSheet.absoluteFill, borderRadius: 20, zIndex: 5 },
   billMetaRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -2143,7 +2336,15 @@ const styles = StyleSheet.create({
     letterSpacing: 0.7,
     color: t.colors.text.muted,
   },
-  sectionCardStack: { gap: 8 },
+  sectionCardStack: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(3, 1fr)',
+    gap: 14,
+    // Each box ends under its own last line rather than stretching to the tallest
+    // card's. The quotes are the bill's, so their lengths differ and a stretched
+    // box left empty grey under the shortest one. Columns stay equal in width.
+    alignItems: 'start',
+  } as never,
   sectionCardBox: {
     backgroundColor: '#f7f9f8',
     borderWidth: 1,
@@ -2168,15 +2369,14 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     color: t.colors.text.secondary,
     fontStyle: 'italic',
+    // Bill text, so the length is the bill's and not ours to predict: these three
+    // run 143, 125 and 96 characters and the next bill's will differ again. Nothing
+    // here is sized to fit a quote on one line - the cap holds the measure at about
+    // 62-72 characters at 14px, and where the column is already narrower the column
+    // governs and the cap does nothing. `pretty` keeps a last line off one word.
+    ...(isWeb ? ({ maxWidth: '34em', textWrap: 'pretty' } as object) : null),
   },
   sectionCardQuoteTextMobile: { fontSize: 16, lineHeight: 24 },
-  sectionCardNote: {
-    marginTop: 10,
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.small,
-    lineHeight: 20.3,
-    color: '#6f756f',
-  },
   answerFooter: {
     marginTop: 12,
     paddingLeft: t.spacing.underCardText,
@@ -2187,14 +2387,7 @@ const styles = StyleSheet.create({
   },
 
   // Section eyebrow — small green label above a section (e.g. "2025–26 LEGISLATIVE SESSION").
-  sectionEyebrow: {
-    fontFamily: t.typography.ui,
-    fontSize: t.fontSizes.meta,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 2.6,
-    color: t.colors.text.green,
-    marginBottom: 22,
-  },
+  sectionEyebrow: { ...sectionLabel, marginBottom: 22 },
 
   // finder band
   finderBand: { position: 'relative', paddingTop: 64, paddingBottom: 128, overflow: 'hidden' },
@@ -2264,7 +2457,13 @@ const styles = StyleSheet.create({
     color: t.colors.text.green,
   },
   billGroupContinuationTextHover: { textDecorationLine: 'underline' },
-  billGroupContinuationArrow: { fontWeight: t.fontWeights.regular },
+  billGroupContinuationContent: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  // 17px against the 15–16px label: the drawn arrow's ink is inset in its box, so a
+  // box matched to the font size renders visibly shorter than the neighbouring caps.
+  // `top: 0` cancels LinkArrow's default 1px drop, which is tuned for x-height
+  // alignment; here the label is bold sentence case, so the arrow rides the cap band
+  // (measured: cap-band centre 405.23px, arrow centre 405.75px — half a pixel).
+  billGroupContinuationArrow: { width: 17, height: 17, top: 0 },
   billCard: {
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,

@@ -26,29 +26,59 @@ things work in practice and are the place to start if you're new.
 - [MVP redesign plan](product-onboarding/mvp-redesign-plan.md) — IA + green-aesthetic redesign tracker; locked decisions and the route registry
 - [Bill search screen spec](product-onboarding/bill-search-screen-spec.md) — the bill search screen (`/bills`)
 - [Bill tracking interaction spec](product-onboarding/bill-tracking-spec.md) — how Track behaves on every page, through sign-in, and inside full-card links
+- [How sign-in works](product-onboarding/sign-in-guide.md) — Google and password sign-in, email codes, account matching, password rules, and release settings
+- [How Home works](product-onboarding/home-screen-guide.md) — the signed-out and signed-in opening sections, bill activity, editorial news picks, and phone layout
+- [How Bill Detail works](product-onboarding/bill-detail-guide.md) — the summary, actions, votes, versions, Bill Text, source line, and phone order
+- [How legislator profiles work](product-onboarding/legislator-profile-guide.md) — identity, committees, bills, service history, public money records, and planned features
 - [Bill Text tab spec](product-onboarding/bill-text-tab-spec.md) — how a bill's official text is parsed, marked up, and rendered, plus the section-index rail and citation anchors
 - [Answer quality bar](product-onboarding/answer-quality-bar.md) — what a good generated answer is, how the eval measures it, and the judge calibration behind the scores
 - [Campaign finance roadmap](product-onboarding/campaign-finance-roadmap.md) — plain-language plan for putting Minnesota campaign money on the site: what we are building, in what order, and the one rule that shapes it
+- [How Minnesota campaign-finance entities fit together](product-onboarding/campaign-finance-entities-guide.md) — plain-language guide to candidates, committees, party units, political funds, independent spending, lobbying, and the separate Minnesota, federal, and local systems
+- [When a committee's next money report is due](product-onboarding/campaign-finance-filing-calendar-guide.md) — why a legislator's money page can honestly show nothing for a whole year, which of the state's 4 filing calendars applies to whom, and what we refuse to claim
 - [Tracked-bill notifications](product-onboarding/tracked-bill-notifications-spec.md) — the plan for telling people their bill moved: what an email would say, how often, what it costs, and how a live send stays gated until it is proven. Nothing built yet
 - [Data ingestion onboarding guide](product-onboarding/data-ingestion-onboarding.md) — sources, URLs, and pipeline-flow diagram for new engineers
+- [Interface vocabulary](product-onboarding/interface-vocabulary.md) — one name per thing, for chat, briefs, Design prompts, code identifiers and reader copy: nav rather than top bar, a page named by its address, and the 2 places our own code already carries 2 words for 1 object
 - [AI models & billing](product-onboarding/ai-models-and-billing.md) — how Alethical uses AI (generation vs embeddings), the two billing rails (subscription vs API), and which jobs need which
 - [How Search works (plain English)](product-onboarding/search-bills-guide.md) — what each filter and result field means, written for non-engineers
 - [How Find My Legislator works (plain English)](product-onboarding/find-my-legislator-guide.md) — how to search by address, browser location, or map; what a match shows; and what location data leaves Alethical
+- [How the Campaign money tab works (plain English)](product-onboarding/legislator-campaign-money-guide.md) — what a legislator's campaign raised and spent, why roughly 4 dollars in 10 have no donor's name, and when the page shows two figures rather than working out the difference
+- [How the Campaign money section works (plain English)](product-onboarding/campaign-money-section-guide.md) — the public /money landing and its lanes, the working name search and its results page, the register's own committees list, the `/read` page that lists Alethical's own research, and what a research piece's page carries
 - [How sharing works](product-onboarding/sharing-guide.md) — what each page and destination receives, why Instagram has no direct button, and how link previews are built
 - [How Contact us works](product-onboarding/contact-us-guide.md) — the page, its 5 states, message delivery, and what reader data leaves Alethical
+- [How the Site metrics page works](product-onboarding/traffic-guide.md) — the 4 public totals, Vercel source, privacy boundary, team-account exclusion, and page states
 - [About Us page](product-onboarding/about-us-page-spec.md) — the public statement of Alethical’s name, beliefs, current features, roadmap, and correction policy
 
 ## Design
 
 - [Design principles](design/design-principles.md) — green system's design intent + visual/interaction/accessibility rules; brief for Claude Design
 - [UI copy guide](design/ui-copy-guide.md) — voice and tone
+- [Committee money page design prompt](design/committee-money-page-design-prompt.md) — frozen Claude Design request for #1442's committee money screen (dated 18 Aug 2026)
+- [Campaign money design handoff](design/handoff-campaign-money/) — the accepted Claude Design set for the whole money section (round 6, 18 Aug 2026): the plan and landing, the route map, the 4 list screens, the committee page, the report and its shelf, both profile surfaces, and the measured facts they rest on. Includes [the first piece's source text](design/handoff-campaign-money/follow-the-money-report.md), which has since posted as our live research at `/read/research/the-money-only-goes-one-way`
+
+## Reader guides
+
+The words of every published reader-facing piece, one file each. Alethical calls a piece that teaches one part of how a system works and draws no conclusions a **Guide**, and calls its own digging **Research** (`docs/architecture/published-writing-decisions.md` §2.6, settled 27 Aug 2026). A signed research piece may add records up and reach a conclusion (`.claude/rules/grounded-answers.md` rule 13); a guide may not, and sits under rules 1 to 12 like every other surface. `apps/frontend/src/lib/__tests__/research.test.ts` compares every file here against the piece the site draws, word for word, so a sentence cannot be dropped or reworded in one place alone ([#1832](https://github.com/alethical-org/alethical/issues/1832)). Every page is built; the folder's name predates the Research word and is wrong for the 1 research file in it.
+
+**How the Money Works** — 5 pieces in a fixed reading order, because each defines the words the next one uses.
+
+- [Who has to report their money](reader-guides/who-has-to-report-their-money.md) — piece 1: Minnesota's 3 kinds of registered political account, what a party unit and a legislative caucus are, what a PAC is, why the 3 kinds file different forms, and why counting campaign accounts is not counting candidates
+- [What the records name, and what they leave out](reader-guides/what-the-records-name.md) — piece 2: the $200 naming rule read correctly, as a test on one giver's total for the calendar year and never on the size of a single gift, why more than half of every named payment Minnesota publishes is a gift of $200 or less, and the lump sum with no donor named that the rule leaves behind
+- [Why 2 official numbers can both be right](reader-guides/why-2-official-numbers-can-both-be-right.md) — piece 3: the named payments on a filing against the total the same filing reports, why every report in a year restates that year from 1 January so a year's reports must never be added together, and why a giver can sit in the unnamed figure on one report and be named on the next
+- [Money spent without a campaign's say](reader-guides/money-spent-without-a-campaigns-say.md) — piece 4: independent spending and the 6 kinds of involvement the law rules out, the For and Against marker no contribution record carries, and lobbying as a separate set of records filed by whoever is doing the asking, which Alethical does not hold
+- [Why nobody can follow a dollar](reader-guides/why-nobody-can-follow-a-dollar.md) — piece 5: why 2 filed transfers in a row are not a route, why an account's opening balance makes the question unanswerable rather than merely unanswered, and what a picture of the flows may and may not be allowed to say
+
+**Research** — our own digging, in no set.
+
+- [The Money Only Goes One Way](reader-guides/the-money-only-goes-one-way.md) — where a $50 donation actually goes: $13.9 million leaving candidate accounts for the 6 party and caucus committees against $730,338 coming back down, the 191 PACs funding both parties' caucuses, and the $886 million of reported lobbying that dwarfs every election dollar. Unlike the 5 files above, this one was written from the shipped piece rather than settled before it, so it pins what shipped and says so in its own opening comment
 
 ## Architecture
 
 - [Backend stack](architecture/backend-stack.md) — **start here for the backend:** every piece of the running system in one page (language, web service, database, sign-in, job queue, AI providers, email, hosting, tests), what we deliberately don't run, and which doc covers each part in depth
 - [Bill refresh cadence decisions](architecture/bill-refresh-cadence-decisions.md) — how often to re-fetch bills and why: the measured activity data behind each interval, the four safety fixes that must land before anything is scheduled, and the alternatives that lost
 - [AI platform position](architecture/ai-platform-position.md) — what we buy direct, what we build ourselves, what we skip, and the trigger that would reverse each call
+- [How Alethical calls OpenAI and Anthropic, and when it retries](architecture/ai-provider-calls-and-retries.md): the accepted official-library plan, current failure risks, retry and deadline rules, honest reader states, work order, effort, and open questions
 - [Page metadata for search and sharing — decisions](architecture/page-metadata-for-search-and-sharing-decisions.md) — why every address serves search engines the same title today (link previews already work), the wording rule for each page type, robots/sitemap/structured-data calls, and the four ways to fix it with the recommended two-release plan (proposal, not built)
+- [Published writing — decisions](architecture/published-writing-decisions.md) — what Alethical publishes in its own name and every settled call governing it: the words Research and Guide, a piece that carries both traits, nested addresses and what flat lost on twice, a standalone guide, an emptied set, who authors a term link, the order the rename runs in, and the 4 fields no piece carries yet
 - [Backend API system design](architecture/backend-api-system-design.md) — REST conventions, namespace layout, and the endpoint inventory
 - [Database schema system design](architecture/db-schema-system-design.md) — table groups, modeling decisions, and the query rubric
 - [Frontend screen system design](architecture/frontend-screen-system-design.md) — the original 16-screen plan; content rules and empty/error states still apply
@@ -60,8 +90,14 @@ things work in practice and are the place to start if you're new.
 
 ## Operations
 
-- [Deployment](operations/deployment.md) — the six GitHub Actions workflows, Railway (backend), Vercel (frontend), Supabase auth URLs
+- [Branching, drawn](operations/git-branching-guide.html) — visual companion to `CONTRIBUTING.md` "Branch & PR workflow", for onboarding: 2 commit graphs, one measuring this repo's real branch shape and one showing the dev/staging/production reference flow, plus the habits and commands behind each
+- [Production setup and recovery](operations/deployment.md) — rebuild order, setting owners, Railway and Vercel releases, and Supabase callbacks
+- [How a legislator is matched to their campaign account](operations/how-a-legislator-is-matched-to-their-campaign-account.md) — the public audit record of the one decision no machine may make: what we claim, the 3 pieces of evidence a person reads, who signs, how a wrong match surfaces, how to challenge one, and where all 200 sitting members stand today
+- [What runs, when, and what it costs](operations/jobs-and-scripts.md) — all 14 GitHub workflows, every command-line tool, and every job-driven AI cost
+- [Error monitoring](operations/error-monitoring.md) — which server failures alert through Sentry, the privacy limits, setup, incident checks, and why Alethical buys this instead of building it
 - [Repo and service settings](operations/repo-and-service-settings.md) — every setting that controls the project but doesn't live in the repo, and its intended value
+- [Keeping every tool supported and useful](operations/technology-health.md) — the free monthly checks, 3-month major-tool review, support dates, and recorded exceptions
+- [Private repository cost outlook](operations/private-repository-cost-outlook.md) — the 2026-08-11 cost, security, access, job-limit, and Vercel-seat decision for making Alethical private
 - [API CDN setup](operations/api-cdn-setup.md) — Cloudflare in front of the API, plus email authentication records
 - [Page-load performance decisions](operations/page-load-performance-decisions.md): measured safe speed work, remaining tradeoffs, and the proof required before release
 - [iOS release workflow](operations/ios-release.md) — simulator QA, TestFlight, and ad hoc builds
@@ -73,4 +109,4 @@ things work in practice and are the place to start if you're new.
 ## About this folder
 
 - [How `docs/` is organized](folder-structure.md) — the folder layout and where a new doc goes
-- **How these are kept current** — see "Keeping docs current" in [`CONTRIBUTING.md`](../CONTRIBUTING.md). Short version: a doc that describes behaviour names the code it describes in a `<!-- describes: -->` comment, and CI then fails any PR that changes that code without one `Docs check:` line saying what the author concluded. If you write a doc that describes how something behaves, give it that comment; frozen records deliberately don't have one.
+- **How these are kept current** — see "Keeping docs current" in [`CONTRIBUTING.md`](../CONTRIBUTING.md). Short version: a doc that describes behaviour names the code it describes in a `<!-- describes: -->` comment, and CI then fails any PR that changes that code without one `Docs check:` line saying what the author concluded. Selected guides also opt into a free check that exact quoted labels, colours, and settings still appear in that code. If you write a doc that describes how something behaves, give it that comment. Design working files stay outside `docs/`.

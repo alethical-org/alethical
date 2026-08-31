@@ -5,23 +5,46 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 import { Platform } from 'react-native';
 import * as AuthSession from 'expo-auth-session';
 import * as WebBrowser from 'expo-web-browser';
-import { Session } from '@supabase/supabase-js';
+import type { Session } from '@supabase/supabase-js';
 
-import { isSupabaseConfigured, supabase } from '../lib/supabase';
-import { SIGN_IN_ERROR_MESSAGES, SignInErrorKind, signInErrorKind } from '../lib/signIn';
-import { restoreAuthSession } from '../lib/authRestore';
 import { onAccountDeactivated } from '../data/api';
-
-interface AuthUser {
-  id: string;
-  name: string;
-  email: string;
-}
+import {
+  AuthOperationResult,
+  AuthUser,
+  authFailure,
+  authSuccess,
+  validateAlethicalSession,
+} from '../lib/auth/operations';
+import { savePasswordWithFreshProof } from '../lib/auth/passwordFreshProof';
+import {
+  isProviderSessionRejected,
+  onProviderSessionRejected,
+  providerSessionIdentity,
+  rejectProviderSession,
+  sameProviderSessionLineage,
+  sessionMatchesProviderUserAccessToken,
+  sessionMatchesOpeningAccessToken,
+} from '../lib/auth/providerSessionAcceptance';
+import { validationFailureRevokesSession } from '../lib/auth/sessionSafety';
+import { restoreAuthSession } from '../lib/authRestore';
+import {
+  SIGN_IN_ERROR_MESSAGES,
+  SignInErrorKind,
+  signInErrorKindFromCallback,
+} from '../lib/signIn';
+import {
+  clearOrdinarySessionIfUnchanged,
+  isSupabaseConfigured,
+  passwordClientForOrdinarySession,
+  signOutOrdinarySessionIfUnchanged,
+  supabase,
+} from '../lib/supabase';
 
 interface AuthContextValue {
   isLoading: boolean;
@@ -30,36 +53,18 @@ interface AuthContextValue {
   user: AuthUser | null;
   accessToken: string | null;
   authError: string | null;
-  /**
-   * Whether the last failure was the person backing out of Google or something
-   * actually going wrong. The sign-in dialog words the two differently, and the
-   * raw provider message can't tell them apart.
-   */
   authErrorKind: SignInErrorKind | null;
-  signInWithGoogle: (returnTo?: string) => Promise<void>;
-  signOut: () => Promise<void>;
+  dismissAuthError: () => void;
+  signInWithGoogle: (returnTo?: string) => Promise<AuthOperationResult<unknown>>;
+  setPassword: (
+    password: string,
+    freshProofCode?: string,
+    expectedAccessToken?: string,
+  ) => Promise<AuthOperationResult>;
+  signOut: () => Promise<AuthOperationResult>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
-
-function userFromSession(session: Session | null): AuthUser | null {
-  const user = session?.user;
-  if (!user) {
-    return null;
-  }
-
-  const metadataName = user.user_metadata?.full_name ?? user.user_metadata?.name;
-  const email = user.email ?? '';
-
-  return {
-    id: user.id,
-    name:
-      typeof metadataName === 'string' && metadataName.trim()
-        ? metadataName
-        : email.split('@')[0] || 'Signed-in user',
-    email,
-  };
-}
 
 function getRedirectTo(returnTo?: string) {
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
@@ -68,11 +73,7 @@ function getRedirectTo(returnTo?: string) {
       window.location.origin,
     ).toString();
   }
-
-  return AuthSession.makeRedirectUri({
-    scheme: 'alethical',
-    path: 'auth/callback',
-  });
+  return AuthSession.makeRedirectUri({ scheme: 'alethical', path: 'auth/callback' });
 }
 
 function getCallbackParam(callbackUrl: string, paramName: string) {
@@ -84,164 +85,329 @@ function getCallbackParam(callbackUrl: string, paramName: string) {
   }
 }
 
+function publicErrorKind(kind: string): SignInErrorKind {
+  if (kind === 'deactivated') return 'deactivated';
+  if (kind === 'unverified-google') return 'unverified-google';
+  return 'failed';
+}
+
 export function AuthProvider({ children }: PropsWithChildren) {
   const [isLoading, setIsLoading] = useState(true);
   const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [authErrorKind, setAuthErrorKind] = useState<SignInErrorKind | null>(null);
+  const sessionRef = useRef<Session | null>(null);
+  const validations = useRef(new Map<string, Promise<AuthOperationResult<AuthUser>>>());
+  const validationGeneration = useRef(0);
+  const passwordChange = useRef<{
+    openingAccessToken: string;
+    auth: ReturnType<typeof passwordClientForOrdinarySession>;
+  } | null>(null);
 
-  // Every failure path sets both, so a caller never has to guess the kind from
-  // the wording of a provider message.
   const failWith = useCallback((message: string, kind: SignInErrorKind = 'failed') => {
     setAuthError(message);
     setAuthErrorKind(kind);
   }, []);
-
   const clearAuthError = useCallback(() => {
     setAuthError(null);
     setAuthErrorKind(null);
   }, []);
 
-  // A deactivated account still holds a perfectly valid Supabase token, so
-  // nothing here would ever notice on its own: the reader stays "signed in",
-  // their name keeps showing, and every feature of theirs quietly fails. The API
-  // layer tells us, and the honest response is to drop the dead session and say
-  // what happened -- which also puts the public pages back within reach, since
-  // they load fine with no token at all (#1092).
+  const acceptSession = useCallback(
+    async (candidate: Session): Promise<AuthOperationResult<AuthUser>> => {
+      if (isProviderSessionRejected(candidate)) return authFailure(null);
+      const generation = ++validationGeneration.current;
+      setIsLoading(true);
+      let validation = validations.current.get(candidate.access_token);
+      if (!validation) {
+        validation = validateAlethicalSession(candidate);
+        validations.current.set(candidate.access_token, validation);
+      }
+      const result = await validation;
+      validations.current.delete(candidate.access_token);
+      if (generation !== validationGeneration.current) return authFailure(null);
+      if (isProviderSessionRejected(candidate)) {
+        setIsLoading(false);
+        return authFailure(null);
+      }
+      const current = await supabase.auth.getSession().catch(() => null);
+      if (generation !== validationGeneration.current) return authFailure(null);
+      const currentSession = current && !current.error ? current.data.session : null;
+      if (currentSession && isProviderSessionRejected(currentSession)) {
+        setIsLoading(false);
+        return authFailure(null);
+      }
+      if (!sameProviderSessionLineage(currentSession, candidate)) {
+        setIsLoading(false);
+        return authFailure(null);
+      }
+      if (result.ok) {
+        sessionRef.current = currentSession;
+        setSession(currentSession);
+        setUser(result.data);
+        clearAuthError();
+        setIsLoading(false);
+        return result;
+      }
+      failWith(result.error.message, publicErrorKind(result.error.kind));
+      if (validationFailureRevokesSession(result.error.kind)) rejectProviderSession(candidate);
+      await clearOrdinarySessionIfUnchanged(candidate).catch(() => false);
+      if (generation !== validationGeneration.current) return result;
+      if (sessionRef.current && !sameProviderSessionLineage(sessionRef.current, candidate)) {
+        return result;
+      }
+      sessionRef.current = null;
+      setSession(null);
+      setUser(null);
+      setIsLoading(false);
+      return result;
+    },
+    [clearAuthError, failWith],
+  );
+
   useEffect(
     () =>
-      onAccountDeactivated(() => {
-        void supabase.auth.signOut().finally(() => {
-          setSession(null);
-          failWith(SIGN_IN_ERROR_MESSAGES.deactivated, 'deactivated');
-        });
+      onProviderSessionRejected((rejectedSessionKey) => {
+        if (
+          !sessionRef.current ||
+          providerSessionIdentity(sessionRef.current) !== rejectedSessionKey
+        ) {
+          return;
+        }
+        sessionRef.current = null;
+        setSession(null);
+        setUser(null);
+        setIsLoading(false);
+      }),
+    [],
+  );
+
+  useEffect(
+    () =>
+      onAccountDeactivated((requestAccessToken) => {
+        void (async () => {
+          let removedMatchingSession = false;
+          let storedBelongsToDifferentAccount = false;
+          for (let attempt = 0; attempt < 2; attempt += 1) {
+            const current = await supabase.auth.getSession().catch(() => null);
+            const stored = current && !current.error ? current.data.session : null;
+            if (!stored) {
+              break;
+            }
+            if (!sessionMatchesProviderUserAccessToken(stored, requestAccessToken)) {
+              storedBelongsToDifferentAccount = true;
+              break;
+            }
+            rejectProviderSession(stored);
+            const cleared = await clearOrdinarySessionIfUnchanged(stored).catch(() => false);
+            removedMatchingSession ||= cleared;
+          }
+
+          const visible = sessionRef.current;
+          const visibleMatches = Boolean(
+            visible && sessionMatchesProviderUserAccessToken(visible, requestAccessToken),
+          );
+          const visibleBelongsToDifferentAccount = Boolean(visible && !visibleMatches);
+          if (visible && visibleMatches) {
+            rejectProviderSession(visible);
+            sessionRef.current = null;
+            setSession(null);
+            setUser(null);
+          }
+          if (
+            !storedBelongsToDifferentAccount &&
+            !visibleBelongsToDifferentAccount &&
+            (removedMatchingSession || visibleMatches)
+          ) {
+            setIsLoading(false);
+            failWith(SIGN_IN_ERROR_MESSAGES.deactivated, 'deactivated');
+          }
+        })();
       }),
     [failWith],
   );
 
   useEffect(() => {
     let mounted = true;
-
+    const restoreGeneration = ++validationGeneration.current;
     void restoreAuthSession<Session>(() => supabase.auth.getSession())
-      .then(({ session: restoredSession, errorMessage }) => {
-        if (!mounted) {
+      .then(async ({ session: restoredSession, errorMessage }) => {
+        if (!mounted || restoreGeneration !== validationGeneration.current) return;
+        if (errorMessage) {
+          failWith(SIGN_IN_ERROR_MESSAGES.failed);
           return;
         }
-        setSession(restoredSession);
-        if (errorMessage) {
-          failWith(errorMessage);
-        }
+        if (restoredSession) await acceptSession(restoredSession);
       })
-      .catch((error) => {
-        if (mounted) {
+      .catch(() => {
+        if (mounted && restoreGeneration === validationGeneration.current) {
+          sessionRef.current = null;
           setSession(null);
-          failWith(error instanceof Error ? error.message : 'Sign-in could not be restored.');
+          setUser(null);
+          failWith(SIGN_IN_ERROR_MESSAGES.failed);
         }
       })
       .finally(() => {
-        if (mounted) {
-          setIsLoading(false);
-        }
+        if (mounted && restoreGeneration === validationGeneration.current) setIsLoading(false);
       });
 
     const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
-      setIsLoading(false);
-      // Only a session arriving clears the error. A session going *away* fires
-      // this too, and the deactivation path signs the reader out on purpose --
-      // clearing there would wipe the one message explaining why (#1092).
-      if (nextSession) {
-        clearAuthError();
+      if (!nextSession) {
+        const generation = ++validationGeneration.current;
+        void supabase.auth
+          .getSession()
+          .then((current) => {
+            if (generation !== validationGeneration.current) return;
+            if (!current.error && current.data.session) {
+              void acceptSession(current.data.session);
+              return;
+            }
+            sessionRef.current = null;
+            setSession(null);
+            setUser(null);
+            setIsLoading(false);
+          })
+          .catch(() => {
+            if (generation !== validationGeneration.current) return;
+            sessionRef.current = null;
+            setSession(null);
+            setUser(null);
+            failWith(SIGN_IN_ERROR_MESSAGES.failed);
+            setIsLoading(false);
+          });
+        return;
       }
+      void acceptSession(nextSession);
     });
-
     return () => {
       mounted = false;
       data.subscription.unsubscribe();
     };
-  }, [clearAuthError, failWith]);
+  }, [acceptSession, failWith]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
       isLoading,
-      isSignedIn: Boolean(session?.access_token),
+      isSignedIn: Boolean(session?.access_token && user),
       mode: 'supabase',
-      user: userFromSession(session),
+      user,
       accessToken: session?.access_token ?? null,
       authError,
       authErrorKind,
+      dismissAuthError: clearAuthError,
       signInWithGoogle: async (returnTo?: string) => {
         clearAuthError();
-
         if (!isSupabaseConfigured) {
-          failWith('Supabase is not configured for this app environment.');
-          return;
+          failWith(SIGN_IN_ERROR_MESSAGES.failed);
+          return authFailure(null);
         }
-
         const redirectTo = getRedirectTo(returnTo);
         const { data, error } = await supabase.auth.signInWithOAuth({
           provider: 'google',
-          options: {
-            redirectTo,
-            skipBrowserRedirect: Platform.OS !== 'web',
-          },
+          options: { redirectTo, skipBrowserRedirect: Platform.OS !== 'web' },
         });
-
         if (error) {
-          failWith(error.message);
-          return;
+          failWith(SIGN_IN_ERROR_MESSAGES.failed);
+          return authFailure(error);
         }
-
-        if (Platform.OS === 'web') {
-          return;
-        }
-
+        if (Platform.OS === 'web') return authSuccess();
         if (!data.url) {
-          failWith('Supabase did not return a Google sign-in URL.');
-          return;
+          failWith(SIGN_IN_ERROR_MESSAGES.failed);
+          return authFailure(null);
         }
 
         const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
-        // Dismissing the Google sheet used to return here silently, which left
-        // anything waiting on the result — the sign-in dialog — spinning forever.
         if (result.type !== 'success') {
-          failWith('The Google sign-in window closed before sign-in finished.', 'cancelled');
-          return;
+          failWith(SIGN_IN_ERROR_MESSAGES.cancelled, 'cancelled');
+          return {
+            ok: false,
+            error: { kind: 'request-failure', message: SIGN_IN_ERROR_MESSAGES.cancelled },
+          };
         }
-
-        const callbackError =
-          getCallbackParam(result.url, 'error_description') ??
-          getCallbackParam(result.url, 'error');
-        if (callbackError) {
-          failWith(
-            callbackError,
-            signInErrorKind(getCallbackParam(result.url, 'error') ?? callbackError),
-          );
-          return;
+        const callbackKind = signInErrorKindFromCallback(result.url);
+        if (callbackKind) {
+          failWith(SIGN_IN_ERROR_MESSAGES[callbackKind], callbackKind);
+          return authFailure(null);
         }
-
         const authCode = getCallbackParam(result.url, 'code');
         if (!authCode) {
-          failWith('Supabase did not return an auth code.');
-          return;
+          failWith(SIGN_IN_ERROR_MESSAGES.failed);
+          return authFailure(null);
         }
-
-        const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(authCode);
-        if (exchangeError) {
-          failWith(exchangeError.message);
+        const exchanged = await supabase.auth.exchangeCodeForSession(authCode);
+        if (exchanged.error || !exchanged.data.session) {
+          failWith(SIGN_IN_ERROR_MESSAGES.failed);
+          return authFailure(exchanged.error);
         }
+        return acceptSession(exchanged.data.session);
+      },
+      setPassword: async (
+        password: string,
+        freshProofCode?: string,
+        expectedAccessToken?: string,
+      ) => {
+        const visibleSession = sessionRef.current;
+        if (
+          !visibleSession ||
+          !expectedAccessToken ||
+          !sessionMatchesOpeningAccessToken(visibleSession, expectedAccessToken)
+        ) {
+          passwordChange.current = null;
+          return authFailure({ code: 'session_changed' }, user?.email);
+        }
+        if (!freshProofCode) {
+          passwordChange.current = {
+            openingAccessToken: expectedAccessToken,
+            auth: passwordClientForOrdinarySession(visibleSession),
+          };
+        }
+        const flow = passwordChange.current;
+        if (!flow || flow.openingAccessToken !== expectedAccessToken) {
+          return authFailure({ code: 'session_changed' }, user?.email);
+        }
+        const result = await savePasswordWithFreshProof(
+          flow.auth,
+          password,
+          freshProofCode,
+          user?.email,
+        );
+        if (result.ok || result.error.kind !== 'fresh-proof') passwordChange.current = null;
+        if (!result.ok) return result;
+        setUser((current) => {
+          if (!current || current.id !== user?.id || !current.signInMethods) return current;
+          return {
+            ...current,
+            signInMethods: { ...current.signInMethods, password: true },
+          };
+        });
+        return result;
       },
       signOut: async () => {
         clearAuthError();
-        const { error } = await supabase.auth.signOut();
-        if (error) {
-          failWith(error.message);
-          return;
+        const openingSession = sessionRef.current;
+        if (!openingSession) return authSuccess();
+        const generation = ++validationGeneration.current;
+        const result = await signOutOrdinarySessionIfUnchanged(openingSession);
+        if (result.error) {
+          const failure = authFailure(result.error);
+          failWith(SIGN_IN_ERROR_MESSAGES.failed);
+          return failure;
         }
+        if (generation !== validationGeneration.current) return authSuccess();
+        const current = await supabase.auth.getSession().catch(() => null);
+        if (generation !== validationGeneration.current) return authSuccess();
+        if (current && !current.error && current.data.session) {
+          void acceptSession(current.data.session);
+          return authSuccess();
+        }
+        sessionRef.current = null;
         setSession(null);
+        setUser(null);
+        return authSuccess();
       },
     }),
-    [authError, authErrorKind, clearAuthError, failWith, isLoading, session],
+    [acceptSession, authError, authErrorKind, clearAuthError, failWith, isLoading, session, user],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -249,9 +415,6 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within AuthProvider');
-  }
-
+  if (!context) throw new Error('useAuth must be used within AuthProvider');
   return context;
 }

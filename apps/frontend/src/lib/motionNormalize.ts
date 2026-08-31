@@ -24,13 +24,7 @@ import { Chamber } from '../data/types';
 // an administrative "Calendar for the Day" scheduling motion.
 
 export type MotionCategory =
-  | 'passage'
-  | 'repassage'
-  | 'concurrence'
-  | 'override'
-  | 'cc_report'
-  | 'kill'
-  | 'administrative';
+  'passage' | 'repassage' | 'concurrence' | 'override' | 'cc_report' | 'kill' | 'administrative';
 
 export interface NormalizedMotion {
   /** Plain, consistent card/row title, e.g. "Final passage", "Repassage, as

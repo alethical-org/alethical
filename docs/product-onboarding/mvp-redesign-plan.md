@@ -11,8 +11,34 @@ roadmap noted for direction.
   see `docs/product-onboarding/product-scope.md` § Frontend Scope. The frontend stays a shared Expo/React Native
   codebase, so mobile is a re-target later, not a rebuild — but nothing in the MVP build
   sequence below targets iOS/Android.
-- **IA:** top nav `Search ▾ · Track ▾ · About ▾ · Sign in`, with dropdown
-  subsections. Search and Track share one entity taxonomy. **The AI-answer feature is
+- **IA:** top nav `Search ▾ · Reports ▾ · About ▾`, then Sign in or the account
+  avatar — the same three groups in both auth states. Rows carry dropdown
+  subsections. **Revised 20 Aug 2026**
+  ([#1698](https://github.com/alethical-org/alethical/issues/1698)): the
+  personalized **Yours** group left the bar, its one row (Tracked Bills, now with
+  a count) moved into the account menu behind the avatar, a new group
+  took second place holding one row (Campaign money → the `/read` page, green
+  NEW chip),
+  and Search's money row was renamed **Money in politics**. That group was
+  labelled **Reports** and pointed at `/reports` until the morning of 27 Aug 2026,
+  when it became **Reading** and took the address of the page it opens
+  (`docs/architecture/published-writing-decisions.md` §2.6 and §5). **That evening
+  the group stopped being a group**: it held 1 child, so the bar drew a dropdown
+  containing a single item and the phone drawer drew a heading over a single row.
+  It is now 1 bar item reading **Read**, with no dropdown at either width, opening
+  `/read` directly, and every address took the same word
+  (`docs/architecture/published-writing-decisions.md` §2.13). The tracked-bills page
+  keeps its address, `/tracked`.
+  Before that, with the campaign money section (campaign money IA handoff,
+  Aug 2026): **the personalized menu was renamed from "Track" to "Yours"** — a
+  group whose only live row is Tracked, named "Track", repeats its own child —
+  **Campaign money joined Search as a live public row** (second, with a green NEW
+  chip), the greyed Candidates and News pills moved from the personalized menu
+  into Search's greyed group, and the greyed Campaign Finance pill retired, its
+  old address `/track/campaign-finance` forwarding to `/money`. Where the older
+  sections below say "Track" or "Yours", read them as history: the registry key
+  `track` in `apps/frontend/src/navigation/ia.ts` still exists and still declares
+  those rows, but `MENUS` in the same file no longer draws that group. **The AI-answer feature is
   named "Grounded Ask" (feature / badge) and "Ask" (action verb) — never "Ask AI"**
   (ratified 2026-07-12, matching the v2 home design and
   `docs/design/ui-copy-guide.md`). **The global menu is Ask-free on every page** (revised
@@ -20,45 +46,43 @@ roadmap noted for direction.
   pages. Ask stays reachable through the home hero and contextual actions on bills,
   profiles, and answers. The grey **Ask AI** roadmap pill remains the one scoped naming
   exception because it is inert and describes a separate future capability.
-- **MVP surface:** Ask AI; Search → Bills, Legislators ("Find My Legislator");
-  Track → Bills; About → About Us, Trust & Integrity, Contact Us; Sign in.
-  Everything else in the menus is roadmap.
-- **Aesthetic:** green / rounded / bold-sans / soft-shadow. Loose and non-binding
-  until firmed; final visual mockups handled separately in Claude design.
-- **Final designs land one page at a time, superseding the seven comps per page:**
-  the seven HTML comps under `docs/mockups/` on the design-system branch
-  ([#67](https://github.com/alethical-org/alethical/pull/67)) were *aesthetic
-  direction*; the actual per-page UI arrives as refined Claude-design mockup
-  screenshots, and once a page's final design exists it supersedes that page's comp
-  as the visual reference (the comp stays as provenance for the tokens). First final
-  design: home signed-out (2026-07-09 refinement — full page + the three nav-dropdown
-  states). The tokens + primitives foundation extracted from the comps persists;
-  each page build tops it up with whatever new tokens/components its final design
-  needs.
+- **MVP surface:** Ask AI; Search → Bills, Money in politics, Legislators, Find My
+  Legislator; Reports → Campaign money; About → About Us, Site Metrics, Contact Us;
+  Sign in, or the account menu holding Tracked Bills. Everything else in the menus
+  is roadmap.
+- **Aesthetic:** green / rounded / bold-sans / soft-shadow. Shared intent lives in
+  `docs/design/design-principles.md`; exact values live in the frontend theme.
+- **Final designs land one page at a time:** accepted previews are temporary build aids.
+  Lasting screen behavior moves into the feature guide under `docs/product-onboarding/`,
+  shared visual rules move into `docs/design/design-principles.md`, and exact values move
+  into `apps/frontend/src/theme/tokens.ts` and the built components. Preview HTML,
+  screenshots, copied assets, and handoff notes do not stay under `docs/`; Git history and
+  the pull request preserve the point-in-time artifact without making it current guidance.
 - **Roadmap items in menus = curated, greyed "ON THE ROADMAP" group (resolves O5):**
   the v2 home design shows the Search and Track dropdowns with a greyed, non-navigable
   **ON THE ROADMAP** group beneath the live entries, rather than hiding all roadmap
-  items. The curated sets differ per menu: **Search → Candidates · Claimed Profiles · Ask AI**;
-  **Track → Legislators · Candidates · Campaign Finance · News**. The mobile menu combines
-  them as **Candidates · Claimed Profiles · Campaign Finance · News · More Tracking · Ask AI**.
+  items. Only Search carries one now: **Search → Candidates · Claimed Profiles ·
+  News · Ask AI**, and the phone drawer shows the same four. A calculated **More
+  Tracking** chip used to sit before Ask AI, standing in for the Yours menu's own
+  roadmap; it went with that menu on 20 Aug 2026
+  ([#1698](https://github.com/alethical-org/alethical/issues/1698)), because it
+  pointed at a group a reader could no longer open. Reports has no roadmap group.
   Other roadmap registry entries stay hidden. Live
   entries keep icon + one-line description — **Search:** Bills (with a **"Grounded Ask"**
-  badge) · Search Legislators · Find My Legislator; **Track:** Bills.
-- **Mockups → frontend handoff (no HTML conversion step):** when the Claude-design
-  mockups finalize, they hand off to implementation as three artifacts, in value order:
-  1. **Final screenshots per screen and state** — shared via Drive for human review.
-     (Anything embedded in this public repo instead must be vetted first — mock
-     screenshots pair real legislator names with fabricated records.)
+  badge) · Money in politics (green NEW chip) · Legislators · Find My Legislator;
+  **Reports:** Campaign money (green NEW chip).
+- **Design → frontend handoff (no HTML conversion step):** when a design preview is
+  accepted, it hands off to implementation as three inputs, in value order:
+  1. **Final screenshots per screen and state** — kept with the active design task or pull
+     request for human review, not stored as permanent documentation. Screenshots that pair
+     real names with sample records must never enter the public repo.
   2. **Design tokens** — exact colors, type scale, spacing, radii per component —
-     landing as code in `apps/frontend/src/theme/tokens.ts` on the design-system
-     branch ([#67](https://github.com/alethical-org/alethical/pull/67), which also
-     keeps the raw HTML comps under `docs/mockups/` as the versioned visual
-     reference). `tokens.ts` is itself the token sheet; don't hand-maintain a
+     landing as code in `apps/frontend/src/theme/tokens.ts`. `tokens.ts` is itself the token sheet; don't hand-maintain a
      parallel human-readable one — generate it from the file if ever needed.
   3. **Final copy strings verbatim** — for the Ask surface these live in
      `docs/product-onboarding/grounded-ask-spec.md` §9.4 (layout-owned fixed copy), kept in sync as
-     mocks refine. When mock copy and the spec diverge, reconcile the spec
-     deliberately — the spec is the source of truth, not the mock.
+     previews refine. When preview copy and the spec diverge, reconcile the spec
+     deliberately. The spec is the source of truth, not the preview.
 
   There is deliberately **no HTML-to-frontend conversion step**: the frontend is a
   shared Expo/React Native codebase, and RN doesn't render HTML/CSS — converted
@@ -94,11 +118,16 @@ roadmap noted for direction.
   `useSignInModal().openSignIn({ intent, returnTo, billId, scrollY })`. The three previously
   inert nav "Sign in" buttons now open it; so does a signed-out Track tap, which returns
   to the exact page and scroll position and finishes the track with no second click
-  (`docs/product-onboarding/bill-tracking-spec.md`). Design and
-  deviations: `docs/mockups/sign-in/`. Gate scope is **bill tracking only**. Vote records
-  are public, so there is no legislator-votes sign-in intent.
-  No copy anywhere mentions an email or push alert: sending is not built
-  ([#36](https://github.com/alethical-org/alethical/issues/36)).
+  (`docs/product-onboarding/bill-tracking-spec.md`). Google and email-plus-password are
+  both live; every flow, state and string is documented in
+  `docs/product-onboarding/sign-in-guide.md` (revised to the rev 17 design,
+  [#1533](https://github.com/alethical-org/alethical/issues/1533), which also retired the
+  Google-only design bundle that used to live under `docs/`). Gate scope is
+  **bill tracking only**. Vote records are public, so there is no legislator-votes
+  sign-in intent. No copy anywhere claims an email was sent or promises a push alert:
+  sending alerts is not built
+  ([#36](https://github.com/alethical-org/alethical/issues/36)), and "sent" wording is
+  arrival-neutral by rule (`docs/design/ui-copy-guide.md`).
 - **Sign-out UX / account menu (SHIPPED, revised Aug 2026):** the "Sign in" button is
   *replaced* by an account control when signed in — not a Sign-in→Sign-out toggle. Three
   placements: an avatar + first name pill with a dropdown on desktop, an avatar opening a

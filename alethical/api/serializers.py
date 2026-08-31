@@ -249,10 +249,10 @@ def ai_citation_payloads(
     source URL (grounded-answers rule 5 — the location must resolve); a bill
     without an official URL yields no citations rather than a dead link.
 
-    `section_topics` maps section_id_text -> topic and fills in the "· Topic" half
-    of a chip whose stored label carries only a number. Composed here, at request
-    time, rather than baked into the stored label, so every bill gets it now
-    instead of only the ones a future re-enrichment happens to touch.
+    `section_topics` maps the same (section_id, quote) pair used for a resolved
+    position to its topic. Unique section ids also carry an id-only fallback. This
+    fills in the "· Topic" half of a chip whose stored label carries only a number
+    without assigning one repeated id's heading to a different section (#869).
 
     `section_orders` maps (section_id, quote) -> the POSITION of the section that
     citation cites, which is what the chip jumps to and badges. The stored
@@ -282,15 +282,19 @@ def ai_citation_payloads(
         ):
             continue
         section_id = section_id.strip()
+        quote = quote.strip()
+        citation_key = (section_id, quote)
         citations.append(
             api_schemas.AICitationPayload(
                 id=f"{section_id}-{index}",
                 label=label.strip(),
                 url=official_url,
-                excerpt=quote.strip(),
+                excerpt=quote,
                 section_id=section_id,
-                section_order=(section_orders or {}).get((section_id, quote.strip())),
-                section_topic=(section_topics or {}).get(section_id, ""),
+                section_order=(section_orders or {}).get(citation_key),
+                section_topic=(section_topics or {}).get(
+                    citation_key, (section_topics or {}).get(section_id, "")
+                ),
             )
         )
     return citations

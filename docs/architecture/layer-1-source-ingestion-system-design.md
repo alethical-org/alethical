@@ -294,8 +294,17 @@ Validation examples:
 - legislator chamber and district must match known district formats
 - bill authors in member pages should reconcile with legislator records
 - bill companion numbers should match expected file type patterns
-- bill text version count should be monotonic
-- actions should be ordered by action number and date
+- 1 response may not lower a stored bill's action, author, text-version or section count;
+  the same lower source facts must arrive twice before they are accepted
+- an accepted lower section list reconciles only the current version; absent positions and their
+  derived search rows are removed in the same transaction, while historical versions remain
+  unchanged
+- an action number orders actions only inside its own chamber because House and Senate counters
+  each restart at 1
+- each chamber tail carries its preceding real date when that tail has no date; this value is used
+  only to compare chamber tails and is never saved as the missing action's date
+- chamber tails are compared by that carried date, then by official XML chamber-block order when
+  dates tie; an enactment or veto remains the current status instead of yielding to a routine label
 
 Reconciliation examples:
 
@@ -309,6 +318,9 @@ Failure handling:
 - hard-fail malformed source payloads
 - soft-fail missing optional fields
 - route ambiguous records to review tables
+- keep a stored bill description when a later response leaves it blank
+- reject only the affected bill after 2 differing thin responses, while the rest of its
+  chunk continues; expose that post-retry rejection for the scheduled refresh to report
 
 Recommended review signals:
 
@@ -585,15 +597,51 @@ The implementation lives in `alethical/pipeline/minnesota.py`; `scripts/load_sam
 
 The full-session bill discovery path is exposed through Oban as `full-bill-sync`. By default it discovers all Revisor House/Senate bills for the session and enqueues no downstream work directly; it ingests only missing bills unless `--refresh-existing` is passed.
 
+Each accepted chunk reports `bill_keys` for every canonical write,
+`text_changed_bill_keys` when reader-facing section text changed, and
+`summary_changed_bill_keys` when the saved AI context changed. The last list also
+catches a change to added/deleted roles or APPENDIX reference text when the visible
+section words stayed the same. A rejected thin refresh appears in none of these
+lists. When inline RAG is enabled, the worker flushes the accepted canonical rows,
+rebuilds only stale search rows through the same database session, and commits both
+layers once. The worker refuses a separate RAG database because 2 connections cannot
+make that publication atomic ([#1320](https://github.com/alethical-org/alethical/issues/1320)).
+
+A twice-confirmed lower section list removes only the missing positions from the accepted current
+version ([#1423](https://github.com/alethical-org/alethical/issues/1423)). Its derived rows have no
+database cascade, so ingestion deletes embeddings, chunks and section documents before the
+canonical section rows. Historical versions are outside the delete predicate, and a rejected or
+uncertain lower response never reaches this reconciliation.
+
+That same accepted summary-context change retires any current `bill_summary` before
+the transaction commits. It also records exactly 1 durable replacement request for
+the bill, current version, exact official-text fingerprint, prompt-context version,
+and prepared prompt fingerprint. The request waits until complete saved legal roles
+and current search rows are ready. After the commit, an event-driven `ai_summary`
+job can claim it. No paid timer polls for work.
+
+The database clears `Bill.has_current_summary`, so product reads show the current
+official record with no summary until a checked replacement lands. Metadata-only
+changes and rejected thin responses do not retire a still-matching summary. The
+provider step is disabled by default and all spending and failure settings default
+to 0. Refresh and summary apply take the same bill-row lock, so a result that finishes
+while a refresh is committing must wait and then check the committed text rather
+than restoring an old summary ([#1321](https://github.com/alethical-org/alethical/issues/1321)).
+
 ```bash
-# Single read-only pipeline entry point.
+# Queue a read-only ingestion preview.
 just pipeline local --dry-run
-just pipeline-work local
+# Drain it while the separate paid-summary switch is forced off.
+ALETHICAL_AUTO_BILL_SUMMARY_ENABLED=false just pipeline-work local
 
 # Write missing bills after reviewing the dry-run result.
 just pipeline local --write --allow-writes
-just pipeline-work local
+ALETHICAL_AUTO_BILL_SUMMARY_ENABLED=false just pipeline-work local
 ```
+
+`just pipeline-work` runs every waiting job in its listed queues. Its `ai_summary`
+step can call Anthropic and write a summary after that separate switch and every
+spending and failure limit are open, so draining is not itself a read-only command.
 
 The coordinator job records its child jobs in Oban metadata, then each stage runs as its own queued job. This keeps source sync, committee refresh, vote refresh, and AI batch preparation independently observable. AI enrichment remains split into prepare/submit/apply steps so token usage, provider batch IDs, output files, and eventual `ai_enrichment` writes can be tracked separately from canonical ingestion.
 
@@ -648,6 +696,16 @@ This should be folded into regular bill ingestion as a post-action stage:
 
 Votes remain optional. A bill can have zero vote events if it never receives a recorded roll call, if the action was not a roll call, or if the official source cannot be matched deterministically.
 
+Saved roll calls are reconciled, not blindly rewritten. An accepted bill-action change targets
+the exact stored bill key, and a bounded rotating sweep catches a chamber correction made without
+a matching Revisor action change. The reconciler first reads a complete official tally and member
+list. A missing, duplicate, ambiguous, or unresolved member rejects that roll call and preserves
+the saved event. When every official fact is unchanged, it writes nothing. When a fact changed,
+the event and every member row change in one database transaction. The daily missing-vote top-up
+remains separate and additive. This split is required by
+[#1446](https://github.com/alethical-org/alethical/issues/1446): finding a newly posted roll call
+and correcting an already saved roll call have different safety rules.
+
 # AI Enrichment Status
 
 The database and API are ready to serve AI enrichment. Enrichment is intentionally separate from canonical source ingestion: bill text, actions, votes, and committees are synced first; AI summaries are generated later from the canonical bill corpus.
@@ -661,12 +719,16 @@ What exists today:
 - OpenAI Batch API preparation, submission, status, and apply code in `alethical.pipeline.ai_enrichment`
 - local Codex headless execution support in `alethical.pipeline.codex_enrichment` and the Oban `ai_codex` queue
 
-What does not exist yet:
+The automatic full-summary handoff now records and queues an exact request after
+canonical ingestion and search preparation. Its provider worker reuses the existing
+Anthropic prompt, cache, answer checks, freshness check, lock, and apply path. Paid
+execution remains disabled until its production spending limits are approved and
+the default-off switch is deliberately enabled. There is no scheduled paid stage.
 
-- no scheduled enrichment stage runs after canonical ingestion
-- no deployed worker process around the full enrichment lifecycle
-
-The intended production shape is a separate enrichment stage after canonical ingestion and RAG preparation. It should read canonical bill text/RAG rows, call the selected model or runner, write `ai_enrichment` rows with `model_name`, `content_json`, `source_version_hash`, and `is_current`, and leave official bill/action/vote data as the source of truth.
+The enrichment stage reads saved canonical bill text and search rows, calls the
+selected model or runner, writes `ai_enrichment` rows with `model_name`,
+`content_json`, `source_version_hash`, and `is_current`, and leaves official
+bill/action/vote data as the source of truth.
 
 There are two supported enrichment backends:
 
@@ -728,7 +790,7 @@ uv run python -m alethical.pipeline.oban --target production enqueue ai-apply \
 uv run python -m alethical.pipeline.oban --target production drain ai_apply
 ```
 
-The script skips current enrichments when `model_name` and `source_version_hash` already match unless `--force` is passed. Applying output marks older current `bill_summary` rows for the bill non-current, then upserts the completed enrichment for the exact bill version and source hash.
+The script skips current enrichments when `model_name` and `source_version_hash` already match unless `--force` is passed. Before applying output, it verifies that the manifest still names the bill's current version and derives both supported source-hash forms directly from the current official section text. The 64-character form is used before retrieval rows exist; retrieval uses the same hash shortened to 16 characters. Accepting both means adding a search index cannot make unchanged output look old, while changed, missing or reordered official text still fails the check. Outdated output is counted and skipped, leaving the bill without a summary instead of letting a job prepared before a later refresh restore stale words. A matching output marks older current `bill_summary` rows for the bill non-current, then upserts the completed enrichment for the exact bill version and source hash ([#1321](https://github.com/alethical-org/alethical/issues/1321)).
 
 ## Codex Headless Backend
 

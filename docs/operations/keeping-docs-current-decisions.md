@@ -2,18 +2,24 @@
 
 # Keeping docs current — what we decided and why
 
-**Net:** We looked at four ways to automatically catch a doc that describes code it never
+**Net:** We looked at four ways to automatically catch a live doc that describes code it never
 declared, measured each one against the real repo, and are **not making any of them a CI
-gate**. The declared-coupling check we already have (`scripts/check_doc_sync.py`) stays as-is;
-the gap it has is a **missing declaration**, and writing one is a one-line edit per doc. Two of
-the four alternatives cannot see plain-English guides at all, one costs money in CI on a graph
-we can't keep current, and the closest near-miss would newly fire on 20% of PRs with at least
-36% of its new prompts triggered by plumbing — and a check people route around is worse than no
-check.
+gate**. The declared-coupling check remains the right mechanism for live guides; the gap it has
+is a **missing declaration**, and writing one is a one-line edit per doc. A later, separate
+[#1469](https://github.com/alethical-org/alethical/issues/1469) guard covered frozen design
+bundles. Issue [#1534](https://github.com/alethical-org/alethical/issues/1534) retired those
+bundles and left the guard only on the temporary sign-in record. Two of the four alternatives measured here
+cannot see plain-English guides at all, one costs money in CI on a graph we can't keep current,
+and the closest near-miss would newly fire on 20% of PRs with at least 36% of its new prompts
+triggered by plumbing — and a check people route around is worse than no check.
 
 **One option is deliberately left open rather than rejected: running that near-miss as a
 non-blocking report instead of a gate.** We never measured that mode, and it is the strongest
 remaining candidate. See "What we did not measure" below.
+
+A later [code-only map trial](https://github.com/alethical-org/alethical/issues/1549) tested a
+different job: helping a coding session find the reach of a change. That trial also failed its
+keep bar. Its measured result is recorded below.
 
 Evaluated [#917](https://github.com/alethical-org/alethical/issues/917), 2026-08-03. The
 convention this serves is `.claude/rules/workflow.md` rule 6 (search for everything that still
@@ -37,6 +43,62 @@ draft of this section used `SearchBillsScreen.tsx` and did exactly that.
 `scripts/check_doc_sync.py` then fails any PR that changes a declared file without one
 `Docs check:` line in the body saying what the author concluded. "None needed" passes — the
 check forces the *look*, not an edit.
+
+### Exact quoted claims in selected live guides
+
+The separate `scripts/check_doc_quotes.py` check catches a smaller, provable class of drift:
+an exact label, colour, function call, or setting quoted by a guide no longer appears in the
+code that guide declares. It checks only a guide carrying this marker:
+
+```
+<!-- check-quoted-code: true -->
+```
+
+Ordinary prose, example searches, bill numbers, and fenced examples are excluded. A
+deliberately historical or made-up value may be excluded only with its exact text and a reason:
+
+```
+<!-- quote-check-ignore: exact wording | reason it does not belong in live code -->
+```
+
+This starts with `docs/product-onboarding/search-bills-guide.md`. Widen it one guide at a time,
+after every current warning has been classified and every harmless warning has a narrow,
+reasoned exception. An unexplained warning blocks widening. The check runs in the existing
+free docs job, without an AI call or a separate job.
+
+Measured across all 26 docs that declare code on 2026-08-13, the narrow extractor found 329
+candidate quotes and 215 missing exact matches. Manual review classified all 215 as unsafe to
+fail automatically, so enabling the check everywhere would have a 65.3% operational
+false-positive rate. The largest sources were web addresses with values filled in at runtime,
+labels assembled from several code strings, function names written with `()`, settings whose
+source file was outside that doc's declaration, and historical examples. That is why the launch
+is opt-in instead of repository-wide.
+
+The same extractor was also run against the parent commits of PRs #935, #936, #939, and #942.
+It flagged 6 of the 8 real stale quotes listed in issue #943, clearing the 5-of-8 proof bar.
+The 2 misses were a tab list written as unquoted prose and a larger settings example whose
+wrong inner value also appeared legitimately for other models. Expanding the extractor to catch
+either would increase current false warnings, so both stay outside this exact-string check.
+
+### Design working files stay temporary
+
+Accepted previews used to live under `docs/mockups/` without a `describes:` declaration. That
+made point-in-time HTML, screenshots, sample records, and handoff notes look like current product
+guidance. It also allowed an implementation and its old preview to disagree after either one
+changed.
+
+Issue [#1534](https://github.com/alethical-org/alethical/issues/1534) reversed that storage rule.
+Preview files now stay with the active task or pull request. Before a build lands, lasting behavior
+and copy move into the feature guide under `docs/product-onboarding/`, shared visual rules move
+into `docs/design/design-principles.md`, and exact values move into code. Those permanent guides
+use the normal `describes:` and `Docs check:` path.
+
+`docs/mockups/sign-in/` was the one temporary exception while the separate sign-in redesign was
+active, and the rev 17 build ([#1533](https://github.com/alethical-org/alethical/issues/1533))
+closed it out: its lasting rules were reconciled into
+`docs/product-onboarding/sign-in-guide.md` and the folder was removed, along with the
+`Design change:` gate in `scripts/check_doc_sync.py` and its tests — with no design files
+under `docs/` there is nothing left for that gate to watch.
 
 **Two things about that line trip people up, and the second costs a wasted CI cycle**
 ([#1008](https://github.com/alethical-org/alethical/pull/1008), 2026-08-05, hit both):
@@ -304,6 +366,89 @@ going stale first. See "The by-hand pass, as run" above.
 
 The "roughly 20 of 47" trigger is closer than it was: that pass took declaring docs from 9 to
 10, and more than doubled the globs they carry (52 → 90 firings over 60 PRs).
+
+## The separate code-only map trial ([#1549](https://github.com/alethical-org/alethical/issues/1549), 2026-08-15)
+
+**Net: do not save or automatically refresh an Alethical code map.** A current code-only map
+explained direct calls well, but it returned a smaller complete change list in **0 of 10**
+finished-change trials. It found only **2 of the required 3** clearly useful changed callers or
+tests that the first exact text search missed. An old map that was 388 main-branch changes behind
+still answered without a freshness warning.
+
+This tested only code relationships. It made no model call, sent no Alethical source outside the
+machine, and did not reopen the written-guidance gate decision above.
+
+### What was built
+
+- Graphify 0.9.43 read 535 code files in one pass in about 9 seconds. The raw result held 7,413
+  named code items and 20,792 links.
+- Local grouping found 308 code groups without naming them through a model. The saved map held
+  18,707 links after duplicate endpoint links were folded together.
+- A second build split the website, server, and scripts into 3 maps, then joined them. It held
+  18,054 links, which is 2,738 fewer than the one-pass raw map. The split build excluded 14 root
+  and automatic-job files, and could not resolve relationships between folders while reading
+  each folder alone.
+- This coding session blocked Graphify from starting extra worker processes. Reading with 1 worker
+  succeeded. That affected build speed only, not the result.
+
+### The 10 finished changes
+
+The first search was an exact repository-wide text search for the starting name (`rg -l -F`).
+The map result used reverse impact lookup at depth 2 (`graphify affected --depth 2`). "Known code"
+means code files changed by the finished pull request and still present on main. A row passes only
+when the map result is smaller than the text result and contains all known code.
+
+| Finished change | Starting name | Text files | Map files | Known code found | Result |
+| --- | --- | ---: | ---: | ---: | --- |
+| [#1543](https://github.com/alethical-org/alethical/pull/1543), Traffic release settings | `assertTrafficProductionEnv` | 2 | 2 | 2/2 | Fail: complete, but no smaller. |
+| [#1475](https://github.com/alethical-org/alethical/pull/1475), stale bill refresh | `shouldRefreshBillQuery` | 3 | 5 | 5/6 | Fail: 2 useful finds, 1 known screen missed, and larger. |
+| [#1465](https://github.com/alethical-org/alethical/pull/1465), repeated Google sign-in return | `authErrorReturnDecision` | 3 | 4 | 3/3 | Fail: complete, but larger. |
+| [#1427](https://github.com/alethical-org/alethical/pull/1427), phone background dots | `getHomeDotVisibility` | 3 | 4 | 3/3 | Fail: complete, but larger. |
+| [#1515](https://github.com/alethical-org/alethical/pull/1515), missing session dates | `seed_reference_data` | 7 | 1 | 1/2 | Fail: smaller, but the matching test was missed. |
+| [#1511](https://github.com/alethical-org/alethical/pull/1511), missing House votes | `repair_incomplete_vote_records` | 6 | 3 | 3/4 | Fail: smaller, but the command-level test was missed. |
+| [#1508](https://github.com/alethical-org/alethical/pull/1508), citation chip names | `_citation_section_topics` | 2 | 2 | 2/3 | Fail: the serializer change was missed, and no smaller. |
+| [#1485](https://github.com/alethical-org/alethical/pull/1485), campaign payments | `payments_received` | 3 | 7 | 3/3 | Fail: complete, but 4 unrelated router checks made it larger. |
+| [#1498](https://github.com/alethical-org/alethical/pull/1498), outside spending | `OutsideSpendingCard` | 4 | 4 | 3/13 | Fail: the server request and data path were missed. |
+| [#1468](https://github.com/alethical-org/alethical/pull/1468), Home hero fact check | `check_record_agrees` | 1 | 1 | 1/4 | Fail: the website, its check, and its automatic job were missed. |
+
+The 2 clear additions were `appQueryClient.test.ts` and `AppProviders.tsx` in #1475. Other depth-2
+additions were broad parents or checks for unrelated routes, so they do not count toward the
+3-useful-find bar.
+
+### What worked
+
+- 9 of 10 known caller-to-called routes were found. All 10 reverse checks refused to invent a
+  backward route.
+- Direct explanations named the relationship, source file, line, and whether Graphify read the
+  link directly or inferred it.
+- The map made a whole-code question about 12 times smaller than reading every code file, using
+  Graphify's own token estimate. This is useful only after the right starting name is already
+  known.
+
+### What failed
+
+- Exact text search matched or beat the map for the focused names in all 10 trials.
+- The default impact lookup omits the `method` relationship. Adding it found the missing
+  `seed_reference_data` test, but widened that answer from 1 file to many unrelated ingestion
+  checks.
+- The map did not connect website requests to their Python routes, React component use written as
+  JSX, a Python fact checker to the website text it checks, or a package command to its command
+  test. Those are 4 ordinary Alethical change shapes.
+- The live pull-request report grouped 17 open pull requests into very broad code groups. It
+  showed many overlaps, but did not replace exact changed-file checks or the live Codex task list.
+- Freshness is not stored or enforced by the map. The 388-changes-behind map answered as if it
+  were current.
+
+### Decision
+
+- Do not commit a generated map, add a GitHub Actions refresh, install a repository hook, or add
+  map instructions to every coding session.
+- Keep exact text search, code reading, focused checks, changed-file comparison, the existing
+  `describes:` links, and live GitHub pull-request checks as the normal path.
+- Graphify may still be built temporarily for a hard caller-route question. Its route is evidence
+  to inspect, not a safety verdict, and the generated files are removed after the question.
+- Re-run this trial only if Graphify records and enforces the source commit, connects React JSX and
+  HTTP request paths, and can return method callers without widening to a whole subsystem.
 
 ## What we did not measure
 

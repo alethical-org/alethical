@@ -1,17 +1,25 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import re
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
 
 import pytest
-from sqlalchemy import create_engine, delete, select
+from sqlalchemy import create_engine, delete, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from alethical.db import models as schema
 from alethical.db.session import get_database_url
 from alethical.pipeline import ai_enrichment
+from alethical.pipeline.minnesota import (
+    APPENDIX_PARSER_VERSION,
+    CHANGE_ROLE_PARSER_VERSION,
+    compute_appendix_source_hash,
+)
 
 
 def _session() -> Session:
@@ -44,9 +52,30 @@ def _make_bill_with_summary(
         version_code="test-v1",
         sequence_number=0,
         is_current=True,
+        appendix_parser_version=APPENDIX_PARSER_VERSION,
+        appendix_source_hash=compute_appendix_source_hash(False, []),
+        appendix_parse_complete=True,
+        appendix_present=False,
+        change_role_parser_version=CHANGE_ROLE_PARSER_VERSION,
+        change_role_parse_complete=True,
     )
     db.add(version)
     db.flush()
+    raw_text = "The commissioner shall publish a yearly report."
+    role_segments = [{"role": "carried_forward", "text": raw_text}]
+    db.add(
+        schema.BillVersionSection(
+            bill_version_id=version.id,
+            section_id_text="laws.0.1.0",
+            source_order=1,
+            section_heading="ANNUAL REPORT.",
+            raw_text=raw_text,
+            source_hash=hashlib.sha256(raw_text.encode("utf-8")).hexdigest(),
+            change_role_segments=role_segments,
+            change_role_source_hash=ai_enrichment._change_role_hash(role_segments),
+            change_role_parse_complete=True,
+        )
+    )
     enrichment = schema.AIEnrichment(
         bill_id=bill.id,
         bill_version_id=version.id,
@@ -59,6 +88,15 @@ def _make_bill_with_summary(
     db.add(enrichment)
     db.commit()
     return bill.id, version.id
+
+
+def _set_carried_forward_text(section, text: str) -> None:
+    segments = [{"role": "carried_forward", "text": text}]
+    section.raw_text = text
+    section.source_hash = hashlib.sha256(text.encode("utf-8")).hexdigest()
+    section.change_role_segments = segments
+    section.change_role_source_hash = ai_enrichment._change_role_hash(segments)
+    section.change_role_parse_complete = True
 
 
 def _cleanup(db: Session, bill_id) -> None:
@@ -294,10 +332,17 @@ def _make_bill_with_sections(
         version_code="test-v1",
         sequence_number=0,
         is_current=True,
+        appendix_parser_version=APPENDIX_PARSER_VERSION,
+        appendix_source_hash=compute_appendix_source_hash(False, []),
+        appendix_parse_complete=True,
+        appendix_present=False,
+        change_role_parser_version=CHANGE_ROLE_PARSER_VERSION,
+        change_role_parse_complete=True,
     )
     db.add(version)
     db.flush()
-    for order, (section_id_text, raw_text) in enumerate(sections):
+    for order, (section_id_text, raw_text) in enumerate(sections, start=1):
+        role_segments = [{"role": "carried_forward", "text": raw_text}]
         db.add(
             schema.BillVersionSection(
                 bill_version_id=version.id,
@@ -305,6 +350,10 @@ def _make_bill_with_sections(
                 source_order=order,
                 section_heading=f"Section {section_id_text}",
                 raw_text=raw_text,
+                source_hash=hashlib.sha256(raw_text.encode("utf-8")).hexdigest(),
+                change_role_segments=role_segments,
+                change_role_source_hash=ai_enrichment._change_role_hash(role_segments),
+                change_role_parse_complete=True,
             )
         )
     db.commit()
@@ -601,6 +650,39 @@ def test_ai_citation_payloads_uses_official_url_and_drops_without_one() -> None:
         ("1.1", 7),
         ("2.1", None),
     ]
+    # Repeated section ids need the same citation-pair key for their topics as for
+    # their positions. HF 1134 has one stored id for several real sections; the
+    # quote places each chip on its own section and its topic must come from that
+    # same section rather than from the shared id (#869).
+    repeated = {
+        "key_point_citations": [
+            {
+                "section_id": "laws.0.1.0",
+                "label": "Sec. 126",
+                "quote": "Oak Grove may adopt a comprehensive plan.",
+            },
+            {
+                "section_id": "laws.0.1.0",
+                "label": "Sec. 46",
+                "quote": "Nowthen may adopt a comprehensive plan.",
+            },
+        ]
+    }
+    repeated_orders = {
+        ("laws.0.1.0", "Oak Grove may adopt a comprehensive plan."): 3,
+        ("laws.0.1.0", "Nowthen may adopt a comprehensive plan."): 8,
+    }
+    repeated_topics = {
+        ("laws.0.1.0", "Oak Grove may adopt a comprehensive plan."): "Oak Grove",
+        ("laws.0.1.0", "Nowthen may adopt a comprehensive plan."): "Nowthen",
+    }
+    resolved_repeats = serializers.ai_citation_payloads(
+        repeated, url, repeated_topics, repeated_orders
+    )
+    assert [(c.section_order, c.section_topic) for c in resolved_repeats] == [
+        (3, "Oak Grove"),
+        (8, "Nowthen"),
+    ]
     # No resolvable official URL → no dead-link citations (grounded-answers rule 5).
     assert serializers.ai_citation_payloads(content, None) == []
     assert serializers.ai_citation_payloads({}, url) == []
@@ -734,13 +816,25 @@ def test_citation_section_topics_refuses_an_ambiguous_section_id() -> None:
     caption belonging to a different section."""
     from alethical.api.routers.public import _citation_section_topics
 
-    def topics(sections: list[tuple[str, str | None, str | None]]) -> dict[str, str]:
+    def topics(
+        sections: list[tuple[str, str | None, str | None]],
+        orders: dict[tuple[str, str], int] | None = None,
+    ) -> dict[str | tuple[str, str], str]:
         version = SimpleNamespace(id=1, is_current=True)
         bill = SimpleNamespace(versions=[version])
         db = SimpleNamespace(
-            execute=lambda _stmt: SimpleNamespace(all=lambda: sections)
+            execute=lambda _stmt: SimpleNamespace(
+                all=lambda: [
+                    (section_id, source_order, section_heading, cite_heading)
+                    for source_order, (
+                        section_id,
+                        section_heading,
+                        cite_heading,
+                    ) in enumerate(sections, 1)
+                ]
+            )
         )
-        return _citation_section_topics(db, bill)
+        return _citation_section_topics(db, bill, orders)
 
     # Unique ids resolve normally — the ordinary case, unchanged.
     assert topics(
@@ -762,6 +856,24 @@ def test_citation_section_topics_refuses_an_ambiguous_section_id() -> None:
         )
         == {}
     )
+
+    # Once the citation's own quote places the 2 repeated-id citations, each gets
+    # the topic from the section it opens. The heading-less section remains blank.
+    assert topics(
+        [
+            ("laws.0.1.0", "Sec. 126. OAK GROVE; COMPREHENSIVE PLAN.", None),
+            ("laws.0.1.0", "Sec. 46. NOWTHEN; COMPREHENSIVE PLAN.", None),
+            ("laws.0.1.0", "Section 1.", None),
+        ],
+        {
+            ("laws.0.1.0", "Oak Grove may adopt a comprehensive plan."): 1,
+            ("laws.0.1.0", "Nowthen may adopt a comprehensive plan."): 2,
+            ("laws.0.1.0", "A city may adopt a comprehensive plan."): 3,
+        },
+    ) == {
+        ("laws.0.1.0", "Oak Grove may adopt a comprehensive plan."): "Oak grove",
+        ("laws.0.1.0", "Nowthen may adopt a comprehensive plan."): "Nowthen",
+    }
 
     # A duplicate must not answer on behalf of a heading-less section that shares its
     # id — the heading-less row occupies the id too, so the pair is still ambiguous.
@@ -1086,7 +1198,14 @@ def test_summary_schema_lists_every_property_as_required() -> None:
 # ---------------------------------------------------------------------------
 
 
-def _enrichment(bill_id, version_id, *, content: dict, is_current: bool = False):
+def _enrichment(
+    bill_id,
+    version_id,
+    *,
+    content: dict,
+    is_current: bool = False,
+    source_version_hash: str = "a" * 64,
+):
     """One `ai_enrichment` row on the five columns the write path treats as
     identifying. Never current by default: production's 2,219 duplicate groups
     contain no current row, so this is the shape being reproduced."""
@@ -1095,9 +1214,78 @@ def _enrichment(bill_id, version_id, *, content: dict, is_current: bool = False)
         bill_version_id=version_id,
         enrichment_type=schema.EnrichmentType.bill_summary,
         model_name="claude:claude-sonnet-5",
-        source_version_hash="a" * 64,
+        source_version_hash=source_version_hash,
         content_json=content,
         is_current=is_current,
+    )
+
+
+def _summary_apply_args(
+    tmp_path,
+    *,
+    stem: str,
+    custom_id: str,
+    bill_id,
+    bill_key: str,
+    version_id,
+    source_version_hash: str,
+) -> SimpleNamespace:
+    manifest_path = tmp_path / f"{stem}.manifest.json"
+    manifest_path.write_text(
+        json.dumps(
+            {
+                "created_at": "20260811T000000Z",
+                "endpoint": "/v1/responses",
+                "mode": "summaries",
+                "model": "claude:claude-sonnet-5",
+                "items": [
+                    {
+                        "custom_id": custom_id,
+                        "bill_id": str(bill_id),
+                        "bill_key": bill_key,
+                        "bill_version_id": str(version_id),
+                        "model": "claude:claude-sonnet-5",
+                        "source_version_hash": source_version_hash,
+                        "prompt_context_version": (
+                            ai_enrichment.BILL_SUMMARY_PROMPT_CONTEXT_VERSION
+                        ),
+                        "prepared_prompt_fingerprint": source_version_hash,
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    output_path = tmp_path / f"{stem}.output.jsonl"
+    output_path.write_text(
+        json.dumps(
+            {
+                "custom_id": custom_id,
+                "response": {
+                    "status_code": 200,
+                    "body": {
+                        "output_text": json.dumps(
+                            {
+                                "summary": "A summary of the old text.",
+                                "key_points": [],
+                                "policy_areas": ["Education"],
+                            }
+                        )
+                    },
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return SimpleNamespace(
+        api_key=None,
+        output_path=str(output_path),
+        output_dir=str(tmp_path),
+        batch_id=None,
+        manifest_path=str(manifest_path),
+        database_url=get_database_url(),
+        dry_run=False,
     )
 
 
@@ -1179,8 +1367,16 @@ def test_apply_output_updates_the_matching_row_instead_of_inserting_a_second(
         )
     try:
         with _session() as db:
+            bill = db.get(schema.Bill, bill_id)
+            version = db.get(schema.BillVersion, version_id)
+            assert bill is not None and version is not None
+            prepared_hash = ai_enrichment.prepared_prompt_fingerprint(db, bill, version)
+            assert prepared_hash is not None
             superseded = _enrichment(
-                bill_id, version_id, content={"summary": "Superseded.", "_meta": {}}
+                bill_id,
+                version_id,
+                content={"summary": "Superseded.", "_meta": {}},
+                source_version_hash=prepared_hash,
             )
             db.add(superseded)
             db.commit()
@@ -1202,7 +1398,11 @@ def test_apply_output_updates_the_matching_row_instead_of_inserting_a_second(
                             "bill_key": "test-2025-HF999021",
                             "bill_version_id": str(version_id),
                             "model": "claude:claude-sonnet-5",
-                            "source_version_hash": "a" * 64,
+                            "source_version_hash": prepared_hash,
+                            "prompt_context_version": (
+                                ai_enrichment.BILL_SUMMARY_PROMPT_CONTEXT_VERSION
+                            ),
+                            "prepared_prompt_fingerprint": prepared_hash,
                         }
                     ],
                 }
@@ -1263,5 +1463,242 @@ def test_apply_output_updates_the_matching_row_instead_of_inserting_a_second(
             assert reused[0].content_json["_meta"]["model"] == "claude:claude-sonnet-5"
             assert sum(1 for r in rows if r.is_current) == 1
     finally:
+        with _session() as db:
+            _cleanup(db, bill_id)
+
+
+def test_apply_output_refuses_a_summary_for_text_that_is_no_longer_current(
+    tmp_path, capsys
+) -> None:
+    """A completed batch cannot make an old summary current again after refresh."""
+    with _session() as db:
+        bill_id, version_id = _make_bill_with_summary(
+            db,
+            bill_key="test-2025-HF999022",
+            file_number=999022,
+            content={"summary": "The old summary.", "key_points": []},
+        )
+        bill = db.get(schema.Bill, bill_id)
+        version = db.get(schema.BillVersion, version_id)
+        assert bill is not None and version is not None
+        original_text = "Official text before the refresh."
+        section = db.scalar(
+            select(schema.BillVersionSection).where(
+                schema.BillVersionSection.bill_version_id == version_id
+            )
+        )
+        assert section is not None
+        _set_carried_forward_text(section, original_text)
+        db.flush()
+        prompt_before_search, prepared_hash, _truncated = ai_enrichment.bill_prompt(
+            db, bill, version, max_input_chars=60_000
+        )
+        assert ai_enrichment.source_version_matches_current_text(
+            db, bill, version, prepared_hash
+        )
+
+        # Search stores the same raw-text hash in a shorter form. Adding that
+        # index after preparation must not make unchanged official text look old.
+        db.add(
+            schema.RagSectionDocument(
+                bill_id=bill_id,
+                bill_version_id=version_id,
+                bill_version_section_id=section.id,
+                citation_label="HF 999022, Section 1",
+                clean_text=original_text,
+                cleaning_version="test-v1",
+                source_hash=hashlib.sha256(original_text.encode()).hexdigest()[:16],
+                word_count=5,
+            )
+        )
+        db.flush()
+        prompt_after_search, hash_after_search, _truncated = ai_enrichment.bill_prompt(
+            db, bill, version, max_input_chars=60_000
+        )
+        assert prompt_after_search == prompt_before_search
+        assert hash_after_search == prepared_hash
+        assert ai_enrichment.source_version_matches_current_text(
+            db, bill, version, prepared_hash
+        )
+
+        # The paid work was prepared above. Before it finishes, the same official
+        # version changes and the refresh retires the old summary. Search still
+        # carries its old copy for the brief gap before the next indexing job.
+        db.execute(
+            schema.AIEnrichment.__table__.update()
+            .where(schema.AIEnrichment.bill_id == bill_id)
+            .values(is_current=False)
+        )
+        _set_carried_forward_text(
+            section, "New official text that the prepared summary never saw."
+        )
+        db.flush()
+        assert not ai_enrichment.source_version_matches_current_text(
+            db, bill, version, prepared_hash
+        )
+
+        # The same protection holds before a search row exists. A stale stored
+        # section hash cannot make changed raw text look unchanged.
+        db.execute(
+            delete(schema.RagSectionDocument).where(
+                schema.RagSectionDocument.bill_id == bill_id
+            )
+        )
+        section.source_hash = hashlib.sha256(original_text.encode()).hexdigest()[:16]
+        db.flush()
+        assert not ai_enrichment.source_version_matches_current_text(
+            db, bill, version, prepared_hash
+        )
+        db.commit()
+
+    try:
+        custom_id = "bill_summary:test-2025-HF999022:fedcba9876543210"
+        ai_enrichment.apply_output(
+            _summary_apply_args(
+                tmp_path,
+                stem="outdated",
+                custom_id=custom_id,
+                bill_id=bill_id,
+                bill_key="test-2025-HF999022",
+                version_id=version_id,
+                source_version_hash=prepared_hash,
+            )
+        )
+
+        result = json.loads(capsys.readouterr().out)
+        assert result["applied"] == 0
+        assert result["outdated"] == 1
+        with _session() as db:
+            current = db.scalar(
+                select(schema.AIEnrichment).where(
+                    schema.AIEnrichment.bill_id == bill_id,
+                    schema.AIEnrichment.enrichment_type
+                    == schema.EnrichmentType.bill_summary,
+                    schema.AIEnrichment.is_current.is_(True),
+                )
+            )
+            assert current is None
+    finally:
+        with _session() as db:
+            db.execute(
+                delete(schema.RagSectionDocument).where(
+                    schema.RagSectionDocument.bill_id == bill_id
+                )
+            )
+            db.commit()
+            _cleanup(db, bill_id)
+
+
+def test_apply_output_waits_for_an_inflight_text_refresh(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A concurrent refresh must finish before summary freshness is decided."""
+    bill_key = "test-2025-HF999023"
+    original_text = "Official text before the concurrent refresh."
+    refreshed_text = "New official text committed by the concurrent refresh."
+    with _session() as db:
+        bill_id, version_id = _make_bill_with_summary(
+            db,
+            bill_key=bill_key,
+            file_number=999023,
+            content={"summary": "The old summary.", "key_points": []},
+        )
+        bill = db.get(schema.Bill, bill_id)
+        version = db.get(schema.BillVersion, version_id)
+        assert bill is not None and version is not None
+        section = db.scalar(
+            select(schema.BillVersionSection).where(
+                schema.BillVersionSection.bill_version_id == version_id
+            )
+        )
+        assert section is not None
+        _set_carried_forward_text(section, original_text)
+        db.flush()
+        _prompt, prepared_hash, _truncated = ai_enrichment.bill_prompt(
+            db, bill, version, max_input_chars=60_000
+        )
+        db.commit()
+
+    custom_id = "bill_summary:test-2025-HF999023:0123456789abcdef"
+    apply_args = _summary_apply_args(
+        tmp_path,
+        stem="concurrent",
+        custom_id=custom_id,
+        bill_id=bill_id,
+        bill_key=bill_key,
+        version_id=version_id,
+        source_version_hash=prepared_hash,
+    )
+
+    apply_engine_ready = threading.Event()
+    matcher_entered = threading.Event()
+    release_matcher = threading.Event()
+    original_matcher = ai_enrichment.source_version_matches_current_text
+    original_create_engine = ai_enrichment.create_engine
+
+    def observed_create_engine(*args, **kwargs):
+        engine = original_create_engine(*args, **kwargs)
+        apply_engine_ready.set()
+        return engine
+
+    def observed_matcher(*args, **kwargs) -> bool:
+        matches = original_matcher(*args, **kwargs)
+        matcher_entered.set()
+        if not release_matcher.wait(timeout=5):
+            raise AssertionError("summary freshness check did not resume")
+        return matches
+
+    monkeypatch.setattr(
+        ai_enrichment, "source_version_matches_current_text", observed_matcher
+    )
+    monkeypatch.setattr(ai_enrichment, "create_engine", observed_create_engine)
+
+    try:
+        with _session() as refresh_db:
+            locked_bill = refresh_db.scalar(
+                select(schema.Bill).where(schema.Bill.id == bill_id).with_for_update()
+            )
+            assert locked_bill is not None
+            section = refresh_db.scalar(
+                select(schema.BillVersionSection).where(
+                    schema.BillVersionSection.bill_version_id == version_id
+                )
+            )
+            assert section is not None
+            _set_carried_forward_text(section, refreshed_text)
+            refresh_db.execute(
+                update(schema.AIEnrichment)
+                .where(
+                    schema.AIEnrichment.bill_id == bill_id,
+                    schema.AIEnrichment.is_current.is_(True),
+                )
+                .values(is_current=False)
+            )
+            refresh_db.flush()
+
+            with ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(ai_enrichment.apply_output, apply_args)
+                assert apply_engine_ready.wait(timeout=5)
+                reached_before_refresh_commit = matcher_entered.wait(timeout=1)
+                refresh_db.commit()
+                try:
+                    assert matcher_entered.wait(timeout=5)
+                finally:
+                    release_matcher.set()
+                future.result(timeout=10)
+
+        assert reached_before_refresh_commit is False
+        with _session() as db:
+            current = db.scalar(
+                select(schema.AIEnrichment).where(
+                    schema.AIEnrichment.bill_id == bill_id,
+                    schema.AIEnrichment.enrichment_type
+                    == schema.EnrichmentType.bill_summary,
+                    schema.AIEnrichment.is_current.is_(True),
+                )
+            )
+            assert current is None
+    finally:
+        release_matcher.set()
         with _session() as db:
             _cleanup(db, bill_id)

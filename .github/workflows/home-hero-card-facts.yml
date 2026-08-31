@@ -1,0 +1,115 @@
+name: Check the Home hero card's stated facts
+
+# The signed-out homepage hero card is a designed teaser for one enacted law,
+# HF 4138, and it states that law's facts as literals in app code: signed date,
+# effective date, chief author, both chamber vote totals, and three passages
+# quoted from the enacted text. The wording and the choice of passages are
+# editorial (docs/product-onboarding/home-screen-guide.md), which is why they are
+# not read from an API response.
+#
+# The danger a literal carries is silence. If the record is corrected, the
+# homepage keeps stating the old fact and nothing in the product looks wrong -
+# that is the failure #1444 was filed about, and #1450's attempt to fix it by
+# printing the saved response instead cost the card its design (#1467).
+#
+# So the literals stay, and this is what watches them. Nothing in normal CI can:
+# the drift comes from an ingest or an official correction, not from a commit.
+#
+# Free: 5 public API reads, no database, no credentials, no paid call. Quiet: it
+# opens an issue only when a fact actually disagrees, and comments on the open
+# one rather than filing a second.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "apps/frontend/src/screens/redesign/HomeSignedOutScreen.tsx"
+      - "scripts/check_home_hero_card_literals.py"
+      - ".github/workflows/home-hero-card-facts.yml"
+  schedule:
+    # 12:00 UTC daily (~6-7am America/Chicago). Monthly until Aug 2026, on the
+    # reasoning that an enacted law's record rarely moves. That is still true of
+    # the dates, the votes and the quoted passages, but the card now also states
+    # the record's `short_title`, and that string is regenerated whenever the
+    # corpus is re-enriched - so it is the one literal here that can change while
+    # the law does not. Daily holds a stale name to about a day. The run reads
+    # only the public API and files nothing unless a literal drifts, so the cost
+    # and the issue volume in a normal day are both zero.
+    - cron: "0 12 * * *"
+
+concurrency:
+  group: home-hero-card-facts
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Compare the card's facts against the published record
+        id: check
+        run: |
+          set +e
+          python scripts/check_home_hero_card_literals.py > check-output.txt 2>&1
+          echo "status=$?" >> "$GITHUB_OUTPUT"
+          cat check-output.txt
+
+      # A pull request gets the failure in its own checks; only the scheduled run
+      # needs an issue, because nobody is watching a cron job.
+      - name: Open or update an issue when a fact has drifted
+        if: steps.check.outputs.status != '0' && github.event_name != 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const output = fs.readFileSync('check-output.txt', 'utf8');
+            const title = "Home hero card states a fact the record no longer supports";
+            const body = [
+              "Net: the signed-out homepage hero card shows a bill fact that no longer",
+              "matches the published record, so the homepage is stating something stale.",
+              "",
+              "Fix the card in `apps/frontend/src/screens/redesign/HomeSignedOutScreen.tsx`,",
+              "or point it at a different bill.",
+              "",
+              "```",
+              output.trim(),
+              "```",
+              "",
+              `Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+            ].join("\n");
+
+            const existing = await github.paginate(github.rest.issues.listForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "open",
+              per_page: 100,
+            });
+            const open = existing.find((issue) => issue.title === title);
+            if (open) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: open.number,
+                body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+              });
+            }
+
+      - name: Fail the run when a fact has drifted
+        if: steps.check.outputs.status != '0'
+        run: exit 1

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from collections import Counter, defaultdict
+from dataclasses import asdict
 from datetime import UTC, date, datetime, timedelta
 from typing import Any, Literal
 from uuid import UUID
@@ -40,7 +41,59 @@ from alethical.api.services.legislative_sessions import (
     current_legislature_scope,
     named_special_session,
 )
+from alethical.api.services.campaign_finance_payments import (
+    MAX_PAYMENTS,
+    ORDER_BY_AMOUNT,
+    ORDER_BY_DATE,
+    PaymentPage,
+    independent_payments_about,
+    independent_payments_to_vendor,
+    payments_from_contributor,
+    payments_from_donors_typing,
+    payments_made,
+    payments_received,
+    payments_to_vendor,
+)
+from alethical.api.services.campaign_finance_register import (
+    MAX_COMMITTEES,
+    MAX_FILINGS,
+    committee_filings,
+    committees as register_committees,
+    committees_worth_indexing,
+    freshness,
+    legislator_committee_confirmations,
+    recent_filings,
+    register_entry,
+    register_summary,
+)
+from alethical.api.services.campaign_finance_search import (
+    MAX_PER_GROUP,
+    CommitteeRow,
+    PaymentNameResult,
+    PersonResult,
+    search as search_campaign_finance_names,
+)
+from alethical.api.services.committee_finance import (
+    Committee as CampaignCommittee,
+    CommitteeFinance,
+    ReleaseNoLongerHeld,
+    committee_finance,
+    current_release as current_campaign_finance_release,
+    find_committee,
+    independent_spending_about,
+    money_in as committee_money_in,
+    money_out as committee_money_out,
+    pin_to_one_view as pin_campaign_finance_to_one_view,
+)
+from alethical.api.services.independent_spending import (
+    independent_spending_for_legislator,
+)
 from alethical.api.services.issue_bills import MIN_ISSUE_LENGTH, matched_issue_bill_ids
+from alethical.api.services.legislator_finance import (
+    confirmed_member_for_committee,
+    legislator_finance,
+    split_for_committee,
+)
 from alethical.api.services.representative_lookup import (
     DistrictMatch,
     RepresentativeLookupChoices,
@@ -96,6 +149,7 @@ router = APIRouter()
 # network). Responses that vary by user (tracking state) are never cached.
 PUBLIC_CACHE_CONTROL = "public, max-age=60, stale-while-revalidate=300"
 PRIVATE_CACHE_CONTROL = "private, no-store"
+LARGE_OFFSET_COUNT_FIRST = 100_000
 
 
 def paginated_scalars(db: Session, stmt, *, limit: int, offset: int):
@@ -115,6 +169,10 @@ def paginated_scalars_with_total(db: Session, stmt, *, limit: int, offset: int):
     where every filter-chip tap fires a fresh request, dropping that second
     round trip measurably cuts the per-tap latency (#492).
 
+    An unusually large offset is counted first. When it is beyond the real end,
+    this avoids making the database sort and skip millions of rows merely to
+    prove the page is empty.
+
     Returns ``(rows, has_more, total)``. The entity stays the first result
     column, so ``selectinload`` eager-loads still fire exactly as before.
     """
@@ -123,6 +181,12 @@ def paginated_scalars_with_total(db: Session, stmt, *, limit: int, offset: int):
             select(func.count()).select_from(stmt.order_by(None).subquery())
         )
         return [], False, total
+    if offset >= LARGE_OFFSET_COUNT_FIRST:
+        total = db.scalar(
+            select(func.count()).select_from(stmt.order_by(None).subquery())
+        )
+        if offset >= total:
+            return [], False, total
     windowed = stmt.add_columns(func.count().over()).offset(offset).limit(limit + 1)
     result = db.execute(windowed).all()
     if not result:
@@ -390,12 +454,65 @@ def _like_escape(value: str) -> str:
     return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
+# Grammatical filler carries no search signal, but under the all-words-must-match
+# rule above a single one of these can zero out an otherwise perfect query. The
+# reported case: searching the exact headline a card displays, "Repeal of
+# Political Contribution Refund Program", returned nothing for SF 3458, whose
+# card shows precisely that. Every other word matched its official title
+# ("repealing the political contribution refund program"); "of" appears nowhere
+# in it, and one unmatched word is enough to drop the bill.
+_FUNCTION_WORDS = frozenset(
+    {
+        "a",
+        "an",
+        "and",
+        "at",
+        "by",
+        "for",
+        "from",
+        "in",
+        "of",
+        "on",
+        "or",
+        "the",
+        "to",
+        "with",
+    }
+)
+
+
+def search_words(q: str) -> list[str]:
+    """The words of ``q`` a match is actually required on.
+
+    Filler words are dropped, but only while at least one other word survives, so
+    a query made entirely of them ("of the") still searches for what was typed
+    rather than silently matching every bill. Dropping a *required* word can only
+    widen the match set, never shrink it — the same one-way guarantee the stemming
+    and trigram branches above are built on.
+    """
+    words = [word for word in q.split() if word]
+    significant = [word for word in words if word.lower() not in _FUNCTION_WORDS]
+    return significant or words
+
+
+# What a bill keyword search matches, in one place so ``/bills`` and the
+# ``/search`` typeahead can never search different text. ``short_title`` is the
+# plain-language headline the card displays (alembic 0033); a reader searching the
+# words on screen must find the bill they are looking at, and before it was
+# searched they did not. The official ``title`` and ``description`` stay, so a
+# query quoting the legal wording keeps working. Ask's bill disambiguation
+# (``_resolve_bill_by_content`` in routers/ask.py) deliberately reads its own
+# fields and is not part of this.
+BILL_SEARCH_COLUMNS = (Bill.title, Bill.short_title, Bill.description)
+
+
 def keyword_search_clause(columns, q: str):
     """Case-insensitive keyword match over ``columns`` for query ``q``. Each word
     in ``q`` must match at least one column — as a raw substring, via its stemmed
     root, or (for longer words) via trigram word-similarity so typos still
-    resolve. All words must match (AND). Returns None for an empty query."""
-    words = [word for word in q.split() if word]
+    resolve. All words must match (AND), filler words excepted (``search_words``).
+    Returns None for an empty query."""
+    words = search_words(q)
     if not words:
         return None
     per_word = []
@@ -619,6 +736,145 @@ def meta(db: Session = Depends(get_db)):
     return DetailResponse(data=payload, links={"self": "/api/v1/meta"})
 
 
+def _lastmod(*candidates: datetime | None) -> dict[str, str]:
+    """The newest candidate as a plain "YYYY-MM-DD" string in UTC, or {} if every
+    candidate is null -- never a null lastmod (see sitemap() below).
+
+    Newest, not first-non-null. Every candidate is a date on which something a
+    reader of the page can see changed, so the one worth publishing is the most
+    recent of them. This returned the *first* non-null candidate until #1761, and
+    because a bill's first candidate is its newest legislative action, every later
+    change to the page -- a corrected title, a regenerated plain-language summary,
+    a repaired source link -- was invisible in the date we published, on all
+    10,517 bill pages at once. Google uses the field only "if it is consistently
+    and verifiably accurate", and judges that site-wide.
+
+    The driver may return a timestamptz in a non-UTC session timezone (same trap
+    as the session date-range check in test_api_contract.py), so the instant is
+    normalized to UTC before its calendar date is read -- otherwise a date near
+    midnight UTC could report the wrong day.
+    """
+    known = [candidate for candidate in candidates if candidate is not None]
+    if not known:
+        return {}
+    return {"lastmod": max(known).astimezone(UTC).date().isoformat()}
+
+
+@router.get("/sitemap", response_model=DetailResponse)
+def sitemap(db: Session = Depends(get_db), response: Response = None):  # type: ignore[assignment]
+    """Every bill, legislator and committee URL the sitemap needs, in one request.
+
+    A Vercel function turns this into sitemap.xml; without it, building that file
+    would mean paging /bills 100 rows at a time -- ~105 round trips for the
+    ~10,517 bills alone, and 17 more for the register of filers. Column-only
+    selects, never the full ORM row or the normal bill serializer, keep this cheap
+    at that size -- the bill one joined to each bill's current summary row for its
+    timestamp alone, never its content (#1325, and #1812 for the committees).
+
+    **The committee list is deliberately shorter than the register.** It carries the
+    filers whose own page holds a filed record; a filer with none draws its register
+    row and nothing else, and a page has to be worth listing on its own
+    (``docs/architecture/page-metadata-for-search-and-sharing-decisions.md`` §20.5
+    rule 4). Those pages still work and are still reachable from the register's own
+    numbered pages.
+
+    **No committee carries a lastmod.** We hold no date on which a committee's own
+    record changed -- the register has one fetch date for all 1,603 rows -- and Google
+    uses the field only "if it's consistently and verifiably accurate", site-wide. A
+    fetch date copied onto every entry would be exactly the untrustworthy signal
+    §20.4 warns about, so the field is omitted rather than filled.
+    """
+    response.headers["Cache-Control"] = PUBLIC_CACHE_CONTROL
+    # Three dates per bill, all of them things a reader can see change, because
+    # lastmod publishes the newest of them (#1761):
+    #   * latest_action_at -- the legislative timeline on the page.
+    #   * bill.updated_at -- the row's own reader-visible fields (title, status,
+    #     official_url, the headline the short_title trigger copies in). A DB
+    #     trigger keeps this column still when a write changed only bookkeeping,
+    #     so it is a record-changed date rather than a last-ingested marker
+    #     (alembic 0043).
+    #   * the current bill_summary enrichment's updated_at -- the plain-language
+    #     summary and key points, which are the page's main content and are
+    #     rewritten without the bill row being touched at all.
+    # The partial unique index ix_ai_enrichment_bill_summary_current_unique makes
+    # the join at most one row per bill, and selecting only its updated_at leaves
+    # the TOASTed content_json unread. Postgres hash-joins both tables rather than
+    # walking that index, because every bill is wanted: ~53-61ms to ~89-112ms on
+    # the production corpus, entirely from cache.
+    bill_rows = db.execute(
+        select(
+            Bill.bill_key,
+            Bill.latest_action_at,
+            Bill.updated_at,
+            AIEnrichment.updated_at.label("summary_updated_at"),
+        )
+        .outerjoin(
+            AIEnrichment,
+            and_(
+                AIEnrichment.bill_id == Bill.id,
+                AIEnrichment.enrichment_type == EnrichmentType.bill_summary,
+                AIEnrichment.is_current.is_(True),
+            ),
+        )
+        .order_by(Bill.bill_key.asc())
+    ).all()
+    # Same roster the /legislators list serves (legislator_directory_stmt +
+    # get_session_by_slug(db, None) for the current session), so the count
+    # matches -- just the 2 columns a sitemap entry needs instead of the full row.
+    session_row = get_session_by_slug(db, None)
+    legislator_rows = db.execute(
+        legislator_directory_stmt(session_row.id)
+        .with_only_columns(Legislator.slug, Legislator.updated_at)
+        .order_by(None)
+        .order_by(Legislator.slug.asc())
+    ).all()
+    legislature_session_ids = current_legislature_scope(db).ids
+    bill_directory_total = db.scalar(
+        select(func.count()).select_from(
+            bill_list_stmt(legislature_session_ids).order_by(None).subquery()
+        )
+    )
+    return DetailResponse(
+        data={
+            # Directory totals deliberately differ from the full URL arrays:
+            # all real detail pages belong in the sitemap, while /bills lists
+            # only bills with a current plain-language summary.
+            "bill_directory_total": bill_directory_total,
+            "legislator_directory_total": len(legislator_rows),
+            # The WHOLE register, so every numbered page of /money/committees is
+            # named -- deliberately not the shorter indexable list below, because
+            # a page of the list exists even when its 50 rows hold no filed
+            # record. ``None`` when the register cannot be counted, which the
+            # caller renders as no numbered committee pages rather than as 0.
+            "committee_directory_total": register_summary(db).filer_count,
+            "bills": [
+                {
+                    "id": bill_key,
+                    **_lastmod(latest_action_at, updated_at, summary_updated_at),
+                }
+                for bill_key, latest_action_at, updated_at, summary_updated_at in (
+                    bill_rows
+                )
+            ],
+            "legislators": [
+                {"slug": slug, **_lastmod(updated_at)}
+                for slug, updated_at in legislator_rows
+            ],
+            # Registration number and filed name; the caller builds the address,
+            # because the name-plus-number form is decided in one place on the
+            # client (`committeeSlug` in apps/frontend/src/lib/committeeMoney.ts)
+            # and a second copy here could advertise an address the router rejects.
+            "committees": [
+                {
+                    "registration_number": committee.registration_number,
+                    "name": committee.name,
+                }
+                for committee in committees_worth_indexing(db)
+            ],
+        }
+    )
+
+
 @router.get("/sessions", response_model=CollectionResponse)
 def sessions(db: Session = Depends(get_db)):
     rows = db.scalars(
@@ -715,6 +971,7 @@ def bills(
     policy_area: list[str] | None = Query(default=None),
     omnibus: bool | None = None,
     include: str | None = None,
+    view: Literal["cards", "directory"] = "cards",
     sort: Literal["relevance", "latest_action", "progress", "introduced"] | None = None,
     limit: int = Query(default=20, ge=0, le=100),
     offset: int = Query(default=0, ge=0),
@@ -754,6 +1011,7 @@ def bills(
         user_id=tracking_user_id(include_set, current_user),
         sort=effective_sort,
         text_query=text_query,
+        directory=view == "directory",
     )
     if q:
         if number_clause is not None:
@@ -763,7 +1021,7 @@ def bills(
             # mentions the digits in its title or description (#134).
             stmt = stmt.where(number_clause)
         else:
-            keyword_clause = keyword_search_clause([Bill.title, Bill.description], q)
+            keyword_clause = keyword_search_clause(BILL_SEARCH_COLUMNS, q)
             if keyword_clause is not None:
                 stmt = stmt.where(keyword_clause)
     topic_value = (topic or "").strip()
@@ -787,8 +1045,6 @@ def bills(
     rows, has_more, total = paginated_scalars_with_total(
         db, stmt, limit=limit, offset=offset
     )
-    co_author_counts = bill_co_author_counts(db, [row.id for row in rows])
-    effective_dates = bill_effective_dates(db, rows)
 
     def special_session_ref(row):
         if legislature_scope is None or row.session_id == legislature_scope.primary.id:
@@ -805,18 +1061,38 @@ def bills(
             "year_end": session_row.year_end,
         }
 
-    data = [
-        bill_list_item(
-            row,
-            include_tracking="tracking" in include_set and current_user is not None,
-            co_author_count=co_author_counts.get(str(row.id), 0),
-            effective_date=effective_dates.get(str(row.id)),
-            session=special_session_ref(row),
-        )
-        for row in rows
-    ]
+    data: list[Any]
+    if view == "directory":
+        short_titles = _target_short_titles(db, {row.id for row in rows})
+        data = []
+        for row in rows:
+            data.append(
+                {
+                    "id": row.bill_key,
+                    "current_status": row.current_status,
+                    "status_key": row.status_key,
+                    "session": special_session_ref(row),
+                    "ai_analysis": {"short_title": short_titles.get(row.id)},
+                }
+            )
+    else:
+        co_author_counts = bill_co_author_counts(db, [row.id for row in rows])
+        effective_dates = bill_effective_dates(db, rows)
+        data = [
+            bill_list_item(
+                row,
+                include_tracking="tracking" in include_set and current_user is not None,
+                co_author_count=co_author_counts.get(str(row.id), 0),
+                effective_date=effective_dates.get(str(row.id)),
+                session=special_session_ref(row),
+            )
+            for row in rows
+        ]
     return CollectionResponse(
-        data=[item.model_dump(exclude_none=True) for item in data],
+        data=[
+            item.model_dump(exclude_none=True) if hasattr(item, "model_dump") else item
+            for item in data
+        ],
         page={
             "limit": limit,
             "offset": offset,
@@ -1497,8 +1773,12 @@ def _current_version_sections(
     return [(r[0], r[1]) for r in rows]
 
 
-def _citation_section_topics(db: Session, bill_row) -> dict[str, str]:
-    """section_id_text -> short chip topic, for the current version's sections.
+def _citation_section_topics(
+    db: Session,
+    bill_row,
+    section_orders: dict[tuple[str, str], int] | None = None,
+) -> dict[str | tuple[str, str], str]:
+    """Citation key -> short chip topic, for the current version's sections.
 
     Fills in the "· Topic" half of the Summary tab's citation chips at request time,
     so every already-enriched bill gets one rather than only the bills a future
@@ -1509,7 +1789,13 @@ def _citation_section_topics(db: Session, bill_row) -> dict[str, str]:
     reads this table for the effective-date schedule, and citations only render on
     this endpoint (the list serializer passes no official_url, so it emits none).
 
-    An id naming MORE THAN ONE section resolves to no topic. `section_id_text` is
+    A placed citation is keyed by the same (section id, quote) pair that resolved
+    its section position. That lets repeated ids name the heading of the section the
+    quote actually matched (#869), rather than discarding the resolved position and
+    guessing from the shared id again.
+
+    The id-only entries remain as the safe fallback. An id naming MORE THAN ONE
+    section resolves to no topic. `section_id_text` is
     not unique within a version — 66 (version, id) pairs in production name several
     sections, and on HF 1134 the single id "laws.0.1.0" covers three: "Sec. 126. OAK
     GROVE; COMPREHENSIVE PLAN.", "Sec. 46. NOWTHEN; COMPREHENSIVE PLAN." and a bare
@@ -1529,15 +1815,20 @@ def _citation_section_topics(db: Session, bill_row) -> dict[str, str]:
     rows = db.execute(
         select(
             BillVersionSection.section_id_text,
+            BillVersionSection.source_order,
             BillVersionSection.section_heading,
             BillVersionSection.cite_heading,
         ).where(BillVersionSection.bill_version_id == current.id)
     ).all()
-    topics: dict[str, str] = {}
+    topics: dict[str | tuple[str, str], str] = {}
+    topics_by_order: dict[int, str] = {}
     seen: set[str] = set()
-    for section_id_text, section_heading, cite_heading in rows:
+    for section_id_text, source_order, section_heading, cite_heading in rows:
         if not section_id_text:
             continue
+        topic = section_chip_topic(section_heading, cite_heading)
+        if topic:
+            topics_by_order[source_order] = topic
         if section_id_text in seen:
             # A second section answering to the same id. Neither can be trusted as
             # the one cited, so the id resolves to nothing. Counting a heading-less
@@ -1546,9 +1837,11 @@ def _citation_section_topics(db: Session, bill_row) -> dict[str, str]:
             topics.pop(section_id_text, None)
             continue
         seen.add(section_id_text)
-        topic = section_chip_topic(section_heading, cite_heading)
         if topic:
             topics[section_id_text] = topic
+    for citation_key, source_order in (section_orders or {}).items():
+        if topic := topics_by_order.get(source_order):
+            topics[citation_key] = topic
     return topics
 
 
@@ -2036,6 +2329,8 @@ def bill_detail(
     # Both effective-date fields come from ONE resolve so the rail's value and the
     # timeline's rows can never disagree, and the sections load only once.
     schedule = effective_schedule_payload(db, row)
+    citation_section_orders = _citation_section_orders(db, row, ai_enrichment)
+    citation_section_topics = _citation_section_topics(db, row, citation_section_orders)
     # Resolved once for the whole response, not per sponsor: the sponsor payloads
     # fall back to a same-Legislature session when the bill's own session has no
     # service period, which is every special-session bill (#1104).
@@ -2112,8 +2407,8 @@ def bill_detail(
         "ai_analysis": ai_analysis_payload_for_enrichment(
             ai_enrichment,
             row.official_url,
-            _citation_section_topics(db, row),
-            _citation_section_orders(db, row, ai_enrichment),
+            citation_section_topics,
+            citation_section_orders,
         ),
         "ai_summary": ai_enrichment.content_json if ai_enrichment else None,
     }
@@ -2340,7 +2635,9 @@ def legislators(
     limit: int = Query(default=20, ge=0, le=250),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
+    response: Response = None,  # type: ignore[assignment]
 ):
+    response.headers["Cache-Control"] = PUBLIC_CACHE_CONTROL
     session_row = get_session_by_slug(db, session)
     stmt = legislator_directory_stmt(session_row.id)
     if q:
@@ -2508,6 +2805,1518 @@ def legislator_votes(
     ]
     return CollectionResponse(
         data=data, page={"limit": limit, "next_cursor": None, "has_more": False}
+    )
+
+
+@router.get(
+    "/legislators/{legislator_id}/independent-spending",
+    response_model=DetailResponse,
+)
+def legislator_independent_spending(
+    legislator_id: str,
+    year: int = Query(ge=2015, le=2100),
+    db: Session = Depends(get_db),
+):
+    """Money spent about this legislator by groups other than their campaign.
+
+    ``state`` is the field to read first, because only ``reported`` carries
+    figures a page may print:
+
+    * ``unavailable`` -- we hold no usable release, or we hold rows about this
+      member that we cannot add up because their amount is blank. Both are facts
+      about us, and neither is ever rendered as a figure about a named person.
+    * ``link_unconfirmed`` -- we have not yet confirmed which registered
+      committee is theirs, so no payment can be attributed to them.
+    * ``reported`` -- the figures are real, and a 0 is a measured 0.
+
+    Three figures, and they account between them for every row we hold:
+    ``supporting``, ``opposing``, and ``direction_not_recorded`` for money whose
+    "For" or "Against" is unreadable. The third is 0 for every committee in the
+    current release, because all 41,130 rows record one or the other, so a surface
+    shows it only when it is not 0 rather than reserving space for it. It exists so
+    that a row the Board starts publishing differently gets a figure of its own
+    instead of vanishing from the total
+    (``alethical/api/services/independent_spending.py``).
+
+    ``payment_count`` counts only the payments behind ``supporting`` and
+    ``opposing``. A payment with no readable direction is in
+    ``direction_not_recorded_payments`` instead, so print both or neither. Each
+    figure's own count is served too (``supporting_payments``,
+    ``opposing_payments``), because a page putting the combined count under both
+    figures would say the same payments produced each of them.
+
+    ``committees_for_another_race`` counts this member's confirmed committees these
+    figures deliberately leave out, because they are for a race other than a legislative
+    seat. §7 of ``docs/architecture/campaign-finance-system-design.md`` (Display rules)
+    forbids another race's money under a legislative profile, and a reviewer confirming
+    such a committee is stating something true rather than making a mistake -- so the
+    exclusion happens here and is counted rather than hidden. A page must say so when it
+    is not 0: an excluded record and an absent one look identical otherwise.
+
+    ``snapshot_id`` names the download that answered. **A page asking about several
+    years makes several requests, each resolving the live release on its own, so it
+    must compare this before printing one freshness date over all of them**: a publish
+    landing between 2 requests otherwise pairs one year's money with another year's
+    date. Every figure this route serves is a sum of the payments the state's file
+    records, and the file is not limited to large ones -- 17,194 of its 41,130 rows are
+    under $200 (measured 13 Aug 2026) -- so no caller may describe these as only the
+    payments above a threshold.
+    """
+    legislator = get_legislator_by_id(db, legislator_id)
+    spending = independent_spending_for_legislator(db, legislator.id, year=year)
+    return DetailResponse(
+        data={
+            "legislator_id": str(legislator.id),
+            "year": spending.year,
+            "state": spending.state,
+            "snapshot_id": spending.snapshot_id,
+            "committees_for_another_race": spending.committees_for_another_race,
+            "supporting": spending.supporting,
+            "opposing": spending.opposing,
+            "direction_not_recorded": spending.direction_not_recorded,
+            "payment_count": spending.payment_count,
+            "supporting_payments": spending.supporting_payments,
+            "opposing_payments": spending.opposing_payments,
+            "direction_not_recorded_payments": spending.direction_not_recorded_payments,
+            "source_url": spending.source_url,
+            "fetched_at": spending.fetched_at,
+            "committees": [
+                {
+                    "registration_number": committee.registration_number,
+                    "committee_name": committee.committee_name,
+                    "office": committee.office,
+                    "supporting": committee.supporting,
+                    "opposing": committee.opposing,
+                    "direction_not_recorded": committee.direction_not_recorded,
+                    "supporting_payments": committee.supporting_payments,
+                    "opposing_payments": committee.opposing_payments,
+                    "direction_not_recorded_payments": (
+                        committee.direction_not_recorded_payments
+                    ),
+                    "first_payment_on": committee.first_payment_on,
+                    "last_payment_on": committee.last_payment_on,
+                }
+                for committee in spending.committees
+            ],
+        }
+    )
+
+
+@router.get(
+    "/committees/{registration_number}/finance",
+    response_model=DetailResponse,
+)
+def committee_finance_for_year(
+    registration_number: str,
+    year: int = Query(ge=2015, le=2100),
+    db: Session = Depends(get_db),
+):
+    """One campaign committee's money in and money out for one year.
+
+    Keyed on Minnesota's registration number, which identifies a committee on its
+    own, so nothing here waits on anyone confirming which committee belongs to which
+    person ([#1442](https://github.com/alethical-org/alethical/issues/1442)).
+
+    **The itemized figures are sums of named rows, never a committee's total.**
+    Minnesota names a donor only once their giving passes $200 in aggregate within a
+    calendar year, so the named payments and the committee's own reported total are
+    different figures -- around 4 dollars in 10 go unnamed on a typical filing. Rule
+    12's second number is here too: ``money_in.reported_total`` is the filer's own
+    reported figure ([#1408](https://github.com/alethical-org/alethical/issues/1408))
+    with the date it runs to, and ``split`` says whether the two may be divided into
+    named and unnamed money -- read ``split.state`` before drawing any composition,
+    because the 7 withheld states are each a way a subtraction would state something
+    false, and only 1 of them may say Minnesota's 2 publications disagree
+    (``.claude/rules/grounded-answers.md`` rule 12,
+    ``docs/architecture/campaign-finance-system-design.md`` §7). The full list is on
+    ``GET /legislators/{legislator_id}/campaign-finance``, which serves the same
+    ``split`` object from the same code.
+
+    ``register`` is the Board's registered-filer directory entry for this number, from
+    our stored copy of the register: its verbatim kind (the only kind label a page may
+    print), a candidate's office and district, and the termination date that makes a
+    closed committee its own display state. Its ``state`` is independent of the money
+    blocks -- ``not_registered`` means our copy of the register does not carry this
+    number, which can happen while the downloads still hold its rows, and
+    ``unavailable`` means we hold no register to ask.
+
+    ``confirmed_for`` is the one legislator a **person** has confirmed this committee
+    belongs to, or ``null``. Minnesota publishes no link between a committee and a
+    human, so this is never derived from a name, a score, or any agreement between
+    rules: it is a row somebody signed
+    (``docs/architecture/campaign-finance-system-design.md`` §5.1, What counts as a
+    confirmed match). ``null`` is the ordinary answer and says only that nobody has
+    confirmed one -- never that the committee belongs to nobody, and never that a
+    rejection was recorded, which is a decision about *our* proposal and no
+    reader-facing claim about the committee (§7). At most one legislator can come back,
+    guaranteed by the partial unique index on a confirmed registration number rather
+    than by this code.
+
+    Read ``state`` on each block before its numbers:
+
+    * ``reported`` -- we hold itemized rows and the figures are real.
+    * ``not_reported`` -- we hold none for this committee-year, in a year the download
+      does cover. **Never render this as 0.** A committee whose donors all gave $200 or
+      less is never itemized, so absence here is silence rather than a zero.
+      ``independent_spending`` is the one exception and says so below.
+    * ``unavailable`` -- either our own copy of that download is stale, or the download
+      holds nothing at all for the year asked for. Both are facts about us and never a
+      figure about the committee. The downloads reach 2015 to the present while this
+      route accepts years to 2100, so a request for a year past the data reads
+      unavailable rather than reporting a zero for a year nobody has filed for.
+
+    ``money_out.itemized_payment_total`` sums every row whatever its ``Type``, with
+    the source's own labels in ``by_type``. A candidate committee files
+    ``Campaign Expenditure`` and a party unit files ``General Expenditure`` for the
+    same thing, so any single-label filter reports a whole kind of filer as having
+    spent nothing.
+
+    ``money_in.itemized_contribution_total`` counts only rows the source types
+    ``Contribution``. The other 3 receipt types it carries are real money reported on
+    separate schedules -- a candidate's loan to their own campaign, most often -- and
+    appear under ``other_receipts`` with the source's own label. They must never be
+    added to the contribution figure.
+
+    ``independent_spending`` is money others spent supporting or opposing this
+    committee, and it is the one block where a committee with no rows reads as a
+    measured ``0``: nobody filed an independent expenditure about them at all, which is
+    a finding rather than a gap. **Not "none over $200"** -- that qualifier was here and
+    was false. The $200 in `.claude/rules/grounded-answers.md` rule 12 is a *donor's*
+    yearly aggregate on the contributions file, not a floor on this one: 17,194 of the
+    independent-expenditure file's 41,130 rows are under $200 and 13,393 are under $100,
+    with a minimum of $0.00 (measured 13 Aug 2026). It carries a third figure,
+    ``direction_not_recorded``, for money whose "For" or "Against" cannot be read --
+    0 for every committee in the current release, and its own figure rather than a
+    silent omission for the day that changes. ``unavailable`` on this block also
+    covers rows we hold about the committee and cannot add up.
+
+    404 means this registration number is in neither our copy of the Board's register
+    nor any dataset of the current release. That is a statement about our records --
+    the number may be newer than our copy, or mistyped. A committee the register lists
+    with no money rows anywhere is a real committee and answers 200, each block saying
+    what its absence means. 503 means we hold no usable release at all.
+    """
+    # Before any other statement: pins every read below to one instant of the
+    # database, so 2 publishes landing mid-request cannot turn this committee's
+    # spending into an absence while its income has already been read.
+    pin_campaign_finance_to_one_view(db)
+    unusable = HTTPException(
+        status_code=503,
+        detail=(
+            "no usable campaign-finance release is published; "
+            "this says nothing about any committee"
+        ),
+    )
+    try:
+        release = current_campaign_finance_release(db)
+        if release is None:
+            raise unusable
+        finance = committee_finance(
+            db, release, registration_number=registration_number, year=year
+        )
+        register = register_entry(db, registration_number)
+        if finance is None and register.state == "reported":
+            # The register lists this number and the downloads hold no row of its
+            # money in any year -- ordinary for a newly registered filer, and true of
+            # 33 committees and funds on census day (#1661). A real committee, so it
+            # gets a page, with each block saying what its own absence means.
+            committee = CampaignCommittee(
+                registration_number, register.name or "", None, None
+            )
+            finance = CommitteeFinance(
+                committee=committee,
+                year=year,
+                release_id=release.id,
+                fetched_at=release.fetched_at,
+                money_in=committee_money_in(
+                    db, release, registration_number=registration_number, year=year
+                ),
+                money_out=committee_money_out(
+                    db, release, registration_number=registration_number, year=year
+                ),
+                independent_spending=independent_spending_about(
+                    db, release, committee=committee, year=year
+                ),
+            )
+        split = (
+            split_for_committee(
+                db,
+                release,
+                registration_number=registration_number,
+                year=year,
+                finance=finance,
+            )
+            if finance is not None
+            else None
+        )
+    except ReleaseNoLongerHeld:
+        # The release exists and its rows have been replaced out from under it, so we
+        # cannot name this committee at all. A 404 here would say it does not exist,
+        # on the strength of our own pruning.
+        raise unusable from None
+    if finance is None or split is None:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "this registration number is in neither the register we hold nor "
+                "any dataset of the current campaign-finance release"
+            ),
+        )
+    spending = finance.independent_spending
+    # Read after the money, and never allowed to change it: whose committee this is
+    # is a fact a person wrote down, and a committee page is complete without it.
+    confirmed_member = confirmed_member_for_committee(db, registration_number)
+    return DetailResponse(
+        data={
+            "registration_number": finance.committee.registration_number,
+            "committee_name": finance.committee.name,
+            "entity_type": finance.committee.entity_type,
+            "entity_sub_type": finance.committee.entity_sub_type,
+            "year": finance.year,
+            "release_id": str(finance.release_id),
+            "fetched_at": finance.fetched_at,
+            "register": {
+                "state": register.state,
+                "kind": register.kind,
+                "name": register.name,
+                "party": register.party,
+                "office": register.office,
+                "district": register.district,
+                "registration_date": register.registration_date,
+                "termination_date": register.termination_date,
+                "as_of": register.as_of,
+                "reason": register.reason,
+            },
+            "confirmed_for": (
+                {
+                    "legislator_id": str(confirmed_member.legislator_id),
+                    "slug": confirmed_member.slug,
+                    "full_name": confirmed_member.full_name,
+                    # What the person read, and when. The profile prints this per
+                    # account already; a reader who arrives at the committee page came
+                    # asking whose committee this is, so it belongs here most of all.
+                    "checked": (
+                        {
+                            "checked_on": confirmed_member.checked.checked_on,
+                            "name_evidence": confirmed_member.checked.name_evidence,
+                            "register_verdict": (
+                                confirmed_member.checked.register_verdict
+                            ),
+                            "party_agreement": (
+                                confirmed_member.checked.party_agreement
+                            ),
+                        }
+                        if confirmed_member.checked
+                        else None
+                    ),
+                }
+                if confirmed_member is not None
+                else None
+            ),
+            "split": {
+                "state": split.state,
+                "reported_total": split.reported_total,
+                "reported_through": split.reported_through,
+                "named_total": split.named_total,
+                "named_payments": split.named_payments,
+                "named_cash_total": split.named_cash_total,
+                "named_in_kind_total": split.named_in_kind_total,
+                "unnamed_total": split.unnamed_total,
+                "stated_split_state": split.stated_split_state,
+                "first_payment_on": split.first_payment_on,
+                "last_payment_on": split.last_payment_on,
+            },
+            "money_in": {
+                "state": finance.money_in.state,
+                "itemized_contribution_total": (
+                    finance.money_in.itemized_contribution_total
+                ),
+                "itemized_contribution_payments": (
+                    finance.money_in.itemized_contribution_payments
+                ),
+                "other_receipts": [
+                    {
+                        "receipt_type": receipt.receipt_type,
+                        "total": receipt.total,
+                        "payments": receipt.payments,
+                    }
+                    for receipt in finance.money_in.other_receipts
+                ],
+                "reported_total": finance.money_in.reported_total,
+                "reported_through": finance.money_in.reported_through,
+                "reported_period_start": finance.money_in.reported_period_start,
+                "source_url": finance.money_in.source_url,
+            },
+            "money_out": {
+                "state": finance.money_out.state,
+                "itemized_payment_total": finance.money_out.itemized_payment_total,
+                "itemized_payments": finance.money_out.itemized_payments,
+                "reported_total": finance.money_out.reported_total,
+                "reported_through": finance.money_out.reported_through,
+                "by_type": [
+                    {
+                        "type": entry.expenditure_type,
+                        "total": entry.total,
+                        "payments": entry.payments,
+                    }
+                    for entry in finance.money_out.by_type
+                ],
+                "source_url": finance.money_out.source_url,
+            },
+            "independent_spending": {
+                "state": spending.state,
+                "supporting": (
+                    spending.spending.supporting if spending.spending else None
+                ),
+                "opposing": spending.spending.opposing if spending.spending else None,
+                "direction_not_recorded": (
+                    spending.spending.direction_not_recorded
+                    if spending.spending
+                    else None
+                ),
+                "supporting_payments": (
+                    spending.spending.supporting_payments if spending.spending else None
+                ),
+                "opposing_payments": (
+                    spending.spending.opposing_payments if spending.spending else None
+                ),
+                "direction_not_recorded_payments": (
+                    spending.spending.direction_not_recorded_payments
+                    if spending.spending
+                    else None
+                ),
+                "first_payment_on": (
+                    spending.spending.first_payment_on if spending.spending else None
+                ),
+                "last_payment_on": (
+                    spending.spending.last_payment_on if spending.spending else None
+                ),
+                "source_url": spending.source_url,
+            },
+        }
+    )
+
+
+def _payment_page_payload(page: PaymentPage) -> dict:
+    """One block of payments, over HTTP.
+
+    A detail envelope rather than a collection envelope, deliberately. ``state`` decides
+    whether ``payments`` may be read at all -- an empty list is 3 different facts and only
+    2 of them are about the record -- and a top-level ``data: []`` invites a client to
+    render the list without reading the state, which is the missing-versus-zero failure
+    ``.claude/rules/grounded-answers.md`` rule 12 forbids. So ``state`` is a sibling of
+    ``payments`` and the paging keys keep the names and the place
+    ``docs/architecture/backend-api-system-design.md`` (Pagination -- offset, deliberately)
+    already gives them.
+
+    ``asdict`` rather than a hand-written mapping per payment shape: the 3 shapes are the
+    3 downloads' own columns, and a hand-written mapping is where a column quietly stops
+    being served after the source gains one.
+    """
+    return {
+        "state": page.state,
+        "payments": [asdict(payment) for payment in page.payments],
+        "page": {
+            "limit": page.limit,
+            "offset": page.offset,
+            "has_more": page.has_more,
+            # How many rows match in all, counted with the same filter as the rows, so
+            # "Showing 250 of 1,284" is measured. ``None`` where no count is served: on
+            # any page that is not ``reported``, and on the name-keyed lookups.
+            "total_payments": page.total_payments,
+        },
+        "linkable_registration_numbers": sorted(page.linkable_registration_numbers),
+        "dataset": page.dataset.value,
+        "source_url": page.source_url,
+        "release_id": str(page.release_id),
+        "fetched_at": page.fetched_at,
+    }
+
+
+def _resolve_campaign_finance_release(db: Session):
+    """The one release this request reads, pinned so nothing can shift under it.
+
+    Raises the same 503 the aggregate route raises when nothing usable is published,
+    because "we hold no release" is a fact about us and must never reach a page as a
+    committee's or a donor's zero.
+    """
+    pin_campaign_finance_to_one_view(db)
+    release = current_campaign_finance_release(db)
+    if release is None:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "no usable campaign-finance release is published; "
+                "this says nothing about any committee or donor"
+            ),
+        )
+    return release
+
+
+def _refuse_a_committee_we_hold_no_record_of(
+    db: Session, release, registration_number: str
+) -> None:
+    """404 a registration number we hold nothing about, rather than reporting its silence.
+
+    "This committee reported no itemized payments" and "we have never seen this
+    registration number" are different facts, and the payment reader cannot tell them
+    apart: both come back as no rows, which it correctly calls ``not_reported``. Serving
+    that for an unknown number invents a subject and then attributes silence to it, which
+    is `.claude/rules/grounded-answers.md` rule 12's missing-versus-zero failure with the
+    committee itself as the missing value. Found by an automated review (Greptile).
+
+    Live case: ``30161`` circulates as "Alliance for a Better MN" and appears in no dataset
+    of the current release (its real committees are 41360 and 80024), so a page asking for
+    its payments would have printed "reported no payments received" about a committee we
+    hold no record of.
+
+    Resolved with ``find_committee`` and then our stored copy of the Board's
+    registered-filer directory, the same pair the aggregate ``/finance`` route reads, so
+    2 routes about one committee cannot disagree about whether it exists. A committee the
+    register lists with no money rows anywhere answers ``not_reported`` rather than 404:
+    it is a real committee whose silence is the record's. The 404 that remains is a
+    statement about **our records** -- the number is in neither place we hold.
+
+    A stale release deliberately does **not** 404. When the rows have been replaced out
+    from under this release, ``find_committee`` cannot say whether we hold this committee,
+    and denying its existence on the strength of our own pruning is the same failure one
+    level up. The read that follows reports ``unavailable`` instead, which is a fact about
+    us.
+    """
+    try:
+        if find_committee(db, release, registration_number) is not None:
+            return
+    except ReleaseNoLongerHeld:
+        return
+    if register_entry(db, registration_number).state == "reported":
+        return
+    raise HTTPException(
+        status_code=404,
+        detail=(
+            "this registration number is in neither the register we hold nor "
+            "any dataset of the current campaign-finance release"
+        ),
+    )
+
+
+@router.get(
+    "/committees/{registration_number}/payments",
+    response_model=DetailResponse,
+)
+def committee_payments(
+    registration_number: str,
+    direction: Literal["received", "made", "independent"],
+    year: int | None = Query(default=None, ge=2015, le=2100),
+    sort: Literal["date", "amount"] = Query(default="date"),
+    limit: int = Query(default=50, ge=1, le=MAX_PAYMENTS),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+):
+    """The individual payments behind one committee's figures, one direction at a time.
+
+    Keyed on Minnesota's registration number, which identifies a committee on its own, so
+    nothing here waits on anyone confirming whose committee it is
+    ([#1331](https://github.com/alethical-org/alethical/issues/1331)). The aggregate
+    figures live on ``/committees/{registration_number}/finance``; **this route returns no
+    total of any kind**, only rows with their own amounts, dates and labels.
+
+    ``direction``:
+
+    * ``received`` -- who paid this committee, from its own contributions filing. Every
+      ``receipt_type`` is listed, including the loans and miscellaneous income that are
+      real money reported on separate schedules. They must not be added to a contribution
+      figure, which is why no figure is returned.
+    * ``made`` -- who this committee paid, every ``expenditure_type`` included. A
+      candidate committee files ``Campaign Expenditure`` and a party unit files
+      ``General Expenditure`` for the same thing, so a caller filtering on one label would
+      report a whole kind of filer as having spent nothing. Most rows name a vendor, which
+      is a supplier; the ``Contribution``-typed rows name another committee instead.
+    * ``independent`` -- what others spent for or against this committee. It passed
+      through no filing of theirs.
+
+    Read ``state`` before the rows: ``reported`` means the rows are real, ``not_reported``
+    means we hold none and **is never a zero** (only donors passing $200 in aggregate for
+    the year are named at all), and ``unavailable`` means our own copy is stale or the
+    download does not reach the year asked for.
+
+    ``sort=date`` (the default) pages newest first; ``sort=amount`` pages largest first.
+    Largest-first is honest here and only here: ranking payments inside one committee is
+    a fact about that committee, not a comparison between filers on different filing
+    calendars (``docs/architecture/campaign-finance-system-design.md`` §7).
+    ``page.total_payments`` counts every matching row with the same filter, so a capped
+    list can say how much it is not showing.
+
+    ``linkable_registration_numbers`` lists the counterparty numbers on this page that
+    this release also holds as a filer. Only those may be rendered as links: 912 lobbyist
+    numbers arrive on contribution rows and none of them is a committee.
+
+    Omit ``year`` for every year the download holds, which is 2015 to 2026 today.
+
+    404 means this registration number is in neither our copy of the Board's register nor
+    any dataset of the current release, which is a statement about our records rather than
+    about Minnesota's: without it an unknown number would come back as ``not_reported``,
+    inventing a committee and then reporting its silence. 503 means we hold no usable
+    release, also a fact about us.
+    """
+    release = _resolve_campaign_finance_release(db)
+    _refuse_a_committee_we_hold_no_record_of(db, release, registration_number)
+    reader_for = {
+        "received": payments_received,
+        "made": payments_made,
+        "independent": independent_payments_about,
+    }[direction]
+    page = reader_for(
+        db,
+        release,
+        registration_number=registration_number,
+        year=year,
+        limit=limit,
+        offset=offset,
+        order=ORDER_BY_AMOUNT if sort == "amount" else ORDER_BY_DATE,
+    )
+    return DetailResponse(
+        data={
+            "registration_number": registration_number,
+            "direction": direction,
+            "year": year,
+            **_payment_page_payload(page),
+        }
+    )
+
+
+@router.get("/campaign-finance/payments-under-name", response_model=DetailResponse)
+def payments_under_one_printed_name(
+    name: str = Query(min_length=1, max_length=200),
+    role: Literal["contributor", "vendor", "independent_vendor", "employer"] = Query(),
+    year: int | None = Query(default=None, ge=2015, le=2100),
+    limit: int = Query(default=50, ge=1, le=MAX_PAYMENTS),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+):
+    """Every payment recorded under exactly one printed name.
+
+    **The match is exact, character for character, and that is the design.** A person, an
+    employer and a vendor carry no identifier in Minnesota's data, so the printed string
+    is the whole of the key
+    (``docs/architecture/campaign-finance-system-design.md`` §5). The live release holds
+    "Messinger, Alida" (121 payments to 39 committees), "Messinger, Alida R" (10 to 6) and
+    "Messinger, Alida Rockefelle" (4 to 1) as 3 separate strings. Joining them is a guess,
+    and the same file holds "Messinger, William Frye" and "Messinger, Wiiiam Frey", which
+    any rule loose enough to join the first three would join to each other.
+
+    So a surface labels this result with the string it asked for, never with a person, and
+    never says it is everything that person gave.
+
+    ``role`` picks which column the name is matched against:
+
+    * ``contributor`` -- who the money came from. Each row names the committee that
+      received it, and those numbers are linkable because these are those committees' own
+      filings.
+    * ``vendor`` -- a supplier a committee paid, from the expenditures download.
+    * ``independent_vendor`` -- a supplier paid out of independent spending, from the
+      independent-expenditures download. **A separate request on purpose.** 491 rows there
+      share a spender, vendor, amount and date with an expenditures row, and whether that
+      is one payment filed twice or two payments that coincide is not established, so the
+      2 lists are never combined.
+    * ``employer`` -- payments whose donor typed this string in the employer box. It is
+      free text holding statuses and occupations as much as employers: its 4 commonest
+      values are "Not Employed", "Retired", "Self employed Retired" and "Lawyer". Never
+      present it as a company's giving or as a count of its employees.
+
+    ``state`` of ``not_reported`` means no row carries this exact string, which is a fact
+    about the spelling and our records, never about a person's giving.
+    """
+    release = _resolve_campaign_finance_release(db)
+    if role == "contributor":
+        page = payments_from_contributor(
+            db, release, contributor=name, year=year, limit=limit, offset=offset
+        )
+    elif role == "vendor":
+        page = payments_to_vendor(
+            db, release, vendor=name, year=year, limit=limit, offset=offset
+        )
+    elif role == "independent_vendor":
+        page = independent_payments_to_vendor(
+            db, release, vendor=name, year=year, limit=limit, offset=offset
+        )
+    else:
+        page = payments_from_donors_typing(
+            db, release, employer=name, year=year, limit=limit, offset=offset
+        )
+    return DetailResponse(
+        data={
+            "name": name,
+            "role": role,
+            "year": year,
+            **_payment_page_payload(page),
+        }
+    )
+
+
+@router.get("/campaign-finance/summary", response_model=DetailResponse)
+def campaign_finance_summary(db: Session = Depends(get_db)):
+    """What our campaign-finance records hold right now: 3 counted blocks and 2 dates.
+
+    What the ``/money`` landing page opens with, and every figure in it is counted at read
+    time rather than written into the page. A pasted count is how that page once said
+    1,336 registered filers on a day the register held 1,603
+    ([#1661](https://github.com/alethical-org/alethical/issues/1661)).
+
+    **No amount of any kind is served here**, so no total summed across members or filers
+    can reach a lane card (``.claude/rules/grounded-answers.md`` rule 12, and
+    ``docs/architecture/campaign-finance-system-design.md`` §7, which forbids ranking
+    members whose filing calendars differ).
+
+    Three blocks, each with its own ``state``, deliberately rather than one state for the
+    response. They come from 3 independent places -- the Board's register, our own
+    confirmation log, and the bulk downloads -- and one missing piece must not blank the
+    other 2 lanes, which is the same per-block rule
+    ``/committees/{registration_number}/finance`` follows.
+
+    * ``register`` -- how many filers Minnesota's register holds, and how many of each of
+      its 3 kinds, so the committees lane and its filters label themselves from the data.
+    * ``legislator_committee_confirmations`` -- how many sitting members have a committee
+      a person has confirmed is theirs, out of how many are sitting. **The only figure on
+      the product that speaks about the whole set**; every per-member surface speaks about
+      that member alone. ``newest_confirmation_at`` dates it and is ``null`` while nobody
+      has confirmed anything, which is today.
+    * ``freshness`` -- ``downloads_fetched_at`` is the landing's "files last copied" date
+      (#861), and ``register_fetched_at`` is when the register and report catalogue were
+      copied. Two sources, copied on the same day today, so both are named rather than one
+      standing in for both. Neither is the period any money covers: every period ends
+      earlier.
+
+    **A count we could not compute is ``null``, never 0**, and the block's ``reason`` says
+    which of our gaps it was: ``no_filings_snapshot`` (we have loaded no register at all),
+    ``rows_replaced`` (the register we resolved has been replaced under this read), or
+    ``no_current_legislative_session``. A **0 confirmed** is served as ``0``, because the
+    confirmation log is ours and its emptiness is a fact we know rather than a gap.
+
+    No 503: unlike the committee routes, a missing download release only empties the
+    freshness dates here, and an explicit ``null`` beside a ``reason`` cannot be read as a
+    zero.
+    """
+    pin_campaign_finance_to_one_view(db)
+    try:
+        release = current_campaign_finance_release(db)
+    except ReleaseNoLongerHeld:
+        # The published release names a pruned snapshot. That is a fact about our copy of
+        # the downloads and says nothing about the register, which is a different run, so
+        # the other 2 blocks still answer.
+        release = None
+    summary = register_summary(db)
+    confirmations = legislator_committee_confirmations(db)
+    dates = freshness(db, release)
+    return DetailResponse(
+        data={
+            "register": {
+                "state": summary.state,
+                "filer_count": summary.filer_count,
+                "by_kind": summary.by_kind,
+                "as_of": summary.as_of,
+                "snapshot_id": (
+                    str(summary.snapshot_id) if summary.snapshot_id else None
+                ),
+                "reason": summary.reason,
+            },
+            "legislator_committee_confirmations": {
+                "state": confirmations.state,
+                "confirmed_member_count": confirmations.confirmed_member_count,
+                "sitting_member_count": confirmations.sitting_member_count,
+                "newest_confirmation_at": confirmations.newest_confirmation_at,
+                "reason": confirmations.reason,
+            },
+            "freshness": {
+                "downloads_fetched_at": dates.downloads_fetched_at,
+                "register_fetched_at": dates.register_fetched_at,
+                "release_id": str(dates.release_id) if dates.release_id else None,
+            },
+        }
+    )
+
+
+@router.get("/campaign-finance/filings", response_model=DetailResponse)
+def campaign_finance_filings(
+    limit: int = Query(default=10, ge=1, le=MAX_FILINGS),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+):
+    """The filed reports we hold with the latest periods, newest period end first.
+
+    The honest form of a "what's new" list: whose committee filed, which report, and the
+    period it covers. **No row carries an amount and no parameter sorts by one** -- 5 rows
+    with 5 dollar figures is a ranking whether anyone sorted it or not, and these rows are
+    the reason it would mislead: 2 periods can end 20 Jul 2026 while 2 more end 31 Dec
+    2025, nearly 7 months earlier.
+
+    **``ordered_by`` is served because the order is a mix, and it names which mix.** The
+    Board's report catalogue serves 17 fields per report and none of them is the date a
+    report was filed (``docs/architecture/campaign-finance-system-design.md`` §9.6); the
+    "Received by the Board" date is printed inside the report document, which is served
+    only from 2023 and answers a failure with HTTP 200 and an HTML page
+    ([#1670](https://github.com/alethical-org/alethical/issues/1670)). So each row sorts
+    by its ``filed_date`` where one is held and by its ``period_end`` where none is, and
+    ``ordered_by`` is ``filed_date_then_period_end`` whenever any row in the filtered set
+    carries one and ``period_end`` when none does. **A row's ``filed_date`` is ``null``
+    wherever the Board's document states none, and a client must then print no filed date
+    at all** -- a period end relabelled as a filing date would be a fabricated fact about
+    a named committee, so "filed on" may only ever be printed from a populated
+    ``filed_date``.
+
+    **Only reports somebody actually filed.** The catalogue is a schedule: it lists a
+    report from the moment its filing period opens, filed or not, and 7 of the 1,261
+    catalogued 2026 pre-primary reports were unfiled when the filing-calendars module
+    measured them. An unfiled report carries no amendment record while every filed one
+    carries at least ``['0']`` (§9.6), so rows with no amendment record are excluded.
+    That also drops genuinely filed reports from 2002 to 2007, whose amendment record the
+    catalogue does not serve, which is the safe direction on a list of the newest filings.
+
+    **Only periods that have ended.** A terminating committee files its final report at
+    termination rather than waiting for the period to close, so on 19 Aug 2026 the 5
+    newest rows were 2026 year-end reports covering "1 Jan - 31 Dec 2026" -- 7 such rows
+    against 1,261 catalogued 2026 pre-primary reports. Real filings, and a top row
+    covering 4 months of the future reads as an error or as a claim about money nobody has
+    raised. With no filing date, "newest" can only mean the latest period, and an
+    unfinished period outranks every finished one, so the cutoff is served as
+    ``periods_ended_on_or_before``.
+
+    ``period_start`` is ``null`` on many rows and that is a designed state, not a gap: the
+    row then reads "covers through {period_end}". §7 forbids hardcoding 1 January, so a
+    start is only served when one of the Board's own transcribed disclosure calendars
+    prints it against that period end (``period_start_source: "board_calendar"``), and
+    never for a filer with a special-election report that year -- filer 19223's 2025
+    period opens 11 July, not 1 January (§9.5).
+
+    ``state`` decides whether ``filings`` may be read: ``reported`` means the rows are
+    real, and ``unavailable`` with a ``reason`` means we hold no register at all
+    (``no_filings_snapshot``) or the snapshot we resolved has been replaced under this read
+    (``rows_replaced``). An empty list is never a claim that nobody has filed.
+
+    **Two counts, and they are not interchangeable.** ``page.total`` counts the whole
+    set the rows page through -- every filed report whose period has ended, 33,612 on
+    production -- so it is true of the list and says nothing about any one period.
+    ``newest_period`` carries the newest period end **and** 2 counts of it, served as one
+    block because a count is meaningless without the period it counts for
+    (``.claude/rules/grounded-answers.md`` rule 12: every total states the period it
+    covers). Measured on production 20 Aug 2026: 1,203 filings carry the newest period
+    end of 20 Jul 2026, against ``page.total``'s 33,612. **Nothing from ``page`` may
+    appear in a sentence about "this period"**; ``page.total`` there would overstate one
+    period 28-fold on a public page.
+
+    **``committee_count`` is the one a "N committees filed for this period" sentence
+    needs**, and ``filing_count`` counts documents. A committee reaches 2 rows for one
+    period end by filing 2 different reports that close the same day, and a count of
+    documents is then larger than a count of committees while looking identical to it.
+    Amendments are not that case: a report's whole amendment list is folded onto its
+    single catalogue row. Both come back 1,203 today, and they are served apart anyway
+    because "identical on every period measured" is not "cannot differ", and only one of
+    them is what the sentence claims.
+
+    **20 Jul 2026 is a deadline all 3 filer kinds share**, so "this period" does not
+    silently speak for filers on another calendar: all 1,203 rows are the same report,
+    the *2026 Pre-Primary Report*, filed by 473 committees and funds, 435 candidate
+    committees and 295 party units. That is measured for this period, not a rule about
+    every period, and a surface naming a period should not assume the next one is shared.
+    """
+    pin_campaign_finance_to_one_view(db)
+    page = recent_filings(db, limit=limit, offset=offset)
+    return DetailResponse(
+        data={
+            "state": page.state,
+            "ordered_by": page.ordered_by,
+            "periods_ended_on_or_before": page.periods_ended_on_or_before,
+            "filings": [
+                {
+                    "registration_number": row.registration_number,
+                    "filer_name": row.filer_name,
+                    "filer_kind": row.filer_kind,
+                    "report_name": row.report_name,
+                    "report_type": row.report_type,
+                    "filing_year": row.filing_year,
+                    "period_end": row.period_end,
+                    "period_start": row.period_start,
+                    "period_start_source": row.period_start_source,
+                    # The day the Board received this report's effective version, or
+                    # `null` where its document states none (#1670). `null` is the
+                    # ordinary answer, it never means the report was unfiled, and a
+                    # client must print no filed date at all rather than falling back to
+                    # `period_end`.
+                    "filed_date": row.filed_date,
+                    "special_election": row.special_election,
+                    "amendment_count": row.amendment_count,
+                    "effective_amendment_index": row.effective_amendment_index,
+                }
+                for row in page.filings
+            ],
+            "page": {
+                "limit": page.limit,
+                "offset": page.offset,
+                "has_more": page.has_more,
+                # Counted over the identical filter the rows came from, so it describes
+                # exactly the list under it (#1677): every filed report whose period has
+                # ended, 33,612 on production. Without it, 5 rows beginning "100 Percent
+                # Future Fund" read as a shortlist of the newest or the biggest. `null`
+                # whenever the rows are unavailable, never 0.
+                #
+                # NOT the landing's "N committees filed for this period" number, which is
+                # `newest_period.filing_count` below. An earlier version of this comment
+                # said it was, and it was wrong by 28-fold: 1,203 filings carry the newest
+                # period end against this figure's 33,612.
+                "total": page.total,
+            },
+            # The newest period and its 2 counts, served as one block because a count is
+            # meaningless without the period it counts for
+            # (`.claude/rules/grounded-answers.md` rule 12: every total states the period
+            # it covers). Pairing them is the guard -- a bare count is what gets printed
+            # beside the wrong period.
+            #
+            # `committee_count` is the one the landing's "N committees filed for this
+            # period" sentence needs; `filing_count` counts documents. Identical on every
+            # period measured, and served apart anyway, because "identical today" is not
+            # "cannot differ" and only one of them is what the sentence claims.
+            "newest_period": {
+                "period_end": page.newest_period_end,
+                "filing_count": page.newest_period_filing_count,
+                "committee_count": page.newest_period_committee_count,
+            },
+            "as_of": page.as_of,
+            "snapshot_id": str(page.snapshot_id) if page.snapshot_id else None,
+            "reason": page.reason,
+        }
+    )
+
+
+@router.get("/committees/{registration_number}/filings", response_model=DetailResponse)
+def committee_filings_list(
+    registration_number: str,
+    limit: int = Query(default=MAX_FILINGS, ge=1, le=MAX_FILINGS),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+):
+    """Every report this committee is recorded as having filed, newest period first.
+
+    The committee page's Filings tab ("Money committee web.dc.html",
+    [#1679](https://github.com/alethical-org/alethical/issues/1679)). The same row shape
+    and the same honesty rules as ``/campaign-finance/filings``, scoped to one filer:
+
+    * **No amount of any kind**, and no parameter sorts by one: this is a list of
+      filings, not of money.
+    * **Only reports somebody actually filed.** The catalogue is a schedule — it lists a
+      report from the moment its filing period opens — so rows with no amendment record
+      are excluded (every filed report carries at least ``['0']``,
+      ``docs/architecture/campaign-finance-system-design.md`` §9.6).
+      ``catalogued_without_record`` counts the excluded rows, because before 2008 the
+      missing record means the Board serves no version history rather than "never
+      filed", and the page says that boundary out loud instead of claiming to list
+      every report ever filed.
+    * **Ordered newest arrival first, and ``ordered_by`` says which order that is.** A
+      row sorts by its ``filed_date`` where the Board's report document states one and by
+      its ``period_end`` where it does not
+      ([#1670](https://github.com/alethical-org/alethical/issues/1670)). Most of a
+      committee's history carries none, because the Board serves no document before 2023
+      for most reports. There is still **no amendment date** — the catalogue's amendment
+      record is a list of version indexes, nothing more — so an AMENDED marker may not be
+      dated from these rows, and "filed on" may be printed only from a populated
+      ``filed_date``.
+    * **A period start comes off one of the Board's own transcribed disclosure
+      calendars or not at all** (``period_start_source: "board_calendar"``), and never
+      for a filer-year carrying a special-election report, whose year does not open on
+      1 January (§9.5). A row with no start reads "covers through {period_end}".
+
+    Two deliberate differences from the landing feed, both because this is one
+    committee's own history rather than a "what's new" feed: a filed report whose period
+    has not ended yet is listed (a terminating committee files its final report at
+    termination — filer 18472's 2026 year-end is real and filed), and a filed report
+    with no period end is listed last rather than dropped.
+
+    ``state`` decides whether ``filings`` may be read. An empty ``reported`` list means
+    the catalogue records no filed report for this registration number — real for some
+    registered filers — never that the committee does not exist; ``unavailable`` with a
+    ``reason`` is our own gap (``no_filings_snapshot`` or ``rows_replaced``).
+    """
+    pin_campaign_finance_to_one_view(db)
+    page = committee_filings(db, registration_number, limit=limit, offset=offset)
+    return DetailResponse(
+        data={
+            "state": page.state,
+            "ordered_by": page.ordered_by,
+            "filings": [
+                {
+                    "registration_number": row.registration_number,
+                    "filer_name": row.filer_name,
+                    "filer_kind": row.filer_kind,
+                    "report_name": row.report_name,
+                    "report_type": row.report_type,
+                    "filing_year": row.filing_year,
+                    "period_end": row.period_end,
+                    "period_start": row.period_start,
+                    "period_start_source": row.period_start_source,
+                    # The day the Board received this report's effective version, or
+                    # `null` where its document states none (#1670). `null` is the
+                    # ordinary answer, it never means the report was unfiled, and a
+                    # client must print no filed date at all rather than falling back to
+                    # `period_end`.
+                    "filed_date": row.filed_date,
+                    "special_election": row.special_election,
+                    "amendment_count": row.amendment_count,
+                    "effective_amendment_index": row.effective_amendment_index,
+                }
+                for row in page.filings
+            ],
+            "page": {
+                "limit": page.limit,
+                "offset": page.offset,
+                "has_more": page.has_more,
+                "total": page.total,
+            },
+            "catalogued_without_record": page.catalogued_without_record,
+            "as_of": page.as_of,
+            "snapshot_id": str(page.snapshot_id) if page.snapshot_id else None,
+            "reason": page.reason,
+        }
+    )
+
+
+@router.get("/campaign-finance/committees", response_model=DetailResponse)
+def campaign_finance_committees(
+    kind: Literal["candidate_committee", "party_unit", "political_committee_or_fund"]
+    | None = Query(default=None),
+    q: str | None = Query(default=None, min_length=1, max_length=200),
+    limit: int = Query(default=25, ge=1, le=MAX_COMMITTEES),
+    offset: int = Query(default=0, ge=0),
+    db: Session = Depends(get_db),
+):
+    """Everyone registered to raise or spend money in Minnesota state politics.
+
+    The whole register, ordered by the name as filed, A to Z. **No row carries an amount
+    and no parameter sorts by one, ever.** These filers file to different calendars, so 2
+    dollar figures side by side would set one period against another rather than compare
+    money (``.claude/rules/grounded-answers.md`` rule 12, and
+    ``docs/architecture/campaign-finance-system-design.md`` §7). Money lives on each
+    committee's own page, where the period it belongs to is stated.
+
+    **``kind`` offers 3 values because the register holds 3, and that is the Board's own
+    shape rather than something our loader threw away.** The directory is 3 separate
+    lists, and independent-expenditure committees, ballot-question committees and
+    political funds all arrive on one of them carrying no type marker at all (§9.7). The
+    finer kind exists only on the money rows, so a caller must not offer a finer filter
+    here ([#1661](https://github.com/alethical-org/alethical/issues/1661)).
+
+    **``sub_type`` is that finer kind, as the Board's own code and never as a label.**
+    It is what makes a ballot-question committee knowable at all, and it is served
+    because the committee page already reads it: without it the same filer would read
+    "Political committee or fund" on this list and "Ballot question committee" on its own
+    page, and a reader who noticed would trust neither. The label is derived in exactly
+    one place -- ``committeeEyebrow`` in ``apps/frontend/src/lib/committeeMoney.ts``,
+    which the committee page ships -- so the 2 surfaces cannot diverge. 8 codes are
+    documented and only those are served: 6 naming a finer kind of committee or fund
+    (``PC``, ``PF``, ``IEC``, ``IEF``, ``BC``, ``BF``) and 2 naming which layer of a
+    party a party unit is (``CAU`` a legislative caucus, ``SPU`` a state party
+    committee). ``PCN``, ``PFN`` and ``BCN`` are documented nowhere by the Board or by
+    us, so they arrive as ``null`` rather than as a code somebody might expand. ``null``
+    is also the answer for the 33 registered filers with no money row at all, and a
+    caller shows the register's kind for every one of them.
+
+    Read from the download release rather than the register, which is a **second copy of
+    Minnesota's data behind one response**, so ``release_id`` names it beside the
+    register's ``snapshot_id``. No release held means every ``sub_type`` is ``null`` and
+    nothing else changes.
+
+    **``office`` and ``district`` are ``null`` on most rows, and that is the register, not
+    a gap.** A candidate row carries office, district and party; a party-unit row and a
+    committee-or-fund row carry a name, a number and 2 dates. Measured on the live
+    register: 778 of 1,603 rows carry an office and **0 party units carry one**. A party
+    unit's geography is legible only inside its printed name, and #1661 rules that
+    reading it out of the name is a mapping a person confirms rather than a column we
+    hold -- so nothing here derives one, and a row's meta line is the kind alone.
+
+    **What a party unit's ``sub_type`` does and does not settle.** Minnesota's Board
+    recognises 7 layers of party organisation and publishes 2 of them: ``CAU`` and
+    ``SPU``, on 10 of the 299 registered party units. For the other 289 the answer is
+    ``null``, and it means Minnesota publishes no layer rather than that we failed to
+    read one -- 285 of the 289 have money rows in the live release and the Board leaves
+    the column blank on every one of them. So a congressional-district, county,
+    legislative-district, municipal or precinct party unit reads "Party unit" and nothing
+    finer. A client must not fill that gap from the name: 21 registered filers are named
+    exactly ``Nth Congressional District <party>`` and **3 of them are political
+    committees or funds rather than party units**, so a name-derived layer starts out
+    wrong about 3 named political organisations.
+
+    **Two totals, deliberately.** ``page.total`` counts the filter the rows came from, so
+    "showing 8 of 778 candidate committees" is true of the list on screen.
+    ``register_total`` counts the whole register, so the lane card can say 1,603 whatever
+    filter is applied. ``by_kind`` is unfiltered for the same reason: the 3 filter chips
+    label themselves from it, and counts that moved when a filter was applied would read
+    as the filter having found fewer of a kind than exist.
+
+    ``q`` is the screen's "find a committee by name" box: case-insensitive containment of
+    exactly what was typed, and **no closest-spelling suggestion of any kind**. 178
+    registered names sit a single character apart from another registered name and every
+    one of those pairs is a different organisation, so a correction would quietly swap
+    one for another (``campaign_finance_register.name_contains``).
+
+    ``state`` decides whether ``committees`` may be read: ``unavailable`` with a
+    ``reason`` means we hold no register (``no_filings_snapshot``) or the snapshot we
+    resolved has been replaced under this read (``rows_replaced``). An empty list is
+    never a claim that Minnesota registers nobody.
+    """
+    pin_campaign_finance_to_one_view(db)
+    try:
+        release = current_campaign_finance_release(db)
+    except ReleaseNoLongerHeld:
+        # The published release names a pruned snapshot. That is a fact about our copy of
+        # the downloads, and the register is a different run, so the list still answers
+        # in full -- only the sub-type codes, which are read from the downloads, go
+        # absent. No 503: refusing the whole register over a missing label would report a
+        # gap in one source as an absence in the other.
+        release = None
+    page = register_committees(
+        db, limit=limit, offset=offset, kind=kind, query=q, release=release
+    )
+    return DetailResponse(
+        data={
+            "state": page.state,
+            "ordered_by": page.ordered_by,
+            "kind": kind,
+            "q": q,
+            "committees": [_committee_payload(row) for row in page.committees],
+            "page": {
+                "limit": page.limit,
+                "offset": page.offset,
+                "has_more": page.has_more,
+                "total": page.total,
+            },
+            "register_total": page.register_total,
+            "by_kind": page.by_kind,
+            "as_of": page.as_of,
+            "snapshot_id": str(page.snapshot_id) if page.snapshot_id else None,
+            "release_id": str(page.release_id) if page.release_id else None,
+            "reason": page.reason,
+        }
+    )
+
+
+@router.get("/campaign-finance/search", response_model=DetailResponse)
+def campaign_finance_search(
+    q: str = Query(min_length=1, max_length=200),
+    limit: int = Query(default=5, ge=1, le=MAX_PER_GROUP),
+    db: Session = Depends(get_db),
+):
+    """One typed name, matched across 4 kinds of record and grouped by what each one is.
+
+    **Exactly what was typed, and no did-you-mean anywhere.** Case-insensitive
+    containment, no closest spelling, no similarity, no suggestion. Not caution: 178
+    registered filer names sit a single character apart from another registered name, and
+    every one of those pairs is a different organisation -- the Green Party and the
+    Republican Party of the same district among them (#1661). A correction on this data
+    does not fix a typo, it hands a reader one organisation's money under another's name
+    with nothing on screen to reveal it.
+
+    Five groups, always all 5, always in this order, even when empty -- so a caller can
+    never read a missing group as "no matches" when it meant "we did not look":
+
+    * ``people`` -- **the 200 sitting legislators, and only them.** A person is a result
+      only where we hold a record of them beyond these filings. Everybody else on a
+      filing resolves to what they filed, because a page about a donor would be a page
+      about a *spelling* that still reads as a page about a human being (§5).
+    * ``committees`` -- the register. The one group whose rows carry an identifier that
+      survives a name change, so these are the rows that open a page.
+    * ``gave`` -- distinct names in the contributions download. A private donor's name is
+      searchable and is deliberately not a profile.
+    * ``got_paid`` and ``got_paid_independent`` -- distinct vendor names, from the
+      expenditures download and the independent-expenditures download. **Two groups on
+      purpose, and a caller must never add their counts.** They are 2 separate filings,
+      and 491 rows of the independent file share a spender, vendor, amount and date with
+      an expenditures row; whether that is one payment filed twice or two that coincide
+      is not established.
+
+    A name row carries the ``role`` that ``/campaign-finance/payments-under-name`` takes,
+    verbatim, so a caller opens that name's payments without translating anything.
+    ``payment_count`` counts records in one download and is never an amount.
+
+    **The employer column is not searched and has no group.** It is free text a donor
+    filled in, and its 4 commonest values are "Not Employed" (67,342 rows), "Retired"
+    (36,517), "Self employed Retired" and "Lawyer" -- a result row for "retired" would
+    present a status as something to open.
+
+    ``total`` on the 3 name groups is exact up to ``counted_up_to`` distinct names and
+    ``null`` past it, with ``at_least`` saying how far the count got. A broad query
+    genuinely matches thousands, and a capped number printed as a total is a fabricated
+    fact in the largest type on the page (rule 11). A ``total`` of 0 is different: we
+    searched and nothing carried that string, which is a fact about the spelling and our
+    records rather than about anybody's giving.
+
+    Below ``min_query_length`` characters the answer is ``unavailable`` with
+    ``query_too_short`` and every group empty. A served state rather than an error, so
+    the page says "type at least 3 characters" instead of "nothing found", which would be
+    a false claim about the records. The floor is the index's: a trigram index holds no
+    whole trigram for a 2-character query, so it would fall back to reading all 583,152
+    contribution rows
+    ([#1486](https://github.com/alethical-org/alethical/issues/1486)).
+
+    No 503 when nothing is published: the 3 name groups go ``unavailable`` with
+    ``no_release`` while the register and the legislators still answer, because one
+    missing copy of the data must not blank the groups that do not depend on it.
+    """
+    pin_campaign_finance_to_one_view(db)
+    try:
+        release = current_campaign_finance_release(db)
+    except ReleaseNoLongerHeld:
+        # The published release names a pruned snapshot. A fact about our copy of the
+        # downloads that says nothing about the register, which is a separate run, so the
+        # other 2 groups still answer.
+        release = None
+    answer = search_campaign_finance_names(db, release, query=q, limit=limit)
+    return DetailResponse(
+        data={
+            "state": answer.state,
+            "q": answer.query,
+            "matched_on": answer.matched_on,
+            "min_query_length": answer.min_query_length,
+            "counted_up_to": answer.counted_up_to,
+            "groups": [
+                {
+                    "kind": group.kind,
+                    "state": group.state,
+                    "results": [_search_result_payload(row) for row in group.results],
+                    "total": group.total,
+                    "at_least": group.at_least,
+                    "has_more": group.has_more,
+                    "reason": group.reason,
+                }
+                for group in answer.groups
+            ],
+            "as_of": answer.as_of,
+            "snapshot_id": str(answer.snapshot_id) if answer.snapshot_id else None,
+            "release_id": str(answer.release_id) if answer.release_id else None,
+            "reason": answer.reason,
+        }
+    )
+
+
+def _committee_payload(row: CommitteeRow) -> dict:
+    """One register row. ``is_closed`` ships beside its date, never instead of it.
+
+    ``sub_type`` is the Board's own code and deliberately not a label, so the wording a
+    reader sees stays owned in one place and this list cannot label a filer differently
+    from its own committee page -- the same field, spelled the same way, that
+    ``/committees/{registration_number}/finance`` already serves as ``entity_sub_type``.
+    """
+    return {
+        "registration_number": row.registration_number,
+        "name": row.name,
+        "kind": row.kind,
+        "sub_type": row.sub_type,
+        "office": row.office,
+        "district": row.district,
+        "is_closed": row.is_closed,
+        "termination_date": row.termination_date,
+    }
+
+
+def _search_result_payload(row) -> dict:
+    """Serialise whichever of the 3 result shapes a group holds.
+
+    Each carries its own ``kind`` so a caller reads the row rather than inferring its
+    shape from the group it arrived in -- which is what would break the day a group holds
+    more than one shape.
+    """
+    if isinstance(row, PersonResult):
+        return {
+            "kind": "person",
+            "id": row.id,
+            "slug": row.slug,
+            "full_name": row.full_name,
+            "chamber": row.chamber,
+            "district_code": row.district_code,
+            "party": row.party,
+        }
+    if isinstance(row, PaymentNameResult):
+        return {
+            "kind": "payment_name",
+            "name": row.name,
+            "role": row.role,
+            "payment_count": row.payment_count,
+        }
+    payload = _committee_payload(row)
+    # 2 different meanings of "kind" meet here: what this result *is*, and which of the
+    # register's 3 kinds the committee is. The register's moves aside to `filer_kind`,
+    # because a caller reading `kind` to decide how to draw a row would otherwise get
+    # "candidate_committee" where every other group hands it a shape name.
+    return {"kind": "committee", "filer_kind": payload.pop("kind"), **payload}
+
+
+@router.get(
+    "/legislators/{legislator_id}/campaign-finance",
+    response_model=DetailResponse,
+)
+def legislator_campaign_finance(
+    legislator_id: str,
+    year: int = Query(ge=2015, le=2100),
+    db: Session = Depends(get_db),
+):
+    """One legislator's own campaign money for one year, per committee.
+
+    Money others spent about them is a separate question with a separate answer, and
+    it lives on ``/legislators/{legislator_id}/independent-spending``. The two are
+    drawn together on the profile and are kept apart here because a committee's own
+    receipts and a third party's spending are different records that must never be
+    added (``docs/architecture/campaign-finance-system-design.md`` §3).
+
+    **Read ``link_state`` before reading ``committees``, always.** An empty
+    ``committees`` list is not a statement about this person:
+
+    * ``unconfirmed`` -- nobody has yet checked which registered committee is theirs.
+      Minnesota publishes no link between a committee and a human, so a person
+      confirms each one by hand (§5, Identity). On the day this shipped every sitting
+      member was in this state, so it is the ordinary state rather than an edge case.
+    * ``reviewed_none_confirmed`` -- someone read this member's candidate committees
+      and confirmed none of them. Kept apart from the above because "we looked" and
+      "nobody has looked" are different facts, but **a reader-facing surface words the
+      two the same way**: all 200 sitting members do appear in the Board's
+      registered-filer directory, so on a sitting member's profile this means their
+      committee exists and we failed to surface it, never that none is registered
+      (§7).
+    * ``confirmed`` -- at least one committee is confirmed as theirs. A committee whose
+      reviewed period does not cover ``year`` is still correctly absent from
+      ``committees``, which is how a race for an office they no longer hold stays off
+      the page.
+
+    Every committee carries a ``split``: how much of the year's money reached this
+    committee with a donor's name attached and how much did not. **Read
+    ``split.state`` before its numbers**, because the split is derived and is withheld
+    whenever the derivation cannot be honest:
+
+    * ``shown`` -- ``unnamed_total`` is real. It is the committee's own reported total
+      minus the named **cash** payments we hold, and it is usually large: Minnesota
+      names a donor only once their giving passes $200 in aggregate within a calendar
+      year, so roughly 4 dollars in 10 have no name on a typical filing. Cash only,
+      because the Board's reported contributions figure excludes donated goods and
+      services while our itemized rows include them; ``named_in_kind_total`` carries
+      that difference so it is neither added in nor silently dropped.
+    * ``no_reported_total`` -- no official total this page may print for this year, so
+      there is no whole to divide. The named payments stand alone, labelled as named
+      payments.
+    * ``periods_differ`` -- the reported total and our named payments cover different
+      periods, so their difference is not a fact about donors. Measured on the live
+      release, 36 of 835 committee-years for 2026.
+    * ``sources_disagree`` -- Minnesota's own report and Minnesota's own spreadsheet
+      contradict each other for this committee-year, on the evidence of the one check
+      that compares them. Both figures are shown and neither is subtracted from the
+      other, and no wording may say which of the two is the larger: 33 of the 76
+      disagreeing committee-years run one way and 43 the other. 62 committee-years on
+      the live release, measured 19 Aug 2026.
+    * ``no_named_payments`` -- the filing reports money and we hold no named payment
+      of it, and nobody has read the filing to find out whether it named any. Never
+      rendered as "this money had no names", which is the claim it would silently
+      become. 468 committee-years.
+    * ``named_payments_not_in_our_copy`` -- the committee's own filed report names
+      donors and our copy of the download carries no row at all for this committee-year,
+      so the emptiness is provably on our side. A different fact from
+      ``no_named_payments``, and it may never be explained by the filing calendar: the
+      report was filed and the money is public. 14 committee-years
+      ([#1682](https://github.com/alethical-org/alethical/issues/1682)).
+    * ``reported_total_predates_a_correction`` -- the subtraction refuses to run and the
+      Board's report catalogue records that the committee refiled this year's report, so
+      the official total we hold is the superseded version's. Our refresh gap, not a
+      contradiction in Minnesota's records. 1 committee-year
+      ([#1648](https://github.com/alethical-org/alethical/issues/1648)).
+    * ``figures_do_not_line_up`` -- the subtraction refuses to run and nothing we hold
+      says why. Weaker than ``sources_disagree`` on purpose: it establishes that these 2
+      numbers cannot be subtracted and nothing about whether the 2 publications
+      disagree. 0 committee-years today.
+
+    Every committee also carries a ``filing_schedule``, which is why a year with no
+    figures has nothing to show. It is 1 of 6 states, and the split down the middle is
+    rule 12's missing-versus-zero rule applied to dates: ``on_the_ballot``,
+    ``not_on_the_ballot`` and ``registration_closed`` are facts about the committee,
+    while ``special_election_filer``, ``calendar_not_transcribed`` and
+    ``filings_cannot_answer`` are all "we cannot say", and a page may never let one read
+    like the other. ``next_report_due_on`` never travels without ``condition`` where the
+    Board prints one, because the pre-general date is wrong for a candidate who lost the
+    primary and right for everybody else. Nothing here says a report is late, and nothing
+    can: the absent-amendment signal that marks an unfiled report is only readable in the
+    current year (``alethical/pipeline/campaign_finance_filing_calendars.py``), and
+    telling a reader a named politician missed a deadline they do not have is the worst
+    thing this surface could produce
+    ([#1642](https://github.com/alethical-org/alethical/issues/1642)).
+
+    ``committees`` carries only committees for a **legislative** office. A member may
+    have confirmed committees for a run at something else, and §7 forbids that race's
+    money appearing under their legislative profile; ``other_office_committees`` counts
+    them so a page can say they exist without reporting a dollar of them. A committee
+    whose reviewed office is blank is kept, because absence is not evidence of another
+    race and hiding real money on a blank field is the worse error.
+
+    ``stated_split_state`` says whether the committee's own filed report was checked
+    against our rows for this year. ``agrees`` means the two match and a page may say
+    the split is verified against the filing itself; ``not_checked`` means the
+    comparison has not been made, which is a fact about us and never a verdict about the
+    committee. A page shows the figures either way and must not let the second read as
+    the first. ``disagrees`` never reaches a page as a split at all: it becomes
+    ``sources_disagree`` above, or ``named_payments_not_in_our_copy`` where we hold no
+    row for the year to have disagreed with anything.
+
+    ``first_payment_on`` and ``last_payment_on`` describe the payments we hold and are
+    **not** a coverage period. No surface may turn them into one, or assume a period
+    starts on 1 January: filer 19223 reports from 11 July 2025 (§9.5).
+
+    503 means we hold no usable release at all, which is a fact about us and never a
+    figure about a named person.
+    """
+    # First statement in the transaction, exactly as the committee route does: this
+    # request reads 3 datasets plus the filings snapshot, and 2 publishes landing
+    # between its statements would otherwise take the named release's rows away
+    # halfway through.
+    pin_campaign_finance_to_one_view(db)
+    legislator = get_legislator_by_id(db, legislator_id)
+    unusable = HTTPException(
+        status_code=503,
+        detail=(
+            "no usable campaign-finance release is published; "
+            "this says nothing about any legislator"
+        ),
+    )
+    try:
+        release = current_campaign_finance_release(db)
+        if release is None:
+            raise unusable
+        finance = legislator_finance(
+            db, release, legislator_id=legislator.id, year=year
+        )
+    except ReleaseNoLongerHeld:
+        raise unusable from None
+    return DetailResponse(
+        data={
+            "legislator_id": str(legislator.id),
+            "year": finance.year,
+            "link_state": finance.link_state,
+            # Confirmed committees this page leaves out because they are for a race
+            # other than a legislative seat. Served rather than dropped in silence: a
+            # reader who knows their member ran for Attorney General should be told the
+            # money exists and is not this, instead of concluding we missed it.
+            "other_office_committees": finance.other_office_committees,
+            # Confirmed committees this page leaves out because they reported no money
+            # in this year, each with its closing date if the Board's filer record
+            # carries one. Served so the empty year can say which of 2 different things
+            # is true: the registration ended, or nothing was reported. A page that
+            # asserts the first when only the second is known has told a reader
+            # something false about a named person (rule 12, missing versus zero).
+            "committees_outside_this_year": [
+                {
+                    "registration_number": entry.registration_number,
+                    "committee_name_as_reviewed": entry.committee_name_as_reviewed,
+                    "closed_on": entry.closed_on,
+                }
+                for entry in finance.committees_outside_this_year
+            ],
+            "release_id": str(release.id),
+            "fetched_at": release.fetched_at,
+            "committees": [
+                {
+                    "registration_number": entry.registration_number,
+                    # What the reviewer read when they confirmed the link, and what the
+                    # release names the same number today. They can legitimately
+                    # differ: the Board publishes a committee's *current* name against
+                    # all of its history, so a rename is a thing to notice rather than
+                    # a contradiction (§5.1).
+                    "committee_name_as_reviewed": entry.committee_name_as_reviewed,
+                    "committee_name": (
+                        entry.finance.committee.name if entry.finance else None
+                    ),
+                    "office": entry.office_as_reviewed,
+                    # What a person read when they confirmed this account is this member's,
+                    # and the day they did. Served rather than recomputed, so the card
+                    # states the basis of the decision that was made instead of what
+                    # today's records would suggest (§5.1).
+                    "checked": (
+                        {
+                            "checked_on": entry.checked.checked_on,
+                            "name_evidence": entry.checked.name_evidence,
+                            "register_verdict": entry.checked.register_verdict,
+                            "party_agreement": entry.checked.party_agreement,
+                        }
+                        if entry.checked
+                        else None
+                    ),
+                    "money_in": (
+                        {
+                            "state": entry.finance.money_in.state,
+                            "itemized_contribution_total": (
+                                entry.finance.money_in.itemized_contribution_total
+                            ),
+                            "itemized_contribution_payments": (
+                                entry.finance.money_in.itemized_contribution_payments
+                            ),
+                            "other_receipts": [
+                                {
+                                    "receipt_type": receipt.receipt_type,
+                                    "total": receipt.total,
+                                    "payments": receipt.payments,
+                                }
+                                for receipt in entry.finance.money_in.other_receipts
+                            ],
+                            "source_url": entry.finance.money_in.source_url,
+                        }
+                        if entry.finance
+                        else None
+                    ),
+                    "money_out": (
+                        {
+                            "state": entry.finance.money_out.state,
+                            "itemized_payment_total": (
+                                entry.finance.money_out.itemized_payment_total
+                            ),
+                            "itemized_payments": (
+                                entry.finance.money_out.itemized_payments
+                            ),
+                            "by_type": [
+                                {
+                                    "type": bucket.expenditure_type,
+                                    "total": bucket.total,
+                                    "payments": bucket.payments,
+                                }
+                                for bucket in entry.finance.money_out.by_type
+                            ],
+                            "source_url": entry.finance.money_out.source_url,
+                        }
+                        if entry.finance
+                        else None
+                    ),
+                    "split": {
+                        "state": entry.split.state,
+                        "reported_total": entry.split.reported_total,
+                        "reported_through": entry.split.reported_through,
+                        "named_total": entry.split.named_total,
+                        "named_payments": entry.split.named_payments,
+                        "named_cash_total": entry.split.named_cash_total,
+                        "named_in_kind_total": entry.split.named_in_kind_total,
+                        "unnamed_total": entry.split.unnamed_total,
+                        "stated_split_state": entry.split.stated_split_state,
+                        "first_payment_on": entry.split.first_payment_on,
+                        "last_payment_on": entry.split.last_payment_on,
+                    },
+                    # Why this committee-year may have nothing to show, in 1 of 6
+                    # states. Every date is read off the Board's own transcribed
+                    # calendar or its own filer record; none is derived from the year
+                    # asked about, so no sentence built from this can go stale in
+                    # silence on 1 January (#1642).
+                    "filing_schedule": {
+                        "state": entry.schedule.state,
+                        "next_report_name": entry.schedule.next_report_name,
+                        "next_report_due_on": entry.schedule.next_report_due_on,
+                        "period_start": entry.schedule.period_start,
+                        "period_end": entry.schedule.period_end,
+                        # The Board's printed exemption on that report, verbatim. It
+                        # travels with the due date because the date is wrong for one
+                        # group of candidates without it.
+                        "condition": entry.schedule.condition,
+                        "terminated_on": entry.schedule.terminated_on,
+                    },
+                }
+                for entry in finance.committees
+            ],
+        }
     )
 
 
@@ -2791,7 +4600,7 @@ def search(
             # Bill-number query → exclusive ID lookup, not free text (see /bills).
             bills_stmt = bills_stmt.where(number_clause)
         else:
-            keyword_clause = keyword_search_clause([Bill.title, Bill.description], q)
+            keyword_clause = keyword_search_clause(BILL_SEARCH_COLUMNS, q)
             if keyword_clause is not None:
                 bills_stmt = bills_stmt.where(keyword_clause)
         payload["bills"] = [

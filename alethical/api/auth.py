@@ -39,6 +39,30 @@ def _confirmed_email(principal) -> str | None:
     return None
 
 
+def _resolve_confirmed_email(
+    auth_service, token: str, principal, request: Request | None = None
+):
+    """Ask the provider only while Alethical still lacks trusted confirmation."""
+    if principal.email_verified:
+        return principal
+    resolver = getattr(auth_service, "resolve_confirmed_email", None)
+    if resolver is None:
+        return principal
+    try:
+        return resolver(token, principal)
+    except RuntimeError as exc:
+        if request is not None:
+            request.state.failure_area = "auth"
+        raise problem_exception(
+            503,
+            "Service Unavailable",
+            str(exc),
+            type_slug="service-unavailable",
+        ) from exc
+    except Exception as exc:
+        raise problem_exception(401, "Unauthorized", str(exc)) from exc
+
+
 def _reconcile_identity_fields(db: Session, user, identity, principal) -> bool:
     """Backfill email fields only when a value actually changes.
 
@@ -117,6 +141,7 @@ def get_optional_current_user(
         raise problem_exception(401, "Unauthorized", "Bearer token required")
     token = authorization.removeprefix("Bearer ").strip()
     if auth_service is None:
+        request.state.failure_area = "auth"
         raise problem_exception(
             503,
             "Service Unavailable",
@@ -126,11 +151,15 @@ def get_optional_current_user(
     try:
         principal = auth_service.authenticate(token)
     except RuntimeError as exc:
+        request.state.failure_area = "auth"
         raise problem_exception(
             503, "Service Unavailable", str(exc), type_slug="service-unavailable"
         ) from exc
     except Exception as exc:
         raise problem_exception(401, "Unauthorized", str(exc)) from exc
+
+    request.state.auth_provider = principal.provider
+    request.state.auth_provider_subject = principal.provider_subject
 
     identity = db.scalar(
         select(AuthIdentity).where(
@@ -151,19 +180,25 @@ def get_optional_current_user(
         if not user.is_active:
             _mark_deactivated(request)
             return None
+        if identity.email_verified_at is None:
+            principal = _resolve_confirmed_email(
+                auth_service, token, principal, request=request
+            )
         if _reconcile_identity_fields(db, user, identity, principal):
             db.commit()
         return user
 
     # Provisioning path (first sign-in for this identity): create the user
-    # and/or identity and commit once. last_used_at / last_signed_in_at are set
-    # here rather than per request -- nothing reads them, and per-request bumps
-    # were the read-path write this dependency used to do on every call.
+    # and/or identity and commit once. The two link timestamps describe this
+    # event and are never login or request activity markers (#1045).
     #
     # The join is on the *confirmed* address only. An unconfirmed one falls
     # through to a brand-new account with no primary_email, which is recoverable
     # (the accounts can be merged later) where a refusal would leave a real
     # person stuck behind provider state they cannot see or fix (#1039).
+    principal = _resolve_confirmed_email(
+        auth_service, token, principal, request=request
+    )
     confirmed_email = _confirmed_email(principal)
     user = None
     if confirmed_email:
@@ -192,11 +227,11 @@ def get_optional_current_user(
         provider_subject=principal.provider_subject,
         email=principal.email.lower() if principal.email else None,
         email_verified_at=now if principal.email_verified else None,
-        last_used_at=now,
+        linked_at=now,
     )
     db.add(identity)
     _reconcile_identity_fields(db, user, identity, principal)
-    user.last_signed_in_at = now
+    user.last_identity_linked_at = now
     db.commit()
     db.refresh(user)
     return user

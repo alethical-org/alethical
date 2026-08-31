@@ -16,10 +16,12 @@ import { readCurrentScrollPosition, saveCurrentScrollPosition } from '../navigat
  */
 export function useHistoryScrollRestoration() {
   const scrollRef = useRef<ScrollView | null>(null);
-  const targetRef = useRef(
-    Platform.OS === 'web' && typeof window !== 'undefined' ? readCurrentScrollPosition() : 0,
-  );
-  const restoredRef = useRef(targetRef.current === 0);
+  // React Navigation draws the destination screen before RootNavigator adds its
+  // browser-history entry. Reading here during render therefore reads the page
+  // being left and can copy its scroll position onto the new page. Wait until
+  // the next animation frame, when the destination owns the current entry.
+  const targetRef = useRef<number | null>(null);
+  const restoredRef = useRef(Platform.OS !== 'web');
 
   const restore = useCallback(() => {
     if (Platform.OS !== 'web' || restoredRef.current) {
@@ -29,9 +31,22 @@ export function useHistoryScrollRestoration() {
     if (!node || typeof node.scrollTop !== 'number') {
       return;
     }
-    node.scrollTop = targetRef.current;
-    restoredRef.current = Math.abs(node.scrollTop - targetRef.current) < 2;
+    const target = targetRef.current ?? readCurrentScrollPosition();
+    targetRef.current = target;
+    node.scrollTop = target;
+    restoredRef.current = Math.abs(node.scrollTop - target) < 2;
   }, []);
+
+  const scheduleRestore = useCallback(() => {
+    if (
+      Platform.OS !== 'web' ||
+      restoredRef.current ||
+      typeof requestAnimationFrame === 'undefined'
+    ) {
+      return;
+    }
+    requestAnimationFrame(restore);
+  }, [restore]);
 
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof requestAnimationFrame === 'undefined') {
@@ -46,7 +61,7 @@ export function useHistoryScrollRestoration() {
       return;
     }
     const y = event.nativeEvent.contentOffset.y;
-    if (!restoredRef.current && y + 2 < targetRef.current) {
+    if (targetRef.current === null || (!restoredRef.current && y + 2 < targetRef.current)) {
       return;
     }
     restoredRef.current = true;
@@ -56,7 +71,7 @@ export function useHistoryScrollRestoration() {
   return {
     ref: scrollRef,
     onScroll,
-    onContentSizeChange: restore,
+    onContentSizeChange: scheduleRestore,
     scrollEventThrottle: 100,
   };
 }

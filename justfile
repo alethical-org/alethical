@@ -80,19 +80,41 @@ worktree-rm branch:
   -git branch -D {{branch}}
   @echo "🧹 Removed worktree ../alethical-wt-{{branch}}."
 
+# Read-only setup check. `just doctor ios` and `just doctor android` also check
+# the phone-only tool needed for that target.
+doctor target="web":
+  python3 scripts/check_local_env.py {{target}}
+
+# Pinned to the same ruff CI runs (.github/workflows/ci.yml). Unpinned, `uvx`
+# resolves the newest release: today that is ruff 0.16, which reports 778 findings
+# on a tree CI calls clean, and `just format` would have rewritten 611 of them into
+# a diff no reviewer asked for. CI is the arbiter, so local must ask the same tool.
 format:
-  uvx ruff check --fix alethical scripts
-  uvx ruff format alethical scripts
+  uvx ruff@0.15.0 check --fix alethical scripts
+  uvx ruff@0.15.0 format alethical scripts
   pnpm --dir apps/frontend exec prettier --write .
 
 lint:
-  uvx ruff check alethical scripts
-  uvx ty check alethical/db
+  uvx ruff@0.15.0 check alethical scripts
+  # CI's backend job runs this too, and `just lint` did not, so a branch could
+  # pass lint locally and still fail CI on formatting alone -- one wasted round
+  # trip per occurrence (#1765). `just format` fixes whatever this reports.
+  uvx ruff@0.15.0 format --check alethical scripts
+  uvx ty@0.0.72 check alethical/db
   pnpm install --frozen-lockfile
   pnpm --dir apps/frontend exec tsc --noEmit
 
 test-frontend:
   pnpm --dir apps/frontend run test
+
+# On-demand end-to-end browser checks (Playwright, apps/frontend/e2e/; the program
+# lives in .claude/skills/browser-user-test/). Deliberately not in CI yet.
+# One-time per machine: pnpm --dir apps/frontend exec playwright install
+# Target host: E2E_BASE_URL (default http://localhost:19006 — run `just up` first,
+# or point at production for the read-only specs: E2E_BASE_URL=https://alethical.com).
+# Pick an engine: just e2e / just e2e firefox / just e2e webkit
+e2e browser="chromium":
+  pnpm --dir apps/frontend exec playwright test --project={{browser}}
 
 migrate:
   docker compose up -d db
@@ -121,9 +143,89 @@ refresh-policy-area-counts target="local" *ARGS:
 pipeline-work target:
   uv run python -m alethical.pipeline.oban --target {{target}} drain source_sync
   uv run python -m alethical.pipeline.oban --target {{target}} drain bill_sync --concurrency 8
+  uv run python -m alethical.pipeline.oban --target {{target}} drain ai_summary
   uv run python -m alethical.pipeline.oban --target {{target}} drain committee_sync
   uv run python -m alethical.pipeline.oban --target {{target}} drain vote_sync
   uv run python -m alethical.pipeline.oban --target {{target}} drain ai_batch
+
+# Load Minnesota's 3 campaign-finance downloads as one dated set that replaces the
+# previous one (#1328). Dry-run by default: it fetches, checks and reports without
+# writing to the database or the file store, and needs no credentials.
+# A real run needs the 4 SUPABASE_STORAGE_S3_* values from .env, because the exact
+# downloaded bytes are kept -- the Board publishes no archive, so a file we do not
+# keep cannot be fetched again.
+#   just load-campaign-finance                       # dry run against local
+#   just load-campaign-finance local false           # publish locally
+#   just load-campaign-finance production false      # publish to production
+# A first import has nothing to compare against, so it quarantines by design. Read
+# the printed measurements, then publish it by naming its 3 hashes:
+#   uv run python scripts/load_campaign_finance.py --target local --publish-hashes A B C
+load-campaign-finance target="local" dry="true":
+  uv run python scripts/load_campaign_finance.py --target {{target}} {{ if dry == "true" { "--dry-run" } else { "" } }}
+
+# Load Minnesota's lobbying principal-expenditure download as a dated set that
+# replaces the previous one (#1862). It exists so the $886 million lobbying figure in
+# our research piece "The Money Only Goes One Way" recomputes from data we hold.
+# Dry-run by default, same as above, and a real run needs the same 4 storage values.
+#   just load-lobbying                               # dry run against local
+#   just load-lobbying local false                   # publish locally
+#   just load-lobbying production false              # publish to production
+# A first import has nothing to compare against, so it quarantines by design. Read
+# the printed measurements, then publish it by naming its record hash:
+#   uv run python scripts/load_lobbying_expenditures.py --target local --publish-hash H
+load-lobbying target="local" dry="true":
+  uv run python scripts/load_lobbying_expenditures.py --target {{target}} {{ if dry == "true" { "--dry-run" } else { "" } }}
+
+# Copy every stored source file to Cloudflare R2, and prove the copy arrived (#1402).
+# The daily job .github/workflows/mirror-raw-files.yml already does this; run it by
+# hand to check the second copy now or after a failed run. It only ever adds, and a
+# second run copies nothing. Needs the 4 SUPABASE_STORAGE_S3_* and 4 CLOUDFLARE_R2_*
+# values from .env.
+#   just mirror-raw-files                            # dry run against production
+#   just mirror-raw-files production false           # copy for real
+mirror-raw-files target="production" dry="true":
+  ALETHICAL_DATABASE_TARGET={{target}} PYTHONPATH=. uv run python scripts/mirror_raw_files.py --target {{target}} {{ if dry == "true" { "--dry-run" } else { "" } }}
+
+# Fetch what each Minnesota committee itself reported, plus the state's list of
+# registered filers (#1408). This is what lets a page show the true total beside the
+# payments we can name: roughly 4 dollars in 10 that a sitting member raised has no
+# name attached, because the state only names a donor once their yearly giving passes
+# $200. It also turns on the 2 checks the download loader used to record as "not run".
+# Dry-run by default, same as above, and a real run needs the same 4 storage values.
+# A FULL RUN IS ABOUT 4,800 REQUESTS AND ROUGHLY 48 MINUTES, so check one committee
+# first -- that is 3 requests:
+#   just load-campaign-finance-filings local true 11880   # dry run, one committee
+#   just load-campaign-finance-filings                    # dry run, every filer
+#   just load-campaign-finance-filings production false   # publish to production
+# A first run has nothing to compare against, so it quarantines by design. Read the
+# printed counts, then publish it by naming its record hash:
+#   uv run python scripts/load_campaign_finance_filings.py --target local --publish-hash H
+load-campaign-finance-filings target="local" dry="true" filers="":
+  uv run python scripts/load_campaign_finance_filings.py --target {{target}} {{ if dry == "true" { "--dry-run" } else { "" } }} {{ if filers != "" { "--only-filers " + filers } else { "" } }}
+
+# Read each committee's own filed money report and compare the donations it says it
+# named against the donations we actually hold (#1433). This is the ONLY way to see
+# that we are MISSING donations Minnesota named -- the other checks catch our records
+# being too big, and a missing donation still fits inside a committee's total, so it
+# lands in the "donors too small to name" figure and becomes a false claim under a
+# real politician's name. It never blocks a release: it answers per committee-year.
+# ONE YEAR IS ABOUT 1,300 REQUESTS AND ROUGHLY 20 MINUTES, so check a few first:
+#   just check-campaign-finance-stated-split local true 2025 "18488 20010"
+#   just check-campaign-finance-stated-split production false 2025
+check-campaign-finance-stated-split target="local" dry="true" years="" filers="":
+  uv run python scripts/check_campaign_finance_stated_split.py --target {{target}} {{ if dry == "true" { "--dry-run" } else { "" } }} {{ if years != "" { "--years " + years } else { "" } }} {{ if filers != "" { "--only-filers " + filers } else { "" } }}
+
+# Ask Minnesota again for each committee report the check above read BEFORE we started
+# keeping them, and keep it this time (#1501). The state publishes no library of past
+# reports and refuses most reports older than 2023, so the ones it will no longer hand
+# over are the measurement showing why keeping them matters -- they are reported as a
+# number, not as a failure. Safe to re-run and safe to interrupt: each report is saved
+# as it lands and one already saved is skipped without asking the state for it.
+# ABOUT 1,300 REQUESTS AND ROUGHLY 25 MINUTES, so check a few first:
+#   just backfill-campaign-finance-report-documents production true      # ask for nothing
+#   just backfill-campaign-finance-report-documents production false 20  # 20 for real
+backfill-campaign-finance-report-documents target="production" dry="true" limit="":
+  ALETHICAL_DATABASE_TARGET={{target}} PYTHONPATH=. uv run python scripts/backfill_campaign_finance_report_documents.py --target {{target}} {{ if dry == "true" { "--dry-run" } else { "" } }} {{ if limit != "" { "--limit " + limit } else { "" } }}
 
 # Reconcile current legislator membership against the official roster PDF.
 # Dry-run by default (no writes); pass apply=true to deactivate departed members.

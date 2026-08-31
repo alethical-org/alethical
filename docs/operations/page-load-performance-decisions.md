@@ -1,4 +1,4 @@
-<!-- describes: apps/frontend/App.tsx, apps/frontend/package.json, apps/frontend/vercel.json, apps/frontend/src/data/api.ts, apps/frontend/src/navigation/RootNavigator.tsx, apps/frontend/src/providers/AuthProvider.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, alethical/api/routers/ask.py -->
+<!-- describes: apps/frontend/App.tsx, apps/frontend/package.json, vercel.json, apps/frontend/src/data/api.ts, apps/frontend/src/lib/appQueryClient.ts, apps/frontend/src/lib/billFreshness.ts, apps/frontend/src/navigation/RootNavigator.tsx, apps/frontend/src/providers/AppProviders.tsx, apps/frontend/src/providers/AuthProvider.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, alethical/api/routers/ask.py -->
 
 # Page-load performance decisions
 
@@ -19,6 +19,12 @@ The Aug 7, 2026 production audit found:
 
 Each release issue records a fresh before-and-after measurement because the shared file changes whenever `main` changes.
 
+## Current record freshness
+
+The website treats a public read as fresh for 5 minutes. After that window, returning to the browser tab or reconnecting to the network rechecks every active read that can show a saved bill record: bill detail, votes, bill text, bill lists, legislator bill lists, featured cards, tracked bills, and saved Ask suggestions. The update replaces data in place, so the selected URL tab and the reader's scroll position stay put. React Query shares an in-flight request for one key, so a burst of return signals cannot start duplicate reads.
+
+A free-form Ask is the exception. Its request can generate paid prose, so focus and reconnect never repeat it. The prose remains the answer originally served, while one read-only featured-bills request refreshes the bill cards it displays. The query-root list, the 5-minute gate, burst sharing, and the free-form Ask exception are enforced by `apps/frontend/src/lib/__tests__/billFreshness.test.ts` and `apps/frontend/src/lib/__tests__/appQueryClient.test.ts`.
+
 ## Safe work with no intended reader tradeoff
 
 | Order | Work | Why it is safe | Tracker |
@@ -31,7 +37,7 @@ Each release issue records a fresh before-and-after measurement because the shar
 
 | Option | Benefit | Tradeoff or proof gap | Decision |
 |---|---|---|---|
-| Send useful page content in the first HTML response | Removes the empty-page wait on cold primary pages and deep links | The current navigation cannot do this directly; the supported options require a navigation rebuild or a separate public rendering path | Run the measured prototype in [#502](https://github.com/alethical-org/alethical/issues/502) before choosing an architecture |
+| Send useful page content in the first HTML response | Removes the empty-page wait on cold primary pages and deep links | The separate public serving path now covers records, Home, Find My Legislator, Bills, and Legislators; the full navigation rebuild remains larger | Shipped narrowly through [#1396](https://github.com/alethical-org/alethical/issues/1396); keep [#502](https://github.com/alethical-org/alethical/issues/502) for the broader rebuild |
 | Load 2 chief-authored bills first on phone profiles | Avoids the measured 47 KB, 1.56-second cold request | “Show all” would start a later request and make that click wait | Do not ship as no-tradeoff work |
 | Keep public data in nearby caches longer | More cold reads move from 500 to 1,600 ms toward 60 to 90 ms | Current bill, vote, and roster changes appear later | Keep the current freshness policy until the product chooses a longer delay |
 | Replace Space Grotesk or JetBrains Mono | Could remove about 13 to 44 KB of font downloads on pages using them | Changes the logo or code-like visual style | Do not treat as performance-only work |

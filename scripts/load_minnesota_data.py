@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import os
 import sys
 from pathlib import Path
 
 from sqlalchemy import create_engine
+from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -34,6 +36,24 @@ DEFAULT_BILLS = [
     BillTarget(chamber="Senate", bill_number="1047"),
     BillTarget(chamber="Senate", bill_number="1097"),
 ]
+_LOCAL_DATABASE_HOSTS = frozenset({"localhost", "127.0.0.1", "::1", "db", ""})
+
+
+def _validated_database_target(target: str, database_url: str) -> str:
+    if target not in {"local", "production"}:
+        raise RuntimeError(f"Unknown database target: {target}")
+    host = (make_url(database_url).host or "").lower()
+    is_local = host in _LOCAL_DATABASE_HOSTS
+    if target == "production" and is_local:
+        raise RuntimeError(
+            f"target=production but the selected database is local (host {host!r})"
+        )
+    if target == "local" and not is_local:
+        raise RuntimeError(
+            f"target=local but the selected database is remote (host {host!r}); "
+            "pass --target production for a production write"
+        )
+    return target
 
 
 def parse_bill(value: str, session_code: str) -> BillTarget:
@@ -61,6 +81,12 @@ def main() -> None:
     )
     parser.add_argument("--database-url", default=os.environ.get("DATABASE_URL"))
     parser.add_argument(
+        "--target",
+        choices=("local", "production"),
+        default=os.environ.get("ALETHICAL_DATABASE_TARGET") or "local",
+        help="Database safety target. A remote URL requires production.",
+    )
+    parser.add_argument(
         "--session-code",
         default=DEFAULT_SESSION_CODE,
         help="Minnesota search session code, e.g. 0942025 (2025) or 0942026 (2026).",
@@ -73,6 +99,11 @@ def main() -> None:
     )
     parser.add_argument(
         "--skip-bills", action="store_true", help="Do not ingest bills."
+    )
+    parser.add_argument(
+        "--skip-rag",
+        action="store_true",
+        help="Store bill text without rebuilding its search rows; the free gap checks will report the unfinished work.",
     )
     parser.add_argument(
         "--all-bills",
@@ -138,9 +169,9 @@ def main() -> None:
     args = parser.parse_args()
 
     database_url = normalize_database_url(
-        args.database_url
-        or database_url_for_target(os.environ.get("ALETHICAL_DATABASE_TARGET"))
+        database_url_for_target(args.target, args.database_url)
     )
+    database_target = _validated_database_target(args.target, database_url)
     targets = [parse_bill(value, args.session_code) for value in args.bill]
     if not targets and not args.skip_bills:
         targets = [
@@ -151,6 +182,7 @@ def main() -> None:
     engine = create_engine(
         database_url, echo=False, connect_args=NO_PREPARED_STATEMENTS
     )
+    ready_summary_request_ids: list[str] = []
     with Session(engine) as session:
         pipeline = MinnesotaIngestionPipeline(session)
         if args.merge_duplicate_legislators:
@@ -197,8 +229,68 @@ def main() -> None:
                     },
                 )
             stats = pipeline.ingest_bills(targets)
+            ready_summary_request_ids = sorted(
+                str(request_id) for request_id in stats.get("summary_request_ids", [])
+            )
+            if not args.skip_rag:
+                from alethical.pipeline.rag_ingest import (
+                    build_rag_rows_for_bill_keys,
+                )
+
+                session.flush()
+                search_changed_bill_keys = list(
+                    dict.fromkeys(
+                        [
+                            *stats.get("text_changed_bill_keys", []),
+                            *stats.get("summary_changed_bill_keys", []),
+                        ]
+                    )
+                )
+                rag_stats = build_rag_rows_for_bill_keys(
+                    session,
+                    search_changed_bill_keys,
+                    dry_run=False,
+                    database_target=database_target,
+                )
+                from alethical.pipeline.bill_summary_requests import (
+                    mark_summary_requests_ready,
+                )
+
+                ready_summary_request_ids = sorted(
+                    {
+                        *ready_summary_request_ids,
+                        *(
+                            str(request_id)
+                            for request_id in rag_stats.get(
+                                "ready_summary_request_ids", []
+                            )
+                        ),
+                        *(
+                            str(request_id)
+                            for request_id in mark_summary_requests_ready(
+                                session,
+                                stats.get("summary_changed_bill_keys", []),
+                                database_target=database_target,
+                            )
+                        ),
+                    }
+                )
+                rag_stats["ready_summary_request_ids"] = ready_summary_request_ids
+                rag_stats.pop("bill_keys", None)
+                stats.update(rag_stats)
             print("bills", stats)
         session.commit()
+
+    if ready_summary_request_ids:
+        from alethical.pipeline.bill_summary_requests import enqueue_ready_requests
+
+        asyncio.run(
+            enqueue_ready_requests(
+                ready_summary_request_ids,
+                database_target=database_target,
+                database_url=database_url if args.database_url else None,
+            )
+        )
 
 
 if __name__ == "__main__":

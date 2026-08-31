@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Make a PR say what it did about the docs that describe the code it changed.
+"""Make a PR explain affected docs and edits to the temporary sign-in record.
 
 The problem this exists for: a code change silently makes a doc sentence false.
 Every instance found in the Jul 29 2026 audit of
@@ -73,6 +73,12 @@ having read it.
 The cost of closing the hole is one sentence on a PR that both changes described
 code and edits its doc. That is a real cost and it is worth paying: the hole cost
 two PRs and a self-contradicting page in a public repo.
+
+A separate ``Design change:`` acknowledgement used to gate edits to the one
+temporary design bundle under ``docs/`` (``docs/mockups/sign-in/``, #1469). The
+rev 17 sign-in build (#1533) reconciled that bundle into the feature guides and
+removed the folder, so the gate went with it — design working files no longer
+land under ``docs/`` at all (#1534).
 """
 
 from __future__ import annotations
@@ -169,40 +175,41 @@ def main() -> int:
         if hits:
             stale[doc] = hits
 
-    if not stale:
-        return 0
-
-    if ACK.search(body):
+    failed = False
+    if stale and ACK.search(body):
         print("Docs check acknowledged in the PR body. Docs possibly affected:")
         for doc, hits in sorted(stale.items()):
             print(f"  {doc} — describes {', '.join(sorted(hits))}")
-        return 0
+    elif stale:
+        failed = True
+        print("This PR changes code that a doc describes, and the PR body has no")
+        print("'Docs check:' line saying what happened about it.\n")
+        for doc, hits in sorted(stale.items()):
+            edited = " (this PR edits it)" if doc in changed else ""
+            print(f"  {doc}{edited}")
+            print(f"    describes: {', '.join(sorted(hits))}")
+        print()
+        print("Read each doc above — the WHOLE doc, not just the part you edited — and")
+        print("confirm it is still true of your change. Then add one line to the PR")
+        print("body, e.g.:\n")
+        print("  Docs check: none needed — internal refactor, no user-visible change")
+        print("  Docs check: updated search-bills-guide.md for the new sort labels")
+        print("  Docs check: reread ai-models-and-billing.md §4 and §4.1; fixed §4\n")
+        print("Any of those passes. The point is that the doc got looked at, and that")
+        print("you say what you concluded. Editing part of a doc is not the same as")
+        print("having read it: a partial edit passed this check twice and shipped a")
+        print("page that contradicted itself.\n")
+        print("Two things that look like they should work and do not:")
+        print(
+            "  - The colon is part of what is matched. A '## Docs check' heading with"
+        )
+        print("    no colon does not count; write 'Docs check:' somewhere in the body.")
+        print("  - Editing the PR body does NOT fix an already-failed run. This job")
+        print("    reads the body from the event that started it, and re-running a job")
+        print("    replays that same event. Push a commit, or close and reopen the PR,")
+        print("    to get a run that sees the new body.\n")
 
-    print("This PR changes code that a doc describes, and the PR body has no")
-    print("'Docs check:' line saying what happened about it.\n")
-    for doc, hits in sorted(stale.items()):
-        edited = " (this PR edits it)" if doc in changed else ""
-        print(f"  {doc}{edited}")
-        print(f"    describes: {', '.join(sorted(hits))}")
-    print()
-    print("Read each doc above — the WHOLE doc, not just the part you edited — and")
-    print("confirm it is still true of your change. Then add one line to the PR")
-    print("body, e.g.:\n")
-    print("  Docs check: none needed — internal refactor, no user-visible change")
-    print("  Docs check: updated search-bills-guide.md for the new sort labels")
-    print("  Docs check: reread ai-models-and-billing.md §4 and §4.1; fixed §4\n")
-    print("Any of those passes. The point is that the doc got looked at, and that")
-    print("you say what you concluded. Editing part of a doc is not the same as")
-    print("having read it: a partial edit passed this check twice and shipped a")
-    print("page that contradicted itself.\n")
-    print("Two things that look like they should work and do not:")
-    print("  - The colon is part of what is matched. A '## Docs check' heading with")
-    print("    no colon does not count; write 'Docs check:' somewhere in the body.")
-    print("  - Editing the PR body does NOT fix an already-failed run. This job")
-    print("    reads the body from the event that started it, and re-running a job")
-    print("    replays that same event. Push a commit, or close and reopen the PR,")
-    print("    to get a run that sees the new body.")
-    return 1
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

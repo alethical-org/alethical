@@ -5,8 +5,18 @@ import { AppProviders } from './src/providers/AppProviders';
 import { AppErrorBoundary } from './src/components/AppErrorBoundary';
 import { unregisterServiceWorkers } from './src/lib/serviceWorkerCleanup';
 import { RootNavigator } from './src/navigation/RootNavigator';
+import { EmailLinkPage } from './src/screens/auth/EmailLinkPage';
+import { ensureBrowserFillStyles } from './src/theme/browserFill';
 
 export default function App() {
+  const emailLinkKind =
+    Platform.OS === 'web' && typeof window !== 'undefined'
+      ? window.location.pathname === '/confirm'
+        ? 'confirm'
+        : window.location.pathname === '/reset'
+          ? 'reset'
+          : null
+      : null;
   useEffect(() => {
     if (Platform.OS !== 'web' || typeof window === 'undefined') {
       return;
@@ -48,15 +58,15 @@ export default function App() {
     // without touching each component. :focus-visible = keyboard focus only, so
     // the ring never flashes on mouse click. Text fields are excluded — they
     // carry their own purple focus ring (see theme/fieldFocus.ts), so an outline
-    // would double it. Spec: docs/mockups/search-bills-v2/README.md, "Reusable
-    // conventions" (2px solid #7c5cff, offset 2px).
+    // would double it. Rule: docs/design/design-principles.md §3, keyboard focus
+    // (2px solid #7c5cff, offset 2px).
     const ensureFocusStyles = () => {
       if (document.getElementById('alethical-focus-visible')) {
         return;
       }
       const style = document.createElement('style');
       style.id = 'alethical-focus-visible';
-      style.textContent = `a:focus-visible,button:focus-visible,[role="button"]:focus-visible,[role="link"]:focus-visible,[tabindex]:not(input):not(textarea):not(select):focus-visible{outline:2px solid #7c5cff !important;outline-offset:2px !important;}`;
+      style.textContent = `a:focus-visible,button:focus-visible,[role="button"]:focus-visible,[role="link"]:focus-visible,[tabindex]:not(input):not(textarea):not(select):not([role="heading"]):not(h1):not(h2):not(h3):not(h4):not(h5):not(h6):focus-visible{outline:2px solid #7c5cff !important;outline-offset:2px !important;}`;
       document.head.appendChild(style);
     };
 
@@ -64,6 +74,7 @@ export default function App() {
     ensureAppleTouchIcon();
     ensureThemeColor();
     ensureFocusStyles();
+    ensureBrowserFillStyles();
 
     // Releases can change the JavaScript files a page needs. A saved-site worker
     // can keep serving an older page that requests files the new release no
@@ -75,9 +86,13 @@ export default function App() {
   return (
     <AppErrorBoundary>
       <View style={styles.app}>
-        <AppProviders>
-          <RootNavigator />
-        </AppProviders>
+        {emailLinkKind ? (
+          <EmailLinkPage kind={emailLinkKind} />
+        ) : (
+          <AppProviders>
+            <RootNavigator />
+          </AppProviders>
+        )}
       </View>
     </AppErrorBoundary>
   );

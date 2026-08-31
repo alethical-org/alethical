@@ -8,18 +8,28 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from alethical.api.serializers import current_bill_summary_enrichment
 from alethical.db.models import (
+    AIEnrichment,
     ArtifactType,
     Bill,
     BillAction,
+    BillSummaryRequest,
+    BillSummaryRequestStatus,
     BillVersion,
     BillVersionSection,
     Committee,
     CommitteeMembership,
+    EnrichmentType,
+    IngestionRun,
+    IngestionStatus,
     LegislativeSession,
     Legislator,
     LegislatorServicePeriod,
     LegislatorStats,
+    RagChunk,
+    RagChunkEmbedding,
+    RagSectionDocument,
     SessionType,
     Sponsorship,
     SponsorshipRole,
@@ -28,12 +38,22 @@ from alethical.db.session import get_engine
 from alethical.pipeline.minnesota import (
     LEGISLATOR_LOCK_KEY,
     REFERENCE_DATA_LOCK_KEY,
+    BillIngestionResult,
+    BillRefreshRejected,
+    BillTarget,
     MinnesotaIngestionPipeline,
     parse_bill_section,
     parse_bill_text_html,
     parse_bill_xml,
+    parse_change_role_segments,
     parse_datetime,
+    parse_senate_profile,
     parse_section_blocks,
+    select_current_bill_action,
+)
+from alethical.pipeline.rag_ingest import (
+    DEFAULT_RAG_MODEL,
+    build_rag_rows_for_bill_keys,
 )
 
 
@@ -176,6 +196,36 @@ def test_flat_section_text_is_unchanged_by_the_block_parser() -> None:
     assert flat.startswith("Minnesota Statutes 2024, section 62A.011")
 
 
+def test_change_role_segments_preserve_exact_word_boundaries() -> None:
+    touching_html = """
+    <p>tax<span class="sr-only">new text begin </span><ins>payer</ins>
+    <span class="sr-only">new text end </span> must
+    <span class="sr-only">deleted text begin </span><del>not</del>
+    <span class="sr-only">deleted text end </span> wait.</p>
+    """
+    spaced_html = """
+    <p>tax <span class="sr-only">new text begin </span><ins>payer</ins>
+    <span class="sr-only">new text end </span> must wait.</p>
+    """
+
+    touching, _touching_hash, touching_complete = parse_change_role_segments(
+        touching_html
+    )
+    spaced, _spaced_hash, spaced_complete = parse_change_role_segments(spaced_html)
+
+    assert touching_complete is True
+    assert spaced_complete is True
+    assert "".join(segment["text"] for segment in touching) == "taxpayer must not wait."
+    assert "".join(segment["text"] for segment in spaced) == "tax payer must wait."
+    assert touching == [
+        {"role": "carried_forward", "text": "tax"},
+        {"role": "added", "text": "payer"},
+        {"role": "carried_forward", "text": " must "},
+        {"role": "deleted", "text": "not"},
+        {"role": "carried_forward", "text": " wait."},
+    ]
+
+
 def test_bill_parsers_extract_canonical_payloads() -> None:
     canonical = parse_bill_xml(SAMPLE_BILL_XML)
     bill_text = parse_bill_text_html(
@@ -195,6 +245,53 @@ def test_bill_parsers_extract_canonical_payloads() -> None:
         == "A bill for an act relating to live ingestion tests."
     )
     assert bill_text["sections"][0]["text"] == "Test section text."
+
+
+def _complete_hand_built_bill_text(bill_text: dict) -> dict:
+    """Add proof fields that real HTML parsing normally supplies.
+
+    These fixtures bypass ``parse_bill_text_html``. Keep their explicit proof
+    visible so tests exercise the same write contract as production responses.
+    Partly supplied proof is left alone so incomplete-input tests still fail
+    closed.
+    """
+    payload = dict(bill_text)
+    appendix_proof_fields = {
+        "appendix_references",
+        "appendix_parser_version",
+        "appendix_parse_complete",
+        "appendix_source_hash",
+    }
+    if not appendix_proof_fields.intersection(payload):
+        parsed_empty = parse_bill_text_html("<html></html>", "")
+        for field in appendix_proof_fields | {
+            "appendix_present",
+            "appendix_no_active_count",
+        }:
+            payload[field] = parsed_empty[field]
+
+    sections = []
+    for original_section in payload.get("sections", []):
+        section = dict(original_section)
+        change_role_fields = {
+            "change_role_segments",
+            "change_role_source_hash",
+            "change_role_parse_complete",
+        }
+        if not change_role_fields.intersection(section):
+            segments, source_hash, parse_complete = parse_change_role_segments(
+                str(section.get("text") or "")
+            )
+            section.update(
+                {
+                    "change_role_segments": segments,
+                    "change_role_source_hash": source_hash,
+                    "change_role_parse_complete": parse_complete,
+                }
+            )
+        sections.append(section)
+    payload["sections"] = sections
+    return payload
 
 
 def test_roster_only_member_can_be_ingested(seed_database: None) -> None:
@@ -223,7 +320,7 @@ def test_roster_only_member_can_be_ingested(seed_database: None) -> None:
             session.scalar(
                 select(Legislator.full_name).where(Legislator.id == legislator.id)
             )
-            == "Rep. Example Roster"
+            == "Example Roster"
         )
         assert service_period is not None
         assert service_period.profile_url == "https://example.test/representatives/60b"
@@ -263,6 +360,28 @@ def test_seed_reference_data_gives_the_special_session_its_own_row(
             )
             == 1
         )
+
+
+def test_seed_reference_data_repairs_missing_dates_on_an_existing_session(
+    seed_database: None,
+) -> None:
+    """A normal refresh restores the official date range instead of returning early."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        legislative_session = pipeline.seed_reference_data()["session"]
+        expected_start = legislative_session.start_date
+        expected_end = legislative_session.end_date
+        assert expected_start is not None
+        assert expected_end is not None
+
+        legislative_session.start_date = None
+        legislative_session.end_date = None
+        session.flush()
+
+        repaired = pipeline.seed_reference_data()["session"]
+
+        assert repaired.start_date == expected_start
+        assert repaired.end_date == expected_end
 
 
 def test_refresh_legislator_stats_scopes_to_given_ids(seed_database: None) -> None:
@@ -363,8 +482,70 @@ def test_replace_sponsorships_attaches_to_existing_roster(seed_database: None) -
             session.scalar(
                 select(Legislator.full_name).where(Legislator.id == roster.id)
             )
-            == "Rep. Canonical One"
+            == "Canonical One"
         )
+        assert (
+            session.scalar(
+                select(Legislator.sort_name).where(Legislator.id == roster.id)
+            )
+            == "One, C."
+        )
+
+
+def test_parse_senate_profile_removes_title_from_member_name() -> None:
+    profile = parse_senate_profile(
+        """
+        <h1 class='mb-0'>Senator Amanda H. Hemmingsen-Jaeger (47, DFL)</h1>
+        """,
+        "https://www.senate.mn/members/member_bio.html?mem_id=1278",
+    )
+
+    assert profile["name"] == "Amanda H. Hemmingsen-Jaeger"
+
+
+def test_upsert_service_period_preserves_prior_chamber_in_same_session(
+    seed_database: None,
+) -> None:
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        house = refs["chambers"]["house"]
+        senate = refs["chambers"]["senate"]
+        house_legislator = pipeline.ingest_member_profile(
+            refs,
+            {
+                "chamber": "house",
+                "display_name": "Amanda H. Hemmingsen-Jaeger",
+                "district": "47A",
+                "profile_url": "https://www.house.mn.gov/members/profile/15620",
+            },
+        )
+        senate_legislator = pipeline.ingest_member_profile(
+            refs,
+            {
+                "chamber": "senate",
+                "display_name": "Senator Amanda H. Hemmingsen-Jaeger",
+                "district": "47",
+                "profile_url": (
+                    "http://www.senate.leg.state.mn.us/members/"
+                    "member_bio.php?leg_id=15620"
+                ),
+            },
+        )
+        session.flush()
+
+        assert senate_legislator.id == house_legislator.id
+
+        periods = session.scalars(
+            select(LegislatorServicePeriod)
+            .where(LegislatorServicePeriod.legislator_id == house_legislator.id)
+            .order_by(LegislatorServicePeriod.period_sequence)
+        ).all()
+        assert [(row.chamber_id, row.is_current) for row in periods] == [
+            (house.id, False),
+            (senate.id, True),
+        ]
+        assert [row.period_sequence for row in periods] == [1, 2]
 
 
 def test_ingest_member_profile_folds_in_prior_bill_author_placeholder(
@@ -561,7 +742,9 @@ def test_reingest_with_new_version_code_keeps_one_current(seed_database: None) -
         session.add(bill)
         session.flush()
 
-        bill_text: dict = {"sections": [], "articles": []}
+        bill_text: dict = _complete_hand_built_bill_text(
+            {"sections": [], "articles": []}
+        )
 
         # First ingest: empty text_versions -> the "current" fallback code.
         pipeline.upsert_versions_and_sections(
@@ -625,7 +808,9 @@ def test_current_placeholder_guard_is_scoped(seed_database: None) -> None:
         )
         session.add(bill)
         session.flush()
-        bill_text: dict = {"sections": [], "articles": []}
+        bill_text: dict = _complete_hand_built_bill_text(
+            {"sections": [], "articles": []}
+        )
 
         # Two empty ingests in a row: the "current" fallback must persist (the bill
         # still has no published text), not get dropped by the guard.
@@ -760,7 +945,7 @@ def test_official_unofficial_and_ccr_versions_never_collide(
         pipeline.upsert_versions_and_sections(
             bill,
             {"text_versions": ENGROSSMENT_COLLISION_VERSIONS},
-            {"sections": [], "articles": []},
+            _complete_hand_built_bill_text({"sections": [], "articles": []}),
             artifact,
         )
         session.flush()
@@ -814,6 +999,122 @@ def test_parse_datetime_handles_source_datetime_format() -> None:
     assert parse_datetime("not a date") is None
 
 
+def test_current_status_carries_an_undated_tail_inside_its_chamber() -> None:
+    selected = select_current_bill_action(
+        {
+            "house": [
+                {
+                    "action_number": "25",
+                    "action_text": "Author added",
+                    "action_date": "2026-05-12 00:00:00",
+                },
+                {
+                    "action_number": "26",
+                    "action_text": "Laid on table",
+                    "action_date": "",
+                },
+            ],
+            "senate": [
+                {
+                    "action_number": "7",
+                    "action_text": "Referred to",
+                    "action_date": "2026-05-11 00:00:00",
+                }
+            ],
+        }
+    )
+
+    assert selected is not None
+    assert selected["action_text"] == "Laid on table"
+
+
+def test_current_status_keeps_a_terminal_milestone() -> None:
+    selected = select_current_bill_action(
+        {
+            "house": [
+                {
+                    "action_number": "33",
+                    "action_text": "Governor approval",
+                    "action_date": "2026-05-16 00:00:00",
+                },
+                {
+                    "action_number": "34",
+                    "action_text": "Chapter number",
+                    "action_date": "",
+                },
+            ],
+            "senate": [
+                {
+                    "action_number": "12",
+                    "action_text": "Returned to the House",
+                    "action_date": "2026-05-17 00:00:00",
+                }
+            ],
+        }
+    )
+
+    assert selected is not None
+    assert selected["action_text"] == "Chapter number"
+
+
+def test_current_status_uses_source_block_order_for_same_day_ties() -> None:
+    selected = select_current_bill_action(
+        {
+            "house": [
+                {
+                    "action_number": "13",
+                    "action_text": "Author added",
+                    "action_date": "2025-04-02 00:00:00",
+                }
+            ],
+            "senate": [
+                {
+                    "action_number": "5",
+                    "action_text": "Second reading",
+                    "action_date": "2025-04-02 00:00:00",
+                },
+                {
+                    "action_number": "6",
+                    "action_text": "Rule 47, returned to",
+                    "action_date": "",
+                },
+            ],
+        }
+    )
+
+    assert selected is not None
+    assert selected["action_text"] == "Rule 47, returned to"
+
+
+def test_current_status_never_moves_backward_inside_a_chamber() -> None:
+    selected = select_current_bill_action(
+        {
+            "house": [
+                {
+                    "action_number": "13",
+                    "action_text": "Earlier source action",
+                    "action_date": "2026-02-27 00:00:00",
+                },
+                {
+                    "action_number": "14",
+                    "action_text": "Motion for reconsideration",
+                    "action_date": "2025-02-27 00:00:00",
+                },
+            ],
+            "senate": [
+                {
+                    "action_number": "8",
+                    "action_text": "Senate action",
+                    "action_date": "2025-12-01 00:00:00",
+                }
+            ],
+        }
+    )
+
+    assert selected is not None
+    assert selected["action_text"] == "Motion for reconsideration"
+
+
 # A bill whose actions use the real source datetime format, including a
 # higher-numbered *undated* trailing action ("Laid on table") — the production
 # shape that left latest_action_at null even where dated actions existed (#328).
@@ -862,6 +1163,80 @@ DATED_BILL_XML = """<?xml version="1.0"?>
 """
 
 
+# A faithful slice of HF 4138's source history. House and Senate each start
+# ACTION_NUMBER at 1, so House #25 is not later than Senate #7. Their dates are
+# what establish that the Senate action happened last (#1322).
+CROSS_CHAMBER_STATUS_XML = """<?xml version="1.0"?>
+<BILL>
+  <SESSION_NUMBER>94</SESSION_NUMBER>
+  <SESSION_YEAR>2026</SESSION_YEAR>
+  <FILE_TYPE>HF</FILE_TYPE>
+  <FILE_NUMBER>7778</FILE_NUMBER>
+  <REVISOR_NUMBER>26-7778</REVISOR_NUMBER>
+  <DESCRIPTION>Test cross-chamber status bill</DESCRIPTION>
+  <ACTIONS>
+    <house>
+      <ACTION>
+        <ACTION_NUMBER>25</ACTION_NUMBER>
+        <ACTION_TEXT>Author added</ACTION_TEXT>
+        <ACTION_DATE>2026-05-12 00:00:00</ACTION_DATE>
+      </ACTION>
+    </house>
+    <senate>
+      <ACTION>
+        <ACTION_NUMBER>7</ACTION_NUMBER>
+        <ACTION_TEXT>Third reading Passed as amended</ACTION_TEXT>
+        <ACTION_DATE>2026-05-15 00:00:00</ACTION_DATE>
+      </ACTION>
+    </senate>
+  </ACTIONS>
+  <TEXT_VERSION_LIST></TEXT_VERSION_LIST>
+</BILL>
+"""
+
+
+def test_upsert_bill_orders_actions_inside_each_chamber(seed_database: None) -> None:
+    """#1322: a larger House counter must not outrank a later Senate action."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        canonical = parse_bill_xml(CROSS_CHAMBER_STATUS_XML)
+        run = pipeline.start_run("bill", canonical["bill_key"])
+        xml_artifact = pipeline.record_artifact(
+            run,
+            ArtifactType.xml,
+            "https://example.test/hf7778.xml",
+            CROSS_CHAMBER_STATUS_XML,
+        )
+        html_artifact = pipeline.record_artifact(
+            run,
+            ArtifactType.html,
+            "https://example.test/hf7778.html",
+            "<html></html>",
+        )
+
+        bill = pipeline.upsert_bill(
+            refs,
+            canonical,
+            _complete_hand_built_bill_text(
+                {
+                    "sections": [],
+                    "articles": [],
+                    "source_url": "https://example.test/hf7778.html",
+                }
+            ),
+            run,
+            xml_artifact,
+            html_artifact,
+        )
+        session.flush()
+
+        assert bill.current_status == "Third reading Passed as amended"
+        assert bill.latest_action_at == datetime(2026, 5, 15, tzinfo=UTC)
+
+        session.rollback()
+
+
 def test_upsert_bill_populates_action_dates(seed_database: None) -> None:
     """#328 regression: end-to-end, upsert_bill must capture action_at on each
     dated action, set latest_action_at from the newest *dated* action (not the
@@ -878,11 +1253,13 @@ def test_upsert_bill_populates_action_dates(seed_database: None) -> None:
         html_artifact = pipeline.record_artifact(
             run, ArtifactType.html, "https://example.test/hf7777.html", "<html></html>"
         )
-        bill_text = {
-            "sections": [],
-            "articles": [],
-            "source_url": "https://example.test/hf7777.html",
-        }
+        bill_text = _complete_hand_built_bill_text(
+            {
+                "sections": [],
+                "articles": [],
+                "source_url": "https://example.test/hf7777.html",
+            }
+        )
 
         bill = pipeline.upsert_bill(
             refs, canonical, bill_text, run, xml_artifact, html_artifact
@@ -968,11 +1345,13 @@ def test_upsert_bill_persists_committee_name(seed_database: None) -> None:
         html_artifact = pipeline.record_artifact(
             run, ArtifactType.html, "https://example.test/hf6666.html", "<html></html>"
         )
-        bill_text = {
-            "sections": [],
-            "articles": [],
-            "source_url": "https://example.test/hf6666.html",
-        }
+        bill_text = _complete_hand_built_bill_text(
+            {
+                "sections": [],
+                "articles": [],
+                "source_url": "https://example.test/hf6666.html",
+            }
+        )
 
         bill = pipeline.upsert_bill(
             refs, canonical, bill_text, run, xml_artifact, html_artifact
@@ -1032,11 +1411,13 @@ def test_upsert_bill_links_companion_symmetrically(seed_database: None) -> None:
                 f"https://example.test/{key}.html",
                 "<html></html>",
             )
-            bill_text = {
-                "sections": [],
-                "articles": [],
-                "source_url": f"https://example.test/{key}.html",
-            }
+            bill_text = _complete_hand_built_bill_text(
+                {
+                    "sections": [],
+                    "articles": [],
+                    "source_url": f"https://example.test/{key}.html",
+                }
+            )
             bill = pipeline.upsert_bill(
                 refs, canonical, bill_text, run, xml_artifact, html_artifact
             )
@@ -1105,12 +1486,14 @@ def test_upsert_bill_refreshes_title_on_reingest(seed_database: None) -> None:
                 f"https://example.test/{key}.html",
                 "<html></html>",
             )
-            bill_text = {
-                "sections": [],
-                "articles": [],
-                "source_url": f"https://example.test/{key}.html",
-                "bill_title_text": title_text,
-            }
+            bill_text = _complete_hand_built_bill_text(
+                {
+                    "sections": [],
+                    "articles": [],
+                    "source_url": f"https://example.test/{key}.html",
+                    "bill_title_text": title_text,
+                }
+            )
             bill = pipeline.upsert_bill(
                 refs, canonical, bill_text, run, xml_artifact, html_artifact
             )
@@ -1134,6 +1517,1059 @@ def test_upsert_bill_refreshes_title_on_reingest(seed_database: None) -> None:
         # instead of falling back to the bill key or the short description.
         bill = _ingest("")
         assert bill.title == enacted
+
+        session.rollback()
+
+
+def _refresh_payload(
+    *,
+    description: str,
+    authors: list[tuple[str, str]],
+    action_numbers: tuple[str, ...] = ("1", "2"),
+    version_codes: tuple[str, ...] = ("0", "1"),
+    section_texts: tuple[str, ...] = ("First section.", "Second section."),
+) -> tuple[dict, dict]:
+    canonical = {
+        "bill_key": "94-2025-HF5002",
+        "file_type": "HF",
+        "file_number": "5002",
+        "revisor_number": "25-5002",
+        "description": description,
+        "session_number": "94",
+        "session_year": "2025",
+        "special_session": 0,
+        "authors": {
+            "house": [
+                {"legislator_key": key, "member_name": name} for key, name in authors
+            ]
+        }
+        if authors
+        else {},
+        "actions": {
+            "house": [
+                {
+                    "action_number": number,
+                    "action_text": (
+                        "Introduction and first reading"
+                        if number == "1"
+                        else f"Action {number}"
+                    ),
+                    "action_date": "2025-01-10 00:00:00",
+                }
+                for number in action_numbers
+            ]
+        }
+        if action_numbers
+        else {},
+        "text_versions": [
+            {
+                "document_type": "official",
+                "document_engrossment": code,
+                "document_name": f"Version {code}",
+            }
+            for code in version_codes
+        ],
+    }
+    bill_text = _complete_hand_built_bill_text(
+        {
+            "bill_title_text": "A bill for an act relating to safe refreshes.",
+            "sections": [
+                {
+                    "section_id": f"section-{index}",
+                    "text": text,
+                }
+                for index, text in enumerate(section_texts, start=1)
+            ],
+            "articles": [],
+            "source_url": "https://example.test/hf5002.html",
+        }
+    )
+    return canonical, bill_text
+
+
+def _store_refresh_payload(
+    pipeline: MinnesotaIngestionPipeline,
+    refs: dict,
+    canonical: dict,
+    bill_text: dict,
+    *,
+    artifact_suffix: str,
+) -> Bill:
+    run = pipeline.start_run("bill", "94-2025-HF5002")
+    xml_artifact = pipeline.record_artifact(
+        run,
+        ArtifactType.xml,
+        "https://example.test/hf5002.xml",
+        f"<bill>{artifact_suffix}</bill>",
+    )
+    html_artifact = pipeline.record_artifact(
+        run,
+        ArtifactType.html,
+        "https://example.test/hf5002.html",
+        f"<html>{artifact_suffix}</html>",
+    )
+    bill = pipeline.upsert_bill(
+        refs,
+        canonical,
+        bill_text,
+        run,
+        xml_artifact,
+        html_artifact,
+    )
+    pipeline.finish_run(
+        run,
+        {
+            "bill_key": bill.bill_key,
+            "action_count": sum(
+                len(items) for items in canonical.get("actions", {}).values()
+            ),
+            "sponsor_count": sum(
+                len(items) for items in canonical.get("authors", {}).values()
+            ),
+            "version_count": max(1, len(canonical.get("text_versions", []))),
+            "section_count": len(bill_text.get("sections", [])),
+        },
+    )
+    return bill
+
+
+def _add_current_summary(session: Session, bill: Bill) -> AIEnrichment:
+    current_version = session.scalar(
+        select(BillVersion).where(
+            BillVersion.bill_id == bill.id,
+            BillVersion.is_current.is_(True),
+        )
+    )
+    assert current_version is not None
+    summary = AIEnrichment(
+        bill_id=bill.id,
+        bill_version_id=current_version.id,
+        enrichment_type=EnrichmentType.bill_summary,
+        model_name="test-summary-model",
+        content_json={"summary": "This describes the stored official text."},
+        source_version_hash="stored-official-text",
+        is_current=True,
+    )
+    session.add(summary)
+    session.flush()
+    return summary
+
+
+def _bill_author_names(session: Session, bill: Bill) -> list[str]:
+    return list(
+        session.scalars(
+            select(Legislator.full_name)
+            .join(Sponsorship, Sponsorship.legislator_id == Legislator.id)
+            .where(Sponsorship.bill_id == bill.id)
+            .order_by(Sponsorship.source_order)
+        ).all()
+    )
+
+
+def _bill_refresh_counts(session: Session, bill: Bill) -> dict[str, int]:
+    current_version = session.scalar(
+        select(BillVersion).where(
+            BillVersion.bill_id == bill.id,
+            BillVersion.is_current.is_(True),
+        )
+    )
+    return {
+        "actions": len(
+            session.scalars(
+                select(BillAction).where(BillAction.bill_id == bill.id)
+            ).all()
+        ),
+        "authors": len(
+            session.scalars(
+                select(Sponsorship).where(Sponsorship.bill_id == bill.id)
+            ).all()
+        ),
+        "versions": len(
+            session.scalars(
+                select(BillVersion).where(BillVersion.bill_id == bill.id)
+            ).all()
+        ),
+        "sections": len(
+            session.scalars(
+                select(BillVersionSection).where(
+                    BillVersionSection.bill_version_id == current_version.id
+                )
+            ).all()
+        )
+        if current_version is not None
+        else 0,
+    }
+
+
+def test_blank_refresh_description_keeps_the_stored_description(
+    seed_database: None,
+) -> None:
+    """#1319: an empty description follows the existing title safeguard."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        canonical, bill_text = _refresh_payload(
+            description="A complete description already stored.",
+            authors=[("500201", "Author, First"), ("500202", "Author, Second")],
+        )
+        bill = _store_refresh_payload(
+            pipeline, refs, canonical, bill_text, artifact_suffix="complete"
+        )
+        session.flush()
+
+        blank_canonical, blank_text = _refresh_payload(
+            description="",
+            authors=[("500201", "Author, First"), ("500202", "Author, Second")],
+        )
+        _store_refresh_payload(
+            pipeline, refs, blank_canonical, blank_text, artifact_suffix="blank"
+        )
+        session.flush()
+        session.refresh(bill)
+
+        assert bill.description == "A complete description already stored."
+
+        session.rollback()
+
+
+@pytest.mark.parametrize(
+    "dropped_field", ["actions", "authors", "versions", "sections"]
+)
+def test_refresh_refuses_each_uncorroborated_fact_drop(
+    seed_database: None,
+    dropped_field: str,
+) -> None:
+    """#1319: 1 thin response cannot shrink any destructive source-owned set."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        canonical, bill_text = _refresh_payload(
+            description="A complete description already stored.",
+            authors=[("500221", "Author, First"), ("500222", "Author, Second")],
+        )
+        bill = _store_refresh_payload(
+            pipeline, refs, canonical, bill_text, artifact_suffix="complete-guard"
+        )
+        session.flush()
+
+        thin_canonical, thin_text = _refresh_payload(
+            description="",
+            authors=[("500221", "Author, First"), ("500222", "Author, Second")],
+        )
+        if dropped_field == "actions":
+            thin_canonical["actions"]["house"] = thin_canonical["actions"]["house"][:1]
+        elif dropped_field == "authors":
+            thin_canonical["authors"]["house"] = thin_canonical["authors"]["house"][:1]
+        elif dropped_field == "versions":
+            thin_canonical["text_versions"] = thin_canonical["text_versions"][:1]
+        else:
+            thin_text["sections"] = thin_text["sections"][:1]
+
+        with pytest.raises(BillRefreshRejected, match=dropped_field) as rejected:
+            _store_refresh_payload(
+                pipeline,
+                refs,
+                thin_canonical,
+                thin_text,
+                artifact_suffix=f"thin-{dropped_field}",
+            )
+        session.flush()
+        session.refresh(bill)
+
+        assert rejected.value.needs_issue is False
+        assert bill.description == "A complete description already stored."
+        assert _bill_refresh_counts(session, bill) == {
+            "actions": 2,
+            "authors": 2,
+            "versions": 2,
+            "sections": 2,
+        }
+
+        session.rollback()
+
+
+def test_complete_refresh_updates_description_and_authors(seed_database: None) -> None:
+    """#1319: the safety guard must not freeze a real authoritative change."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        canonical, bill_text = _refresh_payload(
+            description="The introduced description.",
+            authors=[("500211", "Author, Old"), ("500212", "Author, Second")],
+        )
+        bill = _store_refresh_payload(
+            pipeline, refs, canonical, bill_text, artifact_suffix="introduced"
+        )
+        session.flush()
+
+        updated_canonical, updated_text = _refresh_payload(
+            description="The complete amended description.",
+            authors=[("500213", "Author, New"), ("500214", "Author, Replacement")],
+            section_texts=("Updated first section.", "Updated second section."),
+        )
+        updated = _store_refresh_payload(
+            pipeline,
+            refs,
+            updated_canonical,
+            updated_text,
+            artifact_suffix="amended",
+        )
+        session.flush()
+
+        assert updated.id == bill.id
+        assert updated.description == "The complete amended description."
+        assert _bill_author_names(session, updated) == [
+            "Author, New",
+            "Author, Replacement",
+        ]
+        assert [
+            section.raw_text
+            for section in session.scalars(
+                select(BillVersionSection)
+                .join(BillVersion)
+                .where(
+                    BillVersion.bill_id == bill.id,
+                    BillVersion.is_current.is_(True),
+                )
+                .order_by(BillVersionSection.source_order)
+            ).all()
+        ] == ["Updated first section.", "Updated second section."]
+
+        session.rollback()
+
+
+def test_ingest_bills_reports_only_public_text_changes(
+    seed_database: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#1320: metadata-only refreshes must not pay to rebuild unchanged search rows."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        canonical, bill_text = _refresh_payload(
+            description="The introduced description.",
+            authors=[("500213", "Author, First"), ("500214", "Author, Second")],
+        )
+        _store_refresh_payload(
+            pipeline, refs, canonical, bill_text, artifact_suffix="text-signal-original"
+        )
+        session.flush()
+
+        changed_canonical, changed_text = _refresh_payload(
+            description="The amended description.",
+            authors=[("500213", "Author, First"), ("500214", "Author, Second")],
+            section_texts=("New first section.", "New second section."),
+        )
+        _mock_bill_fetches(monkeypatch, [(changed_canonical, changed_text)])
+        changed = pipeline.ingest_bills(
+            [BillTarget(chamber="House", bill_number="5002")]
+        )
+
+        unchanged_canonical, unchanged_text = _refresh_payload(
+            description="Metadata changed again.",
+            authors=[("500213", "Author, First"), ("500214", "Author, Second")],
+            section_texts=("New first section.", "New second section."),
+        )
+        _mock_bill_fetches(monkeypatch, [(unchanged_canonical, unchanged_text)])
+        unchanged = pipeline.ingest_bills(
+            [BillTarget(chamber="House", bill_number="5002")]
+        )
+
+        assert changed["bill_keys"] == ["94-2025-HF5002"]
+        assert changed["text_changed_bill_keys"] == ["94-2025-HF5002"]
+        assert len(changed["summary_request_ids"]) == 1
+        assert unchanged["bill_keys"] == ["94-2025-HF5002"]
+        assert unchanged["text_changed_bill_keys"] == []
+        assert unchanged["summary_request_ids"] == []
+
+        session.rollback()
+
+
+def test_ingest_bills_reports_a_new_bill_as_public_text_changed(
+    seed_database: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        canonical, bill_text = _refresh_payload(
+            description="A newly found bill.",
+            authors=[("500215", "Author, New")],
+        )
+        _mock_bill_fetches(monkeypatch, [(canonical, bill_text)])
+
+        result = pipeline.ingest_bills(
+            [BillTarget(chamber="House", bill_number="5002")]
+        )
+
+        assert result["bill_keys"] == ["94-2025-HF5002"]
+        assert result["text_changed_bill_keys"] == ["94-2025-HF5002"]
+        assert len(result["summary_request_ids"]) == 1
+
+        session.rollback()
+
+
+@pytest.mark.parametrize(
+    "version_codes",
+    [("0", "1"), ("0", "1", "2")],
+    ids=["same-version-new-words", "new-current-version"],
+)
+def test_changed_bill_text_retires_its_current_summary(
+    seed_database: None,
+    monkeypatch: pytest.MonkeyPatch,
+    version_codes: tuple[str, ...],
+) -> None:
+    """#1321: accepted new official text must stop serving the old summary."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        canonical, bill_text = _refresh_payload(
+            description="A complete description.",
+            authors=[("500215", "Author, First")],
+        )
+        bill = _store_refresh_payload(
+            pipeline, refs, canonical, bill_text, artifact_suffix="summary-original"
+        )
+        summary = _add_current_summary(session, bill)
+
+        refreshed_canonical, refreshed_text = _refresh_payload(
+            description="A complete description.",
+            authors=[("500215", "Author, First")],
+            version_codes=version_codes,
+            section_texts=(
+                "The official wording has changed.",
+                "The second section is unchanged.",
+            ),
+        )
+        _mock_bill_fetches(monkeypatch, [(refreshed_canonical, refreshed_text)])
+        result = pipeline.ingest_bills(
+            [BillTarget(chamber="House", bill_number="5002")]
+        )
+        session.flush()
+        session.refresh(summary)
+        session.refresh(bill)
+
+        assert summary.is_current is False
+        assert bill.has_current_summary is False
+        assert current_bill_summary_enrichment(bill.enrichments) is None
+        assert result["text_changed_bill_keys"] == [bill.bill_key]
+        request = session.scalar(
+            select(BillSummaryRequest).where(BillSummaryRequest.bill_id == bill.id)
+        )
+        assert request is not None
+        assert str(request.id) in result["summary_request_ids"]
+        assert request.status == BillSummaryRequestStatus.waiting_for_search
+
+        session.rollback()
+
+
+def test_metadata_only_refresh_keeps_its_current_summary(
+    seed_database: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#1321: unchanged official text keeps the summary that still describes it."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        canonical, bill_text = _refresh_payload(
+            description="The stored description.",
+            authors=[("500216", "Author, First")],
+        )
+        bill = _store_refresh_payload(
+            pipeline, refs, canonical, bill_text, artifact_suffix="summary-metadata"
+        )
+        summary = _add_current_summary(session, bill)
+
+        refreshed_canonical, refreshed_text = _refresh_payload(
+            description="A metadata-only description change.",
+            authors=[("500216", "Author, First")],
+        )
+        _mock_bill_fetches(monkeypatch, [(refreshed_canonical, refreshed_text)])
+        result = pipeline.ingest_bills(
+            [BillTarget(chamber="House", bill_number="5002")]
+        )
+        session.flush()
+        session.refresh(summary)
+        session.refresh(bill)
+
+        assert result["text_changed_bill_keys"] == []
+        assert result["summary_request_ids"] == []
+        assert summary.is_current is True
+        assert bill.has_current_summary is True
+
+        session.rollback()
+
+
+@pytest.mark.parametrize(
+    ("already_baselined", "expects_replacement"),
+    [(False, False), (True, True)],
+    ids=["first-rollout-baseline", "later-context-repair"],
+)
+def test_complete_prompt_context_baseline_and_later_repair(
+    seed_database: None,
+    monkeypatch: pytest.MonkeyPatch,
+    already_baselined: bool,
+    expects_replacement: bool,
+) -> None:
+    """First rollout is harmless; a later lost context still gets replaced."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        canonical, bill_text = _refresh_payload(
+            description="The stored description.",
+            authors=[("500216", "Author, First")],
+        )
+        bill = _store_refresh_payload(
+            pipeline, refs, canonical, bill_text, artifact_suffix="summary-old-context"
+        )
+        summary = _add_current_summary(session, bill)
+        current_version = session.scalar(
+            select(BillVersion).where(
+                BillVersion.bill_id == bill.id,
+                BillVersion.is_current.is_(True),
+            )
+        )
+        assert current_version is not None
+        current_version.bill_summary_context_baselined = already_baselined
+        current_version.appendix_parser_version = None
+        current_version.appendix_source_hash = None
+        current_version.appendix_parse_complete = False
+        current_version.appendix_present = None
+        current_version.change_role_parser_version = None
+        current_version.change_role_parse_complete = False
+        for section in current_version.sections:
+            section.change_role_segments = None
+            section.change_role_source_hash = None
+            section.change_role_parse_complete = False
+        session.flush()
+
+        _mock_bill_fetches(monkeypatch, [(canonical, bill_text)])
+        result = pipeline.ingest_bills(
+            [BillTarget(chamber="House", bill_number="5002")]
+        )
+        session.flush()
+        session.refresh(summary)
+
+        requests = list(
+            session.scalars(
+                select(BillSummaryRequest).where(BillSummaryRequest.bill_id == bill.id)
+            )
+        )
+        assert result["text_changed_bill_keys"] == []
+        assert current_version.bill_summary_context_baselined is True
+        if expects_replacement:
+            assert result["summary_changed_bill_keys"] == [bill.bill_key]
+            assert len(result["summary_request_ids"]) == 1
+            assert len(requests) == 1
+            assert str(requests[0].id) == result["summary_request_ids"][0]
+            assert summary.is_current is False
+        else:
+            assert result["summary_changed_bill_keys"] == []
+            assert result["summary_request_ids"] == []
+            assert requests == []
+            assert summary.is_current is True
+
+        session.rollback()
+
+
+def test_official_section_label_change_requests_one_replacement_summary(
+    seed_database: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A changed official prompt label is legal context, even with identical words."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        canonical, bill_text = _refresh_payload(
+            description="The stored description.",
+            authors=[("500216", "Author, First")],
+        )
+        bill_text["sections"][0]["heading"] = "Existing section heading"
+        bill = _store_refresh_payload(
+            pipeline, refs, canonical, bill_text, artifact_suffix="summary-label"
+        )
+        summary = _add_current_summary(session, bill)
+
+        refreshed_canonical, refreshed_text = _refresh_payload(
+            description="The stored description.",
+            authors=[("500216", "Author, First")],
+        )
+        refreshed_text["sections"][0]["heading"] = "Changed official heading"
+        _mock_bill_fetches(monkeypatch, [(refreshed_canonical, refreshed_text)])
+        result = pipeline.ingest_bills(
+            [BillTarget(chamber="House", bill_number="5002")]
+        )
+        session.flush()
+        session.refresh(summary)
+
+        assert result["text_changed_bill_keys"] == []
+        assert result["summary_changed_bill_keys"] == [bill.bill_key]
+        assert len(result["summary_request_ids"]) == 1
+        assert summary.is_current is False
+
+        session.rollback()
+
+
+def _mock_bill_fetches(
+    monkeypatch: pytest.MonkeyPatch,
+    payloads: list[tuple[dict, dict]],
+) -> list[str]:
+    fetched: list[str] = []
+    xml_payloads = {
+        f"xml-{index}": payload[0] for index, payload in enumerate(payloads)
+    }
+    html_payloads = {
+        f"html-{index}": payload[1] for index, payload in enumerate(payloads)
+    }
+    bodies = iter(
+        body
+        for index in range(len(payloads))
+        for body in (f"xml-{index}", f"html-{index}")
+    )
+
+    def fake_fetch_text(_http, _url: str) -> str:
+        body = next(bodies)
+        fetched.append(body)
+        return body
+
+    monkeypatch.setattr(
+        "alethical.pipeline.minnesota.discover_bill",
+        lambda _http, _target: {
+            "status_xml_uri": "https://example.test/status.xml",
+            "latest_text_html_uri": "https://example.test/text.html",
+        },
+    )
+    monkeypatch.setattr("alethical.pipeline.minnesota.fetch_text", fake_fetch_text)
+    monkeypatch.setattr(
+        "alethical.pipeline.minnesota.parse_bill_xml", lambda body: xml_payloads[body]
+    )
+    monkeypatch.setattr(
+        "alethical.pipeline.minnesota.parse_bill_text_html",
+        lambda body, _url: html_payloads[body],
+    )
+    return fetched
+
+
+def test_thin_refresh_retries_and_uses_the_complete_second_fetch(
+    seed_database: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#1319: a one-off thin response heals itself before any facts are changed."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        original = _refresh_payload(
+            description="Stored description.",
+            authors=[("500231", "Author, First"), ("500232", "Author, Second")],
+        )
+        bill = _store_refresh_payload(
+            pipeline, refs, *original, artifact_suffix="retry-original"
+        )
+        session.flush()
+
+        thin = _refresh_payload(description="", authors=[])
+        complete = _refresh_payload(
+            description="New complete description.",
+            authors=[("500233", "Author, New"), ("500234", "Author, Complete")],
+        )
+        fetched = _mock_bill_fetches(monkeypatch, [thin, complete])
+
+        refreshed = pipeline.ingest_bill_target(
+            refs, BillTarget(chamber="House", bill_number="5002")
+        )
+        session.flush()
+
+        assert refreshed.id == bill.id
+        assert fetched == ["xml-0", "html-0", "xml-1", "html-1"]
+        assert refreshed.description == "New complete description."
+        assert _bill_author_names(session, refreshed) == [
+            "Author, New",
+            "Author, Complete",
+        ]
+
+        session.rollback()
+
+
+def test_matching_second_fetch_corroborates_a_real_author_removal(
+    seed_database: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#1319: 2 matching responses may make a real destructive source change."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        original = _refresh_payload(
+            description="Stored description.",
+            authors=[("500241", "Author, First"), ("500242", "Author, Removed")],
+        )
+        bill = _store_refresh_payload(
+            pipeline, refs, *original, artifact_suffix="confirmed-original"
+        )
+        session.flush()
+
+        confirmed = _refresh_payload(
+            description="",
+            authors=[("500241", "Author, First")],
+        )
+        fetched = _mock_bill_fetches(monkeypatch, [confirmed, confirmed])
+
+        refreshed = pipeline.ingest_bill_target(
+            refs, BillTarget(chamber="House", bill_number="5002")
+        )
+        session.flush()
+
+        assert refreshed.id == bill.id
+        assert fetched == ["xml-0", "html-0", "xml-1", "html-1"]
+        assert refreshed.description == "Stored description."
+        assert _bill_author_names(session, refreshed) == ["Author, First"]
+
+        session.rollback()
+
+
+def test_matching_section_drop_removes_current_canonical_and_search_rows(
+    seed_database: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#1423: 2 matching lower section lists remove only current text and search."""
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("ALETHICAL_DATABASE_TARGET", raising=False)
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        authors = [("500245", "Author, First")]
+
+        historical = _refresh_payload(
+            description="Stored description.",
+            authors=authors,
+            version_codes=("0",),
+            section_texts=("Historical first.", "Historical second."),
+        )
+        bill = _store_refresh_payload(
+            pipeline, refs, *historical, artifact_suffix="confirmed-section-history"
+        )
+        current = _refresh_payload(
+            description="Stored description.",
+            authors=authors,
+            version_codes=("0", "1"),
+            section_texts=("Section kept.", "Section removed by the source."),
+        )
+        _store_refresh_payload(
+            pipeline, refs, *current, artifact_suffix="confirmed-section-current"
+        )
+        session.flush()
+
+        historical_version = session.scalar(
+            select(BillVersion).where(
+                BillVersion.bill_id == bill.id,
+                BillVersion.version_code == "0",
+            )
+        )
+        current_version = session.scalar(
+            select(BillVersion).where(
+                BillVersion.bill_id == bill.id,
+                BillVersion.version_code == "1",
+            )
+        )
+        assert historical_version is not None
+        assert current_version is not None
+        current_sections = session.scalars(
+            select(BillVersionSection)
+            .where(BillVersionSection.bill_version_id == current_version.id)
+            .order_by(BillVersionSection.source_order)
+        ).all()
+        removed_section = current_sections[1]
+
+        build_rag_rows_for_bill_keys(
+            session,
+            [bill.bill_key],
+            rag_model=DEFAULT_RAG_MODEL,
+            rag_embedding_batch_size=8,
+        )
+        session.flush()
+        removed_document = session.scalar(
+            select(RagSectionDocument).where(
+                RagSectionDocument.bill_version_section_id == removed_section.id
+            )
+        )
+        assert removed_document is not None
+        removed_chunk_ids = session.scalars(
+            select(RagChunk.id).where(
+                RagChunk.rag_section_document_id == removed_document.id
+            )
+        ).all()
+        removed_embedding_ids = session.scalars(
+            select(RagChunkEmbedding.id).where(
+                RagChunkEmbedding.rag_chunk_id.in_(removed_chunk_ids)
+            )
+        ).all()
+        assert removed_chunk_ids
+        assert removed_embedding_ids
+
+        accepted_refresh = session.begin_nested()
+        confirmed = _refresh_payload(
+            description="Stored description.",
+            authors=authors,
+            version_codes=("0", "1"),
+            section_texts=("Section kept.",),
+        )
+        fetched = _mock_bill_fetches(monkeypatch, [confirmed, confirmed])
+        result = pipeline.ingest_bills(
+            [BillTarget(chamber="House", bill_number="5002")]
+        )
+        session.flush()
+        build_rag_rows_for_bill_keys(
+            session,
+            result["text_changed_bill_keys"],
+            rag_model=DEFAULT_RAG_MODEL,
+            rag_embedding_batch_size=8,
+        )
+        session.flush()
+
+        assert fetched == ["xml-0", "html-0", "xml-1", "html-1"]
+        assert result["text_changed_bill_keys"] == [bill.bill_key]
+        assert [
+            section.raw_text
+            for section in session.scalars(
+                select(BillVersionSection)
+                .where(BillVersionSection.bill_version_id == current_version.id)
+                .order_by(BillVersionSection.source_order)
+            ).all()
+        ] == ["Section kept."]
+        assert [
+            section.raw_text
+            for section in session.scalars(
+                select(BillVersionSection)
+                .where(BillVersionSection.bill_version_id == historical_version.id)
+                .order_by(BillVersionSection.source_order)
+            ).all()
+        ] == ["Historical first.", "Historical second."]
+        assert session.get(BillVersionSection, removed_section.id) is None
+        assert session.get(RagSectionDocument, removed_document.id) is None
+        assert not session.scalars(
+            select(RagChunk).where(RagChunk.id.in_(removed_chunk_ids))
+        ).all()
+        assert not session.scalars(
+            select(RagChunkEmbedding).where(
+                RagChunkEmbedding.id.in_(removed_embedding_ids)
+            )
+        ).all()
+        stored_chunks = session.scalars(
+            select(RagChunk.chunk_text)
+            .join(
+                RagSectionDocument,
+                RagSectionDocument.id == RagChunk.rag_section_document_id,
+            )
+            .where(RagSectionDocument.bill_version_id == current_version.id)
+        ).all()
+        assert stored_chunks
+        assert "Section kept." in "\n".join(stored_chunks)
+        assert "Section removed by the source." not in "\n".join(stored_chunks)
+
+        accepted_refresh.rollback()
+        session.expire_all()
+        assert session.get(BillVersionSection, removed_section.id) is not None
+        assert session.get(RagSectionDocument, removed_document.id) is not None
+        assert len(
+            session.scalars(
+                select(RagChunk).where(RagChunk.id.in_(removed_chunk_ids))
+            ).all()
+        ) == len(removed_chunk_ids)
+        assert len(
+            session.scalars(
+                select(RagChunkEmbedding).where(
+                    RagChunkEmbedding.id.in_(removed_embedding_ids)
+                )
+            ).all()
+        ) == len(removed_embedding_ids)
+
+        session.rollback()
+
+
+def test_different_thin_section_fetches_preserve_canonical_and_search_rows(
+    seed_database: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#1423: an uncertain section contraction cannot remove stored words."""
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("ALETHICAL_DATABASE_TARGET", raising=False)
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        authors = [("500246", "Author, First")]
+        original = _refresh_payload(
+            description="Stored description.",
+            authors=authors,
+            section_texts=("Section kept.", "Section that must survive uncertainty."),
+        )
+        bill = _store_refresh_payload(
+            pipeline, refs, *original, artifact_suffix="uncertain-section-original"
+        )
+        session.flush()
+        build_rag_rows_for_bill_keys(
+            session,
+            [bill.bill_key],
+            rag_model=DEFAULT_RAG_MODEL,
+            rag_embedding_batch_size=8,
+        )
+        session.flush()
+
+        first_thin = _refresh_payload(
+            description="Stored description.",
+            authors=authors,
+            section_texts=("Section kept.",),
+        )
+        different_thin = _refresh_payload(
+            description="Stored description.",
+            authors=authors,
+            section_texts=("A different one-section response.",),
+        )
+        _mock_bill_fetches(monkeypatch, [first_thin, different_thin])
+        result = pipeline.ingest_bills(
+            [BillTarget(chamber="House", bill_number="5002")]
+        )
+        session.flush()
+
+        current_version = session.scalar(
+            select(BillVersion).where(
+                BillVersion.bill_id == bill.id,
+                BillVersion.is_current.is_(True),
+            )
+        )
+        assert current_version is not None
+        stored_sections = session.scalars(
+            select(BillVersionSection.raw_text)
+            .where(BillVersionSection.bill_version_id == current_version.id)
+            .order_by(BillVersionSection.source_order)
+        ).all()
+        stored_chunks = session.scalars(
+            select(RagChunk.chunk_text)
+            .join(
+                RagSectionDocument,
+                RagSectionDocument.id == RagChunk.rag_section_document_id,
+            )
+            .where(RagSectionDocument.bill_version_id == current_version.id)
+        ).all()
+
+        assert result["bills_ingested"] == 0
+        assert result["bill_keys"] == []
+        assert result["text_changed_bill_keys"] == []
+        assert stored_sections == [
+            "Section kept.",
+            "Section that must survive uncertainty.",
+        ]
+        assert "Section that must survive uncertainty." in "\n".join(stored_chunks)
+
+        session.rollback()
+
+
+def test_2_different_thin_fetches_preserve_facts_and_request_an_issue(
+    seed_database: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#1319: only a second failed completeness check asks for human attention."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+        refs = pipeline.seed_reference_data()
+        original = _refresh_payload(
+            description="Stored description.",
+            authors=[("500251", "Author, First"), ("500252", "Author, Second")],
+        )
+        bill = _store_refresh_payload(
+            pipeline, refs, *original, artifact_suffix="rejected-original"
+        )
+        summary = _add_current_summary(session, bill)
+
+        empty = _refresh_payload(description="", authors=[])
+        partial = _refresh_payload(
+            description="",
+            authors=[("500251", "Author, First")],
+        )
+        fetched = _mock_bill_fetches(monkeypatch, [empty, partial])
+
+        result = pipeline.ingest_bills(
+            [BillTarget(chamber="House", bill_number="5002")]
+        )
+        session.flush()
+        session.refresh(bill)
+        session.refresh(summary)
+
+        assert fetched == ["xml-0", "html-0", "xml-1", "html-1"]
+        assert result["bills_ingested"] == 0
+        assert result["bill_keys"] == []
+        assert result["text_changed_bill_keys"] == []
+        assert result["bill_refresh_rejections"] == [
+            {
+                "bill_key": "94-2025-HF5002",
+                "drops": {"authors": {"stored": 2, "fetched": 1}},
+                "needs_issue": True,
+                "reason": "the second fetch was still thinner and did not match the first",
+            }
+        ]
+        assert bill.description == "Stored description."
+        assert _bill_author_names(session, bill) == ["Author, First", "Author, Second"]
+        assert summary.is_current is True
+        assert bill.has_current_summary is True
+        failed_run = session.scalar(
+            select(IngestionRun)
+            .where(IngestionRun.target_key == "0942025:House:5002")
+            .order_by(IngestionRun.started_at.desc())
+        )
+        assert failed_run is not None
+        assert failed_run.status == IngestionStatus.failed
+        assert failed_run.finished_at is not None
+
+        session.rollback()
+
+
+def test_rejected_bill_does_not_discard_the_other_24(
+    seed_database: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """#1319: 1 rejected bill does not undo the other 24 bills in its chunk."""
+    with Session(get_engine()) as session:
+        pipeline = MinnesotaIngestionPipeline(session)
+
+        def fake_ingest(_refs: dict, target: BillTarget) -> BillIngestionResult:
+            if target.bill_number == "7001":
+                raise BillRefreshRejected(
+                    "94-2025-HF7001",
+                    {"authors": {"stored": 2, "fetched": 0}},
+                    needs_issue=True,
+                    reason=(
+                        "the second fetch was still thinner and did not match the first"
+                    ),
+                )
+            refs = pipeline.seed_reference_data(target.session_code)
+            bill = Bill(
+                session_id=refs["session"].id,
+                chamber_id=refs["chambers"]["house"].id,
+                bill_key=f"94-2025-HF{target.bill_number}",
+                file_type="HF",
+                file_number=int(target.bill_number),
+                title=f"Bill {target.bill_number}",
+            )
+            session.add(bill)
+            session.flush()
+            return BillIngestionResult(bill=bill, public_text_changed=True)
+
+        monkeypatch.setattr(pipeline, "_ingest_bill_target_result", fake_ingest)
+        result = pipeline.ingest_bills(
+            [
+                BillTarget(chamber="House", bill_number=str(number))
+                for number in range(7001, 7026)
+            ]
+        )
+        session.flush()
+
+        stored_keys = set(
+            session.scalars(
+                select(Bill.bill_key).where(Bill.bill_key.like("94-2025-HF70%"))
+            ).all()
+        )
+        assert result["bills_ingested"] == 24
+        assert len(result["bill_refresh_rejections"]) == 1
+        assert result["bill_refresh_rejections"][0]["needs_issue"] is True
+        assert len(stored_keys) == 24
+        assert "94-2025-HF7001" not in stored_keys
 
         session.rollback()
 
@@ -1172,15 +2608,17 @@ def test_repeated_section_id_keeps_every_section(seed_database: None) -> None:
 
         # Three sections outside any article, all carrying `laws.0.1.0`, with one
         # ordinary in-article section between them — the real shape of an omnibus.
-        bill_text: dict = {
-            "articles": [],
-            "sections": [
-                {"section_id": "laws.0.1.0", "text": "Advisory committee."},
-                {"section_id": "laws.1.1.0", "text": "In-article section."},
-                {"section_id": "laws.0.1.0", "text": "Repealer."},
-                {"section_id": "laws.0.1.0", "text": "Appropriation."},
-            ],
-        }
+        bill_text: dict = _complete_hand_built_bill_text(
+            {
+                "articles": [],
+                "sections": [
+                    {"section_id": "laws.0.1.0", "text": "Advisory committee."},
+                    {"section_id": "laws.1.1.0", "text": "In-article section."},
+                    {"section_id": "laws.0.1.0", "text": "Repealer."},
+                    {"section_id": "laws.0.1.0", "text": "Appropriation."},
+                ],
+            }
+        )
         canonical = {
             "text_versions": [
                 {"document_engrossment": "0", "document_name": "Introduced"}
@@ -1278,7 +2716,9 @@ def _ingest_bill(pipeline, refs, session, xml: str) -> Bill:
     bill = pipeline.upsert_bill(
         refs,
         canonical,
-        {"sections": [], "articles": [], "source_url": "https://example.test/x"},
+        _complete_hand_built_bill_text(
+            {"sections": [], "articles": [], "source_url": "https://example.test/x"}
+        ),
         run,
         xml_artifact,
         html_artifact,

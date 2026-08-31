@@ -2,13 +2,25 @@ import { Platform } from 'react-native';
 import {
   completeDanglingTitle,
   completeStatusText,
+  STATUS_LABELS,
+  statusLabel,
   TRAILING_REFERRAL,
   TRAILING_RETURN,
 } from '../lib/billDetail';
+import type { FilingScheduleState } from '../lib/legislatorCampaignMoney';
+import type { PaymentNameRole, PaymentUnderName } from '../lib/paymentsUnderName';
 import type { SourceBlock } from '../lib/billText';
+import type { SiteMetricEventName, SiteMetricRecordTotals } from '../lib/traffic';
 import { contactEmail, senateProfileUrl } from '../lib/findMyLegislator';
+import { LEGISLATOR_ROSTER_LIMIT } from '../lib/directoryPagination';
 import { publicReadResponse } from '../lib/publicRead';
 import { normalizeLegislativeYearRanges } from '../lib/sessionLabel';
+import { legislativeServiceFromHistory } from '../lib/legislatorProfile';
+import {
+  outsideSpendingLoadFailure,
+  type OutsideSpendingState,
+  type OutsideSpendingYear,
+} from '../lib/outsideSpending';
 import {
   AskAnswer,
   AskAnswerBill,
@@ -18,10 +30,22 @@ import {
   Chamber,
   ChatSession,
   Citation,
-  LegislativeService,
+  CommitteeFilingsPage,
+  CommitteeMadePayment,
+  CommitteeMoney,
+  CommitteePaymentsPage,
+  CommitteeReceivedPayment,
+  CommitteeRegisterPage,
+  CommitteeRegisterRow,
   LegislativeSession,
   Legislator,
+  LegislatorCampaignMoney,
   LegislatorVote,
+  MoneyFilingsFeed,
+  MoneyLandingSummary,
+  NameSearchAnswer,
+  NameSearchGroup,
+  NameSearchRow,
   RepresentativeAddressChoice,
   RepresentativeLookupInput,
   RepresentativeLookupResult,
@@ -80,6 +104,7 @@ interface ApiCurrentUserPayload {
   id: string;
   display_name?: string | null;
   primary_email?: string | null;
+  sign_in_methods?: { google: boolean; password: boolean } | null;
 }
 
 interface ApiSponsorPayload {
@@ -284,8 +309,7 @@ interface ApiBillActionPayload {
   first_seen_at?: string | null;
   roll_call_text?: string | null;
   cross_references?:
-    | { code: string; id: string; title?: string | null; status_key?: string | null }[]
-    | null;
+    { code: string; id: string; title?: string | null; status_key?: string | null }[] | null;
 }
 
 interface ApiDistrictPayload {
@@ -513,6 +537,68 @@ interface ApiBillVotePayload {
   records?: ApiBillVoteRecordPayload[] | null;
 }
 
+interface ApiLegislatorCampaignMoneyPayload {
+  legislator_id: string;
+  year: number;
+  link_state: LegislatorCampaignMoney['linkState'];
+  other_office_committees?: number;
+  committees_outside_this_year?: {
+    registration_number: string;
+    committee_name_as_reviewed: string;
+    closed_on?: string | null;
+  }[];
+  release_id: string;
+  fetched_at?: string | null;
+  committees: {
+    registration_number: string;
+    committee_name_as_reviewed: string;
+    committee_name?: string | null;
+    office?: string | null;
+    checked?: {
+      checked_on: string;
+      name_evidence?: string | null;
+      register_verdict?: string | null;
+      party_agreement?: string | null;
+    } | null;
+    money_in?: {
+      state: NonNullable<LegislatorCampaignMoney['committees'][number]['moneyIn']>['state'];
+      itemized_contribution_total?: string | null;
+      itemized_contribution_payments?: number | null;
+      other_receipts?: { receipt_type: string; total: string; payments: number }[];
+      source_url?: string | null;
+    } | null;
+    money_out?: {
+      state: NonNullable<LegislatorCampaignMoney['committees'][number]['moneyOut']>['state'];
+      itemized_payment_total?: string | null;
+      itemized_payments?: number | null;
+      by_type?: { type: string; total: string; payments: number }[];
+      source_url?: string | null;
+    } | null;
+    split: {
+      state: LegislatorCampaignMoney['committees'][number]['split']['state'];
+      reported_total?: string | null;
+      reported_through?: string | null;
+      named_total?: string | null;
+      named_payments?: number | null;
+      named_cash_total?: string | null;
+      named_in_kind_total?: string | null;
+      unnamed_total?: string | null;
+      stated_split_state?: string;
+      first_payment_on?: string | null;
+      last_payment_on?: string | null;
+    };
+    filing_schedule?: {
+      state?: string | null;
+      next_report_name?: string | null;
+      next_report_due_on?: string | null;
+      period_start?: string | null;
+      period_end?: string | null;
+      condition?: string | null;
+      terminated_on?: string | null;
+    } | null;
+  }[];
+}
+
 interface ApiLegislatorVotePayload {
   id: string;
   vote_value: string;
@@ -627,7 +713,7 @@ export function isAccountDeactivatedError(error: unknown): boolean {
   );
 }
 
-type DeactivatedHandler = () => void;
+type DeactivatedHandler = (requestAccessToken: string) => void;
 let deactivatedHandler: DeactivatedHandler | null = null;
 
 /**
@@ -683,7 +769,7 @@ async function apiRequest<T>(path: string, init: RequestInit, accessToken: strin
       // Every authenticated request comes through here, so whichever one the
       // reader happened to trigger is enough to notice. Without this the app
       // keeps showing them as signed in while nothing of theirs works (#1092).
-      deactivatedHandler?.();
+      deactivatedHandler?.(accessToken);
     }
     throw error;
   }
@@ -735,6 +821,33 @@ async function publicApiPost<T>(path: string, body: unknown): Promise<T> {
   return (await response.json()) as T;
 }
 
+export async function getSiteMetricRecordTotalsFromApi(): Promise<SiteMetricRecordTotals> {
+  const response = await publicApiRequest<DetailResponse<SiteMetricRecordTotals>>('/site-metrics');
+  return response.data;
+}
+
+export async function recordSiteMetricEventFromApi(
+  event: SiteMetricEventName,
+  accessToken?: string | null,
+): Promise<void> {
+  const response = await fetch(publicApiUrl('/site-metrics/events'), {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : null),
+    },
+    body: JSON.stringify({ event }),
+  });
+  if (!response.ok) {
+    throw apiErrorFromBody(
+      response.status,
+      await response.text(),
+      response.headers.get('Retry-After'),
+    );
+  }
+}
+
 function toChamber(fileType: string): Bill['chamber'] {
   return fileType.toUpperCase() === 'HF' ? 'House' : 'Senate';
 }
@@ -783,22 +896,6 @@ function defaultProgress(): Bill['progress'] {
     { key: 'passed_senate', label: 'Passed Senate', reached: false, current: false },
     { key: 'signed_into_law', label: 'Signed into Law', reached: false, current: false },
   ];
-}
-
-// status_key → the product's display label. One map, so a bill's own status pill
-// and a "See also" row naming that bill as a target read identically (#757).
-const STATUS_LABELS: Record<string, string> = {
-  proposed: 'Introduced',
-  in_committee: 'In Committee',
-  passed_house: 'Passed House',
-  passed_senate: 'Passed Senate',
-  passed_both_chambers: 'Passed Both Chambers',
-  signed_into_law: 'Signed into Law',
-  vetoed: 'Vetoed',
-};
-
-function statusLabel(statusKey?: string | null, fallback?: string | null) {
-  return (statusKey && STATUS_LABELS[statusKey]) || fallback || 'Status unavailable';
 }
 
 function formatBillIdentifier(fileType: string, fileNumber: number) {
@@ -1180,27 +1277,6 @@ function cleanOfficeAddress(value?: string | null) {
   return unique.join('\n') || undefined;
 }
 
-// Shape the API's ordered election history into the design's per-chamber lines
-// ("Elected to the House: 2012, re-elected 2014…") + current-chamber term
-// ("1st"). Returns null when the bio carried no history (issue #486).
-function mapServiceHistory(payload?: ApiServiceHistoryPayload | null): LegislativeService | null {
-  if (!payload || payload.periods.length === 0) {
-    return null;
-  }
-  const lines = payload.periods.map((period) => {
-    const chamber = toLegislatorChamber(period.chamber);
-    const elected =
-      period.reelection_years.length > 0
-        ? `${period.initial_year}, re-elected ${period.reelection_years.join(', ')}`
-        : `${period.initial_year}`;
-    return { chamber, label: `Elected to the ${chamber}`, elected };
-  });
-  return {
-    lines,
-    term: payload.term != null ? ordinal(payload.term) : null,
-  };
-}
-
 export function mapLegislator(
   payload: ApiLegislatorListItemPayload | ApiLegislatorDetailPayload,
 ): Legislator {
@@ -1259,7 +1335,7 @@ export function mapLegislator(
     // the old fabricated single "2025–present" entry is gone.
     serviceHistory: [],
     legislativeService:
-      'service_history' in payload ? mapServiceHistory(payload.service_history) : null,
+      'service_history' in payload ? legislativeServiceFromHistory(payload.service_history) : null,
     questionPrompts: [
       `Summarize ${displayName}'s authored bills this session.`,
       `What committees or policy areas are connected to ${displayName}?`,
@@ -1376,7 +1452,7 @@ function mapBillSummary(payload: ApiBillListItemPayload): Bill & { sponsorNames:
   };
 }
 
-function mapBillDetail(
+export function mapBillDetail(
   payload: ApiBillDetailPayload,
   votes: ApiBillVotePayload[],
 ): Bill & { sponsorNames: string[] } {
@@ -1553,9 +1629,12 @@ function mapChatSessionPayload(
   };
 }
 
-export async function getCurrentUserFromApi(
-  accessToken: string,
-): Promise<{ id: string; name: string; email: string }> {
+export async function getCurrentUserFromApi(accessToken: string): Promise<{
+  id: string;
+  name: string;
+  email: string;
+  signInMethods: { google: boolean; password: boolean } | null;
+}> {
   const response = await apiRequest<DetailResponse<ApiCurrentUserPayload>>(
     '/me',
     { method: 'GET' },
@@ -1567,6 +1646,58 @@ export async function getCurrentUserFromApi(
     id: response.data.id,
     name: (response.data.display_name ?? email.split('@')[0]) || 'Signed-in user',
     email,
+    signInMethods: response.data.sign_in_methods ?? null,
+  };
+}
+
+export interface PendingTrackAction {
+  reference: string;
+  expiresAt: string;
+}
+
+export interface CompletedPendingTrackAction {
+  action: 'track_bill';
+  billId: string;
+  returnPath: string;
+}
+
+/** Save one signed-out Track press without attaching it to any account yet. */
+export async function createPendingTrackActionFromApi(
+  billId: string,
+  returnPath: string,
+): Promise<PendingTrackAction> {
+  const response = await publicApiPost<DetailResponse<{ reference: string; expires_at: string }>>(
+    '/pending-actions',
+    {
+      action: 'track_bill',
+      bill_id: billId,
+      return_path: returnPath,
+    },
+  );
+  return { reference: response.data.reference, expiresAt: response.data.expires_at };
+}
+
+/** Perform a saved Track press once, then consume its random reference. */
+export async function completePendingTrackActionFromApi(
+  accessToken: string,
+  reference: string,
+  signal?: AbortSignal,
+): Promise<CompletedPendingTrackAction> {
+  const response = await apiRequest<
+    DetailResponse<{ action: 'track_bill'; bill_id: string; return_path: string }>
+  >(
+    '/me/pending-actions/complete',
+    {
+      method: 'POST',
+      body: JSON.stringify({ action: 'track_bill', reference }),
+      signal,
+    },
+    accessToken,
+  );
+  return {
+    action: response.data.action,
+    billId: response.data.bill_id,
+    returnPath: response.data.return_path,
   };
 }
 
@@ -2006,7 +2137,6 @@ export async function fetchBillVersionText(
 // page in the browser. Minnesota's 201 seats fit in this one public response;
 // reject a partial response rather than silently dropping a person if that
 // ceiling ever becomes too small.
-const LEGISLATOR_ROSTER_LIMIT = 250;
 
 export async function listLegislatorsFromApi(
   query?: string,
@@ -2144,6 +2274,446 @@ export async function getLegislatorBillsFromApi(
   };
 }
 
+/**
+ * One legislator's own campaign money for one year, per confirmed committee.
+ *
+ * Money others spent about them is a separate record with its own endpoint, and the
+ * two are never added: a committee's own receipts and a third party's spending are
+ * different things (`docs/architecture/campaign-finance-system-design.md` §3).
+ *
+ * Amounts are passed through as the strings the API sends. Turning them into
+ * JavaScript numbers here would round cents on a figure in the millions, and every
+ * number on this page has to survive being checked against Minnesota's own filing.
+ */
+export async function getLegislatorCampaignMoneyFromApi(
+  legislatorId: string,
+  year: number,
+): Promise<LegislatorCampaignMoney> {
+  const params = new URLSearchParams({ year: String(year) });
+  const response = await publicApiRequest<DetailResponse<ApiLegislatorCampaignMoneyPayload>>(
+    `/legislators/${encodeURIComponent(legislatorId)}/campaign-finance?${params.toString()}`,
+  );
+  const payload = response.data;
+  return {
+    legislatorId: payload.legislator_id,
+    year: payload.year,
+    linkState: payload.link_state,
+    fetchedAt: payload.fetched_at ?? null,
+    otherOfficeCommittees: payload.other_office_committees ?? 0,
+    committeesOutsideThisYear: (payload.committees_outside_this_year ?? []).map((entry) => ({
+      registrationNumber: entry.registration_number,
+      committeeNameAsReviewed: entry.committee_name_as_reviewed,
+      closedOn: entry.closed_on ?? null,
+    })),
+    committees: payload.committees.map((committee) => ({
+      registrationNumber: committee.registration_number,
+      committeeNameAsReviewed: committee.committee_name_as_reviewed,
+      committeeName: committee.committee_name ?? null,
+      office: committee.office ?? null,
+      checked: committee.checked
+        ? {
+            checkedOn: committee.checked.checked_on,
+            nameEvidence: committee.checked.name_evidence ?? null,
+            registerVerdict: committee.checked.register_verdict ?? null,
+            partyAgreement: committee.checked.party_agreement ?? null,
+          }
+        : null,
+      moneyIn: committee.money_in
+        ? {
+            state: committee.money_in.state,
+            itemizedContributionTotal: committee.money_in.itemized_contribution_total ?? null,
+            itemizedContributionPayments: committee.money_in.itemized_contribution_payments ?? null,
+            otherReceipts: (committee.money_in.other_receipts ?? []).map((receipt) => ({
+              receiptType: receipt.receipt_type,
+              total: receipt.total,
+              payments: receipt.payments,
+            })),
+            sourceUrl: committee.money_in.source_url ?? null,
+          }
+        : null,
+      moneyOut: committee.money_out
+        ? {
+            state: committee.money_out.state,
+            itemizedPaymentTotal: committee.money_out.itemized_payment_total ?? null,
+            itemizedPayments: committee.money_out.itemized_payments ?? null,
+            byType: (committee.money_out.by_type ?? []).map((entry) => ({
+              type: entry.type,
+              total: entry.total,
+              payments: entry.payments,
+            })),
+            sourceUrl: committee.money_out.source_url ?? null,
+          }
+        : null,
+      split: {
+        state: committee.split.state,
+        reportedTotal: committee.split.reported_total ?? null,
+        reportedThrough: committee.split.reported_through ?? null,
+        namedTotal: committee.split.named_total ?? null,
+        namedPayments: committee.split.named_payments ?? null,
+        namedCashTotal: committee.split.named_cash_total ?? null,
+        namedInKindTotal: committee.split.named_in_kind_total ?? null,
+        unnamedTotal: committee.split.unnamed_total ?? null,
+        statedSplitState: committee.split.stated_split_state ?? 'not_checked',
+        firstPaymentOn: committee.split.first_payment_on ?? null,
+        lastPaymentOn: committee.split.last_payment_on ?? null,
+      },
+      filingSchedule: {
+        state: filingScheduleState(committee.filing_schedule?.state),
+        nextReportName: committee.filing_schedule?.next_report_name ?? null,
+        nextReportDueOn: committee.filing_schedule?.next_report_due_on ?? null,
+        periodStart: committee.filing_schedule?.period_start ?? null,
+        periodEnd: committee.filing_schedule?.period_end ?? null,
+        condition: committee.filing_schedule?.condition ?? null,
+        terminatedOn: committee.filing_schedule?.terminated_on ?? null,
+      },
+    })),
+  };
+}
+
+/**
+ * The server's schedule state, or the one that says we cannot answer.
+ *
+ * An unrecognised or missing value falls to `filings_cannot_answer` rather than to a
+ * committee-side state. Both directions of that choice are a claim, and only this one
+ * is safe: it says our copy cannot settle it, which is true whenever we are reading a
+ * value we do not understand.
+ */
+function filingScheduleState(raw: string | null | undefined): FilingScheduleState {
+  const known: FilingScheduleState[] = [
+    'on_the_ballot',
+    'not_on_the_ballot',
+    'registration_closed',
+    'special_election_filer',
+    'calendar_not_transcribed',
+    'filings_cannot_answer',
+  ];
+  return known.find((state) => state === raw) ?? 'filings_cannot_answer';
+}
+
+interface ApiCampaignFinanceSummaryPayload {
+  register?: {
+    state?: string;
+    filer_count?: number | null;
+  } | null;
+  legislator_committee_confirmations?: {
+    state?: string;
+    confirmed_member_count?: number | null;
+    sitting_member_count?: number | null;
+    newest_confirmation_at?: string | null;
+  } | null;
+  freshness?: {
+    downloads_fetched_at?: string | null;
+  } | null;
+}
+
+interface ApiMoneyFilingPayload {
+  filer_name: string;
+  report_name: string;
+  period_start?: string | null;
+  period_end?: string | null;
+  filed_date?: string | null;
+}
+
+interface ApiCampaignFinanceFilingsPayload {
+  state?: string;
+  ordered_by?: string;
+  filings?: ApiMoneyFilingPayload[] | null;
+  newest_period?: { period_end?: string | null; filing_count?: number | null } | null;
+}
+
+function blockState(state: string | undefined): 'reported' | 'unavailable' {
+  return state === 'reported' ? 'reported' : 'unavailable';
+}
+
+/**
+ * The /money landing's counts and dates. Three independent blocks, each with its
+ * own state, so one gap cannot blank the other lanes. A null count is our gap
+ * and never renders as 0; a served 0 (today's confirmed_member_count) is a
+ * verified zero and renders as the number it is (grounded-answers.md rule 12).
+ */
+export async function getCampaignFinanceSummaryFromApi(): Promise<MoneyLandingSummary> {
+  const response = await publicApiRequest<DetailResponse<ApiCampaignFinanceSummaryPayload>>(
+    '/campaign-finance/summary',
+  );
+  const payload = response.data;
+  const register = payload.register ?? undefined;
+  const confirmations = payload.legislator_committee_confirmations ?? undefined;
+  return {
+    register: {
+      state: blockState(register?.state),
+      filerCount: register?.state === 'reported' ? (register?.filer_count ?? null) : null,
+    },
+    confirmations: {
+      state: blockState(confirmations?.state),
+      confirmedMemberCount:
+        confirmations?.state === 'reported'
+          ? (confirmations?.confirmed_member_count ?? null)
+          : null,
+      sittingMemberCount:
+        confirmations?.state === 'reported' ? (confirmations?.sitting_member_count ?? null) : null,
+      newestConfirmationAt: confirmations?.newest_confirmation_at ?? null,
+    },
+    freshness: {
+      downloadsFetchedAt: payload.freshness?.downloads_fetched_at ?? null,
+    },
+  };
+}
+
+/**
+ * The newest filed reports for the landing (no amounts of any kind). A row
+ * carries the day the Board received it where its own document states one, and
+ * `null` where it does not — the ordinary answer, and never a fallback to the
+ * period end, which would be a fabricated fact (issue #1670). Rows sort by the
+ * filed date where there is one and by the period end where there is not; the
+ * printed ordering sentence derives from `ordered_by` through
+ * lib/moneyLanding.ts so the words and the order cannot drift apart.
+ */
+export async function getCampaignFinanceFilingsFromApi(limit = 5): Promise<MoneyFilingsFeed> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  const response = await publicApiRequest<DetailResponse<ApiCampaignFinanceFilingsPayload>>(
+    `/campaign-finance/filings?${params.toString()}`,
+  );
+  const payload = response.data;
+  return {
+    state: blockState(payload.state),
+    orderedBy: payload.ordered_by ?? '',
+    filings:
+      payload.state === 'reported'
+        ? (payload.filings ?? []).map((filing) => ({
+            filerName: filing.filer_name,
+            reportName: filing.report_name,
+            periodStart: filing.period_start ?? null,
+            periodEnd: filing.period_end ?? null,
+            filedDate: filing.filed_date ?? null,
+          }))
+        : [],
+    // Only a real number becomes a count. A missing or null figure leaves the
+    // block null so the sentence falls back to its no-count wording, rather
+    // than rendering 0 reports for a period that plainly has some.
+    newestPeriod:
+      payload.state === 'reported' && typeof payload.newest_period?.filing_count === 'number'
+        ? {
+            periodEnd: payload.newest_period.period_end ?? null,
+            filingCount: payload.newest_period.filing_count,
+          }
+        : null,
+  };
+}
+
+interface ApiCommitteeRegisterRowPayload {
+  registration_number?: string | null;
+  name?: string | null;
+  kind?: string | null;
+  sub_type?: string | null;
+  office?: string | null;
+  district?: string | null;
+  is_closed?: boolean | null;
+  termination_date?: string | null;
+}
+
+interface ApiCommitteeRegisterPayload {
+  state?: string;
+  ordered_by?: string;
+  committees?: ApiCommitteeRegisterRowPayload[] | null;
+  page?: { has_more?: boolean; total?: number | null } | null;
+  register_total?: number | null;
+  by_kind?: Record<string, number> | null;
+  as_of?: string | null;
+}
+
+function registerRow(row: ApiCommitteeRegisterRowPayload): CommitteeRegisterRow {
+  return {
+    registrationNumber: row.registration_number ?? '',
+    name: row.name ?? '',
+    kind: row.kind ?? null,
+    subType: row.sub_type ?? null,
+    office: row.office ?? null,
+    district: row.district ?? null,
+    isClosed: row.is_closed === true,
+    terminationDate: row.termination_date ?? null,
+  };
+}
+
+/**
+ * One page of the register of filers, A to Z by the filed name, for the
+ * committees list at /money/committees.
+ *
+ * `kind` offers exactly the register's own 3 values and no finer filter: the
+ * finer sub-type is null for 33 registered filers, so a finer chip would present
+ * "we cannot tell" as "not one of these" (#1661). `q` is plain containment of
+ * what was typed with no closest-spelling suggestion of any kind.
+ *
+ * Two totals on purpose. `total` counts the filter the rows came from; the
+ * register's own total and its per-kind counts stay unfiltered, so a count on the
+ * page can speak for the register while the "showing" line speaks for the list.
+ */
+export async function getCampaignFinanceCommitteesFromApi(options: {
+  kind?: string;
+  q?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<CommitteeRegisterPage> {
+  const params = new URLSearchParams();
+  if (options.kind) params.set('kind', options.kind);
+  if (options.q) params.set('q', options.q);
+  if (options.limit !== undefined) params.set('limit', String(options.limit));
+  if (options.offset !== undefined) params.set('offset', String(options.offset));
+  const query = params.toString();
+  const response = await publicApiRequest<DetailResponse<ApiCommitteeRegisterPayload>>(
+    `/campaign-finance/committees${query ? `?${query}` : ''}`,
+  );
+  const payload = response.data;
+  const state = blockState(payload.state);
+  return {
+    state,
+    orderedBy: payload.ordered_by ?? '',
+    committees: state === 'reported' ? (payload.committees ?? []).map(registerRow) : [],
+    hasMore: payload.page?.has_more ?? false,
+    total: payload.page?.total ?? null,
+    registerTotal: payload.register_total ?? null,
+    byKind: payload.by_kind ?? {},
+    asOf: payload.as_of ?? null,
+  };
+}
+
+interface ApiNameSearchRowPayload {
+  kind?: string;
+  id?: string | null;
+  slug?: string | null;
+  full_name?: string | null;
+  chamber?: string | null;
+  district_code?: string | null;
+  party?: string | null;
+  registration_number?: string | null;
+  name?: string | null;
+  filer_kind?: string | null;
+  sub_type?: string | null;
+  office?: string | null;
+  district?: string | null;
+  is_closed?: boolean | null;
+  termination_date?: string | null;
+  role?: string | null;
+  payment_count?: number | null;
+}
+
+interface ApiNameSearchPayload {
+  state?: string;
+  q?: string;
+  min_query_length?: number | null;
+  counted_up_to?: number | null;
+  groups?:
+    | {
+        kind?: string;
+        state?: string;
+        results?: ApiNameSearchRowPayload[] | null;
+        total?: number | null;
+        at_least?: number | null;
+        has_more?: boolean | null;
+        reason?: string | null;
+      }[]
+    | null;
+  reason?: string | null;
+}
+
+/**
+ * A group's own state, keeping all 3 the server serves.
+ *
+ * `not_reported` must survive the trip: it means we searched this part of the
+ * records and nothing carried that spelling, where `unavailable` means we could
+ * not read it. Mapping the first onto the second prints "a gap on our side" over
+ * a verified nothing, which is the missing-versus-zero failure
+ * `.claude/rules/grounded-answers.md` rule 12 forbids — and it did exactly that
+ * on the first build of this page, on every zero-match group.
+ */
+function nameSearchGroupState(state: string | undefined): NameSearchGroup['state'] {
+  if (state === 'reported') return 'reported';
+  if (state === 'not_reported') return 'not_reported';
+  return 'unavailable';
+}
+
+/** One served result row, read by its own `kind` rather than by the group it
+ *  arrived in — which is what would break the day a group holds 2 shapes. */
+function nameSearchRow(row: ApiNameSearchRowPayload): NameSearchRow | null {
+  if (row.kind === 'person') {
+    return {
+      kind: 'person',
+      legislatorId: row.id ?? '',
+      slug: row.slug ?? '',
+      fullName: row.full_name ?? '',
+      chamber: row.chamber ?? null,
+      districtCode: row.district_code ?? null,
+      party: row.party ?? null,
+    };
+  }
+  if (row.kind === 'committee') {
+    return {
+      kind: 'committee',
+      registrationNumber: row.registration_number ?? '',
+      name: row.name ?? '',
+      filerKind: row.filer_kind ?? null,
+      subType: row.sub_type ?? null,
+      office: row.office ?? null,
+      district: row.district ?? null,
+      isClosed: row.is_closed === true,
+      terminationDate: row.termination_date ?? null,
+    };
+  }
+  if (row.kind === 'payment_name') {
+    return {
+      kind: 'payment_name',
+      name: row.name ?? '',
+      role: row.role ?? '',
+      paymentCount: typeof row.payment_count === 'number' ? row.payment_count : null,
+    };
+  }
+  // A shape we do not know how to draw is dropped rather than guessed at, so a
+  // new group added on the server cannot render as a blank row.
+  return null;
+}
+
+/**
+ * One typed name, matched across the 5 kinds of record and grouped by what each
+ * one is, for /money/search.
+ *
+ * Every group the server returns is kept, in the order it returns them, including
+ * the empty ones: a group dropped for being empty would let a reader read "we did
+ * not look" as "nothing is filed". A group's own state is kept too, because the
+ * register and the bulk downloads are 2 separate copies of Minnesota's data and
+ * one missing copy must not blank the groups that do not depend on it.
+ */
+export async function getCampaignFinanceNameSearchFromApi(
+  query: string,
+  limit = 5,
+): Promise<NameSearchAnswer> {
+  const params = new URLSearchParams({ q: query, limit: String(limit) });
+  const response = await publicApiRequest<DetailResponse<ApiNameSearchPayload>>(
+    `/campaign-finance/search?${params.toString()}`,
+  );
+  const payload = response.data;
+  const groups: NameSearchGroup[] = (payload.groups ?? []).map((group) => ({
+    kind: group.kind ?? '',
+    state: nameSearchGroupState(group.state),
+    results:
+      group.state === 'reported'
+        ? (group.results ?? [])
+            .map(nameSearchRow)
+            .filter((row): row is NameSearchRow => row !== null)
+        : [],
+    total: typeof group.total === 'number' ? group.total : null,
+    atLeast: typeof group.at_least === 'number' ? group.at_least : null,
+    hasMore: group.has_more === true,
+    reason: group.reason ?? null,
+  }));
+  return {
+    state: blockState(payload.state),
+    query: payload.q ?? query,
+    minQueryLength: typeof payload.min_query_length === 'number' ? payload.min_query_length : null,
+    countedUpTo: typeof payload.counted_up_to === 'number' ? payload.counted_up_to : null,
+    groups,
+    reason: payload.reason ?? null,
+  };
+}
+
 export async function getLegislatorVotesFromApi(
   legislatorId: string,
   limit = 1,
@@ -2249,4 +2819,524 @@ export async function setTrackedBillFromApi(
     },
     accessToken,
   );
+}
+
+// --- Outside spending about one legislator (#1332) ---------------------------
+
+interface ApiOutsideSpendingPayload {
+  year: number;
+  state: string;
+  snapshot_id?: string | null;
+  supporting?: string | null;
+  opposing?: string | null;
+  direction_not_recorded?: string | null;
+  supporting_payments?: number | null;
+  opposing_payments?: number | null;
+  direction_not_recorded_payments?: number | null;
+  source_url?: string | null;
+  fetched_at?: string | null;
+  committees?: Array<{
+    registration_number?: string | null;
+    committee_name?: string | null;
+    office?: string | null;
+    first_payment_on?: string | null;
+    last_payment_on?: string | null;
+  }> | null;
+}
+
+/**
+ * Whether a `reported` year arrived with every count a figure needs.
+ *
+ * Each figure prints its own payment count, so a response missing any of them cannot be
+ * drawn. Checked rather than defaulted, because defaulting to 0 turns a missing count
+ * into a checked zero -- the exact missing-versus-zero failure rule 12 forbids.
+ */
+function hasEveryPaymentCount(data: ApiOutsideSpendingPayload): boolean {
+  return (
+    typeof data.supporting_payments === 'number' &&
+    typeof data.opposing_payments === 'number' &&
+    typeof data.direction_not_recorded_payments === 'number'
+  );
+}
+
+// Money is served as a string because the column carries 4 decimal places and a
+// JSON number would round them. Parsed here rather than in the display layer so
+// only one place ever turns the filing's text into arithmetic.
+function spendingAmount(value: string | null | undefined): number | null {
+  if (value == null) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+/**
+ * One legislator's outside spending for one calendar year.
+ *
+ * `state` is the field the display reads first: only `reported` carries figures,
+ * and there a 0 is a measured 0. Every other state is a gap in our own records and
+ * must never be drawn as a zero (`.claude/rules/grounded-answers.md` rule 12).
+ */
+export async function getLegislatorOutsideSpendingFromApi(
+  legislatorId: string,
+  year: number,
+): Promise<OutsideSpendingYear> {
+  const params = new URLSearchParams({ year: String(year) });
+  const response = await publicApiRequest<DetailResponse<ApiOutsideSpendingPayload>>(
+    `/legislators/${encodeURIComponent(legislatorId)}/independent-spending?${params.toString()}`,
+  );
+  const data = response.data;
+  let state: OutsideSpendingState =
+    data.state === 'reported' || data.state === 'link_unconfirmed' ? data.state : 'unavailable';
+  // A `reported` year must arrive with all 3 payment counts, or no figure may be drawn
+  // from it. The frontend and the API deploy separately, so this page can briefly meet a
+  // server that predates the split counts; defaulting those to 0 made every figure look
+  // like a checked zero and printed "nobody spent anything" over real money. Treated as a
+  // failed load instead, which is what it is.
+  if (state === 'reported' && !hasEveryPaymentCount(data)) {
+    state = 'load_failed';
+  }
+  if (state === 'load_failed') return outsideSpendingLoadFailure(data.year ?? year);
+  const committees = data.committees ?? [];
+  // A member can hold several committees at once, so the block's period is the span
+  // across all of them rather than any one committee's.
+  const firstDates = committees
+    .map((committee) => committee.first_payment_on)
+    .filter((value): value is string => Boolean(value))
+    .sort();
+  const lastDates = committees
+    .map((committee) => committee.last_payment_on)
+    .filter((value): value is string => Boolean(value))
+    .sort();
+  return {
+    year: data.year,
+    state,
+    snapshotId: data.snapshot_id ?? null,
+    committees: committees.map((committee) => ({
+      registrationNumber: committee.registration_number ?? '',
+      name: committee.committee_name ?? '',
+      office: committee.office ?? null,
+    })),
+    supporting: spendingAmount(data.supporting),
+    opposing: spendingAmount(data.opposing),
+    directionNotRecorded: spendingAmount(data.direction_not_recorded),
+    supportingPayments: data.supporting_payments ?? null,
+    opposingPayments: data.opposing_payments ?? null,
+    directionNotRecordedPayments: data.direction_not_recorded_payments ?? null,
+    firstPaymentOn: firstDates[0] ?? null,
+    lastPaymentOn: lastDates[lastDates.length - 1] ?? null,
+    sourceUrl: data.source_url ?? null,
+    fetchedAt: data.fetched_at ?? null,
+  };
+}
+
+interface ApiCommitteeRegisterPayload {
+  state?: string;
+  kind?: string | null;
+  name?: string | null;
+  party?: string | null;
+  office?: string | null;
+  district?: string | null;
+  registration_date?: string | null;
+  termination_date?: string | null;
+  as_of?: string | null;
+}
+
+interface ApiCommitteeMoneyPayload {
+  registration_number: string;
+  committee_name?: string | null;
+  entity_type?: string | null;
+  entity_sub_type?: string | null;
+  year: number;
+  fetched_at?: string | null;
+  register?: ApiCommitteeRegisterPayload | null;
+  confirmed_for?: {
+    legislator_id?: string | null;
+    slug?: string | null;
+    full_name?: string | null;
+    checked?: {
+      checked_on: string;
+      name_evidence?: string | null;
+      register_verdict?: string | null;
+      party_agreement?: string | null;
+    } | null;
+  } | null;
+  money_in?: {
+    state: string;
+    itemized_contribution_total?: string | null;
+    itemized_contribution_payments?: number | null;
+    other_receipts?: { receipt_type: string; total: string; payments: number }[] | null;
+    reported_period_start?: string | null;
+    source_url?: string | null;
+  } | null;
+  money_out?: {
+    state: string;
+    itemized_payment_total?: string | null;
+    itemized_payments?: number | null;
+    by_type?: { type: string; total: string; payments: number }[] | null;
+    reported_total?: string | null;
+    reported_through?: string | null;
+    source_url?: string | null;
+  } | null;
+  split?: {
+    state: string;
+    reported_total?: string | null;
+    reported_through?: string | null;
+    named_total?: string | null;
+    named_payments?: number | null;
+    named_cash_total?: string | null;
+    named_in_kind_total?: string | null;
+    unnamed_total?: string | null;
+    stated_split_state?: string | null;
+    first_payment_on?: string | null;
+    last_payment_on?: string | null;
+  } | null;
+}
+
+function committeeRegisterState(state: string | undefined): CommitteeMoney['register']['state'] {
+  if (state === 'reported') return 'reported';
+  if (state === 'not_registered') return 'not_registered';
+  return 'unavailable';
+}
+
+function committeeBlockState(
+  state: string | undefined,
+): 'reported' | 'not_reported' | 'unavailable' {
+  if (state === 'reported') return 'reported';
+  if (state === 'not_reported') return 'not_reported';
+  return 'unavailable';
+}
+
+/**
+ * One committee's money for one year, keyed on its registration number. Resolves
+ * `null` on 404 — the number is in neither our copy of the Board's register nor
+ * the downloads, which the page renders as a fact about our records rather than
+ * an error or a claim that no such committee exists.
+ */
+export async function getCommitteeFinanceFromApi(
+  registrationNumber: string,
+  year: number,
+): Promise<CommitteeMoney | null> {
+  let payload: ApiCommitteeMoneyPayload;
+  try {
+    const response = await publicApiRequest<DetailResponse<ApiCommitteeMoneyPayload>>(
+      `/committees/${encodeURIComponent(registrationNumber)}/finance?year=${year}`,
+    );
+    payload = response.data;
+  } catch (error) {
+    if (isNotFoundError(error)) return null;
+    throw error;
+  }
+  const register = payload.register ?? undefined;
+  return {
+    registrationNumber: payload.registration_number,
+    // The downloads spell a missing name as an empty string; a page must not
+    // render a heading out of it.
+    committeeName: payload.committee_name ? payload.committee_name : null,
+    entityType: payload.entity_type ?? null,
+    entitySubType: payload.entity_sub_type ?? null,
+    year: payload.year,
+    fetchedAt: payload.fetched_at ?? null,
+    register: {
+      state: committeeRegisterState(register?.state),
+      kind: register?.kind ?? null,
+      name: register?.name ?? null,
+      party: register?.party ?? null,
+      office: register?.office ?? null,
+      district: register?.district ?? null,
+      registrationDate: register?.registration_date ?? null,
+      terminationDate: register?.termination_date ?? null,
+      asOf: register?.as_of ?? null,
+    },
+    // All 3 fields or nothing: a confirmed member with no address to send a reader
+    // to is a half-fact, and the sentence that names them is also the link out.
+    confirmedFor:
+      payload.confirmed_for?.legislator_id &&
+      payload.confirmed_for.slug &&
+      payload.confirmed_for.full_name
+        ? {
+            legislatorId: payload.confirmed_for.legislator_id,
+            slug: payload.confirmed_for.slug,
+            fullName: payload.confirmed_for.full_name,
+            // Separately optional from the 3 above: a decision written before the basis
+            // columns landed is still a real confirmation, and the page says so without
+            // describing evidence it does not hold.
+            checked: payload.confirmed_for.checked
+              ? {
+                  checkedOn: payload.confirmed_for.checked.checked_on,
+                  nameEvidence: payload.confirmed_for.checked.name_evidence ?? null,
+                  registerVerdict: payload.confirmed_for.checked.register_verdict ?? null,
+                  partyAgreement: payload.confirmed_for.checked.party_agreement ?? null,
+                }
+              : null,
+          }
+        : null,
+    moneyIn: {
+      state: committeeBlockState(payload.money_in?.state),
+      itemizedContributionTotal: payload.money_in?.itemized_contribution_total ?? null,
+      itemizedContributionPayments: payload.money_in?.itemized_contribution_payments ?? null,
+      otherReceipts: (payload.money_in?.other_receipts ?? []).map((receipt) => ({
+        receiptType: receipt.receipt_type,
+        total: receipt.total,
+        payments: receipt.payments,
+      })),
+      reportedPeriodStart: payload.money_in?.reported_period_start ?? null,
+      sourceUrl: payload.money_in?.source_url ?? null,
+    },
+    moneyOut: {
+      state: committeeBlockState(payload.money_out?.state),
+      itemizedPaymentTotal: payload.money_out?.itemized_payment_total ?? null,
+      itemizedPayments: payload.money_out?.itemized_payments ?? null,
+      byType: (payload.money_out?.by_type ?? []).map((entry) => ({
+        type: entry.type,
+        total: entry.total,
+        payments: entry.payments,
+      })),
+      reportedTotal: payload.money_out?.reported_total ?? null,
+      reportedThrough: payload.money_out?.reported_through ?? null,
+      sourceUrl: payload.money_out?.source_url ?? null,
+    },
+    split: {
+      state: (payload.split?.state ?? 'no_reported_total') as CommitteeMoney['split']['state'],
+      reportedTotal: payload.split?.reported_total ?? null,
+      reportedThrough: payload.split?.reported_through ?? null,
+      namedTotal: payload.split?.named_total ?? null,
+      namedPayments: payload.split?.named_payments ?? null,
+      namedCashTotal: payload.split?.named_cash_total ?? null,
+      namedInKindTotal: payload.split?.named_in_kind_total ?? null,
+      unnamedTotal: payload.split?.unnamed_total ?? null,
+      statedSplitState: payload.split?.stated_split_state ?? 'not_checked',
+      firstPaymentOn: payload.split?.first_payment_on ?? null,
+      lastPaymentOn: payload.split?.last_payment_on ?? null,
+    },
+  };
+}
+
+interface ApiCommitteePaymentsPayload {
+  state?: string;
+  payments?: Record<string, unknown>[] | null;
+  page?: {
+    limit: number;
+    offset: number;
+    has_more: boolean;
+    total_payments?: number | null;
+  } | null;
+  linkable_registration_numbers?: string[] | null;
+  source_url?: string | null;
+  fetched_at?: string | null;
+}
+
+function committeePaymentsPage<Payment>(
+  payload: ApiCommitteePaymentsPayload,
+  mapPayment: (row: Record<string, unknown>) => Payment,
+): CommitteePaymentsPage<Payment> {
+  const state = committeeBlockState(payload.state);
+  return {
+    state,
+    payments: state === 'reported' ? (payload.payments ?? []).map(mapPayment) : [],
+    hasMore: payload.page?.has_more ?? false,
+    totalPayments: payload.page?.total_payments ?? null,
+    linkableRegistrationNumbers: payload.linkable_registration_numbers ?? [],
+    sourceUrl: payload.source_url ?? null,
+    fetchedAt: payload.fetched_at ?? null,
+  };
+}
+
+const asText = (value: unknown): string | null => (typeof value === 'string' ? value : null);
+
+/** Who paid this committee — its own filing's rows, one per payment. */
+export async function getCommitteePaymentsReceivedFromApi(
+  registrationNumber: string,
+  options: { year?: number; sort?: 'date' | 'amount'; limit?: number; offset?: number } = {},
+): Promise<CommitteePaymentsPage<CommitteeReceivedPayment> | null> {
+  const payload = await committeePaymentsRequest(registrationNumber, 'received', options);
+  if (payload === null) return null;
+  return committeePaymentsPage(payload, (row) => ({
+    contributor: asText(row.contributor),
+    contributorRegistrationNumber: asText(row.contributor_registration_number),
+    contributorType: asText(row.contributor_type),
+    employer: asText(row.employer),
+    amount: asText(row.amount),
+    receivedOn: asText(row.received_on),
+    receiptType: asText(row.receipt_type),
+    inKind: asText(row.in_kind),
+  }));
+}
+
+/** Who this committee paid — every expenditure type included, each row labelled. */
+export async function getCommitteePaymentsMadeFromApi(
+  registrationNumber: string,
+  options: { year?: number; sort?: 'date' | 'amount'; limit?: number; offset?: number } = {},
+): Promise<CommitteePaymentsPage<CommitteeMadePayment> | null> {
+  const payload = await committeePaymentsRequest(registrationNumber, 'made', options);
+  if (payload === null) return null;
+  return committeePaymentsPage(payload, (row) => ({
+    vendorName: asText(row.vendor_name),
+    vendorCity: asText(row.vendor_city),
+    vendorState: asText(row.vendor_state),
+    affectedCommitteeName: asText(row.affected_committee_name),
+    affectedCommitteeRegistrationNumber: asText(row.affected_committee_registration_number),
+    amount: asText(row.amount),
+    paidOn: asText(row.paid_on),
+    expenditureType: asText(row.expenditure_type),
+    purpose: asText(row.purpose),
+    inKind: asText(row.in_kind),
+  }));
+}
+
+async function committeePaymentsRequest(
+  registrationNumber: string,
+  direction: 'received' | 'made',
+  options: { year?: number; sort?: 'date' | 'amount'; limit?: number; offset?: number },
+): Promise<ApiCommitteePaymentsPayload | null> {
+  const params = new URLSearchParams({ direction });
+  if (options.year !== undefined) params.set('year', String(options.year));
+  if (options.sort) params.set('sort', options.sort);
+  if (options.limit !== undefined) params.set('limit', String(options.limit));
+  if (options.offset !== undefined) params.set('offset', String(options.offset));
+  try {
+    const response = await publicApiRequest<DetailResponse<ApiCommitteePaymentsPayload>>(
+      `/committees/${encodeURIComponent(registrationNumber)}/payments?${params.toString()}`,
+    );
+    return response.data;
+  } catch (error) {
+    if (isNotFoundError(error)) return null;
+    throw error;
+  }
+}
+
+/**
+ * Every payment filed under exactly one printed name, for /money/payments
+ * (issue #1780). Shares the committee route's envelope, so the same page shaper
+ * reads it.
+ *
+ * The 3 roles come from 3 different downloads with 3 different column sets, and
+ * they are flattened here into the one row the page draws — which committee filed
+ * it, what the filing calls it, its own amount and its own date. Flattening in
+ * one place is what keeps the 3 answers from being added together anywhere later:
+ * a caller asks for exactly one role and gets exactly that file's rows.
+ *
+ * `total_payments` is never served on a name-keyed lookup, so `totalPayments` is
+ * always null here and the page may not print "of N" (grounded-answers rule 11).
+ */
+export async function getPaymentsUnderNameFromApi(
+  name: string,
+  role: PaymentNameRole,
+  options: { limit?: number; offset?: number } = {},
+): Promise<CommitteePaymentsPage<PaymentUnderName>> {
+  const params = new URLSearchParams({ name, role });
+  if (options.limit !== undefined) params.set('limit', String(options.limit));
+  if (options.offset !== undefined) params.set('offset', String(options.offset));
+  const response = await publicApiRequest<DetailResponse<ApiCommitteePaymentsPayload>>(
+    `/campaign-finance/payments-under-name?${params.toString()}`,
+  );
+  return committeePaymentsPage(response.data, (row) => paymentUnderName(row, role));
+}
+
+/** One served row, whichever of the 3 downloads it came from. */
+function paymentUnderName(row: Record<string, unknown>, role: PaymentNameRole): PaymentUnderName {
+  if (role === 'contributor') {
+    return {
+      filerName: asText(row.recipient_name),
+      filerRegistrationNumber: asText(row.recipient_registration_number),
+      filerEntityType: asText(row.recipient_type),
+      receiptType: asText(row.receipt_type),
+      purpose: null,
+      expenditureType: null,
+      affectedCommitteeName: null,
+      stance: null,
+      amount: asText(row.amount),
+      paidOn: asText(row.received_on),
+      inKind: asText(row.in_kind),
+    };
+  }
+  if (role === 'vendor') {
+    return {
+      filerName: asText(row.committee_name),
+      filerRegistrationNumber: asText(row.committee_registration_number),
+      filerEntityType: null,
+      receiptType: null,
+      purpose: asText(row.purpose),
+      expenditureType: asText(row.expenditure_type),
+      affectedCommitteeName: null,
+      stance: null,
+      amount: asText(row.amount),
+      paidOn: asText(row.paid_on),
+      inKind: asText(row.in_kind),
+    };
+  }
+  return {
+    filerName: asText(row.spender),
+    filerRegistrationNumber: asText(row.spender_registration_number),
+    filerEntityType: null,
+    receiptType: null,
+    purpose: asText(row.purpose),
+    expenditureType: asText(row.expenditure_type),
+    affectedCommitteeName: asText(row.affected_committee_name),
+    stance: asText(row.stance),
+    amount: asText(row.amount),
+    paidOn: asText(row.paid_on),
+    // The independent-expenditures download carries no in-kind column at all.
+    inKind: null,
+  };
+}
+
+interface ApiCommitteeFilingPayload {
+  report_name?: string | null;
+  report_type?: string | null;
+  filing_year?: number | null;
+  period_start?: string | null;
+  period_end?: string | null;
+  effective_amendment_index?: number | null;
+  amendment_count?: number | null;
+  filed_date?: string | null;
+}
+
+interface ApiCommitteeFilingsPayload {
+  state?: string;
+  ordered_by?: string;
+  filings?: ApiCommitteeFilingPayload[] | null;
+  page?: { has_more?: boolean; total?: number | null } | null;
+  catalogued_without_record?: number | null;
+}
+
+/**
+ * Every report a committee is recorded as having filed (the Filings tab). No
+ * amounts and still no amendment date — the catalogue's amendment record is
+ * version indexes only. A row carries the day the Board received it where its
+ * own document states one and `null` where it does not (issue #1670), so the
+ * list sorts by the filed date where there is one and by the period end where
+ * there is not, and `ordered_by` says which.
+ */
+export async function getCommitteeFilingsFromApi(
+  registrationNumber: string,
+  options: { limit?: number; offset?: number } = {},
+): Promise<CommitteeFilingsPage> {
+  const params = new URLSearchParams();
+  if (options.limit !== undefined) params.set('limit', String(options.limit));
+  if (options.offset !== undefined) params.set('offset', String(options.offset));
+  const query = params.toString();
+  const response = await publicApiRequest<DetailResponse<ApiCommitteeFilingsPayload>>(
+    `/committees/${encodeURIComponent(registrationNumber)}/filings${query ? `?${query}` : ''}`,
+  );
+  const payload = response.data;
+  const state = blockState(payload.state);
+  return {
+    state,
+    orderedBy: payload.ordered_by ?? '',
+    filings:
+      state === 'reported'
+        ? (payload.filings ?? []).map((filing) => ({
+            reportName: filing.report_name ?? '',
+            reportType: filing.report_type ?? '',
+            filingYear: filing.filing_year ?? 0,
+            periodStart: filing.period_start ?? null,
+            periodEnd: filing.period_end ?? null,
+            filedDate: filing.filed_date ?? null,
+            effectiveAmendmentIndex: filing.effective_amendment_index ?? null,
+            amendmentCount: filing.amendment_count ?? null,
+          }))
+        : [],
+    hasMore: payload.page?.has_more ?? false,
+    total: payload.page?.total ?? null,
+    cataloguedWithoutRecord: payload.catalogued_without_record ?? null,
+  };
 }

@@ -11,7 +11,7 @@ export function AppFailureView({ onReload }: { onReload: () => void }) {
   return (
     <View style={styles.screen}>
       <View style={styles.card}>
-        <Text accessibilityRole="header" style={styles.heading}>
+        <Text accessibilityRole="header" aria-level={1} style={styles.heading}>
           This page hit a problem
         </Text>
         <Text style={styles.body}>Reload the page to try again.</Text>

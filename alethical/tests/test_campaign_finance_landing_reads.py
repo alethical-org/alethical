@@ -1,0 +1,1132 @@
+"""What the /money landing's counts and filings feed must never claim.
+
+Every test here stands in for a way these 2 endpoints could put a false sentence on the
+landing page. The 4 that matter most:
+
+* **A count we cannot compute is never 0.** "We have loaded no register" and "Minnesota
+  registers nobody" are different facts, and one of them is a claim about the state.
+* **A report the Board scheduled is not a report anybody filed.** The catalogue lists a
+  report from the moment its period opens, so a feed that shows every catalogued row
+  prints "filed" under a committee that has not filed.
+* **No row carries an amount**, so nothing on this page can be ranked by money -- which
+  would rank filing calendars rather than fundraising
+  (``docs/architecture/campaign-finance-system-design.md`` §7).
+* **A period start is read off a document or omitted.** §7 forbids hardcoding 1 January
+  because a special-election filer's period does not open there.
+
+Fixtures are tiny and hand-written. Registration numbers and the counts quoted in
+docstrings are from the live data measured on 18 Aug 2026
+([#1661](https://github.com/alethical-org/alethical/issues/1661)), evidence for the test
+rather than something asserted here.
+
+Needs the local Postgres on port 54329.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import uuid
+from datetime import UTC, date, datetime
+
+import pytest
+from sqlalchemy import select, text
+
+from alethical.api.services.campaign_finance_register import (
+    committees_worth_indexing,
+    report_corrections,
+    NO_FILINGS_SNAPSHOT,
+    ROWS_REPLACED,
+)
+from alethical.api.services.independent_spending import REPORTED, UNAVAILABLE
+from alethical.db import models
+from alethical.db.session import get_session_factory
+
+Dataset = models.CampaignFinanceDataset
+SnapshotStatus = models.CampaignFinanceSnapshotStatus
+ReleaseStatus = models.CampaignFinanceReleaseStatus
+FilerKind = models.CampaignFinanceFilerKind
+
+SUMMARY = "/api/v1/campaign-finance/summary"
+FILINGS = "/api/v1/campaign-finance/filings"
+
+# Real numbers from the live register, so a reader can check any of these rows against
+# the Board's own directory.
+CANDIDATE = "18466"  # Port, Lindsey Senate Committee.
+PARTY_UNIT = "20010"  # HRCC, a legislative caucus.
+# The filer whose 2025 period opens 11 July rather than 1 January, because it ran in a
+# special election (§9.5). The one case a printed calendar start would be wrong for.
+SPECIAL_ELECTION_FILER = "19223"
+
+# Period ends the Board's own 2026 disclosure calendars print, with the starts they print
+# beside them. Transcribed in `alethical/pipeline/campaign_finance_filing_calendars.py`.
+PRE_PRIMARY_END = date(2026, 7, 20)
+PRE_PRIMARY_START = date(2026, 1, 1)
+YEAR_END_2025 = date(2025, 12, 31)
+YEAR_END_2025_START = date(2025, 1, 1)
+
+
+def _clear(session) -> None:
+    session.rollback()
+    session.execute(text("UPDATE cf_filing_current SET snapshot_id = NULL"))
+    session.execute(text("DELETE FROM cf_filing_report"))
+    session.execute(text("DELETE FROM cf_filer"))
+    session.execute(text("DELETE FROM cf_filing_snapshot"))
+    session.execute(text("UPDATE cf_current_release SET release_id = NULL"))
+    session.execute(text("DELETE FROM cf_release"))
+    session.execute(text("DELETE FROM cf_snapshot"))
+    session.execute(text("DELETE FROM legislator_campaign_committee"))
+    session.commit()
+
+
+@pytest.fixture()
+def db(seed_database: None):
+    session = get_session_factory()()
+    _clear(session)
+    try:
+        yield session
+    finally:
+        _clear(session)
+        session.close()
+
+
+def _filings_snapshot(
+    db, *, fetched: datetime | None = None, filer_count: int = 0, report_count: int = 0
+):
+    """One published register-and-catalogue run.
+
+    ``filer_count`` and ``report_count`` are what the run recorded at publish time, which
+    is what tells a pruned snapshot from one that was legitimately empty: a snapshot that
+    published 1,603 filers and holds none has been replaced under the read.
+    """
+    completed = fetched or datetime(2026, 8, 11, 6, 40, tzinfo=UTC)
+    snapshot = models.CampaignFinanceFilingSnapshot(
+        fetch_started_at=completed,
+        fetch_completed_at=completed,
+        status=SnapshotStatus.loaded,
+        filer_count=filer_count,
+        report_count=report_count,
+    )
+    db.add(snapshot)
+    db.flush()
+    db.execute(
+        text(
+            "INSERT INTO cf_filing_current (id, snapshot_id) VALUES (true, :sid) "
+            "ON CONFLICT (id) DO UPDATE SET snapshot_id = EXCLUDED.snapshot_id"
+        ),
+        {"sid": snapshot.id},
+    )
+    db.commit()
+    return snapshot
+
+
+def _filer(
+    db,
+    snapshot,
+    registration: str,
+    *,
+    kind: FilerKind = FilerKind.candidate_committee,
+    name: str = "Port, Lindsey Senate Committee",
+):
+    db.add(
+        models.CampaignFinanceFiler(
+            snapshot_id=snapshot.id,
+            registration_number=registration,
+            kind=kind,
+            name=name,
+            is_incumbent=False,
+        )
+    )
+    db.commit()
+
+
+_ROW_COUNTER: dict[uuid.UUID, int] = {}
+
+
+def _report(
+    db,
+    snapshot,
+    registration: str,
+    *,
+    year: int = 2026,
+    report_type: str = "C",
+    report_name: str = "2026 Pre-Primary Report",
+    cut_off: date | None = PRE_PRIMARY_END,
+    special_election: bool = False,
+    amendment_index: int | None = 0,
+    amendment_count: int | None = 1,
+    filed_date: date | None = None,
+):
+    """One catalogue row.
+
+    ``amendment_index=None`` is what an unfiled report looks like: the Board serves a null
+    amendment list for a report nobody has filed, and every filed report carries at least
+    ``['0']`` (§9.6).
+
+    ``filed_date=None`` by default because it is the ordinary state: the catalogue serves
+    no filing date, so the loader can never set one, and the Board serves no readable
+    document for most reports (#1670).
+    """
+    _ROW_COUNTER[snapshot.id] = _ROW_COUNTER.get(snapshot.id, 0) + 1
+    db.add(
+        models.CampaignFinanceFilingReport(
+            snapshot_id=snapshot.id,
+            row_number=_ROW_COUNTER[snapshot.id],
+            registration_number=registration,
+            filing_year=year,
+            report_type=report_type,
+            report_name=report_name,
+            cut_off_date=cut_off,
+            special_election=special_election,
+            effective_amendment_index=amendment_index,
+            amendment_count=amendment_count,
+            filed_date=filed_date,
+        )
+    )
+    db.commit()
+
+
+def _download_snapshot(db, dataset: Dataset):
+    marker = f"{dataset.value}-{uuid.uuid4()}"
+    snapshot = models.CampaignFinanceSnapshot(
+        dataset=dataset,
+        download_id="-2113865252",
+        source_url=f"https://cfb.mn.gov/reports/{dataset.value}.csv",
+        content_hash=hashlib.sha256(marker.encode()).hexdigest(),
+        record_set_hash=hashlib.sha256(f"records-{marker}".encode()).hexdigest(),
+        byte_size=1024,
+        row_count=0,
+        status=SnapshotStatus.loaded,
+    )
+    db.add(snapshot)
+    db.flush()
+    return snapshot
+
+
+def _published_release(db, *, fetched: datetime | None = None):
+    """The 3 bulk downloads published together, which carry the page's freshness date."""
+    completed = fetched or datetime(2026, 8, 11, 2, 54, tzinfo=UTC)
+    release = models.CampaignFinanceRelease(
+        contributions_snapshot_id=_download_snapshot(db, Dataset.contributions).id,
+        expenditures_snapshot_id=_download_snapshot(db, Dataset.expenditures).id,
+        independent_expenditures_snapshot_id=_download_snapshot(
+            db, Dataset.independent_expenditures
+        ).id,
+        status=ReleaseStatus.published,
+        fetch_started_at=completed,
+        fetch_completed_at=completed,
+        published_at=completed,
+    )
+    db.add(release)
+    db.flush()
+    db.execute(
+        text(
+            "INSERT INTO cf_current_release (id, release_id) VALUES (true, :rid) "
+            "ON CONFLICT (id) DO UPDATE SET release_id = EXCLUDED.release_id"
+        ),
+        {"rid": release.id},
+    )
+    db.commit()
+    return release
+
+
+def _a_sitting_legislator(db):
+    """One member the legislator directory would list, from the seeded sample data."""
+    session_id = db.scalar(
+        select(models.LegislativeSession.id).where(
+            models.LegislativeSession.is_current.is_(True)
+        )
+    )
+    return db.scalar(
+        select(models.LegislatorServicePeriod.legislator_id)
+        .join(
+            models.District,
+            models.District.id == models.LegislatorServicePeriod.district_id,
+        )
+        .where(
+            models.LegislatorServicePeriod.session_id == session_id,
+            models.LegislatorServicePeriod.is_current.is_(True),
+            models.District.code.not_like("%-unknown"),
+        )
+        .limit(1)
+    )
+
+
+def _link(db, legislator_id, registration: str, decision, *, reviewed_at=None):
+    row = models.LegislatorCampaignCommittee(
+        legislator_id=legislator_id,
+        registration_number=registration,
+        decision=decision,
+        committee_name_as_reviewed="Port, Lindsey Senate Committee",
+        reviewed_by="a person",
+    )
+    db.add(row)
+    db.flush()
+    if reviewed_at is not None:
+        row.reviewed_at = reviewed_at
+    db.commit()
+    return row
+
+
+# --- The register count ---------------------------------------------------------
+
+
+def test_the_register_count_is_counted_live_and_broken_down_by_kind(client, db) -> None:
+    """The lane card's number comes from the rows, never from a figure typed into a page.
+
+    A pasted count is how the landing once said 1,336 registered filers on a day the
+    register held 1,603 (#1661). The live register holds 778 candidate committees, 299
+    party units and 526 committees and funds.
+    """
+    snapshot = _filings_snapshot(db, filer_count=3)
+    _filer(db, snapshot, CANDIDATE)
+    _filer(db, snapshot, PARTY_UNIT, kind=FilerKind.party_unit, name="HRCC")
+    _filer(db, snapshot, "41360", kind=FilerKind.party_unit, name="Another Party Unit")
+
+    register = client.get(SUMMARY).json()["data"]["register"]
+
+    assert register["state"] == REPORTED
+    assert register["filer_count"] == 3
+    assert register["by_kind"] == {
+        "candidate_committee": 1,
+        "party_unit": 2,
+        # Present and 0 rather than absent: the register is loaded whole per snapshot, so
+        # a kind with no rows is a kind Minnesota registered nobody under, which the
+        # committees lane's filters may honestly label.
+        "political_committee_or_fund": 0,
+    }
+    assert register["as_of"] == "2026-08-11"
+    assert str(snapshot.id) == register["snapshot_id"]
+    assert register["reason"] is None
+
+
+def test_no_register_loaded_is_null_and_never_a_count_of_zero(client, db) -> None:
+    """ "We have loaded no register" is about us; "0 filers" is about Minnesota."""
+    register = client.get(SUMMARY).json()["data"]["register"]
+
+    assert register["state"] == UNAVAILABLE
+    assert register["filer_count"] is None
+    assert register["by_kind"] is None
+    assert register["reason"] == NO_FILINGS_SNAPSHOT
+
+
+def test_a_register_whose_rows_were_replaced_refuses_rather_than_counting_zero(
+    client, db
+) -> None:
+    """A snapshot that published 1,603 filers and holds none has been replaced under us.
+
+    Rows survive exactly one further publish, so this is a real state and not a
+    hypothetical. Counting it would report the register as empty on the strength of our
+    own pruning.
+    """
+    _filings_snapshot(db, filer_count=1603)
+
+    register = client.get(SUMMARY).json()["data"]["register"]
+
+    assert register["state"] == UNAVAILABLE
+    assert register["filer_count"] is None
+    assert register["reason"] == ROWS_REPLACED
+
+
+# --- The confirmation state ----------------------------------------------------
+
+
+def test_the_sitting_count_matches_the_directory_the_lane_opens(client, db) -> None:
+    """The lane says "N members" and opens the directory, so the 2 must not disagree.
+
+    Both are filtered on the current session's current service periods with the
+    placeholder ``-unknown`` districts excluded. The lane counts people once each, which
+    is the same number unless a member holds 2 current periods in one session.
+    """
+    block = client.get(SUMMARY).json()["data"]["legislator_committee_confirmations"]
+    directory = client.get("/api/v1/legislators", params={"limit": 1}).json()
+
+    assert block["state"] == REPORTED
+    assert block["sitting_member_count"] == directory["page"]["total"]
+
+
+def test_zero_confirmed_is_served_as_zero_because_the_log_is_ours(client, db) -> None:
+    """0 of 200 is a measured fact, not a gap: nobody has confirmed anything yet.
+
+    Production's ``legislator_campaign_committee`` held 0 rows when this was written, and
+    that is the state all 200 profiles are in.
+    """
+    block = client.get(SUMMARY).json()["data"]["legislator_committee_confirmations"]
+
+    assert block["confirmed_member_count"] == 0
+    # No date, because there is no confirmation to date it by. A date here would say we
+    # looked on that day and found nothing.
+    assert block["newest_confirmation_at"] is None
+
+
+def test_a_confirmed_link_counts_and_dates_the_count(client, db) -> None:
+    reviewed = datetime(2026, 8, 18, 15, 30, tzinfo=UTC)
+    _link(
+        db,
+        _a_sitting_legislator(db),
+        CANDIDATE,
+        models.CommitteeLinkReviewDecision.confirmed,
+        reviewed_at=reviewed,
+    )
+
+    block = client.get(SUMMARY).json()["data"]["legislator_committee_confirmations"]
+
+    assert block["confirmed_member_count"] == 1
+    assert block["newest_confirmation_at"].startswith("2026-08-18T15:30")
+
+
+def test_a_rejected_link_is_not_progress(client, db) -> None:
+    """ "We looked and it is not theirs" is stored, and it is not a confirmed committee.
+
+    Counting rejections would report review activity as answers landed.
+    """
+    _link(
+        db,
+        _a_sitting_legislator(db),
+        CANDIDATE,
+        models.CommitteeLinkReviewDecision.rejected,
+    )
+
+    block = client.get(SUMMARY).json()["data"]["legislator_committee_confirmations"]
+
+    assert block["confirmed_member_count"] == 0
+    assert block["newest_confirmation_at"] is None
+
+
+def test_a_confirmed_link_for_someone_not_sitting_is_outside_the_count(
+    client, db
+) -> None:
+    """The count is "of the sitting members", so a former member cannot inflate it."""
+    outsider = models.Legislator(
+        jurisdiction_id=db.scalar(select(models.Jurisdiction.id)),
+        slug=f"a-former-member-{uuid.uuid4().hex[:8]}",
+        external_key=f"former-{uuid.uuid4().hex[:8]}",
+        full_name="A Former Member",
+        sort_name="Member, A Former",
+    )
+    db.add(outsider)
+    db.commit()
+    _link(db, outsider.id, CANDIDATE, models.CommitteeLinkReviewDecision.confirmed)
+
+    block = client.get(SUMMARY).json()["data"]["legislator_committee_confirmations"]
+
+    assert block["confirmed_member_count"] == 0
+
+
+# --- The freshness dates ------------------------------------------------------
+
+
+def test_each_copy_of_the_data_carries_its_own_date(client, db) -> None:
+    """The downloads and the register are 2 runs, so 1 date cannot speak for both.
+
+    They are copied on the same day today, which is exactly why a single date would look
+    right and quietly stop being right the first time the 2 runs diverge.
+    """
+    release = _published_release(db, fetched=datetime(2026, 8, 11, 2, 54, tzinfo=UTC))
+    _filings_snapshot(db, fetched=datetime(2026, 8, 11, 6, 40, tzinfo=UTC))
+
+    data = client.get(SUMMARY).json()["data"]["freshness"]
+
+    assert data["downloads_fetched_at"].startswith("2026-08-11T02:54")
+    assert data["register_fetched_at"].startswith("2026-08-11T06:40")
+    assert data["release_id"] == str(release.id)
+
+
+def test_the_as_of_date_names_the_day_the_run_finished_in_utc(client, db) -> None:
+    """A run that finished just after midnight UTC must not be dated to the day before.
+
+    Postgres hands a stored instant back in the session's own timezone, so an
+    unnormalized read of a 02:00 UTC finish is 22:00 on the previous day in US Eastern --
+    and this date is printed on the page as "files last copied". The wrong day is the
+    failure, not the wrong offset.
+    """
+    _filings_snapshot(
+        db, fetched=datetime(2026, 8, 11, 2, 0, tzinfo=UTC), filer_count=1
+    )
+
+    register = client.get(SUMMARY).json()["data"]["register"]
+
+    assert register["as_of"] == "2026-08-11"
+
+
+def test_a_missing_download_release_does_not_blank_the_register_lane(
+    client, db
+) -> None:
+    """Three lanes come from 3 places, so one gap must not empty the other 2.
+
+    The same per-block rule ``/committees/{registration_number}/finance`` follows: one
+    stale download must not blank the blocks that read something else.
+    """
+    snapshot = _filings_snapshot(db, filer_count=1)
+    _filer(db, snapshot, CANDIDATE)
+
+    data = client.get(SUMMARY).json()["data"]
+
+    assert data["freshness"]["downloads_fetched_at"] is None
+    assert data["register"]["state"] == REPORTED
+    assert data["register"]["filer_count"] == 1
+
+
+# --- The newest filings feed --------------------------------------------------
+
+
+def test_the_feed_is_newest_period_end_first_and_carries_no_amount(client, db) -> None:
+    """5 rows with 5 dollar figures is a ranking whether anyone sorted it or not.
+
+    So no row has an amount field at all, and the order is stated rather than implied.
+    No report here has a stored filing date -- the ordinary state, since the Board serves
+    no readable document for most of them
+    ([#1670](https://github.com/alethical-org/alethical/issues/1670)) -- so ``ordered_by``
+    says ``period_end``, which is what the order genuinely is.
+    """
+    snapshot = _filings_snapshot(db, report_count=2)
+    _filer(db, snapshot, CANDIDATE)
+    _filer(db, snapshot, PARTY_UNIT, kind=FilerKind.party_unit, name="HRCC")
+    _report(
+        db,
+        snapshot,
+        PARTY_UNIT,
+        year=2025,
+        report_name="2025 Year End Report",
+        cut_off=YEAR_END_2025,
+    )
+    _report(db, snapshot, CANDIDATE)
+
+    data = client.get(FILINGS, params={"limit": 5}).json()["data"]
+
+    assert data["state"] == REPORTED
+    assert data["ordered_by"] == "period_end"
+    assert [row["period_end"] for row in data["filings"]] == [
+        "2026-07-20",
+        "2025-12-31",
+    ]
+    assert [row["filer_name"] for row in data["filings"]] == [
+        "Port, Lindsey Senate Committee",
+        "HRCC",
+    ]
+    for row in data["filings"]:
+        assert not [key for key in row if "amount" in key or "total" in key]
+
+
+def test_a_report_nobody_has_filed_never_appears_as_a_filing(client, db) -> None:
+    """The catalogue is a schedule: it lists a report when its period opens, filed or not.
+
+    7 of the 1,261 catalogued 2026 pre-primary reports were unfiled when the filing
+    calendars were measured, and an unfiled one carries no amendment record while every
+    filed one carries at least ``['0']`` (§9.6). Showing it would print "filed" under a
+    named politician who has not filed.
+    """
+    snapshot = _filings_snapshot(db, report_count=2)
+    _filer(db, snapshot, CANDIDATE)
+    _report(db, snapshot, CANDIDATE, amendment_index=None, amendment_count=None)
+    _report(
+        db,
+        snapshot,
+        CANDIDATE,
+        year=2025,
+        report_name="2025 Year End Report",
+        cut_off=YEAR_END_2025,
+    )
+
+    data = client.get(FILINGS).json()["data"]
+
+    assert [row["report_name"] for row in data["filings"]] == ["2025 Year End Report"]
+
+
+def test_a_report_with_no_period_end_is_left_out_rather_than_undated(
+    client, db
+) -> None:
+    """Nothing places it in the order and no row can be drawn from it.
+
+    With no filing date either, such a row would carry no date of any kind while sitting
+    in a list whose whole promise is recency.
+    """
+    snapshot = _filings_snapshot(db, report_count=1)
+    _filer(db, snapshot, CANDIDATE)
+    _report(db, snapshot, CANDIDATE, cut_off=None)
+
+    data = client.get(FILINGS).json()["data"]
+
+    assert data["filings"] == []
+    # And it is not reported as a replaced snapshot: the rows are there, they are just
+    # not showable.
+    assert data["state"] == REPORTED
+
+
+def test_a_period_start_comes_off_the_boards_own_calendar(client, db) -> None:
+    """§7 forbids hardcoding 1 January, so the start is read off a transcribed calendar.
+
+    Both 2026 candidate calendars and both committee calendars print 1/1/2026 through
+    7/20/2026 for the pre-primary report, so the start is the Board's own printed value.
+    """
+    snapshot = _filings_snapshot(db, report_count=1)
+    _filer(db, snapshot, CANDIDATE)
+    _report(db, snapshot, CANDIDATE)
+
+    row = client.get(FILINGS).json()["data"]["filings"][0]
+
+    assert row["period_start"] == PRE_PRIMARY_START.isoformat()
+    assert row["period_end"] == PRE_PRIMARY_END.isoformat()
+    assert row["period_start_source"] == "board_calendar"
+
+
+def test_a_special_election_filers_period_start_is_withheld_not_assumed(
+    client, db
+) -> None:
+    """Filer 19223's 2025 period opens 11 July, not 1 January (§9.5).
+
+    The calendar's printed start is the regular series' start, so applying it to a filer
+    with a special-election series that year would print a period the filing does not
+    state. The row reads "covers through 31 Dec 2025" instead.
+    """
+    snapshot = _filings_snapshot(db, report_count=2)
+    _filer(db, snapshot, SPECIAL_ELECTION_FILER, name="Johnson Stewart, Ann Committee")
+    _report(
+        db,
+        snapshot,
+        SPECIAL_ELECTION_FILER,
+        year=2025,
+        report_name="Special Election: 2025 Pre-Primary",
+        cut_off=date(2025, 7, 10),
+        special_election=True,
+    )
+    _report(
+        db,
+        snapshot,
+        SPECIAL_ELECTION_FILER,
+        year=2025,
+        report_name="2025 Year End Report",
+        cut_off=YEAR_END_2025,
+    )
+
+    rows = {
+        row["report_name"]: row for row in client.get(FILINGS).json()["data"]["filings"]
+    }
+
+    assert rows["2025 Year End Report"]["period_end"] == YEAR_END_2025.isoformat()
+    assert rows["2025 Year End Report"]["period_start"] is None
+    assert rows["2025 Year End Report"]["period_start_source"] is None
+
+
+def test_a_year_with_no_transcribed_calendar_has_no_start(client, db) -> None:
+    """Only the 2026 calendars are transcribed, so an older report reads "covers through".
+
+    The alternative is asserting 1 January from the pattern the newer calendars follow,
+    which is the assumption §7 exists to stop.
+    """
+    snapshot = _filings_snapshot(db, report_count=1)
+    _filer(db, snapshot, CANDIDATE)
+    _report(
+        db,
+        snapshot,
+        CANDIDATE,
+        year=2024,
+        report_name="2024 Year End Report",
+        cut_off=date(2024, 12, 31),
+    )
+
+    row = client.get(FILINGS).json()["data"]["filings"][0]
+
+    assert row["period_start"] is None
+    assert row["period_start_source"] is None
+
+
+def test_the_2025_year_end_start_is_the_one_the_calendar_prints(client, db) -> None:
+    """All 4 calendars print 1/1/2025 for it, which is the start most likely to be assumed."""
+    snapshot = _filings_snapshot(db, report_count=1)
+    _filer(db, snapshot, CANDIDATE)
+    _report(
+        db,
+        snapshot,
+        CANDIDATE,
+        year=2025,
+        report_name="2025 Year End Report",
+        cut_off=YEAR_END_2025,
+    )
+
+    row = client.get(FILINGS).json()["data"]["filings"][0]
+
+    assert row["period_start"] == YEAR_END_2025_START.isoformat()
+
+
+def test_a_report_whose_period_has_not_ended_is_not_a_recent_filing(client, db) -> None:
+    """Found on production the day this shipped, at the very top of the list.
+
+    The 5 newest rows were 2026 year-end reports covering "1 Jan - 31 Dec 2026", read on
+    19 August: 7 such rows against 1,261 catalogued 2026 pre-primary reports. They are
+    real filings, because a terminating committee files its final report at termination
+    rather than waiting for the period to close (Paul Novotny's is the measured case,
+    §9.8). But with no filing date "newest" can only be the latest period, and a period
+    running 4 months into the future outranks every period that has actually ended -- so a
+    list of the newest filings led with rows covering money nobody has raised yet.
+    """
+    snapshot = _filings_snapshot(db, report_count=2)
+    _filer(db, snapshot, CANDIDATE)
+    _report(
+        db,
+        snapshot,
+        CANDIDATE,
+        report_name="2026 Year-End Report",
+        report_type="YE",
+        cut_off=date(2026, 12, 31),
+    )
+    _report(db, snapshot, CANDIDATE)
+
+    data = client.get(FILINGS).json()["data"]
+
+    assert [row["report_name"] for row in data["filings"]] == [
+        "2026 Pre-Primary Report"
+    ]
+    assert data["filings"][0]["period_end"] == PRE_PRIMARY_END.isoformat()
+
+
+def test_the_page_says_which_day_it_counted_ended_periods_through(client, db) -> None:
+    """Otherwise a caller cannot tell why the newest row is not dated today."""
+    _filings_snapshot(db, report_count=0)
+
+    data = client.get(FILINGS).json()["data"]
+
+    assert data["periods_ended_on_or_before"] == datetime.now(UTC).date().isoformat()
+
+
+def test_a_report_whose_filer_is_not_in_the_register_is_dropped(client, db) -> None:
+    """The name comes from the register, and a nameless row is not worth showing."""
+    snapshot = _filings_snapshot(db, report_count=1)
+    _report(db, snapshot, "99999")
+
+    data = client.get(FILINGS).json()["data"]
+
+    assert data["filings"] == []
+
+
+def test_no_register_loaded_is_not_a_claim_that_nobody_filed(client, db) -> None:
+    data = client.get(FILINGS).json()["data"]
+
+    assert data["state"] == UNAVAILABLE
+    assert data["filings"] == []
+    assert data["reason"] == NO_FILINGS_SNAPSHOT
+
+
+def test_a_catalogue_whose_rows_were_replaced_refuses_rather_than_reading_empty(
+    client, db
+) -> None:
+    _filings_snapshot(db, report_count=1005)
+
+    data = client.get(FILINGS).json()["data"]
+
+    assert data["state"] == UNAVAILABLE
+    assert data["reason"] == ROWS_REPLACED
+
+
+def test_paging_reports_more_without_counting_the_whole_catalogue(client, db) -> None:
+    """``limit + 1`` is fetched, the same shape the payments routes use."""
+    snapshot = _filings_snapshot(db, report_count=3)
+    _filer(db, snapshot, CANDIDATE)
+    for index, cut_off in enumerate(
+        (PRE_PRIMARY_END, date(2026, 5, 31), date(2026, 3, 31))
+    ):
+        _report(db, snapshot, CANDIDATE, report_name=f"Report {index}", cut_off=cut_off)
+
+    first = client.get(FILINGS, params={"limit": 2}).json()["data"]
+    second = client.get(FILINGS, params={"limit": 2, "offset": 2}).json()["data"]
+
+    assert len(first["filings"]) == 2
+    assert first["page"] == {
+        "limit": 2,
+        "offset": 2 - 2,
+        "has_more": True,
+        "total": 3,
+    }
+    assert len(second["filings"]) == 1
+    assert second["page"]["has_more"] is False
+
+
+def test_the_total_counts_exactly_the_set_the_rows_came_from(client, db) -> None:
+    """The count carries the feed's own exclusions, so it describes its own list (#1677).
+
+    A report nobody filed and a report whose period has not ended are both outside the
+    list and outside the number. Without any count, 5 rows beginning "100 Percent Future
+    Fund" read as a shortlist of the newest or the biggest.
+
+    **This is not the landing's "N committees filed for this period" figure**, which is
+    ``newest_period.filing_count`` and is pinned below. This one counts every ended filed
+    report we hold, across every period: 33,612 on production against that one's 1,203.
+    """
+    snapshot = _filings_snapshot(db, report_count=4)
+    _filer(db, snapshot, CANDIDATE)
+    _report(db, snapshot, CANDIDATE, report_name="Filed and ended")
+    _report(db, snapshot, CANDIDATE, report_name="Filed and ended too")
+    # Scheduled but nobody filed it: no amendment record (§9.6).
+    _report(db, snapshot, CANDIDATE, report_name="Unfiled", amendment_index=None)
+    # Filed, but its period runs to the end of 2026 and has not closed.
+    _report(
+        db, snapshot, CANDIDATE, report_name="Not ended", cut_off=date(2026, 12, 31)
+    )
+
+    data = client.get(FILINGS, params={"limit": 1}).json()["data"]
+
+    assert data["page"]["total"] == 2
+    assert data["page"]["has_more"] is True
+    assert len(data["filings"]) == 1
+
+
+def test_the_period_count_is_the_newest_periods_own_and_never_the_whole_set(
+    client, db
+) -> None:
+    """ "N committees filed for this period" needs the period's count, not the feed's.
+
+    The 2 numbers differ by 28-fold on production -- 1,203 filings carry the newest
+    period end of 20 Jul 2026 against 33,612 ended filed reports in all -- so a page
+    printing the feed's total in that sentence overstates one period by a factor of 28
+    under a named date. Here the same shape in miniature: 3 in the newest period, 5 in
+    the feed.
+    """
+    snapshot = _filings_snapshot(db, report_count=5)
+    _filer(db, snapshot, CANDIDATE)
+    for index in range(3):
+        _report(db, snapshot, CANDIDATE, report_name=f"Newest {index}")
+    _report(db, snapshot, CANDIDATE, report_name="Older", cut_off=date(2026, 5, 31))
+    _report(db, snapshot, CANDIDATE, report_name="Oldest", cut_off=date(2025, 12, 31))
+
+    data = client.get(FILINGS, params={"limit": 2}).json()["data"]
+
+    assert data["page"]["total"] == 5
+    assert data["newest_period"]["filing_count"] == 3
+    assert data["newest_period"]["period_end"] == PRE_PRIMARY_END.isoformat()
+    # All 3 of those reports belong to one committee here, so this fixture also shows
+    # the 2 counts of one period coming apart -- 3 documents, 1 committee.
+    assert data["newest_period"]["committee_count"] == 1
+
+
+def test_the_period_count_is_the_same_whatever_page_was_asked_for(client, db) -> None:
+    """Counted over the filter, never read off the rows on screen.
+
+    The newest period's filings run past the end of any one page -- 1,203 of them against
+    a landing that draws 5 -- so a count taken from the returned rows would be a count of
+    the page wearing the period's name, and it would shrink as a reader paged.
+    """
+    snapshot = _filings_snapshot(db, report_count=4)
+    _filer(db, snapshot, CANDIDATE)
+    for index in range(3):
+        _report(db, snapshot, CANDIDATE, report_name=f"Newest {index}")
+    _report(db, snapshot, CANDIDATE, report_name="Older", cut_off=date(2026, 5, 31))
+
+    first = client.get(FILINGS, params={"limit": 1}).json()["data"]
+    deep = client.get(FILINGS, params={"limit": 1, "offset": 3}).json()["data"]
+
+    assert first["newest_period"] == deep["newest_period"]
+    assert deep["newest_period"]["filing_count"] == 3
+    # The page it was read from is genuinely past that period, so the count cannot have
+    # come from the rows returned.
+    assert deep["filings"][0]["period_end"] == "2026-05-31"
+
+
+def test_the_period_count_carries_the_feeds_exclusions_like_the_total_does(client, db):
+    """An unfiled report is outside the list, so it is outside the period's count too.
+
+    The catalogue is a schedule: it lists a report from the moment its period opens. A
+    count that included the unfiled ones would say more committees filed for a period
+    than actually did, which is a false claim about named committees.
+    """
+    snapshot = _filings_snapshot(db, report_count=3)
+    _filer(db, snapshot, CANDIDATE)
+    _report(db, snapshot, CANDIDATE, report_name="Filed")
+    _report(db, snapshot, CANDIDATE, report_name="Unfiled", amendment_index=None)
+    _report(db, snapshot, CANDIDATE, report_name="Also unfiled", amendment_index=None)
+
+    data = client.get(FILINGS).json()["data"]
+
+    assert data["newest_period"]["filing_count"] == 1
+
+
+def test_one_committee_filing_twice_for_a_period_counts_once_as_a_committee(
+    client, db
+) -> None:
+    """ "N committees filed" and "N filings" are different claims (#1677, review round 2).
+
+    A committee reaches 2 rows for one period end by filing 2 different reports that
+    close the same day, and a count of documents is then larger than a count of
+    committees while looking exactly like it. Measured on production 20 Aug 2026 the 2
+    are identical -- 1,203 each on the newest period, and no divergence across 3,000
+    filings in the 25 next-newest periods -- so this is the case the data does not
+    currently contain, pinned here so the distinction cannot be optimised away as a
+    duplicate of ``filing_count``.
+
+    **Amendments are not this case.** A report's whole amendment list is folded onto its
+    single catalogue row as ``amendment_count`` and ``effective_amendment_index``
+    (``alethical/pipeline/campaign_finance_filings.py``), so an amended report is one row
+    however many times it was amended.
+    """
+    snapshot = _filings_snapshot(db, report_count=3)
+    _filer(db, snapshot, CANDIDATE)
+    _filer(db, snapshot, PARTY_UNIT, name="HRCC")
+    # One committee, 2 different reports, both closing on the same day.
+    _report(db, snapshot, CANDIDATE, report_name="Pre-Primary", report_type="C")
+    _report(db, snapshot, CANDIDATE, report_name="Special Election", report_type="G")
+    _report(db, snapshot, PARTY_UNIT, report_name="Pre-Primary", report_type="C")
+
+    period = client.get(FILINGS).json()["data"]["newest_period"]
+
+    assert period["filing_count"] == 3
+    assert period["committee_count"] == 2
+
+
+def test_an_amended_report_is_one_filing_and_one_committee(client, db) -> None:
+    """367 of 1,005 catalogued reports carry at least one amendment (#1661).
+
+    If an amendment made a second row, the newest period's counts would both inflate on
+    every amended report, and "N committees filed" would overstate by however many
+    committees amended. It does not: the catalogue serves one entry per report with its
+    amendment list attached, and the loader folds that list into 2 columns.
+    """
+    snapshot = _filings_snapshot(db, report_count=1)
+    _filer(db, snapshot, CANDIDATE)
+    _report(db, snapshot, CANDIDATE, amendment_index=3, amendment_count=4)
+
+    period = client.get(FILINGS).json()["data"]["newest_period"]
+
+    assert period["filing_count"] == 1
+    assert period["committee_count"] == 1
+    assert client.get(FILINGS).json()["data"]["filings"][0]["amendment_count"] == 4
+
+
+def test_a_period_count_we_cannot_compute_is_absent_rather_than_zero(client, db):
+    """No register held is not "nobody filed for this period" (rule 12)."""
+    empty = {"period_end": None, "filing_count": None, "committee_count": None}
+    assert client.get(FILINGS).json()["data"]["newest_period"] == empty
+
+    _filings_snapshot(db, report_count=1005)
+
+    replaced = client.get(FILINGS).json()["data"]
+    assert replaced["reason"] == ROWS_REPLACED
+    assert replaced["newest_period"] == empty
+
+
+def test_a_total_we_cannot_compute_is_absent_rather_than_zero(client, db) -> None:
+    """0 filings filed and "we hold no register" are different facts (rule 12)."""
+    assert client.get(FILINGS).json()["data"]["page"]["total"] is None
+
+    _filings_snapshot(db, report_count=1005)
+
+    replaced = client.get(FILINGS).json()["data"]
+    assert replaced["reason"] == ROWS_REPLACED
+    assert replaced["page"]["total"] is None
+
+
+def test_the_limit_is_capped_so_one_request_cannot_ask_for_the_catalogue(
+    client, db
+) -> None:
+    """The live catalogue holds 36,655 rows; the landing draws 5."""
+    assert client.get(FILINGS, params={"limit": 500}).status_code == 422
+
+
+def test_a_corrected_report_is_told_apart_from_one_nobody_has_filed(db) -> None:
+    """3 answers, and reading any 2 of them as the same invents a fact (#1648).
+
+    A committee-year whose report has been refiled with different figures explains a
+    stored total that will not line up with our rows. One still on its first version
+    rules that explanation out. And a committee-year we hold no version history for
+    rules nothing out either way, so it answers ``None`` rather than 0 -- a count we
+    cannot compute is absent, never a measured zero
+    (``.claude/rules/grounded-answers.md`` rule 12).
+
+    Wynfred Russell's House committee (19086) is the live case: its 2026 pre-primary
+    report is on version 1 of 2, and the Board's totals service was still serving the
+    version-0 figures 8 days after the correction.
+    """
+    snapshot = _filings_snapshot(db, report_count=3)
+    _report(db, snapshot, "19086", year=2026, amendment_index=1, amendment_count=2)
+    _report(db, snapshot, "17709", year=2026, amendment_index=0, amendment_count=1)
+    _report(
+        db, snapshot, "20010", year=2026, amendment_index=None, amendment_count=None
+    )
+
+    assert report_corrections(db, "19086", 2026) == 1
+    assert report_corrections(db, "17709", 2026) == 0
+    assert report_corrections(db, "20010", 2026) is None
+    # A year with no catalogued report at all is the same "we cannot say" as a report
+    # nobody has filed.
+    assert report_corrections(db, "19086", 2024) is None
+
+
+def test_the_years_latest_version_is_the_years_answer(db) -> None:
+    """A Minnesota report restates the whole year, so the highest version wins.
+
+    A committee files several reports in a year and any of them can be corrected. Taking
+    the first one found would let an uncorrected year-end report hide a corrected
+    pre-primary one, which is the direction that loses the explanation.
+    """
+    snapshot = _filings_snapshot(db, report_count=2)
+    _report(db, snapshot, CANDIDATE, year=2026, report_type="C", amendment_index=0)
+    _report(
+        db,
+        snapshot,
+        CANDIDATE,
+        year=2026,
+        report_type="YE",
+        report_name="2026 Year-End Report",
+        cut_off=date(2026, 12, 31),
+        amendment_index=2,
+        amendment_count=3,
+    )
+
+    assert report_corrections(db, CANDIDATE, 2026) == 2
+
+
+def _reported_figures(db, snapshot, registration: str, *, year: int = 2026) -> None:
+    """One year of a filer's own reported totals, which is the second way a
+    committee page has something on it besides its register row."""
+    db.add(
+        models.CampaignFinanceFiling(
+            snapshot_id=snapshot.id,
+            registration_number=registration,
+            filer_kind=FilerKind.candidate_committee,
+            filing_year=year,
+            segment_start=year,
+            segment_end=year + 1,
+            block_heading=f"{year} - Election year",
+            reported_through=date(year, 7, 20),
+            response_hash=hashlib.sha256(f"{registration}-{year}".encode()).hexdigest(),
+            archive_line=1,
+        )
+    )
+    db.commit()
+
+
+def test_the_committee_sitemap_carries_only_pages_with_something_on_them(db) -> None:
+    """A sitemap entry is a claim that a page is worth reading.
+
+    A registered filer with no filed report and no reported figures draws its register
+    row and its "no figures cover this year" state and nothing else. Google's own
+    guidance is that a page has to carry original information to be worth listing
+    (``docs/architecture/page-metadata-for-search-and-sharing-decisions.md`` §20.5
+    rule 4), and a thin page costs crawling twice: it is fetched and then not indexed.
+    Those pages still work and are still reachable from the register's numbered pages;
+    they are simply not advertised.
+    """
+    snapshot = _filings_snapshot(db, filer_count=3, report_count=2)
+    _filer(db, snapshot, CANDIDATE, name="Port, Lindsey Senate Committee")
+    _filer(db, snapshot, PARTY_UNIT, kind=FilerKind.party_unit, name="HRCC")
+    _filer(db, snapshot, "19086", name="Russell, Wynfred House Committee")
+    # A filed report: the Board's own amendment record is the positive signal.
+    _report(db, snapshot, CANDIDATE, amendment_index=0)
+    # Reported figures with no catalogued report still make a real page.
+    _reported_figures(db, snapshot, PARTY_UNIT)
+
+    listed = committees_worth_indexing(db)
+
+    assert [row.registration_number for row in listed] == [PARTY_UNIT, CANDIDATE]
+    assert [row.name for row in listed] == [
+        "HRCC",
+        "Port, Lindsey Senate Committee",
+    ]
+    # 19086 is registered and has nothing filed, so it is left out.
+    assert "19086" not in {row.registration_number for row in listed}
+
+
+def test_a_scheduled_report_nobody_filed_does_not_earn_a_sitemap_entry(db) -> None:
+    """The catalogue lists a report from the moment its period opens (§9.6).
+
+    Counting a scheduled row would advertise a page whose only content is a report
+    that does not exist yet, under a named committee.
+    """
+    snapshot = _filings_snapshot(db, filer_count=1, report_count=1)
+    _filer(db, snapshot, CANDIDATE)
+    _report(db, snapshot, CANDIDATE, amendment_index=None, amendment_count=None)
+
+    assert committees_worth_indexing(db) == ()
+
+
+def test_no_register_at_all_lists_no_committees_rather_than_refusing(db) -> None:
+    """No published snapshot is our own gap, and a sitemap without a section is a
+    smaller failure than a 503 that removes the bills and legislators with it."""
+    assert committees_worth_indexing(db) == ()
+
+
+def test_the_feed_breaks_a_shared_period_by_the_day_the_board_received_each_report(
+    client, db
+) -> None:
+    """The tie this whole issue is about, on the feed a reader actually lands on.
+
+    Every 2026 pre-primary report shares the period end 20 Jul 2026 -- 1,203 of them on
+    production -- so with nothing else to sort by, the top of a "newest filings" feed is
+    one enormous tie broken alphabetically. Here the 2 committees are deliberately named
+    so that alphabetical order and arrival order disagree: "Anderson" would come first by
+    name and filed 4 days earlier, so a feed still ordering by name would put it on top.
+
+    ``ordered_by`` changes with the rows rather than being hardcoded, because a caller
+    printing "the ones received most recently" over a list where nothing is dated would
+    be describing rows that do not exist.
+    """
+    snapshot = _filings_snapshot(db, report_count=2)
+    _filer(db, snapshot, CANDIDATE, name="Anderson, Amy House Committee")
+    _filer(
+        db, snapshot, PARTY_UNIT, kind=FilerKind.party_unit, name="Zumbro County DFL"
+    )
+    _report(db, snapshot, CANDIDATE, filed_date=date(2026, 7, 21))
+    _report(db, snapshot, PARTY_UNIT, filed_date=date(2026, 7, 25))
+
+    data = client.get(FILINGS, params={"limit": 5}).json()["data"]
+
+    assert data["ordered_by"] == "filed_date_then_period_end"
+    assert [row["filer_name"] for row in data["filings"]] == [
+        "Zumbro County DFL",
+        "Anderson, Amy House Committee",
+    ]
+    assert [row["filed_date"] for row in data["filings"]] == [
+        "2026-07-25",
+        "2026-07-21",
+    ]
+    # Same period on both rows, so the period end explains none of the order above.
+    assert {row["period_end"] for row in data["filings"]} == {"2026-07-20"}
+
+
+def test_the_feed_never_dates_a_report_from_the_period_it_covers(client, db) -> None:
+    """The substitution a reader could not possibly catch, pinned on the landing feed.
+
+    A report covering a period that ended 20 Jul 2026, with no received date on record,
+    must serve ``filed_date: null``. Serving 20 Jul 2026 instead reads as "filed on 20
+    July" under a named committee, which is a fabricated fact and the reason
+    [#1670](https://github.com/alethical-org/alethical/issues/1670) exists.
+    """
+    snapshot = _filings_snapshot(db, report_count=1)
+    _filer(db, snapshot, CANDIDATE)
+    _report(db, snapshot, CANDIDATE, cut_off=PRE_PRIMARY_END, filed_date=None)
+
+    row = client.get(FILINGS, params={"limit": 5}).json()["data"]["filings"][0]
+
+    assert row["filed_date"] is None
+    assert row["period_end"] == PRE_PRIMARY_END.isoformat()
+    assert [
+        key
+        for key, value in row.items()
+        if key != "period_end" and value == PRE_PRIMARY_END.isoformat()
+    ] == []
+
+
+def test_the_order_is_named_from_the_rows_a_caller_can_see(client, db) -> None:
+    """A dated row the feed drops must not name the order for the rows it keeps.
+
+    The feed joins every report to ``cf_filer`` in the same snapshot, and that join is
+    part of the filter rather than decoration: a report whose filer the register does not
+    hold is dropped, because a nameless row is not worth showing. So the served
+    ``ordered_by`` has to be asked over that same join. Asked without it, this page says
+    ``filed_date_then_period_end`` on the strength of a row nobody can see, and then
+    prints "the ones the Board received most recently" over a single visible row that
+    carries no filing date at all.
+
+    0 report rows are in this state on the live snapshot (measured 31 Aug 2026), so this
+    is the filter being consistent rather than a live fault — and it is the only case
+    that can tell the 2 versions of the query apart.
+    """
+    snapshot = _filings_snapshot(db, report_count=2)
+    # Only one of the 2 filers exists in the register.
+    _filer(db, snapshot, CANDIDATE)
+    _report(db, snapshot, CANDIDATE, filed_date=None)
+    _report(db, snapshot, PARTY_UNIT, filed_date=date(2026, 7, 25))
+
+    data = client.get(FILINGS, params={"limit": 5}).json()["data"]
+
+    # The dated row is not on the page, so the order it would have set is not claimed.
+    assert [row["registration_number"] for row in data["filings"]] == [CANDIDATE]
+    assert data["filings"][0]["filed_date"] is None
+    assert data["ordered_by"] == "period_end"

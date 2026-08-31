@@ -105,6 +105,24 @@ Acceptance criteria:
 - cleaning version and chunking version are recorded
 - chunk outputs can be rebuilt from canonical records alone
 
+### Refresh publication
+
+An inline bill refresh publishes canonical text and its retrieval rows in 1 database transaction
+([#1320](https://github.com/alethical-org/alethical/issues/1320)). The importer compares the
+accepted bill's current version ID and ordered section-text hashes before and after its write. It
+flushes the new canonical rows, rebuilds only the changed bill keys through that same database
+session, then commits once. If chunking or embedding fails, neither layer is published, so a retry
+still sees the old signature and cannot skip the required rebuild. A separate RAG database is
+refused on this path because it cannot share that transaction. The explicit RAG backfill remains
+the repair path for missing rows that do not follow a new source-text change.
+
+The same transaction handles a twice-confirmed section removal
+([#1423](https://github.com/alethical-org/alethical/issues/1423)). The foreign keys from a search
+document to its canonical section, from chunks to that document, and from embeddings to chunks do
+not cascade. Ingestion therefore removes the absent current section's embeddings, chunks and
+search document in that order before removing the canonical row. A failed rebuild rolls all four
+levels back together, and no historical version is in the delete scope.
+
 ## Recommended Data Flow
 
 1. `raw_source_artifact`

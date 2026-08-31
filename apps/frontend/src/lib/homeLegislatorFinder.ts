@@ -5,12 +5,7 @@ import { prepareAddressLookup } from './findMyLegislator';
 export type HomeFinderLayout = 'phone' | 'tablet' | 'desktop';
 export type HomeFinderRequestState = 'idle' | 'waiting-location';
 export type HomeLocationFailure =
-  | 'unsupported'
-  | 'permission-denied'
-  | 'timeout'
-  | 'unavailable'
-  | 'outside-minnesota'
-  | 'unknown';
+  'unsupported' | 'permission-denied' | 'timeout' | 'unavailable' | 'outside-minnesota' | 'unknown';
 
 export type HomeFinderDestination = {
   address?: string;

@@ -34,8 +34,15 @@ export interface SessionWatch<T> {
    *  `pending` is the one that exists to prevent a specific lie: on a fresh load we
    *  have not asked when the reader last looked, and "no answer" means NOT ASKED,
    *  never "nothing moved". Built the obvious way, this page would tell someone
-   *  whose bills all moved that nothing had. */
-  state: 'pending' | 'tracking-nothing' | 'first-visit' | 'moved' | 'quiet';
+   *  whose bills all moved that nothing had.
+   *
+   *  `failed` is the end of that road rather than a variant of it. The tracked
+   *  list does not retry, so one failure used to leave the hero saying "Checking
+   *  your tracked bills…" with a spinner permanently — indistinguishable from a
+   *  slow load, and resolving never. It is a separate state because the reader
+   *  needs a different thing from it: not reassurance that we are working, but
+   *  the fact that we stopped and a way to ask again. */
+  state: 'pending' | 'failed' | 'tracking-nothing' | 'first-visit' | 'moved' | 'quiet';
   /** Up to SESSION_WATCH_ROWS rows, moved first. Empty while pending and when
    *  nothing is tracked, where the card renders its own frame instead. */
   rows: Array<SessionWatchRow<T>>;
@@ -55,6 +62,23 @@ export interface SessionWatch<T> {
 
 type WithActions = { actions?: BillAction[] };
 
+/** The quiet state's headline, in its two subject forms.
+ *
+ *  Split out because the singular is not a plural with one word swapped: at one
+ *  tracked bill the sentence drops the count and changes verb ("has not moved"
+ *  rather than "moved"), so a template with a conditional noun cannot express it.
+ *  Both forms carry the most-recent-change clause only when a date exists —
+ *  `bill_action.action_at` is nullable and the Legislature files undated entries,
+ *  so a tracked set with no dated action anywhere is ordinary, not a fault.
+ */
+export function quietHeadline(trackedCount: number, visitedOn: string, mostRecent: string): string {
+  const opening =
+    trackedCount === 1
+      ? `Your tracked bill has not moved since you last opened the list on ${visitedOn}`
+      : `None of your ${trackedCount} tracked bills moved since you last opened the list on ${visitedOn}`;
+  return mostRecent ? `${opening} — the most recent change was ${mostRecent}` : opening;
+}
+
 /** Build the whole hero + card view model.
  *
  *  `visitedOn` is the reader's previous visit already humanized ("Mar 12"), because
@@ -66,7 +90,25 @@ export function sessionWatch<T extends WithActions>(
   lastVisit: LastVisit,
   now: Date,
   visitedOn: string,
+  loadFailed = false,
 ): SessionWatch<T> {
+  // Asked, and it came back empty-handed. Checked FIRST: a failed load also has
+  // no bills and no last-visit answer, so every state below would otherwise
+  // claim one of those absences means something about the reader's bills.
+  if (loadFailed) {
+    return {
+      state: 'failed',
+      rows: [],
+      movedCount: 0,
+      capCaption: '',
+      // "just now" is doing real work: it says the failure is this attempt, not a
+      // standing fact about their account, which is what makes trying again read
+      // as worth doing.
+      heroLine: 'We couldn’t check your tracked bills just now',
+      glyph: 'clock',
+    };
+  }
+
   // Not asked yet. No count, no date, no reassurance — the date is exactly the
   // unknown being fetched, so a hero line naming one would be inventing it.
   if (lastVisit.state === 'not-checked') {
@@ -144,9 +186,15 @@ export function sessionWatch<T extends WithActions>(
       capCaption: '',
       // Dates the last change rather than reading as empty. The card still lists
       // tracked bills with their latest action, so the page is never blank.
-      heroLine: mostRecent
-        ? `Nothing has moved since you last opened the list on ${visitedOn} — the most recent change was ${mostRecent}`
-        : `Nothing has moved since you last opened the list on ${visitedOn}`,
+      // Names "your tracked bills" (like the moved/first-visit lines) rather than
+      // just "nothing has moved" — this headline has no section above it to supply
+      // a subject, and a bare quiet state gives no proof the check actually ran.
+      //
+      // One tracked bill drops the numeral entirely rather than printing "your 1
+      // tracked bill": the digit says with a number what the singular noun beside
+      // it already says, and it is the only state where the count adds nothing —
+      // "none of 1" is the whole set, so there is no proportion to report.
+      heroLine: quietHeadline(bills.length, visitedOn, mostRecent),
       glyph: 'clock',
     };
   }

@@ -39,6 +39,18 @@ if (existsSync(envPath)) {
 
 const passthroughArgs = process.argv.slice(2);
 const command = passthroughArgs[0] === 'export' ? passthroughArgs.shift() : 'start';
+// Forward PORT to Expo when the caller sets one and has not already passed
+// `--port`. Expo does not read PORT itself: it finds 8081 taken, asks "Use port
+// 8082 instead?", and exits when nothing can answer. This repository runs many
+// worktrees at once, so 8081 belonging to someone else is the normal case, and
+// without this a preview server simply refuses to start.
+if (
+  command === 'start' &&
+  process.env.PORT &&
+  !passthroughArgs.some((arg) => arg === '--port' || arg.startsWith('--port='))
+) {
+  passthroughArgs.push('--port', process.env.PORT);
+}
 const expoCli = resolve(repoRoot, 'node_modules', 'expo', 'bin', 'cli');
 const expoArgs = [expoCli, command, ...passthroughArgs];
 const child = spawn(process.execPath, expoArgs, {

@@ -13,11 +13,11 @@ vi.mock('react-native-svg', () => ({
   Polygon: (props: Record<string, unknown>) => <polygon {...props} />,
 }));
 
-import { AlertCircle, ArrowLeft, Crosshair, MapPin, usedIconNames } from '../icons';
+import { AlertCircle, ArrowLeft, ArrowRight, Crosshair, MapPin, usedIconNames } from '../icons';
 
 describe('local icons', () => {
-  it('keeps the 19 shipped icons and their Lucide SVG defaults', () => {
-    expect(usedIconNames).toHaveLength(19);
+  it('keeps the 20 shipped icons and their Lucide SVG defaults', () => {
+    expect(usedIconNames).toHaveLength(20);
 
     const html = renderToStaticMarkup(<ArrowLeft size={32} color="#123456" strokeWidth={2.4} />);
 
@@ -27,6 +27,21 @@ describe('local icons', () => {
     expect(html).toContain('stroke-width="2.4"');
     expect(html).toContain('stroke-linecap="round"');
     expect(html).toContain('d="m12 19-7-7 7-7"');
+  });
+
+  // The phone drawer's Read row ends in one of these. Libre Franklin has no
+  // right-arrow glyph, so a typed arrow renders as a missing character and the
+  // arrow has to be a drawn path.
+  it('draws a right arrow as a path, with the shared round caps', () => {
+    const html = renderToStaticMarkup(
+      <ArrowRight size={21} color="#656c66" strokeWidth={2.2} aria-hidden />,
+    );
+
+    expect(html).toContain('d="M5 12 H19"');
+    expect(html).toContain('d="M14 7 L19 12 L14 17"');
+    expect(html).toContain('stroke-linecap="round"');
+    expect(html).toContain('stroke-linejoin="round"');
+    expect(html).toContain('aria-hidden="true"');
   });
 
   it('passes accessibility properties through to the SVG', () => {

@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@300;500&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{font-family:'Libre Franklin',Helvetica,Arial,sans-serif;background:#fbfcfd;color:#11150f;-webkit-font-smoothing:antialiased;text-wrap:pretty;}
+  a{color:#0f7a45;text-decoration:none;}
+  a:hover{color:#149d5b;text-decoration:underline;}
+</style>
+</helmet>
+
+<div style="width:1600px;background:#fbfcfd;padding:52px 60px 80px;">
+
+  <div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;letter-spacing:0.18em;color:#2b6377;">CAMPAIGN MONEY · ROUTE MAP</div>
+  <h1 style="margin:14px 0 0;font-size:44px;line-height:1.08;font-weight:800;letter-spacing:-0.025em;color:#11150f;max-width:880px;">Every way in, and every record it reaches.</h1>
+  <p style="margin:15px 0 0;font-size:18px;line-height:1.55;color:#4b524b;max-width:760px;">Click any screen to see what reaches it, what it reaches, and whether it exists yet. Where a mock draws it, the panel links out to that file.</p>
+
+  <div style="margin-top:26px;display:flex;align-items:center;gap:26px;flex-wrap:wrap;">
+    <div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;letter-spacing:0.1em;color:#4f5651;">{{ counts }}</div>
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+      <span style="display:inline-flex;align-items:center;gap:7px;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.1em;color:#0f7a45;border:1px solid #bfeacf;border-radius:8px;padding:4px 9px;">LIVE</span>
+      <span style="display:inline-flex;align-items:center;gap:7px;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.1em;color:#4f5651;border:1px solid rgba(17,21,15,0.18);border-radius:8px;padding:4px 9px;">DESIGNED</span>
+      <span style="display:inline-flex;align-items:center;gap:7px;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.1em;color:#a76a1a;border:1px solid #e3c17f;border-radius:8px;padding:4px 9px;">NOT DESIGNED</span>
+      <span style="display:inline-flex;align-items:center;gap:7px;font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:700;letter-spacing:0.1em;color:#a76a1a;border:1px solid #e3c17f;border-radius:8px;padding:4px 9px;">HELD</span>
+    </div>
+  </div>
+
+  <div style="margin-top:30px;height:1px;background:rgba(17,21,15,0.1);"></div>
+
+  <div style="margin-top:32px;display:grid;grid-template-columns:1fr 452px;gap:28px;align-items:start;">
+
+    <div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start;">
+
+        <div style="display:flex;flex-direction:column;gap:14px;">
+          <div style="background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:16px;box-shadow:0 8px 24px rgba(17,21,15,0.05);padding:18px 18px 18px;">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.14em;color:#2b6377;">1 · ENTRY</div>
+            <div style="margin-top:6px;font-size:13px;line-height:1.45;color:#6b716b;">How a reader gets to money in the first place</div>
+            <div style="margin-top:14px;display:flex;flex-direction:column;gap:8px;">
+              <sc-for list="{{ col1 }}" as="n" hint-placeholder-count="3">
+                <button onClick="{{ n.select }}" style="display:block;width:100%;text-align:left;font-family:'Libre Franklin',sans-serif;cursor:pointer;background:{{ n.bg }};border:1px solid {{ n.bd }};border-radius:12px;padding:13px 15px;opacity:{{ n.op }};" style-hover="border-color:rgba(17,21,15,0.34);">
+                  <div style="font-size:15.5px;font-weight:700;line-height:1.25;letter-spacing:-0.01em;color:{{ n.ink }};">{{ n.name }}</div>
+                  <div style="margin-top:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                    <div style="display:inline-flex;align-items:center;font-family:'JetBrains Mono',monospace;font-size:9.5px;font-weight:700;letter-spacing:0.1em;color:{{ n.cInk }};border:1px solid {{ n.cBd }};border-radius:7px;padding:3px 7px;">{{ n.statusLabel }}</div>
+                    <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:500;color:{{ n.sub }};">{{ n.url }}</div>
+                  </div>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:16px;box-shadow:0 8px 24px rgba(17,21,15,0.05);padding:18px 18px 18px;">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.14em;color:#2b6377;">2 · FRONT DOOR</div>
+            <div style="margin-top:6px;font-size:13px;line-height:1.45;color:#6b716b;">Where they arrive, and ask</div>
+            <div style="margin-top:14px;display:flex;flex-direction:column;gap:8px;">
+              <sc-for list="{{ col2 }}" as="n" hint-placeholder-count="3">
+                <button onClick="{{ n.select }}" style="display:block;width:100%;text-align:left;font-family:'Libre Franklin',sans-serif;cursor:pointer;background:{{ n.bg }};border:1px solid {{ n.bd }};border-radius:12px;padding:13px 15px;opacity:{{ n.op }};" style-hover="border-color:rgba(17,21,15,0.34);">
+                  <div style="font-size:15.5px;font-weight:700;line-height:1.25;letter-spacing:-0.01em;color:{{ n.ink }};">{{ n.name }}</div>
+                  <div style="margin-top:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                    <div style="display:inline-flex;align-items:center;font-family:'JetBrains Mono',monospace;font-size:9.5px;font-weight:700;letter-spacing:0.1em;color:{{ n.cInk }};border:1px solid {{ n.cBd }};border-radius:7px;padding:3px 7px;">{{ n.statusLabel }}</div>
+                    <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:500;color:{{ n.sub }};">{{ n.url }}</div>
+                  </div>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+
+        <div style="background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:16px;box-shadow:0 8px 24px rgba(17,21,15,0.05);padding:18px 18px 18px;">
+          <div style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;letter-spacing:0.14em;color:#2b6377;">→ 3 · RECORDS</div>
+          <div style="margin-top:6px;font-size:13px;line-height:1.45;color:#6b716b;">The pages that hold the money</div>
+          <div style="margin-top:14px;display:flex;flex-direction:column;gap:8px;">
+            <sc-for list="{{ col3 }}" as="n" hint-placeholder-count="7">
+              <button onClick="{{ n.select }}" style="display:block;width:100%;text-align:left;font-family:'Libre Franklin',sans-serif;cursor:pointer;background:{{ n.bg }};border:1px solid {{ n.bd }};border-radius:12px;padding:13px 15px;opacity:{{ n.op }};" style-hover="border-color:rgba(17,21,15,0.34);">
+                <div style="font-size:15.5px;font-weight:700;line-height:1.25;letter-spacing:-0.01em;color:{{ n.ink }};">{{ n.name }}</div>
+                <div style="margin-top:6px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                  <div style="display:inline-flex;align-items:center;font-family:'JetBrains Mono',monospace;font-size:9.5px;font-weight:700;letter-spacing:0.1em;color:{{ n.cInk }};border:1px solid {{ n.cBd }};border-radius:7px;padding:3px 7px;">{{ n.statusLabel }}</div>
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:500;color:{{ n.sub }};">{{ n.url }}</div>
+                </div>
+              </button>
+            </sc-for>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <div style="position:sticky;top:28px;background:#ffffff;border:1px solid rgba(17,21,15,0.1);border-radius:16px;box-shadow:0 8px 24px rgba(17,21,15,0.05);padding:26px 28px 28px;">
+      <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.14em;color:#6f756f;">{{ d.stage }}</div>
+      <h2 style="margin:10px 0 0;font-size:26px;line-height:1.15;font-weight:800;letter-spacing:-0.02em;color:#11150f;">{{ d.title }}</h2>
+      <div style="margin-top:11px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <div style="display:inline-flex;align-items:center;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.1em;color:{{ d.cInk }};border:1px solid {{ d.cBd }};border-radius:8px;padding:4px 9px;">{{ d.statusLabel }}</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:500;color:#4f5651;">{{ d.url }}</div>
+      </div>
+      <p style="margin:16px 0 0;font-size:16px;line-height:1.55;color:#4f5651;">{{ d.purpose }}</p>
+      <sc-if value="{{ d.hasNote }}" hint-placeholder-val="{{ false }}">
+        <p style="margin:11px 0 0;font-size:14.5px;line-height:1.5;color:#8f5a12;">{{ d.note }}</p>
+      </sc-if>
+
+      <sc-if value="{{ d.hasIn }}" hint-placeholder-val="{{ false }}">
+      <div style="margin-top:24px;padding-top:20px;border-top:1px solid rgba(17,21,15,0.1);">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.12em;color:#4f5651;">REACHED BY</div>
+        <div style="margin-top:12px;display:flex;flex-direction:column;gap:12px;">
+          <sc-for list="{{ d.inList }}" as="e" hint-placeholder-count="2">
+            <div>
+              <button onClick="{{ e.select }}" style="display:inline-flex;align-items:center;gap:7px;padding:0;background:transparent;border:none;font-family:'Libre Franklin',sans-serif;font-size:15px;font-weight:700;color:#0f7a45;cursor:pointer;" style-hover="text-decoration:underline;">{{ e.name }}</button>
+              <div style="margin-top:3px;font-size:14px;line-height:1.45;color:#4f5651;">{{ e.control }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      </sc-if>
+
+      <sc-if value="{{ d.hasOut }}" hint-placeholder-val="{{ true }}">
+      <div style="margin-top:24px;padding-top:20px;border-top:1px solid rgba(17,21,15,0.1);">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.12em;color:#4f5651;">LEADS TO</div>
+        <div style="margin-top:12px;display:flex;flex-direction:column;gap:12px;">
+          <sc-for list="{{ d.outList }}" as="e" hint-placeholder-count="3">
+            <div>
+              <button onClick="{{ e.select }}" style="display:inline-flex;align-items:center;gap:7px;padding:0;background:transparent;border:none;font-family:'Libre Franklin',sans-serif;font-size:15px;font-weight:700;color:#0f7a45;cursor:pointer;" style-hover="text-decoration:underline;">{{ e.name }}</button>
+              <div style="margin-top:3px;font-size:14px;line-height:1.45;color:#4f5651;">{{ e.control }}</div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      </sc-if>
+
+      <div style="margin-top:24px;padding-top:20px;border-top:1px solid rgba(17,21,15,0.1);">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;letter-spacing:0.12em;color:#4f5651;">DRAWN IN</div>
+        <sc-if value="{{ d.hasFile }}" hint-placeholder-val="{{ false }}">
+          <a href="{{ d.file }}" style="margin-top:11px;display:inline-flex;align-items:center;gap:8px;font-size:15px;font-weight:700;color:#0f7a45;">{{ d.fileLabel }}<span aria-hidden="true" style="font-weight:400;">&#8594;</span></a>
+        </sc-if>
+        <sc-if value="{{ d.noFile }}" hint-placeholder-val="{{ true }}">
+          <div style="margin-top:11px;font-size:14.5px;line-height:1.5;color:#6b716b;">{{ d.fileNote }}</div>
+        </sc-if>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1600},&quot;builtOnly&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Map&quot;}}">
+class Component extends DCLogic {
+  state = { sel: 'home' };
+
+  renderVals() {
+    const builtOnly = this.props.builtOnly ?? false;
+
+    const S = {
+      live:       { label: 'LIVE',         ink: '#0f7a45', bd: '#bfeacf' },
+      designed:   { label: 'DESIGNED',     ink: '#4f5651', bd: 'rgba(17,21,15,0.18)' },
+      todo:       { label: 'NOT DESIGNED', ink: '#a76a1a', bd: '#e3c17f' },
+      held:       { label: 'HELD',         ink: '#a76a1a', bd: '#e3c17f' },
+      unverified: { label: 'UNVERIFIED',   ink: '#a76a1a', bd: '#e3c17f' }
+    };
+
+    const IA = { file: 'Campaign%20money%20IA.dc.html', label: 'Campaign money IA' };
+    const CMTE = { file: 'Money%20committee%20web.dc.html', label: 'Money committee web' };
+    const PROF = { file: 'LIVE%20Legislator%20profile%20web.dc.html', label: 'LIVE Legislator profile web' };
+    const SLEG = { file: 'LIVE%20Search%20legislators%20web.dc.html', label: 'LIVE Search legislators web' };
+    const LISTS = { file: 'Money%20lists%20web.dc.html', label: 'Money lists web' };
+    const RPT = { file: 'Money%20report%20web.dc.html', label: 'Money report web' };
+
+    const N = [
+      { id: 'home', stage: 1, name: 'Homepage', url: 'alethical.com', status: 'live',
+        purpose: 'Where most readers land, with the header nav above the hero.',
+        fileNote: 'The live product. No mock of it in this project.' },
+      { id: 'dropdown', stage: 1, name: 'Search dropdown', url: 'header, every page', status: 'live',
+        purpose: 'The site-wide way to search, and the only thing this section changes in the nav: Campaign money becomes one item inside it.',
+        note: 'What it holds today, and in what order, is unverified \u2014 question 1 to engineering.',
+        fileNote: 'The live product. No mock of it in this project.' },
+      { id: 'cards', stage: 1, name: 'Homepage card group', url: 'below the hero', status: 'unverified',
+        purpose: 'The plan adds a Follow the money card here, beside Find My Legislator and Search Bills, in the same treatment.',
+        note: 'Two hero buttons are visible above the fold; whether a card group exists below it is unconfirmed \u2014 question 3.',
+        file: IA.file, fileLabel: IA.label },
+
+      { id: 'money', stage: 2, name: 'Follow the money', url: '/money', status: 'designed',
+        purpose: 'The landing page. One search field, the newest report featured, three lanes with counts, what the record does not cover, and filings as they arrive.',
+        file: IA.file, fileLabel: IA.label + ', section 02' },
+      { id: 'results', stage: 2, name: 'Mixed search results', url: '/money/search?q=', status: 'designed',
+        purpose: 'Grouped by what each result is \u2014 people, committees, names that got paid. Person rows exist only for the 200 sitting legislators; every other name resolves to its committees and payments. Matching is exact, never closest-spelling.',
+        note: 'Lands with the name-search service and its three indexes (#1486), which are not built yet.',
+        file: LISTS.file, fileLabel: LISTS.label + ', screen B' },
+      { id: 'nomatch', stage: 2, name: 'No match', url: 'same route as results', status: 'designed',
+        purpose: 'Two sentences and one action: names are searched as they were filed and spellings vary, so try a shorter part of the name.',
+        file: IA.file, fileLabel: IA.label + ', section 03' },
+      { id: 'reports', stage: 2, name: 'What we found', url: '/money/reports', status: 'designed',
+        purpose: 'The shelf for our own research \u2014 one entry per report, carrying its publication date and the date its records run through.',
+        file: RPT.file, fileLabel: RPT.label + ', the shelf' },
+
+      { id: 'legdir', stage: 3, name: 'Legislator directory', url: '/legislators', status: 'live',
+        purpose: 'The ordinary directory, and the Legislators lane\u2019s destination. No figures on it \u2014 money begins on the member\u2019s own page.',
+        file: SLEG.file, fileLabel: SLEG.label },
+      { id: 'profile', stage: 3, name: 'Legislator profile \u2014 Overview', url: '/legislators/\u003cslug\u003e', status: 'live',
+        purpose: 'The member page as shipped. Money is a second tab on it, never a separate page for the same person.',
+        file: PROF.file, fileLabel: PROF.label },
+      { id: 'moneytab', stage: 3, name: 'Campaign money tab', url: '?tab=money', status: 'designed',
+        purpose: 'Sixteen states, from unconfirmed through late, closed and true zero. Names the committee and links out only where the match is confirmed.',
+        note: 'Zero of 200 confirmed today, so that link ships live and renders for nobody.',
+        file: PROF.file, fileLabel: PROF.label },
+      { id: 'committee', stage: 3, name: 'Committee page', url: '/money/committees/\u003cname-slug\u003e-\u003cregistration number\u003e', status: 'designed',
+        purpose: 'The deep record: contributions, spending categories, filings and amendments, with a Share control \u2014 a record that cannot be linked cannot be cited.',
+        note: 'Contribution rows naming another committee link onward, so money can be walked committee to committee.',
+        file: CMTE.file, fileLabel: CMTE.label },
+      { id: 'cmtelist', stage: 3, name: 'Committee list', url: '/money/committees', status: 'designed',
+        purpose: 'All 1,603 registered filers. Rows carry the name as filed, the kind, and the office or district where the register has one \u2014 name A to Z, never by amount (filing calendars differ). Three kind filters.',
+        note: 'The 18 congressional-district party units are committee content and live here (audited list, #1661). No forward is owed from the old site\u2019s /congressional*: it has no real users and comes down once this ships (Eugene, 18 Aug 2026 \u00b7 #1667).',
+        file: LISTS.file, fileLabel: LISTS.label + ', screen A' },
+      { id: 'payments', stage: 3, name: 'Paid under a name', url: '/money/payments/\u003cname as filed\u003e', status: 'designed',
+        purpose: 'Every payment filed under one name, exactly as spelled, across filers \u2014 rows open the paying committee, and no total is drawn across calendars. Opens with the spellings-vary line; the name is never framed as an entity.',
+        note: 'Drawn 18 Aug on CC\u2019s finding: search ships in the first release and may not promise a page that does not exist. Served by payments-under-name (public.py:3136 at pin d0c0e13a).',
+        file: LISTS.file, fileLabel: LISTS.label + ', screen D' },
+      { id: 'whopaid', stage: 3, name: 'Who got paid index', url: 'route not decided', status: 'held',
+        purpose: 'A browsable list of payee names. What its drawing decides: what a payee row shows, given payee names have no identity.',
+        note: 'After first release (CC, 18 Aug): its backend does not exist yet, and the lane card is held until the page does — the landing ships three lanes first.',
+        fileNote: 'Nothing drawn — held behind first release.' },
+      { id: 'fullpayments', stage: 3, name: 'All payments view', url: '/money/committees/<name-slug>-<registration number>/payments', status: 'designed',
+        purpose: 'The destination behind every “See all N payments” link — URL-addressable, both tabs, the same row kind-labels as every list, its own capped and empty states.',
+        note: 'Found unrouted by CC (18 Aug). Amounts belong here: ranking inside one committee is a fact about it, not a comparison across calendars.',
+        file: LISTS.file, fileLabel: LISTS.label + ', screen C' },
+      { id: 'report', stage: 3, name: 'Report page', url: '/money/reports/\u003cslug\u003e', status: 'designed',
+        purpose: 'One reading column with a contents rail, the byline and both dates in the masthead, and figures linking to the record behind them. Share, no Track; corrected and newer-filings states.',
+        note: 'The one surface that may add up across members, because it is signed and shows its working. Links run one way \u2014 a report names a member, a member\u2019s page never names the report. The PDF is generated from this page at each publication, never a second stored file.',
+        file: RPT.file, fileLabel: RPT.label + ', the report' },
+      { id: 'technical', stage: 3, name: 'Technical version', url: '/money/reports/\u003cslug\u003e/technical', status: 'todo',
+        purpose: 'The full figures, methods and caveats \u2014 the notebook the plain-language piece points at.',
+        note: 'Waiting on the v4 document — until it has a page, the plain piece cannot cite it. Reuses the report masthead and correction components unchanged.',
+        fileNote: 'Nothing drawn yet.' },
+      { id: 'person', stage: 3, name: 'Standalone person page', url: 'held for a later release', status: 'held',
+        purpose: 'Removed from this release \u2014 person rows exist only for sitting members, and every other name resolves to its committees. The identity rule lives in the engineering docs.',
+        note: 'One card per committee whenever it returns: a cross-committee sum double-counts transferred dollars (#1663).',
+        fileNote: 'Nothing drawn \u2014 held behind the committee list.' }
+    ];
+
+    const E = [
+      ['home', 'dropdown', 'Search in the header'],
+      ['home', 'cards', 'Scroll below the hero'],
+      ['dropdown', 'money', 'Campaign money \u2014 the one new nav item'],
+      ['dropdown', 'legdir', 'Legislators'],
+      ['cards', 'money', 'The Follow the money card'],
+      ['money', 'results', 'Type a name in the field'],
+      ['money', 'legdir', 'The Legislators lane'],
+      ['money', 'cmtelist', 'The Committees lane'],
+      ['money', 'whopaid', 'The Who got paid lane — card held until the page exists'],
+      ['results', 'payments', 'A payee name lands on its payments'],
+      ['committee', 'fullpayments', 'See all payments'],
+      ['profile', 'fullpayments', 'See all payments, from the money tab'],
+      ['money', 'reports', 'The What we found lane'],
+      ['reports', 'report', 'A report entry'],
+      ['report', 'technical', 'The technical version'],
+      ['report', 'committee', 'A figure links to the record behind it'],
+      ['report', 'profile', 'A member the piece names'],
+      ['results', 'profile', 'A person row \u2014 sitting legislators only'],
+      ['results', 'committee', 'A committee row'],
+      ['results', 'payments', 'A name that got paid'],
+      ['results', 'nomatch', 'Nothing matches'],
+      ['legdir', 'profile', 'A member row'],
+      ['profile', 'moneytab', 'The Campaign money tab'],
+      ['moneytab', 'committee', 'Open the full record \u2014 confirmed matches only'],
+      ['cmtelist', 'committee', 'A committee row']
+    ];
+
+    const byId = {};
+    N.forEach(n => { byId[n.id] = n; });
+    const sel = byId[this.state.sel] ? this.state.sel : 'home';
+    const pick = (id) => () => this.setState({ sel: id });
+
+    const STAGE_NAME = { 1: '1 \u00b7 ENTRY', 2: '2 \u00b7 FRONT DOOR', 3: '3 \u00b7 RECORDS' };
+
+    const box = (n) => {
+      const st = S[n.status];
+      const on = n.id === sel;
+      const dim = builtOnly && n.status !== 'live';
+      return {
+        name: n.name, url: n.url, select: pick(n.id),
+        statusLabel: st.label,
+        bg: on ? '#11150f' : '#ffffff',
+        bd: on ? '#11150f' : 'rgba(17,21,15,0.14)',
+        ink: on ? '#ffffff' : '#11150f',
+        sub: on ? '#9aa3a0' : '#6f756f',
+        cInk: on ? '#cfd6d2' : st.ink,
+        cBd: on ? 'rgba(255,255,255,0.28)' : st.bd,
+        op: dim ? '0.34' : '1'
+      };
+    };
+
+    const cols = [1, 2, 3].map(s => N.filter(n => n.stage === s).map(box));
+
+    const cur = byId[sel];
+    const st = S[cur.status];
+    const edge = (id, control) => ({ name: byId[id].name, control, select: pick(id) });
+    const inList = E.filter(e => e[1] === sel).map(e => edge(e[0], e[2]));
+    const outList = E.filter(e => e[0] === sel).map(e => edge(e[1], e[2]));
+
+    const d = {
+      stage: STAGE_NAME[cur.stage], title: cur.name, url: cur.url,
+      statusLabel: st.label, cInk: st.ink, cBd: st.bd,
+      purpose: cur.purpose,
+      hasNote: !!cur.note, note: cur.note || '',
+      hasIn: inList.length > 0, inList,
+      hasOut: outList.length > 0, outList,
+      hasFile: !!cur.file, file: cur.file || '', fileLabel: cur.fileLabel || '',
+      noFile: !cur.file, fileNote: cur.fileNote || ''
+    };
+
+    // Counted off the node list, so the header line cannot drift from what is drawn.
+    const tally = (s) => N.filter(n => n.status === s).length;
+    const counts = N.length + ' SCREENS \u00b7 ' + tally('live') + ' LIVE \u00b7 ' + tally('designed') +
+      ' DESIGNED \u00b7 ' + tally('todo') + ' NOT DESIGNED \u00b7 ' + tally('held') + ' HELD \u00b7 ' +
+      tally('unverified') + ' UNVERIFIED';
+
+    return { col1: cols[0], col2: cols[1], col3: cols[2], d, counts };
+  }
+}
+
+</script>
+</body>
+</html>

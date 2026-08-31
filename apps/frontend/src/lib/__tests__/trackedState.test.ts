@@ -11,7 +11,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { trackState } from '../trackedState';
+import { trackedBillsCount, trackState } from '../trackedState';
 
 const inputs = (over: Partial<Parameters<typeof trackState>[0]> = {}) => ({
   isSignedIn: true,
@@ -64,5 +64,28 @@ describe('trackState — signed in', () => {
     // That data is not wrong, so the button keeps its honest label.
     expect(trackState(inputs({ isError: true, isTracked: true }))).toBe('tracked');
     expect(trackState(inputs({ isError: true, isTracked: false }))).toBe('untracked');
+  });
+});
+
+// The account menu's Tracked Bills row (#1698). Same rule as the button above,
+// applied to a number: the row shows its label alone whenever there is no count
+// we actually have, and the two absent cases are deliberately indistinguishable
+// on screen.
+describe('the count beside Tracked Bills', () => {
+  it('shows a loaded count', () => {
+    expect(trackedBillsCount(12)).toBe(12);
+    expect(trackedBillsCount(1)).toBe(1);
+  });
+
+  it('never prints a zero', () => {
+    // A reader who tracks nothing gets the label alone. "0" reads as a statement
+    // about their list, and the empty row already says it without asserting it.
+    expect(trackedBillsCount(0)).toBeNull();
+  });
+
+  it('shows nothing while the list has not arrived', () => {
+    // No dash, no spinner, no skeleton — and no 0, which is the dangerous one:
+    // it would tell a reader with 40 tracked bills that they track none.
+    expect(trackedBillsCount(undefined)).toBeNull();
   });
 });

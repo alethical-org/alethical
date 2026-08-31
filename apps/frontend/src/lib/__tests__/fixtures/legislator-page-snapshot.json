@@ -1,0 +1,49 @@
+{
+  "id": "8c31565f-e674-462d-b71f-a1d1ebcc3e12",
+  "slug": "aisha-gomez",
+  "full_name": "Aisha Gomez",
+  "biography": "University of Minnesota; B.S.; Environmental Science.",
+  "current_service": {
+    "chamber": "house",
+    "party": "DFL",
+    "district": {
+      "id": "1491dea5-c0f8-4f63-b73d-276cd5585ed7",
+      "code": "62A",
+      "label": "District 62A"
+    },
+    "email": "rep.aisha.gomez@house.mn.gov",
+    "phone": "651-296-7152",
+    "office_address": "5th Floor Centennial Office Building\nSt. Paul, MN 55155",
+    "profile_url": "https://www.house.mn.gov/members/profile/15531",
+    "photo_url": "https://www.lrl.mn.gov/legdb/MemberPhotos/ls94/thumbnails/62AGomez.jpg",
+    "elected": "2018",
+    "term": "4th",
+    "represented_city": "Minneapolis"
+  },
+  "stats": {
+    "chief_bill_count": 26,
+    "total_bill_count": 141,
+    "vote_record_count": 0,
+    "committee_count": 2
+  },
+  "committees": [
+    {
+      "name": "Ways and Means",
+      "role": null
+    },
+    {
+      "name": "Taxes",
+      "role": "Co-Chair"
+    }
+  ],
+  "service_history": {
+    "term": 4,
+    "periods": [
+      {
+        "chamber": "house",
+        "initial_year": 2018,
+        "reelection_years": []
+      }
+    ]
+  }
+}

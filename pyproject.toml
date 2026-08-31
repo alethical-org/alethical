@@ -28,10 +28,16 @@ dependencies = [
   "starlette>=1.3.1",
   "uvicorn>=0.52.0",
   "pydantic>=2.13.4",
+  # Error alerts are sent manually so request bodies, log lines, reader text,
+  # and account details never enter the monitoring service (#33).
+  "sentry-sdk>=2.66.1",
   # Contact form addresses need standards-based server validation before they
   # become the reply path and the recipient of the sender's copy (#1274).
   "email-validator>=2.3.0",
   "pytest>=9.1.1",
+  # Starlette's test client now runs on httpx2. Keep plain httpx below for the
+  # production services and Supabase packages that still import it directly.
+  "httpx2>=2.0.0",
   "httpx>=0.28.1",
   "pytest-asyncio>=1.4.0",
   "supabase>=2.31.0",
@@ -46,10 +52,34 @@ dependencies = [
   # the missing declaration surfaced.
   "numpy>=2.5.1",
   "oban>=0.6.5",
+  # The campaign-finance loader keeps each downloaded file's exact bytes in a
+  # private Supabase Storage bucket, reached over the S3 protocol with
+  # Storage-scoped credentials rather than a service-role key, so a leaked
+  # credential cannot touch the database (#1328). botocore is declared alongside
+  # it because `raw_file_store.py` imports it directly for its error types, and
+  # it reaches us today only because boto3 happens to require it (#701).
+  "boto3>=1.43.69",
+  "botocore>=1.43.69",
+  # The only half of the campaign-finance reconciliation that can catch our payment
+  # rows being SHORT lives inside each committee's filed report document, which the
+  # Board publishes as a PDF and nowhere else (#1433). pypdf reads the text out of
+  # one; it is pure Python with no system libraries behind it, so it adds nothing to
+  # the deployed image beyond itself. Nothing is rebuilt from those documents -- one
+  # stated subtotal is read per schedule and the payment rows keep coming from the
+  # bulk download (§2.3).
+  "pypdf>=6.15.0",
 ]
 
 [tool.uv]
 package = false
+constraint-dependencies = [
+  # Alembic and Uvicorn use Click. Keep its editor helper off the shell so a
+  # crafted editor value cannot become a command.
+  "click>=8.3.3",
+  # Supabase requests HTTP/2 support through httpx. Reject duplicate Host
+  # headers before an HTTP/2 request can be downgraded to HTTP/1.1.
+  "h2>=4.4.1",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["alethical/tests"]

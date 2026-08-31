@@ -4,21 +4,25 @@
 during a special session, every 4 hours for the 14 days after a session ends, and weekly through
 the interim. That is not one cadence keyed to a clock, it is a cadence keyed to the legislative
 calendar, because the measured activity data shows 102 active days in an 18-month span and 7
-consecutive months with none. **None of it can be switched on yet:** an unsupervised refresh can
-currently delete facts we had right, so four safety fixes come first
-([#1319](https://github.com/alethical-org/alethical/issues/1319),
-[#1320](https://github.com/alethical-org/alethical/issues/1320),
-[#1321](https://github.com/alethical-org/alethical/issues/1321),
-[#1322](https://github.com/alethical-org/alethical/issues/1322)), then the schedule
-([#1323](https://github.com/alethical-org/alethical/issues/1323)).
+consecutive months with none. The 5 known safety defects are fixed: a thin response cannot erase
+good facts ([#1319](https://github.com/alethical-org/alethical/issues/1319)), current text reaches
+search atomically ([#1320](https://github.com/alethical-org/alethical/issues/1320)), a changed bill
+stops showing a summary of its earlier text
+([#1321](https://github.com/alethical-org/alethical/issues/1321)), and action numbers from separate
+chambers are no longer compared as one sequence
+([#1322](https://github.com/alethical-org/alethical/issues/1322)). Two matching official responses
+can also remove a missing current-version section and its search rows without touching history
+([#1423](https://github.com/alethical-org/alethical/issues/1423)).
+[#1323](https://github.com/alethical-org/alethical/issues/1323) now owns the schedule, source
+limits, and reporting.
 
 This is a decision record, not a description of shipped behaviour. What ships today is documented
 in [`backend-stack.md`](backend-stack.md) §5: nothing re-fetches bills on a schedule, and a
 refresh is started by hand.
 
 Reached Aug 10 2026, from measured production data plus an independent review by OpenAI's
-`gpt-5.6-sol` at maximum reasoning effort, which read the ingest code and found the four safety
-bugs above.
+`gpt-5.6-sol` at maximum reasoning effort, which read the ingest code and found the first four
+safety bugs above. The fifth was proven while closing those bugs.
 
 ## 1. What actually changes, and how often
 
@@ -123,26 +127,41 @@ value. That is a fair reading and it is the fallback if the phase logic proves f
 it is not the recommendation: a daily pass is simultaneously too slow for a sitting day and far
 too fast for July.
 
-## 4. Why none of it can be scheduled yet
+## 4. Safety defects the schedule had to wait for
 
-A refresh today can make the corpus worse. Four defects, all verified in the code on Aug 10 2026:
+All 5 verified defects are fixed. The schedule and its operating safeguards can now ship in
+[#1323](https://github.com/alethical-org/alethical/issues/1323):
 
-- **A thin response deletes good facts.** The author list is deleted and rewritten on every
-  refresh, and the description is overwritten with nothing when a response does not carry one.
-  The title has a guard against exactly this, added by
-  [#708](https://github.com/alethical-org/alethical/issues/708); nothing else does.
-  ([#1319](https://github.com/alethical-org/alethical/issues/1319))
-- **Search text is indexed before the bill text is saved.** The chunks are built and committed on
-  a separate connection, so they describe the previous text.
+- **Fixed: 1 thin response no longer deletes good facts.** A lower action, author, version or
+  section count triggers a second full fetch before any bill fact changes. Two differing thin
+  responses reject only that bill and ask the future scheduled pass to open an issue; a blank
+  description keeps the stored value. ([#1319](https://github.com/alethical-org/alethical/issues/1319))
+- **Fixed: saved search text now describes the accepted bill text.** An accepted refresh records
+  whether the current version or its ordered section text changed. Only those bill keys are
+  rebuilt, after the canonical rows are flushed, on the same database connection and in the same
+  transaction. A failed rebuild rolls back both writes instead of publishing half a refresh.
   ([#1320](https://github.com/alethical-org/alethical/issues/1320))
-- **A changed bill keeps its old summary.** Nothing ties a summary to the text version it was
-  written from. ([#1321](https://github.com/alethical-org/alethical/issues/1321))
-- **Status is chosen by comparing action numbers across chambers**, which each restart at 1.
+- **Fixed: a changed bill no longer shows its old summary.** The accepted text-change signal marks
+  the displayed summary non-current in the same transaction. A completed summary job also checks
+  the current version and official section text before it can display its output, so a job started
+  before a later refresh cannot restore stale words. Metadata-only and rejected refreshes leave a
+  matching summary alone. ([#1321](https://github.com/alethical-org/alethical/issues/1321))
+- **Fixed: separate chambers no longer compete by action number.** Each chamber's action number
+  orders only that chamber. The chamber tails are compared by their latest known dates, an undated
+  tail carries its chamber's preceding real date for ordering only, and an enactment or veto cannot
+  be replaced by a later routine label. Equal-date fallbacks follow the official XML chamber-block
+  order. The stored action date remains empty when the source supplied none. A production dry run
+  identified 163 stored status labels for the bounded correction in the release.
   ([#1322](https://github.com/alethical-org/alethical/issues/1322))
+- **Fixed: a confirmed removed section leaves neither canonical nor search residue.** Two matching
+  lower section lists may remove only positions absent from the accepted current version. The same
+  transaction deletes their embeddings, chunks, search documents, then canonical section rows;
+  historical versions remain untouched, and a rejected or uncertain contraction changes nothing.
+  ([#1423](https://github.com/alethical-org/alethical/issues/1423))
 
 The precedent is [#285](https://github.com/alethical-org/alethical/issues/285): a canonical
-refresh created 6,926 duplicate current-version rows. Supervision is what has held this line so
-far, and a schedule removes the supervisor.
+refresh created 6,926 duplicate current-version rows. These 5 fixes remove the known data-loss and
+staleness paths. The schedule with source limits and visible failure reporting comes next.
 
 ## 5. Calendar in code, or calendar in the timer?
 

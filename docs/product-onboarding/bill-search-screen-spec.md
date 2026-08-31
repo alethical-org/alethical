@@ -77,8 +77,10 @@ distinct from AI-generated analysis (`docs/product-onboarding/product-scope.md` 
    filter stack (chip row, chamber/status/session, issue pills) stays scrolled off
    — that is what the reader already set. The new "Page N of M" is announced via
    `aria-live`. This is the shared `usePaginatedListScroll` hook wired through the
-   `Pagination` control, so it fires on Previous/Next only — never on a filter,
-   sort, or search keystroke. Any new paged list inherits it the same way.
+   `Pagination` control, so it fires on Previous, Next, and a numbered page jump
+   only — never on a filter, sort, or search keystroke. Unfiltered directory
+   controls are ordinary web links, including deep jumps; filtered search stays
+   app-only. Any new paged list inherits it the same way.
 
 ## Copy punctuation on this screen
 
@@ -124,7 +126,7 @@ just "Filter by status", so the current filter reached a screen reader nowhere a
 
 | Filter | Control | API param |
 |---|---|---|
-| Keyword / bill number | search input | `q` — matches title/description by word: exact, common word-forms (plurals/-ing/-ed), and typo-tolerant (fuzzy matching applies to words of 5+ letters). Ranked best-match-first, with title matches weighted over description ([#573](https://github.com/alethical-org/alethical/issues/573)) — but that ranking is `sort=relevance` only, which is where a query defaults; see the Sort order row. A bill number ("SF 334", "334") is an exclusive ID lookup, not free text ([#134](https://github.com/alethical-org/alethical/issues/134)/[#569](https://github.com/alethical-org/alethical/pull/569)) |
+| Keyword / bill number | search input | `q` — matches the displayed plain-language headline (`short_title`), the official `title`, and `description` by word: exact, common word-forms (plurals/-ing/-ed), and typo-tolerant (fuzzy matching applies to words of 5+ letters). Grammatical filler ("of", "the", "and") never gates a match, so one absent joining word cannot zero out a query ([#1456](https://github.com/alethical-org/alethical/issues/1456)). Ranked best-match-first, with either title weighted over description — whichever of the two titles the query is closer to ([#573](https://github.com/alethical-org/alethical/issues/573), [#1456](https://github.com/alethical-org/alethical/issues/1456)) — but that ranking is `sort=relevance` only, which is where a query defaults; see the Sort order row. A bill number ("SF 334", "334") is an exclusive ID lookup, not free text ([#134](https://github.com/alethical-org/alethical/issues/134)/[#569](https://github.com/alethical-org/alethical/pull/569)) |
 | Ask issue handoff | removable `Issue: {issue}` chip; the search input stays empty | `policy_area` through the `issue` URL filter. Uses the exact same hidden-label rule as clicking that Issue chip, so the total and first cards match Ask. This is deliberately distinct from a reader typing the same words into `q`. |
 | Chamber | segmented All / House / Senate | `chamber` |
 | Status | dropdown: All statuses / Signed into Law / Passed both chambers / Passed Senate / Passed House / In Committee / Introduced / Vetoed (most-progressed first, matching `sort=progress`; "Passed both chambers" landed with [#607](https://github.com/alethical-org/alethical/issues/607)) | `status` |
@@ -136,7 +138,7 @@ The 3 entry paths stay distinct only where their meaning is distinct:
 
 | Entry path | Visible tag | Match rule | Default scope |
 |---|---|---|---|
-| Typed words | `Search: “{words}”` | every word in official title/description, including safe word forms and typo tolerance | current Legislature |
+| Typed words | `Search: “{words}”` | every meaningful word in the displayed headline, the official title, or the description, including safe word forms and typo tolerance | current Legislature |
 | Click an Issue | `Issue: {issue}` | stored policy-area labels folded through the canonical Issue aliases | current Legislature |
 | Ask about an Issue | `Issue: {issue}` | the same Issue filter as the clicked chip | current Legislature |
 | Sort order | "Sorted by" dropdown: Best match (offered, and the default, only while a keyword query is present) / Legislative progress / Latest action / Introduction date, plus an inert "Most tracked" roadmap row | `sort` — `relevance` / `progress` / `latest_action` / `introduced` |
@@ -400,7 +402,7 @@ cross-sell — a failed keyword search routed into Ask could end in a refusal, w
 Written as pending requirements; kept as a record of what `GET /api/v1/bills` gained, because
 each is still the thing the screen depends on:
 1. **Bill-number search** — `q` matches `file_type`+`file_number` / `bill_key`, not only
-   title/description. Shipped, and tightened to an *exclusive* ID lookup in
+   the bill's text. Shipped, and tightened to an *exclusive* ID lookup in
    [#569](https://github.com/alethical-org/alethical/pull/569) — see the Filters table.
 2. **Total result count** — for "312 bills" and "Page N of M", where the endpoint previously
    returned only `has_more`. Shipped: the response carries `total`.

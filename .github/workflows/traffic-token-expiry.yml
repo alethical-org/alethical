@@ -1,0 +1,123 @@
+name: Traffic access key expiry
+
+on:
+  schedule:
+    - cron: "0 12 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: traffic-access-key-expiry
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  warn:
+    name: Warn before the Traffic access key expires
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - name: Check the expiry date
+        id: expiry
+        run: node apps/frontend/scripts/traffic-token-expiry.mjs >> "$GITHUB_OUTPUT"
+
+      - name: Open or update the replacement issue
+        if: steps.expiry.outputs.status != 'healthy'
+        uses: actions/github-script@v7
+        env:
+          EXPIRY_STATUS: ${{ steps.expiry.outputs.status }}
+          DAYS_REMAINING: ${{ steps.expiry.outputs.days_remaining }}
+          EXPIRES_ON: ${{ steps.expiry.outputs.expires_on }}
+        with:
+          script: |
+            const expiresOn = process.env.EXPIRES_ON;
+            const expiryLabel = new Intl.DateTimeFormat('en-US', {
+              month: 'long',
+              day: 'numeric',
+              year: 'numeric',
+              timeZone: 'UTC',
+            }).format(new Date(`${expiresOn}T00:00:00.000Z`));
+            const title = `Replace the Vercel Traffic access key before ${expiryLabel}`;
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'all',
+              per_page: 100,
+            });
+            const existing = issues.find((issue) => issue.title === title && !issue.pull_request);
+            const milestones = await github.paginate(github.rest.issues.listMilestones, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100,
+            });
+            const milestone = milestones.find((item) => item.title === 'v0 hardening');
+            const body = [
+              `Net: Replace Alethical's private Vercel Traffic access key before it expires, or the public Site metrics totals will become unavailable.`,
+              '',
+              `- The key expires on ${expiryLabel}.`,
+              '- Create a new Vercel key for the Alethical team with access to All Projects.',
+              '- Prove the new key can read the `alethical-web` traffic totals before replacing the saved key.',
+              '- Replace the sensitive Production setting `VERCEL_ANALYTICS_ACCESS_TOKEN`.',
+              '- Update `TRAFFIC_TOKEN_EXPIRES_AT` in `apps/frontend/scripts/traffic-token-expiry.mjs`.',
+              '- Update `docs/product-onboarding/traffic-guide.md` with the new expiry date.',
+              '- Release a new Production version, then check `/api/traffic` and `/site-metrics` on alethical.com.',
+              '',
+              'If the date is missed, the rest of Alethical stays up and can still be released. Only the public Site metrics totals become unavailable.',
+            ].join('\n');
+
+            let issue = existing;
+            if (!issue) {
+              const created = await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels: ['frontend'],
+                milestone: milestone?.number,
+              });
+              issue = created.data;
+            } else if (issue.state === 'closed') {
+              const reopened = await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                state: 'open',
+                body,
+                milestone: milestone?.number,
+              });
+              issue = reopened.data;
+            }
+
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              per_page: 100,
+            });
+            const status = process.env.EXPIRY_STATUS;
+            const marker = status === 'expired'
+              ? '<!-- traffic-token-expiry-expired -->'
+              : status === 'urgent'
+                ? '<!-- traffic-token-expiry-urgent -->'
+                : null;
+            if (marker && !comments.some((comment) => comment.body?.includes(marker))) {
+              const message = status === 'expired'
+                ? `${marker}\nNet: The Vercel Traffic access key has expired, so the public Site metrics totals cannot recover until the key is replaced.`
+                : `${marker}\nNet: The Vercel Traffic access key expires in ${process.env.DAYS_REMAINING} days. Replace it now so the public totals stay available.`;
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issue.number,
+                body: message,
+              });
+            }

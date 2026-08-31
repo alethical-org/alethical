@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import sys
+import uuid
 from types import SimpleNamespace
 
 import pytest
@@ -14,12 +16,13 @@ from alethical.pipeline.oban_workers import (
     RagBackfillChunkWorker,
     RagBackfillWorker,
 )
-from alethical.pipeline import rag_ingest
+from alethical.pipeline import bill_summary_requests, oban_workers, rag_ingest
 from alethical.pipeline.rag_ingest import (
     DEFAULT_RAG_MODEL,
     FALLBACK_EMBEDDING_MODEL,
     build_rag_rows_for_bill_keys,
 )
+from scripts import load_minnesota_data as load_minnesota
 
 
 def _session():
@@ -108,6 +111,25 @@ def _reset_bill_rag_rows(db: Session, bill_key: str) -> int:
         )
     db.commit()
     return bill_id
+
+
+def _first_current_bill_section(db: Session, bill_key: str):
+    bill = db.scalar(select(schema.Bill).where(schema.Bill.bill_key == bill_key))
+    assert bill is not None
+    version = db.scalar(
+        select(schema.BillVersion).where(
+            schema.BillVersion.bill_id == bill.id,
+            schema.BillVersion.is_current.is_(True),
+        )
+    )
+    assert version is not None
+    section = db.scalar(
+        select(schema.BillVersionSection)
+        .where(schema.BillVersionSection.bill_version_id == version.id)
+        .order_by(schema.BillVersionSection.source_order.asc())
+    )
+    assert section is not None
+    return section
 
 
 def test_build_rag_rows_for_bill_keys_is_idempotent() -> None:
@@ -208,13 +230,18 @@ def test_effective_embedding_model_fails_loud_in_production_without_key(
         rag_ingest.effective_embedding_model(DEFAULT_RAG_MODEL)
 
 
-def test_build_embeddings_fails_loud_in_production_without_key(monkeypatch) -> None:
-    """The vectorizer choke point refuses the hash fallback in production (#105)."""
+def test_build_embeddings_fails_loud_for_explicit_production_target_without_key(
+    monkeypatch,
+) -> None:
+    """A queued production target refuses hash vectors without relying on the env."""
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    monkeypatch.setenv("ALETHICAL_DATABASE_TARGET", "production")
+    monkeypatch.delenv("ALETHICAL_DATABASE_TARGET", raising=False)
     with pytest.raises(RuntimeError, match="deterministic hash fallback"):
         rag_ingest._build_embeddings(
-            ["some text"], model=DEFAULT_RAG_MODEL, batch_size=1
+            ["some text"],
+            model=DEFAULT_RAG_MODEL,
+            batch_size=1,
+            database_target="production",
         )
 
 
@@ -235,7 +262,181 @@ class _FakeMinnesotaIngestionPipeline:
         pass
 
     def ingest_bills(self, targets):
-        return {"bills_ingested": len(targets), "bill_keys": ["94-2025-SF1832"]}
+        return {
+            "bills_ingested": len(targets),
+            "bill_keys": ["94-2025-SF1832"],
+            "text_changed_bill_keys": ["94-2025-SF1832"],
+        }
+
+
+@pytest.mark.asyncio
+async def test_bill_sync_indexes_the_text_saved_by_the_same_refresh(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("ALETHICAL_DATABASE_TARGET", raising=False)
+    bill_key = "94-2025-SF1832"
+    refreshed_words = "The refreshed bill now contains this unmistakable wording."
+
+    with _session() as db:
+        section = _first_current_bill_section(db, bill_key)
+        original_text = section.raw_text
+        original_source_hash = section.source_hash
+        _reset_bill_rag_rows(db, bill_key)
+        build_rag_rows_for_bill_keys(
+            db,
+            [bill_key],
+            dry_run=False,
+            rag_embedding_batch_size=8,
+            rag_model=DEFAULT_RAG_MODEL,
+        )
+        db.commit()
+
+    class RefreshesStoredText:
+        def __init__(self, db):
+            self.db = db
+
+        def ingest_bills(self, _targets):
+            stored_section = _first_current_bill_section(self.db, bill_key)
+            stored_section.raw_text = refreshed_words
+            stored_section.source_hash = rag_ingest.rag_text.source_hash(
+                refreshed_words
+            )
+            return {
+                "bills_ingested": 1,
+                "bill_keys": [bill_key],
+                "text_changed_bill_keys": [bill_key],
+            }
+
+    monkeypatch.setattr(
+        "alethical.pipeline.minnesota.MinnesotaIngestionPipeline",
+        RefreshesStoredText,
+    )
+    monkeypatch.setattr(
+        "alethical.pipeline.oban_workers._database_url",
+        lambda _args: get_database_url(),
+    )
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test-never-called")
+    monkeypatch.setattr(
+        rag_ingest,
+        "_build_embeddings",
+        lambda texts, **_kwargs: [
+            rag_ingest._deterministic_embedding(value) for value in texts
+        ],
+    )
+
+    try:
+        await BillSyncChunkWorker().process(
+            SimpleNamespace(
+                args={
+                    "targets": [
+                        {
+                            "chamber": "senate",
+                            "bill_number": "1832",
+                            "session_code": "0942025",
+                        }
+                    ],
+                    "dry_run": False,
+                    "allow_writes": True,
+                    "include_rag": True,
+                    "rag_target": "production",
+                    "rag_model": DEFAULT_RAG_MODEL,
+                    "rag_embedding_batch_size": 8,
+                    "database_target": "local",
+                }
+            )
+        )
+
+        with _session() as db:
+            stored_chunks = db.scalars(
+                select(schema.RagChunk.chunk_text)
+                .join(schema.RagSectionDocument)
+                .join(schema.Bill)
+                .where(schema.Bill.bill_key == bill_key)
+            ).all()
+            assert any(refreshed_words in chunk for chunk in stored_chunks)
+    finally:
+        with _session() as db:
+            section = _first_current_bill_section(db, bill_key)
+            section.raw_text = original_text
+            section.source_hash = original_source_hash
+            db.flush()
+            _reset_bill_rag_rows(db, bill_key)
+            build_rag_rows_for_bill_keys(
+                db,
+                [bill_key],
+                dry_run=False,
+                rag_embedding_batch_size=8,
+                rag_model=DEFAULT_RAG_MODEL,
+            )
+            db.commit()
+
+
+@pytest.mark.asyncio
+async def test_bill_sync_rolls_back_refreshed_text_when_search_build_fails(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("ALETHICAL_DATABASE_TARGET", raising=False)
+    bill_key = "94-2025-SF1832"
+    failed_refresh_words = "These words must not survive a failed search build."
+    with _session() as db:
+        original_text = _first_current_bill_section(db, bill_key).raw_text
+
+    class RefreshesStoredText:
+        def __init__(self, db):
+            self.db = db
+
+        def ingest_bills(self, _targets):
+            stored_section = _first_current_bill_section(self.db, bill_key)
+            stored_section.raw_text = failed_refresh_words
+            stored_section.source_hash = rag_ingest.rag_text.source_hash(
+                failed_refresh_words
+            )
+            return {
+                "bills_ingested": 1,
+                "bill_keys": [bill_key],
+                "text_changed_bill_keys": [bill_key],
+            }
+
+    def fail_search_build(*_args, **_kwargs):
+        raise RuntimeError("search build failed")
+
+    monkeypatch.setattr(
+        "alethical.pipeline.minnesota.MinnesotaIngestionPipeline",
+        RefreshesStoredText,
+    )
+    monkeypatch.setattr(
+        "alethical.pipeline.rag_ingest.build_rag_rows_for_bill_keys",
+        fail_search_build,
+    )
+    monkeypatch.setattr(
+        "alethical.pipeline.oban_workers._database_url",
+        lambda _args: get_database_url(),
+    )
+
+    with pytest.raises(RuntimeError, match="search build failed"):
+        await BillSyncChunkWorker().process(
+            SimpleNamespace(
+                args={
+                    "targets": [
+                        {
+                            "chamber": "senate",
+                            "bill_number": "1832",
+                            "session_code": "0942025",
+                        }
+                    ],
+                    "dry_run": False,
+                    "allow_writes": True,
+                    "include_rag": True,
+                    "rag_target": "production",
+                    "database_target": "local",
+                }
+            )
+        )
+
+    with _session() as db:
+        assert _first_current_bill_section(db, bill_key).raw_text == original_text
 
 
 @pytest.mark.asyncio
@@ -271,12 +472,61 @@ async def test_bill_sync_chunk_worker_rejects_non_production_rag_target(
 
 
 @pytest.mark.asyncio
-async def test_bill_sync_chunk_worker_reports_rag_counts_for_production_target(
+async def test_bill_sync_rejects_search_writes_to_a_different_database(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
         "alethical.pipeline.minnesota.MinnesotaIngestionPipeline",
         _FakeMinnesotaIngestionPipeline,
+    )
+
+    def database_url(args):
+        database_name = (
+            "search-store" if args.get("database_target") == "production" else "bills"
+        )
+        return f"postgresql+psycopg://test:test@localhost:54329/{database_name}"
+
+    monkeypatch.setattr("alethical.pipeline.oban_workers._database_url", database_url)
+
+    with pytest.raises(ValueError, match="same database"):
+        await BillSyncChunkWorker().process(
+            SimpleNamespace(
+                args={
+                    "targets": [
+                        {
+                            "chamber": "senate",
+                            "bill_number": "1832",
+                            "session_code": "0942025",
+                        }
+                    ],
+                    "dry_run": False,
+                    "allow_writes": True,
+                    "include_rag": True,
+                    "rag_target": "production",
+                    "database_target": "local",
+                }
+            )
+        )
+
+
+@pytest.mark.asyncio
+async def test_bill_sync_chunk_worker_reports_rag_counts_for_production_target(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class ReportsOneChangedBill:
+        def __init__(self, _db):
+            pass
+
+        def ingest_bills(self, _targets):
+            return {
+                "bills_ingested": 2,
+                "bill_keys": ["94-2025-SF1832", "94-2025-HF2136"],
+                "text_changed_bill_keys": ["94-2025-HF2136"],
+            }
+
+    monkeypatch.setattr(
+        "alethical.pipeline.minnesota.MinnesotaIngestionPipeline",
+        ReportsOneChangedBill,
     )
     calls: list[tuple[list[str], dict[str, object]]] = []
 
@@ -324,16 +574,198 @@ async def test_bill_sync_chunk_worker_reports_rag_counts_for_production_target(
         )
     )
     result = record.value
+    assert result["bill_keys"] == ["94-2025-SF1832", "94-2025-HF2136"]
+    assert result["text_changed_bill_keys"] == ["94-2025-HF2136"]
     assert result["rag_built"] == 1
     assert result["rag_skipped"] == 0
     assert result["rag_already_exists"] == 0
     assert calls == [
         (
-            ["94-2025-SF1832"],
+            ["94-2025-HF2136"],
             {
                 "dry_run": False,
                 "rag_model": "text-embedding-3-small",
                 "rag_embedding_batch_size": 8,
+                "database_target": "production",
+            },
+        )
+    ]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "include_rag", [True, False], ids=["search-enabled", "search-skipped"]
+)
+async def test_bill_sync_enqueues_role_only_summary_request_without_rag_change(
+    monkeypatch: pytest.MonkeyPatch,
+    include_rag: bool,
+) -> None:
+    """A saved legal-role change must enqueue its already-ready request once."""
+
+    request_id = "00000000-0000-0000-0000-000000000457"
+
+    class ReportsOneRoleOnlyChange:
+        def __init__(self, _db):
+            pass
+
+        def ingest_bills(self, _targets):
+            return {
+                "bills_ingested": 1,
+                "bill_keys": ["94-2026-SF3755"],
+                "text_changed_bill_keys": [],
+                "summary_changed_bill_keys": ["94-2026-SF3755"],
+                "summary_request_ids": [request_id],
+            }
+
+    def unchanged_search_rows(_db, bill_keys, **_kwargs):
+        assert list(bill_keys) == ["94-2026-SF3755"]
+        return {
+            "rag_built": 0,
+            "rag_skipped": 0,
+            "rag_already_exists": 1,
+            "rag_results": [
+                {
+                    "bill_key": "94-2026-SF3755",
+                    "status": "already_exists",
+                }
+            ],
+            "ready_summary_request_ids": [],
+        }
+
+    monkeypatch.setattr(
+        "alethical.pipeline.minnesota.MinnesotaIngestionPipeline",
+        ReportsOneRoleOnlyChange,
+    )
+    monkeypatch.setattr(
+        "alethical.pipeline.rag_ingest.build_rag_rows_for_bill_keys",
+        unchanged_search_rows,
+    )
+    monkeypatch.setattr(
+        "alethical.pipeline.bill_summary_requests.mark_summary_requests_ready",
+        lambda _db, _bill_keys, **_kwargs: [],
+    )
+    monkeypatch.setattr(
+        "alethical.pipeline.oban_workers._database_url",
+        lambda _args: get_database_url(),
+    )
+
+    enqueued: list[list[str]] = []
+
+    async def capture_enqueue(request_ids, **_kwargs):
+        values = list(request_ids)
+        enqueued.append(values)
+        return [{"request_id": value} for value in values]
+
+    monkeypatch.setattr(
+        "alethical.pipeline.bill_summary_requests.enqueue_ready_requests",
+        capture_enqueue,
+    )
+
+    record = await BillSyncChunkWorker().process(
+        SimpleNamespace(
+            args={
+                "targets": [
+                    {
+                        "chamber": "senate",
+                        "bill_number": "3755",
+                        "session_code": "0942026",
+                    }
+                ],
+                "dry_run": False,
+                "allow_writes": True,
+                "include_rag": include_rag,
+                "rag_target": "production",
+                "rag_model": DEFAULT_RAG_MODEL,
+                "database_target": "local",
+            }
+        )
+    )
+
+    assert enqueued == [[request_id]]
+    assert record.value["summary_children"] == [{"request_id": request_id}]
+
+
+@pytest.mark.parametrize(
+    "skip_rag", [False, True], ids=["search-enabled", "search-skipped"]
+)
+def test_direct_loader_enqueues_role_only_summary_request_without_rag_change(
+    monkeypatch: pytest.MonkeyPatch,
+    skip_rag: bool,
+) -> None:
+    """The laptop ingestion path must hand off the same already-ready request."""
+
+    request_id = "00000000-0000-0000-0000-000000000458"
+
+    class ReportsOneRoleOnlyChange:
+        def __init__(self, _db):
+            pass
+
+        def ingest_bills(self, _targets):
+            return {
+                "bills_ingested": 1,
+                "bill_keys": ["94-2026-SF3755"],
+                "text_changed_bill_keys": [],
+                "summary_changed_bill_keys": ["94-2026-SF3755"],
+                "summary_request_ids": [request_id],
+            }
+
+    def unchanged_search_rows(_db, bill_keys, **_kwargs):
+        assert list(bill_keys) == ["94-2026-SF3755"]
+        return {
+            "rag_built": 0,
+            "rag_skipped": 0,
+            "rag_already_exists": 1,
+            "rag_results": [
+                {
+                    "bill_key": "94-2026-SF3755",
+                    "status": "already_exists",
+                }
+            ],
+            "ready_summary_request_ids": [],
+        }
+
+    monkeypatch.setattr(
+        load_minnesota, "MinnesotaIngestionPipeline", ReportsOneRoleOnlyChange
+    )
+    monkeypatch.setattr(
+        "alethical.pipeline.rag_ingest.build_rag_rows_for_bill_keys",
+        unchanged_search_rows,
+    )
+    monkeypatch.setattr(
+        "alethical.pipeline.bill_summary_requests.mark_summary_requests_ready",
+        lambda _db, _bill_keys, **_kwargs: [],
+    )
+
+    enqueued: list[tuple[list[str], dict[str, object]]] = []
+
+    async def capture_enqueue(request_ids, **kwargs):
+        enqueued.append((list(request_ids), kwargs))
+        return []
+
+    monkeypatch.setattr(
+        "alethical.pipeline.bill_summary_requests.enqueue_ready_requests",
+        capture_enqueue,
+    )
+    argv = [
+        "load_minnesota_data.py",
+        "--database-url",
+        get_database_url(),
+        "--skip-legislators",
+        "--bill",
+        "SF3755",
+    ]
+    if skip_rag:
+        argv.append("--skip-rag")
+    monkeypatch.setattr(sys, "argv", argv)
+
+    load_minnesota.main()
+
+    assert enqueued == [
+        (
+            [request_id],
+            {
+                "database_target": "local",
+                "database_url": get_database_url(),
             },
         )
     ]
@@ -379,6 +811,130 @@ async def test_rag_backfill_chunk_worker_calls_build_rag_rows(
     assert calls[0][0] == ["94-2025-SF1832", "94-2025-HF2136"]
     assert calls[0][1]["rag_model"] == "text-embedding-3-small"
     assert calls[0][1]["dry_run"] is False
+
+
+@pytest.mark.asyncio
+async def test_rag_backfill_chunk_queues_ready_request_from_rag_database(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    request = schema.BillSummaryRequest(
+        bill_id=uuid.uuid4(),
+        bill_version_id=uuid.uuid4(),
+        source_text_fingerprint="a" * 64,
+        prompt_context_version="test-v1",
+        prepared_prompt_fingerprint="b" * 64,
+        model_name="claude:claude-sonnet-5",
+        status=schema.BillSummaryRequestStatus.ready,
+    )
+    with _session() as db:
+        db.add(request)
+        db.commit()
+        request_id = request.id
+
+    def fake_build(_db, bill_keys, **_kwargs):
+        assert list(bill_keys) == ["94-2026-SF3755"]
+        return {
+            "rag_built": 1,
+            "rag_skipped": 0,
+            "rag_already_exists": 0,
+            "ready_summary_request_ids": [str(request_id)],
+        }
+
+    resolved_targets: list[tuple[str | None, str | None]] = []
+
+    def resolve_database(target, database_url=None):
+        resolved_targets.append((target, database_url))
+        return get_database_url()
+
+    queued: list[dict[str, object]] = []
+
+    async def capture_child(_worker, args):
+        queued.append(dict(args))
+        return {"request_id": args["request_id"]}
+
+    for name, value in {
+        "ALETHICAL_AUTO_BILL_SUMMARY_ENABLED": "true",
+        "ALETHICAL_AUTO_BILL_SUMMARY_MONTHLY_BUDGET_CENTS": "2500",
+        "ALETHICAL_AUTO_BILL_SUMMARY_PER_BILL_BUDGET_CENTS": "1000",
+        "ALETHICAL_AUTO_BILL_SUMMARY_FAILURE_CAP": "5",
+        "ALETHICAL_AUTO_BILL_SUMMARY_MAX_ATTEMPTS": "1",
+    }.items():
+        monkeypatch.setenv(name, value)
+    monkeypatch.setattr(rag_ingest, "build_rag_rows_for_bill_keys", fake_build)
+    monkeypatch.setattr(
+        oban_workers, "_resolve_rag_write_url", lambda _args: get_database_url()
+    )
+    monkeypatch.setattr(
+        bill_summary_requests, "database_url_for_target", resolve_database
+    )
+    monkeypatch.setattr(oban_workers, "_enqueue_child", capture_child)
+
+    try:
+        record = await RagBackfillChunkWorker().process(
+            SimpleNamespace(
+                args={
+                    "bill_keys": ["94-2026-SF3755"],
+                    "rag_target": "production",
+                    "database_target": "local",
+                    "oban_target": "local",
+                }
+            )
+        )
+
+        assert resolved_targets == [("production", None)]
+        assert len(record.value["summary_children"]) == 1
+        assert queued == [
+            {
+                "_kind": "bill-summary-request",
+                "task_key": f"bill-summary-request:{request_id}",
+                "request_id": str(request_id),
+                "database_target": "production",
+                "oban_target": "local",
+                "oban_dsn": None,
+            }
+        ]
+    finally:
+        with _session() as db:
+            db.execute(
+                delete(schema.BillSummaryRequest).where(
+                    schema.BillSummaryRequest.id == request_id
+                )
+            )
+            db.commit()
+
+
+@pytest.mark.asyncio
+async def test_rag_backfill_chunk_serializes_ready_request_ids(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    request_id = uuid.uuid4()
+
+    def fake_build(_db, bill_keys, **_kwargs):
+        assert list(bill_keys) == ["94-2026-SF3755"]
+        return {
+            "rag_built": 1,
+            "rag_skipped": 0,
+            "rag_already_exists": 0,
+            "ready_summary_request_ids": [request_id],
+        }
+
+    monkeypatch.setenv("ALETHICAL_AUTO_BILL_SUMMARY_ENABLED", "false")
+    monkeypatch.setattr(rag_ingest, "build_rag_rows_for_bill_keys", fake_build)
+    monkeypatch.setattr(
+        oban_workers, "_resolve_rag_write_url", lambda _args: get_database_url()
+    )
+
+    record = await RagBackfillChunkWorker().process(
+        SimpleNamespace(
+            args={
+                "bill_keys": ["94-2026-SF3755"],
+                "rag_target": "production",
+                "database_target": "local",
+            }
+        )
+    )
+
+    assert record.value["ready_summary_request_ids"] == [str(request_id)]
 
 
 @pytest.mark.asyncio

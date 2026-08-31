@@ -5,7 +5,7 @@
 Status: shipped, [#740](https://github.com/alethical-org/alethical/pull/740) (`5379a88`). Covers the **Bill Text
 tab** of Bill Detail on web (`/bills/:billId?tab=text`) and the `sec-fulltext` block of the mobile
 single-scroll page — one component, `FullTextTab.tsx`, serves both. Companion to
-`docs/mockups/bill-detail-mobile/NEXT-bill-detail-spec.md` (the rest of Bill Detail). Durable
+`docs/product-onboarding/bill-detail-guide.md` (the rest of Bill Detail). Durable
 citation/neutrality invariants live in `.claude/rules/grounded-answers.md`.
 
 ## Goal
@@ -293,8 +293,10 @@ the API resolves the position at request time and serves it as `section_order`
 (`_citation_section_orders` in `alethical/api/routers/public.py`, `resolve_cited_section` in
 `alethical/pipeline/ai_enrichment.py`) — recovered from the citation's own verbatim quote, with its
 label breaking a tie when a bill repeats one sentence section for section. Of the 95 affected
-citations in production it places 94; the one it cannot place keeps the chip jumping to the first
-section carrying the id and claims no badge.
+citations in production it places 94. The one it cannot place keeps its label and quote but is not a
+link, because sending a reader to the first section carrying a repeated id would claim a passage the
+record has not identified. Exact citation links use the same anchor on the first response, the loaded
+desktop page, and the loaded phone-width page.
 
 Four more details, each of which was a real bug:
 

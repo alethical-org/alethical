@@ -13,11 +13,13 @@ A terse design prompt ("the dropdown hover doesn't work") is usually *answerable
 
 Interview **only** for gaps that change *what you do* or *how fast*. If you can already state the **scope**, the **expected vs. actual** (bug) or the **target state + acceptance** (change), and you know **where the spec/assets are**, skip the questions, restate the task in one line, and proceed. Interrogating for things the repo answers — or for low-stakes details — is the anti-goal. Most prompts pass the gate; the interview is the exception, not the toll booth.
 
+**When the prompt was pasted as a piece of work, the tier comes before this whole skill runs.** The first reply is a `Tier:` line (per `~/.claude/CLAUDE.md`) naming the model, reasoning label and mechanism for the build or review being asked for, plus at most one line saying what job you read in the paste, and nothing else — no repo reading, no intake questions, no code. Then wait for Eugene's go (`g`) and run this skill from step 1. The intake questions come after the go, not beside the tier, because step 1's whole point is self-answering from the repo first and that reading is the spend the wait protects.
+
 One gate, once: for design tasks this skill **is** the intake step — don't stack another start-of-task gate on top of it (the general form of that rule now lives in `~/.claude/CLAUDE.md`, "Reach for a skill before improvising"). Run this, then hand off.
 
 ## 1. Self-answer from the repo first (never ask what you can check)
 
-- Is the page's design bundle already in `docs/mockups/<page>/`? It usually is — you rarely need assets re-handed.
+- Is the accepted preview attached to the task or already downloaded? Identify the exact file and state before asking for it again. Design bundles are temporary working inputs and do not live under `docs/`.
 - Is this a **regression**? `git log` / blame the component or area; a recent change often *is* the cause.
 - Which screen / route / component owns it? (`navigation/ia.ts`, `navigation/webRoutes.ts`, the screen file, `theme/primitives.tsx`.)
 - **Screen-local fix, or shared token/primitive?** A fix that can only be made by editing a shared token (`theme/tokens.ts`), a theme helper, or `theme/primitives.tsx` changes *every* surface that consumes it — its blast radius is app-wide even when the task named one screen. If shared: name the other affected surfaces up front, add at least one to the manual-QA set, and plan a PR tradeoff callout. (Flagship: the #194 contrast fix darkened shared faint/muted tokens site-wide, not just the signed-out home.)
@@ -43,7 +45,7 @@ Put the genuine unknowns to the user in one `AskUserQuestion` call (≤ 4 questi
 
 ## 4. Restate, then hand off
 
-State the sharpened task in one line — scope · deliverable · acceptance · assets needed (usually none; they're in-repo) — then continue with `design-build` (build/change) or `systematic-debugging` (bug).
+State the sharpened task in one line — scope · deliverable · acceptance · assets needed — then continue with `design-build` (build/change) or `systematic-debugging` (bug).
 
 ## Anti-patterns
 
@@ -51,4 +53,4 @@ Interrogating for repo-discoverable facts · asking low-value questions · gatin
 
 ## References
 
-`.claude/skills/design-build/SKILL.md` (the build workflow this feeds) · `.claude/skills/design-review/SKILL.md` (the pre-build mockup evaluation that precedes intake) · `.claude/rules/coding-discipline.md` rule 1 (surface real ambiguity; don't gate routine work) · `docs/product-onboarding/mvp-redesign-plan.md`. Origin: retro on the nav-dropdown hover fix ([#171](https://github.com/alethical-org/alethical/pull/171)).
+`.claude/skills/design-build/SKILL.md` (the build workflow this feeds) · `.claude/skills/design-review/SKILL.md` (the pre-build mockup evaluation that precedes intake) · `.claude/rules/workflow.md` rule 14 (surface real ambiguity; don't gate routine work) · `docs/product-onboarding/mvp-redesign-plan.md`. Origin: retro on the nav-dropdown hover fix ([#171](https://github.com/alethical-org/alethical/pull/171)).

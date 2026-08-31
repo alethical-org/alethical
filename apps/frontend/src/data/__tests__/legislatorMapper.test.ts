@@ -109,4 +109,25 @@ describe('mapLegislator Find My Legislator facts', () => {
 
     expect(mapped.profileUrl).toBe('https://www.senate.mn/members/member_bio.html?leg_id=15245');
   });
+
+  it('keeps every chamber period and formats a 12th term through the shared wording', () => {
+    const mapped = mapLegislator({
+      ...REAL_PAYLOAD,
+      service_history: {
+        term: 12,
+        periods: [
+          { chamber: 'house', initial_year: 1999, reelection_years: [2000, 2002] },
+          { chamber: 'senate', initial_year: 2004, reelection_years: [] },
+        ],
+      },
+    } as never);
+
+    expect(mapped.legislativeService).toEqual({
+      lines: [
+        { chamber: 'House', label: 'Elected to the House', elected: '1999, re-elected 2000, 2002' },
+        { chamber: 'Senate', label: 'Elected to the Senate', elected: '2004' },
+      ],
+      term: '12th',
+    });
+  });
 });

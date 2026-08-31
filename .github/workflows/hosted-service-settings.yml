@@ -1,0 +1,321 @@
+name: Hosted service settings
+
+on:
+  pull_request:
+    paths:
+      - docs/operations/repo-and-service-settings.md
+      - docs/operations/deployment.md
+      - supabase/templates/account-code.html
+      - supabase/templates/email-confirmation.html
+      - scripts/check_hosted_service_settings.py
+      - scripts/supabase_oauth_state.mjs
+      - scripts/tests/test_hosted_service_settings.py
+      - scripts/tests/supabase_oauth_state.test.mjs
+      - .github/workflows/hosted-service-settings.yml
+      - railway.json
+      - vercel.json
+  pull_request_target:
+    paths:
+      - docs/operations/repo-and-service-settings.md
+      - supabase/templates/account-code.html
+      - supabase/templates/email-confirmation.html
+      - railway.json
+      - vercel.json
+  push:
+    branches: [main]
+    paths:
+      - docs/operations/repo-and-service-settings.md
+      - docs/operations/deployment.md
+      - supabase/templates/account-code.html
+      - supabase/templates/email-confirmation.html
+      - scripts/check_hosted_service_settings.py
+      - scripts/supabase_oauth_state.mjs
+      - scripts/tests/test_hosted_service_settings.py
+      - scripts/tests/supabase_oauth_state.test.mjs
+      - .github/workflows/hosted-service-settings.yml
+      - railway.json
+      - vercel.json
+  schedule:
+    - cron: "30 9 1 * *"
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: hosted-service-settings-supabase-oauth
+  cancel-in-progress: false
+
+jobs:
+  test-proposed-checker:
+    if: github.event_name == 'pull_request'
+    name: Test the proposed checker without service credentials
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Test the checker
+        run: |
+          python3 -m unittest discover -s scripts/tests -p 'test_hosted_service_settings.py'
+          node --test scripts/tests/supabase_oauth_state.test.mjs
+
+  check-proposed-settings:
+    if: github.event_name == 'pull_request_target'
+    name: Compare proposed settings with live services
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GITHUB_READ_TOKEN: ${{ github.token }}
+      REPO_SETTINGS_TOKEN: ${{ secrets.REPO_SETTINGS_TOKEN }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      SUPABASE_OAUTH_REQUIRED: "true"
+      SUPABASE_OAUTH_STATE_REQUIRED: "true"
+      SUPABASE_OAUTH_CLIENT_ID: ${{ secrets.SUPABASE_OAUTH_CLIENT_ID }}
+      SUPABASE_OAUTH_CLIENT_SECRET: ${{ secrets.SUPABASE_OAUTH_CLIENT_SECRET }}
+      SUPABASE_OAUTH_BOOTSTRAP_REFRESH_TOKEN: ${{ secrets.SUPABASE_OAUTH_REFRESH_TOKEN }}
+      SUPABASE_PROJECT_REF: naakzorbkqqgbsreulqi
+    steps:
+      - name: Check out the trusted checker from the target branch
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Read only the proposed settings data
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          path: proposed-settings
+          persist-credentials: false
+          sparse-checkout: |
+            docs/operations/repo-and-service-settings.md
+            supabase/templates/account-code.html
+            supabase/templates/email-confirmation.html
+            railway.json
+            vercel.json
+
+      - name: Set the rotating Supabase grant paths
+        shell: bash
+        run: |
+          echo "SUPABASE_OAUTH_REFRESH_TOKEN_FILE=$RUNNER_TEMP/supabase-refresh-token" >> "$GITHUB_ENV"
+          echo "SUPABASE_OAUTH_NEXT_REFRESH_TOKEN_FILE=$RUNNER_TEMP/supabase-next-refresh-token" >> "$GITHUB_ENV"
+
+      - name: Restore the encrypted rotating Supabase grant
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          state_dir="$RUNNER_TEMP/supabase-oauth-state"
+          mkdir -p "$state_dir"
+          artifact_id=""
+          while read -r trusted_run_id; do
+            artifact_id="$(
+              gh api "/repos/$GITHUB_REPOSITORY/actions/runs/$trusted_run_id/artifacts?per_page=100" \
+                --jq '[.artifacts[] | select(.expired == false and (.name == "supabase-oauth-state-primary" or .name == "supabase-oauth-state-backup"))] | sort_by(.created_at) | last | .id // empty'
+            )"
+            [[ -n "$artifact_id" ]] && break
+          done < <(
+            gh api "/repos/$GITHUB_REPOSITORY/actions/workflows/hosted-service-settings.yml/runs?status=completed&per_page=50" \
+              --jq '.workflow_runs[] | select(.event == "push" or .event == "schedule" or .event == "workflow_dispatch" or .event == "pull_request_target") | .id'
+          )
+          if [[ -n "$artifact_id" ]]; then
+            gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" > "$state_dir/state.zip"
+            unzip -q "$state_dir/state.zip" -d "$state_dir"
+            node scripts/supabase_oauth_state.mjs decrypt \
+              "$state_dir/supabase-oauth-state.json" \
+              "$SUPABASE_OAUTH_REFRESH_TOKEN_FILE"
+          else
+            if [[ -z "$SUPABASE_OAUTH_BOOTSTRAP_REFRESH_TOKEN" ]]; then
+              echo "The rotating Supabase grant is missing."
+              exit 1
+            fi
+            printf '%s' "$SUPABASE_OAUTH_BOOTSTRAP_REFRESH_TOKEN" \
+              > "$SUPABASE_OAUTH_REFRESH_TOKEN_FILE"
+            chmod 600 "$SUPABASE_OAUTH_REFRESH_TOKEN_FILE"
+          fi
+
+      - name: Compare hosted settings
+        id: compare-proposed
+        env:
+          HOSTED_SETTINGS_ROOT: ${{ github.workspace }}/proposed-settings
+        shell: bash
+        run: |
+          set +e
+          python3 scripts/check_hosted_service_settings.py
+          check_status="$?"
+          set -e
+          if [[ ! -s "$SUPABASE_OAUTH_NEXT_REFRESH_TOKEN_FILE" ]]; then
+            echo "Supabase did not return a new rotating grant."
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/supabase-oauth-upload"
+          node scripts/supabase_oauth_state.mjs encrypt \
+            "$SUPABASE_OAUTH_NEXT_REFRESH_TOKEN_FILE" \
+            "$RUNNER_TEMP/supabase-oauth-upload/supabase-oauth-state.json"
+          echo "check_status=$check_status" >> "$GITHUB_OUTPUT"
+
+      - name: Save the primary encrypted Supabase grant
+        id: upload-proposed-primary
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: supabase-oauth-state-primary
+          path: ${{ runner.temp }}/supabase-oauth-upload/supabase-oauth-state.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Save the backup encrypted Supabase grant
+        id: upload-proposed-backup
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: supabase-oauth-state-backup
+          path: ${{ runner.temp }}/supabase-oauth-upload/supabase-oauth-state.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Require a saved grant and a matching check
+        if: always()
+        env:
+          BACKUP_OUTCOME: ${{ steps.upload-proposed-backup.outcome }}
+          CHECK_STATUS: ${{ steps.compare-proposed.outputs.check_status }}
+          PRIMARY_OUTCOME: ${{ steps.upload-proposed-primary.outcome }}
+        shell: bash
+        run: |
+          if [[ "$PRIMARY_OUTCOME" != "success" && "$BACKUP_OUTCOME" != "success" ]]; then
+            echo "The new rotating Supabase grant was not saved."
+            exit 1
+          fi
+          exit "${CHECK_STATUS:-1}"
+
+  check-live-settings:
+    if: github.event_name != 'pull_request' && github.event_name != 'pull_request_target'
+    name: Compare documented and live settings
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GITHUB_READ_TOKEN: ${{ github.token }}
+      REPO_SETTINGS_TOKEN: ${{ secrets.REPO_SETTINGS_TOKEN }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+      SUPABASE_OAUTH_REQUIRED: "true"
+      SUPABASE_OAUTH_STATE_REQUIRED: "true"
+      SUPABASE_OAUTH_CLIENT_ID: ${{ secrets.SUPABASE_OAUTH_CLIENT_ID }}
+      SUPABASE_OAUTH_CLIENT_SECRET: ${{ secrets.SUPABASE_OAUTH_CLIENT_SECRET }}
+      SUPABASE_OAUTH_BOOTSTRAP_REFRESH_TOKEN: ${{ secrets.SUPABASE_OAUTH_REFRESH_TOKEN }}
+      SUPABASE_PROJECT_REF: naakzorbkqqgbsreulqi
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Set the rotating Supabase grant paths
+        shell: bash
+        run: |
+          echo "SUPABASE_OAUTH_REFRESH_TOKEN_FILE=$RUNNER_TEMP/supabase-refresh-token" >> "$GITHUB_ENV"
+          echo "SUPABASE_OAUTH_NEXT_REFRESH_TOKEN_FILE=$RUNNER_TEMP/supabase-next-refresh-token" >> "$GITHUB_ENV"
+
+      - name: Test the checker
+        run: |
+          python3 -m unittest discover -s scripts/tests -p 'test_hosted_service_settings.py'
+          node --test scripts/tests/supabase_oauth_state.test.mjs
+
+      - name: Restore the encrypted rotating Supabase grant
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          state_dir="$RUNNER_TEMP/supabase-oauth-state"
+          mkdir -p "$state_dir"
+          artifact_id=""
+          while read -r trusted_run_id; do
+            artifact_id="$(
+              gh api "/repos/$GITHUB_REPOSITORY/actions/runs/$trusted_run_id/artifacts?per_page=100" \
+                --jq '[.artifacts[] | select(.expired == false and (.name == "supabase-oauth-state-primary" or .name == "supabase-oauth-state-backup"))] | sort_by(.created_at) | last | .id // empty'
+            )"
+            [[ -n "$artifact_id" ]] && break
+          done < <(
+            gh api "/repos/$GITHUB_REPOSITORY/actions/workflows/hosted-service-settings.yml/runs?status=completed&per_page=50" \
+              --jq '.workflow_runs[] | select(.event == "push" or .event == "schedule" or .event == "workflow_dispatch" or .event == "pull_request_target") | .id'
+          )
+          if [[ -n "$artifact_id" ]]; then
+            gh api "/repos/$GITHUB_REPOSITORY/actions/artifacts/$artifact_id/zip" > "$state_dir/state.zip"
+            unzip -q "$state_dir/state.zip" -d "$state_dir"
+            node scripts/supabase_oauth_state.mjs decrypt \
+              "$state_dir/supabase-oauth-state.json" \
+              "$SUPABASE_OAUTH_REFRESH_TOKEN_FILE"
+          else
+            if [[ -z "$SUPABASE_OAUTH_BOOTSTRAP_REFRESH_TOKEN" ]]; then
+              echo "The rotating Supabase grant is missing."
+              exit 1
+            fi
+            printf '%s' "$SUPABASE_OAUTH_BOOTSTRAP_REFRESH_TOKEN" \
+              > "$SUPABASE_OAUTH_REFRESH_TOKEN_FILE"
+            chmod 600 "$SUPABASE_OAUTH_REFRESH_TOKEN_FILE"
+          fi
+
+      - name: Compare hosted settings
+        id: compare-live
+        shell: bash
+        run: |
+          set +e
+          python3 scripts/check_hosted_service_settings.py
+          check_status="$?"
+          set -e
+          if [[ ! -s "$SUPABASE_OAUTH_NEXT_REFRESH_TOKEN_FILE" ]]; then
+            echo "Supabase did not return a new rotating grant."
+            exit 1
+          fi
+          mkdir -p "$RUNNER_TEMP/supabase-oauth-upload"
+          node scripts/supabase_oauth_state.mjs encrypt \
+            "$SUPABASE_OAUTH_NEXT_REFRESH_TOKEN_FILE" \
+            "$RUNNER_TEMP/supabase-oauth-upload/supabase-oauth-state.json"
+          echo "check_status=$check_status" >> "$GITHUB_OUTPUT"
+
+      - name: Save the primary encrypted Supabase grant
+        id: upload-live-primary
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: supabase-oauth-state-primary
+          path: ${{ runner.temp }}/supabase-oauth-upload/supabase-oauth-state.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Save the backup encrypted Supabase grant
+        id: upload-live-backup
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: supabase-oauth-state-backup
+          path: ${{ runner.temp }}/supabase-oauth-upload/supabase-oauth-state.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Require a saved grant and a matching check
+        if: always()
+        env:
+          BACKUP_OUTCOME: ${{ steps.upload-live-backup.outcome }}
+          CHECK_STATUS: ${{ steps.compare-live.outputs.check_status }}
+          PRIMARY_OUTCOME: ${{ steps.upload-live-primary.outcome }}
+        shell: bash
+        run: |
+          if [[ "$PRIMARY_OUTCOME" != "success" && "$BACKUP_OUTCOME" != "success" ]]; then
+            echo "The new rotating Supabase grant was not saved."
+            exit 1
+          fi
+          exit "${CHECK_STATUS:-1}"

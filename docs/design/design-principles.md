@@ -1,12 +1,12 @@
 # Alethical design principles — the green system
 
-<!-- describes: apps/frontend/src/components/VoteCountLinkChip.tsx, apps/frontend/src/components/GoBackLink.tsx, apps/frontend/src/components/LinkArrow.tsx, apps/frontend/src/navigation/links.ts, apps/frontend/src/navigation/webHistory.ts, apps/frontend/src/hooks/useHistoryScrollRestoration.ts, apps/frontend/src/theme/tokens.ts, apps/frontend/src/theme/primitives.tsx, apps/frontend/src/theme/pageBackground.ts -->
+<!-- describes: apps/frontend/src/components/VoteCountLinkChip.tsx, apps/frontend/src/components/GoBackLink.tsx, apps/frontend/src/components/LinkArrow.tsx, apps/frontend/src/components/ChangeBlock.tsx, apps/frontend/src/components/auth/LoadingButton.tsx, apps/frontend/src/components/auth/SignInDialog.tsx, apps/frontend/src/components/billDetail/BillTrackButton.tsx, apps/frontend/src/components/billDetail/SourceLine.tsx, apps/frontend/src/components/billDetail/billTrackButtonAppearance.ts, apps/frontend/src/components/search/BillResultCard.tsx, apps/frontend/src/hooks/useHistoryScrollRestoration.ts, apps/frontend/src/hooks/useResponsive.ts, apps/frontend/src/navigation/links.ts, apps/frontend/src/navigation/webHistory.ts, apps/frontend/src/screens/redesign/HomeSignedOutScreen.tsx, apps/frontend/src/theme/browserFill.ts, apps/frontend/src/theme/tokens.ts, apps/frontend/src/theme/primitives.tsx, apps/frontend/src/theme/pageBackground.ts -->
 
 > **What this is.** The written design intent behind Alethical's green visual system: what
 > the product should feel like, and the visual/interaction rules that get it there. It is the
 > single source of truth for the green system, which replaced the earlier Newsprint identity.
 >
-> **Two jobs.** (1) A **brief to hand to Claude Design** at the start of any mockup so its output
+> **2 jobs.** (1) A **brief to hand to the design tool** at the start of any preview so its output
 > starts on-brand instead of drifting to a generic default. (2) A **reference for building and
 > reviewing** screens in the RN/Expo codebase.
 >
@@ -17,9 +17,12 @@
 > `docs/product-onboarding/mvp-redesign-plan.md`, generate a value sheet from the file if one is ever needed).
 >
 > **Sources of truth:** `apps/frontend/src/theme/tokens.ts` + `theme/primitives.tsx` (implemented
-> system) · `docs/mockups/home-signed-out-v2/README.md` (first shipped page's values/states/copy) ·
-> `docs/product-onboarding/mvp-redesign-plan.md` (redesign decisions). MVP is **responsive web** (desktop + mobile
+> system) · this guide (shared visual and interaction rules) · the feature guides under
+> `docs/product-onboarding/` (screen behavior and copy). MVP is **responsive web** (desktop + mobile
 > web); native is deferred ([#91](https://github.com/alethical-org/alethical/issues/91)).
+>
+> **Build-truth pin for the rules added 14 Aug 2026:** code and the rendered production site were
+> checked at commit [`67db903a`](https://github.com/alethical-org/alethical/commit/67db903a9300340c8b8a35cc53a8db55b4435a05).
 
 ## 1. What Alethical should feel like
 
@@ -58,6 +61,32 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
   `brand.display` (`#149d5b`). The values intentionally differ: small letterforms lose apparent
   color at their anti-aliased edges, so the darker token makes them read like the brighter display
   and graphic green. Green text on dark surfaces and green button fills are separate roles.
+- **Track is one black-to-mint toggle, not a separate Untrack treatment.** Its known off state is
+  the `#11150f` active-control fill with white type and a plus; pressing the same button changes it
+  to the mint “Tracked” state with a check. Pressing that state again removes the bill. There is no
+  separate “Untrack” button or danger treatment. Black is **not** reserved to Track: the built
+  filter system uses the same active-control fill, while Track's black treatment still keeps this
+  action distinct from green primary buttons. The size ladder is deliberate: bill page desktop is
+  16px type / 12px radius, bill page phone is 15px / 10px, and compact cards are 14px / 10px.
+  The 3 variants differ in type, spacing, and weight without dropping below a 44px target. Source:
+  [`billTrackButtonAppearance.ts`, `trackButtonAppearance` and `trackButtonSize`, pinned at `67db903a`](https://github.com/alethical-org/alethical/blob/67db903a9300340c8b8a35cc53a8db55b4435a05/apps/frontend/src/components/billDetail/billTrackButtonAppearance.ts#L3-L81)
+  and [`BillTrackButton.tsx`, `BillTrackButton`, pinned at `67db903a`](https://github.com/alethical-org/alethical/blob/67db903a9300340c8b8a35cc53a8db55b4435a05/apps/frontend/src/components/billDetail/BillTrackButton.tsx#L57-L185).
+  The shared black filter role is visible in
+  [`searchPieces.tsx`, `ClearAllButton`, pinned at `67db903a`](https://github.com/alethical-org/alethical/blob/67db903a9300340c8b8a35cc53a8db55b4435a05/apps/frontend/src/components/search/searchPieces.tsx#L1001-L1025)
+  ([applied styles](https://github.com/alethical-org/alethical/blob/67db903a9300340c8b8a35cc53a8db55b4435a05/apps/frontend/src/components/search/searchPieces.tsx#L1835-L1849)).
+  Measured on the rendered site at that commit: 16px / 12px on desktop, 15px / 10px on a 375px
+  phone viewport, 14px / 10px on the same viewport's result cards, and one control announced as the
+  same pressed toggle in both label states ([#1013](https://github.com/alethical-org/alethical/issues/1013)).
+- **OMNIBUS is a ghost qualifier, not a second bill-code badge.** It has transparent fill, the
+  `omnibus.ghostBorder` amber outline, and `omnibus.text` label, with the small balance glyph and
+  uppercase word set in the interface face (Libre Franklin). Its 8px radius deliberately steps
+  outside both the monospace record-label texture and the chip-radius family: it must read as a
+  plain-language qualifier attached to the bill, while the solid amber monospace badge remains the
+  bill's recorded identity. The ghost treatment keeps the qualifier visibly quieter than that code
+  badge. Source: [`BillResultCard.tsx`, `OmnibusPill` and its styles, pinned at `67db903a`](https://github.com/alethical-org/alethical/blob/67db903a9300340c8b8a35cc53a8db55b4435a05/apps/frontend/src/components/search/BillResultCard.tsx#L129-L145)
+  ([applied styles](https://github.com/alethical-org/alethical/blob/67db903a9300340c8b8a35cc53a8db55b4435a05/apps/frontend/src/components/search/BillResultCard.tsx#L603-L620)).
+  Measured on the rendered bill-search cards at that commit; the accessible name is “Omnibus bill”
+  and the visible label is “OMNIBUS” ([#592](https://github.com/alethical-org/alethical/pull/592)).
 - **Party is neutral identity, never a color role.** Every party badge spells out the party name
   ("Republican" / "Democratic-Farmer-Labor") and uses a neutral `#f1f1f4` fill with no border and
   `#4f5651` text. The badge is fully rounded, uses Libre Franklin at weight 700 with `0.06em`
@@ -126,16 +155,52 @@ Character summary. **Exact values live in `tokens.ts`** — read it for hex, sca
   that state only, via a sibling style, so the text-only state stays centred.
 
   Build new buttons this way. It applies to auth-gated controls (account nav, Sign out,
-  Track/Tracking, Continue with Google) as soon as sign-in ships; they were skipped on the first
-  sweep only because they are not on the live signed-out site
-  ([#720](https://github.com/alethical-org/alethical/pull/720)).
+  Track/Tracking, Continue with Google).
+- **A corner close control is inset by its own button box, never by the ✕ inside it.** Give the
+  button at least 16px of clear space from every nearby surface edge, and use the same inset from
+  the top and side so its corner placement reads as deliberate. A phone sheet uses its own side
+  padding for both insets; a desktop dialog uses 20px from the top and right. Keep the button at its
+  existing size, fill, radius, and label. When a sheet has a grab handle, the handle stays above the
+  button's top edge. Make that room with a fixed-height header, not a smaller button or a button
+  outside the content padding, so validation, busy, success, and banner states cannot move it.
+  Current owners are the shared sign-in and password container
+  ([`SignInContainer.tsx`](https://github.com/alethical-org/alethical/blob/main/apps/frontend/src/components/auth/SignInContainer.tsx)),
+  the phone account sheet
+  ([`AccountControl.tsx`](https://github.com/alethical-org/alethical/blob/main/apps/frontend/src/components/auth/AccountControl.tsx)),
+  the phone menu drawer
+  ([`primitives.tsx`](https://github.com/alethical-org/alethical/blob/main/apps/frontend/src/theme/primitives.tsx)),
+  the phone share sheet
+  ([`MobileShareSheet.tsx`](https://github.com/alethical-org/alethical/blob/main/apps/frontend/src/components/share/MobileShareSheet.tsx)),
+  the desktop share popover
+  ([`SharePopover.tsx`](https://github.com/alethical-org/alethical/blob/main/apps/frontend/src/components/billDetail/SharePopover.tsx)),
+  and the chat citation panel
+  ([`ChatSessionScreen.tsx`](https://github.com/alethical-org/alethical/blob/main/apps/frontend/src/screens/ChatSessionScreen.tsx)).
 - **Elevation.** Soft, low-spread shadows for gentle lift — the page feels like paper with light
   depth, not a stack of floating glass. Reserve the heavy multi-layer shadow for true overlays
   (nav dropdown, modals).
 - **Motion.** Subtle and functional: quiet hover/focus transitions and gentle entrance, never
   attention-grabbing. Motion clarifies state; it is not a feature. Respect reduced-motion (§3).
-- **Layout.** Centered column, generous gutters, one clear reading path per screen. Content maxes
-  at a comfortable measure rather than filling ultrawide screens.
+- **Layout has 3 cases, not 2.** Phone is below 768px, tablet is 768px through 1099px, and desktop
+  begins at 1100px. Tablet is designed as its own case, never a stretched phone: the same content
+  may move from stacked phone actions to side-by-side tablet actions before the desktop composition
+  takes over. The shared `Container` owns horizontal gutters only, switching from 24px to 56px at
+  768px; it does not impose one site-wide maximum width or centering rule. Page-owned inner wrappers
+  decide their own reading measure. Source:
+  [`useResponsive.ts`, `useResponsive`, pinned at `67db903a`](https://github.com/alethical-org/alethical/blob/67db903a9300340c8b8a35cc53a8db55b4435a05/apps/frontend/src/hooks/useResponsive.ts#L3-L11),
+  [`primitives.tsx`, `Container`, pinned at `67db903a`](https://github.com/alethical-org/alethical/blob/67db903a9300340c8b8a35cc53a8db55b4435a05/apps/frontend/src/theme/primitives.tsx#L106-L117)
+  ([applied gutter styles](https://github.com/alethical-org/alethical/blob/67db903a9300340c8b8a35cc53a8db55b4435a05/apps/frontend/src/theme/primitives.tsx#L1051-L1054)), and
+  [`HomeSignedOutScreen.tsx`, `HomeSignedOutMobile`, pinned at `67db903a`](https://github.com/alethical-org/alethical/blob/67db903a9300340c8b8a35cc53a8db55b4435a05/apps/frontend/src/screens/redesign/HomeSignedOutScreen.tsx#L1190-L1198).
+  Measured on the rendered site at 375px, 900px, and 1280px: phone and tablet share content but not
+  composition, and the desktop navigation arrives only at the third case
+  ([#1034](https://github.com/alethical-org/alethical/issues/1034)).
+- **In a wrapping label + control row, the labels yield and the control holds the right edge.** The
+  label group takes the remaining width, permits shrinking, and wraps inside itself (`flex: 1`,
+  `min-width: 0`); the one interactive control does not shrink and uses an automatic left margin.
+  Never let that control wrap onto a line of its own. The result-card identity row proves the rule:
+  at 375px it has 265px of content width, too little for the 166px progress unit and 107px Track
+  control to share a row, yet 2 labels still wrap without moving Track. Source:
+  [`BillResultCard.tsx`, `BillResultCard`, pinned at `67db903a`](https://github.com/alethical-org/alethical/blob/67db903a9300340c8b8a35cc53a8db55b4435a05/apps/frontend/src/components/search/BillResultCard.tsx#L297-L320)
+  ([#596](https://github.com/alethical-org/alethical/pull/596)).
 
 ## 3. Interaction & accessibility baseline
 
@@ -196,6 +261,18 @@ one: see the box below before writing one.**
 > invisible in an attribute dump, and the second review of this work caught the first one precisely
 > because it stopped reading `aria-label` and started reading `name`.
 >
+> **And read the VISIBLE copy of the nav, because a phone page holds 2.** The route stack keeps the
+> previous screen mounted, so a phone page has 2 top bars in the DOM and 2 hamburgers, and the first
+> one a `querySelector` returns is the invisible one belonging to the screen underneath. Opening it
+> renders a real drawer over the page whose rows describe that other screen, so its current-page
+> mark is correctly absent — measured on production `/read`, 27 Aug 2026, where the first hamburger
+> gave 0 elements carrying `aria-current` and the visible one gave 1. **A reading of the wrong copy
+> looks exactly like a missing attribute.** Filter to `getClientRects().length > 0` and take the
+> last match. No reader can reach the hidden copy: its ancestor is `display: none` **and**
+> `aria-hidden="true"`, so it is out of the accessibility tree and out of the tab order. This is why
+> `apps/frontend/src/theme/__tests__/navCurrentPage.test.ts` pins the mark in the source rather than
+> in a browser.
+>
 > **For "this control is unavailable", use the one helper instead: `useUnavailableControl`**
 > (`apps/frontend/src/components/billDetail/interactions.ts`). Spread its ref onto the node. It
 > sets `aria-disabled`, optionally `aria-busy`, and `tabindex="-1"`, and — the part a plain prop
@@ -224,6 +301,23 @@ one: see the box below before writing one.**
 > the `menuitem` finding started life as the opposite claim. Open the page and read the rendered
 > attributes.
 
+- **A heading without a level is an `<h1>`, so always write the level.** Measured in
+  react-native-web 0.21 (`AccessibilityUtil/propsToAccessibilityComponent.js`): role `heading` with
+  no `aria-level` returns `'h1'`. Nothing warns, so `accessibilityRole="header"` on a section label
+  silently claims to be the most important heading on the page. Every heading therefore carries
+  `aria-level={n}` — **the page's subject is the only 1, section labels are 2, anything nested under
+  one is 3** — and the level follows the page's *structure*, never the type size, so a small-type
+  section label in a sidebar is still a 2. Measured on production 11 Aug 2026 before the fix
+  ([#1355](https://github.com/alethical-org/alethical/issues/1355)): a bill page carried **52**
+  `<h1>` at phone width and a legislator profile **9**, with the person's own name not a heading at
+  all — so heading navigation, which is how a screen-reader user skims, never reached the subject of
+  the page. The guard is `apps/frontend/src/lib/__tests__/headingLevels.test.ts`.
+  - **A screen kept in the back stack still ships its markup, so its `<h1>` lands in every other
+    page.** React Navigation keeps Home mounted beneath a deep-linked bill or profile with
+    `display: none`, which hides it from the accessibility tree (verified: it is absent from
+    `Accessibility.getFullAXTree`) but not from a crawler that renders the page. So Home's hero
+    headline takes its header role from `useIsFocused()` and is a heading only while Home is the
+    visible screen.
 - **Everything actionable is reachable and labeled.** Every control is keyboard-reachable in a
   sensible order; icon-only controls carry an accessibility label.
 - **Focus is always visible.** A clear focus ring appears on every interactive element. Every
@@ -232,6 +326,12 @@ one: see the box below before writing one.**
   (`theme/fieldFocus.ts`) while the cursor is in them. Text fields never receive focus on page load
   or navigation; the visitor must tap one or reach it with the keyboard. Never remove focus styling
   without an equivalent replacement.
+- **Browser-filled values keep the field's own appearance.** Browser-filled auth email, password,
+  and code fields; the signed-in account proof code; both legislator address fields; and Contact us
+  name, email, and phone fields keep a white interior with the normal dark value and caret while
+  preserving their existing border, focus ring, corners, and password Show/Hide seam. This is an
+  explicit opt-in list. Search, chat, read-only, Contact us subject and message, and future fields do
+  not inherit it automatically.
 - **Contrast holds — and accessibility overrides the spec.** Body text and essential UI meet WCAG AA
   against their background (4.5:1 for normal text, 3:1 for large/bold ≥18.66px and for essential UI).
   The dark-ink-on-green-fill rule exists for this reason — bright green with white text fails contrast.
@@ -246,6 +346,13 @@ one: see the box below before writing one.**
   the deviation in the PR; don't hold it for approval. (Origin: the OMNIBUS tag's `#a76a1a` on the
   card was 4.45:1 — a hair under AA — so it converges on the AA-safe `#8f5a12` the other OMNIBUS tags
   already use, [#592](https://github.com/alethical-org/alethical/pull/592) → follow-up.)
+  **Tinted surfaces get their own measured pair.** On the pale-green change panel, the eyebrow uses
+  `brand.forest` (the current alias of `text.greenOnLight`) and its qualifier uses `text.muted`:
+  both measure 5.05:1, so the date qualifier stays quieter by role and wording rather than by weaker
+  contrast. `text.faint` measures 4.61:1 on white but 4.31:1 on this tint, so any faint-grey text
+  moved onto a tinted surface darkens to the surface-safe token. Source:
+  [`ChangeBlock.tsx`, `ChangeBlock` and its styles, pinned at `67db903a`](https://github.com/alethical-org/alethical/blob/67db903a9300340c8b8a35cc53a8db55b4435a05/apps/frontend/src/components/ChangeBlock.tsx#L38-L133)
+  ([#193](https://github.com/alethical-org/alethical/issues/193)).
 - **Touch targets ~44px** on the mobile web layout; interactive rows and chips get real hit area.
 - **No affordance lives only in hover.** There is no hover on touch, so resting states must stand
   on their own; hover/focus glows are enhancements, never the only signal (learned the hard way in
@@ -267,9 +374,35 @@ one: see the box below before writing one.**
   Top-level pages do not show this control.
 - **Loading and empty and error are designed states,** not afterthoughts. A refusal / "no matches" is
   a first-class, dignified state (`grounded-answers.md` rule 1), never a broken-looking blank.
+- **Source and freshness are page furniture, not hover help.** Bill and Ask answer surfaces close
+  with one always-visible, quiet monospace source line. It names the Minnesota Legislature and the
+  official domain; when a real bill-specific pull date exists, the same line adds “Updated …”. When
+  that date is absent or cannot be parsed, the freshness segment is dropped rather than replaced by
+  a nearby action date or a corpus-wide guess. Source: [`SourceLine.tsx`, `SourceLine` and
+  `billSourceText`, pinned at `67db903a`](https://github.com/alethical-org/alethical/blob/67db903a9300340c8b8a35cc53a8db55b4435a05/apps/frontend/src/components/billDetail/SourceLine.tsx#L9-L64)
+  and [`billDetail.ts`, `pulledLabel`, pinned at `67db903a`](https://github.com/alethical-org/alethical/blob/67db903a9300340c8b8a35cc53a8db55b4435a05/apps/frontend/src/lib/billDetail.ts#L1707-L1727).
+  Its built use on both page types is pinned in
+  [`SummaryTab.tsx`, `SummaryTab`, at `67db903a`](https://github.com/alethical-org/alethical/blob/67db903a9300340c8b8a35cc53a8db55b4435a05/apps/frontend/src/components/billDetail/SummaryTab.tsx#L24-L164)
+  and [`AskAnswerScreen.tsx`, `AskAnswerScreen`, at `67db903a`](https://github.com/alethical-org/alethical/blob/67db903a9300340c8b8a35cc53a8db55b4435a05/apps/frontend/src/screens/redesign/AskAnswerScreen.tsx#L861-L881).
+  Measured on the rendered HF 4138 page at that commit: “Source: Minnesota Legislature ·
+  revisor.mn.gov · Updated Jul 22, 2026” is visible in the page flow
+  ([#861](https://github.com/alethical-org/alethical/issues/861)).
 - **Destructive actions confirm** (confirmation or undo window) — never fire immediately.
 - **Respect reduced-motion:** honor the OS "reduce motion" setting; entrances and transitions
   degrade to instant.
+- **Every screen carries a control that works for everyone who can reach it.** A control that is
+  inert for some of the people who land on a screen is a broken promise, and instructing anyone
+  to wait for an event that cannot occur is a dead end. Where the screen cannot tell which case
+  the reader is in, breadth substitutes: a route shown to everyone reveals nothing about anyone.
+  (From the rev 17 sign-in audit, [#1533](https://github.com/alethical-org/alethical/issues/1533).)
+- **Dialogs always close** — a visible Close control (≥44×44 on touch), the Escape key, and a
+  scrim/outside click all work, and focus returns to the control that opened them.
+- **Loading states keep visible words.** A busy control shows its words ("Saving…",
+  "Continuing with Google…") beside any spinner, the accessible name is those same visible
+  words, and under reduced motion the spinner disappears while the words carry the state alone.
+  Source: [`LoadingButton.tsx`, `LoadingButton`, pinned at `67db903a`](https://github.com/alethical-org/alethical/blob/67db903a9300340c8b8a35cc53a8db55b4435a05/apps/frontend/src/components/auth/LoadingButton.tsx#L19-L145)
+  and [`SignInDialog.tsx`, `SignInDialog`, pinned at `67db903a`](https://github.com/alethical-org/alethical/blob/67db903a9300340c8b8a35cc53a8db55b4435a05/apps/frontend/src/components/auth/SignInDialog.tsx#L486-L493)
+  ([#1533](https://github.com/alethical-org/alethical/issues/1533)).
 
 ## 4. What to avoid (directionally wrong for Alethical)
 
@@ -285,17 +418,18 @@ The generic "make it striking" instinct pulls the wrong way for a civic-records 
 - **No color as opinion** — never use red/green weighting to imply a bill or legislator is bad/good.
 - **No maximal density** — resist cramming; if a screen feels busy, cut, don't shrink.
 
-## 5. Using this with Claude Design
+## 5. Using this with a design tool
 
-- **At mockup time (generation):** paste §1–§4 into the Claude Design prompt as the standing brief,
-  then describe the specific page. This gives Claude Design the editorial direction it otherwise
+- **At preview time (generation):** paste §1–§4 into the design tool prompt as the standing brief,
+  then describe the specific page. This gives the design tool the editorial direction it otherwise
   averages away. Keep prompts definitive (state the design, don't ask it to decide scope).
 - **Structural option:** the same intent can be pushed to a claude.ai/design *design-system project*
   (via the `DesignSync` tool) so Claude Design generates against our real tokens + primitives rather
   than a prose description. Prose brief is the lightweight path; the synced system is the durable one.
-- **At build time (implementation):** this doc plus `tokens.ts`/`primitives.tsx` is the reference;
-  the per-page `README.md` under `docs/mockups/<page>/` is the literal spec. See the
-  `design-build` skill for the build/route/QA sequence.
+- **At build time (implementation):** this guide plus `tokens.ts`/`primitives.tsx` is the shared
+  reference; the feature guide under `docs/product-onboarding/` owns the lasting screen behavior.
+  Use the accepted preview only as a temporary visual reference. See the `design-build` skill for
+  the build, route, and review sequence.
 - **At review time:** §3 is the checklist. Audit the rendered web output against it before shipping.
 
 ## References
@@ -303,7 +437,7 @@ The generic "make it striking" instinct pulls the wrong way for a civic-records 
 `apps/frontend/src/theme/tokens.ts` · `apps/frontend/src/theme/primitives.tsx` ·
 `docs/product-onboarding/mvp-redesign-plan.md` (redesign decisions) · `docs/design/ui-copy-guide.md` (voice/copy) ·
 `.claude/rules/grounded-answers.md` (what a surface may claim) · `docs/product-onboarding/grounded-ask-spec.md`
-(Ask surfaces) · `docs/mockups/home-signed-out-v2/README.md` (first shipped page).
+(Ask surfaces) · `docs/product-onboarding/home-screen-guide.md` (Home behavior).
 
 ---
 

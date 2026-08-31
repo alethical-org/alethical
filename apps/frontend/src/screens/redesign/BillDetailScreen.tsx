@@ -32,7 +32,8 @@ import { BillTrackButton } from '../../components/billDetail/BillTrackButton';
 import { MobileShareSheet } from '../../components/share/MobileShareSheet';
 import { Bill, VoteEvent } from '../../data/types';
 import { formatSessionLabel, SESSION_LABEL_FALLBACK } from '../../lib/sessionLabel';
-import { buildBillShareContent, publicPageUrl } from '../../lib/share';
+import { billPageMetadata, buildBillShareContent, publicPageUrl } from '../../lib/share';
+import { useDocumentTitle } from '../../navigation/documentTitle';
 import {
   authorAddPrefix,
   authorNameOnly,
@@ -73,7 +74,7 @@ import {
   validateRoll,
   versionTrackTag,
 } from '../../lib/billDetail';
-import { citationSectionAnchor } from '../../lib/billText';
+import { citationSectionAnchor, citationSectionHref } from '../../lib/billText';
 import { NormalizedMotion, normalizeMemberName, normalizeMotion } from '../../lib/motionNormalize';
 import { Skeleton } from '../../components/Skeleton';
 import { GoBackLink } from '../../components/GoBackLink';
@@ -81,8 +82,8 @@ import { FullTextTab } from '../../components/billDetail/FullTextTab';
 import { SuggestedQuestionChip } from '../../components/billDetail/CitationCard';
 import { BillDetailWebScreen } from './BillDetailWebScreen';
 
-// Bill Detail — mobile-first, single scrolling page (docs/mockups/bill-detail-mobile).
-// Re-expressed in RN from the .dc.html literal values; support.js not ported.
+// Bill Detail — mobile-first, single scrolling page
+// (docs/product-onboarding/bill-detail-guide.md).
 //
 // Data honesty (grounded-answers.md rules 1/4): the mock hardcodes party rosters
 // and fabricates per-member votes; this build shows only what the record truthfully
@@ -344,6 +345,14 @@ function BillDetailMobileScreen() {
 
   const billQuery = useBill(billId);
   const bill = billQuery.data;
+  // Same shared builder api/page.ts used for the first response, so the tab
+  // title never disagrees with the one the server sent (#1325).
+  useDocumentTitle(
+    billId ? `/bills/${billId}` : null,
+    bill
+      ? billPageMetadata({ billId: bill.id, shortTitle: bill.aiAnalysis?.shortTitle }).title
+      : null,
+  );
 
   const { trackedIds, isTracked, toggleTrack, trackedLoading } = useBillTracking();
   const tracked = bill ? isTracked(bill.id) : false;
@@ -487,7 +496,8 @@ function BillDetailMobileScreen() {
   const shareContent = bill
     ? buildBillShareContent({
         identifier: bill.identifier,
-        title: bill.aiAnalysis?.shortTitle ?? bill.title,
+        billId: bill.id,
+        shortTitle: bill.aiAnalysis?.shortTitle,
         summary: bill.aiAnalysis?.summary,
         url: publicPageUrl(`/bills/${bill.id}`),
       })
@@ -724,7 +734,12 @@ function BillDetailMobileScreen() {
                 <GoBackLink href={routePath.bills()} onPress={goToBillList} mobile />
                 <Text
                   accessibilityRole="header"
-                  accessibilityLabel={bill.title}
+                  aria-level={1}
+                  // No accessibilityLabel here: a label replaces the visible text
+                  // for a screen reader, so the statutory title announced 900
+                  // characters of statute where everyone else read the plain
+                  // headline (#1362). There is no hover on a phone, so the
+                  // statutory wording lives in the Bill Text section.
                   // The design hero is a punchy AI short title. When a bill has
                   // none, fall back to the canonical statutory title but shrink +
                   // clamp it so a 40-word title doesn't consume the whole screen.
@@ -792,7 +807,7 @@ function BillDetailMobileScreen() {
                 starts clean on the white surface. The grey gaps stay between the
                 content sections below. */}
             <Section id="summary" onLayout={onSectionLayout} style={styles.firstSection}>
-              <Text accessibilityRole="header" style={styles.h2}>
+              <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
                 Key points
               </Text>
               {/* The cited bullets ARE the plain-language summary; fall back to the
@@ -819,26 +834,33 @@ function BillDetailMobileScreen() {
                     <CircleCheck />
                   </View>
                   <View style={styles.citedChips}>
-                    {vm.citations.map((c, i) => (
-                      <Pressable
-                        key={`${c.id}-${i}`}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Jump to ${citationChipLabel(c.label, c.sectionTopic)} in Bill Text`}
-                        disabled={!c.sectionId}
-                        onPress={() => {
-                          setFtAnchor(citationSectionAnchor(c));
-                          jumpTo('fulltext');
-                        }}
-                        style={({ pressed }) => [
-                          styles.citedChip,
-                          pressed && styles.citedChipPressed,
-                        ]}
-                      >
-                        <Text style={styles.citedChipText}>
-                          {citationChipLabel(c.label, c.sectionTopic)}
-                        </Text>
-                      </Pressable>
-                    ))}
+                    {vm.citations.map((c, i) => {
+                      const href = citationSectionHref(bill.id, c);
+                      const label = citationChipLabel(c.label, c.sectionTopic);
+                      if (!href) {
+                        return (
+                          <View key={`${c.id}-${i}`} style={styles.citedChip}>
+                            <Text style={styles.citedChipText}>{label}</Text>
+                          </View>
+                        );
+                      }
+                      return (
+                        <Pressable
+                          key={`${c.id}-${i}`}
+                          {...linkProps(href, () => {
+                            setFtAnchor(citationSectionAnchor(c));
+                            jumpTo('fulltext');
+                          })}
+                          accessibilityLabel={`Jump to ${label} in Bill Text`}
+                          style={({ pressed }) => [
+                            styles.citedChip,
+                            pressed && styles.citedChipPressed,
+                          ]}
+                        >
+                          <Text style={styles.citedChipText}>{label}</Text>
+                        </Pressable>
+                      );
+                    })}
                   </View>
                 </View>
               ) : null}
@@ -1001,7 +1023,7 @@ function BillDetailMobileScreen() {
 
             {/* 4 — Actions */}
             <Section id="actions" onLayout={onSectionLayout}>
-              <Text accessibilityRole="header" style={styles.h2}>
+              <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
                 Actions
               </Text>
               <Text style={styles.intro}>Every official step this bill has taken.</Text>
@@ -1021,7 +1043,7 @@ function BillDetailMobileScreen() {
 
             {/* 5 — Votes */}
             <Section id="votes" onLayout={onSectionLayout}>
-              <Text accessibilityRole="header" style={styles.h2}>
+              <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
                 Votes
               </Text>
               {vm.hasVotes ? (
@@ -1044,7 +1066,7 @@ function BillDetailMobileScreen() {
                       />
                     </Svg>
                   </View>
-                  <Text accessibilityRole="header" style={styles.noVotesHeading}>
+                  <Text accessibilityRole="header" aria-level={3} style={styles.noVotesHeading}>
                     No recorded roll-call votes
                   </Text>
                   <Text style={styles.noVotesBody}>
@@ -1073,7 +1095,7 @@ function BillDetailMobileScreen() {
 
             {/* 6 — Versions */}
             <Section id="versions" onLayout={onSectionLayout}>
-              <Text accessibilityRole="header" style={styles.h2}>
+              <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
                 Versions
               </Text>
               <Text style={styles.intro}>
@@ -1100,7 +1122,7 @@ function BillDetailMobileScreen() {
 
             {/* 7 — Bill Text */}
             <Section id="fulltext" onLayout={onSectionLayout} style={styles.lastSection}>
-              <Text accessibilityRole="header" style={styles.h2}>
+              <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
                 Bill Text
               </Text>
               <FullTextTab
@@ -1108,6 +1130,9 @@ function BillDetailMobileScreen() {
                 targetSectionAnchor={ftAnchor}
                 onAnchorConsumed={() => setFtAnchor(null)}
                 updatedLabel={vm.updatedLabel}
+                // Nested under this screen's visible "Bill Text" h2, so each
+                // statutory caption sits a level below it.
+                sectionHeadingLevel={3}
               />
             </Section>
           </>
@@ -1943,7 +1968,7 @@ function AskCard({
   const prefetchSuggestedAnswer = usePrefetchSuggestedAnswer();
   return (
     <View style={styles.askCard}>
-      <Text accessibilityRole="header" style={styles.askTitle}>
+      <Text accessibilityRole="header" aria-level={2} style={styles.askTitle}>
         Ask about this bill
       </Text>
       <Text style={styles.askSub}>Answers cite the bill text</Text>
@@ -2540,7 +2565,7 @@ const styles = StyleSheet.create({
   // Plain-language key — one definition per line (mobile is a single column), and
   // separated from the timeline by WHITESPACE rather than the web tab's hairline:
   // a border here collides with the vertical timeline line running down beside it
-  // (NEXT-bill-detail-spec.md §Actions).
+  // (docs/product-onboarding/bill-detail-guide.md §Actions).
   actionKeyBox: { marginTop: 18 },
   actionKeyLabel: {
     fontFamily: t.typography.mono,

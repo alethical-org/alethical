@@ -18,6 +18,7 @@ import {
   useAskAnswer,
   useBill,
   useBillVersionText,
+  useFeaturedBills,
   useLegislators,
   usePrefetchSuggestedAnswer,
 } from '../../hooks/useAppQueries';
@@ -53,6 +54,7 @@ import {
   resolveSectionAnchor,
   sectionAnchorId,
 } from '../../lib/billText';
+import { askBillCardIds, currentAskBill } from '../../lib/billFreshness';
 import { STICKY_RAIL } from '../../components/billDetail/interactions';
 import { AskAnswerBill, AskAnswerLegislator } from '../../data/types';
 
@@ -61,8 +63,7 @@ const isWeb = Platform.OS === 'web';
 
 // The chip-reached Ask answer page. Spec of record:
 // docs/product-onboarding/grounded-ask-spec.md §9.5 (The chip-reached answer page —
-// decided web design), which supersedes §9.1–§9.2 for the bill_text state; design
-// handoff in docs/mockups/answer-web/.
+// decided web design), which supersedes §9.1–§9.2 for the bill_text state.
 //
 // The bill-text state uses the two-column passage design from §9.5. The issue
 // state is the separate full-width, sortable bill-list design from §9.6. Both
@@ -183,17 +184,15 @@ function AnswerBillCard({
             a link wrapper, so no press-swallowing is needed here. */}
         <BillTrackButton billId={bill.id} size="card" tracked={tracked} onPress={onToggleTrack} />
       </View>
-      {/* The PLAIN title, with the statutory one kept as a hover tooltip and the
-          screen-reader name — the treatment BillHeader and the search card already
-          use (.claude/rules/grounded-answers.md rule 10). HF 719's official title
-          is eleven lines of statute citations, and this card was printing all of
-          them on the vote deflection. */}
-      <Text
-        ref={titleRef}
-        style={styles.billTitle}
-        accessibilityLabel={bill.title}
-        numberOfLines={bill.shortTitle ? undefined : 2}
-      >
+      {/* The PLAIN title, with the statutory one kept as a hover tooltip and
+          nothing else — the treatment BillHeader and the search card also use
+          (.claude/rules/grounded-answers.md rule 10). HF 719's official title is
+          eleven lines of statute citations, and this card was printing all of them
+          on the vote deflection. It was also the screen-reader name until #1362:
+          an accessibilityLabel replaces the visible text rather than adding to it,
+          so the one group who cannot see the plain title was the only group
+          getting the statute. */}
+      <Text ref={titleRef} style={styles.billTitle} numberOfLines={bill.shortTitle ? undefined : 2}>
         {bill.shortTitle ?? bill.title}
       </Text>
       {bill.summary ? <Text style={styles.billSummary}>{bill.summary}</Text> : null}
@@ -291,6 +290,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
 
   const askQuery = useAskAnswer(question, suggestionIdentity);
   const prefetchSuggestedAnswer = usePrefetchSuggestedAnswer();
+  const isSavedSuggestion = Boolean(suggestionIdentity);
 
   // §4.6 — the placeholder's "name" entry point. A query that resolves to a
   // single legislator name is records navigation, so redirect to that profile
@@ -311,9 +311,26 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
   }, [nameMatch, navigation]);
 
   const answer = askQuery.data;
+  // Free-form Ask is a POST and can generate paid prose, so tab focus must never
+  // replay it. Keep its prose fixed and refresh only the bill cards through the
+  // existing read-only batch endpoint. Saved suggestions are already a safe GET
+  // that rebuilds their current bill card whenever that query refreshes.
+  const askBillIds = useMemo(
+    () => (isSavedSuggestion ? [] : askBillCardIds(answer)),
+    [answer, isSavedSuggestion],
+  );
+  const currentAskBillsQuery = useFeaturedBills(askBillIds, {
+    enabled: !isSavedSuggestion && askBillIds.length > 0,
+  });
+  const currentAskBillsById = useMemo(
+    () => new Map((currentAskBillsQuery.data ?? []).map((bill) => [bill.id, bill])),
+    [currentAskBillsQuery.data],
+  );
   const displayQuestion = answer?.question ?? question;
   const isLegislators = answer?.intent === 'topic_legislators';
-  const compactBills = answer?.bills ?? [];
+  const compactBills = (answer?.bills ?? []).map((bill) =>
+    currentAskBill(bill, currentAskBillsById),
+  );
   const shownLegislators = answer?.legislators ?? [];
   const hasMatches = Boolean(answer?.hasAnswer && answer.totalMatches > 0);
   const noMatches = Boolean(answer?.hasAnswer && answer.totalMatches === 0);
@@ -323,8 +340,8 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
       : crossIntentChips(answer?.intent, answer?.topic);
   const issueSort = resolveIssueAnswerSort(route.params?.sort);
   const shownIssueBills = issueAnswerBills(
-    answer?.billCards ?? [],
-    answer?.latestActionBillCards ?? [],
+    (answer?.billCards ?? []).map((bill) => currentAskBill(bill, currentAskBillsById)),
+    (answer?.latestActionBillCards ?? []).map((bill) => currentAskBill(bill, currentAskBillsById)),
     issueSort,
   );
   const isIssueAnswer = Boolean(
@@ -335,13 +352,19 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
   // answer. A resolved bill deep-links its Votes tab; otherwise it degrades to
   // the topic_bills list. hasAnswer is true, so this sits outside `pending`.
   const isVoteDeflection = answer?.intent === 'legislator_vote';
-  const resolvedBill = answer?.resolvedBill;
+  const resolvedBill = answer?.resolvedBill
+    ? currentAskBill(answer.resolvedBill, currentAskBillsById)
+    : undefined;
 
   // bill_text → the §9.5 single-bill answer: the prose, the answering bill's card,
   // its remaining suggested questions, and the cited-section rail.
   const isBillText = answer?.intent === 'bill_text';
-  const answeringBill = answer?.answeringBill;
-  const answeringBillCard = answer?.answeringBillCard;
+  const answeringBill = answer?.answeringBill
+    ? currentAskBill(answer.answeringBill, currentAskBillsById)
+    : undefined;
+  const answeringBillCard = answer?.answeringBillCard
+    ? currentAskBill(answer.answeringBillCard, currentAskBillsById)
+    : undefined;
   const citations = answer?.citations ?? [];
 
   // A saved public suggestion carries the complete current bill card and this
@@ -544,7 +567,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
             ) : null}
           </View>
         ) : null}
-        <Text accessibilityRole="header" style={styles.h1}>
+        <Text accessibilityRole="header" aria-level={1} style={styles.h1}>
           {displayQuestion}
         </Text>
         {sessionLine ? <Text style={styles.sessionLine}>{sessionLine}</Text> : null}
@@ -763,7 +786,7 @@ export function AskAnswerScreen({ navigation, route }: RootScreenProps<'Ask'>) {
               ]}
             >
               <View style={styles.railHead}>
-                <Text accessibilityRole="header" style={styles.h2}>
+                <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
                   From the bill
                 </Text>
                 <View style={styles.citedLabel}>

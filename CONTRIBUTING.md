@@ -15,7 +15,7 @@ Install these once:
 - **Docker** + Docker Compose — runs Postgres, the backend, and the web frontend
 - **[uv](https://docs.astral.sh/uv/)** — Python dependency manager
 - **[just](https://github.com/casey/just)** — command runner (the recipes below)
-- **Node 22** + **corepack** — for the frontend (`corepack enable` activates pnpm 10.33.0)
+- **Node 22** + **corepack** — for the frontend (`corepack enable` activates pnpm 10.33.0). The project records its exact Node version for [Volta](https://volta.sh/), a free tool that switches Node versions by project without removing the versions other projects use.
 - **Python 3.12** — pinned in `.python-version`
 
 ## First-time setup
@@ -25,8 +25,36 @@ git clone https://github.com/alethical-org/alethical.git
 cd alethical
 just install-hooks          # one time, per clone — see the note below
 cp .env.example .env        # then fill in the secrets marked "SET THIS"
+just doctor                 # reports missing or wrong local tools before setup fails
 just up                     # starts Postgres + backend + web frontend
 ```
+
+`just doctor` is a fast, read-only check that tells
+you whether Docker, uv, just, Node, pnpm, and the Python this project will use
+are ready. It reads the versions from the project itself: `.python-version`,
+`docker-compose.yml`, and `package.json`. It only reports problems, so it never
+stops your work. Use `just doctor ios` before iPhone work or `just doctor
+android` before Android work to also check Xcode or Java; web work does not need
+either one.
+
+### Keeping Node 22 beside other Node versions
+
+Alethical records Node 22.23.2 in `package.json`. If your computer also uses a
+different Node version for other projects, install Volta once and it will choose
+Alethical's Node 22 only while you work here:
+
+```bash
+brew install volta
+volta setup
+volta install node@22.23.2
+# Optional: keep Node 25 as the default outside Alethical.
+volta install node@25
+```
+
+Close and reopen your terminal after `volta setup`. Then `node --version` and
+`just doctor` run from this folder use Node 22, while other folders keep Volta's
+default Node version. You can use another version manager instead; activate Node
+22 before running Alethical commands.
 
 **`just install-hooks` is not optional if anyone else works in this clone.** It
 points git at this repo's tracked hooks (`.githooks`), and the one hook there locks
@@ -88,12 +116,11 @@ needs no configuration. See `.env.example` for what each variable does.
 
 Run `just lint`, `just format`, `uv run pytest`, and `just test-frontend` before opening a PR — CI runs the same checks, **plus a `prettier --check` over `apps/frontend` that `just lint` does not cover** (so `just lint` passing is not enough — run `just format` too).
 
-**Format with the pinned versions CI uses, not the unpinned ones `just lint` reaches for.**
-`just lint` and `just format` call `uvx ruff` and `uvx ty` with no version, so they pull
-whatever is newest and can format a file differently from CI or report errors CI never
-sees. To reproduce CI exactly: `uvx ruff@0.15.0 check alethical scripts`,
-`uvx ruff@0.15.0 format alethical scripts`, `uvx ty@0.0.63 check alethical/db`. Two PRs
-failed on this in one night, each on a file `just format` had already formatted.
+**`just lint` and `just format` pin the same tool versions CI runs** (`ruff@0.15.0`,
+`ty@0.0.72` — see the justfile and `.github/workflows/ci.yml`). If you ever call
+`uvx ruff` or `uvx ty` by hand, pin those same versions: an unpinned run pulls whatever
+is newest and can format a file differently from CI or report errors CI never sees —
+2 PRs failed that way in one night before the pins landed.
 
 ### One local Postgres, one database per worktree
 
@@ -101,8 +128,23 @@ Every worktree shares the same local Postgres server on `:54329`, but since
 [#898](https://github.com/alethical-org/alethical/issues/898) each gets its **own
 database** on it, named after the worktree. Nothing to set up and nothing to remember:
 `uv run pytest` in a fresh worktree creates it, migrates it, seeds it, and reuses it on
-later runs. Databases whose worktree has been deleted are dropped automatically at the
-start of the next run, so they do not pile up.
+later runs — **emptying every table before it re-seeds**, so run two starts from exactly
+the data run one started from. Databases whose worktree has been deleted are dropped
+automatically at the start of the next run, so they do not pile up.
+
+**Why the emptying is there** —
+[#1490, backend tests fail on the second local run](https://github.com/alethical-org/alethical/issues/1490)
+and [#1491, a service-history test fails for good past 20 legislators](https://github.com/alethical-org/alethical/issues/1491).
+`scripts/load_sample_data.py`
+inserts what is missing and updates what it finds, so it is idempotent per row but cannot
+remove rows it did not create. Tests commit legislators, bills and sessions into the seeded
+data and leave them there, so the database used to grow every run — 7 legislators after a
+seed, 54 after one full run, 140 after three. Nothing asserted a row count, so that stayed
+invisible until a test read a paginated endpoint and found the sample rows pushed off the
+page it read. It then failed on every later run, in a file the session had not touched,
+and **CI could not reproduce it** because CI always starts from an empty database. Dropping
+your database by hand used to be the only way out; it is no longer needed. The guarantee is
+covered by `alethical/tests/test_empty_data_tables.py`, so removing it fails a named test.
 
 **What that fixed.** The suite runs `alembic upgrade head` and re-seeds at setup, against
 whatever database it is pointed at. One shared database therefore produced two failures
@@ -137,59 +179,39 @@ A worktree created with plain `git worktree add` has **no `.env`**. Use
 
 The runner is **Vitest** (`apps/frontend`, pinned exact). It runs plain TypeScript modules directly, so there is no Babel or React Native transform chain to keep working, no config file, and the whole suite finishes in well under a second. `jest-expo` was not chosen: it needs the React Native preset and a Babel transform chain to test what are ordinary pure functions. Node's own `node --test` was not chosen either: running TypeScript through it depends on type-stripping whose behaviour varies by Node patch version, and unpinned tooling has turned this repo's CI red before. `pnpm --dir apps/frontend run test:watch` re-runs on save.
 
-**Pure logic gets a test.** Any function that maps input to output with no React, no network and no device — text cleaning, parsing, classifying, labelling, date and vote maths — is expected to ship with tests in `src/lib/__tests__/`. That is the rule; a PR adding one without tests should say why. Component rendering, browser automation and visual regression are deliberately **not** covered (see [#751](https://github.com/alethical-org/alethical/issues/751)) — they need real decisions about tooling and cost, and the pure-logic floor pays for itself without them.
+**Pure logic gets a test.** Any function that maps input to output with no React, no network and no device — text cleaning, parsing, classifying, labelling, date and vote maths — is expected to ship with tests in `src/lib/__tests__/`. That is the rule; a PR adding one without tests should say why. Component rendering and visual regression are deliberately **not** covered (see [#751](https://github.com/alethical-org/alethical/issues/751)). Browser automation now is, in two on-demand layers owned by the `browser-user-test` skill (`.claude/skills/browser-user-test/SKILL.md`): agent-driven user stories, and Playwright checks in `apps/frontend/e2e/` (`just e2e`, engines for Chrome, Firefox, and Safari). Neither runs in CI yet — deliberately, a pending decision on cost and flakiness policy.
 
 Prefer a fixture of **real** data over invented strings: `src/lib/__tests__/fixtures/` holds real bill sections pulled from the production API, and its `README.md` explains what each one is there to catch and how to add more. Two of the bugs these tests pin were found by measuring against real text and would not have been caught by an example someone made up.
 
-**Format the frontend only with `just format`** (Prettier from the lockfile-pinned toolchain — `3.4.2`, config in `apps/frontend/.prettierrc.json`; run `pnpm install --frozen-lockfile` first if deps look stale). The workspace Prettier is **safe**: if it produces a large diff, the file was genuinely non-conformant — **keep** the formatting, don't reset it. Only a **global or ad-hoc `prettier`** binary (a different version, or run where it can't find the config) reflows spuriously — never use that. CI's format step is `prettier --check .` run **with `working-directory: apps/frontend`** (`.github/workflows/ci.yml`), so its `.` is the frontend package, **not the repo root**: a frontend PR fails if *any* file under `apps/frontend` is non-conformant, even ones you didn't touch — but Markdown and other files outside that directory are not gated. Don't run `prettier --check .` from the repo root and conclude CI is failing: as of Jul 2026 that reports ~74 non-conformant files across `docs/`, `pnpm-lock.yaml` and the mockup HTML, none of which CI checks. If `just format` reformats files unrelated to your change, that's pre-existing debt — format it in a separate `chore/format-*` PR first, then rebase your change on top so its diff stays surgical. A dev-server "expected versions of the packages" warning means your `node_modules` drifted from the lockfile; reinstall before formatting.
+**Format the frontend only with `just format`** (Prettier from the lockfile-pinned toolchain — `3.4.2`, config in `apps/frontend/.prettierrc.json`; run `pnpm install --frozen-lockfile` first if deps look stale). The workspace Prettier is **safe**: if it produces a large diff, the file was genuinely non-conformant — **keep** the formatting, don't reset it. Only a **global or ad-hoc `prettier`** binary (a different version, or run where it can't find the config) reflows spuriously — never use that. CI's format step is `prettier --check .` run **with `working-directory: apps/frontend`** (`.github/workflows/ci.yml`), so its `.` is the frontend package, **not the repo root**: a frontend PR fails if *any* file under `apps/frontend` is non-conformant, even ones you didn't touch — but Markdown and other files outside that directory are not gated. Don't run `prettier --check .` from the repo root and conclude CI is failing: the repo root also includes docs and lockfiles outside that frontend check. If `just format` reformats files unrelated to your change, that's pre-existing debt — format it in a separate `chore/format-*` PR first, then rebase your change on top so its diff stays surgical. A dev-server "expected versions of the packages" warning means your `node_modules` drifted from the lockfile; reinstall before formatting.
 
 ## Branch & PR workflow
 
 **Never commit directly to `main`.** Pushing to `main` triggers a production
 deploy (see below), so all changes go through pull requests.
 
-1. **Start each change from `main`, one topic per branch:**
-   ```bash
-   git fetch origin
-   git switch -c <type>/<short-name> origin/main
-   ```
-   Branch off `main` — not off another feature branch — so your PR contains only
-   your change. Use a prefix that describes the topic: `feat/`, `fix/`, `docs/`,
-   `chore/`, `refactor/`. Example: `docs/env-onboarding`. Name the rest
-   literally, in words a newcomer could guess the meaning of
-   (`docs/update-issues-on-scope-change`, not `docs/ripple-sweep-habit`) — and
-   the same for PR titles, filenames, and headings. Metaphors and coined names
-   make the repo harder to learn.
+The workflow's single home is [`.claude/rules/workflow.md`](.claude/rules/workflow.md) —
+ten bullets of shape at the top, then the numbered rules. The short version:
 
-   Before you branch, skim the open PRs (`gh pr list`) for overlapping work —
-   especially with parallel Claude sessions, the same idea can be in flight
-   twice. If a PR already touches your files or topic, build on that branch
-   (or wait for it) instead of duplicating it.
+1. **Branch off `origin/main` in your own worktree** (`just worktree <branch>`), one
+   topic per branch, named literally with a topic prefix (`feat/`, `fix/`, `docs/`,
+   `chore/`, `refactor/` — `docs/env-onboarding`, not `docs/ripple-sweep-habit`).
+   Before you branch, skim the open PRs and issues for overlapping work — with
+   parallel agent sessions, the same idea can be in flight twice.
+2. **Commit** small, focused changes with a clear imperative subject line.
+3. **Push and open a PR into `main`** (`gh pr create --base main`). CI runs
+   automatically; fill in the template's **`Closes #<issue>`** line so the issue
+   closes on merge (no issue? delete the line and say why in "What").
+4. **Merge** once the checks pass on the current head (squash-merge keeps `main` to
+   one commit per topic), then delete the branch and remove the worktree
+   (`just worktree-rm <branch>`).
 
-2. **Commit** small, focused changes with a clear imperative subject line
-   (e.g. `Add .env.example and fix README env setup`).
+Hand work between people and tools as branches or PRs, never as file copies —
+a copy outside git has no history, so nobody can cheaply tell whether it still
+matches the branch (workflow.md rule 3).
 
-3. **Push and open a PR into `main`:**
-   ```bash
-   git push -u origin <branch>
-   gh pr create --base main
-   ```
-   CI runs automatically on the PR. The PR description is pre-filled from
-   `.github/PULL_REQUEST_TEMPLATE.md` — fill in the **`Closes #<issue>`** line so
-   the issue closes automatically on merge. If there's no issue, delete that line
-   and say why in the "What" section.
-
-4. **Merge** once CI is green (squash-merge keeps `main` to one commit per topic),
-   then delete the branch.
-
-Keeping one topic per branch makes PRs small and reviewable, keeps `main`'s
-history readable, and lets any single change be reverted cleanly.
-
-**Share branches, not file copies.** When handing work between tools, sessions,
-or people, push the branch and point at it (or at the PR) rather than exporting
-a file to Downloads or a desktop. A copy outside git has no history, so nobody
-can cheaply tell whether it matches the branch or has silently drifted — and
-reconciling that later costs more than the export ever saved.
+New to branching? [The visual branching guide](docs/operations/git-branching-guide.html)
+draws this workflow as commit graphs, with the habits and commands behind each step.
 
 ## What CI checks
 
@@ -216,9 +238,11 @@ nothing broke only because GitHub was temporarily forcing the steps onto Node 24
 and it was caught by someone reading a warning in a run log.
 
 `.github/dependabot.yml` now checks monthly and opens one grouped PR per
-ecosystem — the workflow steps (labeled `ci`), the Python dependencies
-(`backend`), and the JavaScript dependencies (`frontend`). It only opens PRs —
-normal CI still gates them. When one arrives:
+ecosystem — the workflow steps (labeled `ci`), Python dependencies (`backend`),
+JavaScript dependencies (`frontend`), and container images (`dependencies`). Small updates
+are grouped; major updates arrive separately so one large compatibility change
+cannot block safer updates. It only opens PRs — normal CI still gates them. When
+one arrives:
 
 - **Read the release notes for every major bump before merging.** A major version
   can change a default without failing. Two of ours did: `astral-sh/setup-uv` v9
@@ -257,18 +281,27 @@ and ignore that schedule entirely.
 - One caveat: GitHub only raises alerts for actions referenced by version number,
   not by commit hash. All six of ours use version numbers.
 
+The free monthly whole-system check (`.github/workflows/technology-health.yml`) is
+the backstop outside ordinary package files. It checks duplicated tool versions,
+unversioned commands, Python and JavaScript security reports, support deadlines,
+and whether the 3-month major-tool review is overdue. Its current support dates,
+exceptions, and review checklist live in
+[`docs/operations/technology-health.md`](docs/operations/technology-health.md).
+
 ## Deployment — why PRs matter
 
 Pushes to `main` auto-deploy: the backend (Railway) and web frontend (Vercel),
 and database migrations can run against production. Treat `main` as production
 and land everything through reviewed PRs.
 
-Since 2026-07-28 this is enforced, not just a convention: `main` requires a PR
-and the four `ci.yml` checks, and rejects force pushes and deletion. Approvals
-are set to **zero**, so you can still merge your own work — the rule blocks
-pushing straight to `main`, not shipping. Details and the reason behind each
-value: `docs/operations/repo-and-service-settings.md` § "Branch protection on
-`main`".
+Since 2026-07-28 this is enforced, not just a convention: `main` requires a PR,
+the 3 `ci.yml` checks, and a branch tested with the current `main`; it also
+rejects unresolved review comments, force pushes, deletion, and owner bypasses.
+Approvals are set to **zero**, so you can still merge your own work. Changes to
+sensitive files ask both owners for review through `.github/CODEOWNERS`, but that
+review is not a hard gate until a second owner is ready to review releases.
+Details and the reason behind each value:
+`docs/operations/repo-and-service-settings.md` § "Branch protection on `main`".
 
 ## Issue tracker hygiene
 
@@ -341,85 +374,35 @@ title.
 
 ## Keeping docs current
 
-The problem this section exists for: **a code change quietly makes a sentence in a
-doc false.** Nobody is careless when it happens — the doc that described the old
-behaviour simply isn't in front of the person changing the code. So one part of
-this is automated, and the rest is on you.
+The problem: **a code change quietly makes a sentence in a doc false.** The full rules —
+the trigger, the every-notable-feature-gets-a-guide requirement, screenshots and
+diagrams — live in [`.claude/rules/workflow.md`](.claude/rules/workflow.md) rule 6, the
+single home. What CI enforces on your PR:
 
-### Every notable feature gets its own guide
+- A doc that describes behaviour names the code it describes in a hidden comment near
+  its top: `<!-- describes: <paths> -->`. **If your PR changes a file some doc
+  declares, the PR body needs one `Docs check:` line saying what you concluded**
+  (`scripts/check_doc_sync.py`). "Docs check: none needed — internal refactor" passes:
+  the check forces a *look*, never an edit. Editing the doc does not exempt you — read
+  the whole doc, then say what you concluded, and search for the claim your change made
+  false, not for the name of the thing you changed.
+- **Design previews do not land under `docs/`.** Keep HTML previews, screenshots, copied
+  assets, and handoff notes with the active task or pull request. Before merging, move
+  lasting behavior and copy into the feature guide under `docs/product-onboarding/`,
+  shared visual rules into `docs/design/design-principles.md`, and exact values into code.
+- Selected live guides carry `<!-- check-quoted-code: true -->`: exact labels, colours,
+  and settings they quote must still appear in their declared code
+  (`scripts/check_doc_quotes.py`), or carry a narrow explained exception
+  (`<!-- quote-check-ignore: exact wording | reason -->`) beside them. Add guides one
+  at a time, classifying every warning first.
 
-A feature that has its own page or named place in navigation is not finished until it
-has a dedicated plain-English guide in `docs/product-onboarding/`. This applies to a
-destination where a reader completes a product task; legal pages and passive status
-pages are not feature guides.
-
-A system design, build spec, mockup, or code comment does not count. The guide must:
-
-- explain what the feature is for and every way a reader can enter it;
-- explain its controls, results, loading, empty, and error states;
-- state its important limits, data sources, and what happens to reader data;
-- include a `<!-- describes: -->` declaration and an entry in `docs/README.md`; and
-- change in the same PR whenever the feature's visible behaviour changes.
-
-### The part CI enforces
-
-A doc that describes behaviour names the code it describes, in its own text, as a
-hidden HTML comment near the top:
-
-```
-<!-- describes: apps/frontend/src/lib/billText.ts, apps/frontend/src/components/billDetail/FullTextTab.tsx -->
-```
-
-`scripts/check_doc_sync.py` reads those declarations. **If your PR changes a file
-some doc declares, your PR body needs one `Docs check:` line saying what you
-concluded.** Any of these pass:
-
-```
-Docs check: none needed — internal refactor, no user-visible change
-Docs check: updated search-bills-guide.md for the new sort labels
-Docs check: reread ai-models-and-billing.md §4 and §4.1; fixed §4
-```
-
-Three things worth knowing:
-
-- **"None needed" is a first-class answer and always will be.** The check forces a
-  *look*, never an edit. Requiring an edit would mean padding docs to please CI, and
-  CI would deserve to be ignored.
-- **Editing the doc does not exempt you from the line.** It used to. Two PRs an hour
-  apart each edited one subsection of `docs/product-onboarding/ai-models-and-billing.md`,
-  each passed on the strength of that edit, and each left the section above it
-  describing a system that took neither of two discounts we had just added. The page
-  contradicted itself for a day. Read the whole doc, then say what you concluded.
-- **Search for the claim your change made false, not for the name of the thing you
-  changed.** That is how the same incident slipped a manual sweep too: searching for
-  "cache" found nothing stale, because the false sentences never mentioned caching —
-  they asserted a price ("pays full list price"). No search finds that. Reading the
-  section does.
-
-**Adding a doc to the check is one line.** If you write or inherit a doc that
-describes how something behaves, give it a `describes:` comment. Frozen records
-(mockup handoffs, dated audits, design intent) deliberately declare nothing — they
-describe a moment, not current behaviour, so they cannot go stale.
-
-### The part CI cannot enforce
-
-Docs carry screenshots and diagrams, and those go stale silently — `grep`
-can't see inside an image, so a review won't catch it. When you change
-something a doc's visual depicts (UI copy, layout, the states a mock shows),
-refresh that image in the **same PR**, so the doc's picture and its words never
-disagree. This covers any doc with embedded visuals — build specs, onboarding
-guides, READMEs — not just files named `*-spec.md`.
-
-The machine-facing form of everything above is `.claude/rules/workflow.md` rule 6,
-and the reasoning behind the check lives in `scripts/check_doc_sync.py`'s own
-docstring, including the incidents that shaped it.
+If you write or inherit a doc that describes how something behaves, give it a
+`describes:` comment — joining the check is one line. Dated research and audits that
+do not claim current behavior deliberately declare nothing.
 
 ## Writing cross-references
 
-When you cite a spec section anywhere — a doc, an issue, a PR body or comment —
-give the full file name and say what the section covers:
-"`docs/product-onboarding/grounded-ask-spec.md` §9 (Answer page UI — v1 states)", not "the spec §9".
-Someone new reading the sentence in isolation should know exactly what's being
-referred to without opening anything. Once the full form has appeared, later
-mentions in the same document can shorten. Likewise, link issues and PRs with
-their titles or a short gloss rather than dropping a bare number.
+Cite a spec section with its full file name plus what the section covers —
+"`docs/product-onboarding/grounded-ask-spec.md` §9 (Answer page UI — v1 states)", never
+"the spec §9" — and link issues and PRs with their titles or a short gloss, never a
+bare number. Full rule: [`.claude/rules/workflow.md`](.claude/rules/workflow.md) rule 8.

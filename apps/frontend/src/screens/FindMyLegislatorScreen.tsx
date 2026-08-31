@@ -38,8 +38,10 @@ import {
   retryWaitSeconds,
   viewStateForLookup,
 } from '../lib/findMyLegislator';
+import { recordSiteMetricEvent } from '../lib/siteMetricEvents';
 import type { IaItem, MenuKey } from '../navigation/ia';
 import type { RootStackParamList } from '../navigation/types';
+import { browserFillTextInputProps } from '../theme/browserFill';
 import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../theme/fieldFocus';
 import { Container, Footer, PageBackground, TopNav } from '../theme/primitives';
 import { theme as t } from '../theme/tokens';
@@ -231,6 +233,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   const autoRanFor = useRef<string | null>(null);
   const addressInputRef = useRef<TextInput | null>(null);
   const lastFoundResult = useRef<RepresentativeLookupResult | undefined>(undefined);
+  const recordedFoundResult = useRef<RepresentativeLookupResult | undefined>(undefined);
   const geolocation = browserGeolocation();
   const result = lookup.data ?? undefined;
   const settledResult = lookup.isPending ? undefined : result;
@@ -240,9 +243,9 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   const displayedResult = retainedMapResult ?? settledResult;
   const alignRepresentativeSections = Boolean(
     !isMobile &&
-      displayedResult?.status === 'found' &&
-      displayedResult.senateLegislator &&
-      displayedResult.houseLegislator,
+    displayedResult?.status === 'found' &&
+    displayedResult.senateLegislator &&
+    displayedResult.houseLegislator,
   );
   const lookupChoices =
     settledResult?.status === 'address-choice' && !choiceClosed
@@ -308,6 +311,10 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
   useEffect(() => {
     if (settledResult?.status === 'found') {
       lastFoundResult.current = settledResult;
+      if (recordedFoundResult.current !== settledResult) {
+        recordedFoundResult.current = settledResult;
+        recordSiteMetricEvent('find_my_legislator_with_results');
+      }
     }
   }, [settledResult]);
 
@@ -614,7 +621,11 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
         />
         <Container style={[styles.main, isMobile && styles.mainMobile]}>
           <View style={styles.intro}>
-            <Text accessibilityRole="header" style={[styles.title, isMobile && styles.titleMobile]}>
+            <Text
+              accessibilityRole="header"
+              aria-level={1}
+              style={[styles.title, isMobile && styles.titleMobile]}
+            >
               Find my legislator
             </Text>
             <Text style={styles.explainer}>{FIND_MY_LEGISLATOR_INSTRUCTIONS}</Text>
@@ -632,6 +643,7 @@ export function FindMyLegislatorScreen({ navigation, route }: Props) {
               >
                 <TextInput
                   ref={addressInputRef}
+                  {...browserFillTextInputProps}
                   accessibilityLabel="Full Minnesota street address"
                   aria-describedby={addressError ? ADDRESS_ERROR_ID : undefined}
                   aria-invalid={addressError ? true : undefined}
@@ -1120,7 +1132,7 @@ const styles = StyleSheet.create({
   },
   foundWrap: { gap: 20, position: 'relative' },
   mapUpdatingOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 1,
     alignItems: 'center',
     justifyContent: 'center',

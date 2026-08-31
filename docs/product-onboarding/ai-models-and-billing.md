@@ -59,6 +59,35 @@ topic tags at once), so they're funded together and can all use either billing r
 | **Semantic search / retrieval** — finding the right bill for a typed question | Embedding vectors | **Embedding** | ❌ **No — API-only** |
 | **Corpus status freshness** — keeping each bill's current status up to date | Re-scraped status/actions | Not AI (web scraping) | ✅ N/A (free HTTP) |
 
+### 3.1 The official provider library is plumbing, not a billing rail
+
+An official software development kit (SDK) is OpenAI's or Anthropic's maintained
+Python library for making requests. It prepares the provider's request shape, adds
+the key, reuses connections, names common errors, and reads normal replies.
+
+Using the official library does **not** change which account pays, which model runs,
+whether a call gets the 50% batch price, or what Alethical asks the model to write.
+It changes the plumbing between Alethical and the same provider endpoint.
+
+The accepted default is to use the official OpenAI and Anthropic libraries behind
+small Alethical-owned helpers. Library retries stay off (`max_retries=0`). Alethical
+still owns the reader's time limit, total tries, spending guard, schema and citation
+checks, saved progress, and honest failure message.
+
+That move has not shipped across every call yet:
+
+- [Issue 780](https://github.com/alethical-org/alethical/issues/780) owns live Ask
+  calls and OpenAI search embeddings.
+- [Issue 1520](https://github.com/alethical-org/alethical/issues/1520) owns offline
+  Anthropic summaries and Message Batches.
+- [Issue 998](https://github.com/alethical-org/alethical/issues/998) owns the dormant
+  OpenAI summary-batch fallback.
+- The Claude Code subscription path remains a separate command-line route because
+  it uses a personal subscription login rather than an API key.
+
+[How Alethical Calls OpenAI and Anthropic, and When It Retries](../architecture/ai-provider-calls-and-retries.md)
+owns the full boundary, failure rules, work order, and tradeoffs.
+
 **Key insight:** the enrichment cluster (first four rows) is text generation, so it
 can ride the subscription. **Retrieval is the outlier** — it's embeddings, so it can
 *never* use the subscription and always needs a paid embedding-API call.
@@ -94,6 +123,17 @@ either wait-and-watch (`generate`) or hand-over-and-come-back (`batch-submit` th
 `apply` = file it in the cabinet. Only the writer step is where "which billing rail"
 matters.
 
+`apply` is also the free freshness gate. Before it files a summary, it checks that the bill's
+current version and official section text still match what `prepare` recorded. Both valid text-hash
+lengths are accepted, so building the search index after preparation does not waste unchanged paid
+output. If the bill changed while the model was writing, `apply` reports the result as `outdated`
+and does not display it. That manual apply does not create replacement work or spend more money.
+The earlier saved official-text change already recorded 1 exact durable request after its proposal
+roles and APPENDIX references were complete. The request becomes ready when current search rows
+match, but an actual automatic job is queued only when the switch and every spending and failure
+limit are open. Apply and refresh also take the same bill-row lock, so a refresh cannot commit
+between this check and the summary write ([#1321](https://github.com/alethical-org/alethical/issues/1321)).
+
 **Same output, very different wall-clock — this is the real tradeoff.** The two
 `generate` rails produce identical text, but not at identical speed. The subscription
 CLI path (`--provider claude-cli --model sonnet`) runs bills **one at a time**, so a
@@ -119,7 +159,8 @@ The OpenAI path ([`ai_enrichment.py`](../../alethical/pipeline/ai_enrichment.py)
 always used its provider's half-price queue, which is why that one is cheap and slow.
 **The lesson to carry away is that "batch" in a command name never means "discount" by
 itself** — read whether the command *waits*. The full mode-and-tier comparison is
-worked through in [#457](https://github.com/alethical-org/alethical/issues/457).
+explained below; [issue 457](https://github.com/alethical-org/alethical/issues/457)
+adds the default-off automatic handoff for newly saved or changed official bill text.
 
 ### 4.1 Where the 50% bulk discount comes from, and who can reach it
 
@@ -166,11 +207,11 @@ the token price:
 **Net (plain language): OpenRouter can now get the half price, but going straight to
 Anthropic is a few dollars cheaper and has fewer things that can go wrong.**
 
-**The one real promotion is a different thing, and it has a deadline.** Claude Sonnet 5
-is on introductory pricing of **$2 in / $10 out per million tokens** through
-**August 31, 2026**, after which it returns to **$3 / $15**
-([pricing](https://platform.claude.com/docs/en/about-claude/pricing#claude-sonnet-5-introductory-pricing)).
-That is a 50% increase on every enrichment run from September 1.
+**Claude Sonnet 5's launch price is now permanent.** Anthropic made the
+**$2 input / $10 output per million tokens** price permanent on August 10, 2026
+([announcement](https://www.anthropic.com/research/claude-sonnet-5),
+[pricing](https://platform.claude.com/docs/en/about-claude/pricing)). There is no
+August 31 deadline and no planned return to $3 / $15.
 
 Both discounts apply to the same job, so the
 [#723](https://github.com/alethical-org/alethical/issues/723) re-enrichment of 3,222
@@ -185,16 +226,13 @@ Measured: 26.7M tokens in, ~17.4M out (3,222 bills × ~5,400 output tokens each)
 
 | | Live calls (~1 hour) | Bulk lane (up to 24 hours) |
 |---|---|---|
-| **Through Aug 31, 2026** | **~$224** (actually paid) | **~$112** |
-| **From Sep 1, 2026** | ~$337 | ~$169 |
+| **Permanent Sonnet 5 price** | **~$224** (actually paid) | **~$112** |
 
-The bulk-lane column is the live column halved, per the 50% bulk discount above; the
-Sep 1 row scales the measured cost by the same ratio the estimate used ($265 / $176).
-Only the ~$224 was actually paid.
+The bulk-lane column is the live column halved, per the 50% bulk discount above.
+Only the ~$224 live run was actually paid.
 
-**Net (plain language): the bulk lane saves more than the deadline costs.** Missing
-August is a ~$113 mistake only if we stay on live calls; on the bulk lane it is ~$57.
-Doing both — bulk lane, before September — is the cheapest this job will ever be.
+**Net (plain language): the bulk lane cuts the measured provider price in half;
+there is no model-price deadline to race.**
 
 **Those output figures are now high, because the job itself got smaller.** The prices
 above are the measured cost of the #723 job *as it was billed*, and they stay accurate
@@ -217,6 +255,8 @@ side-by-side comparison rather than assumed.
 lets you pay once to keep a repeated block of instructions on hand, then pay about 10% of
 the normal rate every time a later call reuses it. Our enrichment prompt is a perfect
 candidate: ~3,240 tokens of identical instructions on every call, about 39% of the input.
+For Sonnet 5's 1-hour cache, writes cost **$4 per million tokens** and reads cost
+**$0.20 per million tokens** at the permanent base price.
 
 **Both lanes are now wired up, and each takes exactly the saving that suits it:**
 
@@ -539,6 +579,9 @@ not have is the same mistake as rebuilding something that already works.
 
 ## Related
 
+- [How Alethical calls OpenAI and Anthropic, and when it retries](../architecture/ai-provider-calls-and-retries.md):
+  why official libraries are the default plumbing, what Alethical keeps under its
+  control, and which changes are only planned.
 - [Data ingestion onboarding guide](data-ingestion-onboarding.md) — where the bill
   text (that enrichment reads) and the embeddings (that retrieval uses) come from.
 - [RAG ingestion system design](../architecture/layer-2-rag-ingestion-system-design.md) — the embedding /

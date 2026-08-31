@@ -1,19 +1,51 @@
 import { plainBillSummary } from './billDetail';
+import { registrationNumberFromSlug } from './committeeMoney';
+import { directoryPagePath } from './directoryPagination';
+import { paymentNameRole, paymentsUnderNameHeading } from './paymentsUnderName';
+import {
+  READ_PAGE_HEADING,
+  READ_PAGE_INTRO,
+  READ_PAGE_NAME,
+  pieceShareDescription,
+  piecePath,
+  type ResearchPiece,
+} from './research';
 
 export const PUBLIC_SITE_ORIGIN = 'https://www.alethical.com';
 export const SOCIAL_PREVIEW_IMAGE_URL = `${PUBLIC_SITE_ORIGIN}/social-preview.png`;
+export const SOCIAL_PREVIEW_IMAGE_ALT =
+  'Alethical: Minnesota’s legislative record in plain language, with links to official sources.';
+export const SITE_NAME = 'Alethical';
+
+// Every page's own wording lives in this file — issue #1325. Three surfaces read
+// it and they must not drift: the browser tab title, the tags in the FIRST server
+// response (api/page.ts, so a search engine and a person receive the same HTML),
+// and the share sheet. The rules these strings obey are argued in
+// docs/architecture/page-metadata-for-search-and-sharing-decisions.md §3 (What
+// each page should say) — be as specific as the URL is, promise only what the
+// page shows, never a bill's statutory title, and the description never says
+// "Alethical" because the title already ends with it.
+const TITLE_SUFFIX = ` | ${SITE_NAME}`;
+
+export const HOME_PAGE_TITLE = 'Alethical: Minnesota’s legislative record in plain language';
+export const HOME_PAGE_DESCRIPTION =
+  'Minnesota’s legislative record, in plain language, with links to official sources.';
+const BILL_LIST_SUBJECT = 'Search Minnesota bills';
+const LEGISLATOR_LIST_SUBJECT = 'Minnesota House and Senate members';
 
 // X counts every HTTPS link as 23 characters after shortening it. Leave 1 more
 // character for the space X adds between the prepared text and URL.
 export const X_SHORT_LINK_LENGTH = 23;
 const X_TEXT_LENGTH = 280 - X_SHORT_LINK_LENGTH - 1;
 
-export type ShareSubject = 'bill' | 'legislator' | 'answer';
+export type ShareSubject = 'bill' | 'legislator' | 'answer' | 'research' | 'guide' | 'committee';
 
 export interface ShareContent {
   subject: ShareSubject;
   title: string;
   description: string;
+  /** Optional shorter line shown in the Share panel without changing prepared post text. */
+  previewDescription?: string;
   url: string;
 }
 
@@ -44,24 +76,51 @@ export function publicPageUrl(path: string): string {
   return `${PUBLIC_SITE_ORIGIN}${normalizedPath}`;
 }
 
+/**
+ * The session year printed in a bill's title, read out of the bill id
+ * (`94-2025-HF719` → `2025`). Bill numbers repeat every biennium, so `HF 719`
+ * alone is ambiguous forever; the id already carries the year, so no extra
+ * request is needed to disambiguate.
+ */
+export function billSessionYear(billId: string | null | undefined): string | null {
+  const match = (billId ?? '').match(/^\d+-(\d{4})-/);
+  return match ? match[1] : null;
+}
+
+/** `94-2025-HF719` → `HF 719`. Falls back to the id when it is not that shape. */
+export function billNumberFromId(billId: string): string {
+  const match = billId.match(/-(SF|HF)(\d+)$/i);
+  return match ? `${match[1].toUpperCase()} ${match[2]}` : billId;
+}
+
 export function buildBillShareContent({
   identifier,
-  title,
+  billId,
+  shortTitle,
   summary,
   url,
 }: {
   identifier: string;
-  title: string;
+  billId?: string | null;
+  /**
+   * The plain-language short title ONLY. Never the bill's official statutory
+   * title, which is a paragraph of legal cross-references
+   * (`.claude/rules/grounded-answers.md` rule 10). A bill with no short title
+   * yet is titled by its number and year alone.
+   */
+  shortTitle?: string | null;
   summary?: string | null;
   url: string;
 }): ShareContent {
   const cleanIdentifier = clean(identifier);
-  const cleanTitle = clean(title);
+  const year = billSessionYear(billId);
+  const numberAndYear = year ? `${cleanIdentifier} (${year})` : cleanIdentifier;
+  const cleanTitle = clean(shortTitle ?? '');
   const description = plainBillSummary(summary ?? null, { firstSentenceOnly: true });
 
   return {
     subject: 'bill',
-    title: `${cleanIdentifier}: ${cleanTitle}`,
+    title: cleanTitle ? `${numberAndYear}: ${cleanTitle}` : numberAndYear,
     description:
       description ||
       `See what ${cleanIdentifier} would do and where it stands in the Minnesota Legislature.`,
@@ -71,20 +130,29 @@ export function buildBillShareContent({
 
 export function buildLegislatorShareContent({
   displayName,
-  partyLabel,
   districtLine,
   url,
 }: {
   displayName: string;
-  partyLabel: string;
+  /** Chamber and district as the profile shows it, e.g. `House District 62A`. */
   districtLine: string;
   url: string;
 }): ShareContent {
   const name = clean(displayName);
+  const place = clean(districtLine);
   return {
     subject: 'legislator',
-    title: `${name}: ${clean(partyLabel)}, ${clean(districtLine)}`,
-    description: `See ${name}’s committee assignments, chief-authored bills, and recent votes in the Minnesota Legislature.`,
+    // Party is deliberately absent. District plus chamber identify a person just
+    // as well, never go stale mid-term, and keep a partisan label out of a search
+    // result read in isolation (decisions doc §3).
+    title: place ? `${name}, Minnesota ${place}` : name,
+    // Lists only sections the profile actually renders, and this is checked
+    // rather than assumed. It said "recent votes" until #1325 measured the page:
+    // votes appear solely inside the unfinished "On the roadmap" area, so the
+    // sentence promised a section that is not there (grounded-answers.md rule 6
+    // — copy claims match shipped capability). When a section is added to or
+    // removed from the profile, this sentence changes with it.
+    description: `See ${name}’s committee assignments, chief-authored bills, and contact information in the Minnesota Legislature.`,
     url,
   };
 }
@@ -124,7 +192,7 @@ export function nativeShareText(content: ShareContent, includeUrl: boolean): str
     .join('\n\n');
 }
 
-function escapeHtml(value: string): string {
+export function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -133,37 +201,477 @@ function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;');
 }
 
-export function renderSocialPreviewHtml(content: ShareContent): string {
-  const title = escapeHtml(content.title);
-  const pageTitle = escapeHtml(`${content.title} | Alethical`);
-  const description = escapeHtml(content.description);
-  const url = escapeHtml(content.url);
-  const image = escapeHtml(SOCIAL_PREVIEW_IMAGE_URL);
+// --- What every page tells a browser tab, a search engine and a share preview ---
 
-  return `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>${pageTitle}</title>
-    <meta name="description" content="${description}">
-    <link rel="canonical" href="${url}">
-    <meta property="og:type" content="website">
-    <meta property="og:site_name" content="Alethical">
-    <meta property="og:title" content="${title}">
-    <meta property="og:description" content="${description}">
-    <meta property="og:url" content="${url}">
-    <meta property="og:image" content="${image}">
-    <meta property="og:image:width" content="1200">
-    <meta property="og:image:height" content="630">
-    <meta property="og:image:alt" content="Alethical">
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="${title}">
-    <meta name="twitter:description" content="${description}">
-    <meta name="twitter:image" content="${image}">
-  </head>
-  <body>
-    <p><a href="${url}">Open this page on Alethical</a></p>
-  </body>
-</html>`;
+export interface PageMetadata {
+  /** The whole `<title>`, and the whole browser tab title. */
+  title: string;
+  /** `og:title` / `twitter:title`. No site suffix — `og:site_name` carries it. */
+  socialTitle: string;
+  description: string;
+  /** Site-relative address this page declares as its real one. */
+  canonicalPath: string;
+  /** True when a search engine must not list the page. */
+  noindex: boolean;
+}
+
+function pageMetadata(input: Partial<PageMetadata> & { title: string; description: string }) {
+  return {
+    socialTitle: input.title,
+    canonicalPath: '/',
+    noindex: false,
+    ...input,
+  } satisfies PageMetadata;
+}
+
+/** A subject line plus the site suffix — the shape every page title but Home uses. */
+function titleFor(subject: string): string {
+  return `${subject}${TITLE_SUFFIX}`;
+}
+
+export function homePageMetadata(): PageMetadata {
+  return pageMetadata({
+    title: HOME_PAGE_TITLE,
+    description: HOME_PAGE_DESCRIPTION,
+    canonicalPath: '/',
+  });
+}
+
+export const NOT_FOUND_HEADING = 'We couldn’t find that page';
+export const NOT_FOUND_DESCRIPTION = 'The address may be mistyped, or the page may have moved.';
+
+export function notFoundPageMetadata(): PageMetadata {
+  return pageMetadata({
+    title: titleFor('Page not found'),
+    socialTitle: 'Page not found',
+    description: NOT_FOUND_DESCRIPTION,
+    // A missing page is not a copy of a real page.
+    canonicalPath: '',
+    noindex: true,
+  });
+}
+
+export function billListPageMetadata(page = 1, options: { noindex?: boolean } = {}): PageMetadata {
+  const subject = page > 1 ? `${BILL_LIST_SUBJECT}, page ${page}` : BILL_LIST_SUBJECT;
+  return pageMetadata({
+    title: titleFor(subject),
+    socialTitle: subject,
+    description: `Search bills in the Minnesota Legislature by topic, chamber, and status.${page > 1 ? ` Page ${page}.` : ''}`,
+    // Filtered addresses carry no canonical while they are noindex. Combining
+    // both signals can make the intended indexable directory ambiguous.
+    canonicalPath: options.noindex ? '' : directoryPagePath('/bills', page),
+    noindex: options.noindex,
+  });
+}
+
+export function legislatorListPageMetadata(
+  page = 1,
+  options: { noindex?: boolean } = {},
+): PageMetadata {
+  const subject = page > 1 ? `${LEGISLATOR_LIST_SUBJECT}, page ${page}` : LEGISLATOR_LIST_SUBJECT;
+  return pageMetadata({
+    title: titleFor(subject),
+    socialTitle: subject,
+    description: `Find a Minnesota legislator by name, chamber, or party.${page > 1 ? ` Page ${page}.` : ''}`,
+    canonicalPath: options.noindex ? '' : directoryPagePath('/legislators', page),
+    noindex: options.noindex,
+  });
+}
+
+export function billPageMetadata(input: {
+  billId: string;
+  shortTitle?: string | null;
+  summary?: string | null;
+}): PageMetadata {
+  const canonicalPath = `/bills/${encodeURIComponent(input.billId)}`;
+  const content = buildBillShareContent({
+    identifier: billNumberFromId(input.billId),
+    billId: input.billId,
+    shortTitle: input.shortTitle,
+    summary: input.summary,
+    url: publicPageUrl(canonicalPath),
+  });
+  return pageMetadata({
+    title: titleFor(content.title),
+    socialTitle: content.title,
+    description: content.description,
+    canonicalPath,
+  });
+}
+
+export function legislatorPageMetadata(input: {
+  slug: string;
+  displayName: string;
+  districtLine: string;
+}): PageMetadata {
+  const canonicalPath = `/legislators/${encodeURIComponent(input.slug)}`;
+  const content = buildLegislatorShareContent({
+    displayName: input.displayName,
+    districtLine: input.districtLine,
+    url: publicPageUrl(canonicalPath),
+  });
+  return pageMetadata({
+    title: titleFor(content.title),
+    socialTitle: content.title,
+    description: content.description,
+    canonicalPath,
+  });
+}
+
+/**
+ * Answer pages are left crawlable on purpose and carry noindex instead. A page a
+ * crawler is blocked from fetching cannot be read, so a robots.txt block would
+ * stop the very instruction that unlists it from ever arriving (decisions doc §7).
+ */
+export function askPageMetadata(question?: string | null): PageMetadata {
+  const asked = clean(question ?? '');
+  const content = buildAnswerShareContent({ question: asked, url: publicPageUrl('/ask') });
+  const subject = asked ? content.title : 'Ask about Minnesota legislation';
+  return pageMetadata({
+    title: titleFor(subject),
+    socialTitle: subject,
+    description: content.description,
+    canonicalPath: '/ask',
+    noindex: true,
+  });
+}
+
+/**
+ * One posted research piece's page metadata. Title and dates ONLY: piece
+ * claims and derived labels appear in no social-share preview or metadata
+ * (.claude/rules/grounded-answers.md rule 13), so the dek and every figure stay
+ * out of these tags.
+ *
+ * An indexed piece carries no `nosnippet`: an ordinary search snippet always
+ * links to the page holding the method, and suppressing body text on a
+ * transparency product reads as hiding the thing it publishes. Since 25 Aug
+ * 2026 rule 13 publishes every piece `indexed: true` on the day it posts, so
+ * the `noindex` branch below is now the hold-back for a piece Eugene names
+ * rather than the default; a held piece carries no canonical while it is held.
+ * It stays fully readable on the site either way; only search engines are held
+ * off (rule 13's publishing order).
+ */
+export function researchPageMetadata(piece: ResearchPiece): PageMetadata {
+  return pageMetadata({
+    title: titleFor(piece.title),
+    socialTitle: piece.title,
+    // A research piece is described by its 2 dates; a guide by the 1 slot that
+    // reads Written or Checked. Either way, dates only.
+    description: pieceShareDescription(piece),
+    // The canonical address comes from the piece's traits, so it can only ever be
+    // the 1 address the router accepts for it.
+    canonicalPath: piece.indexed ? piecePath(piece) : '',
+    noindex: !piece.indexed,
+  });
+}
+
+/**
+ * A committee money page's metadata, from its address alone. The name part of the
+ * slug is whatever the link's author typed — canonical links carry the register's
+ * current name, but a misspelled one still resolves — so the tags name the
+ * committee by its registration number, the only part that is always right. The
+ * client puts the register's own name in the tab once the record loads.
+ */
+export function committeeMoneyPageMetadata(
+  slug: string,
+  view: 'page' | 'payments' = 'page',
+  // The register's own spelling of the name, and the address built from it, once
+  // the record has been read. Committee names collide and a name part in an
+  // address may be old or misspelled, so the page a reader shares has to be the
+  // one address we call canonical, not whichever spelling they arrived on
+  // (#1812). Absent = the record could not be read, and the number stands in.
+  record?: { name: string; canonicalSlug: string },
+): PageMetadata {
+  const number = registrationNumberFromSlug(slug);
+  const label = record?.name || (number ? `Committee ${number}` : 'Committee');
+  const base = `/money/committees/${encodeURIComponent(record?.canonicalSlug ?? slug)}`;
+  if (view === 'payments') {
+    return pageMetadata({
+      title: titleFor(`${label} — every payment named`),
+      socialTitle: `${label} — every payment named`,
+      description:
+        'Every named payment behind one committee’s figures, largest first, from Minnesota’s own campaign-finance filings.',
+      canonicalPath: `${base}/payments`,
+    });
+  }
+  return pageMetadata({
+    title: titleFor(`${label} — campaign money`),
+    socialTitle: `${label} — campaign money`,
+    description:
+      'One committee’s money in and money out, from Minnesota’s own campaign-finance filings.',
+    canonicalPath: base,
+  });
+}
+
+/**
+ * The committees list's metadata. A filtered or scrolled address carries no
+ * canonical and is noindex: the name box, the kind filter and the row count
+ * combine into effectively unlimited addresses, and only the bare list is a page
+ * worth listing — the same rule the bill and legislator directories follow.
+ */
+export function committeeListPageMetadata(
+  page = 1,
+  options: { noindex?: boolean } = {},
+): PageMetadata {
+  const subject =
+    page > 1 ? `Committees, page ${page} — campaign money` : 'Committees — campaign money';
+  return pageMetadata({
+    title: titleFor(subject),
+    socialTitle: subject,
+    description:
+      'Everyone registered to raise or spend money in Minnesota state politics: candidate committees, party units, and the committees and funds that give to them.' +
+      (page > 1 ? ` Page ${page}.` : ''),
+    canonicalPath: options.noindex ? '' : directoryPagePath('/money/committees', page),
+    noindex: options.noindex,
+  });
+}
+
+/**
+ * A name-search results page. Always noindex, for the same reason an Ask answer
+ * page is: the address is whatever somebody typed, so listing it would put an
+ * unbounded set of query strings into a search index. The page stays crawlable so
+ * the committee pages it links to are still reachable.
+ */
+export function moneySearchPageMetadata(query?: string | null): PageMetadata {
+  const trimmed = (query ?? '').trim();
+  const label = trimmed ? `Campaign money search: ${trimmed}` : 'Search campaign money by name';
+  return pageMetadata({
+    title: titleFor(label),
+    socialTitle: label,
+    description:
+      'Search Minnesota state campaign filings by the name each record was filed under: legislators, committees, donors, and the businesses that got paid.',
+    canonicalPath: '',
+    noindex: true,
+  });
+}
+
+/**
+ * The payments filed under one printed name. Always noindex, and for a reason
+ * stronger than the search page's: the address is one free-text spelling out of
+ * hundreds of thousands, so listing it would put an unbounded set of thin pages
+ * in front of search engines
+ * (`docs/architecture/page-metadata-for-search-and-sharing-decisions.md` §20.5
+ * rule 4), and a page indexed under a name reads as a profile of whoever carries
+ * it — which is the one thing this page may never be
+ * (`.claude/rules/grounded-answers.md` rule 3, and the endpoint's own contract:
+ * the printed string is the whole of the key and never an identity).
+ *
+ * The page stays crawlable, so the committee pages its rows link to are still
+ * reachable.
+ */
+export function paymentsUnderNamePageMetadata(name: string, role: string): PageMetadata {
+  const validRole = paymentNameRole(role);
+  const label = validRole
+    ? paymentsUnderNameHeading(name, validRole)
+    : 'Payments filed under one name';
+  return pageMetadata({
+    title: titleFor(label),
+    socialTitle: label,
+    description:
+      'Every payment Minnesota’s campaign filings record under one printed name, exactly as it ' +
+      'was spelled, each row opening the committee that filed it.',
+    canonicalPath: '',
+    noindex: true,
+  });
+}
+
+/** Pages whose wording never varies. */
+export const STATIC_PAGE_METADATA: Record<string, PageMetadata> = {
+  // The campaign money landing (public, no sign-in gate). The description may
+  // say these records are searchable now that the field on it works and the
+  // committees list exists (issue #1696) — until they shipped it deliberately
+  // promised only the record (grounded-answers.md rule 2).
+  '/money': pageMetadata({
+    title: titleFor('Follow the money'),
+    socialTitle: 'Follow the money',
+    description:
+      'Contributions and spending for Minnesota state campaigns, as the state publishes them, searchable by the name each record was filed under.',
+    canonicalPath: '/money',
+  }),
+  '/money/committees': committeeListPageMetadata(),
+  // The tab carries the page's own name, because the page itself shows no title:
+  // the bar and the address already say the word, so a third visible instance is
+  // what the naming rule forbids, and the tab is where the name still has to
+  // exist (Design's /read handoff, 27 Aug 2026). The share card keeps the
+  // descriptive title instead, because a card has no bar or address beside it to
+  // say what "Read" would mean.
+  '/read': pageMetadata({
+    title: titleFor(READ_PAGE_NAME),
+    socialTitle: READ_PAGE_HEADING,
+    description: READ_PAGE_INTRO,
+    canonicalPath: '/read',
+  }),
+  '/confirm': pageMetadata({
+    title: titleFor('Confirm email'),
+    socialTitle: 'Confirm email',
+    description: 'Confirm the email address from this message.',
+    canonicalPath: '/confirm',
+    noindex: true,
+  }),
+  '/reset': pageMetadata({
+    title: titleFor('Reset password'),
+    socialTitle: 'Reset password',
+    description: 'Check this reset link and choose a new password.',
+    canonicalPath: '/reset',
+    noindex: true,
+  }),
+  '/find-my-legislator': pageMetadata({
+    title: titleFor('Find my legislator'),
+    socialTitle: 'Find my legislator',
+    description:
+      'Enter a Minnesota address to see which state House and Senate members represent it.',
+    canonicalPath: '/find-my-legislator',
+  }),
+  '/about': pageMetadata({
+    title: titleFor('About us'),
+    socialTitle: 'About us',
+    description:
+      'Why this site exists, and how Minnesota’s official legislative record is turned into plain language.',
+    canonicalPath: '/about',
+  }),
+  '/about/contact': pageMetadata({
+    title: titleFor('Contact us'),
+    socialTitle: 'Contact us',
+    description: 'Send a question, a correction, or feedback about Minnesota legislative records.',
+    canonicalPath: '/about/contact',
+  }),
+  '/privacy': pageMetadata({
+    title: titleFor('Privacy Policy'),
+    socialTitle: 'Privacy Policy',
+    description: 'How information is collected, used, and protected on this site.',
+    canonicalPath: '/privacy',
+  }),
+  '/site-metrics': pageMetadata({
+    title: titleFor('Site Metrics'),
+    socialTitle: 'Site Metrics',
+    description: 'Public totals about traffic, search discovery, availability, and speed.',
+    canonicalPath: '/site-metrics',
+  }),
+  '/terms': pageMetadata({
+    title: titleFor('Terms of Service'),
+    socialTitle: 'Terms of Service',
+    description: 'The terms that govern use of this website and application.',
+    canonicalPath: '/terms',
+  }),
+  // Signed-in surface: a search engine would only ever see the signed-out card,
+  // so it is left out of the sitemap and unlisted.
+  '/tracked': pageMetadata({
+    title: titleFor('Tracked bills'),
+    socialTitle: 'Tracked bills',
+    description: 'The Minnesota bills you have chosen to follow.',
+    canonicalPath: '/tracked',
+    noindex: true,
+  }),
+};
+
+/**
+ * The machine-readable description of a page. Deliberately small: only the types
+ * a search engine demonstrably does something with (decisions doc §6). No
+ * `Person`, no `ProfilePage`, no `Legislation` — all three are tidy labelling
+ * that no shipped search feature consumes.
+ *
+ * No `BreadcrumbList` either, and that one shipped before it was removed. Google
+ * asks for it where the page *shows* a breadcrumb trail. What a bill or a
+ * legislator page shows is one control labelled "Go back" — and on the web it is
+ * an anchor that goes back through browser history when this tab has an in-app
+ * entry, and follows its own address to the list otherwise (`backLinkProps` in
+ * `apps/frontend/src/navigation/links.ts`). So where it leads depends on how the
+ * reader arrived, often the search results they came from. A `BreadcrumbList`
+ * asserts a fixed position in a hierarchy; a control with no fixed destination
+ * does not have one. Relabelling the link "Bills" to justify the markup would
+ * change visible copy on every detail page to serve a minor search feature, and
+ * would read as wrong whenever the button genuinely goes back — the trade
+ * `docs/philosophy.md` principle 10 rejects. If a real breadcrumb trail is ever
+ * designed, the markup comes back with it (decisions doc §6 and §12).
+ */
+export function pageJsonLd(meta: PageMetadata): object[] {
+  if (meta.canonicalPath === '/') {
+    return [
+      {
+        '@context': 'https://schema.org',
+        '@type': 'WebSite',
+        name: SITE_NAME,
+        url: `${PUBLIC_SITE_ORIGIN}/`,
+      },
+      {
+        '@context': 'https://schema.org',
+        '@type': 'Organization',
+        name: SITE_NAME,
+        url: `${PUBLIC_SITE_ORIGIN}/`,
+        logo: `${PUBLIC_SITE_ORIGIN}/icon-512.png`,
+      },
+    ];
+  }
+  return [];
+}
+
+/**
+ * The head tags for one page, as HTML. `api/page.ts` drops this into the same
+ * `index.html` the site already serves, so a search engine and a person receive
+ * byte-identical HTML for the same address.
+ *
+ * Every value is escaped: 10,471 AI-written titles and summaries are 10,471
+ * chances for one odd character to break the markup.
+ */
+export function renderPageHead(meta: PageMetadata): string {
+  const title = escapeHtml(meta.title);
+  const socialTitle = escapeHtml(meta.socialTitle);
+  const description = escapeHtml(clean(meta.description));
+  // Empty on a "not found" page: it is not a copy of any real address, so it
+  // declares none rather than pointing a search engine at an unrelated page.
+  const url = meta.canonicalPath ? escapeHtml(publicPageUrl(meta.canonicalPath)) : '';
+  const image = escapeHtml(SOCIAL_PREVIEW_IMAGE_URL);
+  const imageAlt = escapeHtml(SOCIAL_PREVIEW_IMAGE_ALT);
+  const jsonLd = pageJsonLd(meta)
+    // `<` is escaped so a stored string can never close the script element early.
+    .map(
+      (block) =>
+        `    <script type="application/ld+json">${JSON.stringify(block).replace(/</g, '\\u003c')}</script>`,
+    )
+    .join('\n');
+
+  return [
+    `    <title>${title}</title>`,
+    `    <meta name="description" content="${description}" />`,
+    ...(url ? [`    <link rel="canonical" href="${url}" />`] : []),
+    ...(meta.noindex ? [`    <meta name="robots" content="noindex" />`] : []),
+    `    <meta property="og:type" content="website" />`,
+    `    <meta property="og:site_name" content="${SITE_NAME}" />`,
+    `    <meta property="og:title" content="${socialTitle}" />`,
+    `    <meta property="og:description" content="${description}" />`,
+    ...(url ? [`    <meta property="og:url" content="${url}" />`] : []),
+    `    <meta property="og:image" content="${image}" />`,
+    `    <meta property="og:image:width" content="1200" />`,
+    `    <meta property="og:image:height" content="630" />`,
+    `    <meta property="og:image:alt" content="${imageAlt}" />`,
+    `    <meta name="twitter:card" content="summary_large_image" />`,
+    `    <meta name="twitter:title" content="${socialTitle}" />`,
+    `    <meta name="twitter:description" content="${description}" />`,
+    `    <meta name="twitter:image" content="${image}" />`,
+    `    <meta name="twitter:image:alt" content="${imageAlt}" />`,
+    ...(jsonLd ? [jsonLd] : []),
+  ].join('\n');
+}
+
+/**
+ * The markers in `apps/frontend/public/index.html` that bound the replaceable
+ * head. Everything between them is regenerated per address; everything outside
+ * (fonts, the reset, the recovery script) is left exactly as the build wrote it.
+ */
+export const HEAD_MARKER_START = '<!--alethical:page-head-->';
+export const HEAD_MARKER_END = '<!--/alethical:page-head-->';
+
+export function injectPageHead(shellHtml: string, meta: PageMetadata): string {
+  const start = shellHtml.indexOf(HEAD_MARKER_START);
+  const end = shellHtml.indexOf(HEAD_MARKER_END);
+  if (start < 0 || end < 0 || end < start) {
+    throw new Error('page shell is missing its head markers');
+  }
+  return (
+    shellHtml.slice(0, start + HEAD_MARKER_START.length) +
+    '\n' +
+    renderPageHead(meta) +
+    '\n    ' +
+    shellHtml.slice(end)
+  );
 }

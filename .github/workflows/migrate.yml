@@ -2,16 +2,6 @@ name: Migrate database
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - "alethical/alembic/**"
-      - "alethical/db/models.py"
-      - "alembic.ini"
-      - "pyproject.toml"
-      - "uv.lock"
-      - ".github/workflows/migrate.yml"
 
 concurrency:
   group: production-database-migrations
@@ -40,6 +30,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v9.0.0
         with:
+          version: 0.12.5
           enable-cache: true
           prune-cache: true
 
@@ -64,12 +55,9 @@ jobs:
       - name: Run Alembic migrations
         run: env -u DATABASE_URL uv run python -m alembic -c alembic.ini upgrade head
 
-      # Make a failed prod migration loud instead of a silent side-workflow (#522):
-      # a post-merge failure (bad secret, connection, a migration that errors on
-      # real data) leaves prod schema BEHIND the deployed code, which can 500
-      # endpoints reading new columns. On failure, open a GitHub issue (or comment
-      # on the existing open one) using the built-in token — no external service
-      # or secret required.
+      # Make a failed manual migration loud instead of a silent recovery attempt
+      # (#522). Normal releases migrate inside Railway before new API code starts;
+      # this workflow remains the hand-run recovery and drift-check path.
       - name: Open an alert issue if the migration failed
         if: failure()
         env:
@@ -142,6 +130,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v9.0.0
         with:
+          version: 0.12.5
           enable-cache: true
           prune-cache: true
 

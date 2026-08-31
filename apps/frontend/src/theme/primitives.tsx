@@ -1,5 +1,5 @@
 import { ReactNode, useEffect, useRef, useState } from 'react';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import {
   ActivityIndicator,
   Linking,
@@ -15,14 +15,22 @@ import {
   ViewStyle,
 } from 'react-native';
 import Svg, { Circle, G, Path, Rect } from 'react-native-svg';
-import { ChevronDown, ChevronUp, Menu, X } from '../components/icons';
+import { ArrowRight, ChevronDown, ChevronUp, Menu, X } from '../components/icons';
 
 import { theme } from './tokens';
 import { getPageBackgroundStyle } from './pageBackground';
 import { useUnavailableControl } from '../components/billDetail/interactions';
-import { IaItem, MenuKey, MENUS, mobileNavRoadmapLabels, navDropdownItems } from '../navigation/ia';
+import {
+  IaItem,
+  MenuKey,
+  NAV_BAR,
+  mobileNavRoadmapLabels,
+  navDropdownItems,
+} from '../navigation/ia';
 import { externalLinkProps, linkProps, routePath } from '../navigation/links';
-import { navigateTopNavItem } from '../navigation/topNavRoutes';
+import { pathForRoute } from '../navigation/webRoutes';
+import { NAV_ITEM_HREFS, currentNavItemId, navigateTopNavItem } from '../navigation/topNavRoutes';
+import { useReducedMotion } from '../hooks/useReducedMotion';
 import { useResponsive } from '../hooks/useResponsive';
 import { useAuth } from '../providers/AuthProvider';
 import { useSignInModal } from '../providers/signInModalContext';
@@ -33,7 +41,7 @@ import {
 } from '../components/auth/AccountControl';
 
 // Reusable primitives for the redesign, built on the green token system
-// (see theme/tokens.ts, extracted from docs/mockups/*.html). Web-first.
+// (see theme/tokens.ts and docs/design/design-principles.md). Web-first.
 
 const isWeb = Platform.OS === 'web';
 const t = theme;
@@ -43,31 +51,32 @@ function useHover(): [boolean, { onHoverIn: () => void; onHoverOut: () => void }
   return [hovered, { onHoverIn: () => setHovered(true), onHoverOut: () => setHovered(false) }];
 }
 
-// The URL behind each interactive nav row, so the row is a real <a href> the
-// browser can open in a new tab (navigation/links.ts). Keyed to the same ids
-// every screen's onNavigate switch handles, so a row's link and its click land
-// in the same place.
-const NAV_ITEM_HREFS: Record<string, string> = {
-  ask: routePath.ask(),
-  'search-bills': routePath.bills(),
-  'search-legislators': routePath.legislators(),
-  // Restored now that /find-my-legislator reads back as its own screen instead
-  // of redirecting to Home, so this row's link lands where its click lands
-  // (issue #764).
-  'search-find-my-legislator': routePath.findMyLegislator(),
-  // Live now that Bills is an active Track row: the link lands on the Tracked page,
-  // which prompts a signed-out visitor to sign in rather than advertising a
-  // capability it can't deliver (grounded-answers rule 2).
-  'track-bills': routePath.tracked(),
-  'about-us': routePath.aboutUs(),
-  'about-contact': routePath.contactUs(),
-};
-
 /** Link props for one nav row — a real anchor when the row has somewhere to go. */
 function navRowLinkProps(item: IaItem, onPress?: (item: IaItem) => void) {
   const press = () => onPress?.(item);
   const href = NAV_ITEM_HREFS[item.id];
   return href ? linkProps(href, press) : { accessibilityRole: 'link' as const, onPress: press };
+}
+
+/**
+ * The id of the nav row that points at the page being viewed, so the bar and the
+ * phone drawer can mark it `aria-current="page"` — the same mark the bill header,
+ * the section rail, the profile tabs and the search dropdowns already put on
+ * their own current thing, and the one thing the nav never did.
+ *
+ * Read off the live route rather than `window.location`: the address bar is
+ * written in an effect after the screen renders, so reading it here would leave
+ * the mark one navigation behind. Every row that can be marked calls this
+ * itself, which keeps the id out of 3 layers of props.
+ */
+function useCurrentNavItemId(): string | null {
+  const route = useRoute();
+  return currentNavItemId(
+    pathForRoute({
+      name: route.name as Parameters<typeof pathForRoute>[0]['name'],
+      params: route.params as Record<string, unknown> | undefined,
+    }),
+  );
 }
 
 // --- Neutral page background. Phone widths use the plain base color. ---
@@ -182,14 +191,14 @@ function Logo({
   );
 }
 
-// --- v2 nav dropdowns (docs/mockups/home-signed-out-v2) ---
+// --- Shared navigation dropdowns (docs/product-onboarding/mvp-redesign-plan.md) ---
 
 /** Dropdown-row icon tiles — inline SVGs lifted from the DC source. */
 function MenuRowIcon({ itemId, disabled }: { itemId: string; disabled?: boolean }) {
   const c = disabled ? '#a4aba5' : t.colors.brand.graphics;
   return (
     <View style={[styles.menuRowIconTile, disabled && styles.menuRowIconTileDisabled]}>
-      <Svg width={22} height={22} viewBox="0 0 24 24" fill="none">
+      <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" aria-hidden>
         {itemId === 'search-bills' || itemId === 'track-bills' ? (
           <>
             <Path
@@ -219,6 +228,30 @@ function MenuRowIcon({ itemId, disabled }: { itemId: string; disabled?: boolean 
               strokeWidth={2}
               strokeLinecap="round"
             />
+          </>
+        ) : null}
+        {itemId === 'search-campaign-money' ? (
+          // A dollar-marked ledger sheet: money as a record, not a coin.
+          <>
+            <Rect x={4.5} y={3.5} width={15} height={17} rx={2} stroke={c} strokeWidth={2} />
+            <Path
+              d="M14.4 8.6c-.5-.8-1.4-1.2-2.4-1.2-1.4 0-2.5.8-2.5 2s1 1.7 2.5 2c1.5.3 2.5.9 2.5 2.1s-1.1 2-2.5 2c-1 0-1.9-.5-2.4-1.2M12 6v1.4M12 15.5V17"
+              stroke={c}
+              strokeWidth={2}
+              strokeLinecap="round"
+            />
+          </>
+        ) : null}
+        {itemId === 'read' ? (
+          // A page of prose with bars on it: our own writing about the record,
+          // as opposed to the record itself (nav design, 20 Aug 2026).
+          <>
+            <Path
+              d="M6 3.5h12a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-15a1 1 0 0 1 1-1Z"
+              stroke={c}
+              strokeWidth={2}
+            />
+            <Path d="M9 16v-3M12 16v-6M15 16v-4" stroke={c} strokeWidth={2} strokeLinecap="round" />
           </>
         ) : null}
         {itemId === 'search-find-my-legislator' ? (
@@ -261,6 +294,13 @@ function MenuRowIcon({ itemId, disabled }: { itemId: string; disabled?: boolean 
             <Path d="M18 13.9c2.4.5 4 2.7 4 5.6" stroke={c} strokeWidth={2} strokeLinecap="round" />
           </>
         ) : null}
+        {itemId === 'about-site-metrics' ? (
+          <>
+            <Path d="M7 18V14" stroke={c} strokeWidth={2} strokeLinecap="round" />
+            <Path d="M12 18V10.5" stroke={c} strokeWidth={2} strokeLinecap="round" />
+            <Path d="M17 18V7" stroke={c} strokeWidth={2} strokeLinecap="round" />
+          </>
+        ) : null}
         {itemId === 'about-contact' ? (
           <>
             <Rect x={3.5} y={5.5} width={17} height={13} rx={2} stroke={c} strokeWidth={2} />
@@ -287,7 +327,27 @@ const rowHoverTransition = isWeb
     } as object)
   : null;
 
-function MenuPanelRow({ item, onPress }: { item: IaItem; onPress?: (item: IaItem) => void }) {
+/**
+ * Small green NEW chip beside a newly launched nav row's label (IaItem.isNew).
+ * Solid green fill with the darkest brand ink, per the campaign money IA mock.
+ */
+function NewChip() {
+  return (
+    <View style={styles.newChip}>
+      <Text style={styles.newChipText}>NEW</Text>
+    </View>
+  );
+}
+
+function MenuPanelRow({
+  item,
+  current,
+  onPress,
+}: {
+  item: IaItem;
+  current: boolean;
+  onPress?: (item: IaItem) => void;
+}) {
   const [hovered, hoverProps] = useHover();
   const disabled = item.availability === 'roadmap';
   const body = (
@@ -298,6 +358,7 @@ function MenuPanelRow({ item, onPress }: { item: IaItem; onPress?: (item: IaItem
           <Text style={[styles.menuRowTitle, disabled && styles.menuRowTitleDisabled]}>
             {item.label}
           </Text>
+          {item.isNew ? <NewChip /> : null}
         </View>
         {item.description ? (
           <Text style={[styles.menuRowDesc, disabled && styles.menuRowDescDisabled]}>
@@ -313,6 +374,7 @@ function MenuPanelRow({ item, onPress }: { item: IaItem; onPress?: (item: IaItem
   return (
     <Pressable
       {...navRowLinkProps(item, onPress)}
+      aria-current={current ? 'page' : undefined}
       {...hoverProps}
       style={[styles.menuPanelRow, rowHoverTransition, hovered && styles.menuPanelRowHover]}
     >
@@ -330,17 +392,23 @@ function RoadmapPill({ label, large }: { label: string; large?: boolean }) {
   );
 }
 
-const PANEL_WIDTHS: Partial<Record<MenuKey, number>> = { search: 452, track: 452, about: 320 };
+const PANEL_WIDTHS: Partial<Record<MenuKey, number>> = { search: 452, about: 320 };
 
 function MenuPanel({ menu, onNavigate }: { menu: MenuKey; onNavigate?: (item: IaItem) => void }) {
   const { live, roadmap } = navDropdownItems(menu);
+  const currentItemId = useCurrentNavItemId();
   const width = PANEL_WIDTHS[menu] ?? 452;
   return (
     <View style={[styles.menuPanel, { width }, t.shadows.panel as ViewStyle]}>
       <View style={[styles.menuPanelNotch, { left: width / 2 - 7.5 }]} />
       <View style={styles.menuPanelList}>
         {live.map((item) => (
-          <MenuPanelRow key={item.id} item={item} onPress={onNavigate} />
+          <MenuPanelRow
+            key={item.id}
+            item={item}
+            current={item.id === currentItemId}
+            onPress={onNavigate}
+          />
         ))}
         {roadmap.length > 0 ? (
           <>
@@ -428,6 +496,102 @@ function NavDropdownTrigger({
         </View>
       ) : null}
     </View>
+  );
+}
+
+/**
+ * A bar item that IS a destination rather than a dropdown: Read, today the only
+ * one. No caret, because there is no panel to disclose, and the same resting
+ * colour and vertical padding as a trigger so the 3 bar items still sit on one
+ * line (Design's nav drawing, 27 Aug 2026).
+ *
+ * `aria-current="page"` is the only thing the current page changes here. The
+ * drawing gives the item no second visual state, and inventing one is a design
+ * decision rather than a wiring one.
+ */
+function NavBarLink({
+  item,
+  current,
+  onNavigate,
+}: {
+  item: IaItem;
+  current: boolean;
+  onNavigate?: (item: IaItem) => void;
+}) {
+  const [hovered, hoverProps] = useHover();
+  return (
+    <Pressable
+      {...navRowLinkProps(item, onNavigate)}
+      aria-current={current ? 'page' : undefined}
+      {...hoverProps}
+      style={styles.navTrigger}
+    >
+      <Text style={[styles.navTriggerText, { color: hovered ? t.colors.text.primary : '#4b524b' }]}>
+        {item.label}
+      </Text>
+    </Pressable>
+  );
+}
+
+/** One row under a group heading in the phone drawer (Search's and About's rows). */
+function MenuDrawerRow({
+  item,
+  current,
+  onNavigate,
+}: {
+  item: IaItem;
+  current: boolean;
+  onNavigate?: (item: IaItem) => void;
+}) {
+  return (
+    <Pressable
+      {...navRowLinkProps(item, onNavigate)}
+      aria-current={current ? 'page' : undefined}
+      style={styles.menuSubRow}
+    >
+      <Text style={styles.menuSubRowText}>{item.label}</Text>
+      {item.isNew ? <NewChip /> : null}
+    </Pressable>
+  );
+}
+
+/**
+ * The phone drawer's row for a bar item with no dropdown: Read, the only one.
+ *
+ * Drawn at top level rather than as another group row, because the nav's job is
+ * to show the shape of the site: a row identical to Search's 4 children tells a
+ * phone reader that Read is one of them, when it is 1 of the 3 things this site
+ * does. The rules above and below and the taller row are what say it sits at the
+ * top level (Design's nav drawing, ratified by Eugene 27 Aug 2026, correcting a
+ * first build that drew this row plain).
+ *
+ * No heading over it. A READ eyebrow would repeat its own child 14px below it,
+ * which is the stutter that collapsing the group removed in the first place.
+ */
+function MenuDrawerBarRow({
+  item,
+  current,
+  onNavigate,
+}: {
+  item: IaItem;
+  current: boolean;
+  onNavigate?: (item: IaItem) => void;
+}) {
+  return (
+    <Pressable
+      {...navRowLinkProps(item, onNavigate)}
+      aria-current={current ? 'page' : undefined}
+      style={styles.menuBarRow}
+    >
+      <View style={styles.menuBarRowLabel}>
+        <Text style={styles.menuSubRowText}>{item.label}</Text>
+        {item.isNew ? <NewChip /> : null}
+      </View>
+      {/* Decoration only, so it is hidden from a screen reader: the row's own
+          words already say where it goes, and `aria-current` already says
+          whether you are there. */}
+      <ArrowRight size={21} color={t.colors.text.muted} strokeWidth={2.2} aria-hidden />
+    </Pressable>
   );
 }
 
@@ -544,10 +708,8 @@ export function TopNav({
     if (pointerOverTrigger.current) return;
     setOpenMenu(null);
   };
-  const dropdownMenus = MENUS;
-  // Mobile flattens the Search and Track roadmaps into one compact pill row.
-  // Named items come first, "More Tracking" covers the remaining Track expansion,
-  // and Ask AI stays last.
+  const currentItemId = useCurrentNavItemId();
+  // Mobile flattens Search's roadmap into one compact pill row, Ask AI last.
   const mobileRoadmapPills = mobileNavRoadmapLabels();
   const navigate = (item: IaItem) => {
     setOpenMenu(null);
@@ -578,18 +740,27 @@ export function TopNav({
         {isDesktop ? (
           <View style={styles.navLinks}>
             <View ref={navTriggerGroupRef as never} style={styles.navTriggerGroup}>
-              {dropdownMenus.map((menu) => (
-                <NavDropdownTrigger
-                  key={menu.key}
-                  menu={menu.key}
-                  label={menu.label}
-                  open={openMenu === menu.key}
-                  onToggle={() => toggleMenu(menu.key)}
-                  onHoverOpen={() => handleHoverOpen(menu.key)}
-                  onHoverClose={handleHoverClose}
-                  onNavigate={navigate}
-                />
-              ))}
+              {NAV_BAR.map((entry) =>
+                entry.kind === 'menu' ? (
+                  <NavDropdownTrigger
+                    key={entry.key}
+                    menu={entry.key}
+                    label={entry.label}
+                    open={openMenu === entry.key}
+                    onToggle={() => toggleMenu(entry.key)}
+                    onHoverOpen={() => handleHoverOpen(entry.key)}
+                    onHoverClose={handleHoverClose}
+                    onNavigate={navigate}
+                  />
+                ) : (
+                  <NavBarLink
+                    key={entry.item.id}
+                    item={entry.item}
+                    current={entry.item.id === currentItemId}
+                    onNavigate={navigate}
+                  />
+                ),
+              )}
             </View>
             {isSignedIn ? (
               <AccountNavButton />
@@ -648,21 +819,34 @@ export function TopNav({
               </Pressable>
             </View>
             <ScrollView style={styles.menuList}>
-              {/* The shared menu is Ask-free on every screen and at every width. */}
-              {dropdownMenus.map((menu) => {
-                const { live } = navDropdownItems(menu.key);
+              {/* The shared menu is Ask-free on every screen and at every width.
+                  A bar item with no dropdown gets one row and no heading, drawn
+                  at top level so it does not read as a 5th Search row
+                  (MenuDrawerBarRow above). */}
+              {NAV_BAR.map((entry) => {
+                if (entry.kind === 'link') {
+                  return (
+                    <View key={entry.item.id} style={styles.menuGroup}>
+                      <MenuDrawerBarRow
+                        item={entry.item}
+                        current={entry.item.id === currentItemId}
+                        onNavigate={navigate}
+                      />
+                    </View>
+                  );
+                }
+                const { live } = navDropdownItems(entry.key);
                 if (live.length === 0) return null;
                 return (
-                  <View key={menu.key} style={styles.menuGroup}>
-                    <Text style={styles.menuGroupLabel}>{menu.label.toUpperCase()}</Text>
+                  <View key={entry.key} style={styles.menuGroup}>
+                    <Text style={styles.menuGroupLabel}>{entry.label.toUpperCase()}</Text>
                     {live.map((item) => (
-                      <Pressable
+                      <MenuDrawerRow
                         key={item.id}
-                        {...navRowLinkProps(item, navigate)}
-                        style={styles.menuSubRow}
-                      >
-                        <Text style={styles.menuSubRowText}>{item.label}</Text>
-                      </Pressable>
+                        item={item}
+                        current={item.id === currentItemId}
+                        onNavigate={navigate}
+                      />
                     ))}
                   </View>
                 );
@@ -681,7 +865,7 @@ export function TopNav({
             </ScrollView>
             <View style={styles.menuFooter}>
               {isSignedIn ? (
-                <AccountDrawerRow onSignedOut={() => setDrawerOpen(false)} />
+                <AccountDrawerRow />
               ) : (
                 <PrimaryButton
                   label="Sign in"
@@ -765,51 +949,65 @@ function GoogleG({ size = 20 }: { size?: number }) {
 /**
  * The one "Continue with Google" button. `label` carries the sign-in dialog's
  * "Try again" state; `busy` is the redirect in progress — the button goes inert
- * and shows a spinner in place of its label, or `busyLabel` when the person has
- * asked for less motion and a spinner would be wrong.
+ * and shows a spinner beside its visible busy words. The accessible name is
+ * those same visible words, never a diverging label, so the two cannot drift
+ * apart again; under reduced motion the spinner is hidden entirely and the
+ * words carry the state alone (rev 17 sign-in bundle, #1533).
  */
 export function GoogleButton({
   onPress,
   label = 'Continue with Google',
   busy = false,
-  busyLabel,
+  disabled = false,
+  busyLabel = 'Continuing with Google…',
   size = 'md',
 }: {
   onPress?: () => void;
   label?: string;
   busy?: boolean;
+  disabled?: boolean;
   busyLabel?: string;
-  size?: 'md' | 'lg';
+  size?: 'md' | 'lg' | 'compact';
 }) {
   const [hovered, hoverProps] = useHover();
+  const reduceMotion = useReducedMotion();
+  const unavailable = busy || disabled;
   // accessibilityState alone renders NOTHING on RN-Web, and this button has no
   // `disabled` prop to fall back on — it gates by swapping onPress for undefined. So
   // until #1025 the connecting state announced as an ordinary pressable button and
   // stayed a tab stop: someone on a screen reader pressed "Continue with Google" and
   // heard nothing to say it was working, on the only path into an account. The state
   // prop stays for native, where it is the real mechanism.
-  const busyRef = useUnavailableControl(Boolean(busy), { busy: true });
+  const busyRef = useUnavailableControl(unavailable, { busy });
   return (
     <Pressable
       ref={busyRef}
       accessibilityRole="button"
-      accessibilityLabel={busy ? 'Signing in with Google' : label}
-      accessibilityState={{ busy, disabled: busy }}
-      onPress={busy ? undefined : onPress}
+      accessibilityLabel={busy ? busyLabel : label}
+      accessibilityState={{ busy, disabled: unavailable }}
+      onPress={unavailable ? undefined : onPress}
       {...hoverProps}
       style={[
         styles.googleBtn,
         size === 'lg' && styles.googleBtnLg,
-        hovered && !busy && { borderColor: t.colors.borders.strong },
-        busy && styles.googleBtnBusy,
+        size === 'compact' && styles.googleBtnCompact,
+        hovered && !unavailable && { borderColor: t.colors.borders.strong },
+        unavailable && styles.googleBtnBusy,
       ]}
     >
       {busy ? (
-        busyLabel ? (
+        <>
+          {!reduceMotion ? (
+            <View
+              aria-hidden
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+            >
+              <ActivityIndicator size="small" color={t.colors.brand.graphics} />
+            </View>
+          ) : null}
           <Text style={styles.googleBtnText}>{busyLabel}</Text>
-        ) : (
-          <ActivityIndicator size="small" color={t.colors.brand.graphics} />
-        )
+        </>
       ) : (
         <>
           <GoogleG size={22} />
@@ -1003,7 +1201,7 @@ export function Footer({
             </View>
             <View style={[styles.footerLinks, isMobile && styles.footerLinksMobile]}>
               <FooterLink
-                label="Contact us"
+                label="Contact Us"
                 href={routePath.contactUs()}
                 onPress={onContact ?? (() => navigation.navigate('ContactUs'))}
                 mobile={isMobile}
@@ -1096,6 +1294,21 @@ const styles = StyleSheet.create({
   menuRowIconTileDisabled: { backgroundColor: t.colors.surfaces.s300 },
   menuRowBody: { flex: 1, minWidth: 0 },
   menuRowTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  // NEW chip (IaItem.isNew): solid green fill, darkest brand ink, mono caps —
+  // values from the campaign money IA mock's nav chip.
+  newChip: {
+    backgroundColor: t.colors.brand.base,
+    borderRadius: 7,
+    paddingVertical: 3,
+    paddingHorizontal: 7,
+  },
+  newChipText: {
+    fontFamily: t.typography.mono,
+    fontSize: 9.5,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 1,
+    color: t.colors.brand.darkest,
+  },
   menuRowTitle: {
     fontFamily: t.typography.ui,
     fontSize: t.fontSizes.subhead,
@@ -1169,14 +1382,49 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   // paddingVertical 12 (not 9) gives the 21px rows more breathing room within a
-  // group and lifts each row's tap target to ~49px (clears the 44px minimum).
-  menuSubRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12 },
+  // group. That alone lands the row near 49px, which clears the 44px minimum by
+  // accident: nothing holds it there if the type size ever changes. `minHeight`
+  // is what holds it, so a smaller row size can shrink the ink and not the
+  // target (Design's nav drawing, 27 Aug 2026).
+  menuSubRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: 12,
+    minHeight: 44,
+  },
   menuSubRowText: {
     fontFamily: t.typography.title,
     fontSize: 21,
     fontWeight: t.fontWeights.semibold,
     letterSpacing: -0.2,
     color: t.colors.text.primary,
+  },
+  // A bar item's own drawer row: taller than a group row, ruled top and bottom,
+  // and ending in an arrow, and the whole band between the 2 rules is the tap
+  // target, so nothing in it is dead. Its words are set exactly like a group
+  // row's (menuSubRowText): the rules, the height and the arrow are what say
+  // Read sits at the top level, not louder type (Eugene, 28 Aug 2026, replacing
+  // the 25px/800 this row shipped with).
+  menuBarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    minHeight: 60,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: t.colors.alpha.ink10,
+  },
+  // The label and its NEW chip are one group, so the chip stays beside the word
+  // and wraps with it rather than drifting toward the arrow.
+  menuBarRowLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flexShrink: 1,
+    flexWrap: 'wrap',
   },
   hamburger: {
     padding: 10,
@@ -1200,10 +1448,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderBottomLeftRadius: 24,
     paddingHorizontal: 24,
-    // Match the nav row's top offset (navRow paddingTop 26) so the drawer's
-    // mark + close button open at the same center line as the nav's logo +
-    // hamburger — no vertical hop when the menu opens.
-    paddingTop: 28,
+    paddingTop: 24,
     paddingBottom: 28,
   },
   menuSheetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
@@ -1242,6 +1487,7 @@ const styles = StyleSheet.create({
     ...(t.shadows.sm as object),
   },
   googleBtnLg: { paddingVertical: 17, minHeight: 56 },
+  googleBtnCompact: { minHeight: 54, paddingVertical: 14 },
   googleBtnBusy: { opacity: 0.75, borderColor: t.colors.alpha.ink14 },
   googleBtnText: {
     fontFamily: t.typography.ui,

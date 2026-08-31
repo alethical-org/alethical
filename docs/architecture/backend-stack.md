@@ -8,8 +8,8 @@ The web service is FastAPI on Uvicorn, hosted on Railway. The database is Postgr
 `pgvector` add-on, hosted by Supabase in production and in a container locally. Supabase also
 handles sign-in. The jobs run through a Postgres-backed queue (`oban`) and are started by a
 person or by a scheduled GitHub Actions run, never by a worker that sits running all day.
-Outside paid services are exactly three: Anthropic and OpenAI for AI text and search, and
-Resend for outbound email.
+Outside services are Anthropic and OpenAI for AI text and search, Resend for outbound
+email, and Sentry for alerts when the server fails. Sentry starts on its free plan.
 
 This is the map. Every part has a deeper doc, listed in
 [Where each part is documented](#where-each-part-is-documented) at the bottom; read this page
@@ -26,13 +26,16 @@ first and follow the link for the part you need.
 | Talking to the database | SQLAlchemy | `alethical/db/models.py`, `alethical/db/session.py` |
 | Changing database structure safely | Alembic | `alethical/alembic/versions/` |
 | Storing data | Postgres 17 with the `pgvector` add-on | `docker-compose.yml` (local), Supabase (production) |
+| Keeping the exact files we downloaded | Supabase Storage, reached over the S3 protocol (`boto3`) | `alethical/pipeline/raw_file_store.py` |
+| Reading a committee's filed money report | `pypdf`, pure Python with no system libraries behind it | `alethical/pipeline/campaign_finance_report_documents.py` |
 | Sign-in | Supabase Auth | `alethical/api/auth.py`, `alethical/api/services/auth.py` |
 | Background jobs | `oban`, a queue that lives in Postgres | `oban.toml`, `alethical/pipeline/oban.py` |
 | Writing bill summaries | Anthropic (Claude) | `alethical/pipeline/anthropic_enrichment.py` |
 | Making bill text searchable by meaning | OpenAI embeddings | `alethical/pipeline/rag_ingest.py` |
 | Sending email | Resend | `alethical/api/services/contact.py` |
+| Alerting on server failures | Sentry, with no request or reader data | `alethical/monitoring.py` |
 | Hosting | Railway, one service | `railway.json` |
-| Releasing | GitHub Actions | `.github/workflows/` |
+| Releasing | Railway and Vercel Git connections, with hand-run GitHub backups | `railway.json`, `vercel.json`, `.github/workflows/` |
 | Tests | pytest | `alethical/tests/` |
 
 ## 1. Language and packages
@@ -90,8 +93,8 @@ model we use produces (`VECTOR_DIMENSIONS` in `alethical/pipeline/rag_ingest.py`
 - Which database a command talks to is chosen by one setting
   (`ALETHICAL_DATABASE_TARGET`, `local` or `production`), and there is a guard that stops
   tests writing to production (`alethical/tests/local_database_guard.py`).
-- Structure changes go through Alembic, 29 change files as of Aug 10 2026. Merging one to
-  `main` applies it to production automatically through the `migrate.yml` workflow.
+- Structure changes go through Alembic. Railway applies them before it starts the new API,
+  and refuses the release if the migration fails (`railway.json`).
 
 ## 4. Sign-in
 
@@ -156,18 +159,34 @@ startup which of those is missing, so a misconfigured key shows up in the log in
 silently lost mail. The free plan's daily and monthly caps are read back from Resend's own
 response headers rather than assumed.
 
-## 8. Hosting and release
+## 8. Error alerts
+
+Sentry groups and emails the failures a maintainer needs to act on: failed Minnesota
+imports, Supabase sign-in service outages, Anthropic or OpenAI answer failures, and
+unexpected API errors. Expected client mistakes such as a bad sign-in token stay quiet.
+
+Alethical sends each failure itself. Sentry's automatic framework, log, request,
+performance, and local-variable collection are all off. An event contains the error
+class, code stack, release, environment, a route pattern such as
+`/api/v1/bills/{bill_id}`, and a few public operating labels. It never contains a real
+route value, request body, question, message, name, email address, account id, or log
+line. Setup, verification, incident use, cost, and the buy-versus-build decision are in
+[`docs/operations/error-monitoring.md`](../operations/error-monitoring.md).
+
+## 9. Hosting and release
 
 - One Railway service runs the API. It restarts on failure, up to 10 times, and Railway
-  checks it is alive by calling `/healthz` (`railway.json`).
+  calls `/readyz` before switching traffic. That check requires the database schema the
+  new code expects (`railway.json`).
 - The build runs `uv sync --frozen`, which installs exactly the locked versions and fails
   rather than quietly resolving something newer.
-- Pushing to `main` triggers the deploy (`railway-deploy.yml`). A push that touches database
-  structure separately triggers the migration (`migrate.yml`).
+- Railway's Git connection watches `main`. Railway runs the migration inside that release
+  before the new API starts. `railway-deploy.yml` remains a hand-run release fallback;
+  `migrate.yml` remains a hand-run migration fallback and production drift check.
 - The frontend deploys separately to Vercel, so a backend release and a frontend release are
   two independent events.
 
-## 9. Tests
+## 10. Tests
 
 pytest, 36 test files under `alethical/tests/`. Two groups matter more than the rest:
 

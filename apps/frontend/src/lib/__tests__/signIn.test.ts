@@ -6,14 +6,29 @@ import {
   SIGN_IN_INTENTS,
   SIGN_IN_RETRY_LABEL,
   SignInIntent,
+  authErrorReturnDecision,
+  createSignInAttemptGate,
   initialSignInState,
   parseAuthError,
   signInButtonLabel,
   signInCopy,
+  dedicatedSignInOutcome,
+  signInErrorKindFromCallback,
   signInErrorKind,
   signInReducer,
   urlWithoutAuthError,
 } from '../signIn';
+
+describe('serious account outcomes', () => {
+  it('routes only a deactivated result to a dedicated screen', () => {
+    // The match-failure screen was removed in rev 15 as verified unreachable
+    // (#1533); an unverified Google return is a banner, not a dead end.
+    expect(dedicatedSignInOutcome('deactivated')).toBe('deactivated');
+    expect(dedicatedSignInOutcome('unverified-google')).toBeNull();
+    expect(dedicatedSignInOutcome('request-failure')).toBeNull();
+    expect(dedicatedSignInOutcome('bad-credentials')).toBeNull();
+  });
+});
 
 const ALL_INTENTS = Object.keys(SIGN_IN_INTENTS) as SignInIntent[];
 
@@ -35,17 +50,13 @@ describe('intent → copy', () => {
   });
 
   it('uses the shorter nav subcopy', () => {
-    expect(signInCopy('nav').subcopy).toBe(
-      'Track bills across sessions and pick up where you left off. Your tracked list is saved to your account.',
-    );
+    expect(signInCopy('nav').subcopy).toBe('Bills you track are saved to your account');
   });
 
   it('uses the approved Track-intent copy', () => {
     const { headline, subcopy } = signInCopy('track', 'HF 4138');
-    expect(headline).toBe('Sign in to track this bill');
-    expect(subcopy).toBe(
-      'Track bills across sessions and pick up where you left off. Your tracked list is saved to your account.',
-    );
+    expect(headline).toBe('Sign in to Alethical');
+    expect(subcopy).toBe('This bill goes to your tracked list');
   });
 
   it('uses the same Track-intent copy when only the id is known', () => {
@@ -57,6 +68,19 @@ describe('intent → copy', () => {
       expect(signInCopy(intent).headline.length).toBeGreaterThan(0);
       expect(signInCopy(intent).subcopy.length).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('shared Google failure copy', () => {
+  it('uses the exact accepted return messages', () => {
+    expect(SIGN_IN_ERROR_MESSAGES.failed).toBe('Google isn’t responding. Try again in a moment.');
+    expect(SIGN_IN_ERROR_MESSAGES.cancelled).toBe('Google didn’t finish. Try again, or use email.');
+    expect(SIGN_IN_ERROR_MESSAGES['request-failure']).toBe(
+      'We couldn’t complete that request. Check your connection and try again.',
+    );
+    expect(SIGN_IN_ERROR_MESSAGES.deactivated).toBe(
+      'You’ve been signed out. Bills, votes and legislators are all still here to read. Contact us at ask@alethical.com if you think this is a mistake.',
+    );
   });
 });
 
@@ -76,6 +100,9 @@ describe('no sign-in copy promises a notification', () => {
     'inbox',
     'subscribe',
   ];
+  // An error message may NAME an email (the unverified-Google banner must, in
+  // arrival-neutral wording, #1533) but may never claim one was sent.
+  const SEND_CLAIMS = ['we’ve sent', 'we sent', 'is on the way', 'we’ll send', 'we will send'];
 
   it('says nothing about email or alerts in the track copy', () => {
     const { headline, subcopy } = signInCopy('track', 'HF 4138');
@@ -85,13 +112,12 @@ describe('no sign-in copy promises a notification', () => {
     }
   });
 
-  it('says nothing about email or alerts in any intent, or in the error copy', () => {
+  it('says nothing about email or alerts in any intent or button label', () => {
     const strings = [
       ...ALL_INTENTS.flatMap((intent) => {
         const { headline, subcopy } = signInCopy(intent, 'HF 4138');
         return [headline, subcopy];
       }),
-      ...Object.values(SIGN_IN_ERROR_MESSAGES),
       SIGN_IN_BUTTON_LABEL,
       SIGN_IN_RETRY_LABEL,
     ];
@@ -102,8 +128,19 @@ describe('no sign-in copy promises a notification', () => {
     }
   });
 
+  it('never claims a send in any error message — arrival-neutral only', () => {
+    for (const value of Object.values(SIGN_IN_ERROR_MESSAGES)) {
+      for (const claim of SEND_CLAIMS) {
+        expect(value.toLowerCase()).not.toContain(claim);
+      }
+    }
+    expect(SIGN_IN_ERROR_MESSAGES['unverified-google']).toBe(
+      'Sign-in couldn’t finish because the email needs confirmation. Use Create account with this email to confirm it.',
+    );
+  });
+
   it('states the payoff we can actually deliver: a saved list', () => {
-    expect(signInCopy('track', 'HF 4138').subcopy.toLowerCase()).toContain('tracked list');
+    expect(signInCopy('track', 'HF 4138').subcopy).toBe('This bill goes to your tracked list');
   });
 });
 
@@ -145,6 +182,19 @@ describe('dialog state machine', () => {
       status: 'error',
       errorKind: 'cancelled',
     });
+  });
+
+  it('drops a reopened error when a fresh form submission starts', () => {
+    // A stale banner (e.g. the unverified-Google result) must not mask the
+    // new attempt's real outcome (#1533).
+    const reopened = signInReducer(initialSignInState, {
+      type: 'reopenWithError',
+      request: { intent: 'nav' },
+      kind: 'unverified-google',
+    });
+    const cleared = signInReducer(reopened, { type: 'clearError' });
+    expect(cleared).toMatchObject({ open: true, status: 'idle', errorKind: null });
+    expect(signInReducer(initialSignInState, { type: 'clearError' })).toBe(initialSignInState);
   });
 
   it('clears the error when Try again starts the flow over', () => {
@@ -199,15 +249,54 @@ describe('dialog state machine', () => {
 });
 
 describe('reading a failure off the return URL', () => {
+  it('waits for the saved session before deciding whether a return error is real', () => {
+    expect(authErrorReturnDecision(true, false)).toBe('wait-for-session');
+  });
+
+  it('ignores an old return error when the reader already has a valid session', () => {
+    expect(authErrorReturnDecision(false, true)).toBe('keep-success');
+  });
+
+  it('shows a return error when the session check finds no signed-in reader', () => {
+    expect(authErrorReturnDecision(false, false)).toBe('show-error');
+  });
+
   it('treats backing out of Google as cancelled, everything else as a failure', () => {
     expect(signInErrorKind('access_denied')).toBe('cancelled');
+    expect(signInErrorKind('access_denied', 'provider_access_denied')).toBe('cancelled');
     expect(signInErrorKind('server_error')).toBe('failed');
     expect(signInErrorKind(null)).toBe('failed');
+  });
+
+  it('tells an unverified Google email apart from a cancel behind the same error param', () => {
+    // Supabase reuses error=access_denied for callback failures and puts the
+    // real reason in error_code — reading only the first param made this
+    // result close the dialog silently (#1533).
+    expect(signInErrorKind('access_denied', 'provider_email_needs_verification')).toBe(
+      'unverified-google',
+    );
+    expect(signInErrorKind('provider_email_needs_verification')).toBe('unverified-google');
+    expect(signInErrorKind('access_denied', 'signup_disabled')).toBe('failed');
+  });
+
+  it('keeps the specific unverified-email result from a phone Google return', () => {
+    expect(
+      signInErrorKindFromCallback(
+        'alethical://auth/callback?error=access_denied&error_code=provider_email_needs_verification',
+      ),
+    ).toBe('unverified-google');
+    expect(
+      signInErrorKindFromCallback(
+        'alethical://auth/callback?error=access_denied&error_code=provider_access_denied',
+      ),
+    ).toBe('cancelled');
+    expect(signInErrorKindFromCallback('alethical://auth/callback?code=one-use-code')).toBeNull();
   });
 
   it('finds the error in the query string', () => {
     expect(parseAuthError('?error=access_denied&error_description=User+said+no', '')).toEqual({
       code: 'access_denied',
+      errorCode: null,
       description: 'User said no',
     });
   });
@@ -215,7 +304,18 @@ describe('reading a failure off the return URL', () => {
   it('finds the error in the hash, which is where the implicit flow puts it', () => {
     expect(parseAuthError('', '#error=server_error&error_description=Boom')).toEqual({
       code: 'server_error',
+      errorCode: null,
       description: 'Boom',
+    });
+  });
+
+  it('surfaces the specific error_code beside the generic error param', () => {
+    expect(
+      parseAuthError('?error=access_denied&error_code=provider_email_needs_verification', ''),
+    ).toEqual({
+      code: 'access_denied',
+      errorCode: 'provider_email_needs_verification',
+      description: null,
     });
   });
 
@@ -239,5 +339,22 @@ describe('reading a failure off the return URL', () => {
     expect(urlWithoutAuthError('https://alethical.com/tracked#error=access_denied')).toBe(
       '/tracked',
     );
+  });
+});
+
+describe('starting Google sign-in once', () => {
+  it('accepts the first press and blocks a second press before the screen redraws', () => {
+    const gate = createSignInAttemptGate();
+
+    expect(gate.begin()).toBe(true);
+    expect(gate.begin()).toBe(false);
+  });
+
+  it('accepts a fresh press after a failed attempt is reset', () => {
+    const gate = createSignInAttemptGate();
+
+    expect(gate.begin()).toBe(true);
+    gate.reset();
+    expect(gate.begin()).toBe(true);
   });
 });

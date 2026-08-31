@@ -1,10 +1,54 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
+  "ignoreCommand": "git diff --quiet HEAD^ HEAD -- api apps/frontend package.json pnpm-lock.yaml pnpm-workspace.yaml vercel.json",
   "installCommand": "pnpm install --frozen-lockfile",
   "buildCommand": "pnpm --dir apps/frontend run build",
   "outputDirectory": "apps/frontend/dist",
+  "functions": {
+    "api/page.ts": {
+      "includeFiles": "apps/frontend/dist/index.html"
+    }
+  },
+  "trailingSlash": false,
   "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'none'; base-uri 'none'; connect-src 'self' https://api.alethical.com https://naakzorbkqqgbsreulqi.supabase.co https://cloudflareinsights.com; font-src 'self' data: https://fonts.gstatic.com; form-action 'self'; frame-ancestors 'none'; frame-src 'none'; img-src 'self' data: blob: https:; manifest-src 'self'; media-src 'none'; object-src 'none'; script-src 'self' https://static.cloudflareinsights.com 'sha256-rMVynaoDdIW2HnXvW4R4/MbGKcJbDlkRVMG0ocOlRRU=' 'sha256-dTKU7OAL0k4DXe1Gi13ZV6kG0bS2Do6PdE6xtTpcbJA=' 'sha256-JmGQUeFzeBU6cYRWLBe1wEzeRFoYAAsGG72Yqp9dhNw='; script-src-attr 'none'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; worker-src 'self' blob:; upgrade-insecure-requests"
+        },
+        {
+          "key": "Cross-Origin-Opener-Policy",
+          "value": "same-origin-allow-popups"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=(self), payment=(), usb=()"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "X-Permitted-Cross-Domain-Policies",
+          "value": "none"
+        },
+        {
+          "key": "X-XSS-Protection",
+          "value": "0"
+        }
+      ]
+    },
     {
       "source": "/_expo/static/(.*)",
       "headers": [
@@ -15,43 +59,36 @@
       ]
     }
   ],
+  "redirects": [
+    { "source": "/search", "destination": "/bills", "permanent": true },
+    { "source": "/reports", "destination": "/read", "permanent": true },
+    { "source": "/reports/:slug", "destination": "/read/research/:slug", "permanent": true },
+    { "source": "/money/reports", "destination": "/read", "permanent": true },
+    {
+      "source": "/money/reports/:slug",
+      "destination": "/read/research/:slug",
+      "permanent": true
+    },
+    { "source": "/reading", "destination": "/read", "permanent": true },
+    {
+      "source": "/reading/research/:slug",
+      "destination": "/read/research/:slug",
+      "permanent": true
+    },
+    { "source": "/reading/guides/:slug", "destination": "/read/guides/:slug", "permanent": true },
+    { "source": "/chat", "destination": "/", "permanent": false },
+    { "source": "/chat/:path*", "destination": "/", "permanent": false },
+    { "source": "/account", "destination": "/", "permanent": false }
+  ],
   "rewrites": [
+    { "source": "/sitemap.xml", "destination": "/api/sitemap" },
     {
-      "source": "/bills/:id",
-      "has": [
-        {
-          "type": "header",
-          "key": "user-agent",
-          "value": ".*(facebookexternalhit|Facebot|LinkedInBot|Twitterbot|Slackbot|Discordbot|WhatsApp|redditbot).*"
-        }
-      ],
-      "destination": "/api/social-preview?subject=bill&id=:id"
+      "source": "/sitemaps/:section.xml",
+      "destination": "/api/sitemap?section=:section"
     },
     {
-      "source": "/legislators/:id",
-      "has": [
-        {
-          "type": "header",
-          "key": "user-agent",
-          "value": ".*(facebookexternalhit|Facebot|LinkedInBot|Twitterbot|Slackbot|Discordbot|WhatsApp|redditbot).*"
-        }
-      ],
-      "destination": "/api/social-preview?subject=legislator&id=:id"
-    },
-    {
-      "source": "/ask",
-      "has": [
-        {
-          "type": "header",
-          "key": "user-agent",
-          "value": ".*(facebookexternalhit|Facebot|LinkedInBot|Twitterbot|Slackbot|Discordbot|WhatsApp|redditbot).*"
-        }
-      ],
-      "destination": "/api/social-preview?subject=answer"
-    },
-    {
-      "source": "/((?!api/|_expo/|favicon.ico|manifest.json|sw.js|icon-192.png|icon-512.png|.*\\..*).*)",
-      "destination": "/index.html"
+      "source": "/((?!api/|_expo/).*)",
+      "destination": "/api/page?path=/$1"
     }
   ]
 }

@@ -1,14 +1,21 @@
 name: CI
 
-# Do NOT add a `paths:` filter to `pull_request` below. The `changes`,
-# `doc-references`, `backend`, and `frontend` jobs are required status checks on
-# `main`. Filtering at the workflow level would stop this workflow from running at
-# all on unrelated PRs, so those checks would never report and every such PR would
-# block forever. Filter per job instead — as `backend` and `frontend` already do
-# via `dorny/paths-filter` — because a job skipped by `if:` reports `skipped`,
-# which GitHub counts as a passing required check.
+# Do NOT add a `paths:` filter to `pull_request` below. The `changes`, `backend`,
+# and `frontend` jobs are required status checks on `main`. Filtering at the
+# workflow level would stop this workflow from running at all on unrelated PRs,
+# so those checks would never report and every such PR would block forever. Filter
+# per job instead — as `backend` and `frontend` already do via
+# `dorny/paths-filter` — because a job skipped by `if:` reports `skipped`, which
+# GitHub counts as a passing required check. `changes` also runs the always-needed
+# documentation checks, so they share its one rounded runner minute.
+#
+# `merge_group:` is required for the merge queue (enabled Aug 17 2026): without it,
+# these required checks never run on the queue's speculative commits, and every PR
+# sits in the queue until it times out. `dorny/paths-filter` auto-detects the merge
+# group's base/head commits, so `backend`/`frontend` path filtering works unchanged.
 on:
   pull_request:
+  merge_group:
   push:
     branches:
       - main
@@ -17,6 +24,12 @@ on:
 permissions:
   contents: read
   pull-requests: read
+
+# A newer PR commit makes the older test result irrelevant. Do not cancel main
+# builds: those are release evidence, not superseded review work.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   changes:
@@ -27,6 +40,15 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
+        with:
+          # check_doc_sync.py needs a real merge base with the PR's base branch.
+          # A shallow clone has none, and the guard would silently pass.
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
 
       - name: Filter changed paths
         id: filter
@@ -54,9 +76,67 @@ jobs:
               - "pnpm-lock.yaml"
               - "pnpm-workspace.yaml"
 
+      # Free backstop for private-repo secret scanning. It checks only the new
+      # commits in this push or PR and fails for a confirmed live credential or
+      # a credential whose live check could not complete. Alethical has no Lob
+      # account or code, and Lob's key shape collides with ordinary pytest names
+      # (`test_` plus 35 characters), so exclude only that detector. Pin both the
+      # action code and scanner image so a future upstream release cannot change CI.
+      - name: Check new commits for live secrets
+        uses: trufflesecurity/trufflehog@6f3c981e7b77f235fd2702dd74af25fc4b72bf11 # v3.96.0
+        with:
+          version: "3.96.0"
+          extra_args: --results=verified,unknown --fail-on-scan-errors --exclude-detectors=lob
+
+      # Runs on every event: a broken document reference is usually introduced
+      # by a docs-only or rules-only change, which the backend and frontend jobs
+      # skip. Pure stdlib, so the Python setup above is the only dependency.
+      - name: Check doc references resolve
+        run: python scripts/check_doc_references.py
+      - name: Check quoted doc claims still exist
+        run: python scripts/check_doc_quotes.py
+      # AGENTS.md deliberately repeats workflow.md rule 10's git prohibitions,
+      # because only Claude Code auto-loads .claude/rules/ — every other agent
+      # reads AGENTS.md alone. That makes the two copies drifting apart the real
+      # risk, and nothing checked for it before this step.
+      - name: Check shared-checkout git prohibitions stayed in sync
+        run: python scripts/check_shared_checkout_rules_in_sync.py
+
+      # A NUL byte makes git and grep treat a file as binary, hiding its code
+      # from searches and diffs. This guard is cheap enough to always run.
+      - name: Check no file carries a NUL byte
+        run: python scripts/check_no_nul_bytes.py
+
+      # A conflict block reached main inside a plain-English guide and sat there
+      # for 7 days (#1683): no compiler, formatter or test reads Markdown, so
+      # nothing noticed 2 contradicting accounts of the same screens.
+      - name: Check no file carries a merge-conflict marker
+        run: python scripts/check_no_merge_conflict_markers.py
+
+      # 20 candidates hold more than one campaign committee, and money moved
+      # between a person's own committees is reported by both of them, so a
+      # combined figure counts it twice -- by 100% for 2 of them (#1663). The
+      # backend cannot build one; this is the frontend's half, and it runs on
+      # every event because a frontend-only PR skips the backend job.
+      - name: Check no surface adds a person's campaign committees together
+        run: python scripts/check_no_cross_committee_total.py
+
+      # Only meaningful on a PR: it compares against the merge base and reads
+      # the PR body. It checks both docs that describe changed code and frozen
+      # design-bundle edits. On a push to main there is no body, so skip it.
+      - name: Check doc and design changes were explained
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          DOC_SYNC_BASE_REF: origin/${{ github.base_ref }}
+          DOC_SYNC_PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          git fetch --quiet origin "$BASE_REF"
+          python scripts/check_doc_sync.py
+
   backend:
     needs: changes
-    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.backend == 'true'
+    if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || needs.changes.outputs.backend == 'true') }}
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -84,6 +164,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v9.0.0
         with:
+          version: 0.12.5
           enable-cache: true
           prune-cache: true
 
@@ -143,14 +224,14 @@ jobs:
       # pre-1.0 (changes fast), so an unpinned upgrade could break CI repo-wide
       # with no code change. Bump deliberately.
       - name: Type check backend
-        run: uvx ty@0.0.63 check alethical/db
+        run: uvx ty@0.0.72 check alethical/db
 
       - name: Test backend
         run: uv run pytest
 
   frontend:
     needs: changes
-    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.frontend == 'true'
+    if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || needs.changes.outputs.frontend == 'true') }}
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -175,6 +256,18 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: pnpm install --frozen-lockfile
 
+      # Expo and React Native packages have to move as one tested set. A normal
+      # package update can otherwise mix SDK releases and still install cleanly,
+      # then fail only at type-check or build time (#1394).
+      - name: Check Expo package compatibility
+        run: pnpm run check:expo-packages
+
+      # Security fixes can cross package major versions while preserving only
+      # the narrow commands EAS CLI and Xcode use. Exercise those commands so a
+      # future grouped dependency update cannot silently break native builds.
+      - name: Check secured build-tool compatibility
+        run: pnpm run check:build-tool-security
+
       - name: Type check frontend
         run: pnpm exec tsc --noEmit
 
@@ -190,44 +283,3 @@ jobs:
 
       - name: Build frontend
         run: pnpm run build
-
-  # Runs on every PR with no path filter — a broken doc reference is usually
-  # introduced by a docs-only or rules-only change, which the backend and
-  # frontend jobs above skip. That gap let a rename (#652) merge a dead index
-  # link. Pure stdlib, so no dependency install is needed.
-  doc-references:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v7
-        with:
-          # Full history: check_doc_sync.py needs a real merge base with the PR's
-          # base branch. A shallow clone has none, and the guard would then find
-          # no changed files and pass every PR silently.
-          fetch-depth: 0
-
-      - name: Set up Python
-        uses: actions/setup-python@v7
-        with:
-          python-version: "3.12"
-
-      - name: Check doc references resolve
-        run: python scripts/check_doc_references.py
-
-      # Cheap and unconditional: a NUL byte anywhere makes git and grep treat that
-      # whole file as binary, so its code stops being searchable and its diffs stop
-      # being reviewable. One shipped in #866 and every other gate passed it.
-      - name: Check no file carries a NUL byte
-        run: python scripts/check_no_nul_bytes.py
-
-      # Only meaningful on a PR: it compares against the merge base and reads the
-      # PR body. On a push to main there is no body to read, so it is skipped
-      # rather than failing every direct push.
-      - name: Check docs describing changed code were looked at
-        if: github.event_name == 'pull_request'
-        env:
-          DOC_SYNC_BASE_REF: origin/${{ github.base_ref }}
-          DOC_SYNC_PR_BODY: ${{ github.event.pull_request.body }}
-        run: |
-          git fetch --quiet origin "${{ github.base_ref }}"
-          python scripts/check_doc_sync.py

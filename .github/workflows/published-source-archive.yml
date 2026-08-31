@@ -1,0 +1,215 @@
+name: Keep a copy of every source our published writing cites
+
+# Every published research piece and guide ends in a sources block promising a
+# reader they can go and check the record themselves. Minnesota can take that away
+# with nothing looking wrong, and did so twice on 27 August 2026: the Board replaced
+# its Political Party Unit Handbook in place 4 hours after a guide quoting it posted
+# and 2 quoted sentences vanished (#1798), and the lobbying page behind our largest
+# published figure started answering HTTP 200 with a page reading "This page is not
+# available" (#1802). Its 2025 filing calendars had gone the same way, found by
+# accident while checking something else.
+#
+# So this job does 2 things nothing else does. It keeps our own copy of each cited
+# document, in the store docs/architecture/campaign-finance-system-design.md 4.5
+# already settles, so a figure stays checkable after Minnesota's copy is replaced.
+# And it re-reads each cited address weekly and compares the bytes, so a document
+# swapped under a published quotation is reported rather than found by accident.
+#
+# Why the sibling link check does not cover it. That job (published-piece-links.yml,
+# #1815) asks whether a reader can still reach the page, and reports a page that
+# answers 200 while saying nothing is there. It cannot see #1798 at all: the address
+# answered, the page looked right, and the document was a different document. This
+# job compares the bytes. The 2 share one definition of which addresses our writing
+# cites and one definition of the error wording -- this one loads that script rather
+# than copying either.
+#
+# Free: 16 public page reads a week, spaced 3 seconds apart, plus about 4 MB of
+# storage in a bucket we already pay for and 1 database query. No paid call.
+# Quiet: it reports only when a cited source has gone or changed, and a normal month
+# produces nothing.
+#
+# 10:00 UTC rather than any other hour so it lands 3 hours before the daily
+# second-copy job at 13:00, and every new copy gets its second copy the same day.
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "What to do"
+        type: choice
+        default: read-every-cited-source
+        options:
+          - read-every-cited-source
+          - read-back-every-copy-we-hold
+  schedule:
+    # 10:00 UTC Mondays (~4-5am America/Chicago). Weekly, matching the link check:
+    # a government site's documents are replaced on the scale of months, and the
+    # handbook swap that prompted this sat unnoticed for hours, not minutes.
+    - cron: "0 10 * * 1"
+
+concurrency:
+  group: production-published-source-archive
+  cancel-in-progress: false
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    # The database URL is built from the same Supabase inputs the app, migrations
+    # and the sibling checks use, so there is no separate DATABASE_URL copy of the
+    # password to rotate out of date (#288). No Cloudflare settings here: copying to
+    # the second place is mirror-raw-files.yml's job, and it finds this table on its
+    # own because the table names object_key, compressed_hash and mirrored_at
+    # (#1501).
+    env:
+      ALETHICAL_DATABASE_TARGET: production
+      SUPABASE_PROJECT_URL: ${{ secrets.SUPABASE_PROJECT_URL }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_STORAGE_S3_ENDPOINT: ${{ secrets.SUPABASE_STORAGE_S3_ENDPOINT }}
+      SUPABASE_STORAGE_S3_REGION: ${{ secrets.SUPABASE_STORAGE_S3_REGION }}
+      SUPABASE_STORAGE_S3_ACCESS_KEY_ID: ${{ secrets.SUPABASE_STORAGE_S3_ACCESS_KEY_ID }}
+      SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY: ${{ secrets.SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      # Pinned to an exact release, matching the sibling workflows: setup-uv stopped
+      # publishing floating major tags after v7, so this one is bumped by hand.
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9.0.0
+        with:
+          version: 0.12.5
+          enable-cache: true
+          prune-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version-file: ".python-version"
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      # Names every missing secret at once rather than dying on the first one. A
+      # missing secret must fail rather than skip: an archive that quietly stops is
+      # worse than none, because it is trusted.
+      - name: Check the secrets are set
+        shell: bash
+        run: |
+          missing=()
+          for name in SUPABASE_PROJECT_URL SUPABASE_DB_PASSWORD \
+                      SUPABASE_STORAGE_S3_ENDPOINT SUPABASE_STORAGE_S3_REGION \
+                      SUPABASE_STORAGE_S3_ACCESS_KEY_ID \
+                      SUPABASE_STORAGE_S3_SECRET_ACCESS_KEY; do
+            [ -n "${!name}" ] || missing+=("$name")
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            printf 'Not set as repository secrets: %s\n' "${missing[*]}"
+            exit 1
+          fi
+
+      # Two things here are load-bearing, both learned from the sibling workflows:
+      #   * PYTHONPATH=. — the script lives in scripts/, so a plain `uv run python
+      #     scripts/...` puts scripts/ on sys.path and not the repo root, and the
+      #     script dies on `import alethical`. That would report a failure when
+      #     nothing had been attempted at all.
+      #   * shell: bash — GitHub's default is `bash -e` WITHOUT pipefail, so `| tee`
+      #     would hand back tee's exit code (always 0) and swallow the script's 1.
+      #     `shell: bash` runs `bash -eo pipefail`.
+      - name: Read every cited source and compare it with our copy
+        id: archive
+        if: inputs.mode != 'read-back-every-copy-we-hold'
+        shell: bash
+        run: |
+          set +o pipefail
+          PYTHONPATH=. uv run python scripts/archive_published_sources.py \
+            --target production 2>&1 | tee archive-report.txt
+          echo "status=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      # On demand only, never on the schedule. Reads every copy we hold back out of the
+      # store, decompresses it and hashes it against what its row records, so a person
+      # can answer "is our archive still the thing we published from" without holding
+      # the store credentials on their own machine. Reads nothing from Minnesota.
+      # Re-proving the WHOLE store and proving a restore works is #802, not this.
+      - name: Read back every copy we hold
+        if: inputs.mode == 'read-back-every-copy-we-hold'
+        shell: bash
+        run: |
+          PYTHONPATH=. uv run python scripts/archive_published_sources.py \
+            --target production --verify-stored
+
+      - name: Open or update an issue when a cited source has gone or changed
+        if: steps.archive.outputs.status != '0'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const output = fs.readFileSync('archive-report.txt', 'utf8');
+            const title =
+              "A source one of our published pieces cites has gone or changed";
+            // The issue a run reports into is found by this marker, never by its
+            // title. Rule 13 puts fixing a posted piece with the Alethical team, so a
+            // finding here can stay open for weeks, and a run has to land in the issue
+            // a person is already working rather than file a fresh one every Monday.
+            // Paste the marker into any issue to adopt it as this home.
+            const marker = "<!-- published-source-archive -->";
+            const body = [
+              marker,
+              "Net: a document one of Alethical's published pieces cites is no longer",
+              "the document we cited. Either the address has stopped serving it, or",
+              "Minnesota is serving different bytes there now. Our own copy of what we",
+              "cited is kept either way, so the published figure is still checkable,",
+              "and a reader clicking the link may not find what the piece says is there.",
+              "",
+              "A change to a posted piece is the Alethical team's to direct",
+              "(`.claude/rules/grounded-answers.md` rule 13), so report the replacement",
+              "rather than editing the piece. Resolve it from the Board's own index page",
+              "and confirm it by reading the page, never by its status code.",
+              "",
+              "```",
+              output.trim(),
+              "```",
+              "",
+              "To see what our copy of a changed document actually says, read it back",
+              "out of the store from a fresh worktree off `origin/main`:",
+              "",
+              "```",
+              "ALETHICAL_DATABASE_TARGET=production PYTHONPATH=. uv run python \\",
+              "  scripts/archive_published_sources.py --target production --dry-run",
+              "```",
+              "",
+              `Run: ${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              "Auto-filed by `.github/workflows/published-source-archive.yml`.",
+            ].join("\n");
+
+            const existing = await github.paginate(github.rest.issues.listForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "open",
+              per_page: 100,
+            });
+            const open = existing.find(
+              (issue) => (issue.body || "").includes(marker) || issue.title === title,
+            );
+            if (open) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: open.number,
+                body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+                labels: ["backend", "documentation"],
+              });
+            }
+
+      - name: Fail the run when a cited source has gone or changed
+        if: steps.archive.outputs.status != '0'
+        run: exit 1
