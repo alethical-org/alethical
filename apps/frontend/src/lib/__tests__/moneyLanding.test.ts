@@ -209,6 +209,11 @@ describe('the filed date, which is the one fact a page may not substitute for', 
     // The anti-ranking half survives both wordings: no row carries an amount.
     expect(byArrival).toContain('never the largest');
     expect(byArrival).toContain('1,203 reports');
+    // Read on the live page, the first version ran 2 "and" clauses together and used
+    // "it" for a noun that was really the period. Neither is a correctness bug and both
+    // cost a reader a second pass, which is the whole job of this sentence.
+    expect(byArrival).not.toMatch(/period, and /);
+    expect(byArrival).not.toMatch(/a report it states/);
   });
 
   it('keeps the no-count wording under the arrival order too', () => {
