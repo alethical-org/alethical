@@ -72,8 +72,44 @@ each telling half the story.
 Newest first. Every "was" and "now" is the piece's own wording at that date, not a paraphrase.
 
 An entry says what changed **on its date**. A later entry can change the same sentence again, and
-2 of the entries below do exactly that, so the current wording is always the one in the newest
-entry that touches it — or on the piece itself, which is the authority.
+some below do, so the current wording is always the one in the newest entry that touches it — or
+on the piece itself, which is the authority.
+
+**8 corrections, from 25 to 31 August 2026**, across 3 of the 6 published pieces, plus the 2 link
+repoints in their own section further down. The first piece published on 20 August 2026, so this
+covers every correction there has ever been.
+
+---
+
+### 31 August 2026 — 2 pieces — we no longer hold none of the lobbying records
+
+**Pieces:** [The Money Only Goes One Way](https://www.alethical.com/read/research/the-money-only-goes-one-way)
+and [Money spent without a campaign's say](https://www.alethical.com/read/guides/money-spent-without-a-campaigns-say)
+
+**Was:** both pieces told readers we hold none of Minnesota's lobbying records. *Money spent
+without a campaign's say* said it in bold — "Alethical holds none of these records." — and went on
+"The lobbying records are not among them, so anything we say about lobbying is read at the Board
+and linked to, never reproduced from our own data. It carries no freshness date from us either,
+because we have nothing to keep fresh." *The Money Only Goes One Way* said "The lobbying figures
+come from records Alethical does not hold, so they carry no records-through date."
+
+**Now:** "Alethical holds these yearly totals now." Both pieces say we have kept our own dated copy
+of the Board's principal spending file since 31 August 2026, that the lobbying figures are
+recomputed from records we hold, and that a reader can check them against the Board's own.
+
+**Why:** it was true when the pieces posted and became false on 31 August 2026, when the Board's
+yearly principal-expenditure file was loaded as dated snapshots. No money figure moved. The claim
+stood in 5 places rather than the 3 first found, because it reads as background rather than as a
+figure.
+
+One thing deliberately left standing: the method box that shows the working behind the $886 million
+still says what it said, because what it states is the counting a reader would have to repeat, and
+cutting it would be an edit on our own initiative, which rule 13 point 2 forbids.
+
+**Note on the pieces:** none, at the team's direction.
+
+**Record:** [PR #1884](https://github.com/alethical-org/alethical/pull/1884),
+[issue 1862](https://github.com/alethical-org/alethical/issues/1862)
 
 ---
 
