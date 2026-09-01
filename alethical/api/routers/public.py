@@ -47,6 +47,7 @@ from alethical.api.services.campaign_finance_payments import (
     ORDER_BY_DATE,
     PaymentPage,
     independent_payments_about,
+    independent_payments_by,
     independent_payments_to_vendor,
     payments_from_contributor,
     payments_from_donors_typing,
@@ -3311,7 +3312,7 @@ def _refuse_a_committee_we_hold_no_record_of(
 )
 def committee_payments(
     registration_number: str,
-    direction: Literal["received", "made", "independent"],
+    direction: Literal["received", "made", "independent", "independent_by"],
     year: int | None = Query(default=None, ge=2015, le=2100),
     sort: Literal["date", "amount"] = Query(default="date"),
     limit: int = Query(default=50, ge=1, le=MAX_PAYMENTS),
@@ -3369,7 +3370,13 @@ def committee_payments(
     reader_for = {
         "received": payments_received,
         "made": payments_made,
+        # ``independent`` is spending filed ABOUT this committee and ``independent_by``
+        # is spending it filed about others. The first name predates the second and is
+        # left alone rather than renamed to ``independent_about``: nothing in the app can
+        # reach it yet, but this API serves a public site and a rename is a break we
+        # cannot see the far side of (#1901).
         "independent": independent_payments_about,
+        "independent_by": independent_payments_by,
     }[direction]
     page = reader_for(
         db,

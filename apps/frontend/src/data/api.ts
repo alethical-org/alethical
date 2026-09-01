@@ -31,6 +31,7 @@ import {
   ChatSession,
   Citation,
   CommitteeFilingsPage,
+  CommitteeIndependentPayment,
   CommitteeMadePayment,
   CommitteeMoney,
   CommitteePaymentsPage,
@@ -3190,9 +3191,53 @@ export async function getCommitteePaymentsMadeFromApi(
   }));
 }
 
+const independentRow = (row: Record<string, unknown>): CommitteeIndependentPayment => ({
+  spender: asText(row.spender),
+  spenderRegistrationNumber: asText(row.spender_registration_number),
+  affectedCommitteeName: asText(row.affected_committee_name),
+  affectedCommitteeRegistrationNumber: asText(row.affected_committee_registration_number),
+  stance: asText(row.stance),
+  vendorName: asText(row.vendor_name),
+  amount: asText(row.amount),
+  unpaidAmount: asText(row.unpaid_amount),
+  paidOn: asText(row.paid_on),
+  year: typeof row.year === 'number' ? row.year : null,
+  expenditureType: asText(row.expenditure_type),
+  purpose: asText(row.purpose),
+});
+
+/** What others spent to support or oppose this committee, one row per payment.
+ *
+ *  The server has served this since #1332's block was built and the app could not ask
+ *  for it: this function's `direction` value was unreachable because the request helper
+ *  below was typed to 2 of the 4 the route accepts (#1901). */
+export async function getCommitteeIndependentSpendingAboutFromApi(
+  registrationNumber: string,
+  options: { year?: number; sort?: 'date' | 'amount'; limit?: number; offset?: number } = {},
+): Promise<CommitteePaymentsPage<CommitteeIndependentPayment> | null> {
+  const payload = await committeePaymentsRequest(registrationNumber, 'independent', options);
+  if (payload === null) return null;
+  return committeePaymentsPage(payload, independentRow);
+}
+
+/** What this committee spent to support or oppose others, one row per payment.
+ *
+ *  The mirror direction, and the one nothing could answer at all until #1901 added the
+ *  route. A committee with no rows here reads as absent rather than as a measured zero,
+ *  because a filer that spent nothing independently and one we hold no rows for are
+ *  indistinguishable (`.claude/rules/grounded-answers.md` rule 12). */
+export async function getCommitteeIndependentSpendingByFromApi(
+  registrationNumber: string,
+  options: { year?: number; sort?: 'date' | 'amount'; limit?: number; offset?: number } = {},
+): Promise<CommitteePaymentsPage<CommitteeIndependentPayment> | null> {
+  const payload = await committeePaymentsRequest(registrationNumber, 'independent_by', options);
+  if (payload === null) return null;
+  return committeePaymentsPage(payload, independentRow);
+}
+
 async function committeePaymentsRequest(
   registrationNumber: string,
-  direction: 'received' | 'made',
+  direction: 'received' | 'made' | 'independent' | 'independent_by',
   options: { year?: number; sort?: 'date' | 'amount'; limit?: number; offset?: number },
 ): Promise<ApiCommitteePaymentsPayload | null> {
   const params = new URLSearchParams({ direction });

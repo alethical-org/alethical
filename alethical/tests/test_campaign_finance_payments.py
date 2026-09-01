@@ -43,6 +43,7 @@ from alethical.api.services.campaign_finance_payments import (
     UNAVAILABLE,
     UNIDENTIFIED_REGISTRATION_NUMBER,
     independent_payments_about,
+    independent_payments_by,
     independent_payments_to_vendor,
     linkable_committees,
     payments_from_contributor,
@@ -538,6 +539,117 @@ def test_a_committee_only_outside_spending_names_still_resolves(db):
         page = own_money(db, release, registration_number=TARGET_ONLY, year=2025)
         assert page.state == NOT_REPORTED
         assert page.payments == ()
+
+
+def test_one_independent_row_is_read_from_both_ends_and_the_2_lists_differ(db):
+    """The same payment is the spender's outgoing and the target's incoming.
+
+    Which is exactly why the 2 directions are one query keyed 2 ways rather than 2
+    queries: swapping the keys would be a silent bug that returns real rows belonging to
+    the wrong committee, and no test of one direction alone can catch it
+    ([#1901](https://github.com/alethical-org/alethical/issues/1901)).
+    """
+    published = Published(db)
+    _independent(db, published.independent, affected=CANDIDATE, spender_reg=STATE_PARTY)
+    # A second row the state party filed about somebody else, so its outgoing list is
+    # longer than the candidate's incoming one and the 2 cannot be confused.
+    _independent(
+        db,
+        published.independent,
+        affected=CAUCUS,
+        affected_name="HRCC",
+        spender_reg=STATE_PARTY,
+        amount="2500",
+        direction="Against",
+    )
+    db.commit()
+    release = _release(db)
+
+    outgoing = independent_payments_by(
+        db, release, registration_number=STATE_PARTY, year=2025
+    )
+    incoming = independent_payments_about(
+        db, release, registration_number=CANDIDATE, year=2025
+    )
+
+    assert outgoing.state == REPORTED and incoming.state == REPORTED
+    # The spender filed both; the candidate is named in one of them.
+    assert outgoing.total_payments == 2
+    assert incoming.total_payments == 1
+    assert {payment.spender_registration_number for payment in outgoing.payments} == {
+        STATE_PARTY
+    }
+    assert {
+        payment.affected_committee_registration_number for payment in outgoing.payments
+    } == {CANDIDATE, CAUCUS}
+    # And the shared row is the same record read from either end, not a copy.
+    (shared,) = [
+        payment
+        for payment in outgoing.payments
+        if payment.affected_committee_registration_number == CANDIDATE
+    ]
+    assert shared.record_number == incoming.payments[0].record_number
+    assert shared.stance == incoming.payments[0].stance == "For"
+
+
+def test_a_committee_that_filed_no_independent_spending_reads_absent_not_zero(db):
+    """And this is deliberately the opposite of the about-direction's reading.
+
+    ``committee_finance.independent_spending_about`` treats no rows as a measured ``0``,
+    because nobody filing about a committee is itself a finding. Nobody filing *by* it is
+    not the same claim: a filer that spent nothing independently and one we hold no rows
+    for are indistinguishable here, so this direction never reports a zero
+    (``.claude/rules/grounded-answers.md`` rule 12).
+    """
+    published = Published(db)
+    # Somebody else's independent row, so the download is not empty and "no rows for
+    # this spender" cannot be read as "the file holds nothing".
+    _independent(db, published.independent, spender_reg=STATE_PARTY)
+    db.commit()
+
+    page = independent_payments_by(
+        db, _release(db), registration_number=CAUCUS, year=2025
+    )
+
+    assert page.state == NOT_REPORTED
+    assert page.payments == ()
+    assert page.total_payments is None
+
+
+def test_the_route_serves_the_spender_direction_and_keeps_the_other_3(db, client):
+    """All 4 directions the route accepts, over HTTP, on one committee.
+
+    The frontend could reach 2 of the 4 before this change, so the route growing a
+    direction is only half the fix and the other half is a typed client
+    ([#1901](https://github.com/alethical-org/alethical/issues/1901)).
+    """
+    published = Published(db)
+    _receipt(db, published.contributions, reg_num=STATE_PARTY, name="MN DFL")
+    _payment(db, published.expenditures, reg_num=STATE_PARTY, name="MN DFL")
+    _independent(db, published.independent, spender_reg=STATE_PARTY)
+    db.commit()
+
+    for direction, expect_rows in (
+        ("received", True),
+        ("made", True),
+        ("independent_by", True),
+        ("independent", False),
+    ):
+        response = client.get(
+            f"/api/v1/committees/{STATE_PARTY}/payments",
+            params={"direction": direction, "year": 2025},
+        )
+        assert response.status_code == 200, direction
+        data = response.json()["data"]
+        assert data["direction"] == direction
+        assert bool(data["payments"]) is expect_rows, direction
+
+    # An unknown direction is refused by the route rather than reaching a reader.
+    refused = client.get(
+        f"/api/v1/committees/{STATE_PARTY}/payments",
+        params={"direction": "sideways", "year": 2025},
+    )
+    assert refused.status_code == 422
 
 
 # --- Our own gaps are never a zero ------------------------------------------
