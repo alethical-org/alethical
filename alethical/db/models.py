@@ -1569,10 +1569,30 @@ class CommitteeLinkReviewDecision(enum.Enum):
     ``rejected`` is stored rather than discarded so the proposer stops re-suggesting a
     committee a person has already ruled out, and so "we looked and it is not theirs" is
     distinguishable from "nobody has looked yet".
+
+    ``withdrawn`` is a confirmation a person has taken back (#1902). It is a third state of
+    the same row, not a fourth row and not a deletion: the row keeps everything it recorded
+    about the decision -- who signed it, when, what they read and on what basis -- and adds
+    when it was withdrawn, by whom and why. Only a *confirmation* is ever withdrawn, so this
+    value always means "confirmed once, no longer"; undoing a rejection is a different
+    question with no unique index against it and is not this value.
+
+    **Moving the row's own ``decision`` is what makes every reader safe, and that is why it
+    is an enum value rather than a flag beside one.** 6 queries across
+    ``alethical/api/services/legislator_finance.py``,
+    ``alethical/api/services/independent_spending.py``,
+    ``alethical/api/services/campaign_finance_register.py``,
+    ``alethical/pipeline/campaign_finance.py`` and
+    ``scripts/review_legislator_campaign_committees.py`` select on ``decision ==
+    confirmed``, and so does the partial unique index below. A withdrawal recorded beside an
+    unchanged ``confirmed`` would leave every one of them still publishing the account under
+    that person's name until each was found and edited; a withdrawal recorded *in* the
+    column cannot be missed by any of them, including one written next year.
     """
 
     confirmed = "confirmed"
     rejected = "rejected"
+    withdrawn = "withdrawn"
 
 
 class LegislatorCampaignCommittee(UUIDPrimaryKeyMixin, TimestampMixin, Base):
@@ -1652,6 +1672,19 @@ class LegislatorCampaignCommittee(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     # knows which snapshot would reproduce it. A date rather than a file name or a hash:
     # any download carrying data through this date holds the rows this decision rested on.
     records_through_as_reviewed: Mapped[Optional[str]] = mapped_column(String(10))
+    # A confirmation a person has taken back, as the 3 facts anything honest about it would
+    # need: when, why, and who (#1902). Kept beside the confirmation rather than replacing
+    # it, because "checked and then taken back" and "never checked" are different facts and
+    # a deleted row can only say the second one.
+    #
+    # All 3 nullable, because they say nothing about a row nobody has withdrawn -- there is
+    # no honest value for "the day this was not withdrawn". What stops a ``withdrawn`` row
+    # from carrying none of them is the check constraint below, not the column definitions:
+    # a withdrawal with no stated reason is the exact state #1902 exists to prevent, so the
+    # database refuses it rather than the tool asking nicely.
+    withdrawn_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+    withdrawal_reason: Mapped[Optional[str]] = mapped_column(Text)
+    withdrawn_by: Mapped[Optional[str]] = mapped_column(String(120))
 
     legislator: Mapped["Legislator"] = relationship()
 
@@ -1673,6 +1706,29 @@ class LegislatorCampaignCommittee(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "registration_number",
             unique=True,
             postgresql_where=text("decision = 'confirmed'"),
+        ),
+        # A withdrawal says when, why and who, or it is not stored at all. Free-text reason
+        # for the same reason ``evidence`` is free text -- the cases that need a person are
+        # the ones no field anticipated -- but never absent and never blank, because "this
+        # was taken back and nobody said why" is the state #1902 exists to prevent.
+        #
+        # ``decision::text`` rather than a comparison against the enum literal, so the
+        # constraint can be created in the same migration that adds the ``withdrawn`` value:
+        # Postgres forbids *using* a new enum value in the transaction that added it, and a
+        # text comparison never touches the type's values. And ``~ '[^[:space:]]'`` rather
+        # than ``btrim(x) <> ''``, because ``btrim`` strips spaces only, so a reason of one
+        # tab passed the first version of this constraint.
+        CheckConstraint(
+            "decision::text <> 'withdrawn' OR ("
+            "withdrawn_at IS NOT NULL "
+            "AND withdrawal_reason IS NOT NULL "
+            "AND withdrawal_reason ~ '[^[:space:]]' "
+            "AND withdrawn_by IS NOT NULL "
+            "AND withdrawn_by ~ '[^[:space:]]'"
+            ")",
+            # Bare suffix, matching every other check constraint here: the naming convention
+            # above prepends ``ck_<table>_`` to it.
+            name="withdrawal_is_explained",
         ),
     )
 
