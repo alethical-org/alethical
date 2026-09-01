@@ -198,10 +198,10 @@ policy ahead of the retry fix (no dependency justifies delaying a live error pat
 and moving receipts ahead of freshness gating (diagnosis before prevention).
 Reopening the order needs a new dependency or new evidence, not a new preference.
 
-**Completed prerequisite:** [#803](https://github.com/alethical-org/alethical/issues/803)
-delivered [What We Keep About Readers](../product-onboarding/user-data-retention-policy.md)
-on Aug 5, 2026. Evidence receipts in #801 are no longer waiting for the project's
-reader-data retention, redaction, and deletion rules.
+**Prerequisite in place:** the project's reader-data retention, redaction, and deletion
+rules exist — [What We Keep About Readers](../product-onboarding/user-data-retention-policy.md)
+([#803](https://github.com/alethical-org/alethical/issues/803)) — so evidence receipts in
+#801 have no outstanding dependency.
 
 1. **Fix the wrong-question bill chooser:**
    [#1622](https://github.com/alethical-org/alethical/issues/1622). Done when the

@@ -75,7 +75,7 @@ Preview services keep their own caches, so a card already posted elsewhere may t
 
 ## What search engines get
 
-Search engines used to receive the same nameless page for every address, which made ~10,700 pages look like one page repeated. Each address now names itself in the very first response, before any of the app's own code runs, and a bill page, a legislator page, or one of our own published reports also carries readable words in that same response.
+Every address names itself in the very first response, before any of the app's own code runs — without that, all ~10,700 pages would hand a search engine the same nameless page, reading as one page repeated — and a bill page, a legislator page, or one of our own published reports also carries readable words in that same response.
 
 - **The browser tab and the preview say the same thing.** A bill page opens with the bill's number and year straight away, and gains its short title the moment the bill loads.
 - **A bill or legislator that does not exist says so.** An address like `/bills/94-2025-HF999999` answers "not found" rather than a blank page that looks successful.
@@ -102,12 +102,12 @@ chamber profile and to the member list. Home, Find My Legislator, and the plain 
 directories arrive with their own readable text and links. Filtered lists, answer pages, and legal
 pages carry no first-response snapshot.
 
-The **campaign money** section joined them on 27 Aug 2026. `/money` arrives with its heading, its one
+The **campaign money** section carries the same first-response text. `/money` arrives with its heading, its one
 sentence, the register's size counted live, the day we last copied the Board's files, what the record
 does not cover, and links into the 2 lanes that lead somewhere. **`/money/committees` arrives with an
-ordinary link to every committee on the page**, 50 at a time on numbered addresses, which is the part
-that was actually broken: it used to serve no link at all, and behind a "Show more" button Google will
-not press, 1,553 of the 1,603 committee pages had no link anywhere on the site. **One committee**
+ordinary link to every committee on the page**, 50 at a time on numbered addresses — the load-bearing
+part: behind a "Show more" button Google will not press, 1,553 of the 1,603 committee pages
+would have no link anywhere on the site. **One committee**
 arrives with its filed name, the register's kind and its registration number, the seat it registered
 for where the register states one, the sentence saying whose committee it is — carrying, once a
 person here has confirmed the link, that member's name and an ordinary link to their campaign money
