@@ -66,11 +66,11 @@ section's 1-based position, and it is the row's uniqueness constraint in the dat
 section — an HTML id, a share link, a citation's target — is keyed on the pair, never on the id
 alone ([#854](https://github.com/alethical-org/alethical/issues/854); see § "Jumping to a section").
 
-**`body_blocks` is the structure, and it is what the tab reads.** Ingestion used to store a
-section's body as one flat string, which destroyed three things the Revisor publishes: the
-subdivision numbers ("Subd. 2."), the marks saying which words the bill *adds*, and the row/column
-shape of appropriation tables. It now stores the body a second way as well — an ordered list of
-blocks that keeps all three:
+**`body_blocks` is the structure, and it is what the tab reads.** Ingestion stores a section's
+body two ways: one flat string, and an ordered list of blocks. The blocks exist because a flat
+string destroys three things the Revisor publishes, and they keep all three — the subdivision
+numbers ("Subd. 2."), the marks saying which words the bill *adds*, and the row/column shape of
+appropriation tables:
 
 ```json
 [{"kind": "heading", "number": "Subd. 3.", "text": "Health plan."},

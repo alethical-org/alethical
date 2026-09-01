@@ -23,7 +23,7 @@ it finds bills by keyword or bill number. If you have a real *question*
   meaningful words narrows things down; it never broadens them.
 - **Little joining words are ignored.** Words like "of", "the", "and" and "for" are
   skipped, so `repeal of the refund program` searches for "repeal", "refund" and
-  "program". They add little search signal, and requiring them used to throw away
+  "program". They add little search signal, and requiring them would throw away
   the whole search when a bill happened not to use one of them.
 - **Near-misses still count.** Common word variations match too, so `tax` also finds
   "taxes" and "taxing". Typos are forgiven in longer words (5 letters or more), so
