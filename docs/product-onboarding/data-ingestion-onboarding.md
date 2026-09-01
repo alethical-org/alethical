@@ -543,11 +543,17 @@ Five things about it that are not obvious:
   **What it does not mean is that old years are unreachable, and an earlier version of
   this bullet said so.** It read "the Board serves no report document before 2023",
   which is wrong: measured 1 September 2026, 9 of 9 sampled 2022 year-end reports and 9
-  of 9 sampled 2023 ones served a real document, across all 3 filer kinds. Availability
-  varies per filer-year rather than by year, and the only way to know is to ask
-  ([#1886](https://github.com/alethical-org/alethical/issues/1886)). Report *type* is
-  the boundary that holds: 30 of 30 sampled non-year-end 2022 and 2023 reports answered
+  of 9 sampled 2023 ones served a real document, across all 3 filer kinds
+  ([#1886](https://github.com/alethical-org/alethical/issues/1886)). Report *type* is a
+  boundary that does hold: 30 of 30 sampled non-year-end 2022 and 2023 reports answered
   with the 30,424-byte page, across all 5 of the other types the catalogue names.
+  **What decides availability inside those years is not established here, and 3 separate
+  measurements have now failed by mistaking a malformed request for the Board's
+  answer** — a wrong `period` code, a wrong filer `type`, and an amendment index above
+  the one the catalogue calls effective all answer with a refusal that looks like the
+  year being closed. Every one of the 18 documents above served at the filer's real kind
+  and its catalogued index, so nothing in them shows a 2022 or 2023 year-end refusing a
+  correct request. Reproduce a document already held before varying anything.
 - **The reader proves itself before it may accuse anyone.** Every contributor-type
   figure the Board's totals route publishes equals the matching schedule's itemized plus
   non-itemized cash, so the reader is checked against numbers we already trust. When it
