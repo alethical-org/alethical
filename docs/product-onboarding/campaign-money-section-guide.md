@@ -94,19 +94,14 @@ Top to bottom:
    not be named" (the $200 test is on a donor's yearly total, never on one gift's size, and
    it is the point at which a name becomes required rather than a line below which nobody is
    named — [#1755](https://github.com/alethical-org/alethical/issues/1755)).
-   A fourth line names **lobbying**, and it is deliberately not one of the three above:
-   those are permanent gaps in the record, while lobbying is a gap of ours, so it says
-   "no page here yet" rather than "not covered". Since 31 Aug 2026 it also has to keep
-   2 halves apart ([#1862](https://github.com/alethical-org/alethical/issues/1862)): we
-   hold what Minnesota publishes on what lobbying clients spend, and our own research
-   reads from it, so a line saying we hold none of it was false about the records the
-   reader is standing beside. What we still do not hold is the registration side, who is
-   registered to lobby and who they work for.
-   It earns its place because the homepage promises "campaign and lobbying records"
-   twice and this is where a reader arrives looking for the second half. Every other
-   absence in this section is stated out loud; before this line, lobbying was the one a
-   reader could only find by hunting and giving up (found by an end-to-end browser test,
-   20 Aug 2026).
+   The block holds only those three permanent source gaps. **Lobbying is deliberately not
+   among them** (ruled 1 Sep 2026, campaign-money design round 4): its absence is ours to
+   close rather than a hole in what Minnesota publishes, and the red under-development
+   strip at the top of this same page already names it — so a fourth line here would state
+   one fact at two levels of the page. The block once carried a lobbying line; its history,
+   including the 31 Aug 2026 rewording that kept the spending we hold apart from the
+   registrations we do not, is on
+   [#1862](https://github.com/alethical-org/alethical/issues/1862).
 
 Three more pieces bind to live data (two public endpoints:
 `/api/v1/campaign-finance/summary` and `/api/v1/campaign-finance/filings`). Each data block

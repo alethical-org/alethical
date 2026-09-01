@@ -394,9 +394,7 @@ function MoneyIn({
 
       {moneyIn?.otherReceipts.length ? (
         <View style={styles.rows}>
-          <Text style={styles.rowsHead}>
-            Money in that is not a donation, reported on its own line
-          </Text>
+          <Text style={styles.rowsHead}>Not a donation</Text>
           {moneyIn.otherReceipts.map((receipt) => (
             <Row
               key={receipt.receiptType}
