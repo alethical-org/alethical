@@ -1269,8 +1269,11 @@ substitution is pinned by
 `COALESCE(filed_date, cut_off_date) DESC`, not `filed_date DESC NULLS LAST`: sinking every
 undated row below every dated one would drop a 2026 report whose document is an unreadable scan
 below dated reports from 2023, at the top of a feed of the newest filings. A report is always
-received after its period closes, so the period end is the earliest its filing can have been, and
-using it to place a row invents nothing. The served `filed_date` stays `null`, which is the whole
+received after its period closes **except when it is not** — a terminating committee files its final
+report at termination, and 7 of the 3,735 dated reports are received before their period ends, every
+one of them a terminated filer (measured 31 Aug 2026). So the period end is *usually* the earliest
+its filing can have been, which is enough to place an undated row and not enough to assert as an
+invariant. Using it to place a row invents nothing either way. The served `filed_date` stays `null`, which is the whole
 difference between ranking and claiming.
 
 **Only reports somebody actually filed.** The catalogue is a schedule: it lists a report from the

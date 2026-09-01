@@ -975,7 +975,11 @@ def _filed_date_order(report):
     one would drop a 2026 report whose document is an unreadable scan to the bottom of a
     feed of the newest filings, behind dated reports from 2023. Coalescing keeps it near
     where it belongs, because a report is always filed *after* its period closes, so the
-    period end is the earliest the filing can have been.
+    period end is *usually* the earliest the filing can have been. Not always: a terminating
+    committee files its final report at termination, so 7 of the 3,735 dated reports on production
+    are received before their period closes, every one a terminated filer (31 Aug 2026). That does
+    not change what this ordering does — it is still the best available place for an undated row —
+    only what may be asserted about it.
 
     This is a **ranking** fallback and never a displayed one: the served ``filed_date``
     stays NULL, so no row can print a period end as the day it was filed. That
