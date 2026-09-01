@@ -105,11 +105,10 @@ It matters because **it never appears in a candidate's own report**. Someone rea
 report is missing part of the picture. On a legislator's page we show three plain figures:
 spent supporting them, spent opposing them, and spent where the filing does not say which.
 
-**Built.** It is on every legislator's profile now, and it says plainly that nobody has yet
-confirmed which campaign committee belongs to which person, so no figure can be attributed to
-anyone until the review in number 2 lands. The third figure appears only when there is money in
-it, which today there never is. Full explanation:
-the *Spending by outside groups* section of
+**Built.** It is on every legislator's profile now. The review in number 2 landed on
+31 August 2026, so a figure can be attributed to a person: 242 campaign accounts are confirmed
+across all 200 sitting members. The third figure appears only when there is money in it. Full
+explanation: the *Spending by outside groups* section of
 [How the Campaign money tab works](legislator-campaign-money-guide.md).
 
 ### Also in the first wave: our own research (added 18 Aug 2026)
@@ -263,18 +262,22 @@ pages without that check is not.
 
 ---
 
-## The one thing left that a person has to do
+## The review a person has to do, and what it produced
 
 **Nothing can show a legislator's money until someone confirms which campaign committee is
 theirs, one legislator at a time.** Minnesota gives every committee a number and never says which
 person it belongs to, and we refuse to guess, because attaching the wrong committee publishes
 someone else's money under a real politician's name. So this is 200 decisions a person makes and
-signs, and it is now the last thing standing between everything else being ready and a page with
-money on it.
+signs.
 
-It is not a research task, and it got smaller today. The proposing work is built and measured
-(11 Aug 2026): of the 200 sitting members, **144 have one obvious answer and 56 do not**. It was
-108 and 92 this morning, before the state's own list of registered committees was added, which
+**The first sitting ran on 31 August 2026 and it reached everyone.** It confirmed **242 accounts
+as a member's own, covering all 200 sitting members**, read and ruled out 33 more, and read and
+left undecided 2. What each of those confirmations rests on is set out in
+[How a legislator is matched to their campaign account](../operations/how-a-legislator-is-matched-to-their-campaign-account.md).
+
+It is not a research task, and it got smaller before anyone sat down to it. The proposing work is
+built and measured (11 Aug 2026): of the 200 sitting members, **144 have one obvious answer and
+56 do not**. It was 108 and 92 that morning, before the state's own list of registered committees was added, which
 carries each candidate's district and settles most of the name confusions on its own.
 
 The 56 that remain are not mysteries. Every one is a member with two or more committees of their
@@ -284,10 +287,10 @@ name ("Bjorn Olson" is "Olson, Christian Bjorn"), a committee named for a differ
 member once sought, or two committees of the same name filed under different numbers. Someone
 reads each one and answers.
 
-Until those answers exist, **every legislator profile shows the same unconfirmed state**, because
-0 are confirmed today. The count is not a percentage of a finished thing; it starts at 0 of 200
-and drains as answers land. The tool that asks the questions is
-`scripts/review_legislator_campaign_committees.py`, and the standard it holds people to is in
+A legislator profile shows the unconfirmed state until that member's own answer lands, and says
+nothing about the other 199. The count is not a percentage of a finished thing; it starts at 0 of
+200 and drains as answers land, and it reached all 200 on 31 August 2026. The tool that asks the
+questions is `scripts/review_legislator_campaign_committees.py`, and the standard it holds people to is in
 [`campaign-finance-system-design.md` §5.1 (what counts as a confirmed match)](../architecture/campaign-finance-system-design.md).
 
 **How the sitting works: one list, one word, then 56 questions.** `review --batch` prints all 144
@@ -322,8 +325,10 @@ PYTHONPATH=. uv run python scripts/review_legislator_campaign_committees.py revi
 
 Re-running `coverage` between sittings is how progress is read: its first block counts what a
 person has actually confirmed, and every command skips anything already decided, so a sitting can
-stop at any question and the next one resumes there. Verified on 28 Aug 2026 against production
-and that day's download: 144 uncontested, 56 contested, 0 confirmed.
+stop at any question and the next one resumes there. The proposer's own split was verified on
+28 Aug 2026 against production and that day's download: 144 uncontested, 56 contested. What a
+person has confirmed is the separate number, and on 31 August 2026 it was 242 accounts across all
+200 sitting members, with 33 ruled out and 2 left undecided.
 
 **One person signs, and no second reviewer is asked for.** Two people reading the same committee
 name share the same evidence, so they share its mistakes; a name that is genuinely ambiguous does

@@ -624,8 +624,9 @@ not to the other. On the release published 12 August 2026 the 2 populations are 
 **A person-confirmed legislator-committee link is re-checked on every run too**
 ([#1398](https://github.com/alethical-org/alethical/issues/1398)). A person confirms
 which state-registered committee belongs to which legislator by hand
-([#1354](https://github.com/alethical-org/alethical/issues/1354), 0 confirmed as of
-this writing); a committee can rename or close after that, so the load re-checks every
+([#1354](https://github.com/alethical-org/alethical/issues/1354); the first sitting ran on
+31 August 2026 and confirmed 242 accounts across all 200 sitting members, with 33 ruled out
+and 2 left undecided); a committee can rename or close after that, so the load re-checks every
 confirmed link against the contributions file it just downloaded and the registered-
 filer directory its sibling pipeline already holds, and reports a contradiction rather
 than fixing it. It never blocks the load and it is on no schedule of its own — see
