@@ -573,8 +573,9 @@ export function moneyOutNote(
     // person's page is the same failure in a new coat.
     //
     // The money-IN card can be specific because the split serves it a figure
-    // (`named_in_kind_total`). Money out has no equivalent, which is [#1869] — until it
-    // does, the honest sentence is the general one.
+    // (`named_in_kind_total`). Money out has no equivalent, which is
+    // [#1894 The money-out card cannot name its in-kind figure, because the server sends none](https://github.com/alethical-org/alethical/issues/1894)
+    // — until it does, the honest sentence is the general one.
     if (ourListExceedsReportedTotal) {
       return (
         'These are 2 different figures from Minnesota and we never subtract one from the ' +

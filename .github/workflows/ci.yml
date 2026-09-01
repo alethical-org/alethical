@@ -113,6 +113,14 @@ jobs:
       - name: Check no file carries a merge-conflict marker
         run: python scripts/check_no_merge_conflict_markers.py
 
+      # docs/operations/jobs-and-scripts.md is the only place a job or a
+      # command-line script is inventoried, and its counts went stale twice in a
+      # week (#1869, then 57 real scripts against 55 stated). Its own sentence
+      # says the list exists "so a new file cannot hide inside a total", so this
+      # derives every count and both name lists from the repository instead.
+      - name: Check the jobs and scripts page matches the repository
+        run: python scripts/check_jobs_and_scripts_inventory.py
+
       # 20 candidates hold more than one campaign committee, and money moved
       # between a person's own committees is reported by both of them, so a
       # combined figure counts it twice -- by 100% for 2 of them (#1663). The
