@@ -95,6 +95,18 @@ jobs:
         run: python scripts/check_doc_references.py
       - name: Check quoted doc claims still exist
         run: python scripts/check_doc_quotes.py
+      # Rule 16 (.claude/rules/workflow.md): added doc lines state what is
+      # true now, never narrate decision history. Diff-based -- it reads only
+      # the lines a PR adds, so the existing corpus and kept evidence never
+      # trip it. Needs the merge base, hence PR-only, like the doc-sync step.
+      - name: Check new doc lines state the present
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+          TIMELESS_BASE_REF: origin/${{ github.base_ref }}
+        run: |
+          git fetch --quiet origin "$BASE_REF"
+          python scripts/check_timeless_docs.py
       # AGENTS.md deliberately repeats workflow.md rule 10's git prohibitions,
       # because only Claude Code auto-loads .claude/rules/ — every other agent
       # reads AGENTS.md alone. That makes the two copies drifting apart the real
