@@ -554,8 +554,11 @@ def test_an_undated_report_keeps_its_place_by_period_instead_of_sinking(
     The alternative -- every dated row above every undated one -- would drop a 2026
     report whose document is an unreadable scan below dated reports from 2023, on a page
     whose first row a reader takes for the committee's latest filing. A report is always
-    received after its period closes, so the period end is the earliest its filing can
-    have been, and using it to *rank* the row invents nothing. The served ``filed_date``
+    received after its period closes in all but one shape, so the period end is a sound place to
+    rank an undated row and using it to *rank* invents nothing. The exception is real and is not an
+    invariant to lean on: a terminating committee files its final report at termination, and 7 of the
+    3,735 dated reports on production are received before their period ends, every one a terminated
+    filer (31 Aug 2026). The served ``filed_date``
     stays null, which is the difference between ranking and claiming.
     """
     snapshot = _filings_snapshot(db, report_count=2)

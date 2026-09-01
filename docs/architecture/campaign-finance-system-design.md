@@ -2276,11 +2276,20 @@ scans `pypdf` reads as 0 lines**. On the other 36 the stamp appeared exactly onc
 attached: filer 16807's 2026 pre-primary reads 24 Jul 2026 at index 0 and 10 Aug 2026 at index 1;
 filer 20008's 2025 year-end reads 30 Jan 2026 at index 0 and 28 Jul 2026 at index 2.
 
+**A report is NOT always received after its period closes, and an earlier version of this section
+said it was.** A terminating committee files its final report at termination, so its received date
+falls months before the period end the catalogue gives it: measured across the 3,735 dated reports on
+31 Aug 2026, **7 are received before their period closes and every one of the 7 is a terminated
+filer whose termination date equals its received date** — Paul Novotny's committee (18472), §9.4's
+sixth filer, among them. A further **59 are received on the closing day itself**, 50 of them
+pre-primary reports filed on 20 Jul 2026. Both are ordinary. Anything treating "received after the
+period ends" as an invariant, including a check written to prove the column holds real filing dates,
+is wrong about 66 real reports.
+
 **Nothing may fall back to `cut_off_date`.** A period end relabelled as a filing date is a
 fabricated fact about a named committee, and it is the substitution a reader cannot catch, because
 it is a real date on a real report. Ranking may use the period end — the feed orders by
-`COALESCE(filed_date, cut_off_date)`, since a report is always received after its period closes —
-but the served value stays NULL, and
+`COALESCE(filed_date, cut_off_date)` — but the served value stays NULL, and
 `test_the_feed_never_dates_a_report_from_the_period_it_covers` fails if it does not.
 
 **Do not use the "Amendment" checkbox printed on the document.** Davids' 2024 year-end has it
@@ -2393,9 +2402,26 @@ Recorded as not run, never as passed:
   ([#1386](https://github.com/alethical-org/alethical/issues/1386)): 3 of those 4 are the
   pre-amendment export of §2.1, and the fourth is a coverage gap particular to one committee. The
   expenditure side has since been checked for those same 4 filers, which confirmed the pre-amendment
-  cause on money out as well and found a second unexplained gap: HRCC is missing 3 outgoing payments
-  worth **$21,940.32**, present in no version of its filing. Both unexplained gaps need the Board
-  itself and sit with Eugene. Those two samples establish that the comparison works and the documents
+  cause on money out as well. ~~It also found a second unexplained gap: HRCC is missing 3 outgoing
+  payments worth $21,940.32, present in no version of its filing.~~ **That finding is withdrawn:
+  nothing is missing.** All 3 payments are itemized on HRCC's own **Schedule B3A - IE** — Crombie
+  Marketing $1,887.00 and Targeted Creative Communication $8,053.32 on 11 Mar 2025, Acquire Digital
+  $12,000.00 on 6 May 2025, each marked *Against* and each naming the same affected committee
+  (Gottfried, David, 19193) — and all 3 are in `cf_independent_expenditure_row` at those exact
+  amounts, summing to the $21,940.32 said to be absent. **Minnesota publishes independent
+  expenditures as a separate download**, and the check read `cf_expenditure_row`, which holds only
+  the ordinary file. Read against both schedules HRCC's 2025 money out reconciles to the cent:
+  Schedule B1 - EXP prints "Total of itemized 725,879.43" against 414 ordinary rows summing to
+  $725,879.43, and Schedule B3A - IE prints "Total of itemized 25,140.32" against 4 independent rows
+  summing to $25,140.32. One difference is inside the Board's own document and is worth keeping:
+  that schedule's printed itemized total is $3,200.00 larger than the single affected-committee block
+  it prints, and the $3,200.00 row (Acquire Digital, 31 Jan 2025, marked *For*, no affected committee
+  named) is in the download but not in the served detail. **So this leaves one unexplained gap, filer
+  18488's, not two**, and HRCC's contribution shortfall of $5,250.00 still stands as the
+  pre-amendment cause. Verified independently 31 Aug 2026 before landing; the withdrawal is written
+  out rather than deleted because the figure was published to 4 issues. **No reader saw it** — the
+  figure appears nowhere in `apps/frontend/src`. That one gap needs the Board itself and sits with
+  Eugene. Those two samples establish that the comparison works and the documents
   are there; they do **not** establish a failure rate for either kind, and HRCC is one hit rather than
   a measured rate. ~~The check has not run for any year before 2025, nor for any filer outside those
   samples~~ — **it has since run across every committee-year of 2024, 2025 and 2026**, which is the
@@ -2408,12 +2434,16 @@ Recorded as not run, never as passed:
 - ~~**The stated-split comparison has run for 2025 only.**~~ **Run for 2024, 2025 and 2026 since**,
   and the count it produces is 5 times the one this document and 2 code comments carried
   ([#1496](https://github.com/alethical-org/alethical/issues/1496), 18 Aug 2026). Against the live
-  release: **3,485 committee-years agree, 76 disagree, 325 are not checked because the Board serves
-  no document, and 82 read `reader_unproven`**, where a document was served and our own reader could
-  not prove itself against figures we already trust. The 76 run in both directions — 33 where the
-  filing names more than we hold and 43 where we hold more — and **37 of the 43 are the part-year
-  artefact §2.3 measures rather than a disagreement at all**
-  ([#1647](https://github.com/alethical-org/alethical/issues/1647)). Still not established: any year
+  release: ~~3,485 committee-years agree, 76 disagree~~ **3,505 agree and 56 disagree**, 325 are not
+  checked because the Board serves no document, and 82 read `reader_unproven`, where a document was
+  served and our own reader could not prove itself against figures we already trust. **The move is our
+  own work rather than a change in the data**: [#1647](https://github.com/alethical-org/alethical/issues/1647)'s
+  either-reading rule shipped 28 Aug 2026 and the verdicts were recomputed the same day, moving
+  exactly 20 committee-years from disagreeing to agreeing, which is the figure #1647 predicted. The
+  325 and the 82 did not move and the 3,968 total is unchanged. The 56 run in both directions — 33
+  where the filing names more than we hold and 23 where we hold more — and **27 of the 56 are
+  mid-year reports**, the part-year artefact §2.3 measures. ~~37 of the 43 are the part-year
+  artefact~~ described the state before that re-run. Re-measured 31 Aug 2026. Still not established: any year
   before 2024, and the 82 `reader_unproven` committee-years one by one.
 - **The closed-committee count** (§7's fifth state) is 1 sitting member of the **162** resolvable by
   district plus surname, with 0 having closed one committee and opened another, read off one nightly
