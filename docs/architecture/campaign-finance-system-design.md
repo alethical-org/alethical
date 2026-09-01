@@ -885,22 +885,34 @@ backfill: 3 download bodies (29 MB stored), 2 totals archives (19 MB stored), an
 documents (386 MB stored; 411 MB as originally read — PDFs barely compress).
 
 **An older report document is very much larger than a recent one, and any estimate that assumes one
-average is out by an order of magnitude.** Re-measured 1 Sep 2026 while
-[#1886](https://github.com/alethical-org/alethical/issues/1886)'s 2022-2023 capture was running:
-**3,898 documents, 618 MB as read and 585 MB stored, averaging 155 KB.** The average by filing year
-is what matters:
+average is out by an order of magnitude.** Re-measured 1 Sep 2026 **while
+[#1886](https://github.com/alethical-org/alethical/issues/1886)'s 2022-2023 capture was still
+running**, so every whole-store total here is a floor rather than a settled size: 3,898 documents and
+618 MB as read at one reading, 4,009 and 725 MB an hour later. The completed years are stable and are
+what matters:
 
 | filing year | documents held | average size | total |
 |---|---:|---:|---:|
 | 2026 | 1,253 | **57 KB** | 73 MB |
 | 2025 | 1,277 | 125 KB | 164 MB |
 | 2024 | 1,113 | 153 KB | 175 MB |
-| 2022 | 255 | **794 KB** | 207 MB |
+| 2022 | *capture in flight* | *see below* | *see below* |
 
-A 2022 document averages **14 times** a 2026 one, so 255 of them already occupy more than all 1,253
-of 2026's. #1886's own estimate of 248 MB for that capture was built on the store's old blended
-average; that session projects roughly **1.84 GB** for the finished capture, taking the store to
-about **2.25 GB**, and the per-year figures above are consistent with it.
+**The 2022 row is deliberately not a figure, because a mid-capture average is unstable and 4 readings
+proved it.** Across #1886's run in progress: 830 KB over 171 documents, 794 KB over 255, 765 KB over
+345, then **836 KB over 366** an hour later. It is not drifting in one direction; it moves with
+whichever filers the run has happened to reach. Any single reading dropped into a cost paragraph would
+be wrong by the time anyone budgeted against it, which is what this section is for.
+
+**What is durable is the ratio: an older report document is roughly an order of magnitude larger than
+a recent one**, near 14 times between 2022 and 2026 on every reading so far. That is the fact the
+December repost pass needs. At the last reading here the store held 4,009 documents and 725 MB, up
+from 3,643 and 411 MB on 18 August, with 2022 alone already past 300 MB — so 2022 will outweigh 2024,
+2025 and 2026 combined. #1886's own estimate of 248 MB for that capture was built on the store's old
+blended average and is out by roughly 7 times; that session projects about **1.84 GB** for the
+finished capture, taking the store to roughly **2.25 GB**, and will post the settled average and total
+on [#1886](https://github.com/alethical-org/alethical/issues/1886) when the capture and its Cloudflare
+R2 mirror finish. **Take the figure from there, not from here.**
 
 **Still free, and still worth writing down.** Supabase Storage includes 100 GB and R2 includes 10 GB,
 so 2.25 GB is comfortable on both — but it is about a fifth of R2's free allowance, and §2.1's
