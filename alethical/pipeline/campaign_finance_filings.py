@@ -178,6 +178,15 @@ _SHARED_CLOSING = (
 
 # A candidate committee reports its money in by contributor type, which is what makes
 # the reconciliation in this module possible per schedule rather than in aggregate.
+#
+# **"Party unit contributions" is narrower than the line it labels, so never name a
+# reader-facing figure after it.** The line totals the filed report's `Schedule A1 -
+# PTY/TERM PCC`, whose printed heading is "Contributions from Political Party Units and
+# Terminating Candidate Committees" -- so a candidate's own committee winding down and
+# transferring its balance sits here, correctly, under a name covering half of it. All
+# 580 stored candidate-committee reports that print the schedule print that heading, and
+# on 65 of the 74 filer-years carrying candidate-committee cash and no party-unit cash
+# this line equals the candidate-committee money to the cent (§9.1, #1836).
 CANDIDATE_LINES = (
     *_SHARED_OPENING,
     Line("individuals_contributions", "Individuals contributions"),

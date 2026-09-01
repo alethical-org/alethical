@@ -34,11 +34,16 @@ decisions were taken against text which had already been replaced. One session r
 keeping downloaded files in the database an hour after its own merged work had settled on
 Supabase Storage; another merged a display rule that a third had already measured to be wrong.
 
-- **The owner today** is the session `nervous-booth-d2e68e-13`, working in the worktree
-  **`.claude/worktrees/nervous-booth-d2e68e`**, which took the pen 31 Aug 2026 under the
-  handover rule below. Its measurements came from
-  [#1670](https://github.com/alethical-org/alethical/issues/1670) and are written up in §9.6
-  as "The received date is now stored" and in §9.4 as the sixth response shape.
+- **The owner today** is the session working in the worktree
+  **`alethical-wt-claude/board-summary-party-unit-line-1836`**, which took the pen 1 Sep 2026
+  under the handover rule below. Its measurements came from
+  [#1836](https://github.com/alethical-org/alethical/issues/1836) and are written up in §9.1
+  as "One of those 5 contributor-type labels is shorter than the line it names".
+  - The previous claim named the session `nervous-booth-d2e68e-13`, working in the worktree
+    `.claude/worktrees/nervous-booth-d2e68e`, appointed 31 Aug 2026. It is in no live session
+    list as of 1 Sep 2026, which is what permits this handover. Its measurements came from
+    [#1670](https://github.com/alethical-org/alethical/issues/1670) and are written up in §9.6
+    as "The received date is now stored" and in §9.4 as the sixth response shape.
   - **The pen had been stuck rather than held, and clearing that is why this claim exists.**
     The rule below treats an open pull request against this file as the pen being held, and
     draft [PR #1335](https://github.com/alethical-org/alethical/pull/1335) held it from
@@ -1861,6 +1866,34 @@ run read every one of the 1,603 registered filers of every kind and logged zero 
 [`data-ingestion-onboarding.md` §H2](../product-onboarding/data-ingestion-onboarding.md)); a
 second, independent read of the current register — 299 party units and 529 political committees
 or funds — confirmed the same thing again on 2026-08-25 (issue #1757, §9.9).
+
+**One of those 5 contributor-type labels is shorter than the line it names, and it is the
+party-unit one.** The Board's summary calls it "Party unit contributions". The line is the total
+of the filed report's **Schedule A1 - PTY/TERM PCC**, whose own printed heading is
+*"Contributions from Political Party Units and Terminating Candidate Committees"* — so a
+candidate's own committee winding down and handing its closing balance to their next committee
+belongs on that line, correctly, under a label that names half of what the line covers. Filer
+19520's 2026 report itemizes exactly one entry there, $3,000.00 from `Napper, Diane House
+Committee` (19121), and filer 19512's itemizes $2,851.97 from `Pafko, Frank Senate Committee`
+(18920): both are a person's own earlier committee, not a party unit.
+
+**So a surface that ever splits a candidate committee's money in by these 5 lines names that
+line for both givers**, never as party money alone. There is no such surface: no API route and
+no screen reads a `cf_filing_figure.line_key`, and `reported_contributions` sums all 5
+contributor lines, so which of them holds a payment cannot move a published total. What a reader
+sees against an individual payment is the bulk download's own `contrib_type` column, which reads
+`Candidate Committee` on these transfers — filer 19520's payments list prints that.
+
+**Measured, and the figures are the reason this is a source behaviour rather than 2 odd filings**
+([#1836](https://github.com/alethical-org/alethical/issues/1836), 2026-09-01). Every stored
+candidate-committee report document that prints the schedule at all — **580 of 1,411** — prints
+that same heading, and none prints another. On the filings side, **74** of the 1,395
+candidate-committee filer-years in the live snapshot carry itemized candidate-committee cash and
+no itemized party-unit cash, and the party-unit line equals that candidate-committee money to
+the cent on **65** of them and covers it on **71**; the 3 that read $0.00 are filer-years whose
+every reported line trails the download, which is §2.3's part-year effect and not a
+counter-example. Across the **110** filer-years where reading the label literally and reading the
+schedule's full name give different answers, **101** fit the schedule and **0** fit the label.
 
 **That stem rule is for the cash-balance figures, not for a period end. The period end is a
 served field.** The report catalogue (`tabname=reports_data`, §9.6) returns **`CutOffDate`** per
