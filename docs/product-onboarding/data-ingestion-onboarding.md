@@ -582,8 +582,10 @@ look" as "we looked and it was fine". Four things about it differ from the money
 above:
 
 - **It reads the documents we already keep rather than asking the Board.** Every document
-  the money-in sweeps read is stored, so a full sweep of about 3,600 committee-years costs
-  0 requests to the Board and roughly 13 minutes. A committee-year we hold no document for
+  the money-in sweeps read is stored, so a full sweep costs 0 requests to the Board.
+  Measured against production on 1 September 2026: 3,643 documents read in 18.6 minutes
+  across 4,124 committee-years, then 4,124 verdicts written in 2.5 more. A committee-year
+  we hold no document for
   reads `not_checked`. That matters beyond politeness: the Board serves a document for only
   about 1 report in 4 and has never promised the route exists.
 - **Independent expenditures are excluded from both figures.** Minnesota publishes what a
@@ -1061,7 +1063,7 @@ just pipeline local --write --allow-writes     # commit after review
 | `uv run python scripts/repair_incomplete_vote_records.py --target production`            | Preview the narrow repair that adds only member votes proven missing by a complete official House list. Writing requires both `--write` and `--backup-path`                                                     |
 | `uv run python scripts/repair_vote_roster_identities.py --target production`             | Preview the one-time repair for official House vote names and a missing House service period. Writing requires both `--write` and `--backup-path`                                                               |
 | `just mirror-raw-files [target=production] [dry=true]`                                   | Copy every stored campaign-finance file to Cloudflare R2 and read each copy back to check it arrived whole. Covers all 3 kinds of stored body (downloads, totals archives, report documents), discovered from the schema. Dry-run by default. Only ever adds; a second run copies nothing. The daily job `.github/workflows/mirror-raw-files.yml` does this already — section **H**   |
-| `just check-campaign-finance-stated-spending [target=local] [dry=true] [years=""] [filers=""]` | Compare each committee's own filed report against the payments OUT we hold, and store one verdict per committee-year. Reads the report documents we already keep, so it asks the Board for nothing; about 13 minutes for 3 years. Dry-run by default. Never blocks a release — section **H2** |
+| `just check-campaign-finance-stated-spending [target=local] [dry=true] [years=""] [filers=""]` | Compare each committee's own filed report against the payments OUT we hold, and store one verdict per committee-year. Reads the report documents we already keep, so it asks the Board for nothing; measured at about 21 minutes for 3 years. Dry-run by default. Never blocks a release — section **H2** |
 | `just backfill-campaign-finance-report-documents [target=production] [dry=true] [limit=""]` | Re-fetch and keep the report documents behind verdicts written before #1501, and report how many the Board would no longer serve. Dry-run by default (asks for nothing); `limit` for a scoped check first. Safe to re-run and safe to interrupt — section **H2**            |
 | `uv run python scripts/show_party_and_caucus_money.py --target production`                | Print the money in and out of the state parties and the 4 caucuses from the published set. Reads only, never writes (`--reg-num`, `--years`, `--transfers`) — section **H**                                       |
 | `uv run python -m alethical.pipeline.ai_enrichment {prepare\|submit\|status\|apply} ...` | Direct OpenAI Batch control. Four modes, not the two listed here: `prepare` builds the JSONL batch file and `apply` writes results back, which are the two you actually need to run a batch end to end.         |

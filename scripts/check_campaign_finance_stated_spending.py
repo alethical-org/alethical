@@ -18,8 +18,10 @@ it can be read tomorrow and run again after the next download.
         --target production --years 2024 2025 2026
 
 **It asks the Board for nothing.** Every document it reads is one we already keep
-(#1501), so a full sweep of about 3,600 committee-years costs 0 requests to
-cfb.mn.gov and roughly 13 minutes. It needs the 4 ``SUPABASE_STORAGE_S3_*`` credentials
+(#1501), so a full sweep costs 0 requests to cfb.mn.gov. Measured against production on
+1 September 2026: 3,643 documents read in 18.6 minutes, then 4,124 verdicts written in
+2.5 more, so about 21 minutes for 3 filing years. The write is 1 statement per verdict
+and commits once at the end, so nothing is visible in the table until the run finishes. It needs the 4 ``SUPABASE_STORAGE_S3_*`` credentials
 to read them back, and ``--target production`` needs ``SUPABASE_PROJECT_URL`` and
 ``SUPABASE_DB_PASSWORD`` from the environment settings file at the repository root.
 

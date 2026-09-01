@@ -611,8 +611,9 @@ def run_stated_spending_check(
     time, so a sample sized for a random failure rate is the wrong instrument and only
     checking a committee catches that committee.
 
-    Reads about 3,600 documents out of our own store, which takes roughly 13 minutes and
-    costs the Board nothing.
+    Reads the documents out of our own store and costs the Board nothing. Measured
+    against production on 1 September 2026: 3,643 documents read in 18.6 minutes across
+    4,124 committee-years, then 4,124 verdicts written in 2.5 more.
     """
     years = sorted({int(year) for year in years})
     run = StatedSpendingRun(years=tuple(years), started_at=datetime.now(UTC))
