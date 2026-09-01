@@ -2648,6 +2648,106 @@ class CampaignFinanceStatedSplit(Base):
     __table_args__ = (Index("ix_cf_stated_split_status", "snapshot_id", "status"),)
 
 
+class CampaignFinanceStatedSpendingStatus(enum.Enum):
+    """Whether one committee-year's own filing agrees with the payments out we hold.
+
+    The same 4 answers as ``cf_stated_split_status`` one table up, and a separate type
+    rather than a shared one: "split" names the money-in question of named against
+    unnamed donors, there is no split on the money-out side, and a shared Postgres type
+    would tie either table's downgrade to the other's (#1645).
+    """
+
+    # The filing's own stated itemized money out equals the payment rows we hold.
+    agrees = "agrees"
+    # They differ. A shortfall makes a committee look like it spent less than it did,
+    # under a real politician's name, with the state's own filing saying otherwise.
+    # Eugene ruled on 12 Aug 2026 that where 2 official sources disagree we show both.
+    disagrees = "disagrees"
+    # The comparison could not be made: no document of this filing is stored, or the
+    # catalogue serves no report, amendment index or cut-off date to bound it by.
+    # Recorded as not checked rather than as passed, which is what §9.9 enforces.
+    not_checked = "not_checked"
+    # A document was read and our own reader disagreed with figures we already trust.
+    # The reader is wrong, so no claim is made about the data at all.
+    reader_unproven = "reader_unproven"
+
+
+class CampaignFinanceStatedSpending(Base):
+    """One committee-year's filed report compared against the payments out we hold.
+
+    The money-out twin of ``cf_stated_split``, and until this table existed there was
+    no money-out equivalent at all: the check had been run once, on 31 August 2026, and
+    its 3,643 answers lived only in that run's terminal output (#1645).
+
+    **Read from our own stored documents, never from the Board.** The money-in check
+    fetches a document per committee-year, which is roughly 1,300 requests. #1501's
+    keeper already stored every document those sweeps read, so this check reads
+    ``cf_report_document`` instead and asks the Board for nothing. A committee-year with
+    no stored document is ``not_checked``, which is the same honest gap as before.
+
+    **Independent expenditures are a different file and are excluded on both sides.**
+    Minnesota publishes what a committee spent for or against someone as its own
+    download, and the Board's own report summary gives it its own line, so a comparison
+    that looks for those payments in ``cf_expenditure_row`` invents a shortfall wherever
+    a filer spends independently (§2.1).
+    """
+
+    __tablename__ = "cf_stated_spending"
+
+    # Keyed on the EXPENDITURES snapshot, where the money-in table keys on the
+    # contributions one, because the verdict is about those rows. A new download
+    # replaces them and the cascade takes every verdict about the old ones with it.
+    snapshot_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("cf_snapshot.id", ondelete="CASCADE"), primary_key=True
+    )
+    registration_number: Mapped[str] = mapped_column(String(20), primary_key=True)
+    filing_year: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+    # Which run of the Board's totals service proved the reader for this document.
+    # NULL means the reader could not be proved here rather than that it failed.
+    filings_snapshot_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        ForeignKey("cf_filing_snapshot.id", ondelete="SET NULL")
+    )
+    status: Mapped[CampaignFinanceStatedSpendingStatus] = mapped_column(
+        SQLEnum(CampaignFinanceStatedSpendingStatus, name="cf_stated_spending_status"),
+        nullable=False,
+    )
+    # Always populated, including on success, and written for a person to act on. The
+    # reader-facing wording belongs to the page (`.claude/rules/grounded-answers.md`
+    # rule 3); this is the developer-facing one.
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    # ``passed``, ``failed`` or ``not_available``, exactly as on the money-in table.
+    self_test: Mapped[Optional[str]] = mapped_column(String(20))
+
+    # Which document was read, so a figure traces to one filing rather than to a year.
+    report_type: Mapped[Optional[str]] = mapped_column(String(8))
+    amendment_index: Mapped[Optional[int]] = mapped_column(Integer)
+    # The period the stated figure runs to, which is what our rows are bounded by.
+    cut_off_date: Mapped[Optional[date]] = mapped_column(Date)
+    document_hash: Mapped[Optional[str]] = mapped_column(String(64))
+    document_byte_size: Mapped[Optional[int]] = mapped_column(Integer)
+
+    # The filing's own figures. ``stated_itemized`` is the schedules' **total** column
+    # -- paid plus in-kind plus unpaid -- because that is what our expenditure rows'
+    # ``amount`` sums to. ``stated_itemized_paid`` is the first column, kept beside it
+    # because the Board's totals route reports paid and so the self-test can only prove
+    # paid, and because the 2 differ on 533 of the filings measured (§2.1).
+    stated_itemized: Mapped[Optional[Decimal]] = mapped_column(Numeric(18, 4))
+    stated_itemized_paid: Mapped[Optional[Decimal]] = mapped_column(Numeric(18, 4))
+    stated_non_itemized: Mapped[Optional[Decimal]] = mapped_column(Numeric(18, 4))
+    # Ours, bounded by ``cut_off_date``. A committee we hold no rows for is stored as
+    # ``0`` rather than left NULL, because "the filing itemized money out and we hold
+    # nothing" is the sharpest case this check exists for and an absent number would
+    # read as a year nobody looked at.
+    ours_itemized: Mapped[Optional[Decimal]] = mapped_column(Numeric(18, 4))
+
+    checked_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+    __table_args__ = (Index("ix_cf_stated_spending_status", "snapshot_id", "status"),)
+
+
 class CampaignFinanceReportDocument(TimestampMixin, Base):
     """One report document the Board served us, and where its bytes are kept.
 

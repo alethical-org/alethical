@@ -215,6 +215,18 @@ load-campaign-finance-filings target="local" dry="true" filers="":
 check-campaign-finance-stated-split target="local" dry="true" years="" filers="":
   uv run python scripts/check_campaign_finance_stated_split.py --target {{target}} {{ if dry == "true" { "--dry-run" } else { "" } }} {{ if years != "" { "--years " + years } else { "" } }} {{ if filers != "" { "--only-filers " + filers } else { "" } }}
 
+# The same comparison for the money going OUT (#1645). The money going out had never
+# been checked against a committee's own filed report until 31 Aug 2026, so a committee
+# could look like it spent less than it did, under a real politician's name, with the
+# state's own filing saying otherwise. It asks the Board for NOTHING: every document it
+# reads is one we already keep, so a full sweep of about 3,600 committee-years costs 0
+# requests and roughly 13 minutes. It never blocks a release: it answers per
+# committee-year.
+#   just check-campaign-finance-stated-spending local true 2025 "20010"
+#   just check-campaign-finance-stated-spending production false "2024 2025 2026"
+check-campaign-finance-stated-spending target="local" dry="true" years="" filers="":
+  uv run python scripts/check_campaign_finance_stated_spending.py --target {{target}} {{ if dry == "true" { "--dry-run" } else { "" } }} {{ if years != "" { "--years " + years } else { "" } }} {{ if filers != "" { "--only-filers " + filers } else { "" } }}
+
 # Ask Minnesota again for each committee report the check above read BEFORE we started
 # keeping them, and keep it this time (#1501). The state publishes no library of past
 # reports and refuses most reports older than 2023, so the ones it will no longer hand
