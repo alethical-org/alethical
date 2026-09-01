@@ -72,8 +72,8 @@ def candidate_spending_lines(
 
     ``B1 - CE`` prints 4 columns (paid, in-kind, unpaid, total) and ``B2 - PTY`` prints
     3 (paid, in-kind, total), which is measured rather than invented: every one of the
-    16 money-out schedule codes in the stored corpus prints one width or the other, and
-    all 11,902 of their rows add up to the last column.
+    18 money-out schedule codes across the 3,643 stored documents prints one width or
+    the other and never both, and all 12,928 of their rows add up to the last column.
     """
     lines = [
         "Campaign Finance And Public Disclosure Board",

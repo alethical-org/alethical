@@ -634,8 +634,9 @@ TOTAL_SPENDING_LINE = "total_expenditures"
 
 # The narrowest money-out schedule prints paid, in-kind and total; the widest adds
 # unpaid. Both put paid first and total last, and every column before the last sums to
-# it on all 11,902 money-out rows in the stored corpus, so this reads by position at
-# both ends and checks the arithmetic rather than assuming a width.
+# it on all 12,928 money-out rows across the 3,643 stored documents, with no code
+# printing more than one width -- so this reads by position at both ends and checks the
+# arithmetic rather than assuming a width.
 MINIMUM_SPENDING_COLUMNS = 3
 
 
