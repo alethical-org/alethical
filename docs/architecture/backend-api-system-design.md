@@ -957,7 +957,11 @@ special-election filer whose second report series the Board's route does not ret
 and `null` otherwise, which is every committee in production today. Never derived: no score,
 threshold or name match ever creates one, and a stored *rejection* answers `null`, exactly as
 nobody having looked does, because a rejection is a decision about our own proposal and never a
-reader-facing claim about the committee (§7). At most one legislator can come back, and the
+reader-facing claim about the committee (§7). Since
+[#1902](https://github.com/alethical-org/alethical/issues/1902) a **withdrawn** confirmation
+answers `null` too, and for a third reason: a person confirmed it and later took it back, which
+is stored with its day, its reason and its signature. Whether any page says so is a separate
+question whose answer is currently no, so `null` still asserts none of the 3. At most one legislator can come back, and the
 guarantee is the partial unique index on a confirmed registration number
 (`uq_legislator_campaign_committee_confirmed_registration`) rather than anything in this layer.
 That same index is what the lookup reads, so this costs one index scan and no schema change was
@@ -1224,6 +1228,10 @@ and one missing piece must not blank the other 2 lanes, the same per-block rule
   counts people once each, which differs from the directory's row count only if a member holds 2
   current service periods in one session. Rejected links are stored in the same table and are
   deliberately not counted: "we looked and it is not theirs" is not a confirmed committee.
+  Withdrawn ones are stored there too and are not counted either, for a different reason -- the
+  confirmation existed and was taken back (§5.1 of
+  `docs/architecture/campaign-finance-system-design.md`, What counts as a confirmed match) --
+  and no query needed changing for that, because the withdrawal moves the row's own `decision`.
 - `freshness` — `downloads_fetched_at` (the landing's "files last copied" date,
   [#861](https://github.com/alethical-org/alethical/issues/861)), `register_fetched_at`,
   `release_id`. Two runs, copied on the same day today and still 2 sources, so one date does not

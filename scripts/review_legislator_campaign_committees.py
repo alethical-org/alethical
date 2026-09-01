@@ -8,7 +8,7 @@ through a link a person has checked.** Attaching the wrong committee publishes s
 else's money under a legislator's name, which is the worst error this product can make, so
 this script proposes and a person decides. Nothing here writes a link without a keystroke.
 
-Four commands, of which one writes:
+Six commands, of which two write:
 
     # what the proposer found, and how much of the roster it narrowed down. Writes nothing.
     ... coverage --contributions /path/to/contributions.csv
@@ -19,6 +19,9 @@ Four commands, of which one writes:
     # confirm or reject. The only command that writes.
     ... review --contributions ...          # one at a time
     ... review --batch --contributions ...  # uncontested as one list
+
+    # take one confirmation back. The other command that writes. Needs no download.
+    ... withdraw --registration 18229 --reason "the Board now registers it to someone else"
 
     # re-check every confirmed link against both sources. Writes nothing; exits non-zero
     # if any link now contradicts them. Run after each campaign-finance load.
@@ -62,7 +65,7 @@ from dataclasses import dataclass
 from datetime import date
 
 import requests
-from sqlalchemy import create_engine, inspect, select
+from sqlalchemy import create_engine, func, inspect, select
 from sqlalchemy.orm import Session
 
 from alethical.db import models as schema
@@ -382,6 +385,7 @@ def print_coverage(
     }
     confirmed_links = sum(1 for value in decisions.values() if value == "confirmed")
     rejected_links = sum(1 for value in decisions.values() if value == "rejected")
+    withdrawn_links = sum(1 for value in decisions.values() if value == "withdrawn")
 
     print("What a person has actually checked")
     print(
@@ -389,6 +393,10 @@ def print_coverage(
     )
     print(f"  confirmed links: {confirmed_links}")
     print(f"  rejected proposals recorded: {rejected_links}")
+    # Only when there are any, so this screen is unchanged until the first withdrawal. A
+    # withdrawal that no count on this screen mentions is a decision a reviewer cannot see.
+    if withdrawn_links:
+        print(f"  confirmations later taken back: {withdrawn_links}")
     print()
     print(
         f"What the proposer narrowed down, across {counts['total']} sitting legislators"
@@ -444,9 +452,14 @@ def print_proposals(
             already = decisions.get(
                 (result.member.legislator_id, proposal.committee.registration_number)
             )
-            marker = {"confirmed": "[confirmed]", "rejected": "[rejected]"}.get(
-                already, f"[{proposal.tier.value}]"
-            )
+            # 'withdrawn' has to be here rather than falling through to the tier. Every
+            # review flow skips a pair that already has any decision, so a withdrawn pair
+            # printed as a live proposal would read as answerable when it is not.
+            marker = {
+                "confirmed": "[confirmed]",
+                "rejected": "[rejected]",
+                "withdrawn": "[withdrawn]",
+            }.get(already, f"[{proposal.tier.value}]")
             print(f"  {marker} {describe(proposal)}")
         if result.suppressed_surname_only:
             print(
@@ -1060,6 +1073,143 @@ def run_review(
     return written
 
 
+class WithdrawalRefused(Exception):
+    """Why a withdrawal was not written. Raised before anything is changed."""
+
+
+def withdraw_confirmation(
+    session: Session,
+    registration_number: str,
+    *,
+    reason: str,
+    withdrawn_by: str,
+) -> schema.LegislatorCampaignCommittee:
+    """Take one confirmation back, keeping the row and recording when, why and who (#1902).
+
+    The row is kept and its ``decision`` moves to ``withdrawn``. Deleting it would say
+    "nobody ever checked this account", which is a different and false claim: a person did
+    check it, said yes, and later said no. Everything the original decision recorded -- who
+    signed it, when, the committee name they read, the 3 signals it rested on and the
+    snapshot they came from -- is left exactly as written, and the 3 withdrawal columns are
+    added beside it.
+
+    **A reason is required, and this is where a blank one is refused rather than invented.**
+    A withdrawal nobody explained is the state #1902 exists to prevent, so there is no
+    default, no placeholder and no "(no reason given)". The database refuses one too
+    (``ck_legislator_campaign_committee_withdrawal_is_explained``), which is the guard that
+    holds for a caller that is not this function.
+
+    Only a *confirmed* link can be withdrawn. Anything else raises and writes nothing: a
+    number nobody confirmed has nothing to take back, and undoing a rejection is a separate
+    question with no unique index against it.
+
+    **What this does not restore: the same account cannot be confirmed to the same
+    legislator again through this tool.** ``uq_legislator_campaign_committee_legislator_
+    registration`` allows one row per legislator and number whatever its decision, so the
+    withdrawn row is that pair's only row and the review flows skip the pair as answered.
+    What the withdrawal does free is the partial unique index on *confirmed* numbers, so the
+    account can be confirmed to a **different** legislator -- which is the case the January
+    2027 roster turn actually produces, an account matched to the wrong person.
+    """
+    if not reason.strip():
+        raise WithdrawalRefused(
+            "a withdrawal records why it was made, so the reason cannot be blank. "
+            "Nothing was written."
+        )
+    if not withdrawn_by.strip():
+        raise WithdrawalRefused(
+            "a withdrawal records who made it, so --reviewer cannot be blank. "
+            "Nothing was written."
+        )
+    row = session.scalars(
+        select(schema.LegislatorCampaignCommittee).where(
+            schema.LegislatorCampaignCommittee.registration_number
+            == registration_number,
+            schema.LegislatorCampaignCommittee.decision
+            == schema.CommitteeLinkReviewDecision.confirmed,
+        )
+    ).one_or_none()
+    if row is None:
+        raise WithdrawalRefused(
+            f"no confirmed link holds registration number {registration_number}, so there "
+            "is nothing to take back. Nothing was written."
+        )
+    row.decision = schema.CommitteeLinkReviewDecision.withdrawn
+    # The database's clock, matching how ``reviewed_at`` is set. A server default only fires
+    # on an insert, so this is assigned rather than left out.
+    row.withdrawn_at = func.now()
+    row.withdrawal_reason = reason.strip()
+    row.withdrawn_by = withdrawn_by.strip()
+    session.commit()
+    return row
+
+
+def run_withdraw(
+    session: Session,
+    registration_number: str,
+    reason: str | None,
+    withdrawn_by: str,
+) -> int:
+    """Print what is about to be taken back, ask for the reason, then take it back.
+
+    The same shape as every writing flow here: the whole record is printed first, the word
+    has to be typed, and nothing is written before that. Needs no contributions download --
+    a withdrawal is a decision about a row we already hold, not about a proposal.
+    """
+    if not inspect(session.get_bind()).has_table(
+        schema.LegislatorCampaignCommittee.__tablename__
+    ):
+        print("no legislator_campaign_committee table here, so no link to take back.")
+        return 1
+    row = session.scalars(
+        select(schema.LegislatorCampaignCommittee).where(
+            schema.LegislatorCampaignCommittee.registration_number
+            == registration_number,
+            schema.LegislatorCampaignCommittee.decision
+            == schema.CommitteeLinkReviewDecision.confirmed,
+        )
+    ).one_or_none()
+    if row is None:
+        print(
+            f"no confirmed link holds registration number {registration_number}, so there "
+            "is nothing to take back."
+        )
+        return 1
+    member = session.get(schema.Legislator, row.legislator_id)
+    print()
+    print("About to take back this confirmation:")
+    print(f"  legislator: {member.full_name if member else '(no longer held here)'}")
+    print(f"  account:    {registration_number}  {row.committee_name_as_reviewed}")
+    print(f"  confirmed:  {row.reviewed_at:%Y-%m-%d} by {row.reviewed_by}")
+    print(f"  the note:   {row.evidence or '(none)'}")
+    print()
+    print(
+        "The row is kept. Its decision becomes 'withdrawn', and the day, the reason and "
+        "who withdrew it are stored beside everything the confirmation already recorded."
+    )
+    print()
+    if reason is None:
+        reason = input("  Why is this being taken back? (required): ").strip()
+    if not reason.strip():
+        print("no reason given, so nothing was written.")
+        return 1
+    print(f"\n  reason: {reason.strip()}")
+    print(f"  signed: {withdrawn_by}")
+    answer = input("  Type 'withdraw' to record it, or anything else to stop: ").strip()
+    if answer.lower() != "withdraw":
+        print("stopped. Nothing was written.")
+        return 1
+    try:
+        withdraw_confirmation(
+            session, registration_number, reason=reason, withdrawn_by=withdrawn_by
+        )
+    except WithdrawalRefused as refused:
+        print(str(refused))
+        return 1
+    print(f"withdrawn. {registration_number} is no longer confirmed to anybody.")
+    return 0
+
+
 AUDIT_RECORD_PATH = (
     "docs/operations/how-a-legislator-is-matched-to-their-campaign-account.md"
 )
@@ -1213,6 +1363,12 @@ def write_audit_record(
     )
     lines.append(f"| Accounts confirmed as a member's own | {len(confirmed)} |")
     lines.append(f"| Accounts checked and ruled out | {len(rejected)} |")
+    # Only when there are any, so this file is unchanged until the first withdrawal. A
+    # withdrawn account is neither confirmed, ruled out, nor open, so without this row it
+    # would vanish from the public record of what was decided.
+    withdrawn = [d for d in decisions if d.decision.value == "withdrawn"]
+    if withdrawn:
+        lines.append(f"| Confirmations later taken back | {len(withdrawn)} |")
     lines.append(f"| Accounts read and left undecided | {len(open_rows)} |")
     lines.append("")
 
@@ -1292,6 +1448,41 @@ def write_audit_record(
             )
         lines.append("")
 
+    # --- What was taken back --------------------------------------------------------
+    # Only when there is one, so this file is unchanged until the first withdrawal. It has
+    # its own section rather than a row in the rejection table because a withdrawal makes a
+    # claim about *us* -- we published this and stopped -- and the reason is the whole of
+    # it, where a rejection's substance is the evidence about the account.
+    if withdrawn:
+        lines.append("## What was taken back")
+        lines.append("")
+        one = len(withdrawn) == 1
+        lines.append(
+            f"**{len(withdrawn)} "
+            f"{'confirmation was' if one else 'confirmations were'} withdrawn after being "
+            f"published.** The {'row' if one else 'rows'} "
+            f"{'is' if one else 'are'} kept rather than deleted, so what was checked and on "
+            "what evidence is still readable above; these are the day each was taken back "
+            "and the reason given, which is required rather than optional. An account named "
+            "here is confirmed to nobody, and may since have been confirmed to somebody "
+            "else."
+        )
+        lines.append("")
+        lines.append("| Legislator | Account | Filed as | Taken back | Why |")
+        lines.append("| --- | --- | --- | --- | --- |")
+        for d in sorted(withdrawn, key=member_of):
+            day = (
+                d.withdrawn_at.date().isoformat() if d.withdrawn_at else "not recorded"
+            )
+            lines.append(
+                f"| {member_of(d)} "
+                f"| {d.registration_number} "
+                f"| {d.committee_name_as_reviewed} "
+                f"| {day} "
+                f"| {d.withdrawal_reason or 'not recorded'} |"
+            )
+        lines.append("")
+
     # --- What is still open ----------------------------------------------------------
     lines.append("## What is still open")
     lines.append("")
@@ -1330,7 +1521,16 @@ def write_audit_record(
     lines.append("| --- | --- | --- |")
     notes: dict[tuple[str, str], int] = {}
     for d in decisions:
-        key = (d.decision.value, d.evidence or "(no note)")
+        # A withdrawn row's note is the one written when it was *confirmed*, so printing the
+        # bare word "withdrawn" beside it would read as the reason it was taken back. That
+        # reason has its own section above; this column says which answer the note belongs
+        # to, and for a withdrawn row that is both answers in order.
+        answer = (
+            "confirmed, then withdrawn"
+            if d.decision.value == "withdrawn"
+            else d.decision.value
+        )
+        key = (answer, d.evidence or "(no note)")
         notes[key] = notes.get(key, 0) + 1
     for (answer, note), count in sorted(notes.items(), key=lambda item: -item[1]):
         lines.append(f"| {count} | {answer} | {note} |")
@@ -1351,8 +1551,20 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument(
         "command",
-        choices=("coverage", "propose", "record", "review", "verify"),
+        choices=("coverage", "propose", "record", "review", "verify", "withdraw"),
         help="What to do.",
+    )
+    parser.add_argument(
+        "--registration",
+        default=None,
+        help="For 'withdraw': the registration number of the confirmed account to take "
+        "back.",
+    )
+    parser.add_argument(
+        "--reason",
+        default=None,
+        help="For 'withdraw': why the confirmation is being taken back. Asked for if it "
+        "is not passed, and a blank one is refused rather than filled in.",
     )
     parser.add_argument(
         "--contributions",
@@ -1414,8 +1626,28 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    if args.command == "review" and not args.reviewer.strip():
+    if args.command in {"review", "withdraw"} and not args.reviewer.strip():
         parser.error("--reviewer cannot be blank: a link records who checked it.")
+
+    # 'withdraw' answers a question about a row we already hold, so it takes neither the
+    # contributions download nor the roster nor the proposer -- and must not be made to
+    # fetch 83 MB from a government site to undo one keystroke.
+    if args.command == "withdraw":
+        if not args.registration:
+            parser.error(
+                "withdraw needs --registration NNNNN, the confirmed account to take back."
+            )
+        withdraw_url = normalize_database_url(
+            args.database_url or database_url_for_target(args.target)
+        )
+        withdraw_engine = create_engine(
+            withdraw_url, echo=False, connect_args=NO_PREPARED_STATEMENTS
+        )
+        with Session(withdraw_engine) as session:
+            raise SystemExit(
+                run_withdraw(session, args.registration, args.reason, args.reviewer)
+            )
+
     if not args.contributions and not args.download:
         parser.error("pass --contributions PATH or --download PATH.")
 
