@@ -1448,6 +1448,41 @@ def write_audit_record(
             )
         lines.append("")
 
+    # --- What was taken back --------------------------------------------------------
+    # Only when there is one, so this file is unchanged until the first withdrawal. It has
+    # its own section rather than a row in the rejection table because a withdrawal makes a
+    # claim about *us* -- we published this and stopped -- and the reason is the whole of
+    # it, where a rejection's substance is the evidence about the account.
+    if withdrawn:
+        lines.append("## What was taken back")
+        lines.append("")
+        one = len(withdrawn) == 1
+        lines.append(
+            f"**{len(withdrawn)} "
+            f"{'confirmation was' if one else 'confirmations were'} withdrawn after being "
+            f"published.** The {'row' if one else 'rows'} "
+            f"{'is' if one else 'are'} kept rather than deleted, so what was checked and on "
+            "what evidence is still readable above; these are the day each was taken back "
+            "and the reason given, which is required rather than optional. An account named "
+            "here is confirmed to nobody, and may since have been confirmed to somebody "
+            "else."
+        )
+        lines.append("")
+        lines.append("| Legislator | Account | Filed as | Taken back | Why |")
+        lines.append("| --- | --- | --- | --- | --- |")
+        for d in sorted(withdrawn, key=member_of):
+            day = (
+                d.withdrawn_at.date().isoformat() if d.withdrawn_at else "not recorded"
+            )
+            lines.append(
+                f"| {member_of(d)} "
+                f"| {d.registration_number} "
+                f"| {d.committee_name_as_reviewed} "
+                f"| {day} "
+                f"| {d.withdrawal_reason or 'not recorded'} |"
+            )
+        lines.append("")
+
     # --- What is still open ----------------------------------------------------------
     lines.append("## What is still open")
     lines.append("")
@@ -1486,7 +1521,16 @@ def write_audit_record(
     lines.append("| --- | --- | --- |")
     notes: dict[tuple[str, str], int] = {}
     for d in decisions:
-        key = (d.decision.value, d.evidence or "(no note)")
+        # A withdrawn row's note is the one written when it was *confirmed*, so printing the
+        # bare word "withdrawn" beside it would read as the reason it was taken back. That
+        # reason has its own section above; this column says which answer the note belongs
+        # to, and for a withdrawn row that is both answers in order.
+        answer = (
+            "confirmed, then withdrawn"
+            if d.decision.value == "withdrawn"
+            else d.decision.value
+        )
+        key = (answer, d.evidence or "(no note)")
         notes[key] = notes.get(key, 0) + 1
     for (answer, note), count in sorted(notes.items(), key=lambda item: -item[1]):
         lines.append(f"| {count} | {answer} | {note} |")

@@ -115,13 +115,25 @@ record an individual instead.
 
 Each decision stores the account chosen, its filed name, office and years exactly as they
 appeared on screen, the 3 pieces of evidence above, who signed, the minute it happened, any
-note the reviewer typed, and the newest payment date in the download it was read from. That
+note the reviewer typed, and the newest payment date in the download it was read from. A
+decision later taken back stores 3 more: the day it was withdrawn, who withdrew it, and why.
+That
 last one is how anybody reproduces a decision: any download carrying data through that date
 holds the rows the decision rested on.
 
 **Rejections are stored too.** Deciding that an account is *not* a member's writes its own
 record with its own evidence, so "a person checked this and it is not theirs" is never
 indistinguishable from "nobody has looked yet".
+
+**A confirmation can be taken back, and taking one back is itself a record.** Nothing is
+deleted. The decision moves to *withdrawn* and stores the day it happened, who withdrew it
+and, required rather than optional, why. Everything the confirmation recorded is left
+exactly as written, so the record still shows what was checked, on what evidence, and from
+which download. This exists for the same reason rejections do: a deleted row would say
+"nobody ever checked this account", and a person did check it, said yes, and later said no.
+The account then stops counting as anybody's, and can be confirmed to a different member --
+which is the correction a change of legislature actually produces, an account matched to the
+wrong person.
 
 ## How a wrong match would surface
 
@@ -148,12 +160,15 @@ the money is correct whether or not a committee's identity changed.
 ## Reading the full record yourself
 
 The tables below carry every decision grouped by the evidence behind it, every rejection
-named, everything left open, and every note a reviewer typed. The complete per-decision
+named, every confirmation taken back with the reason it was taken back, everything left
+open, and every note a reviewer typed. The complete per-decision
 record, including each decision's own timestamp, is in the
 `legislator_campaign_committee` table, and the tool that reads and writes it is
 [`scripts/review_legislator_campaign_committees.py`](../../scripts/review_legislator_campaign_committees.py).
-Its `coverage` and `propose` commands write nothing, so there is no way to do harm by
-looking. `record` rewrites the generated section of this file.
+Its `coverage`, `propose` and `verify` commands write nothing, so there is no way to do harm
+by looking, and `record` rewrites the generated section of this file. Two of its 6 commands
+write to the record: `review`, which asks the questions, and `withdraw`, which takes one
+confirmation back and refuses to do so without a stated reason.
 
 ## Where all 200 stand
 

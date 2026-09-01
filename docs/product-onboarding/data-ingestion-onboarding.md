@@ -1114,7 +1114,12 @@ just pipeline local --write --allow-writes     # commit after review
   It is neither canonical nor derived: no source states it, and nothing computes
   it. `alethical/pipeline/legislator_committee_match.py` only *proposes* candidates
   and `scripts/review_legislator_campaign_committees.py` asks a person, so the only
-  writer is someone answering a question. It is a separate layer because
+  writer is someone answering a question. **A row can also be changed after the fact, by
+  the same rule:** since [#1902](https://github.com/alethical-org/alethical/issues/1902)
+  that script's `withdraw` command takes a confirmation back, moving the row's `decision`
+  to `withdrawn` and storing the day, the reason and the signature beside everything the
+  confirmation already recorded. Nothing is deleted, and nothing writes here without a
+  person. It is a separate layer because
   `docs/architecture/campaign-finance-system-design.md` §4.4 (What survives
   replacement) rebuilds the imported campaign-finance set on every load, and a human
   decision stored on an imported row would be destroyed silently.

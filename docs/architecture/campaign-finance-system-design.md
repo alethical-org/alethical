@@ -1057,6 +1057,51 @@ under two legislators' names. The same number may be **rejected** for several le
 is what ruling out a shared surname looks like, and rejections are kept so the proposer stops
 re-suggesting them and so "checked, not theirs" never reads as "nobody has looked".
 
+**A confirmation can be taken back, and doing so stores when, why and who
+([#1902](https://github.com/alethical-org/alethical/issues/1902)).** Until this landed the
+decision was one of exactly 2 values and nothing could undo one; an undo by hand in the
+database would have left the 2 pages carrying the confirmation reading as an account nobody
+had ever checked, which is false in the one direction that matters. So there is a third
+value, `withdrawn`, plus `withdrawn_at`, `withdrawal_reason` and `withdrawn_by`. The row is
+kept and everything the confirmation recorded is left exactly as written; only the decision
+moves. `scripts/review_legislator_campaign_committees.py withdraw --registration NNNNN`
+is the route, it needs no contributions download because it decides about a row we already
+hold, and it refuses a blank reason. So does the database
+(`ck_legislator_campaign_committee_withdrawal_is_explained`), which is the guard that holds
+for a caller that is not that script: a withdrawal nobody explained is the exact state this
+work exists to prevent.
+
+**A third enum value rather than a nullable withdrawal date beside an unchanged `confirmed`,
+and the reason is reader safety rather than tidiness.** 6 queries select on
+`decision = 'confirmed'` -- in `alethical/api/services/legislator_finance.py`,
+`alethical/api/services/independent_spending.py`,
+`alethical/api/services/campaign_finance_register.py`,
+`alethical/pipeline/campaign_finance.py` and the review script itself -- and so does the
+partial unique index. Moving the row's own decision takes it out of all 6 at once, and out
+of any query written next year by someone who has never read this section; a flag beside an
+unchanged `confirmed` would have needed every one of them found and edited, and one missed
+is a withdrawn account still published under a person's name. The 2 costs are accepted and
+real. `decision` no longer says the row was once confirmed, though `withdrawn` can only ever
+mean that, since only a confirmation is withdrawable. And Postgres cannot drop an enum
+value, so the migration's downgrade recreates the type and **fails loudly** if any row holds
+`withdrawn` -- which is the honest outcome, because turning such a row back into `confirmed`
+would republish an account a person deliberately took back.
+
+**What a withdrawal frees is the confirmed-number index, not the legislator-and-number
+pair.** The same account can be confirmed to a **different** legislator afterwards, which is
+the correction the January 2027 roster turn actually produces -- an account matched to the
+wrong person. It cannot be re-confirmed to the *same* legislator through the tool, because
+`uq_legislator_campaign_committee_legislator_registration` allows one row per pair whatever
+its decision, so the withdrawn row is that pair's only row and the review flows read the
+pair as answered. Undoing a **rejection** is a separate question, deliberately not built: it
+has no unique index against it and nothing forces the shape of the answer.
+
+**Nothing a reader sees says anything about a withdrawal yet, and that is a separate ruled
+question.** What the profile does change is honest by construction rather than by copy: with
+the confirmation withdrawn, `link_state` returns `reviewed_none_confirmed` rather than
+`unconfirmed`, so the page says a person looked and confirmed nothing instead of saying
+nobody has looked.
+
 **The reason this is a person's job is not that a name match might be wrong. It is that if it is
 wrong, nothing downstream will ever notice.** Measured on the totals route: the financial response
 carries no registration number, no committee name, and no filer identifier of any kind, so two

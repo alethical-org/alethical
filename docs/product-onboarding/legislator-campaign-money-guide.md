@@ -23,7 +23,10 @@ records which person it belongs to, so somebody has to read each committee's nam
 confirm whose it is by hand. **That reading has now been done for all 200 sitting
 members**: `legislator_campaign_committee` holds 275 reviewed accounts, 242 of them
 confirmed and 33 rejected, every one reviewed on 31 August 2026, and **0 sitting members
-are left unmatched.** Counted against production on 31 August 2026.
+are left unmatched.** Counted against production on 31 August 2026. The 2 numbers add to the
+275 only while nothing has been withdrawn: since
+[#1902](https://github.com/alethical-org/alethical/issues/1902) a confirmation can be taken
+back, which is a third answer the row can hold, and 0 rows held it when this was counted.
 
 Until that sitting, every profile showed the panel below instead, and it is still the
 panel a member with no confirmed account would get:
@@ -330,9 +333,11 @@ saying zero:
    that year. The committee is confirmed and the download covers the year, so this is a
    published finding.
 3. **No confirmed committee yet** — **0 of the 200 sitting members, as of the end of the
-   31 August 2026 review sitting.** Every one of the 200 now has at least one confirmed
-   account. This read "56 of the 200" earlier the same day, while that sitting was still
-   running.
+   31 August 2026 review sitting.** All 200 had at least one confirmed account on that day.
+   This read "56 of the 200" earlier the same day, while that sitting was still running.
+   The count is not fixed at 0 afterwards: withdrawing a member's only confirmation puts
+   them straight back into this state and this panel back on their profile, which is what
+   [#1902](https://github.com/alethical-org/alethical/issues/1902) made possible.
 4. **A gap in our own copy** — a stale snapshot, a payment whose amount is blank, or a year
    the files do not reach. All 3 figures are withheld rather than published short by an
    unknown amount, because a figure short by an unknown amount and printed without a mark

@@ -2948,7 +2948,10 @@ def committee_finance_for_year(
     confirmed match). ``null`` is the ordinary answer and says only that nobody has
     confirmed one -- never that the committee belongs to nobody, and never that a
     rejection was recorded, which is a decision about *our* proposal and no
-    reader-facing claim about the committee (§7). At most one legislator can come back,
+    reader-facing claim about the committee (§7). Since #1902 it can also mean a
+    confirmation was **taken back**, which is a third thing ``null`` does not assert: the
+    withdrawal is stored with its day, its reason and its signature, and whether any page
+    says so is a separate question whose answer is currently no. At most one legislator can come back,
     guaranteed by the partial unique index on a confirmed registration number rather
     than by this code.
 
