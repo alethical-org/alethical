@@ -272,6 +272,34 @@ ones for the same thing.** Across all years: `General Expenditure` 148,735, `Cam
 way round. **So filtering on either label alone silently drops a whole filer kind** — the same shape
 of trap as the `Receipt type` rule below.
 
+**A filing's money out is split across 2 downloads, and reading only 1 of them reports a
+shortfall that is not there.** What a committee spent for or against a named candidate is
+itemized on its own schedules — `B3A - IE`, and the local and Hennepin County variants, all
+ending in `IE` — and Minnesota publishes those in the **independent-expenditures** download
+rather than the expenditures one. The 2 files are all but disjoint: across 2024 to 2026 the
+independent file holds 9,473 rows and only **20 of them**, worth $85,997.96, also appear in
+the expenditures file at the same filer, year, date, amount and vendor. So a comparison
+against every money-out schedule a filing prints, reading only `cf_expenditure_row`, reports
+every dollar of independent spending as missing. **Read against the right table each
+schedule reconciles**: HRCC (20010) prints "Total of itemized 725,879.43" on its 2025
+`B1 - EXP` against 414 expenditure rows summing to $725,879.43, and "Total of itemized
+25,140.32" on its `B3A - IE` against 4 independent rows summing to $25,140.32. Read the
+first schedule against the first table alone and HRCC looks $21,940.32 short, which is
+exactly the hole [#1386](https://github.com/alethical-org/alethical/issues/1386) reported
+and §9.9 withdraws. **The trap is rare per filer and common per population**: only 114
+filers have an independent-expenditure row at all for 2024 to 2026, so a check covering a
+handful of committees can miss it entirely, while one covering the population meets it
+often — and every hit reads as a committee whose own filing names money we do not hold,
+which is the direction that misstates a named committee.
+
+**And the $200 rule works on money out exactly as it does on money in: on the yearly total
+paid to one recipient, never on the size of a payment.** 42,010 of the 96,886 expenditure
+rows for 2024 to 2026 are individually $200.00 or less, and 157,153 of the 377,974 rows
+across every year the file covers. So no surface may say the payments file holds only
+payments over $200. This is the money-out twin of the naming-threshold rule in
+`.claude/rules/grounded-answers.md` rule 12, and it breaks the same way: the plausible
+misreading is a test on the payment when the statute tests the recipient's year.
+
 **The download does not reliably carry amendments, on both sides of the ledger.** Where an amendment
 changed a filing's rows, the bulk file still holds the set from before it. Confirmed on money out as
 well as money in: filer 17709's outgoing rows match amendment 0 exactly at 108 rows and $9,956.91,
@@ -2564,9 +2592,10 @@ legislator" — §5.1 measures both ways it fails**: only 198 of the 209 are leg
 
 Recorded as not run, never as passed:
 
-- **§4.3's reconciliation across a sample of committees** was run for contributions only. The
-  expenditure side has been reconciled for the 4 filers of
-  [#1386](https://github.com/alethical-org/alethical/issues/1386) and for no others.
+- **§4.3's reconciliation across a sample of committees** has now been run on both sides of
+  the ledger, contributions and expenditures alike, across every committee-year of 2024, 2025
+  and 2026. The money-out result is the money-out bullet below; what remains unchecked there
+  is named with it.
 - ~~**Party-unit and committee/fund label sets** come from 12 filers of each kind, not from the
   populations of 299 and 526.~~ **Run, twice, and this bullet was simply never updated after the
   first run.** The first full production run ([#1408](https://github.com/alethical-org/alethical/issues/1408),
@@ -2634,7 +2663,8 @@ Recorded as not run, never as passed:
   are there; they do **not** establish a failure rate for either kind, and HRCC is one hit rather than
   a measured rate. ~~The check has not run for any year before 2025, nor for any filer outside those
   samples~~ — **it has since run across every committee-year of 2024, 2025 and 2026**, which is the
-  bullet below; the expenditure side has run for those 4 filers only and for no others
+  bullet below; the expenditure side has since run across the same 3 years for every
+  committee-year, which is the money-out bullet after it
   ([#1650](https://github.com/alethical-org/alethical/issues/1650)). **And the 4th filer's gap is no
   longer particular to one committee**: filer 18488's missing 2 years are 1 of 5 instances of the
   whole-filer-year skip §2.1 measures. What no session can establish is **why** the Board's export
@@ -2654,6 +2684,51 @@ Recorded as not run, never as passed:
   mid-year reports**, the part-year artefact §2.3 measures. ~~37 of the 43 are the part-year
   artefact~~ described the state before that re-run. Re-measured 31 Aug 2026. Still not established: any year
   before 2024, and the 82 `reader_unproven` committee-years one by one.
+- **The same comparison for money out has run too, across every committee-year of 2024, 2025
+  and 2026, and it reads a separate table from the money-in one.** Read off the stored
+  verdicts in `cf_stated_spending` against the live release, 1 Sep 2026, all 4,124
+  committee-years the check reaches: **3,313 agree and 208 disagree**, 481 are `not_checked`
+  because we hold no copy of the filing's report document, and 122 read `reader_unproven`,
+  where a document was read and our own reader could not prove itself. The 3 absences of a
+  verdict are 3 different facts and none of them is a pass.
+  - **The 208 run in both directions, and the smaller direction is the one that misstates a
+    committee.** 40 are the filing itemizing money out our rows do not hold — $495,305.39 of
+    it — and **17 of those 40 hold not one payment row** while the filing names money out,
+    which is the whole-filer-year skip §2.1 measures appearing on the spending side. The
+    other 168 are our rows exceeding the filing's own itemized figure, $1,684,769.24 of it.
+    So no wording anywhere may say which figure is the larger one.
+  - **The disagreements concentrate in 2024**: 147 of the 208, against 24 in 2025 and 37 in
+    2026, on populations of 1,349, 1,463 and 1,312 committee-years.
+  - **The part-year threshold artefact §2.3 measures does not exist on money out.** Asked
+    either way rather than assumed: among the 3,521 committee-years carrying a verdict and a
+    cut-off date, **31 of the 1,236 part-year ones disagree (2.5%) against 177 of the 2,285
+    full-year ones (7.7%)** — the opposite concentration from money in, where the artefact
+    put 27 of 56 disagreements on mid-year reports. The comparison is against the filing's own
+    *itemized* subtotal, so money a filer never had to itemize was never on either side of it.
+  - **Reach, asked as its own question rather than inferred from the counts.** 242 committee
+    links are confirmed and not withdrawn, covering 242 registrations. **31 of the 208
+    disagreements sit on one of those**, so they render inside a legislator's profile as well
+    as on a committee page, 6 of the 31 being the direction where the filing names more than
+    we hold. A further 24 `not_checked` and 18 `reader_unproven` committee-years sit on a
+    confirmed committee. Whether a person loaded any of those pages this cannot say.
+  - **Still not established**: any year before 2024; the 122 `reader_unproven` committee-years
+    one by one; and the pre-amendment export on money out beyond filer 17709, which needs
+    Board requests because the document store holds 1 document per filer-year-report-type.
+  - **A verdict speaks only for the release it was made about, and publishing a release
+    silently retires every verdict of both checks.** `cf_stated_spending` keys on the
+    release's expenditures snapshot and `cf_stated_split` on its contributions snapshot, which
+    is the right scoping — a verdict about payments that have since been replaced is not a
+    verdict about the payments on screen — but nothing re-runs either check when a release
+    publishes. Measured 1 Sep 2026: the money-out check wrote its 4,124 verdicts against
+    release `3f2bdf90` at 02:35 UTC, release `af236cca` published at 18:35 UTC, and from that
+    moment **every committee page read `not_run` for money out and `not_checked` for money in**,
+    across the whole population, with 0 of the 4,124 verdicts and 0 of the 3,968 split
+    verdicts applying to the live release. Both surfaces stayed honest — an unchecked figure
+    says it is unchecked — so this costs the reader the verdict rather than misleading them,
+    which is why it reads as nothing being wrong. **The durable fix is running both checks as
+    part of publishing a release**, and until that ships a re-run by hand is what makes the
+    verdicts live; the money-out run costs 0 requests to the Board and about 21 minutes
+    ([#1922](https://github.com/alethical-org/alethical/issues/1922)).
 - **The closed-committee count** (§7's fifth state) is 1 sitting member of the **162** resolvable by
   district plus surname, with 0 having closed one committee and opened another, read off one nightly
   directory snapshot. The 38 unresolved are that match failing, never members shown to hold no

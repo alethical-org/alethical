@@ -233,6 +233,45 @@ the kind of payment. Two figures, exactly as money in has 2, and never subtracte
 `.claude/rules/grounded-answers.md` rule 12 wants a second number beside every money
 figure, and until 31 Aug 2026 money out was the only figure on this tab with none.
 
+**And a sentence saying whether anybody compared that figure against the report the
+committee itself filed with Minnesota.** This is the wording both money-out surfaces share,
+and it lives here; the committee page's own guide
+([`campaign-money-section-guide.md`](campaign-money-section-guide.md) item 6) points at this
+paragraph rather than restating it. Three outcomes:
+
+- **The two agree: no sentence at all**, and the card draws exactly as it did before. An
+  ordinary case gets no decoration.
+- **The two disagree**: the page says it compared them, that the committee's own filing
+  itemizes a different amount of money out from the one the state's payments file holds, and
+  that we show what each says and work out neither because we cannot tell which is right. It
+  never says which of the 2 figures is the larger one, because the disagreements run both
+  ways and any wording that picked a side would be wrong about a third of the time.
+- **Nobody has compared them yet**: the page says so, and says it cannot rule out that the
+  filing names payments our copy is missing. Three different reasons land here and all 3 get
+  this sentence, because none of them is a pass: we hold no copy of the filing's report
+  document, our own reader read a document and could not prove itself against figures we
+  already trust, or the comparison has not been run over the payments currently published.
+
+**This is a different comparison from the direction-flip note the committee page draws, and
+the 2 must not be read as one.** That one is our listed payments against the committee's
+*reported total*. This one is the committee's own *itemized* money-out subtotal, read off the
+filed report document, against the payments the state's file holds for the same period --
+like against like, which is why it can find a shortfall the other cannot. Measured on the
+live release, 1 Sep 2026, across all 4,124 committee-years of 2024, 2025 and 2026 the check
+reaches: 3,313 agree and 208 disagree, 481 we hold no filing document for, and 122 our own
+reader could not prove itself on. Of the 208, **40 are the filing naming money out our rows
+do not hold**, $495,305.39 of it, and 17 of those hold not one payment row while the filing
+names money out; the other 168 are our rows exceeding the filing's itemized figure,
+$1,684,769.24 of it. **31 of the 208 sit on a committee somebody has confirmed for a sitting
+legislator**, so they render on this tab as well as on a committee page, 6 of the 31 being
+the direction where the filing names more than we hold. A further 24 of the
+we-hold-no-document cases and 18 of the reader-could-not-prove-itself cases sit on a
+confirmed committee. Whether a person loaded any of those pages nothing we hold can say.
+Full measurement:
+[`campaign-finance-system-design.md`](../architecture/campaign-finance-system-design.md) §9.9
+(checks this design asks for), and
+[#1650](https://github.com/alethical-org/alethical/issues/1650).
+
 **And under "Payments we can list", where there is any, how much of it was goods and
 services rather than money.** Minnesota's payments file marks each payment cash or in kind,
 and this tab drew no such line until
@@ -573,6 +612,22 @@ describes records and the page frames them.
 - **The match between a member and a committee** is a row a named person wrote and
   signed ([#1354](https://github.com/alethical-org/alethical/issues/1354)). No score, no
   threshold and no name match ever creates one.
+- **The figure the money-out comparison reads** is the committee's own filed report
+  document, kept in our own store, so the comparison asks the Board for nothing. It is read
+  by `stated_spending` in `alethical/pipeline/campaign_finance_report_documents.py`, the
+  comparison is run by `alethical/pipeline/campaign_finance_stated_spending.py`, and its one
+  verdict per committee-year is stored in `cf_stated_spending` and read back by
+  `alethical/api/services/committee_stated_spending.py`
+  ([#1645](https://github.com/alethical-org/alethical/issues/1645),
+  [#1650](https://github.com/alethical-org/alethical/issues/1650)). The verdict is read,
+  never computed while a page is drawn: reading a filing costs a document read, and a page
+  that did it live would compare a different document each time the store changed.
+  **Independent expenditures are in neither figure**, because Minnesota publishes what a
+  committee spent for or against a named candidate as a separate download, so a comparison
+  that looked for those payments in the ordinary payments file would invent a shortfall
+  wherever a committee spends that way
+  ([`campaign-finance-system-design.md`](../architecture/campaign-finance-system-design.md)
+  §2.1, campaign finance).
 - **The reading and the split** are
   `alethical/api/services/legislator_finance.py`, served by
   `GET /api/v1/legislators/{id}/campaign-finance?year=YYYY`. No money is summed there:

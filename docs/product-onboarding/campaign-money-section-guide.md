@@ -414,8 +414,10 @@ Top to bottom:
    side. Seven live committee pages carried it, Kristin Robbins's governor committee
    among them ([#1682](https://github.com/alethical-org/alethical/issues/1682),
    [#1648](https://github.com/alethical-org/alethical/issues/1648)). Each route now says
-   only what its own evidence supports; the sentence about disagreement is left to the
-   one check that actually compares the two publications. The full list of states and
+   only what its own evidence supports; the sentence about a disagreement over donations is
+   left to the one check that actually compares the 2 publications about donations. Money out
+   has its own such check, described in item 6, and the 2 must not be read as one. The full
+   list of states and
    their counts is in
    [`legislator-campaign-money-guide.md`](legislator-campaign-money-guide.md), which
    owns the wording both surfaces share.
@@ -442,8 +444,8 @@ Top to bottom:
    caucus that is the point. A year our copy holds no reported total for says so as our
    copy's gap.
 
-   **And the note under those 2 figures changes when ours is the larger one, because the
-   usual explanation runs only one way.** The $200 naming threshold holds payments back,
+   **And the first of the notes under those 2 figures changes when ours is the larger one,
+   because the usual explanation runs only one way.** The $200 naming threshold holds payments back,
    so it can only make our list smaller. Where our list is bigger, the note says instead
    that the 2 figures can disagree in either direction and names why: the committee's own
    report counts money it paid, while the state's payments file also carries goods and
@@ -454,6 +456,23 @@ Top to bottom:
    on 254 of the 389, which is most and not all, so the note names the mechanism and never
    claims it explains the committee on screen.
 
+   **And under that, a second note saying whether anybody compared the payments we can list
+   against the report the committee itself filed with Minnesota.** Where the 2 agree it prints
+   nothing at all, so an ordinary committee-year draws exactly as it did before; where they
+   disagree it says so and refuses to pick a side; where nobody has compared them yet it says
+   that instead, and it says so for all 3 reasons that land there because none of them is a
+   pass. **This is a different comparison from the note above it**, and reading the 2 as one
+   would make their counts look like a contradiction: the note above compares our listed
+   payments against the committee's *reported total*, while this one compares the committee's
+   own *itemized* money-out subtotal, read off its filed report, against the payments the
+   state's file holds for the same period. Like against like, which is why this one can find a
+   shortfall the other cannot: 40 of the 208 disagreeing committee-years are the filing naming
+   $495,305.39 of money out our rows do not hold. The wording, all 3 outcomes and the full
+   count live in
+   [`legislator-campaign-money-guide.md`](legislator-campaign-money-guide.md) § Money out,
+   which owns what both money-out surfaces share
+   ([#1650](https://github.com/alethical-org/alethical/issues/1650)).
+
    **And directly under "Payments we can list", where the committee-year has any, a line
    naming how much of that figure was goods and services rather than money** -- the same
    line money in has drawn under its named donations since
@@ -463,8 +482,8 @@ Top to bottom:
    in kind, and 21,983 of its 377,860 rows are in kind, across 2,393 of 12,319
    committee-years. The line states the amount and stops: it never says the goods and
    services are *why* the 2 money-out figures differ, because that is true of 254 of the
-   389 and false of the other 135, and the note above already carries the honest general
-   explanation. **Nothing is drawn where the amount is not above zero**, which covers both a
+   389 and false of the other 135, and the direction-flip note above already carries the
+   honest general explanation. **Nothing is drawn where the amount is not above zero**, which covers both a
    committee-year whose payments we hold none of and one whose payments are all cash. 97
    committee-years hold in-kind rows summing to exactly $0.00, and none of them prints a
    "$0.00" line.
