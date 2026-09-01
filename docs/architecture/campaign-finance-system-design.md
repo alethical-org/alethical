@@ -1934,12 +1934,34 @@ and they fail in the way §2.1 warns about: **HTTP 200 with a 30,424-byte HTML p
 error status. Reproduced from the Board's own page in a browser with its own session, so this
 is the source's gap and not our misuse of it.
 
-Of a random 110-report sample drawn from a 1,005-report catalogue, **27 returned a PDF and 83
-returned HTML.** By kind: pre-general 0 of 30, pre-primary 7 of 25 (only the current cycle's),
-year-end 20 of 55. By filing year, everything sampled from 2026, 2025 and 2023 was served;
-2024 gave 5 of 19; **2022 and earlier gave 0 of 69.** Walking year-end reports back one year at
-a time on two filers, retrying each, puts the boundary at 2023: 2023 through 2025 served, 2022
-and earlier not. That boundary was established for year-end reports on those two filers only.
+**There is no boundary by year, and this paragraph asserted one for 3 weeks.** It said "2022 and
+earlier gave 0 of 69" and put the boundary at 2023. Both are wrong. Measured against the whole
+population rather than a sample — the [#1670](https://github.com/alethical-org/alethical/issues/1670)
+backfill asked the Board for **every** filed 2024-2026 report, 9,236 of them, on 31 Aug 2026:
+
+| filing year | year-end reports served | every other type served |
+|---|---:|---:|
+| 2026 | 7 of 7 | **2,223 of 2,249** |
+| 2025 | 1,269 of 1,309 | **0 of 318** |
+| 2024 | 236 of 1,125 | **0 of 3,022** |
+
+**The rule is the election cycle, not the year and not the type alone: the current cycle's reports
+are served whatever their type, and an older report is served only if it is a year-end.** Every one
+of the 3,340 non-year-end reports from 2024 and 2025 answered the 30,424-byte page, and so did 3 of
+3 sampled 2022 and 2023 ones (filer 17868's 2022 pre-primary, filer 11880's 2022 pre-general, filer
+12604's 2023 pre-primary). Pre-general reports are served in no year at all: 0 of 1,041 across
+2024-2026.
+
+**And 2022 and 2023 year-end reports are served, which the old boundary denied.** Filer 17868's 2023
+year-end returns 22,855 bytes at its catalogued amendment index and its 2022 year-end returns 719,590.
+A parallel probe on [#1886](https://github.com/alethical-org/alethical/issues/1886) reached the same
+conclusion from the other direction, sampling 9 of 9 2022 and 9 of 9 2023 year-end reports served
+across all 3 filer kinds. So **nothing before 2024 has been swept**, and the 1,206 filed 2023 reports
+we hold no document for are worth asking about rather than assumed gone.
+
+Availability still varies per filer-year inside that rule, so the only way to know is to ask: 2024
+year-end reports served 236 of 1,125, and the old figures above ("27 of 110", "pre-primary 7 of 25")
+remain a true account of one 110-report sample and are simply too small to have found the shape.
 
 The request, when it works:
 
@@ -1961,6 +1983,13 @@ reports, `G` on filer 19259's, at 17,170, 17,644 and 19,750 bytes. So those 63 r
 and an earlier version of this paragraph called them a third cause of a missing prior figure. They are
 not. Pass through whatever type the catalogue names.
 
+**The route needs the `PHPSESSID` cookie and answers a hard 403 without it**, which is the one
+failure here that is not soft and not 200: 18 of 18 requests answered 403 with no `Cookie` header and
+18 of 18 served a document with it (#1886), reproduced here on filer 11880's 2026 pre-primary — 403
+naked, 200 and a 20,133-byte document with the cookie. The code has always known this
+(`post_form`'s docstring, and `classify_document`'s `http_error` outcome); this section did not say
+it, while opening its list with "all HTTP 200".
+
 **There are five soft-failure shapes, all HTTP 200, and only one of them is HTML.** The 30,424-byte
 HTML page above is one. The rest:
 
@@ -1976,6 +2005,23 @@ HTML page above is one. The rest:
   retried at `amend=0`), and **0 returned a stale "try back on" a date already past**. That last count
   is the one that matters, because a stale future-tense date would be worse than no date at all.
 - An **empty body**, 0 bytes, on one 2014 year-end.
+
+**The catalogued effective amendment index is not always the one the Board will serve, and stepping
+down rescues the document.** Filer 20994's 2024 year-end is catalogued at amendment 2: index 2
+answers the 25-byte "Requested file not found", index 1 serves 21,607 bytes and index 0 serves
+21,262. Sampled across 45 unheld year-end reports catalogued at amendment 1 or higher, 43 served at
+that index and 2 refused, and stepping down rescued a real document from each (#1886). This does not
+contradict §9.6's rule about which version is *effective* — it adds that anything asking only at the
+catalogued index silently keeps less than it could.
+
+**A served document is not proof the filer kind was right, and an all-indexes `not_released` is the
+signature of a wrong one.** Filer 20994 asked as `ptu` and as `pcf` returns byte-identical documents
+at every amendment index, same sha256, so those 2 do not narrow the answer at all. Asked as `pcc` it
+returns the 172-byte `not_released` at every index. That is worth naming beside the note above that
+the same 172-byte variant is what a wrong `period` code looks like: **both a wrong filer kind and a
+wrong report type are polite plain-text refusals rather than errors.** Verified here by getting it
+wrong: filer 17868's year-end reports read as unavailable until asked as `pcc`, which is what that
+filer is.
 
 **A sixth shape, and it is not a refusal: a document that is a scan.** Filer 13481's 2025 year-end
 answers with 1,511,095 bytes starting `%PDF` over 1 page, and `pypdf` extracts **0 lines** from it;
@@ -2267,10 +2313,20 @@ reads `June 1, 2023`.
 party unit, because the header above it differs by filer kind. Same failure this section's
 neighbours record for reading schedule totals by offset (§9.4).
 
-**NULL is the ordinary answer and never means the report was unfiled.** Measured 31 Aug 2026 on a
-54-report sample spanning 2021 to 2026: all 9 sampled 2021 reports and 5 of 9 sampled 2022 ones
-returned the HTML page §9.4 measures at 30,424 bytes, and **2 of the 38 served documents were
-scans `pypdf` reads as 0 lines**. On the other 36 the stamp appeared exactly once and parsed.
+**NULL is the ordinary answer and never means the report was unfiled.** Of the 9,236 filed 2024-2026
+reports the backfill asked for, **3,735 came back with a readable date and 5,501 did not**, and §9.4
+carries why: the Board serves an older report only if it is a year-end, so all 3,340 non-year-end
+2024 and 2025 reports returned its 30,424-byte page. A further **2 of 38 documents in a smaller
+54-report probe were scans `pypdf` reads as 0 lines**, which is the one cause that survives a served
+document.
+
+**Do not read those per-year totals as availability.** An earlier version of this paragraph reported
+"all 9 sampled 2021 reports and 5 of 9 sampled 2022 ones returned the HTML page", which is a true
+account of that sample and invited exactly the wrong inference — that older years are closed. They
+are not; the 4 served 2022 reports in that same sample were all year-ends, which is the shape the
+sample was too small to show. **2023 was never asked at all**: the chunked run stopped after 2024, so
+the 1,206 filed 2023 reports hold no date because nobody has requested them, not because the Board
+refused.
 
 **An amended report's date is the amendment's own**, which is the bullet above with the dates
 attached: filer 16807's 2026 pre-primary reads 24 Jul 2026 at index 0 and 10 Aug 2026 at index 1;
