@@ -9,7 +9,6 @@ import {
   filingPeriodLine,
   formatCount,
   laneCountLine,
-  LOBBYING_NOT_LOADED,
   legislatorsLaneSentence,
   orderingSentence,
   RECORD_DOES_NOT_COVER,
@@ -48,20 +47,6 @@ describe('the does-not-cover block', () => {
   it('keeps lobbying out of the permanent gaps, because ours is a different kind of absence', () => {
     expect(RECORD_DOES_NOT_COVER).toHaveLength(3);
     expect(RECORD_DOES_NOT_COVER.join(' ').toLowerCase()).not.toContain('lobby');
-  });
-
-  // The spending half was loaded on 31 Aug 2026 (#1862) and our own research now
-  // recomputes its $886m figure from our copy, so "we have not loaded it" became
-  // false about the very records a reader is standing next to. What is still true
-  // is narrower and this line has to keep both halves apart: we hold the spending,
-  // we do not hold the registrations, and neither has a page in this section yet.
-  it('separates the lobbying we hold from the lobbying we do not', () => {
-    expect(LOBBYING_NOT_LOADED).toContain('no page here yet');
-    expect(LOBBYING_NOT_LOADED).toContain('We hold what Minnesota publishes');
-    expect(LOBBYING_NOT_LOADED).toContain('we have not loaded');
-    expect(LOBBYING_NOT_LOADED.toLowerCase()).not.toContain('does not cover');
-    // Never again claims we hold none of it, which is what went stale.
-    expect(LOBBYING_NOT_LOADED).not.toContain('Lobbying is not here yet');
   });
 });
 

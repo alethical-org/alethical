@@ -28,22 +28,6 @@ export const RECORD_DOES_NOT_COVER = [
   'Donors who gave $200 or less in total for the year need not be named.',
 ] as const;
 
-/**
- * Lobbying, named separately because it is NOT one of the permanent gaps above.
- * Minnesota publishes it — registrations, the lobbyist-to-client relationships,
- * and principal expenditures back to 2015 — and loading it is a named item on
- * `docs/product-onboarding/campaign-finance-roadmap.md`. So the honest line says
- * we have not loaded it, not that the record lacks it.
- *
- * It earns a line because the homepage promises "campaign and lobbying records"
- * twice, and this page is where a reader arrives looking for the second half.
- * Every other absence on this page is labelled out loud — a red notice at the
- * top, "not built yet" on two lanes, a zero confirmed count — and before this,
- * lobbying was the one gap a reader could only find by hunting and giving up.
- */
-export const LOBBYING_NOT_LOADED =
-  'Lobbying has no page here yet. We hold what Minnesota publishes on what lobbying clients spend, and our own research reads from it, but this section has no page for it. Who is registered to lobby, and who they work for, we have not loaded.';
-
 /** "1,603" — grouped the way the register pages print counts. */
 export function formatCount(count: number): string {
   return count.toLocaleString('en-US');

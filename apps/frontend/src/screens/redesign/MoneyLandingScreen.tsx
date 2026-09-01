@@ -19,7 +19,6 @@ import {
   orderingSentence,
   FILES_LAST_COPIED_LABEL,
   FILES_LAST_COPIED_NOTE,
-  LOBBYING_NOT_LOADED,
   MONEY_LANDING_HEADING,
   MONEY_LANDING_SUBTITLE,
   MONEY_LANE_COMMITTEES,
@@ -271,10 +270,6 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
                   {line}
                 </Text>
               ))}
-              {/* Last of the absences, and the only one that is ours rather than
-                  the record's — so it says "not loaded" rather than "not
-                  published". */}
-              <Text style={styles.notCoveredLine}>{LOBBYING_NOT_LOADED}</Text>
               {confirmations ? (
                 <>
                   <Text style={styles.notCoveredLine}>{confirmationLine(confirmations)}</Text>

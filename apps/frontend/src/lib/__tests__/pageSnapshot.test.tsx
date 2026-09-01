@@ -117,7 +117,6 @@ const {
   centralDateLabel,
   FILES_LAST_COPIED_LABEL,
   FILES_LAST_COPIED_NOTE,
-  LOBBYING_NOT_LOADED,
   MONEY_LANDING_HEADING,
   MONEY_LANDING_SUBTITLE,
   RECORD_DOES_NOT_COVER,
@@ -945,7 +944,7 @@ describe('the money landing serves the section’s own words and a live count', 
   });
 
   it('says what the record does not cover, in the same words the page draws', () => {
-    for (const line of [...RECORD_DOES_NOT_COVER, LOBBYING_NOT_LOADED]) {
+    for (const line of RECORD_DOES_NOT_COVER) {
       expect(text).toContain(line);
     }
   });
