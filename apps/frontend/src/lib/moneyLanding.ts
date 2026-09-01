@@ -42,7 +42,7 @@ export const RECORD_DOES_NOT_COVER = [
  * lobbying was the one gap a reader could only find by hunting and giving up.
  */
 export const LOBBYING_NOT_LOADED =
-  'Lobbying is not here yet. Minnesota publishes who is registered to lobby, who they work for, and what their clients spend, and we have not loaded it.';
+  'Lobbying has no page here yet. We hold what Minnesota publishes on what lobbying clients spend, and our own research reads from it, but this section has no page for it. Who is registered to lobby, and who they work for, we have not loaded.';
 
 /** "1,603" — grouped the way the register pages print counts. */
 export function formatCount(count: number): string {

@@ -95,8 +95,13 @@ Top to bottom:
    it is the point at which a name becomes required rather than a line below which nobody is
    named — [#1755](https://github.com/alethical-org/alethical/issues/1755)).
    A fourth line names **lobbying**, and it is deliberately not one of the three above:
-   those are permanent gaps in the record, while lobbying is published by Minnesota and
-   simply not loaded by us yet, so it says "not here yet" rather than "not covered".
+   those are permanent gaps in the record, while lobbying is a gap of ours, so it says
+   "no page here yet" rather than "not covered". Since 31 Aug 2026 it also has to keep
+   2 halves apart ([#1862](https://github.com/alethical-org/alethical/issues/1862)): we
+   hold what Minnesota publishes on what lobbying clients spend, and our own research
+   reads from it, so a line saying we hold none of it was false about the records the
+   reader is standing beside. What we still do not hold is the registration side, who is
+   registered to lobby and who they work for.
    It earns its place because the homepage promises "campaign and lobbying records"
    twice and this is where a reader arrives looking for the second half. Every other
    absence in this section is stated out loud; before this line, lobbying was the one a
@@ -454,6 +459,7 @@ Top to bottom:
    on 254 of the 389, which is most and not all, so the note names the mechanism and never
    claims it explains the committee on screen. The money-in card can be specific because
    the served figures include an in-kind total; money out has no equivalent yet.
+
 7. **Three tabs. The first two — Who gave and Where it went** — the six largest payments,
    ranked largest first (honest inside one committee; never across committees), each
    naming the filing's own type. **Every count is a count of payments, never of donors**:
