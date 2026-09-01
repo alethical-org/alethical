@@ -1089,8 +1089,29 @@ Shipped Aug 12 2026 ([#1331](https://github.com/alethical-org/alethical/issues/1
 Purpose:
 
 - the individual payments behind the figures above, one direction per request:
-  `direction=received` (who paid this committee), `direction=made` (who it paid), or
-  `direction=independent` (what others spent about it)
+  `direction=received` (who paid this committee), `direction=made` (who it paid),
+  `direction=independent` (what others spent about it), or `direction=independent_by`
+  (what it spent about others)
+
+  **The last 2 read the same rows of the same file, keyed 2 ways, and their absence
+  readings differ on purpose.** One independent-expenditure row is simultaneously the
+  spender's outgoing spending and the affected committee's incoming, so
+  `independent_payments_about` and `independent_payments_by`
+  (`alethical/api/services/campaign_finance_payments.py`) differ only in which
+  registration number they key on, and neither writes its own query. But no rows for the
+  `independent` direction is close to a finding — nobody filed an independent expenditure
+  about this committee — while no rows for `independent_by` is silence, because a filer
+  that spent nothing independently and one we hold no rows for are indistinguishable
+  (`.claude/rules/grounded-answers.md` rule 12). Only the `finance` endpoint's
+  `independent_spending` block reports a measured zero, and only in the about-direction.
+
+  `independent` is not named `independent_about`, which would be the guessable name.
+  It shipped first and this API serves a public site, so it is left alone rather than
+  renamed for symmetry ([#1901](https://github.com/alethical-org/alethical/issues/1901)).
+
+  Measured on the live release: 250 registration numbers appear as a spender, and **72 of
+  them are in no filer register we hold**, so a spender found in this file does not imply
+  a committee page exists for it.
 
 **This endpoint returns no total of any kind, and that is the design.** Every figure a surface
 may print comes from the `finance` endpoint above, where

@@ -844,6 +844,33 @@ export interface CommitteeReceivedPayment {
 
 /** One payment out of a committee. A `Contribution`-typed row names another
  *  committee (the affected fields); every other row names a supplier. */
+/** One independent-expenditure row: money spent to support or oppose a candidate,
+ *  filed by a group with no coordination with the campaign.
+ *
+ *  The same row is one committee's outgoing spending and another's incoming, so it is
+ *  read from both directions and carries both registration numbers. `stance` is the
+ *  filing's own For or Against and is filled on every one of the 41,130 rows in the
+ *  live release, so a row always knows its direction and needs no unknown state.
+ *
+ *  `purpose` is filled on 40,332 rows and `vendorName` on 39,433, so both need an empty
+ *  state rather than an assumption (#1901). Nothing here says WHY the money was spent
+ *  beyond the filing's own words, and no surface may infer a motive from it
+ *  (`.claude/rules/grounded-answers.md` rule 3). */
+export interface CommitteeIndependentPayment {
+  spender: string | null;
+  spenderRegistrationNumber: string | null;
+  affectedCommitteeName: string | null;
+  affectedCommitteeRegistrationNumber: string | null;
+  stance: string | null;
+  vendorName: string | null;
+  amount: string | null;
+  unpaidAmount: string | null;
+  paidOn: string | null;
+  year: number | null;
+  expenditureType: string | null;
+  purpose: string | null;
+}
+
 export interface CommitteeMadePayment {
   vendorName: string | null;
   vendorCity: string | null;

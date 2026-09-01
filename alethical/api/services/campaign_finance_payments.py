@@ -836,6 +836,55 @@ def independent_payments_about(
     )
 
 
+def independent_payments_by(
+    db: Session,
+    release: Release,
+    *,
+    registration_number: str,
+    year: Optional[int] = None,
+    limit: int = 50,
+    offset: int = 0,
+    order: str = ORDER_BY_DATE,
+) -> PaymentPage:
+    """Independent spending this committee filed **about others**, one row each.
+
+    The mirror of ``independent_payments_about``, keyed on the spender instead of the
+    affected committee, reading the same rows of the same file through the same helper.
+    One row is simultaneously this committee's outgoing independent spending and some
+    other committee's incoming, so the 2 functions differ **only** in which registration
+    number they key on; a second query written for this direction would put the same
+    honesty rules in 2 places where only one of them would get fixed
+    ([#1901](https://github.com/alethical-org/alethical/issues/1901)).
+
+    **A committee with no rows here is absent, and that is deliberately the opposite of
+    the about-direction's reading.** ``committee_finance.independent_spending_about``
+    treats no rows as a measured ``0``, because nobody filing about a committee is itself
+    a finding. Nobody filing *by* it is not the same claim: a filer that spent nothing
+    independently and a filer we hold no rows for are indistinguishable here, so this
+    direction never reports a zero (``.claude/rules/grounded-answers.md`` rule 12).
+
+    Measured on the live release: 250 registration numbers appear as a spender, and 72 of
+    them are not in our own filer register at all, so a caller must not assume a page
+    exists for every spender it finds.
+    """
+    return _payments(
+        db,
+        release,
+        _INDEPENDENT,
+        key_column="spender_reg_num",
+        key_value=registration_number,
+        year=year,
+        limit=limit,
+        offset=offset,
+        numbers_to_check=(
+            "spender_registration_number",
+            "affected_committee_registration_number",
+        ),
+        order=order,
+        count_total=True,
+    )
+
+
 # --- One printed name, which is never a person -------------------------------
 
 
@@ -973,6 +1022,7 @@ __all__ = [
     "PaymentPage",
     "ReleaseNoLongerHeld",
     "independent_payments_about",
+    "independent_payments_by",
     "independent_payments_to_vendor",
     "linkable_committees",
     "payments_from_contributor",
