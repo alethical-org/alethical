@@ -61,13 +61,12 @@ roadmap noted for direction.
 - **Roadmap items in menus = curated, greyed "ON THE ROADMAP" group (resolves O5):**
   the v2 home design shows the Search and Track dropdowns with a greyed, non-navigable
   **ON THE ROADMAP** group beneath the live entries, rather than hiding all roadmap
-  items. Only Search carries one now: **Search → Candidates · Claimed Profiles ·
-  News · Ask AI**, and the phone drawer shows the same four. A calculated **More
-  Tracking** chip used to sit before Ask AI, standing in for the Yours menu's own
-  roadmap; it went with that menu on 20 Aug 2026
-  ([#1698](https://github.com/alethical-org/alethical/issues/1698)), because it
-  pointed at a group a reader could no longer open. Reports has no roadmap group.
-  Other roadmap registry entries stay hidden. Live
+  items. Only Search carries one: **Search → Candidates · Claimed Profiles ·
+  News · Ask AI**, and the phone drawer shows the same four. No **More
+  Tracking** chip sits among them: a roadmap chip may only stand in for a menu a
+  reader can open, and the Yours menu it pointed at is gone
+  ([#1698](https://github.com/alethical-org/alethical/issues/1698)). Reports has no
+  roadmap group. Other roadmap registry entries stay hidden. Live
   entries keep icon + one-line description — **Search:** Bills (with a **"Grounded Ask"**
   badge) · Money in politics (green NEW chip) · Legislators · Find My Legislator;
   **Reports:** Campaign money (green NEW chip).
