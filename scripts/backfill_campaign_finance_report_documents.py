@@ -38,6 +38,17 @@ at the catalogued index would drop documents the Board is still willing to hand 
 which is the one failure this run cannot afford. The version actually kept is recorded
 under its own amendment index, so nothing claims to be a version it is not.
 
+**It steps down on every refusal shape except a transport failure, and the asymmetry is
+why.** An unnecessary request costs a quarter of a second; a step-down not taken costs a
+document that exists nowhere after the repost. Sampled across 45 unheld year-end reports
+whose catalogued index is 1 or higher, 43 served at that index and 2 refused -- both with
+"Requested file not found", and stepping down rescued a real document from both. So the
+loop is cheap in practice as well as right in principle. The exception is an HTTP error,
+which is a fact about the connection rather than about which version exists, and is
+systemic when it happens: the route answers a hard 403 without the ``PHPSESSID`` cookie,
+18 of 18 measured, so continuing to walk amendments would make a broken run half again as
+expensive on somebody else's server for nothing.
+
     # what it would ask for, and what is already kept -- no requests, no writes
     ALETHICAL_DATABASE_TARGET=production PYTHONPATH=. uv run \\
         python scripts/backfill_campaign_finance_report_documents.py \\
@@ -547,6 +558,15 @@ def backfill(
                 base_url=base_url,
             )
             report.outcomes[outcome.value] += 1
+            if outcome is DocumentOutcome.http_error:
+                # A transport failure says nothing about which version exists, so
+                # stepping down cannot help -- and this one shape is systemic rather
+                # than per-document: the route answers a hard 403 without the
+                # PHPSESSID cookie, 18 of 18 measured, so once it starts every request
+                # gets it. Walking 8 amendments per report would then turn a broken run
+                # into half again as many requests on the Board for nothing.
+                last_note = note
+                break
             if outcome is DocumentOutcome.served:
                 _keep(
                     keeper,

@@ -333,6 +333,35 @@ def test_an_earlier_version_already_kept_stops_the_step_down(
     assert keeper.report.stored == 0
 
 
+def test_a_transport_failure_stops_the_step_down(db, monkeypatch, tmp_path) -> None:
+    """An HTTP error is about the connection, not about which version exists.
+
+    And it is systemic when it happens: the document route answers a hard 403 without the
+    PHPSESSID cookie, 18 of 18 measured, so once it starts every request gets it. Walking
+    every amendment of every report would make a run that keeps nothing cost half again as
+    many requests on the Board. Every other refusal shape still steps down, because a
+    wasted request costs a quarter of a second and a step-down not taken costs a document.
+    """
+    snapshot = a_snapshot(db)
+    a_filer(db, snapshot, "20003")
+    a_catalogued_report(db, snapshot, "20003", year=2022, amendment_index=3)
+
+    def forbidden(http, **kwargs):
+        from alethical.pipeline.campaign_finance_report_documents import (
+            classify_document,
+        )
+
+        response = _Response(b"")
+        response.status_code = 403
+        outcome, note = classify_document(403, b"")
+        return response, outcome, note
+
+    report, _ = run(db, forbidden, monkeypatch, tmp_path)
+
+    assert report.outcomes["http_error"] == 1
+    assert report.not_served == 1
+
+
 def test_a_report_the_catalogue_carries_no_amendment_for_is_asked_once(
     db, monkeypatch, tmp_path
 ) -> None:
