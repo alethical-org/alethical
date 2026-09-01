@@ -29,32 +29,45 @@ import sys
 CHECKED_PREFIXES = ("docs/", ".claude/rules/", "AGENTS.md")
 
 EXEMPT = (
-    "docs/reader-guides/",              # posted pieces' source of record (grounded-answers rule 13)
+    "docs/reader-guides/",  # posted pieces' source of record (grounded-answers rule 13)
     "docs/published-writing-corrections.md",  # before/after per correction is its purpose
-    "docs/design/handoff-",             # frozen design handoffs
-    "docs/research/",                   # dated research findings
+    "docs/design/handoff-",  # frozen design handoffs
+    "docs/research/",  # dated research findings
     "docs/operations/production-database-schema-drift.md",  # dated audit record
-    "docs/operations/keeping-docs-current-decisions.md",    # measurement log
-    "docs/operations/android-prototype-handoff.md",         # dated handoff
+    "docs/operations/keeping-docs-current-decisions.md",  # measurement log
+    "docs/operations/android-prototype-handoff.md",  # dated handoff
 )
 
 IGNORE = "timeless-check-ignore:"
 
 MONTH = r"(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*"
 PATTERNS = [
-    (re.compile(rf"\bas of {MONTH}\b", re.IGNORECASE), 'dated status ("as of <month>")'),
+    (
+        re.compile(rf"\bas of {MONTH}\b", re.IGNORECASE),
+        'dated status ("as of <month>")',
+    ),
     (
         re.compile(
             r"\bused to (?:be|say|sit|read|store|work|do|carry|show|call|serve|have|mean|require|live)\b"
         ),
         'history narration ("used to ...")',
     ),
-    (re.compile(r"\b(?:this|that) (?:replaces|reverses|supersedes) (?:an|the) earlier\b", re.IGNORECASE),
-     "change narration"),
+    (
+        re.compile(
+            r"\b(?:this|that) (?:replaces|reverses|supersedes) (?:an|the) earlier\b",
+            re.IGNORECASE,
+        ),
+        "change narration",
+    ),
     (re.compile(r"\ban earlier version of this\b", re.IGNORECASE), "change narration"),
-    (re.compile(r"\bwe (?:used to|previously|originally) \b", re.IGNORECASE),
-     'history narration ("we used to ...")'),
-    (re.compile(r"\bnow (?:that we|we no longer)\b", re.IGNORECASE), "change narration"),
+    (
+        re.compile(r"\bwe (?:used to|previously|originally) \b", re.IGNORECASE),
+        'history narration ("we used to ...")',
+    ),
+    (
+        re.compile(r"\bnow (?:that we|we no longer)\b", re.IGNORECASE),
+        "change narration",
+    ),
 ]
 
 
@@ -71,7 +84,14 @@ def added_doc_lines(base: str) -> list[tuple[str, int, str]]:
         )
         raise SystemExit(2)
     diff = subprocess.run(
-        ["git", "diff", "--unified=0", f"{merge_base.stdout.strip()}...HEAD", "--", "*.md"],
+        [
+            "git",
+            "diff",
+            "--unified=0",
+            f"{merge_base.stdout.strip()}...HEAD",
+            "--",
+            "*.md",
+        ],
         capture_output=True,
         text=True,
         check=True,
