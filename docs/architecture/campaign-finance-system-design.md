@@ -884,6 +884,30 @@ kept indefinitely, and never deleted from either store. Measured 18 August 2026,
 backfill: 3 download bodies (29 MB stored), 2 totals archives (19 MB stored), and 3,643 report
 documents (386 MB stored; 411 MB as originally read — PDFs barely compress).
 
+**An older report document is very much larger than a recent one, and any estimate that assumes one
+average is out by an order of magnitude.** Re-measured 1 Sep 2026 while
+[#1886](https://github.com/alethical-org/alethical/issues/1886)'s 2022-2023 capture was running:
+**3,898 documents, 618 MB as read and 585 MB stored, averaging 155 KB.** The average by filing year
+is what matters:
+
+| filing year | documents held | average size | total |
+|---|---:|---:|---:|
+| 2026 | 1,253 | **57 KB** | 73 MB |
+| 2025 | 1,277 | 125 KB | 164 MB |
+| 2024 | 1,113 | 153 KB | 175 MB |
+| 2022 | 255 | **794 KB** | 207 MB |
+
+A 2022 document averages **14 times** a 2026 one, so 255 of them already occupy more than all 1,253
+of 2026's. #1886's own estimate of 248 MB for that capture was built on the store's old blended
+average; that session projects roughly **1.84 GB** for the finished capture, taking the store to
+about **2.25 GB**, and the per-year figures above are consistent with it.
+
+**Still free, and still worth writing down.** Supabase Storage includes 100 GB and R2 includes 10 GB,
+so 2.25 GB is comfortable on both — but it is about a fifth of R2's free allowance, and §2.1's
+December repost pass will add a comparable amount again, which is the point at which R2's included
+tier stops being irrelevant. The 7-to-10 GB-a-year figure above covers the bulk downloads and does
+not include report documents at all.
+
 The fourth kind is the one that proves the contract above works. It ships with no edit to the
 second-copy job at all: `published_source_copy` names `object_key`, `compressed_hash` and
 `mirrored_at`, and that is the whole of what the job reads. Its prefix deliberately sits outside
