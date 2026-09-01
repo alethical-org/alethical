@@ -774,6 +774,7 @@ def reported_by_one_committee(
                 itemized_payment_total=reported_by(
                     number, finance.money_out.itemized_payment_total
                 ),
+                in_kind_total=reported_by(number, finance.money_out.in_kind_total),
                 reported_total=reported_by(number, finance.money_out.reported_total),
                 by_type=tuple(
                     replace(bucket, total=reported_by(number, bucket.total))

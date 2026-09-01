@@ -52,6 +52,7 @@ import {
   MONEY_OUT_FIGURE_LABEL,
   MONEY_OUT_REPORTED_LABEL,
   moneyOutKindLabel,
+  inKindOutNote,
   listedExceedsReported,
   moneyOutNote,
   notFoundBody,
@@ -695,6 +696,7 @@ function MoneyOutCard({
   }
   const total = moneyFigure(moneyOut.state, moneyOut.itemizedPaymentTotal);
   const reportedOut = formatMoney(moneyOut.reportedTotal);
+  const inKindOut = inKindOutNote(moneyOut.inKindTotal);
   return (
     <View style={styles.card}>
       <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
@@ -713,6 +715,12 @@ function MoneyOutCard({
         isFigure={total.isFigure}
         note={paymentCountLabel(moneyOut.itemizedPayments)}
       />
+      {/* Directly under the figure it qualifies, the same place money in draws its
+          own goods-and-services line, because a reader shown a payments total reads
+          all of it as cash the committee spent (#1894). Absent whenever the amount is
+          not above zero, which covers both a committee-year we hold no payment rows
+          for and one whose rows are all cash. */}
+      {inKindOut ? <Text style={styles.explain}>{inKindOut}</Text> : null}
       <Text style={styles.explain}>
         {moneyOutNote(
           moneyOut.state,

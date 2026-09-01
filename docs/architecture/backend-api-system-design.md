@@ -1028,6 +1028,18 @@ other way round, so any single-label filter reports a whole kind of filer as hav
 nothing. `unpaid_total` is a separate column of the filing and not a subset of the total: the
 download's `Amount` is the filing's *total* column and a row can be unpaid.
 
+`money_out.in_kind_total` is how much of that total was goods and services rather than money,
+read off the payments file's own `In-kind?` column, and it is the money-out twin of
+`split.named_in_kind_total` ([#1894](https://github.com/alethical-org/alethical/issues/1894)).
+It is `null` in every state but `reported`, and a **measured `0`** under `reported`: that state
+already means we hold the filer-year's payment rows, and every row in the live release carries
+a `Yes` or a `No` with none blank, so "we hold the rows and none is in kind" is a measurement
+rather than silence. Read anywhere else it would manufacture a zero out of an absent
+filer-year, which is why `_in_kind_out` says so in its own docstring rather than trusting the
+caller. Both money-out routes serve it, the committee endpoint and the legislator profile, and
+on the profile it is tagged with its reporting committee like every other figure there, so 2 of
+a person's committees cannot be added together.
+
 `independent_spending` is money others spent supporting or opposing this committee, served by
 [#1332](https://github.com/alethical-org/alethical/issues/1332)'s query
 (`alethical/api/services/independent_spending.py`) with the registration number handed in

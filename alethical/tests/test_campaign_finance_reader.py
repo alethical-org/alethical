@@ -122,6 +122,13 @@ EXPENDITURES = [
     '19200,"Olson, Rick Senate Committee",PCC,,KnuFunK,Rochester,MN,55902,'
     '400.0000,.0000,2025-11-01,"Parade and Event Fees",2025,'
     '"Campaign Expenditure",,No,,',
+    # Goods and services given TO the committee, which the payments file carries as a
+    # payment out marked in kind. This is why our itemized sum can exceed the filing's
+    # own reported total without either figure being wrong: the filing's total counts
+    # cash the committee paid, and this row is not cash (#1894).
+    '19200,"Olson, Rick Senate Committee",PCC,,"Sign Guy",Rochester,MN,55902,'
+    '325.5000,.0000,2025-10-20,"Lawn signs",2025,'
+    '"Campaign Expenditure","Donated lawn signs",Yes,,',
     # A payee the state Board does not register: a local candidate, carried under a
     # negative placeholder number. 511 of these appear in the real 2025-2026 rows.
     '20003,"MN DFL State Central Committee",PTU,SPU,'
@@ -360,6 +367,54 @@ def test_money_out_sums_the_filings_total_column_not_its_paid_column(db, release
     )
     # 853.18 + 1200.00, with the 200.00 unpaid on the second row left alone.
     assert general.total == Decimal("2053.1800")
+
+
+def test_in_kind_money_out_is_summed_alone_and_an_empty_year_is_absent(db, release):
+    """The figure that lets a card name an amount instead of naming a mechanism.
+
+    Committee 19200 paid $400.00 in cash and received $325.50 of donated lawn signs
+    that the payments file carries as a payment out marked in kind. So its itemized
+    money-out total is $725.50, of which $325.50 is not money, and a page that prints
+    only the total invites a reader to think the committee spent $725.50 of cash
+    ([#1894](https://github.com/alethical-org/alethical/issues/1894)).
+
+    Filer 20010 has 4 payment rows in 2025 and not one is in kind, and this function
+    returns **nothing at all** for it rather than a zero. Absence in an itemized file
+    is silence, and only a caller that already knows it holds the filer-year's rows
+    may read this silence as a measured zero.
+    """
+    (in_kind,) = reader.expenditure_in_kind(db, release, "19200", [2025])
+
+    assert in_kind.year == 2025
+    assert in_kind.total == Decimal("325.5000")
+    assert in_kind.rows == 1
+    # The cash row is not in it, and the whole itemized figure still counts both.
+    spent = next(
+        row
+        for row in reader.money_out(db, release, "19200", [2025])
+        if row.year == 2025
+    )
+    assert spent.total == Decimal("725.5000")
+    assert spent.rows == 2
+
+    # A filer-year with payment rows and no in-kind row among them: absent, not zero.
+    assert reader.expenditure_in_kind(db, release, "20010", [2025]) == []
+    # And a filer-year we hold nothing for at all behaves the same way.
+    assert reader.expenditure_in_kind(db, release, "29999", [2025]) == []
+
+
+def test_in_kind_money_out_takes_no_label_filter_either(db, release):
+    """The same trap ``money_out`` is shaped to make unreachable.
+
+    A candidate committee labels its spending ``Campaign Expenditure`` and a party
+    unit labels the same spending ``General Expenditure``, so any signature that let
+    a caller name one label would report the other kind of filer as having given
+    nothing in kind.
+    """
+    import inspect
+
+    parameters = set(inspect.signature(reader.expenditure_in_kind).parameters)
+    assert parameters == {"db", "release", "reg_num", "years"}
 
 
 # --- Transfers ---------------------------------------------------------------

@@ -215,6 +215,7 @@ def _payment(
     entity="PCC",
     sub_type=None,
     affected=None,
+    in_kind=None,
 ):
     db.add(
         models.CampaignFinanceExpenditureRow(
@@ -230,6 +231,9 @@ def _payment(
             transaction_date=None if on == NO_DATE else (on or date(year, 6, 1)),
             year=year,
             type=kind,
+            # Left blank by default, which is what the real column never is and
+            # what the reader reads as not-in-kind. Tests that care pass "Yes".
+            in_kind=in_kind,
             affected_committee_reg_num=affected,
         )
     )
@@ -538,6 +542,88 @@ def test_an_unpaid_bill_is_reported_beside_the_total_not_inside_it(db):
     finance = _finance(db, CANDIDATE)
     assert finance is not None
     assert finance.money_out.itemized_payment_total == Decimal("1000.00")
+
+
+def test_goods_and_services_out_are_reported_as_their_own_figure(db):
+    """So a card can name the amount instead of naming the mechanism.
+
+    Minnesota's payments file carries goods and services given to a committee as a
+    payment out marked in kind, which is why our itemized sum can exceed the
+    committee's own reported total without either figure being wrong: that total
+    counts cash the committee paid. Money in has said exactly how much was goods and
+    services since #1332; money out could only gesture at it
+    ([#1894](https://github.com/alethical-org/alethical/issues/1894)).
+    """
+    published = Published(db)
+    _payment(db, published.expenditures, reg_num=CANDIDATE, amount="4151.04")
+    _payment(
+        db,
+        published.expenditures,
+        reg_num=CANDIDATE,
+        amount="325.50",
+        in_kind="Yes",
+    )
+    db.commit()
+    finance = _finance(db, CANDIDATE)
+    assert finance is not None
+    assert finance.money_out.itemized_payment_total == Decimal("4476.54")
+    assert finance.money_out.in_kind_total == Decimal("325.50")
+
+
+def test_holding_the_rows_and_finding_no_in_kind_among_them_is_a_measured_zero(db):
+    """The one place absence means zero here, and only because the column is answered.
+
+    Every payment row in the live release carries a ``Yes`` or a ``No`` in the
+    source's own ``In-kind?`` column -- 21,983 ``Yes`` and 355,877 ``No``, none
+    blank -- so "we hold this committee's payment rows and none of them is in kind"
+    is a measurement. It is reached only from ``REPORTED``, which already means we
+    hold the rows.
+    """
+    published = Published(db)
+    _payment(db, published.expenditures, reg_num=CANDIDATE, amount="4151.04")
+    db.commit()
+    finance = _finance(db, CANDIDATE)
+    assert finance is not None
+    assert finance.money_out.state == REPORTED
+    assert finance.money_out.in_kind_total == Decimal("0")
+
+
+def test_a_committee_whose_payments_we_hold_none_of_has_no_in_kind_figure(db):
+    """Not a zero. `.claude/rules/grounded-answers.md` rule 12's whole point.
+
+    A committee absent from the payments file may have paid out plenty and simply
+    named no recipient above the threshold. Printing $0.00 of goods and services
+    against it would be a fact we do not hold, under a named person's photograph.
+    """
+    published = Published(db)
+    # This committee's 2025 rows, so it resolves at all, and somebody else's 2024
+    # rows, so 2024 is a year the download covers. Asked about 2024 the committee is
+    # then genuinely absent rather than unknown.
+    _payment(db, published.expenditures, reg_num=CANDIDATE, amount="4151.04")
+    _payment(db, published.expenditures, reg_num=PARTY_UNIT, amount="1.00", year=2024)
+    db.commit()
+    finance = _finance(db, CANDIDATE, year=2024)
+    assert finance is not None
+    assert finance.money_out.state == NOT_REPORTED
+    assert finance.money_out.in_kind_total is None
+
+
+def test_rows_we_cannot_total_withhold_the_in_kind_figure_too(db):
+    """A blank amount on any row withholds the whole money-out card, this included.
+
+    The itemized total is already withheld here because we hold a row and cannot
+    total it, which is our gap rather than the committee's silence. An in-kind figure
+    served beside a withheld total would be a figure with nothing to compare it to.
+    """
+    published = Published(db)
+    _payment(db, published.expenditures, reg_num=CANDIDATE, amount="4151.04")
+    _payment(db, published.expenditures, reg_num=CANDIDATE, amount=None, in_kind="Yes")
+    db.commit()
+    finance = _finance(db, CANDIDATE)
+    assert finance is not None
+    assert finance.money_out.state == UNAVAILABLE
+    assert finance.money_out.itemized_payment_total is None
+    assert finance.money_out.in_kind_total is None
 
 
 # --- Which year, and which dates ---------------------------------------------

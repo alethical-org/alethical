@@ -28,7 +28,7 @@
  *   both false for it.
  */
 
-import { formatDay, formatMoney } from './legislatorCampaignMoney';
+import { formatDay, formatMoney, isAmountAboveZero } from './legislatorCampaignMoney';
 
 /** The two Board sub-type codes that mark a ballot-question filer on its own money
  *  rows (data census #1661: 28 `BC` and 6 `BF` filers carry one). The register
@@ -572,10 +572,15 @@ export function moneyOutNote(
     // committee's gap. Naming a cause that is right 254 times out of 389 on a named
     // person's page is the same failure in a new coat.
     //
-    // The money-IN card can be specific because the split serves it a figure
-    // (`named_in_kind_total`). Money out has no equivalent, which is
-    // [#1894 The money-out card cannot name its in-kind figure, because the server sends none](https://github.com/alethical-org/alethical/issues/1894)
-    // — until it does, the honest sentence is the general one.
+    // This sentence stays general on purpose, and that is no longer because the figure
+    // is missing. Since
+    // [#1894](https://github.com/alethical-org/alethical/issues/1894) the server sends
+    // an in-kind money-out total and `inKindOutNote` below prints it as its own line,
+    // the same shape the money-IN card uses for `named_in_kind_total`. The 2 lines do
+    // different jobs: that one states an amount we hold, this one says the 2 figures
+    // count different things and refuses to name a cause for the gap. Folding the
+    // amount into this sentence would turn a fact into an explanation, which is the
+    // 254-of-389 guess the paragraph above is about.
     if (ourListExceedsReportedTotal) {
       return (
         'These are 2 different figures from Minnesota and we never subtract one from the ' +
@@ -594,6 +599,36 @@ export function moneyOutNote(
   return isBallot
     ? 'Our copy of the state’s figures holds no reported total for this year’s money out, so there is no bigger number to compare this against. Money out is not all spending: some of it is money given to other campaigns, listed below.'
     : 'Our copy of the state’s figures holds no reported total for this year’s money out, so there is no bigger number to compare this against. Minnesota only names a recipient once payments to them pass $200 in total for the year. Money out is not all spending: some of it is money given to other campaigns, listed below.';
+}
+
+/**
+ * The money-out card's goods-and-services line, or null when there is nothing to say.
+ *
+ * Minnesota's payments file carries goods and services given to a committee as a
+ * payment out marked in kind, so an itemized money-out figure is not all cash, and a
+ * reader shown only the total will read all of it as cash spent. The money-in card has
+ * said exactly how much was goods and services since #1332; money out could only name
+ * the mechanism until the server started sending this figure
+ * ([#1894](https://github.com/alethical-org/alethical/issues/1894)).
+ *
+ * **States an amount and explains nothing.** It does not say this is why the 2 money-out
+ * figures differ, because on 254 of the 389 committee-years where our list is the larger
+ * figure in-kind fully accounts for the gap and on the other 135 it does not, and naming
+ * a cause that is right two-thirds of the time under a named politician's photograph is
+ * the failure `.claude/rules/grounded-answers.md` rule 3 forbids.
+ *
+ * Null covers 2 different facts and prints nothing for both, which is deliberate: a
+ * committee-year we hold no payment rows for sends no figure at all, and one whose rows
+ * are all cash sends a measured 0. Rule 12 forbids printing "$0.00" for the first, and
+ * the second is a sentence with no information in it.
+ */
+export function inKindOutNote(inKindTotal: string | null | undefined): string | null {
+  if (!isAmountAboveZero(inKindTotal)) return null;
+  return (
+    `${formatMoney(inKindTotal ?? null)} of the payments above were goods and services ` +
+    'rather than money. The state counts those separately from the total the committee ' +
+    'reported.'
+  );
 }
 
 // --- The two lists and the payments view ----------------------------------------------

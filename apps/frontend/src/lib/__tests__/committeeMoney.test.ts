@@ -31,6 +31,7 @@ import {
   MONEY_OUT_REPORTED_LABEL,
   moneyOutKindLabel,
   listedExceedsReported,
+  inKindOutNote,
   moneyOutNote,
   notFoundBody,
   notFoundTitle,
@@ -326,6 +327,48 @@ describe('money out', () => {
     expect(moneyOutNote('not_reported', false, true, false)).toContain(
       'names none of its payments',
     );
+  });
+
+  it('names the goods-and-services amount, and says nothing at all without one', () => {
+    // The whole point of #1894: money in has said this since #1332 and money out
+    // could only name the mechanism.
+    const note = inKindOutNote('325.50');
+    expect(note).toContain('$325.50');
+    expect(note).toContain('goods and services');
+    expect(note).toContain('rather than money');
+
+    // Nothing to say, and 2 different reasons for it. A committee-year we hold no
+    // payment rows for sends no figure; one whose payments are all cash sends a
+    // measured 0. Neither may print "$0.00" against a named politician, and 97
+    // committee-years in the live release hold in-kind rows summing to exactly 0.
+    expect(inKindOutNote(null)).toBeNull();
+    expect(inKindOutNote(undefined)).toBeNull();
+    expect(inKindOutNote('')).toBeNull();
+    expect(inKindOutNote('0')).toBeNull();
+    expect(inKindOutNote('0.0000')).toBeNull();
+    expect(inKindOutNote('not a number')).toBeNull();
+  });
+
+  it('the goods-and-services line states an amount and explains no gap', () => {
+    // In-kind fully accounts for the excess on 254 of the 389 committee-years where
+    // our payment list is the larger figure, and not on the other 135. So this line
+    // may never say it is why the 2 figures differ: that is a cause, right two-thirds
+    // of the time, printed under a named person's photograph.
+    const note = inKindOutNote('325.50') ?? '';
+    for (const forbidden of [
+      'why',
+      'because',
+      'explains',
+      'accounts for',
+      'the difference',
+      'the gap',
+      'disagree',
+    ]) {
+      expect(note.toLowerCase()).not.toContain(forbidden);
+    }
+    // And the sentence that DOES discuss the 2 figures still names no cause for the
+    // gap, so adding this line did not let the pair of them make the claim jointly.
+    expect(moneyOutNote('reported', false, true, false, true)).not.toContain('because of');
   });
 
   it('with the filing’s own total on screen, the note explains two figures and no subtraction', () => {

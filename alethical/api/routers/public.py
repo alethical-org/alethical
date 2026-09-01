@@ -3151,6 +3151,12 @@ def committee_finance_for_year(
                 "state": finance.money_out.state,
                 "itemized_payment_total": finance.money_out.itemized_payment_total,
                 "itemized_payments": finance.money_out.itemized_payments,
+                # How much of the itemized total was goods and services rather than
+                # money. The money-out twin of ``split.named_in_kind_total``, so the
+                # money-out card can name the amount where it used to name only the
+                # mechanism (#1894). ``None`` for every state but ``reported``, where
+                # a filer-year with no in-kind row is a measured 0.
+                "in_kind_total": finance.money_out.in_kind_total,
                 "reported_total": finance.money_out.reported_total,
                 "reported_through": finance.money_out.reported_through,
                 "by_type": [
@@ -4270,6 +4276,10 @@ def legislator_campaign_finance(
                             "itemized_payments": (
                                 entry.finance.money_out.itemized_payments
                             ),
+                            # Goods and services rather than money, so a profile's
+                            # money-out card reads the same way as the committee
+                            # page's (#1894).
+                            "in_kind_total": (entry.finance.money_out.in_kind_total),
                             # The committee's own reported figure for the period, which
                             # the committee route has always served and this one never
                             # did. Rule 12 wants a second number beside every money

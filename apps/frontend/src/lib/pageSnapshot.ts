@@ -76,6 +76,7 @@ import {
   MONEY_OUT_FIGURE_LABEL,
   MONEY_OUT_REPORTED_LABEL,
   moneyOutKindLabel,
+  inKindOutNote,
   listedExceedsReported,
   moneyOutNote,
   NOT_IN_REGISTER_LINE,
@@ -971,6 +972,7 @@ export interface CommitteeMoneySnapshotSource {
     state?: string | null;
     itemized_payment_total?: string | null;
     itemized_payments?: number | null;
+    in_kind_total?: string | null;
     by_type?: { type: string; total: string; payments: number }[] | null;
     reported_total?: string | null;
     reported_through?: string | null;
@@ -1238,6 +1240,11 @@ export function committeePageSnapshot(
           : []),
         `${MONEY_OUT_FIGURE_LABEL}: ${outTotal.text}`,
         paymentCountLabel(moneyOut.itemized_payments ?? null) ?? '',
+        // The goods-and-services line the 2 live cards draw under this figure. It
+        // belongs in the first response too: this is what a search engine and a reader
+        // on a slow connection see, and a payments total with no such line reads as
+        // cash the committee spent (#1894).
+        inKindOutNote(moneyOut.in_kind_total ?? null) ?? '',
         moneyOutNote(
           committeeBlockState(moneyOut.state),
           identity.isBallot,
