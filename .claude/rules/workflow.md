@@ -228,3 +228,17 @@ rest; `.claude/rules/grounded-answers.md` carries the product-behavior rules.
 
     - **A claim about what code contains names the commit it was checked at.** Two reviewers at two commits are not in disagreement — they are describing two codebases. (Settled when one reviewer's "not exposed to the account screen" and another's "live end to end" were both true, one day apart, across PR [#1505](https://github.com/alethical-org/alethical/pull/1505).)
     - **A citation must contain its claim.** Cite file + function + pinned commit, never a bare commit hash: the pin makes it durable, the file and function make it checkable. A right conclusion under a wrong citation is record-drift waiting to be believed.
+
+16. **State each rule once, in the present tense, in one place.** A doc says what is true now. It does not narrate how we changed our minds, and it does not restate a rule another file owns. Git holds the history, and a GitHub issue holds the long version of any incident. This extends the delete-a-stale-doc rule in `docs/folder-structure.md` (retired docs are deleted, not kept) from whole files down to sentences. — Net: an agent loading these files must receive one unambiguous instruction per subject, never an average of past and present guidance.
+
+    **The test on any sentence about the past: is this an instruction, or evidence for one?** Two instructions is the bug. One instruction and its evidence is the design.
+
+    **Cut:** a superseded design still described in a spec; the same rule written out in its own words in more than 1 file; a rule stated twice in 1 file, once live and once dead; dated decision narration ("this replaces an earlier step", "used to work the other way", "as of February 2"). Where old behaviour must stay gone, ban it in the present rather than telling its story: "never write X", not "we used to write X and then changed our minds".
+
+    **Keep:** the dated measurement or incident sitting under a rule, compressed, because a rule whose cost is invisible gets reasoned around; the short who-ruled note ("Eugene, Aug 25 2026"), which marks a human decision rather than an agent's guess; and dates a published page is required to print. Evidence follows its rule, never leads it, and never reads as a second instruction.
+
+    **One owner per subject.** A doc either owns a subject or links to the owner. Where reader-facing prose must state a rule in reader words, every copy carries the owner's sentence word for word — nothing enforces that automatically, so a change to the owner's sentence greps for its copies in the same PR.
+
+    **A rule and the check that enforces it ship as 1 change.** When 2 copies of a rule disagree, the enforcing copy wins in practice, because an agent obeys the specific message it is handed over a general rule sitting in a file.
+
+    **Strictest in the files loaded into every session** (`.claude/rules/`, `AGENTS.md`); normal in specs and guides; not applied to dated snapshots — design handoffs, measurement logs, dated research findings, and the source files of posted pieces (`docs/reader-guides/`), which `.claude/rules/grounded-answers.md` rule 13 (signed research publishing order) already governs.
