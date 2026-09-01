@@ -52,6 +52,7 @@ import {
   MONEY_OUT_FIGURE_LABEL,
   MONEY_OUT_REPORTED_LABEL,
   moneyOutKindLabel,
+  statedSpendingNote,
   inKindDonationsNote,
   inKindOutNote,
   listedExceedsReported,
@@ -691,6 +692,7 @@ function MoneyOutCard({
   const total = moneyFigure(moneyOut.state, moneyOut.itemizedPaymentTotal);
   const reportedOut = formatMoney(moneyOut.reportedTotal);
   const inKindOut = inKindOutNote(moneyOut.inKindTotal);
+  const spendingCheck = statedSpendingNote(moneyOut.statedSpendingState);
   return (
     <View style={styles.card}>
       <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
@@ -724,6 +726,11 @@ function MoneyOutCard({
           listedExceedsReported(moneyOut.reportedTotal, moneyOut.itemizedPaymentTotal),
         )}
       </Text>
+      {/* After the note it qualifies, not before it: the note above explains what the
+          2 figures are, and this one says whether anybody checked them against the
+          committee's own filing. Null on `agrees`, so a checked committee-year draws
+          exactly as it did (#1650). */}
+      {spendingCheck ? <Text style={styles.explain}>{spendingCheck}</Text> : null}
       {moneyOut.byType.length ? (
         <View style={styles.rows}>
           {moneyOut.byType.map((entry) => (

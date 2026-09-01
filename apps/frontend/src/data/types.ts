@@ -615,6 +615,14 @@ export interface CampaignCommitteeMoney {
      *  live snapshot, and Rep. Xp Lee's committee 19223 for 2025 is one of them. */
     reportedTotal: string | null;
     reportedThrough: string | null;
+    /** Whether this committee-year's own filed report was read against the payment
+     *  rows we hold, and what the reading said (#1650). `agrees` is the only value
+     *  that lets the card treat the itemized figure as checked. `disagrees` means
+     *  Minnesota's 2 publications state different amounts for the same period, and
+     *  the card says so instead of offering a reason the check contradicts.
+     *  `not_checked` is Minnesota's gap, `reader_unproven` is ours, `not_run` means
+     *  nobody has looked — 3 absences of a verdict, and none of them a pass. */
+    statedSpendingState: string;
     byType: { type: string; total: string; payments: number }[];
     sourceUrl: string | null;
   } | null;
@@ -811,6 +819,14 @@ export interface CommitteeMoney {
      *  subtracted from the payments we can list. */
     reportedTotal: string | null;
     reportedThrough: string | null;
+    /** Whether this committee-year's own filed report was read against the payment
+     *  rows we hold, and what the reading said (#1650). `agrees` is the only value
+     *  that lets the card treat the itemized figure as checked. `disagrees` means
+     *  Minnesota's 2 publications state different amounts for the same period, and
+     *  the card says so instead of offering a reason the check contradicts.
+     *  `not_checked` is Minnesota's gap, `reader_unproven` is ours, `not_run` means
+     *  nobody has looked — 3 absences of a verdict, and none of them a pass. */
+    statedSpendingState: string;
     sourceUrl: string | null;
   };
   /** Served, never computed by the page: the 4 withheld states are each a way a

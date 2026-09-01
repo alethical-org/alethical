@@ -80,6 +80,7 @@ import {
   inKindOutNote,
   listedExceedsReported,
   moneyOutNote,
+  statedSpendingNote,
   NOT_IN_REGISTER_LINE,
   paymentsEyebrow,
   paymentsTitle,
@@ -976,6 +977,7 @@ export interface CommitteeMoneySnapshotSource {
     by_type?: { type: string; total: string; payments: number }[] | null;
     reported_total?: string | null;
     reported_through?: string | null;
+    stated_spending_state?: string | null;
     source_url?: string | null;
   } | null;
   split?: {
@@ -1246,6 +1248,12 @@ export function committeePageSnapshot(
           Number(moneyOut.reported_total) === 0,
           listedExceedsReported(moneyOut.reported_total, moneyOut.itemized_payment_total),
         ),
+        // Whether the committee's own filed report was read against these payments.
+        // The first response is what a search engine and a reader on a slow
+        // connection get, so a spending figure nobody has checked must not read as
+        // checked here either (#1650). `not_run` and never `not_checked` when the
+        // field is absent: our own silence may not borrow Minnesota's excuse.
+        statedSpendingNote(moneyOut.stated_spending_state ?? 'not_run') ?? '',
       ].filter(Boolean),
     });
     if ((moneyOut.by_type ?? []).length) {

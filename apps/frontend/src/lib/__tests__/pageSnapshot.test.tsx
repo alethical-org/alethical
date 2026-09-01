@@ -6,6 +6,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 
 import billFixture from './fixtures/bill-page-snapshot.json';
 import committeeFixture from './fixtures/committee-money-page-snapshot.json';
+import { statedSpendingNote } from '../committeeMoney';
 import committeeEmptyYearFixture from './fixtures/committee-empty-year-snapshot.json';
 import committeePaymentsFixture from './fixtures/committee-payments-page-snapshot.json';
 import legislatorFixture from './fixtures/legislator-page-snapshot.json';
@@ -1067,6 +1068,12 @@ describe('a committee’s record in the first response', () => {
     expect(text).toContain(formatMoney(split.named_total));
     expect(text).toContain(formatMoney(split.unnamed_total));
     expect(text).toContain(unnamedMoneyExplanation(false));
+  });
+
+  // The first response is what a search engine and a reader on a slow connection get,
+  // so an unchecked spending figure must not read as checked here either (#1650).
+  it('says in the first response that nobody has checked this money out against the filing', () => {
+    expect(text).toContain(statedSpendingNote('not_run'));
   });
 
   it('labels money out as payments rather than as spending', () => {

@@ -46,7 +46,7 @@ import {
   splitExplanation,
   unnamedShareLabel,
 } from '../../lib/legislatorCampaignMoney';
-import { inKindDonationsNote, inKindOutNote } from '../../lib/committeeMoney';
+import { inKindDonationsNote, inKindOutNote, statedSpendingNote } from '../../lib/committeeMoney';
 import { useLegislatorOutsideSpending } from '../../hooks/useAppQueries';
 import { outsideSpendingYears } from '../../lib/outsideSpending';
 import { OutsideSpendingCard } from '../legislator/OutsideSpendingCard';
@@ -425,6 +425,7 @@ function MoneyOut({
   const total = moneyFigure(moneyOut.state, moneyOut.itemizedPaymentTotal);
   const reportedOut = formatMoney(moneyOut.reportedTotal);
   const inKindOut = inKindOutNote(moneyOut.inKindTotal);
+  const spendingCheck = statedSpendingNote(moneyOut.statedSpendingState);
   return (
     <View style={styles.block}>
       <Text accessibilityRole="header" aria-level={4} style={styles.h4}>
@@ -463,6 +464,11 @@ function MoneyOut({
           "Not reported" the first sentence would be explaining a number that is not
           on the screen, and a reader would take the absence as a spending of zero. */}
       <Text style={styles.explain}>{spendingNote(moneyOut.state, Boolean(reportedOut))}</Text>
+      {/* Whether anybody compared this figure against the committee's own filed
+          report, in the same place the committee page draws it. This tab carries a
+          real politician's name, which is the whole reason an unchecked spending
+          figure must not read like a checked one (#1650). */}
+      {spendingCheck ? <Text style={styles.explain}>{spendingCheck}</Text> : null}
       {moneyOut.byType.length ? (
         <View style={styles.rows}>
           {moneyOut.byType.map((entry) => (

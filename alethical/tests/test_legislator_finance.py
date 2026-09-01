@@ -104,7 +104,7 @@ def _finance(
             source_url="https://cfb.mn.gov/reports/contributions.csv",
         ),
         money_out=MoneyOut(
-            REPORTED, Decimal("1000.00"), 3, (), Decimal("0"), None, None, None
+            REPORTED, Decimal("1000.00"), 3, (), Decimal("0"), None, None, None, NOT_RUN
         ),
         independent_spending=IndependentSpendingAbout(REPORTED, None, None),
     )

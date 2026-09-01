@@ -575,6 +575,7 @@ interface ApiLegislatorCampaignMoneyPayload {
       in_kind_total?: string | null;
       reported_total?: string | null;
       reported_through?: string | null;
+      stated_spending_state?: string | null;
       by_type?: { type: string; total: string; payments: number }[];
       source_url?: string | null;
     } | null;
@@ -2343,6 +2344,11 @@ export async function getLegislatorCampaignMoneyFromApi(
             inKindTotal: committee.money_out.in_kind_total ?? null,
             reportedTotal: committee.money_out.reported_total ?? null,
             reportedThrough: committee.money_out.reported_through ?? null,
+            // `not_run` and never `not_checked`: an absent field means nobody
+            // looked, which is a fact about us, while `not_checked` claims the
+            // Board served us no document. Collapsing them would let our own
+            // silence borrow Minnesota's excuse.
+            statedSpendingState: committee.money_out.stated_spending_state ?? 'not_run',
             byType: (committee.money_out.by_type ?? []).map((entry) => ({
               type: entry.type,
               total: entry.total,
@@ -2982,6 +2988,7 @@ interface ApiCommitteeMoneyPayload {
     by_type?: { type: string; total: string; payments: number }[] | null;
     reported_total?: string | null;
     reported_through?: string | null;
+    stated_spending_state?: string | null;
     source_url?: string | null;
   } | null;
   split?: {
@@ -3101,6 +3108,7 @@ export async function getCommitteeFinanceFromApi(
       })),
       reportedTotal: payload.money_out?.reported_total ?? null,
       reportedThrough: payload.money_out?.reported_through ?? null,
+      statedSpendingState: payload.money_out?.stated_spending_state ?? 'not_run',
       sourceUrl: payload.money_out?.source_url ?? null,
     },
     split: {

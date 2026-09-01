@@ -602,6 +602,54 @@ export function moneyOutNote(
 }
 
 /**
+ * What the money-out card says about whether anyone checked it, or null when the
+ * ordinary case needs no decoration.
+ *
+ * The money-out twin of `statedSplitNote` in `legislatorCampaignMoney.ts`, and it
+ * exists because until [#1650](https://github.com/alethical-org/alethical/issues/1650)
+ * a spending figure nobody had compared against the committee's own filed report was
+ * drawn exactly like one that had been. Measured on the live release, 1 Sep 2026,
+ * across all 4,124 committee-years of 2024, 2025 and 2026 that the check reaches:
+ * 3,313 agree, 208 disagree, 481 the Board serves us no document for, and 122 our own
+ * reader could not prove itself on.
+ *
+ * **`disagrees` gets its own sentence, and it is the reason this function is not just
+ * a caveat.** 40 of the 208 are the direction that publishes silently: the committee's
+ * own filing itemizes $495,305.39 of payments our copy does not hold, 17 of those
+ * committee-years holding not one row while the filing names money out. On those pages
+ * "Payments we can list" is short, and the card's ordinary note offers 2 benign reasons
+ * for a gap — the $200 naming threshold and goods and services — neither of which
+ * applies to a figure the filing's own itemized subtotal contradicts. Leaving that
+ * explanation standing alone would hand a reader a reassurance the check has already
+ * disproved.
+ *
+ * **It never says which figure is the larger one.** The 208 run in both directions,
+ * 168 of them ours being larger, so any wording that picks a side is wrong about a
+ * third of the time — the same trap `splitExplanation` fell into on the money-in side.
+ *
+ * **No figure is withheld, and that is Eugene's ruling of 12 Aug 2026 rather than a
+ * softer reading of it**: where 2 of Minnesota's own publications disagree and we
+ * cannot derive the truth, we show both and say plainly that they disagree. Money out
+ * prints no derived third number, so unlike the money-in split there is nothing a
+ * disagreement could make false by subtraction.
+ */
+export function statedSpendingNote(state: string | null | undefined): string | null {
+  if (state === 'agrees') return null;
+  if (state === 'disagrees') {
+    return (
+      'We compared this against the report the committee filed, and the two do not ' +
+      'agree: its own filing itemizes a different amount of money out from the one ' +
+      'the state’s payments file holds for it. We show what each says and work out ' +
+      'neither, because we cannot tell which is right.'
+    );
+  }
+  return (
+    'We have not yet compared this against the report the committee filed, so we ' +
+    'cannot rule out that its filing names payments our copy is missing.'
+  );
+}
+
+/**
  * The money-out card's goods-and-services line, or null when there is nothing to say.
  *
  * Minnesota's payments file carries goods and services given to a committee as a
