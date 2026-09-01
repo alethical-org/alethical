@@ -538,9 +538,22 @@ Five things about it that are not obvious:
   `failed` for exactly that reason, and names the committee-years so a page can
   withhold those and only those.
 - **It cannot cover everything, and it says so.** The Board serves no report document
-  before 2023, serves none for several report kinds inside the years it does cover, and
-  answers HTTP 200 to every one of those refusals. Those committee-years read
-  `not_checked`, never passed.
+  for several report kinds even inside the years it does cover, and answers HTTP 200 to
+  every one of those refusals. Those committee-years read `not_checked`, never passed.
+  **What it does not mean is that old years are unreachable, and an earlier version of
+  this bullet said so.** It read "the Board serves no report document before 2023",
+  which is wrong: measured 1 September 2026, 9 of 9 sampled 2022 year-end reports and 9
+  of 9 sampled 2023 ones served a real document, across all 3 filer kinds
+  ([#1886](https://github.com/alethical-org/alethical/issues/1886)). Report *type* is a
+  boundary that does hold: 30 of 30 sampled non-year-end 2022 and 2023 reports answered
+  with the 30,424-byte page, across all 5 of the other types the catalogue names.
+  **What decides availability inside those years is not established here, and 3 separate
+  measurements have now failed by mistaking a malformed request for the Board's
+  answer** — a wrong `period` code, a wrong filer `type`, and an amendment index above
+  the one the catalogue calls effective all answer with a refusal that looks like the
+  year being closed. Every one of the 18 documents above served at the filer's real kind
+  and its catalogued index, so nothing in them shows a 2022 or 2023 year-end refusing a
+  correct request. Reproduce a document already held before varying anything.
 - **The reader proves itself before it may accuse anyone.** Every contributor-type
   figure the Board's totals route publishes equals the matching schedule's itemized plus
   non-itemized cash, so the reader is checked against numbers we already trust. When it
@@ -664,8 +677,11 @@ and pulling data back out is free so a restore costs nothing.
    the bucket walk above with **0 of 2 rows recording it**, and `cf_report_document` did
    not exist because the documents were not being kept at all. So the work list is now
    every mapped table carrying all 3 of `object_key`, `compressed_hash` and
-   `mirrored_at`. **That is all a fourth kind of stored body needs** — name those 3
-   columns the same way and the daily job protects it from the day it ships. A table that
+   `mirrored_at`. **That is all a further kind of stored body needs** — name those 3
+   columns the same way and the daily job protects it from the day it ships, which is
+   how the count has since reached 5 with nobody editing the job: `cf_snapshot_body`,
+   `cf_filing_snapshot`, `cf_report_document`, `published_source_copy` and
+   `lobbying_expenditure_snapshot`. A table that
    gains an `object_key` without the other two fails
    `alethical/tests/test_raw_file_mirror.py` by name, because a body the job cannot see
    is the failure that reads as success.
@@ -1062,9 +1078,9 @@ just pipeline local --write --allow-writes     # commit after review
 | `uv run python -m alethical.pipeline.votes`                                              | Vote backfill (debug)                                                                                                                                                                                           |
 | `uv run python scripts/repair_incomplete_vote_records.py --target production`            | Preview the narrow repair that adds only member votes proven missing by a complete official House list. Writing requires both `--write` and `--backup-path`                                                     |
 | `uv run python scripts/repair_vote_roster_identities.py --target production`             | Preview the one-time repair for official House vote names and a missing House service period. Writing requires both `--write` and `--backup-path`                                                               |
-| `just mirror-raw-files [target=production] [dry=true]`                                   | Copy every stored campaign-finance file to Cloudflare R2 and read each copy back to check it arrived whole. Covers all 3 kinds of stored body (downloads, totals archives, report documents), discovered from the schema. Dry-run by default. Only ever adds; a second run copies nothing. The daily job `.github/workflows/mirror-raw-files.yml` does this already — section **H**   |
+| `just mirror-raw-files [target=production] [dry=true]`                                   | Copy every stored campaign-finance file to Cloudflare R2 and read each copy back to check it arrived whole. Covers all 5 kinds of stored body (downloads, totals archives, report documents, copies of cited sources, and the lobbying principal-expenditures download), discovered from the schema. Dry-run by default. Only ever adds; a second run copies nothing. The daily job `.github/workflows/mirror-raw-files.yml` does this already — section **H**   |
 | `just check-campaign-finance-stated-spending [target=local] [dry=true] [years=""] [filers=""]` | Compare each committee's own filed report against the payments OUT we hold, and store one verdict per committee-year. Reads the report documents we already keep, so it asks the Board for nothing; measured at about 21 minutes for 3 years. Dry-run by default. Never blocks a release — section **H2** |
-| `just backfill-campaign-finance-report-documents [target=production] [dry=true] [limit=""]` | Re-fetch and keep the report documents behind verdicts written before #1501, and report how many the Board would no longer serve. Dry-run by default (asks for nothing); `limit` for a scoped check first. Safe to re-run and safe to interrupt — section **H2**            |
+| `just backfill-campaign-finance-report-documents [target=production] [dry=true] [limit=""]` | Fetch and keep every report document we do not hold, and report how many the Board would not serve, broken down by refusal shape. Two things decide what to ask for: a verdict already written, which names a document by its hash, and the Board's own report catalogue, which names a filing version and so reaches the 2022 and 2023 year-end reports no verdict exists for. Defaults to year-end reports from 2022; the script takes `--report-type` and `--from-year` for a later pass over another type or year. Dry-run by default (asks for nothing); `limit` for a scoped check first. Safe to re-run and safe to interrupt — section **H2**            |
 | `uv run python scripts/show_party_and_caucus_money.py --target production`                | Print the money in and out of the state parties and the 4 caucuses from the published set. Reads only, never writes (`--reg-num`, `--years`, `--transfers`) — section **H**                                       |
 | `uv run python -m alethical.pipeline.ai_enrichment {prepare\|submit\|status\|apply} ...` | Direct OpenAI Batch control. Four modes, not the two listed here: `prepare` builds the JSONL batch file and `apply` writes results back, which are the two you actually need to run a batch end to end.         |
 
