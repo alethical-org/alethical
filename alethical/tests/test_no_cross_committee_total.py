@@ -104,7 +104,9 @@ def _committee(
             reported_period_start=None,
             source_url="https://cfb.mn.gov/reports/contributions.csv",
         ),
-        money_out=MoneyOut(REPORTED, Decimal("250.00"), 2, (), None, None, None),
+        money_out=MoneyOut(
+            REPORTED, Decimal("250.00"), 2, (), Decimal("40.00"), None, None, None
+        ),
         independent_spending=IndependentSpendingAbout(REPORTED, None, None),
     )
     split = NamedMoneySplit(
@@ -189,6 +191,7 @@ def test_every_figure_on_a_card_refuses_the_same_way():
             first.finance.money_out.itemized_payment_total,
             second.finance.money_out.itemized_payment_total,
         ),
+        (first.finance.money_out.in_kind_total, second.finance.money_out.in_kind_total),
         (first.split.reported_total, second.split.reported_total),
         (first.split.named_total, second.split.named_total),
         (first.split.named_cash_total, second.split.named_cash_total),

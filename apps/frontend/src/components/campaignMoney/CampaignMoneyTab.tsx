@@ -46,6 +46,7 @@ import {
   splitExplanation,
   unnamedShareLabel,
 } from '../../lib/legislatorCampaignMoney';
+import { inKindOutNote } from '../../lib/committeeMoney';
 import { useLegislatorOutsideSpending } from '../../hooks/useAppQueries';
 import { outsideSpendingYears } from '../../lib/outsideSpending';
 import { OutsideSpendingCard } from '../legislator/OutsideSpendingCard';
@@ -428,6 +429,7 @@ function MoneyOut({
   if (!moneyOut) return null;
   const total = moneyFigure(moneyOut.state, moneyOut.itemizedPaymentTotal);
   const reportedOut = formatMoney(moneyOut.reportedTotal);
+  const inKindOut = inKindOutNote(moneyOut.inKindTotal);
   return (
     <View style={styles.block}>
       <Text accessibilityRole="header" aria-level={4} style={styles.h4}>
@@ -457,6 +459,10 @@ function MoneyOut({
         note={paymentCountLabel(moneyOut.itemizedPayments)}
         isDesktop={isDesktop}
       />
+      {/* How much of that figure was not cash, in the same place and the same shape as
+          money in's own goods-and-services line above. Without it a reader takes the
+          whole payments figure for cash the committee spent (#1894). */}
+      {inKindOut ? <Text style={styles.explain}>{inKindOut}</Text> : null}
       {/* Two different sentences, because "here is a figure and there is no bigger
           one" and "here is no figure" are two different things to explain. Under
           "Not reported" the first sentence would be explaining a number that is not

@@ -457,8 +457,22 @@ Top to bottom:
    on a committee confirmed for a sitting legislator, so they render inside a legislator
    profile as well as on a committee page. Goods and services fully account for the excess
    on 254 of the 389, which is most and not all, so the note names the mechanism and never
-   claims it explains the committee on screen. The money-in card can be specific because
-   the served figures include an in-kind total; money out has no equivalent yet.
+   claims it explains the committee on screen.
+
+   **And directly under "Payments we can list", where the committee-year has any, a line
+   naming how much of that figure was goods and services rather than money** -- the same
+   line money in has drawn under its named donations since
+   [#1332](https://github.com/alethical-org/alethical/issues/1332), and the reason it took
+   until [#1894](https://github.com/alethical-org/alethical/issues/1894) is that the server
+   sent no such figure for money out. Minnesota's payments file marks each payment cash or
+   in kind, and 21,983 of its 377,860 rows are in kind, across 2,393 of 12,319
+   committee-years. The line states the amount and stops: it never says the goods and
+   services are *why* the 2 money-out figures differ, because that is true of 254 of the
+   389 and false of the other 135, and the note above already carries the honest general
+   explanation. **Nothing is drawn where the amount is not above zero**, which covers both a
+   committee-year whose payments we hold none of and one whose payments are all cash. 97
+   committee-years hold in-kind rows summing to exactly $0.00, and none of them prints a
+   "$0.00" line.
 
 7. **Three tabs. The first two — Who gave and Where it went** — the six largest payments,
    ranked largest first (honest inside one committee; never across committees), each

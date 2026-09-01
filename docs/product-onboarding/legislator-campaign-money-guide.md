@@ -230,6 +230,17 @@ the kind of payment. Two figures, exactly as money in has 2, and never subtracte
 `.claude/rules/grounded-answers.md` rule 12 wants a second number beside every money
 figure, and until 31 Aug 2026 money out was the only figure on this tab with none.
 
+**And under "Payments we can list", where there is any, how much of it was goods and
+services rather than money.** Minnesota's payments file marks each payment cash or in kind,
+and this tab drew no such line until
+[#1894](https://github.com/alethical-org/alethical/issues/1894) because the legislator route
+sent no figure for it, while the donations half of the same card has named its own in-kind
+amount since [#1332](https://github.com/alethical-org/alethical/issues/1332). The line states
+the amount and explains nothing: it never claims the goods and services are why the 2
+money-out figures differ. Absent whenever the amount is not above zero, which is both a
+committee-year whose payments we hold none of and one whose payments are all cash -- never a
+drawn "$0.00", for the same reason nothing else here is.
+
 **What used to be here, and it was false.** The tab said Minnesota "publishes no official
 total for a committee's spending". Minnesota publishes one: the filed report's own "Total
 Expenditures and Disbursements" line, held in `cf_filing_figure.total_expenditures` for

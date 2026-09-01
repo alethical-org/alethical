@@ -571,6 +571,7 @@ interface ApiLegislatorCampaignMoneyPayload {
       state: NonNullable<LegislatorCampaignMoney['committees'][number]['moneyOut']>['state'];
       itemized_payment_total?: string | null;
       itemized_payments?: number | null;
+      in_kind_total?: string | null;
       reported_total?: string | null;
       reported_through?: string | null;
       by_type?: { type: string; total: string; payments: number }[];
@@ -2338,6 +2339,7 @@ export async function getLegislatorCampaignMoneyFromApi(
             state: committee.money_out.state,
             itemizedPaymentTotal: committee.money_out.itemized_payment_total ?? null,
             itemizedPayments: committee.money_out.itemized_payments ?? null,
+            inKindTotal: committee.money_out.in_kind_total ?? null,
             reportedTotal: committee.money_out.reported_total ?? null,
             reportedThrough: committee.money_out.reported_through ?? null,
             byType: (committee.money_out.by_type ?? []).map((entry) => ({
@@ -2975,6 +2977,7 @@ interface ApiCommitteeMoneyPayload {
     state: string;
     itemized_payment_total?: string | null;
     itemized_payments?: number | null;
+    in_kind_total?: string | null;
     by_type?: { type: string; total: string; payments: number }[] | null;
     reported_total?: string | null;
     reported_through?: string | null;
@@ -3089,6 +3092,7 @@ export async function getCommitteeFinanceFromApi(
       state: committeeBlockState(payload.money_out?.state),
       itemizedPaymentTotal: payload.money_out?.itemized_payment_total ?? null,
       itemizedPayments: payload.money_out?.itemized_payments ?? null,
+      inKindTotal: payload.money_out?.in_kind_total ?? null,
       byType: (payload.money_out?.by_type ?? []).map((entry) => ({
         type: entry.type,
         total: entry.total,

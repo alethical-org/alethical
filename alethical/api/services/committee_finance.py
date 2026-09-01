@@ -199,7 +199,19 @@ class MoneyOut:
     itemized_payment_total: Decimal | None
     itemized_payments: int | None
     by_type: tuple[ExpenditureTypeTotal, ...]
-    #: The filing's own "Total expenditures" figure — rule 12's second number for
+    #: How much of ``itemized_payment_total`` was goods and services rather than
+    #: money, from the payments file's own ``In-kind?`` column. The money-out twin
+    #: of ``NamedMoneySplit.named_in_kind_total``, and the figure that lets a card
+    #: name an amount where it previously named only the mechanism
+    #: ([#1894](https://github.com/alethical-org/alethical/issues/1894)).
+    #:
+    #: ``None`` means we cannot speak for this filer-year's payment rows at all,
+    #: which is every state but ``REPORTED``. Under ``REPORTED`` we hold the rows
+    #: and every one of them carries a ``Yes`` or ``No``, so a filer-year with no
+    #: in-kind row is a measured ``0`` rather than silence -- the one place absence
+    #: does mean zero here, and only because the column is never blank.
+    in_kind_total: Decimal | None
+    #: The filing's own "Total expenditures" figure -- rule 12's second number for
     #: money out, a separate claim by a separate source, never added to or
     #: subtracted from the itemized sum. ``None`` when no filings snapshot is
     #: published or the totals copy cannot speak for this filer-year.
@@ -517,6 +529,32 @@ def _reported_expenditures(
     return None, None
 
 
+def _in_kind_out(
+    db: Session, release: Release, registration_number: str, year: int
+) -> Decimal:
+    """How much of this filer-year's itemized money out was goods and services.
+
+    **Only ever called once the caller knows it holds this filer-year's payment
+    rows**, which is why a year the reader does not return reads as ``0`` here
+    rather than as ``None``. Every payment row in the live release carries a ``Yes``
+    or a ``No`` in the source's own ``In-kind?`` column, so "we hold 40 rows and
+    none of them is in kind" is a measurement rather than silence. Called anywhere
+    else this would manufacture a zero out of an absent filer-year, which is the
+    thing `.claude/rules/grounded-answers.md` rule 12 forbids.
+
+    The honest limit: a row whose ``In-kind?`` is blank counts as not-in-kind, the
+    same reading ``contribution_cash`` takes on the other side. No such row exists
+    in the live release, and the error it could cause is a figure too small, which
+    a surface prints as nothing rather than as a wrong amount.
+    """
+    for entry in reader.expenditure_in_kind(
+        db, release, registration_number, years=[year]
+    ):
+        if entry.year == year:
+            return entry.total
+    return Decimal("0")
+
+
 def money_out(
     db: Session, release: Release, *, registration_number: str, year: int
 ) -> MoneyOut:
@@ -536,7 +574,14 @@ def money_out(
         years = reader.money_out(db, release, registration_number, years=[year])
     except ReleaseNoLongerHeld:
         return MoneyOut(
-            UNAVAILABLE, None, None, (), reported_total, reported_through, source_url
+            UNAVAILABLE,
+            None,
+            None,
+            (),
+            None,
+            reported_total,
+            reported_through,
+            source_url,
         )
 
     found = next((entry for entry in years if entry.year == year), None)
@@ -545,7 +590,14 @@ def money_out(
     ):
         # Rows we hold and cannot total: our gap, not the committee's silence.
         return MoneyOut(
-            UNAVAILABLE, None, None, (), reported_total, reported_through, source_url
+            UNAVAILABLE,
+            None,
+            None,
+            (),
+            None,
+            reported_total,
+            reported_through,
+            source_url,
         )
     if found is None:
         return MoneyOut(
@@ -553,6 +605,7 @@ def money_out(
             None,
             None,
             (),
+            None,
             reported_total,
             reported_through,
             source_url,
@@ -565,6 +618,7 @@ def money_out(
             ExpenditureTypeTotal(bucket.label, bucket.total, bucket.rows)
             for bucket in found.by_label
         ),
+        _in_kind_out(db, release, registration_number, year),
         reported_total,
         reported_through,
         source_url,

@@ -601,6 +601,13 @@ export interface CampaignCommitteeMoney {
     state: MoneyBlockState;
     itemizedPaymentTotal: string | null;
     itemizedPayments: number | null;
+    /** How much of ``itemizedPaymentTotal`` was goods and services rather than money,
+     *  from the payments file's own In-kind? column. The money-out twin of
+     *  `split.namedInKindTotal`, and the reason the money-out note can name an amount
+     *  instead of naming goods and services as a general possibility (#1894). Null
+     *  wherever we cannot speak for this committee-year's payment rows at all; a
+     *  measured "0" where we hold the rows and none of them is in kind. */
+    inKindTotal: string | null;
     /** The committee's own reported figure for the period, and the day that period
      *  ends. Rule 12's second number for money out, which this tab drew nowhere until
      *  now. Null where our copy holds none, and null on a special-election filer-year
@@ -792,6 +799,13 @@ export interface CommitteeMoney {
     itemizedPaymentTotal: string | null;
     itemizedPayments: number | null;
     byType: { type: string; total: string; payments: number }[];
+    /** How much of ``itemizedPaymentTotal`` was goods and services rather than money,
+     *  from the payments file's own In-kind? column. The money-out twin of
+     *  `split.namedInKindTotal`, and the reason the money-out note can name an amount
+     *  instead of naming goods and services as a general possibility (#1894). Null
+     *  wherever we cannot speak for this committee-year's payment rows at all; a
+     *  measured "0" where we hold the rows and none of them is in kind. */
+    inKindTotal: string | null;
     /** The filing's own "Total expenditures" figure — rule 12's second number for
      *  money out. A separate claim by a separate source, never added to or
      *  subtracted from the payments we can list. */

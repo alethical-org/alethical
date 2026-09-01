@@ -698,6 +698,77 @@ def money_out(
     return [MoneyOut(reg_num, year, tuple(by_year[year])) for year in sorted(by_year)]
 
 
+@dataclass(frozen=True)
+class ExpenditureInKind:
+    """One filer-year's payments out that were goods and services, not money.
+
+    The money-out twin of ``ContributionCash``, and it exists for the same reason
+    read from the other end: the Board's own reported total counts money the
+    committee paid, while the payments file also carries goods and services given
+    to it, so our itemized sum can exceed the filing's figure without either being
+    wrong. ``ContributionCash`` answers "what may be subtracted"; this answers
+    "how much of the difference is goods and services", which is the figure a page
+    needs to be exact instead of naming a mechanism
+    ([#1894](https://github.com/alethical-org/alethical/issues/1894)).
+
+    Measured on the live release: 21,983 of 377,860 payment rows are in kind,
+    across 2,393 of 12,319 committee-years, median $794.67 and largest
+    $487,907.26. So this is ordinary rather than rare, and it is real money.
+
+    ``in_kind`` is the source's own column and the truth test is the loader's:
+    ``'yes'``, case-folded. Every value in the live release is ``Yes`` or ``No``,
+    with no nulls and no row missing an amount, which is what lets a caller read
+    "we hold rows and none is in kind" as a measured nothing rather than silence.
+
+    **A year with no in-kind rows is absent from the result, not a zero.** Absence
+    in an itemized file is silence, the same rule as ``money_in`` and ``money_out``.
+    Deciding that silence means zero is the caller's to make, and only a caller that
+    already knows it holds this filer-year's payment rows may make it.
+    """
+
+    reg_num: str
+    year: int
+    total: Decimal
+    rows: int
+
+
+def expenditure_in_kind(
+    db: Session,
+    release: Release,
+    reg_num: str,
+    years: Optional[Iterable[int]] = None,
+) -> list[ExpenditureInKind]:
+    """Per year, how much of this filer's itemized money out was goods and services.
+
+    Sums the same ``amount`` column and the same rows ``money_out`` sums, with no
+    label filter, for the reason that function's docstring gives: a filter naming
+    ``Campaign Expenditure`` or ``General Expenditure`` reports one kind of filer as
+    having spent nothing.
+    """
+    clause, year_values = _year_clause(years)
+    params: dict[str, object] = {
+        "snapshot": release.expenditures.snapshot_id,
+        "reg_num": reg_num,
+    }
+    if year_values:
+        params["years"] = year_values
+    rows = db.execute(
+        text(
+            "SELECT year, coalesce(sum(amount), 0), count(*) "
+            "  FROM cf_expenditure_row "
+            " WHERE snapshot_id = :snapshot AND committee_reg_num = :reg_num "
+            "   AND lower(coalesce(in_kind, '')) = 'yes' "
+            "   AND year IS NOT NULL" + clause + " "
+            " GROUP BY year ORDER BY year"
+        ),
+        params,
+    ).all()
+    return [
+        ExpenditureInKind(reg_num, int(year), total, int(count))
+        for year, total, count in rows
+    ]
+
+
 # --- Transfers between registered filers -------------------------------------
 
 
