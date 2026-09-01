@@ -1935,33 +1935,68 @@ error status. Reproduced from the Board's own page in a browser with its own ses
 is the source's gap and not our misuse of it.
 
 **There is no boundary by year, and this paragraph asserted one for 3 weeks.** It said "2022 and
-earlier gave 0 of 69" and put the boundary at 2023. Both are wrong. Measured against the whole
-population rather than a sample — the [#1670](https://github.com/alethical-org/alethical/issues/1670)
-backfill asked the Board for **every** filed 2024-2026 report, 9,236 of them, on 31 Aug 2026:
+earlier gave 0 of 69" and put the boundary at 2023. Both are wrong.
 
-| filing year | year-end reports served | every other type served |
-|---|---:|---:|
-| 2026 | 7 of 7 | **2,223 of 2,249** |
-| 2025 | 1,269 of 1,309 | **0 of 318** |
-| 2024 | 236 of 1,125 | **0 of 3,022** |
+**A first attempt to correct it, landed 1 Sep 2026 in
+[PR #1898](https://github.com/alethical-org/alethical/pull/1898), put a table here whose columns were
+headed "served" and were in fact counts of `cf_filing_report.filed_date`. A filed date and a served
+document are different facts, and the table was wrong by 4.7x in one cell.** Caught the same day by
+the session `alethical-be`. Written out rather than replaced silently, because it was used to overturn
+somebody else's finding, and a wrong correction of a correction is worse than the error it replaced.
+Corrected figures, all read from the live database on 1 Sep 2026:
 
-**The rule is the election cycle, not the year and not the type alone: the current cycle's reports
-are served whatever their type, and an older report is served only if it is a year-end.** Every one
-of the 3,340 non-year-end reports from 2024 and 2025 answered the 30,424-byte page, and so did 3 of
-3 sampled 2022 and 2023 ones (filer 17868's 2022 pre-primary, filer 11880's 2022 pre-general, filer
-12604's 2023 pre-primary). Pre-general reports are served in no year at all: 0 of 1,041 across
-2024-2026.
+| year | report kind | catalogued | filed | carry a filed date | documents we hold |
+|---|---|---:|---:|---:|---:|
+| 2026 | year-end | 7 | 7 | 7 | 7 |
+| 2026 | every other type | 2,376 | 2,249 | 2,223 | 1,246 |
+| 2025 | year-end | 1,362 | 1,309 | 1,269 | 1,277 |
+| 2025 | every other type | 320 | 318 | 0 | 0 |
+| 2024 | year-end | 1,171 | 1,125 | **236** | **1,113** |
+| 2024 | every other type | 3,133 | 3,022 | 0 | 0 |
 
-**And 2022 and 2023 year-end reports are served, which the old boundary denied.** Filer 17868's 2023
-year-end returns 22,855 bytes at its catalogued amendment index and its 2022 year-end returns 719,590.
-A parallel probe on [#1886](https://github.com/alethical-org/alethical/issues/1886) reached the same
-conclusion from the other direction, sampling 9 of 9 2022 and 9 of 9 2023 year-end reports served
-across all 3 filer kinds. So **nothing before 2024 has been swept**, and the 1,206 filed 2023 reports
-we hold no document for are worth asking about rather than assumed gone.
+`catalogued` is every `cf_filing_report` row; `filed` is those carrying an amendment record, which is
+the Board's own signal that a report was filed (§9.6); `carry a filed date` is `filed_date`, set only
+where a document was read AND its received stamp parsed; `documents we hold` is `cf_report_document`,
+which is content-addressed and retained indefinitely (§4.5) and therefore spans every run this
+project has ever made rather than one.
 
-Availability still varies per filer-year inside that rule, so the only way to know is to ask: 2024
-year-end reports served 236 of 1,125, and the old figures above ("27 of 110", "pre-primary 7 of 25")
-remain a true account of one 110-report sample and are simply too small to have found the shape.
+**Read the 2024 year-end row, because it is the whole lesson.** 236 carry a date and **1,113
+documents are held**, so the Board served at least 1,113 of the 1,171 — about 95%, not the 21% the
+old table implied. The 236 is a count of how far one interrupted run got, not a rate of availability.
+And it fails the other way too: 2026's other types show 2,223 dated against 1,246 held, because the
+backfill reads a date out of a document without keeping the document. **So a filed date measures
+whether the Board recorded a receipt date we could read, and never whether it serves the document.**
+
+**The rule still holds, and it rests on direct probes rather than on that table: the current cycle's
+reports are served whatever their type, and an older report is served only if it is a year-end.**
+What actually establishes each half:
+
+- **Non-year-end older reports are refused.** 30 of 30 sampled 2022 and 2023 non-year-end reports
+  answered the 30,424-byte page, across all 5 non-year-end types the catalogue names
+  ([#1886](https://github.com/alethical-org/alethical/issues/1886)), plus 3 of 3 measured here (filer
+  17868's 2022 pre-primary, filer 11880's 2022 pre-general, filer 12604's 2023 pre-primary). For 2025
+  the whole population was asked and refused: 318 filed non-year-end reports, 0 dated and 0 documents
+  held. **The 2024 equivalent is not evidence** — that run stopped partway through 2024, so its 0 of
+  3,022 counts reports nobody asked about as refusals, which is the same mistake in a different cell.
+- **Older year-end reports are served.** 1,113 documents held for 2024 alone, 1,277 for 2025, plus
+  filer 17868's 2023 year-end at 22,855 bytes and its 2022 year-end at 719,590, and 9 of 9 2022 and
+  9 of 9 2023 year-end reports across all 3 filer kinds (#1886).
+
+**Two claims that came with the bad table are withdrawn.** "Availability varies per filer-year, so
+the only way to know is to ask" rested entirely on the 236, and at 95% there is no such variance to
+report. And "pre-general reports are served in no year at all: 0 of 1,041" is a count of reports
+carrying no date, not of refusals; pre-general has 1,062 catalogue rows across 2024-2026 and 0
+documents held, which is consistent with never being served and equally consistent with never being
+asked. It stays an open question.
+
+**The population figure in that paragraph was also wrong.** It said the backfill asked for "every
+filed 2024-2026 report, 9,236 of them". 9,236 is the count of filed reports from **2023** onward,
+which is what the run targeted; 2024-2026 alone is **8,030**, and the run stopped inside 2024 without
+reaching them all. The old figures this paragraph replaced ("27 of 110", "pre-primary 7 of 25") remain
+a true account of one 110-report sample, too small to have found the shape.
+
+**So nothing before 2024 has been swept**, and the 1,206 filed 2023 reports we hold no document for
+are worth asking about rather than assumed gone.
 
 The request, when it works:
 
@@ -2313,10 +2348,12 @@ reads `June 1, 2023`.
 party unit, because the header above it differs by filer kind. Same failure this section's
 neighbours record for reading schedule totals by offset (§9.4).
 
-**NULL is the ordinary answer and never means the report was unfiled.** Of the 9,236 filed 2024-2026
-reports the backfill asked for, **3,735 came back with a readable date and 5,501 did not**, and §9.4
-carries why: the Board serves an older report only if it is a year-end, so all 3,340 non-year-end
-2024 and 2025 reports returned its 30,424-byte page. A further **2 of 38 documents in a smaller
+**NULL is the ordinary answer and never means the report was unfiled.** The backfill targeted the
+**9,236** filed reports from 2023 onward, stopped inside 2024, and left **3,735** carrying a readable
+date. §9.4 carries the shape: the Board serves an older report only if it is a year-end, and the 318
+filed non-year-end 2025 reports were asked for as a whole population and refused as a whole
+population. **The equivalent 2024 figure is not evidence of refusal**, because the run stopped before
+reaching most of them, and a NULL there counts an unasked report. A further **2 of 38 documents in a smaller
 54-report probe were scans `pypdf` reads as 0 lines**, which is the one cause that survives a served
 document.
 
