@@ -1329,11 +1329,11 @@ a committee helps say *whose* committee it is, and says nothing about what the m
 
 **Coverage is two different numbers, and confusing them is the failure to avoid.** How much the
 proposer narrowed down is not how much a person has checked. Measured against production's 200
-sitting members, with §9.7's directory wired in: **144 matched, 56 ambiguous, 0 unmatched** —
-every sitting member has at least one proposal — and **0 confirmed**, because nothing is linked
-until someone answers. Without the directory the same code reads 108 and 92, reproducible with
-`--no-filer-directory`. A surname
-pool too large to show is capped and the number hidden is printed, because silently cutting the 31
+sitting members on 28 Aug 2026, with §9.7's directory wired in: **144 matched, 56 ambiguous,
+0 unmatched** — every sitting member has at least one proposal. What a person has confirmed is the
+other number, and the first review sitting on 31 Aug 2026 made it **242 accounts across all 200
+sitting members**, with 33 checked and ruled out and 2 read and left undecided. Without the
+directory the same code reads 108 and 92, reproducible with `--no-filer-directory`. A surname pool too large to show is capped and the number hidden is printed, because silently cutting the 31
 committees named Johnson would read as having considered them all.
 
 **The hard cases are enumerated rather than discovered late**, all of them real on 11 Aug 2026: a
@@ -1472,17 +1472,19 @@ wording can reach it. The count is also temporary and shrinking, so gating would
 permanent mechanism to hide a problem that goes away: the shipped proposer narrows 200 sitting
 members to **144 matched and 56 ambiguous, with 0 unmatched**, and each of the 56 is a choice
 between two or more of that member's own committees rather than a failure to identify them (§5.1).
-**The number a page may print is the confirmed count, and today that is 0**, because a proposal is
-a question and only an answer is a link. Two earlier figures are superseded and recorded so nobody
-reads a drop as a regression: an independent estimate of 111
-([#1329](https://github.com/alethical-org/alethical/issues/1329)), and 108 from the same code
+**The number a page may print is the confirmed count**, because a proposal is a question and only
+an answer is a link. The first review sitting, on 31 Aug 2026, put that count at **242 accounts
+across all 200 sitting members**, with 33 checked and ruled out and 2 read and left undecided.
+Two earlier figures are superseded and recorded so nobody reads a drop as a regression: an
+independent estimate of 111 ([#1329](https://github.com/alethical-org/alethical/issues/1329)), and 108 from the same code
 before §9.7's filer directory was wired in.
 
-So on the day this ships the unconfirmed state is not an edge case, it is the tab: **all 200
-profiles show it**, and they drain one at a time as answers land. The 144 and 56 describe how hard
+So the unconfirmed state is never an edge case to design around: **every profile starts in it**
+and they drain one at a time as answers land, which is where all 200 stood until the 31 Aug 2026
+sitting and where a new member or a new biennium starts again. The 144 and 56 describe how hard
 each review is, never what a reader sees. Read those two numbers in the wrong order and a design
-budgets its care for 56 exceptions against 144 populated pages, when the truth on launch day is
-200 unconfirmed pages and none populated.
+budgets its care for 56 exceptions against 144 populated pages, when before any sitting the truth
+is 200 unconfirmed pages and none populated.
 What the unconfirmed state must do instead is explain itself, and never render "no committee is
 registered for this person" the same as "we have not confirmed which of their committees is
 theirs to show".
