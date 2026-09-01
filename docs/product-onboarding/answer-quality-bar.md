@@ -2,10 +2,9 @@
 
 <!-- describes: alethical/eval/answer_eval.py, alethical/eval/ground_truth.py, alethical/eval/fixtures/answer_questions.json, alethical/eval/fixtures/judge_calibration.json, scripts/answer_eval.py, alethical/api/routers/me.py, alethical/api/routers/ask.py, alethical/api/services/ask_router.py -->
 
-> **Net:** Every word of every AI answer a reader sees is written by one model, and
-> until now we had no way to say whether a different model would write better ones.
+> **Net:** Every word of every AI answer a reader sees is written by one model.
 > This document defines "good enough" concretely enough to score, so "upgrade the
-> model" becomes a measurement instead of a hunch. The eval that implements it is
+> model" is a measurement instead of a hunch. The eval that implements it is
 > `alethical/eval/answer_eval.py`, run by `scripts/answer_eval.py`. Filed as
 > [#865](https://github.com/alethical-org/alethical/issues/865).
 >
@@ -136,31 +135,32 @@ labeled against what the model sees instead of against the source. Anything scor
 completeness has to be labeled from the **whole bill**, and the eval now checks
 against a count taken from it.
 
-### Two rules that changed after the first real run, and why
+### Why a judge decides refusal, and why a grounding objection needs both judges
 
-Both of the original rules made the eval unable to tell models apart. Recording
-the correction here because the reasoning matters more than the rule:
+Both rules exist because their tempting alternatives made the eval unable to tell
+models apart, measured in §10's run:
 
-**The refusal gate used to be a regular expression, and it was wrong.** The
-production prompt instructs the model to "answer the supported part and say what is
-not covered", so a *good* answer routinely closes with a caveat: *"...the bill does
-not specify how often the training must be repeated."* A pattern cannot tell that
-sentence apart from a whole answer that declines. It fired on four of gpt-4o-mini's
-best answers and scored them as refusals. Whether an answer declines is a property
-of the answer as a whole, so a judge decides it and the pattern is kept — renamed
-`mentions_missing_coverage` — as an independently reported signal. A single judge
-calling it a refusal is enough: declining is visible and judges agree on it readily,
-and the cautious read of a split is that the answer did not answer.
+**A judge decides whether an answer declines; no pattern can.** The production
+prompt instructs the model to "answer the supported part and say what is not
+covered", so a *good* answer routinely closes with a caveat: *"...the bill does not
+specify how often the training must be repeated."* A pattern cannot tell that
+sentence apart from a whole answer that declines: a regular-expression gate fired on
+four of gpt-4o-mini's best answers in §10's run and scored them as refusals. Whether
+an answer declines is a property of the answer as a whole, so a judge decides it and
+the pattern is kept — renamed `mentions_missing_coverage` — as an independently
+reported signal. A single judge calling it a refusal is enough: declining is visible
+and judges agree on it readily, and the cautious read of a split is that the answer
+did not answer.
 
-**The grounding gate used to fail an answer if *either* judge objected.** The
-reasoning was that a disputed answer is not a safe answer. Measurement killed it:
-the two judges split on grounding for **3 to 8 of 20 answers per model**, so the
-union of their objections measured whichever judge was stricter, not the model — and
-all six candidates failed. An objection now has to survive the second judge to
-count. Disputed calls are not forgiven, they are **counted and printed** as
-`disputed`, so a model with many disputes reads as less certainly grounded than one
-with none. This is the same standard the repo applies to its own findings: a claim
-counts when it survives an independent check.
+**A grounding objection counts only when it survives the second judge.** The
+stricter alternative — fail an answer if *either* judge objects — reads as safety
+and measures the judges instead: in §10's run the two judges split on grounding for
+**3 to 8 of 20 answers per model**, so the union of their objections measured
+whichever judge was stricter, not the model — and all six candidates failed.
+Disputed calls are not forgiven, they are **counted and printed** as `disputed`, so
+a model with many disputes reads as less certainly grounded than one with none.
+This is the same standard the repo applies to its own findings: a claim counts when
+it survives an independent check.
 
 Four **graded** dimensions, scored **0 / 1 / 2** each — 8 points total — and only on
 answers that clear both gates:
@@ -186,9 +186,9 @@ an answer that is weak on half of what we claim to care about at once.
 6. It wins under **both** judges, not just one (§5).
 
 Conditions 4 and 5 are [#895](https://github.com/alethical-org/alethical/issues/895)'s,
-and both exist for the same reason: **the bar was scoring an average, and a reader
-gets one answer.** Everything above them was measured as a central tendency over 20
-questions, which is the right shape for "is this model good" and blind to "what is
+and both exist for the same reason: **an average hides the worst single answer, and a
+reader gets one answer.** Everything above them is a central tendency over the
+fixture, which is the right shape for "is this model good" and blind to "what is
 the worst thing it does". Both of the failures this document spends the most words on
 live in that blind spot.
 
@@ -580,28 +580,29 @@ at 8 and 16 passages alongside production's 4. This separates the two explanatio
 for a bad answer, which no amount of model comparison can tell apart on its own:
 *the writer is weak* versus *the writer was not shown enough*.
 
-> **Since #868, `@N` moves a smaller knob than it did here.** Production no longer
-> has one budget: an enumerate-everything question reads up to 20,000 words, and
-> only a *specific* question keeps the fixed four passages. So `@16` now widens 6
-> of the 20 fixture questions rather than all of them, and the arm is kept in §12
-> as a control rather than as a candidate. The question this section asks has also
-> largely been answered — see §12's recall table, where the same model handed the
-> whole bill still reports 19 of 98 names, which is as clean a "the writer is weak"
-> result as this eval can produce.
+> **`@N` moves a smaller knob than these tables suggest.** Production has no single
+> budget ([#868](https://github.com/alethical-org/alethical/issues/868)): an
+> enumerate-everything question reads up to 20,000 words, and only a *specific*
+> question keeps the fixed four passages. So `@16` widens 6 of the 20 fixture
+> questions rather than all of them, and the arm is kept in §12 as a control rather
+> than as a candidate. The question this section asks is also largely answered — see
+> §12's recall table, where the same model handed the whole bill still reports 19 of
+> 98 names, which is as clean a "the writer is weak" result as this eval can
+> produce.
 
 The measurement that motivates it, counted on HF 719 while snapshotting:
 
 | Passages given | Words seen | Cities visible | Counties visible |
 |---|---|---|---|
-| **4** (production today) | 870 | 13 | **0** |
+| **4** (production's specific-question budget) | 870 | 13 | **0** |
 | 8 | 1,762 | 20 | 4 |
 | 16 | 3,500 | 49 | 6 |
 | the whole bill | 15,430 | **98** | **17** |
 
 Two conclusions, and the second is the important one:
 
-1. **At today's budget not a single county is visible.** Production is not being
-   careless when it says none are named — it is reporting the only thing it can see.
+1. **At a 4-passage budget not a single county is visible.** A model that says none
+   are named is not being careless — it is reporting the only thing it can see.
    That is a structural problem, and no stronger writer fixes it.
 2. **Even 16 passages shows 6 of 17 counties and 49 of 98 cities.** Widening the
    window narrows the error without making a complete list possible. So a wider
