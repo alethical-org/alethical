@@ -1920,8 +1920,20 @@ def rows_present(db: Session, spec: DatasetSpec, snapshot_id: uuid.UUID) -> int:
 def copy_rows(db: Session, spec: DatasetSpec, copy_path: str) -> None:
     """Load one file's rows with ``COPY``, inside the caller's transaction.
 
-    583,152 rows land in about 1.6 seconds this way, which is what keeps the
-    publish transaction short enough to hold the pointer lock through it.
+    The point of ``COPY`` is that the publish transaction stays short enough to hold
+    the pointer lock through it. **The 1.6 seconds this docstring used to claim for
+    583,152 contribution rows was measured before migration ``0040_cf_name_indexes``
+    existed, and it no longer describes anything.** These tables keep their indexes
+    across a load -- nothing here drops or rebuilds a table, so the only writes are a
+    snapshot-scoped ``DELETE`` and this ``COPY`` -- which means the COPY pays per-row
+    index maintenance for every index on the table, in line, inside this transaction.
+
+    Measured on 583,218 real contribution rows, 7 interleaved runs per configuration
+    (#1690): pk plus the pre-0040 recipient index, 4.22 s median; all 5 of 0040's name
+    indexes as shipped, 20.11 s median. That is a local Postgres on an SSD rather than
+    production's network-attached storage, so the ratio transfers and the seconds do
+    not. **No production load has run since those indexes landed**, so what the real
+    publish transaction now holds is unmeasured; the next load is what settles it.
     """
     columns = ", ".join(
         f'"{name}"' for name in ("snapshot_id", "row_number", *spec.attributes)
