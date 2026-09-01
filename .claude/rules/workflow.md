@@ -233,7 +233,7 @@ rest; `.claude/rules/grounded-answers.md` carries the product-behavior rules.
 
     **The test on any sentence about the past: is this an instruction, or evidence for one?** Two instructions is the bug. One instruction and its evidence is the design.
 
-    **Cut:** a superseded design still described in a spec; the same rule written out in its own words in more than 1 file; a rule stated twice in 1 file, once live and once dead; dated decision narration ("this replaces an earlier step", "used to work the other way", "as of February 2"). Where old behaviour must stay gone, ban it in the present rather than telling its story: "never write X", not "we used to write X and then changed our minds".
+    **Cut:** a superseded design still described in a spec; the same rule written out in its own words in more than 1 file; a rule stated twice in 1 file, once live and once dead; dated decision narration ("this replaces an earlier step", "used to work the other way", "as of February 2"). Where old behaviour must stay gone, ban it in the present rather than telling its story: "never write X", not "we used to write X and then changed our minds". Added doc lines carrying such narration fail CI (`scripts/check_timeless_docs.py`, added lines only; a genuine evidence line escapes with `<!-- timeless-check-ignore: <why> -->`).
 
     **Keep:** the dated measurement or incident sitting under a rule, compressed, because a rule whose cost is invisible gets reasoned around; the short who-ruled note ("Eugene, Aug 25 2026"), which marks a human decision rather than an agent's guess; and dates a published page is required to print. Evidence follows its rule, never leads it, and never reads as a second instruction.
 
