@@ -197,8 +197,8 @@ Two tiers: a **primary** tier for scanning, a **secondary** meta block one glanc
   short_title [#304](https://github.com/alethical-org/alethical/pull/304).)
 - **AI summary** — 2–3 lines, no eyebrow label. (`AIEnrichment` `bill_summary`.) Always
   present *on this screen*, because its backing query still requires one
-  (`bill_list_stmt` gates on `Bill.has_current_summary`) — but the shared card itself no
-  longer guarantees a summary line, and omits it entirely rather than falling back to the
+  (`bill_list_stmt` gates on `Bill.has_current_summary`) — but the shared card itself does
+  not guarantee a summary line, and omits it entirely rather than falling back to the
   official statutory title when a surface hands it a bill with no summary yet
   ([#1007](https://github.com/alethical-org/alethical/issues/1007), the Tracked page). Read
   this bullet as this screen's contract, not the component's. This
@@ -397,26 +397,25 @@ same action and both are on screen at once (shape and label conventions:
 cross-sell — a failed keyword search routed into Ask could end in a refusal, which
 `.claude/rules/grounded-answers.md` #2 forbids inviting.
 
-## Backend additions this screen needed — all three shipped ([#134](https://github.com/alethical-org/alethical/issues/134))
+## What this screen needs from the API ([#134](https://github.com/alethical-org/alethical/issues/134))
 
-Written as pending requirements; kept as a record of what `GET /api/v1/bills` gained, because
-each is still the thing the screen depends on:
+Three things `GET /api/v1/bills` provides exist for this screen, and each is still the thing
+the screen depends on:
 1. **Bill-number search** — `q` matches `file_type`+`file_number` / `bill_key`, not only
-   the bill's text. Shipped, and tightened to an *exclusive* ID lookup in
-   [#569](https://github.com/alethical-org/alethical/pull/569) — see the Filters table.
-2. **Total result count** — for "312 bills" and "Page N of M", where the endpoint previously
-   returned only `has_more`. Shipped: the response carries `total`.
-3. **"Data as of" timestamp** — latest succeeded `IngestionRun.finished_at`, for the
-   results header (also used by the issue-scope answer's count header,
-   `docs/product-onboarding/grounded-ask-spec.md` §9.6). Shipped as `data_as_of`, and it is
-   what the results header's "as of {date}" prints.
+   the bill's text, as an *exclusive* ID lookup
+   ([#569](https://github.com/alethical-org/alethical/pull/569)) — see the Filters table.
+2. **Total result count** — the response carries `total`, for "312 bills" and "Page N of M".
+3. **"Data as of" timestamp** — `data_as_of`, the latest succeeded
+   `IngestionRun.finished_at`; it is what the results header's "as of {date}" prints (also
+   used by the issue-scope answer's count header,
+   `docs/product-onboarding/grounded-ask-spec.md` §9.6).
 
 Everything else on this screen runs on the current API.
 
 ## Out of scope for this screen
 
 - **Meaning-based search and natural-language questions — Grounded Ask's job, not this box.** The search box matches the *words* you type (now word-form- and typo-tolerant, [#573](https://github.com/alethical-org/alethical/issues/573)); finding bills by *concept* when the words differ (e.g. "school money" → a bill that says "fund") or answering a full question ("what bills help teachers?", "how did my rep vote on housing?") is `docs/product-onboarding/grounded-ask-spec.md` (§3.1 natural-language Ask box, §4.1 router intents). This is why there is deliberately no "Ask AI instead" cross-sell from a failed search (see Empty / no-results state above; `.claude/rules/grounded-answers.md` rule 2).
-- Browse-by-policy-area **as a side rail** — still out of scope, and now permanently: [#130](https://github.com/alethical-org/alethical/issues/130) (closed Jul 24 2026) delivered the capability as the ISSUES pill section in the filter row instead, so the results column stays full-width (Page anatomy items 3 and 6).
+- Browse-by-policy-area **as a side rail** — permanently out of scope: [#130](https://github.com/alethical-org/alethical/issues/130) delivered the capability as the ISSUES pill section in the filter row instead, so the results column stays full-width (Page anatomy items 3 and 6).
 - Author filter (data supports it; not built). The user-facing sort control **shipped** in [#610](https://github.com/alethical-org/alethical/issues/610) — see the Filters table above.
 - Bill export.
 
