@@ -162,6 +162,7 @@ class DocumentKeeper:
         filing_year: int,
         report_type: Optional[str],
         amendment_index: Optional[int],
+        special_election: bool = False,
     ) -> str:
         try:
             action = store_document(
@@ -174,6 +175,7 @@ class DocumentKeeper:
                 filing_year=filing_year,
                 report_type=report_type,
                 amendment_index=amendment_index,
+                special_election=special_election,
             )
         except Exception as error:  # noqa: BLE001 - reported, never swallowed
             self.db.rollback()
@@ -198,8 +200,15 @@ def store_document(
     filing_year: int,
     report_type: Optional[str],
     amendment_index: Optional[int],
+    special_election: bool = False,
 ) -> str:
     """Keep one document's bytes and record where they are. Returns what it did.
+
+    ``special_election`` defaults to False because that is what both existing callers
+    read: the stated-split and stated-spending sweeps select their report with
+    ``r.special_election IS FALSE``. It has to be recordable all the same -- a candidate
+    in a special election files a whole second series, so one filer-year-amendment can
+    carry 2 different documents, and 7 of them do on Minnesota's live catalogue (#1886).
 
     Committed per document, so a run that dies at document 900 keeps the 899 before it.
     A 20-minute pass over a year makes about 1,300 requests, and the Board's documents
@@ -234,6 +243,7 @@ def store_document(
             filing_year=filing_year,
             report_type=report_type,
             amendment_index=amendment_index,
+            special_election=special_election,
         )
     )
     try:
@@ -252,6 +262,49 @@ def stored_document_hashes(db: Session) -> set[str]:
     return set(
         db.scalars(select(schema.CampaignFinanceReportDocument.document_hash)).all()
     )
+
+
+FilingKey = tuple[str, int, Optional[str], Optional[int], bool]
+
+
+def stored_document_filings(db: Session) -> set[FilingKey]:
+    """Which filing versions we hold a document of, keyed the way a filing names itself.
+
+    ``stored_document_hashes`` beside this answers "do we hold *these bytes*", which is
+    the only question a caller holding a verdict can ask, because a verdict records the
+    hash. A caller working from the Board's own catalogue holds no hash -- the whole
+    point is that nobody has ever fetched these documents -- so its question is "do we
+    hold *this filing version*", and that is what this answers (#1886).
+
+    The special-election flag is part of the key rather than a detail: a candidate in a
+    special election files a whole second series, so one filer-year-amendment can carry
+    2 genuinely different documents, and leaving the flag out would make holding one of
+    them read as holding both.
+    """
+    return {
+        (
+            registration_number,
+            filing_year,
+            report_type,
+            amendment_index,
+            bool(special_election),
+        )
+        for (
+            registration_number,
+            filing_year,
+            report_type,
+            amendment_index,
+            special_election,
+        ) in db.execute(
+            select(
+                schema.CampaignFinanceReportDocument.registration_number,
+                schema.CampaignFinanceReportDocument.filing_year,
+                schema.CampaignFinanceReportDocument.report_type,
+                schema.CampaignFinanceReportDocument.amendment_index,
+                schema.CampaignFinanceReportDocument.special_election,
+            )
+        ).all()
+    }
 
 
 @dataclass(frozen=True)
@@ -288,7 +341,16 @@ class DocumentLibrary:
         filing_year: int,
         report_type: Optional[str],
         amendment_index: Optional[int],
+        special_election: bool = False,
     ) -> Optional[StoredDocument]:
+        """``one_or_none`` below is only true while the series is part of the filter.
+
+        A special-election year-end and a regular one share filer, year, report type and
+        amendment index, so without ``special_election`` this query matches 2 rows for 7
+        of Minnesota's filer-year-amendments and raises rather than answering (#1886).
+        The default is False because every sweep that reads this selects its report with
+        ``r.special_election IS FALSE``.
+        """
         row = (
             self.db.query(schema.CampaignFinanceReportDocument)
             .filter_by(
@@ -296,6 +358,7 @@ class DocumentLibrary:
                 filing_year=filing_year,
                 report_type=report_type,
                 amendment_index=amendment_index,
+                special_election=special_election,
             )
             .one_or_none()
         )
@@ -315,10 +378,12 @@ __all__ = [
     "DocumentKeeper",
     "DocumentLibrary",
     "DocumentStoreReport",
+    "FilingKey",
     "StoredDocument",
     "gzip_bytes_to",
     "object_key",
     "read_document",
     "store_document",
+    "stored_document_filings",
     "stored_document_hashes",
 ]

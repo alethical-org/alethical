@@ -2789,6 +2789,19 @@ class CampaignFinanceReportDocument(TimestampMixin, Base):
     filing_year: Mapped[int] = mapped_column(Integer, nullable=False)
     report_type: Mapped[Optional[str]] = mapped_column(String(8))
     amendment_index: Mapped[Optional[int]] = mapped_column(Integer)
+    # Which of the 2 report series this document belongs to. A candidate in a special
+    # election files a whole second series (SS 9.5), so one committee can file 2 year-end
+    # reports for the same year at the same amendment index, and the 4 columns above are
+    # identical for both. On Minnesota's live catalogue, measured 1 Sep 2026, 7
+    # filer-year-amendments carry both -- without this column one of each pair is
+    # unstorable, and ``DocumentLibrary.body_for`` raises on the second row (#1886).
+    #
+    # NOT NULL with a false default. The 3,643 rows that predate the column ARE the
+    # regular series: both paths that wrote them request it outright, selecting the report
+    # with ``r.special_election IS FALSE`` and posting ``special_election=False``.
+    special_election: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("false"), nullable=False
+    )
 
     __table_args__ = (
         Index(
