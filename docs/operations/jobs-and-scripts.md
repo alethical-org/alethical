@@ -47,7 +47,7 @@ owns the workflow count, triggers, and costs.
 
 ## Command-line tools
 
-The `scripts/` folder has 55 runnable files. GitHub jobs call 22 of them, and the
+The `scripts/` folder has 57 runnable files. GitHub jobs call 22 of them, and the
 Mac backup above calls 1. A workflow also calls
 `apps/frontend/scripts/traffic-token-expiry.mjs`, a similarly named script that
 lives in a different folder and is not part of this list or its totals. The
@@ -56,8 +56,8 @@ complete list is grouped here so a new file cannot hide inside a total:
 | Purpose | Files |
 | --- | --- |
 | Import official records or test data | `build_legislative_district_boundaries.py`, `load_campaign_finance.py`, `load_campaign_finance_filings.py`, `load_lobbying_expenditures.py`, `load_minnesota_data.py`, `load_sample_data.py` |
-| Check data, code, documents, local tools, and hosted settings | `audit_repaired_bill_prompt_context.py`, `check_bill_section_gaps.py`, `check_bill_summary_coverage.py`, `check_campaign_finance_stated_split.py`, `check_declared_dependencies.py`, `check_doc_quotes.py`, `check_doc_references.py`, `check_doc_sync.py`, `check_home_hero_card_literals.py`, `check_hosted_service_settings.py`, `check_local_env.py`, `check_no_cross_committee_total.py`, `check_no_merge_conflict_markers.py`, `check_no_nul_bytes.py`, `check_published_piece_links.py`, `check_rag_coverage.py`, `check_schema_drift.py`, `check_shared_checkout_rules_in_sync.py`, `check_technology_health.py` |
-| Fill missing fields on older records | `backfill_bill_action_committee_name.py`, `backfill_bill_section_body_blocks.py`, `backfill_bill_title_from_current_version.py`, `backfill_campaign_finance_report_documents.py`, `backfill_companion_links.py`, `backfill_rag_bulk.py`, `backfill_vote_event_dates.py` |
+| Check data, code, documents, local tools, and hosted settings | `audit_repaired_bill_prompt_context.py`, `check_bill_section_gaps.py`, `check_bill_summary_coverage.py`, `check_campaign_finance_stated_spending.py`, `check_campaign_finance_stated_split.py`, `check_declared_dependencies.py`, `check_doc_quotes.py`, `check_doc_references.py`, `check_doc_sync.py`, `check_home_hero_card_literals.py`, `check_hosted_service_settings.py`, `check_local_env.py`, `check_no_cross_committee_total.py`, `check_no_merge_conflict_markers.py`, `check_no_nul_bytes.py`, `check_published_piece_links.py`, `check_rag_coverage.py`, `check_schema_drift.py`, `check_shared_checkout_rules_in_sync.py`, `check_technology_health.py` |
+| Fill missing fields on older records | `backfill_bill_action_committee_name.py`, `backfill_bill_section_body_blocks.py`, `backfill_bill_title_from_current_version.py`, `backfill_campaign_finance_filed_dates.py`, `backfill_campaign_finance_report_documents.py`, `backfill_companion_links.py`, `backfill_rag_bulk.py`, `backfill_vote_event_dates.py` |
 | Repair damage from past bugs | `clean_stale_bill_versions.py`, `correct_bill_current_statuses.py`, `dedupe_ai_enrichment.py`, `delete_fixture_bills.py`, `dump_evidence_document.py`, `reanchor_rag_to_current_version.py`, `repair_companion_links.py`, `repair_incomplete_vote_records.py`, `repair_missing_bill_sections.py`, `repair_mojibake_text.py`, `repair_vote_roster_identities.py` |
 | Review campaign-finance records | `recompute_lobbying_published_figures.py`, `review_legislator_campaign_committees.py`, `show_party_and_caucus_money.py` |
 | Measure AI answers and search | `answer_eval.py`, `retrieval_eval.py`, `try_queries.py`, `validate_query_rubric.py` |
