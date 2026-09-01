@@ -35,10 +35,12 @@ from alethical.pipeline.campaign_finance_report_document_store import (
     ALREADY_STORED,
     STORED,
     DocumentKeeper,
+    DocumentLibrary,
     gzip_bytes_to,
     object_key,
     read_document,
     store_document,
+    stored_document_filings,
 )
 
 DOCUMENT = b"%PDF-1.4\nnot a real filing, but real bytes\n%%EOF\n"
@@ -259,3 +261,74 @@ def test_a_kept_document_is_addressed_by_its_own_hash(db, tmp_path) -> None:
     assert row.object_key == f"campaign-finance/report-document/{raw_hash}.pdf.gz"
     assert row.document_hash == raw_hash
     assert row.compressed_hash != raw_hash
+
+
+SPECIAL_ELECTION_DOCUMENT = b"%PDF-1.4\nthe special-election series\n%%EOF\n"
+
+
+def test_the_two_report_series_are_two_documents_and_stay_tellable_apart(
+    db, tmp_path
+) -> None:
+    """A candidate in a special election files a whole second series (§9.5).
+
+    Both year-end reports carry the same filer, year, report type and amendment index, so
+    the 4 provenance columns cannot separate them and 7 of Minnesota's filer-year-
+    amendments carry both (#1886). Each is asked for and kept as its own document; the
+    reader that fetches one back has to get that one.
+    """
+    store = MemoryStore()
+    keep(db, store, tmp_path, report_type="YE", filing_year=2025)
+    keep(
+        db,
+        store,
+        tmp_path,
+        body=SPECIAL_ELECTION_DOCUMENT,
+        report_type="YE",
+        filing_year=2025,
+        special_election=True,
+    )
+
+    assert db.query(schema.CampaignFinanceReportDocument).count() == 2
+    assert stored_document_filings(db) == {
+        ("19043", 2025, "YE", 0, False),
+        ("19043", 2025, "YE", 0, True),
+    }
+
+
+def test_reading_one_series_back_never_answers_with_the_other(db, tmp_path) -> None:
+    """``body_for`` returns one row per filing, and that is only true per series.
+
+    Without the series in the filter this query matches both rows and raises, which would
+    turn every money-out check on one of those 7 filer-years into a recorded storage
+    fault. Each side is asserted, because a lookup that answered the wrong series would
+    hand a page the wrong committee's filing and look completely ordinary doing it.
+    """
+    store = MemoryStore()
+    keep(db, store, tmp_path, report_type="YE", filing_year=2025)
+    keep(
+        db,
+        store,
+        tmp_path,
+        body=SPECIAL_ELECTION_DOCUMENT,
+        report_type="YE",
+        filing_year=2025,
+        special_election=True,
+    )
+    library = DocumentLibrary(db=db, store=store, directory=str(tmp_path))
+
+    regular = library.body_for(
+        registration_number="19043",
+        filing_year=2025,
+        report_type="YE",
+        amendment_index=0,
+    )
+    special = library.body_for(
+        registration_number="19043",
+        filing_year=2025,
+        report_type="YE",
+        amendment_index=0,
+        special_election=True,
+    )
+
+    assert regular is not None and regular.body == DOCUMENT
+    assert special is not None and special.body == SPECIAL_ELECTION_DOCUMENT
