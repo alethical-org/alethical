@@ -93,13 +93,13 @@ display name (`alethical/api/auth.py`). So a reader who has never given us a nam
 has one on file, and it is a slice of their email address. That is worth knowing before
 we ever show a display name to anyone but its owner.
 
-**The "active" switch now works** ([#1043](https://github.com/alethical-org/alethical/issues/1043),
-6 August 2026). It used to be the worst kind of dead code: `user_account.is_active`
-existed, defaulted to on, and no code anywhere checked it, so it looked like a switch
-that disables an account and was not one. Someone would have reached for it the first
-time we had to lock somebody out and watched nothing happen.
+**The "active" switch works** ([#1043](https://github.com/alethical-org/alethical/issues/1043)):
+`user_account.is_active` is enforced everywhere an account acts. The risk #1043 closed:
+a switch that exists, defaults to on, and is checked nowhere reads as a way to lock
+somebody out and is not one — the worst kind of dead code, because it fails exactly
+when someone finally reaches for it.
 
-Turning it off now shuts the account out of everything that is _theirs_ — their followed
+Turning it off shuts the account out of everything that is _theirs_ — their followed
 bills, their conversations, their saved places — with a clear "this account has been
 deactivated" rather than a vague "please sign in", so nobody signs in again wondering why
 it did not work. The shut-out happens _before_ anything is written, so a locked account
