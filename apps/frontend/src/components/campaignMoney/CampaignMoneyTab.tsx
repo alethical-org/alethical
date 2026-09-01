@@ -46,7 +46,7 @@ import {
   splitExplanation,
   unnamedShareLabel,
 } from '../../lib/legislatorCampaignMoney';
-import { inKindOutNote } from '../../lib/committeeMoney';
+import { inKindDonationsNote, inKindOutNote } from '../../lib/committeeMoney';
 import { useLegislatorOutsideSpending } from '../../hooks/useAppQueries';
 import { outsideSpendingYears } from '../../lib/outsideSpending';
 import { OutsideSpendingCard } from '../legislator/OutsideSpendingCard';
@@ -374,10 +374,7 @@ function MoneyIn({
         // Its own line rather than folded into either figure. It is real money's worth
         // the committee received, and the state's reported total does not carry it, so
         // it can be neither added to that total nor quietly dropped.
-        <Text style={styles.explain}>
-          {inKind} of the donations above were goods and services rather than money. The state
-          counts those separately from the total below.
-        </Text>
+        <Text style={styles.explain}>{inKindDonationsNote(inKind, false)}</Text>
       ) : null}
 
       {split.state === 'shown' && unnamed ? (
