@@ -31,6 +31,7 @@ import {
   MONEY_OUT_REPORTED_LABEL,
   moneyOutKindLabel,
   listedExceedsReported,
+  inKindDonationsNote,
   inKindOutNote,
   moneyOutNote,
   notFoundBody,
@@ -327,6 +328,33 @@ describe('money out', () => {
     expect(moneyOutNote('not_reported', false, true, false)).toContain(
       'names none of its payments',
     );
+  });
+
+  it('the donated-goods sentence names the figure, never where it sits', () => {
+    // 3 renderers were writing this 2 ways and one was wrong. On a legislator profile the
+    // reported total draws ABOVE this line, and what draws below it is "Donations with
+    // nobody's name on them" — a different figure — which only appears when the split is
+    // shown, so on a withheld split "the total below" pointed at nothing at all.
+    for (const namesTheChip of [true, false]) {
+      const note = inKindDonationsNote('$19,899.45', namesTheChip);
+      expect(note).toContain('$19,899.45');
+      expect(note).toContain('goods and services rather than money');
+      expect(note).toContain('separately from the reported total');
+      // No positional word, on either surface, however either one is laid out later.
+      for (const positional of ['below', 'above the', 'the total below', 'beneath']) {
+        expect(note.toLowerCase()).not.toContain(positional);
+      }
+    }
+  });
+
+  it('the chip is named on 2 surfaces and not the third, and nothing else differs', () => {
+    // Closing that gap would change what a profile reader sees, which is not this fix.
+    const withChip = inKindDonationsNote('$1,000.00', true);
+    const without = inKindDonationsNote('$1,000.00', false);
+    expect(withChip).toContain('donated goods or services');
+    expect(without).not.toContain('donated goods or services');
+    // The claim itself is identical: strip the marker and the 2 are the same sentence.
+    expect(withChip.replace(' (donated goods or services)', '')).toBe(without);
   });
 
   it('names the goods-and-services amount, and says nothing at all without one', () => {

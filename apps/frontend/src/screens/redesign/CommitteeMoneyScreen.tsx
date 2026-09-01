@@ -52,6 +52,7 @@ import {
   MONEY_OUT_FIGURE_LABEL,
   MONEY_OUT_REPORTED_LABEL,
   moneyOutKindLabel,
+  inKindDonationsNote,
   inKindOutNote,
   listedExceedsReported,
   moneyOutNote,
@@ -602,12 +603,7 @@ function MoneyInCard({
         />
       )}
 
-      {inKind ? (
-        <Text style={styles.explain}>
-          {inKind} of the donations above were goods and services rather than money (
-          {IN_KIND_CHIP.toLowerCase()}). The state counts those separately from the reported total.
-        </Text>
-      ) : null}
+      {inKind ? <Text style={styles.explain}>{inKindDonationsNote(inKind, true)}</Text> : null}
 
       {split.state === 'shown' && unnamed !== null && !reportedZero ? (
         <>

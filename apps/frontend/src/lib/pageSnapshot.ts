@@ -76,6 +76,7 @@ import {
   MONEY_OUT_FIGURE_LABEL,
   MONEY_OUT_REPORTED_LABEL,
   moneyOutKindLabel,
+  inKindDonationsNote,
   inKindOutNote,
   listedExceedsReported,
   moneyOutNote,
@@ -1192,13 +1193,7 @@ export function committeePageSnapshot(
             `Donations with a donor’s name: ${named.text}`,
             paymentCountLabel(split.named_payments ?? null) ?? '',
           ]),
-      ...(inKind
-        ? [
-            `${inKind} of the donations above were goods and services rather than money ` +
-              `(${IN_KIND_CHIP.toLowerCase()}). The state counts those separately from the ` +
-              `reported total.`,
-          ]
-        : []),
+      ...(inKind ? [inKindDonationsNote(inKind, true)] : []),
       ...(split.state === 'shown' && unnamed !== null && !reportedZero
         ? [
             `Donations with nobody’s name on them: ${unnamed}`,
