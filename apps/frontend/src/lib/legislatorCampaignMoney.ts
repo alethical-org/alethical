@@ -122,6 +122,21 @@ export function campaignMoneyYear(
  * Returns `null` for a value that is absent, so a caller has to decide what absence
  * means rather than being handed a "$0" it did not ask for.
  *
+ * **This is the only money formatter in the product, and that is load-bearing.** The
+ * outside-spending card kept a second one until
+ * [#1929](https://github.com/alethical-org/alethical/issues/1929), and the 2 drifted
+ * the moment this rule changed: one card on the legislator money tab printed cents
+ * while the cards above it printed whole dollars. A new caller formats money by
+ * calling this, never by writing its own.
+ *
+ * **No carry can reach the dollars, at either end of the range.** The source columns
+ * carry 4 decimal places, so a filing really can hold 1.9999, and splitting a value
+ * into dollars and cents to round them separately loses the carry between the halves —
+ * that is what once printed the malformed "$1.100" (#1332). Truncation cannot: one
+ * `Math.floor` over the whole magnitude never carries anything upward, and the
+ * under-a-dollar branch clamps at 99 cents so it cannot produce "$0.100" either. Both
+ * ends and the negative case are pinned by tests.
+ *
  * Ruled by Eugene on 1 Sep 2026, and applied by Design across all 21 drawings in the
  * campaign-money set ([#1924](https://github.com/alethical-org/alethical/issues/1924)).
  */
@@ -132,10 +147,18 @@ export function formatMoney(value: number | string | null | undefined): string |
   const negative = amount < 0;
   const magnitude = Math.abs(amount);
   // Under a dollar and not zero: keep the cents, or the row reads as a filed zero.
-  // `toFixed` is the rounding path and is safe here, because 2 decimal places is
-  // already every digit such a value has on a filing.
+  //
+  // Cut to the cent rather than rounded to it, for the same reason the dollars are:
+  // `toFixed(2)` turns 0.999 into "1.00", which both reads higher than the money and
+  // prints a dollar figure inside the branch reserved for values under a dollar.
+  //
+  // Rounded to the source's own 4 decimal places BEFORE truncating, because binary
+  // floating point makes 0.29 * 100 come out as 28.999999999999996 and a bare floor
+  // would print $0.28 for a 29-cent payment. Clamped at 99 so a value just under a
+  // dollar truncates to $0.99 rather than overflowing the branch.
   if (magnitude > 0 && magnitude < 1) {
-    return `${negative ? '-' : ''}$${magnitude.toFixed(2)}`;
+    const cents = Math.min(99, Math.floor(Math.round(magnitude * 10000) / 100));
+    return `${negative ? '-' : ''}$0.${String(cents).padStart(2, '0')}`;
   }
   // `Math.floor` on the magnitude rather than on the signed amount: flooring -0.5
   // gives -1, which is further from zero, and the rule is that no figure may read

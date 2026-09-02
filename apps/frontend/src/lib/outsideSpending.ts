@@ -84,33 +84,6 @@ export interface OutsideSpendingFigure {
 }
 
 /**
- * Money as the filing states it, with no rounding.
- *
- * Cents are dropped only when they are 0, because dropping real ones would change
- * the number a reader could check against the filing.
- */
-export function formatSpendingAmount(value: number): string {
-  // Rounded to the cent, which is every value the source actually carries: the column
-  // holds 4 decimal places and 0 of the live release's 41,130 rows use the 3rd or 4th
-  // (measured 13 Aug 2026). An earlier version of this comment claimed no rounding at
-  // all, which the arithmetic below does not deliver.
-  //
-  // Rounded to whole cents FIRST, then split. Rounding the fraction on its own and
-  // keeping the whole-dollar part untouched loses the carry: the source column holds
-  // 4 decimal places, so a filing of 1.9999 rounds to 100 cents and printed as
-  // `$1.100` -- a malformed number, over a figure a reader is meant to be able to
-  // check against the filing. Found by an automated review on #1332.
-  const roundedCents = Math.round(Math.abs(value) * 100);
-  const whole = Math.floor(roundedCents / 100);
-  const cents = roundedCents % 100;
-  const grouped = String(whole).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
-  const sign = value < 0 ? '-' : '';
-  return cents === 0
-    ? `${sign}$${grouped}`
-    : `${sign}$${grouped}.${String(cents).padStart(2, '0')}`;
-}
-
-/**
  * The figures to draw, in order, for one year.
  *
  * `supporting` and `opposing` always appear when the state is `reported`, because a

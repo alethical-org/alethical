@@ -87,6 +87,35 @@ describe('formatMoney', () => {
     // A dollar and over is back under the ordinary rule.
     expect(formatMoney('1.99')).toBe('$1');
   });
+
+  // The sub-dollar branch cuts too, and the reason is the same rule rather than
+  // tidiness: `toFixed(2)` turned 0.999 into "$1.00", which reads higher than the money
+  // AND prints a dollar figure inside the branch reserved for values under a dollar.
+  // The source columns hold 4 decimal places, so a filing can carry these (#1929).
+  it('cuts the cents under a dollar as well, and never rounds up to a whole one', () => {
+    expect(formatMoney('0.999')).toBe('$0.99');
+    expect(formatMoney('0.9999')).toBe('$0.99');
+    expect(formatMoney('0.995')).toBe('$0.99');
+    expect(formatMoney('-0.999')).toBe('-$0.99');
+    // Never the malformed "$0.100" the clamp exists to stop, and never a whole dollar.
+    for (const value of ['0.999', '0.9999', '0.99999', '0.995']) {
+      expect(formatMoney(value)).not.toMatch(/\.\d{3}/);
+      expect(formatMoney(value)).not.toBe('$1.00');
+      expect(formatMoney(value)).not.toBe('$1');
+    }
+  });
+
+  // Binary floating point: 0.29 * 100 is 28.999999999999996, so truncating without
+  // first rounding to the source's own 4 decimal places would print $0.28 for a
+  // 29-cent payment. Walked across every cent rather than spot-checked, because the
+  // values that trip it are not the ones anybody would think to try.
+  it('prints every whole cent under a dollar exactly, despite floating point', () => {
+    for (let cents = 1; cents <= 99; cents += 1) {
+      const expected = `$0.${String(cents).padStart(2, '0')}`;
+      expect(formatMoney((cents / 100).toFixed(2))).toBe(expected);
+      expect(formatMoney(cents / 100)).toBe(expected);
+    }
+  });
 });
 
 describe('moneyFigure', () => {
