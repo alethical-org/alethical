@@ -12,11 +12,13 @@
  * turned into text a test can pin. This file chooses where things sit and nothing
  * about what they claim.
  *
- * **The empty state is the tab, not an edge case.** Minnesota never records which
- * person a registered committee belongs to, so a person confirms every match by
- * hand, and on the day this shipped none of the 200 sitting members had been
- * confirmed. So the unconfirmed panel below gets the same care as the populated one:
- * it is what a reader actually sees.
+ * **The empty states get the same care as the populated one**, because Minnesota never
+ * records which person a registered committee belongs to and a person confirms every
+ * match by hand. On the day this shipped none of the 200 sitting members had been
+ * confirmed, so the unconfirmed panel was the whole tab. The 31 Aug 2026 review sitting
+ * confirmed 242 accounts covering all 200, so a reader now usually meets figures; a
+ * confirmation can be withdrawn (#1902) and a committee can report nothing for a year,
+ * so both empty panels are still live paths rather than history.
  */
 import React from 'react';
 import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
