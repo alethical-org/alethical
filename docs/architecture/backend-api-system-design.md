@@ -781,9 +781,19 @@ release:**
   ([#1454](https://github.com/alethical-org/alethical/issues/1454)). One committee is enough,
   because the figures are sums across all of them.
 - `link_unconfirmed` — no human-confirmed link between this legislator and a campaign
-  committee, so no payment can be attributed to them. **Today this is every legislator**:
-  `legislator_campaign_committee` holds 0 rows in production (measured 12 Aug 2026), and it
-  drains as [#1354](https://github.com/alethical-org/alethical/issues/1354)'s review lands.
+  committee, so no payment can be attributed to them. **0 of the 200 sitting members reach it**
+  (measured on production 2 Sep 2026), because the 31 Aug 2026 review sitting confirmed 242
+  accounts covering all of them; withdrawing a member's only confirmation puts them back into
+  it ([#1902](https://github.com/alethical-org/alethical/issues/1902)).
+  **It means only what it says, which it did not until 2 Sep 2026.** The committee set was
+  filtered by the reviewed years stored against a match, and those years are what the reviewer
+  saw in the *donations* download — the last year the committee reported raising money. A
+  committee that raised nothing in a year can still have money spent about it that year, so 36
+  members whose committees somebody had confirmed were answered `link_unconfirmed`, and 2 of
+  them had real 2026 money suppressed. Corrected in
+  [#1932](https://github.com/alethical-org/alethical/issues/1932), which carries the figures;
+  the office test that keeps another race's money out is unchanged, and the download's own
+  coverage of the year is still checked separately.
 - `reported` — real figures, and here a **0 is a measured 0**.
 
 Every money field and every count is `null` in every state except `reported`.
@@ -813,9 +823,13 @@ because a member can hold several committees at once and §7 of
 `docs/architecture/campaign-finance-system-design.md` (Display rules) requires a figure to say
 which committee it belongs to rather than only which year.
 
-**Not wired to any client yet.** No file under `apps/frontend/src` references it; the display
-belongs to [#1329](https://github.com/alethical-org/alethical/issues/1329)'s campaign money tab.
-So Story 3's access path below is still the complete list of what a profile screen calls.
+**Wired to the campaign money tab**, which calls it twice per visit, once for each of the
+2 years it shows, and draws both in `OutsideSpendingCard`
+(`apps/frontend/src/components/campaignMoney/CampaignMoneyTab.tsx`). Between 18 Aug and
+2 Sep 2026 it was called from there and its answers were discarded, because
+[#1329](https://github.com/alethical-org/alethical/issues/1329) moved the money onto that tab
+and never rendered the card; a test now mounts the tab and fails if the render goes again
+([#1932](https://github.com/alethical-org/alethical/issues/1932)).
 
 #### `GET /api/v1/legislators/{legislator_id}/campaign-finance`
 
@@ -2051,12 +2065,16 @@ Frontend access path:
 - `GET /api/v1/legislators/{legislator_id}`
 - `GET /api/v1/legislators/{legislator_id}/bills`
 - `GET /api/v1/legislators/{legislator_id}/votes`
+- `GET /api/v1/legislators/{legislator_id}/campaign-finance` — only on the Campaign money tab
+- `GET /api/v1/legislators/{legislator_id}/independent-spending` — same tab, once per year shown
 
 Economic access:
 
 - one request for directory
 - one request for profile shell
 - one bounded request for the newest profile vote when the profile opens
+- the 2 money requests only when a reader opens the Campaign money tab, which is its own
+  address, so a reader who never opens it never pays for them
 
 ### 4. Find My Legislator
 

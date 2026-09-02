@@ -38,7 +38,15 @@ import {
 //   each other, never ordered by size, and never drawn as opposing halves of one bar,
 //   because a shape can imply a contest the filings do not describe.
 
-const HEADING = 'Spending by Outside Groups';
+/**
+ * Exported so the test proving the money tab renders this card can name the heading
+ * it looks for, rather than repeating the string and drifting from it (#1932).
+ *
+ * Fixed copy like every other sentence in this file. The approved money design draws
+ * this section headed "Independent spending"; that difference is unresolved and is
+ * not settled by editing here.
+ */
+export const OUTSIDE_SPENDING_HEADING = 'Spending by Outside Groups';
 
 export function OutsideSpendingCard({
   years,
@@ -64,7 +72,7 @@ export function OutsideSpendingCard({
         aria-level={2}
         style={[styles.heading, isMobile && styles.headingMobile]}
       >
-        {HEADING}
+        {OUTSIDE_SPENDING_HEADING}
       </Text>
       {/* "have told the state they spent", not "spent": these figures are the payments
           groups have reported, and nothing here can know about spending nobody filed. The

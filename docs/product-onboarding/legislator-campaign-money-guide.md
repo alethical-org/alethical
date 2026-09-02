@@ -324,6 +324,19 @@ only the committee cards above would miss it entirely and have no way to know it
 missing. That is why this block sits on the same tab, below them, and never has its
 figures added to theirs.
 
+**It was on no page at all between 18 and 2 September 2026, and this section described it
+as visible throughout.** [#1329](https://github.com/alethical-org/alethical/issues/1329)
+moved campaign money onto its own tab, deleted the block's 2 renders from the desktop and
+phone profiles, and imported the card and its data request into the new tab without ever
+drawing it. So every reader who opened a money tab paid for 2 requests whose answers were
+thrown away, and `grep -rn "<OutsideSpendingCard" apps/frontend/src` returned nothing for
+15 days. The card's own tests passed the whole time, because a component's unit tests
+cannot see whether anything renders it. The guard is now
+`apps/frontend/src/components/campaignMoney/__tests__/campaignMoneyTabDrawsOutsideSpending.test.tsx`,
+which mounts the tab and looks for this block's heading in the output; 6 of its 7 cases
+fail if the render is deleted again, and an import-only reference satisfies none of them
+([#1932](https://github.com/alethical-org/alethical/issues/1932)).
+
 It shows the current calendar year and the one before, each with up to 3 figures.
 
 | Figure | What it means |
@@ -362,13 +375,35 @@ is the *donor's yearly total* on the donations file described further up this gu
 does not apply here. This block says "told the state" rather than calling its figures all
 outside spending, because nothing can know about spending nobody filed.
 
-**Why it says nothing today, and it is the same reason as the committee cards.** Minnesota
-records each payment against a committee, never against a person. Senator Omar Fateh is the
-measured case: he is a sitting state senator and also ran for Minneapolis Mayor, and the
-2025 filings carry 10 separate committees named "Fateh, Omar for Minneapolis Mayor" holding
-$487,974.82 of supporting and $162,841.95 of opposing spending, while his Senate committee
-has had none since 2022. A page matching on his name would put roughly $488,000 of a city
-mayoral race on a state senator's legislative profile.
+**A figure is reachable only through a confirmed committee, and it is the same rule as the
+committee cards.** Minnesota records each payment against a committee, never against a
+person. Senator Omar Fateh is the measured case: he is a sitting state senator and also ran
+for Minneapolis Mayor, and the 2025 filings carry 10 separate committees named "Fateh, Omar
+for Minneapolis Mayor" holding $487,974.82 of supporting and $162,841.95 of opposing
+spending, while his Senate committee has had none since 2022. A page matching on his name
+would put roughly $488,000 of a city mayoral race on a state senator's legislative profile.
+What keeps that money off his profile is the **office** test, not the year: a committee for
+another race stays out however it is dated, and its exclusion is counted rather than hidden.
+
+**A confirmed committee counts for every year, whatever years it reported raising money
+in.** The reviewed years stored against a match are what the reviewer saw in the
+*donations* download — the last year the committee reported raising money. This is a
+different download, recording what other groups spent about the committee, and a committee
+that raised nothing in a year can still have money spent about it that year. Each payment
+carries its own year, which is what keeps a year's money inside its own year.
+
+Reading the donations period across to this file did 2 harms, both measured against
+production on 2 September 2026 across all 200 sitting members. **36 members were told
+"Nobody has confirmed theirs yet" while the same tab said "We have confirmed which
+committee is this member's"** — one page contradicting itself about a named politician,
+because every confirmed committee of theirs had last reported donations before 2026. And
+**2 of the 36 had real 2026 spending withheld**: Sen. Carla Nelson's committee 17105, $1,800.00
+supporting and $4,021.68 opposing across 5 payments, and Rep. Heather Keeler's committee
+18552, $483.33 opposing across 1 payment. A committee page shows both figures and always
+did, applying no such period test, so the 2 routes disagreed about the same committee-year
+and this one was the wrong half ([#1932](https://github.com/alethical-org/alethical/issues/1932)).
+The year still has to be one the download reaches, which is a fact about the file and is
+checked separately.
 
 **The 4 answers this block can give**, which are 4 different things and not 4 ways of
 saying zero:
@@ -383,6 +418,9 @@ saying zero:
    The count is not fixed at 0 afterwards: withdrawing a member's only confirmation puts
    them straight back into this state and this panel back on their profile, which is what
    [#1902](https://github.com/alethical-org/alethical/issues/1902) made possible.
+   **This answer now means only what it says**, which it did not until 2 September 2026:
+   36 members whose committees somebody had confirmed were getting it because their
+   reviewed donation years ended before 2026, per the correction above.
 4. **A gap in our own copy** — a stale snapshot, a payment whose amount is blank, or a year
    the files do not reach. All 3 figures are withheld rather than published short by an
    unknown amount, because a figure short by an unknown amount and printed without a mark
@@ -540,8 +578,11 @@ An explaining paragraph inside a card keeps every full stop it has, however shor
    2026". A total whose coverage date falls outside the year on screen is not shown at
    all, because the Board's own service answers a request for a year it has no report
    for with the *previous* year's figures and nothing in the answer says so.
-3. **One freshness date for the whole tab** — the day we downloaded Minnesota's files.
-   It is not the period the money covers, and the tab says so in those words.
+3. **One freshness date for the committee cards** — the day we downloaded Minnesota's
+   files. It is not the period the money covers, and the tab says so in those words.
+   The outside-spending block below carries its own, worded *Copied from the state on …*,
+   because it is a different download and a date shared between the 2 would be a claim
+   about both that only one of them supports.
 
 ---
 
