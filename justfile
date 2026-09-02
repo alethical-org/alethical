@@ -160,6 +160,10 @@ pipeline-work target:
 # A first import has nothing to compare against, so it quarantines by design. Read
 # the printed measurements, then publish it by naming its 3 hashes:
 #   uv run python scripts/load_campaign_finance.py --target local --publish-hashes A B C
+# A run that publishes then re-runs both money checks against what it published and
+# waits for them, which adds about 72 minutes -- publishing retires every verdict they
+# have ever written, so without this every committee page reverts to saying nobody
+# compared its figures (#1922).
 load-campaign-finance target="local" dry="true":
   uv run python scripts/load_campaign_finance.py --target {{target}} {{ if dry == "true" { "--dry-run" } else { "" } }}
 

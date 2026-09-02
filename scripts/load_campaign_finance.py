@@ -53,6 +53,16 @@ below and, on a real (non-dry) run, filed or updated as a GitHub issue via ``gh`
 the same alerting idiom ``.github/workflows/mirror-raw-files.yml`` uses, reusing
 whatever ``gh`` login already runs this command by hand, since this load carries no
 schedule of its own to attach a token to.
+
+**A run that publishes then re-runs both money checks against what it just published,
+and waits for them (#1922).** Every verdict either check writes is tied to the exact
+snapshot it judged, so publishing retires all of them at once and every committee page
+reverts to saying nobody compared its figures. Both checks read the *published* release,
+so neither can run any earlier than this. Budget about 72 more minutes: money in took 51
+on 2 September 2026 and money out 21 on 1 September 2026, for 3 filing years. Use
+``--recheck-years`` to change which years, and expect a banner and a non-zero exit if a
+check cannot run -- an unchecked release is never left quiet, and no earlier verdict is
+carried forward.
 """
 
 from __future__ import annotations
@@ -79,6 +89,10 @@ from alethical.db.session import (  # noqa: E402
 from alethical.pipeline.campaign_finance import (  # noqa: E402
     CampaignFinanceRefusal,
     load_campaign_finance,
+)
+from alethical.pipeline.campaign_finance_recheck import (  # noqa: E402
+    recheck_stated_figures,
+    recheck_years,
 )
 
 COMMITTEE_LINK_ALERT_TITLE = (
@@ -240,6 +254,18 @@ def main() -> int:
         "record hashes (the 'records' lines this command prints, in full). This is "
         "the intended path for a first import. Structural checks are never waived.",
     )
+    parser.add_argument(
+        "--recheck-years",
+        nargs="+",
+        type=int,
+        default=None,
+        metavar="YEAR",
+        help="Which filing years the 2 money checks re-run for after a publish. "
+        f"Default {', '.join(str(year) for year in recheck_years())} — the current "
+        "year and the 2 before it, which is what the stored verdicts cover. The Board "
+        "serves no report document before 2023, so an older year can only record as "
+        "not checked.",
+    )
     args = parser.parse_args()
 
     if args.publish_hashes is not None and len(args.publish_hashes) != 3:
@@ -254,27 +280,45 @@ def main() -> int:
     engine = create_engine(
         database_url, echo=False, connect_args=NO_PREPARED_STATEMENTS
     )
+
+    def log(message: str) -> None:
+        print(message, file=sys.stderr)
+
+    recheck = None
     with Session(engine) as session:
         try:
             report = load_campaign_finance(
                 session,
                 dry_run=args.dry_run,
                 publish_hashes=args.publish_hashes,
-                log=lambda message: print(message, file=sys.stderr),
+                log=log,
             )
         except CampaignFinanceRefusal as refusal:
             print(f"refused: {refusal}", file=sys.stderr)
             return 1
 
-    print(report.summary())
-    # Never on --dry-run: a dry run's whole point is to write nothing, and filing a
-    # real GitHub issue is a write. A real run files or updates one regardless of
-    # whether the money data itself published, was unchanged, or was quarantined —
-    # a stale committee link is a separate question from whether this run's
-    # payment rows are correct (#1398).
-    if report.committee_link_contradictions and not args.dry_run:
-        _file_committee_link_alert(report.committee_link_contradictions)
-    if report.refusal:
+        # Printed before the re-check rather than after it, because the re-check takes
+        # about 72 minutes and an operator should not wait that long to read what was
+        # published.
+        print(report.summary(), flush=True)
+        # Never on --dry-run: a dry run's whole point is to write nothing, and filing a
+        # real GitHub issue is a write. A real run files or updates one regardless of
+        # whether the money data itself published, was unchanged, or was quarantined —
+        # a stale committee link is a separate question from whether this run's
+        # payment rows are correct (#1398).
+        if report.committee_link_contradictions and not args.dry_run:
+            _file_committee_link_alert(report.committee_link_contradictions)
+
+        # Only a run that published anything: an unchanged or quarantined run leaves the
+        # previous release live, and its verdicts still speak for the payments on
+        # screen. Waited for rather than handed off, because both checks can only read a
+        # release that is already published, so nothing is gained for a reader by
+        # returning early — and a hand-off is precisely what nobody was doing (#1922).
+        if report.published:
+            recheck = recheck_stated_figures(session, years=args.recheck_years, log=log)
+            print(recheck.summary(), flush=True)
+
+    if report.refusal or (recheck is not None and recheck.failed):
         return 1
     return 0
 

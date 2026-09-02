@@ -444,7 +444,10 @@ fingerprint). Full reasoning:
 **What to run.** `just load-campaign-finance` is a dry run: it fetches, parses,
 checks and reports, writing nothing and needing no credentials. `just
 load-campaign-finance local false` publishes locally and `just
-load-campaign-finance production false` publishes to production.
+load-campaign-finance production false` publishes to production. A run that publishes
+then re-runs the 2 checks that compare a committee against its own filed report and waits
+for them, which adds about 72 minutes — see "A publish runs both of those checks itself"
+below.
 
 **A first import is quarantined on purpose, and so is any set that fails a check.**
 There is no first-load exception: a first import has nothing to compare against, so
@@ -620,6 +623,33 @@ Its population is not the money-in check's: it starts from the payments out we h
 than the payments in, so a committee that spent money and received none belongs to it and
 not to the other. On the release published 12 August 2026 the 2 populations are 4,124 and
 3,968 committee-years for 2024 to 2026.
+
+**A publish runs both of those checks itself, and waits for them**
+([#1922](https://github.com/alethical-org/alethical/issues/1922)). Each verdict is stored
+against the exact data snapshot it judged, which is what stops a verdict about payments
+since replaced from being shown as a verdict about the payments on screen — and it means a
+publish retires every stored verdict at once, so until this step existed every committee
+page went back to saying nobody had compared its figures, across the whole site, the moment
+a release landed. Nothing looked broken, because an unchecked figure correctly says it is
+unchecked; what was lost was the check. Five things about the step:
+
+- **It waits rather than handing the work on.** Both checks read the *published* release, so
+  neither can start before publication commits. The window where pages read as unchecked is
+  however long the checks take whichever way this is arranged, so returning early would buy a
+  reader nothing and cost the run its owner — and a follow-up step nobody owned is the defect
+  itself.
+- **Budget about 72 more minutes** for the default 3 filing years: 51 for money in, which
+  fetches each filing from the Board, and 21 for money out, which asks the Board for nothing.
+  `--recheck-years` changes which years; the default is the current year and the 2 before it.
+- **Money in goes first**, because it keeps each document it fetches and money out reads
+  documents back out of that store, so this order lets money out see a filing that appeared
+  since the last sweep.
+- **A check that cannot run is impossible to miss.** The load prints a banner naming the
+  reason and the command to re-run, and exits non-zero. No verdict from the previous release
+  is ever carried forward as a fresh one.
+- **Only a run that published re-checks anything.** A run whose 3 files were unchanged, and a
+  run whose set was quarantined, both leave the previous release live, and its verdicts still
+  speak for the payments on screen.
 
 **A person-confirmed legislator-committee link is re-checked on every run too**
 ([#1398](https://github.com/alethical-org/alethical/issues/1398)). A person confirms
@@ -1071,7 +1101,7 @@ just pipeline local --write --allow-writes     # commit after review
 | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `uv run python scripts/load_minnesota_data.py`                                           | Live loader — roster + profiles + smoke bill set, idempotent (`--legislator-limit N`, `--bill HF2136`, `--roster-only`, `--skip-bills`, `--reconcile-roster`, `--reconcile-only [--dry-run]`, `--session-slug`) |
 | `just reconcile-roster [apply=true]`                                                     | Reconcile current membership against the official roster PDF (dry-run by default; deactivates departed members). `ALETHICAL_DATABASE_TARGET=production` to target prod                                          |
-| `just load-campaign-finance [target=local] [dry=true]`                                    | Fetch the Board's 3 campaign-finance files, check them, publish as one dated set replacing the previous one. Dry-run by default (writes nothing, needs no credentials); a first import quarantines by design — section **H** |
+| `just load-campaign-finance [target=local] [dry=true]`                                    | Fetch the Board's 3 campaign-finance files, check them, publish as one dated set replacing the previous one. Dry-run by default (writes nothing, needs no credentials); a first import quarantines by design. A run that publishes then re-runs the 2 checks below that compare a committee against its own filed report, and waits for them, which adds about 72 minutes — section **H** |
 | `just load-campaign-finance-filings [target=local] [dry=true] [filers=""]`                 | Fetch what each committee itself reported plus Minnesota's registered-filer list, which is what lets a page show the true total beside the payments we can name. Turns on the 2 checks the loader above used to record as "not run". A full run is ~4,800 requests and ~48 minutes, so pass `filers` to check a few first — section **H2** |
 | `uv run python scripts/load_sample_data.py`                                              | Deterministic fixtures for tests/offline demos (no network)                                                                                                                                                     |
 | `uv run python scripts/backfill_rag_bulk.py`                                             | Threaded RAG backfill for current versions missing chunks                                                                                                                                                       |
