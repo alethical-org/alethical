@@ -7,12 +7,16 @@ import { describe, expect, it } from 'vitest';
 import { researchPageMetadata } from '../share';
 import {
   PUBLISHED_RESEARCH,
+  READ_PAGE_EMPTY_BODY,
+  READ_PAGE_EMPTY_TITLE,
+  READ_PAGE_INTRO,
   WORDS_PER_MINUTE,
   indexedResearch,
   isoMonthYearCapsLabel,
   pieceAddressFolder,
   pieceCardMetaLine,
   pieceCardSecondaryLine,
+  pieceContentsLabel,
   pieceRowTime,
   pieceSetSlug,
   pieceKindLabel,
@@ -964,5 +968,78 @@ describe('the 3 guides that complete the set', () => {
       'money-spent-without-a-campaigns-say',
       'why-nobody-can-follow-a-dollar',
     ]);
+  });
+});
+
+describe('a line sitting on its own takes no closing period', () => {
+  // Eugene, 2 Sep 2026: a period says another sentence is coming, so on a line
+  // with nothing after it the eye waits for something that never arrives. The
+  // rule reaches the lines the /read page writes itself; it does not reach an
+  // explaining sentence inside a piece.
+  it('ends the page’s own 3 lines without one', () => {
+    for (const line of [READ_PAGE_INTRO, READ_PAGE_EMPTY_TITLE, READ_PAGE_EMPTY_BODY]) {
+      expect(line.endsWith('.')).toBe(false);
+    }
+    expect(READ_PAGE_EMPTY_TITLE).toBe('Nothing published yet');
+    expect(READ_PAGE_EMPTY_BODY).toBe(
+      'When we publish research or a guide on these records, it appears here, dated and carrying the date its records run through',
+    );
+  });
+
+  it('leaves a posted piece’s own standfirst exactly as its author wrote it', () => {
+    // The card's secondary line for a research piece is the piece's standfirst,
+    // and rule 13's publishing order point 2 forbids changing an author's words
+    // to fit a rule of ours. So the /read page does draw one period, and the
+    // no-period rule stops at the page's own lines.
+    const withStandfirst = piecesLabelledResearch().filter((piece) => piece.dek !== '');
+    expect(withStandfirst.length).toBeGreaterThan(0);
+    for (const piece of withStandfirst) {
+      expect(pieceCardSecondaryLine(piece)).toBe(piece.dek);
+      expect(piece.dek.endsWith('.')).toBe(true);
+    }
+  });
+});
+
+describe('the contents list is announced by the piece’s own kind', () => {
+  // An `accessibilityLabel` REPLACES an element's visible text for assistive
+  // technology rather than adding to it (`.claude/rules/grounded-answers.md`
+  // rule 10, and what a fixed label cost a bill page). The visible word is
+  // "CONTENTS", so a fixed spoken label told a person who cannot see the screen
+  // that a guide was research, and only that person ever met the wrong word.
+  it('names research on a research piece and a guide on a guide', () => {
+    expect(pieceContentsLabel({ traits: { research: true, guide: false } })).toBe(
+      'Sections in this research',
+    );
+    expect(pieceContentsLabel({ traits: { research: false, guide: true } })).toBe(
+      'Sections in this guide',
+    );
+    // A both-traits piece follows the stricter label, as every other derived
+    // label on it does.
+    expect(pieceContentsLabel({ traits: { research: true, guide: true } })).toBe(
+      'Sections in this research',
+    );
+  });
+
+  it('gives every posted piece a label naming the kind it is labelled', () => {
+    for (const piece of PUBLISHED_RESEARCH) {
+      expect(pieceContentsLabel(piece)).toBe(
+        `Sections in this ${pieceKindLabel(piece).toLowerCase()}`,
+      );
+    }
+  });
+
+  it('wires that label into the screen, and never a fixed word', () => {
+    // Vitest here runs pure logic with no DOM and cannot compute an accessible
+    // name, so this reads the source. The computed name itself is read in a real
+    // browser on a live guide and the live research piece.
+    const source = readFileSync(
+      join(HERE, '..', '..', 'screens', 'redesign', 'ResearchScreen.tsx'),
+      'utf8',
+    );
+    expect(source).toContain('accessibilityLabel={pieceContentsLabel(piece)}');
+    expect(source).not.toMatch(/accessibilityLabel="Sections in this/);
+    // The visible heading is unchanged: nothing here touches what a sighted
+    // reader sees.
+    expect(source).toContain('CONTENTS');
   });
 });

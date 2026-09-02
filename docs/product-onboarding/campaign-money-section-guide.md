@@ -587,7 +587,10 @@ either move.
 
 This is the page listing everything Alethical publishes in its own name
 ([`.claude/rules/grounded-answers.md` rule 13](../../.claude/rules/grounded-answers.md)).
-With nothing posted the page says "Nothing is published yet" and the money landing counts 0.
+With nothing posted the page says "Nothing published yet" and the money landing counts 0.
+Neither that line nor the sentence under it takes a full stop, because each stands alone
+(the full-stop rule above). A piece's own standfirst, drawn on its card, keeps the one its
+author wrote.
 
 **The page shows no title.** The top bar says the word and so does the address, so a visible
 heading saying it a third time is what the naming rule bans. What sits where a title would is
@@ -716,7 +719,9 @@ and its label reads Research, because rule 13 binds it in full
   section's name is built from the words of its own heading, never its position in the
   page, so a link someone shared still lands on the right section after a new section is
   added above it. On a computer the rail marks the section being read, and exactly one
-  entry is marked at a time.
+  entry is marked at a time. The list is headed **CONTENTS** in ink; a screen reader is
+  given the piece's own kind instead, "Sections in this research" or "Sections in this
+  guide", because that label replaces the visible word rather than joining it.
 - The reading column, with the short version boxed on top, and a "how we scored this" inset
   printed beside the first use of any term we defined.
 - A "where these numbers come from" block naming every source.
