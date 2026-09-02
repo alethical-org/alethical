@@ -223,7 +223,7 @@ describe('pressInsideLink keeps a control inside a link from firing that link', 
   });
 });
 
-describe('a payment row\'s name link matches the route it opens (#1331)', () => {
+describe("a payment row's name link matches the route it opens (#1331)", () => {
   // The snapshot builds this address by hand, because the navigation module
   // imports from `lib/committeeMoney` and cannot be imported back. So the 2 are
   // pinned against each other here: change either side and this fails, which is

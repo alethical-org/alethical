@@ -351,9 +351,7 @@ describe('money out', () => {
       expect(row.nameLink).toEqual({ role: 'contributor', name: 'Messinger, Alida' });
       // The exact address the navigation module builds for this screen. Pinned
       // literally so a change to either side fails rather than drifting.
-      expect(paymentRowHref(row)).toBe(
-        '/money/payments?name=Messinger%2C+Alida&role=contributor',
-      );
+      expect(paymentRowHref(row)).toBe('/money/payments?name=Messinger%2C+Alida&role=contributor');
     });
 
     it('does NOT join 2 spellings of one name, which is the whole ruling', () => {
@@ -367,7 +365,11 @@ describe('money out', () => {
     });
 
     it('sends a registered filer to its committee page and never to a spelling', () => {
-      const filer = { ...donor, contributor: 'Some Committee', contributorRegistrationNumber: '18272' };
+      const filer = {
+        ...donor,
+        contributor: 'Some Committee',
+        contributorRegistrationNumber: '18272',
+      };
       // Registered but no page held: still must not fall through to a name lookup,
       // because a registration number identifies a committee and a name does not.
       expect(receivedPaymentRow(filer, new Set()).nameLink).toBeNull();
