@@ -178,15 +178,17 @@ def seed(db) -> models.CampaignFinanceFilingSnapshot:
     return snapshot
 
 
-def verdict_rows(db, table: str) -> list[tuple]:
-    return list(
-        db.execute(
+def verdicts(db, table: str) -> dict[tuple[str, str, int], str]:
+    """Every stored answer, keyed by the snapshot it is about and the committee-year."""
+    return {
+        (str(snapshot), registration, year): status
+        for snapshot, registration, year, status in db.execute(
             text(
                 f"SELECT snapshot_id, registration_number, filing_year, status "
-                f"FROM {table} ORDER BY registration_number, filing_year"
+                f"FROM {table}"
             )
         )
-    )
+    }
 
 
 def live_snapshots(db) -> tuple[str, str]:
@@ -230,12 +232,17 @@ def test_a_publish_re_checks_both_sides_against_what_it_just_published(
     assert report.failed is False
     assert [outcome.name for outcome in report.outcomes] == ["money in", "money out"]
     contributions, expenditures = live_snapshots(db)
-    assert verdict_rows(db, "cf_stated_split") == [
-        (contributions, "19004", 2025, "agrees")
-    ]
-    assert verdict_rows(db, "cf_stated_spending") == [
-        (expenditures, "19004", 2025, "agrees")
-    ]
+    money_in = verdicts(db, "cf_stated_split")
+    money_out = verdicts(db, "cf_stated_spending")
+    assert money_in[(contributions, "19004", 2025)] == "agrees"
+    assert money_out[(expenditures, "19004", 2025)] == "agrees"
+    # Every answer is about the release being served, and every committee-year in the
+    # population has one -- including the ones the Board serves no document for, which
+    # read as not checked rather than being left with no answer at all.
+    assert {snapshot for snapshot, _, _ in money_in} == {contributions}
+    assert {snapshot for snapshot, _, _ in money_out} == {expenditures}
+    assert len(money_in) == report.outcomes[0].verdicts
+    assert len(money_out) == report.outcomes[1].verdicts
 
 
 def test_money_out_reads_the_document_money_in_has_just_fetched(
@@ -265,9 +272,7 @@ def test_money_out_reads_the_document_money_in_has_just_fetched(
 
     assert db.execute(text("SELECT count(*) FROM cf_report_document")).scalar() == 1
     _, expenditures = live_snapshots(db)
-    assert verdict_rows(db, "cf_stated_spending") == [
-        (expenditures, "19004", 2025, "agrees")
-    ]
+    assert verdicts(db, "cf_stated_spending")[(expenditures, "19004", 2025)] == "agrees"
 
 
 def test_the_previous_releases_answers_are_never_carried_forward(
@@ -301,14 +306,14 @@ def test_the_previous_releases_answers_are_never_carried_forward(
     db.expire_all()
     contributions, expenditures = live_snapshots(db)
     assert contributions != first_contributions
-    # Still exactly the answers about the release that is no longer served, and none
-    # about the one that is.
-    assert verdict_rows(db, "cf_stated_split") == [
-        (first_contributions, "19004", 2025, "agrees")
-    ]
-    assert verdict_rows(db, "cf_stated_spending") == [
-        (first_expenditures, "19004", 2025, "agrees")
-    ]
+    # Every stored answer is still about the release that is no longer served, and
+    # nothing has been re-keyed onto the one that is.
+    assert {snapshot for snapshot, _, _ in verdicts(db, "cf_stated_split")} == {
+        first_contributions
+    }
+    assert {snapshot for snapshot, _, _ in verdicts(db, "cf_stated_spending")} == {
+        first_expenditures
+    }
 
     recheck.recheck_stated_figures(
         db,
@@ -317,15 +322,27 @@ def test_the_previous_releases_answers_are_never_carried_forward(
         log=lambda message: None,
         money_in=money_in_against(url),
     )
-    assert (contributions, "19004", 2025, "agrees") in verdict_rows(
-        db, "cf_stated_split"
-    )
-    assert (expenditures, "19004", 2025, "agrees") in verdict_rows(
-        db, "cf_stated_spending"
+    assert verdicts(db, "cf_stated_split")[(contributions, "19004", 2025)] == "agrees"
+    assert (
+        verdicts(db, "cf_stated_spending")[(expenditures, "19004", 2025)] == "agrees"
     )
 
 
 # --- A check that cannot run says so loudly -----------------------------------
+
+
+class RollbackOnly:
+    """Stands in for the session where only the failure path touches it.
+
+    A check that raises leaves its transaction dirty, so the re-check rolls back before
+    running the other one. Recorded here so that rollback cannot quietly disappear.
+    """
+
+    def __init__(self) -> None:
+        self.rollbacks = 0
+
+    def rollback(self) -> None:
+        self.rollbacks += 1
 
 
 def exploding(message: str):
@@ -349,8 +366,9 @@ def counting():
 def test_a_check_that_cannot_run_fails_the_publish_loudly() -> None:
     """The guard this issue is really about: publication is never quietly followed by
     nothing."""
+    session = RollbackOnly()
     report = recheck.recheck_stated_figures(
-        None,
+        session,
         years=[2025],
         store_factory=lambda: object(),
         log=lambda message: None,
@@ -358,6 +376,7 @@ def test_a_check_that_cannot_run_fails_the_publish_loudly() -> None:
         money_out=counting(),
     )
 
+    assert session.rollbacks == 1
     assert report.failed is True
     summary = report.summary()
     assert "NEEDS A PERSON" in summary
@@ -371,7 +390,7 @@ def test_one_broken_check_does_not_stop_the_other() -> None:
     """They break for unrelated reasons, and one working answer is worth having."""
     working = counting()
     report = recheck.recheck_stated_figures(
-        None,
+        RollbackOnly(),
         years=[2025],
         store_factory=lambda: object(),
         log=lambda message: None,
@@ -393,7 +412,7 @@ def test_a_store_nobody_can_reach_fails_both_checks_rather_than_half_of_them() -
 
     never = counting()
     report = recheck.recheck_stated_figures(
-        None,
+        RollbackOnly(),
         years=[2025],
         store_factory=refuse,
         log=lambda message: None,
@@ -410,7 +429,7 @@ def test_a_store_nobody_can_reach_fails_both_checks_rather_than_half_of_them() -
 def test_a_run_where_both_checks_worked_carries_no_banner() -> None:
     """So the banner means something when it appears."""
     report = recheck.recheck_stated_figures(
-        None,
+        RollbackOnly(),
         years=[2025],
         store_factory=lambda: object(),
         log=lambda message: None,
@@ -435,7 +454,7 @@ def test_the_default_years_are_this_year_and_the_2_before_it() -> None:
 def test_named_years_are_used_and_deduplicated() -> None:
     runner = counting()
     recheck.recheck_stated_figures(
-        None,
+        RollbackOnly(),
         years=[2026, 2024, 2024],
         store_factory=lambda: object(),
         log=lambda message: None,
