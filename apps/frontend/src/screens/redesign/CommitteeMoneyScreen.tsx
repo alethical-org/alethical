@@ -600,7 +600,6 @@ function MoneyInCard({
           label="Donations with a donor’s name"
           value={named.text}
           isFigure={named.isFigure}
-          note={paymentCountLabel(split.namedPayments)}
         />
       )}
 
@@ -705,12 +704,7 @@ function MoneyOutCard({
           note={reportedThroughLabel(moneyOut.reportedThrough)}
         />
       ) : null}
-      <Figure
-        label={MONEY_OUT_FIGURE_LABEL}
-        value={total.text}
-        isFigure={total.isFigure}
-        note={paymentCountLabel(moneyOut.itemizedPayments)}
-      />
+      <Figure label={MONEY_OUT_FIGURE_LABEL} value={total.text} isFigure={total.isFigure} />
       {/* Directly under the figure it qualifies, the same place money in draws its
           own goods-and-services line, because a reader shown a payments total reads
           all of it as cash the committee spent (#1894). Absent whenever the amount is
