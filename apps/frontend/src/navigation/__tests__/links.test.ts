@@ -18,7 +18,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { GestureResponderEvent } from 'react-native';
 
-import { confirmedMemberMoneyPath } from '../../lib/committeeMoney';
+import { confirmedMemberMoneyPath, paymentRowHref } from '../../lib/committeeMoney';
 import { backLinkProps, externalLinkProps, linkProps, pressInsideLink, routePath } from '../links';
 
 /** A click event shaped like the one react-native-web hands to `onPress` on web. */
@@ -220,5 +220,34 @@ describe('pressInsideLink keeps a control inside a link from firing that link', 
     pressInsideLink(act)(event as unknown as GestureResponderEvent);
     expect(event.preventDefault).toHaveBeenCalledOnce();
     expect(act).toHaveBeenCalledOnce();
+  });
+});
+
+describe('a payment row\'s name link matches the route it opens (#1331)', () => {
+  // The snapshot builds this address by hand, because the navigation module
+  // imports from `lib/committeeMoney` and cannot be imported back. So the 2 are
+  // pinned against each other here: change either side and this fails, which is
+  // what the comment on `paymentRowHref` promises.
+  it('paymentRowHref agrees with routePath.moneyPaymentsUnderName, character for character', () => {
+    for (const [name, role] of [
+      ['Messinger, Alida', 'contributor'],
+      ['Acme Printing', 'vendor'],
+      // A name carrying the characters a URL cares about, so the 2 encoders are
+      // compared where they could plausibly differ rather than only where they cannot.
+      ["O'Brien & Sons, Inc.", 'vendor'],
+      ['Smith, José', 'contributor'],
+    ] as const) {
+      const row = {
+        name,
+        meta: '',
+        date: null,
+        amount: null,
+        inKind: false,
+        linkNumber: null,
+        linkName: null,
+        nameLink: { role, name },
+      };
+      expect(paymentRowHref(row)).toBe(routePath.moneyPaymentsUnderName(name, role));
+    }
   });
 });

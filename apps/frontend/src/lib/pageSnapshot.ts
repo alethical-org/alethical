@@ -78,6 +78,7 @@ import {
   moneyOutKindLabel,
   inKindDonationsNote,
   inKindOutNote,
+  paymentRowHref,
   listedExceedsReported,
   moneyOutNote,
   statedSpendingNote,
@@ -1361,12 +1362,10 @@ export function committeePaymentsPageSnapshot(
                 ]
                   .filter(Boolean)
                   .join(' · '),
-                href:
-                  row.linkNumber && row.linkName
-                    ? `/money/committees/${encodeURIComponent(
-                        committeeSlug(row.linkName, row.linkNumber),
-                      )}`
-                    : undefined,
+                // The same 2 destinations the interactive screen offers, in the
+                // same order, so the first response a search engine reads carries
+                // the links a reader gets rather than a subset (#1812, #1331).
+                href: paymentRowHref(row),
               })),
             },
           ]
