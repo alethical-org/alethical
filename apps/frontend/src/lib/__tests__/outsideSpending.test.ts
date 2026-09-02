@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
+import { formatMoney } from '../legislatorCampaignMoney';
 import {
-  formatSpendingAmount,
   isMeasuredZero,
   outsideSpendingFetchedOn,
   outsideSpendingCoverage,
@@ -54,28 +54,55 @@ const EMPTY: OutsideSpendingYear = {
   lastPaymentOn: null,
 };
 
-describe('formatSpendingAmount', () => {
-  it('keeps real cents, because a rounded figure cannot be checked against the filing', () => {
-    expect(formatSpendingAmount(487974.82)).toBe('$487,974.82');
-    expect(formatSpendingAmount(1092625.5)).toBe('$1,092,625.50');
+// Outside spending has no formatter of its own since #1929: the card calls the shared
+// `formatMoney`, so one product rule has one implementation and cannot drift again.
+// These are the values the deleted `formatSpendingAmount` was pinned on, kept here and
+// re-pinned on the shared formatter so the switch is a checked change rather than an
+// assumed one.
+describe('outside spending money goes through the one shared formatter', () => {
+  it('states whole dollars, cut rather than rounded', () => {
+    expect(formatMoney(487974.82)).toBe('$487,974');
+    expect(formatMoney(1092625.5)).toBe('$1,092,625');
+    expect(formatMoney(2650)).toBe('$2,650');
+    expect(formatMoney(0)).toBe('$0');
   });
 
-  it('drops cents only when they are zero', () => {
-    expect(formatSpendingAmount(2650)).toBe('$2,650');
-    expect(formatSpendingAmount(0)).toBe('$0');
+  // The #1332 defect: the source columns hold 4 decimal places, so a filing really can
+  // carry 1.9999, and the old formatter split a value into dollars and cents to round
+  // the halves separately, which lost the carry between them and printed the malformed
+  // "$1.100". Truncation cannot reach that shape — one floor over the whole magnitude
+  // never carries anything upward — and these are the same values that found it.
+  it('carries nothing into the dollars, at either end of the range', () => {
+    expect(formatMoney(1.9999)).toBe('$1');
+    expect(formatMoney(2.995)).toBe('$2');
+    expect(formatMoney(1234.9999)).toBe('$1,234');
+    expect(formatMoney(999.9999)).toBe('$999');
+    for (const value of [1.9999, 2.995, 1234.9999, 999.9999, 0.999]) {
+      // The malformed shape itself: a dollar figure with 3 digits after the point.
+      expect(formatMoney(value)).not.toMatch(/\.\d{3}/);
+    }
   });
 
-  it('carries into the dollars when the cents round up to a whole one', () => {
-    // The source column holds 4 decimal places, so these are values a filing can
-    // really carry. Rounding the fraction on its own and leaving the whole-dollar part
-    // alone printed `$1.100`, a malformed number over a figure a reader is meant to be
-    // able to check. Found by an automated review on #1332.
-    expect(formatSpendingAmount(1.9999)).toBe('$2');
-    expect(formatSpendingAmount(0.999)).toBe('$1');
-    expect(formatSpendingAmount(2.995)).toBe('$3');
-    expect(formatSpendingAmount(1234.9999)).toBe('$1,235');
-    // A carry that crosses a thousands separator still groups.
-    expect(formatSpendingAmount(999.9999)).toBe('$1,000');
+  it('keeps a sub-dollar payment under a dollar rather than rounding it up', () => {
+    // 0.999 printed "$1.00" before #1929 — higher than the money, and a dollar figure
+    // inside the branch reserved for values under a dollar. It is the same carry
+    // defect as #1332 at the other end of the range.
+    expect(formatMoney(0.999)).toBe('$0.99');
+    expect(formatMoney(0.9999)).toBe('$0.99');
+    expect(formatMoney(0.5)).toBe('$0.50');
+    // Binary floating point makes 0.29 * 100 come out as 28.999999999999996, so a bare
+    // floor would print $0.28 for a 29-cent payment.
+    expect(formatMoney(0.29)).toBe('$0.29');
+    expect(formatMoney(0.07)).toBe('$0.07');
+    expect(formatMoney(0.01)).toBe('$0.01');
+  });
+
+  it('reads no higher in magnitude on a negative amount either', () => {
+    // 0 of the live release's 41,130 outside-spending rows are negative, but a
+    // correction could be, and the rule holds in both directions.
+    expect(formatMoney(-1.9999)).toBe('-$1');
+    expect(formatMoney(-0.999)).toBe('-$0.99');
+    expect(formatMoney(-487974.82)).toBe('-$487,974');
   });
 });
 

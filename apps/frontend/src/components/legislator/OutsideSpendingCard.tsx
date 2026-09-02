@@ -5,8 +5,8 @@ import { useResponsive } from '../../hooks/useResponsive';
 import { externalLinkProps } from '../../navigation/links';
 import { LinkArrow } from '../LinkArrow';
 import { useHover } from '../billDetail/interactions';
+import { formatMoney } from '../../lib/legislatorCampaignMoney';
 import {
-  formatSpendingAmount,
   isMeasuredZero,
   outsideSpendingCoverage,
   outsideSpendingFetchedOn,
@@ -140,7 +140,13 @@ function YearBlock({ year }: { year: OutsideSpendingYear }) {
             {figures.map((figure) => (
               <View key={figure.key} style={styles.figure}>
                 <Text style={styles.figureLabel}>{figure.label}</Text>
-                <Text style={styles.figureAmount}>{formatSpendingAmount(figure.amount)}</Text>
+                {/* The product's one money formatter, shared with the money-in and
+                    money-out cards above this one so the whole tab states an amount
+                    the same way (#1929). It returns null only for a value that is not
+                    a finite number, which prints nothing rather than inventing a
+                    figure — `outsideSpendingFigures` already substitutes 0 for an
+                    absent amount, and a measured 0 has its own sentence above. */}
+                <Text style={styles.figureAmount}>{formatMoney(figure.amount)}</Text>
                 <Text style={styles.figureMeta}>
                   {figure.payments === 1 ? '1 payment' : `${figure.payments} payments`}
                 </Text>
