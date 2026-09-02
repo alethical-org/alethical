@@ -216,11 +216,9 @@ export function unnamedShareLabel(
  * A ballot-question committee's itemization threshold is $500, not $200: the statute
  * (10A.20 subd. 3(c)) attaches its figures to what the money is for, and the Board's own
  * handbook for those filers says $500 outright. So a sentence saying "committees" would
- * be wrong about that one kind. It does not follow that a page may print $500 anywhere:
- * rule 12 holds a ballot-question filer's page to no threshold sentence at all until
- * Eugene decides otherwise, and that ban is a product choice rather than a reading of
- * the sources. This screen never reaches it either way — it draws a legislator's own
- * committee, which is never a ballot-question one.
+ * be wrong about that one kind. A committee page prints that $500 for those filers, and
+ * the 2 sources agree on it. This screen never reaches the case at all — it draws a
+ * legislator's own committee, which is never a ballot-question one.
  *
  * It says the state's file does not name them, **not** that nobody knows who they are.
  * The second is a claim about the world that this source cannot support: the committee
@@ -281,7 +279,7 @@ export function spendingNote(state: MoneyBlockState, hasReportedTotal = false): 
   return (
     'Minnesota only names a recipient once payments to them pass $200 in total for the ' +
     'year, and it named none for this committee this year. That does not mean the ' +
-    'committee spent nothing.'
+    'committee paid out nothing.'
   );
 }
 

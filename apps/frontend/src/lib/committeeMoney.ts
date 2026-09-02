@@ -19,10 +19,11 @@
  * - The register's own kind is the only kind label a page may print. A ballot
  *   question filer is known by the Board's own sub-type code on its money rows
  *   (`BC` / `BF`), never by its name.
- * - A ballot-question page asserts no donor-naming threshold anywhere. The statute
- *   says $500 for ballot questions and the Board's own handbook for those filers says
- *   $500 as well, so the silence is a product decision under rule 12 rather than 2
- *   sources disagreeing — and no page may say it is the latter.
+ * - A ballot-question page prints $500 as the donor-naming threshold, and every other
+ *   page prints $200. The statute (10A.20 subd. 3(c)) and the Board's own handbook for
+ *   those filers both set $500. The payments side is a different threshold and no
+ *   source we hold sets a ballot-question figure for it, so the money-out sentence
+ *   names that threshold without a figure.
  * - Missing is "Not reported"; a verified zero is "0"; a closed committee is its
  *   own state with its own date, because "not reported" and "nothing is due" are
  *   both false for it.
@@ -496,12 +497,6 @@ export const MONEY_OUT_FIGURE_LABEL = 'Payments we can list';
 export const MONEY_OUT_REPORTED_LABEL = 'Payments out this committee reported to the state';
 
 /**
- * The sentence under the money-out figure, per served state. A ballot-question
- * filer's page prints no threshold figure in it — the same silence rule 12 sets
- * for the donor side, because the statute's ballot-question figures and the
- * Board's own handbook disagree and we assert neither.
- */
-/**
  * Whether our listable payments total is larger than the committee's own reported total.
  *
  * The one comparison the money-out note has to make, and it is a comparison rather than a
@@ -522,6 +517,12 @@ export function listedExceedsReported(
   return Number(listedTotal) > Number(reportedTotal);
 }
 
+/**
+ * The sentence under the money-out figure, per served state. A ballot-question filer's
+ * page names the payments threshold without a figure: the $500 the statute and the
+ * Board's handbook set is the donor-itemization threshold, and no source we hold sets a
+ * ballot-question figure for the payments file.
+ */
 export function moneyOutNote(
   state: 'reported' | 'not_reported' | 'unavailable',
   isBallot: boolean,

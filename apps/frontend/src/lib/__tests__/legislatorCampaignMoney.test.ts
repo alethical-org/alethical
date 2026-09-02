@@ -255,8 +255,11 @@ describe('spendingNote', () => {
     // screen, and a reader takes the absence as zero. This is the same
     // missing-versus-zero failure as a "$0", one step further out.
     const text = spendingNote('not_reported');
-    expect(text).toContain('does not mean the committee spent nothing');
+    expect(text).toContain('does not mean the committee paid out nothing');
     expect(text).not.toContain('no bigger number');
+    // Money out is never called spending here: a large share of it is money given to
+    // other campaigns, and the committee page's own note words this state the same way.
+    expect(text).not.toContain('spent nothing');
   });
 
   it('says a load failed rather than blaming the committee', () => {
@@ -815,9 +818,11 @@ describe('the spending note never speaks for what Minnesota publishes', () => {
     expect(spendingNote('reported')).toContain('not everything');
   });
 
-  // Unchanged and load-bearing: an absent figure must never read as a spending of zero.
-  it('keeps refusing to let nothing named read as nothing spent', () => {
-    expect(spendingNote('not_reported')).toContain('does not mean the committee spent nothing');
+  // Unchanged and load-bearing: an absent figure must never read as a paying-out of zero.
+  it('keeps refusing to let nothing named read as nothing paid out', () => {
+    expect(spendingNote('not_reported')).toContain(
+      'does not mean the committee paid out nothing',
+    );
   });
 });
 
