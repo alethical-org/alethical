@@ -61,6 +61,7 @@ from alethical.api.services.committee_finance import (
     MoneyOut,
     ReceiptTypeTotal,
 )
+from alethical.api.services.committee_stated_spending import NOT_RUN
 from alethical.api.services.legislator_finance import (
     LINK_CONFIRMED,
     SPLIT_SHOWN,
@@ -105,7 +106,15 @@ def _committee(
             source_url="https://cfb.mn.gov/reports/contributions.csv",
         ),
         money_out=MoneyOut(
-            REPORTED, Decimal("250.00"), 2, (), Decimal("40.00"), None, None, None
+            REPORTED,
+            Decimal("250.00"),
+            2,
+            (),
+            Decimal("40.00"),
+            None,
+            None,
+            None,
+            NOT_RUN,
         ),
         independent_spending=IndependentSpendingAbout(REPORTED, None, None),
     )
@@ -529,6 +538,19 @@ def test_the_route_serves_two_committees_and_no_total_of_them(db, client):
         assert not offenders, (
             f"the response grew a cross-committee key containing {banned!r}: {offenders}"
         )
+
+
+def test_a_profiles_money_out_says_whether_anybody_checked_it(db, client):
+    """A legislator's profile carries a real politician's name, so a spending figure
+    nobody compared against the committee's own filed report must not read like one
+    that was (#1650). Unwired, this route served nothing about the comparison at all."""
+    legislator_id = _two_committees_for_one_member(db)
+
+    data = client.get(
+        f"/api/v1/legislators/{legislator_id}/campaign-finance", params={"year": 2026}
+    ).json()["data"]
+    by_number = {row["registration_number"]: row for row in data["committees"]}
+    assert by_number[NAPPER_SENATE]["money_out"]["stated_spending_state"] == "not_run"
 
 
 def test_the_guard_moves_no_figure_a_reader_sees(db, client):

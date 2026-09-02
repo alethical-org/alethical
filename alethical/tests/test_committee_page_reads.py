@@ -50,6 +50,9 @@ def _clear(session) -> None:
         "cf_independent_expenditure_row",
     ):
         session.execute(text(f"DELETE FROM {table}"))
+    # Before the snapshots it points at: a verdict left behind would attach itself
+    # to the next test's expenditures snapshot and turn a `not_run` case green.
+    session.execute(text("DELETE FROM cf_stated_spending"))
     session.execute(text("DELETE FROM cf_snapshot"))
     session.execute(text("DELETE FROM legislator_campaign_committee"))
     session.commit()
@@ -118,6 +121,47 @@ _ROW_COUNTER: dict[uuid.UUID, int] = {}
 def _next_row(snapshot) -> int:
     _ROW_COUNTER[snapshot.id] = _ROW_COUNTER.get(snapshot.id, 0) + 1
     return _ROW_COUNTER[snapshot.id]
+
+
+def _payment(db, snapshot, *, reg_num, amount, year=2025):
+    """One itemized payment out, so the money-out block has a figure to carry."""
+    db.add(
+        models.CampaignFinanceExpenditureRow(
+            snapshot_id=snapshot.id,
+            row_number=_next_row(snapshot),
+            committee_reg_num=reg_num,
+            committee_name="Novotny, Paul House Committee",
+            entity_type="PCC",
+            vendor_name="A Vendor",
+            amount=Decimal(amount),
+            unpaid_amount=Decimal("0"),
+            transaction_date=date(year, 6, 1),
+            year=year,
+            type="Campaign Expenditure",
+        )
+    )
+    db.flush()
+
+
+def _spending_verdict(db, snapshot, *, reg_num, year=2025, status="disagrees"):
+    """One stored money-out verdict, keyed on the expenditures snapshot the check uses."""
+    db.execute(
+        text(
+            "INSERT INTO cf_stated_spending "
+            "(snapshot_id, registration_number, filing_year, status, reason, checked_at) "
+            "VALUES (:snap, :reg, :year, CAST(:status AS cf_stated_spending_status), "
+            ":reason, :at)"
+        ),
+        {
+            "snap": snapshot.id,
+            "reg": reg_num,
+            "year": year,
+            "status": status,
+            "reason": "stored by a test",
+            "at": datetime(2026, 9, 1, tzinfo=UTC),
+        },
+    )
+    db.commit()
 
 
 def _receipt(db, snapshot, *, reg_num, amount, on=None, year=2025, in_kind="No"):
@@ -765,6 +809,64 @@ def test_the_filings_own_spent_total_is_served_beside_the_itemized_sum(
     money_out = response.json()["data"]["money_out"]
     assert money_out["reported_total"] == "9508.24"
     assert money_out["reported_through"] == "2025-12-31"
+
+
+def test_nobody_has_checked_this_money_out_so_the_page_is_told_so(db, client):
+    """A spending figure nobody compared against the committee's own filed report must
+    not reach a page looking like one that was checked (#1650). ``not_run`` is a fact
+    about us and is deliberately not ``not_checked``, which blames the Board for
+    serving no document."""
+    published = Published(db)
+    _payment(db, published.expenditures, reg_num=CANDIDATE, amount="250.00")
+    db.commit()
+
+    money_out = client.get(
+        f"/api/v1/committees/{CANDIDATE}/finance", params={"year": 2025}
+    ).json()["data"]["money_out"]
+    assert money_out["stated_spending_state"] == "not_run"
+
+
+def test_a_stored_money_out_verdict_reaches_the_committee_page(db, client):
+    """The check ran and found the 2 official figures disagree, so the page is handed
+    the verdict rather than the ordinary reassurance that a gap is the $200 naming
+    threshold or goods and services -- neither of which explains a filing whose own
+    itemized subtotal disagrees."""
+    published = Published(db)
+    _payment(db, published.expenditures, reg_num=CANDIDATE, amount="250.00")
+    _spending_verdict(db, published.expenditures, reg_num=CANDIDATE, year=2025)
+
+    money_out = client.get(
+        f"/api/v1/committees/{CANDIDATE}/finance", params={"year": 2025}
+    ).json()["data"]["money_out"]
+    assert money_out["stated_spending_state"] == "disagrees"
+
+
+def test_a_committee_year_we_hold_no_payments_for_still_carries_its_verdict(db, client):
+    """The sharpest case the check exists for, and the one a lookup skipped on the
+    empty path would drop: 17 of the live release's 208 disagreements hold not one
+    payment row while the committee's own filing itemizes money out."""
+    published = Published(db)
+    _receipt(db, published.contributions, reg_num=CANDIDATE, amount="100.00")
+    _spending_verdict(db, published.expenditures, reg_num=CANDIDATE, year=2025)
+
+    money_out = client.get(
+        f"/api/v1/committees/{CANDIDATE}/finance", params={"year": 2025}
+    ).json()["data"]["money_out"]
+    assert money_out["itemized_payment_total"] is None
+    assert money_out["stated_spending_state"] == "disagrees"
+
+
+def test_a_verdict_about_another_year_never_speaks_for_this_one(db, client):
+    """A verdict is per committee-year. Letting 2025's answer stand in for 2026's
+    would report a comparison nobody made."""
+    published = Published(db)
+    _payment(db, published.expenditures, reg_num=CANDIDATE, amount="250.00", year=2025)
+    _spending_verdict(db, published.expenditures, reg_num=CANDIDATE, year=2025)
+
+    money_out = client.get(
+        f"/api/v1/committees/{CANDIDATE}/finance", params={"year": 2026}
+    ).json()["data"]["money_out"]
+    assert money_out["stated_spending_state"] == "not_run"
 
 
 def test_a_special_election_filers_spent_total_is_never_printed(

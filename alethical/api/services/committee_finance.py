@@ -82,6 +82,9 @@ from alethical.api.services.independent_spending import (
     CommitteeSpending,
     spending_for_committee,
 )
+from alethical.api.services.committee_stated_spending import (
+    stated_spending_for_year,
+)
 from alethical.db.schema import load_schema
 from alethical.pipeline import campaign_finance_reader as reader
 from alethical.pipeline.campaign_finance_filing_calendars import (
@@ -218,6 +221,20 @@ class MoneyOut:
     reported_total: Decimal | None
     reported_through: date | None
     source_url: str | None
+    #: Whether this committee-year's own filed report was compared against the
+    #: payment rows we hold, and what the comparison said
+    #: ([#1650](https://github.com/alethical-org/alethical/issues/1650)). The
+    #: money-out twin of ``NamedMoneySplit.stated_split_state``, and the reason it
+    #: is a field rather than a page's inference: nothing else on this block can
+    #: tell a figure that was checked against the filing from one that was not.
+    #:
+    #: 5 values, from ``committee_stated_spending``. ``agrees`` is the only one that
+    #: lets a page treat the itemized figure as checked. ``disagrees`` means the 2
+    #: publications state different amounts and the page must say so rather than
+    #: explain the gap away. ``not_checked`` is Minnesota's gap, ``reader_unproven``
+    #: is ours, and ``not_run`` means nobody has looked -- 3 different reasons for
+    #: the same absence of a verdict, and none of them is a pass.
+    stated_spending_state: str
 
 
 @dataclass(frozen=True)
@@ -570,6 +587,12 @@ def money_out(
     reported_total, reported_through = _reported_expenditures(
         db, registration_number, year
     )
+    # Read on every path, including the ones that carry no figure. A committee-year
+    # we hold no rows for is exactly the case the check is sharpest about -- 17 of
+    # the 208 disagreements in the live release hold nothing at all while the filing
+    # itemizes money out -- so a state that skipped the lookup would drop the verdict
+    # precisely where it matters most.
+    checked = stated_spending_for_year(db, release, registration_number, year).status
     try:
         years = reader.money_out(db, release, registration_number, years=[year])
     except ReleaseNoLongerHeld:
@@ -582,6 +605,7 @@ def money_out(
             reported_total,
             reported_through,
             source_url,
+            checked,
         )
 
     found = next((entry for entry in years if entry.year == year), None)
@@ -598,6 +622,7 @@ def money_out(
             reported_total,
             reported_through,
             source_url,
+            checked,
         )
     if found is None:
         return MoneyOut(
@@ -609,6 +634,7 @@ def money_out(
             reported_total,
             reported_through,
             source_url,
+            checked,
         )
     return MoneyOut(
         REPORTED,
@@ -622,6 +648,7 @@ def money_out(
         reported_total,
         reported_through,
         source_url,
+        checked,
     )
 
 

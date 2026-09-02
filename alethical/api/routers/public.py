@@ -3163,6 +3163,12 @@ def committee_finance_for_year(
                 "in_kind_total": finance.money_out.in_kind_total,
                 "reported_total": finance.money_out.reported_total,
                 "reported_through": finance.money_out.reported_through,
+                # Whether this committee-year's own filed report was read against
+                # the payment rows we hold (#1650). Without it the card cannot tell
+                # a checked figure from an unchecked one, and 40 committee-years in
+                # the live release have a filing that itemizes money out our copy
+                # does not hold.
+                "stated_spending_state": finance.money_out.stated_spending_state,
                 "by_type": [
                     {
                         "type": entry.expenditure_type,
@@ -4173,6 +4179,17 @@ def legislator_campaign_finance(
     ``sources_disagree`` above, or ``named_payments_not_in_our_copy`` where we hold no
     row for the year to have disagreed with anything.
 
+    ``money_out.stated_spending_state`` is the same question asked of the money going
+    **out**, and it is answered separately because the 2 comparisons read different
+    downloads and different schedules. ``agrees`` is the only value that lets a page
+    treat the itemized payment figure as checked against the committee's own filing.
+    ``disagrees`` means the 2 publications state different amounts, and unlike the
+    split it reaches a page as itself: money out prints both figures and no derived
+    third one, so there is nothing to withhold and everything to say plainly.
+    ``not_checked`` is Minnesota's gap, ``reader_unproven`` is ours, and ``not_run``
+    means nobody has looked. None of those 3 is a pass, and a page may not let any of
+    them read as ``agrees``.
+
     ``first_payment_on`` and ``last_payment_on`` describe the payments we hold and are
     **not** a coverage period. No surface may turn them into one, or assume a period
     starts on 1 January: filer 19223 reports from 11 July 2025 (§9.5).
@@ -4299,6 +4316,13 @@ def legislator_campaign_finance(
                             "reported_total": entry.finance.money_out.reported_total,
                             "reported_through": (
                                 entry.finance.money_out.reported_through
+                            ),
+                            # The money-out twin of ``split.stated_split_state``
+                            # (#1650). A profile carries a real politician's name, so
+                            # a spending figure nobody has checked against the
+                            # committee's own filing must not read like one that was.
+                            "stated_spending_state": (
+                                entry.finance.money_out.stated_spending_state
                             ),
                             "by_type": [
                                 {

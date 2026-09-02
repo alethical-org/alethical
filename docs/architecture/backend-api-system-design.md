@@ -1032,6 +1032,18 @@ other way round, so any single-label filter reports a whole kind of filer as hav
 nothing. `unpaid_total` is a separate column of the filing and not a subset of the total: the
 download's `Amount` is the filing's *total* column and a row can be unpaid.
 
+`money_out.stated_spending_state` says whether this committee-year's own filed report was read
+against the payment rows we hold, and it is answered separately from `stated_split_state`
+because the 2 comparisons read different downloads and different schedules. Five values:
+`agrees` is the only one that lets a page treat the itemized payment figure as checked;
+`disagrees` means Minnesota's 2 publications state different amounts, and **unlike the split it
+reaches a page as itself**, because money out prints both figures and no derived third one, so
+there is nothing a disagreement could make false by subtraction; `not_checked` is Minnesota's
+gap, `reader_unproven` is ours, and `not_run` means nobody has looked. None of the last 3 is a
+pass. Read from `cf_stated_spending` and never computed while a page is drawn. Served on both
+money-out routes, and both draw it in the same place
+([#1650](https://github.com/alethical-org/alethical/issues/1650)).
+
 `money_out.in_kind_total` is how much of that total was goods and services rather than money,
 read off the payments file's own `In-kind?` column, and it is the money-out twin of
 `split.named_in_kind_total` ([#1894](https://github.com/alethical-org/alethical/issues/1894)).

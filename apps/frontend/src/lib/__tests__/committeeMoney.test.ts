@@ -33,6 +33,7 @@ import {
   listedExceedsReported,
   inKindDonationsNote,
   inKindOutNote,
+  statedSpendingNote,
   moneyOutNote,
   notFoundBody,
   notFoundTitle,
@@ -639,5 +640,56 @@ describe('money out never blames the naming threshold for a list that is bigger'
     expect(listedExceedsReported('', '60286.21')).toBe(false);
     expect(listedExceedsReported(undefined, undefined)).toBe(false);
     expect(listedExceedsReported('not a number', '60286.21')).toBe(false);
+  });
+});
+
+describe('whether anybody checked this committee\u2019s money out against its own filing', () => {
+  // Every one of these is a way the money-out card could tell a reader a figure was
+  // checked when it was not, or explain away a gap the check has already disproved
+  // (#1650; grounded-answers.md rule 12).
+
+  it('says nothing when the filing and our rows agree, so a checked year draws plainly', () => {
+    expect(statedSpendingNote('agrees')).toBeNull();
+  });
+
+  it('says the 2 official figures were compared and do not agree', () => {
+    const note = statedSpendingNote('disagrees') ?? '';
+    expect(note).toContain('do not');
+    expect(note).toContain('agree');
+    // It must not repeat the unchecked caveat: we did compare it.
+    expect(note).not.toContain('have not yet compared');
+  });
+
+  it('never says which of the 2 figures is the larger one', () => {
+    // The 208 disagreements in the live release run both ways, 168 of them ours being
+    // larger, so any wording that picks a side is wrong about a third of the time.
+    const note = (statedSpendingNote('disagrees') ?? '').toLowerCase();
+    for (const side of ['more than', 'less than', 'larger', 'smaller', 'short of', 'missing']) {
+      expect(note).not.toContain(side);
+    }
+  });
+
+  it('never claims a cause for a disagreement it cannot explain', () => {
+    // The $200 naming threshold and goods and services are the card's 2 ordinary
+    // reasons for a gap, and neither survives a filing whose own itemized subtotal
+    // disagrees. Naming one here would be the reassurance the check disproved.
+    const note = statedSpendingNote('disagrees') ?? '';
+    expect(note).not.toContain('$200');
+    expect(note).not.toContain('goods and services');
+  });
+
+  it.each(['not_checked', 'reader_unproven', 'not_run', null, undefined, ''])(
+    'warns that the filing may name payments our copy is missing when the state is %s',
+    (state) => {
+      const note = statedSpendingNote(state) ?? '';
+      expect(note).toContain('have not yet compared');
+      expect(note).toContain('missing');
+    },
+  );
+
+  it('never lets an unverdicted state read like an agreement', () => {
+    for (const state of ['not_checked', 'reader_unproven', 'not_run']) {
+      expect(statedSpendingNote(state)).not.toBeNull();
+    }
   });
 });
