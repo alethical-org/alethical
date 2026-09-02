@@ -820,9 +820,7 @@ describe('the spending note never speaks for what Minnesota publishes', () => {
 
   // Unchanged and load-bearing: an absent figure must never read as a paying-out of zero.
   it('keeps refusing to let nothing named read as nothing paid out', () => {
-    expect(spendingNote('not_reported')).toContain(
-      'does not mean the committee paid out nothing',
-    );
+    expect(spendingNote('not_reported')).toContain('does not mean the committee paid out nothing');
   });
 });
 
