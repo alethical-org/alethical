@@ -360,12 +360,7 @@ function MoneyIn({
           label="Donations with a donor’s name"
           value={named.text}
           isFigure={named.isFigure}
-          note={[
-            paymentCountLabel(split.namedPayments),
-            paymentDateRangeLabel(split.firstPaymentOn, split.lastPaymentOn),
-          ]
-            .filter(Boolean)
-            .join(' · ')}
+          note={paymentDateRangeLabel(split.firstPaymentOn, split.lastPaymentOn)}
           isDesktop={isDesktop}
         />
       ) : null}
@@ -452,7 +447,6 @@ function MoneyOut({
         label="Payments we can list"
         value={total.text}
         isFigure={total.isFigure}
-        note={paymentCountLabel(moneyOut.itemizedPayments)}
         isDesktop={isDesktop}
       />
       {/* How much of that figure was not cash, in the same place and the same shape as

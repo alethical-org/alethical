@@ -1085,6 +1085,46 @@ describe('a committee’s record in the first response', () => {
     );
   });
 
+  // Ruled 1 Sep 2026 (#1924): the payment count comes off both named figures, because
+  // the list below the cards already prints it and one fact at 2 levels of a page is
+  // the repeat Eugene ruled out. Asserted on the prose lines rather than on the page
+  // text, and that distinction is the point of the test: this fixture's category row
+  // carries "3 payments" legitimately, the same number the money-out figure used to
+  // repeat, so a page-wide search cannot tell the removal from the survivor.
+  const proseLines = (heading: string) =>
+    (snapshot.sections ?? [])
+      .filter((section) => section.heading === heading)
+      .flatMap((section) => section.blocks ?? [])
+      .flatMap((block) => (block.kind === 'prose' ? block.lines : []));
+
+  it('prints no payment count beside either named figure', () => {
+    expect(split.named_payments).toBe(5);
+    expect(moneyOut.itemized_payments).toBe(3);
+    expect(proseLines('Money in')).not.toContain('5 payments');
+    expect(proseLines('Money out')).not.toContain('3 payments');
+  });
+
+  // The other half of the same ruling, and the half a careless deletion breaks: a
+  // category row's count is that category's own fact, not a second printing of the
+  // figure's, so it stays. The non-donation receipt row is added here because the
+  // fixture carries none.
+  it('still counts the payments on a category row and on a non-donation receipt row', () => {
+    expect(text).toContain('Given to other campaigns · $2,700.00 · 3 payments');
+    const withReceipt = committeePageSnapshot(
+      {
+        ...committeeFixture,
+        money_in: {
+          ...committeeFixture.money_in,
+          other_receipts: [{ receipt_type: 'Miscellaneous', total: '375.00', payments: 1 }],
+        },
+      },
+      '41326',
+    );
+    expect(visibleText(renderPageSnapshot(withReceipt))).toContain(
+      'Miscellaneous · $375.00 · 1 payment',
+    );
+  });
+
   // Every page carrying a money figure carries one clearly labelled date for it.
   it('carries the period the figures cover and the day we copied the files', () => {
     expect(text).toContain(coveredPeriodLine(split.reported_through, '2026-01-01'));

@@ -1188,12 +1188,7 @@ export function committeePageSnapshot(
       // "$0.00"; and the 2 are never subtracted from one another.
       `Donations this committee reported to the state: ${reported ?? 'Not reported'}`,
       ...(reported ? [reportedThroughLabel(split.reported_through) ?? ''] : []),
-      ...(reportedZero
-        ? [ZERO_REPORTED_NOTE]
-        : [
-            `Donations with a donor’s name: ${named.text}`,
-            paymentCountLabel(split.named_payments ?? null) ?? '',
-          ]),
+      ...(reportedZero ? [ZERO_REPORTED_NOTE] : [`Donations with a donor’s name: ${named.text}`]),
       ...(inKind ? [inKindDonationsNote(inKind, true)] : []),
       ...(split.state === 'shown' && unnamed !== null && !reportedZero
         ? [
@@ -1235,7 +1230,6 @@ export function committeePageSnapshot(
             ]
           : []),
         `${MONEY_OUT_FIGURE_LABEL}: ${outTotal.text}`,
-        paymentCountLabel(moneyOut.itemized_payments ?? null) ?? '',
         // The goods-and-services line the 2 live cards draw under this figure. It
         // belongs in the first response too: this is what a search engine and a reader
         // on a slow connection see, and a payments total with no such line reads as
