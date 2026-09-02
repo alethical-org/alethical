@@ -35,11 +35,18 @@ keeping downloaded files in the database an hour after its own merged work had s
 Supabase Storage; another merged a display rule that a third had already measured to be wrong.
 
 - **The owner today** is the session working in the worktree
-  **`alethical-wt-claude/board-summary-party-unit-line-1836`**, which took the pen 1 Sep 2026
-  under the handover rule below. Its measurements came from
-  [#1836](https://github.com/alethical-org/alethical/issues/1836) and are written up in §9.1
-  as "One of those 5 contributor-type labels is shorter than the line it names".
-  - The previous claim named the session `nervous-booth-d2e68e-13`, working in the worktree
+  **`alethical-wt-feat/recheck-money-figures-when-a-release-publishes`**, which took the pen
+  2 Sep 2026 under the handover rule below. Its work came from
+  [#1922](https://github.com/alethical-org/alethical/issues/1922) and is written up in §4.1
+  as the cycle's fifth step and in §9.9 as "A verdict speaks only for the release it was made
+  about".
+  - The previous claim named the session working in the worktree
+    `alethical-wt-claude/board-summary-party-unit-line-1836`, appointed 1 Sep 2026. Neither
+    that worktree nor that session exists as of 2 Sep 2026, which is what permits this
+    handover. Its measurements came from
+    [#1836](https://github.com/alethical-org/alethical/issues/1836) and are written up in §9.1
+    as "One of those 5 contributor-type labels is shorter than the line it names".
+  - The claim before that named the session `nervous-booth-d2e68e-13`, working in the worktree
     `.claude/worktrees/nervous-booth-d2e68e`, appointed 31 Aug 2026. It is in no live session
     list as of 1 Sep 2026, which is what permits this handover. Its measurements came from
     [#1670](https://github.com/alethical-org/alethical/issues/1670) and are written up in §9.6
@@ -762,6 +769,17 @@ whole files and replaces whole sets.
    it for all 3 datasets, because re-resolving per query can hand back a mixed set: each statement
    sees the newest committed state. And an id held longer than one further publish resolves to no
    rows (§4.5 keeps one spare generation, not more), so re-resolve rather than caching one.
+5. **Re-check** the money in and the money out against the release just published, and wait for
+   both ([#1922](https://github.com/alethical-org/alethical/issues/1922)). Every verdict either
+   check writes is keyed to the snapshot it judged, so publishing retires all of them at once and
+   every committee page reverts to saying nobody compared its figures — §9.9 measures that. Both
+   checks read the *published* release, so this is the earliest either of them can run and there
+   is no version of it that holds a release back until it has been checked. What the step
+   guarantees instead is that the window closes and that a check which cannot run says so: a
+   banner and a non-zero exit from `scripts/load_campaign_finance.py`, never a quiet completion,
+   and never an earlier release's verdict carried forward. Money in runs first, because it fetches
+   each filing from the Board and keeps it (§4.5) while money out reads filings back out of that
+   same store. Budget about 72 minutes for 3 filing years: 51 for money in and 21 for money out.
 
 **Related files release together.** Contributions, general expenditures, independent
 expenditures and the reports that cover the same period form one release. Files fetched on
@@ -2714,22 +2732,22 @@ Recorded as not run, never as passed:
   - **Still not established**: any year before 2024; the 122 `reader_unproven` committee-years
     one by one; and the pre-amendment export on money out beyond filer 17709, which needs
     Board requests because the document store holds 1 document per filer-year-report-type.
-  - **A verdict speaks only for the release it was made about, and publishing a release
-    silently retires every verdict of both checks.** `cf_stated_spending` keys on the
-    release's expenditures snapshot and `cf_stated_split` on its contributions snapshot, which
-    is the right scoping — a verdict about payments that have since been replaced is not a
-    verdict about the payments on screen — but nothing re-runs either check when a release
-    publishes. Measured across 2 releases: the check wrote 4,124 verdicts against release
-    `3f2bdf90` at 02:35 UTC on 1 Sep 2026, release `af236cca` published at 18:35 UTC, and from
-    that moment **every committee page read `not_run` for money out and `not_checked` for
-    money in**, across the whole population, with 0 of those 4,124 verdicts and 0 of the 3,968
-    split verdicts applying to the live release. Both surfaces stayed honest — an unchecked
-    figure says it is unchecked — so this costs the reader the verdict rather than misleading
-    them, which is why it reads as nothing being wrong. **The durable fix is running both
-    checks as part of publishing a release**
-    ([#1922](https://github.com/alethical-org/alethical/issues/1922)); until it ships, a re-run
-    by hand is what makes the verdicts live, and the money-out run costs 0 requests to the
-    Board and about 21 minutes.
+  - **A verdict speaks only for the release it was made about, so publishing a release re-runs
+    both checks against what it just published** (§4.1 step 5,
+    [#1922](https://github.com/alethical-org/alethical/issues/1922)). `cf_stated_spending` keys
+    on the release's expenditures snapshot and `cf_stated_split` on its contributions snapshot,
+    which is the right scoping — a verdict about payments that have since been replaced is not a
+    verdict about the payments on screen — so publishing retires every stored verdict at once and
+    the re-check is what fills them back in. A check that cannot run prints a banner and exits
+    the load non-zero; no earlier release's verdict is ever reused.
+    - Evidence for why the step exists, measured across 2 releases while it did not: the
+      money-out check wrote 4,124 verdicts against release `3f2bdf90` at 02:35 UTC on
+      1 Sep 2026, release `af236cca` published at 18:35 UTC, and from that moment **every
+      committee page read `not_run` for money out and `not_checked` for money in**, across the
+      whole population, with 0 of those 4,124 verdicts and 0 of the 3,968 split verdicts
+      applying to the live release. Both surfaces stayed honest — an unchecked figure says it
+      is unchecked — so it cost the reader the verdict rather than misleading them, which is why
+      it read as nothing being wrong.
   - **And a release genuinely moves the answer, which is why re-running matters rather than
     just re-stamping.** The same check over the same 3 years gave 3,313 agreeing and 208
     disagreeing on release `3f2bdf90` and 3,304 agreeing and 217 disagreeing on `af236cca`,

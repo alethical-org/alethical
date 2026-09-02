@@ -280,6 +280,7 @@ def main() -> int:
     engine = create_engine(
         database_url, echo=False, connect_args=NO_PREPARED_STATEMENTS
     )
+
     def log(message: str) -> None:
         print(message, file=sys.stderr)
 
@@ -314,9 +315,7 @@ def main() -> int:
         # release that is already published, so nothing is gained for a reader by
         # returning early — and a hand-off is precisely what nobody was doing (#1922).
         if report.published:
-            recheck = recheck_stated_figures(
-                session, years=args.recheck_years, log=log
-            )
+            recheck = recheck_stated_figures(session, years=args.recheck_years, log=log)
             print(recheck.summary(), flush=True)
 
     if report.refusal or (recheck is not None and recheck.failed):

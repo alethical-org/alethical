@@ -323,9 +323,7 @@ def test_the_previous_releases_answers_are_never_carried_forward(
         money_in=money_in_against(url),
     )
     assert verdicts(db, "cf_stated_split")[(contributions, "19004", 2025)] == "agrees"
-    assert (
-        verdicts(db, "cf_stated_spending")[(expenditures, "19004", 2025)] == "agrees"
-    )
+    assert verdicts(db, "cf_stated_spending")[(expenditures, "19004", 2025)] == "agrees"
 
 
 # --- A check that cannot run says so loudly -----------------------------------
