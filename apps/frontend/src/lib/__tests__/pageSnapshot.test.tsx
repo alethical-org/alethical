@@ -1323,9 +1323,12 @@ describe('a committee’s full payments list in the first response', () => {
     );
   });
 
-  // Only a name carrying a registration number this release holds opens a page: a
-  // private donor's name is not a profile and never becomes one here.
-  it('opens a page only for a payer the register can identify', () => {
+  // A registered filer opens its own committee page. An unregistered printed name
+  // opens the exact-spelling payments lookup, which Eugene ruled on 1 Sep 2026
+  // (#1331). The guard this test was written for still holds and is asserted
+  // below: that destination is NOT a profile. It quotes the string it searched,
+  // joins no 2 spellings, prints no total, and so cannot be read as a person.
+  it('opens a committee page for a registered payer and a spelling lookup for a name', () => {
     const withCommittee = receivedPaymentRow(
       {
         contributor: 'Some Party Unit',
@@ -1344,8 +1347,18 @@ describe('a committee’s full payments list in the first response', () => {
       totalPayments: 1,
     });
     expect(linked.sections?.[1]?.items?.[0].href).toBe('/money/committees/some-party-unit-20982');
-    // The individual donors in the fixture carry no registration number at all.
-    expect(snapshot.sections?.[1]?.items?.every((item) => item.href === undefined)).toBe(true);
+
+    // The individual donors in the fixture carry no registration number at all,
+    // so each opens the payments lookup for its own exact spelling and nothing
+    // that looks like a person's page.
+    const donorHrefs = snapshot.sections?.[1]?.items?.map((item) => item.href) ?? [];
+    expect(donorHrefs.length).toBeGreaterThan(0);
+    for (const href of donorHrefs) {
+      expect(href).toMatch(/^\/money\/payments\?name=/);
+      expect(href).toContain('role=contributor');
+      // Never a profile-shaped address, which is what the old guard protected.
+      expect(href).not.toMatch(/^\/money\/(people|donors|committees)\//);
+    }
   });
 });
 

@@ -378,6 +378,25 @@ function PaymentRows({
               </Pressable>
             );
           }
+          // A printed name that is not a registered filer: a person, an employer
+          // or a vendor. It leads to every payment filed under that EXACT
+          // spelling, which is the whole of what Minnesota's data supports
+          // (#1331). `nameLink` is null wherever a link would be a false claim,
+          // so this branch never has to re-decide that.
+          if (row.nameLink) {
+            const { name, role } = row.nameLink;
+            return (
+              <Pressable
+                key={row.key}
+                {...linkProps(routePath.moneyPaymentsUnderName(name, role), () =>
+                  navigation.push('PaymentsUnderName', { name, role }),
+                )}
+                style={styles.listRow}
+              >
+                {inner}
+              </Pressable>
+            );
+          }
           return (
             <View key={row.key} style={styles.listRow}>
               {inner}

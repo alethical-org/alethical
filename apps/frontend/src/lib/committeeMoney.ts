@@ -984,6 +984,92 @@ export interface PaymentRow {
   /** Set only when the other side is a filer whose own page we can open. */
   linkNumber: string | null;
   linkName: string | null;
+  /**
+   * Set only when the other side is NOT a registered filer but IS a printed name
+   * we can look up under that exact spelling (#1331). A registered filer takes
+   * ``linkNumber`` instead, because a registration number identifies a committee
+   * and a name does not.
+   */
+  nameLink: PaymentNameLink | null;
+}
+
+/**
+ * Where a printed name links to, and it is a SPELLING rather than a person.
+ *
+ * Minnesota's filings carry no identifier for a person, an employer or a vendor,
+ * so the printed string is the whole of the key. Eugene ruled on 1 Sep 2026 that
+ * 2 spellings are joined only when they are identical, character for character
+ * ([#1331](https://github.com/alethical-org/alethical/issues/1331)): "Messinger,
+ * Alida" and "Messinger, Alida R" stay 2 keys. The rule can only under-report,
+ * and it can never invent a link between 2 real people, which is the failure
+ * `.claude/rules/grounded-answers.md` rule 3 forbids.
+ *
+ * The destination already carries that limit in its own words: the name page
+ * quotes the string it searched for and says nothing is joined, so it cannot be
+ * read as a profile. This type only decides which rows reach it.
+ */
+export interface PaymentNameLink {
+  /** Which column the name was printed in, which is what the lookup keys on. */
+  role: 'contributor' | 'vendor';
+  /** The filing's own spelling, passed through untouched. */
+  name: string;
+}
+
+/**
+ * The printed name a row can be looked up under, or null when it cannot.
+ *
+ * Three rows deliberately do not link, and each would be a false claim rather
+ * than a missing convenience:
+ *
+ * - **A registered filer.** It links by registration number instead, so a name
+ *   match can never attribute money to the wrong committee (#1331's first
+ *   acceptance criterion).
+ * - **A filing that names nobody.** The row displays ``UNNAMED_PAYMENT_PARTY``,
+ *   our own sentence rather than anything a filing printed, but this function is
+ *   handed the filing's raw field, so a nameless payment arrives here as null or
+ *   blank and the emptiness check below is what stops it. Comparing against the
+ *   placeholder string as well was tried and removed: no caller can produce it,
+ *   so a mutation test could not falsify it, and an unfalsifiable line in a
+ *   correctness guard reads as protection that is not there.
+ * - **A committee named on a transfer out.** Where a payment out is a transfer,
+ *   the row shows the receiving committee's name rather than the vendor field,
+ *   so looking that string up in the VENDOR column asks the wrong question.
+ */
+/**
+ * One payment row's destination, or nothing, as an address.
+ *
+ * Lives here rather than in the screen or the snapshot because those 2 must
+ * offer the SAME destinations: the interactive page and the first response a
+ * search engine reads are the same page, and a link present in one and absent
+ * from the other is a page that changes under the reader (#1812).
+ */
+export function paymentRowHref(row: PaymentRow): string | undefined {
+  if (row.linkNumber && row.linkName) {
+    return `/money/committees/${encodeURIComponent(committeeSlug(row.linkName, row.linkNumber))}`;
+  }
+  if (row.nameLink) {
+    // Built to match `pathForRoute`'s own output for PaymentsUnderName rather
+    // than imported from it, because the navigation module imports from here and
+    // the snapshot already hand-builds the committee address the same way. The
+    // test below pins the 2 against each other so a change to either fails.
+    const params = new URLSearchParams({
+      name: row.nameLink.name,
+      role: row.nameLink.role,
+    });
+    return `/money/payments?${params.toString()}`;
+  }
+  return undefined;
+}
+
+function nameLinkFor(
+  role: PaymentNameLink['role'],
+  printed: string | null,
+  registrationNumber: string | null,
+): PaymentNameLink | null {
+  if (registrationNumber) return null;
+  const name = printed?.trim() ?? '';
+  if (!name) return null;
+  return { role, name };
 }
 
 /** A filing that names no counterparty says so, rather than showing a blank. */
@@ -1017,6 +1103,15 @@ export function receivedPaymentRow(
         ? payment.contributorRegistrationNumber
         : null,
     linkName: payment.contributor,
+    // Keyed on the registration number rather than on `linkable`: a donor the
+    // register knows is a filer whose own page is the honest destination, even
+    // where we hold no page for it yet, so it must not fall through to a
+    // spelling lookup.
+    nameLink: nameLinkFor(
+      'contributor',
+      payment.contributor,
+      payment.contributorRegistrationNumber,
+    ),
   };
 }
 
@@ -1055,6 +1150,12 @@ export function madePaymentRow(
         ? payment.affectedCommitteeRegistrationNumber
         : null,
     linkName: payment.affectedCommitteeName,
+    // A transfer shows the RECEIVING COMMITTEE's name, not the vendor field, so
+    // that string must never reach a vendor-column lookup: passing null keeps it
+    // plain text. Everything else is a real vendor and links under its spelling.
+    nameLink: isTransfer
+      ? null
+      : nameLinkFor('vendor', payment.vendorName, payment.affectedCommitteeRegistrationNumber),
   };
 }
 

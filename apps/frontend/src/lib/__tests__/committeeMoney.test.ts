@@ -33,6 +33,10 @@ import {
   listedExceedsReported,
   inKindDonationsNote,
   inKindOutNote,
+  paymentRowHref,
+  receivedPaymentRow,
+  madePaymentRow,
+  UNNAMED_PAYMENT_PARTY,
   statedSpendingNote,
   moneyOutNote,
   notFoundBody,
@@ -329,6 +333,99 @@ describe('money out', () => {
     expect(moneyOutNote('not_reported', false, true, false)).toContain(
       'names none of its payments',
     );
+  });
+
+  describe('a printed name links to its own exact spelling (#1331)', () => {
+    const donor = {
+      contributor: 'Messinger, Alida',
+      contributorRegistrationNumber: null,
+      contributorType: 'Individual',
+      amount: '1000.0000',
+      receivedOn: '2026-06-15',
+      receiptType: 'Contribution',
+      inKind: 'No',
+    };
+
+    it('links a person under the spelling the filing printed, untouched', () => {
+      const row = receivedPaymentRow(donor, new Set());
+      expect(row.nameLink).toEqual({ role: 'contributor', name: 'Messinger, Alida' });
+      // The exact address the navigation module builds for this screen. Pinned
+      // literally so a change to either side fails rather than drifting.
+      expect(paymentRowHref(row)).toBe('/money/payments?name=Messinger%2C+Alida&role=contributor');
+    });
+
+    it('does NOT join 2 spellings of one name, which is the whole ruling', () => {
+      const withMiddle = receivedPaymentRow(
+        { ...donor, contributor: 'Messinger, Alida R' },
+        new Set(),
+      );
+      expect(paymentRowHref(receivedPaymentRow(donor, new Set()))).not.toBe(
+        paymentRowHref(withMiddle),
+      );
+    });
+
+    it('sends a registered filer to its committee page and never to a spelling', () => {
+      const filer = {
+        ...donor,
+        contributor: 'Some Committee',
+        contributorRegistrationNumber: '18272',
+      };
+      // Registered but no page held: still must not fall through to a name lookup,
+      // because a registration number identifies a committee and a name does not.
+      expect(receivedPaymentRow(filer, new Set()).nameLink).toBeNull();
+      const linkable = receivedPaymentRow(filer, new Set(['18272']));
+      expect(linkable.nameLink).toBeNull();
+      expect(paymentRowHref(linkable)).toContain('/money/committees/');
+    });
+
+    it('never links the filing-names-nobody row, which is our sentence not a name', () => {
+      const unnamed = receivedPaymentRow({ ...donor, contributor: null }, new Set());
+      expect(unnamed.name).toBe(UNNAMED_PAYMENT_PARTY);
+      expect(unnamed.nameLink).toBeNull();
+      expect(paymentRowHref(unnamed)).toBeUndefined();
+    });
+
+    it('never links a blank or whitespace-only printed name', () => {
+      for (const contributor of ['', '   ']) {
+        expect(receivedPaymentRow({ ...donor, contributor }, new Set()).nameLink).toBeNull();
+      }
+    });
+
+    const payment = {
+      vendorName: 'Acme Printing',
+      vendorCity: 'Saint Paul',
+      vendorState: 'MN',
+      affectedCommitteeName: null,
+      affectedCommitteeRegistrationNumber: null,
+      amount: '500.0000',
+      paidOn: '2026-06-15',
+      expenditureType: 'Independent Expenditure',
+      purpose: 'Advertising',
+      inKind: 'No',
+    };
+
+    it('links a vendor under the vendor column', () => {
+      expect(madePaymentRow(payment, new Set()).nameLink).toEqual({
+        role: 'vendor',
+        name: 'Acme Printing',
+      });
+    });
+
+    it('never sends a transfer to the vendor column, because the row shows a committee', () => {
+      // A transfer's row prints the RECEIVING committee's name. Looking that up
+      // among vendors asks a different question and would answer it confidently.
+      const transfer = madePaymentRow(
+        {
+          ...payment,
+          expenditureType: 'Contribution',
+          affectedCommitteeName: 'Some Other Committee',
+        },
+        new Set(),
+      );
+      expect(transfer.name).toBe('Some Other Committee');
+      expect(transfer.nameLink).toBeNull();
+      expect(paymentRowHref(transfer)).toBeUndefined();
+    });
   });
 
   it('the donated-goods sentence names the figure, never where it sits', () => {

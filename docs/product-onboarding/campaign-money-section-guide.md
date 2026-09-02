@@ -256,7 +256,12 @@ Each row names **the committee whose filing carries it**, with the filing's own 
 underneath (the kind of committee that received a donation, or an expenditure's own stated
 purpose, or which candidate independent spending was for or against), its own date and its
 own amount. A row opens that committee's page wherever our records hold that number as a
-filer; where they do not, the name stays plain text rather than offering a link that dies.
+filer. Where they do not, and the filing printed a name, the row opens every payment filed
+under that **exact spelling** instead: 2 spellings are never joined, so "Messinger, Alida"
+and "Messinger, Alida R" lead to 2 different lists and the page they lead to says so in its
+own words. A row naming nobody, and a transfer whose row shows the receiving committee
+rather than a vendor, both stay plain text, because in each case the lookup would ask a
+question the filing does not answer.
 
 Above the rows, one line says what is on the page, and it never says more than that. When
 nothing is held back it reads "9 payments, from 7 committees" — both counted from the rows
@@ -496,8 +501,10 @@ Top to bottom:
    Rockefelle" are 3 strings in the live files), so "N donors" would be a claim the data
    cannot back — the same failure as vouching for a list's completeness. Donated goods
    and services carry a marker and stay inside the totals, because that is how the state
-   counts them. A name opens a page only when it carries a registration number we hold as
-   a filer; a private donor or a business stays plain text.
+   counts them. A registration number we hold as a filer opens that
+   committee's page; any other printed name opens the payments filed under that exact
+   spelling, which is a spelling and never a person (Eugene's ruling of 1 Sep 2026, and
+   the reason the 3 Messinger strings above stay 3 lists rather than becoming 1).
 8. **The third tab — Filings**: every report the Board's catalogue records this committee
    as having filed, all years at once, with no amounts anywhere — it is a list of
    filings, not of money. Newest first by the period each report covers, and the tab says
@@ -563,7 +570,8 @@ the page opens on; the Where it went list and any other year arrive when the pag
 run, exactly as a bill page serves its Summary whichever tab the address names. "Showing X of Y"
 is a measured count served with the rows, never a guess. The same naming rules apply: a
 loan is labelled as reported on its own schedule rather than reading as a gift, transfers
-read "Money given to another campaign", and only registered filers' names open pages.
+read "Money given to another campaign" and open no name lookup, and a registered filer's
+number opens its committee page where any other name opens its own exact spelling.
 
 ## The `/read` page (`/read`)
 
