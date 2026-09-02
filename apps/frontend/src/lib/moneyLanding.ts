@@ -232,6 +232,29 @@ export const MONEY_LANE_LEGISLATORS = {
   body: 'Their money is a tab on the profile they already have',
 } as const;
 
+/**
+ * The Legislators lane's body as the card actually draws it.
+ *
+ * **The one lane whose body gains a second sentence at render time**, and therefore the
+ * one place a full stop after `MONEY_LANE_LEGISLATORS.body` is INTERNAL rather than
+ * terminal. The card joins the body and the confirmation sentence into a single run of
+ * text, so with the second sentence attached the 2 need separating; with no confirmation
+ * served the body stands alone and takes no closing mark, exactly like the other 2 lanes
+ * and like the standalone copy the first server response serves as a link's detail.
+ *
+ * It lives here rather than in the screen because this module's rule is that every
+ * sentence the landing shows is decided in one place a test can pin. Composed in the
+ * screen, it was not pinned, and dropping the full stop unconditionally shipped the
+ * run-on "…the profile they already have Confirmed for 200 of Minnesota's 200 sitting
+ * legislators" to the live landing (#1924).
+ */
+export function legislatorsLaneBody(
+  confirmation: { confirmed: number; total: number } | null | undefined,
+): string {
+  if (!confirmation) return MONEY_LANE_LEGISLATORS.body;
+  return `${MONEY_LANE_LEGISLATORS.body}. ${legislatorsLaneSentence(confirmation)}`;
+}
+
 export const MONEY_LANE_COMMITTEES = {
   title: 'Committees',
   body: 'Campaign committees, party units, and other registered funds',

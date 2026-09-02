@@ -9,6 +9,7 @@ import {
   filingPeriodLine,
   formatCount,
   laneCountLine,
+  legislatorsLaneBody,
   legislatorsLaneSentence,
   MONEY_LANDING_SUBTITLE,
   MONEY_LANE_COMMITTEES,
@@ -43,6 +44,24 @@ describe('the landing’s own standalone lines end without a full stop', () => {
     expect(MONEY_LANE_WHO_GOT_PAID.body).toContain('that exact spelling. There is no list');
     expect(MONEY_LANE_LEGISLATORS.body).not.toContain('.');
     expect(MONEY_LANE_COMMITTEES.body).not.toContain('.');
+  });
+
+  // The Legislators lane is the one card whose body gains a SECOND sentence when the
+  // card draws, so the stop after its stored body is internal rather than terminal.
+  // Dropping it unconditionally shipped a run-on to the live landing (#1924): "…the
+  // profile they already have Confirmed for 200 of Minnesota's 200 sitting legislators".
+  it('separates the 2 sentences once the confirmation sentence is attached', () => {
+    const drawn = legislatorsLaneBody({ confirmed: 200, total: 200 });
+    expect(drawn).toContain('they already have. Confirmed for 200');
+    expect(drawn).not.toContain('they already have Confirmed');
+  });
+
+  it('leaves the same body bare when no confirmation is served', () => {
+    // The fallback state, where the body really does stand alone and takes no closing
+    // mark — the same shape the first server response uses it in, as a link's detail.
+    expect(legislatorsLaneBody(null)).toBe(MONEY_LANE_LEGISLATORS.body);
+    expect(legislatorsLaneBody(null).endsWith('.')).toBe(false);
+    expect(legislatorsLaneBody(undefined)).toBe(MONEY_LANE_LEGISLATORS.body);
   });
 });
 

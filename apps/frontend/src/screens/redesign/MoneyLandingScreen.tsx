@@ -15,7 +15,7 @@ import {
   filingsTieSentence,
   filingPeriodLine,
   laneCountLine,
-  legislatorsLaneSentence,
+  legislatorsLaneBody,
   orderingSentence,
   FILES_LAST_COPIED_LABEL,
   FILES_LAST_COPIED_NOTE,
@@ -210,10 +210,7 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
           <View style={[styles.laneRow, isMobile && styles.laneRowMobile]}>
             <LaneCard
               title={MONEY_LANE_LEGISLATORS.title}
-              body={
-                MONEY_LANE_LEGISLATORS.body +
-                (confirmations ? ` ${legislatorsLaneSentence(confirmations)}` : '')
-              }
+              body={legislatorsLaneBody(confirmations)}
               countLine={laneCountLine(confirmations?.total ?? null, 'members')}
               href={routePath.legislators()}
               onOpen={() => navigation.navigate('Legislators')}
