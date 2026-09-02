@@ -495,11 +495,22 @@ def test_each_committee_keeps_its_own_money(db, legislator):
     assert result.opposing == Decimal("7000.00")
 
 
-def test_reviewed_period_bounds_the_year(db, legislator):
-    """A committee contributes only to the years the reviewer said it covers.
+def test_the_reviewed_period_never_hides_a_payment_filed_about_the_committee(
+    db, legislator
+):
+    """A reviewed period read off the contributions file cannot bound this one.
 
-    Minnesota registers a committee per office, so a member's earlier committee
-    must not lend its money to a year it never ran in.
+    Replaces ``test_reviewed_period_bounds_the_year``, which asserted the opposite
+    for a stated reason -- "a member's earlier committee must not lend its money to
+    a year it never ran in" -- that the row's own year already secures. Those
+    reviewed years are the last year the committee reported *raising* money, and a
+    committee that raised nothing in a year can still have money spent about it in
+    that year, so the period only ever suppressed real filings.
+
+    Measured on production, 2 Sep 2026: 2 sitting members had 2026 money hidden this
+    way, Sen. Carla Nelson's $5,821.68 across 5 payments and Rep. Heather Keeler's
+    $483.33 across 1, both of which ``GET /committees/{reg}/finance`` published the
+    whole time because it applies no period test ([#1932]).
     """
     snapshot = _snapshot(db, Dataset.independent_expenditures)
     _publish(db, independent=snapshot)
@@ -507,7 +518,34 @@ def test_reviewed_period_bounds_the_year(db, legislator):
     db.commit()
     _confirm(db, legislator, SENATE_COMMITTEE, first="2020", last="2022")
     result = independent_spending_for_legislator(db, legislator.id, year=2025)
-    assert result.state == LINK_UNCONFIRMED
+    assert result.state == REPORTED
+    assert result.supporting == Decimal("900.00")
+
+
+def test_a_committee_outside_the_reviewed_period_is_never_called_unconfirmed(
+    db, legislator
+):
+    """``LINK_UNCONFIRMED`` means nobody confirmed a committee. Nothing else.
+
+    The state drives a sentence reading "Nobody has confirmed theirs yet", and on
+    2 Sep 2026 production served it for 36 of the 200 sitting members -- every one of
+    whom had a confirmed committee whose reviewed period simply ended before 2026.
+    Their own money tab said "We have confirmed which committee is this member's" in
+    the same breath, so one page contradicted itself about a named politician ([#1932]).
+
+    The year still has to be one the download reaches, which is why this fixture
+    publishes somebody else's row for it: that guard is ``_snapshot_covers_year`` and
+    it is the correct one, being a fact about the file rather than about the reviewer.
+    """
+    snapshot = _snapshot(db, Dataset.independent_expenditures)
+    _publish(db, independent=snapshot)
+    _row(db, snapshot, reg_num="19999", direction="For", amount="1.00", year=2026)
+    db.commit()
+    _confirm(db, legislator, SENATE_COMMITTEE, first="2020", last="2025")
+    result = independent_spending_for_legislator(db, legislator.id, year=2026)
+    assert result.state == REPORTED
+    assert result.supporting == Decimal(0)
+    assert result.opposing == Decimal(0)
 
 
 def test_each_figure_names_its_committee(db, legislator):

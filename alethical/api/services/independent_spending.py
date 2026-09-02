@@ -330,19 +330,58 @@ def committees_outside_the_year(
     ]
 
 
-def count_committees_for_another_race(
-    db: Session, legislator_id: UUID, *, year: int
-) -> int:
-    """How many confirmed committees ``confirmed_committees`` left out for their office.
+def committees_for_independent_spending(
+    db: Session, legislator_id: UUID
+) -> list[LegislatorCampaignCommittee]:
+    """Every confirmed **legislative** committee, whatever years it reported money in.
+
+    The office filter is the whole protection here and it is unchanged, so the Fateh
+    case in this module's header is unaffected: a mayoral committee stays out however
+    it is dated.
+
+    **What is deliberately absent is the reviewed-period test**, and this is the one
+    place in the campaign-finance code where that test must not be applied. Those
+    years are what the reviewer saw in the *contributions* download -- the last year
+    the committee reported raising money, per ``committees_outside_the_year``. This
+    file is a different download recording what other groups spent about the
+    committee, and a committee that raised nothing in a year can still have money
+    spent about it in that year. So a period read off one file cannot bound the other,
+    and every row here already carries its own year, which is what actually keeps a
+    year's money inside its own year.
+
+    Applying it did 2 measurable harms on production, both on 2 Sep 2026 across all
+    200 sitting members. 36 of them had every confirmed committee's reviewed period
+    end before 2026, so this route answered ``LINK_UNCONFIRMED`` and their pages said
+    "Nobody has confirmed theirs yet" while the same tab said "We have confirmed which
+    committee is this member's" -- one page contradicting itself about a named
+    politician. And 2 of the 36 had real 2026 money suppressed: Sen. Carla Nelson's
+    committee 17105, $1,800.00 supporting and $4,021.68 opposing across 5 payments,
+    and Rep. Heather Keeler's committee 18552, $483.33 opposing across 1 payment.
+    ``GET /committees/{registration_number}/finance`` publishes both of those today
+    and applies no period test, so the 2 routes disagreed about the same
+    committee-year and this one was the wrong half ([#1932]).
+    """
+    return [
+        link
+        for link in _every_confirmed_link(db, legislator_id)
+        if is_for_a_legislative_office(link.office_as_reviewed)
+    ]
+
+
+def count_committees_for_another_race(db: Session, legislator_id: UUID) -> int:
+    """How many confirmed committees ``committees_for_independent_spending`` left out.
 
     Served rather than dropped in silence. A reader who knows their member ran for
     Governor should be told that money exists and is not on this page, rather than being
     left to conclude we missed it. That is the missing-versus-zero failure of rule 12
     wearing a different hat: an excluded record and an absent record look identical.
+
+    Counts over the same unbounded set its sibling sums, so the 2 together account for
+    every confirmed link and a committee cannot be both left out and uncounted.
     """
     return sum(
         1
-        for link in _confirmed_links(db, legislator_id, year=year)
+        for link in _every_confirmed_link(db, legislator_id)
         if not is_for_a_legislative_office(link.office_as_reviewed)
     )
 
@@ -351,14 +390,26 @@ def _confirmed_links(
     db: Session, legislator_id: UUID, *, year: int
 ) -> list[LegislatorCampaignCommittee]:
     """Every confirmed link covering ``year``, whatever office it is for."""
-    rows = db.scalars(
-        select(LegislatorCampaignCommittee).where(
-            LegislatorCampaignCommittee.legislator_id == legislator_id,
-            LegislatorCampaignCommittee.decision
-            == CommitteeLinkReviewDecision.confirmed,
-        )
-    ).all()
-    return [link for link in rows if _period_covers(link, year)]
+    return [
+        link
+        for link in _every_confirmed_link(db, legislator_id)
+        if _period_covers(link, year)
+    ]
+
+
+def _every_confirmed_link(
+    db: Session, legislator_id: UUID
+) -> list[LegislatorCampaignCommittee]:
+    """Every confirmed link, whatever office and whatever year."""
+    return list(
+        db.scalars(
+            select(LegislatorCampaignCommittee).where(
+                LegislatorCampaignCommittee.legislator_id == legislator_id,
+                LegislatorCampaignCommittee.decision
+                == CommitteeLinkReviewDecision.confirmed,
+            )
+        ).all()
+    )
 
 
 def _period_covers(link: LegislatorCampaignCommittee, year: int) -> bool:
@@ -408,7 +459,13 @@ def independent_spending_for_legislator(
         # A release that exists but holds no rows is stale, not an answer.
         return empty
 
-    links = confirmed_committees(db, legislator_id, year=year)
+    # Every confirmed legislative committee, not only those whose reviewed period
+    # covers the year: see ``committees_for_independent_spending`` for why a period
+    # read off the contributions download cannot bound this one. So LINK_UNCONFIRMED
+    # below now means what its comment has always said -- nobody has confirmed any
+    # committee for this member -- rather than also covering a member whose committee
+    # somebody confirmed and which reported no contributions this year (#1932).
+    links = committees_for_independent_spending(db, legislator_id)
     if not links:
         return IndependentSpending(
             LINK_UNCONFIRMED,
@@ -472,7 +529,7 @@ def independent_spending_for_legislator(
         release.source_url,
         release.fetched_at,
         release.identity,
-        count_committees_for_another_race(db, legislator_id, year=year),
+        count_committees_for_another_race(db, legislator_id),
     )
 
 

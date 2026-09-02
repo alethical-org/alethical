@@ -159,6 +159,21 @@ export function CampaignMoneyTab({
         <OtherOfficeNote count={money.otherOfficeCommittees} />
       ) : null}
 
+      {/* Money others spent about this member, below the committee's own money in and
+          money out and their payment lists, because it is the record a reader of those
+          figures alone would miss (#1332). Drawn unconditionally rather than inside any
+          of the branches above: it is a different record from the committee's own money,
+          it answers a different request, and it carries its own loading, error, no-figure
+          and measured-zero states. Gating it on the committee money's state is how it
+          went missing for 15 days -- #1329 moved the money onto this tab, kept the
+          request, and drew nothing with it (#1932). */}
+      <OutsideSpendingCard
+        years={outsideSpending.data ?? []}
+        isLoading={outsideSpending.isLoading}
+        isError={outsideSpending.isError}
+        onOpenSource={onOpenSource}
+      />
+
       <FreshnessNote fetchedAt={money?.fetchedAt ?? null} />
     </View>
   );
