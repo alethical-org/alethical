@@ -1024,9 +1024,13 @@ export interface PaymentNameLink {
  * - **A registered filer.** It links by registration number instead, so a name
  *   match can never attribute money to the wrong committee (#1331's first
  *   acceptance criterion).
- * - **A filing that names nobody.** The sub-threshold lump prints
- *   ``UNNAMED_PAYMENT_PARTY``, which is our sentence and not a name in any
- *   filing, so searching for it would return nothing and imply it might.
+ * - **A filing that names nobody.** The row displays ``UNNAMED_PAYMENT_PARTY``,
+ *   our own sentence rather than anything a filing printed, but this function is
+ *   handed the filing's raw field, so a nameless payment arrives here as null or
+ *   blank and the emptiness check below is what stops it. Comparing against the
+ *   placeholder string as well was tried and removed: no caller can produce it,
+ *   so a mutation test could not falsify it, and an unfalsifiable line in a
+ *   correctness guard reads as protection that is not there.
  * - **A committee named on a transfer out.** Where a payment out is a transfer,
  *   the row shows the receiving committee's name rather than the vendor field,
  *   so looking that string up in the VENDOR column asks the wrong question.
@@ -1064,7 +1068,7 @@ function nameLinkFor(
 ): PaymentNameLink | null {
   if (registrationNumber) return null;
   const name = printed?.trim() ?? '';
-  if (!name || name === UNNAMED_PAYMENT_PARTY) return null;
+  if (!name) return null;
   return { role, name };
 }
 
