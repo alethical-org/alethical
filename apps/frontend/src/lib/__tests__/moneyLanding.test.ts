@@ -10,9 +10,41 @@ import {
   formatCount,
   laneCountLine,
   legislatorsLaneSentence,
+  MONEY_LANDING_SUBTITLE,
+  MONEY_LANE_COMMITTEES,
+  MONEY_LANE_LEGISLATORS,
+  MONEY_LANE_WHO_GOT_PAID,
   orderingSentence,
   RECORD_DOES_NOT_COVER,
 } from '../moneyLanding';
+
+// Ruled 1 Sep 2026 (#1924). The subtitle stands alone under the heading and the 3 lane
+// bodies are a column of card descriptions, so all 4 end bare. The distinction the rule
+// turns on is INTERNAL versus TERMINAL: a body made of 2 sentences keeps the full stop
+// that separates them, because that one is doing work a reader needs.
+describe('the landing’s own standalone lines end without a full stop', () => {
+  it('leaves the subtitle and all 3 lane descriptions bare', () => {
+    const standalone = [
+      MONEY_LANDING_SUBTITLE,
+      MONEY_LANE_LEGISLATORS.body,
+      MONEY_LANE_COMMITTEES.body,
+      MONEY_LANE_WHO_GOT_PAID.body,
+    ];
+    expect(standalone).toHaveLength(4);
+    for (const line of standalone) {
+      expect(line.endsWith('.')).toBe(false);
+      expect(line.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('keeps the full stop that separates the 2 sentences inside one lane body', () => {
+    // "…that exact spelling. There is no list of every payee…" — deleting this one would
+    // run 2 sentences together, which is not what the rule asks for.
+    expect(MONEY_LANE_WHO_GOT_PAID.body).toContain('that exact spelling. There is no list');
+    expect(MONEY_LANE_LEGISLATORS.body).not.toContain('.');
+    expect(MONEY_LANE_COMMITTEES.body).not.toContain('.');
+  });
+});
 
 describe('the does-not-cover block', () => {
   // Rule 12's exact sentence, and it carries 2 corrections a reader can be misled
@@ -22,7 +54,7 @@ describe('the does-not-cover block', () => {
   // anyone smaller, so the sentence says "need not be named" (#1755).
   it('states the donor threshold on the yearly total, never per gift', () => {
     expect(RECORD_DOES_NOT_COVER).toContain(
-      'Donors who gave $200 or less in total for the year need not be named.',
+      'Donors who gave $200 or less in total for the year need not be named',
     );
   });
 
@@ -36,8 +68,17 @@ describe('the does-not-cover block', () => {
   });
 
   it('names the two permanent source gaps', () => {
-    expect(RECORD_DOES_NOT_COVER[0]).toBe('Nothing before 2015.');
-    expect(RECORD_DOES_NOT_COVER[1]).toBe('Unions don’t report to this board at all.');
+    expect(RECORD_DOES_NOT_COVER[0]).toBe('Nothing before 2015');
+    expect(RECORD_DOES_NOT_COVER[1]).toBe('Unions don’t report to this board at all');
+  });
+
+  // Ruled 1 Sep 2026 (#1924). Each line stands alone in a stack, and a terminal full
+  // stop makes it read as the opening of a paragraph that never arrives. The committee
+  // page's own coverage block is worded identically, so this holds both copies.
+  it('ends none of the 3 lines with a full stop', () => {
+    for (const line of RECORD_DOES_NOT_COVER) {
+      expect(line.endsWith('.')).toBe(false);
+    }
   });
 
   // Lobbying is OURS to close, not a hole in what Minnesota publishes — the Board

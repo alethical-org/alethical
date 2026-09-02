@@ -21,11 +21,14 @@ import { isoDateLabel } from './research';
 /** The three permanent gaps, shown above anything a reader might search for.
  *  The donor sentence is rule 12's exact wording. It says a small donor NEED NOT
  *  be named, never that they are not: the $200 test is a floor on who a committee
- *  must name, and nothing stops one naming a smaller donor (#1755). */
+ *  must name, and nothing stops one naming a smaller donor (#1755).
+ *
+ *  No terminal full stop on any of the 3 (ruled 1 Sep 2026, #1924): each stands on
+ *  its own line, and the same block on a committee page is worded identically. */
 export const RECORD_DOES_NOT_COVER = [
-  'Nothing before 2015.',
-  'Unions don’t report to this board at all.',
-  'Donors who gave $200 or less in total for the year need not be named.',
+  'Nothing before 2015',
+  'Unions don’t report to this board at all',
+  'Donors who gave $200 or less in total for the year need not be named',
 ] as const;
 
 /** "1,603" — grouped the way the register pages print counts. */
@@ -214,18 +217,24 @@ export function confirmationDateLine(newestConfirmationAt: string | null): strin
  */
 export const MONEY_LANDING_HEADING = 'Follow the money';
 
+/**
+ * The subtitle and all 3 lane bodies end without a full stop (ruled 1 Sep 2026, #1924).
+ * The subtitle stands alone under the heading, and the 3 bodies are a column of card
+ * descriptions, so the rule reaches each of them. A body carrying 2 sentences keeps the
+ * full stop BETWEEN them and loses only the final one — see MONEY_LANE_WHO_GOT_PAID.
+ */
 export const MONEY_LANDING_SUBTITLE =
   'Every contribution and expenditure Minnesota publishes for state campaigns, searchable by ' +
-  'the name it was filed under.';
+  'the name it was filed under';
 
 export const MONEY_LANE_LEGISLATORS = {
   title: 'Legislators',
-  body: 'Their money is a tab on the profile they already have.',
+  body: 'Their money is a tab on the profile they already have',
 } as const;
 
 export const MONEY_LANE_COMMITTEES = {
   title: 'Committees',
-  body: 'Campaign committees, party units, and other registered funds.',
+  body: 'Campaign committees, party units, and other registered funds',
 } as const;
 
 /**
@@ -247,7 +256,7 @@ export const MONEY_LANE_WHO_GOT_PAID = {
   body:
     'Search a name to see every payment filed under that exact spelling. There is no list of ' +
     'every payee: these names carry no identifier, so any order across committees on different ' +
-    'filing calendars would set one period against another.',
+    'filing calendars would set one period against another',
 } as const;
 
 /** The one freshness date the landing shows, worded as the screen words it: the

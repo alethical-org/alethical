@@ -612,10 +612,13 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
     color: t.colors.text.muted,
   },
+  // The body face on every amount, matching the big totals (ruled 1 Sep 2026, #1924).
+  // `listDate` directly above keeps mono, which is the whole point: 2 faces separate a
+  // date from a dollar figure, not one dollar figure from another.
   listAmount: {
     width: 104,
     textAlign: 'right',
-    fontFamily: t.typography.mono,
+    fontFamily: t.typography.body,
     fontSize: t.fontSizes.bodyLg,
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.primary,
@@ -635,7 +638,7 @@ const styles = StyleSheet.create({
     color: t.colors.text.muted,
   },
   listAmountMobile: {
-    fontFamily: t.typography.mono,
+    fontFamily: t.typography.body,
     fontSize: t.fontSizes.bodyLg,
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.primary,

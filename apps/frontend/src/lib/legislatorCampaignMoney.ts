@@ -105,20 +105,44 @@ export function campaignMoneyYear(
 /**
  * A money amount as a reader would check it against the filing.
  *
- * Cents are always shown, including on figures in the millions. The whole promise
- * of this tab is that any number on it can be traced to Minnesota's own publication,
- * and $1,747,196.69 rounded to $1.7M cannot be. Returns `null` for a value that is
- * absent, so a caller has to decide what absence means rather than being handed a
- * "$0" it did not ask for.
+ * **Whole dollars, and the cents are CUT rather than rounded.** $178,579,449.67
+ * prints as $178,579,449 and $99.99 prints as $99, so a figure on this product can
+ * never read larger than the money it stands for. Rounding would break that on half
+ * of all values, and reading high about a named politician's money is the direction
+ * that does damage. Cents on a 6-figure total are noise a reader steps over, and the
+ * filed amount to the cent is one click away on the Board's own site, which every
+ * money card links to.
+ *
+ * The one exception is an amount above zero but under a dollar, which keeps its
+ * cents: a 50-cent row printed as "$0" reads as a reported zero, and
+ * `.claude/rules/grounded-answers.md` rule 12 separates a missing value from a
+ * verified zero precisely so that no page invents one. Truncation is what creates
+ * that hazard, so the exception belongs to the truncation rather than to taste.
+ *
+ * Returns `null` for a value that is absent, so a caller has to decide what absence
+ * means rather than being handed a "$0" it did not ask for.
+ *
+ * Ruled by Eugene on 1 Sep 2026, and applied by Design across all 21 drawings in the
+ * campaign-money set ([#1924](https://github.com/alethical-org/alethical/issues/1924)).
  */
 export function formatMoney(value: number | string | null | undefined): string | null {
   if (value === null || value === undefined || value === '') return null;
   const amount = typeof value === 'string' ? Number(value) : value;
   if (!Number.isFinite(amount)) return null;
   const negative = amount < 0;
-  const body = Math.abs(amount).toLocaleString('en-US', {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
+  const magnitude = Math.abs(amount);
+  // Under a dollar and not zero: keep the cents, or the row reads as a filed zero.
+  // `toFixed` is the rounding path and is safe here, because 2 decimal places is
+  // already every digit such a value has on a filing.
+  if (magnitude > 0 && magnitude < 1) {
+    return `${negative ? '-' : ''}$${magnitude.toFixed(2)}`;
+  }
+  // `Math.floor` on the magnitude rather than on the signed amount: flooring -0.5
+  // gives -1, which is further from zero, and the rule is that no figure may read
+  // larger than it is in either direction.
+  const body = Math.floor(magnitude).toLocaleString('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
   });
   return `${negative ? '-' : ''}$${body}`;
 }
@@ -557,33 +581,40 @@ export interface CommitteeMatchCheck {
   partyAgreement: string | null;
 }
 
+/**
+ * No terminal full stop on any sentence in this block (ruled 1 Sep 2026, #1924).
+ * `matchCheckSentences` returns them as a stack, one to a line, and a stack of
+ * standalone lines takes no closing mark whatever its sentence count. An internal full
+ * stop separating 2 sentences would stay; none of these has one.
+ */
+
 /** How the filed name related to the member's, in a reader's words. */
 const NAME_EVIDENCE_SENTENCE: Record<string, string> = {
-  exact: 'The filed name matches theirs exactly.',
-  published_nickname: 'The account is filed under a nickname the state itself prints.',
-  shortened: 'The account is filed under a longer form of their first name.',
-  middle_name: 'The account is filed under a middle name the state prints.',
-  initial: 'The account is filed under an initial rather than a first name.',
-  surname_only: 'The account shares their last name and the first name is filed differently.',
+  exact: 'The filed name matches theirs exactly',
+  published_nickname: 'The account is filed under a nickname the state itself prints',
+  shortened: 'The account is filed under a longer form of their first name',
+  middle_name: 'The account is filed under a middle name the state prints',
+  initial: 'The account is filed under an initial rather than a first name',
+  surname_only: 'The account shares their last name and the first name is filed differently',
 };
 
 /** What Minnesota's register of registered candidates said about the account. */
 const REGISTER_SENTENCE: Record<string, string> = {
   same_seat:
-    "Minnesota's register of registered candidates lists this account for their own seat and party.",
+    "Minnesota's register of registered candidates lists this account for their own seat and party",
   same_seat_not_current:
-    "Minnesota's register lists this account for their seat and party, without naming them as its current holder.",
-  different_race: "Minnesota's register lists this account for a different office.",
-  different_person: "Minnesota's register lists this account for a different seat or party.",
-  unknown: "Minnesota's register of current candidates does not list this account.",
+    "Minnesota's register lists this account for their seat and party, without naming them as its current holder",
+  different_race: "Minnesota's register lists this account for a different office",
+  different_person: "Minnesota's register lists this account for a different seat or party",
+  unknown: "Minnesota's register of current candidates does not list this account",
 };
 
 /** What the party money said, in the 4 states it can be in. */
 const PARTY_SENTENCE: Record<string, string> = {
-  agrees: 'Party organisations of their own party pay into it.',
-  disagrees: 'Party organisations of the other party pay into it.',
-  no_party_money: 'No party organisation has ever paid into it.',
-  no_party_on_record: 'We hold no party for this member, so the party money cannot be compared.',
+  agrees: 'Party organisations of their own party pay into it',
+  disagrees: 'Party organisations of the other party pay into it',
+  no_party_money: 'No party organisation has ever paid into it',
+  no_party_on_record: 'We hold no party for this member, so the party money cannot be compared',
 };
 
 /**
@@ -606,7 +637,9 @@ const PARTY_SENTENCE: Record<string, string> = {
 export function matchCheckSentences(check: CommitteeMatchCheck | null | undefined): string[] {
   if (!check) return [];
   const day = formatClosingDay(check.checkedOn);
-  const sentences = [`Checked by Alethical on ${day}.`];
+  // No terminal full stop, same as the 3 sentences that follow it: this is the dated
+  // opening line of a stack, not a paragraph (ruled 1 Sep 2026, #1924).
+  const sentences = [`Checked by Alethical on ${day}`];
   const name = check.nameEvidence ? NAME_EVIDENCE_SENTENCE[check.nameEvidence] : undefined;
   if (name) sentences.push(name);
   const register = check.registerVerdict ? REGISTER_SENTENCE[check.registerVerdict] : undefined;

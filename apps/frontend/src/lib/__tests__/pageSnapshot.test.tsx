@@ -1109,7 +1109,7 @@ describe('a committee’s record in the first response', () => {
   // figure's, so it stays. The non-donation receipt row is added here because the
   // fixture carries none.
   it('still counts the payments on a category row and on a non-donation receipt row', () => {
-    expect(text).toContain('Given to other campaigns · $2,700.00 · 3 payments');
+    expect(text).toContain('Given to other campaigns · $2,700 · 3 payments');
     const withReceipt = committeePageSnapshot(
       {
         ...committeeFixture,
@@ -1121,7 +1121,7 @@ describe('a committee’s record in the first response', () => {
       '41326',
     );
     expect(visibleText(renderPageSnapshot(withReceipt))).toContain(
-      'Miscellaneous · $375.00 · 1 payment',
+      'Miscellaneous · $375 · 1 payment',
     );
   });
 
@@ -1188,7 +1188,18 @@ describe('a committee’s record in the first response', () => {
    * Every amount in the served HTML has to be one the payload carries.
    */
   it('invents no money figure — every amount served is one the filing carries', () => {
-    const servedAmounts = [...text.matchAll(/\$[\d,]+\.\d{2}/g)].map((match) => match[0]);
+    // Since #1924 a figure is whole dollars, so the old `\.\d{2}` pattern matched
+    // nothing at all and this test passed on an empty list. Both shapes are matched
+    // now — the ordinary whole-dollar one and the under-$1 one that keeps its cents —
+    // which makes this stricter than it was, not looser.
+    //
+    // The 2 statutory thresholds are excluded by name. "$200" and "$500" are prose
+    // about what Minnesota's law requires, not figures about this committee, and the
+    // old pattern only skipped them by the accident of their having no cents.
+    const statutoryThresholds = new Set(['$200', '$500']);
+    const servedAmounts = [...text.matchAll(/\$[\d,]+(?:\.\d{2})?/g)]
+      .map((match) => match[0])
+      .filter((amount) => !statutoryThresholds.has(amount));
     const filed = new Set(
       [
         split.reported_total,
@@ -1240,8 +1251,12 @@ describe('a filed zero is a number, not a gap', () => {
   };
   const text = visibleText(renderPageSnapshot(committeePageSnapshot(zeroed, '41326')));
 
-  it('draws $0.00 and the filing’s own sentence for it', () => {
-    expect(text).toContain('$0.00');
+  it('draws the filed zero as a figure, with the filing’s own sentence for it', () => {
+    // Whole dollars since #1924, so a filed zero reads "$0" rather than "$0.00". It is
+    // still a figure and not a gap, which is the point of the test: the label carries a
+    // number, never the "Not reported" wording an absent total gets.
+    expect(text).toContain('Donations this committee reported to the state: $0');
+    expect(text).not.toContain('Donations this committee reported to the state: Not reported');
     expect(text).toContain(ZERO_REPORTED_NOTE);
   });
 

@@ -404,7 +404,7 @@ Top to bottom:
    official total, the two figures simply will not line up, there are no named payments,
    or there is no reported total — the page shows the figures it has and a plain sentence
    saying why it will not divide them, never saying which figure is larger. A committee
-   whose own report says zero shows $0.00 with a sentence saying that is the filing's
+   whose own report says zero shows $0 with a sentence saying that is the filing's
    zero, not our gap.
 
    **Only one of those sentences says Minnesota's two publications disagree, and until
@@ -486,7 +486,7 @@ Top to bottom:
    honest general explanation. **Nothing is drawn where the amount is not above zero**, which covers both a
    committee-year whose payments we hold none of and one whose payments are all cash. 97
    committee-years hold in-kind rows summing to exactly $0.00, and none of them prints a
-   "$0.00" line.
+   "$0" line.
 
 7. **Three tabs. The first two — Who gave and Where it went** — the six largest payments,
    ranked largest first (honest inside one committee; never across committees), each
@@ -526,6 +526,23 @@ Top to bottom:
    printed no figure at all and explained the gap by saying official sources disagreed
    about it, which was not true: the $200 came from a guide written for a different kind
    of committee.
+
+**How every dollar amount in this section is written**, ruled 1 September 2026 and applied
+across the whole design set:
+
+- **Whole dollars, cents cut rather than rounded.** $178,579,449.67 prints as $178,579,449
+  and $99.99 prints as $99, so no figure ever reads larger than the money it stands for.
+  The filed amount to the cent stays one click away on the Board's own site. The one
+  exception is an amount above zero but under a dollar, which keeps its cents: cut to "$0"
+  a 50-cent row would read as a committee that reported nothing.
+- **One typeface for money.** Every amount is set in the same face as the big totals
+  (Libre Franklin). The dotted-zero monospaced face stays for dates, registration numbers,
+  small capital labels and count lines, so the two faces separate two kinds of thing
+  rather than two kinds of number.
+- **No full stop at the end of a line that stands alone** — a caption, a date or meta
+  line, a label, a one-line card description, and any stack or column of those, including
+  the "What this record covers" block on both this page and the section landing. An
+  explaining paragraph inside a card keeps every full stop it has, however short.
 
 Empty and edge states, each its own honest sentence: a year no report covers ("Not
 reported", never a zero, and never last year's money under this year's heading); a closed
