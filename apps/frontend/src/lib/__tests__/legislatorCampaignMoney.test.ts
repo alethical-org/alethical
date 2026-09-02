@@ -40,15 +40,27 @@ import {
 } from '../legislatorCampaignMoney';
 
 describe('formatMoney', () => {
-  it('keeps cents on a figure in the millions', () => {
-    // The House Republican Campaign Committee's own reported 2025 total. Rounded to
-    // $1.7M a reader cannot check it against Minnesota's filing, which is the whole
-    // promise of this tab.
-    expect(formatMoney('1747196.69')).toBe('$1,747,196.69');
+  it('drops the cents on a figure in the millions', () => {
+    // The House Republican Campaign Committee's own reported 2025 total. Every digit
+    // that identifies the figure survives; only the cents go, and the filed amount to
+    // the cent stays one click away on the Board's own site.
+    expect(formatMoney('1747196.69')).toBe('$1,747,196');
   });
 
-  it('adds the cents a whole-dollar figure arrives without', () => {
-    expect(formatMoney('1000')).toBe('$1,000.00');
+  // The half of the ruling that is a truth claim rather than a style choice: a figure
+  // may never read LARGER than the money it stands for. Rounding breaks that on every
+  // value whose cents are 50 or more, which is about half of them.
+  it('cuts the cents rather than rounding them, so no figure reads high', () => {
+    expect(formatMoney('99.99')).toBe('$99');
+    expect(formatMoney('99.50')).toBe('$99');
+    expect(formatMoney('178579449.67')).toBe('$178,579,449');
+    // Negative amounts read high by getting closer to zero, so flooring the magnitude
+    // rather than the signed value is what keeps the rule true in both directions.
+    expect(formatMoney('-99.99')).toBe('-$99');
+  });
+
+  it('adds no cents to a whole-dollar figure', () => {
+    expect(formatMoney('1000')).toBe('$1,000');
   });
 
   it('returns nothing at all for an absent value rather than a zero', () => {
@@ -60,14 +72,27 @@ describe('formatMoney', () => {
   });
 
   it('prints a real zero as a zero', () => {
-    expect(formatMoney('0')).toBe('$0.00');
+    expect(formatMoney('0')).toBe('$0');
+  });
+
+  // The exception truncation itself creates. Cutting the cents off 50 cents leaves
+  // "$0", which a reader takes for a filed zero — the missing-versus-zero failure
+  // `.claude/rules/grounded-answers.md` rule 12 exists to stop. So anything above zero
+  // and under a dollar keeps its cents.
+  it('keeps the cents under a dollar, so a 50-cent row never reads as a filed zero', () => {
+    expect(formatMoney('0.50')).toBe('$0.50');
+    expect(formatMoney('0.01')).toBe('$0.01');
+    expect(formatMoney('0.99')).toBe('$0.99');
+    expect(formatMoney('-0.50')).toBe('-$0.50');
+    // A dollar and over is back under the ordinary rule.
+    expect(formatMoney('1.99')).toBe('$1');
   });
 });
 
 describe('moneyFigure', () => {
   it('shows a figure only when the block says the figures are real', () => {
     expect(moneyFigure('reported', '20552.62')).toEqual({
-      text: '$20,552.62',
+      text: '$20,552',
       isFigure: true,
     });
   });
@@ -730,10 +755,10 @@ describe('what the card says about who checked the match', () => {
 
   it('names the entity and the day, then what was read', () => {
     expect(matchCheckSentences(acomb)).toEqual([
-      'Checked by Alethical on August 31, 2026.',
-      'The filed name matches theirs exactly.',
-      "Minnesota's register of registered candidates lists this account for their own seat and party.",
-      'Party organisations of their own party pay into it.',
+      'Checked by Alethical on August 31, 2026',
+      'The filed name matches theirs exactly',
+      "Minnesota's register of registered candidates lists this account for their own seat and party",
+      'Party organisations of their own party pay into it',
     ]);
   });
 
@@ -743,7 +768,7 @@ describe('what the card says about who checked the match', () => {
   it('says plainly when the state has no row, rather than implying it agreed', () => {
     const sentences = matchCheckSentences({ ...acomb, registerVerdict: 'unknown' });
     expect(sentences).toContain(
-      "Minnesota's register of current candidates does not list this account.",
+      "Minnesota's register of current candidates does not list this account",
     );
     expect(sentences.join(' ')).not.toContain('lists this account for their own seat');
   });
@@ -753,22 +778,65 @@ describe('what the card says about who checked the match', () => {
   it('says the first name is filed differently when only the last name matched', () => {
     const sentences = matchCheckSentences({ ...acomb, nameEvidence: 'surname_only' });
     expect(sentences).toContain(
-      'The account shares their last name and the first name is filed differently.',
+      'The account shares their last name and the first name is filed differently',
     );
-    expect(sentences).not.toContain('The filed name matches theirs exactly.');
+    expect(sentences).not.toContain('The filed name matches theirs exactly');
   });
 
   // All 4 party states get their own words, and 2 of them are not disagreements.
   it('never renders a missing party comparison as a disagreement', () => {
     expect(matchCheckSentences({ ...acomb, partyAgreement: 'no_party_money' })).toContain(
-      'No party organisation has ever paid into it.',
+      'No party organisation has ever paid into it',
     );
     expect(
       matchCheckSentences({ ...acomb, partyAgreement: 'no_party_on_record' }).join(' '),
     ).not.toContain('other party');
     expect(matchCheckSentences({ ...acomb, partyAgreement: 'disagrees' })).toContain(
-      'Party organisations of the other party pay into it.',
+      'Party organisations of the other party pay into it',
     );
+  });
+
+  // Ruled 1 Sep 2026 (#1924). Every sentence this block can produce renders on its own
+  // line, so the whole set is a stack and none of them closes with a full stop. Walked
+  // across every stored value rather than the 3 in the happy path, because a value only
+  // one committee triggers is exactly the one that gets missed.
+  it('ends none of its sentences with a full stop, in any combination of evidence', () => {
+    const nameEvidence = [
+      'exact',
+      'published_nickname',
+      'shortened',
+      'middle_name',
+      'initial',
+      'surname_only',
+    ];
+    const registerVerdict = [
+      'same_seat',
+      'same_seat_not_current',
+      'different_race',
+      'different_person',
+      'unknown',
+    ];
+    const partyAgreement = ['agrees', 'disagrees', 'no_party_money', 'no_party_on_record'];
+    let seen = 0;
+    for (const name of nameEvidence) {
+      for (const register of registerVerdict) {
+        for (const party of partyAgreement) {
+          const sentences = matchCheckSentences({
+            checkedOn: '2026-08-31',
+            nameEvidence: name,
+            registerVerdict: register,
+            partyAgreement: party,
+          });
+          expect(sentences).toHaveLength(4);
+          for (const sentence of sentences) {
+            expect(sentence.endsWith('.')).toBe(false);
+            seen += 1;
+          }
+        }
+      }
+    }
+    // 6 x 5 x 4 combinations x 4 lines each: every stored sentence is reached.
+    expect(seen).toBe(480);
   });
 
   it('says nothing at all when the decision carries no stored basis', () => {
@@ -783,7 +851,7 @@ describe('what the card says about who checked the match', () => {
       registerVerdict: null,
       partyAgreement: null,
     });
-    expect(sentences).toEqual(['Checked by Alethical on August 31, 2026.']);
+    expect(sentences).toEqual(['Checked by Alethical on August 31, 2026']);
   });
 });
 

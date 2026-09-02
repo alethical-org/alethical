@@ -191,7 +191,7 @@ describe('rows', () => {
   it('names the committee that filed the row, never the searched name', () => {
     const row = paymentUnderNameRow(payment(), 'contributor', new Set(['18135']));
     expect(row.name).toBe('Walz, Tim Gov Committee');
-    expect(row.amount).toBe('$4,000.00');
+    expect(row.amount).toBe('$4,000');
     expect(row.date).toBe('6 Oct 2025');
   });
 

@@ -362,7 +362,10 @@ describe('money out', () => {
     // The whole point of #1894: money in has said this since #1332 and money out
     // could only name the mechanism.
     const note = inKindOutNote('325.50');
-    expect(note).toContain('$325.50');
+    // Whole dollars with the cents cut (#1924): $325.50 prints as $325, never $326.
+    expect(note).toContain('$325');
+    expect(note).not.toContain('$325.50');
+    expect(note).not.toContain('$326');
     expect(note).toContain('goods and services');
     expect(note).toContain('rather than money');
 
@@ -515,17 +518,30 @@ describe('the record-coverage block', () => {
   it('states the threshold each filer kind actually carries, and never the other one', () => {
     const ordinary = recordCoverageLines(false);
     expect(ordinary).toHaveLength(4);
+    // No terminal full stop on any coverage line (#1924): each stands on its own line.
     expect(ordinary[3]).toBe(
-      'Donors who gave $200 or less in total for the year need not be named.',
+      'Donors who gave $200 or less in total for the year need not be named',
     );
     expect(ordinary.join(' ')).not.toContain('$500');
 
     const ballot = recordCoverageLines(true);
     expect(ballot).toHaveLength(4);
-    expect(ballot[3]).toBe('Donors who gave $500 or less in total for the year need not be named.');
+    expect(ballot[3]).toBe('Donors who gave $500 or less in total for the year need not be named');
     // The $200 line must not also appear here: 2 thresholds on one page is worse than
     // the silence this replaced.
     expect(ballot.join(' ')).not.toContain('$200');
+  });
+
+  // Ruled 1 Sep 2026 (#1924). Every line here stands on its own line, and a stack of
+  // standalone lines takes no closing mark — a terminal full stop makes each read as
+  // the opening of a paragraph that never arrives. This holds both threshold variants
+  // as well as the 3 fixed lines.
+  it('ends no coverage line with a full stop, in either threshold variant', () => {
+    for (const lines of [recordCoverageLines(false), recordCoverageLines(true)]) {
+      for (const line of lines) {
+        expect(line.endsWith('.')).toBe(false);
+      }
+    }
   });
 
   // The $200 test is a floor on who a committee MUST name, never a ban on naming

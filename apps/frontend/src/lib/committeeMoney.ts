@@ -1077,19 +1077,26 @@ export function madePaymentRow(
  */
 export const RECORD_COVERS_HEADING = 'What this record covers';
 
+/**
+ * No terminal full stop on any of these (ruled 1 Sep 2026, #1924). Each renders on its
+ * own line, and a stack of standalone lines takes no closing mark: the full stop makes a
+ * line read as the opening of a paragraph that never arrives. The rule reaches captions,
+ * labels and one-line descriptions, never the explaining paragraphs inside a money card,
+ * which keep every full stop they have.
+ */
 export function recordCoverageLines(isBallot: boolean): string[] {
   const lines = [
-    'Money filed with the Minnesota Campaign Finance and Public Disclosure Board.',
-    'Nothing before 2015.',
-    'Unions don’t report to this board at all.',
+    'Money filed with the Minnesota Campaign Finance and Public Disclosure Board',
+    'Nothing before 2015',
+    'Unions don’t report to this board at all',
   ];
   // Same shape as the $200 sentence, and it respects the same 2 rules: the test is on
   // the donor's total for the YEAR rather than on the size of a gift, and it is a floor
   // on who must be named rather than a bar on naming anyone smaller (#1755).
   lines.push(
     isBallot
-      ? 'Donors who gave $500 or less in total for the year need not be named.'
-      : 'Donors who gave $200 or less in total for the year need not be named.',
+      ? 'Donors who gave $500 or less in total for the year need not be named'
+      : 'Donors who gave $200 or less in total for the year need not be named',
   );
   return lines;
 }

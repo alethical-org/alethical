@@ -1491,10 +1491,14 @@ const styles = StyleSheet.create({
     display: 'flex',
   },
   listBarFill: { height: '100%', backgroundColor: t.colors.brand.bright },
+  // Every dollar amount on this section takes the body face, the one the big totals
+  // already use (ruled 1 Sep 2026, #1924). Mono stays for dates, registration numbers
+  // and small labels, so the 2 faces separate 2 kinds of thing rather than 2 kinds of
+  // number: a reader seeing 2 number faces asked whether the difference meant something.
   listAmount: {
     width: 104,
     textAlign: 'right',
-    fontFamily: t.typography.mono,
+    fontFamily: t.typography.body,
     fontSize: t.fontSizes.body,
     fontWeight: t.fontWeights.bold,
     color: t.colors.text.primary,

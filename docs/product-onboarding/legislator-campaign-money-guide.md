@@ -287,7 +287,7 @@ amount since [#1332](https://github.com/alethical-org/alethical/issues/1332). Th
 the amount and explains nothing: it never claims the goods and services are why the 2
 money-out figures differ. Absent whenever the amount is not above zero, which is both a
 committee-year whose payments we hold none of and one whose payments are all cash -- never a
-drawn "$0.00", for the same reason nothing else here is.
+drawn "$0", for the same reason nothing else here is.
 
 **What used to be here, and it was false.** The tab said Minnesota "publishes no official
 total for a committee's spending". Minnesota publishes one: the filed report's own "Total
@@ -500,10 +500,34 @@ tab prints both figures and no subtraction.
 - **"Not reported"** means the state's spreadsheet names nothing for this committee this
   year. It is never shown as "$0". A committee whose donors all stayed under the naming
   threshold is never itemized, so silence here is silence, not a zero.
-- **"$0.00"** appears only where a committee genuinely reported nothing and the
+- **"$0"** appears only where a committee genuinely reported nothing and the
   spreadsheet names nothing, and the two therefore agree.
 - **A load failure gets its own message** and never falls through to "Not reported",
   because a fault on our side must not read as a named person having filed nothing.
+
+---
+
+## How a dollar amount is written
+
+**Whole dollars, and the cents are cut rather than rounded.** $178,579,449.67 prints as
+$178,579,449 and $99.99 prints as $99, so a figure here can never read larger than the
+money it stands for. Rounding would break that on about half of all values, and reading
+high about a named politician's money is the direction that does damage. The filed amount
+to the cent is one click away on the Board's own site, which every money card links to.
+
+**One exception, and truncation is what creates it.** An amount above zero but under a
+dollar keeps its cents, so a 50-cent row prints $0.50. Cut to "$0" it would read as a
+committee that reported nothing, which is the missing-versus-zero confusion the list
+above exists to prevent.
+
+**Every dollar amount is set in the same typeface as the big totals** (Libre Franklin).
+The dotted-zero monospaced face is kept for dates, registration numbers and small
+labels, so the two faces separate two kinds of thing rather than two kinds of number.
+
+**A line that stands on its own carries no full stop at the end.** That covers a caption,
+a date or meta line, a label, a one-line description, and any stack of those — including
+the sentences saying what a person checked before attaching a committee to a legislator.
+An explaining paragraph inside a card keeps every full stop it has, however short it is.
 
 ---
 
