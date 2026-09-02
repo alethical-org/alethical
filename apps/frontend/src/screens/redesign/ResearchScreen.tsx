@@ -9,6 +9,7 @@ import { useHistoryScrollRestoration } from '../../hooks/useHistoryScrollRestora
 import { useResponsive } from '../../hooks/useResponsive';
 import {
   READ_PAGE_HEADING,
+  pieceContentsLabel,
   pieceKindLabel,
   pieceMastheadLine,
   pieceShareDescription,
@@ -350,7 +351,7 @@ function ContentsLinks({
   return (
     <View
       accessibilityRole={isWeb ? ('navigation' as 'none') : undefined}
-      accessibilityLabel="Sections in this research"
+      accessibilityLabel={pieceContentsLabel(piece)}
       style={compact ? styles.contentsListCompact : styles.contentsList}
     >
       {piece.sections.map((section, index) => (

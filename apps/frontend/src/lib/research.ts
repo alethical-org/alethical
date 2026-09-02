@@ -280,14 +280,18 @@ export const READ_PAGE_HEADING = 'Campaign money research and guides';
  * The note under the hidden title. A note rather than a heading, in regular
  * weight and grey, because the bold heads on this page are the kind sections and
  * a reader should see the shape of what we publish before reading a sentence
- * about it (Design, 27 Aug 2026). No terminal period: nothing on this page takes
- * one.
+ * about it (Design, 27 Aug 2026).
+ *
+ * No terminal period on this line or on the 2 empty-state lines below it: a
+ * period says another sentence is coming, so on a line with nothing after it the
+ * eye waits for something that never arrives (Eugene, 2 Sep 2026). A piece's own
+ * standfirst, drawn on its card, keeps the period its author wrote.
  */
 export const READ_PAGE_INTRO =
   'What we found in Minnesota\u2019s public records, plus guides to how state government works';
-export const READ_PAGE_EMPTY_TITLE = 'Nothing published yet.';
+export const READ_PAGE_EMPTY_TITLE = 'Nothing published yet';
 export const READ_PAGE_EMPTY_BODY =
-  'When we publish research or a guide on these records, it appears here, dated and carrying the date its records run through.';
+  'When we publish research or a guide on these records, it appears here, dated and carrying the date its records run through';
 
 /**
  * The 2 group headings on the /read page, research first (Eugene, 27 Aug
@@ -621,6 +625,17 @@ export function pieceSharePanelDescription(piece: ResearchPiece): string {
  */
 export function pieceSourcesLabel(piece: ResearchPiece): string {
   return piece.traits.research ? 'WHERE THESE NUMBERS COME FROM' : 'WHERE THIS COMES FROM';
+}
+
+/**
+ * The spoken name of the contents list inside a piece. It names the piece's own
+ * kind, because a screen reader is handed this label *instead of* the visible
+ * "CONTENTS" heading, and a fixed word tells a person reading a guide they are
+ * in research (`.claude/rules/grounded-answers.md` rule 10 on what an
+ * `accessibilityLabel` replaces).
+ */
+export function pieceContentsLabel(piece: Pick<ResearchPiece, 'traits'>): string {
+  return `Sections in this ${pieceKindLabel(piece).toLowerCase()}`;
 }
 
 /**
