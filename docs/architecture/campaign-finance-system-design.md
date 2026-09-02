@@ -2686,29 +2686,29 @@ Recorded as not run, never as passed:
   before 2024, and the 82 `reader_unproven` committee-years one by one.
 - **The same comparison for money out has run too, across every committee-year of 2024, 2025
   and 2026, and it reads a separate table from the money-in one.** Read off the stored
-  verdicts in `cf_stated_spending` against the live release, 1 Sep 2026, all 4,124
-  committee-years the check reaches: **3,313 agree and 208 disagree**, 481 are `not_checked`
-  because we hold no copy of the filing's report document, and 122 read `reader_unproven`,
-  where a document was read and our own reader could not prove itself. The 3 absences of a
-  verdict are 3 different facts and none of them is a pass.
-  - **The 208 run in both directions, and the smaller direction is the one that misstates a
-    committee.** 40 are the filing itemizing money out our rows do not hold — $495,305.39 of
-    it — and **17 of those 40 hold not one payment row** while the filing names money out,
+  verdicts in `cf_stated_spending` for the live release's own expenditures snapshot, 2 Sep
+  2026, all 4,124 committee-years the check reaches: **3,304 agree and 217 disagree**, 481 are
+  `not_checked` because we hold no copy of the filing's report document, and 122 read
+  `reader_unproven`, where a document was read and our own reader could not prove itself. The
+  3 absences of a verdict are 3 different facts and none of them is a pass.
+  - **The 217 run in both directions, and the smaller direction is the one that misstates a
+    committee.** 40 are the filing itemizing money out our rows do not hold — $492,182.50 of
+    it — and **16 of those 40 hold not one payment row** while the filing names money out,
     which is the whole-filer-year skip §2.1 measures appearing on the spending side. The
-    other 168 are our rows exceeding the filing's own itemized figure, $1,684,769.24 of it.
+    other 177 are our rows exceeding the filing's own itemized figure, $1,698,395.18 of it.
     So no wording anywhere may say which figure is the larger one.
-  - **The disagreements concentrate in 2024**: 147 of the 208, against 24 in 2025 and 37 in
+  - **The disagreements concentrate in 2024**: 147 of the 217, against 25 in 2025 and 45 in
     2026, on populations of 1,349, 1,463 and 1,312 committee-years.
   - **The part-year threshold artefact §2.3 measures does not exist on money out.** Asked
     either way rather than assumed: among the 3,521 committee-years carrying a verdict and a
-    cut-off date, **31 of the 1,236 part-year ones disagree (2.5%) against 177 of the 2,285
-    full-year ones (7.7%)** — the opposite concentration from money in, where the artefact
+    cut-off date, **39 of the 1,236 part-year ones disagree (3.2%) against 178 of the 2,285
+    full-year ones (7.8%)** — the opposite concentration from money in, where the artefact
     put 27 of 56 disagreements on mid-year reports. The comparison is against the filing's own
     *itemized* subtotal, so money a filer never had to itemize was never on either side of it.
   - **Reach, asked as its own question rather than inferred from the counts.** 242 committee
-    links are confirmed and not withdrawn, covering 242 registrations. **31 of the 208
+    links are confirmed and not withdrawn, covering 242 registrations. **33 of the 217
     disagreements sit on one of those**, so they render inside a legislator's profile as well
-    as on a committee page, 6 of the 31 being the direction where the filing names more than
+    as on a committee page, 6 of the 33 being the direction where the filing names more than
     we hold. A further 24 `not_checked` and 18 `reader_unproven` committee-years sit on a
     confirmed committee. Whether a person loaded any of those pages this cannot say.
   - **Still not established**: any year before 2024; the 122 `reader_unproven` committee-years
@@ -2719,16 +2719,24 @@ Recorded as not run, never as passed:
     release's expenditures snapshot and `cf_stated_split` on its contributions snapshot, which
     is the right scoping — a verdict about payments that have since been replaced is not a
     verdict about the payments on screen — but nothing re-runs either check when a release
-    publishes. Measured 1 Sep 2026: the money-out check wrote its 4,124 verdicts against
-    release `3f2bdf90` at 02:35 UTC, release `af236cca` published at 18:35 UTC, and from that
-    moment **every committee page read `not_run` for money out and `not_checked` for money in**,
-    across the whole population, with 0 of the 4,124 verdicts and 0 of the 3,968 split
-    verdicts applying to the live release. Both surfaces stayed honest — an unchecked figure
-    says it is unchecked — so this costs the reader the verdict rather than misleading them,
-    which is why it reads as nothing being wrong. **The durable fix is running both checks as
-    part of publishing a release**, and until that ships a re-run by hand is what makes the
-    verdicts live; the money-out run costs 0 requests to the Board and about 21 minutes
-    ([#1922](https://github.com/alethical-org/alethical/issues/1922)).
+    publishes. Measured across 2 releases: the check wrote 4,124 verdicts against release
+    `3f2bdf90` at 02:35 UTC on 1 Sep 2026, release `af236cca` published at 18:35 UTC, and from
+    that moment **every committee page read `not_run` for money out and `not_checked` for
+    money in**, across the whole population, with 0 of those 4,124 verdicts and 0 of the 3,968
+    split verdicts applying to the live release. Both surfaces stayed honest — an unchecked
+    figure says it is unchecked — so this costs the reader the verdict rather than misleading
+    them, which is why it reads as nothing being wrong. **The durable fix is running both
+    checks as part of publishing a release**
+    ([#1922](https://github.com/alethical-org/alethical/issues/1922)); until it ships, a re-run
+    by hand is what makes the verdicts live, and the money-out run costs 0 requests to the
+    Board and about 21 minutes.
+  - **And a release genuinely moves the answer, which is why re-running matters rather than
+    just re-stamping.** The same check over the same 3 years gave 3,313 agreeing and 208
+    disagreeing on release `3f2bdf90` and 3,304 agreeing and 217 disagreeing on `af236cca`,
+    with the `not_checked` 481 and `reader_unproven` 122 unmoved. 9 committee-years changed
+    verdict on new payment rows alone, and 2026 carries 45 of them against 37 — so a stale
+    verdict is not a slightly old answer, it is an answer about payments a reader is no longer
+    being shown.
 - **The closed-committee count** (§7's fifth state) is 1 sitting member of the **162** resolvable by
   district plus surname, with 0 having closed one committee and opened another, read off one nightly
   directory snapshot. The 38 unresolved are that match failing, never members shown to hold no

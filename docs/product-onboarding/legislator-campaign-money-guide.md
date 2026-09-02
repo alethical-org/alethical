@@ -257,16 +257,22 @@ the 2 must not be read as one.** That one is our listed payments against the com
 *reported total*. This one is the committee's own *itemized* money-out subtotal, read off the
 filed report document, against the payments the state's file holds for the same period --
 like against like, which is why it can find a shortfall the other cannot. Measured on the
-live release, 1 Sep 2026, across all 4,124 committee-years of 2024, 2025 and 2026 the check
-reaches: 3,313 agree and 208 disagree, 481 we hold no filing document for, and 122 our own
-reader could not prove itself on. Of the 208, **40 are the filing naming money out our rows
-do not hold**, $495,305.39 of it, and 17 of those hold not one payment row while the filing
-names money out; the other 168 are our rows exceeding the filing's itemized figure,
-$1,684,769.24 of it. **31 of the 208 sit on a committee somebody has confirmed for a sitting
-legislator**, so they render on this tab as well as on a committee page, 6 of the 31 being
+live release, 2 Sep 2026, across all 4,124 committee-years of 2024, 2025 and 2026 the check
+reaches: 3,304 agree and 217 disagree, 481 we hold no filing document for, and 122 our own
+reader could not prove itself on. Of the 217, **40 are the filing naming money out our rows
+do not hold**, $492,182.50 of it, and 16 of those hold not one payment row while the filing
+names money out; the other 177 are our rows exceeding the filing's itemized figure,
+$1,698,395.18 of it. **33 of the 217 sit on a committee somebody has confirmed for a sitting
+legislator**, so they render on this tab as well as on a committee page, 6 of the 33 being
 the direction where the filing names more than we hold. A further 24 of the
 we-hold-no-document cases and 18 of the reader-could-not-prove-itself cases sit on a
 confirmed committee. Whether a person loaded any of those pages nothing we hold can say.
+
+**And the answers are only as fresh as the last run of the check.** Each answer is tied to the
+exact copy of Minnesota's download it was made about, so publishing a new copy retires all of
+them at once and every committee-year reads "nobody has compared these yet" until somebody
+re-runs it. That is honest and it is not the intended steady state; the fix is
+[#1922](https://github.com/alethical-org/alethical/issues/1922).
 Full measurement:
 [`campaign-finance-system-design.md`](../architecture/campaign-finance-system-design.md) §9.9
 (checks this design asks for), and

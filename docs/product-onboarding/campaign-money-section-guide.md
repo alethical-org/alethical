@@ -466,8 +466,8 @@ Top to bottom:
    payments against the committee's *reported total*, while this one compares the committee's
    own *itemized* money-out subtotal, read off its filed report, against the payments the
    state's file holds for the same period. Like against like, which is why this one can find a
-   shortfall the other cannot: 40 of the 208 disagreeing committee-years are the filing naming
-   $495,305.39 of money out our rows do not hold. The wording, all 3 outcomes and the full
+   shortfall the other cannot: 40 of the 217 disagreeing committee-years are the filing naming
+   $492,182.50 of money out our rows do not hold. The wording, all 3 outcomes and the full
    count live in
    [`legislator-campaign-money-guide.md`](legislator-campaign-money-guide.md) § Money out,
    which owns what both money-out surfaces share
