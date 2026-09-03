@@ -621,9 +621,8 @@ reads as 2 columns. A card carries, in this order:
 - A short line in the typewriter face: how long the piece takes to read, then its date. A
   research piece gives the day it was published; a guide gives the month it was written, and
   the same slot reads "checked" from the day somebody re-checks it, so a guide that is kept
-  accurate reads as current instead of old. This replaces the 26 Aug 2026 decision to leave a
-  guide's card dateless: that decision was about a date going stale on a listing row, and the
-  one-word swap is the answer to it.
+  accurate reads as current instead of old. A guide's card is never left dateless: a date
+  going stale on a listing row is answered by the one-word swap, not by removing the date.
 - The piece's title.
 - One smaller line: a research piece's standfirst, or the set a guide belongs to. A guide in
   no set has neither, and the line is simply not drawn.
@@ -661,19 +660,18 @@ Posting a piece puts it on the site straight away, before any of its figures hav
 checked: its own address, this page, and the money landing's count, all on the day it
 posts. **Search engines see it the same day too (Eugene, 25 Aug 2026):** it goes into the
 site map search engines read (`/sitemap.xml`) and its page carries no instruction to skip
-it. Nothing about a piece waits any more.
+it. Nothing about a piece waits.
 
-That used to work the other way, and the change has a cost worth knowing: a figure nobody
-has recomputed can now reach a search result on the day it posts. What stands in the way is
+The cost of that, stated plainly: a figure nobody has recomputed can reach a search result
+on the day it posts. What stands in the way is
 the checking itself happening promptly, and a correction replacing a wrong figure the moment
 it is agreed. Holding a particular piece back stays possible, for a reason Eugene names,
 rather than being a step every piece waits behind.
 
 The `/read` page and every piece's page hand their words over in the **very first response
 from the server**, before any of the app's own code runs: the listing its cards and a plain
-link to every posted piece, a piece its entire text. Our own writing used to be the one thing
-on the site that a search engine could read only after running the app, while every bill page
-handed its text over straight away
+link to every posted piece, a piece its entire text. That puts our own writing on the same
+footing as a bill page, which hands its text over straight away too
 ([#1760](https://github.com/alethical-org/alethical/issues/1760)). This is separate from
 whether a search engine may _list_ a piece, which is still Eugene's per-piece decision
 above: a piece marked to be skipped is served in full and still asks to be skipped.

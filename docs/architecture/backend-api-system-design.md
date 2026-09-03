@@ -3,11 +3,11 @@
 <!-- describes: alethical/api/routers/*.py, alethical/api/problems.py, alethical/api/serializers.py, alethical/api/services/representative_lookup.py, alethical/api/services/contact.py, alethical/api/services/independent_spending.py, alethical/api/services/committee_finance.py, alethical/api/services/campaign_finance_payments.py, alethical/api/services/campaign_finance_register.py, alethical/api/auth.py, alethical/api/services/auth.py -->
 
 Status: **design reference, not an inventory of what exists.** Much of this document is the
-target shape rather than the shipped API, and the two used to be indistinguishable here: it
-previously claimed the endpoint list was "spot-verified", while documenting nine routes that
-were never built and listing filter parameters the handlers silently ignore. A full audit
-against `alethical/api/routers/` on Aug 3 2026 corrected thirteen such claims and marked every
-unbuilt endpoint **NOT BUILT** inline.
+target shape rather than the shipped API, so every unbuilt endpoint is marked **NOT BUILT**
+inline, and no route or parameter is called verified without a check against
+`alethical/api/routers/` (the Aug 3 2026 audit against it corrected thirteen claims, among
+them nine routes documented but never built and filter parameters the handlers silently
+ignore).
 
 **So read it this way:** a route or parameter with no NOT BUILT marker was verified present on
 Aug 3 2026. Anything marked NOT BUILT is design intent with no code behind it — do not build a
@@ -416,11 +416,10 @@ switch behave as labelled, not to build a lockout console. Who may flip it, and 
 that is recorded, belong to
 [#1040](https://github.com/alethical-org/alethical/issues/1040) (account deletion).
 
-**`email_verified` means a confirmed email and nothing else.** It used to be set from
-`email_confirmed_at` **or** `phone_confirmed_at`, so a phone-verified account with an
-unconfirmed address arrived claiming the address was proven — and that flag is precisely
-what now decides whether an identity may join an existing account. It reads
-`email_confirmed_at` only from Supabase's trusted user record. Supabase does not put that
+**`email_verified` means a confirmed email and nothing else.** It reads `email_confirmed_at`
+only, from Supabase's trusted user record, and never `phone_confirmed_at`: a phone-verified
+account with an unconfirmed address must not arrive claiming the address is proven, because
+that flag is precisely what decides whether an identity may join an existing account. Supabase does not put that
 field in the access token, and any lookalike in `user_metadata` is ignored because the signed-in
 person can edit it ([#1466](https://github.com/alethical-org/alethical/issues/1466)).
 
@@ -514,10 +513,10 @@ the current `bill_summary` enrichment's `updated_at` (the plain-language summary
 points, which are rewritten without the bill row being touched). For a legislator it is
 `updated_at`, unchanged: one candidate, so the newest of it is itself.
 
-It used to be the **first non-null** candidate, which for a bill meant `latest_action_at` and
-nothing after it, because `updated_at` was only consulted for a bill with no recorded action
-at all. So correcting a title, regenerating a summary or repairing a source link left the
-published date months in the past, on all 10,517 bill pages at once. Google uses the field
+It is never the **first non-null** candidate: that reading gives a bill `latest_action_at` and
+nothing after it, consulting `updated_at` only for a bill with no recorded action at all, so
+correcting a title, regenerating a summary or repairing a source link would leave the
+published date months in the past on all 10,517 bill pages at once. Google uses the field
 only "if it's consistently and verifiably accurate" and judges that site-wide, so a stale
 value on the bill pages risks the signal being discounted for every address we publish.
 
@@ -597,7 +596,7 @@ Response fields for `view=cards` (`BillListItem`, `alethical/api/schemas.py`):
 - effective date, for enacted bills with a groundable value
 - tracked state when authenticated and requested
 - stats
-- also present and previously undocumented here: `status_key`, `official_url`, `is_omnibus`,
+- also present: `status_key`, `official_url`, `is_omnibus`,
   `co_author_count`, `companion`, `ai_analysis`, `actions`
 - ~~chamber~~ — **NOT RETURNED** on a list item, despite being listed here for months. Chamber is
   recoverable from the bill number's HF/SF prefix. A whole-Legislature response includes `session`
@@ -1843,7 +1842,7 @@ Written down in advance because the signed-in homepage is designed to carry a "S
 
 **The trap: a missing comparison point currently reads as "first visit", which renders as "nothing moved".** `readHeldLastVisit` (`apps/frontend/src/lib/trackedBillsLastVisit.ts`) is pure and never triggers the POST, so it is safe to call — but on a cold load with nothing held it returns `null`, `lastVisitDate(null)` returns `null`, and `groupTrackedBillsByChange` reads a null comparison point as a first visit and puts **every bill in the unchanged group**. So a card doing the obvious `lastVisitDate(readHeldLastVisit(userId))` would state that nothing had moved on a session where six bills had. Every individual line of that is correct, which is why it would pass review. **A second surface needs a third condition — "we have not asked yet" — that renders neither a change nor an absence.**
 
-**The read-only path is built, and it is two things** (#1034 part 1, [#1035](https://github.com/alethical-org/alethical/pull/1035) — this paragraph used to describe it as unbuilt). `GET /api/v1/me/tracked-bills/last-viewed` returns the mark without touching it; **and** the client holds two facts apart. One held value used to mean both "here is the comparison point" and "this session has already advanced the mark", so a homepage that loaded first and held what it read would make the tracked list skip its POST, and the mark would never advance again for that browser session. They are now separate: the comparison point (shared, written by whichever surface asks first) and an advanced-this-session flag (written only by the tracked list), both in `apps/frontend/src/lib/trackedBillsLastVisit.ts`.
+**The read-only path is two things** (#1034 part 1, [#1035](https://github.com/alethical-org/alethical/pull/1035)). `GET /api/v1/me/tracked-bills/last-viewed` returns the mark without touching it; **and** the client holds two facts apart: the comparison point (shared, written by whichever surface asks first) and an advanced-this-session flag (written only by the tracked list), both in `apps/frontend/src/lib/trackedBillsLastVisit.ts`. One held value meaning both "here is the comparison point" and "this session has already advanced the mark" would let a homepage that loaded first make the tracked list skip its POST, so the mark would never advance again for that browser session.
 
 **The two hooks keep SEPARATE React Query keys, and that is load-bearing.** `useTrackedBillsLastVisit` advances; `useLastVisitWithoutAdvancing` does not. Given one shared key the same bug returns a layer up: both cache with `staleTime: Infinity`, so the homepage's cached read satisfies the tracked page and its write never runs. The state the two surfaces share is the module-level hold, never the query cache.
 

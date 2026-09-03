@@ -484,9 +484,9 @@ you pass.
 5. **720 newlines sit inside quoted fields**, so a line count is not a row count, and
    a row's number is its CSV *record* number.
 
-**The two checks that watch one committee's money now run** ([#1408](https://github.com/alethical-org/alethical/issues/1408)).
-They used to be recorded as permanently "not run", and they matter more than their
-number suggests: every other check here watches the *whole file* — its row count, its
+**The two checks that watch one committee's money run on every load** ([#1408](https://github.com/alethical-org/alethical/issues/1408)),
+and they matter more than their number suggests: every other check here watches the
+*whole file* — its row count, its
 total, its shape — so a file with two committees' amounts swapped between them passes
 all of them. Only a per-committee comparison catches that.
 
@@ -543,9 +543,9 @@ Five things about it that are not obvious:
 - **It cannot cover everything, and it says so.** The Board serves no report document
   for several report kinds even inside the years it does cover, and answers HTTP 200 to
   every one of those refusals. Those committee-years read `not_checked`, never passed.
-  **What it does not mean is that old years are unreachable, and an earlier version of
-  this bullet said so.** It read "the Board serves no report document before 2023",
-  which is wrong: measured 1 September 2026, 9 of 9 sampled 2022 year-end reports and 9
+  **What it does not mean is that old years are unreachable. Never write that the Board
+  serves no report document before 2023:** measured 1 September 2026, 9 of 9 sampled
+  2022 year-end reports and 9
   of 9 sampled 2023 ones served a real document, across all 3 filer kinds
   ([#1886](https://github.com/alethical-org/alethical/issues/1886)). Report *type* is a
   boundary that does hold: 30 of 30 sampled non-year-end 2022 and 2023 reports answered
@@ -1012,8 +1012,8 @@ Those five columns are the row's identity: `apply` upserts on them
 (`ON CONFLICT … DO UPDATE`), and a unique key spelt `NULLS NOT DISTINCT` makes the
 database refuse a second row rather than trusting the writer to look first
 ([#927](https://github.com/alethical-org/alethical/issues/927), migration `0019`).
-`is_current` is **not** part of that identity, and this guide used to say it was —
-it marks which of a bill's rows is the one on display, which
+`is_current` is **not** part of that identity: it marks which of a bill's rows is the one
+on display, which
 `ix_ai_enrichment_bill_summary_current_unique` separately holds to one per bill.
 A local **Codex CLI** can also write the same schema on the `ai_codex` queue,
 touching production only at `ai-apply`.
