@@ -74,7 +74,13 @@ import {
   isBallotQuestionFiler,
   listLinkNote,
   MONEY_OUT_FIGURE_LABEL,
+  MONEY_IN_NAMED_LABEL,
+  MONEY_IN_REPORTED_LABEL,
+  MONEY_IN_UNNAMED_LABEL,
   MONEY_OUT_REPORTED_LABEL,
+  NAMED_DONATIONS_LINK_LABEL,
+  NOT_A_DONATION_HEADING,
+  reportedThroughNote,
   moneyOutKindLabel,
   inKindDonationsNote,
   inKindOutNote,
@@ -102,7 +108,6 @@ import {
   formatMoney,
   moneyFigure,
   paymentCountLabel,
-  reportedThroughLabel,
   splitExplanation,
   statedSplitNote,
   type MoneyBlockState,
@@ -1100,16 +1105,23 @@ function committeeIdentity(
         ? closedPeriodLine(register.termination_date)
         : state === 'empty-year'
           ? uncoveredPeriodLine(year)
-          : coveredPeriodLine(split.reported_through, moneyIn.reported_period_start),
+          : coveredPeriodLine(
+              split.reported_through ?? moneyOut.reported_through ?? null,
+              moneyIn.reported_period_start,
+            ),
     periodDetail:
       state === 'closed-empty'
         ? closedPeriodDetail(register.termination_date, checkedOn)
         : state === 'empty-year'
           ? uncoveredPeriodDetail(year, checkedOn)
-          : coveredPeriodDetail(split.reported_through, checkedOn, {
-              isPartyUnit,
-              reportedPeriodStart: moneyIn.reported_period_start ?? null,
-            }),
+          : coveredPeriodDetail(
+              split.reported_through ?? moneyOut.reported_through ?? null,
+              checkedOn,
+              {
+                isPartyUnit,
+                reportedPeriodStart: moneyIn.reported_period_start ?? null,
+              },
+            ),
   };
 }
 
@@ -1184,16 +1196,26 @@ export function committeePageSnapshot(
       split.state === 'shown' &&
       Number(split.reported_total) === 0 &&
       (split.named_total ?? null) === null;
+    // The filing's coverage date is stated once, in the period section above the
+    // cards; a figure carries its own only where its date differs from that one.
+    const stampThrough = split.reported_through ?? moneyOut.reported_through ?? null;
     const inLines = [
-      // Rule 12's 2 numbers. A missing total reads "Not reported"; a filed 0 reads
-      // "$0.00"; and the 2 are never subtracted from one another.
-      `Donations this committee reported to the state: ${reported ?? 'Not reported'}`,
-      ...(reported ? [reportedThroughLabel(split.reported_through) ?? ''] : []),
-      ...(reportedZero ? [ZERO_REPORTED_NOTE] : [`Donations with a donor’s name: ${named.text}`]),
+      // Rule 12's 2 numbers, drawn exactly as the live card draws them (the card and
+      // this text are the same page, #1812). The filing's total draws only when it
+      // exists — never a "Not reported" stand-in in its slot, because the withheld
+      // sentence below already says so — while the named figure ALWAYS draws: a real
+      // amount, or the words "Not reported". A filed 0 reads "$0".
+      ...(reported
+        ? [
+            `${MONEY_IN_REPORTED_LABEL}: ${reported}`,
+            reportedThroughNote(split.reported_through, stampThrough) ?? '',
+          ]
+        : []),
+      ...(reportedZero ? [ZERO_REPORTED_NOTE] : [`${MONEY_IN_NAMED_LABEL}: ${named.text}`]),
       ...(inKind ? [inKindDonationsNote(inKind, true)] : []),
       ...(split.state === 'shown' && unnamed !== null && !reportedZero
         ? [
-            `Donations with nobody’s name on them: ${unnamed}`,
+            `${MONEY_IN_UNNAMED_LABEL}: ${unnamed}`,
             unnamedMoneyExplanation(identity.isBallot),
             statedSplitNote(split.stated_split_state) ?? '',
           ]
@@ -1202,6 +1224,7 @@ export function committeePageSnapshot(
     ].filter(Boolean);
     moneyInBlocks.push({ kind: 'prose', lines: inLines });
     if ((moneyIn.other_receipts ?? []).length) {
+      moneyInBlocks.push({ kind: 'prose', lines: [NOT_A_DONATION_HEADING] });
       moneyInBlocks.push({
         kind: 'bullets',
         items: (moneyIn.other_receipts ?? []).map((receipt) =>
@@ -1227,7 +1250,7 @@ export function committeePageSnapshot(
         ...(reportedOut
           ? [
               `${MONEY_OUT_REPORTED_LABEL}: ${reportedOut}`,
-              reportedThroughLabel(moneyOut.reported_through) ?? '',
+              reportedThroughNote(moneyOut.reported_through, stampThrough) ?? '',
             ]
           : []),
         `${MONEY_OUT_FIGURE_LABEL}: ${outTotal.text}`,
@@ -1304,7 +1327,7 @@ export function committeePageSnapshot(
         href: `/money/committees/${encodeURIComponent(identity.slug)}/payments`,
       },
       ...(moneyIn.source_url
-        ? [{ label: 'Minnesota’s list of named donations', href: moneyIn.source_url }]
+        ? [{ label: NAMED_DONATIONS_LINK_LABEL, href: moneyIn.source_url }]
         : []),
       { label: COMMITTEE_LIST_TITLE, href: '/money/committees' },
     ],

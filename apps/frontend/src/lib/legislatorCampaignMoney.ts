@@ -611,6 +611,14 @@ export interface CommitteeMatchCheck {
  * stop separating 2 sentences would stay; none of these has one.
  */
 
+/**
+ * The small label over the evidence block on a confirmed account card, on both
+ * surfaces. Not "Checked by Alethical": the block's own first line already opens with
+ * those words and a date, and a label repeating the line under it states one fact
+ * twice. What the block holds is the reading a person did, so the label says that.
+ */
+export const MATCH_CHECK_LABEL = 'What a person checked';
+
 /** How the filed name related to the member's, in a reader's words. */
 const NAME_EVIDENCE_SENTENCE: Record<string, string> = {
   exact: 'The filed name matches theirs exactly',

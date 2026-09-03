@@ -30,6 +30,7 @@ import {
   reportedThroughLabel,
   confirmedElsewhereExplanation,
   confirmedElsewhereHeading,
+  MATCH_CHECK_LABEL,
   matchCheckSentences,
   emptyStateFor,
   filingScheduleNote,
@@ -953,5 +954,22 @@ describe('money out finally has its second number', () => {
 
   it('defaults to the honest sentence when the caller says nothing', () => {
     expect(spendingNote('reported')).toBe(spendingNote('reported', false));
+  });
+});
+
+describe('the label over the evidence block', () => {
+  it('says what the block holds rather than repeating its first line', () => {
+    // The block's own first line opens "Checked by Alethical on <date>", so a label
+    // reading "Checked by Alethical" would state one fact twice.
+    expect(MATCH_CHECK_LABEL).toBe('What a person checked');
+    expect(MATCH_CHECK_LABEL.endsWith('.')).toBe(false);
+    const [opening] = matchCheckSentences({
+      checkedOn: '2026-08-30',
+      nameEvidence: 'exact',
+      registerVerdict: 'same_seat',
+      partyAgreement: 'agrees',
+    });
+    expect(opening.startsWith('Checked by Alethical on')).toBe(true);
+    expect(opening.toLowerCase()).not.toContain(MATCH_CHECK_LABEL.toLowerCase());
   });
 });

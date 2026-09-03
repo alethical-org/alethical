@@ -26,30 +26,20 @@ import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { CampaignCommitteeMoney, LegislatorCampaignMoney } from '../../data/types';
 import {
   LINK_UNCONFIRMED_EXPLANATION,
-  UNNAMED_MONEY_EXPLANATION,
   type CampaignMoneyYear,
   campaignMoneyYears,
   confirmedElsewhereExplanation,
   confirmedElsewhereHeading,
-  matchCheckSentences,
   emptyStateFor,
   filingScheduleNote,
   formatDay,
-  formatMoney,
-  isAmountAboveZero,
-  moneyFigure,
   otherOfficeNote,
-  paymentCountLabel,
-  paymentDateRangeLabel,
-  reportedThroughLabel,
   severalCommitteesNote,
-  statedSplitNote,
-  spendingNote,
-  splitExplanation,
-  unnamedShareLabel,
 } from '../../lib/legislatorCampaignMoney';
-import { inKindDonationsNote, inKindOutNote, statedSpendingNote } from '../../lib/committeeMoney';
+import { coveredPeriodDetail, coveredPeriodLine, stampThroughDate } from '../../lib/committeeMoney';
 import { useLegislatorOutsideSpending } from '../../hooks/useAppQueries';
+import { useResponsive } from '../../hooks/useResponsive';
+import { CheckedByBlock, FilingStamp, MoneyInBlock, MoneyOutBlock } from './MoneyCards';
 import { outsideSpendingYears } from '../../lib/outsideSpending';
 import { OutsideSpendingCard } from '../legislator/OutsideSpendingCard';
 import { UnderDevelopmentNotice } from './UnderDevelopmentNotice';
@@ -58,16 +48,6 @@ import { theme as t } from '../../theme/tokens';
 
 /** The Board's own page, which is where every figure on this tab comes from. */
 const BOARD_URL = 'https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/';
-/**
- * Where a reader looks this committee's own filed reports up.
- *
- * The Board's viewer takes a search rather than an address per committee, so this is
- * the page and the registration number is printed beside the committee's name for
- * the reader to type in. Deliberately not a guessed deep link: an address that
- * quietly lands on the wrong committee is worse than one extra step.
- */
-const BOARD_CANDIDATE_VIEWER =
-  'https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/candidates/';
 
 type Props = {
   legislatorName: string;
@@ -147,12 +127,7 @@ export function CampaignMoneyTab({
               is exactly the reader who would otherwise add the second one to it. */}
           <SeveralCommitteesNote count={money.committees.length} />
           {money.committees.map((committee) => (
-            <CommitteeCard
-              key={committee.registrationNumber}
-              committee={committee}
-              year={year}
-              isDesktop={isDesktop}
-            />
+            <CommitteeCard key={committee.registrationNumber} committee={committee} year={year} />
           ))}
         </>
       )}
@@ -245,13 +220,19 @@ function UnconfirmedPanel() {
 function CommitteeCard({
   committee,
   year,
-  isDesktop,
 }: {
   committee: CampaignCommitteeMoney;
   year: CampaignMoneyYear;
-  isDesktop: boolean;
 }) {
+  // The money section has one width switch, at 768, and ignores the profile's own
+  // 1100 switch: the cards read their band themselves rather than from the host.
+  const { isMobile } = useResponsive();
   const name = committee.committeeName || committee.committeeNameAsReviewed;
+  // The filing's period and link, once, above both cards — never inside one. The
+  // tab's own freshness note at the foot carries the day we copied the files, so the
+  // stamp here states the filing's coverage alone.
+  const through = stampThroughDate(committee.split, committee.moneyOut);
+  const periodStart = committee.moneyIn?.reportedPeriodStart ?? null;
   return (
     <View style={styles.card}>
       <Text style={styles.eyebrow}>
@@ -262,10 +243,37 @@ function CommitteeCard({
         {name}
       </Text>
 
-      <MoneyIn committee={committee} isDesktop={isDesktop} />
-      <MoneyOut committee={committee} isDesktop={isDesktop} />
+      {through ? (
+        <FilingStamp
+          line={coveredPeriodLine(through, periodStart)}
+          detail={coveredPeriodDetail(through, null, { reportedPeriodStart: periodStart })}
+          showLink
+          covered
+          isMobile={isMobile}
+        />
+      ) : null}
+
+      <MoneyInBlock
+        surface="profile"
+        split={committee.split}
+        moneyIn={committee.moneyIn}
+        isBallot={false}
+        stampThrough={through}
+        isMobile={isMobile}
+      />
+      <MoneyOutBlock
+        surface="profile"
+        moneyOut={committee.moneyOut}
+        isBallot={false}
+        stampThrough={through}
+        isMobile={isMobile}
+      />
       <FilingScheduleNote schedule={committee.filingSchedule} year={year} />
-      <MatchCheckNote checked={committee.checked} />
+      {/* Who checked that this account is this member's, and what they read. At the foot
+          of the card and inside it, beside the filing-schedule note and for the same
+          reason: it is a statement about this one account rather than about Minnesota
+          in general. */}
+      <CheckedByBlock checked={committee.checked} />
     </View>
   );
 }
@@ -282,29 +290,6 @@ function CommitteeCard({
  * paragraph per element, so a printed exemption sits under the date it qualifies
  * instead of trailing it inside one block of text.
  */
-/**
- * Who checked that this account is this member's, and what they read.
- *
- * At the foot of the card and inside it, beside the filing-schedule note and for the same
- * reason: it is a statement about this one account rather than about Minnesota in general.
- *
- * Renders nothing when the decision carries no stored basis. An absent record is not a
- * weaker record to describe loosely, it is nothing to say.
- */
-function MatchCheckNote({ checked }: { checked: CampaignCommitteeMoney['checked'] }) {
-  const sentences = matchCheckSentences(checked);
-  if (!sentences.length) return null;
-  return (
-    <View style={styles.matchCheck}>
-      {sentences.map((sentence) => (
-        <Text key={sentence} style={styles.muted}>
-          {sentence}
-        </Text>
-      ))}
-    </View>
-  );
-}
-
 function FilingScheduleNote({
   schedule,
   year,
@@ -321,228 +306,6 @@ function FilingScheduleNote({
           {paragraph}
         </Text>
       ))}
-    </View>
-  );
-}
-
-function MoneyIn({
-  committee,
-  isDesktop,
-}: {
-  committee: CampaignCommitteeMoney;
-  isDesktop: boolean;
-}) {
-  const { split, moneyIn } = committee;
-  const explanation = splitExplanation(split.state);
-  const named = moneyIn ? moneyFigure(moneyIn.state, split.namedTotal) : null;
-  const reported = formatMoney(split.reportedTotal);
-  const unnamed = formatMoney(split.unnamedTotal);
-  // Only a real amount earns the goods-and-services line; a filed $0.00 of it is
-  // ordinary, not a caveat. Read through the shared helper rather than `Number()`
-  // here: turning a committee's amount into a number is the first step of the
-  // combined figure #1663 forbids, so it happens in one place the whole app can be
-  // checked against.
-  const inKind = isAmountAboveZero(split.namedInKindTotal)
-    ? formatMoney(split.namedInKindTotal)
-    : null;
-  const checkNote = statedSplitNote(split.statedSplitState);
-
-  return (
-    <View style={styles.block}>
-      <Text accessibilityRole="header" aria-level={4} style={styles.h4}>
-        Money in
-      </Text>
-
-      {reported ? (
-        <>
-          <Figure
-            // "Reported to the state", never "Raised in total". The two are the
-            // same only when the report covers the whole year, and on a member whose
-            // report stops in March the second label would be false while the first
-            // stays true beside its own coverage date.
-            label="Donations this committee reported to the state"
-            value={reported}
-            note={reportedThroughLabel(split.reportedThrough)}
-            isDesktop={isDesktop}
-          />
-          <SourceLink
-            label="This committee’s filed reports, on the state’s own site"
-            url={BOARD_CANDIDATE_VIEWER}
-          />
-        </>
-      ) : null}
-
-      {named ? (
-        <Figure
-          label="Donations with a donor’s name"
-          value={named.text}
-          isFigure={named.isFigure}
-          note={paymentDateRangeLabel(split.firstPaymentOn, split.lastPaymentOn)}
-          isDesktop={isDesktop}
-        />
-      ) : null}
-
-      {inKind ? (
-        // Its own line rather than folded into either figure. It is real money's worth
-        // the committee received, and the state's reported total does not carry it, so
-        // it can be neither added to that total nor quietly dropped.
-        <Text style={styles.explain}>{inKindDonationsNote(inKind, false)}</Text>
-      ) : null}
-
-      {split.state === 'shown' && unnamed ? (
-        <>
-          <Figure
-            label="Donations with nobody’s name on them"
-            value={unnamed}
-            note={unnamedShareLabel(split.unnamedTotal, split.reportedTotal)}
-            isDesktop={isDesktop}
-          />
-          <Text style={styles.explain}>{UNNAMED_MONEY_EXPLANATION}</Text>
-          {checkNote ? <Text style={styles.explain}>{checkNote}</Text> : null}
-        </>
-      ) : null}
-
-      {explanation ? <Text style={styles.explain}>{explanation}</Text> : null}
-
-      {moneyIn?.otherReceipts.length ? (
-        <View style={styles.rows}>
-          <Text style={styles.rowsHead}>Not a donation</Text>
-          {moneyIn.otherReceipts.map((receipt) => (
-            <Row
-              key={receipt.receiptType}
-              label={receipt.receiptType}
-              value={formatMoney(receipt.total) ?? ''}
-              note={paymentCountLabel(receipt.payments)}
-            />
-          ))}
-        </View>
-      ) : null}
-
-      {moneyIn?.sourceUrl ? (
-        <SourceLink label="Minnesota’s list of named donations" url={moneyIn.sourceUrl} />
-      ) : null}
-    </View>
-  );
-}
-
-function MoneyOut({
-  committee,
-  isDesktop,
-}: {
-  committee: CampaignCommitteeMoney;
-  isDesktop: boolean;
-}) {
-  const { moneyOut } = committee;
-  if (!moneyOut) return null;
-  const total = moneyFigure(moneyOut.state, moneyOut.itemizedPaymentTotal);
-  const reportedOut = formatMoney(moneyOut.reportedTotal);
-  const inKindOut = inKindOutNote(moneyOut.inKindTotal);
-  const spendingCheck = statedSpendingNote(moneyOut.statedSpendingState);
-  return (
-    <View style={styles.block}>
-      <Text accessibilityRole="header" aria-level={4} style={styles.h4}>
-        Money out
-      </Text>
-      {/* The committee's own reported figure, above our list, exactly as money in
-          draws its own reported total above the named donations. Rule 12 wants a
-          second number beside every money figure, and until now money out was the
-          only figure on this tab with none — which is also how the page came to tell
-          readers Minnesota published no such total when it publishes one (#1875).
-          Null is left blank rather than filled: our copy holds no total for some
-          committee-years, and on a special-election filer-year we hold one and refuse
-          to stand behind it, so a zero here would be the missing-versus-zero failure
-          in the most literal form. */}
-      {reportedOut ? (
-        <Figure
-          label="Payments out this committee reported to the state"
-          value={reportedOut}
-          note={reportedThroughLabel(moneyOut.reportedThrough)}
-          isDesktop={isDesktop}
-        />
-      ) : null}
-      <Figure
-        label="Payments we can list"
-        value={total.text}
-        isFigure={total.isFigure}
-        isDesktop={isDesktop}
-      />
-      {/* How much of that figure was not cash, in the same place and the same shape as
-          money in's own goods-and-services line above. Without it a reader takes the
-          whole payments figure for cash the committee spent (#1894). */}
-      {inKindOut ? <Text style={styles.explain}>{inKindOut}</Text> : null}
-      {/* Two different sentences, because "here is a figure and there is no bigger
-          one" and "here is no figure" are two different things to explain. Under
-          "Not reported" the first sentence would be explaining a number that is not
-          on the screen, and a reader would take the absence as a spending of zero. */}
-      <Text style={styles.explain}>{spendingNote(moneyOut.state, Boolean(reportedOut))}</Text>
-      {/* Whether anybody compared this figure against the committee's own filed
-          report, in the same place the committee page draws it. This tab carries a
-          real politician's name, which is the whole reason an unchecked spending
-          figure must not read like a checked one (#1650). */}
-      {spendingCheck ? <Text style={styles.explain}>{spendingCheck}</Text> : null}
-      {moneyOut.byType.length ? (
-        <View style={styles.rows}>
-          {moneyOut.byType.map((entry) => (
-            <Row
-              key={entry.type}
-              label={entry.type}
-              value={formatMoney(entry.total) ?? ''}
-              note={paymentCountLabel(entry.payments)}
-            />
-          ))}
-        </View>
-      ) : null}
-      {moneyOut.sourceUrl ? (
-        <SourceLink label="Minnesota’s list of payments out" url={moneyOut.sourceUrl} />
-      ) : null}
-    </View>
-  );
-}
-
-/**
- * One headline amount with its label and the sentence that dates it.
- *
- * `isFigure` is what stops "Not reported" ever being set in the size reserved for
- * money: a stand-in sentence reads as a sentence, so a reader never scans it as a
- * number they can compare.
- */
-function Figure({
-  label,
-  value,
-  note,
-  isFigure = true,
-  isDesktop,
-}: {
-  label: string;
-  value: string;
-  note?: string | null;
-  isFigure?: boolean;
-  isDesktop: boolean;
-}) {
-  return (
-    <View style={styles.figure}>
-      <Text style={styles.figureLabel}>{label}</Text>
-      <Text
-        style={[
-          isFigure ? styles.figureValue : styles.figureStandIn,
-          isFigure && isDesktop && styles.figureValueDesktop,
-        ]}
-      >
-        {value}
-      </Text>
-      {note ? <Text style={styles.figureNote}>{note}</Text> : null}
-    </View>
-  );
-}
-
-function Row({ label, value, note }: { label: string; value: string; note?: string | null }) {
-  return (
-    <View style={styles.row}>
-      <Text style={styles.rowLabel}>
-        {label}
-        {note ? <Text style={styles.rowNote}> · {note}</Text> : null}
-      </Text>
-      <Text style={styles.rowValue}>{value}</Text>
     </View>
   );
 }
@@ -617,7 +380,6 @@ function FreshnessNote({ fetchedAt }: { fetchedAt: string | null }) {
 
 const styles = StyleSheet.create({
   wrap: { gap: 24 },
-  matchCheck: { gap: 2, marginTop: 12 },
   head: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -639,14 +401,6 @@ const styles = StyleSheet.create({
     letterSpacing: -0.4,
     color: t.colors.text.primary,
   },
-  h4: {
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.meta,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 0.8,
-    textTransform: 'uppercase',
-    color: t.colors.text.secondary,
-  },
   eyebrow: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.meta,
@@ -656,6 +410,7 @@ const styles = StyleSheet.create({
     color: t.colors.text.muted,
     marginBottom: 6,
   },
+  block: { gap: 12, marginTop: 8 },
   card: {
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
@@ -666,7 +421,6 @@ const styles = StyleSheet.create({
     gap: 16,
     ...(t.shadows.card as object),
   },
-  block: { gap: 12, marginTop: 8 },
   body: {
     fontFamily: t.typography.body,
     fontSize: t.fontSizes.bodyLg,
@@ -684,57 +438,6 @@ const styles = StyleSheet.create({
     fontSize: t.fontSizes.body,
     lineHeight: 22,
     color: t.colors.text.secondary,
-  },
-  figure: { gap: 2 },
-  figureLabel: {
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.body,
-    color: t.colors.text.secondary,
-  },
-  figureValue: {
-    fontFamily: t.typography.title,
-    fontSize: 28,
-    fontWeight: t.fontWeights.heavy,
-    letterSpacing: -0.5,
-    color: t.colors.text.primary,
-  },
-  figureValueDesktop: { fontSize: 34 },
-  // A stand-in sentence, never set in the size money is set in.
-  figureStandIn: {
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.bodyLg,
-    color: t.colors.text.muted,
-  },
-  figureNote: {
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.meta,
-    color: t.colors.text.muted,
-    lineHeight: 18,
-  },
-  rows: { gap: 8, marginTop: 4 },
-  rowsHead: {
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.meta,
-    color: t.colors.text.muted,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  rowLabel: {
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.body,
-    color: t.colors.text.primary,
-    flexShrink: 1,
-  },
-  rowNote: { color: t.colors.text.muted, fontSize: t.fontSizes.meta },
-  rowValue: {
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.body,
-    fontWeight: t.fontWeights.bold,
-    color: t.colors.text.primary,
   },
   source: {
     fontFamily: t.typography.body,

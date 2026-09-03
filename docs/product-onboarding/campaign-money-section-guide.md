@@ -393,17 +393,25 @@ Top to bottom:
    one against that end (so "Figures for 1 Jan 2026 – 20 Jul 2026"), and otherwise the
    panel says "through" alone — a start is never assumed, because a special-election
    filer's period does not open on 1 January. Beside it, the one freshness date (the day
-   we copied the Board's files, printed as its Minnesota day). A party unit's panel says
-   its calendar is its own. If our own data service stops answering, the page keeps the
-   figures it already had and says they are held until it answers — never expiring on a
-   timer.
+   we copied the Board's files, printed as its Minnesota day), and the link to the
+   committee's filed reports on the Board's own site. The filing's period and link live
+   here, once, above both money cards and never inside one: one filing produces both
+   cards, so stating any of it per card would state one fact twice. A party unit's panel
+   says its calendar is its own. If our own data service stops answering, the page keeps
+   the figures it already had and says they are held until it answers — never expiring
+   on a timer.
 5. **Money in — two numbers, both correct.** The total the committee itself reported to
-   the state, and the donations we can list with a donor's name. The split into named and
-   unnamed money is decided by the server before the page ever sees it, and the page never
-   subtracts. When the split is safe, a bar shows it and the unnamed figure appears with
-   the sentence explaining it (a committee only has to name a donor once that donor has
-   given more than $200 in total for the year, and may name a smaller one but does not have
-   to). In each case where a split would state something false — the two figures cover
+   the state, drawn only when the filing's total exists, and the donations we can list
+   with a donor's name, drawn always — a real amount or the words "Not reported", never a
+   blank. The split into named and unnamed money is decided by the server before the page
+   ever sees it, and the page never subtracts. When the split is safe, the unnamed figure
+   appears with the sentence explaining it (a committee only has to name a donor once that
+   donor has given more than $200 in total for the year, and may name a smaller one but
+   does not have to); no bar draws it, because a bar measured against the reported total
+   performs the same subtraction in a picture. Both money cards are drawn by the one
+   component the legislator profile's Campaign money tab uses
+   (`apps/frontend/src/components/campaignMoney/MoneyCards.tsx`), so the 2 pages cannot
+   word the same money differently. In each case where a split would state something false — the two figures cover
    different periods, the sources disagree, our copy of the donation list is missing
    named money the filing carries, the committee corrected its report after we copied the
    official total, the two figures simply will not line up, there are no named payments,

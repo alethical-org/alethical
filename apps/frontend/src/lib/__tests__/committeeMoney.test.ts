@@ -5,8 +5,21 @@
  */
 import { describe, expect, it } from 'vitest';
 
+import { reportedThroughLabel } from '../legislatorCampaignMoney';
+
 import {
   CAP_NOTE,
+  FILED_REPORTS_LINK_LABEL,
+  MONEY_IN_HEADING,
+  MONEY_IN_NAMED_LABEL,
+  MONEY_IN_REPORTED_LABEL,
+  MONEY_IN_UNNAMED_LABEL,
+  MONEY_OUT_HEADING,
+  NAMED_DONATIONS_LINK_LABEL,
+  NOT_A_DONATION_HEADING,
+  PAYMENTS_OUT_LINK_LABEL,
+  reportedThroughNote,
+  stampThroughDate,
   CLOSED_MONEY_OUT_WHY,
   EMPTY_YEAR_MONEY_OUT_WHY,
   NOT_IN_REGISTER_LINE,
@@ -804,5 +817,71 @@ describe('whether anybody checked this committee\u2019s money out against its ow
     for (const state of ['not_checked', 'reader_unproven', 'not_run']) {
       expect(statedSpendingNote(state)).not.toBeNull();
     }
+  });
+});
+
+describe('the 2 money cards’ fixed labels, shared by both surfaces', () => {
+  it('names the 8-element inventory in the words the design ruled', () => {
+    expect(MONEY_IN_HEADING).toBe('Money in');
+    expect(MONEY_OUT_HEADING).toBe('Money out');
+    expect(MONEY_IN_REPORTED_LABEL).toBe('Donations this committee reported to the state');
+    expect(MONEY_IN_NAMED_LABEL).toBe('Donations with a donor’s name');
+    expect(MONEY_IN_UNNAMED_LABEL).toBe('Donations with nobody’s name on them');
+    // Ruled 2 Sep 2026: the card heading 2 elements above already says "Money in", and
+    // the rows show that each is reported on its own line.
+    expect(NOT_A_DONATION_HEADING).toBe('Not a donation');
+    expect(NAMED_DONATIONS_LINK_LABEL).toBe('Minnesota’s list of named donations');
+    expect(PAYMENTS_OUT_LINK_LABEL).toBe('Minnesota’s list of payments out');
+    expect(FILED_REPORTS_LINK_LABEL).toBe(
+      'This committee’s filed reports, on the state’s own site',
+    );
+  });
+
+  it('never calls money out spent, spending or expenses', () => {
+    for (const label of [
+      MONEY_OUT_HEADING,
+      MONEY_OUT_FIGURE_LABEL,
+      MONEY_OUT_REPORTED_LABEL,
+      PAYMENTS_OUT_LINK_LABEL,
+    ]) {
+      expect(label).not.toMatch(/spen[dt]|expense/i);
+    }
+  });
+
+  it('ends no label with a full stop: these are standalone lines, not prose', () => {
+    for (const label of [
+      MONEY_IN_REPORTED_LABEL,
+      MONEY_IN_NAMED_LABEL,
+      MONEY_IN_UNNAMED_LABEL,
+      NOT_A_DONATION_HEADING,
+      NAMED_DONATIONS_LINK_LABEL,
+      PAYMENTS_OUT_LINK_LABEL,
+      FILED_REPORTS_LINK_LABEL,
+    ]) {
+      expect(label.endsWith('.')).toBe(false);
+    }
+  });
+});
+
+describe('the filing stamp states the period once, above both cards', () => {
+  it('takes money in’s coverage date, and falls back to money out’s', () => {
+    expect(
+      stampThroughDate({ reportedThrough: '2026-07-20' }, { reportedThrough: '2026-07-20' }),
+    ).toBe('2026-07-20');
+    expect(stampThroughDate({ reportedThrough: null }, { reportedThrough: '2026-07-20' })).toBe(
+      '2026-07-20',
+    );
+    expect(stampThroughDate({ reportedThrough: null }, null)).toBeNull();
+  });
+
+  it('a figure carries its own period note only where its date differs from the stamp’s', () => {
+    // The ordinary case: one filing, one date, stated once in the stamp.
+    expect(reportedThroughNote('2026-07-20', '2026-07-20')).toBeNull();
+    // A figure whose report runs to a different day says so, or the stamp's date would
+    // be wrong about it (rule 12: every total states the period it covers).
+    expect(reportedThroughNote('2026-03-31', '2026-07-20')).toBe(
+      reportedThroughLabel('2026-03-31'),
+    );
+    expect(reportedThroughNote(null, '2026-07-20')).toBeNull();
   });
 });

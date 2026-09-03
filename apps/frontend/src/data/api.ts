@@ -566,6 +566,7 @@ interface ApiLegislatorCampaignMoneyPayload {
       itemized_contribution_total?: string | null;
       itemized_contribution_payments?: number | null;
       other_receipts?: { receipt_type: string; total: string; payments: number }[];
+      reported_period_start?: string | null;
       source_url?: string | null;
     } | null;
     money_out?: {
@@ -2333,6 +2334,7 @@ export async function getLegislatorCampaignMoneyFromApi(
               total: receipt.total,
               payments: receipt.payments,
             })),
+            reportedPeriodStart: committee.money_in.reported_period_start ?? null,
             sourceUrl: committee.money_in.source_url ?? null,
           }
         : null,
