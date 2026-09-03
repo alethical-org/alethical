@@ -1,4 +1,4 @@
-<!-- describes: apps/frontend/src/screens/redesign/MoneyLandingScreen.tsx, apps/frontend/src/screens/redesign/ReadScreen.tsx, apps/frontend/src/screens/redesign/ResearchScreen.tsx, apps/frontend/src/screens/redesign/CommitteeMoneyScreen.tsx, apps/frontend/src/screens/redesign/CommitteePaymentsScreen.tsx, apps/frontend/src/screens/redesign/CommitteeListScreen.tsx, apps/frontend/src/screens/redesign/MoneySearchScreen.tsx, apps/frontend/src/screens/redesign/PaymentsUnderNameScreen.tsx, apps/frontend/src/components/campaignMoney/MoneyNameSearchField.tsx, apps/frontend/src/lib/moneyLanding.ts, apps/frontend/src/lib/research.ts, apps/frontend/src/lib/researchPieces/whoHasToReportTheirMoney.ts, apps/frontend/src/lib/researchPieces/whatTheRecordsName.ts, apps/frontend/src/components/read/SetBox.tsx, apps/frontend/src/lib/committeeMoney.ts, apps/frontend/src/lib/committeeList.ts, apps/frontend/src/lib/moneyNameSearch.ts, apps/frontend/src/lib/paymentsUnderName.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/webRoutes.ts -->
+<!-- describes: apps/frontend/src/screens/redesign/MoneyLandingScreen.tsx, apps/frontend/src/screens/redesign/ReadScreen.tsx, apps/frontend/src/screens/redesign/ResearchScreen.tsx, apps/frontend/src/screens/redesign/CommitteeMoneyScreen.tsx, apps/frontend/src/screens/redesign/CommitteePaymentsScreen.tsx, apps/frontend/src/screens/redesign/CommitteeListScreen.tsx, apps/frontend/src/screens/redesign/MoneySearchScreen.tsx, apps/frontend/src/screens/redesign/PaymentsUnderNameScreen.tsx, apps/frontend/src/components/campaignMoney/MoneyNameSearchField.tsx, apps/frontend/src/components/campaignMoney/TrackCommitteeButton.tsx, apps/frontend/src/lib/trackCommitteeButton.ts, apps/frontend/src/lib/moneyLanding.ts, apps/frontend/src/lib/research.ts, apps/frontend/src/lib/researchPieces/whoHasToReportTheirMoney.ts, apps/frontend/src/lib/researchPieces/whatTheRecordsName.ts, apps/frontend/src/components/read/SetBox.tsx, apps/frontend/src/lib/committeeMoney.ts, apps/frontend/src/lib/committeeList.ts, apps/frontend/src/lib/moneyNameSearch.ts, apps/frontend/src/lib/paymentsUnderName.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/webRoutes.ts -->
 
 # How the Campaign money section works
 
@@ -381,6 +381,15 @@ Top to bottom:
    on the same line, so a reader sees both. A candidate committee shows the office and
    district it registered for; a closed committee carries a CLOSED chip with the register's
    own termination date, on every year's view.
+
+   Beside the Share control, a signed-in reader sees **Track**: one button that adds this
+   committee to their Tracked page and, pressed again, removes it. Once followed it reads
+   **Tracked** with a check, and a line under it says "On your tracked list", linking there.
+   Following is a bookmark and nothing more: nobody is notified of anything, and the
+   Tracked page lists the committee under its own heading rather than saying whether it
+   changed. A visitor who is not signed in sees no Track control on this page at all;
+   following a committee while signed out is deliberately not built
+   ([#1943](https://github.com/alethical-org/alethical/issues/1943)).
 2. **Whose committee it is.** Until a person at Alethical has checked, the page attaches
    the money to nobody and says why: the filed name is the filer's own wording, not a
    confirmation by anyone. A party unit, caucus, fund, or ballot-question committee gets

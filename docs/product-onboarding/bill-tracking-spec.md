@@ -1,6 +1,6 @@
 # Bill tracking interaction spec
 
-<!-- describes: apps/frontend/src/components/billDetail/BillTrackButton.tsx, apps/frontend/src/components/billDetail/TrackedListUnavailableNotice.tsx, apps/frontend/src/components/search/BillResultCard.tsx, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, apps/frontend/src/hooks/useBillTracking.ts, apps/frontend/src/lib/billCardControlLayers.ts, apps/frontend/src/lib/signIn.ts, apps/frontend/src/lib/trackIntent.ts, apps/frontend/src/lib/trackReturn.ts, apps/frontend/src/navigation/types.ts, apps/frontend/src/providers/SignInModalProvider.tsx, apps/frontend/src/providers/TrackedBillWriteProvider.tsx, apps/frontend/src/providers/trackedBillWriteContext.ts, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileWebScreen.tsx, apps/frontend/src/screens/redesign/TrackedBillsScreen.tsx, apps/frontend/src/components/tracked/TrackedCommitteeCard.tsx, apps/frontend/src/lib/trackedPage.ts, apps/frontend/src/hooks/useCommitteeTracking.ts -->
+<!-- describes: apps/frontend/src/components/billDetail/BillTrackButton.tsx, apps/frontend/src/components/billDetail/TrackedListUnavailableNotice.tsx, apps/frontend/src/components/search/BillResultCard.tsx, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, apps/frontend/src/hooks/useBillTracking.ts, apps/frontend/src/lib/billCardControlLayers.ts, apps/frontend/src/lib/signIn.ts, apps/frontend/src/lib/trackIntent.ts, apps/frontend/src/lib/trackReturn.ts, apps/frontend/src/navigation/types.ts, apps/frontend/src/providers/SignInModalProvider.tsx, apps/frontend/src/providers/TrackedBillWriteProvider.tsx, apps/frontend/src/providers/trackedBillWriteContext.ts, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileWebScreen.tsx, apps/frontend/src/screens/redesign/TrackedBillsScreen.tsx, apps/frontend/src/components/tracked/TrackedCommitteeCard.tsx, apps/frontend/src/lib/trackedPage.ts, apps/frontend/src/hooks/useCommitteeTracking.ts, apps/frontend/src/components/campaignMoney/TrackCommitteeButton.tsx, apps/frontend/src/lib/trackCommitteeButton.ts -->
 
 Status: shipped behavior. The sign-in dialog's flows, states and copy are documented in
 `docs/product-onboarding/sign-in-guide.md`; this document owns the Track interaction that
@@ -88,6 +88,15 @@ Following a committee is a bookmark: nothing notifies anybody, and nothing compu
 whether a committee's filings moved, so filing it under "no change" would claim a
 check nobody performs. If filings ever notify, committees join the grouping and the
 third list dissolves.
+
+A committee joins the list from its own money page, where a signed-in reader finds
+**Track** beside Share (`components/campaignMoney/TrackCommitteeButton.tsx`, words and
+state rule in `lib/trackCommitteeButton.ts`). It is the bill control's twin: the same
+black `+ Track` and mint `✓ Tracked` forms read from `billTrackButtonAppearance.ts`, one
+toggle with `aria-pressed`, and under the tracked form one line, "On your tracked list",
+whose last 2 words link here. Signed out, the committee page draws no Track control:
+following a committee while signed out is deliberately not built. The committee page
+itself is described in `docs/product-onboarding/campaign-money-section-guide.md`.
 
 Signed in with nothing saved, the page shows one sentence: **Nothing tracked yet.
 Track a bill or a committee and it stays on this list.** It promises that a saved thing

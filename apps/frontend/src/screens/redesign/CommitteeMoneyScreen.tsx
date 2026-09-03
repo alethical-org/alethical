@@ -13,6 +13,7 @@ import {
   MoneyInBlock,
   MoneyOutBlock,
 } from '../../components/campaignMoney/MoneyCards';
+import { TrackCommitteeButton } from '../../components/campaignMoney/TrackCommitteeButton';
 import { UnderDevelopmentNotice } from '../../components/campaignMoney/UnderDevelopmentNotice';
 import { Skeleton } from '../../components/Skeleton';
 import type { CommitteeMoney } from '../../data/types';
@@ -351,7 +352,11 @@ function CommitteeBody({
         >
           {name}
         </Text>
-        <SharePopover content={shareContent} />
+        <TrackCommitteeButton
+          registrationNumber={registrationNumber}
+          beside={<SharePopover content={shareContent} />}
+          onOpenTracked={() => navigation.navigate('Tabs', { screen: 'Tracked' })}
+        />
       </View>
       <View style={styles.chipRow}>
         <Text style={styles.regChip}>REG {registrationNumber}</Text>
