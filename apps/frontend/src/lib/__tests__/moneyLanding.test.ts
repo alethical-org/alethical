@@ -4,8 +4,6 @@ import {
   filedDateSentence,
   filingsTieSentence,
   centralDateLabel,
-  confirmationDateLine,
-  confirmationLine,
   filingPeriodLine,
   formatCount,
   laneCountLine,
@@ -17,6 +15,7 @@ import {
   MONEY_LANE_WHO_GOT_PAID,
   orderingSentence,
   RECORD_DOES_NOT_COVER,
+  RECORD_DOES_NOT_COVER_NOTE,
 } from '../moneyLanding';
 
 // Ruled 1 Sep 2026 (#1924). The subtitle stands alone under the heading and the 3 lane
@@ -54,6 +53,22 @@ describe('the landing’s own standalone lines end without a full stop', () => {
     const drawn = legislatorsLaneBody({ confirmed: 200, total: 200 });
     expect(drawn).toContain('they already have. Confirmed for 200');
     expect(drawn).not.toContain('they already have Confirmed');
+  });
+
+  it('says donation and payment, never the filing system’s contribution and expenditure', () => {
+    // Ruled 2 Sep 2026 (copy proposal 3): "expenditure" is the word every other string in
+    // the section avoids for money out, and the subtitle is the first sentence a reader meets.
+    expect(MONEY_LANDING_SUBTITLE).toBe(
+      'Every donation and payment Minnesota publishes for state campaigns, searchable by the ' +
+        'name it was filed under',
+    );
+    expect(MONEY_LANDING_SUBTITLE).not.toContain('expenditure');
+  });
+
+  it('closes the does-not-cover card with a bare line about the record itself', () => {
+    expect(RECORD_DOES_NOT_COVER_NOTE).toBe(
+      'These are properties of the record itself, not gaps we can close',
+    );
   });
 
   it('leaves the same body bare when no confirmation is served', () => {
@@ -169,25 +184,19 @@ describe('served instants print in Central time', () => {
 });
 
 describe('confirmation progress', () => {
-  it('states the confirmed share as counts, with no percentage and no bar', () => {
-    expect(confirmationLine({ confirmed: 0, total: 200 })).toBe(
-      'All 200 sitting members have a committee registered with the Board. Confirmed as theirs: ' +
-        '0 of 200. Confirming is a person’s job.',
-    );
-  });
-
-  it('dates the line by the newest confirmation, and stays undated while there is none', () => {
-    expect(confirmationDateLine(null)).toBeNull();
-    expect(confirmationDateLine('2026-08-19T15:00:00Z')).toBe(
-      'Read live from the confirmation log · newest confirmation Aug 19, 2026',
-    );
-  });
-
-  it('writes the Legislators lane sentence from both served numbers', () => {
+  it('writes the Legislators lane sentence from both served numbers, ending bare', () => {
     expect(legislatorsLaneSentence({ confirmed: 0, total: 200 })).toBe(
       "Confirmed for 0 of Minnesota's 200 sitting legislators — for the rest, no figures show " +
-        'on a profile.',
+        'on a profile',
     );
+  });
+
+  // Copy rule C: the sentence is the last one in a card description, so the drawn body
+  // ends without a full stop even though it carries one between its 2 sentences.
+  it('ends the drawn Legislators body bare, with the internal stop kept', () => {
+    const drawn = legislatorsLaneBody({ confirmed: 200, total: 201 });
+    expect(drawn.endsWith('.')).toBe(false);
+    expect(drawn).toContain('they already have. Confirmed for 200 of Minnesota');
   });
 });
 
