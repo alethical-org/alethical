@@ -1726,9 +1726,9 @@ makes it sharper**: his 2025 holds money and his 2026 holds none, so a reader sw
 money disappear, and the explanation has to be on the screen they land on rather than inferable from
 the one they left.
 
-**Sized since, and it is rare rather than theoretical: 1.** §9.7's registered-filer directory carries
-`TerminationDate` for every filer in a single request, so this cost 1 call rather than the one per
-filer this paragraph used to budget for. Novotny is the only closed committee among the 162 of 200
+**Sized, and it is rare rather than theoretical: 1.** §9.7's registered-filer directory carries
+`TerminationDate` for every filer in a single request, so this costs 1 call rather than one per
+filer. Novotny is the only closed committee among the 162 of 200
 sitting members the district-and-surname match could resolve; the other 38 are that match failing,
 not members shown to hold no committee. **Closed-one-then-opened-another is 0 today** — he holds
 exactly one committee, registered 2019-12-03 and terminated 2026-07-28, with no replacement — so
@@ -1826,8 +1826,8 @@ snapshot model exists precisely because these numbers move.
 
 ## 9. Filed reports: where the official totals come from
 
-The two questions this section used to leave open ([#1337](https://github.com/alethical-org/alethical/issues/1337))
-are answered. §7's "two numbers" rule can be satisfied.
+Both questions [#1337](https://github.com/alethical-org/alethical/issues/1337) raised are
+answered here, so §7's "two numbers" rule can be satisfied.
 
 **The Board runs a per-filer totals service, and it has already resolved the amendment.** So
 the official total is fetchable, and for the reports it covers nothing on our side decides
