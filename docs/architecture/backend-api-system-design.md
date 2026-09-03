@@ -1235,6 +1235,67 @@ the search served it, uses no `year`, and never prints a total across the rows �
 `total_payments` staying `null` here costs it nothing: it says how many rows it is showing and
 that more are filed, never "of N".
 
+#### `GET /api/v1/campaign-finance/outside-spending`
+
+Shipped Sep 2026 ([#1945](https://github.com/alethical-org/alethical/issues/1945)). The
+outside-spending record, one subject at a time: what the `/money/outside-spending` page and the
+committee page's "Spent about them" / "Spent by them" tabs read. Outside spending is money a group
+that is not the candidate's campaign spends to support or oppose a committee, from the
+independent-expenditures download; the law requires it to be made without the candidate's
+cooperation, so a row is what a group spent, never what a campaign received.
+
+Three views over the same rows, chosen by the filter, and every view is **one subject**:
+
+- no filter — the file as a whole;
+- `spender=<registration number>` — one group's own rows;
+- `about=<registration number>` — the rows filed about one committee. Both together is one
+  subject narrowed by the other side. `year` narrows any of them to the file's own `Year` column.
+
+`figures` are that subject's sums and counts, and nothing sets 2 subjects side by side: the state
+publishes no date saying when a report arrived, so we cannot tell whether one group's year is
+finished and another's has barely started (`docs/architecture/campaign-finance-system-design.md`
+§7). The 3 direction figures — `supporting_*`, `opposing_*`, `direction_not_recorded_*` — partition
+`row_count`, so no row can fall between them; `in_kind_count` counts inside them, not beside them.
+**Every money field is `null` when `rows_missing_an_amount` is not 0**, because `sum` skips a
+blank while `count(*)` counts it and a short total would read as complete (#1454); the counts
+stay. `committee_count` and `spender_count` are counts of distinct names, keyed on the number
+where a row carries one. **Nothing here is ever added to the ordinary expenditures total**: 491
+rows of this file share a spender, vendor, amount and date with an expenditure row, and whether
+that is one payment filed twice is not established.
+
+Each row carries what the file states and nothing inferred: spender and number, the committee
+spent about and its number, `direction` normalised to the profile's 3 values beside
+`direction_as_filed`, purpose, vendor, type, `in_kind`, its own date, year, amount and unpaid
+part. A blank purpose or vendor arrives as `null`, because the page prints its own words for a
+blank rather than a dash. For each number 2 booleans: `*_linkable` (this release holds a page for
+it — the Board's register we hold, or its own contributions or expenditures) and `*_in_register`
+(the Board's register we hold lists it). Measured on the live release, 3 Sep 2026: 250 distinct
+spenders, 178 in the register and 249 linkable; 1,131 distinct committees spent about, 340 of them
+linkable nowhere, 283 of those under a negative number the Board assigns local candidates.
+**A name whose number resolves nowhere is still served, as the filing prints it** — dropping it
+would shrink the record and linking it would invent a page.
+
+`about` and `spender` come back as subject blocks: the register's name where it lists the number
+(else the file's), kind, office and district where the register carries them, both booleans, and
+`confirmed_member` only where a person confirmed whose committee it is
+(`legislator_finance.confirmed_member_for_committee`). A confirmation adds a name; it changes no
+figure.
+
+`sort=newest` (default) pages by the row's own date; `sort=largest` pages largest first, which is
+honest inside one subject and only there. `page` is 1-based over `page.size` = 50 rows;
+`page.total_rows` counts every matching row with the same filter, and is `null` on any page that
+is not `reported`.
+
+- **200 with `state: "reported"`** — rows and figures are real.
+- **200 with `state: "not_reported"`** — the file holds no row for this subject and year.
+  **Never a zero**: a group that spent nothing and a report that has not arrived look the same.
+- **200 with `state: "unavailable"`** — our own gap: the release's rows were replaced under this
+  read, or the download does not reach the year asked for.
+- **404** — the number is in neither our copy of the Board's register nor this file, under
+  either column. A statement about our records.
+- **422** — a `sort` we do not serve, or a `page` below 1.
+- **503** — no usable release at all.
+
 #### `GET /api/v1/campaign-finance/summary`
 
 Shipped Aug 19 2026. What the `/money` landing page opens with: 3 counted blocks and 2 dates,

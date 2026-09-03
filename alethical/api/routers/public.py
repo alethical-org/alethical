@@ -89,6 +89,11 @@ from alethical.api.services.committee_finance import (
 from alethical.api.services.independent_spending import (
     independent_spending_for_legislator,
 )
+from alethical.api.services.outside_spending import (
+    OutsideSpendingPage,
+    UnknownSubject as UnknownOutsideSpendingSubject,
+    outside_spending as outside_spending_record_page,
+)
 from alethical.api.services.issue_bills import MIN_ISSUE_LENGTH, matched_issue_bill_ids
 from alethical.api.services.legislator_finance import (
     confirmed_member_for_committee,
@@ -3404,6 +3409,103 @@ def committee_payments(
             **_payment_page_payload(page),
         }
     )
+
+
+@router.get("/campaign-finance/outside-spending", response_model=DetailResponse)
+def outside_spending_record(
+    about: str | None = Query(default=None, min_length=1, max_length=20),
+    spender: str | None = Query(default=None, min_length=1, max_length=20),
+    year: int | None = Query(default=None, ge=2015, le=2100),
+    sort: Literal["newest", "largest"] = Query(default="newest"),
+    page: int = Query(default=1, ge=1),
+    db: Session = Depends(get_db),
+):
+    """The outside-spending record, one subject at a time
+    ([#1945](https://github.com/alethical-org/alethical/issues/1945)).
+
+    Money spent by groups that are not the candidate's campaign, supporting or opposing
+    a committee, from Minnesota's independent-expenditures download. Three views over
+    the same rows, chosen by the filter: no filter is the whole record, ``spender`` is
+    one group's own rows, ``about`` is the rows filed about one committee. Both together
+    is one subject narrowed by the other side.
+
+    Read ``state`` before the rows. ``reported`` means ``rows`` and ``figures`` are
+    real. ``not_reported`` means the file holds no row for this subject and year, which
+    **is never a zero**: a group that spent nothing and a report that has not arrived
+    look the same, and Minnesota publishes no date saying when a report arrived.
+    ``unavailable`` is our own gap -- a stale copy, or a year the download does not
+    reach.
+
+    ``figures`` are this one subject's sums and counts. The 3 direction figures
+    partition ``row_count`` so nothing can fall between them, and every money field is
+    ``null`` when any row lacks an amount, because a short total would read as complete.
+    **Nothing here is ever added to the ordinary expenditures total**: 491 rows of this
+    file coincide with expenditure rows and whether that is one payment filed twice is
+    not established.
+
+    Each row carries its own date, direction as filed, purpose, vendor, type, in-kind
+    flag, amount and unpaid part, and for each registration number whether this release
+    holds a page for it (``*_linkable``) and whether the Board's register we hold lists
+    it (``*_in_register``). A name whose number resolves nowhere is still served, as
+    the filing prints it.
+
+    ``sort=newest`` (the default) pages by the row's own date; ``sort=largest`` pages
+    largest first, which is honest inside one subject and only there. ``page`` is
+    1-based over pages of 50 rows; ``page.total_rows`` counts every matching row.
+
+    404 means the number is in neither our copy of the Board's register nor this file,
+    which is a statement about our records. 503 means we hold no usable release.
+    """
+    release = _resolve_campaign_finance_release(db)
+    try:
+        result = outside_spending_record_page(
+            db,
+            release,
+            about=about,
+            spender=spender,
+            year=year,
+            sort=sort,
+            page_number=page,
+        )
+    except UnknownOutsideSpendingSubject:
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "this registration number is in neither the register we hold nor the "
+                "independent-expenditures file of the current campaign-finance release"
+            ),
+        )
+    return DetailResponse(data=_outside_spending_payload(result))
+
+
+def _outside_spending_payload(result: OutsideSpendingPage) -> dict:
+    def subject(value):
+        if value is None:
+            return None
+        payload = asdict(value)
+        return payload
+
+    return {
+        "state": result.state,
+        "about": subject(result.about),
+        "spender": subject(result.spender),
+        "year": result.year,
+        "sort": result.sort,
+        "rows": [asdict(row) for row in result.rows],
+        "page": {
+            "number": result.page_number,
+            "size": result.page_size,
+            "has_more": result.has_more,
+            # Every matching row, counted with the same filter as the rows. ``None``
+            # on any page that is not ``reported``.
+            "total_rows": result.total_rows,
+        },
+        "figures": asdict(result.figures) if result.figures is not None else None,
+        "dataset": "independent_expenditures",
+        "source_url": result.source_url,
+        "release_id": str(result.release_id),
+        "fetched_at": result.fetched_at,
+    }
 
 
 @router.get("/campaign-finance/payments-under-name", response_model=DetailResponse)
