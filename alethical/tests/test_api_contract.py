@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 import requests
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, text
 from sqlalchemy.orm import Session
 
 from alethical.api.serializers import current_bill_summary_enrichment
@@ -2816,6 +2816,143 @@ def test_signed_in_bill_tracking_and_notification_preferences(client, auth_heade
     )
     assert update_pref_response.status_code == 200
     assert update_pref_response.json()["data"]["channel"] == "email"
+
+
+def test_following_a_committee_is_a_bookmark_the_reader_owns(
+    client, auth_headers, second_auth_headers
+):
+    """``/me/tracked-committees`` (#1943): follow, list, unfollow, and 3 refusals.
+
+    The list carries what the Tracked page draws -- the register's name, kind,
+    office and district -- and a number nobody holds a record of cannot be followed
+    (404), the same 2 places ``/committees/{n}/finance`` reads. A second reader's
+    list never shows the first reader's committee, and signed out is 401.
+    """
+    schema = load_schema()
+    FilerKind = schema.CampaignFinanceFilerKind
+    SnapshotStatus = schema.CampaignFinanceSnapshotStatus
+    registration = "18466"  # Port, Lindsey Senate Committee, from the live register.
+    completed = datetime(2026, 8, 12, 21, 34, tzinfo=timezone.utc)
+    with Session(get_engine()) as db:
+        snapshot = schema.CampaignFinanceFilingSnapshot(
+            fetch_started_at=completed,
+            fetch_completed_at=completed,
+            status=SnapshotStatus.loaded,
+            filer_count=1,
+            report_count=0,
+        )
+        db.add(snapshot)
+        db.flush()
+        db.add(
+            schema.CampaignFinanceFiler(
+                snapshot_id=snapshot.id,
+                registration_number=registration,
+                kind=FilerKind.candidate_committee,
+                name="Port, Lindsey Senate Committee",
+                office="Senate",
+                district="55",
+                is_incumbent=False,
+            )
+        )
+        db.execute(
+            text(
+                "INSERT INTO cf_filing_current (id, snapshot_id) VALUES (true, :sid) "
+                "ON CONFLICT (id) DO UPDATE SET snapshot_id = EXCLUDED.snapshot_id"
+            ),
+            {"sid": snapshot.id},
+        )
+        db.execute(delete(schema.TrackedCommittee))
+        db.commit()
+        snapshot_id = snapshot.id
+
+    try:
+        assert client.get("/api/v1/me/tracked-committees").status_code == 401
+        assert (
+            client.put(f"/api/v1/me/tracked-committees/{registration}").status_code
+            == 401
+        )
+
+        empty = client.get("/api/v1/me/tracked-committees", headers=auth_headers)
+        assert empty.status_code == 200
+        assert empty.json()["data"] == []
+
+        # A number in neither the register nor any download has no committee page,
+        # so it cannot be followed either: 404, never a bookmark to nothing.
+        unknown = client.put(
+            "/api/v1/me/tracked-committees/99999999", headers=auth_headers
+        )
+        assert unknown.status_code == 404
+        too_long = client.put(
+            "/api/v1/me/tracked-committees/" + "1" * 21, headers=auth_headers
+        )
+        assert too_long.status_code == 404
+
+        followed = client.put(
+            f"/api/v1/me/tracked-committees/{registration}", headers=auth_headers
+        )
+        assert followed.status_code == 200
+        assert followed.json()["data"]["registration_number"] == registration
+        assert followed.json()["data"]["tracked_at"]
+        # Idempotent: a second PUT is the same bookmark, not a second row.
+        again = client.put(
+            f"/api/v1/me/tracked-committees/{registration}", headers=auth_headers
+        )
+        assert again.status_code == 200
+        assert (
+            again.json()["data"]["tracked_at"] == followed.json()["data"]["tracked_at"]
+        )
+
+        listed = client.get("/api/v1/me/tracked-committees", headers=auth_headers)
+        assert listed.status_code == 200
+        rows = listed.json()["data"]
+        assert [row["registration_number"] for row in rows] == [registration]
+        assert rows[0]["register"] == {
+            "state": "reported",
+            "kind": "candidate_committee",
+            "name": "Port, Lindsey Senate Committee",
+            "office": "Senate",
+            "district": "55",
+            "termination_date": None,
+        }
+        assert rows[0]["tracked_at"] == followed.json()["data"]["tracked_at"]
+
+        # Another reader's list is their own.
+        other = client.get("/api/v1/me/tracked-committees", headers=second_auth_headers)
+        assert other.status_code == 200
+        assert other.json()["data"] == []
+
+        removed = client.delete(
+            f"/api/v1/me/tracked-committees/{registration}", headers=auth_headers
+        )
+        assert removed.status_code == 204
+        # Unfollowing something not followed is the same quiet 204 bills give.
+        assert (
+            client.delete(
+                f"/api/v1/me/tracked-committees/{registration}", headers=auth_headers
+            ).status_code
+            == 204
+        )
+        assert (
+            client.get("/api/v1/me/tracked-committees", headers=auth_headers).json()[
+                "data"
+            ]
+            == []
+        )
+    finally:
+        with Session(get_engine()) as db:
+            db.execute(delete(schema.TrackedCommittee))
+            db.execute(text("UPDATE cf_filing_current SET snapshot_id = NULL"))
+            db.execute(
+                delete(schema.CampaignFinanceFiler).where(
+                    schema.CampaignFinanceFiler.snapshot_id == snapshot_id
+                )
+            )
+            db.execute(
+                delete(schema.CampaignFinanceFilingSnapshot).where(
+                    schema.CampaignFinanceFilingSnapshot.id == snapshot_id
+                )
+            )
+            db.commit()
 
 
 def test_tracked_bills_are_newest_first_and_keep_a_bill_with_no_summary(

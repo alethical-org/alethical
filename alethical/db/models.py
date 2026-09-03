@@ -1008,6 +1008,9 @@ class UserAccount(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     auth_identities: Mapped[list["AuthIdentity"]] = relationship(back_populates="user")
     tracked_bills: Mapped[list["TrackedBill"]] = relationship(back_populates="user")
+    tracked_committees: Mapped[list["TrackedCommittee"]] = relationship(
+        back_populates="user"
+    )
     saved_places: Mapped[list["SavedPlace"]] = relationship(back_populates="user")
     notification_preferences: Mapped[list["NotificationPreference"]] = relationship(
         back_populates="user"
@@ -1100,6 +1103,34 @@ class TrackedBill(UUIDPrimaryKeyMixin, TimestampMixin, Base):
     bill: Mapped["Bill"] = relationship(back_populates="tracked_by")
 
     __table_args__ = (UniqueConstraint("user_id", "bill_id"),)
+
+
+class TrackedCommittee(UUIDPrimaryKeyMixin, TimestampMixin, Base):
+    """A campaign committee a signed-in reader chose to follow (#1943).
+
+    A bookmark and nothing more: no alerts flag, no note, and nothing reads this
+    table to notify anybody. The Tracked page lists these under their own heading
+    rather than inside the bills' moved / no-change grouping, because nothing
+    computes whether a committee changed and filing it under "no change" would
+    claim a watch we do not keep.
+
+    Keyed on the Board's registration number rather than a foreign key into
+    ``cf_filer``, for the same reason ``legislator_campaign_committee`` is: the
+    register is replaced whole on every snapshot, so a row pointing at one snapshot's
+    filer would be orphaned by the next load, while the registration number is
+    durable across every snapshot and every download.
+    """
+
+    __tablename__ = "tracked_committee"
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("user_account.id"), nullable=False
+    )
+    registration_number: Mapped[str] = mapped_column(String(20), nullable=False)
+
+    user: Mapped["UserAccount"] = relationship(back_populates="tracked_committees")
+
+    __table_args__ = (UniqueConstraint("user_id", "registration_number"),)
 
 
 class SiteMetricEvent(UUIDPrimaryKeyMixin, TimestampMixin, Base):

@@ -28,6 +28,12 @@ from alethical.api.serializers import (
     chat_message_payload,
     chat_session_payload,
 )
+from alethical.api.services.campaign_finance_register import register_entry
+from alethical.api.services.committee_finance import (
+    ReleaseNoLongerHeld,
+    current_release as current_campaign_finance_release,
+    find_committee,
+)
 from alethical.api.services.sign_in_methods import current_supabase_sign_in_methods
 from alethical.db.schema import load_schema
 from alethical.db.session import get_db
@@ -48,6 +54,7 @@ NotificationPreference = schema.NotificationPreference
 SavedPlace = schema.SavedPlace
 TrackedBill = schema.TrackedBill
 TrackedBillModel = schema.TrackedBill
+TrackedCommittee = schema.TrackedCommittee
 bill_list_stmt = schema.bill_list_stmt
 semantic_rag_chunk_stmt = schema.semantic_rag_chunk_stmt
 tracked_bills_stmt = schema.tracked_bills_stmt
@@ -796,6 +803,158 @@ def delete_tracked_bill(
     if tracked is not None:
         db.delete(tracked)
         db.commit()
+
+
+# ---------------------------------------------------------------------------
+# Followed committees (#1943). A bookmark, and deliberately nothing more: no
+# alerts flag, no note, no "what moved" mark. Nothing reads these rows to notify
+# anybody, and the Tracked page lists them under their own heading rather than
+# inside the bills' moved / no-change grouping, because nothing computes whether a
+# committee changed and "no change" would claim a watch we do not keep.
+# ---------------------------------------------------------------------------
+
+
+def _committee_payload(db: Session, release, row) -> dict:
+    """What the Tracked page needs to draw one followed committee.
+
+    The register (the Board's own directory) is the authority on the name and kind;
+    the money downloads are the fallback for a number the register does not carry,
+    exactly as the committee page itself falls back (``/committees/{n}/finance``).
+    A number in neither place still lists -- the reader saved it, and dropping it
+    silently from the one page whose job is showing what they saved would be the
+    #1007 failure again -- with every descriptive field null, so the page prints
+    the number and nothing it cannot back.
+    """
+    register = register_entry(db, row.registration_number)
+    committee = None
+    if release is not None:
+        try:
+            committee = find_committee(db, release, row.registration_number)
+        except ReleaseNoLongerHeld:
+            committee = None
+    return {
+        "registration_number": row.registration_number,
+        "tracked_at": row.created_at.isoformat(),
+        "committee_name": committee.name if committee else None,
+        "entity_type": committee.entity_type if committee else None,
+        "entity_sub_type": committee.entity_sub_type if committee else None,
+        "register": {
+            "state": register.state,
+            "kind": register.kind,
+            "name": register.name,
+            "office": register.office,
+            "district": register.district,
+            "termination_date": register.termination_date,
+        },
+    }
+
+
+def _committee_we_hold(db: Session, registration_number: str) -> bool:
+    """Whether this registration number is in the register we hold or any dataset of
+    the current release -- the same 2 places ``/committees/{n}/finance`` reads, so a
+    number that has no committee page cannot be followed either.
+
+    A stale release (rows replaced under this read) counts as held: refusing on the
+    strength of our own pruning would deny a real committee, which is the failure
+    ``_refuse_a_committee_we_hold_no_record_of`` in ``public.py`` names.
+    """
+    if register_entry(db, registration_number).state == "reported":
+        return True
+    release = current_campaign_finance_release(db)
+    if release is None:
+        return False
+    try:
+        return find_committee(db, release, registration_number) is not None
+    except ReleaseNoLongerHeld:
+        return True
+
+
+@router.get("/me/tracked-committees", response_model=CollectionResponse)
+def tracked_committees(
+    db: Session = Depends(get_db), current_user=Depends(get_current_user)
+):
+    """Every committee this reader follows, newest-followed first, in one page.
+
+    Same order rule as ``tracked_bills_stmt``: ``created_at`` never changes on a
+    saved row, so the list reads the same on every visit, with ``id`` breaking a
+    same-timestamp tie so the order is total.
+
+    Not pinned to one view of the database the way the public committee routes are:
+    ``get_current_user`` has already queried on this session, and Postgres refuses
+    ``SET TRANSACTION ISOLATION LEVEL`` after a transaction's first statement. The
+    bookmark rows themselves are this reader's own; only the descriptive fields
+    beside them could see a publish land mid-request, and each is read once.
+    """
+    rows = db.scalars(
+        select(TrackedCommittee)
+        .where(TrackedCommittee.user_id == current_user.id)
+        .order_by(TrackedCommittee.created_at.desc(), TrackedCommittee.id.desc())
+    ).all()
+    try:
+        release = current_campaign_finance_release(db)
+    except ReleaseNoLongerHeld:
+        release = None
+    data = [_committee_payload(db, release, row) for row in rows]
+    return CollectionResponse(
+        data=data, page={"limit": len(data), "next_cursor": None, "has_more": False}
+    )
+
+
+@router.put(
+    "/me/tracked-committees/{registration_number}", response_model=DetailResponse
+)
+def put_tracked_committee(
+    registration_number: str,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Idempotently follow a committee. No body: a bookmark has no settings."""
+    if len(registration_number) > 20 or not _committee_we_hold(db, registration_number):
+        raise HTTPException(
+            status_code=404,
+            detail=(
+                "this registration number is in neither the register we hold nor "
+                "any dataset of the current campaign-finance release"
+            ),
+        )
+    tracked = db.scalar(
+        select(TrackedCommittee).where(
+            TrackedCommittee.user_id == current_user.id,
+            TrackedCommittee.registration_number == registration_number,
+        )
+    )
+    if tracked is None:
+        tracked = TrackedCommittee(
+            user_id=current_user.id, registration_number=registration_number
+        )
+        db.add(tracked)
+        db.commit()
+        db.refresh(tracked)
+    return DetailResponse(
+        data={
+            "registration_number": tracked.registration_number,
+            "tracked_at": tracked.created_at.isoformat(),
+        }
+    )
+
+
+@router.delete("/me/tracked-committees/{registration_number}", status_code=204)
+def delete_tracked_committee(
+    registration_number: str,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """Stop following a committee. 204 whether or not it was followed, like bills."""
+    tracked = db.scalar(
+        select(TrackedCommittee).where(
+            TrackedCommittee.user_id == current_user.id,
+            TrackedCommittee.registration_number == registration_number,
+        )
+    )
+    if tracked is not None:
+        db.delete(tracked)
+        db.commit()
+    return None
 
 
 @router.get("/me/notification-preferences", response_model=CollectionResponse)
