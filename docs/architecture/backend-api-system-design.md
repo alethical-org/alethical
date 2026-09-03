@@ -1875,6 +1875,22 @@ Purpose:
 
 - stop tracking a bill
 
+### Followed committees
+
+A signed-in reader can follow a campaign committee from its money page ([#1943](https://github.com/alethical-org/alethical/issues/1943)). A follow is a bookmark: one row in `tracked_committee` (alembic `0051`) holding the reader and the Board's registration number, with no alerts flag, no note and no "what moved" mark. Nothing reads these rows to notify anybody, and the Tracked page lists them under their own heading, outside the bills' moved / no-change grouping, because nothing computes whether a committee changed.
+
+#### `GET /api/v1/me/tracked-committees`
+
+Every committee the reader follows, in one page, newest-followed first (`created_at DESC, id DESC`, the same stable order as tracked bills). Each row carries `registration_number`, `tracked_at`, the register's entry for the number (`state`, `kind`, `name`, `office`, `district`, `termination_date`, via `register_entry`) and the download's own `committee_name` / `entity_type` / `entity_sub_type` where the current release names the committee. A number in neither place still lists, with every descriptive field null: the reader saved it, and dropping it silently is the [#1007](https://github.com/alethical-org/alethical/issues/1007) failure.
+
+#### `PUT /api/v1/me/tracked-committees/{registration_number}`
+
+Idempotently follow a committee. Takes no body. `404` for a registration number that is in neither the register we hold nor any dataset of the current release, the same 2 places `/committees/{n}/finance` reads, so a number with no committee page cannot be followed either.
+
+#### `DELETE /api/v1/me/tracked-committees/{registration_number}`
+
+Stop following. `204` whether or not the committee was followed.
+
 ### Saved Places
 
 #### `GET /api/v1/me/saved-places`

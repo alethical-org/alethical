@@ -249,6 +249,7 @@ The raw reference and a user id are never stored on the pending row.
 - `user_account`
 - `auth_identity`
 - `tracked_bill`
+- `tracked_committee`
 - `saved_place`
 - `notification_preference`
 - `notification_endpoint`
@@ -426,6 +427,7 @@ Pass.
 Reason:
 
 - `tracked_bill` is a first-class join table with room for user-specific metadata
+- `tracked_committee` holds a reader's followed campaign committees by the Board's registration number, never by a foreign key into `cf_filer`, because the register is replaced whole on every snapshot and the number is what survives it ([#1943](https://github.com/alethical-org/alethical/issues/1943))
 
 ### Chat Retrieval
 
