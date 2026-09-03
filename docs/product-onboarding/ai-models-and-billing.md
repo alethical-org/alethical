@@ -215,12 +215,10 @@ August 31 deadline and no planned return to $3 / $15.
 
 Both discounts apply to the same job, so the
 [#723](https://github.com/alethical-org/alethical/issues/723) re-enrichment of 3,222
-bills prices four ways. **These are the measured figures, not the pre-run estimate.**
-The table here used to carry the estimate (26.7M in / 12.3M out → ~$176 live, ~$88 bulk)
-under the words "the same measured job", while §4.2 twelve lines below said the run
-actually cost ~$224 because output ran 41% over. Same doc, same job, two prices — the
-recurrence of exactly the failure [#786](https://github.com/alethical-org/alethical/pull/786)
-fixed once already.
+bills prices four ways. **These are the measured figures, not the pre-run estimate**
+(26.7M in / 12.3M out → ~$176 live, ~$88 bulk). Output ran 41% over that estimate, so an
+estimate labelled as the measured job puts two prices on one job in one doc — the failure
+[#786](https://github.com/alethical-org/alethical/pull/786) fixed once already.
 
 Measured: 26.7M tokens in, ~17.4M out (3,222 bills × ~5,400 output tokens each).
 

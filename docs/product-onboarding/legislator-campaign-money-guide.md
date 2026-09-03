@@ -289,14 +289,13 @@ money-out figures differ. Absent whenever the amount is not above zero, which is
 committee-year whose payments we hold none of and one whose payments are all cash -- never a
 drawn "$0", for the same reason nothing else here is.
 
-**What used to be here, and it was false.** The tab said Minnesota "publishes no official
-total for a committee's spending". Minnesota publishes one: the filed report's own "Total
-Expenditures and Disbursements" line, held in `cf_filing_figure.total_expenditures` for
-**3,630 filer-years**, which the committee page had always printed 2 clicks away. The
-committee route served it and the legislator route did not, so the tab drew nothing and
-then explained the absence by blaming Minnesota. Both halves are fixed
-([#1875](https://github.com/alethical-org/alethical/issues/1875)): the route serves it,
-the tab draws it, and the sentence beneath says the 2 are separate claims never subtracted.
+**Never write that Minnesota "publishes no official total for a committee's spending".**
+Minnesota publishes one: the filed report's own "Total Expenditures and Disbursements"
+line, held in `cf_filing_figure.total_expenditures` for **3,630 filer-years**, which the
+committee page prints. The legislator route serves it, the tab draws it, and the sentence
+beneath says the 2 are separate claims never subtracted
+([#1875](https://github.com/alethical-org/alethical/issues/1875): the tab once drew
+nothing and blamed Minnesota for the absence, while only the committee route served it).
 
 **Where the figure is genuinely absent, the sentence says the gap is ours.** Counted
 across the 242 confirmed committees on 31 Aug 2026: for 2025 the figure can be shown on
@@ -476,15 +475,14 @@ nothing we hold accounts for. And it never rescues a shortfall: dropping donors 
 our figure smaller, so a filing that already names more than we hold moves further away, and
 the largest genuine gaps stay visible.
 
-**Three of those rows used to be one, and the shared sentence was false on two of them.**
-Until 19 August 2026 a committee-year with no donation rows at all, and one whose two
-figures simply would not subtract, both printed the disagreement sentence — which says
-Minnesota's own publications contradict each other about a named committee. Neither had
-any evidence for that: an empty spreadsheet has nothing on our side to disagree with the
-filing, and a subtraction coming out negative tells you the two numbers will not subtract
-and nothing about why. Splitting them apart is
-[#1682](https://github.com/alethical-org/alethical/issues/1682) and
-[#1648](https://github.com/alethical-org/alethical/issues/1648).
+**Those 3 rows stay 3, because 1 shared sentence is false on 2 of them.** A committee-year
+with no donation rows at all, and one whose two figures simply will not subtract, never
+print the disagreement sentence — which says Minnesota's own publications contradict each
+other about a named committee. Neither has any evidence for that: an empty spreadsheet has
+nothing on our side to disagree with the filing, and a subtraction coming out negative tells
+you the two numbers will not subtract and nothing about why. Both printed it until
+19 August 2026; [#1682](https://github.com/alethical-org/alethical/issues/1682) and
+[#1648](https://github.com/alethical-org/alethical/issues/1648) split them apart.
 
 **Seven live committee pages printed it**, measured on production 19 August 2026 —
 Kristin Robbins's governor committee (2025), IBEW - COPE (2024, 2025 and 2026), the Great
@@ -497,27 +495,24 @@ wording. So this was a live wrong sentence about named committees, not a near mi
 all 200 sitting members, so the tab now draws for everybody and any wording still wrong on
 it is read rather than merely shipped.
 
-**The disagreement row used to name a direction and it was the wrong one on 33 of those
-76.** It said the listed donations "add up to more than the committee reported raising",
-which is true of one of the two ways a page reaches that sentence and the reverse of the
-truth on the other. The committee's own filed report naming money the spreadsheet does
-not hold is the more serious of the two, because that money would otherwise be counted as
-having no donor at all. Filer 20010's 2025 is the plain case: its filing itemizes
-$1,493,418.08 and the spreadsheet holds $1,488,168.08. The sentence on screen now names
-no direction, and a test pins that it never does again.
+**The disagreement row names no direction, and a test pins that it never does.** Any
+direction is wrong on 33 of those 76: "add up to more than the committee reported raising"
+is true of one of the two ways a page reaches that sentence and the reverse of the truth
+on the other. The committee's own filed report naming money the spreadsheet does not hold
+is the more serious of the two, because that money would otherwise be counted as having no
+donor at all. Filer 20010's 2025 is the plain case: its filing itemizes $1,493,418.08 and
+the spreadsheet holds $1,488,168.08.
 
-**Nobody had read it on a legislator's tab when it was fixed, and the first version of
-this paragraph wrongly implied nobody could read it anywhere.** This tab only draws once a
+**Nobody read it on a legislator's tab, and readers of committee pages did.** This tab only draws once a
 person has confirmed which committee belongs to a member, and **on 19 August 2026 no such
 confirmation existed** — `legislator_campaign_committee` held 0 rows in production, so
 every member's tab showed the "nobody has confirmed which committee is theirs" panel and
 never reached a split or its explanation. **The committee pages were a different story**:
 they arrived on 17 August 2026, they key on a registration number rather than a person, and
-they printed these same sentences. So this was a wrong sentence sitting in shipped code,
-fixed before the first confirmation made it visible, rather than a wrong sentence a reader
-saw. Recorded this way round because the difference is the whole distance between a near
-miss and a published falsehood, and the first telling of it took the credit for the wrong
-one.
+they printed these same sentences. So on this tab it was a wrong sentence sitting in shipped
+code, fixed before the first confirmation made it visible; on the committee pages it was a
+wrong sentence a reader saw. Reach is recorded per surface because that difference is the
+whole distance between a near miss and a published falsehood.
 
 **Do not read that as still true: the emptiness was a date, not a property.** The
 31 August 2026 review sitting put 275 reviewed accounts in that table, 242 of them

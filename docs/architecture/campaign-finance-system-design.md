@@ -745,9 +745,9 @@ whole files and replaces whole sets.
    its own byte hash, so 7 to 10 GB a year of reshuffled duplicates is not stored to preserve
    information that is already held.
 
-   **This step has no facility to use yet, which an earlier version of this document got
-   wrong.** It said "through the existing `SourceArtifact` retention path", and
-   `SourceArtifact` does not retain bodies: `storage_path` is a synthetic string
+   **This step has no facility to use yet, and `SourceArtifact` is not one.** Never write
+   "through the existing `SourceArtifact` retention path": `SourceArtifact` does not retain
+   bodies. `storage_path` is a synthetic string
    (`minnesota-live/{digest}`, `alethical/pipeline/minnesota.py`), nothing ever writes bytes
    there, and the repo has no object storage of any kind. The repo says so itself —
    `scripts/repair_companion_links.py` explains that a companion link could not be repaired
@@ -1777,8 +1777,7 @@ and it describes **what a report page must do**. The drawn design is
   (Eugene, 25 Aug 2026); a dated correction note at the top says what changed, and it leaves
   the page's metadata entirely so a stale number cannot travel in a preview or a search result.
 - **Share previews carry the title and the two dates only** — never a claim, never a derived
-  label. **Ordinary search-engine snippets of the body stay on**: an earlier version of rule 13
-  suppressed them, and that clause was reversed the same day it shipped, because a snippet always
+  label. **Ordinary search-engine snippets of the body stay on**, never suppressed: a snippet always
   links to the page holding the method, and suppressing body text on a transparency product reads
   as hiding the thing it publishes.
 - **Links run one way.** A report links out to the committee and member records it read. No record
@@ -1786,10 +1785,10 @@ and it describes **what a report page must do**. The drawn design is
   the byline is.
 - **A report names the committee it read.** A person's name attaches to a committee only through a
   confirmed link (§5.1), on this surface exactly as on every other.
-- **There is no second copy of a report.** The page is the report; a reader who wants one prints
-  it. The download control that used to say so was removed with its sentence
-  ([PR #1720](https://github.com/alethical-org/alethical/pull/1720)), because two copies of one
-  report and no way to tell which is current is the failure this product exists to avoid.
+- **There is no second copy of a report, and no download control offering one**
+  ([PR #1720](https://github.com/alethical-org/alethical/pull/1720)). The page is the report; a
+  reader who wants one prints it. Two copies of one report and no way to tell which is current
+  is the failure this product exists to avoid.
 
 **Two arithmetic traps a cross-member figure falls into, both measured on the first report's own
 draft ([#1687](https://github.com/alethical-org/alethical/issues/1687), recomputed 19 Aug 2026).**
@@ -2176,9 +2175,8 @@ nothing else in the response distinguishes a document from the error page.
 list, not a restrictive one.** The catalogue returns three more across 1,707 legislator reports — `A`
 (31, pre-primary under an older name, "2010 15th Day Pre-Primary"), `B` (31, pre-general under an
 older name) and `G` (1) — and **all three return real PDFs**: `A` and `B` on filer 19273's 2026
-reports, `G` on filer 19259's, at 17,170, 17,644 and 19,750 bytes. So those 63 reports are reachable,
-and an earlier version of this paragraph called them a third cause of a missing prior figure. They are
-not. Pass through whatever type the catalogue names.
+reports, `G` on filer 19259's, at 17,170, 17,644 and 19,750 bytes. So those 63 reports are reachable
+and are not a cause of a missing prior figure. Pass through whatever type the catalogue names.
 
 **The route needs the `PHPSESSID` cookie and answers a hard 403 without it**, which is the one
 failure here that is not soft and not 200: 18 of 18 requests answered 403 with no `Cookie` header and
@@ -2531,8 +2529,7 @@ refused.
 attached: filer 16807's 2026 pre-primary reads 24 Jul 2026 at index 0 and 10 Aug 2026 at index 1;
 filer 20008's 2025 year-end reads 30 Jan 2026 at index 0 and 28 Jul 2026 at index 2.
 
-**A report is NOT always received after its period closes, and an earlier version of this section
-said it was.** A terminating committee files its final report at termination, so its received date
+**A report is NOT always received after its period closes.** A terminating committee files its final report at termination, so its received date
 falls months before the period end the catalogue gives it: measured across the 3,735 dated reports on
 31 Aug 2026, **7 are received before their period closes and every one of the 7 is a terminated
 filer whose termination date equals its received date** — Paul Novotny's committee (18472), §9.4's
@@ -2626,7 +2623,7 @@ Recorded as not run, never as passed:
   funds, 828 filers, 0 errors — and every distinct label stem found still matches
   `PARTY_UNIT_LINES` exactly. 34 filers (1 party unit, 33 committees or funds) had never filed a
   report and carried no labels either way. The Board's register held 529 committees or funds on
-  the day of this second read, not the 526 this bullet used to name.
+  the day of this second read.
 - **Amendment ordering before 2023** could not be tested, because the documents that would
   prove it are not served.
 - **Rate limits, blocking and error behaviour under load** were not tested deliberately; the
