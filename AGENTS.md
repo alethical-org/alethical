@@ -108,8 +108,8 @@ the local Postgres that `just up` starts.
     <commit>` moves a branch another worktree has checked out, silently, with no output
     at all; `git update-ref -d refs/heads/<b>` deletes one, where `git branch -D`
     refuses. No git version guards this — plumbing carries no safety checks — so this
-    one is a rule, not a mechanism. `git checkout -B <branch>` used to do the same, and
-    git 2.44.0 closed it; `git` on this Mac's `PATH` is Homebrew's 2.55.0, where
+    one is a rule, not a mechanism. `git checkout -B <branch>` is guarded from git 2.44.0
+    on; `git` on this Mac's `PATH` is Homebrew's 2.55.0, where
     `checkout`, `switch`, `rebase`, `branch -f` and `branch -D` all refuse a branch
     another worktree holds. **Two holes remain in that guard, both verified:**
     `git checkout --ignore-other-worktrees -B <branch>` moves the branch anyway, and

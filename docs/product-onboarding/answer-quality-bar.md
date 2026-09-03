@@ -127,13 +127,12 @@ hand-labeled**, so it stays correct when the passage budget changes.
 > number rather than a scored one, on the grounds that one fixture question cannot
 > responsibly carry a fourth gate.
 
-**A caution I earned the hard way.** My first version of this fixture's HF 719 label
-said the passages "name only cities, not counties, so an answer that claims counties
-receive grants is overreaching." That is true of the four passages and false of the
-bill — I wrote the product's own bug into the test for the product's bug, because I
-labeled against what the model sees instead of against the source. Anything scoring
-completeness has to be labeled from the **whole bill**, and the eval now checks
-against a count taken from it.
+**Label completeness from the whole bill, never from the passages.** A label for HF 719
+reading "the passages name only cities, not counties, so an answer that claims counties
+receive grants is overreaching" is true of the four passages and false of the bill — it
+writes the product's own bug into the test for the product's bug, by labeling against
+what the model sees instead of against the source. The eval checks completeness against
+a count taken from the **whole bill**.
 
 ### Why a judge decides refusal, and why a grounding objection needs both judges
 
