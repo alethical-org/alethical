@@ -164,7 +164,13 @@ export function centralDateLabel(isoTimestamp: string): string {
 /**
  * The Legislators lane's own sentence — the lane is where the promise is made,
  * so it carries the confirmed state in its own words, with both numbers served
- * live (campaign money IA §01).
+ * live (campaign money IA §01). It is the LAST sentence of a card description, so
+ * it ends bare (copy rule C, 1 Sep 2026); `legislatorsLaneBody` supplies the full
+ * stop that separates it from the sentence before it.
+ *
+ * This is the one place the landing states the confirmed count. The does-not-cover
+ * block used to state it a second time, with its own dated footnote; that copy came
+ * out under copy rule A (a fact once per surface).
  */
 export function legislatorsLaneSentence(confirmation: {
   confirmed: number;
@@ -173,30 +179,8 @@ export function legislatorsLaneSentence(confirmation: {
   return (
     `Confirmed for ${formatCount(confirmation.confirmed)} of Minnesota's ` +
     `${formatCount(confirmation.total)} sitting legislators — for the rest, no figures show ` +
-    `on a profile.`
+    `on a profile`
   );
-}
-
-/**
- * The confirmation item in the does-not-cover block, rendered only when the
- * confirmation log is actually served — its numbers are read live, never
- * pasted. It exists so an unconfirmed member reads as our gap rather than a
- * member with no money.
- */
-export function confirmationLine(confirmation: { confirmed: number; total: number }): string {
-  return (
-    `All ${formatCount(confirmation.total)} sitting members have a committee registered with the ` +
-    `Board. Confirmed as theirs: ${formatCount(confirmation.confirmed)} of ` +
-    `${formatCount(confirmation.total)}. Confirming is a person’s job.`
-  );
-}
-
-/** Dated by the newest confirmation in the log (a served instant, printed in
- *  Central time); undated while there is none. */
-export function confirmationDateLine(newestConfirmationAt: string | null): string | null {
-  return newestConfirmationAt
-    ? `Read live from the confirmation log · newest confirmation ${centralDateLabel(newestConfirmationAt)}`
-    : null;
 }
 
 // --- The landing's own fixed wording ----------------------------------------
@@ -223,8 +207,13 @@ export const MONEY_LANDING_HEADING = 'Follow the money';
  * descriptions, so the rule reaches each of them. A body carrying 2 sentences keeps the
  * full stop BETWEEN them and loses only the final one — see MONEY_LANE_WHO_GOT_PAID.
  */
+/**
+ * "donation and payment", not the filing system's "contribution and expenditure" (ruled
+ * 2 Sep 2026, copy proposal 3): "expenditure" is the one word every other string in this
+ * section avoids for money out, and this is the first sentence a reader meets.
+ */
 export const MONEY_LANDING_SUBTITLE =
-  'Every contribution and expenditure Minnesota publishes for state campaigns, searchable by ' +
+  'Every donation and payment Minnesota publishes for state campaigns, searchable by ' +
   'the name it was filed under';
 
 export const MONEY_LANE_LEGISLATORS = {
@@ -292,3 +281,12 @@ export const FILES_LAST_COPIED_NOTE =
 
 /** The heading over the permanent gaps, on the landing and on the committees list. */
 export const RECORD_DOES_NOT_COVER_HEADING = 'What this record does not cover';
+
+/**
+ * The landing's closing line under the 3 gaps, standalone in the card and so bare
+ * (copy rule C). It says what kind of absence these are — the record's own — now that
+ * the block no longer carries our confirmation count beside them, which was a
+ * different kind of absence: ours to close.
+ */
+export const RECORD_DOES_NOT_COVER_NOTE =
+  'These are properties of the record itself, not gaps we can close';
