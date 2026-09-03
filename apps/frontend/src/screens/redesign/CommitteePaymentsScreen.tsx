@@ -2,6 +2,7 @@ import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-na
 import Svg, { Path } from 'react-native-svg';
 
 import { YearControl } from '../../components/campaignMoney/CampaignMoneyTab';
+import { MoneyListRow, MoneyListRows } from '../../components/campaignMoney/MoneyListRows';
 import { UnderDevelopmentNotice } from '../../components/campaignMoney/UnderDevelopmentNotice';
 import { Skeleton } from '../../components/Skeleton';
 import type { CommitteeMadePayment, CommitteeReceivedPayment } from '../../data/types';
@@ -235,15 +236,17 @@ export function CommitteePaymentsScreen({
                   <View role="status" aria-busy style={styles.hidden}>
                     <Text>Loading figures</Text>
                   </View>
-                  {[0, 1, 2, 3, 4, 5].map((index) => (
-                    <View key={index} style={styles.listRow}>
-                      <View style={styles.listRowText}>
-                        <Skeleton width={`${[58, 72, 44, 66, 52, 38][index]}%`} height={14} />
-                        <Skeleton width={200} height={11} style={{ marginTop: 8 }} />
-                      </View>
-                      <Skeleton width={96} height={11} />
-                    </View>
-                  ))}
+                  <MoneyListRows isMobile={isMobile}>
+                    {[0, 1, 2, 3, 4, 5].map((index) => (
+                      <MoneyListRow key={index} isMobile={isMobile} first={index === 0}>
+                        <View style={styles.listRowText}>
+                          <Skeleton width={`${[58, 72, 44, 66, 52, 38][index]}%`} height={14} />
+                          <Skeleton width={200} height={11} style={{ marginTop: 8 }} />
+                        </View>
+                        {isMobile ? null : <Skeleton width={96} height={11} />}
+                      </MoneyListRow>
+                    ))}
+                  </MoneyListRows>
                 </View>
               ) : list.isError && rows.length === 0 ? (
                 <View style={styles.card}>
@@ -335,8 +338,12 @@ function PaymentRows({
         <Text style={styles.listCount}>{showingLine(shaped.length, total) ?? ''}</Text>
         <Text style={styles.listSort}>LARGEST FIRST</Text>
       </View>
-      <View style={styles.listRows}>
-        {shaped.map((row) => {
+      {/* Card rows at computer width, hairline rows inside one card on the phone
+          (MoneyListRows). On the phone the date and the amount go under the name
+          as a third line, left-aligned: once each amount sits under its own name
+          there is no column to compare down (phone band rule D2). */}
+      <MoneyListRows isMobile={isMobile}>
+        {shaped.map((row, index) => {
           const inner = (
             <>
               <View style={styles.listRowText}>
@@ -364,46 +371,32 @@ function PaymentRows({
               )}
             </>
           );
+          // A registered filer opens its own page. A printed name that is not a
+          // registered filer — a person, an employer or a vendor — leads to every
+          // payment filed under that EXACT spelling, which is the whole of what
+          // Minnesota's data supports (#1331). `nameLink` is null wherever a link
+          // would be a false claim, so this never has to re-decide that.
+          let link: { href: string; onPress: () => void } | null = null;
           if (row.linkNumber) {
             const targetSlug = committeeSlug(row.linkName, row.linkNumber);
-            return (
-              <Pressable
-                key={row.key}
-                {...linkProps(routePath.moneyCommittee(targetSlug), () =>
-                  navigation.push('CommitteeMoney', { slug: targetSlug }),
-                )}
-                style={styles.listRow}
-              >
-                {inner}
-              </Pressable>
-            );
-          }
-          // A printed name that is not a registered filer: a person, an employer
-          // or a vendor. It leads to every payment filed under that EXACT
-          // spelling, which is the whole of what Minnesota's data supports
-          // (#1331). `nameLink` is null wherever a link would be a false claim,
-          // so this branch never has to re-decide that.
-          if (row.nameLink) {
+            link = {
+              href: routePath.moneyCommittee(targetSlug),
+              onPress: () => navigation.push('CommitteeMoney', { slug: targetSlug }),
+            };
+          } else if (row.nameLink) {
             const { name, role } = row.nameLink;
-            return (
-              <Pressable
-                key={row.key}
-                {...linkProps(routePath.moneyPaymentsUnderName(name, role), () =>
-                  navigation.push('PaymentsUnderName', { name, role }),
-                )}
-                style={styles.listRow}
-              >
-                {inner}
-              </Pressable>
-            );
+            link = {
+              href: routePath.moneyPaymentsUnderName(name, role),
+              onPress: () => navigation.push('PaymentsUnderName', { name, role }),
+            };
           }
           return (
-            <View key={row.key} style={styles.listRow}>
+            <MoneyListRow key={row.key} isMobile={isMobile} first={index === 0} link={link}>
               {inner}
-            </View>
+            </MoneyListRow>
           );
         })}
-      </View>
+      </MoneyListRows>
 
       {hasNextPage && total !== null ? (
         <View style={styles.capCard}>
@@ -550,7 +543,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: t.colors.alpha.ink08,
   },
-  tab: { paddingBottom: 12 },
+  // 44px on the tab's own box at every width (phone band rule F1).
+  tab: { minHeight: 44, justifyContent: 'flex-end', paddingBottom: 12 },
   tabActive: { borderBottomWidth: 2, borderBottomColor: t.colors.text.primary, marginBottom: -1 },
   tabLabel: {
     fontFamily: t.typography.body,
@@ -579,20 +573,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.9,
     color: t.colors.text.muted,
   },
-  listRows: { marginTop: 12, gap: 9 },
-  listLoading: { marginTop: 20, gap: 9 },
-  listRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    backgroundColor: t.colors.surfaces.base,
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink08,
-    borderRadius: t.radii.md,
-    paddingVertical: 15,
-    paddingHorizontal: 17,
-    ...(t.shadows.card as object),
-  },
+  listLoading: { marginTop: 8 },
   listRowText: { flex: 1, minWidth: 0 },
   listNameRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
   listName: {
@@ -643,11 +624,12 @@ const styles = StyleSheet.create({
     color: t.colors.text.primary,
   },
   listBottomRow: {
-    marginTop: 8,
+    marginTop: 6,
     flexDirection: 'row',
     alignItems: 'baseline',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     gap: 12,
+    flexWrap: 'wrap',
   },
   listDateMobile: {
     fontFamily: t.typography.mono,
@@ -693,6 +675,8 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   capButton: {
+    minHeight: 44,
+    justifyContent: 'center',
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
     borderColor: t.colors.alpha.ink16,
@@ -734,6 +718,8 @@ const styles = StyleSheet.create({
   },
   primaryButton: {
     alignSelf: 'flex-start',
+    minHeight: 44,
+    justifyContent: 'center',
     backgroundColor: t.colors.text.primary,
     borderRadius: 11,
     paddingVertical: 13,

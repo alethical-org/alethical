@@ -54,6 +54,9 @@ describe('all 5 groups are drawn, in the server’s own order', () => {
   it('says the 2 vendor groups are separate filings and are never added', () => {
     expect(groupNote('got_paid_independent')).toContain('never added');
     expect(NAME_SEARCH_MATCHED_ON).toContain('never added');
+    // Printed under the groups, so it points up at them, never down.
+    expect(NAME_SEARCH_MATCHED_ON).toContain('Each group above');
+    expect(NAME_SEARCH_MATCHED_ON).not.toContain('below');
   });
 
   // A payment name's row opens its payments since #1780, and a committee's opens

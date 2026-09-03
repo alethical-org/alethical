@@ -161,8 +161,10 @@ export function nameSearchHeading(query: string): string {
   return trimmed ? `Results for “${trimmed}”` : 'Search these records by name';
 }
 
+/** The list's footnote, printed under the groups as the drawing places it
+ *  ("Money lists.dc.html", issue #1946) — so it says "above", never "below". */
 export const NAME_SEARCH_MATCHED_ON =
-  'Matched on the name as it was filed, exactly as typed. Each group below is counted on its ' +
+  'Matched on the name as it was filed, exactly as typed. Each group above is counted on its ' +
   'own and the counts are never added: 2 of them come from 2 separate filings whose rows ' +
   'overlap.';
 

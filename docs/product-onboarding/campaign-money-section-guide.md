@@ -341,6 +341,16 @@ Top to bottom:
 Every row opens its committee **by registration number**, not by name, so a committee that
 changes its name keeps its address.
 
+**Two widths, one switch at 768 pixels, and the rows change shape across it.** On a computer
+each row is its own card, with the registration number and an arrow at its right. On a phone
+the list is hairline rows inside one card, and a row's fields stack under its name in the same
+order: the kind, then the registration number as a third line. No field is dropped at phone
+width, and nothing on the page stays pinned to the screen as you scroll. The search results,
+a committee's all-payments view and the payments-under-a-name page draw their rows the same
+way, from the same shared piece
+(`apps/frontend/src/components/campaignMoney/MoneyListRows.tsx`); on those, a payment's date
+and amount go under the name, left-aligned, on the phone.
+
 Its own states: nothing matches the typed name (with the spelling advice, no nearest-match
 guess, and a way to drop the filter); our copy of the register could not be read at all
 (said as our gap, and never as a claim that Minnesota registers nobody); and loading

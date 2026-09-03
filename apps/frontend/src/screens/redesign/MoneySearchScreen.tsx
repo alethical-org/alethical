@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import {
+  MoneyListRow,
+  MoneyListRows,
+  RowArrow,
+} from '../../components/campaignMoney/MoneyListRows';
 import { MoneyNameSearchField } from '../../components/campaignMoney/MoneyNameSearchField';
 import { UnderDevelopmentNotice } from '../../components/campaignMoney/UnderDevelopmentNotice';
 import { Skeleton } from '../../components/Skeleton';
@@ -162,14 +167,16 @@ export function MoneySearchScreen({ navigation, route }: RootScreenProps<'MoneyS
               <View role="status" aria-busy style={styles.hidden}>
                 <Text>Searching these records</Text>
               </View>
-              {(['58%', '72%', '44%'] as const).map((width, index) => (
-                <View key={index} style={styles.row}>
-                  <View style={styles.rowText}>
-                    <Skeleton width={width} height={14} />
-                    <Skeleton width={200} height={11} style={{ marginTop: 8 }} />
-                  </View>
-                </View>
-              ))}
+              <MoneyListRows isMobile={isMobile}>
+                {(['58%', '72%', '44%'] as const).map((width, index) => (
+                  <MoneyListRow key={index} isMobile={isMobile} first={index === 0}>
+                    <View style={styles.rowText}>
+                      <Skeleton width={width} height={14} />
+                      <Skeleton width={200} height={11} style={{ marginTop: 8 }} />
+                    </View>
+                  </MoneyListRow>
+                ))}
+              </MoneyListRows>
             </View>
           ) : search.isError ? (
             <View style={styles.card}>
@@ -199,10 +206,6 @@ export function MoneySearchScreen({ navigation, route }: RootScreenProps<'MoneyS
             </View>
           ) : (
             <View style={styles.groups}>
-              <Text style={styles.matchedOn}>{NAME_SEARCH_MATCHED_ON}</Text>
-              {anyCapped && countedUpToNote(answer?.countedUpTo ?? null) ? (
-                <Text style={styles.matchedOn}>{countedUpToNote(answer?.countedUpTo ?? null)}</Text>
-              ) : null}
               {NAME_SEARCH_GROUP_ORDER.map((kind) => {
                 const group = groups.find((candidate) => candidate.kind === kind);
                 if (!group) return null;
@@ -212,10 +215,18 @@ export function MoneySearchScreen({ navigation, route }: RootScreenProps<'MoneyS
                     kind={kind}
                     group={group}
                     query={query}
+                    isMobile={isMobile}
                     navigation={navigation}
                   />
                 );
               })}
+              {/* Under the groups, where the drawing prints the list's footnote:
+                  how the names were matched, and the counting ceiling when one
+                  group hit it. */}
+              <Text style={styles.matchedOn}>{NAME_SEARCH_MATCHED_ON}</Text>
+              {anyCapped && countedUpToNote(answer?.countedUpTo ?? null) ? (
+                <Text style={styles.matchedOn}>{countedUpToNote(answer?.countedUpTo ?? null)}</Text>
+              ) : null}
             </View>
           )}
         </Container>
@@ -246,11 +257,13 @@ function ResultGroup({
   kind,
   group,
   query,
+  isMobile,
   navigation,
 }: {
   kind: NameSearchGroupKind;
   group: NameSearchGroup;
   query: string;
+  isMobile: boolean;
   navigation: RootScreenProps<'MoneySearch'>['navigation'];
 }) {
   const heading = groupHeading(kind);
@@ -265,8 +278,6 @@ function ResultGroup({
         </Text>
         {count ? <Text style={styles.groupCount}>{count}</Text> : null}
       </View>
-      <Text style={styles.groupNote}>{groupNote(kind)}</Text>
-
       {/* Only "we could not read it" gets the gap sentence. A group the server
           searched and found nothing in reads as nothing found — printing our gap
           over a verified nothing is the missing-versus-zero failure rule 12
@@ -276,11 +287,17 @@ function ResultGroup({
       ) : group.results.length === 0 ? (
         <Text style={styles.groupEmpty}>{GROUP_EMPTY}</Text>
       ) : (
-        <View style={styles.rows}>
+        <MoneyListRows isMobile={isMobile}>
           {group.results.map((row, index) => (
-            <ResultRow key={`${group.kind}-${index}`} row={row} navigation={navigation} />
+            <ResultRow
+              key={`${group.kind}-${index}`}
+              row={row}
+              isMobile={isMobile}
+              first={index === 0}
+              navigation={navigation}
+            />
           ))}
-        </View>
+        </MoneyListRows>
       )}
 
       {seeAll ? (
@@ -293,30 +310,42 @@ function ResultGroup({
           <Text style={styles.seeAllLabel}>{seeAll}</Text>
         </Pressable>
       ) : null}
+
+      {/* The group's note comes after its rows, as drawn: what a reader has just
+          seen is what the sentence explains. */}
+      <Text style={styles.groupNote}>{groupNote(kind)}</Text>
     </View>
   );
 }
 
 function ResultRow({
   row,
+  isMobile,
+  first,
   navigation,
 }: {
   row: NameSearchRow;
+  isMobile: boolean;
+  first: boolean;
   navigation: RootScreenProps<'MoneySearch'>['navigation'];
 }) {
   if (row.kind === 'person') {
+    const legislatorId = row.slug || row.legislatorId;
     return (
-      <Pressable
-        {...linkProps(routePath.legislator(row.slug || row.legislatorId), () =>
-          navigation.push('LegislatorProfile', { legislatorId: row.slug || row.legislatorId }),
-        )}
-        style={styles.row}
+      <MoneyListRow
+        isMobile={isMobile}
+        first={first}
+        link={{
+          href: routePath.legislator(legislatorId),
+          onPress: () => navigation.push('LegislatorProfile', { legislatorId }),
+        }}
       >
         <View style={styles.rowText}>
           <Text style={styles.rowName}>{row.fullName}</Text>
           <Text style={styles.rowMeta}>{personMeta(row)}</Text>
         </View>
-      </Pressable>
+        {isMobile ? null : <RowArrow />}
+      </MoneyListRow>
     );
   }
 
@@ -324,11 +353,13 @@ function ResultRow({
     const slug = committeeSlug(row.name, row.registrationNumber);
     const closed = row.isClosed ? closedChipLabel(row.terminationDate) : null;
     return (
-      <Pressable
-        {...linkProps(routePath.moneyCommittee(slug), () =>
-          navigation.push('CommitteeMoney', { slug }),
-        )}
-        style={styles.row}
+      <MoneyListRow
+        isMobile={isMobile}
+        first={first}
+        link={{
+          href: routePath.moneyCommittee(slug),
+          onPress: () => navigation.push('CommitteeMoney', { slug }),
+        }}
       >
         <View style={styles.rowText}>
           <View style={styles.rowNameLine}>
@@ -343,9 +374,16 @@ function ResultRow({
               district: row.district,
             })}
           </Text>
+          {/* A third line on the phone rather than dropped (phone band rule D3). */}
+          {isMobile ? <Text style={styles.rowRegMobile}>REG {row.registrationNumber}</Text> : null}
         </View>
-        <Text style={styles.rowReg}>REG {row.registrationNumber}</Text>
-      </Pressable>
+        {isMobile ? null : (
+          <>
+            <Text style={styles.rowReg}>REG {row.registrationNumber}</Text>
+            <RowArrow />
+          </>
+        )}
+      </MoneyListRow>
     );
   }
 
@@ -360,18 +398,22 @@ function ResultRow({
     </View>
   );
   const role = paymentNameRole(row.role);
-  if (!role) {
-    return <View style={styles.row}>{inner}</View>;
-  }
   return (
-    <Pressable
-      {...linkProps(routePath.moneyPaymentsUnderName(row.name, role), () =>
-        navigation.push('PaymentsUnderName', { name: row.name, role }),
-      )}
-      style={styles.row}
+    <MoneyListRow
+      isMobile={isMobile}
+      first={first}
+      link={
+        role
+          ? {
+              href: routePath.moneyPaymentsUnderName(row.name, role),
+              onPress: () => navigation.push('PaymentsUnderName', { name: row.name, role }),
+            }
+          : null
+      }
     >
       {inner}
-    </Pressable>
+      {isMobile || !role ? null : <RowArrow />}
+    </MoneyListRow>
   );
 }
 
@@ -414,7 +456,7 @@ const styles = StyleSheet.create({
     color: t.colors.text.muted,
   },
   groups: { marginTop: 30, gap: 18 },
-  groupsLoading: { marginTop: 30, gap: 10 },
+  groupsLoading: { marginTop: 18 },
   hidden: { position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0 },
   group: {
     backgroundColor: t.colors.surfaces.base,
@@ -445,7 +487,7 @@ const styles = StyleSheet.create({
     color: t.colors.text.muted,
   },
   groupNote: {
-    marginTop: 10,
+    marginTop: 14,
     maxWidth: 780,
     fontFamily: t.typography.body,
     fontSize: 14.5,
@@ -458,19 +500,6 @@ const styles = StyleSheet.create({
     fontSize: t.fontSizes.body,
     lineHeight: 22,
     color: t.colors.text.secondary,
-  },
-  rows: { marginTop: 14, gap: 10 },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 16,
-    backgroundColor: t.colors.surfaces.s100,
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink08,
-    borderRadius: 12,
-    paddingVertical: 13,
-    paddingHorizontal: 15,
   },
   rowText: { flex: 1, minWidth: 0 },
   rowNameLine: { flexDirection: 'row', alignItems: 'center', gap: 9, flexWrap: 'wrap' },
@@ -488,10 +517,19 @@ const styles = StyleSheet.create({
     color: t.colors.text.secondary,
   },
   rowReg: {
+    width: 96,
+    textAlign: 'right',
     fontFamily: t.typography.mono,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: t.fontWeights.bold,
-    letterSpacing: 0.7,
+    letterSpacing: 0.5,
+    color: t.colors.text.muted,
+  },
+  rowRegMobile: {
+    marginTop: 5,
+    fontFamily: t.typography.mono,
+    fontSize: 12,
+    fontWeight: t.fontWeights.medium,
     color: t.colors.text.muted,
   },
   closedChip: {
@@ -507,7 +545,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7,
     overflow: 'hidden',
   },
-  seeAll: { marginTop: 14, alignSelf: 'flex-start' },
+  seeAll: { marginTop: 14, minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
   seeAllLabel: {
     fontFamily: t.typography.ui,
     fontSize: 15.5,
@@ -540,6 +578,8 @@ const styles = StyleSheet.create({
   primaryButton: {
     alignSelf: 'flex-start',
     marginTop: 4,
+    minHeight: 44,
+    justifyContent: 'center',
     backgroundColor: t.colors.text.primary,
     borderRadius: 11,
     paddingVertical: 13,
