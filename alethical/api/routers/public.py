@@ -4391,6 +4391,13 @@ def legislator_campaign_finance(
                                 }
                                 for receipt in entry.finance.money_in.other_receipts
                             ],
+                            # The filing's period start where the Board's own calendar
+                            # prints one, so the profile's filing stamp can state the
+                            # same period the committee page does. Never an assumed
+                            # 1 January; null is the covers-through state.
+                            "reported_period_start": (
+                                entry.finance.money_in.reported_period_start
+                            ),
                             "source_url": entry.finance.money_in.source_url,
                         }
                         if entry.finance

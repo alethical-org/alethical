@@ -29,7 +29,12 @@
  *   both false for it.
  */
 
-import { formatDay, formatMoney, isAmountAboveZero } from './legislatorCampaignMoney';
+import {
+  formatDay,
+  formatMoney,
+  isAmountAboveZero,
+  reportedThroughLabel,
+} from './legislatorCampaignMoney';
 
 /** The two Board sub-type codes that mark a ballot-question filer on its own money
  *  rows (data census #1661: 28 `BC` and 6 `BF` filers carry one). The register
@@ -474,6 +479,73 @@ export function notFoundBody(registrationNumber: string): string {
     'fact about our records, not about the committee — the number may be newer ' +
     'than our copy, or mistyped by a digit.'
   );
+}
+
+// --- The 2 money cards' fixed labels ---------------------------------------------------
+//
+// Both surfaces that draw a committee's money — its own page and the Campaign money
+// tab on a confirmed legislator's profile — draw the cards from one component
+// (`components/campaignMoney/MoneyCards.tsx`), and that component reads every label
+// from here, so a label can only ever be changed in one place and a test can pin it.
+
+export const MONEY_IN_HEADING = 'Money in';
+export const MONEY_OUT_HEADING = 'Money out';
+
+/** "Reported to the state", never "Raised in total": the 2 are the same only when the
+ *  report covers the whole year, and a report that stops in March makes the second
+ *  false while the first stays true beside its own coverage date. */
+export const MONEY_IN_REPORTED_LABEL = 'Donations this committee reported to the state';
+
+/** The named figure. Always drawn: a real amount or the words "Not reported", never a
+ *  blank, because a card with a hole where a figure should be reads as broken. */
+export const MONEY_IN_NAMED_LABEL = 'Donations with a donor’s name';
+
+export const MONEY_IN_UNNAMED_LABEL = 'Donations with nobody’s name on them';
+
+/** The heading over the receipt rows that are not donations — a loan, a public
+ *  subsidy, interest. Short because the card heading 2 elements above already says
+ *  "Money in", and the rows themselves show that each is reported on its own line
+ *  (ruled by Eugene, 2 Sep 2026, in the campaign-money design's copy proposals). */
+export const NOT_A_DONATION_HEADING = 'Not a donation';
+
+/** The link to the Board's own viewer, where a reader looks the filing up by its
+ *  registration number. Drawn once per page, in the filing stamp above both cards,
+ *  never inside one: one filing produces both cards, so a link inside money in alone
+ *  makes that card look like it owns the filing. */
+export const FILED_REPORTS_LINK_LABEL = 'This committee’s filed reports, on the state’s own site';
+
+/** The 2 source links at the foot of the cards, to the state's own downloads. */
+export const NAMED_DONATIONS_LINK_LABEL = 'Minnesota’s list of named donations';
+export const PAYMENTS_OUT_LINK_LABEL = 'Minnesota’s list of payments out';
+
+/**
+ * The one coverage date the filing stamp above both cards states, or null when no
+ * filing total is on the page. Money in's reported total is the usual source; a
+ * committee-year whose split withholds its total but whose money-out total is held
+ * still has a filing to date, so the stamp falls back to that.
+ */
+export function stampThroughDate(
+  split: { reportedThrough: string | null },
+  moneyOut: { reportedThrough: string | null } | null | undefined,
+): string | null {
+  return split.reportedThrough ?? moneyOut?.reportedThrough ?? null;
+}
+
+/**
+ * The period note under a reported figure, or null when the stamp above the cards
+ * already states it.
+ *
+ * Rule 12 wants every total to state the period it covers, and the stamp is where
+ * that lives — stating it again under the figure would print one fact twice. The
+ * note comes back only where a figure's own coverage date differs from the stamp's,
+ * which is the one case where the stamp's date would be wrong about this figure.
+ */
+export function reportedThroughNote(
+  figureThrough: string | null | undefined,
+  stampThrough: string | null,
+): string | null {
+  if (!figureThrough || figureThrough === stampThrough) return null;
+  return reportedThroughLabel(figureThrough);
 }
 
 // --- Money out labels ----------------------------------------------------------------

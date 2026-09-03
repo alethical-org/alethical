@@ -262,8 +262,8 @@ export function LegislatorProfileWebScreen() {
             Campaign money
           </Text>
           <Text style={styles.emptyNote}>
-            What this member’s campaign raised and spent, and who is named as giving it, comes from
-            the Minnesota Campaign Finance Board rather than the Legislature.{' '}
+            What this member’s campaign reported raising and paying out, and who is named as giving
+            it, comes from the Minnesota Campaign Finance Board rather than the Legislature.{' '}
             <Text
               style={styles.moneyTabLink}
               {...linkProps(routePath.legislator(legislatorId, { tab: 'money' }), () =>

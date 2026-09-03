@@ -1368,10 +1368,15 @@ describe('the money screens keep reading the helpers the server reads', () => {
   // the served page and the drawn page can disagree and nothing else would
   // notice. Same guard the profile and piece screens get above.
   it('the committee page draws the same money sentences the snapshot serves', () => {
-    const source = readFileSync(
-      join(HERE, '../../..', 'src/screens/redesign/CommitteeMoneyScreen.tsx'),
-      'utf8',
-    );
+    // The page and the 2 money cards it draws, read together: the cards moved into
+    // `MoneyCards.tsx` so the legislator profile draws the same ones, and a helper the
+    // snapshot reads has to be read by one of the 2 files.
+    const source = [
+      'src/screens/redesign/CommitteeMoneyScreen.tsx',
+      'src/components/campaignMoney/MoneyCards.tsx',
+    ]
+      .map((file) => readFileSync(join(HERE, '../../..', file), 'utf8'))
+      .join('\n');
     for (const call of [
       'yearDisplayState',
       'whoseCommitteeText',

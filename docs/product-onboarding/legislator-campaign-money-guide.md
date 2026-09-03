@@ -4,7 +4,7 @@
 
 Every current Minnesota House and Senate member's profile page has two tabs:
 **Overview**, which is the page as it has always been, and **Campaign money**, which
-shows what that member's campaign raised and spent in a calendar year and who is named
+shows what that member's campaign reported raising and paying out in a calendar year and who is named
 as giving it.
 
 Built for [#1329](https://github.com/alethical-org/alethical/issues/1329). The rules it
@@ -194,15 +194,25 @@ we hold, which is why both get the same honest wording.
 
 Two figures, and they are different things:
 
-- **Total this committee reported to the state.** The committee's own report, with the
-  date it runs to stated underneath, and a link to the state's site where its filed
-  reports can be looked up by registration number.
+- **Donations this committee reported to the state.** The committee's own report, drawn
+  only when we hold its total. The date the report runs to, and the link to the state's
+  site where its filed reports can be looked up by registration number, sit once in a
+  filing stamp above the money-in and money-out blocks rather than under either figure:
+  one filing produces both, so stating it per figure would state one fact twice.
 - **Donations with a donor's name.** The state publishes a spreadsheet of the donations
   it required each committee to name. This is what that spreadsheet holds for the year,
-  with how many payments and the dates of the first and last one.
+  with the dates of the first and last payment. Always drawn: a real amount, or the words
+  "Not reported", never a blank.
+
+Both blocks, and the evidence block at the card's foot, are drawn by the same component
+the committee's own page uses (`apps/frontend/src/components/campaignMoney/MoneyCards.tsx`),
+so the 2 surfaces cannot word the same money differently. The 2 deliberate differences:
+the share of the reported donations that carry no name is printed here and not on the
+committee page, and the goods-and-services sentence names the row marker only on the
+committee page, whose lists carry it.
 
 **Donations with nobody's name on them** is the difference between the two, shown as a
-dollar figure and as a share. On a typical member roughly 4 dollars in 10 land here. The
+dollar figure and as a share, and never as a bar. On a typical member roughly 4 dollars in 10 land here. The
 sentence under it is fixed and says exactly this:
 
 > Minnesota only makes candidates name a donor once that donor has given more than $200

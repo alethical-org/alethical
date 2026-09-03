@@ -4,6 +4,15 @@ import Svg, { Path } from 'react-native-svg';
 
 import { SharePopover } from '../../components/billDetail/SharePopover';
 import { YearControl } from '../../components/campaignMoney/CampaignMoneyTab';
+import {
+  BOARD_VIEWER,
+  CardHeading,
+  CheckedByBlock,
+  Figure,
+  FilingStamp,
+  MoneyInBlock,
+  MoneyOutBlock,
+} from '../../components/campaignMoney/MoneyCards';
 import { UnderDevelopmentNotice } from '../../components/campaignMoney/UnderDevelopmentNotice';
 import { Skeleton } from '../../components/Skeleton';
 import type { CommitteeMoney } from '../../data/types';
@@ -49,14 +58,10 @@ import {
   IN_KIND_CHIP,
   listLinkNote,
   madeRowMeta,
+  MONEY_IN_HEADING,
+  MONEY_IN_REPORTED_LABEL,
   MONEY_OUT_FIGURE_LABEL,
-  MONEY_OUT_REPORTED_LABEL,
-  moneyOutKindLabel,
-  statedSpendingNote,
-  inKindDonationsNote,
-  inKindOutNote,
-  listedExceedsReported,
-  moneyOutNote,
+  MONEY_OUT_HEADING,
   notFoundBody,
   notFoundTitle,
   receivedRowMeta,
@@ -66,28 +71,17 @@ import {
   registerKindFromEntityType,
   registrationNumberFromSlug,
   showingLine,
+  stampThroughDate,
   staleHoldNote,
   NOT_IN_REGISTER_LINE,
   uncoveredPeriodDetail,
   uncoveredPeriodLine,
   unlistedReportsLine,
-  unnamedMoneyExplanation,
   whoseCommitteeText,
   yearDisplayState,
-  ZERO_REPORTED_NOTE,
   type CommitteeTab,
 } from '../../lib/committeeMoney';
-import {
-  campaignMoneyYear,
-  formatDay,
-  formatMoney,
-  matchCheckSentences,
-  moneyFigure,
-  paymentCountLabel,
-  reportedThroughLabel,
-  splitExplanation,
-  statedSplitNote,
-} from '../../lib/legislatorCampaignMoney';
+import { campaignMoneyYear, formatMoney } from '../../lib/legislatorCampaignMoney';
 import { centralDateLabel } from '../../lib/moneyLanding';
 import { publicPageUrl, type ShareContent } from '../../lib/share';
 import { useDocumentTitle } from '../../navigation/documentTitle';
@@ -122,9 +116,6 @@ import { theme as t } from '../../theme/tokens';
 
 const isWeb = Platform.OS === 'web';
 
-/** The Board's own lookup page. A search, not a per-committee address — a guessed
- *  deep link that lands on the wrong committee is worse than one extra step. */
-const BOARD_VIEWER = 'https://cfb.mn.gov/reports-and-data/viewers/campaign-finance/candidates/';
 const BOARD_REGISTER =
   'https://cfb.mn.gov/reports-and-data/self-help/data-downloads/campaign-finance/';
 
@@ -222,7 +213,7 @@ export function CommitteeMoneyScreen({ navigation, route }: RootScreenProps<'Com
                 </Text>
               </View>
             ) : (
-              <LoadingState />
+              <LoadingState isMobile={isMobile} />
             )
           ) : (
             <CommitteeBody
@@ -245,7 +236,7 @@ export function CommitteeMoneyScreen({ navigation, route }: RootScreenProps<'Com
   );
 }
 
-function LoadingState() {
+function LoadingState({ isMobile }: { isMobile: boolean }) {
   return (
     <View style={styles.loadingWrap}>
       <View role="status" aria-busy style={styles.hidden}>
@@ -254,7 +245,7 @@ function LoadingState() {
       <Skeleton width={180} height={13} />
       <Skeleton width={420} height={38} style={{ marginTop: 14 }} />
       <Skeleton width={260} height={16} style={{ marginTop: 12 }} />
-      <View style={styles.loadingCards}>
+      <View style={[styles.loadingCards, isMobile && styles.loadingCardsMobile]}>
         <View style={styles.card}>
           <Skeleton width={180} height={13} />
           <Skeleton width={240} height={34} />
@@ -377,12 +368,9 @@ function CommitteeBody({
         </Text>
         {/* What the person read, under the sentence saying they read it. A reader who
             arrived here rather than at a profile came asking whose committee this is,
-            so the evidence belongs on this page more than on that one. */}
-        {matchCheckSentences(money.confirmedFor?.checked).map((sentence) => (
-          <Text key={sentence} style={styles.whoseEvidence}>
-            {sentence}
-          </Text>
-        ))}
+            so the evidence belongs on this page more than on that one. The same block,
+            same treatment, as the profile's card foot. */}
+        <CheckedByBlock checked={money.confirmedFor?.checked} />
         {/* Only where a person confirmed it. The reader came to a money page, so
             the crossing lands on the member's money rather than their overview. */}
         {money.confirmedFor ? (
@@ -415,6 +403,7 @@ function CommitteeBody({
         checkedOn={checkedOn}
         isPartyUnit={isPartyUnit}
         isHoldingStale={isHoldingStale}
+        isMobile={isMobile}
       />
 
       <View style={[styles.cardsGrid, isMobile && styles.cardsGridMobile]}>
@@ -424,9 +413,10 @@ function CommitteeBody({
           year={year}
           isBallot={isBallot}
           otherYear={otherYear}
+          isMobile={isMobile}
           onSelectYear={onSelectYear}
         />
-        <MoneyOutCard money={money} state={state} isBallot={isBallot} />
+        <MoneyOutCard money={money} state={state} isBallot={isBallot} isMobile={isMobile} />
       </View>
 
       <PaymentsSection
@@ -466,6 +456,7 @@ function PeriodStamp({
   checkedOn,
   isPartyUnit,
   isHoldingStale,
+  isMobile,
 }: {
   money: CommitteeMoney;
   state: 'closed-empty' | 'empty-year' | 'figures';
@@ -473,7 +464,11 @@ function PeriodStamp({
   checkedOn: string | null;
   isPartyUnit: boolean;
   isHoldingStale: boolean;
+  isMobile: boolean;
 }) {
+  // The filing's period, identity and link live here, once, above both cards: one
+  // filing produces both, so stating any of it per card states one fact twice.
+  const through = stampThroughDate(money.split, money.moneyOut);
   let line: string | null;
   let detail: string;
   if (state === 'closed-empty') {
@@ -483,20 +478,23 @@ function PeriodStamp({
     line = uncoveredPeriodLine(year);
     detail = uncoveredPeriodDetail(year, checkedOn);
   } else {
-    line = coveredPeriodLine(money.split.reportedThrough, money.moneyIn.reportedPeriodStart);
-    detail = coveredPeriodDetail(money.split.reportedThrough, checkedOn, {
+    line = coveredPeriodLine(through, money.moneyIn.reportedPeriodStart);
+    detail = coveredPeriodDetail(through, checkedOn, {
       isPartyUnit,
       reportedPeriodStart: money.moneyIn.reportedPeriodStart,
     });
   }
   const covered = state === 'figures' && line !== null;
   return (
-    <View style={styles.stampCard}>
-      {line ? (
-        <Text style={covered ? styles.stampPeriod : styles.stampPeriodMuted}>{line}</Text>
-      ) : null}
-      <Text style={styles.stampDetail}>{detail}</Text>
-      {isHoldingStale ? <Text style={styles.stampDetail}>{staleHoldNote(checkedOn)}</Text> : null}
+    <View style={styles.stampWrap}>
+      <FilingStamp
+        line={line}
+        detail={detail}
+        notes={isHoldingStale ? [staleHoldNote(checkedOn)] : []}
+        showLink={state === 'figures' && through !== null}
+        covered={covered}
+        isMobile={isMobile}
+      />
     </View>
   );
 }
@@ -507,6 +505,7 @@ function MoneyInCard({
   year,
   isBallot,
   otherYear,
+  isMobile,
   onSelectYear,
 }: {
   money: CommitteeMoney;
@@ -514,20 +513,21 @@ function MoneyInCard({
   year: number;
   isBallot: boolean;
   otherYear: number;
+  isMobile: boolean;
   onSelectYear: (year: number) => void;
 }) {
-  const { split, moneyIn } = money;
   if (state !== 'figures') {
+    // The committee page's own 2 empty years, which the profile never reaches: a
+    // closed committee's final report we do not hold, and a year no filing covers.
     const closed = state === 'closed-empty';
     return (
       <View style={styles.card}>
-        <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
-          Money in
-        </Text>
+        <CardHeading surface="committee">{MONEY_IN_HEADING}</CardHeading>
         <Figure
-          label="Donations this committee reported to the state"
+          label={MONEY_IN_REPORTED_LABEL}
           value={closed ? CLOSED_EMPTY_VALUE : EMPTY_YEAR_VALUE}
           isFigure={false}
+          isMobile={isMobile}
         />
         <Text style={styles.explain}>
           {closed ? CLOSED_MONEY_IN_WHY : emptyYearMoneyInWhy(year)}
@@ -551,111 +551,16 @@ function MoneyInCard({
       </View>
     );
   }
-
-  const reported = formatMoney(split.reportedTotal);
-  const named = moneyFigure(moneyIn.state, split.namedTotal);
-  const unnamed = split.state === 'shown' ? formatMoney(split.unnamedTotal) : null;
-  // Only a real amount earns the goods-and-services line; a filed $0.00 of it is
-  // ordinary, not a caveat.
-  const inKind = Number(split.namedInKindTotal) > 0 ? formatMoney(split.namedInKindTotal) : null;
-  // A reported zero is a verified zero: the total draws as $0.00 and its own
-  // sentence carries the story, with no named/unnamed division of nothing.
-  const reportedZero =
-    split.state === 'shown' && Number(split.reportedTotal) === 0 && split.namedTotal === null;
-  const explanation = splitExplanation(split.state);
-  const checkNote = statedSplitNote(split.statedSplitState);
-
   return (
     <View style={styles.card}>
-      <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
-        Money in
-      </Text>
-
-      {reported ? (
-        <>
-          <Figure
-            label="Donations this committee reported to the state"
-            value={reported}
-            note={reportedThroughLabel(split.reportedThrough)}
-          />
-          <Text
-            style={styles.source}
-            {...externalLinkProps(BOARD_VIEWER, () => void Linking.openURL(BOARD_VIEWER))}
-          >
-            This committee’s filed reports, on the state’s own site
-          </Text>
-        </>
-      ) : (
-        <Figure
-          label="Donations this committee reported to the state"
-          value="Not reported"
-          isFigure={false}
-        />
-      )}
-
-      {reportedZero ? (
-        <Text style={styles.explain}>{ZERO_REPORTED_NOTE}</Text>
-      ) : (
-        <Figure
-          label="Donations with a donor’s name"
-          value={named.text}
-          isFigure={named.isFigure}
-        />
-      )}
-
-      {inKind ? <Text style={styles.explain}>{inKindDonationsNote(inKind, true)}</Text> : null}
-
-      {split.state === 'shown' && unnamed !== null && !reportedZero ? (
-        <>
-          <View style={styles.splitBar} aria-hidden>
-            <View
-              style={[
-                styles.splitBarFill,
-                {
-                  width: `${Math.min(
-                    100,
-                    Math.max(
-                      0,
-                      Math.round(
-                        (Number(split.namedCashTotal ?? 0) / Number(split.reportedTotal ?? 1)) *
-                          100,
-                      ),
-                    ),
-                  )}%`,
-                },
-              ]}
-            />
-          </View>
-          <Figure label="Donations with nobody’s name on them" value={unnamed} />
-          <Text style={styles.explain}>{unnamedMoneyExplanation(isBallot)}</Text>
-          {checkNote ? <Text style={styles.explain}>{checkNote}</Text> : null}
-        </>
-      ) : null}
-
-      {explanation ? <Text style={styles.explain}>{explanation}</Text> : null}
-
-      {moneyIn.otherReceipts.length ? (
-        <View style={styles.rows}>
-          <Text style={styles.rowsHead}>Not a donation</Text>
-          {moneyIn.otherReceipts.map((receipt) => (
-            <Row
-              key={receipt.receiptType}
-              label={receipt.receiptType}
-              value={formatMoney(receipt.total) ?? ''}
-              note={paymentCountLabel(receipt.payments)}
-            />
-          ))}
-        </View>
-      ) : null}
-
-      {moneyIn.sourceUrl ? (
-        <Text
-          style={styles.source}
-          {...externalLinkProps(moneyIn.sourceUrl, () => void Linking.openURL(moneyIn.sourceUrl!))}
-        >
-          Minnesota’s list of named donations
-        </Text>
-      ) : null}
+      <MoneyInBlock
+        surface="committee"
+        split={money.split}
+        moneyIn={money.moneyIn}
+        isBallot={isBallot}
+        stampThrough={stampThroughDate(money.split, money.moneyOut)}
+        isMobile={isMobile}
+      />
     </View>
   );
 }
@@ -664,23 +569,23 @@ function MoneyOutCard({
   money,
   state,
   isBallot,
+  isMobile,
 }: {
   money: CommitteeMoney;
   state: 'closed-empty' | 'empty-year' | 'figures';
   isBallot: boolean;
+  isMobile: boolean;
 }) {
-  const { moneyOut } = money;
   if (state !== 'figures') {
     const closed = state === 'closed-empty';
     return (
       <View style={styles.card}>
-        <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
-          Money out
-        </Text>
+        <CardHeading surface="committee">{MONEY_OUT_HEADING}</CardHeading>
         <Figure
           label={MONEY_OUT_FIGURE_LABEL}
           value={closed ? CLOSED_EMPTY_VALUE : EMPTY_YEAR_VALUE}
           isFigure={false}
+          isMobile={isMobile}
         />
         <Text style={styles.explain}>
           {closed ? CLOSED_MONEY_OUT_WHY : EMPTY_YEAR_MONEY_OUT_WHY}
@@ -688,66 +593,15 @@ function MoneyOutCard({
       </View>
     );
   }
-  const total = moneyFigure(moneyOut.state, moneyOut.itemizedPaymentTotal);
-  const reportedOut = formatMoney(moneyOut.reportedTotal);
-  const inKindOut = inKindOutNote(moneyOut.inKindTotal);
-  const spendingCheck = statedSpendingNote(moneyOut.statedSpendingState);
   return (
     <View style={styles.card}>
-      <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
-        Money out
-      </Text>
-      {reportedOut ? (
-        <Figure
-          label={MONEY_OUT_REPORTED_LABEL}
-          value={reportedOut}
-          note={reportedThroughLabel(moneyOut.reportedThrough)}
-        />
-      ) : null}
-      <Figure label={MONEY_OUT_FIGURE_LABEL} value={total.text} isFigure={total.isFigure} />
-      {/* Directly under the figure it qualifies, the same place money in draws its
-          own goods-and-services line, because a reader shown a payments total reads
-          all of it as cash the committee spent (#1894). Absent whenever the amount is
-          not above zero, which covers both a committee-year we hold no payment rows
-          for and one whose rows are all cash. */}
-      {inKindOut ? <Text style={styles.explain}>{inKindOut}</Text> : null}
-      <Text style={styles.explain}>
-        {moneyOutNote(
-          moneyOut.state,
-          isBallot,
-          reportedOut !== null,
-          Number(moneyOut.reportedTotal) === 0,
-          listedExceedsReported(moneyOut.reportedTotal, moneyOut.itemizedPaymentTotal),
-        )}
-      </Text>
-      {/* After the note it qualifies, not before it: the note above explains what the
-          2 figures are, and this one says whether anybody checked them against the
-          committee's own filing. Null on `agrees`, so a checked committee-year draws
-          exactly as it did (#1650). */}
-      {spendingCheck ? <Text style={styles.explain}>{spendingCheck}</Text> : null}
-      {moneyOut.byType.length ? (
-        <View style={styles.rows}>
-          {moneyOut.byType.map((entry) => (
-            <Row
-              key={entry.type}
-              label={moneyOutKindLabel(entry.type)}
-              value={formatMoney(entry.total) ?? ''}
-              note={paymentCountLabel(entry.payments)}
-            />
-          ))}
-        </View>
-      ) : null}
-      {moneyOut.sourceUrl ? (
-        <Text
-          style={styles.source}
-          {...externalLinkProps(
-            moneyOut.sourceUrl,
-            () => void Linking.openURL(moneyOut.sourceUrl!),
-          )}
-        >
-          Minnesota’s list of payments out
-        </Text>
-      ) : null}
+      <MoneyOutBlock
+        surface="committee"
+        moneyOut={money.moneyOut}
+        isBallot={isBallot}
+        stampThrough={stampThroughDate(money.split, money.moneyOut)}
+        isMobile={isMobile}
+      />
     </View>
   );
 }
@@ -1099,38 +953,6 @@ function FilingsList({ registrationNumber }: { registrationNumber: string }) {
   );
 }
 
-function Figure({
-  label,
-  value,
-  note,
-  isFigure = true,
-}: {
-  label: string;
-  value: string;
-  note?: string | null;
-  isFigure?: boolean;
-}) {
-  return (
-    <View style={styles.figure}>
-      <Text style={styles.figureLabel}>{label}</Text>
-      <Text style={isFigure ? styles.figureValue : styles.figureStandIn}>{value}</Text>
-      {note ? <Text style={styles.figureNote}>{note}</Text> : null}
-    </View>
-  );
-}
-
-function Row({ label, value, note }: { label: string; value: string; note?: string | null }) {
-  return (
-    <View style={styles.row}>
-      <Text style={styles.rowLabel}>
-        {label}
-        {note ? <Text style={styles.rowNote}> · {note}</Text> : null}
-      </Text>
-      <Text style={styles.rowValue}>{value}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   page: { flexGrow: 1 },
   main: { paddingTop: 28, paddingBottom: 64, gap: 0 },
@@ -1169,13 +991,6 @@ const styles = StyleSheet.create({
     color: t.colors.text.primary,
   },
   h1Mobile: { fontSize: 30, lineHeight: 36 },
-  h2: {
-    fontFamily: t.typography.title,
-    fontSize: 21,
-    fontWeight: t.fontWeights.heavy,
-    letterSpacing: -0.2,
-    color: t.colors.text.primary,
-  },
   h3: {
     fontFamily: t.typography.title,
     fontSize: 19,
@@ -1232,15 +1047,6 @@ const styles = StyleSheet.create({
     lineHeight: 23,
     color: t.colors.text.secondary,
   },
-  // A step down from the sentence above it: the reader needs the claim first and the
-  // evidence second, and 4 lines at body size would outweigh the money on the page.
-  whoseEvidence: {
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.small,
-    lineHeight: 20,
-    color: t.colors.text.muted,
-    marginTop: 6,
-  },
   yearRow: { marginTop: 20, flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
   yearLabel: {
     fontFamily: t.typography.mono,
@@ -1249,36 +1055,10 @@ const styles = StyleSheet.create({
     letterSpacing: 1.3,
     color: t.colors.text.muted,
   },
-  stampCard: {
-    marginTop: 20,
-    backgroundColor: t.colors.surfaces.s100,
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink08,
-    borderRadius: t.radii.lg,
-    padding: 18,
-    gap: 8,
-  },
-  stampPeriod: {
-    fontFamily: t.typography.mono,
-    fontSize: 12,
-    fontWeight: t.fontWeights.bold,
-    letterSpacing: 0.9,
-    color: t.colors.brand.base,
-  },
-  stampPeriodMuted: {
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.bodyLg,
-    fontWeight: t.fontWeights.bold,
-    color: t.colors.text.secondary,
-  },
-  stampDetail: {
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.body,
-    lineHeight: 22,
-    color: t.colors.text.secondary,
-    maxWidth: 1000,
-  },
-  cardsGrid: { marginTop: 24, flexDirection: 'row', gap: 22, alignItems: 'stretch' },
+  stampWrap: { marginTop: 20 },
+  // `flex-start`, never `stretch`: each card is as tall as its own data and is never
+  // levelled against its neighbour. Money out holds fewer elements and looks it.
+  cardsGrid: { marginTop: 24, flexDirection: 'row', gap: 22, alignItems: 'flex-start' },
   cardsGridMobile: { flexDirection: 'column' },
   card: {
     flex: 1,
@@ -1302,60 +1082,6 @@ const styles = StyleSheet.create({
     fontSize: t.fontSizes.body,
     lineHeight: 22,
     color: t.colors.text.secondary,
-  },
-  figure: { gap: 2 },
-  figureLabel: {
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.body,
-    color: t.colors.text.secondary,
-  },
-  figureValue: {
-    fontFamily: t.typography.title,
-    fontSize: 30,
-    fontWeight: t.fontWeights.heavy,
-    letterSpacing: -0.5,
-    color: t.colors.text.primary,
-  },
-  figureStandIn: {
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.bodyLg,
-    color: t.colors.text.muted,
-  },
-  figureNote: {
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.meta,
-    color: t.colors.text.muted,
-    lineHeight: 18,
-  },
-  rows: { gap: 8, marginTop: 4 },
-  rowsHead: {
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.meta,
-    color: t.colors.text.muted,
-  },
-  splitBar: {
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: '#e6e9e7',
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink08,
-    overflow: 'hidden',
-    flexDirection: 'row',
-  },
-  splitBarFill: { height: '100%', backgroundColor: t.colors.brand.graphics },
-  row: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: 12 },
-  rowLabel: {
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.body,
-    color: t.colors.text.primary,
-    flexShrink: 1,
-  },
-  rowNote: { color: t.colors.text.muted, fontSize: t.fontSizes.meta },
-  rowValue: {
-    fontFamily: t.typography.body,
-    fontSize: t.fontSizes.body,
-    fontWeight: t.fontWeights.bold,
-    color: t.colors.text.primary,
   },
   source: {
     fontFamily: t.typography.body,
@@ -1584,6 +1310,7 @@ const styles = StyleSheet.create({
   notFoundWrap: { marginTop: 22, maxWidth: 760 },
   loadingWrap: { marginTop: 22 },
   loadingCards: { marginTop: 24, flexDirection: 'row', gap: 22 },
+  loadingCardsMobile: { flexDirection: 'column' },
   hidden: {
     position: 'absolute',
     width: 1,

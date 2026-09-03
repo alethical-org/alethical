@@ -595,6 +595,10 @@ export interface CampaignCommitteeMoney {
     itemizedContributionTotal: string | null;
     itemizedContributionPayments: number | null;
     otherReceipts: { receiptType: string; total: string; payments: number }[];
+    /** The period start the Board's own transcribed disclosure calendars print
+     *  against this filing's period end — never an assumed 1 January. Null is
+     *  the covers-through state, not a fault. */
+    reportedPeriodStart: string | null;
     sourceUrl: string | null;
   } | null;
   moneyOut: {
