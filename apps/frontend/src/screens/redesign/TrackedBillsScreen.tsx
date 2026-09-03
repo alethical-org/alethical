@@ -8,15 +8,27 @@ import { IaItem, MenuKey } from '../../navigation/ia';
 import { useAuth } from '../../providers/AuthProvider';
 import { useSignInModal } from '../../providers/signInModalContext';
 import { useResponsive } from '../../hooks/useResponsive';
-import { useTrackedBills } from '../../hooks/useAppQueries';
+import { useTrackedBills, useTrackedCommittees } from '../../hooks/useAppQueries';
 import { useTrackedBillsLastVisit } from '../../hooks/useTrackedBillsLastVisit';
 import { useBillTracking } from '../../hooks/useBillTracking';
 import { SearchPageShell } from '../../components/search/searchPieces';
 import { BillResultCard } from '../../components/search/BillResultCard';
+import { TrackedCommitteeCard } from '../../components/tracked/TrackedCommitteeCard';
 import { Skeleton } from '../../components/Skeleton';
 import { isWeb, useHover } from '../../components/billDetail/interactions';
 import { isHotIssueBill } from '../../lib/hotIssues';
 import { lastVisitFrom } from '../../lib/trackedBillsLastVisit';
+import {
+  COMMITTEES_HEADING,
+  KIND_LABEL_BILL,
+  LOADING_TRACKED,
+  NOTHING_TRACKED_YET,
+  TRACKED_SUBHEAD,
+  TRACKED_TITLE,
+  TRACKED_UNAVAILABLE,
+  hasNothingTracked,
+  trackedCommitteeSlug,
+} from '../../lib/trackedPage';
 import {
   groupTrackedBillsByChange,
   mostRecentChangeLabel,
@@ -30,6 +42,15 @@ const SKELETON_ROWS = [0, 1, 2];
 // rest of the web app — the old sidebar-rail TrackedScreen was the last surface on
 // the pre-redesign shell (#976, part 2). Same shell + BillResultCard as Search, so
 // the now-live Track button toggles a bill straight off this list.
+//
+// Two lists since #1943. Bills keep their moved / no-change grouping, because a
+// bill's own record lets the page compute what moved since the reader's last
+// visit. Followed committees get their own list under COMMITTEES YOU FOLLOW and
+// never enter that grouping: following a committee is a bookmark, nothing computes
+// whether its filings moved, and filing one under NO CHANGE would claim a check
+// nobody performs. If filings ever notify, committees join the grouping and the
+// third list dissolves — a move, not a redesign. Every fixed sentence on this page
+// comes from lib/trackedPage.ts.
 export function TrackedBillsScreen() {
   const navigation = useNavigation<any>();
   const { isSignedIn, user } = useAuth();
@@ -40,6 +61,8 @@ export function TrackedBillsScreen() {
 
   const trackedQuery = useTrackedBills(user?.id);
   const bills = trackedQuery.data ?? [];
+  const committeesQuery = useTrackedCommittees(user?.id);
+  const committees = committeesQuery.data ?? [];
   // When this reader last opened the page. Held for the whole browser session, so
   // reloading does not erase what changed (hooks/useTrackedBillsLastVisit).
   const lastVisitQuery = useTrackedBillsLastVisit(user?.id);
@@ -93,16 +116,16 @@ export function TrackedBillsScreen() {
         aria-level={1}
         style={[styles.h1, isMobile && styles.h1Mobile]}
       >
-        Tracked bills
+        {TRACKED_TITLE}
       </Text>
       {/* No "tap Track to add or remove" instruction any more: the ✓ Tracked button
           is now on every card on both surfaces, so the sentence labelled something
-          already visible. The empty state still explains how to add a first bill.
-          Nothing here promises a message — the product cannot send one (#36), and
-          this page is the whole delivery mechanism. */}
-      <Text style={styles.subhead}>
-        The bills you’re following. Anything that moves in the official record shows up here.
-      </Text>
+          already visible. Nothing here promises a message — the product cannot send
+          one (#36), and this page is the whole delivery mechanism. The old second
+          clause, "anything that moves in the official record shows up here", is gone
+          with #1943: a committee's filings are moves in that record and will NOT show
+          up, so the sentence would promise watching the page does not do. */}
+      <Text style={styles.subhead}>{TRACKED_SUBHEAD}</Text>
     </View>
   );
 
@@ -120,30 +143,30 @@ export function TrackedBillsScreen() {
     // The comparison point is part of the page's answer, not a decoration, so the
     // list waits for it too. Rendering the bills first would show "first visit" or
     // an unlabeled list and then rearrange under the reader.
-  } else if (trackedQuery.isLoading || lastVisitQuery.isLoading) {
+  } else if (trackedQuery.isLoading || lastVisitQuery.isLoading || committeesQuery.isLoading) {
     body = (
-      <View style={styles.list} accessible accessibilityLabel="Loading tracked bills">
+      <View style={styles.list} accessible accessibilityLabel={LOADING_TRACKED}>
         {SKELETON_ROWS.map((i) => (
           <Skeleton key={i} width="100%" height={148} radius={t.radii.card} />
         ))}
       </View>
     );
-  } else if (trackedQuery.error) {
+  } else if (trackedQuery.error || committeesQuery.error) {
+    // Either list failing blanks the page rather than showing the other alone: a
+    // half list looks exactly like a whole one, and this page's only job is to say
+    // what the reader saved.
     body = (
       <View style={styles.stateBox}>
-        <Text style={styles.stateText}>
-          We couldn’t load your tracked bills right now. Please try again in a moment.
-        </Text>
+        <Text style={styles.stateText}>{TRACKED_UNAVAILABLE}</Text>
       </View>
     );
-  } else if (bills.length === 0) {
+  } else if (hasNothingTracked(bills.length, committees.length)) {
+    // One sentence, no heading and no button (drawn that way): it promises that a
+    // saved thing stays on this list, never that anyone will be told anything.
     body = (
-      <EmptyCard
-        heading="You’re not tracking any bills yet"
-        body="Find a bill in search and tap Track. It shows up here, and anything that moves shows up with it."
-        ctaLabel="Search bills"
-        onPress={() => navigation.navigate('Bills')}
-      />
+      <View style={styles.card}>
+        <Text style={styles.cardBody}>{NOTHING_TRACKED_YET}</Text>
+      </View>
     );
   } else {
     const card = (bill: (typeof bills)[number], change?: MovedChange) => (
@@ -159,6 +182,9 @@ export function TrackedBillsScreen() {
         }
         tracked={isTracked(bill.id)}
         onToggleTrack={() => toggleTrack(bill.id)}
+        // The kind label is on for this page only: the other 5 places this card
+        // draws hold bills alone (#1943).
+        kindLabel={KIND_LABEL_BILL}
         onPress={() => navigation.navigate('BillDetail', { billId: bill.id })}
         onSponsorPress={(legislatorId) =>
           navigation.navigate('LegislatorProfile', { legislatorId })
@@ -167,24 +193,52 @@ export function TrackedBillsScreen() {
       />
     );
 
+    // The committee list: its own heading, never inside the bills' grouping, and
+    // only when there is one to draw. Order is the server's, newest-followed first.
+    const committeeList =
+      committees.length > 0 ? (
+        <>
+          <View style={[styles.divider, bills.length === 0 && styles.dividerFirst]}>
+            <Text style={styles.dividerLabel}>{COMMITTEES_HEADING}</Text>
+            <View style={styles.dividerRule} />
+          </View>
+          <View style={styles.listAfterDivider}>
+            {committees.map((committee) => (
+              <TrackedCommitteeCard
+                key={committee.registrationNumber}
+                committee={committee}
+                onPress={() =>
+                  navigation.navigate('CommitteeMoney', { slug: trackedCommitteeSlug(committee) })
+                }
+              />
+            ))}
+          </View>
+        </>
+      ) : null;
+
     body = (
       <>
-        <View style={styles.summary}>
-          <View style={styles.countRow}>
-            <Text style={styles.count}>{bills.length}</Text>
-            <Text style={styles.countNoun}>{bills.length === 1 ? 'bill' : 'bills'}</Text>
-          </View>
-          {/* No caption at all when we never learned when they last looked. A
-              glyph and a sentence would both be claims we cannot ground. */}
-          {summaryLine ? (
-            <View style={styles.summaryRow}>
-              {moved.length > 0 ? <TrendGlyph /> : <ClockGlyph />}
-              <Text style={styles.summaryText}>{summaryLine}</Text>
+        {/* The count and its dated caption speak for the bills alone — the moved /
+            no-change comparison is a bills-only fact — so they draw only when there
+            are bills to count. */}
+        {bills.length > 0 ? (
+          <View style={styles.summary}>
+            <View style={styles.countRow}>
+              <Text style={styles.count}>{bills.length}</Text>
+              <Text style={styles.countNoun}>{bills.length === 1 ? 'bill' : 'bills'}</Text>
             </View>
-          ) : null}
-        </View>
+            {/* No caption at all when we never learned when they last looked. A
+                glyph and a sentence would both be claims we cannot ground. */}
+            {summaryLine ? (
+              <View style={styles.summaryRow}>
+                {moved.length > 0 ? <TrendGlyph /> : <ClockGlyph />}
+                <Text style={styles.summaryText}>{summaryLine}</Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
 
-        {moved.length > 0 ? (
+        {bills.length === 0 ? null : moved.length > 0 ? (
           <>
             {/* The moved group carries NO header. The caption above already says how
                 many moved and since when, and each card states its own "MOVED
@@ -206,6 +260,8 @@ export function TrackedBillsScreen() {
           // empty-state framing. This is the common case, not a failure.
           <View style={styles.list}>{unchanged.map((bill) => card(bill))}</View>
         )}
+
+        {committeeList}
       </>
     );
   }
@@ -354,6 +410,8 @@ const styles = StyleSheet.create({
   },
   // The page's only group header: where the unchanged bills begin.
   divider: { marginTop: 26, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  // The committee heading directly under the hero, when no bill is tracked.
+  dividerFirst: { marginTop: 8 },
   dividerLabel: {
     fontFamily: t.typography.mono,
     fontSize: t.fontSizes.label,

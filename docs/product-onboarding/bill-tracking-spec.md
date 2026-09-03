@@ -1,6 +1,6 @@
 # Bill tracking interaction spec
 
-<!-- describes: apps/frontend/src/components/billDetail/BillTrackButton.tsx, apps/frontend/src/components/billDetail/TrackedListUnavailableNotice.tsx, apps/frontend/src/components/search/BillResultCard.tsx, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, apps/frontend/src/hooks/useBillTracking.ts, apps/frontend/src/lib/billCardControlLayers.ts, apps/frontend/src/lib/signIn.ts, apps/frontend/src/lib/trackIntent.ts, apps/frontend/src/lib/trackReturn.ts, apps/frontend/src/navigation/types.ts, apps/frontend/src/providers/SignInModalProvider.tsx, apps/frontend/src/providers/TrackedBillWriteProvider.tsx, apps/frontend/src/providers/trackedBillWriteContext.ts, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileWebScreen.tsx -->
+<!-- describes: apps/frontend/src/components/billDetail/BillTrackButton.tsx, apps/frontend/src/components/billDetail/TrackedListUnavailableNotice.tsx, apps/frontend/src/components/search/BillResultCard.tsx, apps/frontend/src/data/api.ts, apps/frontend/src/hooks/useAppQueries.ts, apps/frontend/src/hooks/useBillTracking.ts, apps/frontend/src/lib/billCardControlLayers.ts, apps/frontend/src/lib/signIn.ts, apps/frontend/src/lib/trackIntent.ts, apps/frontend/src/lib/trackReturn.ts, apps/frontend/src/navigation/types.ts, apps/frontend/src/providers/SignInModalProvider.tsx, apps/frontend/src/providers/TrackedBillWriteProvider.tsx, apps/frontend/src/providers/trackedBillWriteContext.ts, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileWebScreen.tsx, apps/frontend/src/screens/redesign/TrackedBillsScreen.tsx, apps/frontend/src/components/tracked/TrackedCommitteeCard.tsx, apps/frontend/src/lib/trackedPage.ts, apps/frontend/src/hooks/useCommitteeTracking.ts -->
 
 Status: shipped behavior. The sign-in dialog's flows, states and copy are documented in
 `docs/product-onboarding/sign-in-guide.md`; this document owns the Track interaction that
@@ -10,7 +10,7 @@ opens it.
 
 `BillTrackButton` is the one Track control on the bill page, Search cards, Home bill
 activity, `bill_text` and `topic_bills` answer pages, legislator-profile bill cards,
-and the tracked-bills list. Every surface uses the same states and behavior.
+and the Tracked page. Every surface uses the same states and behavior.
 
 - Untracked is the black `#11150f` button with white `+ Track`; tracked is the mint
   `✓ Tracked` form. It is one toggle with a 44px minimum target.
@@ -64,3 +64,35 @@ features still work. The layers are fixed and shared:
 This applies to Search, Home, both answer-card types, legislator profiles, and the tracked
 list. A Track press must leave the URL unchanged. Author and vote links may navigate only
 to their own stated target, never to the surrounding bill link.
+
+## The Tracked page: two lists
+
+`/tracked` (`TrackedBillsScreen.tsx`) is where everything a signed-in reader saved
+lives. The h1 reads **Tracked**, the line under it **What you are following**, and the
+page holds 2 lists ([#1943](https://github.com/alethical-org/alethical/issues/1943)):
+
+- **Bills**, grouped into what moved since the reader's last visit and, under a
+  `NO CHANGE` divider, what did not. The count and its dated caption above the list
+  speak for the bills alone. Each bill card is the shared `BillResultCard` with its
+  Tracked-only kind label `BILL` before the code badge; the other 5 places that card
+  draws (search results, the signed-out home feed twice, the Ask answer page twice)
+  never show the label, because those lists hold one kind.
+- **Committees**, under the heading `COMMITTEES YOU FOLLOW`, one card per followed
+  committee (`TrackedCommitteeCard.tsx`): the kind label `COMMITTEE`, the registration
+  number, the committee's name as the Board's register spells it, and a line naming its
+  kind and, for a candidate committee, the seat it registered for ("Candidate
+  committee · Senate District 55"). The card links to the committee's money page.
+
+A committee never sits inside the bills' grouping, and never under `NO CHANGE`.
+Following a committee is a bookmark: nothing notifies anybody, and nothing computes
+whether a committee's filings moved, so filing it under "no change" would claim a
+check nobody performs. If filings ever notify, committees join the grouping and the
+third list dissolves.
+
+Signed in with nothing saved, the page shows one sentence: **Nothing tracked yet.
+Track a bill or a committee and it stays on this list.** It promises that a saved thing
+stays on the list and never that anyone will be told anything. Signed out, the page
+shows the sign-in card as before. Every fixed sentence on the page lives in
+`apps/frontend/src/lib/trackedPage.ts` and is pinned by its test.
+
+The account menu's Tracked Bills row and its count still speak for bills alone.

@@ -757,6 +757,26 @@ export interface CommitteeRegisterEntry {
   asOf: string | null;
 }
 
+/** One campaign committee a signed-in reader follows (GET /me/tracked-committees,
+ *  #1943). A bookmark: nothing here says whether the committee changed, because
+ *  nothing computes that, and the Tracked page never claims it did or did not. */
+export interface TrackedCommittee {
+  registrationNumber: string;
+  /** ISO timestamp of the follow. Never changes, so the list order is stable. */
+  trackedAt: string;
+  /** The name the current download carries, when the release names the committee. */
+  committeeName: string | null;
+  /** The Board's filer-kind code on the money rows (PCC / PTU / PCF), or null. */
+  entityType: string | null;
+  /** The Board's sub-type code (CAU a caucus, BC/BF a ballot-question filer). */
+  entitySubType: string | null;
+  /** What our copy of the Board's register says about this number. */
+  register: Pick<
+    CommitteeRegisterEntry,
+    'state' | 'kind' | 'name' | 'office' | 'district' | 'terminationDate'
+  >;
+}
+
 /** One committee's money for one year (GET /committees/{n}/finance), keyed on the
  *  registration number — the identity, since names collide and numbers do not. */
 /** Who a committee has been confirmed to belong to, and where their money lives. */

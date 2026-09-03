@@ -471,7 +471,7 @@ Native iOS and Android apps are **not built yet** ([#91](https://github.com/alet
 - Legislator profile
 - Find my legislator
 - User account
-- Tracked bills
+- Tracked (bills and followed campaign committees)
 - Chat
 
 ### Web

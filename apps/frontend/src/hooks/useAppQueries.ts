@@ -41,10 +41,12 @@ import {
   listPolicyAreasFromApi,
   listSessionsFromApi,
   listTrackedBillsFromApi,
+  listTrackedCommitteesFromApi,
   lookupRepresentativeFromApi,
   suggestRepresentativeAddressesFromApi,
   sendChatMessageToApi,
   setTrackedBillFromApi,
+  setTrackedCommitteeFromApi,
 } from '../data/api';
 import {
   getNotificationPreference,
@@ -703,6 +705,49 @@ export function useSetTrackedBill(userId?: string) {
     mutationFn: ({ billId, tracked }: { billId: string; tracked: boolean }) =>
       setTrackedBillFromApi(accessToken ?? '', billId, tracked),
     onSuccess: refreshTrackedBills,
+  });
+}
+
+/**
+ * The committees this reader follows (#1943). One shared query, like the bill
+ * list, so the Tracked page and every Track control on a committee page read one
+ * truth and a single write refreshes all of them.
+ */
+export function useTrackedCommittees(userId?: string) {
+  const { accessToken } = useAuth();
+
+  return useQuery({
+    queryKey: ['tracked-committees', userId ?? 'anon'],
+    queryFn: () => listTrackedCommitteesFromApi(accessToken ?? ''),
+    enabled: Boolean(userId && accessToken),
+    retry: false,
+  });
+}
+
+export function useRefreshTrackedCommittees(userId?: string) {
+  const queryClient = useQueryClient();
+
+  return useCallback(() => {
+    void queryClient.invalidateQueries({
+      queryKey: ['tracked-committees', userId ?? 'anon'],
+      refetchType: 'all',
+    });
+  }, [queryClient, userId]);
+}
+
+export function useSetTrackedCommittee(userId?: string) {
+  const { accessToken } = useAuth();
+  const refresh = useRefreshTrackedCommittees(userId);
+
+  return useMutation({
+    mutationFn: ({
+      registrationNumber,
+      tracked,
+    }: {
+      registrationNumber: string;
+      tracked: boolean;
+    }) => setTrackedCommitteeFromApi(accessToken ?? '', registrationNumber, tracked),
+    onSuccess: refresh,
   });
 }
 
