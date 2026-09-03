@@ -62,8 +62,14 @@ export function OutsideSpendingCard({
   const { isMobile } = useResponsive();
   const sourceUrl = outsideSpendingSourceUrl(years);
   const fetchedOn = outsideSpendingFetchedOn(years);
-  // Today every legislator hits this: no committee link is confirmed, so both years
-  // give the same answer and 2 year headings would imply the years were the question.
+  // One sentence rather than 2 identical ones, for a member whose years give the same
+  // answer: 2 year headings over 1 repeated reason imply the years were the question
+  // when the reason holds for every year there will ever be.
+  //
+  // No sitting member reaches this today. All 200 have a confirmed committee and every
+  // one of their years reads `reported` (measured on production 2 Sep 2026), so what a
+  // reader meets here is a figure or a checked zero. It stays because a confirmation can
+  // be withdrawn (#1902) and a download can go stale, either of which brings it back.
   const sharedReason = outsideSpendingSharedReason(years);
   return (
     <View style={[styles.card, isMobile && styles.cardMobile]}>
