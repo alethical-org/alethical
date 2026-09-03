@@ -61,8 +61,11 @@ sending anyone to. What a person sees is unchanged.
 
 Top to bottom:
 
-1. **Title and one sentence** saying what the record is: every contribution and expenditure
-   Minnesota publishes for state campaigns.
+1. **Title and one sentence** saying what the record is: "Every donation and payment
+   Minnesota publishes for state campaigns, searchable by the name it was filed under". It
+   says donation and payment, never the filing system's "contribution and expenditure",
+   because "expenditure" is the one word the rest of the section avoids for money out and
+   this is the first sentence a reader meets (ruled 2 Sep 2026).
 2. **A working search box.** Type a name and press Enter or the Search button, and it opens
    the results page. It commits on Enter rather than as you type, because every search has
    its own address and a search that ran per keystroke would leave a browser history entry
@@ -75,7 +78,8 @@ Top to bottom:
 3. **What we found** — the research lane, first in prominence. It links to the `/read`
    page, showing the newest piece's title, standfirst and dates. With nothing published it
    says "Nothing is published yet" and counts "0 RESEARCH PIECES PUBLISHED" honestly.
-4. **Three lane cards, and all 3 open something**: Legislators (links to the legislator
+4. **Three lane cards, and all 3 open something**, each with an arrow beside its title and
+   its live count in green at the foot: Legislators (links to the legislator
    directory — a member's money is a tab on the profile they already have), Committees
    (links to the register's own list at `/money/committees`), and Who got paid, which opens
    the name search. **That last lane is a search rather than a list, and its card says so.**
@@ -94,7 +98,11 @@ Top to bottom:
    not be named" (the $200 test is on a donor's yearly total, never on one gift's size, and
    it is the point at which a name becomes required rather than a line below which nobody is
    named — [#1755](https://github.com/alethical-org/alethical/issues/1755)).
-   The block holds only those three permanent source gaps. **Lobbying is deliberately not
+   The block closes with "These are properties of the record itself, not gaps we can close",
+   and it holds only those three permanent source gaps. The confirmed-member count is stated
+   once on the page, in the Legislators lane, and not repeated here (copy rule A, 1 Sep 2026).
+   On a computer (768px and wider) this block sits beside the files-last-copied block; on a
+   phone the two stack. **Lobbying is deliberately not
    among them** (ruled 1 Sep 2026, campaign-money design round 4): its absence is ours to
    close rather than a hole in what Minnesota publishes, and the red under-development
    strip at the top of this same page already names it — so a fourth line here would state
@@ -113,7 +121,9 @@ served renders nothing rather than a number:
   pages prints as its Minnesota (Central time) day, so an instant recorded just after
   midnight UTC reads as the evening it was in Minnesota.
 - The **most recent completed filing period** — the newest filed reports, never an amount.
-  A row shows the day the Board received the report where the report itself says so, and
+  Each row is the filer's name, the report and the period it covers, and "FILED <date>" in
+  its own column on a computer or as a third line on a phone; a row never loses a field at
+  phone width. A row shows the day the Board received the report where the report itself says so, and
   shows no date at all where it does not, which is most reports: the Board only publishes
   the document that carries the date from 2023 onwards, and a few of those are picture
   scans nothing can read ([issue #1670](https://github.com/alethical-org/alethical/issues/1670)).
