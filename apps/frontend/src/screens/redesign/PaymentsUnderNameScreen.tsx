@@ -1,6 +1,7 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
+import { MoneyListRow, MoneyListRows } from '../../components/campaignMoney/MoneyListRows';
 import { UnderDevelopmentNotice } from '../../components/campaignMoney/UnderDevelopmentNotice';
 import { Skeleton } from '../../components/Skeleton';
 import { usePaymentsUnderName } from '../../hooks/useAppQueries';
@@ -120,6 +121,7 @@ export function PaymentsUnderNameScreen({
       <PageBackground>
         <ScrollView contentContainerStyle={styles.page}>
           <TopNav onHome={() => navigation.navigate('Tabs', { screen: 'Home' })} />
+          <UnderDevelopmentNotice />
           <Container style={[styles.main, isMobile && styles.mainMobile]}>
             <View style={styles.card}>
               <Text accessibilityRole="header" aria-level={1} style={styles.h3}>
@@ -177,15 +179,17 @@ export function PaymentsUnderNameScreen({
               <View role="status" aria-busy style={styles.hidden}>
                 <Text>Loading these payments</Text>
               </View>
-              {[0, 1, 2, 3, 4, 5].map((index) => (
-                <View key={index} style={styles.listRow}>
-                  <View style={styles.listRowText}>
-                    <Skeleton width={`${[58, 72, 44, 66, 52, 38][index]}%`} height={14} />
-                    <Skeleton width={200} height={11} style={{ marginTop: 8 }} />
-                  </View>
-                  <Skeleton width={96} height={11} />
-                </View>
-              ))}
+              <MoneyListRows isMobile={isMobile}>
+                {[0, 1, 2, 3, 4, 5].map((index) => (
+                  <MoneyListRow key={index} isMobile={isMobile} first={index === 0}>
+                    <View style={styles.listRowText}>
+                      <Skeleton width={`${[58, 72, 44, 66, 52, 38][index]}%`} height={14} />
+                      <Skeleton width={200} height={11} style={{ marginTop: 8 }} />
+                    </View>
+                    {isMobile ? null : <Skeleton width={96} height={11} />}
+                  </MoneyListRow>
+                ))}
+              </MoneyListRows>
             </View>
           ) : list.isError && rows.length === 0 ? (
             <View style={styles.card}>
@@ -292,8 +296,12 @@ function PaymentRows({
         <Text style={styles.listSort}>{ORDERED_NEWEST_FIRST}</Text>
       </View>
 
-      <View style={styles.listRows}>
-        {shaped.map((row) => {
+      {/* Card rows at computer width, hairline rows inside one card on the phone
+          (MoneyListRows). On the phone the date and the amount go under the name
+          as a third line, left-aligned: once each amount sits under its own name
+          there is no column to compare down (phone band rule D2). */}
+      <MoneyListRows isMobile={isMobile}>
+        {shaped.map((row, index) => {
           const inner = (
             <>
               <View style={styles.listRowText}>
@@ -321,27 +329,26 @@ function PaymentRows({
               )}
             </>
           );
-          if (row.linkNumber) {
-            const targetSlug = committeeSlug(row.linkName, row.linkNumber);
-            return (
-              <Pressable
-                key={row.key}
-                {...linkProps(routePath.moneyCommittee(targetSlug), () =>
-                  navigation.push('CommitteeMoney', { slug: targetSlug }),
-                )}
-                style={styles.listRow}
-              >
-                {inner}
-              </Pressable>
-            );
-          }
+          const targetSlug = row.linkNumber ? committeeSlug(row.linkName, row.linkNumber) : null;
           return (
-            <View key={row.key} style={styles.listRow}>
+            <MoneyListRow
+              key={row.key}
+              isMobile={isMobile}
+              first={index === 0}
+              link={
+                targetSlug
+                  ? {
+                      href: routePath.moneyCommittee(targetSlug),
+                      onPress: () => navigation.push('CommitteeMoney', { slug: targetSlug }),
+                    }
+                  : null
+              }
+            >
               {inner}
-            </View>
+            </MoneyListRow>
           );
         })}
-      </View>
+      </MoneyListRows>
 
       {hasNextPage ? (
         <View style={styles.capCard}>
@@ -433,8 +440,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.9,
     color: t.colors.text.muted,
   },
-  listRows: { marginTop: 12, gap: 9 },
-  listLoading: { marginTop: 26, gap: 9 },
+  listLoading: { marginTop: 14 },
   hidden: {
     position: 'absolute',
     width: 1,
@@ -442,18 +448,6 @@ const styles = StyleSheet.create({
     margin: -1,
     padding: 0,
     overflow: 'hidden',
-  },
-  listRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-    backgroundColor: t.colors.surfaces.base,
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink08,
-    borderRadius: t.radii.md,
-    paddingVertical: 15,
-    paddingHorizontal: 17,
-    ...(t.shadows.card as object),
   },
   listRowText: { flex: 1, minWidth: 0 },
   listNameRow: { flexDirection: 'row', alignItems: 'center', gap: 10, flexWrap: 'wrap' },
@@ -505,11 +499,12 @@ const styles = StyleSheet.create({
     color: t.colors.text.primary,
   },
   listBottomRow: {
-    marginTop: 8,
+    marginTop: 6,
     flexDirection: 'row',
     alignItems: 'baseline',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-start',
     gap: 12,
+    flexWrap: 'wrap',
   },
   listDateMobile: {
     fontFamily: t.typography.mono,
@@ -549,6 +544,8 @@ const styles = StyleSheet.create({
   },
   capActions: { marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 14 },
   capButton: {
+    minHeight: 44,
+    justifyContent: 'center',
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
     borderColor: t.colors.alpha.ink16,
@@ -597,6 +594,8 @@ const styles = StyleSheet.create({
   primaryButton: {
     alignSelf: 'flex-start',
     marginTop: 4,
+    minHeight: 44,
+    justifyContent: 'center',
     backgroundColor: t.colors.text.primary,
     borderRadius: 11,
     paddingVertical: 13,

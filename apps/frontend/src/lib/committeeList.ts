@@ -88,9 +88,12 @@ export const COMMITTEE_PAGE_SIZE = 50;
 
 export const COMMITTEE_LIST_TITLE = 'Committees';
 
+/** The one-line description under the title. No dot at its end: a standalone
+ *  one-line dek carries no terminal period (copy rule C, adopted 1 Sep 2026;
+ *  issue #1946), and this line is one sentence alone on its line. */
 export const COMMITTEE_LIST_DEK =
   'Everyone registered to raise or spend money in Minnesota state politics — candidate ' +
-  'committees, party units, and the committees and funds that give to them.';
+  'committees, party units, and the committees and funds that give to them';
 
 export const COMMITTEE_FIND_LABEL = 'Find a committee by name';
 

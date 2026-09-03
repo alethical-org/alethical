@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   COMMITTEE_KIND_FILTERS,
+  COMMITTEE_LIST_DEK,
   COMMITTEE_LIST_NOTE,
   COMMITTEE_PAGE_SIZE,
   committeeEmptyTitle,
@@ -183,6 +184,15 @@ describe('the empty state', () => {
   it('offers dropping the filter only when one is applied', () => {
     expect(committeeEmptyWhy('party_unit')).toContain('drop the filter');
     expect(committeeEmptyWhy('all')).not.toContain('drop the filter');
+  });
+});
+
+describe('the one-line description under the title', () => {
+  // A standalone one-line dek carries no dot at its end (copy rule C, adopted
+  // 1 Sep 2026); the multi-sentence note under the list keeps every period.
+  it('ends without a period', () => {
+    expect(COMMITTEE_LIST_DEK).not.toMatch(/\.$/);
+    expect(COMMITTEE_LIST_DEK).toContain('candidate committees, party units');
   });
 });
 

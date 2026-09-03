@@ -1,6 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import {
+  MoneyListRow,
+  MoneyListRows,
+  RowArrow,
+} from '../../components/campaignMoney/MoneyListRows';
 import { MoneyNameSearchField } from '../../components/campaignMoney/MoneyNameSearchField';
 import { Pagination } from '../../components/search/searchPieces';
 import { UnderDevelopmentNotice } from '../../components/campaignMoney/UnderDevelopmentNotice';
@@ -221,15 +226,17 @@ export function CommitteeListScreen({ navigation, route }: RootScreenProps<'Comm
               <View role="status" aria-busy style={styles.hidden}>
                 <Text>Loading committees</Text>
               </View>
-              {(['58%', '72%', '44%', '66%', '52%', '38%'] as const).map((width, index) => (
-                <View key={index} style={styles.row}>
-                  <View style={styles.rowText}>
-                    <Skeleton width={width} height={14} />
-                    <Skeleton width={200} height={11} style={{ marginTop: 8 }} />
-                  </View>
-                  <Skeleton width={72} height={11} />
-                </View>
-              ))}
+              <MoneyListRows isMobile={isMobile}>
+                {(['58%', '72%', '44%', '66%', '52%', '38%'] as const).map((width, index) => (
+                  <MoneyListRow key={index} isMobile={isMobile} first={index === 0}>
+                    <View style={styles.rowText}>
+                      <Skeleton width={width} height={14} />
+                      <Skeleton width={200} height={11} style={{ marginTop: 8 }} />
+                    </View>
+                    {isMobile ? null : <Skeleton width={72} height={11} />}
+                  </MoneyListRow>
+                ))}
+              </MoneyListRows>
             </View>
           ) : list.isError && rows.length === 0 ? (
             <View style={styles.card}>
@@ -266,17 +273,24 @@ export function CommitteeListScreen({ navigation, route }: RootScreenProps<'Comm
                 <Text style={styles.listSort}>{COMMITTEE_ORDER_LABEL}</Text>
               </View>
 
-              <View style={styles.rows}>
-                {rows.map((row) => {
+              {/* Card rows at computer width, hairline rows inside one card on the
+                  phone (MoneyListRows). The registration number is a third line on
+                  the phone rather than dropped: it is how a reader tells 2
+                  near-identical filed names apart, which is exactly the situation
+                  this register creates (phone band rule D3). */}
+              <MoneyListRows isMobile={isMobile}>
+                {rows.map((row, index) => {
                   const slug = committeeSlug(row.name, row.registrationNumber);
                   const closed = row.isClosed ? closedChipLabel(row.terminationDate) : null;
                   return (
-                    <Pressable
+                    <MoneyListRow
                       key={row.registrationNumber}
-                      {...linkProps(routePath.moneyCommittee(slug), () =>
-                        navigation.push('CommitteeMoney', { slug }),
-                      )}
-                      style={styles.row}
+                      isMobile={isMobile}
+                      first={index === 0}
+                      link={{
+                        href: routePath.moneyCommittee(slug),
+                        onPress: () => navigation.push('CommitteeMoney', { slug }),
+                      }}
                     >
                       <View style={styles.rowText}>
                         <View style={styles.rowNameLine}>
@@ -286,12 +300,20 @@ export function CommitteeListScreen({ navigation, route }: RootScreenProps<'Comm
                           ) : null}
                         </View>
                         <Text style={styles.rowMeta}>{committeeRowMeta(row)}</Text>
+                        {isMobile ? (
+                          <Text style={styles.rowRegMobile}>REG {row.registrationNumber}</Text>
+                        ) : null}
                       </View>
-                      <Text style={styles.rowReg}>REG {row.registrationNumber}</Text>
-                    </Pressable>
+                      {isMobile ? null : (
+                        <>
+                          <Text style={styles.rowReg}>REG {row.registrationNumber}</Text>
+                          <RowArrow />
+                        </>
+                      )}
+                    </MoneyListRow>
                   );
                 })}
-              </View>
+              </MoneyListRows>
 
               {/* Numbered pages, each with its own address, and the same control
                   the bills and legislators directories use. The Previous/Next and
@@ -394,10 +416,12 @@ const styles = StyleSheet.create({
   },
   findRow: { marginTop: 26 },
   chipRow: { marginTop: 20, flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
+  // 44px on the chip's own box at every width (phone band rule F1).
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    minHeight: 44,
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
     borderColor: t.colors.alpha.ink14,
@@ -424,7 +448,7 @@ const styles = StyleSheet.create({
     color: t.colors.text.muted,
   },
   chipCountActive: { color: t.colors.surfaces.s300 },
-  listLoading: { marginTop: 26, gap: 10 },
+  listLoading: { marginTop: 12 },
   hidden: { position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0 },
   listHead: {
     marginTop: 28,
@@ -447,19 +471,6 @@ const styles = StyleSheet.create({
     letterSpacing: 1.2,
     color: t.colors.text.muted,
   },
-  rows: { marginTop: 14, gap: 10 },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 16,
-    backgroundColor: t.colors.surfaces.base,
-    borderWidth: 1,
-    borderColor: t.colors.alpha.ink10,
-    borderRadius: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-  },
   rowText: { flex: 1, minWidth: 0 },
   rowNameLine: { flexDirection: 'row', alignItems: 'center', gap: 9, flexWrap: 'wrap' },
   rowName: {
@@ -476,10 +487,19 @@ const styles = StyleSheet.create({
     color: t.colors.text.secondary,
   },
   rowReg: {
+    width: 96,
+    textAlign: 'right',
     fontFamily: t.typography.mono,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: t.fontWeights.bold,
-    letterSpacing: 0.7,
+    letterSpacing: 0.5,
+    color: t.colors.text.muted,
+  },
+  rowRegMobile: {
+    marginTop: 5,
+    fontFamily: t.typography.mono,
+    fontSize: 12,
+    fontWeight: t.fontWeights.medium,
     color: t.colors.text.muted,
   },
   closedChip: {
@@ -529,6 +549,8 @@ const styles = StyleSheet.create({
   primaryButton: {
     alignSelf: 'flex-start',
     marginTop: 4,
+    minHeight: 44,
+    justifyContent: 'center',
     backgroundColor: t.colors.text.primary,
     borderRadius: 11,
     paddingVertical: 13,
