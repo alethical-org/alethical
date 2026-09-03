@@ -91,6 +91,11 @@ interface BillResultCardProps {
   /** A topic already named in the issue-answer count row is not repeated on
    * every card beneath it. Comparison is case- and whitespace-insensitive. */
   excludedPolicyArea?: string;
+  /** A small mono kind label ("BILL") drawn before the code badge, for a list
+   * that holds more than one kind of thing. Only the Tracked page passes it
+   * (#1943): every other list this card draws in holds bills alone, so the label
+   * would be noise there. Omitted, nothing renders and nothing shifts. */
+  kindLabel?: string;
 }
 
 function ProgressBar({
@@ -201,6 +206,7 @@ export function BillResultCard({
   onChangeHistory,
   variant = 'default',
   excludedPolicyArea,
+  kindLabel,
 }: BillResultCardProps) {
   const [hovered, setHovered] = useState(false);
   const { isMobile } = useResponsive();
@@ -315,6 +321,7 @@ export function BillResultCard({
           <View style={styles.headerMobile}>
             <View style={styles.headerTopRow}>
               <View style={styles.headerLabels}>
+                {kindLabel ? <Text style={styles.kindLabel}>{kindLabel}</Text> : null}
                 <View style={styles.badge}>
                   <Text style={styles.badgeText}>{bill.identifier}</Text>
                 </View>
@@ -357,6 +364,7 @@ export function BillResultCard({
           </View>
         ) : (
           <View style={styles.topRow}>
+            {kindLabel ? <Text style={styles.kindLabel}>{kindLabel}</Text> : null}
             <View style={styles.badge}>
               <Text style={styles.badgeText}>{bill.identifier}</Text>
             </View>
@@ -578,6 +586,15 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   headerTrackSlot: { flexShrink: 0, marginLeft: 'auto' },
+  // The Tracked page's kind label: same mono, size and tracking as the page's own
+  // NO CHANGE divider, so the two read as one system.
+  kindLabel: {
+    fontFamily: t.typography.mono,
+    fontSize: t.fontSizes.label,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 1.68,
+    color: t.colors.text.muted,
+  },
   badge: {
     backgroundColor: t.colors.omnibus.fill,
     borderWidth: 1,

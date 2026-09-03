@@ -670,7 +670,9 @@ Requirements:
 ## 10. Tracked Bills
 
 > **Superseded by what shipped.** Per-screen behavior is owned by
-> `docs/product-onboarding/bill-tracking-spec.md` and the current tracked-list screen.
+> `docs/product-onboarding/bill-tracking-spec.md` § The Tracked page and the current
+> tracked-list screen, whose h1 reads **Tracked** and which lists followed campaign
+> committees under their own heading beside the bills ([#1943](https://github.com/alethical-org/alethical/issues/1943)).
 > The sketches below show an All / Updates tab pair and a "Sort by latest update" control;
 > both were considered and **declined** ([#1009](https://github.com/alethical-org/alethical/issues/1009)):
 > a watchlist is short and self-curated, so the page groups what moved above what did not

@@ -34,6 +34,7 @@ import {
   CommitteeIndependentPayment,
   CommitteeMadePayment,
   CommitteeMoney,
+  TrackedCommittee,
   CommitteePaymentsPage,
   CommitteeReceivedPayment,
   CommitteeRegisterPage,
@@ -298,6 +299,22 @@ interface ApiTrackedBillPayload {
   alerts_enabled: boolean;
   note?: string | null;
   bill?: ApiBillListItemPayload | null;
+}
+
+interface ApiTrackedCommitteePayload {
+  registration_number: string;
+  tracked_at: string;
+  committee_name?: string | null;
+  entity_type?: string | null;
+  entity_sub_type?: string | null;
+  register: {
+    state: 'reported' | 'not_registered' | 'unavailable';
+    kind?: string | null;
+    name?: string | null;
+    office?: string | null;
+    district?: string | null;
+    termination_date?: string | null;
+  };
 }
 
 interface ApiBillActionPayload {
@@ -2832,6 +2849,47 @@ export async function setTrackedBillFromApi(
         note: null,
       }),
     },
+    accessToken,
+  );
+}
+
+/** Every committee this reader follows, newest first (#1943). Whole and
+ *  unpaginated, like the bill list, so one query answers every Track control. */
+export async function listTrackedCommitteesFromApi(
+  accessToken: string,
+): Promise<TrackedCommittee[]> {
+  const response = await apiRequest<CollectionResponse<ApiTrackedCommitteePayload>>(
+    '/me/tracked-committees',
+    { method: 'GET' },
+    accessToken,
+  );
+  return response.data.map((row) => ({
+    registrationNumber: row.registration_number,
+    trackedAt: row.tracked_at,
+    committeeName: row.committee_name ?? null,
+    entityType: row.entity_type ?? null,
+    entitySubType: row.entity_sub_type ?? null,
+    register: {
+      state: row.register.state,
+      kind: row.register.kind ?? null,
+      name: row.register.name ?? null,
+      office: row.register.office ?? null,
+      district: row.register.district ?? null,
+      terminationDate: row.register.termination_date ?? null,
+    },
+  }));
+}
+
+/** Follow or unfollow one committee. PUT carries no body: a bookmark has no
+ *  settings. A 404 on PUT means no committee page exists for that number. */
+export async function setTrackedCommitteeFromApi(
+  accessToken: string,
+  registrationNumber: string,
+  tracked: boolean,
+): Promise<void> {
+  await apiRequest<unknown>(
+    `/me/tracked-committees/${encodeURIComponent(registrationNumber)}`,
+    { method: tracked ? 'PUT' : 'DELETE' },
     accessToken,
   );
 }
