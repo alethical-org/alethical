@@ -530,7 +530,7 @@ Top to bottom:
    committee-years hold in-kind rows summing to exactly $0.00, and none of them prints a
    "$0" line.
 
-7. **Three tabs. The first two — Who gave and Where it went** — the six largest payments,
+7. **Three tabs on every page, and up to 2 more. The first two — Who gave and Where it went** — the six largest payments,
    ranked largest first (honest inside one committee; never across committees), each
    naming the filing's own type. **Every count is a count of payments, never of donors**:
    the filings carry printed names with no identifier, and one person appears under
@@ -561,6 +561,30 @@ Top to bottom:
    viewer; there are no per-report links, because the Board serves report documents
    through a form a link cannot reach, and not at all for most years before 2023 — a row
    of dead links would be worse than one honest step.
+8a. **Two more tabs, each drawn only where this filer has rows in Minnesota's
+   independent-expenditures file, in that direction — per filer, never per kind of
+   committee.** "Spent about them" lists what other groups spent for or against this
+   committee, filed independently of it; "Spent by them" lists what this filer spent about
+   other committees. No rows means no tab, and no empty state either: "spent nothing" and
+   "we hold nothing" cannot be told apart in this file. These are the one place the money
+   section says "spent", because this is spending, by others, and on a candidate's own
+   page a large figure that is not their money is the most misreadable thing on the
+   screen. Above the rows on both tabs sits the sentence saying this file is never added
+   to the ordinary expenditures file (491 rows coincide with an expenditure row and whether
+   that is one payment filed twice or 2 that coincide is not established). Each row is one
+   served payment: the other committee with its registration number (a link only where we
+   hold a page for it; where our copy of the Board's register lacks the number, the words
+   "Not in our copy of the Board's register" sit in the number's place), SUPPORTING or
+   OPPOSING as the filing says, the purpose and the vendor (each printing "No purpose
+   given in the filing" or "No vendor named in the filing" when the filing leaves it
+   blank), the filing's own expenditure type, the row's own payment date, the amount and
+   any unpaid part directly under it. Rows come 50 at a time, NEWEST FIRST by default or
+   LARGEST FIRST on request, and the count line reads "12 payments about 5 committees",
+   "1 payment about 1 committee", or "Showing 6 of 12 payments" while the list is cut.
+   Nothing is summed across rows, and no year filter applies: outside spending is filed by
+   election cycle rather than by the filing year the page's control selects, so each row
+   carries its own date. The tab and the sort are read from the address (`?tab=about`,
+   `?tab=by`) so a shared link opens the same view.
 9. **What this record covers**: filed with the Board, nothing before 2015, unions don't
    report here — and the donor sentence, which names **$200** on most pages and **$500**
    on a ballot-question committee's page. Each page states only its own figure, because

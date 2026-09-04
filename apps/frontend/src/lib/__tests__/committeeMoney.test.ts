@@ -9,6 +9,23 @@ import { reportedThroughLabel } from '../legislatorCampaignMoney';
 
 import {
   CAP_NOTE,
+  COMMITTEE_TAB_LABELS,
+  committeeTabFromParam,
+  committeeTabs,
+  NO_PURPOSE_GIVEN,
+  NO_VENDOR_NAMED,
+  OUTSIDE_ABOUT_INTRO,
+  OUTSIDE_NEVER_ADDED,
+  OUTSIDE_SORT_LABELS,
+  outsideCountLine,
+  outsideCounterparty,
+  outsidePaidLine,
+  outsideRegistrationLine,
+  outsideRowMeta,
+  outsideSortFromParam,
+  outsideStanceLabel,
+  outsideUnpaidNote,
+  type OutsideSpendingRowLike,
   FILED_REPORTS_LINK_LABEL,
   MONEY_IN_HEADING,
   MONEY_IN_NAMED_LABEL,
@@ -883,5 +900,151 @@ describe('the filing stamp states the period once, above both cards', () => {
       reportedThroughLabel('2026-03-31'),
     );
     expect(reportedThroughNote(null, '2026-07-20')).toBeNull();
+  });
+});
+
+describe('the 2 outside-spending tabs', () => {
+  const row: OutsideSpendingRowLike = {
+    spender: 'Working Families Alliance Fund',
+    spenderRegistrationNumber: '41207',
+    spenderInRegister: true,
+    spenderLinkable: true,
+    aboutCommitteeName: 'Neighbors for Chen',
+    aboutCommitteeRegistrationNumber: '30622',
+    aboutCommitteeInRegister: true,
+    aboutCommitteeLinkable: true,
+    direction: 'Against',
+    purpose: 'Advertising - Print: Direct Mail',
+    vendorName: 'Great North Media LLC',
+    expenditureType: 'Independent Expenditure',
+    inKind: false,
+    paidOn: '2026-08-03',
+    amount: '148500.0000',
+    unpaidAmount: '0.0000',
+  };
+
+  it('carries the 2 ruled labels, the one place this section says "spent"', () => {
+    expect(COMMITTEE_TAB_LABELS.about).toBe('Spent about them');
+    expect(COMMITTEE_TAB_LABELS.by).toBe('Spent by them');
+    expect(committeeTabFromParam('about')).toBe('about');
+    expect(committeeTabFromParam('by')).toBe('by');
+    expect(committeeTabFromParam('nonsense')).toBe('gave');
+  });
+
+  it('a tab follows the filer’s own rows in that direction, never its kind', () => {
+    expect(committeeTabs({ spentAbout: false, spentBy: false })).toEqual([
+      'gave',
+      'spent',
+      'filings',
+    ]);
+    expect(committeeTabs({ spentAbout: true, spentBy: false })).toEqual([
+      'gave',
+      'spent',
+      'filings',
+      'about',
+    ]);
+    // A caucus committee: spends about others, nobody spends about it.
+    expect(committeeTabs({ spentAbout: false, spentBy: true })).toEqual([
+      'gave',
+      'spent',
+      'filings',
+      'by',
+    ]);
+  });
+
+  it('sorts newest first by default, and names both sorts', () => {
+    expect(outsideSortFromParam(undefined)).toBe('newest');
+    expect(outsideSortFromParam('largest')).toBe('largest');
+    expect(OUTSIDE_SORT_LABELS.newest).toBe('Newest first');
+    expect(OUTSIDE_SORT_LABELS.largest).toBe('Largest first');
+  });
+
+  it('counts payments and the other side, singular where 1, capped while cut, never "named"', () => {
+    expect(outsideCountLine('by', 12, 12, 5)).toBe('12 payments about 5 committees');
+    expect(outsideCountLine('by', 1, 1, 1)).toBe('1 payment about 1 committee');
+    expect(outsideCountLine('about', 5, 5, 5)).toBe('5 payments by 5 groups');
+    expect(outsideCountLine('about', 1, 1, 1)).toBe('1 payment by 1 group');
+    expect(outsideCountLine('about', 6, 12, 5)).toBe('Showing 6 of 12 payments');
+    expect(outsideCountLine('by', 50, 1284, 40)).toBe('Showing 50 of 1,284 payments');
+    expect(outsideCountLine('by', 0, null, null)).toBeNull();
+    for (const line of [outsideCountLine('by', 12, 12, 5), outsideCountLine('about', 6, 12, 5)]) {
+      expect(line).not.toContain('named');
+      expect(line?.endsWith('.')).toBe(false);
+    }
+  });
+
+  it('prints the filing’s own For or Against as a chip, filled on every row', () => {
+    expect(outsideStanceLabel('For')).toBe('Supporting');
+    expect(outsideStanceLabel('Against')).toBe('Opposing');
+    expect(outsideStanceLabel('not recorded')).toBe('Direction not recorded');
+  });
+
+  it('the other side is the spender on one tab and the committee spent about on the other', () => {
+    expect(outsideCounterparty('about', row)).toEqual({
+      name: 'Working Families Alliance Fund',
+      registrationNumber: '41207',
+      linkable: true,
+      inRegister: true,
+    });
+    expect(outsideCounterparty('by', row).name).toBe('Neighbors for Chen');
+    expect(outsideCounterparty('by', row).registrationNumber).toBe('30622');
+  });
+
+  it('a number our copy of the register lacks prints the register line in its place', () => {
+    expect(outsideRegistrationLine(outsideCounterparty('about', row))).toBe('REG 41207');
+    expect(
+      outsideRegistrationLine({
+        name: 'Somebody',
+        registrationNumber: '-102',
+        linkable: false,
+        inRegister: false,
+      }),
+    ).toBe(NOT_IN_REGISTER_LINE);
+    expect(
+      outsideRegistrationLine({
+        name: 'Somebody',
+        registrationNumber: null,
+        linkable: false,
+        inRegister: false,
+      }),
+    ).toBe(NOT_IN_REGISTER_LINE);
+  });
+
+  it('purpose and vendor each keep their position, with a designed empty state', () => {
+    expect(outsideRowMeta(row)).toBe(
+      'Advertising - Print: Direct Mail · paid to Great North Media LLC · Independent Expenditure',
+    );
+    expect(outsideRowMeta({ ...row, purpose: null })).toBe(
+      `${NO_PURPOSE_GIVEN} · paid to Great North Media LLC · Independent Expenditure`,
+    );
+    expect(outsideRowMeta({ ...row, vendorName: null, expenditureType: null })).toBe(
+      `Advertising - Print: Direct Mail · ${NO_VENDOR_NAMED}`,
+    );
+    // The file's own trailing space ("Nuntius Borealis ") never reaches the separator,
+    // and a blank-only value is the empty state rather than a name.
+    expect(outsideRowMeta({ ...row, vendorName: 'Nuntius Borealis ' })).toContain(
+      'paid to Nuntius Borealis · Independent',
+    );
+    expect(outsideRowMeta({ ...row, purpose: '  ' })).toContain(NO_PURPOSE_GIVEN);
+    expect(NO_PURPOSE_GIVEN.endsWith('.')).toBe(false);
+    expect(NO_VENDOR_NAMED.endsWith('.')).toBe(false);
+  });
+
+  it('dates the row itself and names any unpaid part under the amount', () => {
+    expect(outsidePaidLine('2026-08-03')).toBe('Paid 3 Aug 2026');
+    expect(outsidePaidLine(null)).toBeNull();
+    expect(outsideUnpaidNote('2000.0000')).toBe('$2,000 of it unpaid');
+    expect(outsideUnpaidNote('0.0000')).toBeNull();
+    expect(outsideUnpaidNote(null)).toBeNull();
+  });
+
+  it('keeps the never-added sentence verbatim, with its 491', () => {
+    expect(OUTSIDE_NEVER_ADDED).toBe(
+      'This is the independent-spending file, and it is never added to the ordinary ' +
+        'expenditures file: 491 rows share a spender, name, amount and date with an ' +
+        'expenditure row, and whether that is one payment filed twice or 2 that coincide ' +
+        'is not established.',
+    );
+    expect(OUTSIDE_ABOUT_INTRO).toContain('neither received nor controlled');
   });
 });

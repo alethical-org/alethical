@@ -32,6 +32,7 @@ import {
   getCommitteeFinanceFromApi,
   getCommitteePaymentsMadeFromApi,
   getCommitteePaymentsReceivedFromApi,
+  getOutsideSpendingFromApi,
   getPaymentsUnderNameFromApi,
   ListPagination,
   LegislatorListFilters,
@@ -55,6 +56,7 @@ import {
 } from '../data/mockData';
 import type {
   CommitteeFilingsPage,
+  CommitteeOutsideSpendingPage,
   CommitteeMadePayment,
   CommitteePaymentsPage,
   CommitteeReceivedPayment,
@@ -853,5 +855,34 @@ export function useSavedPlaces(userId?: string) {
     queryKey: ['saved-places', userId ?? 'anon'],
     queryFn: () => listSavedPlaces(userId ?? ''),
     enabled: Boolean(userId),
+  });
+}
+
+/**
+ * The outside-spending record for one committee, one direction at a time, for the
+ * committee page's "Spent about them" and "Spent by them" tabs (#1947). Pages of 50
+ * accumulate as the reader asks for more. The first page doubles as the presence
+ * check that decides whether the tab is drawn at all: a subject with no rows gets no
+ * tab, because "spent nothing" and "we hold nothing" cannot be told apart.
+ *
+ * No year filter, deliberately: outside spending is filed by election cycle rather
+ * than by the filing year the page's control selects, so each row carries its own
+ * date and the tab reads the whole subject.
+ */
+export function useOutsideSpending(
+  subject: { about?: string | null; spender?: string | null },
+  sort: 'newest' | 'largest',
+  options: { enabled?: boolean } = {},
+) {
+  const about = subject.about ?? undefined;
+  const spender = subject.spender ?? undefined;
+  return useInfiniteQuery({
+    queryKey: ['outside-spending', about ?? '', spender ?? '', sort],
+    queryFn: ({ pageParam }): Promise<CommitteeOutsideSpendingPage | null> =>
+      getOutsideSpendingFromApi({ about, spender, sort, page: pageParam }),
+    initialPageParam: 1,
+    getNextPageParam: (last) => (last?.hasMore ? last.pageNumber + 1 : undefined),
+    enabled: Boolean(about || spender) && (options.enabled ?? true),
+    retry: false,
   });
 }

@@ -32,6 +32,8 @@ import {
   Citation,
   CommitteeFilingsPage,
   CommitteeIndependentPayment,
+  CommitteeOutsideSpendingPage,
+  CommitteeOutsideSpendingRow,
   CommitteeMadePayment,
   CommitteeMoney,
   TrackedCommittee,
@@ -3459,5 +3461,92 @@ export async function getCommitteeFilingsFromApi(
     hasMore: payload.page?.has_more ?? false,
     total: payload.page?.total ?? null,
     cataloguedWithoutRecord: payload.catalogued_without_record ?? null,
+  };
+}
+
+type ApiOutsideSpendingRecordPayload = {
+  state?: string | null;
+  sort?: string | null;
+  rows?: Record<string, unknown>[];
+  page?: { number?: number; size?: number; has_more?: boolean; total_rows?: number | null };
+  figures?: { committee_count?: number | null; spender_count?: number | null } | null;
+  source_url?: string | null;
+  fetched_at?: string | null;
+};
+
+const outsideSpendingRow = (row: Record<string, unknown>): CommitteeOutsideSpendingRow => ({
+  spender: (row.spender as string | null) ?? null,
+  spenderRegistrationNumber: (row.spender_registration_number as string | null) ?? null,
+  spenderInRegister: Boolean(row.spender_in_register),
+  spenderLinkable: Boolean(row.spender_linkable),
+  aboutCommitteeName: (row.about_committee_name as string | null) ?? null,
+  aboutCommitteeRegistrationNumber:
+    (row.about_committee_registration_number as string | null) ?? null,
+  aboutCommitteeInRegister: Boolean(row.about_committee_in_register),
+  aboutCommitteeLinkable: Boolean(row.about_committee_linkable),
+  direction: (row.direction as string | null) ?? 'not recorded',
+  directionAsFiled: (row.direction_as_filed as string | null) ?? null,
+  purpose: (row.purpose as string | null) ?? null,
+  vendorName: (row.vendor_name as string | null) ?? null,
+  expenditureType: (row.expenditure_type as string | null) ?? null,
+  inKind: Boolean(row.in_kind),
+  paidOn: (row.paid_on as string | null) ?? null,
+  year: (row.year as number | null) ?? null,
+  amount: row.amount === null || row.amount === undefined ? null : String(row.amount),
+  unpaidAmount:
+    row.unpaid_amount === null || row.unpaid_amount === undefined
+      ? null
+      : String(row.unpaid_amount),
+  recordNumber: Number(row.record_number ?? 0),
+});
+
+/**
+ * One page of the outside-spending record for one subject: what other groups spent
+ * about a committee (`about`), or what one filer spent about others (`spender`).
+ * Pages of 50, newest first by default (`GET /campaign-finance/outside-spending`,
+ * #1945). Null for a number in neither the register we hold nor the file, which is a
+ * statement about our records.
+ *
+ * No `year`: outside spending is filed by election cycle rather than by the filing
+ * year the committee page's control selects, so the tabs read the whole subject and
+ * each row carries its own date.
+ */
+export async function getOutsideSpendingFromApi(options: {
+  about?: string;
+  spender?: string;
+  sort?: 'newest' | 'largest';
+  page?: number;
+}): Promise<CommitteeOutsideSpendingPage | null> {
+  const params = new URLSearchParams();
+  if (options.about) params.set('about', options.about);
+  if (options.spender) params.set('spender', options.spender);
+  if (options.sort) params.set('sort', options.sort);
+  if (options.page !== undefined) params.set('page', String(options.page));
+  let payload: ApiOutsideSpendingRecordPayload;
+  try {
+    const response = await publicApiRequest<DetailResponse<ApiOutsideSpendingRecordPayload>>(
+      `/campaign-finance/outside-spending?${params.toString()}`,
+    );
+    payload = response.data;
+  } catch (error) {
+    if (isNotFoundError(error)) return null;
+    throw error;
+  }
+  const state =
+    payload.state === 'reported' || payload.state === 'not_reported'
+      ? payload.state
+      : 'unavailable';
+  return {
+    state,
+    sort: payload.sort === 'largest' ? 'largest' : 'newest',
+    rows: state === 'reported' ? (payload.rows ?? []).map(outsideSpendingRow) : [],
+    pageNumber: payload.page?.number ?? 1,
+    pageSize: payload.page?.size ?? 50,
+    hasMore: payload.page?.has_more ?? false,
+    totalRows: payload.page?.total_rows ?? null,
+    committeeCount: payload.figures?.committee_count ?? null,
+    spenderCount: payload.figures?.spender_count ?? null,
+    sourceUrl: payload.source_url ?? null,
+    fetchedAt: payload.fetched_at ?? null,
   };
 }

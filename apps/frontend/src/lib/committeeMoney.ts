@@ -775,12 +775,26 @@ export const PAYMENTS_TAB_LABELS: Record<PaymentsTab, string> = {
 
 // --- The Filings tab -------------------------------------------------------------------
 
-/** The committee page's three tabs. The full-payments view keeps `PaymentsTab`:
- *  filings have no "see every payment" page behind them. */
-export type CommitteeTab = PaymentsTab | 'filings';
+/**
+ * The committee page's tabs. The full-payments view keeps `PaymentsTab`: filings
+ * have no "see every payment" page behind them, and the 2 outside-spending tabs
+ * read a different file altogether (`OutsideSpendingTab`).
+ */
+export type CommitteeTab = PaymentsTab | 'filings' | OutsideSpendingTab;
+
+/**
+ * The 2 directions of the outside-spending file, as a committee page reads them:
+ * `about` is what other groups spent about this committee, `by` is what this filer
+ * spent about others. Ruled labels: "Spent about them" and "Spent by them" — the one
+ * place money is called "spent" in this section, because it IS spending, by others,
+ * and on a candidate's own page a large figure that is not their money is the most
+ * misreadable thing on the screen, so the direction belongs in the label.
+ */
+export type OutsideSpendingTab = 'about' | 'by';
 
 export function committeeTabFromParam(raw: string | undefined | null): CommitteeTab {
   if (raw === 'filings') return 'filings';
+  if (raw === 'about' || raw === 'by') return raw;
   return paymentsTabFromParam(raw);
 }
 
@@ -788,7 +802,184 @@ export const COMMITTEE_TAB_LABELS: Record<CommitteeTab, string> = {
   gave: 'Who gave',
   spent: 'Where it went',
   filings: 'Filings',
+  about: 'Spent about them',
+  by: 'Spent by them',
 };
+
+/**
+ * Which tabs a committee's page carries, in strip order.
+ *
+ * The first 3 always. Each outside-spending tab follows THIS filer's own rows in
+ * that direction, never its kind (ruled 2 Sep 2026): no rows means we cannot tell
+ * "spent nothing" from "we hold nothing", so there is no empty state to draw and no
+ * tab either. A caucus committee that spends independently carries "Spent by them";
+ * a candidate committee nobody spent about carries no "Spent about them"; a
+ * ballot-question filer carries whichever direction its rows support, which today is
+ * neither.
+ */
+export function committeeTabs(presence: { spentAbout: boolean; spentBy: boolean }): CommitteeTab[] {
+  const tabs: CommitteeTab[] = ['gave', 'spent', 'filings'];
+  if (presence.spentAbout) tabs.push('about');
+  if (presence.spentBy) tabs.push('by');
+  return tabs;
+}
+
+// --- The 2 outside-spending tabs' rows and lines ---------------------------------------
+
+/** The lead on "Spent about them", above the never-added sentence. */
+export const OUTSIDE_ABOUT_INTRO =
+  'What other groups spent about this committee, filed independently of it. This ' +
+  'committee neither received nor controlled any of it.';
+
+/**
+ * Above the rows on both tabs, verbatim: this file is never added to the ordinary
+ * expenditures file. 491 rows share a spender, name, amount and date with an
+ * expenditure row, and whether that is one payment filed twice or 2 that coincide
+ * is not established — so no figure here is ever summed with money out.
+ */
+export const OUTSIDE_NEVER_ADDED =
+  'This is the independent-spending file, and it is never added to the ordinary ' +
+  'expenditures file: 491 rows share a spender, name, amount and date with an ' +
+  'expenditure row, and whether that is one payment filed twice or 2 that coincide ' +
+  'is not established.';
+
+export type OutsideSpendingSort = 'newest' | 'largest';
+
+/** The 2 sort controls, newest by default. The screen sets them in small capitals. */
+export const OUTSIDE_SORT_LABELS: Record<OutsideSpendingSort, string> = {
+  newest: 'Newest first',
+  largest: 'Largest first',
+};
+
+export function outsideSortFromParam(raw: string | undefined | null): OutsideSpendingSort {
+  return raw === 'largest' ? 'largest' : 'newest';
+}
+
+/**
+ * The count line over the rows. "12 payments about 5 committees" on the spender's
+ * tab, "12 payments by 5 groups" on the spent-about tab, singular where the count
+ * is 1, and "Showing 6 of 12 payments" while the list is cut. No closing dot, and
+ * never "payments named": every row in this file is itemised, so "named" would imply
+ * a filter that is not there.
+ */
+export function outsideCountLine(
+  tab: OutsideSpendingTab,
+  shown: number,
+  total: number | null,
+  distinct: number | null,
+): string | null {
+  if (total === null) return null;
+  const payments = `${total.toLocaleString('en-US')} ${total === 1 ? 'payment' : 'payments'}`;
+  if (shown < total) {
+    return `Showing ${shown.toLocaleString('en-US')} of ${total.toLocaleString('en-US')} payments`;
+  }
+  if (distinct === null) return payments;
+  if (tab === 'by') {
+    return `${payments} about ${distinct.toLocaleString('en-US')} ${distinct === 1 ? 'committee' : 'committees'}`;
+  }
+  return `${payments} by ${distinct.toLocaleString('en-US')} ${distinct === 1 ? 'group' : 'groups'}`;
+}
+
+/** The filing's own For or Against, as the chip prints it. Filled on every row of
+ *  the live file, so the third case is a guard rather than a state a reader meets. */
+export function outsideStanceLabel(direction: string | null | undefined): string {
+  if (direction === 'For') return 'Supporting';
+  if (direction === 'Against') return 'Opposing';
+  return 'Direction not recorded';
+}
+
+/**
+ * The 2 empty states a row can carry, as designed strings rather than dashes. Blanks
+ * clump on short pages (2 of 50, 3 of 11, 2 of 7 in a real sample), so a missing
+ * value has to look deliberate rather than broken. Purpose is filled on 98.1% of
+ * rows and vendor on 95.9%.
+ */
+export const NO_PURPOSE_GIVEN = 'No purpose given in the filing';
+export const NO_VENDOR_NAMED = 'No vendor named in the filing';
+
+/** One row of the outside-spending file as the page reads it, either direction. */
+export interface OutsideSpendingRowLike {
+  spender: string | null;
+  spenderRegistrationNumber: string | null;
+  spenderInRegister: boolean;
+  spenderLinkable: boolean;
+  aboutCommitteeName: string | null;
+  aboutCommitteeRegistrationNumber: string | null;
+  aboutCommitteeInRegister: boolean;
+  aboutCommitteeLinkable: boolean;
+  direction: string | null;
+  purpose: string | null;
+  vendorName: string | null;
+  expenditureType: string | null;
+  inKind: boolean;
+  paidOn: string | null;
+  amount: string | null;
+  unpaidAmount: string | null;
+}
+
+/** The side of the row that is not this page's committee. */
+export interface OutsideSpendingCounterparty {
+  name: string;
+  registrationNumber: string | null;
+  /** This release holds a page for the number, so the name links to it. */
+  linkable: boolean;
+  /** Our copy of the Board's register lists the number. False prints
+   *  `NOT_IN_REGISTER_LINE` in the number's place rather than a bare number. */
+  inRegister: boolean;
+}
+
+export function outsideCounterparty(
+  tab: OutsideSpendingTab,
+  row: OutsideSpendingRowLike,
+): OutsideSpendingCounterparty {
+  return tab === 'about'
+    ? {
+        name: row.spender ?? UNNAMED_PAYMENT_PARTY,
+        registrationNumber: row.spenderRegistrationNumber,
+        linkable: row.spenderLinkable,
+        inRegister: row.spenderInRegister,
+      }
+    : {
+        name: row.aboutCommitteeName ?? UNNAMED_PAYMENT_PARTY,
+        registrationNumber: row.aboutCommitteeRegistrationNumber,
+        linkable: row.aboutCommitteeLinkable,
+        inRegister: row.aboutCommitteeInRegister,
+      };
+}
+
+/** "REG 41207", or the register line where our copy of the register lacks the number. */
+export function outsideRegistrationLine(party: OutsideSpendingCounterparty): string {
+  if (!party.registrationNumber || !party.inRegister) return NOT_IN_REGISTER_LINE;
+  return `REG ${party.registrationNumber}`;
+}
+
+/**
+ * The grey line under the name: the filing's own purpose, who was paid, and the
+ * filing's own type, each in its own position with its own empty state.
+ */
+export function outsideRowMeta(row: OutsideSpendingRowLike): string {
+  // The file carries trailing spaces on some names ("Nuntius Borealis "), which would
+  // print a double gap before the separator.
+  const purpose = row.purpose?.trim() || null;
+  const vendor = row.vendorName?.trim() || null;
+  const type = row.expenditureType?.trim() || null;
+  const parts = [purpose ?? NO_PURPOSE_GIVEN, vendor ? `paid to ${vendor}` : NO_VENDOR_NAMED];
+  if (type) parts.push(type);
+  return parts.join(' · ');
+}
+
+/** "Paid 3 Aug 2026", or null on a row the filing dates nowhere. */
+export function outsidePaidLine(paidOn: string | null | undefined): string | null {
+  const day = formatDay(paidOn);
+  return day ? `Paid ${day}` : null;
+}
+
+/** "$2,000 of it unpaid", directly under the amount it qualifies; nothing when the
+ *  whole payment is settled or the filing states no unpaid part. */
+export function outsideUnpaidNote(unpaid: string | null | undefined): string | null {
+  if (!isAmountAboveZero(unpaid)) return null;
+  return `${formatMoney(unpaid ?? null)} of it unpaid`;
+}
 
 /** Not "every report" — the Board's catalogue carries no filing record for most
  *  pre-2008 rows, so a completeness claim would be one we cannot check. The rows
