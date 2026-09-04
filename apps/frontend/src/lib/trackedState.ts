@@ -77,7 +77,7 @@ export function trackState({
 }
 
 /**
- * The number to show beside the account menu's Tracked Bills row, or `null` when
+ * The number to show beside the account menu's Tracked row, or `null` when
  * there is no number we may show (#1698). Same honesty as `trackState` above,
  * applied to a count instead of a button:
  *

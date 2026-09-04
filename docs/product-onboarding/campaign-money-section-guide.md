@@ -11,11 +11,11 @@ that exact spelling
 lives one level up, on the `/read` page, which the money landing points at. One piece is
 published there.
 
-The section is still marked under development on every page, because things a reader
-might expect are genuinely missing: **lobbying** is published by Minnesota and not loaded by
-us, and the pages for **challengers** and the fuller picture of **outside spending** do not
-exist yet. The strip names those gaps; it makes no claim about the figures, which each carry
-their own period and freshness date.
+The section is still marked under development on every page, because one thing a reader
+might expect is genuinely missing: **lobbying** is published by Minnesota and not loaded by
+us. The strip names that gap and nothing else; it makes no claim about the figures, which
+each carry their own period and freshness date. Challengers are on the money-by-race page at
+`/money/races` and outside spending has its own record page at `/money/outside-spending`.
 
 **"Report" means one thing on this site: the document a campaign files with the state.** Our
 own writing is **Research**, and a short piece explaining 1 term is a **Guide** (settled
@@ -81,11 +81,15 @@ Top to bottom:
 3. **What we found** — the research lane, first in prominence. It links to the `/read`
    page, showing the newest piece's title, standfirst and dates. With nothing published it
    says "Nothing is published yet" and counts "0 RESEARCH PIECES PUBLISHED" honestly.
-4. **Three lane cards, and all 3 open something**, each with an arrow beside its title and
-   its live count in green at the foot: Legislators (links to the legislator
-   directory — a member's money is a tab on the profile they already have), Committees
-   (links to the register's own list at `/money/committees`), and Who got paid, which opens
-   the name search. **That last lane is a search rather than a list, and its card says so.**
+4. **Five lane cards, and all 5 open something**, each with an arrow beside its title and,
+   where the register serves one, its live count in green at the foot: Legislators (links to
+   the legislator directory — a member's money is a tab on the profile they already have),
+   Committees (links to the register's own list at `/money/committees`), Who got paid, which
+   opens the name search, Money by race (`/money/races`, every candidate committee grouped by
+   the seat it runs for, in district then name order) and Outside spending
+   (`/money/outside-spending`, what groups that are not the campaign spent for or against a
+   candidate). The last 2 carry no count. From 768 up the 5 cards wrap into 2 rows; below
+   768 they stack. **That last lane is a search rather than a list, and its card says so.**
    There is no browse-all-payees list and there deliberately never will be one: a payee
    carries no identifier in Minnesota's data, so such a list could only be ordered 4 ways
    and 3 of them are forbidden while the 4th is useless. By amount, by how many records

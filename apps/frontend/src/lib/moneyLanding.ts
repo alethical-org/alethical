@@ -200,7 +200,7 @@ export function legislatorsLaneSentence(confirmation: {
  * `lib/research.ts`: the served page and the drawn page must be the same words,
  * and 2 copies of a sentence is how one gets fixed and the other does not.
  *
- * All 3 lane cards live here now. The "Who got paid" card was inert until #1780,
+ * All 5 lane cards live here now. The "Who got paid" card was inert until #1780,
  * because the design set draws no browse-all-payees list and its card promised
  * one; it now opens the name search, which is the only honest way in — see
  * MONEY_LANE_WHO_GOT_PAID below.
@@ -208,8 +208,8 @@ export function legislatorsLaneSentence(confirmation: {
 export const MONEY_LANDING_HEADING = 'Follow the money';
 
 /**
- * The subtitle and all 3 lane bodies end without a full stop (ruled 1 Sep 2026, #1924).
- * The subtitle stands alone under the heading, and the 3 bodies are a column of card
+ * The subtitle and all 5 lane bodies end without a full stop (ruled 1 Sep 2026, #1924).
+ * The subtitle stands alone under the heading, and the 5 bodies are a column of card
  * descriptions, so the rule reaches each of them. A body carrying 2 sentences keeps the
  * full stop BETWEEN them and loses only the final one — see MONEY_LANE_WHO_GOT_PAID.
  */
@@ -275,6 +275,32 @@ export const MONEY_LANE_WHO_GOT_PAID = {
     'Search a name to see every payment filed under that exact spelling. There is no list of ' +
     'every payee: these names carry no identifier, so any order across committees on different ' +
     'filing calendars would set one period against another',
+} as const;
+
+/**
+ * The 4th and 5th lanes, added 4 Sep 2026 when their pages went live (#1954, #1945).
+ * The drawing of the landing predates both pages and shows no way in to either, so
+ * they take the shape already on the page: a card in the same row as the 3 above,
+ * rather than a new element nobody drew.
+ *
+ * Money by race: the body says the order out loud because the page never sorts by
+ * amount and never totals a contest (rule 12), and a reader arriving from a card
+ * that promised a ranking would read the list as one. Outside spending: "spending"
+ * is allowed here because it IS spending, by groups that are not the campaign; the
+ * word stays banned for a committee's own money out.
+ */
+export const MONEY_LANE_BY_RACE = {
+  title: 'Money by race',
+  body:
+    'Every candidate committee grouped by the seat it is running for, in district and then ' +
+    'name order, each with its own filed figures',
+} as const;
+
+export const MONEY_LANE_OUTSIDE_SPENDING = {
+  title: 'Outside spending',
+  body:
+    'What groups that are not the campaign spent for or against a candidate, filed ' +
+    'independently of them',
 } as const;
 
 /** The one freshness date the landing shows, worded as the screen words it: the

@@ -234,7 +234,7 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
       return { kind: 'bills', params: billsFilterParams(searchParams) };
     }
     // '/tracked' is the Tracked page, bills and followed committees (the account
-    // menu's Tracked Bills row links here; it was the Yours dropdown's "Bills" row
+    // menu's Tracked row links here; it was the Yours dropdown's "Bills" row
     // until #1698). Signed-out
     // visitors get a "sign in to track" card, not Home, so the link lands where it
     // says it will (grounded-answers.md rule 5).

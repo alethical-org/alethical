@@ -232,8 +232,8 @@ opening Google again.
 
 ## Account menu
 
-The account menu shows the person's name and email, Tracked Bills, Add or Change password, and Sign
-out. Tracked Bills shows a count only after the list has loaded. No number covers both zero tracked
+The account menu shows the person's name and email, Tracked, Add or Change password, and Sign
+out. Tracked shows a count only after both lists (bills and followed committees) have loaded. No number covers both zero tracked
 bills and a list that has not arrived, so the menu never shows a false zero.
 
 Sign out ends only the ordinary session on this browser or device.

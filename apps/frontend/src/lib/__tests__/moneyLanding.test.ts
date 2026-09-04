@@ -10,27 +10,31 @@ import {
   legislatorsLaneBody,
   legislatorsLaneSentence,
   MONEY_LANDING_SUBTITLE,
+  MONEY_LANE_BY_RACE,
   MONEY_LANE_COMMITTEES,
   MONEY_LANE_LEGISLATORS,
+  MONEY_LANE_OUTSIDE_SPENDING,
   MONEY_LANE_WHO_GOT_PAID,
   orderingSentence,
   RECORD_DOES_NOT_COVER,
   RECORD_DOES_NOT_COVER_NOTE,
 } from '../moneyLanding';
 
-// Ruled 1 Sep 2026 (#1924). The subtitle stands alone under the heading and the 3 lane
-// bodies are a column of card descriptions, so all 4 end bare. The distinction the rule
+// Ruled 1 Sep 2026 (#1924). The subtitle stands alone under the heading and the 5 lane
+// bodies are a column of card descriptions, so all 6 end bare. The distinction the rule
 // turns on is INTERNAL versus TERMINAL: a body made of 2 sentences keeps the full stop
 // that separates them, because that one is doing work a reader needs.
 describe('the landing’s own standalone lines end without a full stop', () => {
-  it('leaves the subtitle and all 3 lane descriptions bare', () => {
+  it('leaves the subtitle and all 5 lane descriptions bare', () => {
     const standalone = [
       MONEY_LANDING_SUBTITLE,
       MONEY_LANE_LEGISLATORS.body,
       MONEY_LANE_COMMITTEES.body,
       MONEY_LANE_WHO_GOT_PAID.body,
+      MONEY_LANE_BY_RACE.body,
+      MONEY_LANE_OUTSIDE_SPENDING.body,
     ];
-    expect(standalone).toHaveLength(4);
+    expect(standalone).toHaveLength(6);
     for (const line of standalone) {
       expect(line.endsWith('.')).toBe(false);
       expect(line.length).toBeGreaterThan(0);
@@ -43,6 +47,13 @@ describe('the landing’s own standalone lines end without a full stop', () => {
     expect(MONEY_LANE_WHO_GOT_PAID.body).toContain('that exact spelling. There is no list');
     expect(MONEY_LANE_LEGISLATORS.body).not.toContain('.');
     expect(MONEY_LANE_COMMITTEES.body).not.toContain('.');
+    expect(MONEY_LANE_BY_RACE.body).not.toContain('.');
+    expect(MONEY_LANE_OUTSIDE_SPENDING.body).not.toContain('.');
+  });
+
+  it('the race lane says the order out loud and promises no ranking or total', () => {
+    expect(MONEY_LANE_BY_RACE.body).toContain('district and then name order');
+    expect(MONEY_LANE_BY_RACE.body).not.toMatch(/total|most|largest|top/i);
   });
 
   // The Legislators lane is the one card whose body gains a SECOND sentence when the
