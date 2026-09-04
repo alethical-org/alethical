@@ -49,6 +49,25 @@ the same page:
   in-app click. A release limit about first-load speed has to filter to first
   loads, or a page that people mostly click into scores as though it were instant.
 
+**Only first loads are reported, and the other kind is deliberately absent.**
+Cloudflare's in-app-click records are not measurements of a click. Read from the
+beacon's own payloads on 4 Sep 2026 and reproduced 3 times
+(``apps/frontend/scripts/report-page-load-beacons.mjs``): the program rewrites the
+address to the address it is already on about 300 ms after a load, and Cloudflare
+hooks address changes, so it opens an in-app-click record nobody clicked, for the
+address the reader already had. That phantom record is the one carrying a figure,
+timed from the original page load; the record a real click opens sent no figure at
+all. So those numbers describe our own start-up rather than a reader moving around,
+and reporting them cost 1 wrongly-scoped issue before this was found
+(`issue #1988 <https://github.com/alethical-org/alethical/issues/1988>`_).
+
+**What a first-load figure means here, exactly.** The beacon's main-content element
+on a first load is the server-written snapshot
+(``#root>div.page-snapshot>div.ps-inner>p.ps-prose``), at 240 to 264 ms across 3
+runs. So these figures say when the snapshot's text appeared, not when the app drew.
+The lab measurements on issue 1966 time the second moment. Both are right about
+different moments, and a release limit has to say which one it means.
+
 The default window is 7 days because Cloudflare keeps that period unsampled, which
 is what makes a small address's count trustworthy. A longer window buys more visits
 and pays for them in sampling.
@@ -99,8 +118,10 @@ NO_MEASUREMENT = -1
 #: Cloudflare's name for a real page load, where the browser fetches the document.
 #: This is the event issue 1966's limit is about.
 FIRST_LOAD = "navigate"
-#: Cloudflare's name for a move between addresses made by the program already
-#: running in the page. Fast for the same reason it is not a first load.
+#: Cloudflare's name for an address change made without fetching a page. Not read
+#: here: measured on 4 Sep 2026, these records are dominated by the program's own
+#: start-up rewriting the address to the one it already has, timed from the page
+#: load, while the record a real click opens carries no figure. See the docstring.
 IN_APP_CLICK = "routing-apis"
 
 
@@ -373,20 +394,27 @@ def format_table(
 
 def format_report(
     first_loads: list[Reading],
-    in_app_clicks: list[Reading],
     started_on: date,
     ended_on: date,
     min_measurements: int,
 ) -> str:
-    """Both blocks, with the limits and the withholding rule stated once."""
+    """The report: first loads only, with the limits and the withholding rule once."""
     preamble = [
         f"Real visits to {HOST}, {started_on} to {ended_on}, slowest 1 in 4.",
         f"Limits (issue 1966): main content {MAIN_CONTENT_LIMIT_MS} ms, layout"
-        f" movement {LAYOUT_MOVEMENT_LIMIT}. They are about a first load, so only the"
-        " first block is judged against them.",
+        f" movement {LAYOUT_MOVEMENT_LIMIT}.",
         f"A figure resting on fewer than {min_measurements} real measurements is"
         " withheld, not shown, and a withheld figure never counts as a limit met.",
+        "Main content here means the server-written snapshot's text appeared, which"
+        " is not the same moment as the app drawing.",
         "",
+    ]
+    tail = [
+        "",
+        "Clicks inside the site are not reported. Cloudflare's records for those are"
+        " mostly our own",
+        "start-up rewriting the address it already has, timed from the page load"
+        " (issue 1988).",
     ]
     return "\n".join(
         preamble
@@ -397,22 +425,14 @@ def format_report(
                 ended_on,
                 min_measurements,
                 "FIRST LOAD (the browser fetched the page)",
-            ),
-            "",
-            format_table(
-                in_app_clicks,
-                started_on,
-                ended_on,
-                min_measurements,
-                "CLICKED INSIDE THE SITE (the program already running drew the page)",
-            ),
+            )
         ]
+        + tail
     )
 
 
 def as_json(
     first_loads: list[Reading],
-    in_app_clicks: list[Reading],
     started_on: date,
     ended_on: date,
 ) -> str:
@@ -439,7 +459,6 @@ def as_json(
             "mainContentLimitMs": MAIN_CONTENT_LIMIT_MS,
             "layoutMovementLimit": LAYOUT_MOVEMENT_LIMIT,
             "firstLoad": block(first_loads),
-            "clickedInsideTheSite": block(in_app_clicks),
         },
         indent=2,
     )
@@ -514,51 +533,35 @@ def main(argv: list[str] | None = None) -> int:
         "end": ended_on.isoformat(),
     }
 
-    blocks: dict[str, list[Reading]] = {}
-    for navigation in (FIRST_LOAD, IN_APP_CLICK):
-        try:
-            payload = ask_cloudflare(
-                build_query(ADDRESSES, navigation), variables, token
-            )
-        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as error:
-            print(f"Cloudflare could not be read: {error}", file=sys.stderr)
-            return 2
-        if payload.get("errors"):
-            print(f"Cloudflare returned errors: {payload['errors']}", file=sys.stderr)
-            return 2
-        accounts = (
-            ((payload.get("data") or {}).get("viewer") or {}).get("accounts")
-        ) or []
-        if not accounts:
-            print(
-                "Cloudflare returned no account. Check CLOUDFLARE_ACCOUNT_ID.",
-                file=sys.stderr,
-            )
-            return 2
-        blocks[navigation] = [
-            read_group(
-                address,
-                navigation,
-                accounts[0].get(address.key),
-                args.min_measurements,
-            )
-            for address in ADDRESSES
-        ]
-
-    first_loads = blocks[FIRST_LOAD]
-    in_app_clicks = blocks[IN_APP_CLICK]
-    if args.json:
-        print(as_json(first_loads, in_app_clicks, started_on, ended_on))
-    else:
+    try:
+        payload = ask_cloudflare(build_query(ADDRESSES, FIRST_LOAD), variables, token)
+    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as error:
+        print(f"Cloudflare could not be read: {error}", file=sys.stderr)
+        return 2
+    if payload.get("errors"):
+        print(f"Cloudflare returned errors: {payload['errors']}", file=sys.stderr)
+        return 2
+    accounts = (((payload.get("data") or {}).get("viewer") or {}).get("accounts")) or []
+    if not accounts:
         print(
-            format_report(
-                first_loads,
-                in_app_clicks,
-                started_on,
-                ended_on,
-                args.min_measurements,
-            )
+            "Cloudflare returned no account. Check CLOUDFLARE_ACCOUNT_ID.",
+            file=sys.stderr,
         )
+        return 2
+    first_loads = [
+        read_group(
+            address,
+            FIRST_LOAD,
+            accounts[0].get(address.key),
+            args.min_measurements,
+        )
+        for address in ADDRESSES
+    ]
+
+    if args.json:
+        print(as_json(first_loads, started_on, ended_on))
+    else:
+        print(format_report(first_loads, started_on, ended_on, args.min_measurements))
 
     if args.fail_on_breach:
         # First loads only: the limits are about the wait before a page appears,

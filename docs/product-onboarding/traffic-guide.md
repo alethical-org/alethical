@@ -1,6 +1,6 @@
 # How the Site metrics page works
 
-<!-- describes: api/traffic.ts, api/traffic-google.ts, api/traffic-bing.ts, api/traffic-uptime.ts, api/traffic-performance.ts, api/traffic-collection.ts, alethical/api/routers/site_metrics.py, alethical/db/models.py, alethical/alembic/versions/0038_site_metric_event.py, apps/frontend/src/components/TrafficAnalytics.tsx, apps/frontend/src/components/TrafficAnalytics.web.tsx, apps/frontend/src/lib/traffic.ts, apps/frontend/src/lib/siteMetricEvents.ts, apps/frontend/src/screens/TrafficScreen.tsx, apps/frontend/public/index.html, apps/frontend/scripts/check-traffic-production-env.mjs, apps/frontend/scripts/traffic-token-expiry.mjs, .github/workflows/traffic-token-expiry.yml, scripts/report_page_speed_by_address.py -->
+<!-- describes: api/traffic.ts, api/traffic-google.ts, api/traffic-bing.ts, api/traffic-uptime.ts, api/traffic-performance.ts, api/traffic-collection.ts, alethical/api/routers/site_metrics.py, alethical/db/models.py, alethical/alembic/versions/0038_site_metric_event.py, apps/frontend/src/components/TrafficAnalytics.tsx, apps/frontend/src/components/TrafficAnalytics.web.tsx, apps/frontend/src/lib/traffic.ts, apps/frontend/src/lib/siteMetricEvents.ts, apps/frontend/src/screens/TrafficScreen.tsx, apps/frontend/public/index.html, apps/frontend/scripts/check-traffic-production-env.mjs, apps/frontend/scripts/traffic-token-expiry.mjs, .github/workflows/traffic-token-expiry.yml, scripts/report_page_speed_by_address.py, apps/frontend/scripts/report-page-load-beacons.mjs -->
 
 The public `/site-metrics` page combines 6 independent sources:
 
@@ -124,14 +124,20 @@ prints the answer to whoever ran it. It reads the same 2 server settings, loads 
 into anyone's browser, and publishes nothing.
 
 Two things it does that the sitewide route does not, and both change what a figure means.
-It separates a first page load from a click inside the site, which Cloudflare measures
-separately and which differ by a factor of 20 or more on these addresses, because a
-release limit about the wait before a page appears is about the first kind only. And it
-counts real measurements rather than Cloudflare's reported totals: those totals are the
-raw count multiplied by the sampling interval, so a percentile resting on 4 measurements
-can arrive labelled 60. Its default window is 7 days for the same reason, since Cloudflare
-keeps that period unsampled.
-`docs/research/real-visitor-page-speed-sources.md` records how both were found.
+It reads first page loads only, because Cloudflare's records for an address change without a
+page fetch are dominated by the program's own start-up rewriting the address it already has,
+timed from the original page load, while the record a real click opens carries no figure at
+all. And it counts real measurements rather than Cloudflare's reported totals: those totals
+are the raw count multiplied by the sampling interval, so a percentile resting on 4
+measurements can arrive labelled 60. Its default window is 7 days for the same reason, since
+Cloudflare keeps that period unsampled.
+
+One thing this makes plain about the sitewide figures on the public page too. The beacon's
+main-content element on a first load is the server-written snapshot's text, so both the
+sitewide score and the per-address ones say when the snapshot appeared rather than when the
+app drew. `apps/frontend/scripts/report-page-load-beacons.mjs` reads the beacon's own
+payloads and shows this, and `docs/research/real-visitor-page-speed-sources.md` records how
+it was found.
 
 Publishing is the line, not measuring. The Privacy Policy tells readers that Alethical
 publishes only sitewide speed scores, so a per-address breakdown on the public page would

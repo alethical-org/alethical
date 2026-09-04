@@ -13,6 +13,19 @@ money address has enough first-load measurements to be judged at all, and the la
 failure is real sitewide and on `/bills` but not on the money list addresses, where the first
 version attributed it.
 
+**Second correction, 4 September 2026.** The unexplained figure below has an
+explanation, and it removes rather than confirms a defect. Cloudflare's clicked-inside-the-site
+records are not measurements of a click: read from the beacon's own payloads and reproduced 3
+times, the program rewrites the address to the address it is already on about 300 ms after a
+load, Cloudflare hooks address changes, so it opens a record nobody clicked for the address the
+reader already had, timed from the original page load, while the record a real click opens sends
+no figure at all. So the 7,616 ms was never comparable with the 4,764 ms. The tool no longer
+reports those numbers. The same reading settled a second open question: on a first load the
+beacon's main-content element is the server-written snapshot's text, so these figures time the
+snapshot appearing rather than the app drawing, which is what the lab measurements time. The
+probe that reads this is
+[`apps/frontend/scripts/report-page-load-beacons.mjs`](../../apps/frontend/scripts/report-page-load-beacons.mjs).
+
 **Dated snapshot, 4 September 2026.** Read at each service's own documentation and
 measured against Alethical's live production account and live production routes. A later
 pass gets a later file; nothing here is updated as the world changes
@@ -165,11 +178,16 @@ lowered to 40, which is worth knowing and is not the same as being measured.
 content, and the whole site, on 9,276, takes 4,764 ms. Both are nearly twice the 2,500 ms
 limit issue 1966 sets for the money pages, on the strongest counts we have.
 
-For comparison, clicking inside the site rather than loading a page: only the sitewide
-figure has enough measurements, and it reads 7,616 ms for main content and 0.475 for layout
-movement on 902 and 834 measurements. Clicking through the site is measurably slower than
-loading a page fresh, which is the opposite of what a program that has already loaded
-should do, and nothing currently explains it.
+**Clicking inside the site is not measured, and the numbers that looked like it are
+not what they appear.** Cloudflare's records for an address change carry a figure only when
+the change came from our own start-up rewriting the address it already has, timed from the
+original page load; the record a real click opens sends no main-content or layout figure at
+all. Reproduced 3 times from the beacon's own payloads with
+[`apps/frontend/scripts/report-page-load-beacons.mjs`](../../apps/frontend/scripts/report-page-load-beacons.mjs).
+So the sitewide 7,616 ms that first looked like a defect
+([issue #1988](https://github.com/alethical-org/alethical/issues/1988)) was never comparable
+with the 4,764 ms first-load figure, and reporting it cost 1 wrongly-scoped issue before it
+was found.
 
 **One honest limit remains on the layout figures.** Unexpected layout movement appears to
 stop at 1. Across 130 address groups over 30 days, no value above 1 appeared at any
@@ -190,11 +208,14 @@ addresses, on figures that were mixing in clicks inside the site. Where the move
 happening is therefore an open question, and the addresses with both a solid count and a
 failing figure are `/bills` and the site as a whole.
 
-**Lab measurements and real-visitor measurements time different moments, and the release
-limit is about the second.** The 46 ms that started this has an explanation: it was mostly
-clicks inside the site. Whether the remaining gap between a 284 ms first load on
-`/money/committees` and about 1.8 s in a browser is a real difference or an artefact of 15
-measurements cannot be settled at these counts.
+**Lab measurements and real-visitor measurements time different moments, and this is
+now established rather than suspected.** On a first load the beacon's main-content element is
+the server-written snapshot's text (`#root>div.page-snapshot>div.ps-inner>p.ps-prose`), at 240
+to 264 ms across 3 runs against production. So a first-load figure here says when the snapshot
+appeared; the lab figures on issue 1966 say when the app drew. Two different moments on the
+same page, and a release limit has to name which one it means. It also means our first-load
+figures are systematically kinder than the app feels, because the app's own larger paint is
+booked to the phantom record described above rather than to the page load.
 
 ## Why the per-address breakdown is not published on the Site metrics page
 
