@@ -145,6 +145,15 @@ only once clearing is proven for all 4
 ([#1979](https://github.com/alethical-org/alethical/issues/1979)), which is a
 measurement rather than a judgement call.
 
+**And proving it lifts the cap only where a response names nobody.** Clearing is
+what stops a *stale* copy; the reason a response that can name a person is capped
+is what happens in the window before a correction has propagated. So a
+pure-figures route can lengthen once clearing is proven, and
+`committees/{registration_number}/finance` (which returns `confirmed_for`),
+`legislators/{id}/campaign-finance` and every page the page function serves cannot.
+The rule and where each side currently sits are in §23 of
+[`docs/architecture/page-metadata-for-search-and-sharing-decisions.md`](../architecture/page-metadata-for-search-and-sharing-decisions.md).
+
 **What a cache window does and does not touch.** Every money page prints `as_of`,
 read off the loaded snapshot's `fetch_completed_at`
 (`alethical/api/services/campaign_finance_register.py::_snapshot_date`) and
