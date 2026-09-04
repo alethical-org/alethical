@@ -134,11 +134,13 @@ page: 17,736 bytes and the whole marketing page, for a reader who was never goin
 
 **How low this can go, measured rather than guessed.** Taking every movable thing out of the
 program every page needs — the sign-in client and screens, the bill-page formatting, the text
-of the published pieces, the committee-money display code — leaves 1,211,851 bytes of the
-1,586,692 the program holds, and 326,741 bytes once compressed the way production compresses.
-With the other 2 first-loaded files that is a floor near 365,000 bytes, so **the 300,000-byte
-target on [#1966](https://github.com/alethical-org/alethical/issues/1966) is not reachable by
-loading things later.** What is left below that floor is the framework the whole app is built
+of the published pieces, the committee-money display code — leaves 1,213,637 bytes of the
+1,588,478 the program holds, which is 333,927 bytes rather than 430,493 once compressed the
+way production compresses. Applied to the file a release actually ships that is about 324,000,
+and with the shared file, the runtime and a screen file a money page's floor is near 366,000
+bytes, so **the 300,000-byte target on
+[#1966](https://github.com/alethical-org/alethical/issues/1966) is not reachable by loading
+things later.** What is left below that floor is the framework the whole app is built
 on: `react-native-web` 249,244 minified bytes, `react-dom` 178,881, React Navigation about
 158,000, the query library 79,724 and `react-native-svg` 47,415. Reaching 300,000 would mean
 changing that foundation, not deferring more of our own code.
