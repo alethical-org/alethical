@@ -1,6 +1,6 @@
 # Tracked-bill notifications — scope, design, and costings
 
-<!-- describes: alethical/api/services/notifications.py, alethical/pipeline/minnesota.py, apps/frontend/src/screens/AccountScreen.tsx, apps/frontend/src/data/mockData.ts, apps/frontend/src/lib/trackedBillsChanges.ts -->
+<!-- describes: alethical/api/services/notifications.py, alethical/pipeline/minnesota.py, apps/frontend/src/screens/AccountScreen.tsx, apps/frontend/src/data/accountPreferences.ts, apps/frontend/src/lib/trackedBillsChanges.ts -->
 
 **Net:** Tracking a bill promises we will tell you when it moves, and today we tell
 nobody anything. This doc is the plan for closing that — what an email would say, how
@@ -79,10 +79,10 @@ anywhere. Absence of a row reads as "no thanks" — a choice nobody made.
 `GET`/`PUT /me/notification-preferences` (`alethical/api/routers/me.py:736-784`) work
 and are covered by contract tests. Nothing in the app calls them:
 
-- `AccountScreen.tsx` imports `getNotificationPreference` and
-  `updateNotificationPreference` from `apps/frontend/src/data/mockData.ts`, not from
-  `apps/frontend/src/data/api.ts`. The toggles write to an in-memory object and are lost
-  on reload.
+- `AccountScreen.tsx` reaches `getNotificationPreference` and
+  `updateNotificationPreference` from `apps/frontend/src/data/accountPreferences.ts`, not
+  from `apps/frontend/src/data/api.ts`. The toggles write to an in-memory object and are
+  lost on reload.
 - `apps/frontend/src/data/api.ts` has no notification function at all.
 - The fixture's shape (`billUpdates` / `weeklyDigest` / `hearingAlerts`) does not match
   the API's (`channel` / `frequency` / `is_enabled`), so this was never a wiring
