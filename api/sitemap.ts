@@ -44,6 +44,7 @@ const FIXED_PAGES = [
   "/find-my-legislator",
   "/money",
   "/money/committees",
+  "/money/races",
   "/read",
   "/about",
   "/about/contact",

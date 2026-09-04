@@ -26,6 +26,7 @@ type WebRouteTarget =
   | { kind: 'moneyCommittee'; slug: string; tab?: string; year?: string }
   | { kind: 'moneyCommitteePayments'; slug: string; tab?: string; year?: string }
   | { kind: 'moneyCommitteeList'; params: Record<string, string> }
+  | { kind: 'moneyByRace'; params: Record<string, string> }
   | { kind: 'moneySearch'; params: Record<string, string> }
   | { kind: 'paymentsUnderName'; name: string; role: string }
   | { kind: 'outsideSpending'; params: Record<string, string> }
@@ -142,6 +143,12 @@ const OUTSIDE_SPENDING_PARAMS = ['spender', 'about', 'year', 'sort', 'page'] as 
 function outsideSpendingParams(searchParams: URLSearchParams): Record<string, string> {
   const params: Record<string, string> = {};
   for (const key of OUTSIDE_SPENDING_PARAMS) {
+// URL-addressable Money by race state (issue #1954): the office chip and the year.
+const MONEY_BY_RACE_PARAMS = ['office', 'year'] as const;
+
+function moneyByRaceParams(searchParams: URLSearchParams): Record<string, string> {
+  const params: Record<string, string> = {};
+  for (const key of MONEY_BY_RACE_PARAMS) {
     const value = searchParams.get(key);
     if (value) {
       params[key] = value;
@@ -338,6 +345,12 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
       return { kind: 'notFound', path: pathname };
     }
     return { kind: 'paymentsUnderName', name, role };
+  }
+
+  // Money by race (issue #1954): every candidate committee grouped by the office
+  // and district it registered for. The office chip rides in the query string.
+  if (segments.length === 2 && segments[0] === 'money' && segments[1] === 'races') {
+    return { kind: 'moneyByRace', params: moneyByRaceParams(searchParams) };
   }
 
   // One committee's money page and its full-payments view (campaign money phase
@@ -562,6 +575,17 @@ export function pathForRoute(activeRoute: {
       const query = params.toString();
       return query ? `/money/committees?${query}` : '/money/committees';
     }
+    case 'MoneyByRace': {
+      const params = new URLSearchParams();
+      for (const key of MONEY_BY_RACE_PARAMS) {
+        const value = activeRoute.params?.[key];
+        if (value) {
+          params.set(key, String(value));
+        }
+      }
+      const query = params.toString();
+      return query ? `/money/races?${query}` : '/money/races';
+    }
     case 'MoneySearch': {
       const query = activeRoute.params?.q;
       return query ? `/money/search?q=${encodeURIComponent(String(query))}` : '/money/search';
@@ -769,6 +793,11 @@ export function stateFromPathname(pathname: string): WebNavigationState {
     case 'moneyCommitteeList':
       return {
         routes: [homeTabs, { name: 'CommitteeList', params: target.params }],
+        index: 1,
+      };
+    case 'moneyByRace':
+      return {
+        routes: [homeTabs, { name: 'MoneyByRace', params: target.params }],
         index: 1,
       };
     case 'moneySearch':

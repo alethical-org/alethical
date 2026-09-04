@@ -17,6 +17,7 @@ import {
   injectPageSnapshot,
   legislatorDirectoryPageSnapshot,
   legislatorPageSnapshot,
+  moneyByRacePageSnapshot,
   moneyLandingPageSnapshot,
   researchPageSnapshot,
   readPageSnapshot,
@@ -54,6 +55,7 @@ import {
   legislatorPageMetadata,
   committeeListPageMetadata,
   committeeMoneyPageMetadata,
+  moneyByRacePageMetadata,
   researchPageMetadata,
   moneySearchPageMetadata,
   outsideSpendingPageMetadata,
@@ -68,6 +70,10 @@ import {
   publishedResearch,
   researchBySlug,
 } from "../apps/frontend/src/lib/research";
+import {
+  getCampaignFinanceRacesFromApiPayload,
+  type ApiMoneyByRacePayload,
+} from "../apps/frontend/src/data/api";
 import { targetFromPathname } from "../apps/frontend/src/navigation/webRoutes";
 
 /**
@@ -385,6 +391,26 @@ async function moneyLandingContent(): Promise<PageContent> {
   };
 }
 
+async function moneyByRaceContent(): Promise<PageContent> {
+  // The same shaping the app applies to the same read, so the first response
+  // carries the page a reader gets: counts, never sums; the served order; every
+  // figure with its own dates (issue #1954).
+  const payload = await getApiResponse<{ data: unknown }>(
+    `/campaign-finance/races?year=${defaultMoneyYear()}`,
+  );
+  const page = getCampaignFinanceRacesFromApiPayload(
+    payload.data as ApiMoneyByRacePayload,
+    defaultMoneyYear(),
+  );
+  if (page.state !== "reported") {
+    throw new DataUnavailable("races response has no contests to serve");
+  }
+  return {
+    metadata: moneyByRacePageMetadata(),
+    snapshot: renderPageSnapshot(moneyByRacePageSnapshot(page)),
+  };
+}
+
 async function committeeListContent(page: number): Promise<PageContent> {
   const offset = (page - 1) * COMMITTEE_PAGE_SIZE;
   const params = new URLSearchParams({
@@ -593,6 +619,12 @@ async function contentFor(
       return isUnfilteredDirectory(target.params)
         ? committeeListContent(directoryPageNumber(target.params.page))
         : headOnly(committeeListPageMetadata(1, { noindex: true }));
+    case "moneyByRace":
+      // The bare list is the page worth listing; an office chip is a filtered
+      // view and gets no body and no canonical address.
+      return Object.keys(target.params).length === 0
+        ? moneyByRaceContent()
+        : headOnly(moneyByRacePageMetadata({ noindex: true }));
     case "moneySearch":
       return headOnly(moneySearchPageMetadata(target.params.q));
     // A filtered view of one free-text spelling, not a record, so head only with

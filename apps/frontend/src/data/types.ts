@@ -1152,3 +1152,73 @@ export interface CommitteeOutsideSpendingPage {
   sourceUrl: string | null;
   fetchedAt: string | null;
 }
+
+/** One committee's named-donations figure on the Money by race page, with the
+ *  dates of the payments we hold. `state` is the committee page's own vocabulary:
+ *  `reported` with a figure, `not_reported` when the download covers the year and
+ *  holds no row for this committee (silence, never a zero), `unavailable` when we
+ *  hold nothing that can speak for the year. */
+export interface RaceNamedDonations {
+  state: 'reported' | 'not_reported' | 'unavailable';
+  total: string | null;
+  payments: number | null;
+  firstPaymentOn: string | null;
+  lastPaymentOn: string | null;
+}
+
+/** One candidate committee in a contest (GET /campaign-finance/races). Its 2
+ *  figures are the same 2 the committee page's money-in card shows, each with its
+ *  own dates; a `null` figure prints the words "Not reported", never a zero
+ *  (grounded-answers rule 12). */
+export interface RaceCommittee {
+  registrationNumber: string;
+  name: string;
+  isClosed: boolean;
+  terminationDate: string | null;
+  /** The filer's own reported contribution total for the year, or null where no
+   *  filing speaks for the year. */
+  reportedTotal: string | null;
+  reportedThrough: string | null;
+  reportedPeriodStart: string | null;
+  named: RaceNamedDonations;
+}
+
+/** One office-and-district grouping of candidate committees. Carries a count and
+ *  never a sum: a person can hold 2 committees, and money moved between them is
+ *  reported by both, so a figure added across committees counts it twice
+ *  (#1663). `periodsDiffer` is true when 2 of its committees' reported totals
+ *  cover different periods, so the page says so above the rows. */
+export interface RaceContest {
+  office: string;
+  /** Null for a statewide office. */
+  district: string | null;
+  /** A stable link target for one contest: `house-12a`, `governor`. */
+  anchor: string;
+  committeeCount: number;
+  periodsDiffer: boolean;
+  committees: RaceCommittee[];
+}
+
+/** The Money by race page: every candidate committee on the register, grouped by
+ *  the seat it registered for, ordered by office, then district, then filed
+ *  name — never by amount. `orderedBy` names that order so the printed sentence
+ *  and the real order cannot drift apart. */
+export interface MoneyByRacePage {
+  state: 'reported' | 'unavailable';
+  orderedBy: string;
+  year: number;
+  /** The office the list was narrowed to, or null for every office. */
+  office: string | null;
+  /** Every office on the register with its committee count, unfiltered, so the
+   *  chips label themselves from it whatever filter is applied. */
+  offices: { office: string; committeeCount: number }[];
+  /** The register's whole candidate count, whatever filter is applied. */
+  committeeCount: number | null;
+  contestCount: number | null;
+  contests: RaceContest[];
+  /** The register's own date, a plain calendar day. */
+  asOf: string | null;
+  /** When the download release behind the named figures was copied from the
+   *  Board: the page's one labelled freshness date. Null with no release. */
+  fetchedAt: string | null;
+}

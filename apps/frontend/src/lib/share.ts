@@ -427,6 +427,24 @@ export function committeeListPageMetadata(
 }
 
 /**
+ * The Money by race page's metadata (issue #1954). Only the bare list is a page
+ * worth listing: an office chip is one of a handful of query strings, but the
+ * same rule the other directories follow keeps every filtered view noindex with
+ * no canonical, so 1 address stands for the page.
+ */
+export function moneyByRacePageMetadata(options: { noindex?: boolean } = {}): PageMetadata {
+  const subject = 'Money by race — campaign money';
+  return pageMetadata({
+    title: titleFor(subject),
+    socialTitle: subject,
+    description:
+      'Every Minnesota candidate committee grouped by the office and district it is registered for, each with its own reported money in — ordered by district, then name, never by amount.',
+    canonicalPath: options.noindex ? '' : '/money/races',
+    noindex: options.noindex,
+  });
+}
+
+/**
  * A name-search results page. Always noindex, for the same reason an Ask answer
  * page is: the address is whatever somebody typed, so listing it would put an
  * unbounded set of query strings into a search index. The page stays crawlable so
@@ -512,6 +530,7 @@ export const STATIC_PAGE_METADATA: Record<string, PageMetadata> = {
     canonicalPath: '/money',
   }),
   '/money/committees': committeeListPageMetadata(),
+  '/money/races': moneyByRacePageMetadata(),
   // The tab carries the page's own name, because the page itself shows no title:
   // the bar and the address already say the word, so a third visible instance is
   // what the naming rule forbids, and the tab is where the name still has to

@@ -1,4 +1,4 @@
-<!-- describes: apps/frontend/src/screens/redesign/MoneyLandingScreen.tsx, apps/frontend/src/screens/redesign/ReadScreen.tsx, apps/frontend/src/screens/redesign/ResearchScreen.tsx, apps/frontend/src/screens/redesign/CommitteeMoneyScreen.tsx, apps/frontend/src/screens/redesign/CommitteePaymentsScreen.tsx, apps/frontend/src/screens/redesign/CommitteeListScreen.tsx, apps/frontend/src/screens/redesign/MoneySearchScreen.tsx, apps/frontend/src/screens/redesign/PaymentsUnderNameScreen.tsx, apps/frontend/src/components/campaignMoney/MoneyNameSearchField.tsx, apps/frontend/src/components/campaignMoney/TrackCommitteeButton.tsx, apps/frontend/src/lib/trackCommitteeButton.ts, apps/frontend/src/lib/moneyLanding.ts, apps/frontend/src/lib/research.ts, apps/frontend/src/lib/researchPieces/whoHasToReportTheirMoney.ts, apps/frontend/src/lib/researchPieces/whatTheRecordsName.ts, apps/frontend/src/components/read/SetBox.tsx, apps/frontend/src/lib/committeeMoney.ts, apps/frontend/src/lib/committeeList.ts, apps/frontend/src/lib/moneyNameSearch.ts, apps/frontend/src/lib/paymentsUnderName.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/screens/redesign/OutsideSpendingScreen.tsx, apps/frontend/src/lib/outsideSpending.ts, alethical/api/services/outside_spending.py -->
+<!-- describes: apps/frontend/src/screens/redesign/MoneyLandingScreen.tsx, apps/frontend/src/screens/redesign/ReadScreen.tsx, apps/frontend/src/screens/redesign/ResearchScreen.tsx, apps/frontend/src/screens/redesign/CommitteeMoneyScreen.tsx, apps/frontend/src/screens/redesign/CommitteePaymentsScreen.tsx, apps/frontend/src/screens/redesign/CommitteeListScreen.tsx, apps/frontend/src/screens/redesign/MoneyByRaceScreen.tsx, apps/frontend/src/screens/redesign/MoneySearchScreen.tsx, apps/frontend/src/screens/redesign/PaymentsUnderNameScreen.tsx, apps/frontend/src/components/campaignMoney/MoneyNameSearchField.tsx, apps/frontend/src/components/campaignMoney/TrackCommitteeButton.tsx, apps/frontend/src/lib/trackCommitteeButton.ts, apps/frontend/src/lib/moneyLanding.ts, apps/frontend/src/lib/research.ts, apps/frontend/src/lib/researchPieces/whoHasToReportTheirMoney.ts, apps/frontend/src/lib/researchPieces/whatTheRecordsName.ts, apps/frontend/src/components/read/SetBox.tsx, apps/frontend/src/lib/committeeMoney.ts, apps/frontend/src/lib/committeeList.ts, apps/frontend/src/lib/moneyByRace.ts, apps/frontend/src/lib/moneyNameSearch.ts, apps/frontend/src/lib/paymentsUnderName.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/screens/redesign/OutsideSpendingScreen.tsx, apps/frontend/src/lib/outsideSpending.ts, alethical/api/services/outside_spending.py -->
 
 # How the Campaign money section works
 
@@ -358,6 +358,57 @@ Its own states: nothing matches the typed name (with the spelling advice, no nea
 guess, and a way to drop the filter); our copy of the register could not be read at all
 (said as our gap, and never as a claim that Minnesota registers nobody); and loading
 placeholders that announce themselves to screen readers.
+
+## Money by race (`/money/races`)
+
+Every candidate committee on the register, grouped by the office and district it registered
+for: 222 contests on the live register, from "House District 12A · 3 candidate committees" to
+"Governor · Statewide · 28 candidate committees". The register itself supplies the office for all
+778 candidate committees and the district for 729, with no person-checked link involved, so a
+challenger is on this page from the day the Board registers their committee.
+
+Three rules are the whole page, and each is enforced by a test on the read behind it
+(`alethical/tests/test_campaign_finance_races.py`) as well as drawn:
+
+- **No contest carries a total, ever.** A heading counts committees and adds nothing. One person
+  can hold 2 committees at once, and money moved between them is reported by both, so a sum
+  across committees counts the same dollars twice. The page says so under the list.
+- **Nothing is ordered by amount.** The order is office, then district as a person reads it (2
+  before 10, 12A before 12B), then the committee's filed name A to Z, and the page prints that
+  order ("DISTRICT, THEN NAME A–Z") beside the count so a reader never infers a ranking from where
+  a row sits. The page never re-sorts what it is served.
+- **Every figure carries its own dates.** Each committee shows the same 2 money-in figures its own
+  page shows, under the same labels: "Donations this committee reported to the state", with the
+  period its filing states ("Figures for 1 Jan 2026 – 20 Jul 2026", or "Figures through 20 Jul
+  2026" where the Board's calendars print no start), and "Donations with a donor's name", with the
+  dates of the payments we hold ("Payments dated 3 Feb 2026 to 15 Jun 2026"). A committee with no
+  filing for the year reads "Not reported", never $0. Where 2 committees in one contest report
+  over different periods, a line above the rows says so.
+
+Top to bottom:
+
+1. **The count line**: "222 CONTESTS · 778 CANDIDATE COMMITTEES · COUNTED FROM THE REGISTER 12 AUG
+   2026". Counts of what we hold, read live from the register, never pasted.
+2. **Office chips**, one per office on the register plus "All offices", each with its count of the
+   whole register: House, Senate, Governor, Attorney General, Secretary of State, State Auditor,
+   Supreme Court, Appellate Court, District Court. The chips wrap; there is no dropdown. The chosen
+   office rides in the address (`?office=Senate`), so a narrowed list can be shared.
+3. **"Money figures are for 2026"** and the printed order, on one line above the contests.
+4. **The contests**, every one, with every committee under it — the Governor's 28 included, with no
+   collapse and no "show more", because a contest partially shown is a contest misread. Each
+   contest has its own link target (`/money/races#house-12a`). Each row shows the filed name (a
+   link to the committee's own page, by registration number), the registration number, a CLOSED
+   chip where the register says so, and the 2 dated figures. On a phone each contest is a card and
+   the figures move under the name.
+5. **The sentence under the list**, saying why there is no total, why the list is not ranked, and
+   why a row opens by number.
+6. **"Files last copied"**, the page's one freshness date: the day we copied the Board's download
+   the named figures come from.
+7. **What this record does not cover**, the same block as the landing.
+
+Its own states: an office with no candidate committees in our copy (a way to drop the filter is
+offered); our copy of the register could not be read (said as our gap, never as a claim that
+Minnesota has no candidates); and loading placeholders that announce themselves to screen readers.
 
 ## A committee's page (`/money/committees/{name}-{number}`)
 
