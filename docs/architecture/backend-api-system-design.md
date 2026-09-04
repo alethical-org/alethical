@@ -1639,7 +1639,7 @@ different periods, so the page says so above the rows rather than setting one pe
 against another. A contest with 1 dated figure and 1 missing figure has 1 period and reads
 `false`.
 
-`offices` lists every office on the register with its committee count, unfiltered whatever
+`fetched_at` is when the download release behind `named` was copied from the Board: the one labelled freshness date the page prints (rule 12). `offices` lists every office on the register with its committee count, unfiltered whatever
 `office` is asked for, so the chips label themselves from it and a count never looks like the
 filter found fewer than exist. `committee_count` is the register's whole candidate count;
 `contest_count` is the number of contests served.

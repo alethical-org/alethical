@@ -4112,6 +4112,7 @@ def campaign_finance_races(
             "as_of": page.as_of,
             "snapshot_id": str(page.snapshot_id) if page.snapshot_id else None,
             "release_id": str(page.release_id) if page.release_id else None,
+            "fetched_at": page.fetched_at,
             "reason": page.reason,
         }
     )

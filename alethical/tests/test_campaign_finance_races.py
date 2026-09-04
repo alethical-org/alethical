@@ -474,6 +474,8 @@ def test_every_figure_carries_its_own_dates(client, db) -> None:
     assert named["last_payment_on"] == "2026-06-15"
     assert payload["as_of"] == "2026-08-12"
     assert payload["release_id"] == str(published.release.id)
+    # The one labelled freshness date the page prints: when the downloads were copied.
+    assert payload["fetched_at"].startswith("2026-08-12T02:54")
 
 
 def test_a_contest_whose_figures_cover_different_periods_says_so(client, db) -> None:
@@ -633,7 +635,7 @@ def test_the_list_still_answers_when_no_download_release_is_held(client, db) -> 
     _reported(db, snapshot, "31544", "61200.00")
 
     payload = client.get(URL, params={"year": 2026}).json()["data"]
-    assert payload["release_id"] is None
+    assert payload["release_id"] is None and payload["fetched_at"] is None
     house_12a = next(c for c in payload["contests"] if c["anchor"] == "house-12a")
     lindqvist = next(c for c in house_12a["committees"] if "Lindqvist" in c["name"])
     assert Decimal(lindqvist["reported_total"]) == Decimal("61200.00")

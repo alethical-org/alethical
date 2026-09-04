@@ -40,7 +40,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Optional
 from uuid import UUID
@@ -151,6 +151,9 @@ class RacesPage:
     as_of: Optional[date]
     snapshot_id: Optional[UUID]
     release_id: Optional[UUID]
+    #: When the download release behind ``named`` was copied from the Board: the one
+    #: labelled freshness date the page prints (rule 12, #861). ``None`` with no release.
+    fetched_at: Optional[datetime]
     reason: Optional[str]
 
 
@@ -277,6 +280,7 @@ def races(
             as_of=summary.as_of,
             snapshot_id=summary.snapshot_id,
             release_id=None,
+            fetched_at=None,
             reason=summary.reason,
         )
     filer = schema.CampaignFinanceFiler
@@ -376,5 +380,6 @@ def races(
         as_of=summary.as_of,
         snapshot_id=summary.snapshot_id,
         release_id=getattr(release, "id", None),
+        fetched_at=getattr(release, "fetched_at", None),
         reason=None,
     )
