@@ -67,6 +67,7 @@ from alethical.api.services.campaign_finance_register import (
     register_entry,
     register_summary,
 )
+from alethical.api.services.campaign_finance_races import races as candidate_races
 from alethical.api.services.campaign_finance_search import (
     MAX_PER_GROUP,
     CommitteeRow,
@@ -4015,6 +4016,103 @@ def campaign_finance_committees(
             "as_of": page.as_of,
             "snapshot_id": str(page.snapshot_id) if page.snapshot_id else None,
             "release_id": str(page.release_id) if page.release_id else None,
+            "reason": page.reason,
+        }
+    )
+
+
+@router.get("/campaign-finance/races", response_model=DetailResponse)
+def campaign_finance_races(
+    year: int = Query(ge=2015, le=2100),
+    office: str | None = Query(default=None, min_length=1, max_length=60),
+    db: Session = Depends(get_db),
+):
+    """Every candidate committee, grouped by the office and district it registered for.
+
+    The read behind the `/money/races` page
+    ([#1954](https://github.com/alethical-org/alethical/issues/1954)). The register
+    supplies office for all 778 candidate committees and district for 729 of them, with
+    no person-checked link involved, so a contest here is a grouping Minnesota already
+    made: 222 contests on the live register, 23 single-candidate, the Governor's race one
+    statewide group of 28.
+
+    **No per-contest total, ever.** A contest carries ``committee_count`` and nothing is
+    added across committees (``.claude/rules/grounded-answers.md`` rule 12,
+    ``docs/architecture/campaign-finance-system-design.md`` §7). Every amount is tagged
+    with the committee that reported it, so adding 2 raises instead of answering
+    (``alethical/api/services/committee_amount.py``).
+
+    **Never ordered by amount, and no parameter orders by one.** ``ordered_by`` is
+    ``district_then_name``: office, then district read the way a person reads it (2
+    before 10, 12A before 12B), then the filed name A to Z. The page prints that order so
+    a reader is never left inferring one from the amounts.
+
+    **Every figure carries its own dates.** Each committee's ``reported_total`` carries
+    the period its own filing states (``reported_period_start`` where the Board's
+    calendars print one, ``reported_through`` always), kept only when that period ends
+    inside ``year`` and never for a special-election filer-year (§7's guard). Its
+    ``named`` figure is the download's ``Contribution`` rows for that filer-year, with
+    the first and last payment dates we hold. ``periods_differ`` on a contest means 2 of
+    its committees' reported totals cover different periods, and the page says so above
+    the rows. A missing figure is ``null`` and reads "Not reported", never ``0``.
+
+    ``office`` narrows to one of the register's own office values; ``offices`` lists
+    every one with its count, unfiltered, so the chips label themselves from it.
+    """
+    pin_campaign_finance_to_one_view(db)
+    try:
+        release = current_campaign_finance_release(db)
+    except ReleaseNoLongerHeld:
+        # The register is a different run from the downloads, so the list still
+        # answers in full; only the named-donations figures, read from the downloads,
+        # go absent (as ``unavailable``, never as a zero).
+        release = None
+    page = candidate_races(db, year=year, office=office, release=release)
+    return DetailResponse(
+        data={
+            "state": page.state,
+            "ordered_by": page.ordered_by,
+            "year": page.year,
+            "office": page.office,
+            "offices": [
+                {"office": name, "committee_count": count}
+                for name, count in page.offices
+            ],
+            "committee_count": page.committee_count,
+            "contest_count": len(page.contests) if page.state == "reported" else None,
+            "contests": [
+                {
+                    "office": contest.office,
+                    "district": contest.district,
+                    "anchor": contest.anchor,
+                    "committee_count": contest.committee_count,
+                    "periods_differ": contest.periods_differ,
+                    "committees": [
+                        {
+                            "registration_number": committee.registration_number,
+                            "name": committee.name,
+                            "is_closed": committee.is_closed,
+                            "termination_date": committee.termination_date,
+                            "reported_total": committee.reported_total,
+                            "reported_through": committee.reported_through,
+                            "reported_period_start": committee.reported_period_start,
+                            "named": {
+                                "state": committee.named.state,
+                                "total": committee.named.total,
+                                "payments": committee.named.payments,
+                                "first_payment_on": committee.named.first_payment_on,
+                                "last_payment_on": committee.named.last_payment_on,
+                            },
+                        }
+                        for committee in contest.committees
+                    ],
+                }
+                for contest in page.contests
+            ],
+            "as_of": page.as_of,
+            "snapshot_id": str(page.snapshot_id) if page.snapshot_id else None,
+            "release_id": str(page.release_id) if page.release_id else None,
+            "fetched_at": page.fetched_at,
             "reason": page.reason,
         }
     )
