@@ -123,6 +123,16 @@ asks Cloudflare the same question one address at a time, for the money pages fir
 prints the answer to whoever ran it. It reads the same 2 server settings, loads nothing
 into anyone's browser, and publishes nothing.
 
+Two things it does that the sitewide route does not, and both change what a figure means.
+It separates a first page load from a click inside the site, which Cloudflare measures
+separately and which differ by a factor of 20 or more on these addresses, because a
+release limit about the wait before a page appears is about the first kind only. And it
+counts real measurements rather than Cloudflare's reported totals: those totals are the
+raw count multiplied by the sampling interval, so a percentile resting on 4 measurements
+can arrive labelled 60. Its default window is 7 days for the same reason, since Cloudflare
+keeps that period unsampled.
+`docs/research/real-visitor-page-speed-sources.md` records how both were found.
+
 Publishing is the line, not measuring. The Privacy Policy tells readers that Alethical
 publishes only sitewide speed scores, so a per-address breakdown on the public page would
 contradict a promise a reader has already read. Changing that promise is the Alethical
