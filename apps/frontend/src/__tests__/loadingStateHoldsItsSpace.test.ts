@@ -13,6 +13,7 @@ const screens = {
   'bill, desktop': 'BillDetailWebScreen.tsx',
   'legislator, phone': 'LegislatorProfileMobileScreen.tsx',
   'legislator, desktop': 'LegislatorProfileWebScreen.tsx',
+  'committee money': 'CommitteeMoneyScreen.tsx',
 } as const;
 
 describe('a loading page holds its space', () => {
@@ -40,7 +41,7 @@ describe('a loading page holds its space', () => {
       // Around EVERY state, never the loading one alone. Reserving only while
       // loading releases the space on a failed load and pulls the footer up into
       // view, which measured worse than the defect it was meant to fix.
-      expect(source).toMatch(/<View style=\{oneScreenTall\}>/);
+      expect(source).toMatch(/style=\{\[?[^}]*oneScreenTall/);
       expect(source).not.toMatch(/accessibilityLabel="Loading [a-z]+" style=\{oneScreenTall\}/);
     },
   );
