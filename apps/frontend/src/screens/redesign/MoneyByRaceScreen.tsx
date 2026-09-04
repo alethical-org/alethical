@@ -89,7 +89,9 @@ export function MoneyByRaceScreen({ navigation, route }: RootScreenProps<'MoneyB
 
   // A page opened at /money/races#house-12a has to jump itself: the list is drawn
   // by JavaScript, so when the browser looks for the fragment's target on load
-  // there is nothing there yet. Read once, then asserted after the rows render.
+  // there is nothing there yet. Read once, then asserted after the rows render,
+  // and once more when the web fonts finish loading, because every row above the
+  // target changes height when the typeface swaps in.
   const [openingAnchor] = useState(() =>
     isWeb && typeof window !== 'undefined' ? window.location.hash.replace(/^#/, '') : '',
   );
@@ -97,10 +99,17 @@ export function MoneyByRaceScreen({ navigation, route }: RootScreenProps<'MoneyB
   const anchorReady = openingAnchor !== '' && anchors.includes(openingAnchor);
   useEffect(() => {
     if (!anchorReady) return;
-    const jump = () => jumpToAnchor(openingAnchor);
+    let cancelled = false;
+    const jump = () => {
+      if (!cancelled) jumpToAnchor(openingAnchor);
+    };
     const first = setTimeout(jump, 0);
     const settled = setTimeout(jump, 250);
+    if (typeof document !== 'undefined' && document.fonts?.ready) {
+      void document.fonts.ready.then(() => setTimeout(jump, 0));
+    }
     return () => {
+      cancelled = true;
       clearTimeout(first);
       clearTimeout(settled);
     };
