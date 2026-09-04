@@ -83,7 +83,7 @@ receipt, not a recommendation.
 
 **0. Frame it.** Identify the page, the preview-band state(s) shown (reference frames only by
 Design's own band labels, never invented names), its place in the IA and
-`docs/product-onboarding/mvp-redesign-plan.md`, and pull the governing spec
+`docs/product-onboarding/site-navigation-guide.md`, and pull the governing spec
 (`docs/product-onboarding/product-scope.md`, `docs/product-onboarding/grounded-ask-spec.md`,
 the relevant issues/milestone). State in one line what this screen is and is for.
 
@@ -133,7 +133,7 @@ If no finding passes the Design test, produce no Design prompt. Say the handoff 
 
 **5. Interview on genuine gaps only** — batched, ≤4, each with a recommended default (`design-intake` style). Only for gaps the repo/spec didn't answer.
 
-**6. Route the outcome.** Settled design decisions → `docs/product-onboarding/mvp-redesign-plan.md`. Capability/data gaps that need work → a GitHub issue filed at discovery (`.claude/rules/workflow.md` rule 4). Once the design finalizes, the build runs through `design-intake` → `design-build`.
+**6. Route the outcome.** Settled design decisions → the page's guide under `docs/product-onboarding/`, or `docs/design/design-principles.md` for a shared visual rule. Capability/data gaps that need work → a GitHub issue filed at discovery (`.claude/rules/workflow.md` rule 4). Once the design finalizes, the build runs through `design-intake` → `design-build`.
 
 ## What's assessable up front vs. only on the live build
 
@@ -165,4 +165,4 @@ fictional names — withdrawn, per `claude-design-prompt-rules`).
 
 ## References
 
-`.claude/rules/grounded-answers.md` (the invariants step 1 enforces) · `docs/product-onboarding/mvp-redesign-plan.md` (decisions land here) · `docs/product-onboarding/grounded-ask-spec.md` · `docs/product-onboarding/product-scope.md` · `docs/design/ui-copy-guide.md` · the `claude-design-prompt-rules` and `eugene-workflow-preferences` memories · sibling skills `design-intake`, `design-build`, `design-audit`.
+`.claude/rules/grounded-answers.md` (the invariants step 1 enforces) · `docs/design/design-principles.md` (shared visual rules land here) · `docs/product-onboarding/grounded-ask-spec.md` · `docs/product-onboarding/product-scope.md` · `docs/design/ui-copy-guide.md` · the `claude-design-prompt-rules` and `eugene-workflow-preferences` memories · sibling skills `design-intake`, `design-build`, `design-audit`.

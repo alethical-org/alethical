@@ -2,7 +2,7 @@
 
 <!-- describes: apps/frontend/src/screens/redesign/SearchBillsScreen.tsx, apps/frontend/src/components/search/BillResultCard.tsx, apps/frontend/src/components/VoteCountLinkChip.tsx, apps/frontend/src/lib/hotIssues.ts, apps/frontend/src/components/search/searchPieces.tsx, apps/frontend/src/components/billDetail/BillTrackButton.tsx, apps/frontend/src/hooks/useBillTracking.ts, apps/frontend/src/hooks/useDebouncedSearchCommit.ts, apps/frontend/src/hooks/useResponsive.ts, apps/frontend/src/lib/billDetail.ts, apps/frontend/src/lib/sessionLabel.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/links.ts, alethical/api/routers/public.py, alethical/api/services/issue_bills.py, alethical/api/issue_taxonomy.py, alethical/api/serializers.py, alethical/pipeline/policy_area_counts.py -->
 
-Status: v1 build spec. Companion to `docs/product-onboarding/mvp-redesign-plan.md` (§ "Search page split")
+Status: v1 build spec. Companion to `docs/product-onboarding/search-bills-guide.md` (the plain-English guide)
 and `docs/product-onboarding/grounded-ask-spec.md` (the Ask answer pages link into this screen). Durable
 answer/citation invariants live in `.claude/rules/grounded-answers.md`.
 
@@ -17,7 +17,7 @@ distinct from AI-generated analysis (`docs/product-onboarding/product-scope.md` 
 ## Route and URL-addressable state
 
 - Route `/bills`; detail `/bills/:billId`. Redirect `/search` → `/bills`
-  (`docs/product-onboarding/mvp-redesign-plan.md` route table).
+  (`apps/frontend/src/navigation/ia.ts` and `webRoutes.ts`).
 - **URL-addressable filters** — tracked in [#135](https://github.com/alethical-org/alethical/issues/135), split by milestone to keep v1 lean:
   - **Shipped (inbound read):** the screen reads an inbound filter param on load (e.g.
     `?policy=education`) and applies it. Required because the Ask `bills-list` answer's
@@ -422,7 +422,7 @@ Everything else on this screen runs on the current API.
 ## Aesthetic
 
 Design against the **green / rounded / soft-shadow / bold-sans** direction
-(`docs/product-onboarding/mvp-redesign-plan.md` § Locked decisions; final visual mockups in Claude Design).
+(final visual mockups in Claude Design).
 Design intent and the visual/interaction/accessibility rules are in `docs/design/design-principles.md`;
 `apps/frontend/src/theme/tokens.ts` + `theme/primitives.tsx` are the implemented styling source of
 truth. The green token flip has **landed** (PR [#67](https://github.com/alethical-org/alethical/pull/67)),

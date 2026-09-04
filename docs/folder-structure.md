@@ -23,11 +23,11 @@ docs/
 │   ├── bill-detail-guide.md
 │   ├── legislator-profile-guide.md
 │   ├── bill-text-tab-spec.md
-│   ├── mvp-redesign-plan.md
 │   ├── tracked-bill-notifications-spec.md
 │   ├── ai-models-and-billing.md
 │   ├── data-ingestion-onboarding.md
 │   ├── search-bills-guide.md
+│   ├── site-navigation-guide.md
 │   └── find-my-legislator-guide.md
 │
 ├── architecture/          How the system is built

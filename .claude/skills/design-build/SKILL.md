@@ -16,7 +16,7 @@ Why this skill: the process spans several repo docs. A fresh agent typically wor
 - A design bundle / mockup / screenshots for a page arrive and need to become a live page.
 - Continuing or shipping a redesign screen (home, search, legislators, etc.).
 
-Not for: pure backend/data work, or design *decisions* still in flux (those go to `docs/product-onboarding/mvp-redesign-plan.md` first).
+Not for: pure backend/data work, or design *decisions* still in flux (those go to the page's guide under `docs/product-onboarding/` first, or `docs/design/design-principles.md` for a shared visual rule).
 
 ## Procedure
 
@@ -74,4 +74,4 @@ Ask when: a filter/data the design shows isn't backed by today's API; a mockup's
 
 ## References
 
-`docs/product-onboarding/mvp-redesign-plan.md` (decisions, build sequence, IA/O-items) · the page's guide under `docs/product-onboarding/` · `.claude/rules/grounded-answers.md` · `.claude/rules/workflow.md` · `docs/design/ui-copy-guide.md` · `docs/product-onboarding/grounded-ask-spec.md`. First reference implementation: the signed-out home (`docs/product-onboarding/home-screen-guide.md`, issue #143). Sibling skills: `design-review` (pre-build preview evaluation), `design-intake` (proof the request), `design-audit` (verify the live build against the Web Interface Guidelines + WCAG).
+`docs/product-onboarding/site-navigation-guide.md` (the top bar and every address) · the page's guide under `docs/product-onboarding/` · `.claude/rules/grounded-answers.md` · `.claude/rules/workflow.md` · `docs/design/ui-copy-guide.md` · `docs/product-onboarding/grounded-ask-spec.md`. First reference implementation: the signed-out home (`docs/product-onboarding/home-screen-guide.md`, issue #143). Sibling skills: `design-review` (pre-build preview evaluation), `design-intake` (proof the request), `design-audit` (verify the live build against the Web Interface Guidelines + WCAG).

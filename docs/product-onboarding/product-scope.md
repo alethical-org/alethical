@@ -346,7 +346,9 @@ Read them as defaults to be argued out of with evidence, never as "not yet."
   sessions (history, follow-ups, saved context) are signed-in only. Anonymous
   visitors may receive a single stateless, rate-limited, cited answer as a
   conversion teaser — no session is persisted, and follow-ups, history, and
-  tracking require sign-in.
+  tracking require sign-in. The cited-answer moment is the product's core proof,
+  so gating it before a visitor has experienced it would suppress adoption; the
+  stateless one-shot keeps sessions signed-in only without hiding the proof.
 - A separate RAG ingestion pipeline layered on canonical legislative ingestion
 - Retrieval over:
   - bill metadata

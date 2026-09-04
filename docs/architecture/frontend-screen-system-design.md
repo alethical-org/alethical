@@ -8,8 +8,8 @@ Status: **partly superseded — read the note below before building from this.**
 > the end.
 >
 > **What has been superseded:** the navigation model and screen inventory. The shipped IA
-> is the typed registry in `apps/frontend/src/navigation/ia.ts`, with decisions recorded in
-> `docs/product-onboarding/mvp-redesign-plan.md` § Locked decisions — including the top-nav shell (this doc
+> is the typed registry in `apps/frontend/src/navigation/ia.ts`, described for readers in
+> `docs/product-onboarding/site-navigation-guide.md` — including the top-nav shell (this doc
 > predates it and describes a tab-based mobile shell) and the Search split into `/bills` +
 > `/legislators`. Per-screen truth now lives in the feature guides and specs under
 > `docs/product-onboarding/`, including `bill-search-screen-spec.md`,
@@ -268,7 +268,7 @@ Tabs:
 ## 3. Global Search
 
 > **Superseded:** the combined Bills + Legislators search below is being split
-> into two dedicated screens (`docs/product-onboarding/mvp-redesign-plan.md` § Search page split). The bill
+> into two dedicated screens (`/bills` and `/legislators`). The bill
 > search screen is specified in `docs/product-onboarding/bill-search-screen-spec.md`, which is authoritative;
 > the legislator screen follows separately. The layout here is retained as
 > historical context.
