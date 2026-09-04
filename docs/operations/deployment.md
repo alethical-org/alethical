@@ -178,6 +178,25 @@ preview needs sign-in or account testing.
 
 After Vercel assigns the production domain, update Railway's `ALETHICAL_CORS_ORIGINS` with that exact Vercel origin and redeploy the backend.
 
+### What a web release ships
+
+A page loads 3 files by name from the built HTML: the Expo runtime, a shared file of
+parts more than one screen uses, and the program every page needs. Each screen is a
+fourth file, fetched by the app for the address the reader asked for
+(`apps/frontend/src/navigation/screenChunks.ts`). A reader opening a campaign-money page
+therefore never downloads the bill page, either chat screen, the address lookup, the
+traffic dashboard or the sign-in screens.
+
+`apps/frontend/index.ts` fetches that address's screen file **before** React draws for the
+first time. React empties the app's mount point on that first draw and the server's
+readable text sits inside it (`apps/frontend/src/lib/pageSnapshot.ts`), so drawing earlier
+would replace real words with an empty box for as long as the screen file takes. A screen
+file that fails or takes more than 4 seconds lets the app start anyway.
+
+The build refuses a release that breaks either rule: exactly 1 file may be named
+`index-*.js` (`scripts/optimize-release-program.mjs`, `scripts/check-release-assets.mjs`),
+and no file at all may carry the full icon registry (`scripts/check-icon-bundle.mjs`).
+
 ### Frontend first-load recovery
 
 The successful path stays direct: a public read makes 1 request with no retry delay, and
@@ -192,16 +211,23 @@ the release page does no recovery work unless its main program file fails to loa
   state.
 - An unexpected render failure anywhere below the app root shows a recovery page with a
   reload button.
-- The static HTML listens only for a failed same-origin release program matching
-  `/_expo/static/js/web/index-*.js`. It reloads at most once per browser session. If
+- The static HTML listens only for a failed same-origin release file matching
+  `/_expo/static/js/web/*.js`. It reloads at most once per browser session. If
   browser-session storage cannot prove that guard, it does not reload. Missing API
   records, other assets, cross-origin scripts, and ordinary program errors never trigger
   this rule.
+- Each screen arrives in its own file, fetched by the app rather than named in the HTML,
+  so a failed screen file reaches `apps/frontend/src/lib/releaseReload.ts` instead. It
+  reloads once on the same browser-session key, so the 2 rules together can never reload
+  a tab twice.
 
-The missing-program rule belongs in the static HTML because the app cannot recover from a
-program that failed before the app started. It preserves the single-program release rule
-from [#1110](https://github.com/alethical-org/alethical/issues/1110) and does not add route
-program splitting or a service worker.
+The missing-file rule belongs in the static HTML because the app cannot recover from a
+file that failed before the app started, and in `releaseReload.ts` for the files the app
+fetches itself. Together they cover every release file a reader can be left asking for:
+a deployment replaces all of them, and a tab left open across one still holds the old
+page. That is the failure [#1110](https://github.com/alethical-org/alethical/issues/1110)
+recorded, and it is what these 2 reloads exist for. No service worker is involved; the
+retired one is removed on start (`apps/frontend/src/lib/serviceWorkerCleanup.ts`).
 
 ## Supabase sign-in callbacks
 

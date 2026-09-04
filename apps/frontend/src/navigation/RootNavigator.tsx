@@ -18,33 +18,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { AccountScreen } from '../screens/AccountScreen';
-import { ChatScreen } from '../screens/ChatScreen';
-import { ChatSessionScreen } from '../screens/ChatSessionScreen';
-import { FindMyLegislatorScreen } from '../screens/FindMyLegislatorScreen';
-import { LegislatorProfileScreen } from '../screens/LegislatorProfileScreen';
-import { PrivacyScreen, TermsScreen } from '../screens/LegalScreens';
-import { TrafficScreen } from '../screens/TrafficScreen';
-import { VoteDetailScreen } from '../screens/VoteDetailScreen';
-import { AskAnswerScreen } from '../screens/redesign/AskAnswerScreen';
-import { AboutUsScreen } from '../screens/redesign/AboutUsScreen';
-import { BillDetailScreen } from '../screens/redesign/BillDetailScreen';
-import { HomeSignedOutScreen } from '../screens/redesign/HomeSignedOutScreen';
-import { CommitteeListScreen } from '../screens/redesign/CommitteeListScreen';
-import { CommitteeMoneyScreen } from '../screens/redesign/CommitteeMoneyScreen';
-import { CommitteePaymentsScreen } from '../screens/redesign/CommitteePaymentsScreen';
-import { MoneySearchScreen } from '../screens/redesign/MoneySearchScreen';
-import { PaymentsUnderNameScreen } from '../screens/redesign/PaymentsUnderNameScreen';
-import { MoneyLandingScreen } from '../screens/redesign/MoneyLandingScreen';
-import { OutsideSpendingScreen } from '../screens/redesign/OutsideSpendingScreen';
-import { MoneyByRaceScreen } from '../screens/redesign/MoneyByRaceScreen';
-import { ResearchScreen } from '../screens/redesign/ResearchScreen';
-import { ReadScreen } from '../screens/redesign/ReadScreen';
-import { NotFoundScreen } from '../screens/redesign/NotFoundScreen';
-import { SearchBillsScreen } from '../screens/redesign/SearchBillsScreen';
-import { SearchLegislatorsScreen } from '../screens/redesign/SearchLegislatorsScreen';
-import { TrackedBillsScreen as TrackedScreen } from '../screens/redesign/TrackedBillsScreen';
-import { ContactUsScreen } from '../screens/redesign/ContactUsScreen';
 import { useAuth } from '../providers/AuthProvider';
 import { useResponsive } from '../hooks/useResponsive';
 import { documentTitleForRoute } from './documentTitle';
@@ -57,11 +30,48 @@ import {
 } from './webHistory';
 import { MainTabParamList, MainTabScreenProps, RootStackParamList } from './types';
 import { pathnameFromNavigationState, stateFromPathname } from './webRoutes';
+import { lazyScreen } from './lazyScreen';
+import { screenChunks } from './screenChunks';
 import { theme } from '../theme/tokens';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<MainTabParamList>();
 const navigationRef = createNavigationContainerRef<RootStackParamList>();
+
+/**
+ * Each screen is downloaded when the router first shows it, not with the rest of
+ * the app. Before this, one file held all 27 screens, so a reader opening a
+ * campaign-money page also downloaded the bill page, both chat screens, the
+ * address lookup, the traffic dashboard and the sign-in screens (#1966).
+ */
+const AccountScreen = lazyScreen(screenChunks.Account);
+const ChatScreen = lazyScreen(screenChunks.Chat);
+const ChatSessionScreen = lazyScreen(screenChunks.ChatSession);
+const FindMyLegislatorScreen = lazyScreen(screenChunks.FindMyLegislator);
+const LegislatorProfileScreen = lazyScreen(screenChunks.LegislatorProfile);
+const PrivacyScreen = lazyScreen(screenChunks.Privacy);
+const TermsScreen = lazyScreen(screenChunks.Terms);
+const TrafficScreen = lazyScreen(screenChunks.SiteMetrics);
+const VoteDetailScreen = lazyScreen(screenChunks.VoteDetail);
+const AskAnswerScreen = lazyScreen(screenChunks.Ask);
+const AboutUsScreen = lazyScreen(screenChunks.AboutUs);
+const BillDetailScreen = lazyScreen(screenChunks.BillDetail);
+const HomeSignedOutScreen = lazyScreen(screenChunks.Home);
+const CommitteeListScreen = lazyScreen(screenChunks.CommitteeList);
+const CommitteeMoneyScreen = lazyScreen(screenChunks.CommitteeMoney);
+const CommitteePaymentsScreen = lazyScreen(screenChunks.CommitteePayments);
+const MoneySearchScreen = lazyScreen(screenChunks.MoneySearch);
+const PaymentsUnderNameScreen = lazyScreen(screenChunks.PaymentsUnderName);
+const MoneyLandingScreen = lazyScreen(screenChunks.MoneyLanding);
+const OutsideSpendingScreen = lazyScreen(screenChunks.OutsideSpending);
+const MoneyByRaceScreen = lazyScreen(screenChunks.MoneyByRace);
+const ResearchScreen = lazyScreen(screenChunks.Research);
+const ReadScreen = lazyScreen(screenChunks.Read);
+const NotFoundScreen = lazyScreen(screenChunks.NotFound);
+const SearchBillsScreen = lazyScreen(screenChunks.Bills);
+const SearchLegislatorsScreen = lazyScreen(screenChunks.Legislators);
+const TrackedScreen = lazyScreen(screenChunks.Tracked);
+const ContactUsScreen = lazyScreen(screenChunks.ContactUs);
 type NavIcon = Icon;
 type RailRouteName = keyof MainTabParamList | 'FindMyLegislator' | 'NotFound' | 'SiteMetrics';
 const tabMeta: Record<keyof MainTabParamList, { label: string; Icon: NavIcon }> = {

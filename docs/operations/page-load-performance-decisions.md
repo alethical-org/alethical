@@ -84,6 +84,32 @@ the same morning `/campaign-finance/races` returned `cf-cache-status: UPDATING`
 `/campaign-finance/outside-spending` returned `EXPIRED`, past its window, and that
 reader waited on the origin.
 
+## Each screen downloads with its own route
+
+Every screen the router can show is downloaded when the router first shows it, and not
+before ([#1966](https://github.com/alethical-org/alethical/issues/1966),
+[#491](https://github.com/alethical-org/alethical/issues/491)). A page names 3 files in its
+HTML — the Expo runtime, a shared file of parts more than 1 screen uses, and the program
+every page needs — and the app fetches the screen file for the address it was asked for.
+`docs/operations/deployment.md` § What a web release ships owns the mechanics.
+
+Measured on the production build, uncompressed: 1 file of 2,399,276 bytes became a
+first-loaded set of 1,715,154 bytes across 3 files, plus a screen file of 11,567 bytes on
+`/money/committees`, 13,322 on `/money/races` and 31,432 on `/money/outside-spending`. A
+campaign-money reader no longer downloads the bill page (133,346 bytes), the address
+lookup (55,866), the traffic dashboard (41,340), the answer page (28,842) or either chat
+screen.
+
+The 2 costs, both accepted:
+
+- **A first visit waits for its screen file after the program lands.** The app does not
+  draw until that file arrives, so the server's readable text stays up rather than being
+  replaced by an empty box, and the wait replaces part of a longer wait rather than adding
+  to it.
+- **A later click waits for a screen nobody has downloaded yet.** These files are small,
+  and warming the next screen on hover is a separate item on
+  [#1966](https://github.com/alethical-org/alethical/issues/1966).
+
 ## Remaining options with a real tradeoff or open proof gap
 
 | Option | Benefit | Tradeoff or proof gap | Decision |
@@ -91,7 +117,6 @@ reader waited on the origin.
 | Send useful page content in the first HTML response | Removes the empty-page wait on cold primary pages and deep links | The separate public serving path now covers records, Home, Find My Legislator, Bills, and Legislators; the full navigation rebuild remains larger | Shipped narrowly through [#1396](https://github.com/alethical-org/alethical/issues/1396); keep [#502](https://github.com/alethical-org/alethical/issues/502) for the broader rebuild |
 | Load 2 chief-authored bills first on phone profiles | Avoids the measured 47 KB, 1.56-second cold request | “Show all” would start a later request and make that click wait | Do not ship as no-tradeoff work |
 | Replace Space Grotesk or JetBrains Mono | Could remove about 13 to 44 KB of font downloads on pages using them | Changes the logo or code-like visual style | Do not treat as performance-only work |
-| Split every route into a later program download | Makes the first route's program smaller | The first visit to every other route waits for another download, and the Expo path is experimental | Keep closed [#491](https://github.com/alethical-org/alethical/issues/491) closed unless the platform becomes stable and measurements favor it |
 | Remove screens that web links currently redirect away from | Removes about 5 KB from the website program | Some screens still support phone or signed-in flows, including the working chat room that currently lacks a public door | Do not call this dead code without a capability decision |
 | Skip rendering off-screen bill text | Can help unusually large bills | Can break section jumps, browser search, and accessibility; the measured sample was only 477 elements | Reconsider only after a real large-bill trace shows rendering is the bottleneck |
 
