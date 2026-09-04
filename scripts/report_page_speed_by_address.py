@@ -32,16 +32,31 @@ text after ``?`` removed) and the privacy policy says so. This asks for 2 timing
 percentiles and 2 sample counts per address, and for no country, device, browser,
 element, resource or referrer.
 
-**Two honest limits on every number it prints.**
+**Two things this gets right that a first version got wrong**, both found on
+4 Sep 2026 when the numbers could not be reconciled with a browser measurement of
+the same page:
 
-* *Cloudflare samples.* Its own ``sampleInterval`` says how heavily, and it is
-  printed with the table. A percentile drawn from few measurements moves around,
-  so a figure below ``--min-samples`` (50, matching what the public route already
-  requires) is withheld rather than shown.
-* *Unexpected layout movement appears to stop at 1.* Measured 4 Sep 2026: across
-  130 address groups over 30 days, no value above 1 appeared at any percentile up
-  to the slowest 1 in 1000. So read a printed 1.000 as "1 or worse", which is 10
-  times the limit either way.
+* *Cloudflare's reported totals are estimates, not measurement counts.* ``lcpTotal``
+  is the raw number of measurements multiplied by ``sampleInterval``. Over 28 days
+  that interval was about 10, and every reported total came back a round multiple
+  of 10; over 7 days it was about 1 and the totals were not round. So a floor
+  applied to the reported total lets through a percentile drawn from 4 real
+  measurements while appearing to require 50. Every count here is the reported
+  total divided by the interval, and the floor applies to that.
+* *A percentile mixes first loads with clicks inside the site, and those are
+  different events.* Cloudflare's ``navigationType`` separates them, and on the
+  money addresses over 7 days a first load measured 1,536 ms against 58 ms for an
+  in-app click. A release limit about first-load speed has to filter to first
+  loads, or a page that people mostly click into scores as though it were instant.
+
+The default window is 7 days because Cloudflare keeps that period unsampled, which
+is what makes a small address's count trustworthy. A longer window buys more visits
+and pays for them in sampling.
+
+*One remaining honest limit.* Unexpected layout movement appears to stop at 1.
+Measured 4 Sep 2026: across 130 address groups over 30 days, no value above 1
+appeared at any percentile up to the slowest 1 in 1000. So read a printed 1.000 as
+"1 or worse", which is 10 times the limit either way.
 
 Reads 1 Cloudflare address. Pure standard library, no database, no paid call.
 
@@ -56,7 +71,7 @@ Run it::
     CLOUDFLARE_ANALYTICS_API_TOKEN=... CLOUDFLARE_ACCOUNT_ID=... \\
         python scripts/report_page_speed_by_address.py
 
-    python scripts/report_page_speed_by_address.py --days 7 --json
+    python scripts/report_page_speed_by_address.py --days 28 --json
     python scripts/report_page_speed_by_address.py --fail-on-breach
 """
 
@@ -80,6 +95,13 @@ LAYOUT_MOVEMENT_LIMIT = 0.1
 
 #: Cloudflare writes "no measurement" as -1 rather than leaving the field out.
 NO_MEASUREMENT = -1
+
+#: Cloudflare's name for a real page load, where the browser fetches the document.
+#: This is the event issue 1966's limit is about.
+FIRST_LOAD = "navigate"
+#: Cloudflare's name for a move between addresses made by the program already
+#: running in the page. Fast for the same reason it is not a first load.
+IN_APP_CLICK = "routing-apis"
 
 
 @dataclass(frozen=True)
@@ -121,22 +143,32 @@ ADDRESSES: tuple[Address, ...] = (
 
 @dataclass(frozen=True)
 class Reading:
-    """What Cloudflare reported for 1 address."""
+    """What Cloudflare reported for 1 address, with counts made honest.
+
+    ``*_measurements`` are real measurement counts, not Cloudflare's reported
+    totals: it multiplies those by ``sample_interval`` before returning them.
+    """
 
     address: Address
+    navigation: str
     main_content_ms: float | None
-    main_content_samples: int
+    main_content_measurements: int
     layout_movement: float | None
-    layout_movement_samples: int
-    sample_interval: float | None
+    layout_movement_measurements: int
+    sample_interval: float
 
 
-def build_query(addresses: tuple[Address, ...]) -> str:
+def build_query(addresses: tuple[Address, ...], navigation: str) -> str:
     """One request asking the same question once per address.
 
     Each address becomes its own named selection with its own filter, so the
     percentiles come back already separated rather than needing to be
     recombined here, which is not something a percentile allows.
+
+    ``navigation`` restricts every selection to one kind of page load. Leaving it
+    out is what made a first version's figures unreconcilable with a browser
+    measurement of the same page: a percentile over both kinds at once is not a
+    percentile of anything a reader does.
     """
     selections = []
     for address in addresses:
@@ -144,7 +176,12 @@ def build_query(addresses: tuple[Address, ...]) -> str:
         selections.append(
             f"""    {address.key}: rumWebVitalsEventsAdaptiveGroups(
       limit: 1
-      filter: {{ requestHost: $host, date_geq: $start, date_leq: $end{extra} }}
+      filter: {{
+        requestHost: $host
+        date_geq: $start
+        date_leq: $end
+        navigationType: "{navigation}"{extra}
+      }}
     ) {{
       quantiles {{ largestContentfulPaintP75 cumulativeLayoutShiftP75 }}
       sum {{ lcpTotal clsTotal }}
@@ -178,14 +215,26 @@ def measurement(value: object) -> float | None:
     return number
 
 
-def sample_count(value: object) -> int:
-    """How many measurements Cloudflare says are behind a percentile."""
-    if not isinstance(value, (int, float)) or isinstance(value, bool):
+def real_measurements(reported_total: object, sample_interval: float) -> int:
+    """How many measurements are actually behind a percentile.
+
+    Cloudflare's ``lcpTotal`` and ``clsTotal`` are the raw count multiplied by
+    ``sampleInterval``, so they are estimates of visits rather than counts of
+    measurements. Dividing puts the count back. Over 28 days the interval was
+    about 10 and every reported total came back a round multiple of 10; over 7
+    days, which Cloudflare keeps unsampled, the interval was about 1 and the
+    totals were not round.
+    """
+    if not isinstance(reported_total, (int, float)) or isinstance(reported_total, bool):
         return 0
-    return max(int(value), 0)
+    if sample_interval <= 0:
+        return 0
+    return max(round(float(reported_total) / sample_interval), 0)
 
 
-def read_group(address: Address, groups: object, min_samples: int) -> Reading:
+def read_group(
+    address: Address, navigation: str, groups: object, min_measurements: int
+) -> Reading:
     """Turn 1 address's answer into a reading, withholding thin percentiles."""
     group: dict[str, object] = {}
     if isinstance(groups, list) and groups and isinstance(groups[0], dict):
@@ -199,25 +248,30 @@ def read_group(address: Address, groups: object, min_samples: int) -> Reading:
     sums = part("sum")
     averages = part("avg")
 
-    main_samples = sample_count(sums.get("lcpTotal"))
-    layout_samples = sample_count(sums.get("clsTotal"))
+    # An absent interval means Cloudflare returned no group at all, and 1 is the
+    # only safe reading: it leaves the reported total alone rather than inventing
+    # measurements that were never taken.
+    interval = measurement(averages.get("sampleInterval")) or 1.0
+    main_count = real_measurements(sums.get("lcpTotal"), interval)
+    layout_count = real_measurements(sums.get("clsTotal"), interval)
     main_micros = measurement(quantiles.get("largestContentfulPaintP75"))
     layout = measurement(quantiles.get("cumulativeLayoutShiftP75"))
     return Reading(
         address=address,
+        navigation=navigation,
         main_content_ms=(
             round(main_micros / 1000, 1)
-            if main_micros is not None and main_samples >= min_samples
+            if main_micros is not None and main_count >= min_measurements
             else None
         ),
-        main_content_samples=main_samples,
+        main_content_measurements=main_count,
         layout_movement=(
             round(layout, 3)
-            if layout is not None and layout_samples >= min_samples
+            if layout is not None and layout_count >= min_measurements
             else None
         ),
-        layout_movement_samples=layout_samples,
-        sample_interval=measurement(averages.get("sampleInterval")),
+        layout_movement_measurements=layout_count,
+        sample_interval=interval,
     )
 
 
@@ -247,31 +301,48 @@ def cell(value: float | None, samples: int, min_samples: int, suffix: str) -> st
 
 
 def format_table(
-    readings: list[Reading], started_on: date, ended_on: date, min_samples: int
+    readings: list[Reading],
+    started_on: date,
+    ended_on: date,
+    min_measurements: int,
+    title: str,
 ) -> str:
-    """The whole report, as plain text for whoever ran the command."""
-    header = ("Page address", "Main content", "Layout movement", "Over the limit")
+    """One block of the report, as plain text for whoever ran the command."""
+    header = (
+        "Page address",
+        "Main content",
+        "Layout movement",
+        "Measurements",
+        "Over the limit",
+    )
     rows = [header]
     for reading in readings:
         over = breaches(reading)
         nothing_measured = (
             reading.main_content_ms is None and reading.layout_movement is None
         )
+        counts = (
+            f"{reading.main_content_measurements}"
+            if reading.main_content_measurements == reading.layout_movement_measurements
+            else f"{reading.main_content_measurements} / "
+            f"{reading.layout_movement_measurements}"
+        )
         rows.append(
             (
                 reading.address.label,
                 cell(
                     reading.main_content_ms,
-                    reading.main_content_samples,
-                    min_samples,
+                    reading.main_content_measurements,
+                    min_measurements,
                     " ms",
                 ),
                 cell(
                     reading.layout_movement,
-                    reading.layout_movement_samples,
-                    min_samples,
+                    reading.layout_movement_measurements,
+                    min_measurements,
                     "",
                 ),
+                counts,
                 # A withheld figure is not a pass, so it never prints "no".
                 ", ".join(over)
                 if over
@@ -279,13 +350,7 @@ def format_table(
             )
         )
     widths = [max(len(row[column]) for row in rows) for column in range(len(header))]
-    lines = [
-        f"Real visits to {HOST}, {started_on} to {ended_on}, slowest 1 in 4.",
-        f"Limits (issue 1966): main content {MAIN_CONTENT_LIMIT_MS} ms, layout movement"
-        f" {LAYOUT_MOVEMENT_LIMIT}.",
-        f"A figure with fewer than {min_samples} measurements is withheld, not shown.",
-        "",
-    ]
+    lines = [title, ""]
     for index, row in enumerate(rows):
         lines.append(
             "  ".join(
@@ -294,18 +359,77 @@ def format_table(
         )
         if index == 0:
             lines.append("  ".join("-" * width for width in widths))
-    intervals = [r.sample_interval for r in readings if r.sample_interval is not None]
-    if intervals:
+    intervals = [r.sample_interval for r in readings]
+    if intervals and max(intervals) > 1.05:
         lines.append("")
         lines.append(
-            "Cloudflare keeps a sample rather than every visit: across the addresses"
-            f" above it reported 1 measurement per {min(intervals):.0f} to"
-            f" {max(intervals):.0f} visits."
+            "Cloudflare sampled this window: it kept 1 measurement per"
+            f" {min(intervals):.1f} to {max(intervals):.1f} visits, so the counts"
+            " above are its reported totals divided back down. A shorter window is"
+            " sampled less."
         )
     return "\n".join(lines)
 
 
-def as_json(readings: list[Reading], started_on: date, ended_on: date) -> str:
+def format_report(
+    first_loads: list[Reading],
+    in_app_clicks: list[Reading],
+    started_on: date,
+    ended_on: date,
+    min_measurements: int,
+) -> str:
+    """Both blocks, with the limits and the withholding rule stated once."""
+    preamble = [
+        f"Real visits to {HOST}, {started_on} to {ended_on}, slowest 1 in 4.",
+        f"Limits (issue 1966): main content {MAIN_CONTENT_LIMIT_MS} ms, layout"
+        f" movement {LAYOUT_MOVEMENT_LIMIT}. They are about a first load, so only the"
+        " first block is judged against them.",
+        f"A figure resting on fewer than {min_measurements} real measurements is"
+        " withheld, not shown, and a withheld figure never counts as a limit met.",
+        "",
+    ]
+    return "\n".join(
+        preamble
+        + [
+            format_table(
+                first_loads,
+                started_on,
+                ended_on,
+                min_measurements,
+                "FIRST LOAD (the browser fetched the page)",
+            ),
+            "",
+            format_table(
+                in_app_clicks,
+                started_on,
+                ended_on,
+                min_measurements,
+                "CLICKED INSIDE THE SITE (the program already running drew the page)",
+            ),
+        ]
+    )
+
+
+def as_json(
+    first_loads: list[Reading],
+    in_app_clicks: list[Reading],
+    started_on: date,
+    ended_on: date,
+) -> str:
+    def block(readings: list[Reading]) -> list[dict]:
+        return [
+            {
+                "address": reading.address.label,
+                "mainContentMs": reading.main_content_ms,
+                "mainContentMeasurements": reading.main_content_measurements,
+                "layoutMovement": reading.layout_movement,
+                "layoutMovementMeasurements": reading.layout_movement_measurements,
+                "sampleInterval": round(reading.sample_interval, 2),
+                "overTheLimit": breaches(reading),
+            }
+            for reading in readings
+        ]
+
     return json.dumps(
         {
             "host": HOST,
@@ -314,17 +438,8 @@ def as_json(readings: list[Reading], started_on: date, ended_on: date) -> str:
             "percentile": 75,
             "mainContentLimitMs": MAIN_CONTENT_LIMIT_MS,
             "layoutMovementLimit": LAYOUT_MOVEMENT_LIMIT,
-            "addresses": [
-                {
-                    "address": reading.address.label,
-                    "mainContentMs": reading.main_content_ms,
-                    "mainContentSamples": reading.main_content_samples,
-                    "layoutMovement": reading.layout_movement,
-                    "layoutMovementSamples": reading.layout_movement_samples,
-                    "overTheLimit": breaches(reading),
-                }
-                for reading in readings
-            ],
+            "firstLoad": block(first_loads),
+            "clickedInsideTheSite": block(in_app_clicks),
         },
         indent=2,
     )
@@ -350,14 +465,21 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--days",
         type=int,
-        default=28,
-        help="How many days back to read. 28 by default, matching the public route.",
+        default=7,
+        help=(
+            "How many days back to read. 7 by default, because Cloudflare keeps"
+            " that period unsampled, which is what makes a small address's count"
+            " trustworthy."
+        ),
     )
     parser.add_argument(
-        "--min-samples",
+        "--min-measurements",
         type=int,
         default=50,
-        help="Withhold a percentile drawn from fewer measurements than this.",
+        help=(
+            "Withhold a percentile resting on fewer real measurements than this."
+            " Counted after dividing out Cloudflare's sampling."
+        ),
     )
     parser.add_argument(
         "--json", action="store_true", help="Print the readings as JSON."
@@ -365,7 +487,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--fail-on-breach",
         action="store_true",
-        help="Exit 1 when a measured money address is over one of issue 1966's limits.",
+        help=(
+            "Exit 1 when a money address's first-load figure is over one of issue"
+            " 1966's limits."
+        ),
     )
     args = parser.parse_args(argv)
 
@@ -382,51 +507,69 @@ def main(argv: list[str] | None = None) -> int:
 
     ended_on = date.today()
     started_on = ended_on - timedelta(days=max(args.days, 1) - 1)
-    query = build_query(ADDRESSES)
-    try:
-        payload = ask_cloudflare(
-            query,
-            {
-                "accountTag": account,
-                "host": HOST,
-                "start": started_on.isoformat(),
-                "end": ended_on.isoformat(),
-            },
-            token,
-        )
-    except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as error:
-        print(f"Cloudflare could not be read: {error}", file=sys.stderr)
-        return 2
-    if payload.get("errors"):
-        print(f"Cloudflare returned errors: {payload['errors']}", file=sys.stderr)
-        return 2
-    accounts = (((payload.get("data") or {}).get("viewer") or {}).get("accounts")) or []
-    if not accounts:
-        print(
-            "Cloudflare returned no account. Check CLOUDFLARE_ACCOUNT_ID.",
-            file=sys.stderr,
-        )
-        return 2
+    variables = {
+        "accountTag": account,
+        "host": HOST,
+        "start": started_on.isoformat(),
+        "end": ended_on.isoformat(),
+    }
 
-    readings = [
-        read_group(a, accounts[0].get(a.key), args.min_samples) for a in ADDRESSES
-    ]
-    if args.json:
-        print(as_json(readings, started_on, ended_on))
-    else:
-        print(format_table(readings, started_on, ended_on, args.min_samples))
-
-    if args.fail_on_breach:
-        over = [
-            r.address.label
-            for r in readings
-            if r.address.key.startswith("money") and breaches(r)
-        ]
-        if over:
+    blocks: dict[str, list[Reading]] = {}
+    for navigation in (FIRST_LOAD, IN_APP_CLICK):
+        try:
+            payload = ask_cloudflare(
+                build_query(ADDRESSES, navigation), variables, token
+            )
+        except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as error:
+            print(f"Cloudflare could not be read: {error}", file=sys.stderr)
+            return 2
+        if payload.get("errors"):
+            print(f"Cloudflare returned errors: {payload['errors']}", file=sys.stderr)
+            return 2
+        accounts = (
+            ((payload.get("data") or {}).get("viewer") or {}).get("accounts")
+        ) or []
+        if not accounts:
             print(
-                "\nOver a money-page limit: " + ", ".join(over),
+                "Cloudflare returned no account. Check CLOUDFLARE_ACCOUNT_ID.",
                 file=sys.stderr,
             )
+            return 2
+        blocks[navigation] = [
+            read_group(
+                address,
+                navigation,
+                accounts[0].get(address.key),
+                args.min_measurements,
+            )
+            for address in ADDRESSES
+        ]
+
+    first_loads = blocks[FIRST_LOAD]
+    in_app_clicks = blocks[IN_APP_CLICK]
+    if args.json:
+        print(as_json(first_loads, in_app_clicks, started_on, ended_on))
+    else:
+        print(
+            format_report(
+                first_loads,
+                in_app_clicks,
+                started_on,
+                ended_on,
+                args.min_measurements,
+            )
+        )
+
+    if args.fail_on_breach:
+        # First loads only: the limits are about the wait before a page appears,
+        # and a click inside the site is a different event with its own numbers.
+        over = [
+            reading.address.label
+            for reading in first_loads
+            if reading.address.key.startswith("money") and breaches(reading)
+        ]
+        if over:
+            print("\nOver a money-page limit: " + ", ".join(over), file=sys.stderr)
             return 1
     return 0
 

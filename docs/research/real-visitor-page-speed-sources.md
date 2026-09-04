@@ -1,5 +1,18 @@
 # What the 2 measurement services on every Alethical page already report
 
+**Correction, 4 September 2026, same day as first publication.** The per-address figures
+first published here were wrong, and the tool that produced them has been fixed. Two
+mistakes, both of which printed a confident number rather than an error. Cloudflare's
+reported sample totals are the raw measurement count multiplied by its sampling interval,
+so a floor that appeared to require 50 measurements was letting through percentiles resting
+on 1 to 15; and the request mixed first page loads with clicks inside the site, which are
+different events, so addresses people mostly click into scored as though they were almost
+instant. The corrected figures are below and the wrong ones are not kept, because a number
+nobody should rely on has no business still being readable. What changed materially: no
+money address has enough first-load measurements to be judged at all, and the layout-movement
+failure is real sitewide and on `/bills` but not on the money list addresses, where the first
+version attributed it.
+
 **Dated snapshot, 4 September 2026.** Read at each service's own documentation and
 measured against Alethical's live production account and live production routes. A later
 pass gets a later file; nothing here is updated as the world changes
@@ -97,49 +110,91 @@ So the gap was never collection. It was that the route we already run asks Cloud
 one figure covering the whole site, and a limit written for one page cannot be checked
 against it: a fast page and a slow one average into a figure true of neither.
 
-## The first numbers, per page address
+## Two ways a per-address figure lies, both found the day this was written
 
-Real visits to `www.alethical.com`, 8 August to 4 September 2026, slowest 1 in 4. Read
-from Cloudflare's own records. The limits are 2,500 ms and 0.1.
+The first per-address figures could not be reconciled with a browser measurement of the
+same page: `/money/committees` read 46 ms against about 1.8 s measured in a browser with
+an empty cache, which is not a physically plausible page load. Both causes were found, and
+both produced a confident number rather than an error, which is why they are recorded here
+rather than only fixed in code.
 
-| Page address | Main content | Layout movement | Over the limit |
-| --- | --- | --- | --- |
-| `/money` | 1,640 ms | 1 | layout movement |
-| `/money/committees` | 46 ms | 0 | no |
-| `/money/races` | too few (10) | too few (20) | not known yet |
-| `/money/outside-spending` | too few (10) | too few (10) | not known yet |
-| `/money/search` | 300 ms | 1 | layout movement |
-| a committee's own page | 5,420 ms | 1 | main content, layout movement |
-| `/bills` | 3,784 ms | 1 | main content, layout movement |
-| `/` | 1,448 ms | 1 | layout movement |
-| every address | 5,596 ms | 1 | main content, layout movement |
+**Cloudflare's reported sample totals are estimates of visits, not counts of
+measurements.** `lcpTotal` and `clsTotal` are the raw measurement count multiplied by
+`sampleInterval`. Measured on 4 September 2026: over a 28-day window the interval was 10 to
+20 and every reported total came back a round multiple of 10; over a 7-day window, which
+Cloudflare keeps unsampled, the interval was about 1 and the totals were not round. So a
+50-measurement floor applied to the reported total was letting through percentiles resting
+on 1 to 15 real measurements. Divide by the interval and the count comes back. This is why
+7 days is the right window despite covering fewer visits: a longer window buys visits and
+pays for them in sampling, and a percentile needs measurements rather than estimates.
 
-**Three honest limits on those figures.**
+**A percentile that mixes first loads with clicks inside the site is a percentile of
+nothing anyone does.** Alethical's website is one program that redraws itself, so moving
+from `/money` to `/money/committees` by clicking never fetches a new page. Cloudflare
+separates the 2 through its `navigationType` dimension and measures both. Across the money
+addresses over 7 days a first load measured 1,536 ms against 58 ms for a click inside the
+site. Issue 1966's limit is about the wait before a page appears, so it has to be read
+against first loads alone; the mixed figure made pages people mostly click into score as
+though they were instant.
 
-* **Cloudflare keeps a sample, not every visit.** Across these addresses it reported 1
-  measurement per 10 to 102 visits, and it publishes that rate alongside the data.
-* **Two money addresses cannot be judged yet**, at 10 to 20 measurements each. A percentile
-  drawn from 10 measurements is not a number, so it is withheld rather than printed, and a
-  withheld figure never counts as a limit met.
-* **Unexpected layout movement appears to stop at 1.** Across 130 address groups over 30
-  days, no value above 1 appeared at any percentile up to the slowest 1 in 1000. So read a
-  printed 1 as "1 or worse", which is 10 times the limit either way.
+## The numbers, first loads only
 
-**Two findings in these numbers that bear on issue 1966.**
+Real visits to `www.alethical.com`, 29 August to 4 September 2026, slowest 1 in 4, first
+loads only, with real measurement counts. Read from Cloudflare's own records. The limits
+are 2,500 ms and 0.1.
 
-The first is that main-content time on real visits does not line up with that issue's lab
-measurements, in both directions. `/money/committees` measures 46 ms here against about
-1.8 s warm in the lab, and `/money/outside-spending` and `/money/search`, the 2 addresses
-that issue records as returning head only, measure 160 ms and 300 ms, faster than addresses
-that do ship a server-rendered snapshot. The 2 methods are timing different moments and the
-release limit is about this one, so the gap is worth settling before that issue's first or
-third acceptance criterion is reported as met. What causes it is not established here.
+| Page address | Main content | Layout movement | Measurements | Over the limit |
+| --- | --- | --- | --- | --- |
+| `/money` | withheld | withheld | 9 | not known |
+| `/money/committees` | withheld | withheld | 15 | not known |
+| `/money/races` | withheld | withheld | 24 | not known |
+| `/money/outside-spending` | withheld | withheld | 20 | not known |
+| `/money/search` | withheld | withheld | 1 | not known |
+| a committee's own page | withheld | withheld | 42 / 43 | not known |
+| `/bills` | 4,300 ms | 1 | 365 | main content, layout movement |
+| `/` | withheld | withheld | 32 / 27 | not known |
+| every address | 4,764 ms | 1 | 9,276 / 9,268 | main content, layout movement |
 
-The second is that unexpected layout movement is the failure no acceptance criterion on
-that issue targets: 6 of 9 addresses sit at or over 1, against a limit of 0.1. That issue's
-own account of the wait names the moment, "the app boots and clears the snapshot", so its
-second criterion, handing each page's server-read records to the app so it draws them
-without a second fetch, is the change most likely to move the number.
+**No money address can be judged yet.** Every one rests on 1 to 43 first-load measurements
+in the unsampled window, against a floor of 50. That is the honest answer, and it is a
+different answer from the one a figure printed without its count gives. A committee's own
+page, at 42 and 43, is the closest to judgeable and reads 3,804 ms and 1 if the floor is
+lowered to 40, which is worth knowing and is not the same as being measured.
+
+**What can be judged is bad.** `/bills`, on 365 measurements, takes 4,300 ms to show main
+content, and the whole site, on 9,276, takes 4,764 ms. Both are nearly twice the 2,500 ms
+limit issue 1966 sets for the money pages, on the strongest counts we have.
+
+For comparison, clicking inside the site rather than loading a page: only the sitewide
+figure has enough measurements, and it reads 7,616 ms for main content and 0.475 for layout
+movement on 902 and 834 measurements. Clicking through the site is measurably slower than
+loading a page fresh, which is the opposite of what a program that has already loaded
+should do, and nothing currently explains it.
+
+**One honest limit remains on the layout figures.** Unexpected layout movement appears to
+stop at 1. Across 130 address groups over 30 days, no value above 1 appeared at any
+percentile up to the slowest 1 in 1000. So read a printed 1 as "1 or worse", which is 10
+times the limit either way.
+
+## What these numbers say about issue 1966
+
+**Unexpected layout movement is a real failure, sitewide, on the strongest count we have.**
+1 or worse at the slowest 1 in 4 across 9,268 first-load measurements, against a passing
+mark of 0.1. `/bills` shows the same on 365. It is the worst reader-facing number this
+investigation found, and no acceptance criterion on issue 1966 targets it.
+
+**It is not, on the evidence, a money-list-page failure.** On first loads the money list
+addresses measure 0.006, comfortably inside the limit, though on too few measurements to
+state as a result. The first version of this file attributed the sitewide failure to those
+addresses, on figures that were mixing in clicks inside the site. Where the movement is
+happening is therefore an open question, and the addresses with both a solid count and a
+failing figure are `/bills` and the site as a whole.
+
+**Lab measurements and real-visitor measurements time different moments, and the release
+limit is about the second.** The 46 ms that started this has an explanation: it was mostly
+clicks inside the site. Whether the remaining gap between a 284 ms first load on
+`/money/committees` and about 1.8 s in a browser is a real difference or an artefact of 15
+measurements cannot be settled at these counts.
 
 ## Why the per-address breakdown is not published on the Site metrics page
 
@@ -190,12 +245,14 @@ Insights documentation, each read at the vendor's own site rather than relayed; 
 live Cloudflare account, queried through the dashboard's GraphQL endpoint for the figures in
 the tables above; Alethical's live `https://www.alethical.com/api/traffic-performance`
 route; and this repository at commit `020f3980`. Every vendor claim quoted above was read at
-that vendor's page. Every figure was read from Cloudflare rather than computed here, except
-the conversion from microseconds to milliseconds and the withholding of percentiles under 50
+that vendor's page. Every percentile was read from Cloudflare rather than computed here.
+What is computed: microseconds to milliseconds, the real measurement count as Cloudflare's
+reported total divided by its sampling interval, and the withholding of percentiles under 50
 measurements.
 
 Decisions this drove: [PR #643](https://github.com/alethical-org/alethical/pull/643) closed
-as superseded, and [PR #1974](https://github.com/alethical-org/alethical/pull/1974) added
-the per-address read. The living record of how the measurement works is
+as superseded, [PR #1974](https://github.com/alethical-org/alethical/pull/1974) added
+the per-address read, and [PR #1978](https://github.com/alethical-org/alethical/pull/1978)
+corrected both counting mistakes named at the top of this file. The living record of how the measurement works is
 [`docs/product-onboarding/traffic-guide.md`](../product-onboarding/traffic-guide.md), not
 this file.
