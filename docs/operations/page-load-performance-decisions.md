@@ -125,6 +125,25 @@ campaign-money reader no longer downloads the bill page (133,346 bytes), the add
 lookup (55,866), the traffic dashboard (41,340), the answer page (28,842) or either chat
 screen.
 
+**The home page is not drawn under the address a reader asked for.** Every address puts the
+home tab beneath itself so the in-app back button has somewhere to go
+(`stateFromPathname` in `navigation/webRoutes.ts`), and a stack draws the screens beneath
+the top one, so the heaviest screen we have was being downloaded and run under every other
+page: 17,736 bytes and the whole marketing page, for a reader who was never going to see it.
+`HomeRoute` now draws nothing while it is covered, and draws when a reader goes back to it.
+
+**How low this can go, measured rather than guessed.** Taking every movable thing out of the
+program every page needs — the sign-in client and screens, the bill-page formatting, the text
+of the published pieces, the committee-money display code — leaves 1,211,851 bytes of the
+1,586,692 the program holds, and 326,741 bytes once compressed the way production compresses.
+With the other 2 first-loaded files that is a floor near 365,000 bytes, so **the 300,000-byte
+target on [#1966](https://github.com/alethical-org/alethical/issues/1966) is not reachable by
+loading things later.** What is left below that floor is the framework the whole app is built
+on: `react-native-web` 249,244 minified bytes, `react-dom` 178,881, React Navigation about
+158,000, the query library 79,724 and `react-native-svg` 47,415. Reaching 300,000 would mean
+changing that foundation, not deferring more of our own code.
+[#1976](https://github.com/alethical-org/alethical/issues/1976) owns the movable part.
+
 The 2 costs, both accepted:
 
 - **A first visit waits for its screen file after the program lands.** The app does not

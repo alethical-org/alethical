@@ -193,9 +193,13 @@ readable text sits inside it (`apps/frontend/src/lib/pageSnapshot.ts`), so drawi
 would replace real words with an empty box for as long as the screen file takes. A screen
 file that fails or takes more than 4 seconds lets the app start anyway.
 
-The build refuses a release that breaks either rule: exactly 1 file may be named
+The build refuses a release that breaks any of 3 rules: exactly 1 file may be named
 `index-*.js` (`scripts/optimize-release-program.mjs`, `scripts/check-release-assets.mjs`),
-and no file at all may carry the full icon registry (`scripts/check-icon-bundle.mjs`).
+no file at all may carry the full icon registry (`scripts/check-icon-bundle.mjs`), and the
+3 files a page names must together stay under a byte limit set just above what the build
+produces today (`scripts/check-first-load-budget.mjs`). That limit is measured the way
+production compresses, and it is a ratchet: lower it when a change lands under it, and raise
+it only with a measurement and a reason in the same change.
 
 ### Frontend first-load recovery
 
