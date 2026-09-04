@@ -408,6 +408,18 @@ describe('campaign money routes', () => {
   // Every filer past the first 50 was behind a "Show more" button, which Google
   // states it does not press, so the numbered address is what makes the other
   // 1,553 committee pages walkable (#1812).
+  it('opens Money by race at /money/races and round-trips its office chip', () => {
+    expect(targetFromPathname('/money/races')).toEqual({ kind: 'moneyByRace', params: {} });
+    expect(pathForRoute({ name: 'MoneyByRace' })).toBe('/money/races');
+    expect(targetFromPathname('/money/races?office=Senate&year=2026')).toEqual({
+      kind: 'moneyByRace',
+      params: { office: 'Senate', year: '2026' },
+    });
+    expect(pathForRoute({ name: 'MoneyByRace', params: { office: 'Senate', year: '2026' } })).toBe(
+      '/money/races?office=Senate&year=2026',
+    );
+  });
+
   it('keeps a numbered register page as its own address', () => {
     expect(targetFromPathname('/money/committees?page=12')).toEqual({
       kind: 'moneyCommitteeList',

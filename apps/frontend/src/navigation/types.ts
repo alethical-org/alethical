@@ -85,6 +85,10 @@ export type RootStackParamList = {
   // numbered page all ride in the address, so a narrowed or paged list is
   // shareable and survives Back (grounded-answers.md rule 5).
   CommitteeList: { q?: string; kind?: string; page?: string } | undefined;
+  // Money by race (issue #1954): every candidate committee grouped by the seat it
+  // registered for. The office chip and the year ride in the address so a
+  // narrowed list is shareable; a contest is linked by its #anchor.
+  MoneyByRace: { office?: string; year?: string } | undefined;
   // One typed name matched across the 5 kinds of record. The query is the whole
   // state, so a results page is a link somebody can send.
   MoneySearch: { q?: string } | undefined;

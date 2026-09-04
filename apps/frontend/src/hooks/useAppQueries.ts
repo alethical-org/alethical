@@ -25,6 +25,7 @@ import {
   getLegislatorOutsideSpendingFromApi,
   getLegislatorVotesFromApi,
   getCampaignFinanceCommitteesFromApi,
+  getCampaignFinanceRacesFromApi,
   getCampaignFinanceFilingsFromApi,
   getCampaignFinanceNameSearchFromApi,
   getCampaignFinanceSummaryFromApi,
@@ -62,6 +63,7 @@ import type {
   CommitteePaymentsPage,
   CommitteeReceivedPayment,
   CommitteeRegisterPage,
+  MoneyByRacePage,
 } from '../data/types';
 import { NotificationPreference, RepresentativeLookupInput } from '../data/types';
 import { outsideSpendingLoadFailure } from '../lib/outsideSpending';
@@ -357,6 +359,18 @@ export function useCampaignFinanceFilings(limit = 5) {
  * `keepPreviousData` so typing in the find-a-committee box narrows the list in
  * place instead of blanking it between keystrokes.
  */
+/** The Money by race page: every candidate committee grouped by contest, for one
+ *  year and optionally one office (issue #1954). */
+export function useCampaignFinanceRaces(options: { year: number; office?: string }) {
+  const { year, office } = options;
+  return useQuery({
+    queryKey: ['campaign-finance-races', year, office ?? 'all'],
+    queryFn: (): Promise<MoneyByRacePage> => getCampaignFinanceRacesFromApi({ year, office }),
+    retry: false,
+    placeholderData: keepPreviousData,
+  });
+}
+
 export function useCampaignFinanceCommittees(options: {
   kind?: string;
   query?: string;

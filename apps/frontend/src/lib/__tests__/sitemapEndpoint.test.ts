@@ -9,7 +9,7 @@ import { indexedResearch, piecePath } from '../research';
  * adds one to the sitemap, and this stops failing on every publish for a reason
  * that is not a defect.
  */
-const FIXED_PAGE_ROWS = 12;
+const FIXED_PAGE_ROWS = 13;
 /** The numbered directory rows the live counts add: 2 for bills, 1 for
  *  legislators, 2 for the register of campaign committees. */
 const DIRECTORY_PAGE_ROWS = 5;
@@ -112,6 +112,10 @@ describe('sitemap endpoint', () => {
     expect(body.match(/<url>/g)).toHaveLength(
       FIXED_PAGE_ROWS + DIRECTORY_PAGE_ROWS + indexedResearch().length,
     );
+    // Money by race is one fixed page: an office chip is a filtered view and is
+    // never listed (issue #1954).
+    expect(body).toContain('<loc>https://www.alethical.com/money/races</loc>');
+    expect(body).not.toContain('/money/races?');
     // Every piece a search engine may list, at its own folder, from the registry.
     for (const piece of indexedResearch()) {
       expect(body).toContain(`<loc>https://www.alethical.com${piecePath(piece)}</loc>`);

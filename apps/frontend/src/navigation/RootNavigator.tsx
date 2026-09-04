@@ -37,6 +37,7 @@ import { MoneySearchScreen } from '../screens/redesign/MoneySearchScreen';
 import { PaymentsUnderNameScreen } from '../screens/redesign/PaymentsUnderNameScreen';
 import { MoneyLandingScreen } from '../screens/redesign/MoneyLandingScreen';
 import { OutsideSpendingScreen } from '../screens/redesign/OutsideSpendingScreen';
+import { MoneyByRaceScreen } from '../screens/redesign/MoneyByRaceScreen';
 import { ResearchScreen } from '../screens/redesign/ResearchScreen';
 import { ReadScreen } from '../screens/redesign/ReadScreen';
 import { NotFoundScreen } from '../screens/redesign/NotFoundScreen';
@@ -703,6 +704,11 @@ export function RootNavigator() {
               name="CommitteeList"
               component={CommitteeListScreen}
               options={{ headerShown: false, title: 'Committees' }}
+            />
+            <Stack.Screen
+              name="MoneyByRace"
+              component={MoneyByRaceScreen}
+              options={{ headerShown: false, title: 'Money by race' }}
             />
             <Stack.Screen
               name="CommitteeMoney"

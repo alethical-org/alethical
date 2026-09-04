@@ -53,6 +53,18 @@ import {
   registerCountLine,
 } from './committeeList';
 import {
+  MIXED_PERIODS_NOTE,
+  MONEY_BY_RACE_DEK,
+  MONEY_BY_RACE_NOTE,
+  MONEY_BY_RACE_TITLE,
+  committeeFigures,
+  contestHeadingParts,
+  figuresYearLine,
+  racesCountLine,
+  racesOrderingLine,
+} from './moneyByRace';
+import type { MoneyByRacePage } from '../data/types';
+import {
   CLOSED_EMPTY_VALUE,
   CLOSED_MONEY_IN_WHY,
   CLOSED_MONEY_OUT_WHY,
@@ -943,6 +955,59 @@ export function committeeDirectoryPageSnapshot(
         label: `Page ${target}`,
         href: directoryPagePath('/money/committees', target),
       })),
+      { label: MONEY_LANDING_HEADING, href: '/money' },
+    ],
+  };
+}
+
+/**
+ * The Money by race page, with an ordinary link per committee inside its contest.
+ *
+ * Every line is built by the same helpers the screen calls, so the first response
+ * a search engine reads is the page a reader gets: contest headings carry a count
+ * and never a sum, the order is printed, and each committee's 2 figures carry their
+ * own dates (`.claude/rules/grounded-answers.md` rule 12).
+ */
+export function moneyByRacePageSnapshot(page: MoneyByRacePage): PageSnapshot {
+  const count = racesCountLine(page.contestCount, page.committeeCount, page.asOf);
+  const order = racesOrderingLine(page.orderedBy);
+  return {
+    heading: MONEY_BY_RACE_TITLE,
+    subheading: count ?? '',
+    bodyHeading: '',
+    body: [
+      MONEY_BY_RACE_DEK,
+      figuresYearLine(page.year),
+      ...(order ? [order] : []),
+      MONEY_BY_RACE_NOTE,
+    ],
+    bodyIsList: false,
+    facts: [],
+    sections: page.contests.map((contest) => {
+      const [seat, committeeCount] = contestHeadingParts(contest);
+      return {
+        heading: `${seat} · ${committeeCount}`,
+        ...(contest.periodsDiffer ? { body: [MIXED_PERIODS_NOTE], bodyIsList: false } : {}),
+        items: contest.committees.map((committee) => ({
+          label: [
+            committee.name,
+            `REG ${committee.registrationNumber}`,
+            closedChipLabel(committee.terminationDate),
+            ...committeeFigures(committee).flatMap((figure) => [
+              `${figure.label}: ${figure.text}`,
+              figure.period ?? '',
+            ]),
+          ]
+            .filter(Boolean)
+            .join(' · '),
+          href: `/money/committees/${encodeURIComponent(
+            committeeSlug(committee.name, committee.registrationNumber),
+          )}`,
+        })),
+      };
+    }),
+    links: [
+      { label: COMMITTEE_LIST_TITLE, href: '/money/committees' },
       { label: MONEY_LANDING_HEADING, href: '/money' },
     ],
   };

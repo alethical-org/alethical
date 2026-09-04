@@ -58,6 +58,8 @@ export const routePath = {
     piece.traits.research ? routePath.research(piece.slug) : routePath.guide(piece.slug),
   moneyCommittees: (params?: RootStackParamList['CommitteeList']) =>
     pathForRoute({ name: 'CommitteeList', params }),
+  moneyRaces: (params?: RootStackParamList['MoneyByRace']) =>
+    pathForRoute({ name: 'MoneyByRace', params }),
   moneySearch: (params?: RootStackParamList['MoneySearch']) =>
     pathForRoute({ name: 'MoneySearch', params }),
   /** Every payment filed under one printed name. Both the spelling and the role
