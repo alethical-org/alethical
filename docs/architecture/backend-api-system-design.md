@@ -1584,6 +1584,73 @@ in one source must never read as an absence in the other, so there is no 503 her
 `state` is `unavailable` with a `reason` of `no_filings_snapshot` or `rows_replaced` when the
 register cannot be read. An empty list is never a claim that Minnesota registers nobody.
 
+#### `GET /api/v1/campaign-finance/races`
+
+The read behind the `/money/races` page
+([#1954](https://github.com/alethical-org/alethical/issues/1954)): every candidate committee,
+grouped by the office and district it registered for.
+
+Purpose:
+
+- one list of contests — "House District 12A · 3 candidate committees", "Governor · statewide ·
+  28 candidate committees" — with each contest's committees beneath it, each carrying its own 2
+  money-in figures and their own dates
+
+`year` (required, 2015 or later) and `office` (optional, one of the register's own office values;
+an office the register does not hold yields no contests rather than an error). **There is no sort
+parameter, in either direction, and the response names its order** as `ordered_by:
+district_then_name`: office (the 2 chambers, then the statewide offices, then the courts), then
+the district read the way a person reads it (2 before 10, 12A before 12B; a statewide office has
+no district and comes first in its office), then the filed name A to Z. Print no total and still
+sort biggest-first, and the page becomes the ranking `.claude/rules/grounded-answers.md` rule 12
+forbids; the page prints the order so a reader is never left inferring one from the amounts.
+
+**A contest carries `committee_count` and no key anywhere in it is a sum.** A person can hold a
+House committee and a Senate committee at once, and money moved between them is a `Contribution`
+reported by both ([#1663](https://github.com/alethical-org/alethical/issues/1663)), so a figure
+added across committees counts it twice. Every amount the service builds is a `CommitteeAmount`
+tagged with the committee that reported it (`alethical/api/services/committee_amount.py`), so
+adding 2 of them raises instead of answering, and
+`alethical/tests/test_campaign_finance_races.py` walks every key of the response for a
+cross-committee total and asserts that no `sort` or `order` parameter changes a byte of it.
+
+**The contest is a grouping Minnesota already made.** The register gives every candidate committee
+an office and most of them a district, with no person-checked link involved, so challengers are in
+the list from the register alone; nothing here reads `legislator_campaign_committee`. A candidate
+row with no office is not served (0 on the live register); a party unit or a committee-or-fund is
+never a contest.
+
+Each committee: `registration_number`, `name`, `is_closed`, `termination_date`, and the same 2
+figures the committee page's money-in card shows, each with its own dates:
+
+- `reported_total`, the filer's own reported contribution total for the year, with
+  `reported_through` (the period end read off the filing) and `reported_period_start` (the start
+  the Board's own transcribed calendars print against that end, `null` where none does — never an
+  assumed 1 January, §7). Kept only when the period end falls inside `year` and never for a
+  special-election filer-year, the same 2 guards as the committee page. `null` where no filing
+  speaks for the year, and a page prints the words "Not reported", never a zero.
+- `named`, the download's `Contribution` rows for that filer-year: `state` (`reported`,
+  `not_reported` when the download covers the year and holds no row for this committee,
+  `unavailable` when we hold nothing for the year or hold a row we cannot add up), `total`,
+  `payments`, `first_payment_on`, `last_payment_on`.
+
+`periods_differ` on a contest is `true` when 2 or more of its committees' reported totals cover
+different periods, so the page says so above the rows rather than setting one period silently
+against another. A contest with 1 dated figure and 1 missing figure has 1 period and reads
+`false`.
+
+`offices` lists every office on the register with its committee count, unfiltered whatever
+`office` is asked for, so the chips label themselves from it and a count never looks like the
+filter found fewer than exist. `committee_count` is the register's whole candidate count;
+`contest_count` is the number of contests served.
+
+**Two copies of Minnesota's data sit behind one response, and both are named.** The contests, the
+reported totals and their dates come from the filings snapshot (`snapshot_id`, `as_of`); only
+`named` comes from the download release (`release_id`). No release held means every `named` reads
+`unavailable` and nothing else changes. `state` is `unavailable` with a `reason` of
+`no_filings_snapshot` or `rows_replaced` when the register cannot be read, and the list is empty:
+never a claim that Minnesota registers no candidates.
+
 #### `GET /api/v1/campaign-finance/search`
 
 Shipped Aug 19 2026. Screen B, and the money section's front door.

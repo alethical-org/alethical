@@ -4075,7 +4075,8 @@ def campaign_finance_races(
             "year": page.year,
             "office": page.office,
             "offices": [
-                {"office": name, "committee_count": count} for name, count in page.offices
+                {"office": name, "committee_count": count}
+                for name, count in page.offices
             ],
             "committee_count": page.committee_count,
             "contest_count": len(page.contests) if page.state == "reported" else None,
