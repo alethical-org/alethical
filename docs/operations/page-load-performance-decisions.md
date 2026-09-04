@@ -138,6 +138,21 @@ listens on. A GitHub runner warms whichever edge location it reaches rather than
 every location worldwide, so the long window is what keeps a location warm once
 any reader has touched it and the job covers the release reset and a quiet day.
 
+**Cloudflare holds a separate copy per edge server, so an occasional slow read
+survives all of this and is not a fault.** Measured 4 Sep 2026: 4 reads of
+`/campaign-finance/outside-spending` seconds apart from one machine all returned
+`HIT` with ages of 16, 72, 23 and 26 seconds, which is 4 stored copies on 4
+servers rather than 1 copy ageing. A read that lands on a server holding no copy
+still pays the origin, measured at 2816 ms in the same session while other money
+addresses were answering in 100-180 ms. A cache window governs how long each
+server keeps a copy it already has; it cannot put one on a server that has never
+served that address.
+
+The practical reading: where a copy exists a money read costs 0.10-0.23 s against
+2.8-2.9 s at the origin, and that is what this buys. It is not a guarantee that
+no reader ever waits, and a measurement that treats a single synthetic address as
+proof of retention is measuring which server it landed on as much as the window.
+
 **Caching is what hides the origin cost; it is not the cure.** The origin is
 consistently slow rather than slow only when cold: forced cache misses on
 4 Sep 2026 returned 2.91 / 2.75 / 2.73 s for `/campaign-finance/outside-spending`
