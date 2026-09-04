@@ -252,7 +252,7 @@ measurements.
 
 Decisions this drove: [PR #643](https://github.com/alethical-org/alethical/pull/643) closed
 as superseded, [PR #1974](https://github.com/alethical-org/alethical/pull/1974) added
-the per-address read, and [PR #1978](https://github.com/alethical-org/alethical/pull/1978)
+the per-address read, and [PR #1983](https://github.com/alethical-org/alethical/pull/1983)
 corrected both counting mistakes named at the top of this file. The living record of how the measurement works is
 [`docs/product-onboarding/traffic-guide.md`](../product-onboarding/traffic-guide.md), not
 this file.
