@@ -20,7 +20,10 @@ Measured on production (`EXPLAIN ANALYZE` + `curl`):
 | same query, after index #415 | rows step 70 ms → 0.6 ms | helped, but end-to-end still ~1.2 s |
 
 The remaining ~1 s is the **multi-query, cross-region round-trip pattern**
-(Railway `us-east-1` ↔ Supabase `us-east-2`, ~6 queries per request) plus app
+(Railway `us-east4-eqdc4a`, the region `railway.json` actually sets, ↔ Supabase
+`us-east-2`; about 6 queries per bill-list request, measured Aug 7 2026 on that
+route only — the campaign-money routes are heavier and their count is not
+established here) plus app
 overhead — not any single slow query. Squeezing the queries further is
 diminishing returns. Caching the *response* skips all of it: bill lists and bill
 detail are public records that change only when ingestion runs (infrequent,
@@ -29,34 +32,59 @@ human-triggered), so they are safe to serve from an edge cache for a short TTL.
 The response headers that drive the cache are **already live** (PR #363):
 
 ```
-Cache-Control: public, max-age=300, stale-while-revalidate=604800, stale-if-error=604800   # anonymous reads
-Cache-Control: private, no-store                                                           # signed-in / tracking reads
+Cache-Control: public, max-age=60, stale-while-revalidate=300                             # anonymous bill / vote / legislator reads
+Cache-Control: public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800   # anonymous campaign-money reads
+Cache-Control: private, no-store                                                          # signed-in / tracking reads
 ```
 
-So the edge holds a public read for 5 minutes without asking the origin, then for
-a further 7 days answers instantly from the copy it already has while it refreshes
-behind the reader, and serves that copy rather than an error if the origin is down.
-A signed-in user's personalized response is never cached.
+There are 2 windows because the records behind them change at genuinely
+different rates, and one window was wrong for both.
 
-The 7 days is set from how often ingestion changes these records, not from a guess:
-a load is human-triggered and on no schedule, and production's campaign-finance
-snapshot was 23 days old when this was measured on 4 Sep 2026. The window before
-that was 60 s plus 5 minutes, so any gap over 5 minutes between readers sent the
+**Bill, vote and legislator reads keep the short window.**
+`.github/workflows/vote-backfill.yml` re-reads and writes votes every day at
+09:00 UTC, so these records change daily. A long stale window here would let a
+reader be handed a week-old bill status, which is the harm
+`.claude/rules/grounded-answers.md` rule 7 names: "a status-stale answer
+misframes enacted law as a pending proposal."
+
+**Campaign-money reads get the longer window**, because a load is
+human-triggered and on no schedule: production's snapshot was dated 2026-08-12
+when this was measured on 4 Sep 2026, 23 days old. Against that, the old 60 s
+plus 5 minutes was minutes, so any gap over 5 minutes between readers sent the
 next one to the origin, measured at 2975 ms on
-`/campaign-finance/outside-spending`. Cloudflare honours both directives, measured
-rather than assumed: the same morning `/campaign-finance/races` returned
-`cf-cache-status: UPDATING` (serving stale, refreshing behind the reader) and
-`/campaign-finance/outside-spending` returned `EXPIRED` (past the window, so that
-reader waited on the origin).
+`/campaign-finance/outside-spending`. Cloudflare honours both directives,
+measured rather than assumed: the same morning `/campaign-finance/races`
+returned `cf-cache-status: UPDATING` (serving stale, refreshing behind the
+reader) and `/campaign-finance/outside-spending` returned `EXPIRED` (past the
+window, so that reader waited on the origin).
 
-Only `stale-while-revalidate` was lengthened far, because it is the directive that
-costs nothing: inside it the edge never makes a reader wait. `max-age` is the one
-that genuinely delays an update, so it moved from 60 s to 5 minutes and no further.
+Only `stale-while-revalidate` was lengthened, because it is the directive that
+costs nothing: inside it the edge never makes a reader wait. `max-age`, which
+does delay an update, moved from 60 s to 5 minutes and no further.
 
-The window does not touch what any page prints as its freshness date. That date
-travels inside the payload (`as_of`, read off the loaded snapshot's
-`fetch_completed_at`), so a cached copy prints the day its own records were
-copied.
+**The money window is capped at a day rather than a week because nothing yet
+clears these copies when a load lands.** 4 events can move a money answer: a new
+campaign-money download release, a new filed-totals or registered-filer release,
+a committee-to-legislator link being confirmed, and one being withdrawn. None of
+them purges the edge today. So the cap is what we are willing to be wrong by
+with no clearing at all, and lengthening it is gated on proving automatic
+clearing for all 4, not on judgement. Tracked on
+[#1979](https://github.com/alethical-org/alethical/issues/1979).
+
+`stale-if-error` applies only when the origin is failing, where the last good
+copy beats an error page.
+
+**What the window does and does not touch.** Every money page prints `as_of`,
+read off the loaded snapshot's `fetch_completed_at` and carried inside the
+payload, so a cached copy prints the day its own records were copied rather than
+the day it was cached. That means a stale answer stays honestly dated. It does
+**not** mean a stale answer is current: a truthful old date and a fresh figure
+are 2 different things, which is exactly why the window is capped above rather
+than justified by the date.
+
+A signed-in reader's response is never held at a shared cache: the middleware
+skips any request carrying `Authorization`, pinned by
+`test_money_reads_cache_longer_than_bill_reads_and_neither_leaks_to_a_signed_in_reader`.
 
 ## Starting topology before 20 July 2026
 
