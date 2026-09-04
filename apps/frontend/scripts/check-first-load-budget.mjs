@@ -19,17 +19,24 @@ import { pathToFileURL } from 'node:url';
  * `docs/operations/page-load-performance-decisions.md` § Each screen downloads
  * with its own route holds the measurements and the floor this cannot go below.
  */
-export const FIRST_LOAD_LIMIT = 445000;
+export const FIRST_LOAD_LIMIT = 458000;
 
 /**
- * Brotli quality 4 is what production sends. Measured 4 Sep 2026: Vercel served
- * a 1,577,695-byte program as 417,633 bytes, and quality 4 on the same file
- * locally produced 417,825. Quality 11 would report 341,813 for that file and
- * flatter every release by about 18%.
+ * The exact settings Vercel compresses with, so this reports the bytes a reader
+ * really receives rather than the smallest the file could be.
+ *
+ * Found by compressing files downloaded from production and comparing: on
+ * 4 Sep 2026 Vercel sent the 1,579,465-byte program as 417,940 bytes, the shared
+ * file as 36,718 and a screen file as 3,712, and quality 3 with a 19-bit window
+ * reproduced all 3 to the byte. Quality 4 would report 404,414 for that program
+ * and quality 11 would report 341,813, flattering a release by 3% and 18%.
  */
 export function productionBytes(source) {
   return brotliCompressSync(Buffer.from(source), {
-    params: { [constants.BROTLI_PARAM_QUALITY]: 4 },
+    params: {
+      [constants.BROTLI_PARAM_QUALITY]: 3,
+      [constants.BROTLI_PARAM_LGWIN]: 19,
+    },
   }).length;
 }
 

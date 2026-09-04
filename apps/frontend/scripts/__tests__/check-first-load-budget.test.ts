@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { brotliCompressSync, constants } from 'node:zlib';
 import { describe, expect, it } from 'vitest';
 
 import {
@@ -47,11 +49,21 @@ describe('checkFirstLoadBudget', () => {
   it('holds a limit no bigger than what the build produces today', () => {
     // A limit far above the real size would let the file grow back unnoticed,
     // which is the whole reason this check exists.
-    expect(FIRST_LOAD_LIMIT).toBeLessThanOrEqual(445000);
+    expect(FIRST_LOAD_LIMIT).toBeLessThanOrEqual(458000);
   });
 });
 
 describe('productionBytes', () => {
+  it('never reports fewer bytes than production sends', () => {
+    // Production compresses at quality 3 with a 19-bit window. A setting that
+    // squeezed harder would report a release smaller than the one readers get,
+    // which is the one way this check could lie in the direction that matters.
+    const source = readFileSync(new URL('../check-first-load-budget.mjs', import.meta.url));
+    expect(productionBytes(source)).toBeGreaterThan(
+      brotliCompressSync(source, { params: { [constants.BROTLI_PARAM_QUALITY]: 4 } }).length,
+    );
+  });
+
   it('measures the way production compresses, not the smallest a file could be', () => {
     const source = 'const a = 1;\n'.repeat(4000);
     const bytes = productionBytes(source);
