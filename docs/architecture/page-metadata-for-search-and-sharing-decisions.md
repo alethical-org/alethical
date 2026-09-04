@@ -1597,11 +1597,11 @@ ask for, and the app draws it with no request of its own.** The transport is a
 consequence of §23 worth writing down before somebody tunes a header.** Before this,
 a held copy of a page froze markup: the figures came from a fetch the app made after
 loading, so a week-old held page still showed today's records. Now the records travel
-inside the response, so a held copy freezes them too, and `OK_CACHE`'s
-`stale-while-revalidate` is a limit on how old a record a reader can be shown.
+inside the response, so a held copy freezes them too, and **every** window in
+`OK_CACHE` is a limit on how old a record a reader can be shown.
 
-It is set to **5 minutes** for that reason, against the week the caching reasoning in
-`docs/operations/page-load-performance-decisions.md` would otherwise allow. The case
+All 3 are set to **5 minutes** for that reason, against the week the caching reasoning
+in `docs/operations/page-load-performance-decisions.md` would otherwise allow. The case
 that decides the number is not a figure going out of date, which carries its own date
 and is fine: it is a committee-to-legislator link being **withdrawn**. A person
 withdraws one exactly when money was attached to the wrong named member, and it is a
@@ -1609,15 +1609,31 @@ designed path with its own state, stored reason and review script
 (`docs/architecture/campaign-finance-system-design.md` §5.1). A held copy would keep a
 page asserting a relationship between a named person and money that nobody stands
 behind any more, which is `.claude/rules/grounded-answers.md` rule 3, and no warm cache
-is worth a week of it.
+is worth a week of it. It is live rather than theoretical: all 200 sitting members had
+a confirmed committee on 4 Sep 2026, and `/committees/{number}/finance` returns that
+person in `confirmed_for`, which `committeePageSnapshot` prints.
 
-So the worst a reader can be shown is a copy generated `s-maxage` plus that window ago:
-65 minutes, against 7 days. The named cost is that the first reader after a gap longer
-than an hour waits for the function instead of getting a held copy instantly. The
-window goes back to a week only once held copies are proven to clear themselves for all
-4 events that can move a money answer: a new campaign-money download release, a new
-filed-totals or registered-filer release, a link being confirmed, and a link being
-withdrawn.
+**Each of the 3 had to come down, and shortening only one of them shortens nothing.**
+`s-maxage` is the floor: inside it Vercel answers from what it holds and does not call
+the function at all. `stale-while-revalidate` is served while a refresh runs behind the
+reader. `stale-if-error` is served when the function cannot answer, and the harm does
+not care why an old copy is handed out — a week-old page attaches money to the wrong
+person exactly as wrongly during an outage as outside one. §7's own permission to keep
+"older and labelled" figures through a failure is real and covers a response of dated
+figures; a money page carries an identity too, and a mixed response takes the shorter
+rule.
+
+So the worst a reader can be shown is a copy generated **10 minutes** ago, on every
+path including an outage. The named cost: outside those windows a reader waits for the
+function, and past them an outage returns the handler's own 503 rather than a dated
+page. The windows go back to anything longer only once held copies are proven to clear
+themselves for all 4 events that can move a money answer: a new campaign-money download
+release, a new filed-totals or registered-filer release, a link being confirmed, and a
+link being withdrawn. Nothing clears them today — Vercel clears these on a deployment
+and an import makes no deployment — so the window length is the whole protection.
+Splitting the rule by what each address actually contains is
+[issue 1985](https://github.com/alethical-org/alethical/issues/1985) and is deliberately
+not built here, because a short window is safe with no classification at all.
 
 ### Why `initialData` rather than a warm cache
 

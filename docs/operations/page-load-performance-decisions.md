@@ -42,7 +42,7 @@ the records behind them change at genuinely different rates.
 |---|---|---|
 | Cloudflare, bill / vote / legislator reads | `public, max-age=60, stale-while-revalidate=300` | `PUBLIC_CACHE_CONTROL` in `alethical/api/routers/public.py` |
 | Cloudflare, campaign-money reads | `public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800` | `MONEY_RECORDS_CACHE_CONTROL`, same file, routed by `MONEY_PATH_SEGMENT` in `alethical/api/main.py` |
-| Vercel, in front of the page HTML | `public, max-age=0, s-maxage=3600, stale-while-revalidate=300, stale-if-error=604800` | `OK_CACHE` in `api/page.ts` |
+| Vercel, in front of the page HTML | `public, max-age=0, s-maxage=300, stale-while-revalidate=300, stale-if-error=300` | `OK_CACHE` in `api/page.ts` |
 
 **Bill, vote and legislator reads keep the short window, and campaign money
 gets the longer one.** The 2 differ because the records behind them change at
@@ -78,10 +78,37 @@ path with its own state and stored reason
 §5.1). That is an identity error, and
 [`.claude/rules/grounded-answers.md`](../../.claude/rules/grounded-answers.md) rule 3
 is what a held copy would break, by keeping a page asserting a relationship between
-a named person and money that nobody stands behind any more. So the worst a reader
-can be shown is a copy generated `s-maxage` plus 5 minutes ago, 65 minutes rather
-than 7 days. The cost is real and named: the first reader after a gap longer than an
-hour waits for the page function instead of getting a held copy instantly.
+a named person and money that nobody stands behind any more. It is live rather than
+theoretical: all 200 sitting members had a confirmed committee on 4 Sep 2026, and
+`GET /api/v1/committees/{registration_number}/finance` returns that person in
+`confirmed_for`, which the served committee page prints.
+
+**All 3 of the page's windows are 5 minutes, and each one has to be**, which is why
+the header carries no long value at all:
+
+- `s-maxage` is the floor and the only one that matters on its own. Inside it Vercel
+  answers from what it holds and does not call the function, so shortening a stale
+  window while leaving an hour here shortens nothing a reader experiences.
+- `stale-while-revalidate` is served while a refresh runs behind the reader.
+- `stale-if-error` is served when the function cannot answer. The harm does not care
+  why an old copy is handed out: a week-old page attaches money to the wrong person
+  exactly as wrongly during an outage as outside one. §7's own permission to keep
+  "older and labelled" figures through a failure is real and covers a response of
+  dated figures; a money page carries an identity too, and a mixed response takes
+  the shorter rule.
+
+So the worst a reader can be shown is a copy generated **10 minutes** ago, on every
+path including an outage. The cost is real and named: outside those windows a reader
+waits for the page function, and past them an outage returns the handler's own 503
+instead of a dated page.
+
+**Nothing clears a held page copy when a record changes**, which is why the window
+length is the whole protection rather than a backstop. Vercel clears these on a
+deployment and a campaign-money import makes no deployment; the warming job is a set
+of GETs, which a held address answers from what it holds. Splitting the page rule by
+what each address actually contains is
+[issue 1985](https://github.com/alethical-org/alethical/issues/1985), and a short
+window is safe with no such classification at all.
 
 **Every window here is capped because nothing clears a held copy when a load
 lands.** 4 events can move a money answer: a new campaign-money download release,

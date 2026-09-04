@@ -148,34 +148,55 @@ const API_TIMEOUT_MS = 5000;
 // which is why .github/workflows/warm-money-pages.yml re-reads the money addresses
 // after each production release (#1966, acceptance criterion 4).
 //
-// `stale-while-revalidate` is 5 minutes rather than the week the reasoning above
-// would allow, and the reason is a change this file itself made. Since #1966
-// criterion 2 this response carries the RECORDS it read, not only the markup, so a
-// held copy freezes the records with it and this window is now a data freshness
-// window. Anyone lengthening it again is lengthening how long a reader can be shown
-// records a person has already corrected.
+// Every other window is 5 minutes, and the reason is a change this file itself
+// made. Since #1966 criterion 2 this response carries the RECORDS it read, not only
+// the markup, so a held copy freezes the records with it. Before that, an hour of
+// held markup was harmless because the app fetched fresh records anyway; now an
+// hour of held page is an hour of held records. Anyone lengthening any of these is
+// lengthening how long a reader can be shown records a person has already
+// corrected.
 //
-// The case that decides the number is a committee-to-legislator link being
-// WITHDRAWN. A person withdraws one exactly when money was attached to the wrong
-// named member, and it is a designed path with its own state and stored reason
-// (`docs/architecture/campaign-finance-system-design.md` §5.1, issue #1902). That
-// is an identity error rather than a figure going out of date, and
-// `.claude/rules/grounded-answers.md` rule 3 is what it breaks: a page would keep
-// asserting a relationship between a named person and money that we no longer
-// stand behind. A week of it is not a tradeoff worth making for a warm cache.
+// The case that decides it is a committee-to-legislator link being WITHDRAWN. A
+// person withdraws one exactly when money was attached to the wrong named member,
+// and it is a designed path with its own state, stored reason and review script
+// (`docs/architecture/campaign-finance-system-design.md` §5.1, issue #1902). That is
+// an identity error rather than a figure going out of date, and
+// `.claude/rules/grounded-answers.md` rule 3 is what it breaks: the page keeps
+// asserting a relationship between a named person and money that nobody stands
+// behind. It is live rather than theoretical -- all 200 sitting members had a
+// confirmed committee on 4 Sep 2026, and `/committees/{number}/finance` returns
+// that person in `confirmed_for`, which `committeePageSnapshot` prints.
 //
-// So the worst a reader can be shown is a copy generated `s-maxage` plus this
-// window ago: 65 minutes, against 7 days before. The hour of `s-maxage` stays,
-// because inside it nothing is asked of the function at all and that is what keeps
-// a page instant. `stale-if-error` stays at a week: it applies only when the
-// function cannot answer, where a dated page beats a failure.
+// All 3 windows are 5 minutes, and each had to come down for its own reason:
 //
-// Both go back to a week only once held copies are proven to clear themselves for
-// all 4 events that move a money answer — a new campaign-money download release, a
-// new filed-totals or registered-filer release, a link being confirmed, and a link
-// being withdrawn.
+//  * `s-maxage` is the floor, and the only one that matters on its own. Inside it
+//    Vercel answers from what it holds and does not call this function at all, so
+//    shortening a stale window while leaving an hour here shortens nothing a reader
+//    experiences.
+//  * `stale-while-revalidate` is served while a refresh runs behind the reader.
+//  * `stale-if-error` is served when this function cannot answer. The harm does not
+//    care WHY an old copy is handed out: a week-old page attaches money to the wrong
+//    person exactly as wrongly during an outage as outside one. The design's own
+//    permission to keep "older and labelled" figures through a failure
+//    (`docs/architecture/campaign-finance-system-design.md`, "keep the last accepted
+//    figures and their existing date") is real, and it covers a response of dated
+//    figures. A money page is not only that: it carries an identity too, and a mixed
+//    response takes the shorter rule.
+//
+// So the worst a reader can be shown is a copy generated 10 minutes ago, on every
+// path including an outage. The cost, named rather than buried: outside these
+// windows a reader waits for this function, and past them an outage returns the
+// handler's own 503 instead of a dated page.
+//
+// Nothing clears a held copy when a record changes. Vercel clears these on a
+// deployment and a campaign-money import makes no deployment, and the warming job
+// is a set of GETs, which a held address answers from what it holds. So window
+// length is the only protection there is, which is why it is 5 minutes rather than
+// merely shorter. Splitting the rule by what an address actually contains is
+// issue #1985, deliberately not built here: a short window is safe with no
+// classification at all.
 const OK_CACHE =
-  "public, max-age=0, s-maxage=3600, stale-while-revalidate=300, stale-if-error=604800";
+  "public, max-age=0, s-maxage=300, stale-while-revalidate=300, stale-if-error=300";
 // A record that does not exist today may exist after the next ingestion run, so a
 // 404 is cached briefly rather than for the whole day.
 const NOT_FOUND_CACHE = "public, max-age=0, s-maxage=300";
