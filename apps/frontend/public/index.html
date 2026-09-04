@@ -224,6 +224,15 @@
   </head>
 
   <body>
+    <!--
+      A release replaces every content-named file under /_expo/static/js/web/,
+      so a tab left open across one can ask for a file that is no longer there.
+      One reload puts the tab on the current release. Every file this page loads
+      directly counts, not only the first one: since #1966 the page also loads a
+      shared file, and screens arrive in their own files after this program has
+      run (src/lib/releaseReload.ts does the same for those, sharing this key so
+      the 2 of them cannot reload a tab twice).
+    -->
     <script id="alethical-release-recovery">
       (function () {
         var reloadKey = 'alethical.release-program-reload';
@@ -245,7 +254,7 @@
 
             if (
               source.origin !== window.location.origin ||
-              !/^\/_expo\/static\/js\/web\/index-[^/]+\.js$/.test(source.pathname)
+              !/^\/_expo\/static\/js\/web\/[^/]+\.js$/.test(source.pathname)
             ) {
               return;
             }

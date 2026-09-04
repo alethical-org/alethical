@@ -3,10 +3,12 @@ import { readFile, readdir } from 'node:fs/promises';
 
 const bundleDirectory = new URL('../dist/_expo/static/js/web/', import.meta.url);
 const bundleFiles = (await readdir(bundleDirectory)).filter((file) => file.endsWith('.js'));
+// One file every page loads first, then a piece per screen (#1966).
+const entryFiles = bundleFiles.filter((file) => /^index-[^/]+\.js$/.test(file));
 
-if (bundleFiles.length !== 1) {
+if (entryFiles.length !== 1) {
   throw new Error(
-    `Expected 1 web JavaScript bundle, found ${bundleFiles.length}: ${bundleFiles.join(', ')}`,
+    `Expected 1 first-loaded web JavaScript file, found ${entryFiles.length}: ${bundleFiles.join(', ')}`,
   );
 }
 
@@ -38,4 +40,6 @@ if (inlinePrograms.length !== 1) {
   throw new Error(`Expected 1 built inline program, found ${inlinePrograms.length}.`);
 }
 
-console.log(`Release asset check passed: ${bundleFiles[0]}`);
+console.log(
+  `Release asset check passed: ${entryFiles[0]} and ${bundleFiles.length - 1} screen pieces`,
+);
