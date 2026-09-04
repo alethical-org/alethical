@@ -1626,14 +1626,44 @@ rule.
 So the worst a reader can be shown is a copy generated **10 minutes** ago, on every
 path including an outage. The named cost: outside those windows a reader waits for the
 function, and past them an outage returns the handler's own 503 rather than a dated
-page. The windows go back to anything longer only once held copies are proven to clear
-themselves for all 4 events that can move a money answer: a new campaign-money download
-release, a new filed-totals or registered-filer release, a link being confirmed, and a
-link being withdrawn. Nothing clears them today — Vercel clears these on a deployment
-and an import makes no deployment — so the window length is the whole protection.
-Splitting the rule by what each address actually contains is
+page.
+
+**The rule, rather than the 2 numbers.** A response that can name a person gets a short
+window, always. A longer one is available only to a response that is *purely dated
+figures*, which §7 of `docs/architecture/campaign-finance-system-design.md` explicitly
+permits: keep the last accepted figures and their existing date, because "older and
+labelled beats blank". The page function serves both kinds from one header and cannot
+tell them apart, so it takes the shorter rule for all of them. Sorting every route by
+what it actually contains is
 [issue 1985](https://github.com/alethical-org/alethical/issues/1985) and is deliberately
-not built here, because a short window is safe with no classification at all.
+not built: a short window is safe with no classification at all, and the work to make an
+uncached money answer fast may remove the reason for any long window
+([pull request 1987](https://github.com/alethical-org/alethical/pull/1987), targeting
+under 0.3 s).
+
+Where each side sits today: this function is 5 minutes on all 3 windows, and the data
+service holds a day for money reads
+(`MONEY_RECORDS_CACHE_CONTROL` in `alethical/api/routers/public.py`, not this file's to
+change). The 2 identity-bearing routes there —
+`committees/{registration_number}/finance`, which returns `confirmed_for`, and
+`legislators/{id}/campaign-finance` — belong on the short window by the same rule.
+
+**Read this before lengthening anything on the strength of automatic clearing.** Proving
+that held copies clear themselves lifts the cap on a pure-figures route. It does not lift
+it on a route that names a person: clearing is what stops a *stale* copy, and the reason
+an identity-bearing route is short is what happens when a correction has not propagated
+yet. Nothing clears these copies today in any case — Vercel clears them on a deployment
+and a campaign-money import makes no deployment — so right now the window length is the
+whole protection rather than a backstop behind one.
+
+**A caution for anyone verifying this header from outside: you cannot.** Vercel consumes
+`s-maxage`, `stale-while-revalidate` and `stale-if-error` and forwards none of them, so a
+deployed address answers `cache-control: public, max-age=0` whatever this function sets.
+A check that watches a live response for one of those directives never matches and never
+errors either — it just waits, which reads as a slow release rather than a broken check.
+What can be read from outside is the `age` header, which `s-maxage` caps: sampled across
+2 addresses after this shipped, `age` climbed to at most 335 s and reset, against a single
+pre-release reading of 652 s that only the old hour allowed.
 
 ### Why `initialData` rather than a warm cache
 
