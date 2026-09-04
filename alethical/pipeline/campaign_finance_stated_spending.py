@@ -67,7 +67,6 @@ from alethical.pipeline.campaign_finance_report_documents import (
     parse_report_document,
     stated_spending,
 )
-from alethical.pipeline.campaign_finance_stated_split import DOCUMENT_FIRST_YEAR
 
 
 @dataclass
@@ -292,12 +291,12 @@ def _skip_reason(
     special_election: bool,
 ) -> Optional[str]:
     """Why this committee-year cannot be checked, in words an operator can act on."""
-    if filing_year < DOCUMENT_FIRST_YEAR:
-        return (
-            f"the Board serves no report document for {filing_year}; the boundary is "
-            f"{DOCUMENT_FIRST_YEAR} and its absence in an older year means the "
-            "document is unavailable, never that the filing was never amended"
-        )
+    # No year test here on purpose. This check asks the Board for nothing, so refusing
+    # an older committee-year saved no request and only hid what we hold: 982
+    # committee-years of 2022 pass every other gate and we hold the exact document for
+    # every one (#1937, measured on production 3 September 2026). A filing we hold no
+    # document of already answers "not checked" below, with the honest reason, so the
+    # boundary the money-in check needs for its requests does no work here.
     if kind is None:
         return (
             "this registration number is in no filer list the Board publishes, so "

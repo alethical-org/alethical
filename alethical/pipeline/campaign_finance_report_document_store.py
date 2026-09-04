@@ -343,13 +343,30 @@ class DocumentLibrary:
         amendment_index: Optional[int],
         special_election: bool = False,
     ) -> Optional[StoredDocument]:
-        """``one_or_none`` below is only true while the series is part of the filter.
+        """Newest first, because one filing version can be held as 2 different documents.
 
-        A special-election year-end and a regular one share filer, year, report type and
-        amendment index, so without ``special_election`` this query matches 2 rows for 7
-        of Minnesota's filer-year-amendments and raises rather than answering (#1886).
+        ``special_election`` is part of the filter because a special-election year-end
+        and a regular one share filer, year, report type and amendment index, so without
+        it this query matches 2 rows for 7 of Minnesota's filer-year-amendments (#1886).
         The default is False because every sweep that reads this selects its report with
         ``r.special_election IS FALSE``.
+
+        **That column is not the only way 2 rows arrive, which is why this orders rather
+        than asserting one.** The key is a content address, so the same filing version
+        served with different bytes is a second row, and Minnesota is currently doing
+        exactly that to every report filed since 1 January 2022: chapter 101 of Laws 2026
+        orders each one taken down, its donors' street addresses blacked out, and
+        reposted, finishing around 19 November 2026 (#1662). ``one_or_none`` raised on the
+        second copy, and both sweeps record a raise as *not checked* -- so a committee-year
+        would have gone quietly unchecked for the honest reason that we hold its filing
+        twice. Measured on production 3 September 2026: 0 of 5,677 kept documents shared a
+        filing key with another, so this has never fired and is guarded before it can.
+
+        **Newest by when we stored it, not by amendment index**, which is already pinned by
+        the caller. The most recently kept copy is the most recent thing the Board served,
+        which is what a check comparing against the Board's current answer wants. The
+        earlier copy is not discarded: §4.5 keeps every body indefinitely, and the
+        pre-redaction copy is the one worth having kept.
         """
         row = (
             self.db.query(schema.CampaignFinanceReportDocument)
@@ -360,7 +377,15 @@ class DocumentLibrary:
                 amendment_index=amendment_index,
                 special_election=special_election,
             )
-            .one_or_none()
+            .order_by(
+                schema.CampaignFinanceReportDocument.created_at.desc(),
+                # Only reached if 2 copies were stored inside one transaction, where
+                # Postgres gives both the same ``now()``. The hash carries no meaning
+                # here; it is here so the answer cannot differ between 2 runs over the
+                # same rows, which a check has to be able to rely on.
+                schema.CampaignFinanceReportDocument.document_hash.desc(),
+            )
+            .first()
         )
         if row is None:
             return None

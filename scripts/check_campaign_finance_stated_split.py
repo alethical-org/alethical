@@ -77,6 +77,7 @@ from alethical.db.session import (  # noqa: E402
 )
 from alethical.pipeline.campaign_finance_report_document_store import (  # noqa: E402
     DocumentKeeper,
+    DocumentLibrary,
 )
 from alethical.pipeline.campaign_finance_stated_split import (  # noqa: E402
     StatedSplitRun,
@@ -94,7 +95,8 @@ def summary(run: StatedSplitRun) -> str:
         elapsed = f" in {seconds / 60:.1f} minutes"
     lines = [
         f"years {', '.join(str(year) for year in run.years)}: "
-        f"{len(run.verdicts):,} committee-years, {run.requests_made:,} requests"
+        f"{len(run.verdicts):,} committee-years, {run.requests_made:,} requests to the "
+        f"Board, {run.documents_from_store:,} documents read from our own store"
         + elapsed,
         f"  agrees          {counts.get(Status.agrees.value, 0):,}",
         f"  disagrees       {counts.get(Status.disagrees.value, 0):,}",
@@ -150,6 +152,14 @@ def main() -> int:
         help="Fetch, read and compare, then report and write nothing.",
     )
     parser.add_argument(
+        "--ask-the-board-for-everything",
+        action="store_true",
+        help="Fetch every document from the Board even where we already hold that exact "
+        "version. What this run did before #1937: about 3,900 requests and 30 minutes "
+        "spent re-fetching 3,643 documents already in our store. Use it to re-read a "
+        "population from source, never as the ordinary path.",
+    )
+    parser.add_argument(
         "--years",
         nargs="+",
         type=int,
@@ -193,10 +203,16 @@ def main() -> int:
         tempfile.TemporaryDirectory(prefix="cf-report-document-") as directory,
     ):
         keeper = None
+        library = None
+        store = raw_file_store_from_env()
         if keep_documents:
-            keeper = DocumentKeeper(
-                db=session, store=raw_file_store_from_env(), directory=directory
-            )
+            keeper = DocumentKeeper(db=session, store=store, directory=directory)
+        # Read from our own store before asking Minnesota, whatever --keep-no-documents
+        # says: that flag is about writing, and reading a document we already hold needs
+        # no credential to write with. A store we cannot read falls through to the Board
+        # per committee-year, so this never costs a verdict.
+        if not args.ask_the_board_for_everything:
+            library = DocumentLibrary(db=session, store=store, directory=directory)
         try:
             run = run_stated_split_check(
                 session,
@@ -204,6 +220,7 @@ def main() -> int:
                 only_filers=args.only_filers,
                 write=not args.dry_run,
                 keeper=keeper,
+                library=library,
                 progress=lambda message: print(message, file=sys.stderr),
             )
         except RuntimeError as refusal:
