@@ -330,7 +330,7 @@ describe('first-response page tags', () => {
     // (#1966). A reader must not be shown records a person has corrected, so a
     // week here would keep a withdrawn committee link readable for a week.
     expect(headers.get('Cache-Control')).toBe(
-      'public, max-age=0, s-maxage=3600, stale-while-revalidate=300, stale-if-error=604800',
+      'public, max-age=0, s-maxage=300, stale-while-revalidate=300, stale-if-error=300',
     );
     expect(headers.get('X-Robots-Tag')).toBeUndefined();
     expect(readPageShell).toHaveBeenCalledTimes(1);
