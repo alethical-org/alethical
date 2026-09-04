@@ -76,7 +76,7 @@ import {
 } from '../../lib/billDetail';
 import { citationSectionAnchor, citationSectionHref } from '../../lib/billText';
 import { NormalizedMotion, normalizeMemberName, normalizeMotion } from '../../lib/motionNormalize';
-import { Skeleton } from '../../components/Skeleton';
+import { Skeleton, useOneScreenTall } from '../../components/Skeleton';
 import { GoBackLink } from '../../components/GoBackLink';
 import { FullTextTab } from '../../components/billDetail/FullTextTab';
 import { SuggestedQuestionChip } from '../../components/billDetail/CitationCard';
@@ -336,6 +336,7 @@ function BillDetailMobileScreen() {
   const route = useRoute<any>();
   const { isSignedIn } = useAuth();
   const { isMobile } = useResponsive();
+  const oneScreenTall = useOneScreenTall();
 
   const params: Record<string, unknown> = route.params ?? {};
   const billId = typeof params.billId === 'string' ? params.billId : '';
@@ -685,458 +686,466 @@ function BillDetailMobileScreen() {
           <TopNav {...shellProps} />
         </View>
 
-        {billQuery.isLoading ? (
-          <View accessible accessibilityLabel="Loading bill">
-            {/* header skeleton (breadcrumb · title · status · eyebrow) */}
-            <View style={styles.headerOuter}>
-              <View style={styles.column}>
-                <Skeleton width={88} height={16} style={styles.skGap20} />
-                <Skeleton width="92%" height={30} radius={8} />
-                <Skeleton width="66%" height={30} radius={8} style={styles.skGap8} />
-                <View style={styles.skStatusRow}>
-                  <Skeleton width={128} height={28} radius={t.radii.pill} />
+        {/* Every state of this page holds a screenful, so the footer below it
+            starts under the fold and nothing a reader can see moves when the
+            record lands or the load fails (useOneScreenTall in
+            components/Skeleton.tsx). */}
+        <View style={oneScreenTall}>
+          {billQuery.isLoading ? (
+            <View accessible accessibilityLabel="Loading bill">
+              {/* header skeleton (breadcrumb · title · status · eyebrow) */}
+              <View style={styles.headerOuter}>
+                <View style={styles.column}>
+                  <Skeleton width={88} height={16} style={styles.skGap20} />
+                  <Skeleton width="92%" height={30} radius={8} />
+                  <Skeleton width="66%" height={30} radius={8} style={styles.skGap8} />
+                  <View style={styles.skStatusRow}>
+                    <Skeleton width={128} height={28} radius={t.radii.pill} />
+                  </View>
+                  <Skeleton width={150} height={12} style={styles.skGap14} />
                 </View>
-                <Skeleton width={150} height={12} style={styles.skGap14} />
+              </View>
+              {/* first content section skeleton (heading · lines · card) */}
+              <View style={styles.column}>
+                <Skeleton width={130} height={22} radius={8} style={styles.skGap24} />
+                <View style={styles.skLines}>
+                  <Skeleton width="100%" height={14} />
+                  <Skeleton width="96%" height={14} />
+                  <Skeleton width="88%" height={14} />
+                </View>
+                <Skeleton width="100%" height={140} radius={t.radii.card} style={styles.skGap24} />
               </View>
             </View>
-            {/* first content section skeleton (heading · lines · card) */}
-            <View style={styles.column}>
-              <Skeleton width={130} height={22} radius={8} style={styles.skGap24} />
-              <View style={styles.skLines}>
-                <Skeleton width="100%" height={14} />
-                <Skeleton width="96%" height={14} />
-                <Skeleton width="88%" height={14} />
-              </View>
-              <Skeleton width="100%" height={140} radius={t.radii.card} style={styles.skGap24} />
-            </View>
-          </View>
-        ) : /* A bill that does not exist is a permanent answer, not a blip: say so
+          ) : /* A bill that does not exist is a permanent answer, not a blip: say so
               and give a way out, instead of inviting a retry that can never work
               (#720). Same shared component the web screen renders. */
-        isNotFoundError(billQuery.error) ? (
-          <BillNotFound
-            billId={billId}
-            onBrowseBills={goToBillList}
-            onAsk={() => navigation.navigate('Ask')}
-          />
-        ) : billQuery.isError || !bill || !vm ? (
-          <View style={styles.stateBox}>
-            <Text style={styles.stateText}>
-              We couldn’t load this bill right now. Please try again in a moment.
-            </Text>
-            <GoBackLink href={routePath.bills()} onPress={goToBillList} mobile />
-          </View>
-        ) : (
-          <>
-            {/* 1 — bill header */}
-            <View style={styles.headerOuter}>
-              <View style={styles.column}>
-                <GoBackLink href={routePath.bills()} onPress={goToBillList} mobile />
-                <Text
-                  accessibilityRole="header"
-                  aria-level={1}
-                  // No accessibilityLabel here: a label replaces the visible text
-                  // for a screen reader, so the statutory title announced 900
-                  // characters of statute where everyone else read the plain
-                  // headline (#1362). There is no hover on a phone, so the
-                  // statutory wording lives in the Bill Text section.
-                  // The design hero is a punchy AI short title. When a bill has
-                  // none, fall back to the canonical statutory title but shrink +
-                  // clamp it so a 40-word title doesn't consume the whole screen.
-                  numberOfLines={bill.aiAnalysis?.shortTitle ? undefined : 4}
-                  style={[styles.h1, bill.aiAnalysis?.shortTitle ? null : styles.h1Long]}
-                >
-                  {bill.aiAnalysis?.shortTitle ?? bill.title}
-                </Text>
-                <View style={styles.statusRow}>
-                  <View style={styles.statusRowLeft}>
-                    <StatusPill tone={vm.tone} label={bill.status} />
-                    {bill.isOmnibus ? (
-                      <View style={styles.omnibusTag}>
-                        <Text style={styles.omnibusTagText}>OMNIBUS</Text>
-                      </View>
-                    ) : null}
-                    {isHotIssueBill(bill) ? (
-                      <View
-                        style={styles.hotPill}
-                        accessibilityRole="text"
-                        accessibilityLabel="Hot issue"
-                      >
-                        <Text style={styles.hotPillText}>🔥 Hot issue</Text>
-                      </View>
-                    ) : null}
+          isNotFoundError(billQuery.error) ? (
+            <BillNotFound
+              billId={billId}
+              onBrowseBills={goToBillList}
+              onAsk={() => navigation.navigate('Ask')}
+            />
+          ) : billQuery.isError || !bill || !vm ? (
+            <View style={styles.stateBox}>
+              <Text style={styles.stateText}>
+                We couldn’t load this bill right now. Please try again in a moment.
+              </Text>
+              <GoBackLink href={routePath.bills()} onPress={goToBillList} mobile />
+            </View>
+          ) : (
+            <>
+              {/* 1 — bill header */}
+              <View style={styles.headerOuter}>
+                <View style={styles.column}>
+                  <GoBackLink href={routePath.bills()} onPress={goToBillList} mobile />
+                  <Text
+                    accessibilityRole="header"
+                    aria-level={1}
+                    // No accessibilityLabel here: a label replaces the visible text
+                    // for a screen reader, so the statutory title announced 900
+                    // characters of statute where everyone else read the plain
+                    // headline (#1362). There is no hover on a phone, so the
+                    // statutory wording lives in the Bill Text section.
+                    // The design hero is a punchy AI short title. When a bill has
+                    // none, fall back to the canonical statutory title but shrink +
+                    // clamp it so a 40-word title doesn't consume the whole screen.
+                    numberOfLines={bill.aiAnalysis?.shortTitle ? undefined : 4}
+                    style={[styles.h1, bill.aiAnalysis?.shortTitle ? null : styles.h1Long]}
+                  >
+                    {bill.aiAnalysis?.shortTitle ?? bill.title}
+                  </Text>
+                  <View style={styles.statusRow}>
+                    <View style={styles.statusRowLeft}>
+                      <StatusPill tone={vm.tone} label={bill.status} />
+                      {bill.isOmnibus ? (
+                        <View style={styles.omnibusTag}>
+                          <Text style={styles.omnibusTagText}>OMNIBUS</Text>
+                        </View>
+                      ) : null}
+                      {isHotIssueBill(bill) ? (
+                        <View
+                          style={styles.hotPill}
+                          accessibilityRole="text"
+                          accessibilityLabel="Hot issue"
+                        >
+                          <Text style={styles.hotPillText}>🔥 Hot issue</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                    <View style={styles.headerActions}>
+                      <BillTrackButton
+                        billId={bill.id}
+                        tracked={tracked}
+                        onPress={onTrack}
+                        size="mobile"
+                      />
+                      <ShareButton onPress={() => setShareOpen(true)} />
+                    </View>
                   </View>
-                  <View style={styles.headerActions}>
-                    <BillTrackButton
-                      billId={bill.id}
-                      tracked={tracked}
-                      onPress={onTrack}
-                      size="mobile"
-                    />
-                    <ShareButton onPress={() => setShareOpen(true)} />
-                  </View>
+                  <Text style={styles.eyebrow}>
+                    {bill.chamber.toUpperCase()} · {sessionLabel.toUpperCase()}
+                  </Text>
                 </View>
-                <Text style={styles.eyebrow}>
-                  {bill.chamber.toUpperCase()} · {sessionLabel.toUpperCase()}
-                </Text>
               </View>
-            </View>
 
-            {/* 2 — sticky jump chips (scroll-spy) */}
-            <View style={styles.chipBar}>
-              <View style={styles.chipBarCenter}>
-                <ScrollView
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.chipBarInner}
-                >
-                  {SECTIONS.map((s) => (
-                    <JumpChip
-                      key={s.id}
-                      label={s.label}
-                      active={active === s.id}
-                      onPress={() => jumpTo(s.id)}
-                    />
-                  ))}
-                </ScrollView>
+              {/* 2 — sticky jump chips (scroll-spy) */}
+              <View style={styles.chipBar}>
+                <View style={styles.chipBarCenter}>
+                  <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.chipBarInner}
+                  >
+                    {SECTIONS.map((s) => (
+                      <JumpChip
+                        key={s.id}
+                        label={s.label}
+                        active={active === s.id}
+                        onPress={() => jumpTo(s.id)}
+                      />
+                    ))}
+                  </ScrollView>
+                </View>
               </View>
-            </View>
 
-            {/* 3 — Summary. No top grey gap: it sits flush under the sticky tab
+              {/* 3 — Summary. No top grey gap: it sits flush under the sticky tab
                 bar, whose own bottom border does the separating, so "Key points"
                 starts clean on the white surface. The grey gaps stay between the
                 content sections below. */}
-            <Section id="summary" onLayout={onSectionLayout} style={styles.firstSection}>
-              <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
-                Key points
-              </Text>
-              {/* The cited bullets ARE the plain-language summary; fall back to the
+              <Section id="summary" onLayout={onSectionLayout} style={styles.firstSection}>
+                <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
+                  Key points
+                </Text>
+                {/* The cited bullets ARE the plain-language summary; fall back to the
                   summary paragraph only when there are no bullets (item 1). */}
-              {vm.keyPoints.length > 0 ? (
-                <View style={styles.points}>
-                  {vm.keyPoints.map((point, i) => (
-                    <View key={i} style={styles.pointRow}>
-                      <View style={styles.pointBullet} />
-                      <Text style={styles.pointText}>{point}</Text>
-                    </View>
-                  ))}
-                </View>
-              ) : vm.summary ? (
-                <Text style={styles.lede}>{vm.summary}</Text>
-              ) : null}
+                {vm.keyPoints.length > 0 ? (
+                  <View style={styles.points}>
+                    {vm.keyPoints.map((point, i) => (
+                      <View key={i} style={styles.pointRow}>
+                        <View style={styles.pointBullet} />
+                        <Text style={styles.pointText}>{point}</Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : vm.summary ? (
+                  <Text style={styles.lede}>{vm.summary}</Text>
+                ) : null}
 
-              {/* CITED SECTIONS strip (renders when the record carries citations;
+                {/* CITED SECTIONS strip (renders when the record carries citations;
                   empty until traceable key-point citations ship, #377). */}
-              {vm.citations.length > 0 ? (
-                <View style={styles.citedStrip}>
-                  <View style={styles.citedLabelRow}>
-                    <Text style={styles.citedLabel}>CITED SECTIONS</Text>
-                    <CircleCheck />
-                  </View>
-                  <View style={styles.citedChips}>
-                    {vm.citations.map((c, i) => {
-                      const href = citationSectionHref(bill.id, c);
-                      const label = citationChipLabel(c.label, c.sectionTopic);
-                      if (!href) {
+                {vm.citations.length > 0 ? (
+                  <View style={styles.citedStrip}>
+                    <View style={styles.citedLabelRow}>
+                      <Text style={styles.citedLabel}>CITED SECTIONS</Text>
+                      <CircleCheck />
+                    </View>
+                    <View style={styles.citedChips}>
+                      {vm.citations.map((c, i) => {
+                        const href = citationSectionHref(bill.id, c);
+                        const label = citationChipLabel(c.label, c.sectionTopic);
+                        if (!href) {
+                          return (
+                            <View key={`${c.id}-${i}`} style={styles.citedChip}>
+                              <Text style={styles.citedChipText}>{label}</Text>
+                            </View>
+                          );
+                        }
                         return (
-                          <View key={`${c.id}-${i}`} style={styles.citedChip}>
+                          <Pressable
+                            key={`${c.id}-${i}`}
+                            {...linkProps(href, () => {
+                              setFtAnchor(citationSectionAnchor(c));
+                              jumpTo('fulltext');
+                            })}
+                            accessibilityLabel={`Jump to ${label} in Bill Text`}
+                            style={({ pressed }) => [
+                              styles.citedChip,
+                              pressed && styles.citedChipPressed,
+                            ]}
+                          >
                             <Text style={styles.citedChipText}>{label}</Text>
-                          </View>
+                          </Pressable>
                         );
-                      }
-                      return (
-                        <Pressable
-                          key={`${c.id}-${i}`}
-                          {...linkProps(href, () => {
-                            setFtAnchor(citationSectionAnchor(c));
-                            jumpTo('fulltext');
-                          })}
-                          accessibilityLabel={`Jump to ${label} in Bill Text`}
-                          style={({ pressed }) => [
-                            styles.citedChip,
-                            pressed && styles.citedChipPressed,
-                          ]}
-                        >
-                          <Text style={styles.citedChipText}>{label}</Text>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                </View>
-              ) : null}
-
-              {/* Facts card */}
-              <View style={styles.factsCard}>
-                {vm.dateValue ? (
-                  <View style={styles.factsBlock}>
-                    <Text style={styles.factsLabel}>{vm.dateLabel}</Text>
-                    <Text style={styles.factsValue}>{vm.dateValue}</Text>
-                    {/* Phased law: one muted caption pointing at Actions. Tapping
-                        it scrolls to the Actions section and sets that jump chip
-                        active, exactly as tapping the chip does (#715). */}
-                    {vm.datePhased ? (
-                      <Text style={styles.phasedCaption}>
-                        {PHASED_CAPTION}
-                        <Text>{' · '}</Text>
-                        <Text
-                          accessibilityRole="link"
-                          onPress={() => jumpTo('actions')}
-                          style={styles.phasedLink}
-                        >
-                          {'See dates\u00A0'}
-                          <Text aria-hidden style={styles.phasedArrow}>
-                            →
-                          </Text>
-                        </Text>
-                      </Text>
-                    ) : null}
-                    {/* Said next to the status because that status reads
-                        "Introduced" on 1,190 bills whose record has already
-                        stopped talking about them and pointed elsewhere (#757). */}
-                    {vm.datePointer ? (
-                      <Text style={styles.pointerCaption}>{POINTER_CAPTION}</Text>
-                    ) : null}
+                      })}
+                    </View>
                   </View>
                 ) : null}
 
-                <View style={[styles.factsBlock, styles.factsDivider]}>
-                  <Text style={styles.factsLabel}>{chamberBillLabel(bill.identifier)}</Text>
-                  <View style={styles.codeBadgeWrap}>
-                    <Text style={styles.codeBadge}>{bill.identifier}</Text>
-                  </View>
-                  <View style={styles.factsLinks}>
-                    {vm.overviewUrl ? (
-                      <TextLink
-                        label="Bill overview"
-                        arrow
-                        href={vm.overviewUrl}
-                        external
-                        onPress={() => openExternal(vm.overviewUrl as string)}
-                      />
-                    ) : null}
-                    {vm.readUrl ? (
-                      <TextLink
-                        label={vm.readLabel}
-                        arrow
-                        href={vm.readUrl}
-                        external
-                        onPress={() => openExternal(vm.readUrl as string)}
-                      />
-                    ) : null}
-                  </View>
-                  {/* Companion bill (#293): the paired House/Senate file. A grey
+                {/* Facts card */}
+                <View style={styles.factsCard}>
+                  {vm.dateValue ? (
+                    <View style={styles.factsBlock}>
+                      <Text style={styles.factsLabel}>{vm.dateLabel}</Text>
+                      <Text style={styles.factsValue}>{vm.dateValue}</Text>
+                      {/* Phased law: one muted caption pointing at Actions. Tapping
+                        it scrolls to the Actions section and sets that jump chip
+                        active, exactly as tapping the chip does (#715). */}
+                      {vm.datePhased ? (
+                        <Text style={styles.phasedCaption}>
+                          {PHASED_CAPTION}
+                          <Text>{' · '}</Text>
+                          <Text
+                            accessibilityRole="link"
+                            onPress={() => jumpTo('actions')}
+                            style={styles.phasedLink}
+                          >
+                            {'See dates\u00A0'}
+                            <Text aria-hidden style={styles.phasedArrow}>
+                              →
+                            </Text>
+                          </Text>
+                        </Text>
+                      ) : null}
+                      {/* Said next to the status because that status reads
+                        "Introduced" on 1,190 bills whose record has already
+                        stopped talking about them and pointed elsewhere (#757). */}
+                      {vm.datePointer ? (
+                        <Text style={styles.pointerCaption}>{POINTER_CAPTION}</Text>
+                      ) : null}
+                    </View>
+                  ) : null}
+
+                  <View style={[styles.factsBlock, styles.factsDivider]}>
+                    <Text style={styles.factsLabel}>{chamberBillLabel(bill.identifier)}</Text>
+                    <View style={styles.codeBadgeWrap}>
+                      <Text style={styles.codeBadge}>{bill.identifier}</Text>
+                    </View>
+                    <View style={styles.factsLinks}>
+                      {vm.overviewUrl ? (
+                        <TextLink
+                          label="Bill overview"
+                          arrow
+                          href={vm.overviewUrl}
+                          external
+                          onPress={() => openExternal(vm.overviewUrl as string)}
+                        />
+                      ) : null}
+                      {vm.readUrl ? (
+                        <TextLink
+                          label={vm.readLabel}
+                          arrow
+                          href={vm.readUrl}
+                          external
+                          onPress={() => openExternal(vm.readUrl as string)}
+                        />
+                      ) : null}
+                    </View>
+                    {/* Companion bill (#293): the paired House/Senate file. A grey
                       label + green value row (matching web) — the arrow sits at the
                       END of the value, never after "Companion". Links to the
                       companion's bill page (URL-addressable, grounded-answers rule 5);
                       shown only when the pair is linked. */}
-                  {bill.companion ? (
-                    <View style={styles.companionRow}>
-                      <Text style={styles.factsKvKey}>Companion</Text>
-                      <TextLink
-                        label={`${bill.companion.chamber} (${bill.companion.identifier})`}
-                        arrow
-                        href={routePath.bill(bill.companion.id)}
-                        onPress={() =>
-                          navigation.navigate('BillDetail', { billId: bill.companion!.id })
-                        }
-                      />
-                    </View>
-                  ) : null}
-                </View>
+                    {bill.companion ? (
+                      <View style={styles.companionRow}>
+                        <Text style={styles.factsKvKey}>Companion</Text>
+                        <TextLink
+                          label={`${bill.companion.chamber} (${bill.companion.identifier})`}
+                          arrow
+                          href={routePath.bill(bill.companion.id)}
+                          onPress={() =>
+                            navigation.navigate('BillDetail', { billId: bill.companion!.id })
+                          }
+                        />
+                      </View>
+                    ) : null}
+                  </View>
 
-                {vm.chief ? (
-                  <View style={[styles.factsBlock, styles.factsDivider]}>
-                    <View style={styles.factsHeaderRow}>
-                      <Text style={styles.factsLabel}>CHIEF AUTHOR</Text>
-                      {vm.coauthors > 0 ? (
-                        <Text style={styles.coauthors}>+{vm.coauthors} co-authors</Text>
-                      ) : null}
-                    </View>
-                    {/* Aligned label -> value rows. Honorific is the grey label,
+                  {vm.chief ? (
+                    <View style={[styles.factsBlock, styles.factsDivider]}>
+                      <View style={styles.factsHeaderRow}>
+                        <Text style={styles.factsLabel}>CHIEF AUTHOR</Text>
+                        {vm.coauthors > 0 ? (
+                          <Text style={styles.coauthors}>+{vm.coauthors} co-authors</Text>
+                        ) : null}
+                      </View>
+                      {/* Aligned label -> value rows. Honorific is the grey label,
                         only the name + arrow is the green link; party and district
                         match. Party/District rows shown only when known — unknown
                         values (party null, "S-unknown" district) are a backend join
                         gap (#302), not shown as a wrong fallback. */}
-                    <View style={styles.factsRows}>
-                      <View style={styles.factsKvRow}>
-                        <Text style={styles.factsKvKey}>{authorTitleLabel(vm.chief.chamber)}</Text>
-                        {vm.chief.legislatorId ? (
-                          <TextLink
-                            label={authorNameOnly(vm.chief.name)}
-                            arrow
-                            href={routePath.legislator(vm.chief.slug ?? vm.chief.legislatorId)}
-                            onPress={() =>
-                              navigation.navigate('LegislatorProfile', {
-                                legislatorId: vm.chief!.slug ?? vm.chief!.legislatorId,
-                              })
-                            }
-                          />
-                        ) : (
-                          <Text style={styles.authorNamePlain}>
-                            {authorNameOnly(vm.chief.name)}
-                          </Text>
-                        )}
-                      </View>
-                      {vm.chief.party ? (
-                        <View style={styles.factsKvRow}>
-                          <Text style={styles.factsKvKey}>Party</Text>
-                          <Text style={styles.factsKvVal}>{partyFull(vm.chief.party)}</Text>
-                        </View>
-                      ) : null}
-                      {isKnownDistrict(vm.chief.district) ? (
+                      <View style={styles.factsRows}>
                         <View style={styles.factsKvRow}>
                           <Text style={styles.factsKvKey}>
-                            {districtRowLabel(vm.chief.chamber)}
+                            {authorTitleLabel(vm.chief.chamber)}
                           </Text>
-                          <Text style={styles.factsKvVal}>
-                            {formatAuthorDistrict(vm.chief.district, vm.chief.representedCity)}
-                          </Text>
+                          {vm.chief.legislatorId ? (
+                            <TextLink
+                              label={authorNameOnly(vm.chief.name)}
+                              arrow
+                              href={routePath.legislator(vm.chief.slug ?? vm.chief.legislatorId)}
+                              onPress={() =>
+                                navigation.navigate('LegislatorProfile', {
+                                  legislatorId: vm.chief!.slug ?? vm.chief!.legislatorId,
+                                })
+                              }
+                            />
+                          ) : (
+                            <Text style={styles.authorNamePlain}>
+                              {authorNameOnly(vm.chief.name)}
+                            </Text>
+                          )}
                         </View>
-                      ) : null}
+                        {vm.chief.party ? (
+                          <View style={styles.factsKvRow}>
+                            <Text style={styles.factsKvKey}>Party</Text>
+                            <Text style={styles.factsKvVal}>{partyFull(vm.chief.party)}</Text>
+                          </View>
+                        ) : null}
+                        {isKnownDistrict(vm.chief.district) ? (
+                          <View style={styles.factsKvRow}>
+                            <Text style={styles.factsKvKey}>
+                              {districtRowLabel(vm.chief.chamber)}
+                            </Text>
+                            <Text style={styles.factsKvVal}>
+                              {formatAuthorDistrict(vm.chief.district, vm.chief.representedCity)}
+                            </Text>
+                          </View>
+                        ) : null}
+                      </View>
                     </View>
-                  </View>
-                ) : null}
+                  ) : null}
 
-                {vm.issues.length > 0 ? (
-                  <View style={[styles.factsBlock, styles.factsDivider]}>
-                    <Text style={styles.factsLabel}>ISSUES</Text>
-                    <View style={styles.issueRow}>
-                      {vm.issues.map((topic) => (
-                        <View key={topic} style={styles.issueChip}>
-                          <Text style={styles.issueChipText}>{titleCaseIssue(topic)}</Text>
-                        </View>
-                      ))}
+                  {vm.issues.length > 0 ? (
+                    <View style={[styles.factsBlock, styles.factsDivider]}>
+                      <Text style={styles.factsLabel}>ISSUES</Text>
+                      <View style={styles.issueRow}>
+                        {vm.issues.map((topic) => (
+                          <View key={topic} style={styles.issueChip}>
+                            <Text style={styles.issueChipText}>{titleCaseIssue(topic)}</Text>
+                          </View>
+                        ))}
+                      </View>
                     </View>
-                  </View>
-                ) : null}
-              </View>
-
-              {/* Ask about this bill */}
-              <AskCard
-                billId={bill.id}
-                identifier={bill.identifier}
-                sessionLabel={bill.sessionLabel}
-                questionPrompts={bill.questionPrompts}
-                onAsk={goAsk}
-              />
-            </Section>
-
-            {/* 4 — Actions */}
-            <Section id="actions" onLayout={onSectionLayout}>
-              <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
-                Actions
-              </Text>
-              <Text style={styles.intro}>Every official step this bill has taken.</Text>
-              <ActionLegend />
-              {vm.actionRows.length > 0 ? (
-                <MobileActionsTimeline
-                  rows={vm.actionRows}
-                  glossary={vm.actionGlossary}
-                  onViewVotes={vm.hasVotes ? () => jumpTo('votes') : undefined}
-                  onOpenBill={(billId) => navigation.navigate('BillDetail', { billId })}
-                  onOpenLegislator={openLegislator}
-                />
-              ) : (
-                <Text style={styles.emptyLine}>No recorded actions yet.</Text>
-              )}
-            </Section>
-
-            {/* 5 — Votes */}
-            <Section id="votes" onLayout={onSectionLayout}>
-              <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
-                Votes
-              </Text>
-              {vm.hasVotes ? (
-                <MobileVotesSection
-                  rolls={vm.rolls}
-                  chiefParty={vm.chief?.party}
-                  onOpenLegislator={openLegislator}
-                  onOpenUrl={openExternal}
-                />
-              ) : (
-                <View style={styles.noVotes}>
-                  <View style={styles.noVotesIcon}>
-                    <Svg width={26} height={26} viewBox="0 0 24 24" fill="none">
-                      <Path
-                        d="M7 5 V19 M7 19 L3.5 15.5 M7 19 L10.5 15.5 M14 8 h6 M14 13 h4"
-                        stroke={t.colors.text.faint}
-                        strokeWidth={2}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </Svg>
-                  </View>
-                  <Text accessibilityRole="header" aria-level={3} style={styles.noVotesHeading}>
-                    No recorded roll-call votes
-                  </Text>
-                  <Text style={styles.noVotesBody}>
-                    We don’t have recorded roll-call votes to show for {bill.identifier}. When a
-                    chamber’s recorded vote is available, it appears here.
-                  </Text>
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={() => goAsk()}
-                    style={styles.noVotesAsk}
-                  >
-                    <Text style={styles.noVotesAskText}>Ask about this bill</Text>
-                    <Svg width={15} height={15} viewBox="0 0 24 24" fill="none">
-                      <Path
-                        d="M6 12 H18 M13 7 L18 12 L13 17"
-                        stroke={t.colors.white}
-                        strokeWidth={2}
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </Svg>
-                  </Pressable>
+                  ) : null}
                 </View>
-              )}
-            </Section>
 
-            {/* 6 — Versions */}
-            <Section id="versions" onLayout={onSectionLayout}>
-              <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
-                Versions
-              </Text>
-              <Text style={styles.intro}>
-                A bill’s exact wording changes as it moves through the Legislature. Each version is
-                a snapshot of the full text at one stage.
-              </Text>
-              {bill.versions.length > 0 ? (
-                <View style={styles.versionList}>
-                  {orderBillVersions(bill.versions, bill.actions).map((v, i) => (
-                    <VersionRow
-                      key={`${v.id}-${i}`}
-                      label={v.label}
-                      date={formatMonoDate(v.date)}
-                      isLaw={vm.tone === 'green' && /session law|chapter/i.test(v.label)}
-                      href={v.url}
-                      onPress={v.url ? () => openExternal(v.url) : undefined}
-                    />
-                  ))}
-                </View>
-              ) : (
-                <Text style={styles.emptyLine}>No published versions yet.</Text>
-              )}
-            </Section>
+                {/* Ask about this bill */}
+                <AskCard
+                  billId={bill.id}
+                  identifier={bill.identifier}
+                  sessionLabel={bill.sessionLabel}
+                  questionPrompts={bill.questionPrompts}
+                  onAsk={goAsk}
+                />
+              </Section>
 
-            {/* 7 — Bill Text */}
-            <Section id="fulltext" onLayout={onSectionLayout} style={styles.lastSection}>
-              <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
-                Bill Text
-              </Text>
-              <FullTextTab
-                bill={bill}
-                targetSectionAnchor={ftAnchor}
-                onAnchorConsumed={() => setFtAnchor(null)}
-                updatedLabel={vm.updatedLabel}
-                // Nested under this screen's visible "Bill Text" h2, so each
-                // statutory caption sits a level below it.
-                sectionHeadingLevel={3}
-              />
-            </Section>
-          </>
-        )}
+              {/* 4 — Actions */}
+              <Section id="actions" onLayout={onSectionLayout}>
+                <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
+                  Actions
+                </Text>
+                <Text style={styles.intro}>Every official step this bill has taken.</Text>
+                <ActionLegend />
+                {vm.actionRows.length > 0 ? (
+                  <MobileActionsTimeline
+                    rows={vm.actionRows}
+                    glossary={vm.actionGlossary}
+                    onViewVotes={vm.hasVotes ? () => jumpTo('votes') : undefined}
+                    onOpenBill={(billId) => navigation.navigate('BillDetail', { billId })}
+                    onOpenLegislator={openLegislator}
+                  />
+                ) : (
+                  <Text style={styles.emptyLine}>No recorded actions yet.</Text>
+                )}
+              </Section>
+
+              {/* 5 — Votes */}
+              <Section id="votes" onLayout={onSectionLayout}>
+                <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
+                  Votes
+                </Text>
+                {vm.hasVotes ? (
+                  <MobileVotesSection
+                    rolls={vm.rolls}
+                    chiefParty={vm.chief?.party}
+                    onOpenLegislator={openLegislator}
+                    onOpenUrl={openExternal}
+                  />
+                ) : (
+                  <View style={styles.noVotes}>
+                    <View style={styles.noVotesIcon}>
+                      <Svg width={26} height={26} viewBox="0 0 24 24" fill="none">
+                        <Path
+                          d="M7 5 V19 M7 19 L3.5 15.5 M7 19 L10.5 15.5 M14 8 h6 M14 13 h4"
+                          stroke={t.colors.text.faint}
+                          strokeWidth={2}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </Svg>
+                    </View>
+                    <Text accessibilityRole="header" aria-level={3} style={styles.noVotesHeading}>
+                      No recorded roll-call votes
+                    </Text>
+                    <Text style={styles.noVotesBody}>
+                      We don’t have recorded roll-call votes to show for {bill.identifier}. When a
+                      chamber’s recorded vote is available, it appears here.
+                    </Text>
+                    <Pressable
+                      accessibilityRole="button"
+                      onPress={() => goAsk()}
+                      style={styles.noVotesAsk}
+                    >
+                      <Text style={styles.noVotesAskText}>Ask about this bill</Text>
+                      <Svg width={15} height={15} viewBox="0 0 24 24" fill="none">
+                        <Path
+                          d="M6 12 H18 M13 7 L18 12 L13 17"
+                          stroke={t.colors.white}
+                          strokeWidth={2}
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </Svg>
+                    </Pressable>
+                  </View>
+                )}
+              </Section>
+
+              {/* 6 — Versions */}
+              <Section id="versions" onLayout={onSectionLayout}>
+                <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
+                  Versions
+                </Text>
+                <Text style={styles.intro}>
+                  A bill’s exact wording changes as it moves through the Legislature. Each version
+                  is a snapshot of the full text at one stage.
+                </Text>
+                {bill.versions.length > 0 ? (
+                  <View style={styles.versionList}>
+                    {orderBillVersions(bill.versions, bill.actions).map((v, i) => (
+                      <VersionRow
+                        key={`${v.id}-${i}`}
+                        label={v.label}
+                        date={formatMonoDate(v.date)}
+                        isLaw={vm.tone === 'green' && /session law|chapter/i.test(v.label)}
+                        href={v.url}
+                        onPress={v.url ? () => openExternal(v.url) : undefined}
+                      />
+                    ))}
+                  </View>
+                ) : (
+                  <Text style={styles.emptyLine}>No published versions yet.</Text>
+                )}
+              </Section>
+
+              {/* 7 — Bill Text */}
+              <Section id="fulltext" onLayout={onSectionLayout} style={styles.lastSection}>
+                <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
+                  Bill Text
+                </Text>
+                <FullTextTab
+                  bill={bill}
+                  targetSectionAnchor={ftAnchor}
+                  onAnchorConsumed={() => setFtAnchor(null)}
+                  updatedLabel={vm.updatedLabel}
+                  // Nested under this screen's visible "Bill Text" h2, so each
+                  // statutory caption sits a level below it.
+                  sectionHeadingLevel={3}
+                />
+              </Section>
+            </>
+          )}
+        </View>
 
         {/* Outside the state branch on purpose: every state ends with the footer
             (loading, bill-not-found, load error, loaded), the way the web screen

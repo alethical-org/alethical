@@ -21,7 +21,7 @@ import { VersionsTab } from '../../components/billDetail/VersionsTab';
 import { FullTextTab } from '../../components/billDetail/FullTextTab';
 import { BillNotFound } from '../../components/billDetail/BillNotFound';
 import { isNotFoundError } from '../../data/api';
-import { Skeleton } from '../../components/Skeleton';
+import { Skeleton, useOneScreenTall } from '../../components/Skeleton';
 import { GoBackLink } from '../../components/GoBackLink';
 import { routePath } from '../../navigation/links';
 import { billPageMetadata, buildBillShareContent, publicPageUrl } from '../../lib/share';
@@ -46,6 +46,7 @@ export function BillDetailWebScreen() {
   const route = useRoute<any>();
   const { isSignedIn } = useAuth();
   const { isDesktop } = useResponsive();
+  const oneScreenTall = useOneScreenTall();
 
   const billId = String(route.params?.billId ?? '');
   const tabParam = route.params?.tab;
@@ -182,7 +183,11 @@ export function BillDetailWebScreen() {
       // the design's 40px panel padding (design_handoff_bill_profile_web).
       heroEndsWithRule
     >
-      {children}
+      {/* Every state of this page holds a screenful, so the footer below it
+          starts under the fold and nothing a reader can see moves when the
+          record lands or the load fails (useOneScreenTall in
+          components/Skeleton.tsx). */}
+      <View style={oneScreenTall}>{children}</View>
     </SearchPageShell>
   );
 

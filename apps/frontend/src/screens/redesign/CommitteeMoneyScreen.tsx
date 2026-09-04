@@ -15,7 +15,7 @@ import {
 } from '../../components/campaignMoney/MoneyCards';
 import { TrackCommitteeButton } from '../../components/campaignMoney/TrackCommitteeButton';
 import { UnderDevelopmentNotice } from '../../components/campaignMoney/UnderDevelopmentNotice';
-import { Skeleton } from '../../components/Skeleton';
+import { Skeleton, useOneScreenTall } from '../../components/Skeleton';
 import type { CommitteeMoney } from '../../data/types';
 import {
   useCommitteeFilingsList,
@@ -167,6 +167,7 @@ function ForwardArrow({ color }: { color: string }) {
 
 export function CommitteeMoneyScreen({ navigation, route }: RootScreenProps<'CommitteeMoney'>) {
   const { isMobile } = useResponsive();
+  const oneScreenTall = useOneScreenTall();
   const slug = route.params?.slug ?? '';
   const registrationNumber = registrationNumberFromSlug(slug);
   const year = campaignMoneyYear(route.params?.year);
@@ -208,7 +209,11 @@ export function CommitteeMoneyScreen({ navigation, route }: RootScreenProps<'Com
             Deleting the element and its component file is the whole removal. */}
         <UnderDevelopmentNotice />
 
-        <Container style={[styles.main, isMobile && styles.mainMobile]}>
+        {/* Every state of this page holds a screenful, so the footer below it
+            starts under the fold and nothing a reader can see moves when the
+            records land or the load fails (useOneScreenTall in
+            components/Skeleton.tsx). */}
+        <Container style={[styles.main, isMobile && styles.mainMobile, oneScreenTall]}>
           <Pressable
             {...linkProps(routePath.money(), () => navigation.navigate('MoneyLanding'))}
             style={styles.backLink}
