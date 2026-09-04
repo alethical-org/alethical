@@ -365,7 +365,7 @@ function CommitteeRow({
   const prefetchCommitteeMoney = usePrefetchCommitteeMoney();
   // Warm the committee page's cache on navigation intent, matching the bill and
   // legislator lists (usePrefetchBill / usePrefetchLegislator, #1966).
-  const warm = () => prefetchCommitteeMoney(committee.registrationNumber);
+  const warm = () => prefetchCommitteeMoney(committee.registrationNumber, slug);
   return (
     <View style={[styles.row, isMobile && styles.rowMobile]}>
       <View style={styles.rowText}>

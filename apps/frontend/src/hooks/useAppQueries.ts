@@ -93,6 +93,7 @@ import {
   type PaymentUnderName,
 } from '../lib/paymentsUnderName';
 import { trackState, TrackState } from '../lib/trackedState';
+import { routePath } from '../navigation/links';
 import { screenLoaderForPath } from '../navigation/screenPreload';
 import { useAuth } from '../providers/AuthProvider';
 
@@ -746,22 +747,27 @@ export function usePrefetchLegislator() {
     });
 }
 
-// Warm a committee's money-page cache on navigation intent (row hover /
-// press-in) so the page opens without its loading skeleton, matching
-// usePrefetchBill / usePrefetchLegislator (#1966). A money row's link never
-// carries a year (CommitteeMoney is always pushed with just a slug), so the
-// screen falls back to the current filing year (campaignMoneyYear with no
-// route param) — prefetch that same year so the key lines up exactly with
-// what the screen reads.
+// Warm a committee's money-page cache AND its screen file on navigation intent
+// (row hover / press-in), so the page opens with no loading skeleton and no
+// waiting on a separate download, matching usePrefetchBill / usePrefetchLegislator
+// (#1966 AC5) plus the route-splitting piece each screen now downloads on its
+// own (screenLoaderForPath, #1970/#1975). A money row's link never carries a
+// year (CommitteeMoney is always pushed with just a slug), so the screen falls
+// back to the current filing year (campaignMoneyYear with no route param) —
+// prefetch that same year so the key lines up exactly with what the screen
+// reads. `slug` is the same value the row's own link already builds with
+// committeeSlug(), so screenLoaderForPath resolves the same CommitteeMoney
+// chunk the click would load.
 export function usePrefetchCommitteeMoney() {
   const queryClient = useQueryClient();
-  return (registrationNumber: string) => {
+  return (registrationNumber: string, slug: string) => {
     const year = campaignMoneyYear(undefined);
     void queryClient.prefetchQuery({
       queryKey: ['committee-money', registrationNumber, year],
       queryFn: () => getCommitteeFinanceFromApi(registrationNumber, year),
       retry: false,
     });
+    void screenLoaderForPath(routePath.moneyCommittee(slug))?.();
   };
 }
 

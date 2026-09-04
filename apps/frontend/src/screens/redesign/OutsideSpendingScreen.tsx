@@ -924,8 +924,8 @@ function PaymentRow({
   // Warm the committee page's cache on navigation intent, matching the bill and
   // legislator lists (usePrefetchBill / usePrefetchLegislator, #1966).
   const warm = () => {
-    if (linked && counterparty.registrationNumber) {
-      prefetchCommitteeMoney(counterparty.registrationNumber);
+    if (linked && counterparty.registrationNumber && slug) {
+      prefetchCommitteeMoney(counterparty.registrationNumber, slug);
     }
   };
 

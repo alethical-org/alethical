@@ -103,6 +103,7 @@ import { centralDateLabel } from '../../lib/moneyLanding';
 import { publicPageUrl, type ShareContent } from '../../lib/share';
 import { useDocumentTitle } from '../../navigation/documentTitle';
 import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
+import { screenLoaderForPath } from '../../navigation/screenPreload';
 import type { RootScreenProps } from '../../navigation/types';
 import { markNextWebHistoryChangeAsReplace } from '../../navigation/webHistory';
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
@@ -348,11 +349,14 @@ function CommitteeBody({
   const checkedOn = money.fetchedAt ? centralDateLabel(money.fetchedAt) : null;
   const otherYear = year === new Date().getFullYear() ? year - 1 : year + 1;
   const prefetchLegislator = usePrefetchLegislator();
-  // Warm the member's profile on navigation intent, matching the bill and
-  // legislator lists (usePrefetchBill / usePrefetchLegislator, #1966).
+  // Warm the member's profile data AND its screen file on navigation intent,
+  // matching the bill and legislator lists (usePrefetchBill /
+  // usePrefetchLegislator, #1966) plus the route-splitting piece the profile
+  // screen now downloads on its own (screenLoaderForPath, #1970/#1975).
   const warmConfirmedFor = () => {
     if (money.confirmedFor) {
       prefetchLegislator(money.confirmedFor.slug);
+      void screenLoaderForPath(routePath.legislator(money.confirmedFor.slug, { tab: 'money' }))?.();
     }
   };
 
@@ -878,16 +882,15 @@ function PaymentsSection({
                 </>
               );
               if (row.linkNumber) {
-                const href = routePath.moneyCommittee(committeeSlug(row.linkName, row.linkNumber));
+                const linkSlug = committeeSlug(row.linkName, row.linkNumber);
+                const href = routePath.moneyCommittee(linkSlug);
                 const linkNumber = row.linkNumber;
-                const warm = () => prefetchCommitteeMoney(linkNumber);
+                const warm = () => prefetchCommitteeMoney(linkNumber, linkSlug);
                 return (
                   <Pressable
                     key={row.key}
                     {...linkProps(href, () =>
-                      navigation.push('CommitteeMoney', {
-                        slug: committeeSlug(row.linkName, linkNumber),
-                      }),
+                      navigation.push('CommitteeMoney', { slug: linkSlug }),
                     )}
                     onPressIn={warm}
                     onHoverIn={warm}
@@ -1084,7 +1087,7 @@ function OutsideSpendingPanel({
           if (party.linkable && party.registrationNumber) {
             const slug = committeeSlug(party.name, party.registrationNumber);
             const registrationNumber = party.registrationNumber;
-            const warm = () => prefetchCommitteeMoney(registrationNumber);
+            const warm = () => prefetchCommitteeMoney(registrationNumber, slug);
             return (
               <Pressable
                 key={key}

@@ -291,7 +291,7 @@ export function CommitteeListScreen({ navigation, route }: RootScreenProps<'Comm
                       link={{
                         href: routePath.moneyCommittee(slug),
                         onPress: () => navigation.push('CommitteeMoney', { slug }),
-                        onWarm: () => prefetchCommitteeMoney(row.registrationNumber),
+                        onWarm: () => prefetchCommitteeMoney(row.registrationNumber, slug),
                       }}
                     >
                       <View style={styles.rowText}>
