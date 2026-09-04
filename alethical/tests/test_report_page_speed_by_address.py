@@ -212,6 +212,60 @@ def test_the_request_asks_for_one_kind_of_page_load_and_no_reader_facts() -> Non
         assert word not in query.lower()
 
 
+def test_the_what_moved_request_asks_for_our_element_and_still_no_reader_facts() -> (
+    None
+):
+    """An element name describes our page; a country or a device describes the person.
+
+    So this one request does ask which element the browser blamed, which is the only
+    way to attribute the movement on the readers who actually produced the figure. A
+    throttled browser on one machine cannot: 14 such runs on 4 Sep 2026 produced 0 to
+    0.06 against a published 1 and named a different element each time.
+    """
+    query = report.build_what_moved_query(report.ADDRESSES, report.FIRST_LOAD)
+    assert "cumulativeLayoutShiftElement" in query
+    assert 'navigationType: "navigate"' in query
+    assert "orderBy: [sum_clsTotal_DESC]" in query
+    for word in ("country", "device", "browser", "resource", "referer", "referrer"):
+        assert word not in query.lower()
+    for address in report.ADDRESSES:
+        assert f"{address.key}: rumWebVitalsEventsAdaptiveGroups(" in query
+
+
+def test_what_moved_divides_out_the_sampling_and_names_nothing_moved_plainly() -> None:
+    rows = [
+        {
+            "dimensions": {"cumulativeLayoutShiftElement": "#root>div.page-snapshot"},
+            "sum": {"clsTotal": 300, "clsPoor": 200},
+            "avg": {"sampleInterval": 10},
+            "quantiles": {"cumulativeLayoutShiftP75": 1},
+        },
+        {
+            "dimensions": {"cumulativeLayoutShiftElement": None},
+            "sum": {"clsTotal": 70, "clsPoor": 0},
+            "avg": {"sampleInterval": 10},
+            "quantiles": {"cumulativeLayoutShiftP75": 0},
+        },
+    ]
+    text = report.format_what_moved(
+        [(ADDRESS, rows)], date(2026, 8, 29), date(2026, 9, 4)
+    )
+    assert "30 measurements" in text
+    assert "20 of them over the limit" in text
+    assert "#root>div.page-snapshot" in text
+    # A row with no element is the visits where nothing moved, and saying so plainly
+    # beats printing an empty column that reads as missing data.
+    assert "nothing moved" in text
+    assert "2026-08-29 to 2026-09-04" in text
+
+
+def test_what_moved_says_when_an_address_has_no_measurements() -> None:
+    text = report.format_what_moved(
+        [(ADDRESS, [])], date(2026, 8, 29), date(2026, 9, 4)
+    )
+    assert "nothing measured" in text
+
+
 def test_every_address_gets_its_own_selection_and_the_sitewide_one_no_path() -> None:
     query = report.build_query(report.ADDRESSES, report.FIRST_LOAD)
     for address in report.ADDRESSES:

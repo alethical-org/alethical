@@ -132,6 +132,13 @@ are the raw count multiplied by the sampling interval, so a percentile resting o
 measurements can arrive labelled 60. Its default window is 7 days for the same reason, since
 Cloudflare keeps that period unsampled.
 
+It also prints, with `--what-moved`, which element real visitors' browsers blamed for the
+layout movement. Cloudflare records that, so what is moving is answerable on the readers who
+produced the figure rather than in a lab: on 4 Sep 2026, 7,857 real first-load measurements
+blamed `#root>div.page-snapshot`, the server-written snapshot's own container. An element name
+is a fact about our page rather than about the person who opened it, which is why it is read
+while country, device, browser, resource and referrer stay out of every request the tool makes.
+
 One thing this makes plain about the sitewide figures on the public page too. The beacon's
 main-content element on a first load is the server-written snapshot's text, so both the
 sitewide score and the per-address ones say when the snapshot appeared rather than when the
