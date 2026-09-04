@@ -336,3 +336,15 @@ export function getCampaignFinanceRacesFromApiPayload(
     fetchedAt: payload.fetched_at ?? null,
   };
 }
+
+/**
+ * The React Query key the Money by race read answers. Shared with `api/page.ts`
+ * so the payload it already read is labelled with the key the app asks for
+ * (issue #1966).
+ */
+export function moneyByRaceQueryKey(options: {
+  year: number;
+  office?: string;
+}): readonly unknown[] {
+  return ['campaign-finance-races', options.year, options.office ?? 'all'];
+}

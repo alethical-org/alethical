@@ -213,3 +213,24 @@ export function committeeEmptyWhy(filter: CommitteeKindFilter): string {
 export const COMMITTEE_LIST_UNAVAILABLE =
   'We could not read our copy of the Board’s register just now. This is a gap on our side, and ' +
   'an empty list here is never a claim that Minnesota registers nobody.';
+
+/**
+ * The React Query key one page of the register answers. Built here rather than
+ * written out in the hook so `api/page.ts` can label the payload it already read
+ * with the very key the app will ask for (issue #1966). Two copies of a key are
+ * two chances to drift, and a drifted key seeds nothing and improves nothing.
+ */
+export function committeeRegisterQueryKey(options: {
+  kind?: string;
+  query?: string;
+  page: number;
+  pageSize: number;
+}): readonly unknown[] {
+  return [
+    'campaign-finance-committees',
+    options.kind ?? 'all',
+    options.query ?? '',
+    options.page,
+    options.pageSize,
+  ];
+}

@@ -73,8 +73,18 @@ jobs:
             frontend:
               - ".github/workflows/ci.yml"
               - "apps/frontend/**"
+              # The Vercel functions are covered by the frontend suite and by
+              # nothing else: `api/page.ts` serves the first response of every
+              # address, and `pageEndpoint.test.ts`, `pageSnapshot.test.tsx` and
+              # `pageFunctionImports.test.ts` are the only tests that read it.
+              # It matched neither filter, so a change to it ran no job at all:
+              # #1969 moved this file's cache header from `s-maxage=600` to
+              # `s-maxage=3600` and merged green, leaving main with a frontend
+              # test asserting the old value.
+              - "api/**"
               - "pnpm-lock.yaml"
               - "pnpm-workspace.yaml"
+              - "vercel.json"
 
       # Free backstop for private-repo secret scanning. It checks only the new
       # commits in this push or PR and fails for a confirmed live credential or

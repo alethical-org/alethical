@@ -869,3 +869,148 @@ export const SUBJECT_NOT_FOUND_TITLE = 'We hold nothing under this registration 
 export const SUBJECT_NOT_FOUND_WHY =
   'It is in neither our copy of the Board’s register nor the independent-expenditure file we ' +
   'hold. That is a statement about our records, not about Minnesota’s.';
+
+// --- Reading the service's own JSON --------------------------------------------
+//
+// These sit here rather than in `data/api.ts` so `api/page.ts` can shape the very
+// payload it already read into the page a reader gets (issue #1966). The page
+// function runs in Node and cannot load `data/api.ts`, which imports
+// `react-native` (pinned by `lib/__tests__/pageFunctionImports.test.ts`).
+//
+// One shaper, used by both sides, is the point: a seeded figure and a fetched
+// figure come out of the same code, so they cannot differ.
+
+/** The record page's payload, exactly as `/campaign-finance/outside-spending` sends it. */
+export interface ApiOutsideSpendingRecordPagePayload {
+  state?: string;
+  about?: Record<string, unknown> | null;
+  spender?: Record<string, unknown> | null;
+  year?: number | null;
+  sort?: string;
+  rows?: Record<string, unknown>[] | null;
+  page?: { number: number; size: number; has_more: boolean; total_rows?: number | null } | null;
+  figures?: Record<string, unknown> | null;
+  source_url?: string | null;
+  fetched_at?: string | null;
+}
+
+const asBool = (value: unknown): boolean => value === true;
+const asInt = (value: unknown): number | null => (typeof value === 'number' ? value : null);
+const asText = (value: unknown): string | null => (typeof value === 'string' ? value : null);
+
+function recordState(state: string | undefined): OutsideSpendingRecordState {
+  if (state === 'reported') return 'reported';
+  if (state === 'not_reported') return 'not_reported';
+  return 'unavailable';
+}
+
+function outsideSpendingRecordSubject(
+  raw: Record<string, unknown> | null | undefined,
+): OutsideSpendingSubject | null {
+  if (!raw) return null;
+  const member = raw.confirmed_member as Record<string, unknown> | null | undefined;
+  return {
+    registrationNumber: String(raw.registration_number ?? ''),
+    name: asText(raw.name),
+    inRegister: asBool(raw.in_register),
+    linkable: asBool(raw.linkable),
+    kind: asText(raw.kind),
+    office: asText(raw.office),
+    district: asText(raw.district),
+    confirmedMember:
+      member && typeof member.slug === 'string' && typeof member.full_name === 'string'
+        ? { slug: member.slug, fullName: member.full_name }
+        : null,
+  };
+}
+
+function outsideSpendingRecordRow(raw: Record<string, unknown>): OutsideSpendingRecordRow {
+  return {
+    spender: asText(raw.spender),
+    spenderRegistrationNumber: asText(raw.spender_registration_number),
+    spenderInRegister: asBool(raw.spender_in_register),
+    spenderLinkable: asBool(raw.spender_linkable),
+    aboutCommitteeName: asText(raw.about_committee_name),
+    aboutCommitteeRegistrationNumber: asText(raw.about_committee_registration_number),
+    aboutCommitteeInRegister: asBool(raw.about_committee_in_register),
+    aboutCommitteeLinkable: asBool(raw.about_committee_linkable),
+    direction: asText(raw.direction) ?? 'not recorded',
+    directionAsFiled: asText(raw.direction_as_filed),
+    purpose: asText(raw.purpose),
+    vendorName: asText(raw.vendor_name),
+    expenditureType: asText(raw.expenditure_type),
+    inKind: asBool(raw.in_kind),
+    paidOn: asText(raw.paid_on),
+    year: asInt(raw.year),
+    amount: asText(raw.amount),
+    unpaidAmount: asText(raw.unpaid_amount),
+  };
+}
+
+function outsideSpendingRecordFigures(
+  raw: Record<string, unknown> | null | undefined,
+): OutsideSpendingRecordFigures | null {
+  if (!raw) return null;
+  return {
+    rowCount: asInt(raw.row_count) ?? 0,
+    rowsMissingAnAmount: asInt(raw.rows_missing_an_amount) ?? 0,
+    amountTotal: asText(raw.amount_total),
+    supportingCount: asInt(raw.supporting_count) ?? 0,
+    supportingAmount: asText(raw.supporting_amount),
+    opposingCount: asInt(raw.opposing_count) ?? 0,
+    opposingAmount: asText(raw.opposing_amount),
+    directionNotRecordedCount: asInt(raw.direction_not_recorded_count) ?? 0,
+    directionNotRecordedAmount: asText(raw.direction_not_recorded_amount),
+    inKindCount: asInt(raw.in_kind_count) ?? 0,
+    firstYear: asInt(raw.first_year),
+    lastYear: asInt(raw.last_year),
+    committeeCount: asInt(raw.committee_count) ?? 0,
+    spenderCount: asInt(raw.spender_count) ?? 0,
+    committeesNotLinkable: asInt(raw.committees_not_linkable),
+  };
+}
+
+/** One page of the record, from the payload the service sent. Figures only where
+ *  the service says `reported`, so a gap never renders as a zero. */
+export function outsideSpendingRecordPageFromPayload(
+  payload: ApiOutsideSpendingRecordPagePayload,
+): OutsideSpendingRecordPage {
+  const state = recordState(payload.state);
+  return {
+    state,
+    about: outsideSpendingRecordSubject(payload.about),
+    spender: outsideSpendingRecordSubject(payload.spender),
+    year: payload.year ?? null,
+    sort: payload.sort === 'largest' ? 'largest' : 'newest',
+    rows: state === 'reported' ? (payload.rows ?? []).map(outsideSpendingRecordRow) : [],
+    pageNumber: payload.page?.number ?? 1,
+    pageSize: payload.page?.size ?? 50,
+    totalRows: payload.page?.total_rows ?? null,
+    hasMore: payload.page?.has_more ?? false,
+    figures: state === 'reported' ? outsideSpendingRecordFigures(payload.figures) : null,
+    sourceUrl: payload.source_url ?? null,
+    fetchedAt: payload.fetched_at ?? null,
+  };
+}
+
+/**
+ * The React Query key one page of the record answers. Shared with `api/page.ts`
+ * so the payload it already read is labelled with the key the app asks for
+ * (issue #1966).
+ */
+export function outsideSpendingRecordQueryKey(options: {
+  about?: string;
+  spender?: string;
+  year: number | null;
+  sort: OutsideSpendingSort;
+  page: number;
+}): readonly unknown[] {
+  return [
+    'outside-spending-record',
+    options.about ?? null,
+    options.spender ?? null,
+    options.year,
+    options.sort,
+    options.page,
+  ];
+}

@@ -19,6 +19,8 @@ import {
   legislatorPageSnapshot,
   moneyByRacePageSnapshot,
   moneyLandingPageSnapshot,
+  moneySearchPageSnapshot,
+  outsideSpendingPageSnapshot,
   researchPageSnapshot,
   readPageSnapshot,
   renderPageSnapshot,
@@ -29,7 +31,24 @@ import {
   type LegislatorDirectorySnapshotSource,
   type LegislatorSnapshotSource,
 } from "../apps/frontend/src/lib/pageSnapshot";
-import { COMMITTEE_PAGE_SIZE } from "../apps/frontend/src/lib/committeeList";
+import {
+  COMMITTEE_PAGE_SIZE,
+  committeeRegisterQueryKey,
+} from "../apps/frontend/src/lib/committeeList";
+import {
+  injectPageData,
+  renderPageData,
+  type PageDataEntry,
+} from "../apps/frontend/src/lib/pageData";
+import {
+  campaignFinanceFilingsQueryKey,
+  campaignFinanceSummaryQueryKey,
+} from "../apps/frontend/src/lib/moneyLanding";
+import {
+  outsideSpendingRecordPageFromPayload,
+  outsideSpendingRecordQueryKey,
+  type ApiOutsideSpendingRecordPagePayload,
+} from "../apps/frontend/src/lib/outsideSpending";
 import {
   PAGE_CAP as COMMITTEE_PAYMENTS_PAGE_SIZE,
   receivedPaymentRow,
@@ -72,6 +91,7 @@ import {
 } from "../apps/frontend/src/lib/research";
 import {
   getCampaignFinanceRacesFromApiPayload,
+  moneyByRaceQueryKey,
   type ApiMoneyByRacePayload,
 } from "../apps/frontend/src/lib/moneyByRace";
 import { targetFromPathname } from "../apps/frontend/src/navigation/webRoutes";
@@ -209,9 +229,28 @@ type CollectionPayload<T> = {
  * What one address contributes to the response: its head tags and the factual
  * snapshot that goes in the body. Detail records use the release-2 snapshot;
  * Home and unfiltered public directories use the crawlable paths in issue #1396.
- * Filtered, answer, and static pages send no snapshot.
+ *
+ * Whether an address serves a body and what a search engine is told about it are
+ * 2 separate decisions. Answer and static pages send no snapshot. A filtered view
+ * sends none either, with 2 exceptions that carry their page's own explanation
+ * rather than any filtered result: `/money/search` and a `noindex` money address
+ * that would otherwise show nothing at all until the program arrives (#1966).
+ * Serving a body never changes an address's `noindex` or its canonical address —
+ * see §22 of
+ * docs/architecture/page-metadata-for-search-and-sharing-decisions.md.
  */
-type PageContent = { metadata: PageMetadata; snapshot: string };
+type PageContent = {
+  metadata: PageMetadata;
+  snapshot: string;
+  /**
+   * The reads this function already made, labelled with the query keys the app
+   * will ask for, so the app draws them without a second request (issue #1966).
+   * Only ever the data service's own JSON, unchanged: nothing here reshapes a
+   * figure, and a whole payload is seeded rather than a figure lifted out of one,
+   * so a figure and the freshness date beside it always come from one read.
+   */
+  data?: PageDataEntry[];
+};
 
 function headOnly(metadata: PageMetadata): PageContent {
   return { metadata, snapshot: "" };
@@ -379,18 +418,52 @@ function defaultMoneyYear(): number {
   return campaignMoneyYear(undefined);
 }
 
+/** The number of filed reports the landing asks for, as its own screen does. */
+const MONEY_LANDING_FILINGS_LIMIT = 5;
+
+/**
+ * The bare outside-spending address, exactly as the loaded screen reads it: the
+ * whole record, every year, newest first, page 1. The screen's own readers
+ * (`outsideSpendingYear`, `outsideSpendingSort`, `outsideSpendingPageNumber`)
+ * give those 4 answers for an address with no parameters.
+ */
+const OUTSIDE_SPENDING_RECORD_READ = {
+  about: undefined,
+  spender: undefined,
+  year: null,
+  sort: "newest",
+  page: 1,
+} as const;
+
 async function moneyLandingContent(): Promise<PageContent> {
   // The register's size and the copy date are read live, never pasted — a pasted
   // count is how this page once said 1,336 on a day the register held 1,603
   // (.claude/rules/grounded-answers.md rule 12). A count that cannot be read is
   // left out; the landing is still a real page without it, so this never 503s.
-  let summary: MoneySummaryPayload | null = null;
-  try {
-    summary = await getApiData<MoneySummaryPayload>(
-      "/campaign-finance/summary",
-    );
-  } catch {
-    summary = null;
+  //
+  // The 2 reads the loaded landing makes, made once here and handed on, so the
+  // page draws its counts and its newest filed reports with no request of its own
+  // (#1966). Both are read together rather than one after the other, so seeding
+  // the second one costs the response no extra wait. `MoneySummaryPayload` names
+  // only the fields the snapshot prints; the object seeded is everything the
+  // service sent, which is what the app then shapes.
+  const [summary, filings] = await Promise.all([
+    getApiData<MoneySummaryPayload>("/campaign-finance/summary").catch(
+      () => null,
+    ),
+    getApiData<unknown>(
+      `/campaign-finance/filings?limit=${MONEY_LANDING_FILINGS_LIMIT}`,
+    ).catch(() => null),
+  ]);
+  const data: PageDataEntry[] = [];
+  if (summary) {
+    data.push({ key: campaignFinanceSummaryQueryKey(), payload: summary });
+  }
+  if (filings) {
+    data.push({
+      key: campaignFinanceFilingsQueryKey(MONEY_LANDING_FILINGS_LIMIT),
+      payload: filings,
+    });
   }
   return {
     metadata: STATIC_PAGE_METADATA["/money"],
@@ -403,6 +476,7 @@ async function moneyLandingContent(): Promise<PageContent> {
         filesLastCopiedAt: summary?.freshness?.downloads_fetched_at ?? null,
       }),
     ),
+    data,
   };
 }
 
@@ -410,12 +484,13 @@ async function moneyByRaceContent(): Promise<PageContent> {
   // The same shaping the app applies to the same read, so the first response
   // carries the page a reader gets: counts, never sums; the served order; every
   // figure with its own dates (issue #1954).
+  const year = defaultMoneyYear();
   const payload = await getApiResponse<{ data: unknown }>(
-    `/campaign-finance/races?year=${defaultMoneyYear()}`,
+    `/campaign-finance/races?year=${year}`,
   );
   const page = getCampaignFinanceRacesFromApiPayload(
     payload.data as ApiMoneyByRacePayload,
-    defaultMoneyYear(),
+    year,
   );
   if (page.state !== "reported") {
     throw new DataUnavailable("races response has no contests to serve");
@@ -423,6 +498,9 @@ async function moneyByRaceContent(): Promise<PageContent> {
   return {
     metadata: moneyByRacePageMetadata(),
     snapshot: renderPageSnapshot(moneyByRacePageSnapshot(page)),
+    // Without this the page downloaded all 778 rows a second time, as 271 KB of
+    // JSON describing the rows its own HTML already carried (#1966).
+    data: [{ key: moneyByRaceQueryKey({ year }), payload: payload.data }],
   };
 }
 
@@ -466,6 +544,17 @@ async function committeeListContent(page: number): Promise<PageContent> {
         COMMITTEE_PAGE_SIZE,
       ),
     ),
+    // The same rows, for the same numbered page, so the list is drawn in the
+    // app's first paint rather than 518 ms later (#1966).
+    data: [
+      {
+        key: committeeRegisterQueryKey({
+          page,
+          pageSize: COMMITTEE_PAGE_SIZE,
+        }),
+        payload: register,
+      },
+    ],
   };
 }
 
@@ -555,6 +644,33 @@ async function committeePaymentsContent(slug: string): Promise<PageContent> {
   };
 }
 
+/**
+ * The outside-spending record's own page (#1945), which returned a title and an
+ * empty body until now. On a cold Cloudflare cache this read is 2,975 ms, so the
+ * address was the money section's slowest first load and showed nothing at all
+ * while it waited (#1966).
+ *
+ * `sort=newest` is in the path because the app's own read sends it, and the
+ * seeded payload must answer the very URL the app would have asked for.
+ */
+async function outsideSpendingContent(): Promise<PageContent> {
+  const payload = await getDirectoryApiResponse<{
+    data: ApiOutsideSpendingRecordPagePayload;
+  }>("/campaign-finance/outside-spending?sort=newest");
+  const record = payload.data;
+  const page = outsideSpendingRecordPageFromPayload(record);
+  return {
+    metadata: outsideSpendingPageMetadata({}),
+    snapshot: renderPageSnapshot(outsideSpendingPageSnapshot(page)),
+    data: [
+      {
+        key: outsideSpendingRecordQueryKey(OUTSIDE_SPENDING_RECORD_READ),
+        payload: record,
+      },
+    ],
+  };
+}
+
 function pathWithQuery(query: Record<string, QueryValue>): string {
   const path = one(query.path) || "/";
   const params = new URLSearchParams();
@@ -641,7 +757,16 @@ async function contentFor(
         ? moneyByRaceContent()
         : headOnly(moneyByRacePageMetadata({ noindex: true }));
     case "moneySearch":
-      return headOnly(moneySearchPageMetadata(target.params.q));
+      // Still `noindex`: the address is whatever somebody typed, so it is a
+      // filtered view rather than a record. A body is not an instruction to a
+      // search engine — it is what a reader sees before the program arrives, and
+      // this page showed nothing for about 2 seconds (#1966). The results belong
+      // to the app; what the first response carries is the page's own explanation
+      // and the sentence saying what these records do not cover.
+      return {
+        metadata: moneySearchPageMetadata(target.params.q),
+        snapshot: renderPageSnapshot(moneySearchPageSnapshot()),
+      };
     // A filtered view of one free-text spelling, not a record, so head only with
     // noindex — see §22's table of which money addresses are which.
     case "paymentsUnderName":
@@ -649,7 +774,9 @@ async function contentFor(
     // The whole record is indexable on its bare address; a subject's or a
     // filtered view is head only with noindex (#1945).
     case "outsideSpending":
-      return headOnly(outsideSpendingPageMetadata(target.params));
+      return Object.keys(target.params).length === 0
+        ? outsideSpendingContent()
+        : headOnly(outsideSpendingPageMetadata(target.params));
     case "moneyCommittee":
       return committeeContent(target.slug);
     case "moneyCommitteePayments":
@@ -799,6 +926,15 @@ export default async function handler(
     html = injectPageSnapshot(html, content.snapshot);
   } catch {
     // Serve the page as release 1 did: correct tags, whatever body the shell has.
+  }
+
+  // Same reasoning: a page whose records could not be handed on still works, it
+  // just fetches them itself as it did before (#1966).
+  try {
+    html = injectPageData(html, renderPageData(content.data ?? []));
+  } catch {
+    // Nothing to do — the app's own read is the fallback, and it is the only path
+    // every address took until now.
   }
 
   response.setHeader("Content-Type", "text/html; charset=utf-8");

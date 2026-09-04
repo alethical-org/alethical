@@ -1,4 +1,4 @@
-<!-- describes: apps/frontend/src/screens/redesign/MoneyLandingScreen.tsx, apps/frontend/src/screens/redesign/ReadScreen.tsx, apps/frontend/src/screens/redesign/ResearchScreen.tsx, apps/frontend/src/screens/redesign/CommitteeMoneyScreen.tsx, apps/frontend/src/screens/redesign/CommitteePaymentsScreen.tsx, apps/frontend/src/screens/redesign/CommitteeListScreen.tsx, apps/frontend/src/screens/redesign/MoneyByRaceScreen.tsx, apps/frontend/src/screens/redesign/MoneySearchScreen.tsx, apps/frontend/src/screens/redesign/PaymentsUnderNameScreen.tsx, apps/frontend/src/components/campaignMoney/MoneyNameSearchField.tsx, apps/frontend/src/components/campaignMoney/TrackCommitteeButton.tsx, apps/frontend/src/lib/trackCommitteeButton.ts, apps/frontend/src/lib/moneyLanding.ts, apps/frontend/src/lib/research.ts, apps/frontend/src/lib/researchPieces/whoHasToReportTheirMoney.ts, apps/frontend/src/lib/researchPieces/whatTheRecordsName.ts, apps/frontend/src/components/read/SetBox.tsx, apps/frontend/src/lib/committeeMoney.ts, apps/frontend/src/lib/committeeList.ts, apps/frontend/src/lib/moneyByRace.ts, apps/frontend/src/lib/moneyNameSearch.ts, apps/frontend/src/lib/paymentsUnderName.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/screens/redesign/OutsideSpendingScreen.tsx, apps/frontend/src/lib/outsideSpending.ts, alethical/api/services/outside_spending.py -->
+<!-- describes: apps/frontend/src/screens/redesign/MoneyLandingScreen.tsx, apps/frontend/src/screens/redesign/ReadScreen.tsx, apps/frontend/src/screens/redesign/ResearchScreen.tsx, apps/frontend/src/screens/redesign/CommitteeMoneyScreen.tsx, apps/frontend/src/screens/redesign/CommitteePaymentsScreen.tsx, apps/frontend/src/screens/redesign/CommitteeListScreen.tsx, apps/frontend/src/screens/redesign/MoneyByRaceScreen.tsx, apps/frontend/src/screens/redesign/MoneySearchScreen.tsx, apps/frontend/src/screens/redesign/PaymentsUnderNameScreen.tsx, apps/frontend/src/components/campaignMoney/MoneyNameSearchField.tsx, apps/frontend/src/components/campaignMoney/TrackCommitteeButton.tsx, apps/frontend/src/lib/trackCommitteeButton.ts, apps/frontend/src/lib/moneyLanding.ts, apps/frontend/src/lib/research.ts, apps/frontend/src/lib/researchPieces/whoHasToReportTheirMoney.ts, apps/frontend/src/lib/researchPieces/whatTheRecordsName.ts, apps/frontend/src/components/read/SetBox.tsx, apps/frontend/src/lib/committeeMoney.ts, apps/frontend/src/lib/committeeList.ts, apps/frontend/src/lib/moneyByRace.ts, apps/frontend/src/lib/moneyNameSearch.ts, apps/frontend/src/lib/paymentsUnderName.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/screens/redesign/OutsideSpendingScreen.tsx, apps/frontend/src/lib/outsideSpending.ts, alethical/api/services/outside_spending.py, apps/frontend/src/lib/pageData.ts -->
 
 # How the Campaign money section works
 
@@ -62,7 +62,16 @@ There is now a list of committee addresses handed to search engines
 (`/sitemaps/committees.xml`), holding every committee whose page has a filed record on it.
 A committee with nothing filed keeps its page and stays reachable through the register's own
 numbered pages; it is just not advertised, because a page with nothing on it is not worth
-sending anyone to. What a person sees is unchanged.
+sending anyone to.
+
+**A reader gains from it too.** Writing those words means reading the same records the page
+itself needs, so the records travel in the same response and the page draws them at once.
+Before, the page asked for the identical records a second time and a reader watched a loading
+state for about half a second longer, or as long as 3 seconds when our own caches had gone
+cold. No figure changes on the way: the records arrive exactly as the data service sent them,
+the page reads them with the same code it uses for records it fetches itself, and each set
+arrives whole, so a figure and the freshness date beside it always come from one reading of
+the files. If any of it is missing or unreadable the page just asks for the records itself.
 
 ## The landing page (`/money`)
 
@@ -215,6 +224,11 @@ match at all ("Nothing is filed under '…'", the spelling advice, no nearest-ma
 and a link to browse all committees); one group our copy could not read (a gap on our side,
 while the other groups still answer); and loading placeholders that announce themselves to
 screen readers.
+
+The server answers this address with the page's own explanation and the "what this record does
+not cover" lines, so a reader is told what the box searches before anything has run. It never
+answers with a result for anything typed, and the address stays out of search results, because
+what is in it is whatever somebody put in the box.
 
 ## Payments filed under one name (`/money/payments?name=…&role=…`)
 
@@ -784,8 +798,9 @@ The page ends with "Read from the Board's file" (a link to the download) and "Ch
 Aug 19, 2026", the one freshness date on the page. At phone width (below 768) the columns
 stack and each row becomes a card: name, direction, the meta line, then the amount left-aligned
 under the name with its date beneath it; nothing is sticky. The server answers the bare address
-with its title and description and search engines may list it; a subject's or a filtered view is
-`noindex`, because each committee has its own record page already.
+with its title, its description and the figures above, and search engines may list it; a
+subject's or a filtered view is `noindex`, because each committee has its own record page
+already.
 
 ## The `/read` page (`/read`)
 

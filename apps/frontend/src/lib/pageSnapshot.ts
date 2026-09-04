@@ -137,6 +137,40 @@ import {
   RECORD_DOES_NOT_COVER,
   RECORD_DOES_NOT_COVER_HEADING,
 } from './moneyLanding';
+import {
+  DIRECTION_AS_FILED,
+  directionCountLine,
+  directionNotRecordedLine,
+  EVERY_ROW_STATES_A_DIRECTION,
+  FIGURES_WITHHELD,
+  HOW_TO_READ_IT,
+  IN_KIND_COUNTED_INSIDE,
+  IN_KIND_LABEL,
+  inKindCountLine,
+  LANE_BY_COMMITTEE_TITLE,
+  LANE_BY_SPENDER,
+  laneByCommitteeBody,
+  NOTHING_ON_RECORD,
+  nothingOnRecordWhy,
+  NOT_IN_THIS_RECORD,
+  OUTSIDE_SPENDING_HEADING,
+  OUTSIDE_SPENDING_PATH,
+  OUTSIDE_SPENDING_STANDFIRST,
+  READ_FROM_THE_BOARDS_FILE,
+  RECORD_UNAVAILABLE_TITLE,
+  RECORD_UNAVAILABLE_WHY,
+  recordSpanLine,
+  SEARCH_A_GROUP_OR_COMMITTEE,
+  WHAT_THE_RECORD_HOLDS,
+  checkedLine,
+  type OutsideSpendingRecordPage,
+} from './outsideSpending';
+import {
+  NAME_SEARCH_EMPTY_QUERY_TITLE,
+  NAME_SEARCH_EMPTY_QUERY_WHY,
+  nameSearchHeading,
+  BROWSE_ALL_COMMITTEES,
+} from './moneyNameSearch';
 import { formatSessionLabel } from './sessionLabel';
 import { FIND_MY_LEGISLATOR_INSTRUCTIONS } from './findMyLegislator';
 import { HOME_PUBLIC_INTRO } from './homepage';
@@ -1008,6 +1042,119 @@ export function moneyByRacePageSnapshot(page: MoneyByRacePage): PageSnapshot {
     }),
     links: [
       { label: COMMITTEE_LIST_TITLE, href: '/money/committees' },
+      { label: MONEY_LANDING_HEADING, href: '/money' },
+    ],
+  };
+}
+
+/**
+ * The outside-spending record's own address, `/money/outside-spending` (#1966
+ * criterion 3). Until now this address returned a title and an empty body, so a
+ * reader saw nothing at all until the program loaded and the data service
+ * answered — and on this page that read is 2,975 ms when Cloudflare misses,
+ * which made it the slowest first load on the money pages.
+ *
+ * The whole record's view, which is what the bare address draws. Every word and
+ * every figure comes from the same helpers in `lib/outsideSpending.ts` the screen
+ * calls, so the served page is the drawn page: a withheld total says so rather
+ * than reading 0, a count is never turned into a sum, and the one freshness date
+ * is the day we read the Board's file (`.claude/rules/grounded-answers.md`
+ * rule 12).
+ *
+ * No rows, matching the screen: a list across every group would rank one group's
+ * payment beside another's, which is the comparison this record cannot support.
+ * The 2 lanes lead to a subject, where the rows are.
+ */
+export function outsideSpendingPageSnapshot(page: OutsideSpendingRecordPage): PageSnapshot {
+  const figures = page.state === 'reported' ? page.figures : null;
+  const total = figures ? formatMoney(figures.amountTotal) : null;
+  const everyRowStated = figures ? figures.directionNotRecordedCount === 0 : false;
+  const checkedOn = page.fetchedAt ? checkedLine(centralDateLabel(page.fetchedAt)) : null;
+  return {
+    heading: OUTSIDE_SPENDING_HEADING,
+    subheading: OUTSIDE_SPENDING_STANDFIRST,
+    bodyHeading: WHAT_THE_RECORD_HOLDS,
+    body: figures
+      ? [
+          total ?? FIGURES_WITHHELD,
+          recordSpanLine(figures),
+          `${DIRECTION_AS_FILED}: ${[
+            directionCountLine(figures.supportingCount, 'supporting'),
+            directionCountLine(figures.opposingCount, 'opposing'),
+            ...(everyRowStated
+              ? []
+              : [directionNotRecordedLine(figures.directionNotRecordedCount)]),
+            `${IN_KIND_LABEL}: ${inKindCountLine(figures.inKindCount)}`,
+          ].join(' · ')}`,
+          everyRowStated ? EVERY_ROW_STATES_A_DIRECTION : IN_KIND_COUNTED_INSIDE,
+        ]
+      : page.state === 'unavailable'
+        ? [RECORD_UNAVAILABLE_TITLE, RECORD_UNAVAILABLE_WHY]
+        : [NOTHING_ON_RECORD, nothingOnRecordWhy('record')],
+    bodyIsList: false,
+    facts: checkedOn ? [{ label: READ_FROM_THE_BOARDS_FILE, lines: [checkedOn] }] : [],
+    // The 2 lanes, each an ordinary link, so what the drawn page reaches by a
+    // press is reachable in the first response as well.
+    records: [
+      {
+        label: LANE_BY_SPENDER.title,
+        detail: LANE_BY_SPENDER.body,
+        href: '/money/committees?kind=political_committee_or_fund',
+      },
+      {
+        label: LANE_BY_COMMITTEE_TITLE,
+        detail: laneByCommitteeBody(figures?.committeesNotLinkable ?? null),
+        href: '/money/committees?kind=candidate_committee',
+      },
+    ],
+    sections: [
+      {
+        heading: HOW_TO_READ_IT.heading,
+        blocks: [{ kind: 'prose', lines: [HOW_TO_READ_IT.body] }],
+      },
+      {
+        heading: NOT_IN_THIS_RECORD.heading,
+        blocks: [{ kind: 'prose', lines: [NOT_IN_THIS_RECORD.body] }],
+      },
+    ],
+    links: [
+      { label: SEARCH_A_GROUP_OR_COMMITTEE, href: '/money/search' },
+      { label: COMMITTEE_LIST_TITLE, href: '/money/committees' },
+      { label: MONEY_LANDING_HEADING, href: '/money' },
+    ],
+  };
+}
+
+/**
+ * The name search at `/money/search` (#1966 criterion 3). Head only until now, so
+ * the page was blank for about 2 seconds before anything explained what it
+ * searches.
+ *
+ * The results themselves are whatever a reader typed and belong to the app; what
+ * a first response can carry is the page's own explanation, and the sentence
+ * saying what these records do not cover — which the screen deliberately prints
+ * ABOVE the results, because somebody who searches a name, finds nothing and is
+ * told nothing concludes that the person gave nothing rather than that we do not
+ * hold the record.
+ */
+export function moneySearchPageSnapshot(): PageSnapshot {
+  return {
+    heading: nameSearchHeading(''),
+    subheading: '',
+    bodyHeading: NAME_SEARCH_EMPTY_QUERY_TITLE,
+    body: [NAME_SEARCH_EMPTY_QUERY_WHY],
+    bodyIsList: false,
+    facts: [],
+    sections: [
+      {
+        heading: RECORD_DOES_NOT_COVER_HEADING,
+        body: [...RECORD_DOES_NOT_COVER],
+        bodyIsList: true,
+      },
+    ],
+    links: [
+      { label: BROWSE_ALL_COMMITTEES, href: '/money/committees' },
+      { label: OUTSIDE_SPENDING_HEADING, href: OUTSIDE_SPENDING_PATH },
       { label: MONEY_LANDING_HEADING, href: '/money' },
     ],
   };

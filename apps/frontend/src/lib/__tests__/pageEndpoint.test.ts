@@ -35,6 +35,7 @@ const SHELL = [
   '<link rel="preconnect" href="https://fonts.googleapis.com" />',
   '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Libre+Franklin" />',
   '</head><body><div id="root"><!--alethical:page-snapshot--><p>Home snapshot from shell</p><!--/alethical:page-snapshot--></div>',
+  '<!--alethical:page-data--><!--/alethical:page-data-->',
   '<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon=\'{"token":"public-speed-token"}\'></script>',
   '<script src="/_expo/static/js/web/index-abc.js"></script></body></html>',
 ].join('\n');
@@ -324,7 +325,7 @@ describe('first-response page tags', () => {
     expect(body).toContain('href="/bills/94-2025-HF719?tab=text#ft-laws.1.1.0-1"');
     expect(body).toContain('/_expo/static/js/web/index-abc.js');
     expect(body).toContain('<link rel="stylesheet" href="/fonts.css" />');
-    expect(headers.get('Cache-Control')).toContain('s-maxage=600');
+    expect(headers.get('Cache-Control')).toContain('s-maxage=3600');
     expect(headers.get('X-Robots-Tag')).toBeUndefined();
     expect(readPageShell).toHaveBeenCalledTimes(1);
     expect(vi.mocked(fetch)).not.toHaveBeenCalledWith(
@@ -1053,5 +1054,275 @@ describe('when the data service is unwell', () => {
     }));
 
     expect((await serve({ path: '/bills' })).status).toBe(503);
+  });
+});
+
+/**
+ * The reads the function already makes, handed to the app in the same response
+ * (issue #1966). Before this, `/money/committees` fetched the identical URL a
+ * second time 1,253 ms into the load and waited until 1,771 ms for it.
+ */
+describe('the records a money page hands to the app', () => {
+  const COMMITTEE_REGISTER = {
+    state: 'reported',
+    ordered_by: 'name',
+    committees: [
+      {
+        registration_number: '20963',
+        name: '34th Senate District RPM',
+        kind: 'party_unit',
+        sub_type: null,
+        office: null,
+        district: null,
+        is_closed: false,
+        termination_date: null,
+      },
+    ],
+    page: { has_more: true, total: 1 },
+    register_total: 1603,
+    by_kind: { party_unit: 1 },
+    as_of: '2026-09-01',
+  };
+
+  const OUTSIDE_SPENDING = {
+    state: 'reported',
+    about: null,
+    spender: null,
+    year: null,
+    sort: 'newest',
+    rows: [],
+    page: { number: 1, size: 50, has_more: false, total_rows: 4321 },
+    figures: {
+      row_count: 4321,
+      rows_missing_an_amount: 0,
+      amount_total: '12345678.90',
+      supporting_count: 3000,
+      supporting_amount: '9000000.00',
+      opposing_count: 1321,
+      opposing_amount: '3345678.90',
+      direction_not_recorded_count: 0,
+      direction_not_recorded_amount: null,
+      in_kind_count: 12,
+      first_year: 2015,
+      last_year: 2026,
+      committee_count: 400,
+      spender_count: 120,
+      committees_not_linkable: 3,
+    },
+    source_url: 'https://cfb.mn.gov/independent-expenditures.csv',
+    fetched_at: '2026-09-01T12:00:00Z',
+  };
+
+  /** Every entry in the served data block, as the app's own reader parses it. */
+  function servedData(body: string): { key: unknown[]; payload: Record<string, unknown> }[] {
+    const block = body.match(
+      /<script type="application\/json" id="alethical-page-data">([\s\S]*?)<\/script>/,
+    )?.[1];
+    if (!block) return [];
+    return JSON.parse(block);
+  }
+
+  it('hands /money/committees the rows it read, under the key the list asks for', async () => {
+    const calls: string[] = [];
+    stubNetwork((url) => {
+      calls.push(url);
+      return { status: 200, payload: { data: COMMITTEE_REGISTER } };
+    });
+
+    const { body } = await serve({ path: '/money/committees' });
+
+    expect(calls).toEqual([
+      'https://api.alethical.com/api/v1/campaign-finance/committees?limit=50&offset=0',
+    ]);
+    expect(servedData(body)).toEqual([
+      {
+        key: ['campaign-finance-committees', 'all', '', 1, 50],
+        // Byte for byte the service's own JSON: no figure is reshaped on the way
+        // through, so a seeded figure cannot differ from a fetched one, and the
+        // list's `as_of` date belongs to the very read the rows came from.
+        payload: COMMITTEE_REGISTER,
+      },
+    ]);
+    // The block sits after the app's mount point, so a large payload cannot delay
+    // the snapshot text, and before the bundle, so it is there when the app runs.
+    expect(body.indexOf('<div id="root">')).toBeLessThan(body.indexOf('id="alethical-page-data"'));
+    expect(body.indexOf('id="alethical-page-data"')).toBeLessThan(
+      body.indexOf('/_expo/static/js/web/index-abc.js'),
+    );
+  });
+
+  it('hands page 2 the key for page 2', async () => {
+    stubNetwork(() => ({
+      status: 200,
+      payload: {
+        data: { ...COMMITTEE_REGISTER, page: { has_more: false, total: 51 } },
+      },
+    }));
+
+    const { body } = await serve({ path: '/money/committees', page: '2' });
+
+    expect(servedData(body)[0].key).toEqual(['campaign-finance-committees', 'all', '', 2, 50]);
+  });
+
+  it('hands a filtered committee address nothing, because it reads nothing', async () => {
+    stubNetwork(() => ({ status: 200, payload: { data: COMMITTEE_REGISTER } }));
+
+    const { body } = await serve({ path: '/money/committees', kind: 'party_unit' });
+
+    expect(servedData(body)).toEqual([]);
+    expect(body).toContain('<!--alethical:page-data--><!--/alethical:page-data-->');
+  });
+
+  it('hands /money/races its contests, so the 778 rows are not downloaded twice', async () => {
+    const races = {
+      state: 'reported',
+      year: 2026,
+      ordered_by: 'office, district, name',
+      contest_count: 1,
+      committee_count: 1,
+      as_of: '2026-09-01',
+      contests: [
+        {
+          office: 'State Senator',
+          district: '34',
+          seat: 'Senate District 34',
+          committees: [
+            {
+              registration_number: '20963',
+              name: 'Volunteers for Someone',
+              reported_total: '1000.00',
+              termination_date: null,
+            },
+          ],
+        },
+      ],
+    };
+    stubNetwork(() => ({ status: 200, payload: { data: races } }));
+
+    const { body } = await serve({ path: '/money/races' });
+    const served = servedData(body);
+
+    expect(served).toHaveLength(1);
+    expect(served[0].key).toEqual(['campaign-finance-races', 2026, 'all']);
+    expect(served[0].payload).toEqual(races);
+  });
+
+  it('hands /money its 2 reads, made together', async () => {
+    const summary = {
+      register: { state: 'reported', filer_count: 1603 },
+      legislator_committee_confirmations: {
+        state: 'reported',
+        confirmed_member_count: 0,
+        sitting_member_count: 201,
+        newest_confirmation_at: null,
+      },
+      freshness: { downloads_fetched_at: '2026-09-01T12:00:00Z' },
+    };
+    const filings = { state: 'reported', ordered_by: 'filed_date', filings: [] };
+    stubNetwork((url) => ({
+      status: 200,
+      payload: { data: url.includes('/filings') ? filings : summary },
+    }));
+
+    const { body } = await serve({ path: '/money' });
+
+    expect(servedData(body)).toEqual([
+      { key: ['campaign-finance-summary'], payload: summary },
+      { key: ['campaign-finance-filings', 5], payload: filings },
+    ]);
+  });
+
+  it('still serves /money when a count cannot be read, and hands on nothing for it', async () => {
+    stubNetwork(() => ({ status: 500 }));
+
+    const { body, status } = await serve({ path: '/money' });
+
+    expect(status).toBe(200);
+    expect(servedData(body)).toEqual([]);
+  });
+
+  it('gives /money/outside-spending a body and its figures, robots unchanged', async () => {
+    const calls: string[] = [];
+    stubNetwork((url) => {
+      calls.push(url);
+      return { status: 200, payload: { data: OUTSIDE_SPENDING } };
+    });
+
+    const { body, headers, status } = await serve({ path: '/money/outside-spending' });
+
+    expect(status).toBe(200);
+    // The URL the app itself would have asked for, so the seeded payload answers
+    // the app's own question rather than a near-miss of it.
+    expect(calls).toEqual([
+      'https://api.alethical.com/api/v1/campaign-finance/outside-spending?sort=newest',
+    ]);
+    expect(body).toContain('<h1>Spending by groups that are not the campaign</h1>');
+    // The app's own money formatter, so the served figure is the drawn figure.
+    expect(body).toContain('$12,345,678');
+    expect(body).toContain('across 4,321 payments, 2015 through 2026');
+    expect(body).toContain('href="/money/committees?kind=political_committee_or_fund"');
+    expect(body).toContain('Read from the Board’s file');
+    expect(servedData(body)).toEqual([
+      {
+        key: ['outside-spending-record', null, null, null, 'newest', 1],
+        payload: OUTSIDE_SPENDING,
+      },
+    ]);
+    // Unchanged from before this page had a body: the bare record is listable and
+    // carries its own canonical address.
+    expect(headers.get('X-Robots-Tag')).toBeUndefined();
+    expect(body).toContain(
+      'rel="canonical" href="https://www.alethical.com/money/outside-spending"',
+    );
+  });
+
+  it('withholds a total the record does not report rather than printing 0', async () => {
+    stubNetwork(() => ({
+      status: 200,
+      payload: { data: { ...OUTSIDE_SPENDING, state: 'not_reported', figures: null } },
+    }));
+
+    const { body } = await serve({ path: '/money/outside-spending' });
+
+    expect(body).toContain('Nothing on record');
+    expect(body).not.toContain('$0.00');
+  });
+
+  it('leaves a filtered outside-spending address head only and noindex', async () => {
+    stubNetwork(() => ({ status: 200, payload: { data: OUTSIDE_SPENDING } }));
+
+    const { body, headers } = await serve({ path: '/money/outside-spending', spender: '20963' });
+
+    expect(body).not.toContain('<h1>Spending by groups that are not the campaign</h1>');
+    expect(servedData(body)).toEqual([]);
+    expect(headers.get('X-Robots-Tag')).toBe('noindex');
+  });
+
+  it('gives /money/search a body that says what it searches, still noindex', async () => {
+    stubNetwork(() => ({ status: 500 }));
+
+    const { body, headers, status } = await serve({ path: '/money/search' });
+
+    expect(status).toBe(200);
+    expect(body).toContain('<h1>Search these records by name</h1>');
+    expect(body).toContain('Type a name to search');
+    // The sentence the screen puts ABOVE its results, for the same reason: a
+    // reader told nothing reads an empty answer as "they gave nothing".
+    expect(body).toContain('What this record does not cover');
+    expect(body).toContain('href="/money/committees"');
+    // The results are whatever somebody typed, so the address stays unlistable.
+    expect(headers.get('X-Robots-Tag')).toBe('noindex');
+    expect(servedData(body)).toEqual([]);
+  });
+
+  it('serves a page whose shell has no slot for the block, as it did before', async () => {
+    readPageShell.mockResolvedValue(SHELL.replace('<!--alethical:page-data-->', ''));
+    stubNetwork(() => ({ status: 200, payload: { data: COMMITTEE_REGISTER } }));
+
+    const { body, status } = await serve({ path: '/money/committees' });
+
+    expect(status).toBe(200);
+    expect(body).toContain('<h1>Committees</h1>');
+    expect(servedData(body)).toEqual([]);
   });
 });

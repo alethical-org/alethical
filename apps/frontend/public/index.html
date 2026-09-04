@@ -276,6 +276,19 @@
       page is served straight off the filesystem and never reaches api/page.ts.
     -->
     <div id="root"><!--alethical:page-snapshot--><div class="page-snapshot"><div class="ps-inner"><h1>Grounded answers on Minnesota politics</h1><p class="ps-sub">TRUTH, UNCONCEALED</p><p class="ps-prose">We read every bill so you don’t have to — what it says, where it stands, and how legislators voted. And the money: who gives, who spends, who gets paid, and who lobbies. Plain language, with every claim linked to the official record.</p><nav class="ps-links"><a href="/bills">Search Bills</a><a href="/legislators">Search Legislators</a><a href="/find-my-legislator">Find My Legislator</a></nav></div></div><!--/alethical:page-snapshot--></div>
+    <!--
+      The records api/page.ts already read for this address, handed to the app in
+      the same response so it draws them without asking the data service for the
+      identical URL a second time (issue #1966). A JSON data block, never an
+      executable script, so vercel.json's per-script-hash policy does not apply to
+      it — the same reason the application/ld+json blocks above need no hash.
+
+      After #root so the parser reaches the snapshot text first and a large payload
+      cannot delay the first paint, and before the app bundle so the element is
+      there when the program runs. `/` carries nothing here: the home page is
+      served straight off the filesystem and never reaches api/page.ts.
+    -->
+    <!--alethical:page-data--><!--/alethical:page-data-->
     <!-- Cloudflare Web Analytics -->
     <script
       type="module"

@@ -322,3 +322,16 @@ export const RECORD_DOES_NOT_COVER_HEADING = 'What this record does not cover';
  */
 export const RECORD_DOES_NOT_COVER_NOTE =
   'These are properties of the record itself, not gaps we can close';
+
+/**
+ * The React Query keys the /money landing's 2 reads answer. Shared with
+ * `api/page.ts` so the payloads it already read are labelled with the keys the
+ * app asks for (issue #1966).
+ */
+export function campaignFinanceSummaryQueryKey(): readonly unknown[] {
+  return ['campaign-finance-summary'];
+}
+
+export function campaignFinanceFilingsQueryKey(limit: number): readonly unknown[] {
+  return ['campaign-finance-filings', limit];
+}

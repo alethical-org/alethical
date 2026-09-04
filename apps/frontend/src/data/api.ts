@@ -8,11 +8,10 @@ import {
   TRAILING_RETURN,
 } from '../lib/billDetail';
 import type { FilingScheduleState } from '../lib/legislatorCampaignMoney';
-import type {
-  OutsideSpendingRecordFigures,
-  OutsideSpendingRecordPage,
-  OutsideSpendingRecordRow,
-  OutsideSpendingSubject,
+import {
+  outsideSpendingRecordPageFromPayload,
+  type ApiOutsideSpendingRecordPagePayload,
+  type OutsideSpendingRecordPage,
 } from '../lib/outsideSpending';
 import type { PaymentNameRole, PaymentUnderName } from '../lib/paymentsUnderName';
 import {
@@ -2435,7 +2434,7 @@ function filingScheduleState(raw: string | null | undefined): FilingScheduleStat
   return known.find((state) => state === raw) ?? 'filings_cannot_answer';
 }
 
-interface ApiCampaignFinanceSummaryPayload {
+export interface ApiCampaignFinanceSummaryPayload {
   register?: {
     state?: string;
     filer_count?: number | null;
@@ -2459,7 +2458,7 @@ interface ApiMoneyFilingPayload {
   filed_date?: string | null;
 }
 
-interface ApiCampaignFinanceFilingsPayload {
+export interface ApiCampaignFinanceFilingsPayload {
   state?: string;
   ordered_by?: string;
   filings?: ApiMoneyFilingPayload[] | null;
@@ -2476,11 +2475,9 @@ function blockState(state: string | undefined): 'reported' | 'unavailable' {
  * and never renders as 0; a served 0 (today's confirmed_member_count) is a
  * verified zero and renders as the number it is (grounded-answers.md rule 12).
  */
-export async function getCampaignFinanceSummaryFromApi(): Promise<MoneyLandingSummary> {
-  const response = await publicApiRequest<DetailResponse<ApiCampaignFinanceSummaryPayload>>(
-    '/campaign-finance/summary',
-  );
-  const payload = response.data;
+export function campaignFinanceSummaryFromPayload(
+  payload: ApiCampaignFinanceSummaryPayload,
+): MoneyLandingSummary {
   const register = payload.register ?? undefined;
   const confirmations = payload.legislator_committee_confirmations ?? undefined;
   return {
@@ -2504,6 +2501,13 @@ export async function getCampaignFinanceSummaryFromApi(): Promise<MoneyLandingSu
   };
 }
 
+export async function getCampaignFinanceSummaryFromApi(): Promise<MoneyLandingSummary> {
+  const response = await publicApiRequest<DetailResponse<ApiCampaignFinanceSummaryPayload>>(
+    '/campaign-finance/summary',
+  );
+  return campaignFinanceSummaryFromPayload(response.data);
+}
+
 /**
  * The newest filed reports for the landing (no amounts of any kind). A row
  * carries the day the Board received it where its own document states one, and
@@ -2513,12 +2517,9 @@ export async function getCampaignFinanceSummaryFromApi(): Promise<MoneyLandingSu
  * printed ordering sentence derives from `ordered_by` through
  * lib/moneyLanding.ts so the words and the order cannot drift apart.
  */
-export async function getCampaignFinanceFilingsFromApi(limit = 5): Promise<MoneyFilingsFeed> {
-  const params = new URLSearchParams({ limit: String(limit) });
-  const response = await publicApiRequest<DetailResponse<ApiCampaignFinanceFilingsPayload>>(
-    `/campaign-finance/filings?${params.toString()}`,
-  );
-  const payload = response.data;
+export function campaignFinanceFilingsFromPayload(
+  payload: ApiCampaignFinanceFilingsPayload,
+): MoneyFilingsFeed {
   return {
     state: blockState(payload.state),
     orderedBy: payload.ordered_by ?? '',
@@ -2545,6 +2546,14 @@ export async function getCampaignFinanceFilingsFromApi(limit = 5): Promise<Money
   };
 }
 
+export async function getCampaignFinanceFilingsFromApi(limit = 5): Promise<MoneyFilingsFeed> {
+  const params = new URLSearchParams({ limit: String(limit) });
+  const response = await publicApiRequest<DetailResponse<ApiCampaignFinanceFilingsPayload>>(
+    `/campaign-finance/filings?${params.toString()}`,
+  );
+  return campaignFinanceFilingsFromPayload(response.data);
+}
+
 interface ApiCommitteeRegisterRowPayload {
   registration_number?: string | null;
   name?: string | null;
@@ -2556,7 +2565,7 @@ interface ApiCommitteeRegisterRowPayload {
   termination_date?: string | null;
 }
 
-interface ApiCommitteeRegisterPayload {
+export interface ApiCommitteeRegisterListPayload {
   state?: string;
   ordered_by?: string;
   committees?: ApiCommitteeRegisterRowPayload[] | null;
@@ -2604,10 +2613,15 @@ export async function getCampaignFinanceCommitteesFromApi(options: {
   if (options.limit !== undefined) params.set('limit', String(options.limit));
   if (options.offset !== undefined) params.set('offset', String(options.offset));
   const query = params.toString();
-  const response = await publicApiRequest<DetailResponse<ApiCommitteeRegisterPayload>>(
+  const response = await publicApiRequest<DetailResponse<ApiCommitteeRegisterListPayload>>(
     `/campaign-finance/committees${query ? `?${query}` : ''}`,
   );
-  const payload = response.data;
+  return committeeRegisterPageFromPayload(response.data);
+}
+
+export function committeeRegisterPageFromPayload(
+  payload: ApiCommitteeRegisterListPayload,
+): CommitteeRegisterPage {
   const state = blockState(payload.state);
   return {
     state,
@@ -3582,88 +3596,6 @@ export async function getOutsideSpendingFromApi(options: {
 
 // --- The outside-spending record page (#1945) --------------------------------- --------------------------------------
 
-interface ApiOutsideSpendingRecordPagePayload {
-  state?: string;
-  about?: Record<string, unknown> | null;
-  spender?: Record<string, unknown> | null;
-  year?: number | null;
-  sort?: string;
-  rows?: Record<string, unknown>[] | null;
-  page?: { number: number; size: number; has_more: boolean; total_rows?: number | null } | null;
-  figures?: Record<string, unknown> | null;
-  source_url?: string | null;
-  fetched_at?: string | null;
-}
-
-const asBool = (value: unknown): boolean => value === true;
-const asInt = (value: unknown): number | null => (typeof value === 'number' ? value : null);
-
-function outsideSpendingRecordSubject(
-  raw: Record<string, unknown> | null | undefined,
-): OutsideSpendingSubject | null {
-  if (!raw) return null;
-  const member = raw.confirmed_member as Record<string, unknown> | null | undefined;
-  return {
-    registrationNumber: String(raw.registration_number ?? ''),
-    name: asText(raw.name),
-    inRegister: asBool(raw.in_register),
-    linkable: asBool(raw.linkable),
-    kind: asText(raw.kind),
-    office: asText(raw.office),
-    district: asText(raw.district),
-    confirmedMember:
-      member && typeof member.slug === 'string' && typeof member.full_name === 'string'
-        ? { slug: member.slug, fullName: member.full_name }
-        : null,
-  };
-}
-
-function outsideSpendingRecordRow(raw: Record<string, unknown>): OutsideSpendingRecordRow {
-  return {
-    spender: asText(raw.spender),
-    spenderRegistrationNumber: asText(raw.spender_registration_number),
-    spenderInRegister: asBool(raw.spender_in_register),
-    spenderLinkable: asBool(raw.spender_linkable),
-    aboutCommitteeName: asText(raw.about_committee_name),
-    aboutCommitteeRegistrationNumber: asText(raw.about_committee_registration_number),
-    aboutCommitteeInRegister: asBool(raw.about_committee_in_register),
-    aboutCommitteeLinkable: asBool(raw.about_committee_linkable),
-    direction: asText(raw.direction) ?? 'not recorded',
-    directionAsFiled: asText(raw.direction_as_filed),
-    purpose: asText(raw.purpose),
-    vendorName: asText(raw.vendor_name),
-    expenditureType: asText(raw.expenditure_type),
-    inKind: asBool(raw.in_kind),
-    paidOn: asText(raw.paid_on),
-    year: asInt(raw.year),
-    amount: asText(raw.amount),
-    unpaidAmount: asText(raw.unpaid_amount),
-  };
-}
-
-function outsideSpendingRecordFigures(
-  raw: Record<string, unknown> | null | undefined,
-): OutsideSpendingRecordFigures | null {
-  if (!raw) return null;
-  return {
-    rowCount: asInt(raw.row_count) ?? 0,
-    rowsMissingAnAmount: asInt(raw.rows_missing_an_amount) ?? 0,
-    amountTotal: asText(raw.amount_total),
-    supportingCount: asInt(raw.supporting_count) ?? 0,
-    supportingAmount: asText(raw.supporting_amount),
-    opposingCount: asInt(raw.opposing_count) ?? 0,
-    opposingAmount: asText(raw.opposing_amount),
-    directionNotRecordedCount: asInt(raw.direction_not_recorded_count) ?? 0,
-    directionNotRecordedAmount: asText(raw.direction_not_recorded_amount),
-    inKindCount: asInt(raw.in_kind_count) ?? 0,
-    firstYear: asInt(raw.first_year),
-    lastYear: asInt(raw.last_year),
-    committeeCount: asInt(raw.committee_count) ?? 0,
-    spenderCount: asInt(raw.spender_count) ?? 0,
-    committeesNotLinkable: asInt(raw.committees_not_linkable),
-  };
-}
-
 /**
  * The outside-spending record page's read: one subject at a time with its figures
  * and subject blocks (GET /campaign-finance/outside-spending, #1945). The committee
@@ -3697,20 +3629,5 @@ export async function getOutsideSpendingRecordFromApi(options: {
     if (isNotFoundError(error)) return null;
     throw error;
   }
-  const state = committeeBlockState(payload.state);
-  return {
-    state,
-    about: outsideSpendingRecordSubject(payload.about),
-    spender: outsideSpendingRecordSubject(payload.spender),
-    year: payload.year ?? null,
-    sort: payload.sort === 'largest' ? 'largest' : 'newest',
-    rows: state === 'reported' ? (payload.rows ?? []).map(outsideSpendingRow) : [],
-    pageNumber: payload.page?.number ?? 1,
-    pageSize: payload.page?.size ?? 50,
-    totalRows: payload.page?.total_rows ?? null,
-    hasMore: payload.page?.has_more ?? false,
-    figures: state === 'reported' ? outsideSpendingRecordFigures(payload.figures) : null,
-    sourceUrl: payload.source_url ?? null,
-    fetchedAt: payload.fetched_at ?? null,
-  };
+  return outsideSpendingRecordPageFromPayload(payload);
 }
