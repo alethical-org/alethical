@@ -36,6 +36,7 @@ import { CommitteePaymentsScreen } from '../screens/redesign/CommitteePaymentsSc
 import { MoneySearchScreen } from '../screens/redesign/MoneySearchScreen';
 import { PaymentsUnderNameScreen } from '../screens/redesign/PaymentsUnderNameScreen';
 import { MoneyLandingScreen } from '../screens/redesign/MoneyLandingScreen';
+import { OutsideSpendingScreen } from '../screens/redesign/OutsideSpendingScreen';
 import { ResearchScreen } from '../screens/redesign/ResearchScreen';
 import { ReadScreen } from '../screens/redesign/ReadScreen';
 import { NotFoundScreen } from '../screens/redesign/NotFoundScreen';
@@ -692,6 +693,11 @@ export function RootNavigator() {
               name="PaymentsUnderName"
               component={PaymentsUnderNameScreen}
               options={{ headerShown: false, title: 'Payments filed under one name' }}
+            />
+            <Stack.Screen
+              name="OutsideSpending"
+              component={OutsideSpendingScreen}
+              options={{ headerShown: false, title: 'Outside spending' }}
             />
             <Stack.Screen
               name="CommitteeList"

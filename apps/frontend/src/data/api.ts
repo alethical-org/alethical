@@ -8,6 +8,12 @@ import {
   TRAILING_RETURN,
 } from '../lib/billDetail';
 import type { FilingScheduleState } from '../lib/legislatorCampaignMoney';
+import type {
+  OutsideSpendingRecordFigures,
+  OutsideSpendingRecordPage,
+  OutsideSpendingRecordRow,
+  OutsideSpendingSubject,
+} from '../lib/outsideSpending';
 import type { PaymentNameRole, PaymentUnderName } from '../lib/paymentsUnderName';
 import type { SourceBlock } from '../lib/billText';
 import type { SiteMetricEventName, SiteMetricRecordTotals } from '../lib/traffic';
@@ -3546,6 +3552,141 @@ export async function getOutsideSpendingFromApi(options: {
     totalRows: payload.page?.total_rows ?? null,
     committeeCount: payload.figures?.committee_count ?? null,
     spenderCount: payload.figures?.spender_count ?? null,
+    sourceUrl: payload.source_url ?? null,
+    fetchedAt: payload.fetched_at ?? null,
+  };
+}
+
+// --- The outside-spending record page (#1945) --------------------------------- --------------------------------------
+
+interface ApiOutsideSpendingRecordPagePayload {
+  state?: string;
+  about?: Record<string, unknown> | null;
+  spender?: Record<string, unknown> | null;
+  year?: number | null;
+  sort?: string;
+  rows?: Record<string, unknown>[] | null;
+  page?: { number: number; size: number; has_more: boolean; total_rows?: number | null } | null;
+  figures?: Record<string, unknown> | null;
+  source_url?: string | null;
+  fetched_at?: string | null;
+}
+
+const asBool = (value: unknown): boolean => value === true;
+const asInt = (value: unknown): number | null => (typeof value === 'number' ? value : null);
+
+function outsideSpendingRecordSubject(
+  raw: Record<string, unknown> | null | undefined,
+): OutsideSpendingSubject | null {
+  if (!raw) return null;
+  const member = raw.confirmed_member as Record<string, unknown> | null | undefined;
+  return {
+    registrationNumber: String(raw.registration_number ?? ''),
+    name: asText(raw.name),
+    inRegister: asBool(raw.in_register),
+    linkable: asBool(raw.linkable),
+    kind: asText(raw.kind),
+    office: asText(raw.office),
+    district: asText(raw.district),
+    confirmedMember:
+      member && typeof member.slug === 'string' && typeof member.full_name === 'string'
+        ? { slug: member.slug, fullName: member.full_name }
+        : null,
+  };
+}
+
+function outsideSpendingRecordRow(raw: Record<string, unknown>): OutsideSpendingRecordRow {
+  return {
+    spender: asText(raw.spender),
+    spenderRegistrationNumber: asText(raw.spender_registration_number),
+    spenderInRegister: asBool(raw.spender_in_register),
+    spenderLinkable: asBool(raw.spender_linkable),
+    aboutCommitteeName: asText(raw.about_committee_name),
+    aboutCommitteeRegistrationNumber: asText(raw.about_committee_registration_number),
+    aboutCommitteeInRegister: asBool(raw.about_committee_in_register),
+    aboutCommitteeLinkable: asBool(raw.about_committee_linkable),
+    direction: asText(raw.direction) ?? 'not recorded',
+    directionAsFiled: asText(raw.direction_as_filed),
+    purpose: asText(raw.purpose),
+    vendorName: asText(raw.vendor_name),
+    expenditureType: asText(raw.expenditure_type),
+    inKind: asBool(raw.in_kind),
+    paidOn: asText(raw.paid_on),
+    year: asInt(raw.year),
+    amount: asText(raw.amount),
+    unpaidAmount: asText(raw.unpaid_amount),
+  };
+}
+
+function outsideSpendingRecordFigures(
+  raw: Record<string, unknown> | null | undefined,
+): OutsideSpendingRecordFigures | null {
+  if (!raw) return null;
+  return {
+    rowCount: asInt(raw.row_count) ?? 0,
+    rowsMissingAnAmount: asInt(raw.rows_missing_an_amount) ?? 0,
+    amountTotal: asText(raw.amount_total),
+    supportingCount: asInt(raw.supporting_count) ?? 0,
+    supportingAmount: asText(raw.supporting_amount),
+    opposingCount: asInt(raw.opposing_count) ?? 0,
+    opposingAmount: asText(raw.opposing_amount),
+    directionNotRecordedCount: asInt(raw.direction_not_recorded_count) ?? 0,
+    directionNotRecordedAmount: asText(raw.direction_not_recorded_amount),
+    inKindCount: asInt(raw.in_kind_count) ?? 0,
+    firstYear: asInt(raw.first_year),
+    lastYear: asInt(raw.last_year),
+    committeeCount: asInt(raw.committee_count) ?? 0,
+    spenderCount: asInt(raw.spender_count) ?? 0,
+    committeesNotLinkable: asInt(raw.committees_not_linkable),
+  };
+}
+
+/**
+ * The outside-spending record page's read: one subject at a time with its figures
+ * and subject blocks (GET /campaign-finance/outside-spending, #1945). The committee
+ * page's tabs read the same route through `getOutsideSpendingFromApi` above, which
+ * accumulates pages and carries no figures. No filter is the whole file;
+ * `spender` is one group's own rows; `about` is the rows filed about one committee.
+ * Resolves `null` on 404: the number is in neither our copy of the Board's register
+ * nor the file, which the page renders as a fact about our records.
+ */
+export async function getOutsideSpendingRecordFromApi(options: {
+  about?: string;
+  spender?: string;
+  year?: number | null;
+  sort?: 'newest' | 'largest';
+  page?: number;
+}): Promise<OutsideSpendingRecordPage | null> {
+  const params = new URLSearchParams();
+  if (options.about) params.set('about', options.about);
+  if (options.spender) params.set('spender', options.spender);
+  if (options.year) params.set('year', String(options.year));
+  if (options.sort) params.set('sort', options.sort);
+  if (options.page && options.page > 1) params.set('page', String(options.page));
+  const query = params.toString();
+  let payload: ApiOutsideSpendingRecordPagePayload;
+  try {
+    const response = await publicApiRequest<DetailResponse<ApiOutsideSpendingRecordPagePayload>>(
+      `/campaign-finance/outside-spending${query ? `?${query}` : ''}`,
+    );
+    payload = response.data;
+  } catch (error) {
+    if (isNotFoundError(error)) return null;
+    throw error;
+  }
+  const state = committeeBlockState(payload.state);
+  return {
+    state,
+    about: outsideSpendingRecordSubject(payload.about),
+    spender: outsideSpendingRecordSubject(payload.spender),
+    year: payload.year ?? null,
+    sort: payload.sort === 'largest' ? 'largest' : 'newest',
+    rows: state === 'reported' ? (payload.rows ?? []).map(outsideSpendingRow) : [],
+    pageNumber: payload.page?.number ?? 1,
+    pageSize: payload.page?.size ?? 50,
+    totalRows: payload.page?.total_rows ?? null,
+    hasMore: payload.page?.has_more ?? false,
+    figures: state === 'reported' ? outsideSpendingRecordFigures(payload.figures) : null,
     sourceUrl: payload.source_url ?? null,
     fetchedAt: payload.fetched_at ?? null,
   };

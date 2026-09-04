@@ -1,4 +1,4 @@
-<!-- describes: apps/frontend/src/screens/redesign/MoneyLandingScreen.tsx, apps/frontend/src/screens/redesign/ReadScreen.tsx, apps/frontend/src/screens/redesign/ResearchScreen.tsx, apps/frontend/src/screens/redesign/CommitteeMoneyScreen.tsx, apps/frontend/src/screens/redesign/CommitteePaymentsScreen.tsx, apps/frontend/src/screens/redesign/CommitteeListScreen.tsx, apps/frontend/src/screens/redesign/MoneySearchScreen.tsx, apps/frontend/src/screens/redesign/PaymentsUnderNameScreen.tsx, apps/frontend/src/components/campaignMoney/MoneyNameSearchField.tsx, apps/frontend/src/components/campaignMoney/TrackCommitteeButton.tsx, apps/frontend/src/lib/trackCommitteeButton.ts, apps/frontend/src/lib/moneyLanding.ts, apps/frontend/src/lib/research.ts, apps/frontend/src/lib/researchPieces/whoHasToReportTheirMoney.ts, apps/frontend/src/lib/researchPieces/whatTheRecordsName.ts, apps/frontend/src/components/read/SetBox.tsx, apps/frontend/src/lib/committeeMoney.ts, apps/frontend/src/lib/committeeList.ts, apps/frontend/src/lib/moneyNameSearch.ts, apps/frontend/src/lib/paymentsUnderName.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/webRoutes.ts -->
+<!-- describes: apps/frontend/src/screens/redesign/MoneyLandingScreen.tsx, apps/frontend/src/screens/redesign/ReadScreen.tsx, apps/frontend/src/screens/redesign/ResearchScreen.tsx, apps/frontend/src/screens/redesign/CommitteeMoneyScreen.tsx, apps/frontend/src/screens/redesign/CommitteePaymentsScreen.tsx, apps/frontend/src/screens/redesign/CommitteeListScreen.tsx, apps/frontend/src/screens/redesign/MoneySearchScreen.tsx, apps/frontend/src/screens/redesign/PaymentsUnderNameScreen.tsx, apps/frontend/src/components/campaignMoney/MoneyNameSearchField.tsx, apps/frontend/src/components/campaignMoney/TrackCommitteeButton.tsx, apps/frontend/src/lib/trackCommitteeButton.ts, apps/frontend/src/lib/moneyLanding.ts, apps/frontend/src/lib/research.ts, apps/frontend/src/lib/researchPieces/whoHasToReportTheirMoney.ts, apps/frontend/src/lib/researchPieces/whatTheRecordsName.ts, apps/frontend/src/components/read/SetBox.tsx, apps/frontend/src/lib/committeeMoney.ts, apps/frontend/src/lib/committeeList.ts, apps/frontend/src/lib/moneyNameSearch.ts, apps/frontend/src/lib/paymentsUnderName.ts, apps/frontend/src/navigation/ia.ts, apps/frontend/src/navigation/webRoutes.ts, apps/frontend/src/screens/redesign/OutsideSpendingScreen.tsx, apps/frontend/src/lib/outsideSpending.ts, alethical/api/services/outside_spending.py -->
 
 # How the Campaign money section works
 
@@ -35,6 +35,9 @@ permanently and straight to the `/read` address it belongs to, never through the
   search somebody shared with you.
 - Open a name that gave or got paid from a search result, which opens
   `/money/payments?name=…&role=…` — a link somebody can share, showing the same list.
+- Open `/money/outside-spending` directly for the record of what outside groups spent
+  supporting or opposing committees, or `/money/outside-spending?about=<registration
+  number>` and `?spender=<registration number>` for one committee's or one group's view of it.
 - The retired address `/track/campaign-finance` (an old greyed "Campaign Finance" tracking
   row pointed there) shows the `/money` landing instead of an error.
 
@@ -636,6 +639,94 @@ is a measured count served with the rows, never a guess. The same naming rules a
 loan is labelled as reported on its own schedule rather than reading as a gift, transfers
 read "Money given to another campaign" and open no name lookup, and a registered filer's
 number opens its committee page where any other name opens its own exact spelling.
+
+## The outside-spending record (`/money/outside-spending`)
+
+Money spent by groups that are **not** the candidate's campaign, supporting or opposing a
+committee. Minnesota calls it an independent expenditure, and the law requires it to be made
+without the candidate's cooperation, so the page's first sentence says what every row is: what a
+group spent, not what a campaign received, and not what any of it achieved. The rows come from
+the Board's independent-expenditures download, and **they are never added to the ordinary
+payments-out figures anywhere**: 491 of them coincide with a payment in the expenditures file,
+and whether that is one payment filed twice or two that coincide is not established.
+
+Three views over the one record, chosen in the address. A row of 3 buttons at the top names
+them: **The whole record**, **One group**, **One committee**. The pressed one is the view on
+screen; the whole-record button always leads back to the bare address, and the 2 subject
+buttons, where the page is not already on that subject, open the register's list of filers of
+that kind, from which a committee's own page leads here.
+
+1. **The whole record** (`/money/outside-spending`). A green card headed WHAT THE RECORD HOLDS
+   carries the file's total in whole dollars, "across 41,130 payments, 2015 through 2026"
+   (every figure counted live), then DIRECTION, AS THE FILING STATES IT: a bar in cyan and
+   ink — never green against red, which would score the spending as good and bad — with the
+   count of supporting rows, the count of opposing rows, and an IN KIND label with the count
+   given in goods or services. Under it: "Every row states a direction, so nothing here is
+   filed without one. In-kind rows are counted in both figures above, not beside them." That
+   sentence prints only while it is true; the day a row states neither direction, a third
+   figure appears in its place. Beside the card, 2 lane cards, **By the group that spent** and
+   **By the committee it was about**, and a **Search a group or a committee** box that opens
+   the name search. The committee lane's sentence carries a served count of the committees
+   whose number resolves to no page of ours (340 on 3 Sep 2026, 283 of them under the negative
+   numbers the Board assigns local candidates). Two reading blocks follow, HOW TO READ IT and
+   NOT IN THIS RECORD. The whole record lists no rows: a list across every group would set one
+   group's payment beside another's, so the rows live on the 2 subject views.
+2. **One group that spent** (`?spender=<registration number>`). The group's register kind as
+   a chip, "Registration 41207", its name, and a line saying it is registered with the Board
+   to make independent expenditures, with a link to its own money page where one exists. Then
+   the figures for that group alone: the subject line (OUTSIDE SPENDING · 2026, or the span of
+   years), the total, the ruled count line "12 payments about 5 committees" (singular
+   "1 payment about 1 committee"), the direction bar with each side's money, and a period
+   note. Rows are headed **The committees this spending was about**.
+3. **One committee the spending was about** (`?about=<registration number>`). The same
+   shape, headed **The groups that spent**, count line "12 payments by 5 groups". Above the
+   figures sits WHOSE COMMITTEE THIS IS. Until a person at Alethical has confirmed the link,
+   it names the committee only: "The register records this committee for State
+   Representative, District 3B. We have not confirmed which person it belongs to, so this
+   page names the committee only. Every figure below is spending about this committee — not
+   about a candidate we have identified." A confirmation adds one sentence naming the member
+   with a link to their campaign money, and changes no figure: the filings never name a person.
+
+Every row shows its own facts and nothing inferred: the counterparty's name (a link with its
+REG number where this release holds a page for it; otherwise plain text with "Not in the
+register — printed as the filing names it" beside it, because dropping the row would shrink the
+record and linking it would invent a page), a SUPPORTING or OPPOSING chip in the filing's own
+word, the purpose ("No purpose given in the filing" where blank), the vendor ("paid to …" or
+"no vendor named in the filing"), the row's type text ("independent expenditure", or "given in
+kind" — in-kind is the row's type, never a chip), the amount in whole dollars with "$1,500 of it
+unpaid" under it where part is unpaid, and its own date, "PAID AUG 3, 2026". Two sort buttons,
+NEWEST FIRST (the default) and LARGEST FIRST; largest first is honest here because ranking rows
+inside one subject is a fact about that subject, and the dek under the heading says the figures
+are never set against another group's. A FILING YEAR control offers All years and the 2 current
+filing years. Over 50 rows the list pages, "Showing 50 of 1,284 payments", "Page 2 of 26",
+Previous and Next, and the note under the rows says the rest are on their own pages — this list
+is never a sample of a longer one without saying so.
+
+States, each at both widths:
+
+- **Nothing on record** (grey, in the body face) with the reason: "No independent expenditure
+  about this committee appears in the file we hold for the period above. Minnesota publishes no
+  date telling us when a report arrived, so we cannot tell you whether one is still to come. This
+  is not a reported zero, and no group has reported spending nothing." With a year chosen the
+  card offers **See all years**; with none, a link to the committee's own contributions and
+  payments where that page exists.
+- **We could not read this part of our records just now** when our copy of the file is stale or
+  does not reach the year asked for — a gap of ours, never a zero.
+- **Figures as accepted**, an amber note over the last figures the page loaded, when our own
+  data service stops answering mid-visit: "We could not reach our own data service just now, so
+  these are the last figures we accepted, taken Aug 11, 2026 — held until it answers rather than
+  expiring on a timer." With nothing loaded at all, the page says so and shows no figure.
+- **We hold nothing under this registration number** for a number in neither our copy of the
+  Board's register nor the file — a statement about our records.
+- A row whose amount the filing leaves blank withholds every total on the page and keeps every
+  count, with a sentence saying why; 0 rows in the live file are like this.
+
+The page ends with "Read from the Board's file" (a link to the download) and "Checked
+Aug 19, 2026", the one freshness date on the page. At phone width (below 768) the columns
+stack and each row becomes a card: name, direction, the meta line, then the amount left-aligned
+under the name with its date beneath it; nothing is sticky. The server answers the bare address
+with its title and description and search engines may list it; a subject's or a filtered view is
+`noindex`, because each committee has its own record page already.
 
 ## The `/read` page (`/read`)
 

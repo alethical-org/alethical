@@ -33,6 +33,7 @@ import {
   getCommitteePaymentsMadeFromApi,
   getCommitteePaymentsReceivedFromApi,
   getOutsideSpendingFromApi,
+  getOutsideSpendingRecordFromApi,
   getPaymentsUnderNameFromApi,
   ListPagination,
   LegislatorListFilters,
@@ -884,5 +885,34 @@ export function useOutsideSpending(
     getNextPageParam: (last) => (last?.hasMore ? last.pageNumber + 1 : undefined),
     enabled: Boolean(about || spender) && (options.enabled ?? true),
     retry: false,
+  });
+}
+
+/**
+ * One page of the outside-spending record page for one subject, with its figures
+ * (#1945; the committee page's tabs use `useOutsideSpending` above). The previous
+ * answer is kept while a new page, year or sort loads, and it stays on screen when a
+ * later request fails, which is what lets the page print "figures as accepted"
+ * over the last figures it holds rather than a blank.
+ */
+export function useOutsideSpendingRecord(options: {
+  about?: string;
+  spender?: string;
+  year: number | null;
+  sort: 'newest' | 'largest';
+  page: number;
+}) {
+  return useQuery({
+    queryKey: [
+      'outside-spending-record',
+      options.about ?? null,
+      options.spender ?? null,
+      options.year,
+      options.sort,
+      options.page,
+    ],
+    queryFn: () => getOutsideSpendingRecordFromApi(options),
+    retry: false,
+    placeholderData: keepPreviousData,
   });
 }

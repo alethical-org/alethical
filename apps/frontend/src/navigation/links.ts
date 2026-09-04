@@ -64,6 +64,9 @@ export const routePath = {
    *  ride in the address, so the page a reader opened is one they can send. */
   moneyPaymentsUnderName: (name: string, role: string) =>
     pathForRoute({ name: 'PaymentsUnderName', params: { name, role } }),
+  /** The outside-spending record: the whole file, or one subject's view. */
+  moneyOutsideSpending: (params?: RootStackParamList['OutsideSpending']) =>
+    pathForRoute({ name: 'OutsideSpending', params }),
   moneyCommittee: (slug: string, params?: Omit<RootStackParamList['CommitteeMoney'], 'slug'>) =>
     pathForRoute({ name: 'CommitteeMoney', params: { slug, ...params } }),
   moneyCommitteePayments: (
