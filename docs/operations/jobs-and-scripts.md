@@ -2,7 +2,7 @@
 
 <!-- describes: .github/workflows/**, scripts/**, alethical/pipeline/**, alethical/api/routers/ask.py, alethical/api/routers/me.py, alethical/api/services/ask_router.py -->
 
-Net: The repository has 17 GitHub Actions workflows. 13 can start automatically
+Net: The repository has 18 GitHub Actions workflows. 14 can start automatically
 and 4 run only when a person starts them. Scheduled checks, releases, and local
 backups do not call paid AI services. Reader questions and deliberately started
 AI work do.
@@ -23,17 +23,18 @@ AI work do.
 | Homepage fact check (`.github/workflows/home-hero-card-facts.yml`) | Daily at 12:00 UTC, and on relevant pull requests | Checks the homepage's 5 bill claims against Minnesota's published record | No paid AI call; reads public government pages |
 | Technology health (`.github/workflows/technology-health.yml`) | Monthly at 13:17 UTC on day 1, and by hand | Checks saved tool versions, package safety, support dates, and whether the 3-month major-release review is overdue | No paid AI call; reads public package lists on GitHub's standard computer |
 | Hosted service settings (`.github/workflows/hosted-service-settings.yml`) | Monthly at 09:30 UTC on day 1, on relevant pull requests, and after relevant changes reach `main` | Compares the intended GitHub, Vercel, Railway, and Supabase settings with their live read routes; keeps Supabase's rotating read grant as 2 encrypted 90-day artifacts; lists every setting it cannot safely read | No paid AI call; reads existing service APIs on GitHub's standard free runner |
+| Money pages stay warm (`.github/workflows/warm-money-pages.yml`) | After each successful production release, and daily at 16:00 UTC | Reads the 5 money addresses and the 4 campaign-money data routes once, so the first real reader after a release is not the one who waits on a cold read. Prints nothing when every address answers; opens no issue | No paid AI call; a handful of reads of our own live site on GitHub's standard free runner |
 | Traffic access key (`.github/workflows/traffic-token-expiry.yml`) | Daily at 12:00 UTC | Opens 1 issue 60 days before the private Vercel Traffic key expires and adds 1 urgent note 14 days before | No paid AI call; reads 1 date stored in the repository |
 | Backend release (Railway Git connection) | A commit reaches `main` | Applies database changes, then releases the API if its readiness check passes | No paid AI call; build and hosting usage stays on the existing Railway account |
 | Website release (Vercel Git connection) | A relevant commit reaches `main` | Builds and releases the web app | No paid AI call; build and hosting usage stays on the existing Vercel account |
 | Unsaved-work backup (`com.alethical.wip-backup`) | Every 5 minutes after `just install-wip-backup` is installed on Eugene's Mac | Saves uncommitted work from each worktree to a local Git reference and an outside bundle | No outside service |
 
-The 12 clock-based GitHub jobs use UTC. Minnesota moves between Central Standard
+The 13 clock-based GitHub jobs use UTC. Minnesota moves between Central Standard
 Time and Central Daylight Time, so their local hour changes by 1 during the year.
 
 ## What GitHub runs only by hand
 
-These 4 workflows complete the total of 17:
+These 4 workflows complete the total of 18:
 
 | Workflow | Purpose | Usage-based cost |
 | --- | --- | --- |
