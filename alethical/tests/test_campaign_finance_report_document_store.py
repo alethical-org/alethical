@@ -295,6 +295,40 @@ def test_the_two_report_series_are_two_documents_and_stay_tellable_apart(
     }
 
 
+def test_two_copies_of_one_filing_version_answer_with_the_newest(db, tmp_path) -> None:
+    """A filing version held twice must answer, not fail (#1937).
+
+    The key is a content address, so the same version served with different bytes is a
+    second row rather than an overwrite -- and Minnesota is doing exactly that to every
+    report filed since 1 January 2022, taking each one down, blacking out donors' street
+    addresses and reposting it, through about 19 November 2026 (#1662). ``one_or_none``
+    raised on the second copy, and both sweeps record a raise as *not checked*, so a
+    committee-year would have gone unchecked for the honest reason that we hold its
+    filing twice. Measured on production 3 September 2026: 0 of 5,677 kept documents
+    shared a filing key with another, so this is guarded before it can fire.
+    """
+    store = MemoryStore()
+    first = b"%PDF-1.4\nas filed, donors' street addresses and all\n%%EOF\n"
+    reposted = b"%PDF-1.4\nreposted, street addresses blacked out\n%%EOF\n"
+    keep(db, store, tmp_path, body=first)
+    keep(db, store, tmp_path, body=reposted)
+    # Both copies are kept. The earlier one is the pre-redaction copy and is the one
+    # worth having kept, so nothing here discards it.
+    assert db.query(schema.CampaignFinanceReportDocument).count() == 2
+
+    library = DocumentLibrary(db=db, store=store, directory=str(tmp_path))
+    answer = library.body_for(
+        registration_number="19043",
+        filing_year=2025,
+        report_type="B",
+        amendment_index=0,
+    )
+
+    assert answer is not None
+    assert answer.body == reposted
+    assert answer.document_hash == hashlib.sha256(reposted).hexdigest()
+
+
 def test_reading_one_series_back_never_answers_with_the_other(db, tmp_path) -> None:
     """``body_for`` returns one row per filing, and that is only true per series.
 

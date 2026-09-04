@@ -32,6 +32,7 @@ Needs the local Postgres on port 54329 for the tests that publish a release.
 
 from __future__ import annotations
 
+import hashlib
 import threading
 from datetime import UTC, date, datetime
 from decimal import Decimal
@@ -542,16 +543,79 @@ def test_a_committee_year_with_no_rows_and_no_figures_is_still_checked(
 
 
 def test_a_year_the_board_serves_no_document_for_is_not_checked(
-    db, board, store
+    db, board, store, documents_server
 ) -> None:
-    """ "We could not look" must never read as "we looked and it was fine"."""
+    """ "We could not look" must never read as "we looked and it was fine".
+
+    The refusal moved from ``targets`` to the check itself (#1937), because deciding it
+    up front meant refusing a filing whose document sits in our own store. So the year
+    is only reached once the store has missed, and it still refuses rather than passing.
+    """
+    base_url, _ = documents_server
     snapshot = seed_filings_snapshot(
         db, reported={("19200", 2022): "2000.00"}, years=(2022,)
     )
     publish_first(db, board, store)
     found = split.targets(db, live(db), snapshot.id, [2022])
     assert found
-    assert all("serves no report document for 2022" in t.skip_reason for t in found)
+    # No longer refused before anything looks at what we hold.
+    assert [t for t in found if t.skip_reason is None]
+
+    verdict, asked, from_store = _check_full(
+        db, snapshot, base_url, year=2022, library=None
+    )
+
+    assert verdict.status is Status.not_checked
+    assert "we hold no copy of this filing" in verdict.reason
+    assert "serves no report document for 2022" in verdict.reason
+    # And the Board is still not asked for a year it does not serve, which is the whole
+    # reason the boundary exists.
+    assert asked is False
+    assert from_store is False
+
+
+def test_a_2022_filing_we_hold_is_checked_rather_than_refused_for_its_year(
+    db, board, store, documents_server, tmp_path
+) -> None:
+    """The 982 committee-years the old boundary threw away (#1937).
+
+    Measured on production 3 September 2026: 982 committee-years of 2022 pass every
+    other gate and we hold the exact document for every one of them, and the year test
+    refused all 982 on the grounds that the Board would not serve them again. We were
+    not asking the Board. We were asking ourselves.
+    """
+    base_url, served = documents_server
+    snapshot, pdf = _prepare(
+        db,
+        board,
+        store,
+        itemized="1,526.0578",
+        non_itemized="473.94",
+        figure="2000.00",
+        year=2022,
+    )
+    document_store.store_document(
+        db,
+        store,
+        str(tmp_path),
+        document_hash=hashlib.sha256(pdf).hexdigest(),
+        body=pdf,
+        registration_number="19200",
+        filing_year=2022,
+        report_type="YE",
+        amendment_index=0,
+    )
+    # Deliberately not served, so a verdict can only have come from our own store.
+    assert "19200" not in served
+
+    verdict, asked, from_store = _check_full(
+        db, snapshot, base_url, year=2022, library=_library(db, store, tmp_path)
+    )
+
+    assert verdict.status is not Status.not_checked
+    assert from_store is True
+    assert asked is False
+    assert verdict.document_hash == hashlib.sha256(pdf).hexdigest()
 
 
 def test_a_report_with_no_served_cut_off_is_not_checked(db, board, store) -> None:
@@ -776,14 +840,33 @@ def test_a_donor_is_their_registration_number_before_their_name(
 # --- End to end ---------------------------------------------------------------
 
 
-def _prepare(db, board, store, *, itemized: str, non_itemized: str, figure: str):
-    snapshot = seed_filings_snapshot(db, reported={("19200", 2025): figure})
+def _prepare(
+    db, board, store, *, itemized: str, non_itemized: str, figure: str, year: int = 2025
+):
+    snapshot = seed_filings_snapshot(
+        db, reported={("19200", year): figure}, years=(year,)
+    )
     publish_first(db, board, store)
     lines = candidate_lines(individuals=(itemized, non_itemized))
     return snapshot, pdf_of(lines)
 
 
 def _check(db, snapshot, base_url, registration="19200", year=2025, keeper=None):
+    return _check_full(
+        db, snapshot, base_url, registration=registration, year=year, keeper=keeper
+    )[0]
+
+
+def _check_full(
+    db,
+    snapshot,
+    base_url,
+    registration="19200",
+    year=2025,
+    keeper=None,
+    library=None,
+):
+    """The verdict and the pair saying whether the Board was asked and our store read."""
     release = live(db)
     target = next(
         t
@@ -792,11 +875,23 @@ def _check(db, snapshot, base_url, registration="19200", year=2025, keeper=None)
     )
     session = requests.Session()
     try:
-        return split.check_one(
-            db, session, release, snapshot.id, target, base_url, keeper=keeper
-        )[0]
+        verdict, (asked, from_store) = split.check_one(
+            db,
+            session,
+            release,
+            snapshot.id,
+            target,
+            base_url,
+            keeper=keeper,
+            library=library,
+        )
+        return verdict, asked, from_store
     finally:
         session.close()
+
+
+def _library(db, store, tmp_path):
+    return document_store.DocumentLibrary(db=db, store=store, directory=str(tmp_path))
 
 
 def test_a_committee_whose_filing_matches_our_rows_agrees(
@@ -992,6 +1087,96 @@ def test_a_document_the_board_will_not_serve_is_not_checked(
     verdict = _check(db, snapshot, base_url)
     assert verdict.status is Status.not_checked
     assert "not found" in verdict.reason
+
+
+# --- Reading our own store before asking the Board (#1937) ---------------------
+
+
+def test_a_filing_we_already_hold_is_read_from_our_store_and_the_board_is_not_asked(
+    db, board, store, documents_server, tmp_path
+) -> None:
+    """Where the run's whole cost went: 3,643 of 3,647 documents were already ours.
+
+    Measured on production 3 September 2026. The Board was asked 3,647 times over about
+    30 minutes to be handed the same 3,643 documents sitting in our own store, and 10 of
+    10 re-asked for came back byte-identical.
+    """
+    base_url, served = documents_server
+    snapshot, pdf = _prepare(
+        db, board, store, itemized="1,526.0578", non_itemized="473.94", figure="2000.00"
+    )
+    document_store.store_document(
+        db,
+        store,
+        str(tmp_path),
+        document_hash=hashlib.sha256(pdf).hexdigest(),
+        body=pdf,
+        registration_number="19200",
+        filing_year=2025,
+        report_type="YE",
+        amendment_index=0,
+    )
+    # The proof: the Board serves nothing for this committee, so a verdict at all means
+    # the document came out of our store.
+    assert "19200" not in served
+
+    verdict, asked, from_store = _check_full(
+        db, snapshot, base_url, library=_library(db, store, tmp_path)
+    )
+
+    assert verdict.status is Status.agrees
+    assert from_store is True
+    assert asked is False
+    assert verdict.document_hash == hashlib.sha256(pdf).hexdigest()
+    assert verdict.document_byte_size == len(pdf)
+
+
+def test_an_amended_filing_misses_our_store_and_is_fetched(
+    db, board, store, documents_server, tmp_path
+) -> None:
+    """Why reading our store first gives up no currency, which is the whole case for it.
+
+    The version to read is named by the Board's own catalogue, and the lookup pins it. So
+    when a committee amends, the catalogue names a higher version, our copy of the older
+    one does not match, and the Board is asked -- an amendment is fetched by construction
+    rather than by luck. That is what makes this cheaper without being blinder.
+    """
+    base_url, served = documents_server
+    snapshot, pdf = _prepare(
+        db, board, store, itemized="1,526.0578", non_itemized="473.94", figure="2000.00"
+    )
+    document_store.store_document(
+        db,
+        store,
+        str(tmp_path),
+        document_hash=hashlib.sha256(pdf).hexdigest(),
+        body=pdf,
+        registration_number="19200",
+        filing_year=2025,
+        report_type="YE",
+        amendment_index=0,
+    )
+    # The committee files an amendment: the catalogue now names version 1, and the only
+    # copy we hold is version 0.
+    db.execute(
+        text(
+            "UPDATE cf_filing_report SET effective_amendment_index = 1, "
+            "amendment_count = 2 WHERE snapshot_id = :snapshot "
+            "AND registration_number = '19200'"
+        ),
+        {"snapshot": snapshot.id},
+    )
+    db.commit()
+    served["19200"] = pdf
+
+    verdict, asked, from_store = _check_full(
+        db, snapshot, base_url, library=_library(db, store, tmp_path)
+    )
+
+    assert verdict.status is Status.agrees
+    assert from_store is False
+    assert asked is True
+    assert verdict.amendment_index == 1
 
 
 # --- Keeping the document the verdict was read from (#1501) --------------------

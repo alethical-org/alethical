@@ -275,6 +275,50 @@ def test_money_out_reads_the_document_money_in_has_just_fetched(
     assert verdicts(db, "cf_stated_spending")[(expenditures, "19004", 2025)] == "agrees"
 
 
+def test_a_publish_asks_the_board_only_for_a_filing_it_does_not_already_hold(
+    db, board, store, documents_server
+) -> None:
+    """The saving is only real if the publish path itself reads the store (#1937).
+
+    Measured on production 3 September 2026: 3,643 of the 3,647 committee-years money in
+    asked the Board about for 2024 to 2026 were documents already in our store, so a
+    publish spent about 30 minutes being handed back its own copies. The check reading
+    the store buys nothing unless ``run_money_in`` hands it the reader, which is what
+    this pins. The Board serves nothing here on the second pass, so a verdict at all
+    proves the document came from the store.
+    """
+    url, served = documents_server
+    served["19004"] = document_for_19004()
+    seed(db)
+    publish_first(db, board, store)
+
+    recheck.recheck_stated_figures(
+        db,
+        years=[2025],
+        store_factory=lambda: store,
+        log=lambda message: None,
+        money_in=money_in_against(url),
+    )
+    contributions, _ = live_snapshots(db)
+    first = verdicts(db, "cf_stated_split")[(contributions, "19004", 2025)]
+    assert db.execute(text("SELECT count(*) FROM cf_report_document")).scalar() == 1
+
+    # The Board goes quiet. A second re-check must reach the same verdict anyway.
+    served.clear()
+    recheck.recheck_stated_figures(
+        db,
+        years=[2025],
+        store_factory=lambda: store,
+        log=lambda message: None,
+        money_in=money_in_against(url),
+    )
+
+    contributions, _ = live_snapshots(db)
+    assert verdicts(db, "cf_stated_split")[(contributions, "19004", 2025)] == first
+    # And nothing new was stored, because nothing new was fetched.
+    assert db.execute(text("SELECT count(*) FROM cf_report_document")).scalar() == 1
+
+
 def test_the_previous_releases_answers_are_never_carried_forward(
     db, board, store, documents_server
 ) -> None:

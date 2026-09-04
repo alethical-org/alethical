@@ -142,14 +142,24 @@ def run_money_in(
     base_url: str = split.BOARD_BASE_URL,
     spacing_seconds: float = split.REQUEST_SPACING_SECONDS,
 ) -> tuple[int, dict[str, int]]:
-    """The money-in check, with a keeper so every document read is kept (#1501)."""
+    """The money-in check, reading our own store first and keeping what it does fetch.
+
+    The keeper is why every document read is kept (#1501). The library is why most of
+    them are not read from the Board at all: measured on production 3 September 2026,
+    3,643 of the 3,647 committee-years this check asked the Board about for 2024 to 2026
+    were documents already in the store, so a publish spent about 30 minutes and 3,647
+    requests being handed back its own copies (#1937). Both are passed, because a filing
+    we do not hold is still fetched and still kept.
+    """
     keeper = DocumentKeeper(db=db, store=store, directory=directory)
+    library = DocumentLibrary(db=db, store=store, directory=directory)
     run = split.run_stated_split_check(
         db,
         years=years,
         base_url=base_url,
         spacing_seconds=spacing_seconds,
         keeper=keeper,
+        library=library,
         progress=progress,
     )
     if keeper.report.failures:
@@ -191,10 +201,14 @@ def recheck_stated_figures(
 ) -> RecheckReport:
     """Run both checks against the live release and report what each one did.
 
-    Neither check's failure stops the other: money out reads our own store and money in
-    reads the Board, so the ways they break do not overlap and one working check is
-    worth having. Every failure lands in the report, and the caller exits non-zero on
-    it.
+    Neither check's failure stops the other, and one working check is worth having.
+    Every failure lands in the report, and the caller exits non-zero on it.
+
+    Both now read a filing out of our own store (#1937), so the store is the one
+    dependency they share and it is reached once, below, before either runs -- a store
+    nobody can open is reported as the single reason it is rather than as 2 unrelated
+    failures. What still does not overlap is the Board: money in is the only check that
+    ever asks it for anything, and only for a filing version we do not hold.
     """
     chosen = tuple(sorted({int(year) for year in years})) if years else recheck_years()
     report = RecheckReport(years=chosen)
@@ -208,10 +222,12 @@ def recheck_stated_figures(
             f"filing: {error}"
         )
     # Money in first, and the order is load-bearing rather than alphabetical: money in
-    # fetches each document from the Board and keeps it (#1501), and money out reads
-    # documents back out of that same store. So money in going first is what lets money
-    # out see a document filed since the last sweep, in the same publish. The reverse
-    # order would leave that committee-year reading as not checked until the next one.
+    # fetches a document the Board has not served us before and keeps it (#1501), and
+    # money out reads documents back out of that same store. So money in going first is
+    # what lets money out see a document filed since the last sweep, in the same publish.
+    # The reverse order would leave that committee-year reading as not checked until the
+    # next one. Still true now both checks read the store first (#1937): what money in
+    # adds to the store is exactly the filing neither of them held.
     for name, runner in ((MONEY_IN, money_in), (MONEY_OUT, money_out)):
         if store_error is not None:
             report.outcomes.append(CheckOutcome(name=name, error=store_error))

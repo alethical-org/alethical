@@ -65,7 +65,10 @@ from alethical.pipeline.campaign_finance_filings import (
     REQUEST_SPACING_SECONDS,
     http_session,
 )
-from alethical.pipeline.campaign_finance_report_document_store import DocumentKeeper
+from alethical.pipeline.campaign_finance_report_document_store import (
+    DocumentKeeper,
+    DocumentLibrary,
+)
 from alethical.pipeline.campaign_finance_report_documents import (
     TOLERANCE,
     DocumentOutcome,
@@ -77,8 +80,19 @@ from alethical.pipeline.campaign_finance_report_documents import (
 
 # The Board serves no report document before this filing year. Walking year-end reports
 # back one year at a time on 2 filers put the boundary here, and a 110-report sample
-# returned 0 of 69 for 2022 and earlier (§9.4). A committee-year below it is recorded as
-# not checked with that reason, because "we could not look" must never read as "we
+# returned 0 of 69 for 2022 and earlier (§9.4).
+#
+# **This bounds what we ASK MINNESOTA FOR, never what we can check.** It used to refuse
+# the committee-year outright, in ``targets``, before anything looked at what we already
+# hold -- so a filing whose document sits in our own store was reported as not checked
+# because the Board would not serve it again. Measured on production 3 September 2026:
+# 982 committee-years of 2022 pass every other gate and we hold the exact document for
+# every one of them. The refusal was also unreachable, which is why nobody caught it:
+# ``cf_stated_split`` holds verdicts for 2024, 2025 and 2026 only, and a re-check asks
+# for the current year and the 2 before it.
+#
+# So the year is tested after the store misses, and a committee-year below it is recorded
+# as not checked with that reason -- because "we could not look" must never read as "we
 # looked and it was fine".
 DOCUMENT_FIRST_YEAR = 2023
 
@@ -127,6 +141,10 @@ class StatedSplitRun:
     completed_at: Optional[datetime] = None
     verdicts: list[Verdict] = field(default_factory=list)
     requests_made: int = 0
+    # Documents answered out of our own store, so the Board was not asked at all. Named
+    # separately from ``requests_made`` because the 2 together are the whole cost of a
+    # run, and a request we did not make is the point of reading the store first.
+    documents_from_store: int = 0
     # Why each unreachable committee-year was unreachable, counted. Named separately
     # from the verdicts because "how much of the population can this check see" is the
     # honest headline and a total of `not_checked` hides which gap it is.
@@ -342,12 +360,6 @@ def _skip_reason(
     special_election: bool,
 ) -> Optional[str]:
     """Why this committee-year cannot be checked, in words an operator can act on."""
-    if filing_year < DOCUMENT_FIRST_YEAR:
-        return (
-            f"the Board serves no report document for {filing_year}; the boundary is "
-            f"{DOCUMENT_FIRST_YEAR} and its absence in an older year means the "
-            "document is unavailable, never that the filing was never amended"
-        )
     if kind is None:
         return (
             "this registration number is in no filer list the Board publishes, so "
@@ -560,12 +572,30 @@ def check_one(
     target: Target,
     base_url: str = BOARD_BASE_URL,
     keeper: Optional[DocumentKeeper] = None,
-) -> tuple[Verdict, bool]:
-    """Check one committee-year. Returns the verdict and whether a request was made.
+    library: Optional[DocumentLibrary] = None,
+) -> tuple[Verdict, tuple[bool, bool]]:
+    """Check one committee-year. Returns the verdict, and (asked the Board, read our store).
 
     ``keeper`` stores the document's bytes when one is served. ``None`` keeps nothing,
-    which is what a dry run does: the Board is asked either way, so a dry run that wrote
-    to the store would make "report without writing" untrue of half the writes.
+    which is what a dry run does, so a dry run that wrote to the store would make
+    "report without writing" untrue of half the writes.
+
+    ``library`` reads the filing out of our own store first and asks the Board only when
+    we do not already hold that exact version. ``None`` asks the Board every time, which
+    is how this ran before.
+
+    **Why looking first loses no currency, which is the whole reason it is safe.** The
+    version to read is named by the Board's own catalogue (§9.6), and the lookup pins it:
+    filer, year, report type and amendment index. So when a committee amends its filing
+    the catalogue names a higher index, our store misses, and the Board is asked -- an
+    amendment is fetched by construction rather than by luck. What a store hit gives up is
+    only the case where Minnesota replaces the *same* version's bytes in place. Measured
+    on production 3 September 2026: that happened to 1 of 3,643 filing keys, and 10 of 10
+    documents re-asked for came back byte-identical to the copy we hold.
+
+    What it saves is most of the run. Of the 3,647 committee-years this check asks the
+    Board about for 2024 to 2026, **3,643 are already in our store**, so the same 3,643
+    verdicts cost 3,647 requests and about 30 minutes to reach nothing new.
     """
     if target.skip_reason is not None:
         return (
@@ -578,20 +608,10 @@ def check_one(
                 amendment_index=target.amendment_index,
                 cut_off_date=target.cut_off_date,
             ),
-            False,
+            (False, False),
         )
     assert target.kind is not None and target.report_type is not None
     assert target.amendment_index is not None
-    response, outcome, note = fetch_document(
-        http,
-        registration_number=target.registration_number,
-        filing_year=target.filing_year,
-        kind=target.kind,
-        report_type=target.report_type,
-        amendment_index=target.amendment_index,
-        special_election=False,
-        base_url=base_url,
-    )
     base = dict(
         registration_number=target.registration_number,
         filing_year=target.filing_year,
@@ -599,26 +619,80 @@ def check_one(
         amendment_index=target.amendment_index,
         cut_off_date=target.cut_off_date,
     )
-    if outcome is not DocumentOutcome.served:
-        return (
-            Verdict(status=Status.not_checked, reason=note, **base),
-            True,
-        )
-    document_hash = response.content_hash
-    document_byte_size = len(response.body)
-    # Stored before it is read, and stored whatever the reading finds. A document our
-    # reader cannot parse is the one most worth keeping: it is the evidence for fixing
-    # the reader, and re-fetching it later is not something the Board allows (#1501).
-    if keeper is not None:
-        keeper.keep(
-            document_hash=document_hash,
-            body=response.body,
+    body: Optional[bytes] = None
+    document_hash: Optional[str] = None
+    document_byte_size: Optional[int] = None
+    asked = False
+    from_store = False
+    if library is not None:
+        # A store that cannot hand back bytes it vouches for falls through to the Board
+        # rather than ending the committee-year. The money-out check has no fallback and
+        # records the fault; here there is one, and using it is strictly better than
+        # reporting a committee-year unchecked over a storage fault.
+        try:
+            kept = library.body_for(
+                registration_number=target.registration_number,
+                filing_year=target.filing_year,
+                report_type=target.report_type,
+                amendment_index=target.amendment_index,
+            )
+        except Exception:  # noqa: BLE001 - the Board is the fallback, not a failure
+            kept = None
+        if kept is not None:
+            body = kept.body
+            document_hash = kept.document_hash
+            document_byte_size = kept.byte_size
+            from_store = True
+    if body is None:
+        # Tested here rather than in ``targets``, so the year bounds the request and not
+        # the check: a 2022 filing we already hold is read above and never reaches this.
+        if target.filing_year < DOCUMENT_FIRST_YEAR:
+            return (
+                Verdict(
+                    status=Status.not_checked,
+                    reason=(
+                        f"we hold no copy of this filing and the Board serves no report "
+                        f"document for {target.filing_year}; the boundary is "
+                        f"{DOCUMENT_FIRST_YEAR} and its absence in an older year means "
+                        "the document is unavailable, never that the filing was never "
+                        "amended"
+                    ),
+                    **base,
+                ),
+                (False, False),
+            )
+        response, outcome, note = fetch_document(
+            http,
             registration_number=target.registration_number,
             filing_year=target.filing_year,
+            kind=target.kind,
             report_type=target.report_type,
             amendment_index=target.amendment_index,
+            special_election=False,
+            base_url=base_url,
         )
-    document = parse_report_document(response.body)
+        asked = True
+        if outcome is not DocumentOutcome.served:
+            return (
+                Verdict(status=Status.not_checked, reason=note, **base),
+                (True, False),
+            )
+        body = response.body
+        document_hash = response.content_hash
+        document_byte_size = len(response.body)
+        # Stored before it is read, and stored whatever the reading finds. A document our
+        # reader cannot parse is the one most worth keeping: it is the evidence for fixing
+        # the reader, and re-fetching it later is not something the Board allows (#1501).
+        if keeper is not None:
+            keeper.keep(
+                document_hash=document_hash,
+                body=body,
+                registration_number=target.registration_number,
+                filing_year=target.filing_year,
+                report_type=target.report_type,
+                amendment_index=target.amendment_index,
+            )
+    document = parse_report_document(body)
     figures = stored_figures(
         db, filings_snapshot_id, target.registration_number, target.filing_year
     )
@@ -634,7 +708,7 @@ def check_one(
                 document_byte_size=document_byte_size,
                 **base,
             ),
-            True,
+            (asked, from_store),
         )
     if stated.self_test is SelfTest.failed:
         return (
@@ -651,7 +725,7 @@ def check_one(
                 stated_non_itemized=stated.non_itemized,
                 **base,
             ),
-            True,
+            (asked, from_store),
         )
     # Guaranteed present: a target with no served cut-off is skipped above, because
     # bounding our rows to the wrong period is what turns an ordinary mid-year filing
@@ -709,7 +783,7 @@ def check_one(
         ours_itemized_cash=held_cash,
         **base,
     )
-    return verdict, True
+    return verdict, (asked, from_store)
 
 
 def _comparison_reason(
@@ -801,6 +875,7 @@ def run_stated_split_check(
     spacing_seconds: float = REQUEST_SPACING_SECONDS,
     write: bool = True,
     keeper: Optional[DocumentKeeper] = None,
+    library: Optional[DocumentLibrary] = None,
     progress: Optional[Callable[[str], None]] = None,
 ) -> StatedSplitRun:
     """Check every committee-year a page could show for these years.
@@ -818,6 +893,13 @@ def run_stated_split_check(
     ``keeper`` keeps each served document's bytes. Without one the run behaves exactly as
     it did before #1501 -- it reads a document, records its hash, and lets the bytes go --
     so a caller that cannot reach the file store still gets its verdicts.
+
+    ``library`` reads a filing out of our own store instead of asking the Board for it,
+    which is where nearly all of the run's cost went: 3,643 of the 3,647 committee-years
+    it asked about for 2024 to 2026 were documents we already held (#1937). The version is
+    pinned by the catalogue's amendment index, so an amended filing still misses the store
+    and is fetched. Without a library every document is fetched, which is how this ran
+    before.
     """
     years = sorted({int(year) for year in years})
     run = StatedSplitRun(years=tuple(years), started_at=datetime.now(UTC))
@@ -848,7 +930,9 @@ def run_stated_split_check(
     # Same reasoning one table over. A missing destination here would turn every document
     # into a counted failure and let the run finish looking almost fine, and the Board
     # does not serve a document twice on request.
-    if keeper is not None and not _table_exists(db, "cf_report_document"):
+    if (keeper is not None or library is not None) and not _table_exists(
+        db, "cf_report_document"
+    ):
         raise RuntimeError(
             "this database has no cf_report_document table, so every document this run "
             "reads would be thrown away after being read -- and the Board serves no "
@@ -868,15 +952,27 @@ def run_stated_split_check(
         )
     session = http or http_session()
     for index, target in enumerate(population, start=1):
-        verdict, asked = check_one(
-            db, session, release, snapshot, target, base_url=base_url, keeper=keeper
+        verdict, (asked, from_store) = check_one(
+            db,
+            session,
+            release,
+            snapshot,
+            target,
+            base_url=base_url,
+            keeper=keeper,
+            library=library,
         )
         run.verdicts.append(verdict)
         if verdict.status is Status.not_checked:
             key = verdict.reason.split(";")[0][:60]
             run.not_checked_reasons[key] = run.not_checked_reasons.get(key, 0) + 1
+        if from_store:
+            run.documents_from_store += 1
         if asked:
             run.requests_made += 1
+            # Spaced only after a real request. Sleeping between store reads would pace a
+            # run against a server it never touched, which is what made the whole sweep
+            # take 30 minutes longer than the money-out one.
             if spacing_seconds and index < len(population):
                 time.sleep(spacing_seconds)
         if progress and index % 50 == 0:

@@ -778,8 +778,15 @@ whole files and replaces whole sets.
    guarantees instead is that the window closes and that a check which cannot run says so: a
    banner and a non-zero exit from `scripts/load_campaign_finance.py`, never a quiet completion,
    and never an earlier release's verdict carried forward. Money in runs first, because it fetches
-   each filing from the Board and keeps it (§4.5) while money out reads filings back out of that
-   same store. Budget about 72 minutes for 3 filing years: 51 for money in and 21 for money out.
+   a filing the Board has not served us before and keeps it (§4.5) while money out reads filings
+   back out of that same store, so this order is what lets money out see a filing that appeared
+   since the last sweep. **Both checks read that store first and ask the Board only for a filing
+   version we do not already hold** ([#1937](https://github.com/alethical-org/alethical/issues/1937)):
+   measured on production 3 September 2026, 3,643 of the 3,647 committee-years money in asked the
+   Board about for 2024 to 2026 were documents already in the store. Budget about 42 minutes for 3
+   filing years, roughly 21 each. The 21 for money out is measured; the money-in figure is an
+   estimate from it, on the reasoning that the 2 now do the same work over the same documents, and
+   the next publish is what turns it into a measurement (§9.9).
 
 **Related files release together.** Contributions, general expenditures, independent
 expenditures and the reports that cover the same period form one release. Files fetched on
@@ -2624,6 +2631,19 @@ Recorded as not run, never as passed:
   `PARTY_UNIT_LINES` exactly. 34 filers (1 party unit, 33 committees or funds) had never filed a
   report and carried no labels either way. The Board's register held 529 committees or funds on
   the day of this second read.
+- **How long a publish's 2 re-checks now take** is an estimate rather than a measurement. Reading
+  the stored document instead of fetching it removes about 3,643 requests per run
+  ([#1937](https://github.com/alethical-org/alethical/issues/1937), measured on production 3
+  September 2026), and §4.1 budgets 42 minutes on the reasoning that money in now does the same
+  work as the money out sweep already measured at 21. Nobody has timed a publish since the change.
+- **How often the Board replaces a filing version's bytes in place** is not established, and it is
+  the one thing reading the store gives up. 1 of 3,643 filing keys carries a verdict whose document
+  hash differs from the copy we hold (filer 41351's 2026 pre-primary report, 1,739,359 bytes on 13
+  August 2026 and 15,726 on 18 August), and 10 documents re-asked for on 3 September 2026 came back
+  byte-identical. Neither figure is a rate, and Minnesota is reposting every report filed since 1
+  January 2022 through about 19 November 2026
+  ([#1662](https://github.com/alethical-org/alethical/issues/1662)), so the rate during that window
+  is not the rate outside it.
 - **Amendment ordering before 2023** could not be tested, because the documents that would
   prove it are not served.
 - **Rate limits, blocking and error behaviour under load** were not tested deliberately; the

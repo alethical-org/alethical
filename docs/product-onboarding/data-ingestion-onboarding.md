@@ -446,7 +446,7 @@ checks and reports, writing nothing and needing no credentials. `just
 load-campaign-finance local false` publishes locally and `just
 load-campaign-finance production false` publishes to production. A run that publishes
 then re-runs the 2 checks that compare a committee against its own filed report and waits
-for them, which adds about 72 minutes — see "A publish runs both of those checks itself"
+for them, which adds roughly 42 minutes — see "A publish runs both of those checks itself"
 below.
 
 **A first import is quarantined on purpose, and so is any set that fails a check.**
@@ -638,10 +638,19 @@ unchecked; what was lost was the check. Five things about the step:
   however long the checks take whichever way this is arranged, so returning early would buy a
   reader nothing and cost the run its owner — and a follow-up step nobody owned is the defect
   itself.
-- **Budget about 72 more minutes** for the default 3 filing years: 51 for money in, which
-  fetches each filing from the Board, and 21 for money out, which asks the Board for nothing.
+- **Both checks read our own copy of a filing and ask the Board only for a version we do not
+  hold** ([#1937](https://github.com/alethical-org/alethical/issues/1937)). Minnesota's own
+  catalogue names which version speaks for a committee-year, and the lookup pins it, so an
+  amended filing does not match our copy and is fetched: the saving costs no currency. Pass
+  `--ask-the-board-for-everything` to `scripts/check_campaign_finance_stated_split.py` to
+  re-read a population from source instead.
+- **Budget roughly 42 more minutes** for the default 3 filing years, about 21 each.
   `--recheck-years` changes which years; the default is the current year and the 2 before it.
-- **Money in goes first**, because it keeps each document it fetches and money out reads
+  The 21 for money out is measured on production 1 September 2026; the money-in figure is an
+  estimate from it, because the 2 checks now do the same work over the same documents. Before
+  the change money in took 51 minutes and spent 3,647 requests to be handed 3,643 documents
+  already in our store.
+- **Money in goes first**, because it keeps each document it does fetch and money out reads
   documents back out of that store, so this order lets money out see a filing that appeared
   since the last sweep.
 - **A check that cannot run is impossible to miss.** The load prints a banner naming the
@@ -1101,7 +1110,7 @@ just pipeline local --write --allow-writes     # commit after review
 | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `uv run python scripts/load_minnesota_data.py`                                           | Live loader — roster + profiles + smoke bill set, idempotent (`--legislator-limit N`, `--bill HF2136`, `--roster-only`, `--skip-bills`, `--reconcile-roster`, `--reconcile-only [--dry-run]`, `--session-slug`) |
 | `just reconcile-roster [apply=true]`                                                     | Reconcile current membership against the official roster PDF (dry-run by default; deactivates departed members). `ALETHICAL_DATABASE_TARGET=production` to target prod                                          |
-| `just load-campaign-finance [target=local] [dry=true]`                                    | Fetch the Board's 3 campaign-finance files, check them, publish as one dated set replacing the previous one. Dry-run by default (writes nothing, needs no credentials); a first import quarantines by design. A run that publishes then re-runs the 2 checks below that compare a committee against its own filed report, and waits for them, which adds about 72 minutes — section **H** |
+| `just load-campaign-finance [target=local] [dry=true]`                                    | Fetch the Board's 3 campaign-finance files, check them, publish as one dated set replacing the previous one. Dry-run by default (writes nothing, needs no credentials); a first import quarantines by design. A run that publishes then re-runs the 2 checks below that compare a committee against its own filed report, and waits for them, which adds roughly 42 minutes — section **H** |
 | `just load-campaign-finance-filings [target=local] [dry=true] [filers=""]`                 | Fetch what each committee itself reported plus Minnesota's registered-filer list, which is what lets a page show the true total beside the payments we can name. Turns on the 2 checks the loader above used to record as "not run". A full run is ~4,800 requests and ~48 minutes, so pass `filers` to check a few first — section **H2** |
 | `uv run python scripts/load_sample_data.py`                                              | Deterministic fixtures for tests/offline demos (no network)                                                                                                                                                     |
 | `uv run python scripts/backfill_rag_bulk.py`                                             | Threaded RAG backfill for current versions missing chunks                                                                                                                                                       |
