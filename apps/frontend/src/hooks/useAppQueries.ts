@@ -58,7 +58,7 @@ import {
   getNotificationPreference,
   listSavedPlaces,
   updateNotificationPreference,
-} from '../data/mockData';
+} from '../data/accountPreferences';
 import type {
   CommitteeFilingsPage,
   CommitteeOutsideSpendingPage,

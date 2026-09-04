@@ -49,7 +49,7 @@ describe('checkFirstLoadBudget', () => {
   it('holds a limit no bigger than what the build produces today', () => {
     // A limit far above the real size would let the file grow back unnoticed,
     // which is the whole reason this check exists.
-    expect(FIRST_LOAD_LIMIT).toBeLessThanOrEqual(458000);
+    expect(FIRST_LOAD_LIMIT).toBeLessThanOrEqual(453000);
   });
 });
 

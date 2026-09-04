@@ -19,7 +19,7 @@ import { pathToFileURL } from 'node:url';
  * `docs/operations/page-load-performance-decisions.md` § Each screen downloads
  * with its own route holds the measurements and the floor this cannot go below.
  */
-export const FIRST_LOAD_LIMIT = 458000;
+export const FIRST_LOAD_LIMIT = 453000;
 
 /**
  * The exact settings Vercel compresses with, so this reports the bytes a reader

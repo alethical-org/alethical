@@ -1,3 +1,17 @@
+/**
+ * Sample bills, legislators, chat transcripts and lookups, for an app that is not
+ * built yet. Nothing imports this file.
+ *
+ * It used to reach the browser: `hooks/useAppQueries.ts` imported 3 stand-in
+ * answers from here, and that hook sits in the program every page downloads
+ * first, so all 27,644 characters rode along on every page a reader opened. The
+ * 3 answers now live in `accountPreferences.ts` and this file ships nowhere
+ * (#1966).
+ *
+ * It is kept rather than deleted because the screen it was written for is a
+ * product question, not a cleanup: `docs/operations/page-load-performance-decisions.md`
+ * says not to call these surfaces dead code without a capability decision.
+ */
 import {
   Bill,
   ChatMessage,
@@ -842,44 +856,6 @@ export async function sendChatMessage(input: {
   session.updatedAt = assistantMessage.createdAt;
 
   return clone(session);
-}
-
-export async function getNotificationPreference(
-  userId: string,
-): Promise<NotificationPreference | null> {
-  await wait();
-  if (userId !== demoUserId) {
-    return null;
-  }
-
-  return clone(store.notificationPreference);
-}
-
-export async function updateNotificationPreference(
-  userId: string,
-  key: keyof NotificationPreference,
-  value: boolean,
-): Promise<NotificationPreference | null> {
-  await wait();
-  if (userId !== demoUserId) {
-    return null;
-  }
-
-  store.notificationPreference = {
-    ...store.notificationPreference,
-    [key]: value,
-  };
-
-  return clone(store.notificationPreference);
-}
-
-export async function listSavedPlaces(userId: string): Promise<SavedPlace[]> {
-  await wait();
-  if (userId !== demoUserId) {
-    return [];
-  }
-
-  return clone(store.savedPlaces);
 }
 
 export async function getCurrentUser(): Promise<UserAccount> {
