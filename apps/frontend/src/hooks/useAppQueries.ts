@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import {
   keepPreviousData,
   useInfiniteQuery,
@@ -69,7 +69,7 @@ import type {
   MoneyByRacePage,
 } from '../data/types';
 import { NotificationPreference, RepresentativeLookupInput } from '../data/types';
-import { committeeRegisterQueryKey } from '../lib/committeeList';
+import { COMMITTEE_PAGE_SIZE, committeeRegisterQueryKey } from '../lib/committeeList';
 import {
   getCampaignFinanceRacesFromApiPayload,
   moneyByRaceQueryKey,
@@ -79,6 +79,8 @@ import {
   campaignFinanceFilingsQueryKey,
   campaignFinanceSummaryQueryKey,
 } from '../lib/moneyLanding';
+import { readerIsSavingData } from '../lib/dataSaving';
+import { campaignMoneyYear } from '../lib/legislatorCampaignMoney';
 import { seededQueryData } from '../lib/pageData';
 import {
   outsideSpendingLoadFailure,
@@ -91,6 +93,7 @@ import {
   type PaymentUnderName,
 } from '../lib/paymentsUnderName';
 import { trackState, TrackState } from '../lib/trackedState';
+import { screenLoaderForPath } from '../navigation/screenPreload';
 import { useAuth } from '../providers/AuthProvider';
 
 export function useCurrentUser() {
@@ -426,6 +429,118 @@ export function useCampaignFinanceCommittees(options: {
     retry: false,
     placeholderData: keepPreviousData,
   });
+}
+
+/**
+ * Once /money is drawn, quietly load the records behind the 3 places its links
+ * go: the committee register, money by race, and outside spending (#1966).
+ *
+ * Why it is worth doing: those 3 reads are the slowest on the site when
+ * Cloudflare's copy has expired. Measured against production on 4 Sep 2026 by
+ * forcing a cache miss, 3 runs each: outside spending 2.91/2.75/2.73 s, races
+ * 1.35/1.32/1.42 s, committees 0.76/0.45/0.45 s. Each of those addresses is now
+ * served with its own records already read, but that only helps a reader who
+ * types the address; a reader who clicks through from /money never fetches new
+ * page HTML, so without this the click starts the slow read from nothing.
+ * React Query keeps an answer fresh for 5 minutes (`APP_QUERY_STALE_TIME`), so
+ * the destination screen draws from the warmed entry with no request of its own.
+ *
+ * Three rules this follows, each of which can make warming worse than useless:
+ *
+ * - **Never during the landing's own first load.** `ready` is passed true only
+ *   once /money's own reads have settled, so a guess cannot compete for the
+ *   connection with the page the reader is actually looking at.
+ * - **Nothing at all for a reader who is saving data**, because this is bytes
+ *   nobody asked for (`readerIsSavingData`).
+ * - **One request at a time, cheapest first.** All 3 at once inflate each other
+ *   at the origin: measured on production, races went from 1.32-1.42 s alone to
+ *   1.54-1.60 s alongside the other 2, and outside spending from 2.73-2.91 s to
+ *   2.86-2.91 s. Nobody is waiting on speculative work, so it queues.
+ *
+ * Every key comes from the same shared builder the destination screen's own hook
+ * uses, with the settings that screen falls back to when its address carries
+ * none. A warmed entry under any other key is wasted bytes.
+ */
+export function useWarmMoneyDestinations(ready: boolean) {
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    if (!ready) return;
+    if (readerIsSavingData()) return;
+
+    let stopped = false;
+    // The 3 addresses, in the order they are warmed. Their screen files come
+    // first and together: each is a few tens of kilobytes from Vercel's own
+    // network (11.6 KB, 13.3 KB and 31.4 KB unpacked), so nothing waits on them,
+    // and a click then has both the screen's code and its records already.
+    const destinations = ['/money/committees', '/money/races', '/money/outside-spending'];
+    const warms: (() => Promise<unknown>)[] = [
+      () =>
+        Promise.all(
+          destinations.map((path) => {
+            const load = screenLoaderForPath(path);
+            return load ? load().catch(() => undefined) : undefined;
+          }),
+        ),
+      // CommitteeListScreen at /money/committees: no kind chip, no typed name,
+      // page 1.
+      () =>
+        queryClient.prefetchQuery({
+          queryKey: committeeRegisterQueryKey({ page: 1, pageSize: COMMITTEE_PAGE_SIZE }),
+          queryFn: () =>
+            getCampaignFinanceCommitteesFromApi({ limit: COMMITTEE_PAGE_SIZE, offset: 0 }),
+          retry: false,
+        }),
+      // MoneyByRaceScreen at /money/races: the year that screen defaults to, no
+      // office chip.
+      () => {
+        const year = campaignMoneyYear(undefined);
+        return queryClient.prefetchQuery({
+          queryKey: moneyByRaceQueryKey({ year }),
+          queryFn: () => getCampaignFinanceRacesFromApi({ year }),
+          retry: false,
+        });
+      },
+      // OutsideSpendingScreen at /money/outside-spending: no subject, every
+      // year, newest first, page 1.
+      () =>
+        queryClient.prefetchQuery({
+          queryKey: outsideSpendingRecordQueryKey({ year: null, sort: 'newest', page: 1 }),
+          queryFn: () => getOutsideSpendingRecordFromApi({ year: null, sort: 'newest', page: 1 }),
+          retry: false,
+        }),
+    ];
+
+    const run = async () => {
+      for (const warm of warms) {
+        if (stopped) return;
+        await warm();
+      }
+    };
+    // Wait for a gap in the browser's own work, so warming never lands in the
+    // middle of the landing page finishing its drawing. Safari and React Native
+    // have no idle callback, so a short timer stands in.
+    const idle = whenBrowserIsIdle(run);
+
+    return () => {
+      stopped = true;
+      idle();
+    };
+  }, [ready, queryClient]);
+}
+
+/** Run `task` when the browser next has nothing to do, or shortly, whichever
+ *  comes first. Returns the function that cancels it. */
+function whenBrowserIsIdle(task: () => void): () => void {
+  const scope = globalThis as {
+    requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+    cancelIdleCallback?: (handle: number) => void;
+  };
+  if (typeof scope.requestIdleCallback === 'function') {
+    const handle = scope.requestIdleCallback(task, { timeout: 2000 });
+    return () => scope.cancelIdleCallback?.(handle);
+  }
+  const timer = setTimeout(task, 500);
+  return () => clearTimeout(timer);
 }
 
 /**
