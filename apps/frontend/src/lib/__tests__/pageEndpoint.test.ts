@@ -324,7 +324,7 @@ describe('first-response page tags', () => {
     expect(body).toContain('href="/bills/94-2025-HF719?tab=text#ft-laws.1.1.0-1"');
     expect(body).toContain('/_expo/static/js/web/index-abc.js');
     expect(body).toContain('<link rel="stylesheet" href="/fonts.css" />');
-    expect(headers.get('Cache-Control')).toContain('s-maxage=600');
+    expect(headers.get('Cache-Control')).toContain('s-maxage=3600');
     expect(headers.get('X-Robots-Tag')).toBeUndefined();
     expect(readPageShell).toHaveBeenCalledTimes(1);
     expect(vi.mocked(fetch)).not.toHaveBeenCalledWith(
