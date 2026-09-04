@@ -143,6 +143,14 @@ const OUTSIDE_SPENDING_PARAMS = ['spender', 'about', 'year', 'sort', 'page'] as 
 function outsideSpendingParams(searchParams: URLSearchParams): Record<string, string> {
   const params: Record<string, string> = {};
   for (const key of OUTSIDE_SPENDING_PARAMS) {
+    const value = searchParams.get(key);
+    if (value) {
+      params[key] = value;
+    }
+  }
+  return params;
+}
+
 // URL-addressable Money by race state (issue #1954): the office chip and the year.
 const MONEY_BY_RACE_PARAMS = ['office', 'year'] as const;
 

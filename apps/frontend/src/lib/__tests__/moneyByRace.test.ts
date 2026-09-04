@@ -79,7 +79,7 @@ describe('a contest heading carries a count and never a sum', () => {
       expect(contestCountLabel(count)).not.toMatch(/\$/);
     }
     expect(racesCountLine(222, 778, '2026-08-12')).toBe(
-      '222 CONTESTS · 778 CANDIDATE COMMITTEES · COUNTED FROM THE REGISTER 12 AUG 2026',
+      '222 CONTESTS · 778 CANDIDATE COMMITTEES · COUNTED FROM THE REGISTER AUG 12, 2026',
     );
     expect(racesCountLine(222, 778, null)).toBe('222 CONTESTS · 778 CANDIDATE COMMITTEES');
     // No served count: no sentence, rather than one counted off the rows on screen.
@@ -117,13 +117,13 @@ describe('every figure carries its own dates', () => {
       label: REPORTED_FIGURE_LABEL,
       text: '$61,200',
       isFigure: true,
-      period: 'Figures for 1 Jan 2026 – 20 Jul 2026',
+      period: 'Figures for Jan 1, 2026 – Jul 20, 2026',
     });
     expect(named).toEqual({
       label: NAMED_FIGURE_LABEL,
       text: '$750',
       isFigure: true,
-      period: 'Payments dated 3 Feb 2026 to 15 Jun 2026',
+      period: 'Payments dated Feb 3, 2026 to Jun 15, 2026',
     });
   });
 
@@ -134,7 +134,7 @@ describe('every figure carries its own dates', () => {
 
   it('never assumes a period start the Board’s calendars do not print', () => {
     const [reported] = committeeFigures(committee({ reportedPeriodStart: null }));
-    expect(reported.period).toBe('Figures through 20 Jul 2026');
+    expect(reported.period).toBe('Figures through Jul 20, 2026');
   });
 
   it('cuts cents rather than rounding them, on both figures', () => {
