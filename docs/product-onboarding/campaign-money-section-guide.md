@@ -38,6 +38,10 @@ permanently and straight to the `/read` address it belongs to, never through the
 - Open `/money/outside-spending` directly for the record of what outside groups spent
   supporting or opposing committees, or `/money/outside-spending?about=<registration
   number>` and `?spender=<registration number>` for one committee's or one group's view of it.
+- Open `/money/races` directly for every candidate committee grouped by the seat it runs for,
+  or `/money/races#house-12a` for one contest.
+- Open the **Money by race** or **Outside spending** card on `/money`, the 4th and 5th cards in
+  the lane row, which lead to those 2 pages.
 - The retired address `/track/campaign-finance` (an old greyed "Campaign Finance" tracking
   row pointed there) shows the `/money` landing instead of an error.
 
