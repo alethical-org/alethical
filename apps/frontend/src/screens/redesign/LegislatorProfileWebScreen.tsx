@@ -57,7 +57,7 @@ import {
   publicPageUrl,
 } from '../../lib/share';
 import { useDocumentTitle } from '../../navigation/documentTitle';
-import { Skeleton } from '../../components/Skeleton';
+import { Skeleton, useOneScreenTall } from '../../components/Skeleton';
 import { VoteCountLinkChip } from '../../components/VoteCountLinkChip';
 import { formatLegislatureLabel, type SessionDisplaySource } from '../../lib/sessionLabel';
 import { BillTrackButton } from '../../components/billDetail/BillTrackButton';
@@ -97,6 +97,7 @@ export function LegislatorProfileWebScreen() {
   const route = useRoute<any>();
   const { isDesktop } = useResponsive();
   const { isTracked, toggleTrack } = useBillTracking();
+  const oneScreenTall = useOneScreenTall();
 
   const legislatorId = String(route.params?.legislatorId ?? '');
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
@@ -197,7 +198,11 @@ export function LegislatorProfileWebScreen() {
       onTerms={() => navigation.navigate('Terms')}
       hero={hero}
     >
-      {children}
+      {/* Every state of this page holds a screenful, so the footer below it
+          starts under the fold and nothing a reader can see moves when the
+          record lands or the load fails (useOneScreenTall in
+          components/Skeleton.tsx). */}
+      <View style={oneScreenTall}>{children}</View>
     </SearchPageShell>
   );
 

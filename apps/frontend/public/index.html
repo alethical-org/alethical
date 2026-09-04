@@ -88,8 +88,19 @@
       body {
         height: 100%;
       }
-      /* These styles disable body scrolling if you are using <ScrollView> */
+      /*
+        These styles disable body scrolling if you are using <ScrollView>.
+
+        `margin: 0` is ours, not the recommended reset's. Without it the page
+        starts with the browser's default 8px margin and react-native-web's own
+        stylesheet zeroes it when the program runs, which lifts everything on
+        screen by 8px: measured on the live site on 4 Sep 2026 as a movement of
+        0.026 to 0.031 on every address at phone width, against a passing mark of
+        0.1 for the whole page (issue #1982). Stating the same 0 up front means
+        nothing moves when that stylesheet arrives.
+      */
       body {
+        margin: 0;
         overflow: hidden;
       }
       /* These styles make the root element full-height */
