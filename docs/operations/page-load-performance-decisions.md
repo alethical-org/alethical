@@ -41,7 +41,7 @@ the records behind them change at genuinely different rates.
 | Layer | Header | Where it is set |
 |---|---|---|
 | Cloudflare, bill / vote / legislator reads | `public, max-age=60, stale-while-revalidate=300` | `PUBLIC_CACHE_CONTROL` in `alethical/api/routers/public.py` |
-| Cloudflare, campaign-money reads | `public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800` | `MONEY_RECORDS_CACHE_CONTROL`, same file, routed by `MONEY_PATH_SEGMENT` in `alethical/api/main.py` |
+| Cloudflare, campaign-money record reads | `public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800` | `MONEY_RECORDS_CACHE_CONTROL`, same file, chosen by `public_cache_control_for_path` |
 | Vercel, in front of the page HTML | `public, max-age=0, s-maxage=300, stale-while-revalidate=300, stale-if-error=300` | `OK_CACHE` in `api/page.ts` |
 
 **Bill, vote and legislator reads keep the short window, and campaign money
@@ -54,6 +54,32 @@ rule 7 names. A campaign-money load is human-triggered and on no schedule, and
 production's snapshot was dated 2026-08-12 when this was measured on 4 Sep 2026,
 23 days old. One window set from the money cadence and applied to both was wrong
 for bill reads, which is why the middleware now routes on the path.
+
+**A money read that names a person keeps the SHORT window, and this is the line
+that matters most here.** The longer window covers the campaign-money record
+routes under `/api/v1/campaign-finance/` and nothing else. 2 money reads are not
+dated dollar figures but statements about a named member, and both stay short:
+
+| Read | Why it is not a plain figure |
+|---|---|
+| `/api/v1/legislators/{id}/campaign-finance` | the member's own money, resting on a confirmed link |
+| `/api/v1/committees/{registration_number}/finance` | returns `confirmed_for`, naming the confirmed member |
+
+A confirmation can be taken back. `withdrawn` is a real third decision state with
+its own `withdrawn_at`, `withdrawal_reason` and `withdrawn_by`
+(`alethical/db/models.py`;
+[`docs/architecture/campaign-finance-system-design.md`](../architecture/campaign-finance-system-design.md)
+§5.1), and someone withdraws one precisely when money was attached to the **wrong**
+legislator. A held copy would keep naming that person for as long as the window
+allowed, which is an identity error rather than an out-of-date figure, and
+[`.claude/rules/grounded-answers.md`](../../.claude/rules/grounded-answers.md)
+rule 3 is what it would break.
+
+Those 2 were found by asking which handlers read the confirmed link, not by
+reading path shapes: `confirmed_for` and `link_state` appear in those 2 routes and
+nowhere else. Both already sit outside the prefix, so neither needs an exception.
+Classifying every remaining route by what its answer contains is
+[#1985](https://github.com/alethical-org/alethical/issues/1985).
 
 **Only `stale-while-revalidate` is long, and that is the whole design** — on the
 API side. Inside `max-age` or `s-maxage` the cache answers without asking the
@@ -137,6 +163,11 @@ posts a GitHub deployment, which is the `deployment_status` hook the warmer
 listens on. A GitHub runner warms whichever edge location it reaches rather than
 every location worldwide, so the long window is what keeps a location warm once
 any reader has touched it and the job covers the release reset and a quiet day.
+
+**Warming is not clearing.** The job sends ordinary GETs, and a GET against a
+held-but-stale address is answered *from* the held copy rather than replacing it.
+So warming makes a first reader fast and does nothing whatever about a corrected
+record. Nothing in the daily schedule counts toward the clearing story above.
 
 **Cloudflare holds a separate copy per edge server, so an occasional slow read
 survives all of this and is not a fault.** Measured 4 Sep 2026: 4 reads of

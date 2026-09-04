@@ -8,7 +8,7 @@ import requests
 from sqlalchemy import delete, func, select, text
 from sqlalchemy.orm import Session
 
-from alethical.api.routers.public import MONEY_PATH_SEGMENT
+from alethical.api.routers.public import public_cache_control_for_path
 from alethical.api.serializers import current_bill_summary_enrichment
 from alethical.db.schema import load_schema
 from alethical.db.session import get_engine
@@ -6552,14 +6552,22 @@ def test_money_reads_cache_longer_than_bill_reads_and_neither_leaks_to_a_signed_
         assert response.status_code == 200, path
         assert response.headers["Cache-Control"] == money, path
 
-    # The money read for one member hangs off /legislators/{id}/ rather than off
-    # /campaign-finance/, so the decision has to match on the segment and not on a
-    # leading prefix. That route needs a seeded money release to answer 200, which
-    # this fixture has not got, so the rule itself is what is pinned here.
-    assert MONEY_PATH_SEGMENT in "/api/v1/legislators/abc-123/campaign-finance"
-    assert MONEY_PATH_SEGMENT in "/api/v1/campaign-finance/committees"
-    assert MONEY_PATH_SEGMENT not in "/api/v1/bills"
-    assert MONEY_PATH_SEGMENT not in "/api/v1/legislators"
+    # The 2 money reads that name a person must NOT get the long window, because a
+    # confirmation can be withdrawn and a held copy would keep money attached to a
+    # legislator a person already corrected. Both routes need a seeded money
+    # release to answer 200, which this fixture has not got, so their paths go
+    # through the real decision function the middleware calls.
+    for identity_bearing in (
+        "/api/v1/legislators/abc-123/campaign-finance",
+        "/api/v1/committees/41363/finance",
+    ):
+        assert public_cache_control_for_path(identity_bearing) == short, (
+            identity_bearing
+        )
+
+    assert public_cache_control_for_path("/api/v1/campaign-finance/committees") == money
+    assert public_cache_control_for_path("/api/v1/bills") == short
+    assert public_cache_control_for_path("/api/v1/legislators") == short
 
     # The money window may never delay a bill status: its stale allowance is a
     # day, the short window's is 5 minutes, and neither is a week.

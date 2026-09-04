@@ -192,10 +192,47 @@ MONEY_RECORDS_CACHE_CONTROL = (
     "public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800"
 )
 
-# Any read whose path carries this segment is campaign-money data, which covers
-# both `/api/v1/campaign-finance/...` and
-# `/api/v1/legislators/{id}/campaign-finance`.
-MONEY_PATH_SEGMENT = "/campaign-finance"
+# Which reads get the longer window: the campaign-money record routes, and only
+# those. A prefix rather than a segment match, and the difference is the point.
+#
+# A segment match also caught `/legislators/{id}/campaign-finance`, and that read
+# must NOT be held long, because it is not a dated dollar figure. It reports which
+# committee a **person** confirmed belongs to a named member, and a confirmation
+# can be taken back: `withdrawn` is a real third decision state with its own
+# `withdrawn_at`, `withdrawal_reason` and `withdrawn_by`
+# (`alethical/db/models.py`, and
+# `docs/architecture/campaign-finance-system-design.md` §5.1). Someone withdraws
+# one precisely when money was attached to the WRONG legislator, so a held copy
+# would keep naming that person for as long as the window allowed. That is an
+# identity error about a named person, which
+# `.claude/rules/grounded-answers.md` rule 3 exists to prevent, and it is a
+# different kind of wrong from an out-of-date figure carrying its own date.
+#
+# The 2 identity-bearing money reads were found by asking which handlers read the
+# confirmed link rather than by reading path shapes: `confirmed_for` and
+# `link_state` appear in `/committees/{registration_number}/finance` and
+# `/legislators/{legislator_id}/campaign-finance`, and nowhere else. Neither sits
+# under this prefix, so both keep the short window and neither needs an exception
+# here. Any new identity-bearing route must stay out of this prefix too;
+# https://github.com/alethical-org/alethical/issues/1985 owns classifying the rest
+# by what an answer contains.
+MONEY_PATH_PREFIX = "/api/v1/campaign-finance/"
+
+
+def public_cache_control_for_path(path: str) -> str:
+    """Which shared-cache window an anonymous public read of ``path`` gets.
+
+    Named and importable rather than inline in the middleware so a test can put
+    real paths through the actual decision. Testing the prefix string instead
+    proved nothing: a test that asserts ``"/x".startswith(PREFIX)`` still passes
+    when the middleware is changed to match some other way, which is exactly the
+    regression this guards (a segment match here would sweep
+    ``/legislators/{id}/campaign-finance`` into the long window).
+    """
+    if path.startswith(MONEY_PATH_PREFIX):
+        return MONEY_RECORDS_CACHE_CONTROL
+    return PUBLIC_CACHE_CONTROL
+
 
 PRIVATE_CACHE_CONTROL = "private, no-store"
 LARGE_OFFSET_COUNT_FIRST = 100_000
