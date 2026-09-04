@@ -48,7 +48,7 @@ owns the workflow count, triggers, and costs.
 
 ## Command-line tools
 
-The `scripts/` folder has 59 runnable files. GitHub jobs call 24 of them, and the
+The `scripts/` folder has 60 runnable files. GitHub jobs call 24 of them, and the
 Mac backup above calls 1. A workflow also calls
 `apps/frontend/scripts/traffic-token-expiry.mjs`, a similarly named script that
 lives in a different folder and is not part of this list or its totals. The
@@ -62,6 +62,7 @@ complete list is grouped here so a new file cannot hide inside a total:
 | Repair damage from past bugs | `clean_stale_bill_versions.py`, `correct_bill_current_statuses.py`, `dedupe_ai_enrichment.py`, `delete_fixture_bills.py`, `dump_evidence_document.py`, `reanchor_rag_to_current_version.py`, `repair_companion_links.py`, `repair_incomplete_vote_records.py`, `repair_missing_bill_sections.py`, `repair_mojibake_text.py`, `repair_vote_roster_identities.py` |
 | Review campaign-finance records | `recompute_lobbying_published_figures.py`, `review_legislator_campaign_committees.py`, `show_party_and_caucus_money.py` |
 | Measure AI answers and search | `answer_eval.py`, `retrieval_eval.py`, `try_queries.py`, `validate_query_rubric.py` |
+| Measure what real visitors waited for | `report_page_speed_by_address.py` |
 | Maintain search and stored files | `archive_published_sources.py`, `build_rag_hnsw_index.py`, `mirror_raw_files.py` |
 | Protect unfinished work and rotating read grants | `back-up-uncommitted-worktree-work.sh`, `supabase_oauth_state.mjs` |
 
