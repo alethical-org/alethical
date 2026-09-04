@@ -26,7 +26,11 @@ from alethical.api.routers.contact import router as contact_router
 from alethical.api.routers.internal import router as internal_router
 from alethical.api.routers.me import router as me_router
 from alethical.api.routers.pending_actions import router as pending_actions_router
-from alethical.api.routers.public import PUBLIC_CACHE_CONTROL
+from alethical.api.routers.public import (
+    MONEY_PATH_SEGMENT,
+    MONEY_RECORDS_CACHE_CONTROL,
+    PUBLIC_CACHE_CONTROL,
+)
 from alethical.api.routers.public import router as public_router
 from alethical.api.routers.site_metrics import router as site_metrics_router
 from alethical.api.readiness import database_schema_is_ready
@@ -60,7 +64,13 @@ def create_app() -> FastAPI:
         relying on the edge's default guess. Endpoints that vary by user
         (bills/bill_detail with tracking) set their own header first and win; a
         request carrying Authorization (any /me route, authed tracking) is never
-        stamped, so no per-user response can be edge-cached."""
+        stamped, so no per-user response can be edge-cached.
+
+        Campaign-money reads get the longer window and every other public read
+        keeps the short one, because the records behind them change at different
+        rates -- votes daily, a money load by hand every few weeks. Both constants
+        carry that reasoning where they are defined, in
+        alethical/api/routers/public.py."""
         response = await call_next(request)
         if (
             request.method == "GET"
@@ -69,7 +79,11 @@ def create_app() -> FastAPI:
             and "authorization" not in request.headers
             and "cache-control" not in response.headers
         ):
-            response.headers["Cache-Control"] = PUBLIC_CACHE_CONTROL
+            response.headers["Cache-Control"] = (
+                MONEY_RECORDS_CACHE_CONTROL
+                if MONEY_PATH_SEGMENT in request.url.path
+                else PUBLIC_CACHE_CONTROL
+            )
         return response
 
     app.add_exception_handler(HTTPException, http_exception_handler)

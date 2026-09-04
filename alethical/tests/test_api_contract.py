@@ -8,6 +8,7 @@ import requests
 from sqlalchemy import delete, func, select, text
 from sqlalchemy.orm import Session
 
+from alethical.api.routers.public import MONEY_PATH_SEGMENT
 from alethical.api.serializers import current_bill_summary_enrichment
 from alethical.db.schema import load_schema
 from alethical.db.session import get_engine
@@ -236,7 +237,7 @@ def test_featured_bills_returns_requested_summaries_in_order_and_skips_missing(c
     assert response.status_code == 200
     assert (
         response.headers["cache-control"]
-        == "public, max-age=300, stale-while-revalidate=604800, stale-if-error=604800"
+        == "public, max-age=60, stale-while-revalidate=300"
     )
     cards = response.json()["data"]
     assert [card["id"] for card in cards] == [second_id, first_id]
@@ -468,7 +469,7 @@ def test_legislator_list_supports_offset_pagination_and_total(client):
     assert first_response.status_code == 200
     assert (
         first_response.headers["cache-control"]
-        == "public, max-age=300, stale-while-revalidate=604800, stale-if-error=604800"
+        == "public, max-age=60, stale-while-revalidate=300"
     )
     first_payload = first_response.json()
     assert len(first_payload["data"]) == 1
@@ -4398,7 +4399,7 @@ def test_public_bill_reads_are_cacheable_but_user_varying_reads_are_not(
     """Anonymous record reads carry a public, shared-cacheable Cache-Control so a
     browser/CDN can absorb repeat loads; responses that vary by user (tracking
     state) are never cached."""
-    public = "public, max-age=300, stale-while-revalidate=604800, stale-if-error=604800"
+    public = "public, max-age=60, stale-while-revalidate=300"
 
     list_response = client.get("/api/v1/bills", params={"session": "94-2025-regular"})
     assert list_response.status_code == 200
@@ -4427,7 +4428,7 @@ def test_all_public_get_reads_carry_public_cache_control(client, auth_headers):
     don't set their own header get the shared default from the middleware — so a
     CDN can cache the whole read surface. Authenticated / user-specific routes are
     never publicly cached."""
-    public = "public, max-age=300, stale-while-revalidate=604800, stale-if-error=604800"
+    public = "public, max-age=60, stale-while-revalidate=300"
 
     for path in ["/api/v1/meta", "/api/v1/sessions", "/api/v1/legislators"]:
         response = client.get(path)
@@ -6313,7 +6314,7 @@ def test_sitemap_lists_every_bill_and_legislator(client):
 
     assert (
         response.headers["Cache-Control"]
-        == "public, max-age=300, stale-while-revalidate=604800, stale-if-error=604800"
+        == "public, max-age=60, stale-while-revalidate=300"
     )
 
 
@@ -6514,3 +6515,60 @@ def test_sitemap_bill_lastmod_is_the_newest_reader_visible_date(client):
                     delete(schema.IngestionRun).where(schema.IngestionRun.id == run_id)
                 )
             db.commit()
+
+
+def test_money_reads_cache_longer_than_bill_reads_and_neither_leaks_to_a_signed_in_reader(
+    client, auth_headers
+):
+    """The 2 public cache windows are split by how fast their records change, and
+    neither one reaches a signed-in reader.
+
+    One shared window was wrong for both. It was set from the campaign-money
+    cadence -- a load is run by hand every few weeks -- and then applied to bill
+    and vote reads, which .github/workflows/vote-backfill.yml rewrites every day.
+    A long stale window on a bill read hands someone a week-old bill status, the
+    harm `.claude/rules/grounded-answers.md` rule 7 names.
+
+    The money window's stale allowance is capped at a day rather than a week
+    because nothing yet clears these copies when a load lands (#1966).
+    """
+    short = "public, max-age=60, stale-while-revalidate=300"
+    money = "public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800"
+
+    # Records that change daily keep the short window.
+    for path in ["/api/v1/bills", "/api/v1/legislators", "/api/v1/meta"]:
+        response = client.get(path)
+        assert response.status_code == 200, path
+        assert response.headers["Cache-Control"] == short, path
+
+    # Campaign-money records, which change when a person runs a load, get the
+    # longer one.
+    money_paths = [
+        "/api/v1/campaign-finance/committees",
+        "/api/v1/campaign-finance/summary",
+    ]
+    for path in money_paths:
+        response = client.get(path)
+        assert response.status_code == 200, path
+        assert response.headers["Cache-Control"] == money, path
+
+    # The money read for one member hangs off /legislators/{id}/ rather than off
+    # /campaign-finance/, so the decision has to match on the segment and not on a
+    # leading prefix. That route needs a seeded money release to answer 200, which
+    # this fixture has not got, so the rule itself is what is pinned here.
+    assert MONEY_PATH_SEGMENT in "/api/v1/legislators/abc-123/campaign-finance"
+    assert MONEY_PATH_SEGMENT in "/api/v1/campaign-finance/committees"
+    assert MONEY_PATH_SEGMENT not in "/api/v1/bills"
+    assert MONEY_PATH_SEGMENT not in "/api/v1/legislators"
+
+    # The money window may never delay a bill status: its stale allowance is a
+    # day, the short window's is 5 minutes, and neither is a week.
+    assert "stale-while-revalidate=86400" in money
+    assert "stale-while-revalidate=604800" not in money
+    assert "stale-while-revalidate=604800" not in short
+
+    # A request carrying Authorization is never stamped with either shared
+    # window, so no signed-in reader's response can be held at a shared cache.
+    for path in money_paths + ["/api/v1/bills"]:
+        signed_in = client.get(path, headers=auth_headers)
+        assert signed_in.headers.get("Cache-Control") not in (money, short), path

@@ -35,20 +35,25 @@ A free-form Ask is the exception. Its request can generate paid prose, so focus 
 
 ## How long a nearby cache holds a public read
 
-A reader is never the one who waits on a cold read. Two caches sit in front of the
-public pages and each holds its copy long enough that ordinary gaps between readers
-do not empty it.
+A reader is never the one who waits on a cold read. There are 2 windows, because
+the records behind them change at genuinely different rates.
 
 | Layer | Header | Where it is set |
 |---|---|---|
-| Cloudflare, in front of the API | `public, max-age=300, stale-while-revalidate=604800, stale-if-error=604800` | `PUBLIC_CACHE_CONTROL` in `alethical/api/routers/public.py` |
+| Cloudflare, bill / vote / legislator reads | `public, max-age=60, stale-while-revalidate=300` | `PUBLIC_CACHE_CONTROL` in `alethical/api/routers/public.py` |
+| Cloudflare, campaign-money reads | `public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800` | `MONEY_RECORDS_CACHE_CONTROL`, same file, routed by `MONEY_PATH_SEGMENT` in `alethical/api/main.py` |
 | Vercel, in front of the page HTML | `public, max-age=0, s-maxage=3600, stale-while-revalidate=300, stale-if-error=604800` | `OK_CACHE` in `api/page.ts` |
 
-**The windows are set from how often ingestion changes these records.** A load is
-human-triggered and on no schedule
-(`docs/architecture/campaign-finance-system-design.md` §9.6), so gaps between
-changes are weeks: production's campaign-finance snapshot was dated 2026-08-12 when
-this was measured on 4 Sep 2026, 23 days old.
+**Bill, vote and legislator reads keep the short window, and campaign money
+gets the longer one.** The 2 differ because the records behind them change at
+genuinely different rates. `.github/workflows/vote-backfill.yml` re-reads and
+writes votes every day at 09:00 UTC, so bill and vote records change daily; a
+long stale window there would hand a reader a week-old bill status, the harm
+[`.claude/rules/grounded-answers.md`](../../.claude/rules/grounded-answers.md)
+rule 7 names. A campaign-money load is human-triggered and on no schedule, and
+production's snapshot was dated 2026-08-12 when this was measured on 4 Sep 2026,
+23 days old. One window set from the money cadence and applied to both was wrong
+for bill reads, which is why the middleware now routes on the path.
 
 **Only `stale-while-revalidate` is long, and that is the whole design** — on the
 API side. Inside `max-age` or `s-maxage` the cache answers without asking the
@@ -78,36 +83,46 @@ can be shown is a copy generated `s-maxage` plus 5 minutes ago, 65 minutes rathe
 than 7 days. The cost is real and named: the first reader after a gap longer than an
 hour waits for the page function instead of getting a held copy instantly.
 
-**Both windows go back to a week only once held copies are proven to clear
-themselves** for all 4 events that can move a money answer: a new campaign-money
-download release, a new filed-totals or registered-filer release, a link being
-confirmed, and a link being withdrawn.
+**Every window here is capped because nothing clears a held copy when a load
+lands.** 4 events can move a money answer: a new campaign-money download release,
+a new filed-totals or registered-filer release, a committee-to-legislator link
+being confirmed, and one being withdrawn. None purges a cache today, so each cap
+is what we accept being wrong by with no clearing at all. They go back to a week
+only once clearing is proven for all 4
+([#1979](https://github.com/alethical-org/alethical/issues/1979)), which is a
+measurement rather than a judgement call.
 
-**A cache window cannot make a printed freshness date wrong.** Every money page
-prints `as_of`, read off the loaded snapshot's `fetch_completed_at`
-(`alethical/api/services/campaign_finance_register.py::_snapshot_date`) and carried
-inside the payload, so a cached copy prints the day its own records were copied
-rather than the day it was cached.
+**What a cache window does and does not touch.** Every money page prints `as_of`,
+read off the loaded snapshot's `fetch_completed_at`
+(`alethical/api/services/campaign_finance_register.py::_snapshot_date`) and
+carried inside the payload, so a cached copy prints the day its own records were
+copied. A stale answer therefore stays honestly dated. That is not a reason a
+stale answer is acceptable: an old figure with a truthful old date is still an
+old figure, which is why the window is capped above rather than excused by the
+date.
 
 **A deployment resets Vercel's page cache whatever the header says**, so
 `.github/workflows/warm-money-pages.yml` re-reads the money addresses after each
 successful production release and once a day as a floor. Production releases come
 from Vercel's own Git connection rather than from
-`.github/workflows/vercel-deploy.yml`, which is hand-run only; that connection posts
-a GitHub deployment, which is the `deployment_status` hook the warmer listens on.
-A GitHub runner warms whichever edge location it reaches rather than every location
-worldwide, so the long window is what keeps a location warm once any reader has
-touched it and the job covers the release reset and a quiet day.
+`.github/workflows/vercel-deploy.yml`, which is hand-run only; that connection
+posts a GitHub deployment, which is the `deployment_status` hook the warmer
+listens on. A GitHub runner warms whichever edge location it reaches rather than
+every location worldwide, so the long window is what keeps a location warm once
+any reader has touched it and the job covers the release reset and a quiet day.
 
-Measured on production for [#1966](https://github.com/alethical-org/alethical/issues/1966),
-acceptance criterion 4. Before, a gap over 5 minutes sent the next reader to the
-origin: 2975 ms on `/campaign-finance/outside-spending`, 1265 ms on
-`/campaign-finance/races?year=2026`, 541 ms on `/campaign-finance/committees`, all
-30-50 ms warm. Cloudflare honours both directives, measured rather than assumed:
-the same morning `/campaign-finance/races` returned `cf-cache-status: UPDATING`
-(serving stale, refreshing behind the reader) while
-`/campaign-finance/outside-spending` returned `EXPIRED`, past its window, and that
-reader waited on the origin.
+**Caching is what hides the origin cost; it is not the cure.** The origin is
+consistently slow rather than slow only when cold: forced cache misses on
+4 Sep 2026 returned 2.91 / 2.75 / 2.73 s for `/campaign-finance/outside-spending`
+across 3 runs, while `/readyz` answered in 0.17-0.19 s, so the server is awake and
+the database work is the cost. Making those answers fast is separate work under
+[#1966](https://github.com/alethical-org/alethical/issues/1966).
+
+Measured before and after for
+[#1966](https://github.com/alethical-org/alethical/issues/1966) acceptance
+criterion 4: cold reads of 2975 / 1265 / 541 ms became 126 / 151 / 100 ms after
+sitting idle past the old window, confirmed on 3 probe addresses no other reader
+could request so the idle gap was guaranteed rather than assumed.
 
 ## Each screen downloads with its own route
 
