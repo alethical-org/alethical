@@ -6,7 +6,11 @@ import { Skeleton } from '../../components/Skeleton';
 import { MoneyNameSearchField } from '../../components/campaignMoney/MoneyNameSearchField';
 import { UnderDevelopmentNotice } from '../../components/campaignMoney/UnderDevelopmentNotice';
 import { useResponsive } from '../../hooks/useResponsive';
-import { useCampaignFinanceFilings, useCampaignFinanceSummary } from '../../hooks/useAppQueries';
+import {
+  useCampaignFinanceFilings,
+  useCampaignFinanceSummary,
+  useWarmMoneyDestinations,
+} from '../../hooks/useAppQueries';
 import {
   centralDateLabel,
   filedDateSentence,
@@ -100,6 +104,11 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
   const { isMobile } = useResponsive();
   const summaryQuery = useCampaignFinanceSummary();
   const filingsQuery = useCampaignFinanceFilings(5);
+  // Once this page's own 2 reads have answered, quietly load the records behind
+  // its 3 destinations, so clicking one does not start a slow read from nothing
+  // (#1966). Never before then: a guess must not compete with the page the
+  // reader is looking at.
+  useWarmMoneyDestinations(!summaryQuery.isPending && !filingsQuery.isPending);
   // Research only. This card says "Read the research", so a guide featured here
   // would be labelled as something it is not; a reader reaches guides through the
   // /read page this card links to, and through the bar's Read item.
