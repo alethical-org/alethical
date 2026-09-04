@@ -1591,6 +1591,34 @@ ask for, and the app draws it with no request of its own.** The transport is a
   never to a held figure: an unreadable payload is dropped, and the app's own read is the path
   every address took before this existed.
 
+### This response's cache window is now a data freshness window
+
+**Serving the records changed what the page cache holds, and that is the one
+consequence of §23 worth writing down before somebody tunes a header.** Before this,
+a held copy of a page froze markup: the figures came from a fetch the app made after
+loading, so a week-old held page still showed today's records. Now the records travel
+inside the response, so a held copy freezes them too, and `OK_CACHE`'s
+`stale-while-revalidate` is a limit on how old a record a reader can be shown.
+
+It is set to **5 minutes** for that reason, against the week the caching reasoning in
+`docs/operations/page-load-performance-decisions.md` would otherwise allow. The case
+that decides the number is not a figure going out of date, which carries its own date
+and is fine: it is a committee-to-legislator link being **withdrawn**. A person
+withdraws one exactly when money was attached to the wrong named member, and it is a
+designed path with its own state, stored reason and review script
+(`docs/architecture/campaign-finance-system-design.md` §5.1). A held copy would keep a
+page asserting a relationship between a named person and money that nobody stands
+behind any more, which is `.claude/rules/grounded-answers.md` rule 3, and no warm cache
+is worth a week of it.
+
+So the worst a reader can be shown is a copy generated `s-maxage` plus that window ago:
+65 minutes, against 7 days. The named cost is that the first reader after a gap longer
+than an hour waits for the function instead of getting a held copy instantly. The
+window goes back to a week only once held copies are proven to clear themselves for all
+4 events that can move a money answer: a new campaign-money download release, a new
+filed-totals or registered-filer release, a link being confirmed, and a link being
+withdrawn.
+
 ### Why `initialData` rather than a warm cache
 
 The app's default freshness window is 5 minutes (`apps/frontend/src/lib/appQueryClient.ts`), so

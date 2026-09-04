@@ -325,7 +325,13 @@ describe('first-response page tags', () => {
     expect(body).toContain('href="/bills/94-2025-HF719?tab=text#ft-laws.1.1.0-1"');
     expect(body).toContain('/_expo/static/js/web/index-abc.js');
     expect(body).toContain('<link rel="stylesheet" href="/fonts.css" />');
-    expect(headers.get('Cache-Control')).toContain('s-maxage=3600');
+    // The whole header, not one directive: the stale window is now a data
+    // freshness window, because this response carries the records it read
+    // (#1966). A reader must not be shown records a person has corrected, so a
+    // week here would keep a withdrawn committee link readable for a week.
+    expect(headers.get('Cache-Control')).toBe(
+      'public, max-age=0, s-maxage=3600, stale-while-revalidate=300, stale-if-error=604800',
+    );
     expect(headers.get('X-Robots-Tag')).toBeUndefined();
     expect(readPageShell).toHaveBeenCalledTimes(1);
     expect(vi.mocked(fetch)).not.toHaveBeenCalledWith(

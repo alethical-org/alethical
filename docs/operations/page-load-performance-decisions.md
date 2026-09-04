@@ -42,7 +42,7 @@ do not empty it.
 | Layer | Header | Where it is set |
 |---|---|---|
 | Cloudflare, in front of the API | `public, max-age=300, stale-while-revalidate=604800, stale-if-error=604800` | `PUBLIC_CACHE_CONTROL` in `alethical/api/routers/public.py` |
-| Vercel, in front of the page HTML | `public, max-age=0, s-maxage=3600, stale-while-revalidate=604800, stale-if-error=604800` | `OK_CACHE` in `api/page.ts` |
+| Vercel, in front of the page HTML | `public, max-age=0, s-maxage=3600, stale-while-revalidate=300, stale-if-error=604800` | `OK_CACHE` in `api/page.ts` |
 
 **The windows are set from how often ingestion changes these records.** A load is
 human-triggered and on no schedule
@@ -50,13 +50,38 @@ human-triggered and on no schedule
 changes are weeks: production's campaign-finance snapshot was dated 2026-08-12 when
 this was measured on 4 Sep 2026, 23 days old.
 
-**Only `stale-while-revalidate` is long, and that is the whole design.** Inside
-`max-age` or `s-maxage` the cache answers without asking the origin, so lengthening
-those genuinely delays an update. Inside `stale-while-revalidate` the cache answers
-*instantly from the copy it already holds* and refreshes behind the reader, so
-lengthening it removes waiting and delays nothing beyond a single reader seeing one
-generation of data while that refresh runs. `stale-if-error` means an origin blip
-serves the last good copy instead of an error page.
+**Only `stale-while-revalidate` is long, and that is the whole design** — on the
+API side. Inside `max-age` or `s-maxage` the cache answers without asking the
+origin, so lengthening those genuinely delays an update. Inside
+`stale-while-revalidate` the cache answers *instantly from the copy it already
+holds* and refreshes behind the reader, so lengthening it removes waiting and delays
+nothing beyond a single reader seeing one generation of data while that refresh
+runs. `stale-if-error` means an origin blip serves the last good copy instead of an
+error page.
+
+**The page HTML's stale window is 5 minutes, not a week, and the reason is that it
+is now a data freshness window.** Since [#1966](https://github.com/alethical-org/alethical/issues/1966)
+criterion 2 the page response carries the records it read, not only the markup
+(§23 of
+[`docs/architecture/page-metadata-for-search-and-sharing-decisions.md`](../architecture/page-metadata-for-search-and-sharing-decisions.md)),
+so a held copy freezes those records with it. "One generation of data while the
+refresh runs" is an acceptable price for a figure that carries its own date. It is
+not acceptable for a **withdrawn** committee-to-legislator link: a person withdraws
+one exactly when money was attached to the wrong named member, and it is a designed
+path with its own state and stored reason
+([`docs/architecture/campaign-finance-system-design.md`](../architecture/campaign-finance-system-design.md)
+§5.1). That is an identity error, and
+[`.claude/rules/grounded-answers.md`](../../.claude/rules/grounded-answers.md) rule 3
+is what a held copy would break, by keeping a page asserting a relationship between
+a named person and money that nobody stands behind any more. So the worst a reader
+can be shown is a copy generated `s-maxage` plus 5 minutes ago, 65 minutes rather
+than 7 days. The cost is real and named: the first reader after a gap longer than an
+hour waits for the page function instead of getting a held copy instantly.
+
+**Both windows go back to a week only once held copies are proven to clear
+themselves** for all 4 events that can move a money answer: a new campaign-money
+download release, a new filed-totals or registered-filer release, a link being
+confirmed, and a link being withdrawn.
 
 **A cache window cannot make a printed freshness date wrong.** Every money page
 prints `as_of`, read off the loaded snapshot's `fetch_completed_at`

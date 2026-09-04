@@ -143,16 +143,39 @@ const API_TIMEOUT_MS = 5000;
 // changes are weeks, so a 600s shared window sent a reader to a cold function for
 // no gain.
 //
-// The hour of `s-maxage` is the only part that can delay an update; the week of
-// `stale-while-revalidate` cannot, because inside it Vercel answers instantly from
-// what it holds and rebuilds behind the reader. `max-age=0` is unchanged, so a
-// browser still revalidates and no reader holds a private stale copy.
+// `max-age=0` is unchanged, so a browser still revalidates and no reader holds a
+// private stale copy. A deployment resets this cache whatever the header says,
+// which is why .github/workflows/warm-money-pages.yml re-reads the money addresses
+// after each production release (#1966, acceptance criterion 4).
 //
-// A deployment resets this cache whatever the header says, which is why
-// .github/workflows/warm-money-pages.yml re-reads the money addresses after each
-// production release (#1966, acceptance criterion 4).
+// `stale-while-revalidate` is 5 minutes rather than the week the reasoning above
+// would allow, and the reason is a change this file itself made. Since #1966
+// criterion 2 this response carries the RECORDS it read, not only the markup, so a
+// held copy freezes the records with it and this window is now a data freshness
+// window. Anyone lengthening it again is lengthening how long a reader can be shown
+// records a person has already corrected.
+//
+// The case that decides the number is a committee-to-legislator link being
+// WITHDRAWN. A person withdraws one exactly when money was attached to the wrong
+// named member, and it is a designed path with its own state and stored reason
+// (`docs/architecture/campaign-finance-system-design.md` §5.1, issue #1902). That
+// is an identity error rather than a figure going out of date, and
+// `.claude/rules/grounded-answers.md` rule 3 is what it breaks: a page would keep
+// asserting a relationship between a named person and money that we no longer
+// stand behind. A week of it is not a tradeoff worth making for a warm cache.
+//
+// So the worst a reader can be shown is a copy generated `s-maxage` plus this
+// window ago: 65 minutes, against 7 days before. The hour of `s-maxage` stays,
+// because inside it nothing is asked of the function at all and that is what keeps
+// a page instant. `stale-if-error` stays at a week: it applies only when the
+// function cannot answer, where a dated page beats a failure.
+//
+// Both go back to a week only once held copies are proven to clear themselves for
+// all 4 events that move a money answer — a new campaign-money download release, a
+// new filed-totals or registered-filer release, a link being confirmed, and a link
+// being withdrawn.
 const OK_CACHE =
-  "public, max-age=0, s-maxage=3600, stale-while-revalidate=604800, stale-if-error=604800";
+  "public, max-age=0, s-maxage=3600, stale-while-revalidate=300, stale-if-error=604800";
 // A record that does not exist today may exist after the next ingestion run, so a
 // 404 is cached briefly rather than for the whole day.
 const NOT_FOUND_CACHE = "public, max-age=0, s-maxage=300";
