@@ -2881,7 +2881,11 @@ class CampaignFinanceReportDocument(TimestampMixin, Base):
     # reports for the same year at the same amendment index, and the 4 columns above are
     # identical for both. On Minnesota's live catalogue, measured 1 Sep 2026, 7
     # filer-year-amendments carry both -- without this column one of each pair is
-    # unstorable, and ``DocumentLibrary.body_for`` raises on the second row (#1886).
+    # unstorable, and ``DocumentLibrary.body_for`` would answer a request for one series
+    # with the other's document (#1886). That reader answers with the newest matching row
+    # rather than asserting there is one, because the content-addressed key also makes a
+    # reposted document a second row (#1937), so the column is what keeps the 2 series
+    # apart and never what keeps the count at 1.
     #
     # NOT NULL with a false default. The 3,643 rows that predate the column ARE the
     # regular series: both paths that wrote them request it outright, selecting the report
