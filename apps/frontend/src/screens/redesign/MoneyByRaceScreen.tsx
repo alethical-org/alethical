@@ -3,7 +3,7 @@ import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-n
 
 import { UnderDevelopmentNotice } from '../../components/campaignMoney/UnderDevelopmentNotice';
 import { Skeleton } from '../../components/Skeleton';
-import { useCampaignFinanceRaces } from '../../hooks/useAppQueries';
+import { useCampaignFinanceRaces, usePrefetchCommitteeMoney } from '../../hooks/useAppQueries';
 import { useResponsive } from '../../hooks/useResponsive';
 import { closedChipLabel, committeeSlug } from '../../lib/committeeMoney';
 import { campaignMoneyYear } from '../../lib/legislatorCampaignMoney';
@@ -362,12 +362,18 @@ function CommitteeRow({
   const slug = committeeSlug(committee.name, committee.registrationNumber);
   const closed = committee.isClosed ? closedChipLabel(committee.terminationDate) : null;
   const figures = committeeFigures(committee);
+  const prefetchCommitteeMoney = usePrefetchCommitteeMoney();
+  // Warm the committee page's cache on navigation intent, matching the bill and
+  // legislator lists (usePrefetchBill / usePrefetchLegislator, #1966).
+  const warm = () => prefetchCommitteeMoney(committee.registrationNumber, slug);
   return (
     <View style={[styles.row, isMobile && styles.rowMobile]}>
       <View style={styles.rowText}>
         <View style={styles.rowNameLine}>
           <Pressable
             {...linkProps(routePath.moneyCommittee(slug), () => onOpen(slug))}
+            onPressIn={warm}
+            onHoverIn={warm}
             style={styles.rowNameLink}
           >
             <Text style={styles.rowName}>{committee.name}</Text>

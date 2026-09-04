@@ -23,6 +23,8 @@ import {
   useCommitteePaymentsMade,
   useCommitteePaymentsReceived,
   useOutsideSpending,
+  usePrefetchCommitteeMoney,
+  usePrefetchLegislator,
 } from '../../hooks/useAppQueries';
 import { useResponsive } from '../../hooks/useResponsive';
 import {
@@ -101,6 +103,7 @@ import { centralDateLabel } from '../../lib/moneyLanding';
 import { publicPageUrl, type ShareContent } from '../../lib/share';
 import { useDocumentTitle } from '../../navigation/documentTitle';
 import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
+import { screenLoaderForPath } from '../../navigation/screenPreload';
 import type { RootScreenProps } from '../../navigation/types';
 import { markNextWebHistoryChangeAsReplace } from '../../navigation/webHistory';
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
@@ -345,6 +348,17 @@ function CommitteeBody({
   const state = yearDisplayState(money);
   const checkedOn = money.fetchedAt ? centralDateLabel(money.fetchedAt) : null;
   const otherYear = year === new Date().getFullYear() ? year - 1 : year + 1;
+  const prefetchLegislator = usePrefetchLegislator();
+  // Warm the member's profile data AND its screen file on navigation intent,
+  // matching the bill and legislator lists (usePrefetchBill /
+  // usePrefetchLegislator, #1966) plus the route-splitting piece the profile
+  // screen now downloads on its own (screenLoaderForPath, #1970/#1975).
+  const warmConfirmedFor = () => {
+    if (money.confirmedFor) {
+      prefetchLegislator(money.confirmedFor.slug);
+      void screenLoaderForPath(routePath.legislator(money.confirmedFor.slug, { tab: 'money' }))?.();
+    }
+  };
 
   const shareContent: ShareContent = {
     title: `${name} — Alethical`,
@@ -400,6 +414,8 @@ function CommitteeBody({
                 tab: 'money',
               }),
             )}
+            onPressIn={warmConfirmedFor}
+            onHoverIn={warmConfirmedFor}
             style={styles.seeAll}
           >
             <Text style={styles.seeAllLabel}>
@@ -645,6 +661,7 @@ function PaymentsSection({
   navigation: RootScreenProps<'CommitteeMoney'>['navigation'];
 }) {
   const { isMobile } = useResponsive();
+  const prefetchCommitteeMoney = usePrefetchCommitteeMoney();
   // Whether this filer has rows in the outside-spending file, in each direction.
   // The first page of each doubles as the tab's own first page once it is opened, and
   // a subject with no rows gets no tab: "spent nothing" and "we hold nothing" cannot be
@@ -865,15 +882,18 @@ function PaymentsSection({
                 </>
               );
               if (row.linkNumber) {
-                const href = routePath.moneyCommittee(committeeSlug(row.linkName, row.linkNumber));
+                const linkSlug = committeeSlug(row.linkName, row.linkNumber);
+                const href = routePath.moneyCommittee(linkSlug);
+                const linkNumber = row.linkNumber;
+                const warm = () => prefetchCommitteeMoney(linkNumber, linkSlug);
                 return (
                   <Pressable
                     key={row.key}
                     {...linkProps(href, () =>
-                      navigation.push('CommitteeMoney', {
-                        slug: committeeSlug(row.linkName, row.linkNumber!),
-                      }),
+                      navigation.push('CommitteeMoney', { slug: linkSlug }),
                     )}
+                    onPressIn={warm}
+                    onHoverIn={warm}
                     style={[styles.listRow, styles.listRowLink]}
                   >
                     {inner}
@@ -944,6 +964,7 @@ function OutsideSpendingPanel({
   const pages = query.data?.pages ?? [];
   const first = pages[0];
   const rows = pages.flatMap((page) => page?.rows ?? []);
+  const prefetchCommitteeMoney = usePrefetchCommitteeMoney();
 
   if (query.isPending) {
     return (
@@ -1065,12 +1086,16 @@ function OutsideSpendingPanel({
           const key = `${row.recordNumber}-${row.paidOn}-${row.amount}`;
           if (party.linkable && party.registrationNumber) {
             const slug = committeeSlug(party.name, party.registrationNumber);
+            const registrationNumber = party.registrationNumber;
+            const warm = () => prefetchCommitteeMoney(registrationNumber, slug);
             return (
               <Pressable
                 key={key}
                 {...linkProps(routePath.moneyCommittee(slug), () =>
                   navigation.push('CommitteeMoney', { slug }),
                 )}
+                onPressIn={warm}
+                onHoverIn={warm}
                 style={[styles.listRow, styles.listRowLink, isMobile && styles.listRowMobile]}
               >
                 {inner}

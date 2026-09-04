@@ -4,7 +4,7 @@ import Svg, { Path } from 'react-native-svg';
 
 import { UnderDevelopmentNotice } from '../../components/campaignMoney/UnderDevelopmentNotice';
 import { Skeleton } from '../../components/Skeleton';
-import { useOutsideSpendingRecord } from '../../hooks/useAppQueries';
+import { useOutsideSpendingRecord, usePrefetchCommitteeMoney } from '../../hooks/useAppQueries';
 import { useResponsive } from '../../hooks/useResponsive';
 import { committeeSlug, registerKindLabel } from '../../lib/committeeMoney';
 import { campaignMoneyYears, formatMoney } from '../../lib/legislatorCampaignMoney';
@@ -920,12 +920,22 @@ function PaymentRow({
   const paid = paidLine(row.paidOn);
   const linked = counterparty.linkable && counterparty.registrationNumber;
   const slug = linked ? committeeSlug(counterparty.name, counterparty.registrationNumber!) : null;
+  const prefetchCommitteeMoney = usePrefetchCommitteeMoney();
+  // Warm the committee page's cache on navigation intent, matching the bill and
+  // legislator lists (usePrefetchBill / usePrefetchLegislator, #1966).
+  const warm = () => {
+    if (linked && counterparty.registrationNumber && slug) {
+      prefetchCommitteeMoney(counterparty.registrationNumber, slug);
+    }
+  };
 
   const name = slug ? (
     <Pressable
       {...linkProps(routePath.moneyCommittee(slug), () =>
         navigation.push('CommitteeMoney', { slug }),
       )}
+      onPressIn={warm}
+      onHoverIn={warm}
       style={styles.nameRow}
     >
       <Text style={styles.nameLink}>{counterparty.name}</Text>
