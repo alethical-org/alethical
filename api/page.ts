@@ -229,7 +229,15 @@ type CollectionPayload<T> = {
  * What one address contributes to the response: its head tags and the factual
  * snapshot that goes in the body. Detail records use the release-2 snapshot;
  * Home and unfiltered public directories use the crawlable paths in issue #1396.
- * Filtered, answer, and static pages send no snapshot.
+ *
+ * Whether an address serves a body and what a search engine is told about it are
+ * 2 separate decisions. Answer and static pages send no snapshot. A filtered view
+ * sends none either, with 2 exceptions that carry their page's own explanation
+ * rather than any filtered result: `/money/search` and a `noindex` money address
+ * that would otherwise show nothing at all until the program arrives (#1966).
+ * Serving a body never changes an address's `noindex` or its canonical address —
+ * see §22 of
+ * docs/architecture/page-metadata-for-search-and-sharing-decisions.md.
  */
 type PageContent = {
   metadata: PageMetadata;

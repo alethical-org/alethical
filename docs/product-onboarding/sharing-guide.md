@@ -1,6 +1,6 @@
 # How sharing works
 
-<!-- describes: apps/frontend/src/lib/share.ts, apps/frontend/src/lib/pageSnapshot.ts, apps/frontend/src/lib/legislatorProfile.ts, apps/frontend/src/components/billDetail/SharePopover.tsx, apps/frontend/src/components/share/MobileShareSheet.tsx, apps/frontend/src/screens/redesign/BillDetailScreen.tsx, apps/frontend/src/screens/redesign/BillDetailWebScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileWebScreen.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/navigation/documentTitle.ts, apps/frontend/public/index.html, apps/frontend/public/robots.txt, apps/frontend/scripts/generate-brand-assets.mjs, api/page.ts, api/sitemap.ts, vercel.json -->
+<!-- describes: apps/frontend/src/lib/share.ts, apps/frontend/src/lib/pageSnapshot.ts, apps/frontend/src/lib/pageData.ts, apps/frontend/src/lib/legislatorProfile.ts, apps/frontend/src/components/billDetail/SharePopover.tsx, apps/frontend/src/components/share/MobileShareSheet.tsx, apps/frontend/src/screens/redesign/BillDetailScreen.tsx, apps/frontend/src/screens/redesign/BillDetailWebScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileWebScreen.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/navigation/documentTitle.ts, apps/frontend/public/index.html, apps/frontend/public/robots.txt, apps/frontend/scripts/generate-brand-assets.mjs, api/page.ts, api/sitemap.ts, vercel.json -->
 
 Share sends the page a reader chose, with enough plain-language context for another person to know why the link matters. Copy link remains the dependable choice when another app cannot accept prepared text.
 
@@ -99,8 +99,11 @@ known. It also links to the bill on revisor.mn.gov, to that author's profile, an
 **legislator** arrives with their name, chamber and district, party, committee assignments, stored
 biography and legislative service when present, capitol office and phone, and links to their official
 chamber profile and to the member list. Home, Find My Legislator, and the plain Bills and Legislators
-directories arrive with their own readable text and links. Filtered lists, answer pages, and legal
-pages carry no first-response snapshot.
+directories arrive with their own readable text and links. Answer pages, legal pages and filtered
+lists carry no first-response snapshot, with 2 deliberate exceptions in the money section below:
+where an address would otherwise show a reader nothing at all until the app arrives, it carries the
+page's own explanation. Serving those words changes nothing about whether a search engine may list
+the address.
 
 The **campaign money** section carries the same first-response text. `/money` arrives with its heading, its one
 sentence, the register's size counted live, the day we last copied the Board's files, what the record
@@ -120,6 +123,32 @@ reads "$0.00", and a test fails if the served page ever prints an amount the fil
 ([`.claude/rules/grounded-answers.md` rule 12](../../.claude/rules/grounded-answers.md)). A year or a
 tab named in the address is deliberately ignored by the served text, which carries the page's plain
 state, exactly as a bill serves its Summary whichever tab the address names.
+
+**Money by race** arrives with every contest, and inside each one an ordinary link to every
+candidate committee registered for that seat, with each committee's 2 figures and the dates each
+figure covers. **The outside-spending record** arrives with the total the file holds, how many
+payments and which years that total covers, how many of them the filings call supporting and how
+many opposing, how many were given as goods rather than cash, the day we read the Board's file, and
+links to the 2 lists that lead to one group's or one committee's own rows. **The name search**
+arrives with its heading, what it searches, and the sentence saying what these records do not
+cover — never a result for anything typed, since the address is whatever somebody put in the box.
+Those last 2 pages used to arrive with a title and nothing else, so a reader looked at a blank
+page for about 2 seconds, and on the outside-spending page for as long as 3.
+
+## The records arrive with the page too
+
+Building the words above means reading the same records the page itself needs, so those records now
+travel in the same response and the page draws them straight away. Before this, the app asked for
+the identical records a second time about a second later, and a reader watched a loading state for
+another half-second — or as long as 3 seconds when our caches had gone cold — for figures that had
+already arrived.
+
+Nothing about a figure changes on the way through. The records travel exactly as the data service
+sent them, and the page reads them with the same code it uses for records it fetches itself, so a
+figure cannot come out differently for having arrived early. Each set travels whole, so a figure and
+the freshness date printed beside it always come from the same reading of the files. If any of it is
+missing or unreadable, the page simply asks for the records itself, which is what every page did
+before this.
 
 One of **our own published pieces** arrives with the whole thing, whether it is a research piece or a
 guide: its title, its standfirst or the set it belongs to, its own masthead line, its short version

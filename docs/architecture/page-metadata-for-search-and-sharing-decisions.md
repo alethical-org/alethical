@@ -1413,8 +1413,10 @@ the list page found no route to a single committee.
 
 ### Which addresses are records, and which are filtered views
 
-`api/page.ts` has said since §18 that "filtered, answer, and static pages send no snapshot", and
-that is still right: a filter combination is not a record. Sorted for this section:
+A filter combination is not a record, so it gets no canonical address and no place in a
+sitemap. Whether it serves a body is a separate question with a separate answer: a body is
+what a reader sees before the program arrives, and telling a search engine not to list an
+address is not a reason to show its reader nothing. Sorted for this section:
 
 | address | verdict | what it serves |
 |---|---|---|
@@ -1423,9 +1425,11 @@ that is still right: a filter combination is not a record. Sorted for this secti
 | `/money/committees?q=…` or `?kind=…` | filtered view | head only, `noindex`, no canonical — unchanged |
 | `/money/committees/{slug}` | **record** | the committee's own register facts and its money for the current filing year |
 | `/money/committees/{slug}/payments` | **record** | the same identity and period plus the first 250 named donations |
-| `/money/search?q=…` | filtered view | head only, `noindex` — unchanged |
+| `/money/races` | record list | every candidate committee grouped by the contest it registered for, each an ordinary anchor, with each figure's own dates ([#1954](https://github.com/alethical-org/alethical/issues/1954)) |
+| `/money/races?office=…` | filtered view | head only, `noindex`, no canonical |
+| `/money/search` and `?q=…` | filtered view | `noindex` with no canonical, and a body carrying the page's own explanation and what these records do not cover — never a result for anything typed ([#1966](https://github.com/alethical-org/alethical/issues/1966)) |
 | `/money/payments?name=…&role=…` | **filtered view** | head only, `noindex`, no canonical — added by [#1780](https://github.com/alethical-org/alethical/issues/1780) |
-| `/money/outside-spending` | **record** | head only for now, indexable, canonical on the bare address — the whole independent-expenditure file as one subject ([#1945](https://github.com/alethical-org/alethical/issues/1945)) |
+| `/money/outside-spending` | **record** | indexable, canonical on the bare address, and the whole file's own figures and 2 lanes as a body — the whole independent-expenditure file as one subject ([#1945](https://github.com/alethical-org/alethical/issues/1945), body added by [#1966](https://github.com/alethical-org/alethical/issues/1966)) |
 | `/money/outside-spending?spender=…`, `?about=…`, `?year=…`, `?sort=…`, `?page=…` | filtered view | head only, `noindex`, no canonical — one group's or one committee's view of the same rows; each has its own record page at `/money/committees/{slug}` |
 
 ### Decisions
@@ -1524,8 +1528,10 @@ section's other filtered views already do.
 
 ### What this deliberately does not do
 
-- **It does not make a filtered or searched list indexable.** Those stay head-only with no
-  canonical, exactly as §18 settled for Bills and Legislators.
+- **It does not make a filtered or searched list indexable.** Those carry `noindex` and no
+  canonical address, exactly as §18 settled for Bills and Legislators. A filtered view that
+  serves its page's own explanation, as `/money/search` does, is unaffected: what a body
+  changes is what a reader sees, never what a search engine is told.
 - **It does not put the payments page in a sitemap.** It is a second view of one record, reachable
   by an ordinary link from the record itself, and listing both would ask Google to crawl the same
   committee twice.
@@ -1534,3 +1540,89 @@ section's other filtered views already do.
 - **It does not change what a person sees**, apart from the register's numbered pages replacing its
   "Show more" button — which is the change §20.5 rule 2 requires and the whole reason the other
   1,553 pages were unreachable.
+
+## 23. The records the page function reads reach the app in the same response
+
+The function fetches each money page's JSON to build the body in §22. The app then asks the
+data service for the identical URL, because nothing passed the first read on. Measured against
+the live release on 4 Sep 2026, Chrome, every cache warm, empty browser cache
+([#1966](https://github.com/alethical-org/alethical/issues/1966)):
+
+| when | what happens on `/money/committees` | cost |
+|---|---|---|
+| 0-128 ms | the HTML arrives and the served body is on screen | 128 ms |
+| 131-1163 ms | the one program bundle downloads | 1,031 ms |
+| 1219 ms | the app starts and replaces the body with its own loading state | 56 ms |
+| 1253-1771 ms | the app fetches `/campaign-finance/committees?limit=50&offset=0`, the read this function made at about 100 ms | **518 ms** |
+
+The same read costs 541 ms when Cloudflare misses, 1,265 ms on `/campaign-finance/races?year=2026`
+and 2,975 ms on `/campaign-finance/outside-spending`. `/money/races` was the worst of it: 225 KB
+of served body describing 778 committees, then 271 KB of JSON describing the same 778.
+
+### Decision
+
+**Each read the function makes is served with it, labelled with the React Query key the app will
+ask for, and the app draws it with no request of its own.** The transport is a
+`<script type="application/json">` block between markers in
+`apps/frontend/public/index.html`, built by `apps/frontend/src/lib/pageData.ts`.
+
+- **A data block, not a script the page runs.** `vercel.json` allows an inline script only by
+  hash, and a per-address payload has a per-address hash, so an executable block could never be
+  allowed. A block whose type is not JavaScript is never executed, so the policy does not apply to
+  it and nothing is added to `script-src` — the same reason the shell's `application/ld+json`
+  blocks work today.
+- **It sits after `<div id="root">` and before the program bundle.** After, so the parser reaches
+  the served text first and a 271 KB payload cannot delay the first paint. Before, so the element
+  exists by the time the deferred bundle runs.
+- **The block is the data service's own JSON, unchanged.** Nothing reshapes a figure on the way
+  through: the app runs the same reader over a served payload that it runs over a fetched one, so a
+  served figure and a fetched figure cannot differ.
+- **A whole payload is served, never a figure lifted out of one**, so a figure and the freshness
+  date beside it always come from the same read
+  (`.claude/rules/grounded-answers.md` rule 12, which requires every page printing a money figure
+  to carry one clearly labelled freshness date).
+- **One builder per key, shared by the hook and this function.** A key written out in 2 places is
+  2 chances to drift, and a drifted key serves nothing and improves nothing while the page still
+  works, so the drift is invisible. `pageData.test.ts` pins each key's value and checks no money
+  key is written out inside the hooks.
+- **A key the app does not ask for is never read.** Page 2's rows cannot answer page 1's question,
+  and a filtered address the function does not read is served nothing at all.
+- **A missing, mismatched or unreadable block falls back to fetching.** Never to a blank screen and
+  never to a held figure: an unreadable payload is dropped, and the app's own read is the path
+  every address took before this existed.
+
+### Why `initialData` rather than a warm cache
+
+The app's default freshness window is 5 minutes (`apps/frontend/src/lib/appQueryClient.ts`), so
+data present at a query's first render is not stale and no request is made. Handing the same
+payload to a background refetch instead would have drawn the list at once and still spent the
+duplicate request, which is most of what §23 exists to remove. A served payload is read once: a
+later refetch of the same key goes to the data service, so a reader who sits on a page is not held
+on the first response's copy.
+
+### The 2 addresses that served no body
+
+`/money/outside-spending` and `/money/search` returned a title and an empty body, so a reader saw
+nothing at all until the program loaded and the service answered — on outside spending that is the
+2,975 ms cold read, which made it the section's slowest first load. Both now serve a body built
+from the same wording helpers their screens call.
+
+Neither address's robots treatment changes. The bare outside-spending record was already
+indexable with its own canonical address; `/money/search` keeps `noindex` and no canonical,
+because its address is whatever somebody typed. What the search page serves is its own
+explanation and the sentence saying what these records do not cover — the sentence its screen
+prints above its results, for the same reason: a reader who searches a name, finds nothing and is
+told nothing concludes that the person gave nothing rather than that we do not hold the record.
+
+### What this deliberately does not do
+
+- **It does not serve a result for anything typed.** `/money/search` serves its explanation; the
+  matches belong to the app.
+- **It does not widen what the function reads.** The one addition is the landing's newest filed
+  reports, read alongside the register count it already read rather than after it, so serving it
+  costs the response no extra wait.
+- **It does not change any address's `noindex`, canonical address or sitemap entry.**
+- **It does not remove the served body from `/money/races`.** The rows are in the response twice,
+  as text a search engine and a program-less reader can read and as the payload the app draws
+  from, which is what every framework that renders on the server ships. What ends is downloading
+  them twice: one response instead of 2, and no cold read in the middle of the load.
