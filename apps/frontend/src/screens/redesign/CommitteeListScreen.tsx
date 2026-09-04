@@ -10,7 +10,7 @@ import { MoneyNameSearchField } from '../../components/campaignMoney/MoneyNameSe
 import { Pagination } from '../../components/search/searchPieces';
 import { UnderDevelopmentNotice } from '../../components/campaignMoney/UnderDevelopmentNotice';
 import { Skeleton } from '../../components/Skeleton';
-import { useCampaignFinanceCommittees } from '../../hooks/useAppQueries';
+import { useCampaignFinanceCommittees, usePrefetchCommitteeMoney } from '../../hooks/useAppQueries';
 import { useDebouncedSearchCommit } from '../../hooks/useDebouncedSearchCommit';
 import { useResponsive } from '../../hooks/useResponsive';
 import {
@@ -98,6 +98,7 @@ export function CommitteeListScreen({ navigation, route }: RootScreenProps<'Comm
     page,
     pageSize: COMMITTEE_PAGE_SIZE,
   });
+  const prefetchCommitteeMoney = usePrefetchCommitteeMoney();
 
   useDocumentTitle(
     directoryPagePath('/money/committees', page),
@@ -290,6 +291,7 @@ export function CommitteeListScreen({ navigation, route }: RootScreenProps<'Comm
                       link={{
                         href: routePath.moneyCommittee(slug),
                         onPress: () => navigation.push('CommitteeMoney', { slug }),
+                        onWarm: () => prefetchCommitteeMoney(row.registrationNumber),
                       }}
                     >
                       <View style={styles.rowText}>

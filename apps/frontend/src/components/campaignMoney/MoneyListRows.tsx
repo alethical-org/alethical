@@ -40,14 +40,22 @@ export function MoneyListRow({
   /** The first row in its list draws no hairline above it on the phone. */
   first: boolean;
   /** Present when the row opens something. A row that opens nothing is a plain
-   *  View, so a screen reader never announces a link that goes nowhere. */
-  link?: { href: string; onPress: () => void } | null;
+   *  View, so a screen reader never announces a link that goes nowhere.
+   *  `onWarm`, when given, fires on hover-in and press-in to start loading the
+   *  row's record ahead of the click (#1966), matching the bill and legislator
+   *  lists (usePrefetchBill / usePrefetchLegislator). */
+  link?: { href: string; onPress: () => void; onWarm?: () => void } | null;
   children: ReactNode;
 }) {
   const style = isMobile ? [styles.rowMobile, !first && styles.rowMobileDivided] : styles.rowCard;
   if (link) {
     return (
-      <Pressable {...linkProps(link.href, link.onPress)} style={style}>
+      <Pressable
+        {...linkProps(link.href, link.onPress)}
+        onPressIn={link.onWarm}
+        onHoverIn={link.onWarm}
+        style={style}
+      >
         {children}
       </Pressable>
     );

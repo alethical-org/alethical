@@ -23,6 +23,8 @@ import {
   useCommitteePaymentsMade,
   useCommitteePaymentsReceived,
   useOutsideSpending,
+  usePrefetchCommitteeMoney,
+  usePrefetchLegislator,
 } from '../../hooks/useAppQueries';
 import { useResponsive } from '../../hooks/useResponsive';
 import {
@@ -345,6 +347,14 @@ function CommitteeBody({
   const state = yearDisplayState(money);
   const checkedOn = money.fetchedAt ? centralDateLabel(money.fetchedAt) : null;
   const otherYear = year === new Date().getFullYear() ? year - 1 : year + 1;
+  const prefetchLegislator = usePrefetchLegislator();
+  // Warm the member's profile on navigation intent, matching the bill and
+  // legislator lists (usePrefetchBill / usePrefetchLegislator, #1966).
+  const warmConfirmedFor = () => {
+    if (money.confirmedFor) {
+      prefetchLegislator(money.confirmedFor.slug);
+    }
+  };
 
   const shareContent: ShareContent = {
     title: `${name} — Alethical`,
@@ -400,6 +410,8 @@ function CommitteeBody({
                 tab: 'money',
               }),
             )}
+            onPressIn={warmConfirmedFor}
+            onHoverIn={warmConfirmedFor}
             style={styles.seeAll}
           >
             <Text style={styles.seeAllLabel}>
@@ -645,6 +657,7 @@ function PaymentsSection({
   navigation: RootScreenProps<'CommitteeMoney'>['navigation'];
 }) {
   const { isMobile } = useResponsive();
+  const prefetchCommitteeMoney = usePrefetchCommitteeMoney();
   // Whether this filer has rows in the outside-spending file, in each direction.
   // The first page of each doubles as the tab's own first page once it is opened, and
   // a subject with no rows gets no tab: "spent nothing" and "we hold nothing" cannot be
@@ -866,14 +879,18 @@ function PaymentsSection({
               );
               if (row.linkNumber) {
                 const href = routePath.moneyCommittee(committeeSlug(row.linkName, row.linkNumber));
+                const linkNumber = row.linkNumber;
+                const warm = () => prefetchCommitteeMoney(linkNumber);
                 return (
                   <Pressable
                     key={row.key}
                     {...linkProps(href, () =>
                       navigation.push('CommitteeMoney', {
-                        slug: committeeSlug(row.linkName, row.linkNumber!),
+                        slug: committeeSlug(row.linkName, linkNumber),
                       }),
                     )}
+                    onPressIn={warm}
+                    onHoverIn={warm}
                     style={[styles.listRow, styles.listRowLink]}
                   >
                     {inner}
@@ -944,6 +961,7 @@ function OutsideSpendingPanel({
   const pages = query.data?.pages ?? [];
   const first = pages[0];
   const rows = pages.flatMap((page) => page?.rows ?? []);
+  const prefetchCommitteeMoney = usePrefetchCommitteeMoney();
 
   if (query.isPending) {
     return (
@@ -1065,12 +1083,16 @@ function OutsideSpendingPanel({
           const key = `${row.recordNumber}-${row.paidOn}-${row.amount}`;
           if (party.linkable && party.registrationNumber) {
             const slug = committeeSlug(party.name, party.registrationNumber);
+            const registrationNumber = party.registrationNumber;
+            const warm = () => prefetchCommitteeMoney(registrationNumber);
             return (
               <Pressable
                 key={key}
                 {...linkProps(routePath.moneyCommittee(slug), () =>
                   navigation.push('CommitteeMoney', { slug }),
                 )}
+                onPressIn={warm}
+                onHoverIn={warm}
                 style={[styles.listRow, styles.listRowLink, isMobile && styles.listRowMobile]}
               >
                 {inner}

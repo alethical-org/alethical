@@ -746,6 +746,25 @@ export function usePrefetchLegislator() {
     });
 }
 
+// Warm a committee's money-page cache on navigation intent (row hover /
+// press-in) so the page opens without its loading skeleton, matching
+// usePrefetchBill / usePrefetchLegislator (#1966). A money row's link never
+// carries a year (CommitteeMoney is always pushed with just a slug), so the
+// screen falls back to the current filing year (campaignMoneyYear with no
+// route param) — prefetch that same year so the key lines up exactly with
+// what the screen reads.
+export function usePrefetchCommitteeMoney() {
+  const queryClient = useQueryClient();
+  return (registrationNumber: string) => {
+    const year = campaignMoneyYear(undefined);
+    void queryClient.prefetchQuery({
+      queryKey: ['committee-money', registrationNumber, year],
+      queryFn: () => getCommitteeFinanceFromApi(registrationNumber, year),
+      retry: false,
+    });
+  };
+}
+
 // Warm the bill-list cache for a filter combo the user is about to select
 // (chip hover), so the filtered results are already loading — usually loaded —
 // by the time they tap, making the swap feel instant instead of waiting on a
