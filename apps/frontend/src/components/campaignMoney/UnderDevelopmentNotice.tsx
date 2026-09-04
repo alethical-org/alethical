@@ -33,16 +33,15 @@ const ICON = '#c0392b';
 
 /**
  * The wording names what a reader might expect and will not find — lobbying
- * records are not loaded (#1862), and the challenger and fuller outside-spending
- * surfaces do not exist — rather than casting doubt on the figures. Since
- * 31 Aug 2026 every figure sits under an account a person confirmed and carries
- * its own period and freshness date, so "the figures shown may change" stopped
- * being the honest sentence and became a contradiction of the page below it
- * (#1863).
+ * records are not loaded (#1862) — rather than casting doubt on the figures.
+ * Every figure sits under an account a person confirmed and carries its own
+ * period and freshness date, so "the figures shown may change" is not the honest
+ * sentence and would contradict the page below it (#1863). Challengers are on the
+ * money-by-race page and outside spending has its own record page, so neither is
+ * named here any more; a gap this strip names must be one the section still has.
  */
 const LEAD = 'Under development.';
-const SENTENCE =
-  'This section does not yet cover lobbying, challengers, or the full picture of outside spending.';
+const SENTENCE = 'This section does not yet cover lobbying.';
 
 function WarningGlyph({ size, nudgeTop }: { size: number; nudgeTop: boolean }) {
   return (

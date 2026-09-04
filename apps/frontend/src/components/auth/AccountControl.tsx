@@ -23,7 +23,7 @@ import { clearSignedInAuthDrafts } from '../../lib/auth/signOutCleanup';
 import { trackedBillsCount } from '../../lib/trackedState';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useResponsive } from '../../hooks/useResponsive';
-import { useTrackedBills } from '../../hooks/useAppQueries';
+import { useTrackedBills, useTrackedCommittees } from '../../hooks/useAppQueries';
 import { linkProps, routePath } from '../../navigation/links';
 import { navigateTopNavItem } from '../../navigation/topNavRoutes';
 import { browserFillTextInputProps } from '../../theme/browserFill';
@@ -494,20 +494,27 @@ function BookmarkIcon({ size }: { size: number }) {
  * too — `data` stays undefined — so a blip shows the label alone rather than
  * telling someone they track nothing.
  *
- * There is no count endpoint. This is the length of the watchlist itself, which
- * the server returns whole and unpaginated (`/me/tracked-bills`), and every
- * Track button on the page already shares this one query — so on a page that has
- * loaded it the number costs nothing, and elsewhere it arrives just after the
- * menu opens.
+ * There is no count endpoint. This is the length of the 2 watchlists themselves,
+ * which the server returns whole and unpaginated (`/me/tracked-bills` and
+ * `/me/tracked-committees`), and every Track button on the page already shares
+ * these queries — so on a page that has loaded them the number costs nothing, and
+ * elsewhere it arrives just after the menu opens.
+ *
+ * The row opens the Tracked page, which lists bills AND the committees a reader
+ * follows (#1943), so the number is the sum of both lists. It is a number only when
+ * BOTH lists have loaded: a sum with one list missing is an undercount stated as a
+ * fact, and the rule above says a count we did not get is not one we may state.
  */
-function useTrackedBillsCount(): number | null {
+function useTrackedCount(): number | null {
   const { user } = useAuth();
-  const tracked = useTrackedBills(user?.id);
+  const bills = useTrackedBills(user?.id);
+  const committees = useTrackedCommittees(user?.id);
+  if (bills.data === undefined || committees.data === undefined) return null;
   // The rule itself lives beside the Track button's, and is pinned by its tests.
-  return trackedBillsCount(tracked.data?.length);
+  return trackedBillsCount(bills.data.length + committees.data.length);
 }
 
-function TrackedBillsRow({
+function TrackedRow({
   variant,
   onNavigate,
 }: {
@@ -515,7 +522,7 @@ function TrackedBillsRow({
   onNavigate: () => void;
 }) {
   const navigation = useNavigation<never>();
-  const count = useTrackedBillsCount();
+  const count = useTrackedCount();
   const phone = variant === 'phone';
   const press = () => {
     onNavigate();
@@ -526,17 +533,17 @@ function TrackedBillsRow({
   return (
     <Pressable
       {...linkProps(routePath.tracked(), press)}
-      // The number is part of the spoken name, so a screen reader hears "Tracked
-      // Bills, 12". With no number the visible text is the name -- an aria-label
+      // The number is part of the spoken name, so a screen reader hears "Tracked,
+      // 12". With no number the visible text is the name -- an aria-label
       // REPLACES that text, so setting one here would be strictly worse.
-      accessibilityLabel={count === null ? undefined : `Tracked Bills, ${count}`}
+      accessibilityLabel={count === null ? undefined : `Tracked, ${count}`}
       style={({ pressed }) => [
         phone ? styles.sheetTrackedRow : styles.menuTrackedRow,
         pressed && (phone ? styles.sheetButtonPressed : styles.menuItemPressed),
       ]}
     >
       <BookmarkIcon size={phone ? 22 : 20} />
-      <Text style={phone ? styles.sheetTrackedLabel : styles.menuTrackedLabel}>Tracked Bills</Text>
+      <Text style={phone ? styles.sheetTrackedLabel : styles.menuTrackedLabel}>Tracked</Text>
       {count === null ? null : (
         <Text style={phone ? styles.sheetTrackedCount : styles.menuTrackedCount}>{count}</Text>
       )}
@@ -704,7 +711,7 @@ function AccountSurfaceContent({
         {/* The reader's own things sit above the one setting behind this menu
             (#1698). There is deliberately no Account row: Change password IS the
             action, so a row called Account would be a hop revealing one row. */}
-        <TrackedBillsRow variant="desktop" onNavigate={onLeave} />
+        <TrackedRow variant="desktop" onNavigate={onLeave} />
         <View style={styles.menuDivider} />
         {emailPasswordEnabled ? (
           <>
@@ -727,7 +734,7 @@ function AccountSurfaceContent({
   return (
     <>
       <Identity name={name} email={email} avatar={48} />
-      <TrackedBillsRow variant="phone" onNavigate={onLeave} />
+      <TrackedRow variant="phone" onNavigate={onLeave} />
       {emailPasswordEnabled ? (
         <Pressable
           accessibilityRole="button"

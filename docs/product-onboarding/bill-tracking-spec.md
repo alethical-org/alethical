@@ -104,4 +104,4 @@ stays on the list and never that anyone will be told anything. Signed out, the p
 shows the sign-in card as before. Every fixed sentence on the page lives in
 `apps/frontend/src/lib/trackedPage.ts` and is pinned by its test.
 
-The account menu's Tracked Bills row and its count still speak for bills alone.
+The account menu's row reads **Tracked** and its count is the number of bills plus the number of committees on the list; it shows a number only once both lists have loaded.

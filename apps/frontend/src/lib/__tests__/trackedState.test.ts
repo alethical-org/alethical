@@ -67,11 +67,11 @@ describe('trackState — signed in', () => {
   });
 });
 
-// The account menu's Tracked Bills row (#1698). Same rule as the button above,
+// The account menu's Tracked row (#1698). Same rule as the button above,
 // applied to a number: the row shows its label alone whenever there is no count
 // we actually have, and the two absent cases are deliberately indistinguishable
 // on screen.
-describe('the count beside Tracked Bills', () => {
+describe('the count beside Tracked', () => {
   it('shows a loaded count', () => {
     expect(trackedBillsCount(12)).toBe(12);
     expect(trackedBillsCount(1)).toBe(1);

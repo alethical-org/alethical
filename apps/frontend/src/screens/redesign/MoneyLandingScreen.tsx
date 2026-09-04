@@ -19,8 +19,10 @@ import {
   FILES_LAST_COPIED_NOTE,
   MONEY_LANDING_HEADING,
   MONEY_LANDING_SUBTITLE,
+  MONEY_LANE_BY_RACE,
   MONEY_LANE_COMMITTEES,
   MONEY_LANE_LEGISLATORS,
+  MONEY_LANE_OUTSIDE_SPENDING,
   MONEY_LANE_WHO_GOT_PAID,
   RECORD_DOES_NOT_COVER,
   RECORD_DOES_NOT_COVER_HEADING,
@@ -217,9 +219,11 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
             )}
           </Pressable>
 
-          {/* The lanes into the records. All 3 open something now that the
-              who-got-paid lane is settled as search-only (#1780). Counts bind to
-              the live register or do not appear. */}
+          {/* The lanes into the records. All 5 open something now that the
+              who-got-paid lane is settled as search-only (#1780) and the race and
+              outside-spending pages are live (#1954, #1945). Counts bind to the
+              live register or do not appear. 5 cards wrap into 2 rows from 768 up,
+              each at least 280 wide, so no card is squeezed below its words. */}
           <View style={[styles.laneRow, isMobile && styles.laneRowMobile]}>
             <LaneCard
               title={MONEY_LANE_LEGISLATORS.title}
@@ -247,6 +251,22 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
               countLine={null}
               href={routePath.moneySearch()}
               onOpen={() => navigation.navigate('MoneySearch')}
+              stacked={isMobile}
+            />
+            <LaneCard
+              title={MONEY_LANE_BY_RACE.title}
+              body={MONEY_LANE_BY_RACE.body}
+              countLine={null}
+              href={routePath.moneyRaces()}
+              onOpen={() => navigation.navigate('MoneyByRace')}
+              stacked={isMobile}
+            />
+            <LaneCard
+              title={MONEY_LANE_OUTSIDE_SPENDING.title}
+              body={MONEY_LANE_OUTSIDE_SPENDING.body}
+              countLine={null}
+              href={routePath.moneyOutsideSpending()}
+              onOpen={() => navigation.navigate('OutsideSpending')}
               stacked={isMobile}
             />
           </View>
@@ -452,10 +472,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: t.fontWeights.bold,
   },
-  laneRow: { marginTop: 44, flexDirection: 'row', gap: 20 },
+  laneRow: { marginTop: 44, flexDirection: 'row', flexWrap: 'wrap', gap: 20 },
   laneRowMobile: { marginTop: 32, flexDirection: 'column', gap: 16 },
   laneCard: {
     flex: 1,
+    flexBasis: 280,
     minWidth: 0,
     borderWidth: 1,
     borderRadius: 16,
