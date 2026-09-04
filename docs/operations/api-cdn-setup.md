@@ -29,13 +29,34 @@ human-triggered), so they are safe to serve from an edge cache for a short TTL.
 The response headers that drive the cache are **already live** (PR #363):
 
 ```
-Cache-Control: public, max-age=60, stale-while-revalidate=300   # anonymous reads
-Cache-Control: private, no-store                                # signed-in / tracking reads
+Cache-Control: public, max-age=300, stale-while-revalidate=604800, stale-if-error=604800   # anonymous reads
+Cache-Control: private, no-store                                                           # signed-in / tracking reads
 ```
 
-So the edge caches public reads for 60 s (and serves a slightly-stale copy for
-up to 5 more minutes while it refreshes), and never caches a signed-in user's
-personalized response.
+So the edge holds a public read for 5 minutes without asking the origin, then for
+a further 7 days answers instantly from the copy it already has while it refreshes
+behind the reader, and serves that copy rather than an error if the origin is down.
+A signed-in user's personalized response is never cached.
+
+The 7 days is set from how often ingestion changes these records, not from a guess:
+a load is human-triggered and on no schedule, and production's campaign-finance
+snapshot was 23 days old when this was measured on 4 Sep 2026. The window before
+that was 60 s plus 5 minutes, so any gap over 5 minutes between readers sent the
+next one to the origin, measured at 2975 ms on
+`/campaign-finance/outside-spending`. Cloudflare honours both directives, measured
+rather than assumed: the same morning `/campaign-finance/races` returned
+`cf-cache-status: UPDATING` (serving stale, refreshing behind the reader) and
+`/campaign-finance/outside-spending` returned `EXPIRED` (past the window, so that
+reader waited on the origin).
+
+Only `stale-while-revalidate` was lengthened far, because it is the directive that
+costs nothing: inside it the edge never makes a reader wait. `max-age` is the one
+that genuinely delays an update, so it moved from 60 s to 5 minutes and no further.
+
+The window does not touch what any page prints as its freshness date. That date
+travels inside the payload (`as_of`, read off the loaded snapshot's
+`fetch_completed_at`), so a cached copy prints the day its own records were
+copied.
 
 ## Starting topology before 20 July 2026
 

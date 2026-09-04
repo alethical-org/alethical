@@ -148,13 +148,39 @@ legislator_sponsored_bills_stmt = schema.legislator_sponsored_bills_stmt
 
 router = APIRouter()
 
-# Public record reads (bills/legislators lists and detail) change only when
-# ingestion runs — human-triggered and infrequent — so they carry a short
-# shared-cache TTL with a longer stale-while-revalidate window. This lets the
-# browser serve repeat loads instantly and lets a CDN, once in front of the API,
-# absorb the first hit for everyone (the ~1s cost today is the DB query, not the
-# network). Responses that vary by user (tracking state) are never cached.
-PUBLIC_CACHE_CONTROL = "public, max-age=60, stale-while-revalidate=300"
+# Public record reads (bills/legislators lists and detail, and the whole
+# campaign-finance surface) change only when ingestion runs — human-triggered and
+# infrequent — so the window is set from that cadence rather than from a guess.
+# Measured on 4 Sep 2026: production's campaign-finance snapshot is dated
+# 2026-08-12, 23 days old, and `docs/architecture/campaign-finance-system-design.md`
+# §9.6 records that the load is on no schedule and is run by hand. Gaps between
+# changes are weeks; the old 60s/300s window was minutes.
+#
+# The long value is `stale-while-revalidate`, not `max-age`, and the difference is
+# the whole design. Inside `max-age` the edge answers without asking the origin, so
+# lengthening it genuinely delays an update. Inside `stale-while-revalidate` the
+# edge answers *instantly from what it holds* and refreshes behind the reader, so
+# lengthening it removes waiting and delays nothing beyond a single reader seeing
+# one generation of data while the refresh runs. A week is far longer than any
+# realistic gap between readers and far shorter than the weeks between loads.
+#
+# Cloudflare honours both, measured rather than assumed: on 4 Sep 2026
+# `/campaign-finance/races` returned `cf-cache-status: UPDATING` (serving stale,
+# refreshing behind) while `/campaign-finance/outside-spending` returned
+# `EXPIRED` — past the 300s window, so that reader waited 2975 ms on the origin.
+# That EXPIRED read is what this window removes (#1966, acceptance criterion 4).
+#
+# `stale-if-error` means an origin blip serves the last good copy instead of an
+# error page. Responses that vary by user (tracking state) are never cached.
+#
+# This does not affect the freshness date any money page prints. That date is
+# `as_of`, read off the loaded snapshot's `fetch_completed_at`
+# (`alethical/api/services/campaign_finance_register.py::_snapshot_date`) and
+# carried inside the payload, so a cached payload prints the date its own records
+# were copied. A longer cache window cannot make it wrong.
+PUBLIC_CACHE_CONTROL = (
+    "public, max-age=300, stale-while-revalidate=604800, stale-if-error=604800"
+)
 PRIVATE_CACHE_CONTROL = "private, no-store"
 LARGE_OFFSET_COUNT_FIRST = 100_000
 

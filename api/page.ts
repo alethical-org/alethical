@@ -116,8 +116,23 @@ const API_ORIGIN = (
 // function open to its own timeout. A slow read becomes a 503, not a stall.
 const API_TIMEOUT_MS = 5000;
 
+// Set from how often ingestion changes these records rather than from a guess.
+// Every snapshot on this page is built from records that change only when a
+// human-triggered ingestion run lands: production's campaign-finance snapshot was
+// dated 2026-08-12 when this was measured on 4 Sep 2026, 23 days old. Gaps between
+// changes are weeks, so a 600s shared window sent a reader to a cold function for
+// no gain.
+//
+// The hour of `s-maxage` is the only part that can delay an update; the week of
+// `stale-while-revalidate` cannot, because inside it Vercel answers instantly from
+// what it holds and rebuilds behind the reader. `max-age=0` is unchanged, so a
+// browser still revalidates and no reader holds a private stale copy.
+//
+// A deployment resets this cache whatever the header says, which is why
+// .github/workflows/warm-money-pages.yml re-reads the money addresses after each
+// production release (#1966, acceptance criterion 4).
 const OK_CACHE =
-  "public, max-age=0, s-maxage=600, stale-while-revalidate=86400";
+  "public, max-age=0, s-maxage=3600, stale-while-revalidate=604800, stale-if-error=604800";
 // A record that does not exist today may exist after the next ingestion run, so a
 // 404 is cached briefly rather than for the whole day.
 const NOT_FOUND_CACHE = "public, max-age=0, s-maxage=300";

@@ -1,4 +1,4 @@
-<!-- describes: apps/frontend/App.tsx, apps/frontend/package.json, vercel.json, apps/frontend/src/data/api.ts, apps/frontend/src/lib/appQueryClient.ts, apps/frontend/src/lib/billFreshness.ts, apps/frontend/src/navigation/RootNavigator.tsx, apps/frontend/src/providers/AppProviders.tsx, apps/frontend/src/providers/AuthProvider.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, alethical/api/routers/ask.py -->
+<!-- describes: apps/frontend/App.tsx, apps/frontend/package.json, vercel.json, apps/frontend/src/data/api.ts, apps/frontend/src/lib/appQueryClient.ts, apps/frontend/src/lib/billFreshness.ts, apps/frontend/src/navigation/RootNavigator.tsx, apps/frontend/src/providers/AppProviders.tsx, apps/frontend/src/providers/AuthProvider.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, alethical/api/routers/ask.py, alethical/api/routers/public.py, api/page.ts, .github/workflows/warm-money-pages.yml -->
 
 # Page-load performance decisions
 
@@ -33,13 +33,63 @@ A free-form Ask is the exception. Its request can generate paid prose, so focus 
 | 2 | Send a smaller shared program and discover the existing fonts earlier | The design and behavior stay fixed; browser and route checks must prove file delivery before release | [#1231](https://github.com/alethical-org/alethical/issues/1231) |
 | 3 | Keep phone-only sign-in code out of the website build | Sign-in timing and behavior stay fixed; the web build only stops carrying unused phone tools | [#1232](https://github.com/alethical-org/alethical/issues/1232) |
 
+## How long a nearby cache holds a public read
+
+A reader is never the one who waits on a cold read. Two caches sit in front of the
+public pages and each holds its copy long enough that ordinary gaps between readers
+do not empty it.
+
+| Layer | Header | Where it is set |
+|---|---|---|
+| Cloudflare, in front of the API | `public, max-age=300, stale-while-revalidate=604800, stale-if-error=604800` | `PUBLIC_CACHE_CONTROL` in `alethical/api/routers/public.py` |
+| Vercel, in front of the page HTML | `public, max-age=0, s-maxage=3600, stale-while-revalidate=604800, stale-if-error=604800` | `OK_CACHE` in `api/page.ts` |
+
+**The windows are set from how often ingestion changes these records.** A load is
+human-triggered and on no schedule
+(`docs/architecture/campaign-finance-system-design.md` §9.6), so gaps between
+changes are weeks: production's campaign-finance snapshot was dated 2026-08-12 when
+this was measured on 4 Sep 2026, 23 days old.
+
+**Only `stale-while-revalidate` is long, and that is the whole design.** Inside
+`max-age` or `s-maxage` the cache answers without asking the origin, so lengthening
+those genuinely delays an update. Inside `stale-while-revalidate` the cache answers
+*instantly from the copy it already holds* and refreshes behind the reader, so
+lengthening it removes waiting and delays nothing beyond a single reader seeing one
+generation of data while that refresh runs. `stale-if-error` means an origin blip
+serves the last good copy instead of an error page.
+
+**A cache window cannot make a printed freshness date wrong.** Every money page
+prints `as_of`, read off the loaded snapshot's `fetch_completed_at`
+(`alethical/api/services/campaign_finance_register.py::_snapshot_date`) and carried
+inside the payload, so a cached copy prints the day its own records were copied
+rather than the day it was cached.
+
+**A deployment resets Vercel's page cache whatever the header says**, so
+`.github/workflows/warm-money-pages.yml` re-reads the money addresses after each
+successful production release and once a day as a floor. Production releases come
+from Vercel's own Git connection rather than from
+`.github/workflows/vercel-deploy.yml`, which is hand-run only; that connection posts
+a GitHub deployment, which is the `deployment_status` hook the warmer listens on.
+A GitHub runner warms whichever edge location it reaches rather than every location
+worldwide, so the long window is what keeps a location warm once any reader has
+touched it and the job covers the release reset and a quiet day.
+
+Measured on production for [#1966](https://github.com/alethical-org/alethical/issues/1966),
+acceptance criterion 4. Before, a gap over 5 minutes sent the next reader to the
+origin: 2975 ms on `/campaign-finance/outside-spending`, 1265 ms on
+`/campaign-finance/races?year=2026`, 541 ms on `/campaign-finance/committees`, all
+30-50 ms warm. Cloudflare honours both directives, measured rather than assumed:
+the same morning `/campaign-finance/races` returned `cf-cache-status: UPDATING`
+(serving stale, refreshing behind the reader) while
+`/campaign-finance/outside-spending` returned `EXPIRED`, past its window, and that
+reader waited on the origin.
+
 ## Remaining options with a real tradeoff or open proof gap
 
 | Option | Benefit | Tradeoff or proof gap | Decision |
 |---|---|---|---|
 | Send useful page content in the first HTML response | Removes the empty-page wait on cold primary pages and deep links | The separate public serving path now covers records, Home, Find My Legislator, Bills, and Legislators; the full navigation rebuild remains larger | Shipped narrowly through [#1396](https://github.com/alethical-org/alethical/issues/1396); keep [#502](https://github.com/alethical-org/alethical/issues/502) for the broader rebuild |
 | Load 2 chief-authored bills first on phone profiles | Avoids the measured 47 KB, 1.56-second cold request | “Show all” would start a later request and make that click wait | Do not ship as no-tradeoff work |
-| Keep public data in nearby caches longer | More cold reads move from 500 to 1,600 ms toward 60 to 90 ms | Current bill, vote, and roster changes appear later | Keep the current freshness policy until the product chooses a longer delay |
 | Replace Space Grotesk or JetBrains Mono | Could remove about 13 to 44 KB of font downloads on pages using them | Changes the logo or code-like visual style | Do not treat as performance-only work |
 | Split every route into a later program download | Makes the first route's program smaller | The first visit to every other route waits for another download, and the Expo path is experimental | Keep closed [#491](https://github.com/alethical-org/alethical/issues/491) closed unless the platform becomes stable and measurements favor it |
 | Remove screens that web links currently redirect away from | Removes about 5 KB from the website program | Some screens still support phone or signed-in flows, including the working chat room that currently lacks a public door | Do not call this dead code without a capability decision |

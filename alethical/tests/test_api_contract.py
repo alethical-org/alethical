@@ -236,7 +236,7 @@ def test_featured_bills_returns_requested_summaries_in_order_and_skips_missing(c
     assert response.status_code == 200
     assert (
         response.headers["cache-control"]
-        == "public, max-age=60, stale-while-revalidate=300"
+        == "public, max-age=300, stale-while-revalidate=604800, stale-if-error=604800"
     )
     cards = response.json()["data"]
     assert [card["id"] for card in cards] == [second_id, first_id]
@@ -468,7 +468,7 @@ def test_legislator_list_supports_offset_pagination_and_total(client):
     assert first_response.status_code == 200
     assert (
         first_response.headers["cache-control"]
-        == "public, max-age=60, stale-while-revalidate=300"
+        == "public, max-age=300, stale-while-revalidate=604800, stale-if-error=604800"
     )
     first_payload = first_response.json()
     assert len(first_payload["data"]) == 1
@@ -4398,7 +4398,7 @@ def test_public_bill_reads_are_cacheable_but_user_varying_reads_are_not(
     """Anonymous record reads carry a public, shared-cacheable Cache-Control so a
     browser/CDN can absorb repeat loads; responses that vary by user (tracking
     state) are never cached."""
-    public = "public, max-age=60, stale-while-revalidate=300"
+    public = "public, max-age=300, stale-while-revalidate=604800, stale-if-error=604800"
 
     list_response = client.get("/api/v1/bills", params={"session": "94-2025-regular"})
     assert list_response.status_code == 200
@@ -4427,7 +4427,7 @@ def test_all_public_get_reads_carry_public_cache_control(client, auth_headers):
     don't set their own header get the shared default from the middleware — so a
     CDN can cache the whole read surface. Authenticated / user-specific routes are
     never publicly cached."""
-    public = "public, max-age=60, stale-while-revalidate=300"
+    public = "public, max-age=300, stale-while-revalidate=604800, stale-if-error=604800"
 
     for path in ["/api/v1/meta", "/api/v1/sessions", "/api/v1/legislators"]:
         response = client.get(path)
@@ -6313,7 +6313,7 @@ def test_sitemap_lists_every_bill_and_legislator(client):
 
     assert (
         response.headers["Cache-Control"]
-        == "public, max-age=60, stale-while-revalidate=300"
+        == "public, max-age=300, stale-while-revalidate=604800, stale-if-error=604800"
     )
 
 

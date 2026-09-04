@@ -1,0 +1,90 @@
+name: Warm the money addresses
+
+# A reader must never be the one who waits on a cold read
+# (https://github.com/alethical-org/alethical/issues/1966, acceptance criterion 4).
+#
+# Two caches sit in front of the money pages and each one has a way of going cold:
+#
+#   - Vercel's page cache is reset by every production release, whatever
+#     Cache-Control says, so the first reader after a deploy pays a cold serverless
+#     function (measured 1.44s on /money/committees, 4 Sep 2026).
+#   - Cloudflare's API cache holds a copy per edge location, so a location that has
+#     served nobody inside the window sends the next reader to the origin (measured
+#     2975 ms on /campaign-finance/outside-spending, 4 Sep 2026).
+#
+# So this runs on both triggers that matter: after each production release, and
+# once a day as a floor. Production releases come from Vercel's own Git connection
+# rather than from .github/workflows/vercel-deploy.yml, which is hand-run only —
+# and that connection posts a GitHub deployment (checked 4 Sep 2026: environment
+# "Production", state "success", creator vercel[bot]), which is the hook used here.
+#
+# Honest limit: a GitHub runner warms whichever Cloudflare and Vercel edge location
+# it happens to reach, not every location worldwide. The window lengthening in
+# alethical/api/routers/public.py and api/page.ts is what keeps a location warm once
+# any reader has touched it; this job covers the release reset and a quiet day.
+#
+# Costs nothing per run: a handful of GETs on a public repository, no paid service.
+
+on:
+  deployment_status:
+  schedule:
+    # 16:00 UTC daily. Every other slot in this repo is taken: 09:00, 11:00, 12:00,
+    # 13:00 and 14:00 daily, plus 10:00, 13:00 and 15:00 on Mondays, so this
+    # contends with nothing.
+    - cron: "0 16 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: warm-money-pages
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  warm:
+    name: Read the money addresses so no reader has to wait on a cold one
+    # A preview deployment has its own hostname and warms nothing on the live site,
+    # so only a successful production release counts. The schedule and the hand-run
+    # trigger carry no deployment, hence the event check.
+    if: >-
+      github.event_name != 'deployment_status' ||
+      (github.event.deployment_status.state == 'success' &&
+       github.event.deployment_status.environment == 'Production')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Read each money address once
+        # Quiet on a normal run: prints nothing when every address answers 200, and
+        # one line naming the address and its status when one does not. It never
+        # fails the job and never opens an issue, because warming is best-effort and
+        # a red run here would be work for a person to read about a page that is
+        # merely slow. Whether these addresses are UP is watched separately, by the
+        # uptime reading behind /site-metrics (api/traffic-uptime.ts).
+        run: |
+          set -u
+          # The race page asks for the current calendar year, matching
+          # campaignMoneyYear() in apps/frontend/src/lib/legislatorCampaignMoney.ts
+          # (its floor, EARLIEST_CAMPAIGN_MONEY_YEAR, is 2015 and so never binds).
+          year="$(date -u +%Y)"
+
+          addresses="
+          https://www.alethical.com/money
+          https://www.alethical.com/money/committees
+          https://www.alethical.com/money/races
+          https://www.alethical.com/money/outside-spending
+          https://www.alethical.com/money/search
+          https://api.alethical.com/api/v1/campaign-finance/summary
+          https://api.alethical.com/api/v1/campaign-finance/committees?limit=50&offset=0
+          https://api.alethical.com/api/v1/campaign-finance/races?year=${year}
+          https://api.alethical.com/api/v1/campaign-finance/outside-spending
+          "
+
+          for address in $addresses; do
+            status="$(curl --silent --show-error --location \
+              --max-time 30 --retry 2 --retry-delay 5 \
+              --output /dev/null --write-out '%{http_code}' \
+              "$address" || echo "000")"
+            if [ "$status" != "200" ]; then
+              echo "warm: $address answered $status"
+            fi
+          done
