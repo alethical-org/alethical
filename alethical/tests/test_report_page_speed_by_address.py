@@ -149,31 +149,35 @@ def test_a_withheld_figure_never_counts_as_within_the_limit() -> None:
     assert "9000" not in table
 
 
-def test_the_report_separates_first_loads_from_clicks_inside_the_site() -> None:
-    """A percentile over both at once is not a percentile of anything a reader does."""
+def test_the_report_covers_first_loads_and_says_why_clicks_are_absent() -> None:
+    """Cloudflare's in-app-click records are mostly our own start-up, not a click.
+
+    Read from the beacon's payloads and reproduced 3 times on 4 Sep 2026: the program
+    rewrites the address it already has about 300 ms after a load, Cloudflare opens a
+    record for that, and the record a real click opens carries no figure at all.
+    Reporting those numbers as a click's speed cost 1 wrongly-scoped issue.
+    """
     first = report.read_group(
         ADDRESS, report.FIRST_LOAD, group(1_536_000, 115, 1, 115), 50
     )
-    clicked = report.read_group(
-        ADDRESS, report.IN_APP_CLICK, group(58_000, 65, 0.006, 65), 50
-    )
-    text = report.format_report(
-        [first], [clicked], date(2026, 8, 29), date(2026, 9, 4), 50
-    )
+    text = report.format_report([first], date(2026, 8, 29), date(2026, 9, 4), 50)
     assert "FIRST LOAD" in text
-    assert "CLICKED INSIDE THE SITE" in text
     assert "1536 ms" in text
-    assert "58 ms" in text
-    assert "only the first block is judged" in text
+    assert "Clicks inside the site are not reported" in text
+    assert "issue 1988" in text
+
+
+def test_the_report_says_which_moment_main_content_means() -> None:
+    """The figure is the snapshot appearing, not the app drawing, and says so."""
+    text = report.format_report(
+        [reading(1_536_000, 115, 1, 115)], date(2026, 8, 29), date(2026, 9, 4), 50
+    )
+    assert "server-written snapshot" in text
 
 
 def test_the_report_says_the_window_the_percentile_and_both_limits() -> None:
     text = report.format_report(
-        [reading(1_640_000, 60, 1, 60)],
-        [],
-        date(2026, 8, 29),
-        date(2026, 9, 4),
-        50,
+        [reading(1_640_000, 60, 1, 60)], date(2026, 8, 29), date(2026, 9, 4), 50
     )
     assert "2026-08-29 to 2026-09-04" in text
     assert "slowest 1 in 4" in text
