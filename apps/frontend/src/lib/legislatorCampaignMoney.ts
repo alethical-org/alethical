@@ -179,7 +179,13 @@ export function paymentCountLabel(count: number | null | undefined): string | nu
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /**
- * An ISO date as "20 Jul 2026", or `null` if it is not one.
+ * An ISO date as "Jul 20, 2026", or `null` if it is not one.
+ *
+ * Month first, short month, then the day and a comma before the year: the one date
+ * form for every date in the money section (ruled by Eugene, 2 Sep 2026, campaign-money
+ * design copy proposal 6). An uppercased label keeps the same order ("PAID JUL 20, 2026"),
+ * and a plain date never passes through a time zone; a served instant goes through
+ * `centralDateLabel` in `moneyLanding.ts` instead.
  *
  * Split on the string rather than parsed through `Date`, because `new Date('2026-07-20')`
  * is UTC midnight and prints as the 19th anywhere west of Greenwich — which is
@@ -192,7 +198,7 @@ export function formatDay(value: string | null | undefined): string | null {
   if (!match) return null;
   const month = MONTHS[Number(match[2]) - 1];
   if (!month) return null;
-  return `${Number(match[3])} ${month} ${match[1]}`;
+  return `${month} ${Number(match[3])}, ${match[1]}`;
 }
 
 /**
@@ -216,7 +222,7 @@ export function paymentDateRangeLabel(
   return `Payments dated ${first} to ${last}`;
 }
 
-/** "The committee's own report, covering through 31 Dec 2025". */
+/** "The committee's own report, covering through Dec 31, 2025". */
 export function reportedThroughLabel(through: string | null | undefined): string | null {
   const day = formatDay(through);
   return day ? `The committee's own report to the state, covering through ${day}` : null;
@@ -667,7 +673,7 @@ const PARTY_SENTENCE: Record<string, string> = {
  */
 export function matchCheckSentences(check: CommitteeMatchCheck | null | undefined): string[] {
   if (!check) return [];
-  const day = formatClosingDay(check.checkedOn);
+  const day = formatDay(check.checkedOn) ?? check.checkedOn;
   // No terminal full stop, same as the 3 sentences that follow it: this is the dated
   // opening line of a stack, not a paragraph (ruled 1 Sep 2026, #1924).
   const sentences = [`Checked by Alethical on ${day}`];
@@ -730,7 +736,7 @@ export function confirmedElsewhereExplanation(
     // Every committee left out is closed, so the stronger sentence is true of all of
     // them. Name the day: a reader can check a date against the state's own record.
     const days = closed
-      .map((entry) => formatClosingDay(entry.closedOn as string))
+      .map((entry) => formatDay(entry.closedOn as string) ?? (entry.closedOn as string))
       .filter((day, index, all) => all.indexOf(day) === index);
     return (
       `${opening} Minnesota's records show the registration closed on ${days.join(' and ')}, ` +
@@ -742,18 +748,6 @@ export function confirmedElsewhereExplanation(
     `not a statement that the committee has closed: a committee can be registered and ` +
     `report nothing for a year.`
   );
-}
-
-/** A closing date as a reader-facing day, or the raw value if it is not a date. */
-function formatClosingDay(value: string): string {
-  const parsed = new Date(value);
-  if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    timeZone: 'UTC',
-  });
 }
 
 /**

@@ -327,8 +327,16 @@ describe('dates', () => {
     // `new Date('2026-07-20')` is UTC midnight and prints as the 19th everywhere
     // west of Greenwich, which is everywhere this is read. A filing period off by
     // one day is the kind of wrong number nobody notices.
-    expect(formatDay('2026-07-20')).toBe('20 Jul 2026');
-    expect(formatDay('2025-01-04T00:00:00Z')).toBe('4 Jan 2025');
+    expect(formatDay('2026-07-20')).toBe('Jul 20, 2026');
+    expect(formatDay('2025-01-04T00:00:00Z')).toBe('Jan 4, 2025');
+  });
+
+  // Month first, short month, comma before the year (ruled 2 Sep 2026). A day above
+  // 12 so a day/month swap cannot pass: "Jul 20" can only be read one way.
+  it('prints month-first with a short month, never day-first', () => {
+    expect(formatDay('2026-07-20')).toBe('Jul 20, 2026');
+    expect(formatDay('2026-07-20')).not.toMatch(/^\d/);
+    expect(formatDay('2026-07-20')).not.toContain('July');
   });
 
   it('returns nothing for a value that is not a date', () => {
@@ -338,19 +346,19 @@ describe('dates', () => {
 
   it('says when payments were made and never that a period is covered', () => {
     const label = paymentDateRangeLabel('2025-01-04', '2025-11-12') ?? '';
-    expect(label).toBe('Payments dated 4 Jan 2025 to 12 Nov 2025');
+    expect(label).toBe('Payments dated Jan 4, 2025 to Nov 12, 2025');
     // The forbidden reading: no source we store states a filing's own start date,
     // and one filer reports from 11 July rather than 1 January.
     expect(label).not.toMatch(/cover|through|period/i);
   });
 
   it('does not print a range when both ends are the same day', () => {
-    expect(paymentDateRangeLabel('2025-06-01', '2025-06-01')).toBe('Payment dated 1 Jun 2025');
+    expect(paymentDateRangeLabel('2025-06-01', '2025-06-01')).toBe('Payment dated Jun 1, 2025');
   });
 
   it('names the report a total comes from, with the day it runs to', () => {
     expect(reportedThroughLabel('2026-03-31')).toBe(
-      "The committee's own report to the state, covering through 31 Mar 2026",
+      "The committee's own report to the state, covering through Mar 31, 2026",
     );
   });
 
@@ -535,22 +543,22 @@ describe('the filing schedule note, one committee at a time', () => {
     const text = said(onTheBallot);
     expect(text).toContain('is on the 2099 ballot');
     expect(text).toContain('“Pre-general report of receipts and expenditures”');
-    expect(text).toContain('due 26 Oct 2099');
-    expect(text).toContain('covering 1 Jan 2099 to 19 Oct 2099');
+    expect(text).toContain('due Oct 26, 2099');
+    expect(text).toContain('covering Jan 1, 2099 to Oct 19, 2099');
   });
 
   it('says a committee not on the ballot owes nothing until its once-a-year report', () => {
     const text = said(notOnTheBallot);
     expect(text).toContain('is not on the 2099 ballot');
     expect(text).toContain('once a year');
-    expect(text).toContain('due 1 Feb 2100');
+    expect(text).toContain('due Feb 1, 2100');
     // The whole point of this state: an empty year is the schedule, not a silence.
     expect(text).toContain('not money going unreported');
   });
 
   it('says a closed registration owes nothing further, and names the day it closed', () => {
     const text = said(closed);
-    expect(text).toContain('closed its registration with the state on 4 Mar 2099');
+    expect(text).toContain('closed its registration with the state on Mar 4, 2099');
     expect(text).toContain('no further report is due');
   });
 
@@ -613,7 +621,7 @@ describe('the filing schedule note, one committee at a time', () => {
     // does not, and no record we hold says which happened. The date alone invents a
     // deadline for the losers.
     const paragraphs = filingScheduleNote(onTheBallot, 2099);
-    expect(paragraphs.join(' ')).toContain('due 26 Oct 2099');
+    expect(paragraphs.join(' ')).toContain('due Oct 26, 2099');
     expect(paragraphs.join(' ')).toContain(
       '“Candidates who lost the primary election do not need to file this report.”',
     );
@@ -754,7 +762,7 @@ describe('an empty year says which of 2 things is true', () => {
 
   it('says the registration closed, and names the day, when the Board says so', () => {
     const body = confirmedElsewhereExplanation(2026, [closed]);
-    expect(body).toContain('closed on July 28, 2026');
+    expect(body).toContain('closed on Jul 28, 2026');
     expect(body).toContain('no further money will be reported');
     expect(confirmedElsewhereHeading(2026, [closed])).toBe('This committee has closed');
   });
@@ -785,7 +793,7 @@ describe('what the card says about who checked the match', () => {
 
   it('names the entity and the day, then what was read', () => {
     expect(matchCheckSentences(acomb)).toEqual([
-      'Checked by Alethical on August 31, 2026',
+      'Checked by Alethical on Aug 31, 2026',
       'The filed name matches theirs exactly',
       "Minnesota's register of registered candidates lists this account for their own seat and party",
       'Party organisations of their own party pay into it',
@@ -881,7 +889,7 @@ describe('what the card says about who checked the match', () => {
       registerVerdict: null,
       partyAgreement: null,
     });
-    expect(sentences).toEqual(['Checked by Alethical on August 31, 2026']);
+    expect(sentences).toEqual(['Checked by Alethical on Aug 31, 2026']);
   });
 });
 

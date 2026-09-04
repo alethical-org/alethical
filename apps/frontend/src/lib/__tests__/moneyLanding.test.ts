@@ -176,6 +176,8 @@ describe('served instants print in Central time', () => {
   it('prints the Minnesota day, not the UTC day', () => {
     expect(centralDateLabel('2026-08-12T02:54:22.402100Z')).toBe('Aug 11, 2026');
     expect(centralDateLabel('2026-08-12T21:34:26.606333Z')).toBe('Aug 12, 2026');
+    // A day above 12, so a day/month swap could not pass: month first, short month.
+    expect(centralDateLabel('2026-08-20T21:34:26Z')).toBe('Aug 20, 2026');
   });
 
   it('passes through a value it cannot parse rather than inventing a date', () => {

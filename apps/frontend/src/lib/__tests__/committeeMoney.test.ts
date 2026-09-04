@@ -203,7 +203,7 @@ describe('the register-driven header', () => {
   });
 
   it('the closed chip carries the register’s own date', () => {
-    expect(closedChipLabel('2026-07-28')).toBe('Closed 28 Jul 2026');
+    expect(closedChipLabel('2026-07-28')).toBe('Closed Jul 28, 2026');
     expect(closedChipLabel(null)).toBeNull();
   });
 });
@@ -273,9 +273,9 @@ describe('whose committee', () => {
 
 describe('the period stamp', () => {
   it('states the coverage end and never assumes a start', () => {
-    expect(coveredPeriodLine('2026-07-20')).toBe('Figures through 20 Jul 2026');
+    expect(coveredPeriodLine('2026-07-20')).toBe('Figures through Jul 20, 2026');
     const detail = coveredPeriodDetail('2026-07-20', 'Aug 11, 2026');
-    expect(detail).toContain('covers through 20 Jul 2026');
+    expect(detail).toContain('covers through Jul 20, 2026');
     expect(detail).toContain('no start is assumed');
     expect(detail).toContain('taken Aug 11, 2026');
     expect(detail).not.toContain('Jan 1');
@@ -283,15 +283,15 @@ describe('the period stamp', () => {
 
   it('shows both ends only when the Board’s own calendar prints the start', () => {
     expect(coveredPeriodLine('2026-07-20', '2026-01-01')).toBe(
-      'Figures for 1 Jan 2026 – 20 Jul 2026',
+      'Figures for Jan 1, 2026 – Jul 20, 2026',
     );
     const detail = coveredPeriodDetail('2026-07-20', 'Aug 11, 2026', {
       reportedPeriodStart: '2026-01-01',
     });
-    expect(detail).toContain('covers 1 Jan 2026 through 20 Jul 2026');
+    expect(detail).toContain('covers Jan 1, 2026 through Jul 20, 2026');
     expect(detail).toContain('the Board’s own published filing calendar');
     // No printed start, no start — never an assumed January.
-    expect(coveredPeriodLine('2026-11-16', null)).toBe('Figures through 16 Nov 2026');
+    expect(coveredPeriodLine('2026-11-16', null)).toBe('Figures through Nov 16, 2026');
   });
 
   it('a party unit’s stamp says its calendar is its own', () => {
@@ -308,9 +308,9 @@ describe('the period stamp', () => {
   });
 
   it('a closed committee’s stamp carries the termination date and the final report', () => {
-    expect(closedPeriodLine('2026-07-28')).toBe('Committee closed 28 Jul 2026');
+    expect(closedPeriodLine('2026-07-28')).toBe('Committee closed Jul 28, 2026');
     const detail = closedPeriodDetail('2026-07-28', 'Aug 11, 2026');
-    expect(detail).toContain('terminated on 28 Jul 2026');
+    expect(detail).toContain('terminated on Jul 28, 2026');
     expect(detail).toContain('final report');
     // Never "nothing is on record": the final report exists and is public.
     expect(detail).not.toContain('nothing is on record');
@@ -1031,7 +1031,7 @@ describe('the 2 outside-spending tabs', () => {
   });
 
   it('dates the row itself and names any unpaid part under the amount', () => {
-    expect(outsidePaidLine('2026-08-03')).toBe('Paid 3 Aug 2026');
+    expect(outsidePaidLine('2026-08-03')).toBe('Paid Aug 3, 2026');
     expect(outsidePaidLine(null)).toBeNull();
     expect(outsideUnpaidNote('2000.0000')).toBe('$2,000 of it unpaid');
     expect(outsideUnpaidNote('0.0000')).toBeNull();

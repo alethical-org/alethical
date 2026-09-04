@@ -215,7 +215,7 @@ export interface PaymentUnderNameRow {
   /** The committee that filed this row, in the filing's own words. */
   name: string;
   meta: string;
-  /** "20 Jul 2026", or null where the filing carries no date. */
+  /** "Jul 20, 2026", or null where the filing carries no date. */
   date: string | null;
   /** "$1,250.00", or null where the filing carries no readable amount. */
   amount: string | null;

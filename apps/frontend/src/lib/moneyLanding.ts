@@ -16,7 +16,13 @@
  */
 
 import type { MoneyFilingRow } from '../data/types';
-import { isoDateLabel } from './research';
+import { formatDay } from './legislatorCampaignMoney';
+
+/** A filing's plain date in the section's one form ("Jul 24, 2026"), or the raw
+ *  value where it is not a date, so a row is never silently emptied. */
+function dayLabel(isoDate: string): string {
+  return formatDay(isoDate) ?? isoDate;
+}
 
 /** The three permanent gaps, shown above anything a reader might search for.
  *  The donor sentence is rule 12's exact wording. It says a small donor NEED NOT
@@ -53,8 +59,8 @@ export function laneCountLine(count: number | null, unit: string): string | null
  */
 export function filingPeriodLine(filing: Pick<MoneyFilingRow, 'periodStart' | 'periodEnd'>) {
   if (!filing.periodEnd) return null;
-  if (!filing.periodStart) return `covers through ${isoDateLabel(filing.periodEnd)}`;
-  return `covers ${isoDateLabel(filing.periodStart)} – ${isoDateLabel(filing.periodEnd)}`;
+  if (!filing.periodStart) return `covers through ${dayLabel(filing.periodEnd)}`;
+  return `covers ${dayLabel(filing.periodStart)} – ${dayLabel(filing.periodEnd)}`;
 }
 
 /**
@@ -136,7 +142,7 @@ export function filingsTieSentence(filingCount: number | null, orderedBy = ''): 
  */
 export function filedDateSentence(filedDate: string | null | undefined): string | null {
   if (!filedDate) return null;
-  return `filed ${isoDateLabel(filedDate)}`;
+  return `filed ${dayLabel(filedDate)}`;
 }
 
 /** Retained for callers that render the feed before a count is served. */

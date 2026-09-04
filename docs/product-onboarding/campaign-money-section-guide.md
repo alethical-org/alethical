@@ -419,7 +419,7 @@ Top to bottom:
 3. **A year switch** (this calendar year and the one before), each year its own address.
 4. **The period panel**: what the committee's own report covers. The end is read off the
    filing; the start appears only when the Board's own published filing calendar prints
-   one against that end (so "Figures for 1 Jan 2026 – 20 Jul 2026"), and otherwise the
+   one against that end (so "Figures for Jan 1, 2026 – Jul 20, 2026"), and otherwise the
    panel says "through" alone — a start is never assumed, because a special-election
    filer's period does not open on 1 January. Beside it, the one freshness date (the day
    we copied the Board's files, printed as its Minnesota day), and the link to the
@@ -544,9 +544,12 @@ Top to bottom:
    the reason the 3 Messinger strings above stay 3 lists rather than becoming 1).
 8. **The third tab — Filings**: every report the Board's catalogue records this committee
    as having filed, all years at once, with no amounts anywhere — it is a list of
-   filings, not of money. Newest first by the period each report covers, and the tab says
-   so in those words: we hold no date any report was filed (the Board's catalogue does
-   not publish one), so no row says when it was filed. Each row shows the report's name
+   filings, not of money. Newest first, and the tab says in which sense: by the day the
+   Board received a report where its filing record carries one, and by the period it
+   covers where it does not. A row prints "Filed Jul 24, 2026" where the Board's
+   catalogue carries that day; the Board serves no readable report document for most of
+   a committee's history before 2023, so most older rows carry no filed line, and such a
+   row never borrows its period end as a stand-in. Each row shows the report's name
    and the period it covers — both ends only where the Board's own filing calendar prints
    the start, otherwise "covers through" its end date, never an assumed January 1. A
    report whose effective version is an amendment carries a neutral AMENDED marker with

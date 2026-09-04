@@ -353,7 +353,9 @@ describe('yearsShareOneDownload', () => {
   it('withholds the freshness date rather than printing one true of only one figure', () => {
     const mixed = [REPORTED, { ...REPORTED, year: 2026, snapshotId: 'snap-2' }];
     expect(outsideSpendingFetchedOn(mixed)).toBeNull();
-    expect(outsideSpendingFetchedOn([REPORTED])).toBe('Aug 12, 2026');
+    // 2026-08-12T02:54Z is 21:54 on Aug 11 in Minnesota, and the money section prints
+    // every served instant as a Central-time day (`centralDateLabel`, ruled 19 Aug 2026).
+    expect(outsideSpendingFetchedOn([REPORTED])).toBe('Aug 11, 2026');
   });
 });
 
@@ -369,7 +371,7 @@ describe('outsideSpendingYears', () => {
 describe('outsideSpendingFetchedOn', () => {
   it('shows one freshness date for the block, not one per year', () => {
     const stale = { ...EMPTY, year: 2026, state: 'link_unconfirmed' as const };
-    expect(outsideSpendingFetchedOn([REPORTED, stale])).toBe('Aug 12, 2026');
+    expect(outsideSpendingFetchedOn([REPORTED, stale])).toBe('Aug 11, 2026');
   });
 
   it('is null when no year carries one, so no date is guessed', () => {
