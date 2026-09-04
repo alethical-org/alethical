@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Linking, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 
@@ -21,6 +21,7 @@ import {
   useCommitteeMoney,
   useCommitteePaymentsMade,
   useCommitteePaymentsReceived,
+  useOutsideSpending,
 } from '../../hooks/useAppQueries';
 import { useResponsive } from '../../hooks/useResponsive';
 import {
@@ -34,6 +35,7 @@ import {
   committeeEyebrow,
   committeeSlug,
   committeeTabFromParam,
+  committeeTabs,
   COMMITTEE_TAB_LABELS,
   confirmedMemberLinkLabel,
   coveredPeriodDetail,
@@ -64,6 +66,16 @@ import {
   MONEY_OUT_HEADING,
   notFoundBody,
   notFoundTitle,
+  OUTSIDE_ABOUT_INTRO,
+  OUTSIDE_NEVER_ADDED,
+  OUTSIDE_SORT_LABELS,
+  outsideCountLine,
+  outsideCounterparty,
+  outsidePaidLine,
+  outsideRegistrationLine,
+  outsideRowMeta,
+  outsideStanceLabel,
+  outsideUnpaidNote,
   receivedRowMeta,
   RECORD_COVERS_HEADING,
   recordCoverageLines,
@@ -80,6 +92,8 @@ import {
   whoseCommitteeText,
   yearDisplayState,
   type CommitteeTab,
+  type OutsideSpendingSort,
+  type OutsideSpendingTab,
 } from '../../lib/committeeMoney';
 import { campaignMoneyYear, formatMoney } from '../../lib/legislatorCampaignMoney';
 import { centralDateLabel } from '../../lib/moneyLanding';
@@ -391,9 +405,9 @@ function CommitteeBody({
         ) : null}
       </View>
 
-      <View style={styles.yearRow}>
+      <View style={[styles.yearRow, isMobile && styles.yearRowMobile]}>
         <Text style={styles.yearLabel}>FILING YEAR</Text>
-        <YearControl year={year} onSelect={onSelectYear} />
+        <YearControl year={year} onSelect={onSelectYear} fullWidth={isMobile} />
       </View>
 
       <PeriodStamp
@@ -609,7 +623,7 @@ function MoneyOutCard({
 function PaymentsSection({
   money,
   year,
-  tab,
+  tab: addressedTab,
   slug,
   registrationNumber,
   isBallot,
@@ -626,6 +640,43 @@ function PaymentsSection({
   navigation: RootScreenProps<'CommitteeMoney'>['navigation'];
 }) {
   const { isMobile } = useResponsive();
+  // Whether this filer has rows in the outside-spending file, in each direction.
+  // The first page of each doubles as the tab's own first page once it is opened, and
+  // a subject with no rows gets no tab: "spent nothing" and "we hold nothing" cannot be
+  // told apart, so there is nothing honest to draw in its place.
+  const [sort, setSort] = useState<OutsideSpendingSort>('newest');
+  const spentAbout = useOutsideSpending(
+    { about: registrationNumber },
+    addressedTab === 'about' ? sort : 'newest',
+  );
+  const spentBy = useOutsideSpending(
+    { spender: registrationNumber },
+    addressedTab === 'by' ? sort : 'newest',
+  );
+  const hasRows = (query: typeof spentAbout) => {
+    const first = query.data?.pages[0];
+    return Boolean(first && first.state === 'reported' && (first.totalRows ?? 0) > 0);
+  };
+  // An address naming an outside-spending tab this filer has no rows for opens the
+  // first tab instead, once the presence check has settled: the strip never carries a
+  // tab with nothing behind it. Our own failure to answer (an error, or a release the
+  // file does not reach) keeps the tab and says so inside it, because that is a gap on
+  // our side rather than an absence of rows.
+  const addressed = addressedTab === 'about' ? spentAbout : addressedTab === 'by' ? spentBy : null;
+  const addressedMissing =
+    addressed !== null &&
+    !addressed.isPending &&
+    !addressed.isError &&
+    addressed.data?.pages[0]?.state !== 'unavailable' &&
+    !hasRows(addressed);
+  const tab: CommitteeTab = addressedMissing ? 'gave' : addressedTab;
+  const tabs = committeeTabs({
+    // A tab the reader is already on stays in the strip while its rows load or
+    // reload, so the strip cannot flicker under the active underline.
+    spentAbout: hasRows(spentAbout) || tab === 'about',
+    spentBy: hasRows(spentBy) || tab === 'by',
+  });
+
   const received = useCommitteePaymentsReceived(registrationNumber, year, {
     limit: 6,
     enabled: tab === 'gave',
@@ -692,7 +743,7 @@ function PaymentsSection({
 
   const tabsRow = (
     <View style={styles.tabsRow} role="tablist">
-      {(Object.keys(COMMITTEE_TAB_LABELS) as CommitteeTab[]).map((key) => {
+      {tabs.map((key) => {
         const active = key === tab;
         return (
           <Pressable
@@ -716,6 +767,22 @@ function PaymentsSection({
       <View style={styles.listSection}>
         {tabsRow}
         <FilingsList registrationNumber={registrationNumber} />
+      </View>
+    );
+  }
+
+  if (tab === 'about' || tab === 'by') {
+    return (
+      <View style={styles.listSection}>
+        {tabsRow}
+        <OutsideSpendingPanel
+          tab={tab}
+          query={tab === 'about' ? spentAbout : spentBy}
+          sort={sort}
+          onSelectSort={setSort}
+          isMobile={isMobile}
+          navigation={navigation}
+        />
       </View>
     );
   }
@@ -833,6 +900,204 @@ function PaymentsSection({
         </>
       )}
     </View>
+  );
+}
+
+/**
+ * The 2 outside-spending tabs: what other groups spent about this committee ("Spent
+ * about them"), and what this filer spent about others ("Spent by them"), each row
+ * one served payment from Minnesota's independent-expenditures file
+ * (`Money committee.dc.html`, rules for this screen; #1947).
+ *
+ * Every row prints its own facts and nothing is summed across rows: the other side
+ * with its registration number (a link only where this release holds a page for it,
+ * and the register line in the number's place where our copy of the register lacks
+ * it), the filing's own For or Against, its purpose and vendor each with a designed
+ * empty state, its type, its own date, its amount and any unpaid part under it. The
+ * never-added sentence sits above the rows on both tabs, because this file is never
+ * added to the ordinary expenditures file.
+ *
+ * Sorted newest first by default, largest first on request; the sort is the page's
+ * own state rather than part of the address, because it is a view over one list
+ * rather than a location. Pages of 50 accumulate under "Show more payments".
+ */
+function OutsideSpendingPanel({
+  tab,
+  query,
+  sort,
+  onSelectSort,
+  isMobile,
+  navigation,
+}: {
+  tab: OutsideSpendingTab;
+  query: ReturnType<typeof useOutsideSpending>;
+  sort: OutsideSpendingSort;
+  onSelectSort: (sort: OutsideSpendingSort) => void;
+  isMobile: boolean;
+  navigation: RootScreenProps<'CommitteeMoney'>['navigation'];
+}) {
+  const pages = query.data?.pages ?? [];
+  const first = pages[0];
+  const rows = pages.flatMap((page) => page?.rows ?? []);
+
+  if (query.isPending) {
+    return (
+      <View style={styles.listLoading}>
+        <View role="status" aria-busy style={styles.hidden}>
+          <Text>Loading payments</Text>
+        </View>
+        {[0, 1, 2].map((index) => (
+          <View key={index} style={styles.listRow}>
+            <View style={styles.listRowText}>
+              <Skeleton width="55%" height={14} />
+              <Skeleton width={220} height={11} style={{ marginTop: 8 }} />
+            </View>
+            <Skeleton width={96} height={12} />
+          </View>
+        ))}
+      </View>
+    );
+  }
+
+  // The tab is drawn only for a subject with rows, so anything but a reported first
+  // page here is our own service failing to answer, and says so.
+  if (!first || first.state !== 'reported') {
+    return (
+      <View style={[styles.card, styles.filingsCard]}>
+        <Text style={styles.explain}>
+          We could not read this committee’s outside spending out of our copy of Minnesota’s file.
+          This is a gap on our side, not a statement about the committee.
+        </Text>
+      </View>
+    );
+  }
+
+  const distinct = tab === 'about' ? first.spenderCount : first.committeeCount;
+  const countLine = outsideCountLine(tab, rows.length, first.totalRows, distinct);
+
+  return (
+    <>
+      <View style={styles.outsideIntro}>
+        {tab === 'about' ? <Text style={styles.explain}>{OUTSIDE_ABOUT_INTRO}</Text> : null}
+        <Text style={styles.explain}>{OUTSIDE_NEVER_ADDED}</Text>
+      </View>
+      <View style={styles.listHead}>
+        <Text style={styles.listCount}>{countLine ?? ''}</Text>
+        <View style={styles.sortRow} role="group" aria-label="Sort payments">
+          {(Object.keys(OUTSIDE_SORT_LABELS) as OutsideSpendingSort[]).map((option) => {
+            const active = option === sort;
+            return (
+              <Pressable
+                key={option}
+                onPress={() => onSelectSort(option)}
+                accessibilityRole="button"
+                aria-pressed={active}
+              >
+                <Text style={[styles.listSort, active && styles.listSortActive]}>
+                  {OUTSIDE_SORT_LABELS[option].toUpperCase()}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+      <View style={styles.listRows}>
+        {rows.map((row) => {
+          const party = outsideCounterparty(tab, row);
+          const stance = outsideStanceLabel(row.direction);
+          const paid = outsidePaidLine(row.paidOn);
+          const unpaid = outsideUnpaidNote(row.unpaidAmount);
+          const amount = formatMoney(row.amount);
+          const chips = (
+            <>
+              <Text
+                style={[
+                  styles.stanceChip,
+                  row.direction === 'For' ? styles.stanceSupporting : styles.stanceOpposing,
+                ]}
+              >
+                {stance.toUpperCase()}
+              </Text>
+              <Text style={styles.regLine}>{outsideRegistrationLine(party)}</Text>
+              {row.inKind ? (
+                <Text style={styles.inKindChip}>{IN_KIND_CHIP.toUpperCase()}</Text>
+              ) : null}
+            </>
+          );
+          const inner = (
+            <>
+              <View style={styles.listRowText}>
+                {/* Computer: name, number and chip share one line. Phone: the name
+                    alone, then the chips, then the amount left-aligned under them, then
+                    every remaining field as further lines, so no field is dropped at
+                    375. The unpaid part stays directly under its amount at both widths,
+                    because it qualifies the figure and distance from it is misreading
+                    distance. */}
+                <View style={styles.listNameRow}>
+                  <Text style={styles.listName}>{party.name}</Text>
+                  {isMobile ? null : chips}
+                </View>
+                {isMobile ? <View style={styles.chipsMobile}>{chips}</View> : null}
+                {isMobile ? (
+                  <View style={styles.amountMobile}>
+                    <Text style={styles.listAmountLeft}>{amount ?? ''}</Text>
+                    {unpaid ? <Text style={styles.unpaidNote}>{unpaid}</Text> : null}
+                  </View>
+                ) : null}
+                <Text style={styles.listMeta}>{outsideRowMeta(row)}</Text>
+                {paid ? <Text style={styles.paidLine}>{paid.toUpperCase()}</Text> : null}
+              </View>
+              {isMobile ? null : (
+                <View style={styles.amountColumn}>
+                  <Text style={styles.listAmount}>{amount ?? ''}</Text>
+                  {unpaid ? (
+                    <Text style={[styles.unpaidNote, styles.unpaidNoteRight]}>{unpaid}</Text>
+                  ) : null}
+                </View>
+              )}
+            </>
+          );
+          const key = `${row.recordNumber}-${row.paidOn}-${row.amount}`;
+          if (party.linkable && party.registrationNumber) {
+            const slug = committeeSlug(party.name, party.registrationNumber);
+            return (
+              <Pressable
+                key={key}
+                {...linkProps(routePath.moneyCommittee(slug), () =>
+                  navigation.push('CommitteeMoney', { slug }),
+                )}
+                style={[styles.listRow, styles.listRowLink, isMobile && styles.listRowMobile]}
+              >
+                {inner}
+              </Pressable>
+            );
+          }
+          return (
+            <View key={key} style={[styles.listRow, isMobile && styles.listRowMobile]}>
+              {inner}
+            </View>
+          );
+        })}
+      </View>
+      {query.hasNextPage ? (
+        <Pressable
+          onPress={() => void query.fetchNextPage()}
+          accessibilityRole="button"
+          style={styles.seeAll}
+        >
+          <Text style={styles.seeAllLabel}>Show more payments</Text>
+          <ForwardArrow color={t.colors.brand.base} />
+        </Pressable>
+      ) : null}
+      {first.sourceUrl ? (
+        <Text
+          style={[styles.source, styles.filingsSource]}
+          {...externalLinkProps(first.sourceUrl, () => void Linking.openURL(first.sourceUrl!))}
+        >
+          Minnesota’s list of independent expenditures
+        </Text>
+      ) : null}
+    </>
   );
 }
 
@@ -1048,6 +1313,8 @@ const styles = StyleSheet.create({
     color: t.colors.text.secondary,
   },
   yearRow: { marginTop: 20, flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
+  // Phone band: the label sits above 2 equal halves of the row, never beside pills.
+  yearRowMobile: { flexDirection: 'column', flexWrap: 'nowrap', alignItems: 'stretch', gap: 8 },
   yearLabel: {
     fontFamily: t.typography.mono,
     fontSize: 11,
@@ -1098,9 +1365,12 @@ const styles = StyleSheet.create({
     color: t.colors.brand.base,
   },
   listSection: { marginTop: 30 },
+  // Wraps rather than scrolling sideways: 5 tabs take 2 lines at 375, and the active
+  // one keeps its underline on whichever line it lands.
   tabsRow: {
     flexDirection: 'row',
-    gap: 30,
+    flexWrap: 'wrap',
+    columnGap: 30,
     borderBottomWidth: 1,
     borderBottomColor: t.colors.alpha.ink08,
   },
@@ -1133,6 +1403,67 @@ const styles = StyleSheet.create({
     letterSpacing: 0.9,
     color: t.colors.text.muted,
   },
+  listSortActive: {
+    color: t.colors.text.primary,
+    textDecorationLine: 'underline',
+  },
+  sortRow: { flexDirection: 'row', gap: 16 },
+  outsideIntro: { marginTop: 20, gap: 8, maxWidth: 900 },
+  regLine: {
+    fontFamily: t.typography.mono,
+    fontSize: 11,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 0.7,
+    color: t.colors.text.muted,
+  },
+  // The outside-spending page's own 2 chips for the filing's For and Against, so one
+  // filed value has one vocabulary across the section.
+  stanceChip: {
+    fontFamily: t.typography.mono,
+    fontSize: 10,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 0.8,
+    borderRadius: 7,
+    paddingVertical: 2,
+    paddingHorizontal: 7,
+    overflow: 'hidden',
+  },
+  stanceSupporting: { color: t.colors.text.greenOnLight, backgroundColor: t.colors.tint.t150 },
+  stanceOpposing: {
+    color: t.colors.text.secondary,
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink18,
+  },
+  paidLine: {
+    marginTop: 6,
+    fontFamily: t.typography.mono,
+    fontSize: 11,
+    fontWeight: t.fontWeights.bold,
+    letterSpacing: 0.9,
+    color: t.colors.text.muted,
+  },
+  amountColumn: { alignItems: 'flex-end', gap: 2 },
+  amountMobile: { marginTop: 8, gap: 2 },
+  chipsMobile: {
+    marginTop: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flexWrap: 'wrap',
+  },
+  listAmountLeft: {
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.body,
+    fontWeight: t.fontWeights.bold,
+    color: t.colors.text.primary,
+  },
+  unpaidNote: {
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.meta,
+    color: t.colors.text.muted,
+  },
+  unpaidNoteRight: { textAlign: 'right' },
+  listRowMobile: { alignItems: 'flex-start' },
   listRows: { marginTop: 12, gap: 9 },
   listLoading: { marginTop: 20, gap: 9 },
   filingsCard: { marginTop: 20 },

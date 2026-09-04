@@ -1101,3 +1101,54 @@ export interface NameSearchAnswer {
   groups: NameSearchGroup[];
   reason: string | null;
 }
+
+/**
+ * One row of Minnesota's independent-expenditures file, read from either side
+ * (`GET /campaign-finance/outside-spending`, #1945). The same row is one group's
+ * spending and one committee's being-spent-about, so it carries both registration
+ * numbers, and for each whether this release holds a page for it (`*Linkable`) and
+ * whether the Board's register we hold lists it (`*InRegister`). `direction` is the
+ * filing's own For or Against, normalised; it is filled on every row of the live file.
+ */
+export interface CommitteeOutsideSpendingRow {
+  spender: string | null;
+  spenderRegistrationNumber: string | null;
+  spenderInRegister: boolean;
+  spenderLinkable: boolean;
+  aboutCommitteeName: string | null;
+  aboutCommitteeRegistrationNumber: string | null;
+  aboutCommitteeInRegister: boolean;
+  aboutCommitteeLinkable: boolean;
+  direction: string;
+  directionAsFiled: string | null;
+  purpose: string | null;
+  vendorName: string | null;
+  expenditureType: string | null;
+  inKind: boolean;
+  paidOn: string | null;
+  year: number | null;
+  amount: string | null;
+  unpaidAmount: string | null;
+  recordNumber: number;
+}
+
+/**
+ * One page of the outside-spending record for one subject. Read `state` before the
+ * rows: `not_reported` is never a zero (a group that spent nothing and a report that
+ * has not arrived look the same), `unavailable` is our own gap. `totalRows` counts
+ * every matching row; `committeeCount` and `spenderCount` are the distinct other
+ * sides, for the count line.
+ */
+export interface CommitteeOutsideSpendingPage {
+  state: 'reported' | 'not_reported' | 'unavailable';
+  sort: 'newest' | 'largest';
+  rows: CommitteeOutsideSpendingRow[];
+  pageNumber: number;
+  pageSize: number;
+  hasMore: boolean;
+  totalRows: number | null;
+  committeeCount: number | null;
+  spenderCount: number | null;
+  sourceUrl: string | null;
+  fetchedAt: string | null;
+}

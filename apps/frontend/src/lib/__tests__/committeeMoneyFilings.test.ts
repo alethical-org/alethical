@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   AMENDED_CHIP,
   committeeTabFromParam,
+  committeeTabs,
   COMMITTEE_TAB_LABELS,
   filingIsAmended,
   filingRowPeriodLine,
@@ -17,7 +18,13 @@ import {
 
 describe('the committee page tabs', () => {
   it('adds Filings as the third tab without touching the two payment tabs', () => {
-    expect(Object.keys(COMMITTEE_TAB_LABELS)).toEqual(['gave', 'spent', 'filings']);
+    // The 3 tabs every page carries; the 2 outside-spending tabs follow the filer's rows.
+    expect(committeeTabs({ spentAbout: false, spentBy: false })).toEqual([
+      'gave',
+      'spent',
+      'filings',
+    ]);
+    expect(Object.keys(COMMITTEE_TAB_LABELS).slice(0, 3)).toEqual(['gave', 'spent', 'filings']);
     expect(COMMITTEE_TAB_LABELS.filings).toBe('Filings');
   });
 

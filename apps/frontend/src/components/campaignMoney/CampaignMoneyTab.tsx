@@ -168,12 +168,21 @@ export function CampaignMoneyTab({
 export function YearControl({
   year,
   onSelect,
+  fullWidth = false,
 }: {
   year: CampaignMoneyYear;
   onSelect: (year: CampaignMoneyYear) => void;
+  /** Phone band: the years share the row in equal halves rather than sitting as
+   *  left-packed pills, which read as a toolbar with room to spare
+   *  (`Money committee.dc.html`, rules for this screen). */
+  fullWidth?: boolean;
 }) {
   return (
-    <View style={styles.years} role="group" aria-label="Choose a year">
+    <View
+      style={[styles.years, fullWidth && styles.yearsFull]}
+      role="group"
+      aria-label="Choose a year"
+    >
       {campaignMoneyYears().map((option) => {
         const active = option === year;
         return (
@@ -185,7 +194,11 @@ export function YearControl({
             // the way to the browser, so a screen reader would hear no difference
             // between the year in view and the one beside it.
             aria-pressed={active}
-            style={[styles.yearButton, active && styles.yearButtonActive]}
+            style={[
+              styles.yearButton,
+              fullWidth && styles.yearButtonFull,
+              active && styles.yearButtonActive,
+            ]}
           >
             <Text style={[styles.yearLabel, active && styles.yearLabelActive]}>{option}</Text>
           </Pressable>
@@ -447,6 +460,8 @@ const styles = StyleSheet.create({
   },
   freshness: { gap: 8 },
   years: { flexDirection: 'row', gap: 6 },
+  yearsFull: { alignSelf: 'stretch', gap: 8 },
+  yearButtonFull: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
   yearButton: {
     paddingVertical: 7,
     paddingHorizontal: 16,
