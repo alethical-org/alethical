@@ -26,11 +26,7 @@ from alethical.api.routers.contact import router as contact_router
 from alethical.api.routers.internal import router as internal_router
 from alethical.api.routers.me import router as me_router
 from alethical.api.routers.pending_actions import router as pending_actions_router
-from alethical.api.routers.public import (
-    MONEY_PATH_SEGMENT,
-    MONEY_RECORDS_CACHE_CONTROL,
-    PUBLIC_CACHE_CONTROL,
-)
+from alethical.api.routers.public import public_cache_control_for_path
 from alethical.api.routers.public import router as public_router
 from alethical.api.routers.site_metrics import router as site_metrics_router
 from alethical.api.readiness import database_schema_is_ready
@@ -79,10 +75,8 @@ def create_app() -> FastAPI:
             and "authorization" not in request.headers
             and "cache-control" not in response.headers
         ):
-            response.headers["Cache-Control"] = (
-                MONEY_RECORDS_CACHE_CONTROL
-                if MONEY_PATH_SEGMENT in request.url.path
-                else PUBLIC_CACHE_CONTROL
+            response.headers["Cache-Control"] = public_cache_control_for_path(
+                request.url.path
             )
         return response
 
