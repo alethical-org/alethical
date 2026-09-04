@@ -139,7 +139,7 @@ export function registeredForLine(register: {
   return label ? `Kind as registered: ${label.toLowerCase()}` : null;
 }
 
-/** "CLOSED 28 JUL 2026" — the chip beside a terminated committee's name, drawn on
+/** "CLOSED JUL 28, 2026" — the chip beside a terminated committee's name, drawn on
  *  every year's view because the termination is registration-level, not a year's. */
 export function closedChipLabel(terminationDate: string | null | undefined): string | null {
   const day = formatDay(terminationDate);
@@ -968,7 +968,7 @@ export function outsideRowMeta(row: OutsideSpendingRowLike): string {
   return parts.join(' · ');
 }
 
-/** "Paid 3 Aug 2026", or null on a row the filing dates nowhere. */
+/** "Paid Aug 3, 2026", or null on a row the filing dates nowhere. */
 export function outsidePaidLine(paidOn: string | null | undefined): string | null {
   const day = formatDay(paidOn);
   return day ? `Paid ${day}` : null;
@@ -1012,7 +1012,7 @@ export function filingsOrderingLine(orderedBy: string): string | null {
 }
 
 /**
- * "Filed 24 Jul 2026", or null on a row the Board states no filing date for.
+ * "Filed Jul 24, 2026", or null on a row the Board states no filing date for.
  *
  * Null is the ordinary answer and it prints nothing at all: the alternative a reader
  * would never notice is this line falling back to the period end, which is the
@@ -1239,7 +1239,7 @@ export interface PaymentRow {
   /** The filing's own name for the other side, or the plain stand-in below. */
   name: string;
   meta: string;
-  /** "20 Jul 2026", or null when the filing carries no date for the payment. */
+  /** "Jul 20, 2026", or null when the filing carries no date for the payment. */
   date: string | null;
   /** "$1,250.00", or null when the filing carries no readable amount. */
   amount: string | null;

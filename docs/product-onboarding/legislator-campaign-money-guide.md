@@ -130,7 +130,7 @@ mistakes available.
 ### Who checked this match, at the foot of every account
 
 **Every account box ends with the day a person confirmed it is this member's, and what they
-read.** The first line is always the same shape, "Checked by Alethical on 31 August 2026",
+read.** The first line is always the same shape, "Checked by Alethical on Aug 31, 2026",
 and the 3 lines under it come off that decision's own stored record: how the filed name
 related to the member's, what Minnesota's register of registered candidates said about the
 account, and what the party money said.
@@ -576,10 +576,10 @@ An explaining paragraph inside a card keeps every full stop it has, however shor
 
 ## Dates, which are three separate things on this page
 
-1. **Each payment list states the dates of the payments in it** — "Payments dated 6 Jan
-   2026 to 20 Jul 2026". Those are the payments we hold, and the page never turns them
+1. **Each payment list states the dates of the payments in it** — "Payments dated Jan 6,
+   2026 to Jul 20, 2026". Those are the payments we hold, and the page never turns them
    into a claim about what period a filing covers.
-2. **Each official total states the day its report runs to** — "covering through 31 Mar
+2. **Each official total states the day its report runs to** — "covering through Mar 31,
    2026". A total whose coverage date falls outside the year on screen is not shown at
    all, because the Board's own service answers a request for a year it has no report
    for with the *previous* year's figures and nothing in the answer says so.

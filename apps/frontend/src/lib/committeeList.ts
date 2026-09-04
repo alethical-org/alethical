@@ -103,7 +103,7 @@ export const COMMITTEE_FIND_PLACEHOLDER = 'Type part of a committee’s name';
 export const COMMITTEE_ORDER_LABEL = 'NAME A–Z';
 
 /**
- * "1,603 REGISTERED FILERS · COUNTED FROM THE REGISTER 12 AUG 2026".
+ * "1,603 REGISTERED FILERS · COUNTED FROM THE REGISTER AUG 12, 2026".
  *
  * A count of what we hold, so it needs no freshness date under rule 12 — the
  * register's own date is shown anyway because it costs a reader nothing and

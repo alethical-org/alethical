@@ -1,4 +1,5 @@
-import { formatNiceDate } from './billDetail';
+import { formatDay } from './legislatorCampaignMoney';
+import { centralDateLabel } from './moneyLanding';
 
 // Wording and figures for the outside-spending block on a legislator's profile
 // ([#1332](https://github.com/alethical-org/alethical/issues/1332)). Pure functions,
@@ -208,8 +209,9 @@ export function outsideSpendingSharedReason(years: OutsideSpendingYear[]): strin
 export function outsideSpendingPeriod(year: OutsideSpendingYear): string | null {
   if (year.state !== 'reported') return null;
   if (!year.firstPaymentOn || !year.lastPaymentOn) return null;
-  const first = formatNiceDate(year.firstPaymentOn);
-  const last = formatNiceDate(year.lastPaymentOn);
+  const first = formatDay(year.firstPaymentOn);
+  const last = formatDay(year.lastPaymentOn);
+  if (!first || !last) return null;
   return first === last ? first : `${first} to ${last}`;
 }
 
@@ -222,7 +224,7 @@ export function outsideSpendingPeriod(year: OutsideSpendingYear): string | null 
 export function outsideSpendingFetchedOn(years: OutsideSpendingYear[]): string | null {
   if (!yearsShareOneDownload(years)) return null;
   const stamped = years.find((year) => year.fetchedAt);
-  return stamped?.fetchedAt ? formatNiceDate(stamped.fetchedAt) : null;
+  return stamped?.fetchedAt ? centralDateLabel(stamped.fetchedAt) : null;
 }
 
 /**

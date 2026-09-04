@@ -140,7 +140,7 @@ describe('the money cards on the profile, at the final inventory', () => {
   it('draws the filing’s period and link once, in the stamp, and not under a figure', () => {
     const html = text(render([committee()]));
     expect(html.split(FILED_REPORTS_LINK_LABEL).length - 1).toBe(1);
-    expect(html).toContain('Figures for 1 Jan 2026 – 20 Jul 2026');
+    expect(html).toContain('Figures for Jan 1, 2026 – Jul 20, 2026');
     // Both figures run to the stamp's date, so neither repeats it.
     expect(html).not.toContain(reportedThroughLabel('2026-07-20') as string);
   });
@@ -196,7 +196,7 @@ describe('the money cards on the profile, at the final inventory', () => {
   it('closes each card with what a person checked, under its own label', () => {
     const html = text(render([committee()]));
     expect(html).toContain(MATCH_CHECK_LABEL.toUpperCase());
-    expect(html).toContain('Checked by Alethical on August 30, 2026');
+    expect(html).toContain('Checked by Alethical on Aug 30, 2026');
   });
 
   it('never calls money out spent, and offers no see-all control', () => {

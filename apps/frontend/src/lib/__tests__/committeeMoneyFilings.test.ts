@@ -84,14 +84,14 @@ describe('the per-row filed date', () => {
   });
 
   it('prints the day the Board received the report when there is one', () => {
-    expect(filedDateLine('2026-07-24')).toBe('Filed 24 Jul 2026');
+    expect(filedDateLine('2026-07-24')).toBe('Filed Jul 24, 2026');
   });
 });
 
 describe('the period line', () => {
   it('prints both ends when the Board calendar resolves a start', () => {
     expect(filingRowPeriodLine({ periodStart: '2026-01-01', periodEnd: '2026-07-20' })).toBe(
-      'Covers 1 Jan 2026 – 20 Jul 2026',
+      'Covers Jan 1, 2026 – Jul 20, 2026',
     );
   });
 
@@ -99,7 +99,7 @@ describe('the period line', () => {
   // open then, so an unresolved start reads "through", never a guessed range.
   it('reads "covers through" when no start resolves, never an assumed January', () => {
     expect(filingRowPeriodLine({ periodStart: null, periodEnd: '2024-10-21' })).toBe(
-      'Covers through 21 Oct 2024',
+      'Covers through Oct 21, 2024',
     );
   });
 

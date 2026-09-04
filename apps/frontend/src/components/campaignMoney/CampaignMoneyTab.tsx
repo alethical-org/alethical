@@ -32,11 +32,11 @@ import {
   confirmedElsewhereHeading,
   emptyStateFor,
   filingScheduleNote,
-  formatDay,
   otherOfficeNote,
   severalCommitteesNote,
 } from '../../lib/legislatorCampaignMoney';
 import { coveredPeriodDetail, coveredPeriodLine, stampThroughDate } from '../../lib/committeeMoney';
+import { centralDateLabel } from '../../lib/moneyLanding';
 import { useLegislatorOutsideSpending } from '../../hooks/useAppQueries';
 import { useResponsive } from '../../hooks/useResponsive';
 import { CheckedByBlock, FilingStamp, MoneyInBlock, MoneyOutBlock } from './MoneyCards';
@@ -379,7 +379,7 @@ function OtherOfficeNote({ count }: { count: number }) {
  * paragraph here describing Minnesota's calendar in general (#1642).
  */
 function FreshnessNote({ fetchedAt }: { fetchedAt: string | null }) {
-  const day = formatDay(fetchedAt);
+  const day = fetchedAt ? centralDateLabel(fetchedAt) : null;
   if (!day) return null;
   return (
     <View style={styles.freshness}>

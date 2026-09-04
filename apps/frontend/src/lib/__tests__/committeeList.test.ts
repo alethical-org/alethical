@@ -66,14 +66,14 @@ describe('how many rows one numbered page holds', () => {
 describe('the count line', () => {
   it('counts the register live and dates it from the register’s own date', () => {
     expect(registerCountLine(1603, '2026-08-12')).toBe(
-      '1,603 REGISTERED FILERS · COUNTED FROM THE REGISTER 12 AUG 2026',
+      '1,603 REGISTERED FILERS · COUNTED FROM THE REGISTER AUG 12, 2026',
     );
   });
 
   // `as_of` is a plain calendar date. Running one through a timezone conversion
-  // would move it back a day, which is why this reads 12 Aug and not 11 Aug.
+  // would move it back a day, which is why this reads Aug 12 and not Aug 11.
   it('keeps the register’s date on its own day', () => {
-    expect(registerCountLine(1603, '2026-08-12')).toContain('12 AUG 2026');
+    expect(registerCountLine(1603, '2026-08-12')).toContain('AUG 12, 2026');
   });
 
   it('prints the count with no date rather than an invented one', () => {
