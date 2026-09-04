@@ -263,3 +263,21 @@ A safe page-load release is done only when:
 - sign-in, session restore, citations, and current record fields are unchanged;
 - the current production file or request count is smaller by direct measurement; and
 - the live release passes after the merge, not only in a local build.
+
+**A guard that has never been seen to fail is not known to work, and the only way
+to find out is to break the code on purpose and watch.** Both failures below
+printed a pass, and neither was catchable by reading the guard:
+
+- A test written for the cache-window rule asserted a fact about a string
+  constant rather than about the middleware, so restoring the exact bug it
+  existed for still passed it. The repair was to extract the decision into a
+  named function the test could drive with real paths
+  (`public_cache_control_for_path`), never to loosen the test.
+- A build check compressed files differently from production, so it certified a
+  size limit the real release was failing.
+
+So a new guard is finished only once the change it forbids has been made,
+the guard has been seen to fail, and the change has been reverted. Reviewing
+2 people over a guard's source does not substitute: both of the above were
+reviewed and neither reader could have seen it, because the guard's text looks
+correct and only its reach is wrong.
