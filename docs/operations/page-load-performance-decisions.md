@@ -1,4 +1,4 @@
-<!-- describes: apps/frontend/App.tsx, apps/frontend/package.json, vercel.json, apps/frontend/src/data/api.ts, apps/frontend/src/lib/appQueryClient.ts, apps/frontend/src/lib/billFreshness.ts, apps/frontend/src/navigation/RootNavigator.tsx, apps/frontend/src/providers/AppProviders.tsx, apps/frontend/src/providers/AuthProvider.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, alethical/api/routers/ask.py, alethical/api/routers/public.py, api/page.ts, .github/workflows/warm-money-pages.yml -->
+<!-- describes: apps/frontend/App.tsx, apps/frontend/package.json, vercel.json, apps/frontend/src/data/api.ts, apps/frontend/src/lib/appQueryClient.ts, apps/frontend/src/lib/billFreshness.ts, apps/frontend/src/navigation/RootNavigator.tsx, apps/frontend/src/providers/AppProviders.tsx, apps/frontend/src/providers/AuthProvider.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, alethical/api/routers/ask.py, alethical/api/routers/public.py, alethical/api/services/outside_spending.py, alethical/api/services/campaign_finance_races.py, alethical/api/services/committee_finance.py, alethical/api/services/campaign_finance_search.py, alethical/pipeline/campaign_finance_filings.py, api/page.ts, .github/workflows/warm-money-pages.yml -->
 
 # Page-load performance decisions
 
@@ -243,6 +243,47 @@ The 2 costs, both accepted:
 - **A later click waits for a screen nobody has downloaded yet.** These files are small,
   and warming the next screen on hover is a separate item on
   [#1966](https://github.com/alethical-org/alethical/issues/1966).
+
+## What an uncached money answer spends its time on
+
+A cache decides how often a reader waits. This decides how long that reader waits when
+they do, and it is measured at the direct origin
+(`https://alethical-api-production.up.railway.app`) with a unique query value on every
+request, so no cache can answer.
+
+**Read the query plan before blaming the distance to the database.** The API runs on
+Railway in `us-east4-eqdc4a` and the database is Supabase's `us-east-2` pooler, so a
+request that asks 11 questions pays that distance 11 times, and that is the shape a
+slow route is expected to have. It was not the shape of these routes: measured for
+[#1966](https://github.com/alethical-org/alethical/issues/1966) on 4 Sep 2026,
+`/campaign-finance/outside-spending` answered in 2,787 ms while `EXPLAIN ANALYZE` put
+2,761 ms of it inside 2 statements. Removing 7 of the trips would have saved tens of
+milliseconds; fixing the 2 statements saved 2.6 seconds.
+
+**Four costs, each measured, each with a rule that follows from it.**
+
+| What cost the time | Measured on the live release | The rule |
+|---|---|---|
+| `initcap(trim(...))` on every row, 4 times over | ~300 ms per pass over 41,130 rows, so ~1.2 s of one answer | Group on the column's own text first and tidy the handful of values the grouping leaves |
+| `count(DISTINCT <expression>)` | 1.4 s for 2 of them over the same 41,130 rows; Postgres sorts for each | Count a `GROUP BY` instead, which hashes: the same 2 counts cost 43 ms |
+| Asking a per-row question about a per-committee fact | 1.3 s to test 41,130 rows for linkability, 30 ms to test the 1,131 committees they name | Reduce to the distinct subjects before the question that is about subjects |
+| Reading every filing in Minnesota to answer about a few committees | 55,845 figure rows returned, built twice per committee page | `campaign_finance_filings.reported_totals_for` for a read; `filings_context` is the loader's own sweep |
+
+**A statement count is a test and a time is not.** A seeded test database holds a few
+rows on the same machine as the tests, so it cannot reproduce the distance to the
+database and a wall-clock assertion there measures the laptop. What
+`alethical/tests/test_money_read_costs.py` asserts instead is the *shape* of each
+read: that a committee request never calls the statewide sweep, that an office-filtered
+race page passes only that office's committees, and that the outside-spending record is
+read in one request. Times live in the pull request and on the issue, measured against
+production.
+
+**The one narrowing that must stay statewide is a coverage question.** Whether the
+contributions download holds any row at all for a year decides whether a committee with
+no rows is silent or beyond our copy (`.claude/rules/grounded-answers.md` rule 12).
+Asked of the listed committees alone, a race page with no rows in an open year would
+read "we have nothing for this year" instead of "nobody has filed yet", so that
+question keeps the whole download as its subject and rides in the same statement.
 
 ## Remaining options with a real tradeoff or open proof gap
 

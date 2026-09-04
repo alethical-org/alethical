@@ -49,6 +49,10 @@ from alethical.api.services.committee_finance import (
 )
 from alethical.db import models
 from alethical.db.session import get_session_factory
+from alethical.tests.filed_figures import (
+    clear_filings_snapshots,
+    publish_filings_snapshot,
+)
 
 Dataset = models.CampaignFinanceDataset
 SnapshotStatus = models.CampaignFinanceSnapshotStatus
@@ -85,6 +89,9 @@ def _clear(session) -> None:
         session.execute(text(f"DELETE FROM {table}"))
     session.execute(text("DELETE FROM cf_snapshot"))
     session.execute(text("DELETE FROM legislator_campaign_committee"))
+    # A snapshot one test publishes must not hand the next test a reported figure it
+    # never asked for: every other test in this suite reads `reported_total is None`.
+    clear_filings_snapshots(session)
     session.commit()
 
 
@@ -1205,33 +1212,32 @@ def test_the_route_itself_runs_in_the_pinned_view(db):
     assert seen == ["repeatable read"]
 
 
-def test_a_special_election_filers_total_is_never_printed_as_a_figure(db, monkeypatch):
+def test_a_special_election_filers_total_is_never_printed_as_a_figure(db):
     """The Board's totals route cannot speak for a filer that filed 2 report series.
 
     §9.5 measured 10 such committee-years and is explicit that they read "Not
     reported" rather than being compared: the route returns only the regular series,
-    so for filer 18453 it would print $317.20 against a true $283,287.13. #1330's
-    reader flags them with `comparable=False`, and this layer must drop the figure
-    rather than pass a number that wrong to a page.
+    so for filer 18453 it would print $317.20 against a true $283,287.13. The figure
+    is in the snapshot and this layer must drop it rather than pass a number that
+    wrong to a page.
     """
-    from alethical.pipeline import campaign_finance_reader as reader
-
     published = Published(db)
     _receipt(db, published.contributions, reg_num=CANDIDATE, amount="5100.00")
     db.commit()
-
-    def one_incomparable_total(db_, reg_num, years=None):
-        return [
-            reader.ReportedContributions(
-                reg_num=reg_num,
-                year=2025,
-                total=Decimal("317.20"),
-                reported_through=date(2025, 12, 31),
-                comparable=False,
+    publish_filings_snapshot(
+        db,
+        filings=[
+            (
+                CANDIDATE,
+                2025,
+                "individuals_contributions",
+                Decimal("317.20"),
+                date(2025, 12, 31),
             )
-        ]
+        ],
+        special_election=[(CANDIDATE, 2025)],
+    )
 
-    monkeypatch.setattr(reader, "reported_contributions", one_incomparable_total)
     finance = _finance(db, CANDIDATE)
     assert finance is not None
     assert finance.money_in.itemized_contribution_total == Decimal("5100.00")
@@ -1239,31 +1245,35 @@ def test_a_special_election_filers_total_is_never_printed_as_a_figure(db, monkey
     assert finance.money_in.reported_through is None
 
 
-def test_a_comparable_total_is_served_beside_the_itemized_sum(db, monkeypatch):
+def test_a_comparable_total_is_served_beside_the_itemized_sum(db):
     """Rule 12's two numbers, both on screen and never added together.
 
     The other side of the test above, so the guard cannot be satisfied by dropping
-    every reported total. Production serves `null` here today because nothing has run
-    #1408's filings loader against it yet.
+    every reported total.
     """
-    from alethical.pipeline import campaign_finance_reader as reader
-
     published = Published(db)
     _receipt(db, published.contributions, reg_num=CANDIDATE, amount="5100.00")
     db.commit()
+    publish_filings_snapshot(
+        db,
+        filings=[
+            (
+                CANDIDATE,
+                2025,
+                "individuals_contributions",
+                Decimal("5000.00"),
+                date(2025, 12, 31),
+            ),
+            (
+                CANDIDATE,
+                2025,
+                "party_unit_contributions",
+                Decimal("3600.00"),
+                date(2025, 12, 31),
+            ),
+        ],
+    )
 
-    def one_real_total(db_, reg_num, years=None):
-        return [
-            reader.ReportedContributions(
-                reg_num=reg_num,
-                year=2025,
-                total=Decimal("8600.00"),
-                reported_through=date(2025, 12, 31),
-                comparable=True,
-            )
-        ]
-
-    monkeypatch.setattr(reader, "reported_contributions", one_real_total)
     finance = _finance(db, CANDIDATE)
     assert finance is not None
     assert finance.money_in.itemized_contribution_total == Decimal("5100.00")
