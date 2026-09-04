@@ -475,6 +475,29 @@ export function paymentsUnderNamePageMetadata(name: string, role: string): PageM
   });
 }
 
+/**
+ * The outside-spending record (#1945). The bare address is one record — the whole
+ * independent-expenditure file as one subject — so it is indexable with its own
+ * canonical. A subject's view (`spender`, `about`) and any year, sort or page is a
+ * filtered view of the same rows: head only, `noindex`, no canonical, because each
+ * committee already has its own record page and an address per filter combination
+ * is an unbounded set (`docs/architecture/page-metadata-for-search-and-sharing-decisions.md`
+ * §22).
+ */
+export function outsideSpendingPageMetadata(params: Record<string, string> = {}): PageMetadata {
+  const filtered = Object.values(params).some(Boolean);
+  const label = 'Outside spending: groups that are not the campaign';
+  return pageMetadata({
+    title: titleFor(label),
+    socialTitle: label,
+    description:
+      'What groups that are not a candidate’s campaign spent supporting or opposing Minnesota ' +
+      'campaign committees, from the Board’s independent-expenditure filings, one subject at a time.',
+    canonicalPath: filtered ? '' : '/money/outside-spending',
+    noindex: filtered,
+  });
+}
+
 /** Pages whose wording never varies. */
 export const STATIC_PAGE_METADATA: Record<string, PageMetadata> = {
   // The campaign money landing (public, no sign-in gate). The description may

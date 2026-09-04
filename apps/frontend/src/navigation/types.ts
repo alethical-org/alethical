@@ -95,6 +95,11 @@ export type RootStackParamList = {
   // encoding. `role` names which of the 3 downloads is being read and is the
   // server's own value, verbatim; a role we do not answer for lands on NotFound.
   PaymentsUnderName: { name: string; role: string };
+  // The outside-spending record (issue #1945): the whole file, one group that
+  // spent (`spender`), or one committee spent about (`about`), plus the filing
+  // year, the sort and the page, all in the address so a view is a link.
+  OutsideSpending:
+    { spender?: string; about?: string; year?: string; sort?: string; page?: string } | undefined;
   Privacy: undefined;
   SiteMetrics: undefined;
   Terms: undefined;

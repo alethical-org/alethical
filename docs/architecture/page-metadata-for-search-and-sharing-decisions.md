@@ -1425,6 +1425,8 @@ that is still right: a filter combination is not a record. Sorted for this secti
 | `/money/committees/{slug}/payments` | **record** | the same identity and period plus the first 250 named donations |
 | `/money/search?q=…` | filtered view | head only, `noindex` — unchanged |
 | `/money/payments?name=…&role=…` | **filtered view** | head only, `noindex`, no canonical — added by [#1780](https://github.com/alethical-org/alethical/issues/1780) |
+| `/money/outside-spending` | **record** | head only for now, indexable, canonical on the bare address — the whole independent-expenditure file as one subject ([#1945](https://github.com/alethical-org/alethical/issues/1945)) |
+| `/money/outside-spending?spender=…`, `?about=…`, `?year=…`, `?sort=…`, `?page=…` | filtered view | head only, `noindex`, no canonical — one group's or one committee's view of the same rows; each has its own record page at `/money/committees/{slug}` |
 
 ### Decisions
 

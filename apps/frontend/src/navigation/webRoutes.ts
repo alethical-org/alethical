@@ -28,6 +28,7 @@ type WebRouteTarget =
   | { kind: 'moneyCommitteeList'; params: Record<string, string> }
   | { kind: 'moneySearch'; params: Record<string, string> }
   | { kind: 'paymentsUnderName'; name: string; role: string }
+  | { kind: 'outsideSpending'; params: Record<string, string> }
   | { kind: 'privacy' }
   | { kind: 'siteMetrics' }
   | { kind: 'terms' }
@@ -126,6 +127,21 @@ const COMMITTEE_LIST_PARAMS = ['q', 'kind', 'page'] as const;
 function committeeListParams(searchParams: URLSearchParams): Record<string, string> {
   const params: Record<string, string> = {};
   for (const key of COMMITTEE_LIST_PARAMS) {
+    const value = searchParams.get(key);
+    if (value) {
+      params[key] = value;
+    }
+  }
+  return params;
+}
+
+// URL-addressable outside-spending view (issue #1945): which subject, which filing
+// year, which sort and which page. Everything the page shows is in the address.
+const OUTSIDE_SPENDING_PARAMS = ['spender', 'about', 'year', 'sort', 'page'] as const;
+
+function outsideSpendingParams(searchParams: URLSearchParams): Record<string, string> {
+  const params: Record<string, string> = {};
+  for (const key of OUTSIDE_SPENDING_PARAMS) {
     const value = searchParams.get(key);
     if (value) {
       params[key] = value;
@@ -291,6 +307,12 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
   // field on it still has somewhere to live.
   if (segments.length === 2 && segments[0] === 'money' && segments[1] === 'search') {
     return { kind: 'moneySearch', params: moneySearchParams(searchParams) };
+  }
+
+  // The outside-spending record (issue #1945). Its 3 views are chosen in the
+  // query string, so the bare address is the whole record.
+  if (segments.length === 2 && segments[0] === 'money' && segments[1] === 'outside-spending') {
+    return { kind: 'outsideSpending', params: outsideSpendingParams(searchParams) };
   }
 
   // Every payment filed under one printed name (issue #1780). Both halves of the
@@ -544,6 +566,17 @@ export function pathForRoute(activeRoute: {
       const query = activeRoute.params?.q;
       return query ? `/money/search?q=${encodeURIComponent(String(query))}` : '/money/search';
     }
+    case 'OutsideSpending': {
+      const params = new URLSearchParams();
+      for (const key of OUTSIDE_SPENDING_PARAMS) {
+        const value = activeRoute.params?.[key];
+        if (value) {
+          params.set(key, String(value));
+        }
+      }
+      const query = params.toString();
+      return query ? `/money/outside-spending?${query}` : '/money/outside-spending';
+    }
     case 'PaymentsUnderName': {
       const params = new URLSearchParams({
         name: String(activeRoute.params?.name ?? ''),
@@ -741,6 +774,11 @@ export function stateFromPathname(pathname: string): WebNavigationState {
     case 'moneySearch':
       return {
         routes: [homeTabs, { name: 'MoneySearch', params: target.params }],
+        index: 1,
+      };
+    case 'outsideSpending':
+      return {
+        routes: [homeTabs, { name: 'OutsideSpending', params: target.params }],
         index: 1,
       };
     case 'paymentsUnderName':

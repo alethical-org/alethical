@@ -56,6 +56,7 @@ import {
   committeeMoneyPageMetadata,
   researchPageMetadata,
   moneySearchPageMetadata,
+  outsideSpendingPageMetadata,
   paymentsUnderNamePageMetadata,
   NOT_FOUND_DESCRIPTION,
   NOT_FOUND_HEADING,
@@ -427,9 +428,7 @@ async function committeeListContent(page: number): Promise<PageContent> {
   };
 }
 
-async function committeeFinance(
-  slug: string,
-): Promise<{
+async function committeeFinance(slug: string): Promise<{
   money: CommitteeMoneySnapshotSource;
   registrationNumber: string;
 }> {
@@ -600,6 +599,10 @@ async function contentFor(
     // noindex — see §22's table of which money addresses are which.
     case "paymentsUnderName":
       return headOnly(paymentsUnderNamePageMetadata(target.name, target.role));
+    // The whole record is indexable on its bare address; a subject's or a
+    // filtered view is head only with noindex (#1945).
+    case "outsideSpending":
+      return headOnly(outsideSpendingPageMetadata(target.params));
     case "moneyCommittee":
       return committeeContent(target.slug);
     case "moneyCommitteePayments":
