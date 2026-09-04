@@ -73,7 +73,7 @@ import {
 import {
   getCampaignFinanceRacesFromApiPayload,
   type ApiMoneyByRacePayload,
-} from "../apps/frontend/src/data/api";
+} from "../apps/frontend/src/lib/moneyByRace";
 import { targetFromPathname } from "../apps/frontend/src/navigation/webRoutes";
 
 /**
