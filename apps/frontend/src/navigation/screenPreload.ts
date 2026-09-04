@@ -53,3 +53,20 @@ export function preloadScreenForPath(pathname: string, timeoutMs = 4000): Promis
     }),
   ]);
 }
+
+/**
+ * Start downloading the screen an address needs, before anyone goes there.
+ *
+ * Call it when a reader shows they are heading somewhere — a hover, a finger
+ * down on a row — so the screen file is already in the browser when the click
+ * lands. It never throws and never blocks: a failure here is a download that
+ * will simply happen again at navigation, where it has its own recovery.
+ * Downloads are remembered by the loader, so calling it twice costs 1 request.
+ */
+export function prefetchScreenForPath(pathname: string): void {
+  const load = screenLoaderForPath(pathname);
+  if (!load) {
+    return;
+  }
+  void load().catch(() => undefined);
+}

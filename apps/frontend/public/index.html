@@ -298,8 +298,16 @@
       served straight off the filesystem and never reaches api/page.ts.
     -->
     <!--alethical:page-data--><!--/alethical:page-data-->
-    <!-- Cloudflare Web Analytics -->
+    <!--
+      Cloudflare Web Analytics. `async` keeps it out of the app's start: a module
+      script without it is deferred, deferred scripts run in the order the page
+      lists them, and this one is listed before the app's own 3 files, so the app
+      could not start until an outside company's file had arrived and run. It
+      counts visitors either way, and still reports page speed, because it sends
+      that report on the page's load event rather than on its own position.
+    -->
     <script
+      async
       type="module"
       src="https://static.cloudflareinsights.com/beacon.min.js"
       data-cf-beacon='{"token": "2054b504329c4586a515de9083e6164e"}'

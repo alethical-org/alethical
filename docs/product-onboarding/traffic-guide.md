@@ -111,7 +111,10 @@ click response, and unexpected movement, plus the number of samples and date ran
 stays hidden until 50 measured visits exist. The Cloudflare token stays on the server.
 Because the website is served directly by Vercel, `apps/frontend/public/index.html` loads
 Cloudflare's public browser beacon with the public site token. The private account-read token
-never reaches the browser.
+never reaches the browser. The beacon is loaded `async` so it can never hold up the app: the
+page lists it before the app's own files, and without `async` a module script waits its turn
+in that list. It still reports page speed, because it sends that report on the page's load
+event rather than on its own position.
 
 A sitewide score cannot be checked against a limit written for one page, because a fast
 page and a slow one average into a figure true of neither.

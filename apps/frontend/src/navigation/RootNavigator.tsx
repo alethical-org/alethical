@@ -2,6 +2,7 @@ import {
   NavigationContainer,
   DefaultTheme,
   createNavigationContainerRef,
+  useIsFocused,
 } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { BottomTabBarProps, createBottomTabNavigator } from '@react-navigation/bottom-tabs';
@@ -264,8 +265,16 @@ function MobileTabBar({ state, navigation }: BottomTabBarProps) {
 // TopNav — see #143), signed in or out. Signing in works now (#1006), but a
 // signed-in home page is not built, so there is nothing else to send anyone to;
 // what changes when you sign in is the nav's account control, not this page.
+//
+// Every address puts the home tab underneath itself so the in-app back button
+// has somewhere to go (stateFromPathname in webRoutes.ts), and a stack renders
+// the screens beneath the top one. Home is the heaviest screen we have, so
+// drawing it under a committee list downloaded 17,736 bytes and ran the whole
+// marketing page for a reader who was never going to see it (#1966). Nothing is
+// drawn while it is covered; pressing back draws it then.
 function HomeRoute(_props: MainTabScreenProps<'Home'>) {
-  return <HomeSignedOutScreen />;
+  const showing = useIsFocused();
+  return showing ? <HomeSignedOutScreen /> : null;
 }
 
 /** True when the marketing home owns the page chrome. */
