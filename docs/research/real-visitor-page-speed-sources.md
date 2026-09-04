@@ -33,10 +33,21 @@ visits actually have, and the order flips: the app draws before the program rewr
 address, so the movement lands on the page-load record. On `/money`, 3 runs named
 `#root>div.page-snapshot` and its children at 10.8 to 11.0 seconds, with the rewrite at 11.3 to
 11.5. So the published layout figure is the app replacing the snapshot
-([issue #1982](https://github.com/alethical-org/alethical/issues/1982)), and a second, smaller
-mover is the snapshot's own text dropping about 39 px when the web font arrives. Neither run
-reproduced the published 1.0; both read 0.03 to 0.06, so the mechanism is established here and
-the size is not.
+([issue #1982](https://github.com/alethical-org/alethical/issues/1982)).
+
+**Third correction, and it replaces a lab reading with a field one.** Cloudflare records which
+element the browser blamed, which `--what-moved` now prints, and that answers the question on
+the readers who produced the figure. Across the same 7 days, first loads only, real counts:
+**7,857 measurements blamed `#root>div.page-snapshot`** at the middle measurement and at the
+slowest 1 in 4 alike, 4,611 of them over the limit; `html>body`, the same handover seen one
+level up, accounts for 1,301 more; 177 measurements blamed nothing and moved nothing. On
+`/bills` alone it is 366 measurements on the snapshot container against 7 with no movement. Two
+earlier claims here do not survive that reading. A second mover, the snapshot's own text
+dropping about 39 px when the web font arrives, appeared in 1 run and in none of the 10 runs
+after it, and blocking Google Fonts entirely left `/bills` movement identical to 4 decimal
+places, so the fonts are not a measured cause. And the lab probe's own magnitudes, 0 to 0.06
+across 14 runs against a published 1, name a different element from run to run, so no single
+throttled reading attributes anything. The field query does.
 
 **Dated snapshot, 4 September 2026.** Read at each service's own documentation and
 measured against Alethical's live production account and live production routes. A later

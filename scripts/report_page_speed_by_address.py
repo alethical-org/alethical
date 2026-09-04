@@ -85,6 +85,20 @@ Needs 2 settings, the same 2 the website already uses
 * ``CLOUDFLARE_ANALYTICS_API_TOKEN`` - limited to Account Analytics Read; and
 * ``CLOUDFLARE_ACCOUNT_ID``.
 
+**And Cloudflare records which element the browser blamed for the movement**, which
+``--what-moved`` prints per address. That answers "what is moving" on the readers who
+actually produced the figure, which a throttled browser on one machine cannot: 14 such
+runs on 4 Sep 2026 produced 0 to 0.06 against a published 1, and named a different
+element from run to run. The field answer on the same day was not ambiguous at all:
+7,857 real first-load measurements blamed ``#root>div.page-snapshot``, the
+server-written snapshot's own container, at the slowest 1 in 4 and at the middle
+measurement alike
+(`issue #1982 <https://github.com/alethical-org/alethical/issues/1982>`_).
+
+An element name is a fact about our own page rather than about the person who opened
+it, which is why it is read here while country, device, browser, resource and referrer
+stay out of every request this file makes.
+
 Run it::
 
     CLOUDFLARE_ANALYTICS_API_TOKEN=... CLOUDFLARE_ACCOUNT_ID=... \\
@@ -92,6 +106,7 @@ Run it::
 
     python scripts/report_page_speed_by_address.py --days 28 --json
     python scripts/report_page_speed_by_address.py --fail-on-breach
+    python scripts/report_page_speed_by_address.py --what-moved
 """
 
 from __future__ import annotations
@@ -114,6 +129,10 @@ LAYOUT_MOVEMENT_LIMIT = 0.1
 
 #: Cloudflare writes "no measurement" as -1 rather than leaving the field out.
 NO_MEASUREMENT = -1
+
+#: How many blamed elements to print per address. The top row has been the answer
+#: every time it has been read; more than a handful is tail noise.
+WHAT_MOVED_ROWS = 6
 
 #: Cloudflare's name for a real page load, where the browser fetches the document.
 #: This is the event issue 1966's limit is about.
@@ -220,6 +239,81 @@ def build_query(addresses: tuple[Address, ...], navigation: str) -> str:
         "  }\n"
         "}"
     )
+
+
+def build_what_moved_query(addresses: tuple[Address, ...], navigation: str) -> str:
+    """Ask which element the browser blamed for the movement, per address.
+
+    Cloudflare groups by whichever dimensions are selected, so selecting the element
+    alone returns 1 row per element. Ordered by how much movement each accounts for,
+    because the top row is the answer and the tail is noise.
+    """
+    selections = []
+    for address in addresses:
+        extra = f", {address.filter_fragment}" if address.filter_fragment else ""
+        selections.append(
+            f"""    {address.key}: rumWebVitalsEventsAdaptiveGroups(
+      limit: {WHAT_MOVED_ROWS}
+      orderBy: [sum_clsTotal_DESC]
+      filter: {{
+        requestHost: $host
+        date_geq: $start
+        date_leq: $end
+        navigationType: "{navigation}"{extra}
+      }}
+    ) {{
+      dimensions {{ cumulativeLayoutShiftElement }}
+      sum {{ clsTotal clsPoor }}
+      avg {{ sampleInterval }}
+      quantiles {{ cumulativeLayoutShiftP75 }}
+    }}"""
+        )
+    body = "\n".join(selections)
+    return (
+        "query WhatMovedByAddress("
+        "$accountTag: string!, $host: string!, $start: Date!, $end: Date!) {\n"
+        "  viewer {\n"
+        "    accounts(filter: { accountTag: $accountTag }) {\n"
+        f"{body}\n"
+        "    }\n"
+        "  }\n"
+        "}"
+    )
+
+
+def format_what_moved(
+    blamed: list[tuple[Address, list[dict]]], started_on: date, ended_on: date
+) -> str:
+    """One block per address, naming what the browser said moved."""
+    lines = [
+        f"What real visitors' browsers blamed for the movement, {HOST},"
+        f" {started_on} to {ended_on}.",
+        "Measurements are real counts, with Cloudflare's sampling divided out. An"
+        " element named here is",
+        "part of our own page; nothing about the reader is asked for.",
+    ]
+    for address, rows in blamed:
+        lines.append("")
+        lines.append(f"{address.label}")
+        if not rows:
+            lines.append("  nothing measured")
+            continue
+        for row in rows:
+            interval = measurement((row.get("avg") or {}).get("sampleInterval")) or 1.0
+            sums = row.get("sum") or {}
+            quantiles = row.get("quantiles") or {}
+            element = (row.get("dimensions") or {}).get(
+                "cumulativeLayoutShiftElement"
+            ) or "nothing moved"
+            count = real_measurements(sums.get("clsTotal"), interval)
+            poor = real_measurements(sums.get("clsPoor"), interval)
+            worst = measurement(quantiles.get("cumulativeLayoutShiftP75"))
+            movement = "not measured" if worst is None else f"{round(worst, 3):g}"
+            lines.append(
+                f"  {str(count).rjust(6)} measurements, {str(poor).rjust(6)} of them"
+                f" over the limit, slowest 1 in 4 {movement.ljust(6)} {element}"
+            )
+    return "\n".join(lines)
 
 
 def measurement(value: object) -> float | None:
@@ -504,6 +598,14 @@ def main(argv: list[str] | None = None) -> int:
         "--json", action="store_true", help="Print the readings as JSON."
     )
     parser.add_argument(
+        "--what-moved",
+        action="store_true",
+        help=(
+            "Instead of the speed table, print which element real visitors' browsers"
+            " blamed for the layout movement, per address."
+        ),
+    )
+    parser.add_argument(
         "--fail-on-breach",
         action="store_true",
         help=(
@@ -533,8 +635,13 @@ def main(argv: list[str] | None = None) -> int:
         "end": ended_on.isoformat(),
     }
 
+    query = (
+        build_what_moved_query(ADDRESSES, FIRST_LOAD)
+        if args.what_moved
+        else build_query(ADDRESSES, FIRST_LOAD)
+    )
     try:
-        payload = ask_cloudflare(build_query(ADDRESSES, FIRST_LOAD), variables, token)
+        payload = ask_cloudflare(query, variables, token)
     except (urllib.error.URLError, TimeoutError, json.JSONDecodeError) as error:
         print(f"Cloudflare could not be read: {error}", file=sys.stderr)
         return 2
@@ -548,6 +655,22 @@ def main(argv: list[str] | None = None) -> int:
             file=sys.stderr,
         )
         return 2
+
+    if args.what_moved:
+        blamed = [
+            (
+                address,
+                [
+                    row
+                    for row in (accounts[0].get(address.key) or [])
+                    if isinstance(row, dict)
+                ],
+            )
+            for address in ADDRESSES
+        ]
+        print(format_what_moved(blamed, started_on, ended_on))
+        return 0
+
     first_loads = [
         read_group(
             address,
