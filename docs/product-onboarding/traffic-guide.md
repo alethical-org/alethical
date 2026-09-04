@@ -1,6 +1,6 @@
 # How the Site metrics page works
 
-<!-- describes: api/traffic.ts, api/traffic-google.ts, api/traffic-bing.ts, api/traffic-uptime.ts, api/traffic-performance.ts, api/traffic-collection.ts, alethical/api/routers/site_metrics.py, alethical/db/models.py, alethical/alembic/versions/0038_site_metric_event.py, apps/frontend/src/components/TrafficAnalytics.tsx, apps/frontend/src/components/TrafficAnalytics.web.tsx, apps/frontend/src/lib/traffic.ts, apps/frontend/src/lib/siteMetricEvents.ts, apps/frontend/src/screens/TrafficScreen.tsx, apps/frontend/public/index.html, apps/frontend/scripts/check-traffic-production-env.mjs, apps/frontend/scripts/traffic-token-expiry.mjs, .github/workflows/traffic-token-expiry.yml -->
+<!-- describes: api/traffic.ts, api/traffic-google.ts, api/traffic-bing.ts, api/traffic-uptime.ts, api/traffic-performance.ts, api/traffic-collection.ts, alethical/api/routers/site_metrics.py, alethical/db/models.py, alethical/alembic/versions/0038_site_metric_event.py, apps/frontend/src/components/TrafficAnalytics.tsx, apps/frontend/src/components/TrafficAnalytics.web.tsx, apps/frontend/src/lib/traffic.ts, apps/frontend/src/lib/siteMetricEvents.ts, apps/frontend/src/screens/TrafficScreen.tsx, apps/frontend/public/index.html, apps/frontend/scripts/check-traffic-production-env.mjs, apps/frontend/scripts/traffic-token-expiry.mjs, .github/workflows/traffic-token-expiry.yml, scripts/report_page_speed_by_address.py -->
 
 The public `/site-metrics` page combines 6 independent sources:
 
@@ -112,6 +112,20 @@ stays hidden until 50 measured visits exist. The Cloudflare token stays on the s
 Because the website is served directly by Vercel, `apps/frontend/public/index.html` loads
 Cloudflare's public browser beacon with the public site token. The private account-read token
 never reaches the browser.
+
+A sitewide score cannot be checked against a limit written for one page, because a fast
+page and a slow one average into a figure true of neither.
+[`scripts/report_page_speed_by_address.py`](../../scripts/report_page_speed_by_address.py)
+asks Cloudflare the same question one address at a time, for the money pages first, and
+prints the answer to whoever ran it. It reads the same 2 server settings, loads nothing
+into anyone's browser, and publishes nothing.
+
+Publishing is the line, not measuring. The Privacy Policy tells readers that Alethical
+publishes only sitewide speed scores, so a per-address breakdown on the public page would
+contradict a promise a reader has already read. Changing that promise is the Alethical
+team's decision. A page address is a fact about the page rather than about the person who
+opened it, and Cloudflare already receives these paths, which is why reading them
+privately is not the same act as publishing them.
 
 The server settings are:
 
