@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
+
+import { PAGE_DATA_MARKER_END, PAGE_DATA_MARKER_START } from '../pageData';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import billFixture from './fixtures/bill-page-snapshot.json';
@@ -1469,6 +1471,18 @@ describe('rendering', () => {
     // The look ships with the shell, so no address pays for CSS of its own.
     expect(shell).toContain('id="alethical-page-snapshot"');
     expect(shell).toContain('.page-snapshot');
+  });
+
+  it('has an empty slot for the records the server read, after #root and before the bundle', () => {
+    const shell = readFileSync(join(HERE, '../../../public/index.html'), 'utf8');
+
+    // After the mount point so a 271 KB payload cannot delay the snapshot text,
+    // and before the bundle so the block is there when the app runs (#1966).
+    expect(shell).toContain(`${PAGE_DATA_MARKER_START}${PAGE_DATA_MARKER_END}`);
+    expect(shell.indexOf('<div id="root">')).toBeLessThan(shell.indexOf(PAGE_DATA_MARKER_START));
+    // `/` is served off the filesystem and never reaches api/page.ts, so the
+    // shipped shell seeds nothing.
+    expect(shell).not.toContain('id="alethical-page-data"');
   });
 });
 

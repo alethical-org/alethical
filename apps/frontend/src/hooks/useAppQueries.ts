@@ -24,6 +24,9 @@ import {
   getLegislatorFromApi,
   getLegislatorOutsideSpendingFromApi,
   getLegislatorVotesFromApi,
+  campaignFinanceFilingsFromPayload,
+  campaignFinanceSummaryFromPayload,
+  committeeRegisterPageFromPayload,
   getCampaignFinanceCommitteesFromApi,
   getCampaignFinanceRacesFromApi,
   getCampaignFinanceFilingsFromApi,
@@ -66,7 +69,22 @@ import type {
   MoneyByRacePage,
 } from '../data/types';
 import { NotificationPreference, RepresentativeLookupInput } from '../data/types';
-import { outsideSpendingLoadFailure } from '../lib/outsideSpending';
+import { committeeRegisterQueryKey } from '../lib/committeeList';
+import {
+  getCampaignFinanceRacesFromApiPayload,
+  moneyByRaceQueryKey,
+  type ApiMoneyByRacePayload,
+} from '../lib/moneyByRace';
+import {
+  campaignFinanceFilingsQueryKey,
+  campaignFinanceSummaryQueryKey,
+} from '../lib/moneyLanding';
+import { seededQueryData } from '../lib/pageData';
+import {
+  outsideSpendingLoadFailure,
+  outsideSpendingRecordPageFromPayload,
+  outsideSpendingRecordQueryKey,
+} from '../lib/outsideSpending';
 import {
   PAYMENTS_UNDER_NAME_PAGE_SIZE,
   type PaymentNameRole,
@@ -326,9 +344,13 @@ export function useLegislatorCampaignMoney(
  * designed absent state rather than a number.
  */
 export function useCampaignFinanceSummary(options: { enabled?: boolean } = {}) {
+  const key = campaignFinanceSummaryQueryKey();
   return useQuery({
-    queryKey: ['campaign-finance-summary'],
+    queryKey: key,
     queryFn: getCampaignFinanceSummaryFromApi,
+    // The /money page function already read this, so on a first load the counts
+    // and the copy date are drawn without a second request (issue #1966).
+    initialData: seededQueryData(key, campaignFinanceSummaryFromPayload),
     retry: false,
     // The homepage reads this too, and Home stays mounted beneath a deep-linked
     // stack screen, so an ungated read there would contend with the visible
@@ -340,9 +362,11 @@ export function useCampaignFinanceSummary(options: { enabled?: boolean } = {}) {
 
 /** The landing's newest filed reports (no amounts, no filed date). */
 export function useCampaignFinanceFilings(limit = 5) {
+  const key = campaignFinanceFilingsQueryKey(limit);
   return useQuery({
-    queryKey: ['campaign-finance-filings', limit],
+    queryKey: key,
     queryFn: () => getCampaignFinanceFilingsFromApi(limit),
+    initialData: seededQueryData(key, campaignFinanceFilingsFromPayload),
     retry: false,
   });
 }
@@ -363,9 +387,15 @@ export function useCampaignFinanceFilings(limit = 5) {
  *  year and optionally one office (issue #1954). */
 export function useCampaignFinanceRaces(options: { year: number; office?: string }) {
   const { year, office } = options;
+  const key = moneyByRaceQueryKey({ year, office });
   return useQuery({
-    queryKey: ['campaign-finance-races', year, office ?? 'all'],
+    queryKey: key,
     queryFn: (): Promise<MoneyByRacePage> => getCampaignFinanceRacesFromApi({ year, office }),
+    // The bare /money/races address is served with this read already made, which
+    // is what stops the page downloading all 778 rows a second time (#1966).
+    initialData: seededQueryData(key, (payload: ApiMoneyByRacePayload) =>
+      getCampaignFinanceRacesFromApiPayload(payload, year),
+    ),
     retry: false,
     placeholderData: keepPreviousData,
   });
@@ -379,8 +409,9 @@ export function useCampaignFinanceCommittees(options: {
   pageSize: number;
 }) {
   const { kind, query, page, pageSize } = options;
+  const key = committeeRegisterQueryKey({ kind, query, page, pageSize });
   return useQuery({
-    queryKey: ['campaign-finance-committees', kind ?? 'all', query ?? '', page, pageSize],
+    queryKey: key,
     queryFn: (): Promise<CommitteeRegisterPage> =>
       getCampaignFinanceCommitteesFromApi({
         kind,
@@ -388,6 +419,10 @@ export function useCampaignFinanceCommittees(options: {
         limit: pageSize,
         offset: (page - 1) * pageSize,
       }),
+    // A plain numbered page is served with its own rows already read, so the list
+    // is drawn in the app's first paint (#1966). A kind chip or a typed name is a
+    // filtered view the page function does not read, and fetches as before.
+    initialData: seededQueryData(key, committeeRegisterPageFromPayload),
     retry: false,
     placeholderData: keepPreviousData,
   });
@@ -916,16 +951,14 @@ export function useOutsideSpendingRecord(options: {
   sort: 'newest' | 'largest';
   page: number;
 }) {
+  const key = outsideSpendingRecordQueryKey(options);
   return useQuery({
-    queryKey: [
-      'outside-spending-record',
-      options.about ?? null,
-      options.spender ?? null,
-      options.year,
-      options.sort,
-      options.page,
-    ],
+    queryKey: key,
     queryFn: () => getOutsideSpendingRecordFromApi(options),
+    // The bare /money/outside-spending address is served with this read already
+    // made, so its figures are on screen at once rather than after the cold
+    // 2,975 ms read that made it the slowest first load on the money pages (#1966).
+    initialData: seededQueryData(key, outsideSpendingRecordPageFromPayload),
     retry: false,
     placeholderData: keepPreviousData,
   });
