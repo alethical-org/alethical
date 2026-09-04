@@ -23,7 +23,6 @@ things work in practice and are the place to start if you're new.
 - [Scope](product-onboarding/product-scope.md) — what the product is, its core principles, and what it deliberately does not do
 - [What we keep about readers](product-onboarding/user-data-retention-policy.md) — every piece of reader data we store, why it exists, how long we keep it, what deletion should mean, and the gaps that are not closed yet
 - [Grounded Ask build spec](product-onboarding/grounded-ask-spec.md) — the Ask surface: answer paths, the cite-or-refuse contract, answer-page states
-- [MVP redesign plan](product-onboarding/mvp-redesign-plan.md) — IA + green-aesthetic redesign tracker; locked decisions and the route registry
 - [Bill search screen spec](product-onboarding/bill-search-screen-spec.md) — the bill search screen (`/bills`)
 - [Bill tracking interaction spec](product-onboarding/bill-tracking-spec.md) — how Track behaves on every page, through sign-in, and inside full-card links
 - [How sign-in works](product-onboarding/sign-in-guide.md) — Google and password sign-in, email codes, account matching, password rules, and release settings
@@ -39,6 +38,7 @@ things work in practice and are the place to start if you're new.
 - [Data ingestion onboarding guide](product-onboarding/data-ingestion-onboarding.md) — sources, URLs, and pipeline-flow diagram for new engineers
 - [Interface vocabulary](product-onboarding/interface-vocabulary.md) — one name per thing, for chat, briefs, Design prompts, code identifiers and reader copy: nav rather than top bar, a page named by its address, and the 2 places our own code already carries 2 words for 1 object
 - [AI models & billing](product-onboarding/ai-models-and-billing.md) — how Alethical uses AI (generation vs embeddings), the two billing rails (subscription vs API), and which jobs need which
+- [How the top bar works (plain English)](product-onboarding/site-navigation-guide.md) — what every page's bar holds, the greyed roadmap pills, the account control, the phone drawer, and every old address that forwards
 - [How Search works (plain English)](product-onboarding/search-bills-guide.md) — what each filter and result field means, written for non-engineers
 - [How Find My Legislator works (plain English)](product-onboarding/find-my-legislator-guide.md) — how to search by address, browser location, or map; what a match shows; and what location data leaves Alethical
 - [How the Campaign money tab works (plain English)](product-onboarding/legislator-campaign-money-guide.md) — what a legislator's campaign raised and spent, why roughly 4 dollars in 10 have no donor's name, and when the page shows two figures rather than working out the difference

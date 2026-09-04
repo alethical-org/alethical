@@ -13,8 +13,8 @@
 > **Scope — visual & interaction only.** Voice and copy are owned by `docs/design/ui-copy-guide.md`;
 > what a screen may *claim* is owned by `.claude/rules/grounded-answers.md` (a line must be true
 > before it can be on-brand). Exact token values are owned by `apps/frontend/src/theme/tokens.ts`
-> — this doc describes *character and intent*, never a parallel value sheet (it would drift; per
-> `docs/product-onboarding/mvp-redesign-plan.md`, generate a value sheet from the file if one is ever needed).
+> — this doc describes *character and intent*, never a parallel value sheet (it would drift;
+> generate a value sheet from the file if one is ever needed).
 >
 > **Sources of truth:** `apps/frontend/src/theme/tokens.ts` + `theme/primitives.tsx` (implemented
 > system) · this guide (shared visual and interaction rules) · the feature guides under
@@ -435,7 +435,7 @@ The generic "make it striking" instinct pulls the wrong way for a civic-records 
 ## References
 
 `apps/frontend/src/theme/tokens.ts` · `apps/frontend/src/theme/primitives.tsx` ·
-`docs/product-onboarding/mvp-redesign-plan.md` (redesign decisions) · `docs/design/ui-copy-guide.md` (voice/copy) ·
+`docs/product-onboarding/site-navigation-guide.md` (the top bar and addresses) · `docs/design/ui-copy-guide.md` (voice/copy) ·
 `.claude/rules/grounded-answers.md` (what a surface may claim) · `docs/product-onboarding/grounded-ask-spec.md`
 (Ask surfaces) · `docs/product-onboarding/home-screen-guide.md` (Home behavior).
 

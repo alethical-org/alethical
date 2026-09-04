@@ -191,7 +191,7 @@ function Logo({
   );
 }
 
-// --- Shared navigation dropdowns (docs/product-onboarding/mvp-redesign-plan.md) ---
+// --- Shared navigation dropdowns (docs/product-onboarding/site-navigation-guide.md) ---
 
 /** Dropdown-row icon tiles — inline SVGs lifted from the DC source. */
 function MenuRowIcon({ itemId, disabled }: { itemId: string; disabled?: boolean }) {

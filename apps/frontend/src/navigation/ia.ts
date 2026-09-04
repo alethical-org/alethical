@@ -11,7 +11,7 @@
  * surface is a one-line change here instead of edits scattered across the
  * routing switch.
  *
- * See docs/product-onboarding/mvp-redesign-plan.md for decisions and the migration steps.
+ * The reader-facing description is docs/product-onboarding/site-navigation-guide.md.
  */
 
 /**

@@ -1,3 +1,5 @@
+<!-- describes: apps/frontend/src/screens/redesign/SearchLegislatorsScreen.tsx, apps/frontend/src/components/search/LegislatorResultCard.tsx, apps/frontend/src/lib/legislatorSearch.ts -->
+
 # How a legislator profile works
 
 <!-- describes: apps/frontend/src/screens/redesign/LegislatorProfileWebScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, apps/frontend/src/components/legislator/*.tsx, apps/frontend/src/lib/legislatorProfile.ts -->
@@ -64,6 +66,25 @@ Share uses the legislator's public Alethical address and the common rules in
 Planned profile claiming and vote explanations are clearly labelled **ON THE ROADMAP**.
 Their examples are not interactive. Alethical must not offer a button that looks usable
 before the feature exists.
+
+## The directory that leads here
+
+The **Legislators** row in the top bar opens the directory at `/legislators`: every member of
+the selected session, as cards, with a name search box and filters for chamber, party, and
+session. Each card carries the member's name, a neutral party chip spelling the party out in
+full ("Democratic-Farmer-Labor", "Republican", "Independent"; never a partisan colour,
+`.claude/rules/grounded-answers.md` rule 3), the chamber and district ("Senate · District 12"),
+a title derived from the chamber alone ("State Senator" or "State Representative"), up to 2
+committee chips with a "+N" for the rest, and one activity line: "N bills authored or
+co-authored across available sessions". The whole card is the link to the profile.
+
+What a card deliberately does not carry: a **Follow** button, because following a legislator
+depends on notifications that are not built ([#151](https://github.com/alethical-org/alethical/issues/151),
+[#36](https://github.com/alethical-org/alethical/issues/36)); a focus-area or topic filter,
+because no such data exists for a member and a count would be invented; a committee role
+such as "Chair", because roles are not ingested; and "signed into law this session", because
+it is not computed. Only what the record holds is drawn (`.claude/rules/grounded-answers.md`
+rule 2).
 
 ## Lasting source of truth
 
