@@ -26,6 +26,18 @@ snapshot appearing rather than the app drawing, which is what the lab measuremen
 probe that reads this is
 [`apps/frontend/scripts/report-page-load-beacons.mjs`](../../apps/frontend/scripts/report-page-load-beacons.mjs).
 
+**Layout movement does not follow that split, and reading it as though it did is a mistake
+this file made for an hour.** Main content stops updating early; layout keeps accumulating and
+reports the largest burst. Run the probe with `--slow`, at the connection the slowest quarter of
+visits actually have, and the order flips: the app draws before the program rewrites the
+address, so the movement lands on the page-load record. On `/money`, 3 runs named
+`#root>div.page-snapshot` and its children at 10.8 to 11.0 seconds, with the rewrite at 11.3 to
+11.5. So the published layout figure is the app replacing the snapshot
+([issue #1982](https://github.com/alethical-org/alethical/issues/1982)), and a second, smaller
+mover is the snapshot's own text dropping about 39 px when the web font arrives. Neither run
+reproduced the published 1.0; both read 0.03 to 0.06, so the mechanism is established here and
+the size is not.
+
 **Dated snapshot, 4 September 2026.** Read at each service's own documentation and
 measured against Alethical's live production account and live production routes. A later
 pass gets a later file; nothing here is updated as the world changes
@@ -214,8 +226,10 @@ the server-written snapshot's text (`#root>div.page-snapshot>div.ps-inner>p.ps-p
 to 264 ms across 3 runs against production. So a first-load figure here says when the snapshot
 appeared; the lab figures on issue 1966 say when the app drew. Two different moments on the
 same page, and a release limit has to name which one it means. It also means our first-load
-figures are systematically kinder than the app feels, because the app's own larger paint is
-booked to the phantom record described above rather than to the page load.
+main-content figures are systematically kinder than the app feels: on a fast load the app's own
+larger paint is booked to the phantom record described above rather than to the page load, and
+on a slow load it arrives after main content has stopped updating. Layout movement is the
+opposite case and is described in the correction note at the top.
 
 ## Why the per-address breakdown is not published on the Site metrics page
 
