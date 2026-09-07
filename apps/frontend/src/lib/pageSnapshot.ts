@@ -132,8 +132,10 @@ import {
   laneCountLine,
   MONEY_LANDING_HEADING,
   MONEY_LANDING_SUBTITLE,
+  MONEY_LANE_BY_RACE,
   MONEY_LANE_COMMITTEES,
   MONEY_LANE_LEGISLATORS,
+  MONEY_LANE_OUTSIDE_SPENDING,
   RECORD_DOES_NOT_COVER,
   RECORD_DOES_NOT_COVER_HEADING,
 } from './moneyLanding';
@@ -236,6 +238,8 @@ export interface PageSnapshot {
 
 export interface SnapshotSectionItem {
   label: string;
+  /** A second text run beside a linked record, shaped from words the screen draws. */
+  detail?: string;
   /** Absent when the record cannot identify one safe destination. */
   href?: string;
 }
@@ -315,6 +319,8 @@ export function homePageSnapshot(): PageSnapshot {
       { label: 'Search Bills', href: '/bills' },
       { label: 'Search Legislators', href: '/legislators' },
       { label: 'Find My Legislator', href: '/find-my-legislator' },
+      { label: 'Money in politics', href: '/money' },
+      { label: READ_PAGE_NAME, href: '/read' },
     ],
   };
 }
@@ -344,6 +350,29 @@ export interface BillDirectorySnapshotSource {
   } | null;
 }
 
+function billDirectoryRecord(bill: BillDirectorySnapshotSource): SnapshotRecordLink {
+  const session = bill.session;
+  const sessionLabel = session
+    ? formatSessionLabel({
+        name: session.name ?? undefined,
+        sessionNumber: session.session_number ?? undefined,
+        yearStart: session.year_start ?? undefined,
+        yearEnd: session.year_end ?? undefined,
+      })
+    : '';
+  return {
+    label: billNumberFromId(bill.id),
+    detail: [
+      clean(bill.ai_analysis?.short_title) ||
+        stageLabel(statusLabel(bill.status_key, bill.current_status)),
+      sessionLabel,
+    ]
+      .filter(Boolean)
+      .join(' · '),
+    href: `/bills/${encodeURIComponent(bill.id)}`,
+  };
+}
+
 export function billDirectoryPageSnapshot(
   bills: readonly BillDirectorySnapshotSource[],
   total: number,
@@ -357,28 +386,7 @@ export function billDirectoryPageSnapshot(
     body: [],
     facts: [],
     bodyIsList: false,
-    records: bills.map((bill) => {
-      const session = bill.session;
-      const sessionLabel = session
-        ? formatSessionLabel({
-            name: session.name ?? undefined,
-            sessionNumber: session.session_number ?? undefined,
-            yearStart: session.year_start ?? undefined,
-            yearEnd: session.year_end ?? undefined,
-          })
-        : '';
-      return {
-        label: billNumberFromId(bill.id),
-        detail: [
-          clean(bill.ai_analysis?.short_title) ||
-            stageLabel(statusLabel(bill.status_key, bill.current_status)),
-          sessionLabel,
-        ]
-          .filter(Boolean)
-          .join(' · '),
-        href: `/bills/${encodeURIComponent(bill.id)}`,
-      };
-    }),
+    records: bills.map(billDirectoryRecord),
     links: directoryNavigation('/bills', page, directoryTotalPages(total, pageSize), {
       label: 'Legislators',
       href: '/legislators',
@@ -557,7 +565,10 @@ export interface LegislatorSnapshotSource {
   } | null;
 }
 
-export function legislatorPageSnapshot(legislator: LegislatorSnapshotSource): PageSnapshot {
+export function legislatorPageSnapshot(
+  legislator: LegislatorSnapshotSource,
+  chiefAuthoredBills?: readonly BillDirectorySnapshotSource[] | null,
+): PageSnapshot {
   const service = legislator.current_service ?? {};
   const chamber = (service.chamber ?? '').toLowerCase() === 'house' ? 'House' : 'Senate';
   const displayName = legislatorDisplayName(legislator.full_name ?? '', chamber);
@@ -578,7 +589,16 @@ export function legislatorPageSnapshot(legislator: LegislatorSnapshotSource): Pa
         ...(serviceHistory.term ? [`Term: ${serviceHistory.term}`] : []),
       ]
     : [];
+  const chiefBillRecords = chiefAuthoredBills?.slice(0, 2).map(billDirectoryRecord) ?? [];
   const sections: SnapshotSection[] = [
+    ...(chiefBillRecords.length > 0
+      ? [
+          {
+            heading: 'Chief-Authored Bills',
+            items: chiefBillRecords,
+          },
+        ]
+      : []),
     ...(biography ? [{ heading: 'Biography', body: [biography], bodyIsList: false }] : []),
     ...(serviceLines.length
       ? [{ heading: 'Legislative Service', body: serviceLines, bodyIsList: false }]
@@ -895,6 +915,16 @@ export function moneyLandingPageSnapshot(source: MoneyLandingSnapshotSource): Pa
         label: MONEY_LANE_COMMITTEES.title,
         detail: [MONEY_LANE_COMMITTEES.body, committeeCount].filter(Boolean).join(' · '),
         href: '/money/committees',
+      },
+      {
+        label: MONEY_LANE_BY_RACE.title,
+        detail: MONEY_LANE_BY_RACE.body,
+        href: '/money/races',
+      },
+      {
+        label: MONEY_LANE_OUTSIDE_SPENDING.title,
+        detail: MONEY_LANE_OUTSIDE_SPENDING.body,
+        href: OUTSIDE_SPENDING_PATH,
       },
     ],
     // The one freshness date this page shows, with the sentence that says what it
@@ -1681,8 +1711,10 @@ export function renderPageSnapshot(snapshot: PageSnapshot): string {
         ? `<ul class="ps-list">${section.items
             .map((item) =>
               item.href
-                ? `<li><a href="${escapeHtml(item.href)}">${escapeHtml(item.label)}</a></li>`
-                : `<li>${escapeHtml(item.label)}</li>`,
+                ? item.detail
+                  ? `<li><a href="${escapeHtml(item.href)}"><span class="ps-record-label">${escapeHtml(item.label)}</span><span class="ps-record-detail">${escapeHtml(item.detail)}</span></a></li>`
+                  : `<li><a href="${escapeHtml(item.href)}">${escapeHtml(item.label)}</a></li>`
+                : `<li>${escapeHtml(item.label)}${item.detail ? `<span class="ps-record-detail">${escapeHtml(item.detail)}</span>` : ''}</li>`,
             )
             .join('')}</ul>`
         : '';

@@ -45,6 +45,7 @@ const FIXED_PAGES = [
   "/money",
   "/money/committees",
   "/money/races",
+  "/money/outside-spending",
   "/read",
   "/about",
   "/about/contact",

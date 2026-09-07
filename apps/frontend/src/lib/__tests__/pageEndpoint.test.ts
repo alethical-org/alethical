@@ -378,6 +378,65 @@ describe('first-response page tags', () => {
     expect(calls[0]).toContain('include=current_service,committees,service_history');
   });
 
+  it('serves the current chief-authored bill links with the member profile', async () => {
+    stubNetwork((url) => {
+      if (url.includes('/bills?')) {
+        expect(url).toContain('/legislators/aisha-gomez/bills?limit=2&offset=0&role=chief_author');
+        return {
+          status: 200,
+          payload: {
+            data: [{ id: '94-2025-HF719', ai_analysis: { short_title: 'Capital projects' } }],
+          },
+        };
+      }
+      return {
+        status: 200,
+        payload: {
+          data: {
+            slug: 'aisha-gomez',
+            full_name: 'Aisha Gomez',
+            current_service: { chamber: 'house' },
+          },
+        },
+      };
+    });
+
+    const { body, status } = await serve({ path: '/legislators/aisha-gomez' });
+
+    expect(status).toBe(200);
+    expect(body).toContain('<h2>Chief-Authored Bills</h2>');
+    expect(body).toContain('href="/bills/94-2025-HF719"');
+    expect(body).toContain('Capital projects');
+  });
+
+  it.each([404, 503])(
+    'keeps a valid profile readable when its bill list returns %s',
+    async (code) => {
+      stubNetwork((url) =>
+        url.includes('/bills?')
+          ? { status: code }
+          : {
+              status: 200,
+              payload: {
+                data: {
+                  slug: 'aisha-gomez',
+                  full_name: 'Aisha Gomez',
+                  current_service: { chamber: 'house' },
+                },
+              },
+            },
+      );
+
+      const { body, status, headers } = await serve({ path: '/legislators/aisha-gomez' });
+
+      expect(status).toBe(200);
+      expect(body).toContain('<h1>Rep. Aisha Gomez</h1>');
+      expect(body).not.toContain('<h2>Chief-Authored Bills</h2>');
+      expect(body).not.toContain('No chief-authored bills');
+      expect(headers.get('X-Robots-Tag')).toBeUndefined();
+    },
+  );
+
   it('serves a static page without asking the data service anything', async () => {
     const calls: string[] = [];
     stubNetwork((url) => {

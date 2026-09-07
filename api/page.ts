@@ -328,9 +328,18 @@ async function billContent(id: string): Promise<PageContent> {
 }
 
 async function legislatorContent(id: string): Promise<PageContent> {
-  const legislator = await getApiData<LegislatorPayload>(
-    `/legislators/${encodeURIComponent(id)}?include=current_service,committees,service_history`,
-  );
+  const encodedId = encodeURIComponent(id);
+  const [legislator, chiefBills] = await Promise.all([
+    getApiData<LegislatorPayload>(
+      `/legislators/${encodedId}?include=current_service,committees,service_history`,
+    ),
+    // The loaded profile shows these same 2 current-session chief-authored bills.
+    // Keep their links in the first response too. An unavailable bill list must
+    // not hide a valid member's identity, biography or contact information.
+    getApiData<BillDirectorySnapshotSource[]>(
+      `/legislators/${encodedId}/bills?limit=2&offset=0&role=chief_author`,
+    ).catch(() => null),
+  ]);
   const chamber = titleCase(legislator.current_service?.chamber || "");
   // A UUID address canonicalises to the readable slug the profile links use.
   const slug = legislator.slug || id;
@@ -346,7 +355,12 @@ async function legislatorContent(id: string): Promise<PageContent> {
         legislator.current_service?.district?.code,
       ),
     }),
-    snapshot: renderPageSnapshot(legislatorPageSnapshot(legislator)),
+    snapshot: renderPageSnapshot(
+      legislatorPageSnapshot(
+        legislator,
+        Array.isArray(chiefBills) ? chiefBills : null,
+      ),
+    ),
   };
 }
 
