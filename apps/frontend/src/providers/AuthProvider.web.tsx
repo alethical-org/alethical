@@ -31,13 +31,10 @@ import {
 import { validationFailureRevokesSession } from '../lib/auth/sessionSafety';
 import { restoreAuthSession } from '../lib/authRestore';
 import { SIGN_IN_ERROR_MESSAGES, SignInErrorKind } from '../lib/signIn';
-import {
-  clearOrdinarySessionIfUnchanged,
-  isSupabaseConfigured,
-  passwordClientForOrdinarySession,
-  signOutOrdinarySessionIfUnchanged,
-  supabase,
-} from '../lib/supabase';
+import { loadSignInBundle } from '../lib/auth/loadSignInBundle';
+import { signInWorkPendingOnLoad } from '../lib/auth/signInWorkPending';
+import type { BoundPasswordAuthClient } from '../lib/supabase';
+import { isSupabaseConfigured } from '../lib/supabaseConfig';
 
 interface AuthContextValue {
   isLoading: boolean;
@@ -83,7 +80,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const validationGeneration = useRef(0);
   const passwordChange = useRef<{
     openingAccessToken: string;
-    auth: ReturnType<typeof passwordClientForOrdinarySession>;
+    auth: BoundPasswordAuthClient;
   } | null>(null);
 
   const failWith = useCallback((message: string, kind: SignInErrorKind = 'failed') => {
@@ -113,7 +110,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
         setIsLoading(false);
         return authFailure(null);
       }
-      const current = await supabase.auth.getSession().catch(() => null);
+      const auth = await loadSignInBundle();
+      const current = await auth.supabase.auth.getSession().catch(() => null);
       if (generation !== validationGeneration.current) return authFailure(null);
       const currentSession = current && !current.error ? current.data.session : null;
       if (currentSession && isProviderSessionRejected(currentSession)) {
@@ -135,7 +133,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
       failWith(result.error.message, publicErrorKind(result.error.kind));
       if (validationFailureRevokesSession(result.error.kind)) rejectProviderSession(candidate);
-      await clearOrdinarySessionIfUnchanged(candidate).catch(() => false);
+      await auth.clearOrdinarySessionIfUnchanged(candidate).catch(() => false);
       if (generation !== validationGeneration.current) return result;
       if (sessionRef.current && !sameProviderSessionLineage(sessionRef.current, candidate)) {
         return result;
@@ -170,10 +168,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
     () =>
       onAccountDeactivated((requestAccessToken) => {
         void (async () => {
+          const auth = await loadSignInBundle();
           let removedMatchingSession = false;
           let storedBelongsToDifferentAccount = false;
           for (let attempt = 0; attempt < 2; attempt += 1) {
-            const current = await supabase.auth.getSession().catch(() => null);
+            const current = await auth.supabase.auth.getSession().catch(() => null);
             const stored = current && !current.error ? current.data.session : null;
             if (!stored) {
               break;
@@ -183,7 +182,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
               break;
             }
             rejectProviderSession(stored);
-            const cleared = await clearOrdinarySessionIfUnchanged(stored).catch(() => false);
+            const cleared = await auth.clearOrdinarySessionIfUnchanged(stored).catch(() => false);
             removedMatchingSession ||= cleared;
           }
 
@@ -213,63 +212,89 @@ export function AuthProvider({ children }: PropsWithChildren) {
 
   useEffect(() => {
     let mounted = true;
+    let unsubscribe: (() => void) | undefined;
     const restoreGeneration = ++validationGeneration.current;
 
-    void restoreAuthSession<Session>(() => supabase.auth.getSession())
-      .then(async ({ session: restoredSession, errorMessage }) => {
-        if (!mounted || restoreGeneration !== validationGeneration.current) return;
-        if (errorMessage) {
-          failWith(SIGN_IN_ERROR_MESSAGES.failed);
-          return;
-        }
-        if (restoredSession) {
-          await acceptSession(restoredSession);
-        }
-      })
-      .catch(() => {
-        if (mounted && restoreGeneration === validationGeneration.current) {
-          sessionRef.current = null;
-          setSession(null);
-          setUser(null);
-          failWith(SIGN_IN_ERROR_MESSAGES.failed);
-        }
-      })
-      .finally(() => {
-        if (mounted && restoreGeneration === validationGeneration.current) setIsLoading(false);
-      });
+    // Nobody is signed in here and this address is not a sign-in return, so the
+    // sign-in client is never fetched — which is the whole saving on the pages
+    // most readers open (#1976). There is nothing to restore and nothing that can
+    // change without a press, and a press fetches it.
+    if (!signInWorkPendingOnLoad()) {
+      setIsLoading(false);
+      return () => {
+        mounted = false;
+      };
+    }
 
-    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      if (!nextSession) {
-        const generation = ++validationGeneration.current;
-        void supabase.auth
-          .getSession()
-          .then((current) => {
-            if (generation !== validationGeneration.current) return;
-            if (!current.error && current.data.session) {
-              void acceptSession(current.data.session);
+    void loadSignInBundle()
+      .then(({ supabase }) => {
+        if (!mounted || restoreGeneration !== validationGeneration.current) return;
+
+        void restoreAuthSession<Session>(() => supabase.auth.getSession())
+          .then(async ({ session: restoredSession, errorMessage }) => {
+            if (!mounted || restoreGeneration !== validationGeneration.current) return;
+            if (errorMessage) {
+              failWith(SIGN_IN_ERROR_MESSAGES.failed);
               return;
             }
-            sessionRef.current = null;
-            setSession(null);
-            setUser(null);
-            setIsLoading(false);
+            if (restoredSession) {
+              await acceptSession(restoredSession);
+            }
           })
           .catch(() => {
-            if (generation !== validationGeneration.current) return;
-            sessionRef.current = null;
-            setSession(null);
-            setUser(null);
-            failWith(SIGN_IN_ERROR_MESSAGES.failed);
-            setIsLoading(false);
+            if (mounted && restoreGeneration === validationGeneration.current) {
+              sessionRef.current = null;
+              setSession(null);
+              setUser(null);
+              failWith(SIGN_IN_ERROR_MESSAGES.failed);
+            }
+          })
+          .finally(() => {
+            if (mounted && restoreGeneration === validationGeneration.current) setIsLoading(false);
           });
-        return;
-      }
-      void acceptSession(nextSession);
-    });
+
+        const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+          if (!nextSession) {
+            const generation = ++validationGeneration.current;
+            void supabase.auth
+              .getSession()
+              .then((current) => {
+                if (generation !== validationGeneration.current) return;
+                if (!current.error && current.data.session) {
+                  void acceptSession(current.data.session);
+                  return;
+                }
+                sessionRef.current = null;
+                setSession(null);
+                setUser(null);
+                setIsLoading(false);
+              })
+              .catch(() => {
+                if (generation !== validationGeneration.current) return;
+                sessionRef.current = null;
+                setSession(null);
+                setUser(null);
+                failWith(SIGN_IN_ERROR_MESSAGES.failed);
+                setIsLoading(false);
+              });
+            return;
+          }
+          void acceptSession(nextSession);
+        });
+        unsubscribe = () => data.subscription.unsubscribe();
+        if (!mounted) unsubscribe();
+      })
+      .catch(() => {
+        // The sign-in code could not be fetched. Stop waiting and say so, rather
+        // than leaving the header stuck on its loading state forever.
+        if (!mounted || restoreGeneration !== validationGeneration.current) return;
+        failWith(SIGN_IN_ERROR_MESSAGES.failed);
+        setIsLoading(false);
+      });
 
     return () => {
       mounted = false;
-      data.subscription.unsubscribe();
+      unsubscribe?.();
     };
   }, [acceptSession, failWith]);
 
@@ -289,7 +314,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
           failWith(SIGN_IN_ERROR_MESSAGES.failed);
           return authFailure(null);
         }
-        const { error } = await supabase.auth.signInWithOAuth({
+        const auth = await loadSignInBundle();
+        const { error } = await auth.supabase.auth.signInWithOAuth({
           provider: 'google',
           options: { redirectTo: getRedirectTo(returnTo), skipBrowserRedirect: false },
         });
@@ -315,6 +341,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
           return authFailure({ code: 'session_changed' }, user?.email);
         }
         if (!freshProofCode) {
+          const { passwordClientForOrdinarySession } = await loadSignInBundle();
           passwordChange.current = {
             openingAccessToken: expectedAccessToken,
             auth: passwordClientForOrdinarySession(visibleSession),
@@ -346,14 +373,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
         const openingSession = sessionRef.current;
         if (!openingSession) return authSuccess();
         const generation = ++validationGeneration.current;
-        const result = await signOutOrdinarySessionIfUnchanged(openingSession);
+        const auth = await loadSignInBundle();
+        const result = await auth.signOutOrdinarySessionIfUnchanged(openingSession);
         if (result.error) {
           const failure = authFailure(result.error);
           failWith(SIGN_IN_ERROR_MESSAGES.failed);
           return failure;
         }
         if (generation !== validationGeneration.current) return authSuccess();
-        const current = await supabase.auth.getSession().catch(() => null);
+        const current = await auth.supabase.auth.getSession().catch(() => null);
         if (generation !== validationGeneration.current) return authSuccess();
         if (current && !current.error && current.data.session) {
           void acceptSession(current.data.session);

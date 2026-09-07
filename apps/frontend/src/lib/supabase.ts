@@ -9,19 +9,13 @@ import {
   sameProviderSessionLineage,
   sessionMatchesProviderTokenLineage,
 } from './auth/providerSessionAcceptance';
+import { supabaseAuthConfig, supabaseAuthStorageKey } from './supabaseConfig';
 
 WebBrowser.maybeCompleteAuthSession();
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
-const supabasePublishableKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? '';
+export { isSupabaseConfigured, supabaseAuthConfig } from './supabaseConfig';
 
-export const isSupabaseConfigured = Boolean(supabaseUrl && supabasePublishableKey);
-
-export const supabaseAuthConfig = {
-  url: supabaseUrl || 'http://localhost:54321',
-  publishableKey: supabasePublishableKey || 'missing-publishable-key',
-} as const;
-const authStorageKey = `sb-${new URL(supabaseAuthConfig.url).hostname.split('.')[0]}-auth-token`;
+const authStorageKey = supabaseAuthStorageKey;
 
 /** Remove a provider session that Alethical has already proved is unsafe. */
 async function clearStoredSupabaseSessionWithoutCheck() {

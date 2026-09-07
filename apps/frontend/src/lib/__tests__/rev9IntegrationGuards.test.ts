@@ -33,7 +33,7 @@ describe('rev 9 sign-in integration guards', () => {
   // the Track button still offering to track it, and the account menu's count one
   // short (#1698). Both read one shared saved list, so one refresh fixes both.
   it('refreshes the watchlist after finishing a held Track press', () => {
-    const modalProvider = source('../../providers/SignInModalProvider.tsx');
+    const modalProvider = source('../../providers/SignInMachinery.tsx');
     const queries = source('../../hooks/useAppQueries.ts');
 
     expect(modalProvider).toContain('useRefreshTrackedBills(user?.id)');
@@ -49,14 +49,14 @@ describe('rev 9 sign-in integration guards', () => {
   });
 
   it('closes a completed email-link flow without running its saved action twice', () => {
-    const modalProvider = source('../../providers/SignInModalProvider.tsx');
+    const modalProvider = source('../../providers/SignInMachinery.tsx');
 
     expect(modalProvider).toContain("if (request?.pendingCompletion === 'email-link') {");
     expect(modalProvider).toContain('releaseCompletion();');
   });
 
   it('treats a pending action already used in another tab as finished', () => {
-    const modalProvider = source('../../providers/SignInModalProvider.tsx');
+    const modalProvider = source('../../providers/SignInMachinery.tsx');
 
     expect(modalProvider).toContain('error instanceof ApiError && error.status === 410');
     expect(modalProvider).toContain('finishSignedInRequest();');
@@ -108,7 +108,7 @@ describe('rev 9 sign-in integration guards', () => {
   });
 
   it('uses the allowed phone return address for account-code requests', () => {
-    const modalProvider = source('../../providers/SignInModalProvider.tsx');
+    const modalProvider = source('../../providers/SignInMachinery.tsx');
 
     expect(modalProvider).toContain("return 'alethical://auth/callback'");
     expect(modalProvider).not.toContain('alethical://confirm');
@@ -150,13 +150,13 @@ describe('rev 9 sign-in integration guards', () => {
 
     expect(emailLinkPage).toContain('function goToForgotPassword()');
     expect(emailLinkPage).toContain("window.location.replace('/#auth_screen=forgot')");
-    expect(source('../../providers/SignInModalProvider.tsx')).toContain(
+    expect(source('../../providers/SignInMachinery.tsx')).toContain(
       'requestedSignInState(storedScreen, window.location.hash)',
     );
   });
 
   it('moves serious email-and-password results off the ordinary form', () => {
-    const modalProvider = source('../../providers/SignInModalProvider.tsx');
+    const modalProvider = source('../../providers/SignInMachinery.tsx');
 
     expect(modalProvider).toContain('dedicatedSignInOutcome(result.error.kind)');
     expect(modalProvider).toContain('dedicatedSignInOutcome(verified.error.kind)');
@@ -164,7 +164,7 @@ describe('rev 9 sign-in integration guards', () => {
   });
 
   it('reopens provider results after a full-page return or stale account read', () => {
-    const modalProvider = source('../../providers/SignInModalProvider.tsx');
+    const modalProvider = source('../../providers/SignInMachinery.tsx');
 
     expect(modalProvider).toContain('const serious = dedicatedSignInOutcome(kind)');
     expect(modalProvider).toContain("state.status !== 'connecting' && !request");

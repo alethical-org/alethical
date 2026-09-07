@@ -88,13 +88,9 @@ vi.mock('react-native-svg', () => ({
   Path: () => <path />,
 }));
 
-vi.mock('../../../lib/auth/linkSession', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../../lib/auth/linkSession')>();
-  return {
-    ...actual,
-    createTemporaryAuthClient: () => auth.temporary,
-  };
-});
+vi.mock('../../../lib/auth/temporaryAuthClient', () => ({
+  createTemporaryAuthClient: () => auth.temporary,
+}));
 
 vi.mock('../../../lib/auth/operations', () => ({
   validateAlethicalSession: auth.validateSession,

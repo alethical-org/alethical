@@ -69,29 +69,51 @@ vi.mock('../../lib/authRestore', () => ({
   restoreAuthSession: vi.fn(() => testState.restoreReply),
 }));
 
-vi.mock('../../lib/supabase', () => ({
-  clearOrdinarySessionIfUnchanged: vi.fn(() => {
-    const reply = testState.clearSessionReplies.shift();
-    return reply ?? Promise.resolve(false);
-  }),
-  isSupabaseConfigured: true,
+// The sign-in client is fetched rather than imported (#1976), so these tests
+// stand in for the fetch. Mocking the fetch instead of `lib/supabase` is also
+// what keeps the sign-in dialog and the email-link page out of this file.
+const signInBundle = vi.hoisted(() => ({
+  clearOrdinarySessionIfUnchanged: vi.fn(),
   passwordClientForOrdinarySession: vi.fn(() => ({})),
+  signOutOrdinarySessionIfUnchanged: vi.fn(async () => ({ changed: false, error: null })),
   supabase: {
     auth: {
-      getSession: vi.fn(() => {
-        const reply = testState.getSessionReplies.shift();
-        return (
-          reply ?? Promise.resolve({ data: { session: testState.storedSession }, error: null })
-        );
-      }),
-      onAuthStateChange: vi.fn((listener: (event: string, session: any | null) => void) => {
-        testState.authStateListener = listener;
-        return { data: { subscription: { unsubscribe: vi.fn() } } };
-      }),
+      getSession: vi.fn(),
+      onAuthStateChange: vi.fn(),
       signInWithOAuth: vi.fn(async () => ({ error: null })),
     },
   },
 }));
+
+vi.mock('../../lib/auth/loadSignInBundle', () => ({
+  loadSignInBundle: vi.fn(async () => signInBundle),
+}));
+
+vi.mock('../../lib/supabaseConfig', () => ({
+  isSupabaseConfigured: true,
+  hasStoredAuthSession: vi.fn(() => true),
+}));
+
+// Every test here is about a reader who has a session to restore, which is the
+// case the gate lets through.
+vi.mock('../../lib/auth/signInWorkPending', () => ({
+  signInWorkPendingOnLoad: vi.fn(() => true),
+}));
+
+signInBundle.clearOrdinarySessionIfUnchanged.mockImplementation(() => {
+  const reply = testState.clearSessionReplies.shift();
+  return reply ?? Promise.resolve(false);
+});
+signInBundle.supabase.auth.getSession.mockImplementation(() => {
+  const reply = testState.getSessionReplies.shift();
+  return reply ?? Promise.resolve({ data: { session: testState.storedSession }, error: null });
+});
+signInBundle.supabase.auth.onAuthStateChange.mockImplementation(
+  (listener: (event: string, session: any | null) => void) => {
+    testState.authStateListener = listener;
+    return { data: { subscription: { unsubscribe: vi.fn() } } };
+  },
+);
 
 class FakeBroadcastChannel {
   static instances: FakeBroadcastChannel[] = [];

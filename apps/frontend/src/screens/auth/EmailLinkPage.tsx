@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { AuthClient, type Session } from '@supabase/auth-js';
+import type { AuthClient, Session } from '@supabase/auth-js';
 
 import { AccountCard } from '../../components/auth/AccountCard';
 import { ContactMailText } from '../../components/auth/ContactMailText';
@@ -10,11 +10,19 @@ import { PasswordField } from '../../components/auth/PasswordField';
 import { SignInContainer, descriptionTextStyle } from '../../components/auth/SignInContainer';
 import { ApiError, completePendingTrackActionFromApi } from '../../data/api';
 import {
-  createTemporaryAuthClient,
   finishTemporarySessionAfterPassword,
   legacyConfirmationPasswordMatches,
   temporarySessionRelationship,
 } from '../../lib/auth/linkSession';
+import { createTemporaryAuthClient } from '../../lib/auth/temporaryAuthClient';
+// Named `.web` outright because these 2 addresses only ever exist on the web, and
+// because the platform-resolved name would pull the phone client's own imports
+// into a test that has no phone.
+import {
+  clearOrdinarySessionIfUnchanged,
+  setOrdinarySessionIfUnchanged,
+  supabase,
+} from '../../lib/supabase.web';
 import { validateAlethicalSession, type AuthUser } from '../../lib/auth/operations';
 import {
   sameProviderSession,
@@ -95,14 +103,29 @@ function publicSupabaseConfig() {
   };
 }
 
+/**
+ * The saved session's client and the account it belongs to.
+ *
+ * The client is imported rather than fetched here, even though it is the largest
+ * thing on this page: this page and the client already arrive in the same
+ * download (`lib/auth/signInBundle.ts`), and fetching it separately made it a
+ * second download that the web build then moved into the shared file every page
+ * fetches — putting all 122,714 minified bytes of it back into every reader's
+ * first load, which is what
+ * [#1976](https://github.com/alethical-org/alethical/issues/1976) removed.
+ */
 async function ordinaryClientAndAccount(): Promise<{
   client: {
-    setSessionIfUnchanged: typeof import('../../lib/supabase.web').setOrdinarySessionIfUnchanged;
-    clearSessionIfUnchanged: typeof import('../../lib/supabase.web').clearOrdinarySessionIfUnchanged;
+    setSessionIfUnchanged: typeof setOrdinarySessionIfUnchanged;
+    clearSessionIfUnchanged: typeof clearOrdinarySessionIfUnchanged;
   };
   account: OrdinaryAccount | null;
 }> {
-  const module = await import('../../lib/supabase.web');
+  const module = {
+    supabase,
+    setOrdinarySessionIfUnchanged,
+    clearOrdinarySessionIfUnchanged,
+  };
   let current = await module.supabase.auth.getSession();
   if (current.error) throw current.error;
 

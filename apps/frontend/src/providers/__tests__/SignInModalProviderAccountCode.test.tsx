@@ -4,6 +4,7 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { SignInMachinery } from '../SignInMachinery';
 import { SignInModalProvider } from '../SignInModalProvider';
 import { useSignInModal } from '../signInModalContext';
 
@@ -70,8 +71,7 @@ vi.mock('../AuthProvider', () => ({
   }),
 }));
 
-vi.mock('../../lib/auth/linkSession', async (importOriginal) => ({
-  ...(await importOriginal<typeof import('../../lib/auth/linkSession')>()),
+vi.mock('../../lib/auth/temporaryAuthClient', () => ({
   createTemporaryAuthClient: vi.fn(() => ({})),
 }));
 
@@ -130,6 +130,23 @@ vi.mock('../../data/api', async (importOriginal) => ({
 
 vi.mock('../../lib/devSignInHold', () => ({
   signInHeldConnecting: () => false,
+}));
+
+// Every test here is about the dialog, which exists on the page only once this
+// page load has sign-in work to do (#1976). Saying it has is what these tests
+// mean by "the dialog is open on this page"; `signInWorkPending.test.ts` covers
+// the question itself.
+vi.mock('../../lib/auth/signInWorkPending', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../lib/auth/signInWorkPending')>()),
+  signInWorkPendingOnLoad: () => true,
+}));
+
+// The machinery is fetched rather than imported (#1976). These tests are about
+// what it does once it is running, so the fetch is stood in for by rendering it
+// directly — which also keeps the real bundle's email-link page out of a file
+// that has no reason to load it.
+vi.mock('../../lib/loadOnDemand', () => ({
+  loadOnDemand: () => (props: any) => <SignInMachinery {...props} />,
 }));
 
 vi.mock('../../lib/supabase', () => ({
