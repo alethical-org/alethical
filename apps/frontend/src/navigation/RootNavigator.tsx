@@ -54,6 +54,7 @@ const PrivacyScreen = loadOnDemand(screenChunks.Privacy);
 const TermsScreen = loadOnDemand(screenChunks.Terms);
 const TrafficScreen = loadOnDemand(screenChunks.SiteMetrics);
 const AdminUsersScreen = loadOnDemand(screenChunks.AdminUsers);
+const AdminSiteMetricsScreen = loadOnDemand(screenChunks.AdminSiteMetrics);
 const VoteDetailScreen = loadOnDemand(screenChunks.VoteDetail);
 const AskAnswerScreen = loadOnDemand(screenChunks.Ask);
 const AboutUsScreen = loadOnDemand(screenChunks.AboutUs);
@@ -76,7 +77,12 @@ const TrackedScreen = loadOnDemand(screenChunks.Tracked);
 const ContactUsScreen = loadOnDemand(screenChunks.ContactUs);
 type NavIcon = Icon;
 type RailRouteName =
-  keyof MainTabParamList | 'FindMyLegislator' | 'NotFound' | 'SiteMetrics' | 'AdminUsers';
+  | keyof MainTabParamList
+  | 'FindMyLegislator'
+  | 'NotFound'
+  | 'SiteMetrics'
+  | 'AdminUsers'
+  | 'AdminSiteMetrics';
 const tabMeta: Record<keyof MainTabParamList, { label: string; Icon: NavIcon }> = {
   Home: { label: 'Home', Icon: Home },
   Tracked: { label: 'Tracked', Icon: BookmarkCheck },
@@ -325,6 +331,7 @@ function MainTabs() {
 function activeRailRouteFromRootState(state: any): RailRouteName | undefined {
   const rootRoute = state?.routes[state.index ?? 0];
   if (rootRoute?.name === 'AdminUsers') return 'AdminUsers';
+  if (rootRoute?.name === 'AdminSiteMetrics') return 'AdminSiteMetrics';
   if (rootRoute?.name === 'FindMyLegislator') {
     return 'FindMyLegislator';
   }
@@ -531,7 +538,8 @@ export function RootNavigator() {
     activeRailRoute === 'FindMyLegislator' ||
     activeRailRoute === 'NotFound' ||
     activeRailRoute === 'SiteMetrics' ||
-    activeRailRoute === 'AdminUsers';
+    activeRailRoute === 'AdminUsers' ||
+    activeRailRoute === 'AdminSiteMetrics';
 
   useEffect(() => {
     if (!isWeb) {
@@ -752,6 +760,11 @@ export function RootNavigator() {
               name="AdminUsers"
               component={AdminUsersScreen}
               options={{ headerShown: false, title: 'Users' }}
+            />
+            <Stack.Screen
+              name="AdminSiteMetrics"
+              component={AdminSiteMetricsScreen}
+              options={{ headerShown: false, title: 'Leadership metrics' }}
             />
             <Stack.Screen
               name="SiteMetrics"

@@ -3,11 +3,11 @@ import { useEffect, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Path, RadialGradient, Stop } from 'react-native-svg';
 
+import { getSiteMetricCollectionDecisionFromApi } from '../data/api';
 import {
   getAccountSignupTotalsFromApi,
-  getSiteMetricCollectionDecisionFromApi,
   getSiteMetricRecordTotalsFromApi,
-} from '../data/api';
+} from '../data/siteMetricsApi';
 import { type AccountSignupTotals } from '../lib/accountSignupMetrics';
 import { LinkArrow } from '../components/LinkArrow';
 import { useResponsive } from '../hooks/useResponsive';
@@ -490,6 +490,7 @@ function MetricRow({
   compactMobile = false,
   mobileValueSize = 20,
   testID,
+  note,
 }: {
   label: string;
   value: string;
@@ -498,6 +499,7 @@ function MetricRow({
   compactMobile?: boolean;
   mobileValueSize?: 19 | 20;
   testID?: string;
+  note?: string;
 }) {
   const { isMobile } = useResponsive();
   return (
@@ -530,6 +532,12 @@ function MetricRow({
         ]}
       >
         {value}
+        {note ? (
+          <Text style={styles.metricValueNote}>
+            {'\n'}
+            {note}
+          </Text>
+        ) : null}
       </Text>
     </View>
   );
@@ -650,6 +658,13 @@ const DESTINATIONS = [
   ['legislatorProfiles', 'Legislator profiles'],
   ['findMyLegislator', 'Find My Legislator'],
   ['money', 'Money in politics'],
+  ['moneySearch', 'Money search'],
+  ['moneyByRace', 'Money by race'],
+  ['moneyCommitteeList', 'Committee list'],
+  ['moneyCommitteeProfiles', 'Committee money pages'],
+  ['moneyPayments', 'Payments by name'],
+  ['moneyOutsideSpending', 'Outside spending'],
+  ['moneyOther', 'Other money pages'],
   ['read', 'Read'],
   ['legacyAsk', 'Ask'],
   ['other', 'Other'],
@@ -715,13 +730,22 @@ function DestinationPanel({ breakdown }: { breakdown: TrafficBreakdown }) {
               {row(DESTINATIONS[5])}
             </View>
             <View style={[styles.destinationOuter, isMobile && styles.destinationOuterMobile]}>
-              {DESTINATIONS.slice(6).map(row)}
+              {DESTINATIONS.slice(6, 14).map(row)}
+            </View>
+            <View style={[styles.destinationOuter, isMobile && styles.destinationOuterMobile]}>
+              {DESTINATIONS.slice(14).map(row)}
             </View>
           </View>
           <Text style={styles.panelNote}>
             Percentages show shares of page views, not visitors. Searches with results are counted
             separately.
           </Text>
+          {breakdown.destinationPageViews.money !== undefined && !breakdown.committeeProfiles ? (
+            <Text style={styles.panelNote}>
+              Detailed money-page counts are unavailable. Money in politics includes the whole money
+              section.
+            </Text>
+          ) : null}
         </>
       )}
     </Panel>
@@ -736,7 +760,20 @@ function ExplorePanel({ breakdown }: { breakdown: TrafficBreakdown }) {
   const { isMobile } = useResponsive();
   const capped =
     breakdown.billProfiles.differentProfilesViewed.capped ||
-    breakdown.legislatorProfiles.differentProfilesViewed.capped;
+    breakdown.legislatorProfiles.differentProfilesViewed.capped ||
+    breakdown.committeeProfiles?.differentProfilesViewed.capped;
+  const profiles: Array<[string, TrafficBreakdown['billProfiles']]> = [
+    ['Bills', breakdown.billProfiles],
+    ['Legislators', breakdown.legislatorProfiles],
+    ...(breakdown.committeeProfiles
+      ? [
+          ['Money committees', breakdown.committeeProfiles] as [
+            string,
+            TrafficBreakdown['billProfiles'],
+          ],
+        ]
+      : []),
+  ];
   return (
     <Panel testID="site-metrics-explore">
       <PanelTitle>What people explore</PanelTitle>
@@ -762,10 +799,7 @@ function ExplorePanel({ breakdown }: { breakdown: TrafficBreakdown }) {
             Different profiles
           </Text>
         </View>
-        {[
-          ['Bills', breakdown.billProfiles],
-          ['Legislators', breakdown.legislatorProfiles],
-        ].map(([label, totals], index) => {
+        {profiles.map(([label, totals], index) => {
           const profile = totals as TrafficBreakdown['billProfiles'];
           return (
             <View
@@ -774,7 +808,7 @@ function ExplorePanel({ breakdown }: { breakdown: TrafficBreakdown }) {
               style={[
                 styles.tableRow,
                 isMobile && styles.tableRowMobile,
-                index === 1 && styles.metricRowLast,
+                index === profiles.length - 1 && styles.metricRowLast,
               ]}
             >
               <Text role="rowheader" style={[styles.metricRowLabel, styles.tableName]}>
@@ -801,9 +835,15 @@ function ExplorePanel({ breakdown }: { breakdown: TrafficBreakdown }) {
       <Text style={styles.panelNote}>
         Profile views include repeat views. Each different profile is counted once.
       </Text>
+      {breakdown.committeeProfiles ? (
+        <Text style={styles.panelNote}>
+          Money committees includes committee profiles and their payment pages. Each committee is
+          counted once across those pages.
+        </Text>
+      ) : null}
       {capped ? (
         <Text style={styles.panelNote}>
-          Shows 100+ when the source cannot list more different profiles
+          A + means the source cannot list every different profile
         </Text>
       ) : null}
     </Panel>
@@ -831,20 +871,41 @@ function ActionsPanel({
     ['New bill watches', actions.newBillWatches],
     ['New committee follows', actions.newCommitteeWatches],
   ] as const;
-  const creationStart = records.history?.newBillWatches.recordingStartedAt;
+  const historyKey = (label: string): keyof NonNullable<SiteMetricRecordTotals['history']> =>
+    (
+      ({
+        'Bill searches with results': 'billSearchesWithResults',
+        'Money searches with results': 'moneySearchesWithResults',
+        'Legislator searches with results': 'legislatorSearchesWithResults',
+        'Find My Legislator lookups with results': 'findMyLegislatorWithResults',
+        'Official source links clicked': 'officialSourceLinksOpened',
+        'New bill watches': 'newBillWatches',
+        'New committee follows': 'newCommitteeWatches',
+      }) as const
+    )[label as (typeof rows)[number][0]];
+  const isNewHistory = (key: string) =>
+    ['moneySearchesWithResults', 'newBillWatches', 'newCommitteeWatches'].includes(key);
   const countValue = (label: string, value: number | undefined) => {
     if (value === undefined) return 'Not available';
-    const key =
-      label === 'New bill watches'
-        ? 'newBillWatches'
-        : label === 'New committee follows'
-          ? 'newCommitteeWatches'
-          : label === 'Money searches with results'
-            ? 'moneySearchesWithResults'
-            : null;
-    if (key && records.history && !records.history[key].recordingStartedAt && value === 0)
+    const key = historyKey(label);
+    if (
+      isNewHistory(key) &&
+      records.history &&
+      !records.history[key].recordingStartedAt &&
+      value === 0
+    )
       return 'Not recorded yet';
     return formatNumber(value);
+  };
+  const coverageNote = (label: string) => {
+    const key = historyKey(label);
+    const history = key && records.history?.[key];
+    if (
+      !history?.recordingStartedAt ||
+      (range === 7 ? history.current7dComplete : history.current30dComplete)
+    )
+      return undefined;
+    return 'Partial range';
   };
   return (
     <Panel>
@@ -856,6 +917,7 @@ function ActionsPanel({
             testID={`site-metrics-action-row-${index}`}
             label={label}
             value={countValue(label, value)}
+            note={coverageNote(label)}
             compactMobile
             mobileValueSize={19}
           />
@@ -878,22 +940,88 @@ function ActionsPanel({
         No search words, addresses, or districts are included in these analytics.
       </Text>
       <Text style={styles.panelNote}>
-        Account creation totals exclude closed, team, and test accounts.
+        Account creation totals exclude closed, team, and test accounts. Deleting an account can
+        lower a past creation total.
       </Text>
       <Text style={styles.panelNote}>
         Search totals count each query and filter choice once per search-page visit, when matching
         results are shown.
       </Text>
-      {creationStart ? (
-        <Text style={styles.panelNote}>
-          New bill-watch history starts {formatDate(creationStart)}. Earlier creations are not
-          included.
-        </Text>
-      ) : null}
+      {rows.map(([label]) => {
+        const key = historyKey(label);
+        const start = key && records.history?.[key].recordingStartedAt;
+        return start && coverageNote(label) ? (
+          <Text key={key} style={styles.panelNote}>
+            {label}: {isNewHistory(key) ? 'recorded' : 'counting rules tracked'} since{' '}
+            {formatDate(start)}.
+            {isNewHistory(key)
+              ? ' Earlier activity is not included.'
+              : ' Earlier totals may use older counting rules.'}
+          </Text>
+        ) : null;
+      })}
       {accounts.kind === 'ready' && accounts.stale ? (
         <Text style={styles.panelNote}>
           Account creation totals are waiting for a newer reading.
         </Text>
+      ) : null}
+    </Panel>
+  );
+}
+
+function AccountOnlyPanel({
+  title,
+  accounts,
+  range,
+  loading,
+  unavailableText,
+}: {
+  title: 'What people do' | 'Readers';
+  accounts: SourceState<AccountSignupTotals>;
+  range: ActivityRange;
+  loading: boolean;
+  unavailableText: string;
+}) {
+  const { isMobile } = useResponsive();
+  const isCurrent = title === 'Readers';
+  const value =
+    accounts.kind === 'ready'
+      ? formatNumber(
+          isCurrent
+            ? accounts.totals.currentAccountsCreated
+            : range === 7
+              ? accounts.totals.created7d
+              : accounts.totals.created30d,
+        )
+      : accounts.kind === 'loading'
+        ? 'Loading'
+        : 'Not available';
+  return (
+    <Panel busy={loading}>
+      <PanelTitle>{title}</PanelTitle>
+      <View style={[styles.plainRows, isMobile && styles.plainRowsMobile]}>
+        <MetricRow
+          label={isCurrent ? 'Current accounts' : 'Accounts created'}
+          value={value}
+          compactMobile
+          last
+        />
+      </View>
+      <Text style={styles.panelNote} accessibilityLiveRegion="polite">
+        {loading ? 'Loading recorded activity.' : unavailableText}
+      </Text>
+      <Text style={styles.panelNote}>
+        {isCurrent ? 'Current totals; the date range does not apply. ' : ''}
+        Accounts include unconfirmed sign-ups and exclude closed, team, and test accounts.
+        {!isCurrent ? ' Deleting an account can lower a past creation total.' : ''}
+      </Text>
+      {accounts.kind === 'ready' ? (
+        <Text style={styles.source}>
+          Accounts counted by Supabase · Through {formatDate(accounts.totals.asOf)}
+        </Text>
+      ) : null}
+      {accounts.kind === 'ready' && accounts.stale ? (
+        <Text style={styles.panelNote}>Account totals are waiting for a newer reading.</Text>
       ) : null}
     </Panel>
   );
@@ -1369,7 +1497,7 @@ export function TrafficScreen() {
         ? records.totals.actions7d
         : records.totals.actions30d
       : null;
-  const loading = [traffic, records, google, bing, uptime, performance].some(
+  const loading = [traffic, records, accounts, google, bing, uptime, performance].some(
     (state) => state.kind === 'loading',
   );
 
@@ -1488,8 +1616,10 @@ export function TrafficScreen() {
                   range={range}
                 />
               ) : (
-                <ActivityStatusPanel
+                <AccountOnlyPanel
                   title="What people do"
+                  accounts={accounts}
+                  range={range}
                   loading={records.kind === 'loading'}
                   unavailableText="Recorded actions are temporarily unavailable."
                 />
@@ -1499,8 +1629,10 @@ export function TrafficScreen() {
               {records.kind === 'ready' ? (
                 <ReadersPanel totals={records.totals.readers} accounts={accounts} />
               ) : (
-                <ActivityStatusPanel
+                <AccountOnlyPanel
                   title="Readers"
+                  accounts={accounts}
+                  range={range}
                   loading={records.kind === 'loading'}
                   unavailableText="Reader totals are temporarily unavailable."
                 />
@@ -1550,6 +1682,12 @@ export function TrafficScreen() {
 }
 
 const styles = StyleSheet.create({
+  metricValueNote: {
+    fontFamily: 'LibreFranklin_400Regular',
+    fontSize: 12,
+    lineHeight: 18,
+    color: '#8f5a12',
+  },
   page: { flexGrow: 1, backgroundColor: theme.colors.surface },
   main: { width: '100%', maxWidth: 1184, alignSelf: 'center', paddingTop: 72, paddingBottom: 72 },
   mainMobile: { paddingTop: 44, paddingBottom: 48 },

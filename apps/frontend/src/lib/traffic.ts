@@ -32,6 +32,13 @@ export type DestinationPageViews = {
   legislatorProfiles: number;
   findMyLegislator: number;
   money?: number;
+  moneySearch?: number;
+  moneyByRace?: number;
+  moneyCommitteeList?: number;
+  moneyCommitteeProfiles?: number;
+  moneyPayments?: number;
+  moneyOutsideSpending?: number;
+  moneyOther?: number;
   read?: number;
   legacyAsk?: number;
   other: number;
@@ -41,6 +48,7 @@ export type TrafficBreakdown = {
   destinationPageViews: DestinationPageViews;
   billProfiles: ProfileTrafficTotals;
   legislatorProfiles: ProfileTrafficTotals;
+  committeeProfiles?: ProfileTrafficTotals;
 };
 
 export type SiteMetricActions = {
@@ -248,9 +256,31 @@ function isDestinationPageViews(value: unknown): value is DestinationPageViews {
         'findMyLegislator',
         'other',
       ],
-      ['money', 'read', 'legacyAsk'],
+      [
+        'money',
+        'read',
+        'legacyAsk',
+        'moneySearch',
+        'moneyByRace',
+        'moneyCommitteeList',
+        'moneyCommitteeProfiles',
+        'moneyPayments',
+        'moneyOutsideSpending',
+        'moneyOther',
+      ],
     ) &&
-    ['money', 'read', 'legacyAsk'].every(
+    [
+      'money',
+      'read',
+      'legacyAsk',
+      'moneySearch',
+      'moneyByRace',
+      'moneyCommitteeList',
+      'moneyCommitteeProfiles',
+      'moneyPayments',
+      'moneyOutsideSpending',
+      'moneyOther',
+    ].every(
       (key) =>
         !Object.hasOwn(value, key) || nonNegativeInteger((value as Record<string, unknown>)[key]),
     ) &&
@@ -268,10 +298,28 @@ function isTrafficBreakdown(value: unknown): value is TrafficBreakdown {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const totals = value as Partial<TrafficBreakdown>;
   return (
-    exactKeys(value, ['destinationPageViews', 'billProfiles', 'legislatorProfiles']) &&
+    allowedKeys(
+      value,
+      ['destinationPageViews', 'billProfiles', 'legislatorProfiles'],
+      ['committeeProfiles'],
+    ) &&
     isDestinationPageViews(totals.destinationPageViews) &&
     isProfileTrafficTotals(totals.billProfiles) &&
-    isProfileTrafficTotals(totals.legislatorProfiles)
+    isProfileTrafficTotals(totals.legislatorProfiles) &&
+    (totals.committeeProfiles === undefined
+      ? !Object.hasOwn(totals.destinationPageViews, 'moneyCommitteeProfiles')
+      : isProfileTrafficTotals(totals.committeeProfiles) &&
+        totals.committeeProfiles.pageViews === totals.destinationPageViews.moneyCommitteeProfiles &&
+        [
+          'money',
+          'moneySearch',
+          'moneyByRace',
+          'moneyCommitteeList',
+          'moneyCommitteeProfiles',
+          'moneyPayments',
+          'moneyOutsideSpending',
+          'moneyOther',
+        ].every((key) => Object.hasOwn(totals.destinationPageViews!, key)))
   );
 }
 

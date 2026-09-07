@@ -578,19 +578,36 @@ function AdminRow({
   const phone = variant === 'phone';
   if (access.state !== 'allowed') return null;
   return (
-    <Pressable
-      {...linkProps(routePath.adminUsers(), () => {
-        onNavigate();
-        navigation.navigate('AdminUsers');
-      })}
-      style={({ pressed }) => [
-        phone ? styles.sheetTrackedRow : styles.menuTrackedRow,
-        pressed && (phone ? styles.sheetButtonPressed : styles.menuItemPressed),
-      ]}
-    >
-      <Text style={phone ? styles.sheetTrackedLabel : styles.menuTrackedLabel}>Admin</Text>
-      <ChevronRightIcon />
-    </Pressable>
+    <>
+      <Pressable
+        {...linkProps(routePath.adminUsers(), () => {
+          onNavigate();
+          navigation.navigate('AdminUsers');
+        })}
+        style={({ pressed }) => [
+          phone ? styles.sheetTrackedRow : styles.menuTrackedRow,
+          pressed && (phone ? styles.sheetButtonPressed : styles.menuItemPressed),
+        ]}
+      >
+        <Text style={phone ? styles.sheetTrackedLabel : styles.menuTrackedLabel}>Admin</Text>
+        <ChevronRightIcon />
+      </Pressable>
+      <Pressable
+        {...linkProps(routePath.adminSiteMetrics(), () => {
+          onNavigate();
+          navigation.navigate('AdminSiteMetrics');
+        })}
+        style={({ pressed }) => [
+          phone ? styles.sheetTrackedRow : styles.menuTrackedRow,
+          pressed && (phone ? styles.sheetButtonPressed : styles.menuItemPressed),
+        ]}
+      >
+        <Text style={phone ? styles.sheetTrackedLabel : styles.menuTrackedLabel}>
+          Leadership metrics
+        </Text>
+        <ChevronRightIcon />
+      </Pressable>
+    </>
   );
 }
 

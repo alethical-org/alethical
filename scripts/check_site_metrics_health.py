@@ -71,6 +71,13 @@ DESTINATIONS = (
     "legislatorProfiles",
     "findMyLegislator",
     "money",
+    "moneySearch",
+    "moneyByRace",
+    "moneyCommitteeList",
+    "moneyCommitteeProfiles",
+    "moneyPayments",
+    "moneyOutsideSpending",
+    "moneyOther",
     "read",
     "legacyAsk",
     "other",
@@ -251,14 +258,18 @@ def traffic(data: dict[str, Any], now: datetime) -> str:
             sum(destinations[key] for key in DESTINATIONS) == data[f"pageViews{days}d"],
             "traffic destination totals do not add up",
         )
-        for key in ("billProfiles", "legislatorProfiles"):
+        for key in ("billProfiles", "legislatorProfiles", "committeeProfiles"):
             profiles = counts(breakdown.get(key), ("pageViews",))
             distinct = counts(profiles.get("differentProfilesViewed"), ("count", "cap"))
             require(
                 distinct["cap"] > 0
                 and distinct["count"] <= distinct["cap"]
                 and type(distinct.get("capped")) is bool
-                and distinct["count"] <= profiles["pageViews"] == destinations[key],
+                and distinct["count"]
+                <= profiles["pageViews"]
+                == destinations[
+                    "moneyCommitteeProfiles" if key == "committeeProfiles" else key
+                ],
                 "profile-view measurements disagree",
             )
     return "healthy"

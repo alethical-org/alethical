@@ -290,22 +290,30 @@ def site_metric_data(db: Session, now: datetime | None = None) -> dict:
 
 @router.get("/site-metrics")
 def site_metric_totals(
-    version: Literal[1, 2] = 1, db: Session = Depends(get_db)
+    version: Literal["1", "2"] = "1", db: Session = Depends(get_db)
 ) -> JSONResponse:
     totals = site_metric_data(db)
-    if version == 1:
+    if version == "1":
         # Keep already-open browsers working while the backend and web release
         # roll out separately. The expanded contract is explicitly requested.
         legacy_actions = (
-            "billSearchesWithResults", "legislatorSearchesWithResults",
-            "findMyLegislatorWithResults", "officialSourceLinksOpened", "newBillWatches",
+            "billSearchesWithResults",
+            "legislatorSearchesWithResults",
+            "findMyLegislatorWithResults",
+            "officialSourceLinksOpened",
+            "newBillWatches",
         )
         totals = {
             "actions7d": {key: totals["actions7d"][key] for key in legacy_actions},
             "actions30d": {key: totals["actions30d"][key] for key in legacy_actions},
-            "readers": {key: totals["readers"][key] for key in (
-                "registeredReaders", "currentBillWatches", "differentBillsCurrentlyWatched",
-            )},
+            "readers": {
+                key: totals["readers"][key]
+                for key in (
+                    "registeredReaders",
+                    "currentBillWatches",
+                    "differentBillsCurrentlyWatched",
+                )
+            },
             "fetchedAt": totals["fetchedAt"],
             "teamExclusionConfigured": totals["teamExclusionConfigured"],
         }

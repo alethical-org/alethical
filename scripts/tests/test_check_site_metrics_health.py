@@ -61,7 +61,7 @@ def fixtures():
                 "pageViews": 0,
                 "differentProfilesViewed": {"count": 0, "cap": 100, "capped": False},
             }
-            for key in ("billProfiles", "legislatorProfiles")
+            for key in ("billProfiles", "legislatorProfiles", "committeeProfiles")
         },
     }
     return {

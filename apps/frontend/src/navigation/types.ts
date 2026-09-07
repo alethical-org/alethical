@@ -106,6 +106,7 @@ export type RootStackParamList = {
     { spender?: string; about?: string; year?: string; sort?: string; page?: string } | undefined;
   Privacy: undefined;
   AdminUsers: undefined;
+  AdminSiteMetrics: undefined;
   SiteMetrics: undefined;
   Terms: undefined;
   AboutUs: undefined;

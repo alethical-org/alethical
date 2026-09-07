@@ -27,6 +27,7 @@ things work in practice and are the place to start if you're new.
 - [Bill tracking interaction spec](product-onboarding/bill-tracking-spec.md) — how Track behaves on every page, through sign-in, and inside full-card links
 - [How sign-in works](product-onboarding/sign-in-guide.md) — Google and password sign-in, email codes, account matching, password rules, and release settings
 - [How private account visibility works](product-onboarding/admin-users-guide.md) — the approved administrator accounts, private account search, confirmation dates, exclusions, and access protection
+- [How Site Metrics works](product-onboarding/traffic-guide.md) — public traffic, sign-ups, Money use, source health, and the private aggregate leadership report
 - [How Home works](product-onboarding/home-screen-guide.md) — the signed-out and signed-in opening sections, bill activity, editorial news picks, and phone layout
 - [How Bill Detail works](product-onboarding/bill-detail-guide.md) — the summary, actions, votes, versions, Bill Text, source line, and phone order
 - [How legislator profiles work](product-onboarding/legislator-profile-guide.md) — identity, committees, bills, service history, public money records, and planned features

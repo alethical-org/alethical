@@ -41,10 +41,10 @@ One writer per file. Helpers commit in isolated worktrees and do not release. Ma
 
 - [x] Live/source audit completed, implementation approved.
 - [x] Isolated branches created and independent helpers started.
-- [ ] Source repairs and creation-history contracts implemented.
-- [ ] Common team/test classification reconciled with prior explicit exclusions.
-- [ ] Public additions and private aggregate report implemented.
-- [ ] Authoritative source definitions, missing states and limitations updated.
+- [x] Source repairs and creation-history contracts implemented.
+- [x] Common team/test classification reconciled with prior explicit exclusions.
+- [x] Public additions and private aggregate report implemented.
+- [x] Authoritative source definitions, missing states and limitations updated.
 - [ ] Focused and full checks, migration review, desktop/phone browser checks.
 - [ ] Pull requests, current-main checks, release and live verification.
 
@@ -54,3 +54,27 @@ One writer per file. Helpers commit in isolated worktrees and do not release. Ma
 - Exact historical deleted sign-up/follow totals cannot be recovered from current inventory. Current surviving Supabase creation counts can decrease after account deletion; private and public wording must state this. First-use history is a different measurement, not a workaround label for sign-ups.
 - Provider bot filtering does not establish that every visit is human. No investor audience or conversion claim follows from anonymous visit estimates alone.
 - No new vendor purchase, paid recurring agent job, real-user notification, destructive production rewrite, or undisclosed cross-visit tracking is authorized by this build.
+
+## Integration checkpoint
+
+The expanded public report includes the 6 main Money addresses, committee profile/payment
+views, distinct campaign committees, remaining Money traffic, money searches with results,
+new committee follows, and current committee-follow inventories. Existing cards carry these
+figures; there is no unresolved visual choice requiring a new Design handoff.
+
+The shared admin/account work is live in [pull request 2017](https://github.com/alethical-org/alethical/pull/2017).
+The metrics branch contains the shared changes plus the stronger event-time collection
+checks. Anonymous visits wait for the first resolved sign-in state; later identity changes
+apply immediately and never reassign queued events to the next account.
+
+Completed checks include 134 backend tests and 49 health-check subtests, a fresh independent
+authentication/collection review, all 2286 frontend tests, and 69 phone/desktop browser cases
+in Chromium, Firefox and WebKit. The full backend suite is in progress. The metrics screens
+share 1 on-demand download; initial download size is 389326 compressed bytes against the
+unchanged 390000-byte limit.
+
+Before release: integrate current main, complete browser and full-suite checks, update this
+checkpoint, open the metrics pull request, pass current-head and merge-queue checks, confirm
+database migration 0052 and both hosted releases, then exercise all public sources and
+private access-denial paths live. No production writes or releases have occurred from this
+metrics branch at this checkpoint.

@@ -15,7 +15,12 @@ describe('independent, source-labelled measurements', () => {
     expect(isUptimeTotals(uptime)).toBe(true);
     expect(isUptimeTotals({ ...uptime, websiteAvailability30d: 101 })).toBe(false);
     expect(isUptimeTotals({ ...uptime, measuredAt: { website: null, api: null } })).toBe(false);
-    expect(isUptimeTotals({ ...uptime, monitoringStartedAt: { website: '2026-09-08T00:00:00Z', api: null } })).toBe(false);
+    expect(
+      isUptimeTotals({
+        ...uptime,
+        monitoringStartedAt: { website: '2026-09-08T00:00:00Z', api: null },
+      }),
+    ).toBe(false);
   });
   it('does not accept a blank availability answer as a successful measurement', () => {
     expect(isUptimeTotals({ ...uptime, websiteAvailability30d: null })).toBe(false);
