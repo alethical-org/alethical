@@ -857,9 +857,33 @@ async function publicApiPost<T>(path: string, body: unknown): Promise<T> {
   return (await response.json()) as T;
 }
 
+export async function getAccountSignupTotalsFromApi(): Promise<
+  import('../lib/accountSignupMetrics').AccountSignupTotals
+> {
+  const { isAccountSignupTotals } = await import('../lib/accountSignupMetrics');
+  const response = await publicApiRequest<unknown>('/site-metrics/accounts');
+  if (!isAccountSignupTotals(response)) throw new Error('Account creation totals are unavailable.');
+  return response;
+}
+
 export async function getSiteMetricRecordTotalsFromApi(): Promise<SiteMetricRecordTotals> {
-  const response = await publicApiRequest<DetailResponse<SiteMetricRecordTotals>>('/site-metrics');
+  const response =
+    await publicApiRequest<DetailResponse<SiteMetricRecordTotals>>('/site-metrics?version=2');
   return response.data;
+}
+
+export async function getLeadershipMetricsFromApi(
+  accessToken: string,
+  signal?: AbortSignal,
+): Promise<import('../lib/leadershipMetrics').LeadershipMetrics> {
+  const { isLeadershipMetrics } = await import('../lib/leadershipMetrics');
+  const response = await apiRequest<unknown>(
+    '/admin/site-metrics',
+    { method: 'GET', cache: 'no-store', signal },
+    accessToken,
+  );
+  if (!isLeadershipMetrics(response)) throw new Error('Leadership metrics are unavailable.');
+  return response;
 }
 
 export async function getSiteMetricCollectionDecisionFromApi(

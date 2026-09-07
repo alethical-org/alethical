@@ -11,6 +11,17 @@ from alethical.db.session import get_session_factory
 schema = load_schema()
 
 
+def test_old_and_new_clients_have_separate_count_contracts(client):
+    legacy = client.get("/api/v1/site-metrics").json()["data"]
+    current = client.get("/api/v1/site-metrics?version=2").json()["data"]
+    assert set(legacy) == {"actions7d", "actions30d", "readers", "fetchedAt", "teamExclusionConfigured"}
+    assert set(legacy["readers"]) == {"registeredReaders", "currentBillWatches", "differentBillsCurrentlyWatched"}
+    assert "history" in current
+    assert "moneySearchesWithResults" in current["actions7d"]
+    assert "moneySearchesWithResults" not in legacy["actions7d"]
+    assert client.get("/api/v1/site-metrics?version=3").status_code == 422
+
+
 def _totals(client, monkeypatch, excluded: str = "") -> dict:
     monkeypatch.setenv("TRAFFIC_EXCLUDED_ACCOUNT_IDS", excluded)
     response = client.get("/api/v1/site-metrics")

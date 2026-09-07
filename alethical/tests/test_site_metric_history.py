@@ -87,10 +87,10 @@ def test_unfollowing_does_not_erase_a_follow_action(reader, monkeypatch):
     assert client.put(path, json={}, headers=AUTH).status_code == 200
     assert _count("bill_watch_created") == 1
     _advance_public_clock(monkeypatch)
-    before = client.get("/api/v1/site-metrics").json()["data"]["actions7d"]
+    before = client.get("/api/v1/site-metrics?version=2").json()["data"]["actions7d"]
     assert before["newBillWatches"] == 1
     assert client.delete(path, headers=AUTH).status_code == 204
-    after = client.get("/api/v1/site-metrics").json()["data"]["actions7d"]
+    after = client.get("/api/v1/site-metrics?version=2").json()["data"]["actions7d"]
     assert after["newBillWatches"] == 1
 
 
@@ -326,7 +326,7 @@ def test_deleting_personal_rows_leaves_only_anonymous_totals(reader):
 
 
 def test_empty_inventory_is_not_backfilled_as_creation_history(client):
-    data = client.get("/api/v1/site-metrics").json()["data"]
+    data = client.get("/api/v1/site-metrics?version=2").json()["data"]
     assert data["totalsSinceStart"] == {
         "newReaderAccounts": 0,
         "newBillWatches": 0,
@@ -414,7 +414,7 @@ def test_current_following_readers_count_people_once_and_exclude_deactivated(
     reader, monkeypatch
 ):
     client, auth = reader
-    before = client.get("/api/v1/site-metrics").json()["data"]["readers"]
+    before = client.get("/api/v1/site-metrics?version=2").json()["data"]["readers"]
     response = client.get("/api/v1/me", headers=AUTH)
     user_id = response.json()["data"]["id"]
     with get_session_factory()() as db:
@@ -435,7 +435,7 @@ def test_current_following_readers_count_people_once_and_exclude_deactivated(
             ).status_code
             == 200
         )
-    after = client.get("/api/v1/site-metrics").json()["data"]["readers"]
+    after = client.get("/api/v1/site-metrics?version=2").json()["data"]["readers"]
     for key in (
         "currentReaderAccounts",
         "currentBillFollowingReaders",
@@ -451,7 +451,7 @@ def test_current_following_readers_count_people_once_and_exclude_deactivated(
     with get_session_factory()() as db:
         db.get(schema.UserAccount, user_id).is_active = False
         db.commit()
-    inactive = client.get("/api/v1/site-metrics").json()["data"]["readers"]
+    inactive = client.get("/api/v1/site-metrics?version=2").json()["data"]["readers"]
     assert inactive == before
 
 
@@ -492,7 +492,7 @@ def test_rolling_windows_share_completed_hour_and_incomplete_history_is_unknown(
                 )
             )
         db.commit()
-    data = client.get("/api/v1/site-metrics").json()["data"]
+    data = client.get("/api/v1/site-metrics?version=2").json()["data"]
     assert data["periods7d"]["endsAt"] == end.isoformat()
     assert data["periods30d"]["endsAt"] == end.isoformat()
     assert data["actions7d"]["newReaderAccounts"] == 8
@@ -506,6 +506,6 @@ def test_rolling_windows_share_completed_hour_and_incomplete_history_is_unknown(
             end - timedelta(days=60)
         )
         db.commit()
-    complete = client.get("/api/v1/site-metrics").json()["data"]
+    complete = client.get("/api/v1/site-metrics?version=2").json()["data"]
     assert complete["previousActions7d"]["newReaderAccounts"] == 7
     assert complete["previousActions30d"]["newReaderAccounts"] == 0

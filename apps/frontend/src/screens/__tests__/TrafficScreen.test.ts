@@ -97,7 +97,7 @@ describe('public Site metrics page', () => {
     expect(SOURCE).toContain('Readers');
     expect(SOURCE).toContain('No search words, addresses, or districts');
     expect(SOURCE).toContain('Find My Legislator lookups with results');
-    expect(SOURCE).toContain('Official source links opened');
+    expect(SOURCE).toContain('Official source links clicked');
     expect(SOURCE).toContain('aria-level={2}');
     expect(SOURCE).toContain('aria-level={3}');
     expect(SOURCE).toContain('<PanelTitle>Where people go</PanelTitle>');

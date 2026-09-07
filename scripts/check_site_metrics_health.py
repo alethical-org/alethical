@@ -32,7 +32,7 @@ SOURCES = (
     ("bing", "https://www.alethical.com/api/traffic-bing"),
     ("uptime", "https://www.alethical.com/api/traffic-uptime"),
     ("performance", "https://www.alethical.com/api/traffic-performance"),
-    ("actions", "https://api.alethical.com/api/v1/site-metrics"),
+    ("actions", "https://api.alethical.com/api/v1/site-metrics?version=2"),
     ("accounts", "https://api.alethical.com/api/v1/site-metrics/accounts"),
 )
 MAX_BYTES = 65_536

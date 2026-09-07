@@ -11,6 +11,7 @@ from sqlalchemy import distinct, func, select
 from sqlalchemy.orm import Session
 
 from alethical.api.auth import get_current_user, get_optional_current_user
+from alethical.api.routers import leadership_metrics, site_metric_accounts
 from alethical.api.services.account_classification import (
     excluded_local_user_ids,
     excluded_provider_subjects,
@@ -55,6 +56,8 @@ class BoundedMetricRoute(APIRoute):
 
 
 router = APIRouter(route_class=BoundedMetricRoute)
+router.include_router(site_metric_accounts.router)
+router.include_router(leadership_metrics.router)
 schema = load_schema()
 AuthIdentity = schema.AuthIdentity
 SiteMetricEvent = schema.SiteMetricEvent
@@ -159,9 +162,8 @@ def included_user_ids(db: Session, excluded: set[str]):
     return statement
 
 
-@router.get("/site-metrics")
-def site_metric_totals(db: Session = Depends(get_db)) -> JSONResponse:
-    now = datetime.now(timezone.utc)
+def site_metric_data(db: Session, now: datetime | None = None) -> dict:
+    now = now or datetime.now(timezone.utc)
     excluded = excluded_provider_subjects()
     user_ids = included_user_ids(db, excluded)
     # Compare equal windows and exclude the unfinished hour, matching traffic.
@@ -271,22 +273,44 @@ def site_metric_totals(db: Session = Depends(get_db)) -> JSONResponse:
             "previousEndsAt": starts.isoformat(),
         }
 
+    return {
+        "actions7d": actions7d,
+        "actions30d": actions30d,
+        "previousActions7d": previous7d,
+        "previousActions30d": previous30d,
+        "periods7d": period(7),
+        "periods30d": period(30),
+        "history": history,
+        "totalsSinceStart": creation_totals(db, None, ends_at),
+        "readers": readers,
+        "fetchedAt": now.isoformat(),
+        "teamExclusionConfigured": True,
+    }
+
+
+@router.get("/site-metrics")
+def site_metric_totals(
+    version: Literal[1, 2] = 1, db: Session = Depends(get_db)
+) -> JSONResponse:
+    totals = site_metric_data(db)
+    if version == 1:
+        # Keep already-open browsers working while the backend and web release
+        # roll out separately. The expanded contract is explicitly requested.
+        legacy_actions = (
+            "billSearchesWithResults", "legislatorSearchesWithResults",
+            "findMyLegislatorWithResults", "officialSourceLinksOpened", "newBillWatches",
+        )
+        totals = {
+            "actions7d": {key: totals["actions7d"][key] for key in legacy_actions},
+            "actions30d": {key: totals["actions30d"][key] for key in legacy_actions},
+            "readers": {key: totals["readers"][key] for key in (
+                "registeredReaders", "currentBillWatches", "differentBillsCurrentlyWatched",
+            )},
+            "fetchedAt": totals["fetchedAt"],
+            "teamExclusionConfigured": totals["teamExclusionConfigured"],
+        }
     return JSONResponse(
-        content={
-            "data": {
-                "actions7d": actions7d,
-                "actions30d": actions30d,
-                "previousActions7d": previous7d,
-                "previousActions30d": previous30d,
-                "periods7d": period(7),
-                "periods30d": period(30),
-                "history": history,
-                "totalsSinceStart": creation_totals(db, None, ends_at),
-                "readers": readers,
-                "fetchedAt": now.isoformat(),
-                "teamExclusionConfigured": True,
-            }
-        },
+        content={"data": totals},
         headers={
             "Cache-Control": "public, max-age=0, s-maxage=300, stale-while-revalidate=60"
         },
