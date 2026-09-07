@@ -63,7 +63,9 @@ is human-triggered and on no schedule: production's snapshot was dated 2026-08-1
 when this was measured on 4 Sep 2026, 23 days old. Against that, the old 60 s
 plus 5 minutes was minutes, so any gap over 5 minutes between readers sent the
 next one to the origin, measured at 2975 ms on
-`/campaign-finance/outside-spending`. Cloudflare honours both directives,
+`/campaign-finance/outside-spending` — a figure that says what the window was worth
+then, not what an origin read costs now. That same read answers in 0.46 s at the
+direct origin (7 Sep 2026), so the window is worth about a tenth of what it was. Cloudflare honours both directives,
 measured rather than assumed: the same morning `/campaign-finance/races`
 returned `cf-cache-status: UPDATING` (serving stale, refreshing behind the
 reader) and `/campaign-finance/outside-spending` returned `EXPIRED` (past the

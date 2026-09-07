@@ -9,8 +9,12 @@ name: Warm the money addresses
 #     Cache-Control says, so the first reader after a deploy pays a cold serverless
 #     function (measured 1.44s on /money/committees, 4 Sep 2026).
 #   - Cloudflare's API cache holds a copy per edge location, so a location that has
-#     served nobody inside the window sends the next reader to the origin (measured
-#     2975 ms on /campaign-finance/outside-spending, 4 Sep 2026).
+#     served nobody inside the window sends the next reader to the origin. What that
+#     reader now waits for is 0.46 s on /campaign-finance/outside-spending and 1.40 s
+#     on /campaign-finance/search, against 0.09 s from a warm edge (measured at the
+#     direct origin, 7 Sep 2026). It was 2.98 s before the reads behind those pages
+#     were narrowed, so this job saves roughly a tenth of what it used to; the read
+#     it protects most is search, which is per-query and cannot be warmed here.
 #
 # So this runs on both triggers that matter: after each production release, and
 # once a day as a floor. Production releases come from Vercel's own Git connection

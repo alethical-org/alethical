@@ -1555,9 +1555,13 @@ the live release on 4 Sep 2026, Chrome, every cache warm, empty browser cache
 | 1219 ms | the app starts and replaces the body with its own loading state | 56 ms |
 | 1253-1771 ms | the app fetches `/campaign-finance/committees?limit=50&offset=0`, the read this function made at about 100 ms | **518 ms** |
 
-The same read costs 541 ms when Cloudflare misses, 1,265 ms on `/campaign-finance/races?year=2026`
-and 2,975 ms on `/campaign-finance/outside-spending`. `/money/races` was the worst of it: 225 KB
-of served body describing 778 committees, then 271 KB of JSON describing the same 778.
+On the same day that read cost 541 ms when Cloudflare missed, against 1,265 ms on
+`/campaign-finance/races?year=2026` and 2,975 ms on `/campaign-finance/outside-spending`. Those 3
+are 0.43 s, 0.71 s and 0.46 s at the direct origin now that the reads behind them ask only for what
+the answer needs ([#1966](https://github.com/alethical-org/alethical/issues/1966), measured 7 Sep
+2026), so the second fetch this section removes is worth what a fast read costs rather than what a
+slow one did. `/money/races` was the worst of it: 225 KB of served body describing 778 committees,
+then 271 KB of JSON describing the same 778.
 
 ### Decision
 
@@ -1677,8 +1681,8 @@ on the first response's copy.
 ### The 2 addresses that served no body
 
 `/money/outside-spending` and `/money/search` returned a title and an empty body, so a reader saw
-nothing at all until the program loaded and the service answered — on outside spending that is the
-2,975 ms cold read, which made it the section's slowest first load. Both now serve a body built
+nothing at all until the program loaded and the service answered — on outside spending that was the
+2,975 ms cold read measured above, which made it the section's slowest first load. Both now serve a body built
 from the same wording helpers their screens call.
 
 Neither address's robots treatment changes. The bare outside-spending record was already
