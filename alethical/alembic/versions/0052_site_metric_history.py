@@ -55,20 +55,10 @@ def upgrade() -> None:
         sa.Column("metric_kind", sa.String(60), primary_key=True),
         sa.Column("recording_started_at", sa.DateTime(timezone=True), nullable=False),
     )
-    # No inventory backfill: deleted accounts/follows are genuinely unknowable.
-    # Existing browser events remain countable, but their earliest row does not
-    # prove when collection began. Claim coverage only from this installation.
-    coverage = sa.table(
-        "site_metric_coverage",
-        sa.column("metric_kind", sa.String),
-        sa.column("recording_started_at", sa.DateTime(timezone=True)),
-    )
-    for kind in (*EVENT_KINDS, *CREATION_KINDS):
-        op.execute(
-            coverage.insert().values(
-                metric_kind=kind, recording_started_at=sa.func.now()
-            )
-        )
+    # Leave coverage empty. Installing tables does not prove the new application
+    # is collecting anything yet. Its first committed write establishes each
+    # metric's honest lower bound. Deleted inventory is never backfilled, and
+    # the first retained browser event cannot prove a historical collection start.
     op.create_table(
         "site_metric_receipt",
         sa.Column("event_id", postgresql.UUID(as_uuid=True), primary_key=True),

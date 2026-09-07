@@ -44,7 +44,7 @@ def test_site_metric_history_upgrade_downgrade_upgrade():
     try:
         migrate("upgrade", "head")
         with isolated.begin() as db:
-            assert db.scalar(text("SELECT count(*) FROM site_metric_coverage")) == 8
+            assert db.scalar(text("SELECT count(*) FROM site_metric_coverage")) == 0
             assert db.scalar(text("SELECT count(*) FROM site_metric_hourly_count")) == 0
             db.execute(
                 text(
@@ -58,7 +58,7 @@ def test_site_metric_history_upgrade_downgrade_upgrade():
             assert db.scalar(text("SELECT count(*) FROM site_metric_event")) == 1
         migrate("upgrade", "head")
         with isolated.connect() as db:
-            assert db.scalar(text("SELECT count(*) FROM site_metric_coverage")) == 8
+            assert db.scalar(text("SELECT count(*) FROM site_metric_coverage")) == 0
             assert db.scalar(text("SELECT count(*) FROM site_metric_hourly_count")) == 0
             assert db.scalar(text("SELECT count(*) FROM site_metric_event")) == 1
     finally:
