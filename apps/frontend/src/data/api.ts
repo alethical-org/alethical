@@ -20,7 +20,7 @@ import {
   type ApiMoneyByRacePayload,
 } from '../lib/moneyByRace';
 import type { SourceBlock } from '../lib/billText';
-import type { SiteMetricEventName, SiteMetricRecordTotals } from '../lib/traffic';
+import type { SiteMetricEventName } from '../lib/traffic';
 import { contactEmail, senateProfileUrl } from '../lib/findMyLegislator';
 import { LEGISLATOR_ROSTER_LIMIT } from '../lib/directoryPagination';
 import { META_READ_PATH, policyAreasReadPath, SESSIONS_READ_PATH } from '../lib/searchPageReads';
@@ -832,7 +832,7 @@ export async function getAdminAccessFromApi(accessToken: string, signal?: AbortS
   );
 }
 
-async function publicApiRequest<T>(path: string): Promise<T> {
+export async function publicApiRequest<T>(path: string): Promise<T> {
   const response = await publicReadResponse(publicApiUrl(path), {
     method: 'GET',
     headers: {
@@ -870,35 +870,6 @@ async function publicApiPost<T>(path: string, body: unknown): Promise<T> {
   }
 
   return (await response.json()) as T;
-}
-
-export async function getAccountSignupTotalsFromApi(): Promise<
-  import('../lib/accountSignupMetrics').AccountSignupTotals
-> {
-  const { isAccountSignupTotals } = await import('../lib/accountSignupMetrics');
-  const response = await publicApiRequest<unknown>('/site-metrics/accounts');
-  if (!isAccountSignupTotals(response)) throw new Error('Account creation totals are unavailable.');
-  return response;
-}
-
-export async function getSiteMetricRecordTotalsFromApi(): Promise<SiteMetricRecordTotals> {
-  const response =
-    await publicApiRequest<DetailResponse<SiteMetricRecordTotals>>('/site-metrics?version=2');
-  return response.data;
-}
-
-export async function getLeadershipMetricsFromApi(
-  accessToken: string,
-  signal?: AbortSignal,
-): Promise<import('../lib/leadershipMetrics').LeadershipMetrics> {
-  const { isLeadershipMetrics } = await import('../lib/leadershipMetrics');
-  const response = await apiRequest<unknown>(
-    '/admin/site-metrics',
-    { method: 'GET', cache: 'no-store', signal },
-    accessToken,
-  );
-  if (!isLeadershipMetrics(response)) throw new Error('Leadership metrics are unavailable.');
-  return response;
 }
 
 export async function getSiteMetricCollectionDecisionFromApi(

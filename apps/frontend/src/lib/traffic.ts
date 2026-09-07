@@ -147,16 +147,7 @@ export type PerformanceTotals = {
   sampleCountSource?: 'cloudflare-confidence';
   minimumSamples?: 50;
 };
-export function redactTrafficUrl(value: string): string {
-  try {
-    const url = new URL(value);
-    url.search = '';
-    url.hash = '';
-    return url.toString();
-  } catch {
-    return value.split(/[?#]/, 1)[0] ?? value;
-  }
-}
+export { redactTrafficUrl } from './trafficUrl';
 
 export function formatTrafficWindowEnd(iso: string): string {
   const time = new Intl.DateTimeFormat('en-US', {

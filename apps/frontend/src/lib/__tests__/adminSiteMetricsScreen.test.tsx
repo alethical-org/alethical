@@ -19,11 +19,11 @@ vi.mock('../../hooks/useResponsive', () => ({
   useResponsive: () => ({ isMobile: true, isDesktop: false }),
 }));
 vi.mock('../../data/api', () => ({
-  getLeadershipMetricsFromApi: vi.fn(),
   ApiError: class extends Error {
     status = 403;
   },
 }));
+vi.mock('../../data/siteMetricsApi', () => ({ getLeadershipMetricsFromApi: vi.fn() }));
 vi.mock('../../providers/signInModalContext', () => ({
   useSignInModal: () => ({ openSignIn: vi.fn() }),
 }));
@@ -39,7 +39,7 @@ vi.mock('../../components/search/searchPieces', () => ({
   ),
 }));
 
-import { getLeadershipMetricsFromApi } from '../../data/api';
+import { getLeadershipMetricsFromApi } from '../../data/siteMetricsApi';
 import { AdminSiteMetricsScreen } from '../../screens/redesign/AdminSiteMetricsScreen';
 
 let container: HTMLDivElement;

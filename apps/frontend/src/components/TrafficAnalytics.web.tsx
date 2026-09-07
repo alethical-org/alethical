@@ -2,7 +2,7 @@ import { Analytics, type BeforeSendEvent } from '@vercel/analytics/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { getSiteMetricCollectionDecisionFromApi } from '../data/api';
-import { redactTrafficUrl } from '../lib/traffic';
+import { redactTrafficUrl } from '../lib/trafficUrl';
 import { setSiteMetricSession } from '../lib/siteMetricEvents';
 import { isPrivateMetricLocation, isPrivateMetricUrl } from '../lib/siteMetricPrivacy';
 import { useAuth } from '../providers/AuthProvider';

@@ -75,10 +75,15 @@ export const screenChunks = {
       default: m.CommitteePaymentsScreen,
     })),
   Privacy: () => import('../screens/LegalScreens').then((m) => ({ default: m.PrivacyScreen })),
+  AdminSiteMetrics: () =>
+    import('../screens/metricsScreens').then((m) => ({
+      default: m.AdminSiteMetricsScreen,
+    })),
   AdminUsers: () =>
     import('../screens/redesign/AdminUsersScreen').then((m) => ({ default: m.AdminUsersScreen })),
   Terms: () => import('../screens/LegalScreens').then((m) => ({ default: m.TermsScreen })),
-  SiteMetrics: () => import('../screens/TrafficScreen').then((m) => ({ default: m.TrafficScreen })),
+  SiteMetrics: () =>
+    import('../screens/metricsScreens').then((m) => ({ default: m.TrafficScreen })),
   AboutUs: () =>
     import('../screens/redesign/AboutUsScreen').then((m) => ({ default: m.AboutUsScreen })),
   ContactUs: () =>
