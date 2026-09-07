@@ -299,11 +299,11 @@ letting Design apply the narrowing quietly.
 inherits, so the card prints no word. A card prints the word on the home page, in a search result,
 and in a related-piece list, where no heading supplies it.
 
-**Why the earlier wording needed narrowing.** §2.2 said a card outside a set box carries the word,
-without qualification. Applied literally on the `/read` page that prints "Guide" under a heading
-already reading `GUIDES`, twice in one glance. Design spotted this while drawing the page and asked
-to have the narrowing ratified rather than absorb it silently, which is the right instinct: the
-looser sentence was already written down and would have been followed by the next person.
+**Why the word depends on context.** An unqualified rule, "a card outside a set box carries the
+word", prints "Guide" on the `/read` page under a heading already reading `GUIDES`, twice in one
+glance. Design spotted this while drawing the page and asked to have the narrowing ratified rather
+than absorb it silently, which is the right instinct: a looser sentence already written down gets
+followed by the next person.
 
 **What it costs.** The word a reader sees now depends on context rather than on the piece, so a
 card component needs to know whether a heading sits above it. That is a small amount of wiring and

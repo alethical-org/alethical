@@ -223,12 +223,11 @@ sentence under it is fixed and says exactly this:
 the 583,152 published donation rows are individually under $200 and are named anyway,
 because that donor's yearly total had already passed the line.
 
-**And read it as a floor, not a ban.** The sentence used to end "Donors who gave $200 or
-less in total are never named", which is not what the rule says: the $200 is the point at
-which a campaign *has to* name someone, and a campaign may name a smaller donor if it
-chooses. At least one does, so a reader who opened that filing and found a $75 donor listed
-by name would have caught our page saying it was impossible
-([#1755](https://github.com/alethical-org/alethical/issues/1755), corrected 27 Aug 2026).
+**And read it as a floor, not a ban.** Never write that donors who gave $200 or less in total
+"are never named": the $200 is the point at which a campaign *has to* name someone, and a
+campaign may name a smaller donor if it chooses. At least one does, so a page saying it was
+impossible is caught by any reader who opens that filing and finds a $75 donor listed by name
+([#1755](https://github.com/alethical-org/alethical/issues/1755)).
 
 Money in that is not a donation — a loan the candidate made to their own campaign, most
 often — is listed separately under its own heading, with the state's own label. It is
