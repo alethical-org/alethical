@@ -56,7 +56,13 @@ definitions and exclusion behavior are coordinated before those public changes.
   The settings write did not trigger a deployment.
 - Current main is integrated. 2,072 frontend checks and 97 focused backend/SQL
   checks pass. The private parser and search request load with the admin screen.
-  Shared route/menu permission code adds 865 compressed bytes to main's measured
-  388,290-byte baseline, for 389,155; the justified size limit is now 390,000.
+  Shared route/menu permission code plus the late sign-in fix add 826 compressed
+  bytes to main's measured 388,290-byte baseline, for 389,116; the justified size
+  limit is now 390,000.
+- Final fresh-browser testing exposed a sign-in regression in the deferred client
+  change from main: a signed-out startup skipped the session observer even after
+  a later sign-in request. The provider now observes the first bundle request
+  without downloading it on public visits. The new failing regression passes
+  after the fix; all 2,083 frontend checks, types, and the release build pass.
 - Release is [pull request 2017](https://github.com/alethical-org/alethical/pull/2017).
   Next: clear current-head checks, queue, deploy, live-check.
