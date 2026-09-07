@@ -85,6 +85,13 @@ Implementation complete; integration and release remain:
 - Browser QA, current-main checks, pull request, merge queue and live checks
   remain owned by this task. No helper owns further implementation.
 
+After integrating the latest sign-in loading changes from main, the release
+program measures 389,073 bytes across its 3 initial downloads. Its 389,000-byte
+guard correctly fails by 73 bytes. This change sets the guard to 389,500,
+leaving 427 bytes of headroom for the source-description mapping and complete
+sentence handling rather than weakening either behavior. No compression or
+file-selection rule changes. The guard's failure test still rejects growth.
+
 Existing serving decisions read completely in
 [page-metadata-for-search-and-sharing-decisions.md](../architecture/page-metadata-for-search-and-sharing-decisions.md).
 

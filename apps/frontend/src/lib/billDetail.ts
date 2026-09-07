@@ -1868,16 +1868,10 @@ export function firstSentence(text: string | null | undefined): string {
     const mark = s[index];
     if (mark !== '.' && mark !== '!' && mark !== '?') continue;
 
-    // A decimal's dot belongs to the number. This branch also makes the rule
-    // explicit instead of relying on there being no space after that dot.
-    if (mark === '.' && /\d/.test(s[index - 1] ?? '') && /\d/.test(s[index + 1] ?? '')) {
-      continue;
-    }
-
     let end = index + 1;
     while (/^["'”’\)\]}]$/.test(s[end] ?? '')) end += 1;
 
-    // Punctuation inside a word or number is not a sentence boundary.
+    // Punctuation inside a word or number (including a decimal) is not a boundary.
     if (end < s.length && !/\s/.test(s[end])) continue;
 
     // The final dot in an initialism belongs to the word when more prose
