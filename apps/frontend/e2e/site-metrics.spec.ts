@@ -1,7 +1,16 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { suppressSiteMetrics } from './suppress-site-metrics';
 
-test.beforeEach(async ({ context }) => suppressSiteMetrics(context));
+test.beforeEach(async ({ context, baseURL }) => {
+  test.skip(!baseURL || !['localhost', '127.0.0.1'].includes(new URL(baseURL).hostname));
+  await context.route('**/*', (route) => {
+    const url = new URL(route.request().url());
+    return ['localhost', '127.0.0.1'].includes(url.hostname) && !url.pathname.startsWith('/api/')
+      ? route.continue()
+      : route.abort();
+  });
+  await suppressSiteMetrics(context);
+});
 
 async function styleOf(locator: Locator, property: string) {
   return locator.evaluate((node, name) => getComputedStyle(node).getPropertyValue(name), property);
@@ -17,6 +26,16 @@ async function installMetricAnswers(page: Page) {
       legislatorSearch: 2,
       legislatorProfiles: 3,
       findMyLegislator: 2,
+      money: 0,
+      moneySearch: 0,
+      moneyByRace: 0,
+      moneyCommitteeList: 0,
+      moneyCommitteeProfiles: 0,
+      moneyPayments: 0,
+      moneyOutsideSpending: 0,
+      moneyOther: 0,
+      read: 0,
+      legacyAsk: 0,
       other: 87,
     },
     billProfiles: {
@@ -26,6 +45,10 @@ async function installMetricAnswers(page: Page) {
     legislatorProfiles: {
       pageViews: 3,
       differentProfilesViewed: { count: 3, capped: false, cap: 100 },
+    },
+    committeeProfiles: {
+      pageViews: 0,
+      differentProfilesViewed: { count: 0, capped: false, cap: 100 },
     },
   };
   await page.route('**/api/traffic', (route) =>
@@ -87,17 +110,24 @@ async function installMetricAnswers(page: Page) {
         clsP75: null,
         clsSamples: 40,
         sampleInterval: 10,
-        periodStartedOn: '2026-07-19',
+        measurementScope: 'document-loads',
+        navigationTypes: ['navigate', 'reload', 'back-forward', 'restore', 'prerender'],
+        knownBotsExcluded: true,
+        sampleCountSource: 'cloudflare-confidence',
+        minimumSamples: 50,
+        periodStartedOn: '2026-07-17',
         periodEndedOn: '2026-08-15',
         fetchedAt,
       },
     }),
   );
-  await page.route('**/api/v1/site-metrics', (route) =>
+  await page.route('**/api/v1/site-metrics?version=2', (route) =>
     route.fulfill({
       json: {
         data: {
           actions7d: {
+            moneySearchesWithResults: 0,
+            newCommitteeWatches: 0,
             billSearchesWithResults: 0,
             legislatorSearchesWithResults: 0,
             findMyLegislatorWithResults: 0,
@@ -105,6 +135,8 @@ async function installMetricAnswers(page: Page) {
             newBillWatches: 1,
           },
           actions30d: {
+            moneySearchesWithResults: 0,
+            newCommitteeWatches: 0,
             billSearchesWithResults: 0,
             legislatorSearchesWithResults: 0,
             findMyLegislatorWithResults: 0,
@@ -112,6 +144,10 @@ async function installMetricAnswers(page: Page) {
             newBillWatches: 1,
           },
           readers: {
+            currentCommitteeWatches: 0,
+            differentCommitteesCurrentlyWatched: 0,
+            currentBillFollowingReaders: 3,
+            currentCommitteeFollowingReaders: 0,
             registeredReaders: 12,
             currentBillWatches: 5,
             differentBillsCurrentlyWatched: 4,
@@ -119,6 +155,37 @@ async function installMetricAnswers(page: Page) {
           fetchedAt,
           teamExclusionConfigured: false,
         },
+      },
+    }),
+  );
+  const period = (days: number) => {
+    const end = Math.floor(Date.now() / 3_600_000) * 3_600_000;
+    const start = end - days * 86_400_000;
+    return {
+      startsAt: new Date(start).toISOString(),
+      endsAt: new Date(end).toISOString(),
+      previousStartsAt: new Date(start - days * 86_400_000).toISOString(),
+      previousEndsAt: new Date(start).toISOString(),
+    };
+  };
+  await page.route('**/api/v1/site-metrics/accounts', (route) =>
+    route.fulfill({
+      json: {
+        currentAccountsCreated: 12,
+        currentConfirmedAccounts: 10,
+        currentUnconfirmedAccounts: 2,
+        created7d: 2,
+        created30d: 4,
+        previousCreated7d: 1,
+        previousCreated30d: 3,
+        periods7d: period(7),
+        periods30d: period(30),
+        asOf: fetchedAt,
+        source: 'supabase',
+        scope: 'current_surviving_reader_accounts',
+        definition: 'Surviving reader accounts only.',
+        historyLimitation:
+          'Deleted accounts are not included, so past creation totals can decrease.',
       },
     }),
   );
@@ -197,7 +264,7 @@ test('Site Metrics matches the accepted desktop measurements', async ({ page }) 
   await expect(availabilityRow).toHaveCSS('padding-top', '10px');
   await expect(page.getByText('Site Metrics page')).toHaveCount(0);
   await expect(page.getByText('Checked by Checkly', { exact: true })).toBeVisible();
-  await expect(page.getByText('Measured by Cloudflare', { exact: true })).toBeVisible();
+  await expect(page.getByText(/^Measured by Cloudflare/)).toBeVisible();
 
   const speedRow = page.getByTestId('site-metrics-speed-row-0');
   await expect(speedRow).toHaveCSS('padding-top', '15px');
