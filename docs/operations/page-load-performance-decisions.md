@@ -193,12 +193,17 @@ The practical reading: where a copy exists a money read costs 0.10-0.23 s agains
 no reader ever waits, and a measurement that treats a single synthetic address as
 proof of retention is measuring which server it landed on as much as the window.
 
-**Caching is what hides the origin cost; it is not the cure.** The origin is
-consistently slow rather than slow only when cold: forced cache misses on
-4 Sep 2026 returned 2.91 / 2.75 / 2.73 s for `/campaign-finance/outside-spending`
-across 3 runs, while `/readyz` answered in 0.17-0.19 s, so the server is awake and
-the database work is the cost. Making those answers fast is separate work under
-[#1966](https://github.com/alethical-org/alethical/issues/1966).
+**Caching hides an origin cost; it does not remove one, so the origin gets fixed
+too.** A forced cache miss is what a reader waits for whenever an edge has served
+nobody inside the window, and on 4 Sep 2026 that was 2.91 / 2.75 / 2.73 s across 3
+runs of `/campaign-finance/outside-spending` while `/readyz` answered in 0.17-0.19 s
+from the same container: the server was awake and the database work was the whole of
+it. Narrowing those reads for
+[#1966](https://github.com/alethical-org/alethical/issues/1966) brought the same
+forced miss to 0.46 s on 7 Sep 2026, against a health check of 0.16 s on the same
+run, so what a reader now waits for on a miss is 0.30 s of money work rather than
+2.6 s. What that leaves is on **What an uncached money answer spends its time on**
+below.
 
 Measured before and after for
 [#1966](https://github.com/alethical-org/alethical/issues/1966) acceptance
