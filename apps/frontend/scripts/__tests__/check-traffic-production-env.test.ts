@@ -8,7 +8,7 @@ const completeProductionEnv = {
   VERCEL_ANALYTICS_PROJECT_ID: 'prj_test',
   VERCEL_ANALYTICS_TEAM_ID: 'team_test',
   TRAFFIC_COUNTING_STARTED_AT: '2026-08-15T02:01:44.000Z',
-  EXPO_PUBLIC_CHECKLY_STATUS_URL: 'https://status.checklyhq.com/example',
+  EXPO_PUBLIC_CHECKLY_STATUS_URL: 'https://example.checkly-dashboards.com/',
   GOOGLE_SEARCH_CONSOLE_GCP_PROJECT_NUMBER: '492188995407',
   GOOGLE_SEARCH_CONSOLE_SERVICE_ACCOUNT_EMAIL: 'traffic@example.iam.gserviceaccount.com',
   GOOGLE_SEARCH_CONSOLE_WORKLOAD_IDENTITY_POOL_ID: 'vercel',
@@ -16,10 +16,8 @@ const completeProductionEnv = {
   GOOGLE_SEARCH_CONSOLE_SITE_URL: 'sc-domain:alethical.com',
   BING_WEBMASTER_API_KEY: 'bing-key',
   BING_WEBMASTER_SITE_URL: 'https://alethical.com/',
-  CHECKLY_API_KEY: 'checkly-key',
   CHECKLY_ACCOUNT_ID: 'checkly-account',
   CHECKLY_WEB_CHECK_ID: 'web-check',
-  CHECKLY_TRAFFIC_CHECK_ID: 'traffic-check',
   CHECKLY_API_READY_CHECK_ID: 'api-check',
   CLOUDFLARE_ANALYTICS_API_TOKEN: 'cloudflare-key',
   CLOUDFLARE_ACCOUNT_ID: 'cloudflare-account',
@@ -36,10 +34,25 @@ describe('Traffic production settings', () => {
     expect(() => assertTrafficProductionEnv(completeProductionEnv)).not.toThrow();
   });
 
-  it('blocks a Production build when any new source is not connected', () => {
-    const { CHECKLY_API_KEY: _missing, ...withoutCheckly } = completeProductionEnv;
+  it.each([
+    'EXPO_PUBLIC_CHECKLY_STATUS_URL',
+    'CHECKLY_ACCOUNT_ID',
+    'CHECKLY_WEB_CHECK_ID',
+    'CHECKLY_API_READY_CHECK_ID',
+  ] as const)('requires the public Checkly identity setting %s', (name) => {
+    expect(() => assertTrafficProductionEnv({ ...completeProductionEnv, [name]: ' ' })).toThrow(
+      name,
+    );
+  });
 
-    expect(() => assertTrafficProductionEnv(withoutCheckly)).toThrow('CHECKLY_API_KEY');
+  it('does not require a private Checkly key or a Site metrics monitor', () => {
+    expect(() =>
+      assertTrafficProductionEnv({
+        ...completeProductionEnv,
+        CHECKLY_API_KEY: undefined,
+        CHECKLY_TRAFFIC_CHECK_ID: undefined,
+      }),
+    ).not.toThrow();
   });
 
   it('does not require Production-only settings for previews or local builds', () => {
