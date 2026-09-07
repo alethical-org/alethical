@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { getAdminAccessFromApi, ApiError } from '../data/api';
-import { currentAdminAccess, type AdminAccessResult } from '../lib/adminUsers';
+import { currentAdminAccess, type AdminAccessResult } from '../lib/adminAccess';
 import { useAuth } from '../providers/AuthProvider';
 
 /** Permission belongs only to this mounted surface and this exact session. */

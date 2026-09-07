@@ -1,4 +1,4 @@
-<!-- describes: alethical/api/routers/admin.py, alethical/api/services/admin_accounts.py, alethical/api/services/account_classification.py, apps/frontend/src/screens/redesign/AdminUsersScreen.tsx, apps/frontend/src/hooks/useAdminAccess.ts, apps/frontend/src/lib/adminUsers.ts -->
+<!-- describes: alethical/api/routers/admin.py, alethical/api/services/admin_accounts.py, alethical/api/services/account_classification.py, apps/frontend/src/screens/redesign/AdminUsersScreen.tsx, apps/frontend/src/hooks/useAdminAccess.ts, apps/frontend/src/lib/adminUsers.ts, apps/frontend/src/lib/adminAccess.ts, apps/frontend/src/data/adminUsers.ts -->
 
 # How private account visibility works
 

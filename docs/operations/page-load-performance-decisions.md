@@ -319,6 +319,13 @@ Measured on the production build, at the settings Vercel compresses with: a firs
 [#1976](https://github.com/alethical-org/alethical/issues/1976) it was 451,044. What moved out
 is a 262,766-byte download named `signInBundle`.
 
+Private account visibility ([issue 2014](https://github.com/alethical-org/alethical/issues/2014))
+adds the administrator route and a shared permission check. Its account-list parsing and
+search request load only with `/admin/users`. The release measures **389,155 bytes**:
+337,552 for the program, 49,987 shared, and 1,616 runtime. This is 865 bytes (0.22%) above
+the 388,290-byte baseline. The limit is 390,000 bytes to admit this measured feature;
+the private list itself is not a cost paid by public readers.
+
 **`lib/auth/signInWorkPending.ts` is the whole design, and it answers 1 question: does this page
 load have sign-in work to do?** It says yes when a session is saved in this browser, when the
 address is a sign-in return, when a request was stashed before a redirect to Google, or when a

@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import {
-  adminAccessFromPayload,
-  adminAccountDate,
-  adminSignInMethods,
-  adminUsersFromPayload,
-  currentAdminAccess,
-} from '../adminUsers';
+import { adminAccessFromPayload, currentAdminAccess } from '../adminAccess';
+import { adminAccountDate, adminSignInMethods, adminUsersFromPayload } from '../adminUsers';
 
 function payload() {
   return {

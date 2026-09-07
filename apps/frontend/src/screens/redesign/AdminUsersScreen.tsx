@@ -3,7 +3,8 @@ import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { GoBackLink } from '../../components/GoBackLink';
 import { SearchPageShell } from '../../components/search/searchPieces';
-import { ApiError, searchAdminUsersFromApi } from '../../data/api';
+import { ApiError } from '../../data/api';
+import { searchAdminUsersFromApi } from '../../data/adminUsers';
 import { useAdminAccess } from '../../hooks/useAdminAccess';
 import { useResponsive } from '../../hooks/useResponsive';
 import {

@@ -33,12 +33,15 @@ vi.mock('../../components/search/searchPieces', () => ({
 }));
 vi.mock('../../data/api', () => ({
   getAdminAccessFromApi: (...args: unknown[]) => state.access(...args),
-  searchAdminUsersFromApi: (...args: unknown[]) => state.search(...args),
   ApiError: class extends Error {
     constructor(public status: number) {
       super('Request failed');
     }
   },
+}));
+
+vi.mock('../../data/adminUsers', () => ({
+  searchAdminUsersFromApi: (...args: unknown[]) => state.search(...args),
 }));
 
 import { AdminUsersScreen } from '../redesign/AdminUsersScreen';

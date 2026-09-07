@@ -54,4 +54,9 @@ definitions and exclusion behavior are coordinated before those public changes.
 - Railway holds exactly 4 approved admin identifiers with the previous setting
   saved privately for rollback. The existing traffic exclusion setting is unchanged.
   The settings write did not trigger a deployment.
-- Next: integrate current main, open the pull request, queue, deploy, live-check.
+- Current main is integrated. 2,072 frontend checks and 97 focused backend/SQL
+  checks pass. The private parser and search request load with the admin screen.
+  Shared route/menu permission code adds 865 compressed bytes to main's measured
+  388,290-byte baseline, for 389,155; the justified size limit is now 390,000.
+- Release is [pull request 2017](https://github.com/alethical-org/alethical/pull/2017).
+  Next: clear current-head checks, queue, deploy, live-check.

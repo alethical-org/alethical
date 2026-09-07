@@ -28,7 +28,7 @@ describe('private account requests', () => {
         ),
     );
     vi.stubGlobal('fetch', fetch);
-    const { searchAdminUsersFromApi } = await import('../api');
+    const { searchAdminUsersFromApi } = await import('../adminUsers');
     const search = {
       query: 'person@example.com',
       status: 'all' as const,
