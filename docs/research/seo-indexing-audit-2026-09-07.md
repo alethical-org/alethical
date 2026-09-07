@@ -103,9 +103,13 @@ file-selection rule changes. The guard's failure test still rejects growth.
 The subsequent integration of
 [pull request 2017](https://github.com/alethical-org/alethical/pull/2017)
 preserves main's 390,000-byte guard. The combined local build measures
-389,183 bytes across 3 initial files. All 2,103 frontend tests and the type
-check pass on that combined version. The protected queue and hosted build
-remain the release gate.
+389,183 bytes across 3 initial files without a configured public API address;
+that test build cannot load bill data and is not release-equivalent.
+The combined hosted build measures 389,521 bytes, leaving 479 bytes below
+the guard. All 2,103 frontend tests and the type check pass on that combined
+version. Local browser QA requires an explicit public API address and a
+cleared Metro cache after that address changes. The protected queue and
+hosted build remain the release gate.
 
 Fresh reader testing passes at 1440×1000 and 390×844: bill search and detail,
 official sources, legislator overview and campaign money, all money
