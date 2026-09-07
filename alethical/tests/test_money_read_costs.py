@@ -252,9 +252,9 @@ def test_the_outside_spending_record_is_read_in_one_request(db, published) -> No
     assert page.total_rows == 2
     rows_read = sent.touching("cf_independent_expenditure_row")
     assert len(rows_read) == 1, rows_read
-    # The other 2 are the register pointer and the register snapshot behind it, which
-    # `live_filings_snapshot` reads as 2 lookups for every caller in the codebase.
-    assert len(sent.sent) == 3, sent.sent
+    # The other is resolving which register is live, which every money read asks and
+    # which answers in 1 request.
+    assert len(sent.sent) == 2, sent.sent
 
 
 def test_a_filtered_outside_spending_page_still_reads_the_record_once(
@@ -363,3 +363,52 @@ def test_a_race_page_still_says_a_year_it_holds_nothing_of_is_covered(
     committee = page.contests[0].committees[0]
     assert committee.named.state == "not_reported"
     assert committee.named.total is None
+
+
+def test_resolving_the_live_register_costs_one_request(db, published) -> None:
+    """Which register is live is 1 question, so it is 1 request.
+
+    Every money read asks it, and several of them ask it twice, so a second trip here is
+    a second trip on the committee page, the races page, the search page and the
+    outside-spending page alike. It is the distance to the database that makes this
+    worth a test rather than the work, which is a single-row lookup either way.
+    """
+    with Statements() as sent:
+        snapshot = filings.live_filings_snapshot(db)
+
+    assert snapshot is not None
+    pointer_reads = sent.touching("cf_filing_current")
+    assert len(pointer_reads) == 1, (
+        "Resolving the live register sent "
+        f"{len(pointer_reads)} requests: {pointer_reads}"
+    )
+    assert len(sent.sent) == 1, sent.sent
+
+
+def test_the_live_register_is_read_from_the_database_every_time(db, published) -> None:
+    """The answer is never taken from memory, which is what makes publishing safe.
+
+    Publishing moves the pointer with a statement rather than through the object, and
+    the session does not expire objects on commit, so a resolver that trusted what it
+    already held would keep naming the register that was live before the publish -- and
+    the pruning that follows a publish would then delete the rows just published.
+    """
+    first = filings.live_filings_snapshot(db)
+    assert first is not None
+
+    db.execute(text("UPDATE cf_filing_current SET snapshot_id = NULL WHERE id"))
+    db.commit()
+
+    assert filings.live_filings_snapshot(db) is None
+
+
+def test_a_person_search_reads_its_rows_and_its_count_together(db, published) -> None:
+    """The matched members and how many there are come off one walk, so they cost one trip."""
+    from alethical.api.services import campaign_finance_search as search_service
+
+    with Statements() as sent:
+        group = search_service._people_group(db, "a", limit=5)
+
+    member_reads = [s for s in sent.sent if "legislator_service_period" in s]
+    assert len(member_reads) == 1, member_reads
+    assert group.total is not None

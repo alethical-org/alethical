@@ -110,13 +110,32 @@ MIN_QUERY_LENGTH = 3
 #: swings on how rare the typed string is. Postgres answers this by walking the name
 #: index in alphabetical order and stopping once it holds this many names, which is
 #: instant for a string thousands of names carry and slow for a rare one, because a rare
-#: one is only found by walking the whole index. Measured on production, 4 Sep 2026: 21
-#: ms for "son" against 740 ms for "education"
-#: ([#1966](https://github.com/alethical-org/alethical/issues/1966)). Reading the rare
-#: one through the trigram index instead reverses it exactly -- 22 ms for "education"
-#: and 769 ms for "son" -- so neither shape is right on its own, and the fix that would
-#: be right for both is a per-release list of the distinct names, which nothing here
-#: builds yet.
+#: one is only found by walking the index to the end of the alphabet
+#: ([#1966](https://github.com/alethical-org/alethical/issues/1966)).
+#:
+#: The alternative is to gather the whole match set through the trigram index and count
+#: the names in it, which costs what the match set costs rather than what the alphabet
+#: costs. Measured on production, 7 Sep 2026, warm, contributor names, this shape
+#: against the walk above:
+#:
+#: ===========  ==========  ==========
+#: typed        the walk    the gather
+#: ===========  ==========  ==========
+#: "education"      838 ms       19 ms
+#: "minnesota"      726 ms       30 ms
+#: "smith"           39 ms       20 ms
+#: "mar"             47 ms      374 ms
+#: "joh"             78 ms      116 ms
+#: "the"             98 ms      150 ms
+#: ===========  ==========  ==========
+#:
+#: So the 2 shapes fail in opposite directions and neither is right on its own: the walk
+#: is slow when few names match, the gather is slow when many rows do. Across 14 strings
+#: on all 3 columns the gather is 36% cheaper in total and halves the worst case, and it
+#: is 8 times dearer on "mar" -- a fragment of many real names -- so it is not taken.
+#: The fix that is right in both directions is a per-release list of the distinct names
+#: with their counts, which nothing here builds yet: 131,510 names against the 1,002,326
+#: payment rows they are read from, so both shapes become cheap on it.
 COUNTED_UP_TO = 200
 #: Rows per group at most. Screen B draws 5 per group and links out for the rest.
 MAX_PER_GROUP = 50
@@ -387,9 +406,19 @@ def _people_group(db: Session, typed: str, *, limit: int) -> ResultGroup:
         )
         .subquery()
     )
-    stmt = select(matched).order_by(matched.c.sort_name.asc(), matched.c.id.asc())
-    total = db.scalar(select(func.count()).select_from(matched)) or 0
-    rows = db.execute(stmt.limit(limit + 1)).all()
+    # The count travels on the rows rather than in a second statement. A window with
+    # no PARTITION counts the whole matched set before ``LIMIT`` trims it, so the total
+    # is the same number the separate count returned, one round trip earlier -- and the
+    # database is in a different region from the server, so a saved trip is real time
+    # (#1966). No matches means no row to carry it, which is a true 0 rather than a
+    # missing figure: we searched and nothing matched.
+    stmt = (
+        select(matched, func.count().over().label("matched_total"))
+        .order_by(matched.c.sort_name.asc(), matched.c.id.asc())
+        .limit(limit + 1)
+    )
+    rows = db.execute(stmt).all()
+    total = int(rows[0].matched_total) if rows else 0
     return ResultGroup(
         kind=PEOPLE,
         state=REPORTED if rows else NOT_REPORTED,

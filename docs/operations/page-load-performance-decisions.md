@@ -292,8 +292,18 @@ request that asks 11 questions pays that distance 11 times, and that is the shap
 slow route is expected to have. It was not the shape of these routes: measured for
 [#1966](https://github.com/alethical-org/alethical/issues/1966) on 4 Sep 2026,
 `/campaign-finance/outside-spending` answered in 2,787 ms while `EXPLAIN ANALYZE` put
-2,761 ms of it inside 2 statements. Removing 7 of the trips would have saved tens of
-milliseconds; fixing the 2 statements saved 2.6 seconds.
+2,761 ms of it inside 2 statements. Fixing the 2 statements saved 2.6 seconds and
+removing 7 of the trips would have saved about 0.3 of one, so the plan came first.
+
+**Then the distance is what is left, and it is about 35 ms a question.** Once a route
+stops asking a wasteful question, its remaining time is very nearly its statement count
+times that figure. Measured 7 Sep 2026 against the live database, warm, best of 3:
+`/committees/{n}/finance` spends 359 ms on 11 statements of which about 50 ms is work,
+and an office-filtered `/campaign-finance/races` spends 324 ms on 9 of which about 76 ms
+is work. So on a route already asking only what it needs, a saved question is worth
+roughly what a saved question costs, and the 2 questions worth removing first are the
+ones every money read repeats: which register is live, and how many rows a list holds
+beside the rows themselves.
 
 **Four costs, each measured, each with a rule that follows from it.**
 
@@ -303,6 +313,8 @@ milliseconds; fixing the 2 statements saved 2.6 seconds.
 | `count(DISTINCT <expression>)` | 1.4 s for 2 of them over the same 41,130 rows; Postgres sorts for each | Count a `GROUP BY` instead, which hashes: the same 2 counts cost 43 ms |
 | Asking a per-row question about a per-committee fact | 1.3 s to test 41,130 rows for linkability, 30 ms to test the 1,131 committees they name | Reduce to the distinct subjects before the question that is about subjects |
 | Reading every filing in Minnesota to answer about a few committees | 55,845 figure rows returned, built twice per committee page | `campaign_finance_filings.reported_totals_for` for a read; `filings_context` is the loader's own sweep |
+| Asking a 1-row question in 2 requests | resolving the live register read the pointer and then the snapshot it names, on every money read and twice on 4 of them | Join the pointer to what it names, so the answer costs 1 request; `campaign_finance_filings.live_filings_snapshot` |
+| Asking for a list and its length separately | 2 walks of one matched set, 1 round trip apart | Carry the count on the rows with a window, as `campaign_finance_search` does for members |
 
 **A statement count is a test and a time is not.** A seeded test database holds a few
 rows on the same machine as the tests, so it cannot reproduce the distance to the
@@ -312,6 +324,21 @@ read: that a committee request never calls the statewide sweep, that an office-f
 race page passes only that office's committees, and that the outside-spending record is
 read in one request. Times live in the pull request and on the issue, measured against
 production.
+
+**What search still costs, and why no query shape fixes it.** `/campaign-finance/search`
+is the one money read still far above 0.3 s: 0.62 s to 1.51 s at the direct origin on
+7 Sep 2026, depending on what was typed. Nearly all of it is 1 question asked 3 times,
+once per download: how many distinct names carry this string, counted up to 200.
+Postgres answers it by walking the name index alphabetically and stopping at 200 names,
+which is instant for a common fragment and slow for a rare one, because a rare one is
+only confirmed by walking to the end of the alphabet: 838 ms for "education" against
+39 ms for "smith". Gathering the match set through the trigram index instead reverses
+which strings are slow rather than removing the slowness -- 19 ms for "education" and
+374 ms for "mar" -- so it is not taken, and the full measured table sits beside
+`COUNTED_UP_TO` in `alethical/api/services/campaign_finance_search.py`. The shape that
+is cheap in both directions is a per-release list of the distinct names with their
+counts: 131,510 names against the 1,002,326 payment rows they are read from. That is a
+second copy of a fact, so it waits on a decision rather than on evidence.
 
 **The one narrowing that must stay statewide is a coverage question.** Whether the
 contributions download holds any row at all for a year decides whether a committee with
