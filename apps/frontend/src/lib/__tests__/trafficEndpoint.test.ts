@@ -5,14 +5,23 @@ import handler from '../../../../../api/traffic';
 type JsonBody = Record<string, unknown>;
 
 const HOUR_MS = 60 * 60 * 1000;
-const BILL_FILTER = "startswith(requestPath, '/bills/')";
-const LEGISLATOR_FILTER = "startswith(requestPath, '/legislators/')";
-const HOME_FILTER = "requestPath eq '/'";
-const BILLS_FILTER = "requestPath eq '/bills' or startswith(requestPath, '/bills/')";
-const LEGISLATORS_FILTER =
-  "requestPath eq '/legislators' or startswith(requestPath, '/legislators/')";
-const FIND_MY_LEGISLATOR_FILTER = "requestPath eq '/find-my-legislator'";
 const PRODUCTION_FILTER = "environment eq 'production'";
+const BILL_FILTER = "environment eq 'production' and (startswith(requestPath, '/bills/'))";
+const LEGISLATOR_FILTER =
+  "environment eq 'production' and (startswith(requestPath, '/legislators/'))";
+const HOME_FILTER = "environment eq 'production' and (requestPath eq '/')";
+const BILLS_FILTER =
+  "environment eq 'production' and (requestPath eq '/bills' or startswith(requestPath, '/bills/'))";
+const LEGISLATORS_FILTER =
+  "environment eq 'production' and (requestPath eq '/legislators' or startswith(requestPath, '/legislators/'))";
+const FIND_MY_LEGISLATOR_FILTER =
+  "environment eq 'production' and (requestPath eq '/find-my-legislator')";
+const MONEY_FILTER =
+  "environment eq 'production' and (requestPath eq '/money' or startswith(requestPath, '/money/'))";
+const READ_FILTER =
+  "environment eq 'production' and (requestPath eq '/read' or startswith(requestPath, '/read/'))";
+const LEGACY_ASK_FILTER =
+  "environment eq 'production' and (requestPath eq '/ask' or startswith(requestPath, '/ask/'))";
 
 function responseRecorder() {
   const headers = new Map<string, string>();
@@ -50,6 +59,10 @@ function successfulVercelResponse(urlValue: string) {
   const url = new URL(urlValue);
   const { hours, since, until } = requestedRange(url);
   const filter = url.searchParams.get('filter') ?? undefined;
+  // Serve the same sample for the old unscoped request too, so missing
+  // production isolation fails the query assertions rather than fixture lookup.
+  const matchesFilter = (expected: string) =>
+    filter === expected || `${PRODUCTION_FILTER} and (${filter})` === expected;
   const query = {
     since: new Date(since).toISOString(),
     until: new Date(until).toISOString(),
@@ -72,22 +85,22 @@ function successfulVercelResponse(urlValue: string) {
     const limit = Number(url.searchParams.get('limit'));
     if (limit === 1) {
       let data: Array<{ requestPath: string; pageviews: number; visitors: number }> = [];
-      if (filter === HOME_FILTER) {
+      if (matchesFilter(HOME_FILTER)) {
         data = [{ requestPath: '/', pageviews: hours, visitors: 1 }];
       }
-      if (filter === BILLS_FILTER) {
+      if (matchesFilter(BILLS_FILTER)) {
         data = [
           { requestPath: '/bills', pageviews: hours, visitors: 1 },
           { requestPath: 'Others', pageviews: hours * 3, visitors: 1 },
         ];
       }
-      if (filter === LEGISLATORS_FILTER) {
+      if (matchesFilter(LEGISLATORS_FILTER)) {
         data = [
           { requestPath: '/legislators', pageviews: hours, visitors: 1 },
           { requestPath: 'Others', pageviews: hours * 2, visitors: 1 },
         ];
       }
-      if (filter === FIND_MY_LEGISLATOR_FILTER) {
+      if (matchesFilter(FIND_MY_LEGISLATOR_FILTER)) {
         data = [{ requestPath: '/find-my-legislator', pageviews: hours / 2, visitors: 1 }];
       }
       return {
@@ -100,7 +113,7 @@ function successfulVercelResponse(urlValue: string) {
       };
     }
 
-    const prefix = filter === BILL_FILTER ? '/bills' : '/legislators';
+    const prefix = matchesFilter(BILL_FILTER) ? '/bills' : '/legislators';
     return {
       ok: true,
       json: async () => ({
@@ -172,6 +185,9 @@ describe('public traffic totals', () => {
           legislatorSearch: 0,
           legislatorProfiles: 504,
           findMyLegislator: 84,
+          money: 0,
+          read: 0,
+          legacyAsk: 0,
           other: 252,
         },
         billProfiles: {
@@ -191,6 +207,9 @@ describe('public traffic totals', () => {
           legislatorSearch: 0,
           legislatorProfiles: 2160,
           findMyLegislator: 360,
+          money: 0,
+          read: 0,
+          legacyAsk: 0,
           other: 1080,
         },
         billProfiles: {
@@ -212,7 +231,7 @@ describe('public traffic totals', () => {
     expect(headers.get('Cache-Control')).toBe(
       'public, max-age=0, s-maxage=300, stale-while-revalidate=60, stale-if-error=86400',
     );
-    expect(fetchSpy).toHaveBeenCalledTimes(20);
+    expect(fetchSpy).toHaveBeenCalledTimes(26);
     expect(fetchSpy.mock.calls.every(([input]) => !String(input).includes('/visits/count'))).toBe(
       true,
     );
@@ -231,6 +250,22 @@ describe('public traffic totals', () => {
       expect(url.origin).toBe('https://api.vercel.com');
       expect(url.searchParams.get('projectId')).toBe('prj_test');
       expect(url.searchParams.get('teamId')).toBe('team_test');
+      const filter = url.searchParams.get('filter');
+      if (url.searchParams.get('by') === 'requestPath') {
+        expect([
+          HOME_FILTER,
+          BILLS_FILTER,
+          LEGISLATORS_FILTER,
+          FIND_MY_LEGISLATOR_FILTER,
+          BILL_FILTER,
+          LEGISLATOR_FILTER,
+          MONEY_FILTER,
+          READ_FILTER,
+          LEGACY_ASK_FILTER,
+        ]).toContain(filter);
+      } else {
+        expect(filter).toBe(PRODUCTION_FILTER);
+      }
       expect(Number(url.searchParams.get('until')) + 1).toBeLessThanOrEqual(
         new Date('2026-08-14T20:00:00.000Z').getTime(),
       );
@@ -239,6 +274,206 @@ describe('public traffic totals', () => {
       });
     }
   });
+
+  it('adds filtered Others rows to money, reading, and Ask without losing the overall total', async () => {
+    const additions = new Map([
+      [
+        MONEY_FILTER,
+        [
+          { requestPath: '/money', pageviews: 12 },
+          { requestPath: 'Others', pageviews: 38 },
+        ],
+      ],
+      [
+        READ_FILTER,
+        [
+          { requestPath: '/read/guides/test', pageviews: 7 },
+          { requestPath: 'Others', pageviews: 33 },
+        ],
+      ],
+      [
+        LEGACY_ASK_FILTER,
+        [
+          { requestPath: '/ask', pageviews: 90 },
+          { requestPath: 'Others', pageviews: 10 },
+        ],
+      ],
+    ]);
+    const fetcher = vi.fn(async (input: string | URL | Request) => {
+      const url = new URL(String(input));
+      const response = successfulVercelResponse(String(input));
+      const data = additions.get(url.searchParams.get('filter') ?? '');
+      return data
+        ? { ...response, json: async () => ({ ...(await response.json()), data }) }
+        : response;
+    });
+    vi.stubGlobal('fetch', fetcher);
+    const recorder = responseRecorder();
+    await handler({ method: 'GET' }, recorder.response);
+    const { body, status } = recorder.read();
+    expect(status).toBe(200);
+    for (const [window, total, other] of [
+      ['7d', 1680, 62],
+      ['30d', 7200, 890],
+    ] as const) {
+      const breakdown = body[`trafficBreakdown${window}`] as {
+        destinationPageViews: Record<string, number>;
+      };
+      expect(breakdown.destinationPageViews).toMatchObject({
+        money: 50,
+        read: 40,
+        legacyAsk: 100,
+        other,
+      });
+      expect(
+        Object.values(breakdown.destinationPageViews).reduce((sum, value) => sum + value, 0),
+      ).toBe(total);
+    }
+    expect(JSON.stringify(body)).not.toContain('/read/guides/test');
+    for (const filter of additions.keys()) {
+      expect(
+        fetcher.mock.calls.filter(
+          ([input]) => new URL(String(input)).searchParams.get('filter') === filter,
+        ),
+      ).toHaveLength(2);
+    }
+  });
+
+  it.each([
+    [MONEY_FILTER, '/money', 'money'],
+    [MONEY_FILTER, '/money/search', 'money'],
+    [READ_FILTER, '/read', 'read'],
+    [READ_FILTER, '/read/reports/test', 'read'],
+    [LEGACY_ASK_FILTER, '/ask', 'legacyAsk'],
+    [LEGACY_ASK_FILTER, '/ask/sessions/test', 'legacyAsk'],
+  ])('counts an exact root or its slash child once: %s %s', async (filter, path, destination) => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL | Request) => {
+        const response = successfulVercelResponse(String(input));
+        if (new URL(String(input)).searchParams.get('filter') !== filter) return response;
+        return {
+          ...response,
+          json: async () => ({
+            ...(await response.json()),
+            data: [{ requestPath: path, pageviews: 1 }],
+          }),
+        };
+      }),
+    );
+    const recorder = responseRecorder();
+    await handler({ method: 'GET' }, recorder.response);
+    const { body, status } = recorder.read();
+    expect(status).toBe(200);
+    const breakdown = body.trafficBreakdown7d as { destinationPageViews: Record<string, number> };
+    expect(breakdown.destinationPageViews[destination]).toBe(1);
+    expect(breakdown.destinationPageViews.other).toBe(251);
+    expect(
+      Object.values(breakdown.destinationPageViews).reduce((sum, value) => sum + value, 0),
+    ).toBe(1680);
+  });
+
+  it('refuses destination counts that exceed the completed-hour total', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL | Request) => {
+        const response = successfulVercelResponse(String(input));
+        if (new URL(String(input)).searchParams.get('filter') !== MONEY_FILTER) return response;
+        return {
+          ...response,
+          json: async () => ({
+            ...(await response.json()),
+            data: [{ requestPath: '/money', pageviews: 1680 }],
+          }),
+        };
+      }),
+    );
+    const recorder = responseRecorder();
+    await handler({ method: 'GET' }, recorder.response);
+    expect(recorder.read()).toMatchObject({
+      status: 503,
+      body: { error: 'Traffic data is temporarily unavailable.' },
+    });
+  });
+
+  it.each(['1', '100'])(
+    'requires the full compound filter echoed for path limit %s',
+    async (limit) => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(async (input: string | URL | Request) => {
+          const response = successfulVercelResponse(String(input));
+          const url = new URL(String(input));
+          if (
+            url.searchParams.get('by') !== 'requestPath' ||
+            url.searchParams.get('limit') !== limit
+          )
+            return response;
+          const payload = await response.json();
+          return {
+            ...response,
+            json: async () => ({
+              ...payload,
+              query: { ...payload.query, filter: PRODUCTION_FILTER },
+            }),
+          };
+        }),
+      );
+      const recorder = responseRecorder();
+      await handler({ method: 'GET' }, recorder.response);
+      expect(recorder.read().status).toBe(503);
+    },
+  );
+
+  it.each([
+    [MONEY_FILTER, '/moneyed'],
+    [MONEY_FILTER, '/read'],
+    [READ_FILTER, '/readers'],
+    [READ_FILTER, '/money'],
+    [LEGACY_ASK_FILTER, '/asking'],
+    [LEGACY_ASK_FILTER, '/bills'],
+  ])('rejects a path outside its destination: %s %s', async (filter, path) => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL | Request) => {
+        const response = successfulVercelResponse(String(input));
+        if (new URL(String(input)).searchParams.get('filter') !== filter) return response;
+        return {
+          ...response,
+          json: async () => ({
+            ...(await response.json()),
+            data: [{ requestPath: path, pageviews: 1 }],
+          }),
+        };
+      }),
+    );
+    const recorder = responseRecorder();
+    await handler({ method: 'GET' }, recorder.response);
+    expect(recorder.read().status).toBe(503);
+  });
+
+  it.each(['hour', 'environment', 'requestPath'])(
+    'rejects an absent or changed echoed production filter for %s',
+    async (by) => {
+      for (const filter of [undefined, "environment eq 'preview'"]) {
+        vi.stubGlobal(
+          'fetch',
+          vi.fn(async (input: string | URL | Request) => {
+            const response = successfulVercelResponse(String(input));
+            if (new URL(String(input)).searchParams.get('by') !== by) return response;
+            const payload = await response.json();
+            return {
+              ...response,
+              json: async () => ({ ...payload, query: { ...payload.query, filter } }),
+            };
+          }),
+        );
+        const recorder = responseRecorder();
+        await handler({ method: 'GET' }, recorder.response);
+        expect(recorder.read().status).toBe(503);
+      }
+    },
+  );
 
   it('keeps real zeroes distinct from unavailable data', async () => {
     vi.stubGlobal(
