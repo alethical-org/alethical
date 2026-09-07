@@ -8,6 +8,10 @@ import { describe, expect, it } from 'vitest';
 const root = join(__dirname, '..', '..');
 const shell = readFileSync(join(root, 'public', 'index.html'), 'utf8');
 const helper = readFileSync(join(root, 'src', 'components', 'Skeleton.tsx'), 'utf8');
+const shellFrame = readFileSync(
+  join(root, 'src', 'components', 'search', 'searchPieces.tsx'),
+  'utf8',
+);
 const screens = {
   'bill, phone': 'BillDetailScreen.tsx',
   'bill, desktop': 'BillDetailWebScreen.tsx',
@@ -45,4 +49,29 @@ describe('a loading page holds its space', () => {
       expect(source).not.toMatch(/accessibilityLabel="Loading [a-z]+" style=\{oneScreenTall\}/);
     },
   );
+
+  it('keeps the header band\u2019s space when a failed page hands the frame none', () => {
+    // The loading state hands over a placeholder band; the failed state hands
+    // over nothing. Letting the band collapse dropped the whole page 207px in
+    // the paint that says the load failed \u2014 0.1411 on a desktop bill page and
+    // 0.1479 on a legislator profile, against a passing mark of 0.1 (#1998). The
+    // frame remembers the last band it was handed and holds that height.
+    expect(shellFrame).toContain('const [lastHeroHeight, setLastHeroHeight] = useState(0);');
+    expect(shellFrame).toContain(
+      'style={hero == null && lastHeroHeight > 0 ? { height: lastHeroHeight } : null}',
+    );
+    // Measured only while a band is actually there, so a page handed none can
+    // never overwrite the height it is holding with zero.
+    expect(shellFrame).toMatch(/if \(hero != null && height > 0 && height !== lastHeroHeight\)/);
+  });
+
+  it.each([
+    ['bill, desktop', 'BillDetailWebScreen.tsx'],
+    ['legislator, desktop', 'LegislatorProfileWebScreen.tsx'],
+  ])('hands the frame a placeholder band while the %s page loads', (_name, file) => {
+    // The held height above is only ever right because a band was handed over
+    // first. A loading state that stopped doing that would leave nothing to hold.
+    const source = readFileSync(join(root, 'src', 'screens', 'redesign', file), 'utf8');
+    expect(source).toMatch(/isLoading\)\s*\{\s*return shell\([^;]*HeroSkeleton \/>\);/);
+  });
 });

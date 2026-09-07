@@ -93,6 +93,15 @@ export function SearchPageShell({
   heroEndsWithRule?: boolean;
 }) {
   const historyScrollProps = useHistoryScrollRestoration();
+  // A page that fails to load hands this frame no header band at all, while the
+  // loading state before it handed one over. Letting the band collapse drops the
+  // whole page 207px in the same paint that says we could not load it, which is
+  // 0.1411 of unexpected movement on a desktop bill page against a passing mark
+  // of 0.1 (#1998). So the frame remembers the height of the last band it was
+  // given and holds that space when it is handed none. Only the bill and
+  // legislator detail pages ever hand over nothing, so no page that always has a
+  // band can be affected.
+  const [lastHeroHeight, setLastHeroHeight] = useState(0);
   const heroGradientWeb: object = isWeb
     ? { backgroundImage: 'linear-gradient(180deg,#f4f5f7 0%,#f7f8fa 55%,#fdfdfe 90%,#ffffff 100%)' }
     : { backgroundColor: t.colors.surfaces.s300 };
@@ -129,9 +138,19 @@ export function SearchPageShell({
               onHome={onHome}
             />
 
-            <Container style={[styles.heroBody, heroEndsWithRule && styles.heroBodyFlush]}>
-              {hero}
-            </Container>
+            <View
+              style={hero == null && lastHeroHeight > 0 ? { height: lastHeroHeight } : null}
+              onLayout={(event) => {
+                const { height } = event.nativeEvent.layout;
+                if (hero != null && height > 0 && height !== lastHeroHeight) {
+                  setLastHeroHeight(height);
+                }
+              }}
+            >
+              <Container style={[styles.heroBody, heroEndsWithRule && styles.heroBodyFlush]}>
+                {hero}
+              </Container>
+            </View>
           </View>
 
           {/* RESULTS SECTION — white, matches the mock's results panel. */}
