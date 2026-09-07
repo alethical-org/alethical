@@ -21,7 +21,10 @@ import { pathToFileURL } from 'node:url';
  * `docs/operations/page-load-performance-decisions.md` § Each screen downloads
  * with its own route holds the measurements and the floor this cannot go below.
  */
-export const FIRST_LOAD_LIMIT = 389000;
+// The private account list stays in its screen chunk. Its shared account-menu
+// permission check and route add 865 bytes over the 388,290-byte baseline;
+// the measured total is 389,155 (admin account visibility, issue 2014).
+export const FIRST_LOAD_LIMIT = 390000;
 
 /**
  * The exact settings Vercel compresses with, so this reports the bytes a reader

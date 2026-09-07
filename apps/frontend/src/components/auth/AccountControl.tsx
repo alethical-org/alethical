@@ -23,6 +23,7 @@ import { clearSignedInAuthDrafts } from '../../lib/auth/signOutCleanup';
 import { trackedBillsCount } from '../../lib/trackedState';
 import { useReducedMotion } from '../../hooks/useReducedMotion';
 import { useResponsive } from '../../hooks/useResponsive';
+import { useAdminAccess } from '../../hooks/useAdminAccess';
 import { useTrackedBills, useTrackedCommittees } from '../../hooks/useAppQueries';
 import { linkProps, routePath } from '../../navigation/links';
 import { navigateTopNavItem } from '../../navigation/topNavRoutes';
@@ -565,6 +566,34 @@ function ChevronRightIcon() {
   );
 }
 
+function AdminRow({
+  variant,
+  onNavigate,
+}: {
+  variant: 'desktop' | 'phone';
+  onNavigate: () => void;
+}) {
+  const navigation = useNavigation<any>();
+  const access = useAdminAccess();
+  const phone = variant === 'phone';
+  if (access.state !== 'allowed') return null;
+  return (
+    <Pressable
+      {...linkProps(routePath.adminUsers(), () => {
+        onNavigate();
+        navigation.navigate('AdminUsers');
+      })}
+      style={({ pressed }) => [
+        phone ? styles.sheetTrackedRow : styles.menuTrackedRow,
+        pressed && (phone ? styles.sheetButtonPressed : styles.menuItemPressed),
+      ]}
+    >
+      <Text style={phone ? styles.sheetTrackedLabel : styles.menuTrackedLabel}>Admin</Text>
+      <ChevronRightIcon />
+    </Pressable>
+  );
+}
+
 function Avatar({ label, size }: { label: string; size: number }) {
   return (
     <View style={[styles.avatar, { width: size, height: size }]}>
@@ -712,6 +741,7 @@ function AccountSurfaceContent({
             (#1698). There is deliberately no Account row: Change password IS the
             action, so a row called Account would be a hop revealing one row. */}
         <TrackedRow variant="desktop" onNavigate={onLeave} />
+        <AdminRow variant="desktop" onNavigate={onLeave} />
         <View style={styles.menuDivider} />
         {emailPasswordEnabled ? (
           <>
@@ -735,6 +765,7 @@ function AccountSurfaceContent({
     <>
       <Identity name={name} email={email} avatar={48} />
       <TrackedRow variant="phone" onNavigate={onLeave} />
+      <AdminRow variant="phone" onNavigate={onLeave} />
       {emailPasswordEnabled ? (
         <Pressable
           accessibilityRole="button"

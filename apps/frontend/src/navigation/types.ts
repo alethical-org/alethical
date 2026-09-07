@@ -105,6 +105,7 @@ export type RootStackParamList = {
   OutsideSpending:
     { spender?: string; about?: string; year?: string; sort?: string; page?: string } | undefined;
   Privacy: undefined;
+  AdminUsers: undefined;
   SiteMetrics: undefined;
   Terms: undefined;
   AboutUs: undefined;
