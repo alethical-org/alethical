@@ -5,21 +5,14 @@ import {
   sameProviderSessionLineage,
   sessionMatchesProviderTokenLineage,
 } from './auth/providerSessionAcceptance';
+import { supabaseAuthBaseUrl, supabaseAuthConfig, supabaseAuthStorageKey } from './supabaseConfig';
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL ?? '';
-const supabasePublishableKey = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? '';
+const clientUrl = supabaseAuthConfig.url;
+const clientKey = supabaseAuthConfig.publishableKey;
+const baseUrl = supabaseAuthBaseUrl;
+const authStorageKey = supabaseAuthStorageKey;
 
-export const isSupabaseConfigured = Boolean(supabaseUrl && supabasePublishableKey);
-
-const clientUrl = supabaseUrl || 'http://localhost:54321';
-const clientKey = supabasePublishableKey || 'missing-publishable-key';
-const baseUrl = new URL(`${clientUrl.replace(/\/+$/, '')}/`);
-const authStorageKey = `sb-${baseUrl.hostname.split('.')[0]}-auth-token`;
-
-export const supabaseAuthConfig = {
-  url: clientUrl,
-  publishableKey: clientKey,
-} as const;
+export { isSupabaseConfigured, supabaseAuthConfig } from './supabaseConfig';
 
 export interface ConditionalSessionWrite {
   changed: boolean;
