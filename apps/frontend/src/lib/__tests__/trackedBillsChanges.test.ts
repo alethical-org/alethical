@@ -133,6 +133,38 @@ describe('changesSince reports an undated change without inventing a date', () =
 });
 
 describe('the earlier-steps count is of what happened, not of feed rows', () => {
+  it('keeps HF 5125’s full co-author date range in its change summary', () => {
+    const actions = [
+      action({
+        actionNumber: 1,
+        date: '2026-05-07',
+        actionText: 'Introduction and first reading, referred to',
+        committee: 'Energy Finance and Policy',
+      }),
+      action({
+        actionNumber: 2,
+        date: '2026-05-11',
+        actionText: 'Authors added',
+        actionDescription: 'Berg, Kozlowski, Finke, Rehrauer, and Curran',
+      }),
+      action({
+        actionNumber: 3,
+        date: '2026-05-17',
+        actionText: 'Author added',
+        actionDescription: 'Pursell',
+      }),
+    ];
+
+    expect(changesSince(actions, new Date('2026-05-12T00:00:00Z'), new Date('2026-07-30'))).toEqual(
+      {
+        label: '6 co-authors added',
+        date: 'May 11, 2026 – May 17, 2026',
+        kind: 'authorAdd',
+        earlierCount: 0,
+      },
+    );
+  });
+
   it('collapses a busy day, so seven rows are not reported as seven steps', () => {
     // One real day in a chamber. The feed files seven rows, but two of them are one
     // floor passage stated twice and three are a single run of author adds.

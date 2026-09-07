@@ -92,12 +92,19 @@ Implementation complete; integration and release remain:
 - Browser QA, current-main checks, pull request, merge queue and live checks
   remain owned by this task. No helper owns further implementation.
 
-After integrating the latest sign-in loading changes from main, the release
-program measures 389,073 bytes across its 3 initial downloads. Its 389,000-byte
-guard correctly fails by 73 bytes. This change sets the guard to 389,500,
-leaving 427 bytes of headroom for the source-description mapping and complete
-sentence handling rather than weakening either behavior. No compression or
-file-selection rule changes. The guard's failure test still rejects growth.
+After integrating the latest sign-in loading changes from main, an intermediate
+build measured 389,073 bytes and failed the 389,000-byte guard by 73 bytes.
+The final code, including the grouped-date correction, compresses to 388,873
+bytes across its 3 initial downloads. The original 389,000-byte guard is
+retained. No compression or file-selection rule changes. The guard's failure
+test still rejects growth.
+
+Fresh reader testing found an adjacent factual display defect on HF5125:
+6 co-author additions across 11–17 May appeared under “Latest action” with
+only 11 May. Both compact action summaries now preserve the Actions section's
+full range, “May 11, 2026 – May 17, 2026”. Source grouping and which action wins
+remain unchanged. Single-day and missing-date regressions also pass. The full
+current-main frontend suite passes 169 files / 2,072 tests.
 
 Existing serving decisions read completely in
 [page-metadata-for-search-and-sharing-decisions.md](../architecture/page-metadata-for-search-and-sharing-decisions.md).

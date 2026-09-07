@@ -1377,7 +1377,7 @@ export function latestActionEntry(
   const { rows } = buildActionTimeline(actions, [], now, undefined, sponsors);
   const row = headlineRow(rows);
   if (!row) return null;
-  return { label: compactRowLabel(row), date: formatNiceDate(row.date), kind: row.kind };
+  return { label: compactRowLabel(row), date: compactRowDate(row), kind: row.kind };
 }
 
 // The one row that speaks for a set of timeline rows. Enacted status is terminal
@@ -1426,6 +1426,16 @@ function compactRowLabel(row: TimelineRow): string {
     return `${row.authors!.length} co-authors added`;
   }
   return row.title;
+}
+
+// A collapsed co-author row can cover several days. Its one-line summary must
+// carry both dates too, or the first day reads as the date when every named
+// person was added. Single-day and undated rows keep their existing display.
+function compactRowDate(row: TimelineRow): string {
+  const range = row.dateRange?.split(' – ');
+  return range?.length === 2
+    ? `${formatNiceDate(range[0])} – ${formatNiceDate(range[1])}`
+    : formatNiceDate(row.date);
 }
 
 /** What a bill did since a reader last looked at their tracked list (#1009). */
@@ -1483,7 +1493,7 @@ export function changesSince(actions: BillAction[], since: Date, now: Date): Bil
   if (!row) return null;
   return {
     label: compactRowLabel(row),
-    date: formatNiceDate(row.date),
+    date: compactRowDate(row),
     kind: row.kind,
     earlierCount: changed.length - 1,
   };

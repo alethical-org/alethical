@@ -452,7 +452,10 @@ describe('a pointer row is recognisable as a pointer, on all four shapes', () =>
         actionNumber: 1,
       },
     ];
-    expect(latestActionEntry(ordinary, NOW)?.kind).toBe('procedural');
+    expect(latestActionEntry(ordinary, NOW)).toMatchObject({
+      date: 'Mar 10, 2025',
+      kind: 'procedural',
+    });
   });
 });
 
@@ -721,6 +724,44 @@ describe('author rows name the person and link to them', () => {
     expect(latestActionEntry([addAction(2, 'Joy')], NOW, HOUSE_AUTHORS)?.label).toBe(
       'Co-author added — Jim Joy',
     );
+  });
+
+  it('keeps HF 5125’s full co-author date range in the latest-action line', () => {
+    // HF 5125 added 5 co-authors on May 11 and the 6th on May 17. The Actions
+    // timeline intentionally groups those consecutive entries, so its summary
+    // must not make May 11 read as the date all 6 people were added.
+    const actions: BillAction[] = [
+      {
+        id: 'hf5125-1',
+        date: '2026-05-07',
+        description: 'x',
+        actionText: 'Introduction and first reading, referred to',
+        committee: 'Energy Finance and Policy',
+        actionNumber: 1,
+      },
+      {
+        id: 'hf5125-2',
+        date: '2026-05-11',
+        description: 'x',
+        actionText: 'Authors added',
+        actionDescription: 'Berg, Kozlowski, Finke, Rehrauer, and Curran',
+        actionNumber: 2,
+      },
+      {
+        id: 'hf5125-3',
+        date: '2026-05-17',
+        description: 'x',
+        actionText: 'Author added',
+        actionDescription: 'Pursell',
+        actionNumber: 3,
+      },
+    ];
+
+    expect(latestActionEntry(actions, NOW)).toEqual({
+      label: '6 co-authors added',
+      date: 'May 11, 2026 – May 17, 2026',
+      kind: 'authorAdd',
+    });
   });
 
   it('leaves every name unlinked when no author list was handed in', () => {

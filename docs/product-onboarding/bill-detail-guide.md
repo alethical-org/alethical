@@ -54,6 +54,9 @@ an effective date when the record cannot prove 1.
 Actions are shown newest first and rewritten into plain language without changing the
 recorded facts.
 
+Consecutive co-author additions stay grouped in 1 row. When that group spans several
+days, both the Actions view and its latest-action summary show the full date range.
+
 - Green marks an enacted milestone.
 - Black marks a recorded vote.
 - A hollow mark means a procedural step.
