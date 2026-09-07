@@ -41,29 +41,42 @@ the records behind them change at genuinely different rates.
 | Layer | Header | Where it is set |
 |---|---|---|
 | Cloudflare, bill / vote / legislator reads | `public, max-age=60, stale-while-revalidate=300` | `PUBLIC_CACHE_CONTROL` in `alethical/api/routers/public.py` |
-| Cloudflare, campaign-money record reads | `public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800` | `MONEY_RECORDS_CACHE_CONTROL`, same file, chosen by `public_cache_control_for_path` |
+| Cloudflare, the 5 named campaign-money record reads | `public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800` | `MONEY_RECORDS_CACHE_CONTROL`, same file, granted only to the paths in `MONEY_RECORD_PATHS` by `public_cache_control_for_path` |
 | Vercel, in front of the page HTML | `public, max-age=0, s-maxage=300, stale-while-revalidate=300, stale-if-error=300` | `OK_CACHE` in `api/page.ts` |
 
-**Bill, vote and legislator reads keep the short window, and campaign money
-gets the longer one.** The 2 differ because the records behind them change at
-genuinely different rates. `.github/workflows/vote-backfill.yml` re-reads and
-writes votes every day at 09:00 UTC, so bill and vote records change daily; a
-long stale window there would hand a reader a week-old bill status, the harm
+**Bill, vote and legislator reads keep the short window, and 5 named
+campaign-money record reads get the longer one.** The 2 differ because the records
+behind them change at genuinely different rates.
+`.github/workflows/vote-backfill.yml` re-reads and writes votes every day at 09:00
+UTC, so bill and vote records change daily; a long stale window there would hand a
+reader a week-old bill status, the harm
 [`.claude/rules/grounded-answers.md`](../../.claude/rules/grounded-answers.md)
 rule 7 names. A campaign-money load is human-triggered and on no schedule, and
 production's snapshot was dated 2026-08-12 when this was measured on 4 Sep 2026,
 23 days old. One window set from the money cadence and applied to both was wrong
-for bill reads, which is why the middleware now routes on the path.
+for bill reads.
 
-**A money read that names a person keeps the SHORT window, and this is the line
-that matters most here.** The longer window covers the campaign-money record
-routes under `/api/v1/campaign-finance/` and nothing else. 2 money reads are not
-dated dollar figures but statements about a named member, and both stay short:
+**The 5 are named one at a time, and the shape of an address grants nothing.** A
+path not on the list gets the short window, so a route nobody has classified is
+safe by default rather than by where somebody filed it.
 
-| Read | Why it is not a plain figure |
+| Long window | Short window |
 |---|---|
-| `/api/v1/legislators/{id}/campaign-finance` | the member's own money, resting on a confirmed link |
-| `/api/v1/committees/{registration_number}/finance` | returns `confirmed_for`, naming the confirmed member |
+| `/api/v1/campaign-finance/committees` | `/api/v1/campaign-finance/search` |
+| `/api/v1/campaign-finance/filings` | `/api/v1/campaign-finance/summary` |
+| `/api/v1/campaign-finance/outside-spending` | `/api/v1/legislators/{id}/campaign-finance` |
+| `/api/v1/campaign-finance/payments-under-name` | `/api/v1/committees/{registration_number}/finance` |
+| `/api/v1/campaign-finance/races` | every other public read |
+
+**The test is what an answer CLAIMS, never whether it names a person.** A person's
+name printed inside an accepted filing is a dated record: the filing happened, its
+date is on it, and no later event makes yesterday's copy of it false. Two kinds of
+claim may not be held that long, and both change with no money load involved:
+
+| Claim | Where it is served | What moves it |
+|---|---|---|
+| somebody currently holds an office (`chamber`, `district_code`, `party`) | `/campaign-finance/search`, and `sitting_member_count` on `/campaign-finance/summary` | an election, a resignation |
+| a committee currently belongs to a named member (`confirmed_for`, `link_state`) | `/legislators/{id}/campaign-finance`, `/committees/{registration_number}/finance`, and `confirmed_member_count` on `/campaign-finance/summary` | a confirmation, or one taken back |
 
 A confirmation can be taken back. `withdrawn` is a real third decision state with
 its own `withdrawn_at`, `withdrawal_reason` and `withdrawn_by`
@@ -75,11 +88,13 @@ allowed, which is an identity error rather than an out-of-date figure, and
 [`.claude/rules/grounded-answers.md`](../../.claude/rules/grounded-answers.md)
 rule 3 is what it would break.
 
-Those 2 were found by asking which handlers read the confirmed link, not by
-reading path shapes: `confirmed_for` and `link_state` appear in those 2 routes and
-nowhere else. Both already sit outside the prefix, so neither needs an exception.
-Classifying every remaining route by what its answer contains is
-[#1985](https://github.com/alethical-org/alethical/issues/1985).
+Evidence, 7 Sep 2026: while an address prefix granted the long window, the money
+search and the money summary held it, and neither is a dated record. Read live,
+the search answered with Jim Abeler as senate, district 35, party R, on a window
+allowing a saved copy to repeat that for a day, and for a week while our own
+service is unavailable. Nothing establishes that a reader was handed a stale
+office; what is established is that nothing bounded how old one could get
+([#1985](https://github.com/alethical-org/alethical/issues/1985)).
 
 **Only `stale-while-revalidate` is long, and that is the whole design** — on the
 API side. Inside `max-age` or `s-maxage` the cache answers without asking the

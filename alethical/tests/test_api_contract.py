@@ -6517,66 +6517,247 @@ def test_sitemap_bill_lastmod_is_the_newest_reader_visible_date(client):
             db.commit()
 
 
-def test_money_reads_cache_longer_than_bill_reads_and_neither_leaks_to_a_signed_in_reader(
-    client, auth_headers
-):
-    """The 2 public cache windows are split by how fast their records change, and
-    neither one reaches a signed-in reader.
+SHORT_WINDOW = "public, max-age=60, stale-while-revalidate=300"
+LONG_WINDOW = "public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800"
 
-    One shared window was wrong for both. It was set from the campaign-money
-    cadence -- a load is run by hand every few weeks -- and then applied to bill
-    and vote reads, which .github/workflows/vote-backfill.yml rewrites every day.
-    A long stale window on a bill read hands someone a week-old bill status, the
-    harm `.claude/rules/grounded-answers.md` rule 7 names.
 
-    The money window's stale allowance is capped at a day rather than a week
-    because nothing yet clears these copies when a load lands (#1966).
+CURRENT_CLAIM_KEYS = frozenset(
+    {
+        "chamber",
+        "district_code",
+        "party",
+        "confirmed_for",
+        "link_state",
+        "sitting_member_count",
+        "confirmed_member_count",
+    }
+)
+
+
+def _every_key(payload) -> set[str]:
+    """Every key anywhere in a response body, however deeply nested."""
+    if isinstance(payload, dict):
+        found = set(payload)
+        for value in payload.values():
+            found |= _every_key(value)
+        return found
+    if isinstance(payload, list):
+        found = set()
+        for item in payload:
+            found |= _every_key(item)
+        return found
+    return set()
+
+
+def test_a_read_of_only_dated_money_records_gets_the_long_window(client):
+    """Three money reads are dated records and nothing else, so a saved copy of one
+    may be handed out for a day.
+
+    Each answer is what Minnesota's own filings said when we copied them, and each
+    carries the day it was copied (``as_of``). No later event makes yesterday's copy
+    of a filed record false, which is what earns the long window: a money load is run
+    by hand every few weeks (#1966).
+
+    Why each one qualifies is read off its answer rather than asserted about it: no
+    field anywhere in the body states who holds office now or whose committee this
+    is. This fixture seeds no register, so the sweep covers each answer's own fields
+    and its states rather than a populated row; the row shapes themselves are pinned
+    in ``alethical/tests/test_campaign_finance_lists_and_search.py``.
     """
-    short = "public, max-age=60, stale-while-revalidate=300"
-    money = "public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800"
-
-    # Records that change daily keep the short window.
-    for path in ["/api/v1/bills", "/api/v1/legislators", "/api/v1/meta"]:
-        response = client.get(path)
-        assert response.status_code == 200, path
-        assert response.headers["Cache-Control"] == short, path
-
-    # Campaign-money records, which change when a person runs a load, get the
-    # longer one.
-    money_paths = [
+    for path in [
         "/api/v1/campaign-finance/committees",
-        "/api/v1/campaign-finance/summary",
-    ]
-    for path in money_paths:
+        "/api/v1/campaign-finance/filings",
+        "/api/v1/campaign-finance/races?year=2026",
+    ]:
         response = client.get(path)
         assert response.status_code == 200, path
-        assert response.headers["Cache-Control"] == money, path
+        assert response.headers["Cache-Control"] == LONG_WINDOW, path
 
-    # The 2 money reads that name a person must NOT get the long window, because a
-    # confirmation can be withdrawn and a held copy would keep money attached to a
-    # legislator a person already corrected. Both routes need a seeded money
-    # release to answer 200, which this fixture has not got, so their paths go
-    # through the real decision function the middleware calls.
+        data = response.json()["data"]
+        assert "as_of" in data, path
+        assert not _every_key(data) & CURRENT_CLAIM_KEYS, path
+
+
+def test_a_read_claiming_who_currently_holds_office_gets_the_short_window(client):
+    """Two money reads state which office somebody holds right now, so neither may
+    be held for a day.
+
+    An office changes at an election or a resignation, with no campaign-money load
+    involved, so the money cadence is the wrong clock for it entirely. Held on the
+    long window, a saved copy could tell a reader that a named person sits in a
+    chamber and district they have left, for up to a day, and for up to a week while
+    our own service is unavailable
+    (https://github.com/alethical-org/alethical/issues/1985).
+    """
+    # The money search: its `people` group is the sitting legislators, and each row
+    # states a chamber and a district. Read a real seeded member so the claim is in
+    # the body rather than assumed to be.
+    sitting = client.get("/api/v1/legislators", params={"limit": 1}).json()["data"]
+    surname = sitting[0]["full_name"].split()[-1]
+    search = client.get("/api/v1/campaign-finance/search", params={"q": surname})
+    assert search.status_code == 200
+    assert search.headers["Cache-Control"] == SHORT_WINDOW
+
+    people = next(
+        group for group in search.json()["data"]["groups"] if group["kind"] == "people"
+    )
+    assert people["results"], (
+        "fixture must match a sitting member for this to prove anything"
+    )
+    for row in people["results"]:
+        assert row["chamber"] is not None
+        assert set(row) >= {"chamber", "district_code", "party"}
+
+    # The money summary: `sitting_member_count` counts who holds office now.
+    summary = client.get("/api/v1/campaign-finance/summary")
+    assert summary.status_code == 200
+    assert summary.headers["Cache-Control"] == SHORT_WINDOW
+    confirmations = summary.json()["data"]["legislator_committee_confirmations"]
+    assert confirmations["sitting_member_count"] is not None
+
+
+def test_a_read_naming_a_confirmed_committee_for_a_member_gets_the_short_window(client):
+    """Three reads say a committee currently belongs to a named member, and all
+    three keep the short window.
+
+    A confirmation can be taken back: `withdrawn` is a real third decision state
+    with its own `withdrawn_at`, `withdrawal_reason` and `withdrawn_by`
+    (`alethical/db/models.py`, and
+    `docs/architecture/campaign-finance-system-design.md` §5.1). Somebody withdraws
+    one precisely when money was attached to the WRONG legislator, so a held copy
+    would keep naming that person for as long as the window allowed. That is an
+    identity error about a named person, which
+    `.claude/rules/grounded-answers.md` rule 3 exists to prevent, and it is a
+    different kind of wrong from an out-of-date figure carrying its own date.
+
+    `confirmed_member_count` on the summary is the same claim counted, so it is read
+    through a real request. The 2 per-member routes need a seeded money release to
+    answer 200, which this fixture has not got, so real paths for them go through the
+    decision function the middleware itself calls.
+    """
+    summary = client.get("/api/v1/campaign-finance/summary")
+    assert summary.status_code == 200
+    assert summary.headers["Cache-Control"] == SHORT_WINDOW
+    confirmations = summary.json()["data"]["legislator_committee_confirmations"]
+    assert "confirmed_member_count" in confirmations
+
     for identity_bearing in (
         "/api/v1/legislators/abc-123/campaign-finance",
         "/api/v1/committees/41363/finance",
     ):
-        assert public_cache_control_for_path(identity_bearing) == short, (
+        assert public_cache_control_for_path(identity_bearing) == SHORT_WINDOW, (
             identity_bearing
         )
 
-    assert public_cache_control_for_path("/api/v1/campaign-finance/committees") == money
-    assert public_cache_control_for_path("/api/v1/bills") == short
-    assert public_cache_control_for_path("/api/v1/legislators") == short
 
-    # The money window may never delay a bill status: its stale allowance is a
-    # day, the short window's is 5 minutes, and neither is a week.
-    assert "stale-while-revalidate=86400" in money
-    assert "stale-while-revalidate=604800" not in money
-    assert "stale-while-revalidate=604800" not in short
+def test_a_bill_read_gets_the_short_window(client):
+    """Bill records change daily, so no copy of one may be a day old.
 
-    # A request carrying Authorization is never stamped with either shared
-    # window, so no signed-in reader's response can be held at a shared cache.
-    for path in money_paths + ["/api/v1/bills"]:
+    `.github/workflows/vote-backfill.yml` re-reads and writes these records every
+    day at 09:00 UTC. A long stale window would hand a reader a week-old bill
+    status, the harm `.claude/rules/grounded-answers.md` rule 7 names: "a
+    status-stale answer misframes enacted law as a pending proposal."
+    """
+    for path in ["/api/v1/bills", "/api/v1/bills/94-2025-SF1832", "/api/v1/meta"]:
+        response = client.get(path)
+        assert response.status_code == 200, path
+        assert response.headers["Cache-Control"] == SHORT_WINDOW, path
+
+
+def test_a_vote_read_gets_the_short_window(client):
+    """A roll call is rewritten by the same daily job, so it keeps the short window
+    for the same reason a bill read does."""
+    response = client.get("/api/v1/bills/94-2025-SF1832/votes")
+    assert response.status_code == 200
+    assert response.headers["Cache-Control"] == SHORT_WINDOW
+
+
+def test_a_signed_in_read_is_never_given_a_shared_window(client, auth_headers):
+    """A request carrying Authorization is never stamped with either shared window,
+    so no signed-in reader's answer can be held at a cache other people read from."""
+    for path in [
+        "/api/v1/campaign-finance/committees",
+        "/api/v1/campaign-finance/summary",
+        "/api/v1/bills",
+    ]:
         signed_in = client.get(path, headers=auth_headers)
-        assert signed_in.headers.get("Cache-Control") not in (money, short), path
+        assert signed_in.headers.get("Cache-Control") not in (
+            LONG_WINDOW,
+            SHORT_WINDOW,
+        ), path
+
+
+def test_only_the_5_named_money_record_reads_get_the_long_window(client):
+    """Every public read the app serves, put through the real decision, and exactly
+    5 come back with the long window.
+
+    This is the guard the address-prefix rule could not give us. Under a prefix a
+    route was granted the long window by where its address sat, so an answer that
+    was not a dated record could ride along and nothing here would notice
+    (https://github.com/alethical-org/alethical/issues/1985). The list is swept from
+    the app's own routes rather than typed out, so a new route appears in this test
+    the moment it is added.
+
+    Asserting the exact set both ways is the point: a route wrongly promoted shows
+    up as an extra, and a route wrongly demoted shows up as a missing one.
+    """
+    app = client.app
+    served = {
+        path
+        for path, operations in app.openapi()["paths"].items()
+        if "get" in operations and path.startswith("/api/v1/")
+    }
+    assert len(served) > 30, "the sweep must see the whole read surface"
+
+    def concrete(path: str) -> str:
+        # A path template carries {placeholders}; the middleware sees a real
+        # address, so fill them in before deciding.
+        out = []
+        for piece in path.split("/"):
+            out.append("42" if piece.startswith("{") and piece.endswith("}") else piece)
+        return "/".join(out)
+
+    long_windowed = {
+        path
+        for path in served
+        if public_cache_control_for_path(concrete(path)) == LONG_WINDOW
+    }
+    assert long_windowed == {
+        "/api/v1/campaign-finance/committees",
+        "/api/v1/campaign-finance/filings",
+        "/api/v1/campaign-finance/outside-spending",
+        "/api/v1/campaign-finance/payments-under-name",
+        "/api/v1/campaign-finance/races",
+    }
+
+    # Every other public read, named or not, gets the short one.
+    for path in served - long_windowed:
+        assert public_cache_control_for_path(concrete(path)) == SHORT_WINDOW, path
+
+
+def test_an_unclassified_route_gets_the_short_window_whatever_its_address(client):
+    """A route nobody has classified is short, including one filed under the money
+    address. Being safe by default is what the address prefix could not do: it
+    handed the long window to anything filed beneath it, sight unseen."""
+    for invented in (
+        "/api/v1/campaign-finance/something-nobody-has-classified",
+        "/api/v1/campaign-finance/committees/extra",
+        "/api/v1/campaign-finance/",
+        "/api/v1/campaign-finance/search",
+        "/api/v1/campaign-finance/summary",
+        "/api/v1/bills",
+    ):
+        assert public_cache_control_for_path(invented) == SHORT_WINDOW, invented
+
+
+def test_the_2_windows_stay_the_lengths_their_reasoning_names():
+    """The money window's stale allowance is capped at a day, not a week, because
+    nothing yet clears these copies when a load lands (#1979). The short window is
+    5 minutes."""
+    assert "stale-while-revalidate=86400" in LONG_WINDOW
+    assert "stale-while-revalidate=604800" not in LONG_WINDOW
+    assert "stale-while-revalidate=604800" not in SHORT_WINDOW
+    assert (
+        public_cache_control_for_path("/api/v1/campaign-finance/races") == LONG_WINDOW
+    )
+    assert public_cache_control_for_path("/api/v1/bills") == SHORT_WINDOW
