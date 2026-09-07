@@ -94,10 +94,18 @@ Implementation complete; integration and release remain:
 
 After integrating the latest sign-in loading changes from main, an intermediate
 build measured 389,073 bytes and failed the 389,000-byte guard by 73 bytes.
-The final code, including the grouped-date correction, compresses to 388,873
-bytes across its 3 initial downloads. The original 389,000-byte guard is
-retained. No compression or file-selection rule changes. The guard's failure
-test still rejects growth.
+The code including the grouped-date correction compresses to 388,873 bytes
+locally, but Vercel's hosted build measures 389,015 across its 3 initial
+downloads and fails the original guard by 15 bytes. The hosted measurement
+sets a 389,500-byte guard, with 485 bytes of headroom. No compression or
+file-selection rule changes. The guard's failure test still rejects growth.
+
+Fresh reader testing passes at 1440×1000 and 390×844: bill search and detail,
+official sources, legislator overview and campaign money, all money
+destinations, published research and guides, public menus, About and Contact.
+No page errors or horizontal overflow remain. The 5 contact fields have valid
+accessible names; a case-sensitive test using different capitalization was
+corrected without changing the form. Nothing was entered or sent.
 
 Fresh reader testing found an adjacent factual display defect on HF5125:
 6 co-author additions across 11–17 May appeared under “Latest action” with

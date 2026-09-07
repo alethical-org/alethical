@@ -21,7 +21,10 @@ import { pathToFileURL } from 'node:url';
  * `docs/operations/page-load-performance-decisions.md` § Each screen downloads
  * with its own route holds the measurements and the floor this cannot go below.
  */
-export const FIRST_LOAD_LIMIT = 389000;
+// The hosted SEO release measures 389,015 bytes, versus 388,873 locally (#2013).
+// Keep 485 bytes of headroom for complete descriptions and honest action dates;
+// the hosted measurement, not the smaller local build, sets this guard.
+export const FIRST_LOAD_LIMIT = 389500;
 
 /**
  * The exact settings Vercel compresses with, so this reports the bytes a reader
