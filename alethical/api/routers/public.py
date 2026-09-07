@@ -192,44 +192,67 @@ MONEY_RECORDS_CACHE_CONTROL = (
     "public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800"
 )
 
-# Which reads get the longer window: the campaign-money record routes, and only
-# those. A prefix rather than a segment match, and the difference is the point.
+# Which reads get the longer window: named one at a time, and every other path --
+# unknown, new, or renamed -- gets the short one. An address prefix used to decide
+# this, and the prefix was the defect: a route inherited the long window by where
+# its address sat rather than by what its answer claims, so 2 answers that are not
+# dated records rode along under `/api/v1/campaign-finance/`
+# (https://github.com/alethical-org/alethical/issues/1985). A list cannot do that.
+# Adding a route now means deciding, because saying nothing gives it 60 seconds.
 #
-# A segment match also caught `/legislators/{id}/campaign-finance`, and that read
-# must NOT be held long, because it is not a dated dollar figure. It reports which
-# committee a **person** confirmed belongs to a named member, and a confirmation
-# can be taken back: `withdrawn` is a real third decision state with its own
-# `withdrawn_at`, `withdrawal_reason` and `withdrawn_by`
-# (`alethical/db/models.py`, and
-# `docs/architecture/campaign-finance-system-design.md` §5.1). Someone withdraws
-# one precisely when money was attached to the WRONG legislator, so a held copy
-# would keep naming that person for as long as the window allowed. That is an
-# identity error about a named person, which
-# `.claude/rules/grounded-answers.md` rule 3 exists to prevent, and it is a
-# different kind of wrong from an out-of-date figure carrying its own date.
+# THE LINE THIS LIST IS DRAWN ON, and it is not "does the answer name a person".
+# A person's name printed inside an accepted filing is a dated record: the filing
+# happened, its date is on it, and no later event makes yesterday's copy of it
+# false. What may NOT be held is a claim about the state of the world right now:
 #
-# The 2 identity-bearing money reads were found by asking which handlers read the
-# confirmed link rather than by reading path shapes: `confirmed_for` and
-# `link_state` appear in `/committees/{registration_number}/finance` and
-# `/legislators/{legislator_id}/campaign-finance`, and nowhere else. Neither sits
-# under this prefix, so both keep the short window and neither needs an exception
-# here. Any new identity-bearing route must stay out of this prefix too;
-# https://github.com/alethical-org/alethical/issues/1985 owns classifying the rest
-# by what an answer contains.
-MONEY_PATH_PREFIX = "/api/v1/campaign-finance/"
+#   * that somebody CURRENTLY HOLDS an office. `chamber`, `district_code` and
+#     `party` change at an election or a resignation, with no campaign-money load
+#     involved, so a money-cadence window is the wrong clock for them entirely.
+#   * that a committee CURRENTLY BELONGS to a named member. A confirmation can be
+#     taken back: `withdrawn` is a real third decision state with its own
+#     `withdrawn_at`, `withdrawal_reason` and `withdrawn_by`
+#     (`alethical/db/models.py`, and
+#     `docs/architecture/campaign-finance-system-design.md` §5.1). Somebody
+#     withdraws one precisely when money was attached to the WRONG legislator, so
+#     a held copy would keep naming that person for as long as the window allowed.
+#     `.claude/rules/grounded-answers.md` rule 3 exists to prevent that identity
+#     error, and it is a different kind of wrong from an out-of-date figure that
+#     carries its own date.
+#
+# The 5 below were classified by reading what each handler serves, not its address.
+# The 4 public reads that fail that test, and so are deliberately absent:
+#
+#   * `/api/v1/campaign-finance/search` -- its `people` group is the sitting
+#     legislators, and each row carries `chamber`, `district_code` and `party`
+#     (`_search_result_payload`, `PersonResult`).
+#   * `/api/v1/campaign-finance/summary` -- `sitting_member_count` counts who holds
+#     office now, and `confirmed_member_count` counts live person-to-committee
+#     confirmations.
+#   * `/api/v1/committees/{registration_number}/finance` -- serves `confirmed_for`.
+#   * `/api/v1/legislators/{legislator_id}/campaign-finance` -- serves `link_state`.
+#
+# Both `search` and `summary` may move onto this list the day their current-office
+# figures are separated from their dated record figures, and not before.
+MONEY_RECORD_PATHS = frozenset(
+    {
+        "/api/v1/campaign-finance/committees",
+        "/api/v1/campaign-finance/filings",
+        "/api/v1/campaign-finance/outside-spending",
+        "/api/v1/campaign-finance/payments-under-name",
+        "/api/v1/campaign-finance/races",
+    }
+)
 
 
 def public_cache_control_for_path(path: str) -> str:
     """Which shared-cache window an anonymous public read of ``path`` gets.
 
     Named and importable rather than inline in the middleware so a test can put
-    real paths through the actual decision. Testing the prefix string instead
-    proved nothing: a test that asserts ``"/x".startswith(PREFIX)`` still passes
-    when the middleware is changed to match some other way, which is exactly the
-    regression this guards (a segment match here would sweep
-    ``/legislators/{id}/campaign-finance`` into the long window).
+    real paths through the actual decision. Testing the membership rule instead
+    proved nothing: a test that asserts ``"/x" in MONEY_RECORD_PATHS`` still
+    passes when the middleware is changed to decide some other way.
     """
-    if path.startswith(MONEY_PATH_PREFIX):
+    if path in MONEY_RECORD_PATHS:
         return MONEY_RECORDS_CACHE_CONTROL
     return PUBLIC_CACHE_CONTROL
 

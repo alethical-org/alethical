@@ -44,7 +44,7 @@ The response headers that drive the cache are **already live** (PR #363):
 
 ```
 Cache-Control: public, max-age=60, stale-while-revalidate=300                             # anonymous bill / vote / legislator reads
-Cache-Control: public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800   # anonymous campaign-money reads
+Cache-Control: public, max-age=300, stale-while-revalidate=86400, stale-if-error=604800   # the 5 named campaign-money record reads
 Cache-Control: private, no-store                                                          # signed-in / tracking reads
 ```
 
@@ -58,8 +58,8 @@ reader be handed a week-old bill status, which is the harm
 `.claude/rules/grounded-answers.md` rule 7 names: "a status-stale answer
 misframes enacted law as a pending proposal."
 
-**Campaign-money reads get the longer window**, because a load is
-human-triggered and on no schedule: production's snapshot was dated 2026-08-12
+**Five named campaign-money record reads get the longer window**, because a load
+is human-triggered and on no schedule: production's snapshot was dated 2026-08-12
 when this was measured on 4 Sep 2026, 23 days old. Against that, the old 60 s
 plus 5 minutes was minutes, so any gap over 5 minutes between readers sent the
 next one to the origin, measured at 2975 ms on
@@ -93,9 +93,30 @@ the day it was cached. That means a stale answer stays honestly dated. It does
 are 2 different things, which is exactly why the window is capped above rather
 than justified by the date.
 
+**Which reads those 5 are is a written-down list, and the shape of an address
+decides nothing.** A route nobody has classified gets the short window, including
+a brand-new one.
+
+Evidence, 7 Sep 2026: while an address prefix decided this, 2 answers sitting
+behind `/api/v1/campaign-finance/` inherited the long window without being dated
+records. The money search returns a sitting legislator's `chamber`,
+`district_code` and `party`; the money summary counts who is sitting and how many
+members have a confirmed committee. Those change at an election, a resignation or
+a withdrawn confirmation, with no money load involved, so a money-cadence window
+was the wrong clock for them
+([#1985](https://github.com/alethical-org/alethical/issues/1985)).
+
+The test that decides membership is what an answer *claims*, never whether it names
+a person: a person's name inside an accepted filing is a dated record and is fine on
+the long window; a claim that somebody currently holds an office, or that a committee
+currently belongs to a named member, is not. The list and that reasoning live beside
+the code that applies them, in `alethical/api/routers/public.py`.
+
 A signed-in reader's response is never held at a shared cache: the middleware
 skips any request carrying `Authorization`, pinned by
-`test_money_reads_cache_longer_than_bill_reads_and_neither_leaks_to_a_signed_in_reader`.
+`test_a_signed_in_read_is_never_given_a_shared_window`. Which window each read gets
+is pinned one group at a time, and swept across every route the app serves, by the
+`_window` tests beside it in `alethical/tests/test_api_contract.py`.
 
 ## Starting topology before 20 July 2026
 

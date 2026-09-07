@@ -62,10 +62,11 @@ def create_app() -> FastAPI:
         request carrying Authorization (any /me route, authed tracking) is never
         stamped, so no per-user response can be edge-cached.
 
-        Campaign-money reads get the longer window and every other public read
-        keeps the short one, because the records behind them change at different
-        rates -- votes daily, a money load by hand every few weeks. Both constants
-        carry that reasoning where they are defined, in
+        Which window a read gets is decided from a named list of paths, never
+        from the shape of the address: a route not on the list gets the short
+        window, including a brand-new one nobody has classified yet. The list,
+        the 2 windows, and the test that separates a dated record from a claim
+        about who holds office right now all live in
         alethical/api/routers/public.py."""
         response = await call_next(request)
         if (
