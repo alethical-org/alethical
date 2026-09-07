@@ -19,11 +19,10 @@ def _totals(client, monkeypatch, excluded: str = "") -> dict:
     return response.json()["data"]
 
 
-def test_site_metric_events_store_only_an_allowed_name(client, auth_headers):
+def test_site_metric_events_store_only_an_allowed_name(client):
     response = client.post(
         "/api/v1/site-metrics/events",
         json={"event": "bill_search_with_results"},
-        headers=auth_headers,
     )
     assert response.status_code == 204
 
@@ -94,6 +93,18 @@ def test_action_windows_and_reader_totals_exclude_team_accounts(
             )
         )
         assert ada_identity is not None and grace_identity is not None
+        # Built-in example.com accounts are excluded even without configured IDs.
+        # Use non-deliverable reader fixtures to isolate the subject-ID exclusion.
+        identities = [ada_identity, grace_identity]
+        saved_emails = []
+        for index, identity in enumerate(identities):
+            user = db.get(schema.UserAccount, identity.user_id)
+            saved_emails.append(
+                (identity.id, identity.email, user.id, user.primary_email)
+            )
+            user.primary_email = identity.email = (
+                f"metric-reader-{index}@reader.invalid"
+            )
         bills = db.scalars(select(schema.Bill).limit(2)).all()
         assert len(bills) == 2
 
@@ -152,9 +163,18 @@ def test_action_windows_and_reader_totals_exclude_team_accounts(
             "readers",
             "fetchedAt",
             "teamExclusionConfigured",
+            "previousActions7d",
+            "previousActions30d",
+            "periods7d",
+            "periods30d",
+            "history",
+            "totalsSinceStart",
         }
     finally:
         with get_session_factory()() as db:
+            for identity_id, identity_email, user_id, primary_email in saved_emails:
+                db.get(schema.AuthIdentity, identity_id).email = identity_email
+                db.get(schema.UserAccount, user_id).primary_email = primary_email
             db.query(schema.SiteMetricEvent).filter(
                 schema.SiteMetricEvent.id.in_(event_ids)
             ).delete(synchronize_session=False)

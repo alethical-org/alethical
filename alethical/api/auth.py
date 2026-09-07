@@ -8,6 +8,8 @@ from sqlalchemy.orm import Session
 
 from alethical.api.problems import problem_exception
 from alethical.api.services.auth import get_supabase_auth_service
+from alethical.api.services.account_classification import is_team_or_test
+from alethical.api.services.site_metric_history import record_creation
 from alethical.db.schema import load_schema
 from alethical.db.session import get_db
 
@@ -201,6 +203,7 @@ def get_optional_current_user(
     )
     confirmed_email = _confirmed_email(principal)
     user = None
+    account_created = False
     if confirmed_email:
         user = db.scalar(
             select(UserAccount).where(UserAccount.primary_email == confirmed_email)
@@ -220,6 +223,7 @@ def get_optional_current_user(
         )
         db.add(user)
         db.flush()
+        account_created = True
     now = datetime.now(timezone.utc)
     identity = AuthIdentity(
         user_id=user.id,
@@ -232,6 +236,13 @@ def get_optional_current_user(
     db.add(identity)
     _reconcile_identity_fields(db, user, identity, principal)
     user.last_identity_linked_at = now
+    if account_created and not is_team_or_test(
+        email=principal.email,
+        provider_subject=principal.provider_subject
+        if principal.provider == "supabase"
+        else None,
+    ):
+        record_creation(db, "account_created")
     db.commit()
     db.refresh(user)
     return user

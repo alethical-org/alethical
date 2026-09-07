@@ -1146,11 +1146,59 @@ class SiteMetricEvent(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "'bill_search_with_results', "
             "'legislator_search_with_results', "
             "'find_my_legislator_with_results', "
+            "'money_search_with_results', "
             "'official_source_opened'"
             ")",
             name="event_kind_allowed",
         ),
         Index("ix_site_metric_event_kind_created", "event_kind", "created_at"),
+    )
+
+
+class SiteMetricHourlyCount(Base):
+    """Creation totals without a person, followed item, or client ID attached.
+
+    These count committed local account/follow creations, never sign-in methods,
+    surviving inventory, or unique people. Removing a follow/account cannot
+    remove a total. A later follow of the same item is a new creation.
+    """
+
+    __tablename__ = "site_metric_hourly_count"
+
+    metric_kind: Mapped[str] = mapped_column(String(60), primary_key=True)
+    bucket_started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), primary_key=True
+    )
+    count: Mapped[int] = mapped_column(BigInteger, nullable=False)
+
+    __table_args__ = (
+        CheckConstraint(
+            "metric_kind IN ('account_created', 'bill_watch_created', 'committee_watch_created')",
+            name="metric_kind_allowed",
+        ),
+        CheckConstraint("count >= 0", name="count_nonnegative"),
+    )
+
+
+class SiteMetricCoverage(Base):
+    """The earliest claimed collection coverage, never inferred from inventory."""
+
+    __tablename__ = "site_metric_coverage"
+
+    metric_kind: Mapped[str] = mapped_column(String(60), primary_key=True)
+    recording_started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+
+class SiteMetricReceipt(Base):
+    """A short-lived retry key for one action, not a browser or person identity."""
+
+    __tablename__ = "site_metric_receipt"
+
+    event_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
     )
 
 
