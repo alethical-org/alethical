@@ -76,6 +76,7 @@ export const routePath = {
     params?: Omit<RootStackParamList['CommitteePayments'], 'slug'>,
   ) => pathForRoute({ name: 'CommitteePayments', params: { slug, ...params } }),
   privacy: () => pathForRoute({ name: 'Privacy' }),
+  adminUsers: () => pathForRoute({ name: 'AdminUsers' }),
   siteMetrics: () => pathForRoute({ name: 'SiteMetrics' }),
   terms: () => pathForRoute({ name: 'Terms' }),
   aboutUs: () => pathForRoute({ name: 'AboutUs' }),

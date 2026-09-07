@@ -22,6 +22,8 @@ addresses are resolved by one router (`apps/frontend/src/navigation/webRoutes.ts
 - **The account control replaces Sign in once you are in**: an avatar with your first name on a
   desktop-width browser, an avatar that opens a sheet on a phone. It holds a **Tracked Bills**
   row, with the count of bills you track, leading to `/tracked`, and **Sign out**.
+  Approved administrators also see **Admin**, leading to `/admin/users`, after
+  the server grants access. See [How private account visibility works](admin-users-guide.md).
 
 ## The greyed "ON THE ROADMAP" group
 
@@ -57,6 +59,7 @@ A page IS its address, and old addresses keep working:
   shipped page (`.claude/rules/grounded-answers.md` rule 8).
 - `/tracked` is a real page: signed in, your tracked bills; signed out, a card inviting you to
   sign in, never a bounce to Home.
+- `/admin` opens `/admin/users`, the private account list for approved administrators.
 - An address that is not a page shows the missing-page screen
   (`docs/product-onboarding/sharing-guide.md`, "What search engines get").
 

@@ -61,10 +61,11 @@ export function TrafficAnalytics() {
 
   return (
     <Analytics
-      beforeSend={(event: BeforeSendEvent) => ({
-        ...event,
-        url: redactTrafficUrl(event.url),
-      })}
+      beforeSend={(event: BeforeSendEvent) => {
+        if (/^\/admin(?:\/|$)/.test(new URL(event.url, window.location.origin).pathname))
+          return null;
+        return { ...event, url: redactTrafficUrl(event.url) };
+      }}
     />
   );
 }

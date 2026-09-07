@@ -53,6 +53,7 @@ const LegislatorProfileScreen = loadOnDemand(screenChunks.LegislatorProfile);
 const PrivacyScreen = loadOnDemand(screenChunks.Privacy);
 const TermsScreen = loadOnDemand(screenChunks.Terms);
 const TrafficScreen = loadOnDemand(screenChunks.SiteMetrics);
+const AdminUsersScreen = loadOnDemand(screenChunks.AdminUsers);
 const VoteDetailScreen = loadOnDemand(screenChunks.VoteDetail);
 const AskAnswerScreen = loadOnDemand(screenChunks.Ask);
 const AboutUsScreen = loadOnDemand(screenChunks.AboutUs);
@@ -74,7 +75,8 @@ const SearchLegislatorsScreen = loadOnDemand(screenChunks.Legislators);
 const TrackedScreen = loadOnDemand(screenChunks.Tracked);
 const ContactUsScreen = loadOnDemand(screenChunks.ContactUs);
 type NavIcon = Icon;
-type RailRouteName = keyof MainTabParamList | 'FindMyLegislator' | 'NotFound' | 'SiteMetrics';
+type RailRouteName =
+  keyof MainTabParamList | 'FindMyLegislator' | 'NotFound' | 'SiteMetrics' | 'AdminUsers';
 const tabMeta: Record<keyof MainTabParamList, { label: string; Icon: NavIcon }> = {
   Home: { label: 'Home', Icon: Home },
   Tracked: { label: 'Tracked', Icon: BookmarkCheck },
@@ -322,6 +324,7 @@ function MainTabs() {
 
 function activeRailRouteFromRootState(state: any): RailRouteName | undefined {
   const rootRoute = state?.routes[state.index ?? 0];
+  if (rootRoute?.name === 'AdminUsers') return 'AdminUsers';
   if (rootRoute?.name === 'FindMyLegislator') {
     return 'FindMyLegislator';
   }
@@ -527,7 +530,8 @@ export function RootNavigator() {
     activeRailRoute === 'Tracked' ||
     activeRailRoute === 'FindMyLegislator' ||
     activeRailRoute === 'NotFound' ||
-    activeRailRoute === 'SiteMetrics';
+    activeRailRoute === 'SiteMetrics' ||
+    activeRailRoute === 'AdminUsers';
 
   useEffect(() => {
     if (!isWeb) {
@@ -743,6 +747,11 @@ export function RootNavigator() {
               name="Privacy"
               component={PrivacyScreen}
               options={{ headerShown: false, title: 'Privacy Policy' }}
+            />
+            <Stack.Screen
+              name="AdminUsers"
+              component={AdminUsersScreen}
+              options={{ headerShown: false, title: 'Users' }}
             />
             <Stack.Screen
               name="SiteMetrics"

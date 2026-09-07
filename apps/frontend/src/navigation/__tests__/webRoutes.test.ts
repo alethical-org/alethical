@@ -17,6 +17,41 @@ import { pathForRoute, stateFromPathname, targetFromPathname } from '../webRoute
 
 const routeSource = readFileSync(join(__dirname, '..', 'webRoutes.ts'), 'utf8');
 
+describe('private admin addresses', () => {
+  it.each([
+    '/admin',
+    '/admin/',
+    '/admin/users',
+    '/admin/users?query=person%40example.com&offset=25',
+  ])('opens Users from %s without retaining private search parameters', (path) => {
+    expect(targetFromPathname(path)).toEqual({ kind: 'adminUsers' });
+    expect(stateFromPathname(path)).toEqual({
+      routes: [
+        {
+          name: 'Tabs',
+          state: {
+            routes: [{ name: 'Home' }, { name: 'Tracked' }, { name: 'Chat' }, { name: 'Account' }],
+            index: 0,
+          },
+        },
+        { name: 'AdminUsers' },
+      ],
+      index: 1,
+    });
+  });
+  it('always writes the canonical private address without search state', () => {
+    expect(
+      pathForRoute({ name: 'AdminUsers', params: { query: 'person@example.com', offset: 25 } }),
+    ).toBe('/admin/users');
+  });
+  it('does not claim unknown admin pages exist', () => {
+    expect(targetFromPathname('/admin/users/example')).toEqual({
+      kind: 'notFound',
+      path: '/admin/users/example',
+    });
+  });
+});
+
 describe('the shared address reader stays safe for the server build', () => {
   it('does not import the browser navigation package', () => {
     expect(routeSource).not.toMatch(/from ['"]@react-navigation\//);

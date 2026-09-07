@@ -10,14 +10,29 @@ import type * as SignInBundleModule from './signInBundle';
  * and every page carries it; what it fetches is about 260,000 minified bytes and
  * most readers never ask for it.
  *
- * `lib/auth/signInWorkPending.ts` decides when to ask.
+ * `lib/auth/signInWorkPending.ts` decides whether to ask at startup.
  */
 
 type SignInBundle = typeof SignInBundleModule;
 
 let pending: Promise<SignInBundle> | null = null;
+const requestListeners = new Set<() => void>();
+
+/** Observe a later sign-in press without fetching the client on public visits. */
+export function onSignInBundleRequested(listener: () => void): () => void {
+  requestListeners.add(listener);
+  if (pending) listener();
+  return () => {
+    requestListeners.delete(listener);
+  };
+}
 
 export function loadSignInBundle(): Promise<SignInBundle> {
-  pending ??= import('./signInBundle');
+  if (!pending) {
+    pending = import('./signInBundle');
+    // Register the session observer before the caller can finish signing in.
+    // Set pending first so an observer can safely request this same promise.
+    requestListeners.forEach((listener) => listener());
+  }
   return pending;
 }

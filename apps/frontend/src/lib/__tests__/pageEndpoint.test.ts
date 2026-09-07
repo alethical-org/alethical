@@ -95,6 +95,24 @@ async function serve(query: Record<string, string>) {
   return recorder.read();
 }
 
+it.each(['/admin', '/admin/users'])(
+  'keeps %s private with no account HTML or analytics',
+  async (path) => {
+    const network = vi.fn();
+    vi.stubGlobal('fetch', network);
+    const { body, headers, status } = await serve({ path, query: 'private@example.test' });
+    expect(status).toBe(200);
+    expect(headers.get('Cache-Control')).toBe('private, no-store');
+    expect(headers.get('X-Robots-Tag')).toBe('noindex, nofollow');
+    expect(headers.get('Referrer-Policy')).toBe('no-referrer');
+    expect(body).toContain('Users | Alethical');
+    expect(body).not.toContain('private@example.test');
+    expect(body).not.toContain('Home snapshot');
+    expect(body).not.toContain('cloudflareinsights');
+    expect(network).not.toHaveBeenCalled();
+  },
+);
+
 function runEmailLinkBootstrap(body: string, address: string) {
   const source = body.match(
     /<script id="alethical-email-link-bootstrap">([\s\S]*?)<\/script>/,

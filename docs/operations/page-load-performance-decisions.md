@@ -319,6 +319,13 @@ Measured on the production build, at the settings Vercel compresses with: a firs
 [#1976](https://github.com/alethical-org/alethical/issues/1976) it was 451,044. What moved out
 is a 262,766-byte download named `signInBundle`.
 
+Private account visibility ([issue 2014](https://github.com/alethical-org/alethical/issues/2014))
+adds the administrator route and a shared permission check. Its account-list parsing and
+search request load only with `/admin/users`. The release measures **389,116 bytes**:
+337,513 for the program, 49,987 shared, and 1,616 runtime. This is 826 bytes (0.21%) above
+the 388,290-byte baseline. The limit is 390,000 bytes to admit this measured feature;
+the private list itself is not a cost paid by public readers.
+
 **`lib/auth/signInWorkPending.ts` is the whole design, and it answers 1 question: does this page
 load have sign-in work to do?** It says yes when a session is saved in this browser, when the
 address is a sign-in return, when a request was stashed before a redirect to Google, or when a
@@ -335,7 +342,10 @@ Three things follow from it:
   the code does, and mounts the machinery as a sibling of the page rather than a wrapper around
   it — so the fetch landing does not remount the page and lose what a reader had on screen.
 - **`AuthProvider.web.tsx` stops waiting when the answer is no.** It sets its loading state false
-  and never fetches the client, which is the saving.
+  without fetching the client. It observes the first later request through
+  `onSignInBundleRequested`, then attaches the session listener before sign-in can finish.
+  A fresh visitor can therefore sign in without reloading, while untouched public visits
+  keep the saving. The observer also handles a request made before the provider mounts.
 - **The top bar's account controls cost a signed-in reader nothing.** The bar draws them only when
   somebody is signed in, and nothing can know that until the client has read the saved session, so
   the download they live in is already in hand by the time one is asked for.

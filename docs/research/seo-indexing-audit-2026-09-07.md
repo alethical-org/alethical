@@ -79,7 +79,7 @@ suggestion `3`. Do not submit questions during diagnosis.
 
 Checkpoint: own branch `codex/sitewide-seo-september`.
 Repairs tracked in [issue 2013](https://github.com/alethical-org/alethical/issues/2013).
-Implementation complete; integration and release remain:
+Implementation and local browser checks complete; release and live checks remain:
 
 - Public homepage and money links, 2 optional chief-authored bill links, and
   outside-spending sitemap coverage are saved in the discovery milestone.
@@ -87,10 +87,10 @@ Implementation complete; integration and release remain:
   initial responses. Bill descriptions preserve dotted abbreviations; the bill
   search description calls its filter an issue. Bills without AI analysis can
   show their unchanged official description with a source link.
-- 167 frontend test files / 2,048 tests and the frontend type check pass.
+- 173 frontend test files / 2,103 tests and the frontend type check pass.
   The production build passes its asset, icon and first-load size checks.
-- Browser QA, current-main checks, pull request, merge queue and live checks
-  remain owned by this task. No helper owns further implementation.
+- Current-main checks, pull request, merge queue and live checks remain owned
+  by this task. No helper owns further implementation.
 
 After integrating the latest sign-in loading changes from main, an intermediate
 build measured 389,073 bytes and failed the 389,000-byte guard by 73 bytes.
@@ -99,6 +99,13 @@ locally, but Vercel's hosted build measures 389,015 across its 3 initial
 downloads and fails the original guard by 15 bytes. The hosted measurement
 sets a 389,500-byte guard, with 485 bytes of headroom. No compression or
 file-selection rule changes. The guard's failure test still rejects growth.
+
+The subsequent integration of
+[pull request 2017](https://github.com/alethical-org/alethical/pull/2017)
+preserves main's 390,000-byte guard. The combined local build measures
+389,183 bytes across 3 initial files. All 2,103 frontend tests and the type
+check pass on that combined version. The protected queue and hosted build
+remain the release gate.
 
 Fresh reader testing passes at 1440×1000 and 390×844: bill search and detail,
 official sources, legislator overview and campaign money, all money

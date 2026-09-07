@@ -31,7 +31,7 @@ import {
 import { validationFailureRevokesSession } from '../lib/auth/sessionSafety';
 import { restoreAuthSession } from '../lib/authRestore';
 import { SIGN_IN_ERROR_MESSAGES, SignInErrorKind } from '../lib/signIn';
-import { loadSignInBundle } from '../lib/auth/loadSignInBundle';
+import { loadSignInBundle, onSignInBundleRequested } from '../lib/auth/loadSignInBundle';
 import { signInWorkPendingOnLoad } from '../lib/auth/signInWorkPending';
 import type { BoundPasswordAuthClient } from '../lib/supabase';
 import { isSupabaseConfigured } from '../lib/supabaseConfig';
@@ -213,87 +213,89 @@ export function AuthProvider({ children }: PropsWithChildren) {
   useEffect(() => {
     let mounted = true;
     let unsubscribe: (() => void) | undefined;
+    let observing = false;
     const restoreGeneration = ++validationGeneration.current;
 
-    // Nobody is signed in here and this address is not a sign-in return, so the
-    // sign-in client is never fetched — which is the whole saving on the pages
-    // most readers open (#1976). There is nothing to restore and nothing that can
-    // change without a press, and a press fetches it.
-    if (!signInWorkPendingOnLoad()) {
-      setIsLoading(false);
-      return () => {
-        mounted = false;
-      };
-    }
+    const observeSession = () => {
+      if (observing) return;
+      observing = true;
+      void loadSignInBundle()
+        .then(({ supabase }) => {
+          if (!mounted || restoreGeneration !== validationGeneration.current) return;
 
-    void loadSignInBundle()
-      .then(({ supabase }) => {
-        if (!mounted || restoreGeneration !== validationGeneration.current) return;
-
-        void restoreAuthSession<Session>(() => supabase.auth.getSession())
-          .then(async ({ session: restoredSession, errorMessage }) => {
-            if (!mounted || restoreGeneration !== validationGeneration.current) return;
-            if (errorMessage) {
-              failWith(SIGN_IN_ERROR_MESSAGES.failed);
-              return;
-            }
-            if (restoredSession) {
-              await acceptSession(restoredSession);
-            }
-          })
-          .catch(() => {
-            if (mounted && restoreGeneration === validationGeneration.current) {
-              sessionRef.current = null;
-              setSession(null);
-              setUser(null);
-              failWith(SIGN_IN_ERROR_MESSAGES.failed);
-            }
-          })
-          .finally(() => {
-            if (mounted && restoreGeneration === validationGeneration.current) setIsLoading(false);
-          });
-
-        const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-          if (!nextSession) {
-            const generation = ++validationGeneration.current;
-            void supabase.auth
-              .getSession()
-              .then((current) => {
-                if (generation !== validationGeneration.current) return;
-                if (!current.error && current.data.session) {
-                  void acceptSession(current.data.session);
-                  return;
-                }
-                sessionRef.current = null;
-                setSession(null);
-                setUser(null);
-                setIsLoading(false);
-              })
-              .catch(() => {
-                if (generation !== validationGeneration.current) return;
+          void restoreAuthSession<Session>(() => supabase.auth.getSession())
+            .then(async ({ session: restoredSession, errorMessage }) => {
+              if (!mounted || restoreGeneration !== validationGeneration.current) return;
+              if (errorMessage) {
+                failWith(SIGN_IN_ERROR_MESSAGES.failed);
+                return;
+              }
+              if (restoredSession) {
+                await acceptSession(restoredSession);
+              }
+            })
+            .catch(() => {
+              if (mounted && restoreGeneration === validationGeneration.current) {
                 sessionRef.current = null;
                 setSession(null);
                 setUser(null);
                 failWith(SIGN_IN_ERROR_MESSAGES.failed);
+              }
+            })
+            .finally(() => {
+              if (mounted && restoreGeneration === validationGeneration.current)
                 setIsLoading(false);
-              });
-            return;
-          }
-          void acceptSession(nextSession);
+            });
+
+          const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+            if (!nextSession) {
+              const generation = ++validationGeneration.current;
+              void supabase.auth
+                .getSession()
+                .then((current) => {
+                  if (generation !== validationGeneration.current) return;
+                  if (!current.error && current.data.session) {
+                    void acceptSession(current.data.session);
+                    return;
+                  }
+                  sessionRef.current = null;
+                  setSession(null);
+                  setUser(null);
+                  setIsLoading(false);
+                })
+                .catch(() => {
+                  if (generation !== validationGeneration.current) return;
+                  sessionRef.current = null;
+                  setSession(null);
+                  setUser(null);
+                  failWith(SIGN_IN_ERROR_MESSAGES.failed);
+                  setIsLoading(false);
+                });
+              return;
+            }
+            void acceptSession(nextSession);
+          });
+          unsubscribe = () => data.subscription.unsubscribe();
+          if (!mounted) unsubscribe();
+        })
+        .catch(() => {
+          // The sign-in code could not be fetched. Stop waiting and say so, rather
+          // than leaving the header stuck on its loading state forever.
+          if (!mounted || restoreGeneration !== validationGeneration.current) return;
+          failWith(SIGN_IN_ERROR_MESSAGES.failed);
+          setIsLoading(false);
         });
-        unsubscribe = () => data.subscription.unsubscribe();
-        if (!mounted) unsubscribe();
-      })
-      .catch(() => {
-        // The sign-in code could not be fetched. Stop waiting and say so, rather
-        // than leaving the header stuck on its loading state forever.
-        if (!mounted || restoreGeneration !== validationGeneration.current) return;
-        failWith(SIGN_IN_ERROR_MESSAGES.failed);
-        setIsLoading(false);
-      });
+    };
+
+    // A public visit still skips the sign-in download. If the reader opens
+    // Sign in later, attach the session observer before that flow can complete.
+    const stopObservingRequests = onSignInBundleRequested(observeSession);
+    if (signInWorkPendingOnLoad()) observeSession();
+    else setIsLoading(false);
 
     return () => {
       mounted = false;
+      stopObservingRequests();
       unsubscribe?.();
     };
   }, [acceptSession, failWith]);
