@@ -168,7 +168,10 @@ PUBLIC_CACHE_CONTROL = "public, max-age=60, stale-while-revalidate=300"
 # (`docs/architecture/campaign-finance-system-design.md` §9.6). Measured 4 Sep
 # 2026: production's snapshot was dated 2026-08-12, 23 days old. Against that,
 # the 60s/300s window was minutes, so any gap over 5 minutes between readers sent
-# the next one to a 2975 ms origin read (#1966, acceptance criterion 4).
+# the next one to a 2975 ms origin read (#1966, acceptance criterion 4). That same
+# read answers in 0.46 s now (measured at the direct origin, 7 Sep 2026), so the
+# window is worth about a tenth of what it was worth when it was chosen — still
+# worth having, and no longer the difference between a page and a wait.
 #
 # The long value is `stale-while-revalidate`, not `max-age`, and that difference
 # is the design. Inside `max-age` the edge answers without asking the origin, so
