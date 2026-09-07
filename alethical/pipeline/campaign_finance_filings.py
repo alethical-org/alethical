@@ -1853,22 +1853,30 @@ KEEP_SUPERSEDED_GENERATIONS = 1
 def live_filings_snapshot(db: Session) -> Optional[Any]:
     """Which filings snapshot is live, read from the database rather than from memory.
 
-    ``populate_existing=True`` for the same reason the download loader needs it:
-    publishing moves the pointer with a statement rather than through the object, and
-    this repo's session factory sets ``expire_on_commit=False``, so a caller still
-    holding the pointer object would get the value it had *before* the publish — and
+    One statement, joining the pointer to the snapshot it names. Every money read calls
+    this, several of them twice, and the database is in a different region from the
+    server, so each round trip saved here is saved on every one of those pages
+    ([#1966](https://github.com/alethical-org/alethical/issues/1966)).
+
+    The pointer is never taken from the identity map: it is read as a join condition, so
+    its value comes from the database on every call. ``populate_existing=True`` gives the
+    snapshot the same treatment. Both matter for the same reason the download loader
+    needs them: publishing moves the pointer with a statement rather than through the
+    object, and this repo's session factory sets ``expire_on_commit=False``, so a caller
+    still holding either object would get the value it had *before* the publish — and
     pruning on a stale pointer deletes the rows of the snapshot just published.
+
+    ``None`` when no pointer row exists, when it names no snapshot, and when the snapshot
+    it names is gone — the same 3 answers, because a caller can act on none of them.
     """
-    pointer = db.get(
-        schema.CampaignFinanceFilingCurrentSnapshot, True, populate_existing=True
-    )
-    if pointer is None or pointer.snapshot_id is None:
-        return None
-    return db.get(
-        schema.CampaignFinanceFilingSnapshot,
-        pointer.snapshot_id,
-        populate_existing=True,
-    )
+    pointer = schema.CampaignFinanceFilingCurrentSnapshot
+    snapshot = schema.CampaignFinanceFilingSnapshot
+    return db.execute(
+        select(snapshot)
+        .join(pointer, pointer.snapshot_id == snapshot.id)
+        .where(pointer.id.is_(True))
+        .execution_options(populate_existing=True)
+    ).scalar_one_or_none()
 
 
 def ensure_filings_pointer_row(db: Session) -> None:
