@@ -1501,6 +1501,7 @@ export function mapBillDetail(
     id: payload.id,
     identifier: fileNumber ? formatBillIdentifier(fileType, fileNumber) : payload.id,
     title: payload.title,
+    officialDescription: payload.description?.trim() ? payload.description : undefined,
     chamber: toChamber(fileType),
     status: statusLabel(payload.status_key, payload.current_status),
     isOmnibus: payload.is_omnibus ?? false,

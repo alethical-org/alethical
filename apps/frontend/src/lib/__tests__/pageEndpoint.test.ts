@@ -437,6 +437,24 @@ describe('first-response page tags', () => {
     },
   );
 
+  it.each([
+    ['/about', 'TRUTH, UNCONCEALED', 'Facts before opinions'],
+    ['/about/contact', 'Contact us', 'mailto:'],
+  ])('serves %s with its own readable body and no data request', async (path, heading, text) => {
+    const fetch = vi.fn();
+    vi.stubGlobal('fetch', fetch);
+    const response = await serve({ path });
+    expect(response.status).toBe(200);
+    expect(response.body).toContain(heading);
+    expect(response.body).toContain(text);
+    expect(response.body).not.toContain('Home snapshot from shell');
+    expect(response.body).not.toContain('<form');
+    expect(response.body).toContain(`rel="canonical" href="https://www.alethical.com${path}"`);
+    expect(response.headers.get('X-Robots-Tag')).toBeUndefined();
+    expect(response.body).not.toContain('content="noindex');
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it('serves a static page without asking the data service anything', async () => {
     const calls: string[] = [];
     stubNetwork((url) => {

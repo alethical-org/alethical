@@ -145,9 +145,8 @@ const {
   researchSourceText,
 } = await import('../research');
 const { MONEY_ONLY_GOES_ONE_WAY } = await import('../researchPieces/moneyOnlyGoesOneWay');
-const { WHO_HAS_TO_REPORT_THEIR_MONEY } = await import(
-  '../researchPieces/whoHasToReportTheirMoney'
-);
+const { WHO_HAS_TO_REPORT_THEIR_MONEY } =
+  await import('../researchPieces/whoHasToReportTheirMoney');
 const { legislatorDisplayName, legislatorDistrictLine } = await import('../legislatorProfile');
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -277,6 +276,50 @@ describe('the bill snapshot says only what the app then draws', () => {
     expect(drawnTextNodes(appHtml(withoutKeyPoints))).toContain(prose.body[0]);
   });
 
+  it('falls back to the exact official description, with its official source', () => {
+    const officialDescription =
+      'Data centers sales and use tax exemption repealed, and contingent reduction in special education aid appropriations repealed.';
+    const statutoryTitle =
+      'A bill for an act relating to taxation; repealing several provisions; appropriating money.';
+    const payload = {
+      ...billFixture,
+      id: '94-2026-HF5125',
+      title: statutoryTitle,
+      description: officialDescription,
+      ai_analysis: null,
+      official_url: 'https://www.revisor.mn.gov/bills/94/2025/0/HF/5125/versions/1/',
+    };
+    const bill = mapBillDetail(payload as never, []);
+    const fallback = billPageSnapshot(payload as never);
+    const drawn = drawnTextNodes(appHtml(payload));
+
+    expect(bill.officialDescription).toBe(officialDescription);
+    expect(fallback.heading).toBe('HF 5125');
+    expect(fallback.bodyHeading).toBe('Official description');
+    expect(fallback.body).toEqual([officialDescription]);
+    expect(drawn).toContain('Official description');
+    expect(drawn).toContain(officialDescription);
+    expect(appHtml(payload)).toContain('>Official bill page</a>');
+    expect(fallback.links).toContainEqual({
+      label: 'Official bill page',
+      href: 'https://www.revisor.mn.gov/bills/94/2025/0/HF/5125/',
+    });
+    expect(renderPageSnapshot(fallback)).not.toContain(statutoryTitle);
+  });
+
+  it('keeps AI key points and AI summary ahead of the official description', () => {
+    const withDescription = { ...billFixture, description: 'Official filed words.' };
+    const summaryOnly = {
+      ...withoutKeyPoints,
+      description: 'Official filed words.',
+    };
+
+    expect(billPageSnapshot(withDescription as never).bodyHeading).toBe('Key points');
+    expect(billPageSnapshot(withDescription as never).body).not.toContain('Official filed words.');
+    expect(billPageSnapshot(summaryOnly as never).bodyHeading).toBe('Summary');
+    expect(billPageSnapshot(summaryOnly as never).body).not.toContain('Official filed words.');
+  });
+
   it('links only where the app links, to the same address', () => {
     const rendered = renderPageSnapshot(snapshot);
     const drawnHtml = appHtml();
@@ -353,7 +396,8 @@ describe('the bill snapshot says only what the app then draws', () => {
     // to the 400-character statutory title that rule 10 keeps off the page.
     const unenriched = billPageSnapshot({ ...billFixture, ai_analysis: null } as never);
     expect(unenriched.heading).toBe('HF 719');
-    expect(unenriched.body).toEqual([]);
+    expect(unenriched.bodyHeading).toBe('Official description');
+    expect(unenriched.body).toEqual([billFixture.description]);
     expect(renderPageSnapshot(unenriched)).not.toContain(billFixture.title.slice(0, 40));
 
     const bare = billPageSnapshot({ id: '94-2025-HF719' });

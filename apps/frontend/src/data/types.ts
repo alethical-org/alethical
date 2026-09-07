@@ -237,6 +237,9 @@ export interface Bill {
   id: string;
   identifier: string;
   title: string;
+  /** The Legislature's filed short description, kept word-for-word. This is
+   *  distinct from both the statutory `title` and Alethical's AI summary. */
+  officialDescription?: string;
   chamber: Chamber;
   status: string;
   /** Raw latest-action text (e.g. "Referred to", "Effective date"), distinct from

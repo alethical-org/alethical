@@ -440,6 +440,7 @@ export function legislatorDirectoryPageSnapshot(
 
 export interface BillSnapshotSource {
   id: string;
+  description?: string | null;
   session?: { name?: string | null } | null;
   current_status?: string | null;
   status_key?: string | null;
@@ -490,6 +491,8 @@ export function billPageSnapshot(bill: BillSnapshotSource): PageSnapshot {
   const eyebrow = bienniumEyebrow(bill.id, bill.session?.name ?? undefined);
   const keyPoints = plainKeyPoints(bill.ai_analysis?.key_points ?? undefined);
   const summary = plainBillSummary(bill.ai_analysis?.summary ?? null);
+  const officialDescription = bill.description?.trim() ? bill.description : '';
+  const usesOfficialDescription = !keyPoints.length && !summary && !!officialDescription;
 
   const sponsors = (bill.chief_sponsors ?? []).map((sponsor) => ({
     name: sponsor.name ?? '',
@@ -521,8 +524,20 @@ export function billPageSnapshot(bill: BillSnapshotSource): PageSnapshot {
   return {
     heading: shortTitle || identifier,
     subheading: [identifier, eyebrow].filter(Boolean).join(' · '),
-    bodyHeading: keyPoints.length ? 'Key points' : 'Summary',
-    body: keyPoints.length ? keyPoints : summary ? [summary] : [],
+    bodyHeading: keyPoints.length
+      ? 'Key points'
+      : summary
+        ? 'Summary'
+        : usesOfficialDescription
+          ? 'Official description'
+          : 'Summary',
+    body: keyPoints.length
+      ? keyPoints
+      : summary
+        ? [summary]
+        : usesOfficialDescription
+          ? [officialDescription]
+          : [],
     bodyIsList: keyPoints.length > 0,
     sections: citedSections.length
       ? [{ heading: 'Cited sections', items: citedSections }]
@@ -532,7 +547,14 @@ export function billPageSnapshot(bill: BillSnapshotSource): PageSnapshot {
       ...fact('Chief author', authorName),
     ],
     links: [
-      ...(overview ? [{ label: 'Bill overview', href: overview }] : []),
+      ...(overview
+        ? [
+            {
+              label: usesOfficialDescription ? 'Official bill page' : 'Bill overview',
+              href: overview,
+            },
+          ]
+        : []),
       ...(author?.slug && authorName
         ? [{ label: authorName, href: `/legislators/${encodeURIComponent(author.slug)}` }]
         : []),

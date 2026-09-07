@@ -1,5 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { aboutPageSnapshot } from "../apps/frontend/src/lib/aboutUs";
+import { contactPageSnapshot } from "../apps/frontend/src/lib/contactUs";
 
 import {
   legislatorDisplayName,
@@ -905,9 +907,15 @@ async function contentFor(
     case "terms":
       return headOnly(STATIC_PAGE_METADATA["/terms"]);
     case "aboutUs":
-      return headOnly(STATIC_PAGE_METADATA["/about"]);
+      return {
+        metadata: STATIC_PAGE_METADATA["/about"],
+        snapshot: renderPageSnapshot(aboutPageSnapshot()),
+      };
     case "contactUs":
-      return headOnly(STATIC_PAGE_METADATA["/about/contact"]);
+      return {
+        metadata: STATIC_PAGE_METADATA["/about/contact"],
+        snapshot: renderPageSnapshot(contactPageSnapshot()),
+      };
     case "confirmEmail":
       return headOnly(STATIC_PAGE_METADATA["/confirm"]);
     case "resetPassword":

@@ -1863,8 +1863,34 @@ export function readLabel(linksToTheLaw: boolean): string {
 export function firstSentence(text: string | null | undefined): string {
   const s = (text ?? '').trim();
   if (!s) return '';
-  const m = s.match(/^.*?[.!?](?=\s|$)/);
-  return (m ? m[0] : s).trim();
+
+  for (let index = 0; index < s.length; index += 1) {
+    const mark = s[index];
+    if (mark !== '.' && mark !== '!' && mark !== '?') continue;
+
+    // A decimal's dot belongs to the number. This branch also makes the rule
+    // explicit instead of relying on there being no space after that dot.
+    if (mark === '.' && /\d/.test(s[index - 1] ?? '') && /\d/.test(s[index + 1] ?? '')) {
+      continue;
+    }
+
+    let end = index + 1;
+    while (/^["'”’\)\]}]$/.test(s[end] ?? '')) end += 1;
+
+    // Punctuation inside a word or number is not a sentence boundary.
+    if (end < s.length && !/\s/.test(s[end])) continue;
+
+    // The final dot in an initialism belongs to the word when more prose
+    // follows, whether that next word starts lower-case (`U.S. citizens`) or
+    // upper-case (`U.S. Department`). No lookbehind, so Hermes can run it too.
+    const hasMoreText = s.slice(end).trim().length > 0;
+    const isInitialism = /(?:^|[^A-Za-z])(?:[A-Za-z]\.){2,}$/.test(s.slice(0, index + 1));
+    if (mark === '.' && end === index + 1 && hasMoreText && isInitialism) continue;
+
+    return s.slice(0, end).trim();
+  }
+
+  return s;
 }
 
 // Present an AI bill summary as a clean, plain-language line: drop the leading

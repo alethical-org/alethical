@@ -69,6 +69,12 @@ describe('page metadata', () => {
     expect(legislatorListPageMetadata(1, { noindex: true }).noindex).toBe(true);
   });
 
+  it('names the bill directory’s settled Issue filter in its description', () => {
+    expect(billListPageMetadata().description).toBe(
+      'Search bills in the Minnesota Legislature by issue, chamber, and status.',
+    );
+  });
+
   it('gives later unfiltered directory pages their own canonical address', () => {
     expect(billListPageMetadata(1).canonicalPath).toBe('/bills');
     expect(billListPageMetadata(2).canonicalPath).toBe('/bills?page=2');

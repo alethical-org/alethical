@@ -14,6 +14,11 @@ copy.
 
 ## The form
 
+Before the app starts, the first response carries the same heading, explanation,
+email address and social links as the loaded screen. The form and its delivery
+states appear only in the loaded app. Both presentations read their shared
+words from `contactUs.ts`; serving the initial text sends nothing.
+
 The fields stay in this order:
 
 1. Your name, optional.

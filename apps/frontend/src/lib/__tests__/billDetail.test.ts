@@ -27,6 +27,7 @@ import {
   completeDanglingTitle,
   crossReferenceTargets,
   districtRowLabel,
+  firstSentence,
   formatAuthorDistrict,
   isKnownDistrict,
   latestActionEntry,
@@ -98,6 +99,28 @@ describe('plainBillSummary drops what is scaffolding', () => {
     expect(plainBillSummary(null)).toBe('');
     expect(plainBillSummary(undefined)).toBe('');
     expect(plainBillSummary('   ')).toBe('');
+  });
+});
+
+describe('firstSentence keeps dots that are part of the sentence', () => {
+  it('keeps a dot-initialism with lower-case or upper-case words after it', () => {
+    expect(firstSentence('Applicants must be U.S. citizens. Officers may continue.')).toBe(
+      'Applicants must be U.S. citizens.',
+    );
+    expect(firstSentence('The U.S. Department acts. It reports annually.')).toBe(
+      'The U.S. Department acts.',
+    );
+  });
+
+  it('keeps decimal dots and still stops at an ordinary sentence boundary', () => {
+    expect(firstSentence('The bill provides $1.5 million. It also requires a report.')).toBe(
+      'The bill provides $1.5 million.',
+    );
+  });
+
+  it('stops before a quoted next sentence and keeps a closing quote on the first', () => {
+    expect(firstSentence('First sentence. "Second sentence."')).toBe('First sentence.');
+    expect(firstSentence('"First sentence." Second sentence.')).toBe('"First sentence."');
   });
 });
 

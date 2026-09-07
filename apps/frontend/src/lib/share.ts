@@ -256,7 +256,7 @@ export function billListPageMetadata(page = 1, options: { noindex?: boolean } = 
   return pageMetadata({
     title: titleFor(subject),
     socialTitle: subject,
-    description: `Search bills in the Minnesota Legislature by topic, chamber, and status.${page > 1 ? ` Page ${page}.` : ''}`,
+    description: `Search bills in the Minnesota Legislature by issue, chamber, and status.${page > 1 ? ` Page ${page}.` : ''}`,
     // Filtered addresses carry no canonical while they are noindex. Combining
     // both signals can make the intended indexable directory ambiguous.
     canonicalPath: options.noindex ? '' : directoryPagePath('/bills', page),

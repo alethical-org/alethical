@@ -70,18 +70,20 @@ suggestion `3`. Do not submit questions during diagnosis.
    validation only for a class whose relevant failures have been repaired. Record
    what still depends on Google's next crawl rather than claiming it fixed.
 
-Checkpoint: own branch `codex/sitewide-seo-september`, based on `2e477141`.
+Checkpoint: own branch `codex/sitewide-seo-september`.
 Repairs tracked in [issue 2013](https://github.com/alethical-org/alethical/issues/2013).
-Implementation in progress:
+Implementation complete; integration and release remain:
 
-- This task owns `api/page.ts`, endpoint tests, decisions and release.
-- Snapshot helper owns `pageSnapshot.ts` and its tests: 2 chief-authored bill links
-  on profiles, plus the existing races and outside-spending links on `/money`.
-- Delivery helper owns `api/sitemap.ts` and its tests: add outside spending.
-  Its next bounded work shares existing `/about` and `/about/contact` wording
-  between their screens and first-response snapshots, with dedicated tests.
-- Bill-load helper is read-only: assess whether handing the already-read bill
-  payload to the browser can safely remove a second request and loading state.
+- Public homepage and money links, 2 optional chief-authored bill links, and
+  outside-spending sitemap coverage are saved in the discovery milestone.
+- `/about` and `/about/contact` share words between their loaded screens and
+  initial responses. Bill descriptions preserve dotted abbreviations; the bill
+  search description calls its filter an issue. Bills without AI analysis can
+  show their unchanged official description with a source link.
+- 167 frontend test files / 2,048 tests and the frontend type check pass.
+  The production build passes its asset, icon and first-load size checks.
+- Browser QA, current-main checks, pull request, merge queue and live checks
+  remain owned by this task. No helper owns further implementation.
 
 Existing serving decisions read completely in
 [page-metadata-for-search-and-sharing-decisions.md](../architecture/page-metadata-for-search-and-sharing-decisions.md).
@@ -113,6 +115,43 @@ crawling allowed, indexing allowed and the correct self-canonical. The saved
 crawled page is unavailable, so the historical rendered failure cannot be read.
 The live test returns 200; its only unavailable resource is the Cloudflare
 analytics script, not the bill's data or app program.
+
+## Response checks and implementation decisions
+
+All 36 reported public bill and directory examples returned HTTP 200 with a
+self-canonical address, heading, readable snapshot and 3–19 ordinary links on
+7 Sep. The 2 reported question addresses also returned HTTP 200 and retained
+`noindex`. These were plain response reads, without executing the app or
+generating answers. The 11 reported server errors are no longer reproduced.
+
+Google accepted the server-error group's validation request on 7 Sep. Its
+status is **Validation started**, not passed. Soft-404 validation waits for
+the official-description repair to be live.
+
+HF5125 is a content exception: it has no AI analysis, but its official record
+contains this description: “Data centers sales and use tax exemption repealed,
+and contingent reduction in special education aid appropriations repealed.”
+The repair uses this unchanged official description with a source link when
+neither AI key points nor an AI summary exists. It never substitutes the long
+statutory title or claims an analysis exists.
+
+Reusing the full browser bill payload is not included in this search repair.
+The first response currently reads a smaller bill record. The browser later
+reads actions, versions, sponsors and progress too. Across SF2513, HF1 and
+HF719, the full record adds 302–2,645 compressed bytes; SF2513's full read
+took approximately 0.53 seconds longer than its smaller read on 2 samples.
+Moving that larger read before HTML can improve later app readiness but delay
+the text Google and readers receive first. These reads establish a tradeoff,
+not a universal performance gain. Do not seed an incomplete record under the
+full browser request's key, because it would silently omit those sections.
+
+The ranking approach is to strengthen existing useful records: complete
+descriptions, source-labeled fallback text, public links between related
+records, and immediate access to the site's purpose and contact information.
+Do not mass-generate query pages, repeat keywords, remove valid exclusions or
+pay for bulk AI summaries to chase the report's total. Measure indexed
+submitted URLs and search impressions by page family after Google's next
+crawls; small click samples cannot prove a cause or a ranking improvement.
 
 ## Primary guidance
 

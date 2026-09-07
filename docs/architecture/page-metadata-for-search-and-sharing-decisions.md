@@ -1819,3 +1819,25 @@ These links expose existing records. They do not create topic pages, generated
 writing, additional query combinations or a ranking promise. Private pages,
 question addresses, canonical handling and the short data-freshness window
 retain their existing treatment.
+
+The `/about` and `/about/contact` responses also carry their own readable text.
+Pure shared modules supply the same words to the served snapshot and the loaded
+screen. `/about` includes the name origin, purpose, beliefs, public starting
+links and contact details. Private Track links and roadmap promises stay out of
+the snapshot. `/about/contact` carries its heading, explanation, email and social
+links; the interactive form and its send states belong to the loaded screen.
+Neither response needs a data-service request.
+
+Search descriptions and bill-card teasers preserve dotted initialisms such as
+`U.S. citizens` and `U.S. Department` within a sentence. The sentence cutter also
+preserves decimal numbers and closing quotation marks. It does not rewrite or
+invent summary text. The regression includes SF746's complete citizenship
+sentence, rather than ending the description at `U.S.`.
+
+When a bill has neither AI key points nor an AI summary, its unchanged official
+description appears under **Official description**, with an **Official bill
+page** link. The same precedence applies to the first response and both screen
+sizes. This uses the separate description field in the official record, never
+the long statutory title. Missing short titles still use the bill number in the
+heading and the number plus year in metadata. Missing AI summaries still use
+the honest fixed metadata description.

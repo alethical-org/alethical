@@ -13,6 +13,23 @@ import {
 
 import { LinkArrow } from '../../components/LinkArrow';
 import { useResponsive } from '../../hooks/useResponsive';
+import {
+  ABOUT_BELIEFS,
+  ABOUT_BELIEFS_HEADING,
+  ABOUT_CONTACT_HEADING,
+  ABOUT_CONTACT_LINK,
+  ABOUT_CORRECTION_PROMISE,
+  ABOUT_EMAIL,
+  ABOUT_FEEDBACK_LABEL,
+  ABOUT_NAME_ORIGIN,
+  ABOUT_PAGE_HEADING,
+  ABOUT_PAGE_SOURCE_PROMISE,
+  ABOUT_PAGE_SUBTITLE_LEAD,
+  ABOUT_START_ITEMS,
+  ABOUT_START_HEADING,
+  ABOUT_WHY_HEADING,
+  ABOUT_WHY_LINES,
+} from '../../lib/aboutUs';
 import { IaItem, MenuKey } from '../../navigation/ia';
 import { linkProps, routePath } from '../../navigation/links';
 import { navigateTopNavItem } from '../../navigation/topNavRoutes';
@@ -36,56 +53,6 @@ const startCardFocus = Platform.select({
     elevation: 4,
   },
 }) as ViewStyle;
-
-const BELIEFS = [
-  {
-    beliefTitle: 'Facts before opinions',
-    body: 'We show what the public record says. We do not tell you what to think or whom to support.',
-  },
-  {
-    beliefTitle: 'Sources you can check',
-    body: 'Every important fact leads back to its source. If we cannot verify something, we say we do not know.',
-  },
-  {
-    beliefTitle: 'Clear for anyone',
-    body: 'You should not need a law degree, a job in politics, or the right vocabulary to get started.',
-  },
-  {
-    beliefTitle: 'The same rules for everyone',
-    body: 'We use the same standards for every party, bill, and legislator. We do not score or rate people.',
-  },
-  {
-    beliefTitle: 'Your judgment stays yours',
-    body: 'We help you understand what happened or what is being proposed. You decide what it means to you.',
-  },
-  {
-    beliefTitle: 'Built for answers, not attention',
-    body: 'There is no endless feed. Come with a question. Leave when you have what you need.',
-  },
-] as const;
-
-const START_ITEMS = [
-  {
-    startTitle: 'Bills',
-    body: 'Search Minnesota bills and narrow the results to what matters to you.',
-    destination: 'bills',
-  },
-  {
-    startTitle: 'Legislators',
-    body: 'Find any current Minnesota legislator, explore their public record, and see how to contact them.',
-    destination: 'legislators',
-  },
-  {
-    startTitle: 'Find My Legislator',
-    body: 'See who represents you in the Minnesota House and Senate, and learn about their work and how to contact them.',
-    destination: 'findMyLegislator',
-  },
-  {
-    startTitle: 'Track',
-    body: 'Follow the bills that matter to you and see what changes.',
-    destination: 'track',
-  },
-] as const;
 
 const ROADMAP_ITEMS = [
   {
@@ -189,7 +156,7 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
     setOpenMenu(null);
   };
 
-  const startItems: StartCardItem[] = START_ITEMS.map((item) => {
+  const startItems: StartCardItem[] = ABOUT_START_ITEMS.map((item) => {
     switch (item.destination) {
       case 'bills':
         return {
@@ -235,20 +202,21 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
               aria-level={1}
               style={[styles.heroTitle, isMobile && styles.heroTitleMobile]}
             >
-              TRUTH, UNCONCEALED
+              {ABOUT_PAGE_HEADING}
             </Text>
             <Text style={[styles.heroSubtitle, isMobile && styles.heroSubtitleMobile]}>
-              Minnesota’s public record, in everyday words and{' '}
-              <Text style={styles.provenanceText}>linked to the source.</Text>
+              {ABOUT_PAGE_SUBTITLE_LEAD}
+              <Text style={styles.provenanceText}>{ABOUT_PAGE_SOURCE_PROMISE}</Text>
             </Text>
           </View>
 
           <View style={[styles.originPanel, isMobile && styles.originPanelMobile]}>
             <Text style={[styles.originText, isMobile && styles.originTextMobile]}>
-              Alethical comes from <Text style={styles.originTerm}>aletheia</Text>, an ancient Greek
-              word for truth brought into the open, and{' '}
-              <Text style={styles.originTerm}>ethical</Text>, our promise to handle that truth with
-              care.
+              {ABOUT_NAME_ORIGIN.beforeName}
+              <Text style={styles.originTerm}>{ABOUT_NAME_ORIGIN.firstName}</Text>
+              {ABOUT_NAME_ORIGIN.betweenNames}
+              <Text style={styles.originTerm}>{ABOUT_NAME_ORIGIN.secondName}</Text>
+              {ABOUT_NAME_ORIGIN.afterName}
             </Text>
           </View>
           {isMobile ? null : <View style={styles.originDivider} />}
@@ -256,31 +224,18 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
           <View
             style={[styles.proseSection, styles.firstSection, isMobile && styles.mobileSection]}
           >
-            <SectionTitle>Why we’re doing this</SectionTitle>
-            <Text style={styles.prose}>
-              Government records belong to everyone. Understanding them should not require knowing
-              how the Legislature works.
-            </Text>
-            <Text style={styles.prose}>
-              Minnesota publishes bills, votes, authors, committee actions, and more. The
-              information is public. But it is spread across many pages and written in the language
-              of lawmaking. A bill may look like a number, a list of steps, and pages of changes to
-              laws you have never read.
-            </Text>
-            <Text style={styles.proseLead}>
-              That can make a simple question hard to answer: What would this bill do?
-            </Text>
-            <Text style={styles.prose}>
-              Alethical brings the pieces together and makes them easier to read. We use plain
-              language, show where the facts came from, and keep a clear link to the official
-              record. If the record cannot answer a question, neither do we.
-            </Text>
+            <SectionTitle>{ABOUT_WHY_HEADING}</SectionTitle>
+            {ABOUT_WHY_LINES.map((line) => (
+              <Text key={line.text} style={line.lead ? styles.proseLead : styles.prose}>
+                {line.text}
+              </Text>
+            ))}
           </View>
 
           <View style={[styles.section, isMobile && styles.mobileSection]}>
-            <SectionTitle>What we believe</SectionTitle>
+            <SectionTitle>{ABOUT_BELIEFS_HEADING}</SectionTitle>
             <View style={[styles.cardGrid, isMobile && styles.cardGridMobile]}>
-              {BELIEFS.map((belief) => (
+              {ABOUT_BELIEFS.map((belief) => (
                 <View
                   key={belief.beliefTitle}
                   style={[styles.beliefCard, cardWidthStyle, isMobile && styles.beliefCardMobile]}
@@ -320,7 +275,7 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
           </View>
 
           <View style={[styles.section, isMobile && styles.mobileSection]}>
-            <SectionTitle>Where to start</SectionTitle>
+            <SectionTitle>{ABOUT_START_HEADING}</SectionTitle>
             <View
               style={[styles.cardGrid, styles.startCardGrid, isMobile && styles.cardGridMobile]}
             >
@@ -370,25 +325,23 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
             ]}
           >
             <View style={styles.contactCopy}>
-              <SectionTitle>Contact</SectionTitle>
+              <SectionTitle>{ABOUT_CONTACT_HEADING}</SectionTitle>
               <Text style={styles.contactText}>
-                Feedback:{' '}
+                {ABOUT_FEEDBACK_LABEL}{' '}
                 <Text
                   accessibilityRole="link"
-                  {...(Platform.OS === 'web' ? ({ href: 'mailto:ask@alethical.com' } as any) : {})}
+                  {...(Platform.OS === 'web' ? ({ href: `mailto:${ABOUT_EMAIL}` } as any) : {})}
                   onPress={
                     Platform.OS === 'web'
                       ? undefined
-                      : () => void Linking.openURL('mailto:ask@alethical.com')
+                      : () => void Linking.openURL(`mailto:${ABOUT_EMAIL}`)
                   }
                   style={styles.emailLink}
                 >
-                  ask@alethical.com
+                  {ABOUT_EMAIL}
                 </Text>
               </Text>
-              <Text style={styles.contactText}>
-                Think we got something wrong? Please tell us. Corrections come first.
-              </Text>
+              <Text style={styles.contactText}>{ABOUT_CORRECTION_PROMISE}</Text>
             </View>
             <Pressable
               {...linkProps(routePath.contactUs(), () => navigation.navigate('ContactUs'))}
@@ -398,7 +351,7 @@ export function AboutUsScreen({ navigation }: RootScreenProps<'AboutUs'>) {
                 pressed && styles.contactButtonPressed,
               ]}
             >
-              <Text style={styles.contactButtonText}>Contact us</Text>
+              <Text style={styles.contactButtonText}>{ABOUT_CONTACT_LINK.label}</Text>
               <LinkArrow color={t.colors.brand.darkest} />
             </Pressable>
           </View>
