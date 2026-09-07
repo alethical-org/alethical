@@ -38,7 +38,7 @@ import {
   AccountAvatarButton,
   AccountDrawerRow,
   AccountNavButton,
-} from '../components/auth/AccountControl';
+} from '../components/auth/accountControls';
 
 // Reusable primitives for the redesign, built on the green token system
 // (see theme/tokens.ts and docs/design/design-principles.md). Web-first.

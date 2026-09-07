@@ -4,18 +4,25 @@ import { Platform, StyleSheet, View } from 'react-native';
 import { AppProviders } from './src/providers/AppProviders';
 import { AppErrorBoundary } from './src/components/AppErrorBoundary';
 import { unregisterServiceWorkers } from './src/lib/serviceWorkerCleanup';
+import { loadSignInBundle } from './src/lib/auth/loadSignInBundle';
 import { RootNavigator } from './src/navigation/RootNavigator';
-/**
- * Both sign-in surfaces arrive on demand rather than inside the program every
- * page downloads first (#1976). This one draws at 2 addresses out of 30, and
- * the dialog draws when somebody opens it, so neither is something a reader
- * should wait on before a committee list can appear.
- */
-const EmailLinkPage = loadOnDemand(() =>
-  import('./src/screens/auth/EmailLinkPage').then((m) => ({ default: m.EmailLinkPage })),
-);
 import { loadOnDemand } from './src/lib/loadOnDemand';
 import { ensureBrowserFillStyles } from './src/theme/browserFill';
+
+/**
+ * The page an email sign-in link lands on. It draws at 2 addresses out of 30
+ * (`/confirm` and `/reset`), and it is the only page drawn outside the app's
+ * providers, because a person arriving on one is finishing a sign-in rather than
+ * reading a record.
+ *
+ * Fetched with the rest of sign-in rather than carried by every page (#1976),
+ * and through the same download as the dialog rather than one of its own: 2
+ * downloads would put everything they share, the sign-in client included, into
+ * the file every page fetches. `lib/auth/signInBundle.ts` says why.
+ */
+const EmailLinkPage = loadOnDemand(() =>
+  loadSignInBundle().then((bundle) => ({ default: bundle.EmailLinkPage })),
+);
 
 export default function App() {
   const emailLinkKind =

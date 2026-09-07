@@ -1,5 +1,5 @@
 import type { Session } from '@supabase/auth-js';
-import { AuthClient } from '@supabase/auth-js';
+import type { AuthClient } from '@supabase/auth-js';
 
 import type { AuthOperationResult, AuthUser } from './operations';
 import { authFailure, authSuccess } from './operations';

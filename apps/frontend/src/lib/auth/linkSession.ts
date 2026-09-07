@@ -1,4 +1,4 @@
-import { AuthClient } from '@supabase/auth-js';
+import type { AuthClient } from '@supabase/auth-js';
 import type { Session } from '@supabase/auth-js';
 
 import { rejectProviderSession, sameProviderSessionLineage } from './providerSessionAcceptance';
@@ -171,13 +171,12 @@ export function buildTemporaryAuthClientOptions(
   };
 }
 
-/** A separate client that cannot inspect or replace the ordinary saved session. */
-export function createTemporaryAuthClient(
-  supabaseUrl: string,
-  publishableKey: string,
-): InstanceType<typeof AuthClient> {
-  return new AuthClient(buildTemporaryAuthClientOptions(supabaseUrl, publishableKey));
-}
+/**
+ * Building this client is the only thing here that needs `@supabase/auth-js`
+ * itself, so it lives in `lib/auth/temporaryAuthClient.ts` and is fetched with
+ * the sign-in screens rather than with every page (#1976). Everything else in
+ * this file reads and writes plain values.
+ */
 
 export type TemporarySessionRelationship = 'none' | 'same' | 'different';
 
