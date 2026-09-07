@@ -13,6 +13,7 @@ import type { NameSearchGroup, NameSearchRow } from '../../data/types';
 import { useCampaignFinanceNameSearch } from '../../hooks/useAppQueries';
 import { useDebouncedSearchCommit } from '../../hooks/useDebouncedSearchCommit';
 import { useResponsive } from '../../hooks/useResponsive';
+import { useSearchMetric } from '../../hooks/useSearchMetric';
 import { committeeRowMeta } from '../../lib/committeeList';
 import { closedChipLabel, committeeSlug } from '../../lib/committeeMoney';
 import {
@@ -106,6 +107,25 @@ export function MoneySearchScreen({ navigation, route }: RootScreenProps<'MoneyS
   const anyResult = hasAnyResult(groups);
   const everySearched = everyGroupWasSearched(groups);
   const anyCapped = groups.some((group) => group.total === null && group.atLeast !== null);
+
+  useSearchMetric({
+    event: 'money_search_with_results',
+    query,
+    context: '',
+    isSuccess: search.isSuccess,
+    isPlaceholderData: search.isPlaceholderData,
+    isFetching: search.isFetching,
+    displayedResults:
+      answer?.state === 'reported' &&
+      groups.some(
+        (group) =>
+          NAME_SEARCH_GROUP_ORDER.includes(group.kind as NameSearchGroupKind) &&
+          group.state === 'reported' &&
+          group.results.length > 0,
+      )
+        ? 1
+        : 0,
+  });
 
   return (
     <PageBackground>

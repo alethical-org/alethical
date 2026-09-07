@@ -862,25 +862,78 @@ export async function getSiteMetricRecordTotalsFromApi(): Promise<SiteMetricReco
   return response.data;
 }
 
+export async function getSiteMetricCollectionDecisionFromApi(
+  accessToken: string,
+  signal?: AbortSignal,
+): Promise<{ collect: boolean; teamAccount: boolean; teamExclusionConfigured: boolean }> {
+  const response = await fetch(publicApiUrl('/site-metrics/collection'), {
+    headers: { Accept: 'application/json', Authorization: `Bearer ${accessToken}` },
+    cache: 'no-store',
+    signal,
+  });
+  if (!response.ok) {
+    throw apiErrorFromBody(response.status, await response.text());
+  }
+  const decision: unknown = await response.json();
+  if (
+    !decision ||
+    typeof decision !== 'object' ||
+    !('collect' in decision) ||
+    typeof decision.collect !== 'boolean' ||
+    !('teamAccount' in decision) ||
+    typeof decision.teamAccount !== 'boolean' ||
+    !('teamExclusionConfigured' in decision) ||
+    typeof decision.teamExclusionConfigured !== 'boolean'
+  ) {
+    throw new Error('Site Metrics collection permission is unavailable.');
+  }
+  return {
+    collect: decision.collect,
+    teamAccount: decision.teamAccount,
+    teamExclusionConfigured: decision.teamExclusionConfigured,
+  };
+}
+
 export async function recordSiteMetricEventFromApi(
   event: SiteMetricEventName,
   accessToken?: string | null,
+  eventId: string | undefined = globalThis.crypto?.randomUUID?.(),
 ): Promise<void> {
-  const response = await fetch(publicApiUrl('/site-metrics/events'), {
-    method: 'POST',
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : null),
-    },
-    body: JSON.stringify({ event }),
-  });
-  if (!response.ok) {
-    throw apiErrorFromBody(
-      response.status,
-      await response.text(),
-      response.headers.get('Retry-After'),
-    );
+  const url = publicApiUrl('/site-metrics/events');
+  // An ID belongs to this action only. Keep it and the original token across
+  // retries so a lost response cannot turn one action into two counts.
+  const body = JSON.stringify({ event, ...(eventId ? { eventId } : null) });
+  const attempts = eventId ? 2 : 1;
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    let response: Response | undefined;
+    try {
+      response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          Accept: 'application/json',
+          'Content-Type': 'application/json',
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : null),
+        },
+        body,
+        keepalive: true,
+        signal: controller.signal,
+      });
+      if (response.ok) return;
+      if (response.status < 500 || attempt === attempts - 1) {
+        throw apiErrorFromBody(
+          response.status,
+          await response.text(),
+          response.headers.get('Retry-After'),
+        );
+      }
+    } catch (error) {
+      if ((response && response.status < 500) || attempt === attempts - 1) throw error;
+    } finally {
+      clearTimeout(timeout);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
   }
 }
 

@@ -1,5 +1,6 @@
 import { recordSiteMetricEventFromApi } from '../data/api';
 import type { SiteMetricEventName } from './traffic';
+import { isPrivateMetricLocation } from './siteMetricPrivacy';
 
 let accessToken: string | null = null;
 let sessionReady = false;
@@ -14,9 +15,14 @@ const OFFICIAL_SOURCE_HOSTS = new Set([
   'www.revisor.mn.gov',
   'gis.lcc.mn.gov',
   'www.gis.lcc.mn.gov',
+  'cfb.mn.gov',
+  'www.cfb.mn.gov',
+  'leg.mn.gov',
+  'www.leg.mn.gov',
 ]);
 
 function send(event: SiteMetricEventName) {
+  if (isPrivateMetricLocation()) return;
   void recordSiteMetricEventFromApi(event, accessToken).catch(() => undefined);
 }
 
@@ -28,6 +34,7 @@ export function setSiteMetricSession(value: string | null, ready: boolean) {
 }
 
 export function recordSiteMetricEvent(event: SiteMetricEventName) {
+  if (isPrivateMetricLocation()) return;
   if (!sessionReady) {
     pendingEvents.push(event);
     return;

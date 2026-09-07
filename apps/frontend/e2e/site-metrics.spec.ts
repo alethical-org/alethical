@@ -1,4 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { suppressSiteMetrics } from './suppress-site-metrics';
+
+test.beforeEach(async ({ context }) => suppressSiteMetrics(context));
 
 async function styleOf(locator: Locator, property: string) {
   return locator.evaluate((node, name) => getComputedStyle(node).getPropertyValue(name), property);

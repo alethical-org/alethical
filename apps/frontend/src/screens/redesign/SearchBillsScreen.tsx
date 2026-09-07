@@ -1,11 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 
 import { theme as t } from '../../theme/tokens';
 import { BillListFilters } from '../../data/api';
 import { titleCaseIssue } from '../../lib/issues';
-import { recordSiteMetricEvent } from '../../lib/siteMetricEvents';
+import { useSearchMetric } from '../../hooks/useSearchMetric';
 import { IaItem, MenuKey } from '../../navigation/ia';
 import { useAuth } from '../../providers/AuthProvider';
 import {
@@ -250,23 +250,23 @@ export function SearchBillsScreen() {
   const totalPages =
     total != null ? Math.max(1, Math.ceil(total / BILL_DIRECTORY_PAGE_SIZE)) : undefined;
   const resultCount = total ?? bills.length;
-  const recordedSearches = useRef(new Set<string>());
-
-  useEffect(() => {
-    const value = query.trim();
-    const key = `${apiSession ?? 'current'}:${value.toLocaleLowerCase('en-US')}`;
-    if (
-      !value ||
-      page !== 1 ||
-      !billsQuery.isSuccess ||
-      resultCount < 1 ||
-      recordedSearches.current.has(key)
-    ) {
-      return;
-    }
-    recordedSearches.current.add(key);
-    recordSiteMetricEvent('bill_search_with_results');
-  }, [apiSession, billsQuery.isSuccess, page, query, resultCount]);
+  useSearchMetric({
+    event: 'bill_search_with_results',
+    query,
+    context: JSON.stringify([
+      apiSession ?? 'current',
+      chamber,
+      status,
+      [...selectedIssues].sort(),
+      legislatureScope,
+      omnibusOnly,
+    ]),
+    page,
+    isSuccess: billsQuery.isSuccess,
+    isPlaceholderData: billsQuery.isPlaceholderData,
+    isFetching: billsQuery.isFetching,
+    displayedResults: bills.length,
+  });
 
   // The first response is already a real 404 for an unfiltered page beyond the
   // last result. Keep that same useful missing-page screen after React starts;
