@@ -123,8 +123,56 @@
         overflow-y: auto;
         background: #ffffff;
         color: #11150f;
-        font-family: 'Libre Franklin', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        /*
+          No 'Libre Franklin' here on purpose. It is fetched from Google Fonts
+          with display=swap, which paints the reader's own system font first and
+          swaps our typeface in when it arrives. The two set different widths, so
+          a long bill title that fits on 2 lines in one wraps to 3 in the other
+          and everything below it jumps down a line: measured on the live site on
+          4 Sep 2026 as a movement of 0.0531 on a bill page at phone width,
+          against a passing mark of 0.1 for the whole page (issue #1997). Naming
+          only fonts already on the reader's device means what paints first is
+          what stays until the app replaces this text, and nothing moves.
+
+          The cost is one thing and it is smaller than it sounds: because
+          display=swap already paints the system font first, this text looked
+          like this at first paint anyway. What goes is the brief window between
+          the font arriving and the app taking over, which only exists on a
+          connection slow enough for the jump to be the bigger harm. The app
+          itself still uses Libre Franklin everywhere, and the words a search
+          engine reads are unchanged.
+        */
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
         line-height: 1.55;
+      }
+      /*
+        Nothing above lays out in Libre Franklin any more, and the browser only
+        fetches a font file once something on the page asks for it. Left alone,
+        that first ask would come from the app's own first paint instead: the
+        file was requested at 476ms with the old stack and at 9057ms without it,
+        which does not remove the swap, it moves it off this text and onto the
+        app's. These 2 hidden marks ask for the file at the same moment the old
+        stack did, at the 2 weights this text used, and lay out nothing: they are
+        out of the flow and sized to nothing, which is why every address measures
+        the same as before except the one this change is fixing. `visibility:
+        hidden` rather than `display: none` on purpose, because a browser skips
+        the font of an element it is not laying out at all.
+      */
+      .page-snapshot::before,
+      .page-snapshot::after {
+        content: '.';
+        font-family: 'Libre Franklin';
+        position: absolute;
+        width: 0;
+        height: 0;
+        overflow: hidden;
+        visibility: hidden;
+      }
+      .page-snapshot::before {
+        font-weight: 400;
+      }
+      .page-snapshot::after {
+        font-weight: 700;
       }
       .page-snapshot .ps-inner {
         max-width: 720px;
