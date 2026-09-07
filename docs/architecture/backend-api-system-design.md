@@ -1088,9 +1088,9 @@ block: a figure short by an unknown amount would read as a measured result about
 organisation.
 
 **No date on a figure is one this layer invented.** The period a total covers is
-`reported_through`, the filing's own answer. An earlier version derived a range from the span of
-the rows it happened to hold; that approximated a fact the source states exactly, and a surface
-would have shown the approximation as the period. Almost every Minnesota report runs from
+`reported_through`, the filing's own answer. Never derive a range from the span of the rows we
+happen to hold: that approximates a fact the source states exactly, and a surface would show the
+approximation as the period. Almost every Minnesota report runs from
 1 January and a special-election filer's does not — filer 19223 reports from 11 July 2025 — so
 no surface may hardcode 1 January either. `fetched_at` is the release's single freshness date
 and is never the period a figure covers: that is per filing and always earlier.

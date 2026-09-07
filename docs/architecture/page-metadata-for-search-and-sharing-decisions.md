@@ -48,7 +48,7 @@ of names in `vercel.json` that includes the social networks and **does not inclu
 
 ### Being precise about which missing piece actually hurts
 
-The first draft of this doc overstated two things. Both corrections are load-bearing:
+Two things are easy to overstate here, and getting them right is load-bearing:
 
 - **A missing `robots.txt` is not a problem by itself.** A search engine reads 404 as "no
   restrictions, crawl everything." We need the file to point at the sitemap and to make a
@@ -116,10 +116,8 @@ Two changes from what ships today, both from the outside review:
   ambiguous forever. The year is already in the record ID (`94-2025-HF719`).
 - **Party comes out of the legislator title, and does not go into the description either.**
   District and chamber identify a person just as well, never go stale mid-term, and keep the title
-  free of a partisan label that a search result shows out of context. **An earlier version of this
-  bullet said party "moves into the description", which contradicted the table directly above it,
-  where no description carries a party.** The table is the normative artifact and it is right: a
-  description says what a reader will *find on the page*, and party is an attribute of the person,
+  free of a partisan label that a search result shows out of context. **Party never "moves into the description" either; the table directly above, where no
+  description carries a party, is the normative artifact.** A description says what a reader will *find on the page*, and party is an attribute of the person,
   not a section of the profile. Mixing the two makes the sentence longer and less true to its job.
   Party stays plainly visible on the page itself.
 
@@ -183,9 +181,8 @@ the product taking a side.
 
 ### The same policy already touches what we ship today, which makes this worth asking about now
 
-An earlier draft of this section called the display case "a much weaker claim than compositing one,
-so this is not urgent." **That was wrong, and the correction matters more than the share-card
-question it was a footnote to.**
+**The display case is not "a much weaker claim than compositing one", and it matters more than
+the share-card question it sits beside.**
 
 We do not display these portraits unaltered, and this was measured rather than assumed. Source
 portraits are **160 × 206**. Our boxes are a different shape, and `cover` fills the box and clips
@@ -281,17 +278,16 @@ The honest counter, stated plainly: allowing would fit the mission of making thi
 wherever people ask, and a model that has read us may serve Minnesotans better. No provider promises
 that outcome, which is why it loses to the reversibility argument rather than to the principle.
 
-**A correction to the first draft of this doc.** Do **not** block the answer pages in `robots.txt`.
+**Do not block the answer pages in `robots.txt`.**
 A crawler that is blocked from fetching a page cannot read the "do not index" instruction inside
 it, so blocking actively prevents the exclusion from working. Answer pages are instead left
 crawlable, served `X-Robots-Tag: noindex` in the first response, and simply left out of the sitemap.
 
-**This doc then got [#823](https://github.com/alethical-org/alethical/issues/823) wrong, and the
-correction runs the other way.** Earlier versions said #823's acceptance criteria ask to block
-answer pages in `robots.txt` and should be amended. They do not. They ask for the answer route to
-be "excluded from sitemaps and internal crawl discovery where practical", which is exactly right
-and is what shipped. Nothing in #823 needed amending on that point. Its real error is a file path:
-it names `apps/frontend/vercel.json`, which Vercel never reads. The live config is the **root**
+**[#823](https://github.com/alethical-org/alethical/issues/823)'s acceptance criteria are right on
+this point and are what shipped.** They ask for the answer route to be "excluded from sitemaps and
+internal crawl discovery where practical"; never read them as asking to block answer pages in
+`robots.txt`. Their one error is a file path: they name `apps/frontend/vercel.json`, which Vercel
+never reads. The live config is the **root**
 `vercel.json`; removing the dead duplicate is
 [#1343](https://github.com/alethical-org/alethical/issues/1343).
 
