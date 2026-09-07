@@ -26,6 +26,7 @@ import {
   LEGISLATOR_SEAT_SOURCE_URL,
 } from '../../lib/legislatorRosterHeader';
 import { CLEAR_SEARCH_TARGET_SIZE } from '../../lib/legislatorSearch';
+import { resultCountLine } from '../../lib/resultCount';
 import { useUnavailableControl } from '../billDetail/interactions';
 import { useHistoryScrollRestoration } from '../../hooks/useHistoryScrollRestoration';
 import { linkProps } from '../../navigation/links';
@@ -664,7 +665,14 @@ export function ResultsHeader({
   showRosterNote = false,
   showRule = true,
 }: {
-  count: number;
+  /**
+   * `null` while the figure is still being read. It is printed as a blank line
+   * of the same height rather than as a number, because a screen that has not
+   * been told the count yet was printing `0` — and `0 bills` is a statement
+   * about Minnesota's records that was not true (issue #1996). A verified zero
+   * is still `0`; only the unknown one is blank.
+   */
+  count: number | null;
   /** Singular unit noun ("bill"); pluralized unless the count is exactly 1. */
   noun: string;
   dataAsOf: string | null | undefined;
@@ -689,7 +697,9 @@ export function ResultsHeader({
 }) {
   const { isMobile } = useResponsive();
   const asOf = formatAsOf(dataAsOf);
-  const unit = count === 1 ? noun : `${noun}s`;
+  // The same text element in the same style either way, so the row's height is
+  // whatever this typeface makes it and the figure arriving moves nothing.
+  const { figure, unit } = resultCountLine(count, noun);
   const meta = sortControl ?? (sortLabel ? <StaticSortLabel label={sortLabel} /> : null);
   return (
     <View
@@ -702,13 +712,11 @@ export function ResultsHeader({
     >
       <View style={[styles.resultsHeaderMain, isMobile && styles.resultsHeaderMainMobile]}>
         <View style={[styles.resultsCountRow, isMobile && styles.resultsCountRowMobile]}>
-          <Text style={[styles.resultsCount, isMobile && styles.resultsCountMobile]}>
-            {count.toLocaleString('en-US')}
-          </Text>
+          <Text style={[styles.resultsCount, isMobile && styles.resultsCountMobile]}>{figure}</Text>
           {/* The date is nested INSIDE the unit-noun span, one word space apart. A
               third flex child would inherit the row's gap and read as a double
               space; a middot or any other separator glyph is wrong here. */}
-          {uniformDetails ? (
+          {unit === null ? null : uniformDetails ? (
             <Text style={styles.resultsNoun}>
               {asOf ? `${unit} ${asOf}` : unit}
               {countSuffix ? <Text style={styles.resultsAsOf}>{` ${countSuffix}`}</Text> : null}

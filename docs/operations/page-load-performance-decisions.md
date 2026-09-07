@@ -279,6 +279,47 @@ The 2 costs, both accepted:
   and warming the next screen on hover is a separate item on
   [#1966](https://github.com/alethical-org/alethical/issues/1966).
 
+## What a search page's first response carries
+
+`/bills` and `/legislators` are served with the small reads their own controls need
+already made, so the app draws those controls at its first paint rather than after a read
+of its own: the issue buttons, the session dropdown's list, and the date under the result
+count (`searchControlSeeds` in `api/page.ts`, keyed and pathed through
+`apps/frontend/src/lib/searchPageReads.ts`). About 2 KB together, read alongside the list
+read rather than after it, and each separately optional, so one that fails leaves the app
+to make it and takes nothing else down with it.
+
+**The list itself is not carried.** The app's bill cards need the full record for each
+bill: 243 KB against the 3.8 KB the page function reads to build the served text, and a
+cold read of 1.66 s against 0.63 s (measured 7 Sep 2026). Carrying it would move a wait
+from after the page appears to before it. The placeholder rows already hold the list's
+space, so the list arriving moves nothing.
+
+**A count nobody has been told yet prints as a blank line of the same height, never as 0**
+(`resultCountLine` in `apps/frontend/src/lib/resultCount.ts`). A verified zero still
+prints `0`. Both search pages printed "0 bills" and "0 legislators" for the length of
+their list read, which is a statement about Minnesota's records that is not true, and on a
+failed load it sat directly above "We couldn't load bills right now".
+
+Measured for [#1996](https://github.com/alethical-org/alethical/issues/1996) on 7 Sep 2026,
+2 local production-like builds each served behind the real page function against the live
+data service, cold browser per address. The baseline reproduces the live figures, which is
+what makes the comparison worth reading.
+
+| Address | Width | Before | After | Live before |
+|---|---|---:|---:|---:|
+| `/bills` | 390x844 | 0.2636 | 0.0000 | 0.2911 |
+| `/legislators` | 390x844 | 0.0828 | 0.0016 | 0.0833 |
+| `/bills` | 1280x900 | 0.0357 | 0.0000 | 0.0360 |
+| `/legislators` | 1280x900 | 0.0008 | 0.0007 | 0.0008 |
+
+Against Google's passing mark of 0.1. `/bills` was the worst address on the site.
+
+**A seeded read is proved by the request that no longer happens.** A key built on one side
+and written out on the other seeds nothing while the page still works, so the mistake is
+invisible in every screenshot and every test of what the page draws. What settles it is
+the browser's own request list: `/bills` made 4 data-service reads and now makes 1.
+
 ## What an uncached money answer spends its time on
 
 A cache decides how often a reader waits. This decides how long that reader waits when

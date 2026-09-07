@@ -647,6 +647,7 @@ describe('first-response page tags', () => {
     });
     stubNetwork((url) => {
       calls.push(url);
+      if (!url.includes('/bills?')) return { status: 200, payload: { data: [] } };
       return {
         status: 200,
         payload: {
@@ -659,13 +660,14 @@ describe('first-response page tags', () => {
     const { body, status } = await serve({ path: '/bills', page: '2' });
 
     expect(status).toBe(200);
-    expect(calls).toHaveLength(1);
-    expect(calls[0]).toContain('/bills?');
-    expect(calls[0]).toContain('scope=legislature');
-    expect(calls[0]).toContain('sort=progress');
-    expect(calls[0]).toContain('view=directory');
-    expect(calls[0]).toContain('limit=10');
-    expect(calls[0]).toContain('offset=10');
+    // The list read, plus the 3 small reads for the page's own controls (#1996).
+    expect(calls).toHaveLength(4);
+    const list = calls.find((url) => url.includes('view=directory'));
+    expect(list).toContain('/bills?');
+    expect(list).toContain('scope=legislature');
+    expect(list).toContain('sort=progress');
+    expect(list).toContain('limit=10');
+    expect(list).toContain('offset=10');
     expect(body).toContain('<h1>Search bills</h1>');
     expect(body).toContain('rel="canonical" href="https://www.alethical.com/bills?page=2"');
     expect(body.match(/href="\/bills\/94-2025-HF\d+"/g)).toHaveLength(10);
@@ -1329,6 +1331,125 @@ describe('the records a money page hands to the app', () => {
 
     expect(status).toBe(200);
     expect(body).toContain('<h1>Committees</h1>');
+    expect(servedData(body)).toEqual([]);
+  });
+});
+
+/**
+ * `/bills` and `/legislators` draw 3 things from reads of their own: the issue
+ * buttons, the session dropdown's label and the date under the result count.
+ * Handing them over in the first response is what stops the page moving under
+ * the reader while they arrive (issue #1996).
+ */
+describe('the controls a search page hands to the app', () => {
+  /** Every entry in the served data block, as the app's own reader parses it. */
+  function servedData(body: string): { key: unknown[]; payload: Record<string, unknown> }[] {
+    const block = body.match(
+      /<script type="application\/json" id="alethical-page-data">([\s\S]*?)<\/script>/,
+    )?.[1];
+    if (!block) return [];
+    return JSON.parse(block);
+  }
+
+  const ISSUES = {
+    data: [
+      { name: 'Health', bill_count: 1334 },
+      { name: 'Education', bill_count: 1293 },
+    ],
+  };
+  const SESSIONS = {
+    data: [
+      {
+        slug: '94-2025-regular',
+        name: '94th Legislature (2025 - 2026) Regular Session',
+        is_current: true,
+      },
+    ],
+  };
+  const META = { data: { api_version: 'v1', data_as_of: '2026-09-01T18:35:43Z' } };
+  const BILL_LIST = {
+    data: Array.from({ length: 10 }, (_, index) => ({
+      id: `94-2025-HF${index + 1}`,
+      ai_analysis: { short_title: `Plain title ${index + 1}` },
+    })),
+    page: { limit: 10, offset: 0, has_more: true, total: 10_491 },
+  };
+  const ROSTER = {
+    data: [{ id: 'a', slug: 'ann-lee', full_name: 'Ann Lee' }],
+    page: { has_more: false, total: 1 },
+  };
+
+  /** Answers each of a search page's reads in its own shape. `missing` names the
+   *  paths that fail, so the fallback can be exercised one read at a time. */
+  function stubSearchPage(list: unknown, missing: string[] = []) {
+    const calls: string[] = [];
+    stubNetwork((url) => {
+      calls.push(url);
+      if (missing.some((path) => url.includes(path))) return { status: 500 };
+      if (url.includes('/policy-areas')) return { status: 200, payload: ISSUES };
+      if (url.includes('/sessions')) return { status: 200, payload: SESSIONS };
+      if (url.includes('/meta')) return { status: 200, payload: META };
+      return { status: 200, payload: list };
+    });
+    return calls;
+  }
+
+  it('hands /bills its issue buttons, its session list and its freshness date', async () => {
+    const calls = stubSearchPage(BILL_LIST);
+
+    const { body, status } = await serve({ path: '/bills' });
+
+    expect(status).toBe(200);
+    // Every read made at the URL the app itself would have asked for, so a seeded
+    // payload answers the app's own question rather than a near-miss of it.
+    expect(calls).toContain(
+      'https://api.alethical.com/api/v1/policy-areas?limit=50&scope=legislature',
+    );
+    expect(calls).toContain('https://api.alethical.com/api/v1/sessions');
+    expect(calls).toContain('https://api.alethical.com/api/v1/meta');
+    // Byte for byte the service's own JSON. Until this, no issue button existed
+    // until the app's own read answered, and then roughly 300px of them appeared
+    // at once and pushed the count line off a phone's first screenful.
+    expect(servedData(body)).toEqual([
+      { key: ['policy-areas', 'current', 'legislature'], payload: ISSUES },
+      { key: ['sessions'], payload: SESSIONS },
+      { key: ['meta'], payload: META },
+    ]);
+  });
+
+  it('hands /legislators the 2 of those it draws, and never the issue buttons', async () => {
+    const calls = stubSearchPage(ROSTER);
+
+    const { body } = await serve({ path: '/legislators' });
+
+    expect(calls.some((url) => url.includes('/policy-areas'))).toBe(false);
+    expect(servedData(body)).toEqual([
+      { key: ['sessions'], payload: SESSIONS },
+      { key: ['meta'], payload: META },
+    ]);
+  });
+
+  it('serves the page whole when one of those reads fails', async () => {
+    for (const missing of ['/policy-areas', '/sessions', '/meta']) {
+      stubSearchPage(BILL_LIST, [missing]);
+
+      const { body, status } = await serve({ path: '/bills' });
+
+      // A control the reader waits for exactly as they did before this existed is
+      // not a reason to take the page down, or to drop the reads that did answer.
+      expect(status).toBe(200);
+      expect(body).toContain('<h1>Search bills</h1>');
+      expect(servedData(body)).toHaveLength(2);
+      expect(servedData(body).some((entry) => entry.key[0] === missing.slice(1))).toBe(false);
+    }
+  });
+
+  it('keeps a filtered /bills view head only, so no reader is seeded a filtered answer', async () => {
+    const calls = stubSearchPage(BILL_LIST);
+
+    const { body } = await serve({ path: '/bills', issue: 'health' });
+
+    expect(calls).toEqual([]);
     expect(servedData(body)).toEqual([]);
   });
 });

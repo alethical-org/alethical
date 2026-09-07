@@ -534,7 +534,9 @@ export function SearchBillsScreen() {
       <FilterChipRow chips={chips} onClearAll={clearFilters} />
       <ResultsHeader
         {...scrollAnchorProps}
-        count={resultCount}
+        // Null until this read answers, so the line stays blank rather than
+        // saying "0 bills" about a Legislature that has 10,491 of them (#1996).
+        count={billsQuery.data ? resultCount : null}
         // Singular; ResultsHeader pluralizes it, so one result reads "1 bill".
         noun="bill"
         dataAsOf={metaQuery.data?.dataAsOf}

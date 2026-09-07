@@ -22,6 +22,7 @@ import type { SourceBlock } from '../lib/billText';
 import type { SiteMetricEventName, SiteMetricRecordTotals } from '../lib/traffic';
 import { contactEmail, senateProfileUrl } from '../lib/findMyLegislator';
 import { LEGISLATOR_ROSTER_LIMIT } from '../lib/directoryPagination';
+import { META_READ_PATH, policyAreasReadPath, SESSIONS_READ_PATH } from '../lib/searchPageReads';
 import { publicReadResponse } from '../lib/publicRead';
 import { normalizeLegislativeYearRanges } from '../lib/sessionLabel';
 import { legislativeServiceFromHistory } from '../lib/legislatorProfile';
@@ -2077,26 +2078,28 @@ export async function getFeaturedBillsFromApi(
   });
 }
 
+/**
+ * Each of these 3 turns the data service's own answer into what the screen draws.
+ * They are separate from the fetch beside them because `api/page.ts` can make the
+ * same read for the reader and hand its answer to the app in the first response
+ * (issue #1996); the app then runs this same shaper on it, so a value that
+ * arrived with the page and a value the app fetched cannot differ.
+ */
+export function policyAreasFromPayload(payload: PageResponse<ApiPolicyAreaPayload>): PolicyArea[] {
+  return payload.data
+    .filter((item) => item.name.trim().length > 0)
+    .map((item) => ({ name: item.name.trim(), billCount: item.bill_count }));
+}
+
 export async function listPolicyAreasFromApi(
   session?: string,
   scope?: 'legislature',
 ): Promise<PolicyArea[]> {
-  const params = new URLSearchParams();
-  params.set('limit', '50');
-  if (session?.trim()) {
-    params.set('session', session.trim());
-  }
-  if (scope) {
-    params.set('scope', scope);
-  }
-
-  const response = await publicApiRequest<PageResponse<ApiPolicyAreaPayload>>(
-    `/policy-areas?${params.toString()}`,
+  return policyAreasFromPayload(
+    await publicApiRequest<PageResponse<ApiPolicyAreaPayload>>(
+      policyAreasReadPath({ session, scope }),
+    ),
   );
-
-  return response.data
-    .filter((item) => item.name.trim().length > 0)
-    .map((item) => ({ name: item.name.trim(), billCount: item.bill_count }));
 }
 
 interface ApiMetaPayload {
@@ -2108,14 +2111,24 @@ export interface Meta {
   dataAsOf: string | null;
 }
 
+export function metaFromPayload(payload: DetailResponse<ApiMetaPayload>): Meta {
+  return { dataAsOf: payload.data.data_as_of ?? null };
+}
+
 export async function getMetaFromApi(): Promise<Meta> {
-  const response = await publicApiRequest<DetailResponse<ApiMetaPayload>>('/meta');
-  return { dataAsOf: response.data.data_as_of ?? null };
+  return metaFromPayload(await publicApiRequest<DetailResponse<ApiMetaPayload>>(META_READ_PATH));
+}
+
+export function sessionsFromPayload(
+  payload: PageResponse<ApiSessionPayload>,
+): LegislativeSession[] {
+  return payload.data.map(mapSession);
 }
 
 export async function listSessionsFromApi(): Promise<LegislativeSession[]> {
-  const response = await publicApiRequest<PageResponse<ApiSessionPayload>>('/sessions');
-  return response.data.map(mapSession);
+  return sessionsFromPayload(
+    await publicApiRequest<PageResponse<ApiSessionPayload>>(SESSIONS_READ_PATH),
+  );
 }
 
 export async function getBillFromApi(

@@ -99,6 +99,9 @@ Above the list you always see:
   it — for example *"420 bills as of Jul 22, 2026"*. What you're narrowing by isn't
   repeated here as a sentence: the removable tags above already name every filter
   you've turned on, and the session is always visible in its own dropdown.
+  While the list is still being fetched this line is blank rather than showing a
+  number, because a count nobody has been given yet is not a fact about Minnesota's
+  records.
 - **A "sorted by" control** to change the order, and each choice really does reorder
   the list: **Best match** (offered, and the default, only once you've typed a search)
   puts the closest wording first, **Legislative progress** puts the bills furthest
