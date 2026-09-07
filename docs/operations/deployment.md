@@ -184,8 +184,13 @@ A page loads 3 files by name from the built HTML: the Expo runtime, a shared fil
 parts more than one screen uses, and the program every page needs. Each screen is a
 fourth file, fetched by the app for the address the reader asked for
 (`apps/frontend/src/navigation/screenChunks.ts`). A reader opening a campaign-money page
-therefore never downloads the bill page, either chat screen, the address lookup, the
-traffic dashboard or the sign-in screens.
+therefore never downloads the bill page, either chat screen, the address lookup or the
+traffic dashboard.
+
+The 2 sign-in surfaces are fetched the same way, by the app rather than by the page: the
+dialog after the app can draw, because it is rendered on every page, and the email-link
+page only at `/confirm` and `/reset`. Neither is something a reader waits on before a list
+can appear (`apps/frontend/src/lib/loadOnDemand.tsx`).
 
 `apps/frontend/index.ts` fetches that address's screen file **before** React draws for the
 first time. React empties the app's mount point on that first draw and the server's
@@ -220,8 +225,9 @@ the release page does no recovery work unless its main program file fails to loa
   browser-session storage cannot prove that guard, it does not reload. Missing API
   records, other assets, cross-origin scripts, and ordinary program errors never trigger
   this rule.
-- Each screen arrives in its own file, fetched by the app rather than named in the HTML,
-  so a failed screen file reaches `apps/frontend/src/lib/releaseReload.ts` instead. It
+- Each screen and both sign-in surfaces arrive in their own file, fetched by the app rather
+  than named in the HTML, so a failed one reaches `apps/frontend/src/lib/releaseReload.ts`
+  instead. It
   reloads once on the same browser-session key, so the 2 rules together can never reload
   a tab twice.
 

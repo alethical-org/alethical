@@ -1,4 +1,4 @@
-import { readdir, readFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { brotliCompressSync, constants } from 'node:zlib';
 import { pathToFileURL } from 'node:url';
 
@@ -8,7 +8,8 @@ import { pathToFileURL } from 'node:url';
  * A page names 3 files in its HTML and cannot start without all 3, so this is
  * what every reader pays on a first visit whatever address they opened. It sat
  * at 598,799 bytes in 1 file until each screen moved into its own download
- * (#1966). Screen files are not counted: a page fetches only its own.
+ * (#1966), and the sign-in surfaces followed (#1976). Only the files the built
+ * page names count: everything else is fetched later by the part that needs it.
  *
  * The limit is a ratchet set just above what the build actually produces, not a
  * target to grow into. It exists so the number cannot quietly grow back, which
@@ -19,7 +20,7 @@ import { pathToFileURL } from 'node:url';
  * `docs/operations/page-load-performance-decisions.md` § Each screen downloads
  * with its own route holds the measurements and the floor this cannot go below.
  */
-export const FIRST_LOAD_LIMIT = 453000;
+export const FIRST_LOAD_LIMIT = 441000;
 
 /**
  * The exact settings Vercel compresses with, so this reports the bytes a reader
@@ -40,9 +41,23 @@ export function productionBytes(source) {
   }).length;
 }
 
-/** The 3 files a page names in its HTML: the entry, the shared parts, the runtime. */
-export function firstLoadFiles(files) {
-  return files.filter((file) => !/Screen[^/]*\.js$/.test(file) && file.endsWith('.js'));
+/**
+ * The files a page names in its own HTML, read from that HTML.
+ *
+ * These are what a reader waits on: the browser will not run the app until all
+ * of them have arrived. Everything else in the build is fetched later, by the
+ * screen that needs it, and a reader downloads at most 1 of those per page.
+ *
+ * Read rather than guessed. This used to keep every built file whose name did
+ * not end in `Screen*.js`, which charged a reader for files no page names: the
+ * probe in #1976 made the sign-in dialog arrive on demand and the check counted
+ * its 8,538 bytes and the email-link page's 3,991 as if every reader downloaded
+ * both, reporting 451,647 where a reader really received 439,118.
+ */
+export function firstLoadFiles(html) {
+  return [...html.matchAll(/<script\s+src="\/_expo\/static\/js\/web\/([^"]+\.js)"/g)].map(
+    (match) => match[1],
+  );
 }
 
 export function checkFirstLoadBudget(measured, limit = FIRST_LOAD_LIMIT) {
@@ -63,9 +78,10 @@ export function checkFirstLoadBudget(measured, limit = FIRST_LOAD_LIMIT) {
 
 async function checkBuiltFirstLoad() {
   const directory = new URL('../dist/_expo/static/js/web/', import.meta.url);
-  const files = firstLoadFiles(await readdir(directory));
+  const html = await readFile(new URL('../dist/index.html', import.meta.url), 'utf8');
+  const files = firstLoadFiles(html);
   if (files.length === 0) {
-    throw new Error('The web build named no first-loaded JavaScript file.');
+    throw new Error('The built page names no JavaScript file.');
   }
 
   const measured = [];

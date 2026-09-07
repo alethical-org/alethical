@@ -10,7 +10,16 @@ import {
 import { Platform } from 'react-native';
 import type { Session } from '@supabase/auth-js';
 
-import { SignInDialog } from '../components/auth/SignInDialog';
+import { loadOnDemand } from '../lib/loadOnDemand';
+
+/**
+ * The dialog arrives on demand (#1976). It is still rendered on every page, so
+ * its open, close and reset behaviour is exactly what it was; what changes is
+ * that its bytes are fetched after the app can draw rather than before.
+ */
+const SignInDialog = loadOnDemand(() =>
+  import('../components/auth/SignInDialog').then((m) => ({ default: m.SignInDialog })),
+);
 import {
   SignInRequest,
   SIGN_IN_ERROR_MESSAGES,

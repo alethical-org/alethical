@@ -5,7 +5,16 @@ import { AppProviders } from './src/providers/AppProviders';
 import { AppErrorBoundary } from './src/components/AppErrorBoundary';
 import { unregisterServiceWorkers } from './src/lib/serviceWorkerCleanup';
 import { RootNavigator } from './src/navigation/RootNavigator';
-import { EmailLinkPage } from './src/screens/auth/EmailLinkPage';
+/**
+ * Both sign-in surfaces arrive on demand rather than inside the program every
+ * page downloads first (#1976). This one draws at 2 addresses out of 30, and
+ * the dialog draws when somebody opens it, so neither is something a reader
+ * should wait on before a committee list can appear.
+ */
+const EmailLinkPage = loadOnDemand(() =>
+  import('./src/screens/auth/EmailLinkPage').then((m) => ({ default: m.EmailLinkPage })),
+);
+import { loadOnDemand } from './src/lib/loadOnDemand';
 import { ensureBrowserFillStyles } from './src/theme/browserFill';
 
 export default function App() {
