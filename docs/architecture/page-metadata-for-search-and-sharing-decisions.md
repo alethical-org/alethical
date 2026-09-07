@@ -1700,3 +1700,87 @@ told nothing concludes that the person gave nothing rather than that we do not h
   as text a search engine and a program-less reader can read and as the payload the app draws
   from, which is what every framework that renders on the server ships. What ends is downloading
   them twice: one response instead of 2, and no cold read in the middle of the load.
+
+---
+
+## 24. The served text keeps one typeface for as long as it is on screen
+
+The served body has always been styled to use Libre Franklin. The web font is fetched from
+Google Fonts with `display=swap`, which paints the reader's own system font first and swaps our
+typeface in when the file arrives. The 2 fonts set different widths, so a long bill title fits on
+2 lines in one and wraps to 3 in the other, and everything below it drops a line the moment the
+font lands.
+
+Measured at 390x844 on `/bills/94-2025-HF1`, in a cold browser, the served heading is 77px tall
+until the font arrives and 115px after, and the line under it moves from 133px to 171px. That is
+**0.0531** of unexpected movement, on a page scoring 0.0635 in total, where Google's passing mark
+is 0.1 for the whole page. `/money/committees/<slug>/payments` moved **0.0115** the same way.
+([#1997](https://github.com/alethical-org/alethical/issues/1997), found while measuring
+[#1982](https://github.com/alethical-org/alethical/issues/1982).)
+
+**The served text now names only fonts already on the reader's device**
+(`-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`), so what paints first is what stays
+until the app replaces it. Measured with the same bundle either side of that one line, so nothing
+but the font stack differs:
+
+| Address | Width | Before | After |
+|---|---|---|---|
+| `/bills/94-2025-HF1` | 390x844 | 0.0635 | **0.0104** |
+| `/money/committees/citizens-for-education-shakopee-60083/payments` | 390x844 | 0.0551 | **0.0436** |
+| `/legislators/aisha-gomez` | 390x844 | 0.0093 | 0.0093 |
+| `/bills/94-2025-HF1` | 1280x900 | 0.0089 | 0.0089 |
+| `/legislators/aisha-gomez` | 1280x900 | 0.0078 | 0.0078 |
+| `/money/committees/…/payments` | 1280x900 | 0.0650 | 0.0650 |
+
+What is left on those 2 addresses is the app's own later movement, unchanged and untouched by
+this. **The app still uses Libre Franklin everywhere**, and the words a search engine reads are
+identical either way.
+
+### The cost, stated plainly
+
+A reader on a connection slow enough to see the served text now sees it in their device's own
+system font for its whole short life. This is smaller than it sounds: because `display=swap`
+already painted the system font first, that is what this text looked like at first paint anyway.
+What goes is the window between the font arriving and the app taking over — and that window only
+exists on exactly the connections where the jump was the bigger harm.
+
+### The rejected alternative, and why it lost on measurement rather than argument
+
+The standard alternative is a fallback `@font-face` carrying `size-adjust` and the ascent and
+descent overrides tuned to Libre Franklin's metrics, so the fallback occupies the same space and
+the swap changes nothing. It keeps our typeface. It was built and measured, and it **left 0.0322
+on the bill page** — the heading still gained its line. Three findings, each measured rather than
+predicted:
+
+- **One `size-adjust` cannot serve both weights this text uses.** Against the system font on the
+  test machine, matching Libre Franklin's width needs 111.7% at weight 700 and 115.2% at weight
+  400. The served body uses both.
+- **The right number depends on a font we cannot know the reader has.** Against Arial it is 100.8%
+  and 104.2% — about 11 points away from the system-font figures. A `@font-face` must name a real
+  installed font in `local()`, so tuning against Arial also means a Mac or iPhone reader sees Arial
+  rather than their system font, which does not preserve today's appearance either.
+- **Matching a string's total width does not match where it breaks.** Even tuned to within 1% at
+  weight 700, per-glyph widths differ, so a heading that wraps near the edge of the column still
+  wraps differently. That is the 0.0322 that survived.
+
+### One thing this had to add back
+
+Removing the only early mention of Libre Franklin also removed the reason the browser fetched the
+file early. Measured on the payments address: the first font file was requested at **476ms** with
+the old stack and at **9057ms** without it. That does not remove the swap, it moves it off this
+text and onto the app's own, which showed up as the app's later movement getting worse on 2
+desktop addresses.
+
+So the style block carries 2 hidden marks (`.page-snapshot::before` and `::after`) that name Libre
+Franklin at the 2 weights this text used, out of the flow and sized to nothing. The file is
+requested at **428ms** again, every address measures the same as before except the one being
+fixed, and the accessibility tree carries no stray text. `visibility: hidden` rather than
+`display: none`, because a browser skips the font of an element it is not laying out at all.
+
+### What this deliberately does not do
+
+- **It does not change the words in the served body, or any page's title, description, canonical
+  address or sitemap entry.** Only which fonts lay that text out.
+- **It does not change the app's typeface anywhere.**
+- **It does not touch `display=swap` on the Google Fonts request**, which the app still wants:
+  turning it off would hold the app's own text back rather than let it paint.

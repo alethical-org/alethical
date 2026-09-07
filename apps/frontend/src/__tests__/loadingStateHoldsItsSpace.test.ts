@@ -65,6 +65,39 @@ describe('a loading page holds its space', () => {
     expect(shellFrame).toMatch(/if \(hero != null && height > 0 && height !== lastHeroHeight\)/);
   });
 
+  it('lays the served text out in fonts the reader already has', () => {
+    // Libre Franklin is fetched with display=swap, which paints the reader's own
+    // system font first and swaps ours in when it arrives. The two set different
+    // widths, so a long bill title fits on 2 lines in one and wraps to 3 in the
+    // other: 0.0531 of movement on a bill page at 390x844, against a passing
+    // mark of 0.1 for the whole page (#1997). Naming only fonts already on the
+    // device means what paints first is what stays.
+    const block = shell.match(/<style id="alethical-page-snapshot">[\s\S]*?<\/style>/)?.[0];
+    expect(block).toBeTruthy();
+    // Scoped to that one rule's own braces: the hidden marks below it name
+    // Libre Franklin on purpose, and a greedier pattern would read them as this
+    // rule's and pass either way.
+    expect(block).toMatch(
+      /\.page-snapshot \{[^}]*font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;/,
+    );
+    expect(block).not.toMatch(/\.page-snapshot \{[^}]*font-family: 'Libre Franklin'/);
+  });
+
+  it('still asks for the web font while the served text is on screen', () => {
+    // Removing the only early mention of Libre Franklin also removes the reason
+    // the browser fetches the file early: measured at 476ms with the old stack
+    // and 9057ms without it, which moves the swap onto the app's own text rather
+    // than removing it. Two hidden marks ask for it at the two weights the
+    // served text used, and lay out nothing.
+    const block = shell.match(/<style id="alethical-page-snapshot">[\s\S]*?<\/style>/)?.[0];
+    expect(block).toMatch(/\.page-snapshot::before,\s*\n?\s*\.page-snapshot::after \{/);
+    expect(block).toMatch(
+      /\.page-snapshot::before,[\s\S]*?font-family: 'Libre Franklin';[\s\S]*?visibility: hidden;/,
+    );
+    // display: none would make the browser skip the font altogether.
+    expect(block).not.toMatch(/\.page-snapshot::before,[\s\S]*?display: none;/);
+  });
+
   it.each([
     ['bill, desktop', 'BillDetailWebScreen.tsx'],
     ['legislator, desktop', 'LegislatorProfileWebScreen.tsx'],
