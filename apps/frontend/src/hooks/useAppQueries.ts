@@ -46,6 +46,9 @@ import {
   listLegislatorsFromApi,
   listPolicyAreasFromApi,
   listSessionsFromApi,
+  metaFromPayload,
+  policyAreasFromPayload,
+  sessionsFromPayload,
   listTrackedBillsFromApi,
   listTrackedCommitteesFromApi,
   lookupRepresentativeFromApi,
@@ -82,6 +85,7 @@ import {
 import { readerIsSavingData } from '../lib/dataSaving';
 import { campaignMoneyYear } from '../lib/legislatorCampaignMoney';
 import { seededQueryData } from '../lib/pageData';
+import { metaQueryKey, policyAreasQueryKey, sessionsQueryKey } from '../lib/searchPageReads';
 import {
   outsideSpendingLoadFailure,
   outsideSpendingRecordPageFromPayload,
@@ -184,27 +188,46 @@ export function useBills(
   });
 }
 
+/**
+ * The issue buttons on `/bills`. Seeded from the first response, because until
+ * that happened no button existed until this answered and then roughly 300px of
+ * them appeared at once and shoved the page down (issue #1996).
+ */
 export function usePolicyAreas(session?: string, scope?: 'legislature') {
+  const key = policyAreasQueryKey({ session, scope });
   return useQuery({
-    queryKey: ['policy-areas', session ?? 'current', scope ?? 'session'],
+    queryKey: key,
     queryFn: () => listPolicyAreasFromApi(session, scope),
+    initialData: seededQueryData(key, policyAreasFromPayload),
     retry: false,
   });
 }
 
+/**
+ * The session dropdown's own list. Seeded for the same reason: its label starts
+ * as "Current Legislature" and this read is what turns it into "2025-26
+ * Legislature", which is wider, and on a phone that one extra word wrapped the
+ * whole filter row onto another line and moved everything below it down 56px
+ * (issue #1996).
+ */
 export function useSessions(options: { enabled?: boolean } = {}) {
+  const key = sessionsQueryKey();
   return useQuery({
-    queryKey: ['sessions'],
+    queryKey: key,
     queryFn: listSessionsFromApi,
+    initialData: seededQueryData(key, sessionsFromPayload),
     retry: false,
     enabled: options.enabled ?? true,
   });
 }
 
+/** How current the records are, printed beside a result count. */
 export function useMeta() {
+  const key = metaQueryKey();
   return useQuery({
-    queryKey: ['meta'],
+    queryKey: key,
     queryFn: getMetaFromApi,
+    initialData: seededQueryData(key, metaFromPayload),
     retry: false,
   });
 }

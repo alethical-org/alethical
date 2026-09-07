@@ -304,7 +304,9 @@ export function SearchLegislatorsScreen() {
     >
       <ResultsHeader
         {...scrollAnchorProps}
-        count={filtered.length}
+        // Null until the roster answers, so the line stays blank rather than
+        // saying "0 legislators" about a chamber that has 200 of them (#1996).
+        count={rosterQuery.data ? filtered.length : null}
         // Singular; ResultsHeader pluralizes it, so one result reads "1 legislator".
         noun="legislator"
         sortLabel="Sorted by name (A–Z)"

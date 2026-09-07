@@ -55,7 +55,10 @@ distinct from AI-generated analysis (`docs/product-onboarding/product-scope.md` 
    `aria-label="Active filters"` for screen readers instead.
 5. **Results header** — one prose count line, "{N} bills as of {date}" (singular "1 bill"
    at one result; the date trails the unit noun in the same span, one word space apart, no
-   separator glyph) · the sort control. Deliberately **no** prose description of the active
+   separator glyph) · the sort control. Until the list answers, the line holds its height
+   and carries no number and no unit noun: a count the screen has not been given is not a
+   fact, and `0` is reserved for a real zero
+   ([#1996](https://github.com/alethical-org/alethical/issues/1996)). Deliberately **no** prose description of the active
    facets: the chip row above already names every one of them, and the session clause that
    closed that sentence duplicated the always-visible session dropdown. The provenance date
    is ordinary prose, not a standalone uppercase mono "AS OF …" stamp.

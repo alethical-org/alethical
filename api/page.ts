@@ -94,6 +94,15 @@ import {
   moneyByRaceQueryKey,
   type ApiMoneyByRacePayload,
 } from "../apps/frontend/src/lib/moneyByRace";
+import {
+  META_READ_PATH,
+  metaQueryKey,
+  policyAreasQueryKey,
+  policyAreasReadPath,
+  SESSIONS_READ_PATH,
+  sessionsQueryKey,
+  type PolicyAreaRead,
+} from "../apps/frontend/src/lib/searchPageReads";
 import { targetFromPathname } from "../apps/frontend/src/navigation/webRoutes";
 
 /**
@@ -341,6 +350,47 @@ async function legislatorContent(id: string): Promise<PageContent> {
   };
 }
 
+/**
+ * The reads a search page makes for its own controls, made here so the page draws
+ * them complete at its first paint (issue #1996).
+ *
+ * Three of them, about 2 KB together: the issue buttons on `/bills`, the session
+ * dropdown's list, and the date under the result count. They are read alongside
+ * the list rather than after it, so handing them on costs the response no extra
+ * wait, and each one is separately optional — a read that fails leaves the app
+ * to make it, exactly as every one of them was made until now.
+ *
+ * The list of bills itself is deliberately NOT handed on. The app's list needs
+ * the full card records, which are 243 KB and a much slower read than the 3.8 KB
+ * this function reads for the snapshot, so seeding it would trade a page that
+ * settles for a page that starts later. The placeholder rows already hold the
+ * list's space, so the list arriving moves nothing.
+ */
+async function searchControlSeeds(
+  policyAreas: PolicyAreaRead | null,
+): Promise<PageDataEntry[]> {
+  const [issues, sessions, meta] = await Promise.all([
+    policyAreas
+      ? getApiResponse<unknown>(policyAreasReadPath(policyAreas)).catch(
+          () => null,
+        )
+      : Promise.resolve(null),
+    getApiResponse<unknown>(SESSIONS_READ_PATH).catch(() => null),
+    getApiResponse<unknown>(META_READ_PATH).catch(() => null),
+  ]);
+  const seeds: PageDataEntry[] = [];
+  if (policyAreas && issues) {
+    seeds.push({ key: policyAreasQueryKey(policyAreas), payload: issues });
+  }
+  if (sessions) seeds.push({ key: sessionsQueryKey(), payload: sessions });
+  if (meta) seeds.push({ key: metaQueryKey(), payload: meta });
+  return seeds;
+}
+
+/** What the resting `/bills` view asks for: the whole current Legislature, which
+ *  is what its own screen reads when no session is chosen. */
+const BILL_LIST_POLICY_AREA_READ: PolicyAreaRead = { scope: "legislature" };
+
 async function billListContent(page: number): Promise<PageContent> {
   const offset = (page - 1) * BILL_DIRECTORY_PAGE_SIZE;
   const params = new URLSearchParams({
@@ -350,9 +400,12 @@ async function billListContent(page: number): Promise<PageContent> {
     limit: String(BILL_DIRECTORY_PAGE_SIZE),
     offset: String(offset),
   });
-  const collection = await getDirectoryApiResponse<
-    CollectionPayload<BillDirectorySnapshotSource>
-  >(`/bills?${params.toString()}`);
+  const [collection, seeds] = await Promise.all([
+    getDirectoryApiResponse<CollectionPayload<BillDirectorySnapshotSource>>(
+      `/bills?${params.toString()}`,
+    ),
+    searchControlSeeds(BILL_LIST_POLICY_AREA_READ),
+  ]);
   const total = collection.page?.total;
   if (typeof total !== "number") {
     throw new DataUnavailable("bill directory response has no total");
@@ -377,13 +430,18 @@ async function billListContent(page: number): Promise<PageContent> {
         BILL_DIRECTORY_PAGE_SIZE,
       ),
     ),
+    data: seeds,
   };
 }
 
 async function legislatorListContent(page: number): Promise<PageContent> {
-  const collection = await getDirectoryApiResponse<
-    CollectionPayload<LegislatorDirectorySnapshotSource>
-  >(`/legislators?limit=${LEGISLATOR_ROSTER_LIMIT}&offset=0`);
+  // No issue buttons on this page, so it reads 2 of the 3 rather than all 3.
+  const [collection, seeds] = await Promise.all([
+    getDirectoryApiResponse<
+      CollectionPayload<LegislatorDirectorySnapshotSource>
+    >(`/legislators?limit=${LEGISLATOR_ROSTER_LIMIT}&offset=0`),
+    searchControlSeeds(null),
+  ]);
   const total = collection.page?.total;
   if (
     typeof total !== "number" ||
@@ -413,6 +471,7 @@ async function legislatorListContent(page: number): Promise<PageContent> {
         LEGISLATOR_DIRECTORY_PAGE_SIZE,
       ),
     ),
+    data: seeds,
   };
 }
 
