@@ -53,13 +53,12 @@ from decimal import Decimal
 from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import select, text
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from alethical.api.services import committee_finance
 from alethical.api.services.campaign_finance_payments import (
     UNIDENTIFIED_REGISTRATION_NUMBER,
-    linkable_committees,
 )
 from alethical.api.services.campaign_finance_register import (
     REPORTED as REGISTER_REPORTED,
@@ -104,6 +103,14 @@ _COLUMNS = (
 _DIRECTION = "initcap(trim(for_against))"
 #: The source's own "In kind?" column holds "Yes" or "No" on every live row.
 _IN_KIND = "lower(trim(in_kind)) = 'yes'"
+#: What a committee or a spender is counted as. The registration number where the row
+#: carries a real one, and the filed name where it does not -- ``'0'`` is a blank the file
+#: spells with a digit (``campaign_finance_payments``), so it is never an identifier.
+_ABOUT_KEY = (
+    "coalesce(nullif(nullif(affected_committee_reg_num, ''), '0'), "
+    "affected_committee_name)"
+)
+_SPENDER_KEY = "coalesce(nullif(nullif(spender_reg_num, ''), '0'), spender)"
 
 
 @dataclass(frozen=True)
@@ -270,23 +277,118 @@ def _where(
     return " AND ".join(clauses), params
 
 
-def _register_numbers(db: Session, numbers: set[str]) -> Optional[frozenset[str]]:
-    """Which of these numbers the Board's register we hold lists, or ``None`` if none is held."""
-    snapshot = live_filings_snapshot(db)
-    if snapshot is None:
-        return None
-    if not numbers:
-        return frozenset()
-    rows = db.execute(
-        select(schema.CampaignFinanceFiler.registration_number).where(
-            schema.CampaignFinanceFiler.snapshot_id == snapshot.id,
-            schema.CampaignFinanceFiler.registration_number.in_(sorted(numbers)),
-        )
-    ).all()
-    return frozenset(number for (number,) in rows)
+#: The whole read, as one statement. The rows a page shows, the subject's figures, the
+#: 2 distinct-name counts, how many committees have no page of ours, and which numbers on
+#: this page are in the register or link to a page: 1 request instead of 8.
+#:
+#: Speed is only half of why it is one statement. The other half is that every part reads
+#: the same ``{where}``, interpolated once from ``_where`` and bound the same way, so the
+#: rows, the figures and the counts cannot describe different populations.
+#:
+#: **Every figure is grouped before it is normalised, and that is the whole fix.**
+#: ``initcap(trim(for_against))`` costs about 300 ms across the live file's 41,130 rows,
+#: and the old query called it 4 times, so 1.2 s of a 2.9 s answer was spent tidying the
+#: same handful of words over and over. Grouping on the column's own text first leaves 4
+#: values to tidy. The 2 ``count(DISTINCT ...)`` figures went the same way: Postgres sorts
+#: for those, and grouping instead took them from 1.4 s to 43 ms. Third, the
+#: committees-with-no-page count now asks the 1,131 distinct committees rather than
+#: re-asking all 41,130 rows, which took it from 1.3 s to 30 ms. Measured on production,
+#: 4 Sep 2026 ([#1966](https://github.com/alethical-org/alethical/issues/1966)).
+_READ = """
+WITH grouped AS (
+    SELECT for_against, in_kind, count(*) AS n, count(amount) AS n_amount,
+           coalesce(sum(amount), 0) AS amount_sum,
+           min(year) AS year_lo, max(year) AS year_hi,
+           min(transaction_date) AS date_lo, max(transaction_date) AS date_hi
+      FROM {table} WHERE {where} GROUP BY for_against, in_kind
+),
+figures AS (
+    SELECT coalesce(sum(n), 0) AS row_count,
+           coalesce(sum(n) - sum(n_amount), 0) AS rows_missing_an_amount,
+           coalesce(sum(amount_sum), 0) AS amount_total,
+           coalesce(sum(n) FILTER (WHERE {direction} = :for), 0) AS supporting_count,
+           coalesce(sum(amount_sum) FILTER (WHERE {direction} = :for), 0)
+             AS supporting_amount,
+           coalesce(sum(n) FILTER (WHERE {direction} = :against), 0) AS opposing_count,
+           coalesce(sum(amount_sum) FILTER (WHERE {direction} = :against), 0)
+             AS opposing_amount,
+           coalesce(sum(n) FILTER (WHERE {in_kind}), 0) AS in_kind_count,
+           min(year_lo) AS first_year, max(year_hi) AS last_year,
+           min(date_lo) AS first_paid_on, max(date_hi) AS last_paid_on
+      FROM grouped
+),
+about_keys AS (
+    SELECT {about_key} AS key, affected_committee_reg_num AS reg
+      FROM {table} WHERE {where} GROUP BY 1, 2
+),
+page AS (
+    SELECT {columns} FROM {table} WHERE {where}
+     ORDER BY {order_by} LIMIT :limit OFFSET :offset
+),
+numbers AS (
+    SELECT DISTINCT num FROM (
+        SELECT nullif(nullif(spender_reg_num, ''), '0') AS num FROM page
+        UNION ALL SELECT nullif(nullif(affected_committee_reg_num, ''), '0') FROM page
+        UNION ALL SELECT :about
+        UNION ALL SELECT :spender
+    ) asked WHERE num IS NOT NULL
+),
+scalars AS (
+    SELECT f.*,
+      (SELECT count(*) FROM (SELECT key FROM about_keys WHERE key IS NOT NULL
+                              GROUP BY key) k) AS committee_count,
+      (SELECT count(*) FROM (SELECT {spender_key} AS key FROM {table} WHERE {where}
+                              GROUP BY 1) s WHERE key IS NOT NULL) AS spender_count,
+      CASE WHEN NOT :has_register THEN NULL ELSE (
+        SELECT count(*) FROM (
+          SELECT key FROM about_keys a WHERE key IS NOT NULL
+            AND NOT EXISTS (SELECT 1 FROM cf_filer r
+                             WHERE r.snapshot_id = :register
+                               AND r.registration_number = a.reg)
+            AND NOT EXISTS (SELECT 1 FROM cf_contribution_row c
+                             WHERE c.snapshot_id = :contributions
+                               AND c.recipient_reg_num = a.reg)
+            AND NOT EXISTS (SELECT 1 FROM cf_expenditure_row e
+                             WHERE e.snapshot_id = :expenditures
+                               AND e.committee_reg_num = a.reg)
+          GROUP BY key) unlinkable) END AS committees_not_linkable,
+      (SELECT coalesce(array_agg(num), '{{}}') FROM numbers
+        WHERE :has_register
+          AND EXISTS (SELECT 1 FROM cf_filer r WHERE r.snapshot_id = :register
+                       AND r.registration_number = numbers.num)) AS in_register,
+      (SELECT coalesce(array_agg(num), '{{}}') FROM numbers
+        WHERE EXISTS (SELECT 1 FROM cf_contribution_row c
+                       WHERE c.snapshot_id = :contributions
+                         AND c.recipient_reg_num = numbers.num)
+           OR EXISTS (SELECT 1 FROM cf_expenditure_row e
+                       WHERE e.snapshot_id = :expenditures
+                         AND e.committee_reg_num = numbers.num)) AS linkable
+      FROM figures f
+)
+SELECT s.*, p.* FROM scalars s LEFT JOIN page p ON true ORDER BY {order_by}
+"""
+
+#: The 2 orders, written once. ``row_number`` is a total tiebreak within one release, so
+#: no row can swap places between one page and the next.
+_ORDER_BY = {
+    SORT_LARGEST: (
+        "amount DESC NULLS LAST, transaction_date DESC NULLS LAST, row_number DESC"
+    ),
+    SORT_NEWEST: "transaction_date DESC NULLS LAST, row_number DESC",
+}
 
 
-def _rows(
+@dataclass(frozen=True)
+class _Read:
+    """One statement's answer: the page, the figures, and the 2 sets of numbers."""
+
+    rows: tuple
+    figures: OutsideSpendingFigures
+    in_register: frozenset[str]
+    linkable: frozenset[str]
+
+
+def _read(
     db: Session,
     release: Release,
     *,
@@ -294,139 +396,84 @@ def _rows(
     params: dict[str, object],
     sort: str,
     page_number: int,
-) -> list:
-    order_by = (
-        "amount DESC NULLS LAST, transaction_date DESC NULLS LAST, row_number DESC"
-        if sort == SORT_LARGEST
-        else "transaction_date DESC NULLS LAST, row_number DESC"
+    register_snapshot_id: Optional[UUID],
+    about: Optional[str],
+    spender: Optional[str],
+) -> _Read:
+    """Everything one outside-spending answer needs from the database, in one request."""
+    statement = _READ.format(
+        table=_TABLE,
+        where=where,
+        columns=_COLUMNS,
+        direction=_DIRECTION,
+        in_kind=_IN_KIND,
+        about_key=_ABOUT_KEY,
+        spender_key=_SPENDER_KEY,
+        order_by=_ORDER_BY[sort],
     )
-    return list(
+    served = (
         db.execute(
-            text(
-                f"SELECT {_COLUMNS} FROM {_TABLE} WHERE {where} "
-                f"ORDER BY {order_by} LIMIT :limit OFFSET :offset"
-            ),
+            text(statement),
             {
                 **params,
                 "snapshot": release.independent_expenditures.snapshot_id,
+                "contributions": release.contributions.snapshot_id,
+                "expenditures": release.expenditures.snapshot_id,
+                "register": register_snapshot_id,
+                "has_register": register_snapshot_id is not None,
+                "for": SUPPORTING,
+                "against": OPPOSING,
+                "about": about,
+                "spender": spender,
                 "limit": PAGE_SIZE,
                 "offset": (page_number - 1) * PAGE_SIZE,
             },
-        ).all()
+        )
+        .mappings()
+        .all()
     )
-
-
-def _figures(
-    db: Session,
-    release: Release,
-    *,
-    where: str,
-    params: dict[str, object],
-) -> OutsideSpendingFigures:
-    """One aggregate pass over the subject's rows.
-
-    The direction test is the same normalisation the profile's figures use, and the
-    third figure is defined as everything the first 2 are not, so no row can fall
-    between them (#1454).
-    """
-    snapshot_id = release.independent_expenditures.snapshot_id
-    row = db.execute(
-        text(
-            "SELECT count(*), count(*) - count(amount), coalesce(sum(amount), 0), "
-            f" count(*) FILTER (WHERE {_DIRECTION} = :for), "
-            f" coalesce(sum(amount) FILTER (WHERE {_DIRECTION} = :for), 0), "
-            f" count(*) FILTER (WHERE {_DIRECTION} = :against), "
-            f" coalesce(sum(amount) FILTER (WHERE {_DIRECTION} = :against), 0), "
-            f" count(*) FILTER (WHERE {_IN_KIND}), "
-            " min(year), max(year), min(transaction_date), max(transaction_date), "
-            " count(DISTINCT coalesce(nullif(nullif(affected_committee_reg_num, ''), '0'),"
-            "   affected_committee_name)), "
-            " count(DISTINCT coalesce(nullif(nullif(spender_reg_num, ''), '0'), spender)) "
-            f"FROM {_TABLE} WHERE {where}"
+    head = served[0]
+    money = head["rows_missing_an_amount"] == 0
+    total = Decimal(head["amount_total"])
+    supporting = Decimal(head["supporting_amount"])
+    opposing = Decimal(head["opposing_amount"])
+    count = int(head["row_count"])
+    figures = OutsideSpendingFigures(
+        row_count=count,
+        rows_missing_an_amount=int(head["rows_missing_an_amount"]),
+        amount_total=total if money else None,
+        supporting_count=int(head["supporting_count"]),
+        supporting_amount=supporting if money else None,
+        opposing_count=int(head["opposing_count"]),
+        opposing_amount=opposing if money else None,
+        direction_not_recorded_count=int(
+            count - head["supporting_count"] - head["opposing_count"]
         ),
-        {**params, "snapshot": snapshot_id, "for": SUPPORTING, "against": OPPOSING},
-    ).one()
-    (
-        count,
-        missing,
-        total,
-        for_count,
-        for_amount,
-        against_count,
-        against_amount,
-        in_kind,
-        first_year,
-        last_year,
-        first_paid,
-        last_paid,
-        committees,
-        spenders,
-    ) = row
-    money = missing == 0
-    return OutsideSpendingFigures(
-        row_count=int(count),
-        rows_missing_an_amount=int(missing),
-        amount_total=Decimal(total) if money else None,
-        supporting_count=int(for_count),
-        supporting_amount=Decimal(for_amount) if money else None,
-        opposing_count=int(against_count),
-        opposing_amount=Decimal(against_amount) if money else None,
-        direction_not_recorded_count=int(count - for_count - against_count),
         direction_not_recorded_amount=(
-            Decimal(total) - Decimal(for_amount) - Decimal(against_amount)
-            if money
-            else None
+            total - supporting - opposing if money else None
         ),
-        in_kind_count=int(in_kind),
-        first_year=int(first_year) if first_year is not None else None,
-        last_year=int(last_year) if last_year is not None else None,
-        first_paid_on=first_paid,
-        last_paid_on=last_paid,
-        committee_count=int(committees),
-        spender_count=int(spenders),
-        committees_not_linkable=_committees_not_linkable(
-            db, release, where=where, params=params
+        in_kind_count=int(head["in_kind_count"]),
+        first_year=int(head["first_year"]) if head["first_year"] is not None else None,
+        last_year=int(head["last_year"]) if head["last_year"] is not None else None,
+        first_paid_on=head["first_paid_on"],
+        last_paid_on=head["last_paid_on"],
+        committee_count=int(head["committee_count"]),
+        spender_count=int(head["spender_count"]),
+        committees_not_linkable=(
+            None
+            if head["committees_not_linkable"] is None
+            else int(head["committees_not_linkable"])
         ),
     )
-
-
-def _committees_not_linkable(
-    db: Session, release: Release, *, where: str, params: dict[str, object]
-) -> Optional[int]:
-    """How many committees spent about, in this subject, have no page of ours to link.
-
-    A committee is linkable when this release holds it as a filer of its own money
-    (``linkable_committees``) or the Board's register we hold lists it. The rest are
-    printed as filed and never linked. ``None`` while we hold no register, because
-    then the question cannot be answered either way.
-    """
-    snapshot = live_filings_snapshot(db)
-    if snapshot is None:
-        return None
-    return int(
-        db.execute(
-            text(
-                "SELECT count(DISTINCT coalesce(nullif(nullif(r.affected_committee_reg_num, ''), '0'),"
-                "   r.affected_committee_name)) "
-                f"FROM {_TABLE} r WHERE {where} "
-                " AND NOT EXISTS (SELECT 1 FROM cf_filer f WHERE f.snapshot_id = :register"
-                "   AND f.registration_number = r.affected_committee_reg_num) "
-                " AND NOT EXISTS (SELECT 1 FROM cf_contribution_row c"
-                "   WHERE c.snapshot_id = :contributions"
-                "   AND c.recipient_reg_num = r.affected_committee_reg_num) "
-                " AND NOT EXISTS (SELECT 1 FROM cf_expenditure_row e"
-                "   WHERE e.snapshot_id = :expenditures"
-                "   AND e.committee_reg_num = r.affected_committee_reg_num)"
-            ),
-            {
-                **params,
-                "snapshot": release.independent_expenditures.snapshot_id,
-                "register": snapshot.id,
-                "contributions": release.contributions.snapshot_id,
-                "expenditures": release.expenditures.snapshot_id,
-            },
-        ).scalar_one()
-    )
+    in_register = frozenset(head["in_register"] or ())
+    # A committee this release holds as a filer of its own money, or one the Board's
+    # register we hold lists: both are a page a name can be linked to
+    # (``campaign_finance_payments.linkable_committees``).
+    linkable = frozenset(head["linkable"] or ()) | in_register
+    # The left join always returns one row, so an empty page arrives as a single row
+    # whose record number is null rather than as no rows at all.
+    rows = tuple(row for row in served if row["row_number"] is not None)
+    return _Read(rows=rows, figures=figures, in_register=in_register, linkable=linkable)
 
 
 def _subject(
@@ -512,15 +559,27 @@ def outside_spending(
             fetched_at=release.fetched_at,
         )
 
+    # The register is a separate run from the downloads, resolved once here because the
+    # read below asks it 2 questions and the subject headings ask it more.
+    register = live_filings_snapshot(db)
     try:
-        rows = _rows(
-            db, release, where=where, params=params, sort=sort, page_number=page_number
+        read = _read(
+            db,
+            release,
+            where=where,
+            params=params,
+            sort=sort,
+            page_number=page_number,
+            register_snapshot_id=None if register is None else register.id,
+            about=about,
+            spender=spender,
         )
-        figures = _figures(db, release, where=where, params=params)
+        figures = read.figures
         if figures.row_count == 0:
             # Staleness first, then coverage, then silence: the same order the
             # payments reader uses, delegated rather than copied so 2 services cannot
-            # disagree about what an absence means.
+            # disagree about what an absence means. Both cost a statement, and both are
+            # asked only on the empty answer, so a populated one pays for neither.
             reader._refuse_if_rows_are_gone(db, release, dataset)
             state = (
                 NOT_REPORTED
@@ -532,14 +591,9 @@ def outside_spending(
     except ReleaseNoLongerHeld:
         return refusal(UNAVAILABLE)
 
-    numbers = {
-        n for row in rows for n in (_clean(row[1]), _clean(row[3])) if n is not None
-    }
-    for subject_number in (about, spender):
-        if subject_number is not None:
-            numbers.add(subject_number)
-    in_register = _register_numbers(db, numbers) or frozenset()
-    linkable = linkable_committees(db, release, sorted(numbers)) | in_register
+    rows = read.rows
+    in_register = read.in_register
+    linkable = read.linkable
 
     about_subject = (
         _subject(
@@ -595,24 +649,20 @@ def outside_spending(
 def _row(
     row, *, linkable: frozenset[str], in_register: frozenset[str]
 ) -> OutsideSpendingRow:
-    (
-        spender,
-        spender_reg,
-        about_name,
-        about_reg,
-        for_against,
-        purpose,
-        vendor,
-        kind,
-        in_kind,
-        paid_on,
-        year,
-        amount,
-        unpaid,
-        record_number,
-    ) = row
-    spender_reg = _clean(spender_reg)
-    about_reg = _clean(about_reg)
+    spender = row["spender"]
+    about_name = row["affected_committee_name"]
+    for_against = row["for_against"]
+    purpose = row["purpose"]
+    vendor = row["vendor_name"]
+    kind = row["type"]
+    in_kind = row["in_kind"]
+    paid_on = row["transaction_date"]
+    year = row["year"]
+    amount = row["amount"]
+    unpaid = row["unpaid_amount"]
+    record_number = row["row_number"]
+    spender_reg = _clean(row["spender_reg_num"])
+    about_reg = _clean(row["affected_committee_reg_num"])
     filed = (for_against or "").strip().title()
     direction = filed if filed in (SUPPORTING, OPPOSING) else DIRECTION_NOT_RECORDED
     return OutsideSpendingRow(

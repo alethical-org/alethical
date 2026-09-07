@@ -29,6 +29,17 @@ diminishing returns. Caching the *response* skips all of it: bill lists and bill
 detail are public records that change only when ingestion runs (infrequent,
 human-triggered), so they are safe to serve from an edge cache for a short TTL.
 
+**That last sentence is about the bill-list route and does not carry to the
+campaign-money routes, which is why their count is left open above.** A cache is
+the fix for what a reader waits on and never a reason to leave a slow query in
+place, and on the money routes the query was the whole cost. Measured for
+[#1966](https://github.com/alethical-org/alethical/issues/1966) on 4 Sep 2026,
+`/campaign-finance/outside-spending` answered in 2,787 ms and `EXPLAIN ANALYZE` put
+2,761 ms of that inside 2 statements: the 11 trips were worth tens of milliseconds
+between them. So a route's plan is read before its trip count is blamed
+(`docs/operations/page-load-performance-decisions.md`, "What an uncached money
+answer spends its time on").
+
 The response headers that drive the cache are **already live** (PR #363):
 
 ```

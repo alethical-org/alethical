@@ -28,7 +28,7 @@ attempt rather than on the harm (``alethical/tests/test_campaign_finance_races.p
 
 The figures are the same 2 the committee page's money-in card shows as its reported
 total and its "Donations with a donor's name" line, read the same way: the reported
-total from the filer's own report (``campaign_finance_filings.filings_context``), kept
+total from the filer's own report (``campaign_finance_filings.reported_totals_for``), kept
 only when its coverage end falls inside the year asked for (§7's guard against the
 totals route answering a year with the previous year's report) and never for a
 special-election filer-year; the named figure from the contribution download's
@@ -42,7 +42,7 @@ import re
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Optional
+from typing import Optional, Sequence
 from uuid import UUID
 
 from sqlalchemy import select, text
@@ -196,45 +196,58 @@ def contest_anchor(office: str, district: Optional[str]) -> str:
 
 
 def _named_donations(
-    db: Session, release, year: int
+    db: Session, release, year: int, registration_numbers: Sequence[str]
 ) -> tuple[dict[str, NamedDonations], bool]:
-    """Every filer's named contributions for one year, in one statement.
+    """The listed committees' named contributions for one year, in one statement.
 
     Mirrors ``campaign_finance_reader.money_in`` -- the file's own ``Year`` column,
     ``Receipt type = 'Contribution'`` only, blanks counted rather than summed as 0 --
-    but for the whole file at once, because 778 single-committee reads would be 778
-    round trips for one page. Returns the per-filer figures and whether the download
-    holds any row at all for the year, which decides what an absent filer means.
+    for every committee this page lists at once, because 778 single-committee reads
+    would be 778 round trips for one page. Narrowed to the committees actually listed,
+    so filtering to one office reads that office's rows rather than every contribution
+    Minnesota holds for the year: statewide that grouping took 676 ms on the live
+    release against 22 ms for the Senate's 232 committees
+    ([#1966](https://github.com/alethical-org/alethical/issues/1966)).
+
+    ``covers_year`` stays a question about the **whole** download and is read in the
+    same statement. It has to: it decides whether a committee with no rows is silent or
+    beyond our copy, and a year whose only rows belong to committees this page does not
+    list is still a year we hold. Narrowing it would turn one committee's silence into
+    "we have nothing for this year".
     """
+    wanted = sorted({number for number in registration_numbers if number})
     rows = db.execute(
         text(
-            "SELECT recipient_reg_num, count(*), coalesce(sum(amount), 0), "
-            "       count(*) - count(amount), min(receipt_date), max(receipt_date) "
-            "  FROM cf_contribution_row "
-            " WHERE snapshot_id = :snapshot AND year = :year "
-            "   AND receipt_type = :contribution AND recipient_reg_num IS NOT NULL "
-            " GROUP BY recipient_reg_num"
+            "WITH covers AS ("
+            "  SELECT EXISTS (SELECT 1 FROM cf_contribution_row "
+            "                  WHERE snapshot_id = :snapshot AND year = :year) AS held), "
+            "named AS ("
+            "  SELECT recipient_reg_num AS reg, count(*) AS payments, "
+            "         coalesce(sum(amount), 0) AS total, "
+            "         count(*) - count(amount) AS missing, "
+            "         min(receipt_date) AS first_on, max(receipt_date) AS last_on "
+            "    FROM cf_contribution_row "
+            "   WHERE snapshot_id = :snapshot AND year = :year "
+            "     AND receipt_type = :contribution "
+            "     AND recipient_reg_num = ANY(:numbers) "
+            "   GROUP BY recipient_reg_num) "
+            "SELECT c.held, n.reg, n.payments, n.total, n.missing, n.first_on, n.last_on "
+            "  FROM covers c LEFT JOIN named n ON true"
         ),
         {
             "snapshot": release.contributions.snapshot_id,
             "year": year,
             "contribution": reader.CONTRIBUTION_RECEIPT,
+            "numbers": wanted,
         },
     ).all()
-    covers_year = (
-        db.scalar(
-            select(schema.CampaignFinanceContributionRow.row_number)
-            .where(
-                schema.CampaignFinanceContributionRow.snapshot_id
-                == release.contributions.snapshot_id,
-                schema.CampaignFinanceContributionRow.year == year,
-            )
-            .limit(1)
-        )
-        is not None
-    )
+    # The left join always returns at least one row, so the coverage answer survives a
+    # page whose committees hold nothing.
+    covers_year = bool(rows[0][0]) if rows else False
     named: dict[str, NamedDonations] = {}
-    for reg_num, count, total, missing, first_on, last_on in rows:
+    for _, reg_num, count, total, missing, first_on, last_on in rows:
+        if reg_num is None:
+            continue
         if missing:
             # Rows we hold and cannot add up: a gap in our copy, never a zero and
             # never a figure (rule 12, #1442).
@@ -306,16 +319,20 @@ def races(
         for name in sorted(office_counts, key=office_sort_key)
     )
 
-    context = filings.filings_context(db)
+    # Which committees this page lists, decided before any figure is read, so both
+    # money reads below cover exactly the rows a reader will see. The office chips
+    # above are counted from the whole register and are unaffected (#1966).
+    listed = [row for row in rows if office is None or row[2] == office]
+    listed_numbers = [reg_num for reg_num, _, _, _, _ in listed]
+
+    context = filings.reported_totals_for(db, listed_numbers, years=[year])
     if release is not None:
-        named, covers_year = _named_donations(db, release, year)
+        named, covers_year = _named_donations(db, release, year, listed_numbers)
     else:
         named, covers_year = {}, False
 
     grouped: dict[tuple[str, Optional[str]], list[RaceCommittee]] = {}
-    for reg_num, name, row_office, district, terminated in rows:
-        if office is not None and row_office != office:
-            continue
+    for reg_num, name, row_office, district, terminated in listed:
         reported_total: Optional[Decimal] = None
         through: Optional[date] = None
         start: Optional[date] = None

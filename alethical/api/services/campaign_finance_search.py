@@ -59,6 +59,11 @@ beside it is the honest shape, and it is not the same as 0.
 
 ## Speed, and why the minimum length is 3
 
+The rows a group draws and the count beside them come off one statement, because they
+are one walk of the names: the drawn rows are the first few of the names the count
+walks. What that walk costs is on ``COUNTED_UP_TO`` below, along with the measurement
+that says it is still the slowest money read we serve.
+
 The 3 name columns carry indexes as of migration ``0040_cf_name_indexes``: 2 trigram
 indexes for the substring match here, and 3 B-tree indexes for the exact-name lookups in
 ``campaign_finance_payments``. Measured on production before and after, warm: a donor-name
@@ -99,8 +104,19 @@ Dataset = schema.CampaignFinanceDataset
 #: every row of a 583,152-row file and match tens of thousands of names.
 MIN_QUERY_LENGTH = 3
 #: How far a group's distinct-name count is carried before it gives up and says
-#: ``at_least`` instead. Well above anything a page draws, and low enough that the
-#: broadest realistic query stays under 25 ms.
+#: ``at_least`` instead. Well above anything a page draws.
+#:
+#: **It is the count, not the rows, that decides what a search costs**, and the cost
+#: swings on how rare the typed string is. Postgres answers this by walking the name
+#: index in alphabetical order and stopping once it holds this many names, which is
+#: instant for a string thousands of names carry and slow for a rare one, because a rare
+#: one is only found by walking the whole index. Measured on production, 4 Sep 2026: 21
+#: ms for "son" against 740 ms for "education"
+#: ([#1966](https://github.com/alethical-org/alethical/issues/1966)). Reading the rare
+#: one through the trigram index instead reverses it exactly -- 22 ms for "education"
+#: and 769 ms for "son" -- so neither shape is right on its own, and the fix that would
+#: be right for both is a per-release list of the distinct names, which nothing here
+#: builds yet.
 COUNTED_UP_TO = 200
 #: Rows per group at most. Screen B draws 5 per group and links out for the rest.
 MAX_PER_GROUP = 50
@@ -422,29 +438,32 @@ def _name_group(
         model.snapshot_id == snapshot_id,
         name_contains(column, typed),
     )
-    rows = db.execute(
-        select(column, func.count())
+    # The rows and the count come off one pass, because they are the same pass: the
+    # names a page draws are the first few of the names the count walks. Two statements
+    # walked it twice, and the second walk was the more expensive one -- a donor-name
+    # search cost 105 ms for its 5 rows and a further 737 ms for its total on the live
+    # release ([#1966](https://github.com/alethical-org/alethical/issues/1966)).
+    #
+    # Counted through a bounded scan rather than a plain COUNT(DISTINCT): a broad query
+    # matches thousands of names and counting all of them costs a second of a reader's
+    # time for a number no page prints. Fetching one past the cap is what tells an exact
+    # total from a capped one.
+    names = (
+        select(column.label("name"), func.count().label("payments"))
         .where(*matches)
         .group_by(column)
         .order_by(column.asc())
+        .limit(COUNTED_UP_TO + 1)
+        .cte("names")
+    )
+    counted_names = select(func.count()).select_from(names).scalar_subquery()
+    served = db.execute(
+        select(names.c.name, names.c.payments, counted_names.label("counted"))
+        .order_by(names.c.name.asc())
         .limit(limit + 1)
     ).all()
-    # Counted through a bounded subquery rather than a plain COUNT(DISTINCT): a broad
-    # query matches thousands of names and counting all of them costs a second of a
-    # reader's time for a number no page prints. Fetching one past the cap is what tells
-    # an exact total from a capped one.
-    counted = (
-        db.scalar(
-            select(func.count()).select_from(
-                select(column)
-                .where(*matches)
-                .distinct()
-                .limit(COUNTED_UP_TO + 1)
-                .subquery()
-            )
-        )
-        or 0
-    )
+    counted = served[0].counted if served else 0
+    rows = [(row.name, row.payments) for row in served]
     capped = counted > COUNTED_UP_TO
     return ResultGroup(
         kind=kind,

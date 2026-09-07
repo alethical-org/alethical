@@ -1640,8 +1640,48 @@ class FilingsContext:
         }
 
 
+def _fold_figure_rows(
+    rows: Iterable[tuple[str, int, Any, Optional[date], str, Decimal]],
+) -> tuple[
+    dict[tuple[str, int], Decimal],
+    dict[tuple[str, int], Decimal],
+    dict[tuple[str, int], date],
+]:
+    """Turn filing-and-figure rows into the 3 per-filer-year dictionaries.
+
+    One copy of the line-key rules, shared by the statewide reader below and by the
+    narrowed ``reported_totals_for``. Which lines add up to "contributions" differs by
+    filer kind and deliberately excludes public subsidy, loan income and miscellaneous
+    income; a second copy of that mapping is how the 2 readers would drift into
+    disagreeing about one committee's own reported figure.
+    """
+    contributions: dict[tuple[str, int], Decimal] = {}
+    expenditures: dict[tuple[str, int], Decimal] = {}
+    through: dict[tuple[str, int], date] = {}
+    for registration, year, kind, reported_through, line_key, amount in rows:
+        filer_year = (registration, year)
+        if reported_through is not None:
+            through[filer_year] = reported_through
+        if line_key in CONTRIBUTION_LINE_KEYS[kind]:
+            contributions[filer_year] = (
+                contributions.get(filer_year, Decimal("0")) + amount
+            )
+        if line_key == "total_expenditures":
+            expenditures[filer_year] = (
+                expenditures.get(filer_year, Decimal("0")) + amount
+            )
+    return contributions, expenditures, through
+
+
 def filings_context(db: Session) -> Optional[FilingsContext]:
-    """Read the live filings snapshot, or None when none is published."""
+    """Read the live filings snapshot, or None when none is published.
+
+    Every filer-year in the snapshot, which is what the download loader's own checks
+    need. A request about one committee, or about the committees one page shows, reads
+    ``reported_totals_for`` instead: this one returned 55,845 figure rows on the live
+    snapshot, and a committee page was building all of them twice to print 2 numbers
+    ([#1966](https://github.com/alethical-org/alethical/issues/1966)).
+    """
     snapshot = live_filings_snapshot(db)
     if snapshot is None:
         return None
@@ -1666,9 +1706,6 @@ def filings_context(db: Session) -> Optional[FilingsContext]:
             .distinct()
         ).all()
     )
-    contributions: dict[tuple[str, int], Decimal] = {}
-    expenditures: dict[tuple[str, int], Decimal] = {}
-    through: dict[tuple[str, int], date] = {}
     rows = db.execute(
         select(
             schema.CampaignFinanceFiling.registration_number,
@@ -1685,23 +1722,113 @@ def filings_context(db: Session) -> Optional[FilingsContext]:
         )
         .where(schema.CampaignFinanceFiling.snapshot_id == snapshot.id)
     ).all()
-    for registration, year, kind, reported_through, line_key, amount in rows:
-        filer_year = (registration, year)
-        if reported_through is not None:
-            through[filer_year] = reported_through
-        if line_key in CONTRIBUTION_LINE_KEYS[kind]:
-            contributions[filer_year] = (
-                contributions.get(filer_year, Decimal("0")) + amount
-            )
-        if line_key == "total_expenditures":
-            expenditures[filer_year] = (
-                expenditures.get(filer_year, Decimal("0")) + amount
-            )
+    contributions, expenditures, through = _fold_figure_rows(rows)
     return FilingsContext(
         snapshot_id=snapshot.id,
         fetch_completed_at=snapshot.fetch_completed_at,
         years=tuple(snapshot.years or ()),
         known_registrations=registrations,
+        reported_contributions=contributions,
+        reported_expenditures=expenditures,
+        reported_through=through,
+        special_election_filer_years=special,
+    )
+
+
+@dataclass(frozen=True)
+class ReportedTotalsContext:
+    """The filed figures for the committees one request is about, and nothing else.
+
+    The same 4 dictionaries ``FilingsContext`` carries, read for named registration
+    numbers and, where the caller names them, named years. What it deliberately leaves
+    out is ``known_registrations`` -- every registration number in the snapshot -- which
+    is the download loader's question and never a reader's.
+
+    ``special_election_filer_years`` covers only the filer-years returned here. Both
+    readers of it check it beside a figure this same read produced, so a filer-year with
+    no filing of its own could never be looked up in it.
+    """
+
+    snapshot_id: uuid.UUID
+    reported_contributions: dict[tuple[str, int], Decimal]
+    reported_expenditures: dict[tuple[str, int], Decimal]
+    reported_through: dict[tuple[str, int], date]
+    special_election_filer_years: frozenset[tuple[str, int]]
+
+
+def reported_totals_for(
+    db: Session,
+    registration_numbers: Iterable[str],
+    years: Optional[Iterable[int]] = None,
+) -> Optional[ReportedTotalsContext]:
+    """What these committees' own filings report, for these years, in one statement.
+
+    The narrow twin of ``filings_context``: same snapshot, same line-key rules
+    (``_fold_figure_rows``), same meaning -- a filer-year missing from the result is
+    "not reported" and never a zero. It exists because reading every filing in
+    Minnesota to answer about 1 committee was the largest cost on the committee page
+    and the second largest on the races page
+    ([#1966](https://github.com/alethical-org/alethical/issues/1966)).
+
+    ``None`` when no filings snapshot is published, exactly as ``filings_context``
+    returns ``None``, and a caller must render that as "not reported" rather than as a
+    figure. An empty ``registration_numbers`` reads nothing and returns empty
+    dictionaries, which is a different answer from ``None``: we hold a register and
+    were asked about nobody.
+
+    Whether a filer-year is a special-election one is read per filing rather than as a
+    separate sweep, so the whole answer is one round trip.
+    """
+    snapshot = live_filings_snapshot(db)
+    if snapshot is None:
+        return None
+    wanted = sorted({number for number in registration_numbers if number})
+    if not wanted:
+        return ReportedTotalsContext(
+            snapshot_id=snapshot.id,
+            reported_contributions={},
+            reported_expenditures={},
+            reported_through={},
+            special_election_filer_years=frozenset(),
+        )
+    filing = schema.CampaignFinanceFiling
+    report = schema.CampaignFinanceFilingReport
+    special_series = (
+        select(report.row_number)
+        .where(
+            report.snapshot_id == filing.snapshot_id,
+            report.registration_number == filing.registration_number,
+            report.filing_year == filing.filing_year,
+            report.special_election.is_(True),
+        )
+        .exists()
+    )
+    statement = (
+        select(
+            filing.registration_number,
+            filing.filing_year,
+            filing.filer_kind,
+            filing.reported_through,
+            schema.CampaignFinanceFilingFigure.line_key,
+            schema.CampaignFinanceFilingFigure.amount,
+            special_series.label("special_election"),
+        )
+        .join(
+            schema.CampaignFinanceFilingFigure,
+            schema.CampaignFinanceFilingFigure.filing_id == filing.id,
+        )
+        .where(
+            filing.snapshot_id == snapshot.id,
+            filing.registration_number.in_(wanted),
+        )
+    )
+    if years is not None:
+        statement = statement.where(filing.filing_year.in_(sorted(set(years))))
+    rows = db.execute(statement).all()
+    contributions, expenditures, through = _fold_figure_rows(row[:6] for row in rows)
+    special = frozenset((row[0], row[1]) for row in rows if row[6])
+    return ReportedTotalsContext(
+        snapshot_id=snapshot.id,
         reported_contributions=contributions,
         reported_expenditures=expenditures,
         reported_through=through,

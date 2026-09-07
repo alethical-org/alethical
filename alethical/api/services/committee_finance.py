@@ -86,10 +86,12 @@ from alethical.api.services.committee_stated_spending import (
     stated_spending_for_year,
 )
 from alethical.db.schema import load_schema
+from alethical.pipeline import campaign_finance_filings as filings
 from alethical.pipeline import campaign_finance_reader as reader
 from alethical.pipeline.campaign_finance_filing_calendars import (
     printed_period_start_for_end,
 )
+from alethical.pipeline.campaign_finance_filings import ReportedTotalsContext
 
 schema = load_schema()
 CampaignFinanceContributionRow = schema.CampaignFinanceContributionRow
@@ -428,7 +430,12 @@ def find_committee(
 
 
 def money_in(
-    db: Session, release: Release, *, registration_number: str, year: int
+    db: Session,
+    release: Release,
+    *,
+    registration_number: str,
+    year: int,
+    reported: ReportedTotalsContext | None = None,
 ) -> MoneyIn:
     """Itemized receipts for one committee in one year, plus its own reported total.
 
@@ -436,10 +443,14 @@ def money_in(
     rather than the year of a row's date -- separate claims that disagree on 702 rows
     across the 3 files -- and keeps only ``Receipt type = 'Contribution'`` in the
     contribution figure while returning the rest under their own labels.
+
+    ``reported`` is this committee-year's filed figures where the caller has already
+    read them, so a page showing money in and money out reads them once rather than
+    twice (#1966). Left out, they are read here for this one committee and year.
     """
     source_url = release.contributions.source_url
     reported_total, reported_through = _reported_contributions(
-        db, registration_number, year
+        db, registration_number, year, reported
     )
     # The Board's own calendars print a start against this period end; a filer-year
     # the totals copy speaks for is never a special-election one, so the printed
@@ -512,38 +523,65 @@ def money_in(
     )
 
 
-def _reported_contributions(
-    db: Session, registration_number: str, year: int
+def _filed_figure(
+    db: Session,
+    registration_number: str,
+    year: int,
+    reported: ReportedTotalsContext | None,
+    totals: str,
 ) -> tuple[Decimal | None, date | None]:
-    """The filer's own reported contribution figure, or ``None`` twice.
+    """One filer-year's own filed figure and the date it runs to, or ``None`` twice.
 
-    Rule 12's second number. ``None`` when no filings snapshot is published -- which
-    is production's state until someone runs #1408's loader -- and also when the
-    Board's totals route cannot speak for this filer-year, which happens for a
-    special-election filer whose second report series the route does not return. §9.5
-    is explicit that those read "Not reported" rather than being compared, so a
-    ``comparable`` of False must never reach a page as a figure.
+    Rule 12's second number, for whichever side ``totals`` names. ``None`` when no
+    filings snapshot is published, and also when the Board's totals route cannot speak
+    for this filer-year, which happens for a special-election filer whose second report
+    series the route does not return. §9.5 is explicit that those read "Not reported"
+    rather than being compared, so a filer-year the copy cannot speak for must never
+    reach a page as a figure.
+
+    Reads only this committee and this year (``reported_totals_for``), or reuses the
+    read the caller already made. Never the statewide sweep: answering about 1
+    committee by building every filing in Minnesota is what made a committee page wait
+    (#1966).
     """
-    for entry in reader.reported_contributions(db, registration_number, years=[year]):
-        if entry.year == year and entry.comparable:
-            return entry.total, entry.reported_through
-    return None, None
+    if reported is None:
+        reported = filings.reported_totals_for(db, [registration_number], years=[year])
+    if reported is None:
+        return None, None
+    filer_year = (registration_number, year)
+    if filer_year in reported.special_election_filer_years:
+        return None, None
+    total = getattr(reported, totals).get(filer_year)
+    if total is None:
+        return None, None
+    return total, reported.reported_through.get(filer_year)
+
+
+def _reported_contributions(
+    db: Session,
+    registration_number: str,
+    year: int,
+    reported: ReportedTotalsContext | None = None,
+) -> tuple[Decimal | None, date | None]:
+    """The filer's own reported contribution figure, or ``None`` twice."""
+    return _filed_figure(
+        db, registration_number, year, reported, "reported_contributions"
+    )
 
 
 def _reported_expenditures(
-    db: Session, registration_number: str, year: int
+    db: Session,
+    registration_number: str,
+    year: int,
+    reported: ReportedTotalsContext | None = None,
 ) -> tuple[Decimal | None, date | None]:
     """The filer's own reported money-out total, or ``None`` twice.
 
-    Rule 12's second number for money out. ``None`` when no filings snapshot is
-    published, and for a special-election filer-year the totals copy cannot speak
-    for -- the same rule as ``_reported_contributions``, because both figures come
-    off the same filing.
+    The same rule as ``_reported_contributions``, off the same filing.
     """
-    for entry in reader.reported_expenditures(db, registration_number, years=[year]):
-        if entry.year == year and entry.comparable:
-            return entry.total, entry.reported_through
-    return None, None
+    return _filed_figure(
+        db, registration_number, year, reported, "reported_expenditures"
+    )
 
 
 def _in_kind_out(
@@ -573,7 +611,12 @@ def _in_kind_out(
 
 
 def money_out(
-    db: Session, release: Release, *, registration_number: str, year: int
+    db: Session,
+    release: Release,
+    *,
+    registration_number: str,
+    year: int,
+    reported: ReportedTotalsContext | None = None,
 ) -> MoneyOut:
     """Itemized payments out for one committee in one year.
 
@@ -582,10 +625,13 @@ def money_out(
     ``Campaign Expenditure`` by a candidate committee and ``General Expenditure`` by a
     party unit, so any single-label filter reports one kind of filer as having spent
     nothing (§2.1).
+
+    ``reported`` is the same already-read filed figures ``money_in`` takes, and for the
+    same reason: both numbers come off one filing, so one read serves both (#1966).
     """
     source_url = release.expenditures.source_url
     reported_total, reported_through = _reported_expenditures(
-        db, registration_number, year
+        db, registration_number, year, reported
     )
     # Read on every path, including the ones that carry no figure. A committee-year
     # we hold no rows for is exactly the case the check is sharpest about -- 17 of
@@ -697,16 +743,28 @@ def committee_finance(
     committee = find_committee(db, release, registration_number)
     if committee is None:
         return None
+    # One narrowed read of this committee-year's own filing, shared by both cards:
+    # money in and money out are 2 lines of the same filed report, so reading it twice
+    # bought nothing and cost a second trip (#1966).
+    reported = filings.reported_totals_for(db, [registration_number], years=[year])
     return CommitteeFinance(
         committee=committee,
         year=year,
         release_id=release.id,
         fetched_at=release.fetched_at,
         money_in=money_in(
-            db, release, registration_number=registration_number, year=year
+            db,
+            release,
+            registration_number=registration_number,
+            year=year,
+            reported=reported,
         ),
         money_out=money_out(
-            db, release, registration_number=registration_number, year=year
+            db,
+            release,
+            registration_number=registration_number,
+            year=year,
+            reported=reported,
         ),
         independent_spending=independent_spending_about(
             db, release, committee=committee, year=year
