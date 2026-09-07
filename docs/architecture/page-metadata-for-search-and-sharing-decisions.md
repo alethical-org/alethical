@@ -1557,7 +1557,7 @@ the live release on 4 Sep 2026, Chrome, every cache warm, empty browser cache
 
 On the same day that read cost 541 ms when Cloudflare missed, against 1,265 ms on
 `/campaign-finance/races?year=2026` and 2,975 ms on `/campaign-finance/outside-spending`. Those 3
-are 0.10 s, 0.71 s and 0.46 s at the direct origin now that the reads behind them ask only for what
+are 0.43 s, 0.71 s and 0.46 s at the direct origin now that the reads behind them ask only for what
 the answer needs ([#1966](https://github.com/alethical-org/alethical/issues/1966), measured 7 Sep
 2026), so the second fetch this section removes is worth what a fast read costs rather than what a
 slow one did. `/money/races` was the worst of it: 225 KB of served body describing 778 committees,
