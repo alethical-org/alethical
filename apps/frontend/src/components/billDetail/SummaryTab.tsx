@@ -8,11 +8,12 @@ import {
   plainBillSummary,
   plainKeyPoints,
   scopedChipQuery,
+  billOverviewUrl,
   suggestedQuestionIndex,
 } from '../../lib/billDetail';
 import { citationSectionAnchor, citationSectionHref } from '../../lib/billText';
 import { usePrefetchSuggestedAnswer } from '../../hooks/useAppQueries';
-import { linkProps, routePath } from '../../navigation/links';
+import { externalLinkProps, linkProps, routePath } from '../../navigation/links';
 import { CitationCard, SuggestedQuestionChip } from './CitationCard';
 import { FactsRail } from './FactsRail';
 import { SourceLine } from './SourceLine';
@@ -53,6 +54,8 @@ export function SummaryTab({
   // (grounded-answers rule 9). Full text, not a first sentence: this is the tab
   // whose job is showing the whole summary.
   const summary = plainBillSummary(bill.aiAnalysis?.summary);
+  const officialDescription = bill.officialDescription?.trim() ? bill.officialDescription : '';
+  const overviewUrl = billOverviewUrl(bill.officialLinks?.[0]?.url);
   const citations = bill.citations ?? [];
   const { chips: askChipList } = askCardPrompts(bill.questionPrompts);
 
@@ -81,6 +84,21 @@ export function SummaryTab({
                 Summary
               </Text>
               <Text style={styles.summaryText}>{summary}</Text>
+            </>
+          ) : officialDescription ? (
+            <>
+              <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
+                Official description
+              </Text>
+              <Text style={styles.summaryText}>{officialDescription}</Text>
+              {overviewUrl ? (
+                <Text
+                  {...externalLinkProps(overviewUrl, () => onOpenUrl(overviewUrl))}
+                  style={styles.officialDescriptionLink}
+                >
+                  Official bill page
+                </Text>
+              ) : null}
             </>
           ) : null}
 
@@ -257,6 +275,15 @@ const styles = StyleSheet.create({
     fontSize: t.fontSizes.subhead,
     lineHeight: 28,
     color: '#2c322c',
+  },
+  officialDescriptionLink: {
+    marginTop: 12,
+    alignSelf: 'flex-start',
+    fontFamily: t.typography.ui,
+    fontSize: t.fontSizes.body,
+    fontWeight: t.fontWeights.bold,
+    color: t.colors.brand.forest,
+    textDecorationLine: 'underline',
   },
   fromBillHead: {
     marginTop: 36,

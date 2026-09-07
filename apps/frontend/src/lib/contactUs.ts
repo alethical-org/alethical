@@ -1,3 +1,36 @@
+import type { PageSnapshot } from './pageSnapshot';
+
+export const CONTACT_PAGE_HEADING = 'Contact us';
+export const CONTACT_PAGE_SUBTITLE =
+  "Questions about a bill, corrections to something we've published, or anything else";
+export const CONTACT_EMAIL = 'ask@alethical.com';
+export const CONTACT_SOCIALS = [
+  {
+    label: 'Facebook',
+    url: 'https://www.facebook.com/people/Alethical/61588261592240/',
+  },
+  {
+    label: 'LinkedIn',
+    url: 'https://www.linkedin.com/company/alethical',
+  },
+  { label: 'X', url: 'https://x.com/alethical' },
+] as const;
+
+export function contactPageSnapshot(): PageSnapshot {
+  return {
+    heading: CONTACT_PAGE_HEADING,
+    subheading: CONTACT_PAGE_SUBTITLE,
+    bodyHeading: '',
+    body: [],
+    facts: [],
+    bodyIsList: false,
+    links: [
+      { label: CONTACT_EMAIL, href: `mailto:${CONTACT_EMAIL}` },
+      ...CONTACT_SOCIALS.map((social) => ({ label: social.label, href: social.url })),
+    ],
+  };
+}
+
 export const CONTACT_FIELD_ORDER = ['name', 'email', 'phone', 'subject', 'message'] as const;
 
 export type ContactField = (typeof CONTACT_FIELD_ORDER)[number];

@@ -67,8 +67,8 @@ describe('checkFirstLoadBudget', () => {
   it('holds a limit no bigger than what the build produces today', () => {
     // A limit far above the real size would let the file grow back unnoticed,
     // which is the whole reason this check exists.
-    // Admin route/menu permissions add 865 measured bytes; private account
-    // parsing still loads only with its screen (see the performance decisions).
+    // The combined account and SEO hosted build measures 389,521 bytes;
+    // private account parsing still loads only with its screen.
     expect(FIRST_LOAD_LIMIT).toBeLessThanOrEqual(390000);
   });
 });

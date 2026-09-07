@@ -3,6 +3,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
+import { CONTACT_EMAIL, CONTACT_SOCIALS } from '../../../lib/contactUs';
+
 const SCREEN = readFileSync(
   join(dirname(fileURLToPath(import.meta.url)), '..', 'ContactUsScreen.tsx'),
   'utf8',
@@ -70,7 +72,8 @@ describe('Contact us screen contract', () => {
     expect(SCREEN).toContain('strokeWidth={2.4}');
     expect(SCREEN).toContain('width={isMobile ? 24 : 26}');
     expect(SCREEN).toContain('height={isMobile ? 24 : 26}');
-    expect(SCREEN).toContain('On its way to ask@alethical.com');
+    expect(SCREEN).toContain('On its way to {CONTACT_EMAIL}');
+    expect(CONTACT_EMAIL).toBe('ask@alethical.com');
     expect(SCREEN).not.toContain('<Text style={styles.sentMark}>✓</Text>');
     expect(SCREEN).not.toContain('It&apos;s on its way');
     expect(SCREEN).toContain('isMobile && styles.sentPanelMobile');
@@ -94,7 +97,7 @@ describe('Contact us screen contract', () => {
     expect(failureIndex).toBeGreaterThan(buttonIndex);
     expect(SCREEN).toContain('Try again, or email');
     expect(SCREEN).toContain('function FailureEmailLink()');
-    expect(SCREEN).toContain("const mailto = 'mailto:ask@alethical.com'");
+    expect(SCREEN).toContain('const mailto = `mailto:${CONTACT_EMAIL}`');
     expect(SCREEN).toContain('isMobile && styles.failureRowMobile');
     expect(SCREEN).toContain('isMobile && styles.failureTextMobile');
     expect(failureRowStyle).toContain('marginTop: 18');
@@ -121,9 +124,12 @@ describe('Contact us screen contract', () => {
 
   it('uses the accepted dark social marks and approved destinations', () => {
     expect(SCREEN).not.toContain('linkedin-round.png');
-    expect(SCREEN).toContain('https://www.facebook.com/people/Alethical/61588261592240/');
-    expect(SCREEN).toContain('https://www.linkedin.com/company/alethical');
-    expect(SCREEN).toContain('https://x.com/alethical');
+    expect(SCREEN).toContain('CONTACT_SOCIALS.map');
+    expect(CONTACT_SOCIALS.map((social) => social.url)).toEqual([
+      'https://www.facebook.com/people/Alethical/61588261592240/',
+      'https://www.linkedin.com/company/alethical',
+      'https://x.com/alethical',
+    ]);
     expect(SCREEN).toMatch(
       /<Svg\s+width=\{24\}\s+height=\{24\}\s+viewBox="0 0 24 24"\s+fill=\{t\.colors\.ink\}\s+aria-hidden/,
     );

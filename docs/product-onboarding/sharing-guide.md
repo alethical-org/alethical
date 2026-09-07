@@ -19,6 +19,10 @@ official statutory title, which is a paragraph of legal cross-references
 (`.claude/rules/grounded-answers.md` rule 10). A bill without a generated summary uses an honest
 fixed description instead.
 
+Dotted abbreviations such as `U.S. citizens` and `U.S. Department` stay inside
+the complete summary sentence. Decimal numbers and closing quotation marks also
+survive the sentence cut; the words are never rewritten for a search preview.
+
 A legislator's title carries no party label. District and chamber identify a person just as well,
 never go stale mid-term, and keep a partisan word out of a link preview or a search result read on
 its own.
@@ -105,9 +109,16 @@ where an address would otherwise show a reader nothing at all until the app arri
 page's own explanation. Serving those words changes nothing about whether a search engine may list
 the address.
 
+When a bill has neither key points nor a generated summary, its first response
+and Summary section show the unchanged filed description under **Official
+description**, with an **Official bill page** link. They never substitute the
+long statutory title. The search-description fallback remains the honest fixed
+sentence described above.
+
 The **campaign money** section carries the same first-response text. `/money` arrives with its heading, its one
 sentence, the register's size counted live, the day we last copied the Board's files, what the record
-does not cover, and links into the 2 lanes that lead somewhere. **`/money/committees` arrives with an
+does not cover, and links into the 4 indexable destinations: legislators, committees,
+races and outside spending. **`/money/committees` arrives with an
 ordinary link to every committee on the page**, 50 at a time on numbered addresses — the load-bearing
 part: behind a "Show more" button Google will not press, 1,553 of the 1,603 committee pages
 would have no link anywhere on the site. **One committee**
@@ -136,6 +147,14 @@ Those last 2 pages used to arrive with a title and nothing else, so a reader loo
 page for about 2 seconds, and on the outside-spending page for as long as 3.
 
 ## The records arrive with the page too
+
+The homepage links directly to `/money` and `/read`, as well as bills,
+legislators and Find My Legislator. A legislator response also includes up to 2
+current-session chief-authored bill links when available. `/about` and
+`/about/contact` arrive with their own shared public text and contact links;
+private Track links, roadmap promises and the interactive contact form stay out
+of those initial snapshots. The bare outside-spending address is in the sitemap,
+while its filtered addresses retain their existing exclusion.
 
 Building the words above means reading the same records the page itself needs, so those records now
 travel in the same response and the page draws them straight away. Before this, the app asked for

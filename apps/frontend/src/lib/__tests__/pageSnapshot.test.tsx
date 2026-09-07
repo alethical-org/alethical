@@ -122,6 +122,8 @@ const {
   FILES_LAST_COPIED_NOTE,
   MONEY_LANDING_HEADING,
   MONEY_LANDING_SUBTITLE,
+  MONEY_LANE_BY_RACE,
+  MONEY_LANE_OUTSIDE_SPENDING,
   RECORD_DOES_NOT_COVER,
 } = await import('../moneyLanding');
 const {
@@ -274,6 +276,50 @@ describe('the bill snapshot says only what the app then draws', () => {
     expect(drawnTextNodes(appHtml(withoutKeyPoints))).toContain(prose.body[0]);
   });
 
+  it('falls back to the exact official description, with its official source', () => {
+    const officialDescription =
+      'Data centers sales and use tax exemption repealed, and contingent reduction in special education aid appropriations repealed.';
+    const statutoryTitle =
+      'A bill for an act relating to taxation; repealing several provisions; appropriating money.';
+    const payload = {
+      ...billFixture,
+      id: '94-2026-HF5125',
+      title: statutoryTitle,
+      description: officialDescription,
+      ai_analysis: null,
+      official_url: 'https://www.revisor.mn.gov/bills/94/2026/0/HF/5125/versions/0/',
+    };
+    const bill = mapBillDetail(payload as never, []);
+    const fallback = billPageSnapshot(payload as never);
+    const drawn = drawnTextNodes(appHtml(payload));
+
+    expect(bill.officialDescription).toBe(officialDescription);
+    expect(fallback.heading).toBe('HF 5125');
+    expect(fallback.bodyHeading).toBe('Official description');
+    expect(fallback.body).toEqual([officialDescription]);
+    expect(drawn).toContain('Official description');
+    expect(drawn).toContain(officialDescription);
+    expect(appHtml(payload)).toContain('>Official bill page</a>');
+    expect(fallback.links).toContainEqual({
+      label: 'Official bill page',
+      href: 'https://www.revisor.mn.gov/bills/94/2026/0/HF/5125/',
+    });
+    expect(renderPageSnapshot(fallback)).not.toContain(statutoryTitle);
+  });
+
+  it('keeps AI key points and AI summary ahead of the official description', () => {
+    const withDescription = { ...billFixture, description: 'Official filed words.' };
+    const summaryOnly = {
+      ...withoutKeyPoints,
+      description: 'Official filed words.',
+    };
+
+    expect(billPageSnapshot(withDescription as never).bodyHeading).toBe('Key points');
+    expect(billPageSnapshot(withDescription as never).body).not.toContain('Official filed words.');
+    expect(billPageSnapshot(summaryOnly as never).bodyHeading).toBe('Summary');
+    expect(billPageSnapshot(summaryOnly as never).body).not.toContain('Official filed words.');
+  });
+
   it('links only where the app links, to the same address', () => {
     const rendered = renderPageSnapshot(snapshot);
     const drawnHtml = appHtml();
@@ -350,7 +396,8 @@ describe('the bill snapshot says only what the app then draws', () => {
     // to the 400-character statutory title that rule 10 keeps off the page.
     const unenriched = billPageSnapshot({ ...billFixture, ai_analysis: null } as never);
     expect(unenriched.heading).toBe('HF 719');
-    expect(unenriched.body).toEqual([]);
+    expect(unenriched.bodyHeading).toBe('Official description');
+    expect(unenriched.body).toEqual([billFixture.description]);
     expect(renderPageSnapshot(unenriched)).not.toContain(billFixture.title.slice(0, 40));
 
     const bare = billPageSnapshot({ id: '94-2025-HF719' });
@@ -420,6 +467,62 @@ describe('the legislator snapshot says only what the profile draws', () => {
     const official = snapshot.links.find((link) => link.label === 'Official House profile');
     expect(official?.href).toBe(legislatorFixture.current_service.profile_url);
     expect(snapshot.links.some((link) => link.href === '/legislators')).toBe(true);
+  });
+
+  it('links at most 2 chief-authored bills from the current-session response', () => {
+    const bills = [
+      {
+        id: '94-2025-HF101',
+        ai_analysis: { short_title: 'Clean Water Updates' },
+        current_status: 'Referred to Environment and Natural Resources Finance and Policy',
+        status_key: 'in_committee',
+        session: { name: '94th Legislature', year_start: 2025, year_end: 2026 },
+      },
+      {
+        id: '94-2025-HF202',
+        ai_analysis: { short_title: 'School Lunch Funding' },
+        current_status: 'Introduction and first reading',
+        status_key: 'introduced',
+        session: { name: '94th Legislature', year_start: 2025, year_end: 2026 },
+      },
+      {
+        id: '94-2025-HF303',
+        ai_analysis: { short_title: 'Third Bill Must Not Appear' },
+        current_status: 'Introduction and first reading',
+        status_key: 'introduced',
+      },
+    ];
+    const withBills = legislatorPageSnapshot(legislatorFixture as never, bills);
+    const section = withBills.sections?.find(
+      (candidate) => candidate.heading === 'Chief-Authored Bills',
+    );
+
+    expect(section?.items).toEqual([
+      {
+        label: 'HF 101',
+        detail: 'Clean Water Updates · 2025–26 Legislative Session',
+        href: '/bills/94-2025-HF101',
+      },
+      {
+        label: 'HF 202',
+        detail: 'School Lunch Funding · 2025–26 Legislative Session',
+        href: '/bills/94-2025-HF202',
+      },
+    ]);
+    const html = renderPageSnapshot(withBills);
+    expect(html).toContain('<h2>Chief-Authored Bills</h2>');
+    expect(html.match(/href="\/bills\/94-2025-HF/g)).toHaveLength(2);
+    expect(html).not.toContain('Third Bill Must Not Appear');
+  });
+
+  it('omits the chief-authored bill block when no successful rows were served', () => {
+    for (const bills of [undefined, null, []] as const) {
+      const sparse = legislatorPageSnapshot(legislatorFixture as never, bills);
+      expect(sparse.sections?.some((section) => section.heading === 'Chief-Authored Bills')).toBe(
+        false,
+      );
+      expect(renderPageSnapshot(sparse)).not.toContain('Chief-Authored Bills');
+    }
   });
 });
 
@@ -922,10 +1025,24 @@ describe('the money landing serves the section’s own words and a live count', 
     expect(snapshot.body).toEqual([MONEY_LANDING_SUBTITLE]);
   });
 
-  it('links the 2 lanes that lead somewhere, and only those', () => {
+  it('links every indexable lane the loaded page links', () => {
     expect(snapshot.records?.map((record) => record.href)).toEqual([
       '/legislators',
       '/money/committees',
+      '/money/races',
+      '/money/outside-spending',
+    ]);
+    expect(snapshot.records?.slice(2)).toEqual([
+      {
+        label: MONEY_LANE_BY_RACE.title,
+        detail: MONEY_LANE_BY_RACE.body,
+        href: '/money/races',
+      },
+      {
+        label: MONEY_LANE_OUTSIDE_SPENDING.title,
+        detail: MONEY_LANE_OUTSIDE_SPENDING.body,
+        href: '/money/outside-spending',
+      },
     ]);
   });
 
@@ -1429,6 +1546,8 @@ describe('the money screens keep reading the helpers the server reads', () => {
       'MONEY_LANDING_SUBTITLE',
       'MONEY_LANE_COMMITTEES',
       'MONEY_LANE_LEGISLATORS',
+      'MONEY_LANE_BY_RACE',
+      'MONEY_LANE_OUTSIDE_SPENDING',
       'FILES_LAST_COPIED_NOTE',
     ]) {
       expect(landing).toContain(constant);
@@ -1438,6 +1557,18 @@ describe('the money screens keep reading the helpers the server reads', () => {
 });
 
 describe('rendering', () => {
+  it('puts every public home destination in the first response', () => {
+    const snapshot = homePageSnapshot();
+
+    expect(snapshot.links).toEqual([
+      { label: 'Search Bills', href: '/bills' },
+      { label: 'Search Legislators', href: '/legislators' },
+      { label: 'Find My Legislator', href: '/find-my-legislator' },
+      { label: 'Money in politics', href: '/money' },
+      { label: READ_PAGE_NAME, href: '/read' },
+    ]);
+  });
+
   it('escapes every stored string it prints', () => {
     const hostile = billPageSnapshot({
       id: '94-2025-HF1',

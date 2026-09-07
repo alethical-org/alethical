@@ -1377,7 +1377,7 @@ export function latestActionEntry(
   const { rows } = buildActionTimeline(actions, [], now, undefined, sponsors);
   const row = headlineRow(rows);
   if (!row) return null;
-  return { label: compactRowLabel(row), date: formatNiceDate(row.date), kind: row.kind };
+  return { label: compactRowLabel(row), date: compactRowDate(row), kind: row.kind };
 }
 
 // The one row that speaks for a set of timeline rows. Enacted status is terminal
@@ -1426,6 +1426,16 @@ function compactRowLabel(row: TimelineRow): string {
     return `${row.authors!.length} co-authors added`;
   }
   return row.title;
+}
+
+// A collapsed co-author row can cover several days. Its one-line summary must
+// carry both dates too, or the first day reads as the date when every named
+// person was added. Single-day and undated rows keep their existing display.
+function compactRowDate(row: TimelineRow): string {
+  const range = row.dateRange?.split(' – ');
+  return range?.length === 2
+    ? `${formatNiceDate(range[0])} – ${formatNiceDate(range[1])}`
+    : formatNiceDate(row.date);
 }
 
 /** What a bill did since a reader last looked at their tracked list (#1009). */
@@ -1483,7 +1493,7 @@ export function changesSince(actions: BillAction[], since: Date, now: Date): Bil
   if (!row) return null;
   return {
     label: compactRowLabel(row),
-    date: formatNiceDate(row.date),
+    date: compactRowDate(row),
     kind: row.kind,
     earlierCount: changed.length - 1,
   };
@@ -1863,8 +1873,28 @@ export function readLabel(linksToTheLaw: boolean): string {
 export function firstSentence(text: string | null | undefined): string {
   const s = (text ?? '').trim();
   if (!s) return '';
-  const m = s.match(/^.*?[.!?](?=\s|$)/);
-  return (m ? m[0] : s).trim();
+
+  for (let index = 0; index < s.length; index += 1) {
+    const mark = s[index];
+    if (mark !== '.' && mark !== '!' && mark !== '?') continue;
+
+    let end = index + 1;
+    while (/^["'”’\)\]}]$/.test(s[end] ?? '')) end += 1;
+
+    // Punctuation inside a word or number (including a decimal) is not a boundary.
+    if (end < s.length && !/\s/.test(s[end])) continue;
+
+    // The final dot in an initialism belongs to the word when more prose
+    // follows, whether that next word starts lower-case (`U.S. citizens`) or
+    // upper-case (`U.S. Department`). No lookbehind, so Hermes can run it too.
+    const hasMoreText = s.slice(end).trim().length > 0;
+    const isInitialism = /(?:^|[^A-Za-z])(?:[A-Za-z]\.){2,}$/.test(s.slice(0, index + 1));
+    if (mark === '.' && end === index + 1 && hasMoreText && isInitialism) continue;
+
+    return s.slice(0, end).trim();
+  }
+
+  return s;
 }
 
 // Present an AI bill summary as a clean, plain-language line: drop the leading

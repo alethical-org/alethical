@@ -35,6 +35,10 @@ locations stay visible. On web, **From the bill** cards show the matching quoted
 passages. On phone, the lighter **CITED SECTIONS** strip links to Bill Text without
 putting long quotations ahead of the record.
 
+When Alethical has no key points or summary, the Summary view shows the Legislature's
+filed short description word-for-word under **Official description**, with an
+**Official bill page** link beside it. The statutory title never fills this space.
+
 A cited location opens the exact Bill Text section and highlights it. The link carries
 both the source id and its position because the Minnesota Revisor can reuse 1 id for
 several sections. If the exact section no longer resolves, the product uses the official
@@ -49,6 +53,9 @@ an effective date when the record cannot prove 1.
 
 Actions are shown newest first and rewritten into plain language without changing the
 recorded facts.
+
+Consecutive co-author additions stay grouped in 1 row. When that group spans several
+days, both the Actions view and its latest-action summary show the full date range.
 
 - Green marks an enacted milestone.
 - Black marks a recorded vote.

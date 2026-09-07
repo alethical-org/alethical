@@ -1784,3 +1784,56 @@ fixed, and the accessibility tree carries no stray text. `visibility: hidden` ra
 - **It does not change the app's typeface anywhere.**
 - **It does not touch `display=swap` on the Google Fonts request**, which the app still wants:
   turning it off would hold the app's own text back rather than let it paint.
+
+## 25. Public sections and authored bills are linked in the first response
+
+[Issue 2013](https://github.com/alethical-org/alethical/issues/2013) covers the
+search-discovery and page-delivery repairs. The dated measurements are in
+[seo-indexing-audit-2026-09-07.md](../research/seo-indexing-audit-2026-09-07.md).
+
+The homepage's first response links to `/bills`, `/legislators`,
+`/find-my-legislator`, `/money` and `/read`, using the existing visible link
+labels. The static shell and `homePageSnapshot` carry the same links, protected
+by their existing exact-match test. The homepage remains a static response.
+
+The `/money` response links to every indexable destination its current cards
+offer: `/legislators`, `/money/committees`, `/money/races` and
+`/money/outside-spending`. The card labels and descriptions come from the same
+shared wording the loaded screen uses. The name-search destination retains its
+existing exclusion. The bare `/money/outside-spending` address is included in
+the pages sitemap; its filtered addresses are not.
+
+A legislator response includes up to 2 chief-authored bills under the existing
+**Chief-Authored Bills** heading. It reads the same current-session list as the
+loaded profile, in parallel with the member's identity and contact details.
+Bill links use their stored plain-language title and existing directory
+formatting, never the statutory title. An unavailable or empty bill list omits
+this extra section. It does not claim that the member authored no bills, and
+does not turn a valid profile into a missing page.
+
+These links expose existing records. They do not create topic pages, generated
+writing, additional query combinations or a ranking promise. Private pages,
+question addresses, canonical handling and the short data-freshness window
+retain their existing treatment.
+
+The `/about` and `/about/contact` responses also carry their own readable text.
+Pure shared modules supply the same words to the served snapshot and the loaded
+screen. `/about` includes the name origin, purpose, beliefs, public starting
+links and contact details. Private Track links and roadmap promises stay out of
+the snapshot. `/about/contact` carries its heading, explanation, email and social
+links; the interactive form and its send states belong to the loaded screen.
+Neither response needs a data-service request.
+
+Search descriptions and bill-card teasers preserve dotted initialisms such as
+`U.S. citizens` and `U.S. Department` within a sentence. The sentence cutter also
+preserves decimal numbers and closing quotation marks. It does not rewrite or
+invent summary text. The regression includes SF746's complete citizenship
+sentence, rather than ending the description at `U.S.`.
+
+When a bill has neither AI key points nor an AI summary, its unchanged official
+description appears under **Official description**, with an **Official bill
+page** link. The same precedence applies to the first response and both screen
+sizes. This uses the separate description field in the official record, never
+the long statutory title. Missing short titles still use the bill number in the
+heading and the number plus year in metadata. Missing AI summaries still use
+the honest fixed metadata description.

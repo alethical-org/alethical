@@ -17,6 +17,10 @@ import { sendContactMessageFromApi } from '../../data/api';
 import { useResponsive } from '../../hooks/useResponsive';
 import {
   CONTACT_FIELD_ORDER,
+  CONTACT_EMAIL,
+  CONTACT_PAGE_HEADING,
+  CONTACT_PAGE_SUBTITLE,
+  CONTACT_SOCIALS,
   ContactField,
   contactFormReducer,
   initialContactFormState,
@@ -30,18 +34,6 @@ import { browserFillInputProps } from '../../theme/browserFill';
 import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fieldFocus';
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { prefersReducedMotion, theme as t } from '../../theme/tokens';
-
-const SOCIALS = [
-  {
-    label: 'Facebook',
-    url: 'https://www.facebook.com/people/Alethical/61588261592240/',
-  },
-  {
-    label: 'LinkedIn',
-    url: 'https://www.linkedin.com/company/alethical',
-  },
-  { label: 'X', url: 'https://x.com/alethical' },
-] as const;
 
 const FIELD_LABELS: Record<ContactField, { label: string; optional?: boolean }> = {
   name: { label: 'YOUR NAME', optional: true },
@@ -67,9 +59,9 @@ function ContactEmailLink() {
   return (
     <Pressable
       accessibilityRole="link"
-      {...(Platform.OS === 'web' ? ({ href: 'mailto:ask@alethical.com' } as any) : {})}
+      {...(Platform.OS === 'web' ? ({ href: `mailto:${CONTACT_EMAIL}` } as any) : {})}
       onPress={
-        Platform.OS === 'web' ? undefined : () => void Linking.openURL('mailto:ask@alethical.com')
+        Platform.OS === 'web' ? undefined : () => void Linking.openURL(`mailto:${CONTACT_EMAIL}`)
       }
       onHoverIn={() => setHovered(true)}
       onHoverOut={() => setHovered(false)}
@@ -84,7 +76,7 @@ function ContactEmailLink() {
             (hovered || focused || pressed) && styles.emailLinkTextActive,
           ]}
         >
-          ask@alethical.com
+          {CONTACT_EMAIL}
         </Text>
       )}
     </Pressable>
@@ -93,7 +85,7 @@ function ContactEmailLink() {
 
 function FailureEmailLink() {
   const [active, setActive] = useState(false);
-  const mailto = 'mailto:ask@alethical.com';
+  const mailto = `mailto:${CONTACT_EMAIL}`;
 
   if (Platform.OS === 'web') {
     return createElement(
@@ -106,7 +98,7 @@ function FailureEmailLink() {
         onMouseLeave: () => setActive(false),
         style: StyleSheet.flatten([styles.failureLink, active && styles.failureLinkActive]) as any,
       },
-      'ask@alethical.com',
+      CONTACT_EMAIL,
     );
   }
 
@@ -116,7 +108,7 @@ function FailureEmailLink() {
       onPress={() => void Linking.openURL(mailto)}
       style={styles.failureLink}
     >
-      ask@alethical.com
+      {CONTACT_EMAIL}
     </Text>
   );
 }
@@ -328,10 +320,10 @@ export function ContactUsScreen({ navigation }: RootScreenProps<'ContactUs'>) {
             aria-level={1}
             style={[styles.title, isMobile && styles.titleMobile]}
           >
-            Contact us
+            {CONTACT_PAGE_HEADING}
           </Text>
           <Text style={[styles.subtitle, isMobile && styles.subtitleMobile]}>
-            Questions about a bill, corrections to something we&apos;ve published, or anything else
+            {CONTACT_PAGE_SUBTITLE}
           </Text>
 
           <View style={[styles.columns, isMobile && styles.columnsMobile]}>
@@ -363,7 +355,7 @@ export function ContactUsScreen({ navigation }: RootScreenProps<'ContactUs'>) {
                     Message sent
                   </Text>
                   <Text style={[styles.sentText, isMobile && styles.sentTextMobile]}>
-                    On its way to ask@alethical.com
+                    On its way to {CONTACT_EMAIL}
                   </Text>
                   <Pressable
                     accessibilityRole="button"
@@ -451,7 +443,7 @@ export function ContactUsScreen({ navigation }: RootScreenProps<'ContactUs'>) {
               <View style={[styles.infoCard, isMobile && styles.infoCardMobile]}>
                 <Text style={styles.cardEyebrow}>FOLLOW ALETHICAL</Text>
                 <View style={styles.socialRow}>
-                  {SOCIALS.map((social) => (
+                  {CONTACT_SOCIALS.map((social) => (
                     <Pressable
                       key={social.label}
                       {...externalLinkProps(social.url, () => void Linking.openURL(social.url))}

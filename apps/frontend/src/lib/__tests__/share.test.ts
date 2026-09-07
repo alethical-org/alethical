@@ -42,6 +42,21 @@ describe('shared page text', () => {
     );
   });
 
+  it('keeps the complete first sentence of the live SF 746 summary', () => {
+    const content = buildBillShareContent({
+      identifier: 'SF 746',
+      billId: '94-2025-SF746',
+      shortTitle: 'Peace Officers Must Be US Citizens',
+      summary:
+        "Sets a rule that new peace officer license applicants in Minnesota must be U.S. citizens. Officers who were already licensed without citizenship before July 1, 2025 can keep their license until June 30, 2027 if they meet every other requirement. Background checks on candidates for officer jobs must now include a check of citizenship status. It also takes the citizenship-rule authority away from the licensing board's rulemaking list, since the requirement is now spelled out directly in statute.",
+      url: publicPageUrl('/bills/94-2025-SF746'),
+    });
+
+    expect(content.description).toBe(
+      'Sets a rule that new peace officer license applicants in Minnesota must be U.S. citizens.',
+    );
+  });
+
   // A bill with no plain-language short title is named by its number and year and
   // nothing else. The statutory title it used to fall back to is a paragraph of
   // legal cross-references — exactly what grounded-answers rule 10 keeps off the page.
