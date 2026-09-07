@@ -196,7 +196,9 @@ describe('account-code dialog lifetime', () => {
       window.history.replaceState(null, '', `/#auth_screen=${requested}`);
       testState.isLoading = true;
       root = createRoot(mount);
-      act(() =>
+      // The dialog arrives on demand, so it mounts a microtask after this render
+      // rather than inside it (src/lib/loadOnDemand.tsx).
+      await act(async () =>
         root.render(
           <SignInModalProvider>
             <OpenSignInProbe />

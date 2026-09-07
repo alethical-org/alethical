@@ -9,18 +9,36 @@ import {
   productionBytes,
 } from '../check-first-load-budget.mjs';
 
+const BUILT_PAGE = `<html><body>
+  <div id="root"></div>
+  <script src="/_expo/static/js/web/__expo-metro-runtime-ghi.js" defer></script>
+  <script src="/_expo/static/js/web/__common-def.js" defer></script>
+  <script src="/_expo/static/js/web/index-abc.js" defer></script>
+</body></html>`;
+
 describe('firstLoadFiles', () => {
-  it('counts the files a page names in its HTML and no screen file', () => {
-    expect(
-      firstLoadFiles([
-        'index-abc.js',
-        '__common-def.js',
-        '__expo-metro-runtime-ghi.js',
-        'CommitteeListScreen-jkl.js',
-        'HomeSignedOutScreen-mno.js',
-        'index-abc.js.map',
-      ]).sort(),
-    ).toEqual(['__common-def.js', '__expo-metro-runtime-ghi.js', 'index-abc.js']);
+  it('counts the files the built page names', () => {
+    expect(firstLoadFiles(BUILT_PAGE).sort()).toEqual([
+      '__common-def.js',
+      '__expo-metro-runtime-ghi.js',
+      'index-abc.js',
+    ]);
+  });
+
+  it('never counts a file the page does not name, whatever it is called', () => {
+    // Every other built file is fetched later, by the part that needs it, and a
+    // reader downloads at most 1 of them per page. Counting them charged a
+    // reader 12,529 bytes for a sign-in dialog and an email-link page nobody
+    // had opened (#1976).
+    const named = firstLoadFiles(BUILT_PAGE);
+    expect(named).not.toContain('CommitteeListScreen-jkl.js');
+    expect(named).not.toContain('SignInDialog-pqr.js');
+    expect(named).not.toContain('EmailLinkPage-stu.js');
+    expect(named).not.toContain('index-abc.js.map');
+  });
+
+  it('reads nothing from a page with no program on it', () => {
+    expect(firstLoadFiles('<html><body><div id="root"></div></body></html>')).toEqual([]);
   });
 });
 
@@ -49,7 +67,7 @@ describe('checkFirstLoadBudget', () => {
   it('holds a limit no bigger than what the build produces today', () => {
     // A limit far above the real size would let the file grow back unnoticed,
     // which is the whole reason this check exists.
-    expect(FIRST_LOAD_LIMIT).toBeLessThanOrEqual(453000);
+    expect(FIRST_LOAD_LIMIT).toBeLessThanOrEqual(441000);
   });
 });
 

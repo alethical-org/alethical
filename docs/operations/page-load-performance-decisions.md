@@ -229,19 +229,45 @@ the top one, so the heaviest screen we have was being downloaded and run under e
 page: 17,736 bytes and the whole marketing page, for a reader who was never going to see it.
 `HomeRoute` now draws nothing while it is covered, and draws when a reader goes back to it.
 
-**How low this can go, measured rather than guessed.** Taking every movable thing out of the
-program every page needs — the sign-in client and screens, the bill-page formatting, the text
-of the published pieces, the committee-money display code — leaves 1,213,637 bytes of the
-1,588,478 the program holds, which is 333,927 bytes rather than 430,493 once compressed the
-way production compresses. Applied to the file a release actually ships that is about 324,000,
-and with the shared file, the runtime and a screen file a money page's floor is near 366,000
-bytes, so **the 300,000-byte target on
+**The sign-in surfaces arrive when somebody opens them.** The dialog and the email-link page
+are fetched after the app can draw rather than before
+([#1976](https://github.com/alethical-org/alethical/issues/1976)). The dialog is still
+rendered on every page, so its open, close and reset behaviour is unchanged; only its arrival
+moved. Measured on the production build at the settings Vercel compresses with: a page's 3
+named files went from 451,044 bytes to 439,253, so every reader receives 11,791 fewer bytes
+before anything can draw.
+
+**Moving code out of the program every page needs usually saves a reader nothing, and this is
+the trap to know about before planning any more of it.** A page names 3 files, and 1 of them
+is the shared file holding parts that more than 1 screen uses. Code taken out of the main
+program does not leave the first load; it lands in that shared file, which every page
+downloads too. Two measurements, both on the production build:
+
+- Taking the committee-money library out of the router's reach, which counting source bytes
+  said was worth 5,697, saved **21 bytes**: the main program lost 32 and the shared file
+  gained 11.
+- The sign-in change above was worth 65,896 by the same counting method. The main program
+  lost 36,680 and the shared file gained 24,889, so a reader received **11,791** fewer.
+
+So a saving is only real when the code ends up somewhere a reader does not always fetch,
+which means being wanted by exactly 1 screen. Counting bytes in the main program measures
+where code sits, never what a reader downloads. **The way to tell the difference is to build
+it and read the 3 named files**, which is what `apps/frontend/scripts/check-first-load-budget.mjs`
+reports on every build.
+
+**How low this can go, measured rather than guessed.** Counting every movable thing out of the
+program every page needs gives about 324,000 bytes for that file, and with the shared file, the
+runtime and a screen file a money page's floor is near 366,000, so **the 300,000-byte target on
 [#1966](https://github.com/alethical-org/alethical/issues/1966) is not reachable by loading
-things later.** What is left below that floor is the framework the whole app is built
-on: `react-native-web` 249,244 minified bytes, `react-dom` 178,881, React Navigation about
-158,000, the query library 79,724 and `react-native-svg` 47,415. Reaching 300,000 would mean
-changing that foundation, not deferring more of our own code.
-[#1976](https://github.com/alethical-org/alethical/issues/1976) owns the movable part.
+things later.** Read that floor as the best case if every one of those moves also escaped the
+shared file, which the 2 measurements above say most of them will not. What is left below the
+floor is the framework the whole app is built on: `react-native-web` 249,244 minified bytes,
+`react-dom` 178,881, React Navigation about 158,000, the query library 79,724 and
+`react-native-svg` 47,415. Reaching 300,000 would mean changing that foundation, not deferring
+more of our own code.
+[#1976](https://github.com/alethical-org/alethical/issues/1976) owns what is left of the
+movable part, which after the sign-in change is much smaller than counting source bytes
+suggests.
 
 The 2 costs, both accepted:
 
