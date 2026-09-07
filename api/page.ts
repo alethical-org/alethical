@@ -798,6 +798,8 @@ async function contentFor(
   const target = targetFromPathname(pathWithQuery(query));
 
   switch (target.kind) {
+    case "adminUsers":
+      return headOnly(STATIC_PAGE_METADATA["/admin/users"]);
     case "bill":
       return billContent(target.billId);
     case "legislator":
@@ -977,6 +979,7 @@ export default async function handler(
   const isEmailLinkPage =
     requestedPath === "/confirm" || requestedPath === "/reset";
   const isForgotPasswordBridge = requestedPath === "/forgot-password";
+  const isAdminPage = targetFromPathname(requestedPath).kind === "adminUsers";
 
   let content: PageContent;
   let status = 200;
@@ -1004,6 +1007,12 @@ export default async function handler(
   let html: string;
   try {
     html = injectPageHead(await pageShell(), content.metadata);
+    if (isAdminPage) {
+      html = html.replace(
+        /<script\b[^>]*src=["']https:\/\/static\.cloudflareinsights\.com\/beacon\.min\.js["'][^>]*>[\s\S]*?<\/script>/gi,
+        "",
+      );
+    }
     if (isEmailLinkPage) {
       html = protectedEmailLinkShell(html);
     } else if (isForgotPasswordBridge) {
@@ -1041,8 +1050,11 @@ export default async function handler(
   }
 
   response.setHeader("Content-Type", "text/html; charset=utf-8");
-  if (isEmailLinkPage || isForgotPasswordBridge) {
-    response.setHeader("Cache-Control", "no-store");
+  if (isEmailLinkPage || isForgotPasswordBridge || isAdminPage) {
+    response.setHeader(
+      "Cache-Control",
+      isAdminPage ? "private, no-store" : "no-store",
+    );
     response.setHeader("Referrer-Policy", "no-referrer");
     response.setHeader("X-Robots-Tag", "noindex, nofollow");
     response.status(status).send(html);

@@ -1,4 +1,5 @@
 import { Platform } from 'react-native';
+import { adminAccessFromPayload } from '../lib/adminAccess';
 import {
   completeDanglingTitle,
   completeStatusText,
@@ -784,7 +785,11 @@ function publicApiUrl(path: string) {
   return `${API_BASE_URL}${path}`;
 }
 
-async function apiRequest<T>(path: string, init: RequestInit, accessToken: string): Promise<T> {
+export async function apiRequest<T>(
+  path: string,
+  init: RequestInit,
+  accessToken: string,
+): Promise<T> {
   const response = await fetch(apiUrl(path), {
     ...init,
     headers: {
@@ -815,6 +820,16 @@ async function apiRequest<T>(path: string, init: RequestInit, accessToken: strin
   }
 
   return (await response.json()) as T;
+}
+
+export async function getAdminAccessFromApi(accessToken: string, signal?: AbortSignal) {
+  return adminAccessFromPayload(
+    await apiRequest<unknown>(
+      '/admin/access',
+      { method: 'GET', cache: 'no-store', signal },
+      accessToken,
+    ),
+  );
 }
 
 async function publicApiRequest<T>(path: string): Promise<T> {

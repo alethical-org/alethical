@@ -46,10 +46,10 @@ describe('checkFirstLoadBudget', () => {
   it('passes when the first load fits', () => {
     expect(
       checkFirstLoadBudget([
-        { name: 'index-abc.js', bytes: 400000 },
+        { name: 'index-abc.js', bytes: 300000 },
         { name: '__common-def.js', bytes: 40000 },
       ]),
-    ).toBe(440000);
+    ).toBe(340000);
   });
 
   it('fails, and names the biggest file, when the first load grows past the limit', () => {
@@ -67,7 +67,9 @@ describe('checkFirstLoadBudget', () => {
   it('holds a limit no bigger than what the build produces today', () => {
     // A limit far above the real size would let the file grow back unnoticed,
     // which is the whole reason this check exists.
-    expect(FIRST_LOAD_LIMIT).toBeLessThanOrEqual(441000);
+    // Admin route/menu permissions add 865 measured bytes; private account
+    // parsing still loads only with its screen (see the performance decisions).
+    expect(FIRST_LOAD_LIMIT).toBeLessThanOrEqual(390000);
   });
 });
 

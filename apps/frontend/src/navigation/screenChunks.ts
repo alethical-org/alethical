@@ -75,6 +75,8 @@ export const screenChunks = {
       default: m.CommitteePaymentsScreen,
     })),
   Privacy: () => import('../screens/LegalScreens').then((m) => ({ default: m.PrivacyScreen })),
+  AdminUsers: () =>
+    import('../screens/redesign/AdminUsersScreen').then((m) => ({ default: m.AdminUsersScreen })),
   Terms: () => import('../screens/LegalScreens').then((m) => ({ default: m.TermsScreen })),
   SiteMetrics: () => import('../screens/TrafficScreen').then((m) => ({ default: m.TrafficScreen })),
   AboutUs: () =>

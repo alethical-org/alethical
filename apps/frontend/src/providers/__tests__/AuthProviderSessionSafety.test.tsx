@@ -4,6 +4,7 @@ import { act } from 'react';
 import { createRoot } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { loadSignInBundle } from '../../lib/auth/loadSignInBundle';
 import {
   providerSessionIdentity,
   resetProviderSessionRejectionsForTests,
@@ -29,6 +30,11 @@ const testState = vi.hoisted(() => ({
   restoreReply: Promise.resolve({ session: null, errorMessage: null }) as Promise<any>,
   storedSession: null as any,
   validationReplies: new Map<string, Promise<any>>(),
+  signInPendingOnLoad: true,
+  bundlePromise: null as Promise<any> | null,
+  nextBundleReply: null as Promise<any> | null,
+  bundleRequestListeners: new Set<() => void>(),
+  unsubscribeAuth: vi.fn(),
 }));
 
 vi.mock('../../data/api', () => ({
@@ -69,29 +75,60 @@ vi.mock('../../lib/authRestore', () => ({
   restoreAuthSession: vi.fn(() => testState.restoreReply),
 }));
 
-vi.mock('../../lib/supabase', () => ({
-  clearOrdinarySessionIfUnchanged: vi.fn(() => {
-    const reply = testState.clearSessionReplies.shift();
-    return reply ?? Promise.resolve(false);
-  }),
-  isSupabaseConfigured: true,
+// The sign-in client is fetched rather than imported (#1976), so these tests
+// stand in for the fetch. Mocking the fetch instead of `lib/supabase` is also
+// what keeps the sign-in dialog and the email-link page out of this file.
+const signInBundle = vi.hoisted(() => ({
+  clearOrdinarySessionIfUnchanged: vi.fn(),
   passwordClientForOrdinarySession: vi.fn(() => ({})),
+  signOutOrdinarySessionIfUnchanged: vi.fn(async () => ({ changed: false, error: null })),
   supabase: {
     auth: {
-      getSession: vi.fn(() => {
-        const reply = testState.getSessionReplies.shift();
-        return (
-          reply ?? Promise.resolve({ data: { session: testState.storedSession }, error: null })
-        );
-      }),
-      onAuthStateChange: vi.fn((listener: (event: string, session: any | null) => void) => {
-        testState.authStateListener = listener;
-        return { data: { subscription: { unsubscribe: vi.fn() } } };
-      }),
+      getSession: vi.fn(),
+      onAuthStateChange: vi.fn(),
       signInWithOAuth: vi.fn(async () => ({ error: null })),
     },
   },
 }));
+
+vi.mock('../../lib/auth/loadSignInBundle', () => ({
+  loadSignInBundle: vi.fn(() => {
+    if (!testState.bundlePromise) {
+      testState.bundlePromise = testState.nextBundleReply ?? Promise.resolve(signInBundle);
+      for (const listener of testState.bundleRequestListeners) listener();
+    }
+    return testState.bundlePromise;
+  }),
+  onSignInBundleRequested: vi.fn((listener: () => void) => {
+    testState.bundleRequestListeners.add(listener);
+    if (testState.bundlePromise) listener();
+    return () => testState.bundleRequestListeners.delete(listener);
+  }),
+}));
+
+vi.mock('../../lib/supabaseConfig', () => ({
+  isSupabaseConfigured: true,
+  hasStoredAuthSession: vi.fn(() => testState.signInPendingOnLoad),
+}));
+
+vi.mock('../../lib/auth/signInWorkPending', () => ({
+  signInWorkPendingOnLoad: vi.fn(() => testState.signInPendingOnLoad),
+}));
+
+signInBundle.clearOrdinarySessionIfUnchanged.mockImplementation(() => {
+  const reply = testState.clearSessionReplies.shift();
+  return reply ?? Promise.resolve(false);
+});
+signInBundle.supabase.auth.getSession.mockImplementation(() => {
+  const reply = testState.getSessionReplies.shift();
+  return reply ?? Promise.resolve({ data: { session: testState.storedSession }, error: null });
+});
+signInBundle.supabase.auth.onAuthStateChange.mockImplementation(
+  (listener: (event: string, session: any | null) => void) => {
+    testState.authStateListener = listener;
+    return { data: { subscription: { unsubscribe: testState.unsubscribeAuth } } };
+  },
+);
 
 class FakeBroadcastChannel {
   static instances: FakeBroadcastChannel[] = [];
@@ -153,6 +190,7 @@ describe('AuthProvider session races', () => {
   let root: ReturnType<typeof createRoot> | null = null;
 
   beforeEach(() => {
+    vi.clearAllMocks();
     resetProviderSessionRejectionsForTests();
     FakeBroadcastChannel.instances = [];
     vi.stubGlobal('BroadcastChannel', FakeBroadcastChannel);
@@ -165,6 +203,10 @@ describe('AuthProvider session races', () => {
     testState.restoreReply = Promise.resolve({ session: null, errorMessage: null });
     testState.storedSession = null;
     testState.validationReplies.clear();
+    testState.signInPendingOnLoad = true;
+    testState.bundlePromise = null;
+    testState.nextBundleReply = null;
+    testState.bundleRequestListeners.clear();
   });
 
   afterEach(async () => {
@@ -187,7 +229,9 @@ describe('AuthProvider session races', () => {
         </AuthProvider>,
       );
     });
-    await vi.waitFor(() => expect(testState.authStateListener).not.toBeNull());
+    if (testState.signInPendingOnLoad) {
+      await vi.waitFor(() => expect(testState.authStateListener).not.toBeNull());
+    }
     if (settleStartup) {
       await vi.waitFor(() => expect(testState.authValue.isLoading).toBe(false));
     }
@@ -217,6 +261,110 @@ describe('AuthProvider session races', () => {
       await Promise.resolve();
     });
   }
+
+  it('does not request the sign-in download for a fresh signed-out visit', async () => {
+    testState.signInPendingOnLoad = false;
+    await mountProvider();
+
+    expect(loadSignInBundle).not.toHaveBeenCalled();
+    expect(signInBundle.supabase.auth.onAuthStateChange).not.toHaveBeenCalled();
+    expect(testState.authValue.isLoading).toBe(false);
+    expect(testState.authValue.isSignedIn).toBe(false);
+  });
+
+  it('accepts a successful sign-in requested after a fresh signed-out visit', async () => {
+    testState.signInPendingOnLoad = false;
+    await mountProvider();
+    const fresh = providerSession('person', 'late-session', 'late');
+    testState.validationReplies.set(
+      fresh.access_token,
+      Promise.resolve(validationSuccess('person')),
+    );
+
+    await act(async () => {
+      await loadSignInBundle();
+      expect(testState.authStateListener).not.toBeNull();
+    });
+    testState.storedSession = fresh;
+    await emitAuthSession(fresh);
+
+    await vi.waitFor(() => expect(testState.authValue.accessToken).toBe(fresh.access_token));
+    expect(testState.authValue.isSignedIn).toBe(true);
+    expect(testState.authValue.user).toEqual(alethicalUser('person'));
+    expect(testState.authValue.isLoading).toBe(false);
+  });
+
+  it('attaches one account listener even when a download is requested repeatedly', async () => {
+    testState.signInPendingOnLoad = false;
+    await mountProvider();
+    await act(async () => {
+      await Promise.all([loadSignInBundle(), loadSignInBundle(), loadSignInBundle()]);
+    });
+    expect(signInBundle.supabase.auth.onAuthStateChange).toHaveBeenCalledTimes(1);
+
+    await act(async () => root?.unmount());
+    root = null;
+    expect(testState.unsubscribeAuth).toHaveBeenCalledTimes(1);
+    expect(testState.bundleRequestListeners.size).toBe(0);
+  });
+
+  it('subscribes when another caller requested the download before the provider mounted', async () => {
+    testState.signInPendingOnLoad = false;
+    await loadSignInBundle();
+    await mountProvider();
+
+    expect(signInBundle.supabase.auth.onAuthStateChange).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not attach an account listener if the provider leaves during the download', async () => {
+    testState.signInPendingOnLoad = false;
+    const download = deferred<any>();
+    testState.nextBundleReply = download.promise;
+    await mountProvider();
+    await act(async () => {
+      void loadSignInBundle();
+    });
+    await act(async () => root?.unmount());
+    root = null;
+    await act(async () => download.resolve(signInBundle));
+
+    expect(signInBundle.supabase.auth.onAuthStateChange).not.toHaveBeenCalled();
+    expect(testState.bundleRequestListeners.size).toBe(0);
+  });
+
+  it('removes the download listener when an untouched fresh visit unmounts', async () => {
+    testState.signInPendingOnLoad = false;
+    await mountProvider();
+    expect(testState.bundleRequestListeners.size).toBe(1);
+    await act(async () => root?.unmount());
+    root = null;
+    await loadSignInBundle();
+
+    expect(testState.bundleRequestListeners.size).toBe(0);
+    expect(signInBundle.supabase.auth.onAuthStateChange).not.toHaveBeenCalled();
+  });
+
+  it('attaches only the new provider when it remounts during a pending download', async () => {
+    testState.signInPendingOnLoad = false;
+    const download = deferred<any>();
+    testState.nextBundleReply = download.promise;
+    await mountProvider();
+    await act(async () => {
+      void loadSignInBundle();
+    });
+    await act(async () => root?.unmount());
+    root = null;
+    mount?.remove();
+    await mountProvider();
+    await act(async () => download.resolve(signInBundle));
+
+    expect(signInBundle.supabase.auth.onAuthStateChange).toHaveBeenCalledTimes(1);
+    expect(testState.bundleRequestListeners.size).toBe(1);
+    await act(async () => root?.unmount());
+    root = null;
+    expect(testState.unsubscribeAuth).toHaveBeenCalledTimes(1);
+    expect(testState.bundleRequestListeners.size).toBe(0);
+  });
 
   it('never shows a session another tab rejects while validation is pending', async () => {
     await mountProvider();

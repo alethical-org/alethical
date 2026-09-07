@@ -1,4 +1,4 @@
-<!-- describes: apps/frontend/App.tsx, apps/frontend/package.json, vercel.json, apps/frontend/src/data/api.ts, apps/frontend/src/lib/appQueryClient.ts, apps/frontend/src/lib/billFreshness.ts, apps/frontend/src/navigation/RootNavigator.tsx, apps/frontend/src/providers/AppProviders.tsx, apps/frontend/src/providers/AuthProvider.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, alethical/api/routers/ask.py, alethical/api/routers/public.py, alethical/api/services/outside_spending.py, alethical/api/services/campaign_finance_races.py, alethical/api/services/committee_finance.py, alethical/api/services/campaign_finance_search.py, alethical/pipeline/campaign_finance_filings.py, api/page.ts, .github/workflows/warm-money-pages.yml -->
+<!-- describes: apps/frontend/App.tsx, apps/frontend/package.json, vercel.json, apps/frontend/src/data/api.ts, apps/frontend/src/lib/appQueryClient.ts, apps/frontend/src/lib/billFreshness.ts, apps/frontend/src/navigation/RootNavigator.tsx, apps/frontend/src/providers/AppProviders.tsx, apps/frontend/src/providers/AuthProvider.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, alethical/api/routers/ask.py, alethical/api/routers/public.py, alethical/api/services/outside_spending.py, alethical/api/services/campaign_finance_races.py, alethical/api/services/committee_finance.py, alethical/api/services/campaign_finance_search.py, alethical/pipeline/campaign_finance_filings.py, api/page.ts, .github/workflows/warm-money-pages.yml, apps/frontend/src/providers/AuthProvider.web.tsx, apps/frontend/src/providers/SignInModalProvider.tsx, apps/frontend/src/providers/SignInMachinery.tsx, apps/frontend/src/lib/auth/loadSignInBundle.ts, apps/frontend/src/lib/auth/signInBundle.ts, apps/frontend/src/lib/auth/signInWorkPending.ts, apps/frontend/src/lib/supabaseConfig.ts, apps/frontend/src/components/auth/accountControls.tsx, apps/frontend/scripts/check-first-load-budget.mjs -->
 
 # Page-load performance decisions
 
@@ -249,45 +249,52 @@ the top one, so the heaviest screen we have was being downloaded and run under e
 page: 17,736 bytes and the whole marketing page, for a reader who was never going to see it.
 `HomeRoute` now draws nothing while it is covered, and draws when a reader goes back to it.
 
-**The sign-in surfaces arrive when somebody opens them.** The dialog and the email-link page
-are fetched after the app can draw rather than before
-([#1976](https://github.com/alethical-org/alethical/issues/1976)). The dialog is still
-rendered on every page, so its open, close and reset behaviour is unchanged; only its arrival
-moved. Measured on the production build at the settings Vercel compresses with: a page's 3
-named files went from 451,044 bytes to 439,253, so every reader receives 11,791 fewer bytes
-before anything can draw.
+**Everything sign-in arrives when somebody needs it, the client that talks to the sign-in
+service included** ([#1976](https://github.com/alethical-org/alethical/issues/1976)). The
+section below owns that change and its measurements.
 
 **Moving code out of the program every page needs usually saves a reader nothing, and this is
 the trap to know about before planning any more of it.** A page names 3 files, and 1 of them
-is the shared file holding parts that more than 1 screen uses. Code taken out of the main
-program does not leave the first load; it lands in that shared file, which every page
-downloads too. Two measurements, both on the production build:
+is the shared file holding parts that more than 1 screen uses. The web build fills that file
+itself, with everything 2 or more later downloads both want (`extractCommonChunk`,
+`@expo/metro-config`), and the page names it, so it is paid on a first visit exactly as the
+program is. Code taken out of the program does not leave the first load; it lands there.
+Three measurements, all on the production build:
 
 - Taking the committee-money library out of the router's reach, which counting source bytes
-  said was worth 5,697, saved **21 bytes**: the main program lost 32 and the shared file
-  gained 11.
-- The sign-in change above was worth 65,896 by the same counting method. The main program
-  lost 36,680 and the shared file gained 24,889, so a reader received **11,791** fewer.
+  said was worth 5,697, saved **21 bytes**: the program lost 32 and the shared file gained 11.
+- Pointing `data/api.ts` at the 6 bill-status helpers it uses, instead of at the whole
+  bill-page file, made the first load **1,164 bytes larger**: every byte of that file moved
+  from the program to the shared file, and the new module boundaries cost the difference.
+- Making everything sign-in arrive on demand was worth 260,702 by the same counting method,
+  and saved **50,963**: the program lost 38,927 and the shared file lost 12,036 as well,
+  because what came out of both went into a download only a reader who signs in fetches.
 
-So a saving is only real when the code ends up somewhere a reader does not always fetch,
-which means being wanted by exactly 1 screen. Counting bytes in the main program measures
-where code sits, never what a reader downloads. **The way to tell the difference is to build
-it and read the 3 named files**, which is what `apps/frontend/scripts/check-first-load-budget.mjs`
+So a saving is only real when the code ends up somewhere a reader does not always fetch, which
+means being wanted by exactly 1 later download. Counting bytes in the program measures where
+code sits, never what a reader downloads. **The way to tell the difference is to build it and
+read the 3 named files**, which is what `apps/frontend/scripts/check-first-load-budget.mjs`
 reports on every build.
 
-**How low this can go, measured rather than guessed.** Counting every movable thing out of the
-program every page needs gives about 324,000 bytes for that file, and with the shared file, the
-runtime and a screen file a money page's floor is near 366,000, so **the 300,000-byte target on
+**And that check cannot see a deferred download that something asks for anyway, so compare it
+against a real browser rather than assuming they agree.** It counts the files the built page
+names, which is right, and a download the running app then fetches immediately is invisible to
+it. Measured live on 7 Sep 2026, median of 5 loads with a fresh browser context per load: the
+sign-in dialog had been given its own download, and `SignInModalProvider` drew it on every page
+with `open` false, so the fetch started the moment the provider mounted and its 8,694 bytes
+landed **before** the app first drew. The check reported 439,253 and a reader was receiving
+452,893. Nothing about either number looked wrong. A deferral is only real once a browser has
+been watched not making the request.
+
+**The 300,000-byte target on
 [#1966](https://github.com/alethical-org/alethical/issues/1966) is not reachable by loading
-things later.** Read that floor as the best case if every one of those moves also escaped the
-shared file, which the 2 measurements above say most of them will not. What is left below the
-floor is the framework the whole app is built on: `react-native-web` 249,244 minified bytes,
-`react-dom` 178,881, React Navigation about 158,000, the query library 79,724 and
-`react-native-svg` 47,415. Reaching 300,000 would mean changing that foundation, not deferring
-more of our own code.
-[#1976](https://github.com/alethical-org/alethical/issues/1976) owns what is left of the
-movable part, which after the sign-in change is much smaller than counting source bytes
-suggests.
+things later.** Below every saving sits the framework the whole app is built on:
+`react-native-web` 249,244 minified bytes, `react-dom` 178,881, React Navigation about
+158,000, the query library 79,724 and `react-native-svg` 47,415. Reaching 300,000 would mean
+changing that foundation, not deferring more of our own code. What is left of our own movable
+code — the bill-page formatting, the committee-money display code, the text of the published
+pieces — is all in the trap above: every one of those is wanted by 2 or more screens, so
+deferring it moves it to the shared file and saves a reader nothing.
 
 The 2 costs, both accepted:
 
@@ -298,6 +305,68 @@ The 2 costs, both accepted:
 - **A later click waits for a screen nobody has downloaded yet.** These files are small,
   and warming the next screen on hover is a separate item on
   [#1966](https://github.com/alethical-org/alethical/issues/1966).
+
+## Sign-in is fetched when someone signs in
+
+Everything sign-in is 1 download that a reader fetches only when sign-in is reachable
+([#1976](https://github.com/alethical-org/alethical/issues/1976)): the client that talks to the
+sign-in service, the dialog and its fields, the account menu and its password dialog, and the
+email-link page. A money reader who is not signed in fetches none of it.
+
+Measured on the production build, at the settings Vercel compresses with: a first load of
+**439,253 bytes fell to 388,290** — the program 376,006 to 337,079, the shared file 61,631 to
+49,595, the runtime unchanged at 1,616. Before any of
+[#1976](https://github.com/alethical-org/alethical/issues/1976) it was 451,044. What moved out
+is a 262,766-byte download named `signInBundle`.
+
+Private account visibility ([issue 2014](https://github.com/alethical-org/alethical/issues/2014))
+adds the administrator route and a shared permission check. Its account-list parsing and
+search request load only with `/admin/users`. The release measures **389,116 bytes**:
+337,513 for the program, 49,987 shared, and 1,616 runtime. This is 826 bytes (0.21%) above
+the 388,290-byte baseline. The limit is 390,000 bytes to admit this measured feature;
+the private list itself is not a cost paid by public readers.
+
+**`lib/auth/signInWorkPending.ts` is the whole design, and it answers 1 question: does this page
+load have sign-in work to do?** It says yes when a session is saved in this browser, when the
+address is a sign-in return, when a request was stashed before a redirect to Google, or when a
+link named a sign-in screen. Otherwise no, and nothing is fetched until somebody presses
+something. It reads those 4 things and consumes none of them, because the provider's own reader
+clears the stash and rewrites the address. **A wrong no is the dangerous answer**: it would show
+a reader who is signed in the site as a stranger, which is why every way sign-in work can start
+without a press is in that list.
+
+Three things follow from it:
+
+- **`SignInModalProvider.tsx` is what every page carries**, and it is small. It hands each screen
+  the 1 function they call (`openSignIn`) from the first byte, holds the press that arrives before
+  the code does, and mounts the machinery as a sibling of the page rather than a wrapper around
+  it — so the fetch landing does not remount the page and lose what a reader had on screen.
+- **`AuthProvider.web.tsx` stops waiting when the answer is no.** It sets its loading state false
+  without fetching the client. It observes the first later request through
+  `onSignInBundleRequested`, then attaches the session listener before sign-in can finish.
+  A fresh visitor can therefore sign in without reloading, while untouched public visits
+  keep the saving. The observer also handles a request made before the provider mounts.
+- **The top bar's account controls cost a signed-in reader nothing.** The bar draws them only when
+  somebody is signed in, and nothing can know that until the client has read the saved session, so
+  the download they live in is already in hand by the time one is asked for.
+
+**One download, not two.** `lib/auth/signInBundle.ts` holds all of it and nothing imports it
+directly; `lib/auth/loadSignInBundle.ts` is the only name for it. Splitting it in half puts
+everything the halves share — the sign-in client included — into the shared file every page
+fetches, which happened once during this change and cost most of the saving.
+
+**The cost, accepted: a signed-in reader fetches the dialog along with the client that restores
+their session**, because both are in that 1 download. They pay it after the page can draw rather
+than before, and they are the reader most likely to open the dialog next.
+
+**Two guards, both seen to fail before being kept.**
+`apps/frontend/src/lib/auth/__tests__/signInIsFetchedNotCarried.test.ts` walks the plain imports
+from the app's own start **and from every screen** and fails if any of them reaches sign-in. The
+screens are in that walk because the first version left them out, and it then passed while the top
+bar imported the account menu directly — a real regression, sitting in the shared file, that a walk
+from `index.ts` alone cannot see.
+`apps/frontend/src/lib/auth/__tests__/signInWorkPending.test.ts` covers the gate, and each of its 4
+yes cases was removed on purpose and watched to fail.
 
 ## What a search page's first response carries
 
