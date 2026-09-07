@@ -142,9 +142,9 @@ data and leave them there, so the database used to grow every run — 7 legislat
 seed, 54 after one full run, 140 after three. Nothing asserted a row count, so that stayed
 invisible until a test read a paginated endpoint and found the sample rows pushed off the
 page it read. It then failed on every later run, in a file the session had not touched,
-and **CI could not reproduce it** because CI always starts from an empty database. Dropping
-your database by hand used to be the only way out; it is no longer needed. The guarantee is
-covered by `alethical/tests/test_empty_data_tables.py`, so removing it fails a named test.
+and **CI could not reproduce it** because CI always starts from an empty database. You never
+have to drop your database by hand: the guarantee is covered by
+`alethical/tests/test_empty_data_tables.py`, so removing it fails a named test.
 
 **What that fixed.** The suite runs `alembic upgrade head` and re-seeds at setup, against
 whatever database it is pointed at. One shared database therefore produced two failures

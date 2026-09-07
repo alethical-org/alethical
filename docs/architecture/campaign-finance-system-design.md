@@ -82,7 +82,7 @@ Supabase Storage; another merged a display rule that a third had already measure
     editors who each believe the other is gone.
   - **Why a worktree and not a title.** The rule asks for a title copied verbatim from the live
     task list, and a session cannot read its own title from inside itself — the list it can see
-    excludes it. Guessing one is what broke the first version of this line. A worktree path and a
+    excludes it. A guessed title is one nobody can find in that list. A worktree path and a
     branch are things the session can actually verify and another session can actually find, so
     that is what is recorded. **If you hold the pen and can read your own title, use it**; fall
     back to your worktree only if you cannot.
@@ -493,9 +493,8 @@ cannot grow a slot. One snapshot is the release; `lobbying_expenditure_current` 
 the live one, and `scripts/recompute_lobbying_published_figures.py` recomputes the
 published figures from it. On the 31 Aug 2026 load the piece's figures reproduce to
 the dollar: $886,298,059.00 across 3,056 entity IDs, report years 2015–2025, and the
-same 5 largest spenders. An earlier version of this paragraph, before the loader
-existed, noted that holding no records never meant the figures could not be verified —
-[#1687](https://github.com/alethical-org/alethical/issues/1687) had recorded them as
+same 5 largest spenders. Holding no loaded records never meant the figures could not be
+verified: [#1687](https://github.com/alethical-org/alethical/issues/1687) had recorded them as
 unreproducible 3 times, and they were checked directly against the bulk file on
 27 Aug 2026 ([#1802](https://github.com/alethical-org/alethical/issues/1802)). The
 lobbyist and lobbying-entity registration lists on the same landing page are still
@@ -1066,9 +1065,9 @@ reader-facing link to an archived copy.
 **Registered filers join by registration number, never by name.** Candidates, committees,
 funds and party units all carry one.
 
-**Do not read the filer's kind off the number.** An earlier version of this document said
-Minnesota routes them by numeric range — 10000–19999 a candidate committee, 20000–29999 a
-party unit, 30000 and above a political committee or fund. The source contradicts that. In the
+**Do not read the filer's kind off the number.** Never write that Minnesota routes them by
+numeric range — 10000–19999 a candidate committee, 20000–29999 a party unit, 30000 and above a
+political committee or fund. The source contradicts that. In the
 11 Aug 2026 contributions download **4,672 rows carry a type that disagrees with their own
 number's band**: 2,873 say `PTU` with a number of 30000 or above, and 1,799 say `PCF` with a
 number in 20000–29999. The Libertarian Party of Minnesota is registration **40858** with type
@@ -1139,7 +1138,7 @@ partial unique index. Moving the row's own decision takes it out of all 6 at onc
 of any query written next year by someone who has never read this section; a flag beside an
 unchanged `confirmed` would have needed every one of them found and edited, and one missed
 is a withdrawn account still published under a person's name. The 2 costs are accepted and
-real. `decision` no longer says the row was once confirmed, though `withdrawn` can only ever
+real. `decision` alone does not say the row was once confirmed, though `withdrawn` can only ever
 mean that, since only a confirmation is withdrawable. And Postgres cannot drop an enum
 value, so the migration's downgrade recreates the type and **fails loudly** if any row holds
 `withdrawn` -- which is the honest outcome, because turning such a row back into `confirmed`
@@ -1197,10 +1196,10 @@ using the same alerting `gh` already does for the sibling ingestion jobs". No su
 the contradictions reached `LoadReport.committee_link_contradictions` and were printed, and
 nothing else. The load is also on no schedule and is triggered by hand, and its last run was
 12 Aug 2026 — 19 days before the first sitting confirmed 242 links, so the only thing watching
-those links had never looked at one. Both halves are now built, and the sentence describes what
-exists rather than what was intended. **The general lesson, which is why this correction is
-written out rather than quietly edited: a design document describing a safeguard reads as
-evidence the safeguard is armed, and this file loads into every session.**
+those links had never looked at one. Both halves are built, and the sentence describes what
+exists rather than what was intended. **The general lesson: a design document describing a
+safeguard reads as evidence the safeguard is armed, and this file loads into every session, so
+never describe a safeguard as running before it runs.**
 
 **Weekly rather than per-load, and that is a decision.** The Board republishes the contributions
 file on filing deadlines, so a daily run would fetch 83 MB from a government site 6 extra times
@@ -1215,7 +1214,7 @@ sources, against the download they were decided from.
 no default, so an unsigned decision still cannot exist. What changed is who the signature names:
 the company is the entity accountable for the match, and it is the entity a reader is told checked
 it, so the stored words and the published words are the same. Two consequences, both accepted. The
-row no longer says *which* human answered, so if 2 people ever hold sittings the record cannot say
+row does not say *which* human answered, so if 2 people ever hold sittings the record cannot say
 which of them to ask about one decision; the reviewing tool keeps a `--reviewer` override for the
 day that matters. And the sentence above this section that a confirmed match is "a row a named
 person wrote" now means a row a named *entity* wrote, on a person's answer. The default is set in
@@ -1273,8 +1272,8 @@ contributions inside the current session's years, no generational suffix present
 exactly one candidate for that legislator, and no other sitting member with a source-stated claim
 on the same committee.
 
-**Matching names means matching words, not first letters.** An earlier version compared only the
-first word of each given name, which made "Dibble, D Scott Senate Committee" and a hypothetical
+**Matching names means matching words, not first letters.** Comparing only the first word of
+each given name makes "Dibble, D Scott Senate Committee" and a hypothetical
 "Dibble, D Steven" equally confident for Senator D. Scott Dibble, because both first words are
 "d". A single letter separates nobody, so at least one word of more than one letter has to be
 present on both sides; initials are then compared where they count as the weak evidence they are.
@@ -2524,10 +2523,9 @@ reaching most of them, and a NULL there counts an unasked report. A further **2 
 54-report probe were scans `pypdf` reads as 0 lines**, which is the one cause that survives a served
 document.
 
-**Do not read those per-year totals as availability.** An earlier version of this paragraph reported
-"all 9 sampled 2021 reports and 5 of 9 sampled 2022 ones returned the HTML page", which is a true
-account of that sample and invited exactly the wrong inference — that older years are closed. They
-are not; the 4 served 2022 reports in that same sample were all year-ends, which is the shape the
+**Do not read those per-year totals as availability.** "All 9 sampled 2021 reports and 5 of 9
+sampled 2022 ones returned the HTML page" is a true account of that sample and invites exactly the
+wrong inference — that older years are closed. They are not; the 4 served 2022 reports in that same sample were all year-ends, which is the shape the
 sample was too small to show. **2023 was never asked at all**: the chunked run stopped after 2024, so
 the 1,206 filed 2023 reports hold no date because nobody has requested them, not because the Board
 refused.

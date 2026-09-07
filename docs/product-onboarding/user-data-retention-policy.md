@@ -459,9 +459,9 @@ manufactured display name, followed bills and their notes, the alert switch, mes
 into a bill conversation, and Ask questions. Under _How We Share Information_ it names
 Supabase, Google, OpenAI, Anthropic, the US Census Bureau, the Minnesota Geospatial
 Information Office, Resend, Vercel, Cloudflare, Railway, Sentry, Google Search Console,
-Bing Webmaster Tools, and Checkly (§4). It no longer names
-the Minnesota Legislative Coordinating Commission because the commission no longer receives a
-reader's location during a lookup; the map itself still credits the commission as its source.
+Bing Webmaster Tools, and Checkly (§4). It does not name
+the Minnesota Legislative Coordinating Commission, because the commission does not receive a
+reader's location during a lookup; the map itself credits the commission as its source.
 _Data Retention_ carries the per-category periods from §9 rather than one blanket sentence,
 and _Your Rights_ says plainly that deletion and export are done by hand because no button
 exists.
