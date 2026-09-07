@@ -14,6 +14,7 @@ export function TrafficAnalytics() {
     token: string;
     collect: boolean;
   } | null>(null);
+  const [started, setStarted] = useState(false);
   const userId = user?.id;
   const sessionReady =
     !isLoading && (isSignedIn ? Boolean(userId && accessToken) : !userId && !accessToken);
@@ -60,10 +61,19 @@ export function TrafficAnalytics() {
 
   useEffect(() => {
     mayCollect.current = collect;
-    return () => {
-      mayCollect.current = false;
-    };
+    if (collect) setStarted(true);
   }, [collect]);
 
-  return <Analytics beforeSend={beforeSend} />;
+  // Permission changes already update the ref during render. A dependency
+  // cleanup would turn it off again before the newly mounted script can emit.
+  useEffect(
+    () => () => {
+      mayCollect.current = false;
+    },
+    [],
+  );
+
+  // The provider emits its first view on mount, without retrying a rejected one.
+  // Wait for the first eligible visit, then keep the event-time gate mounted.
+  return started || collect ? <Analytics beforeSend={beforeSend} /> : null;
 }

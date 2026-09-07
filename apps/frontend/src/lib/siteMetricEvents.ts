@@ -4,7 +4,9 @@ import { isPrivateMetricLocation } from './siteMetricPrivacy';
 
 let accessToken: string | null = null;
 let sessionReady = false;
-const pendingEvents: SiteMetricEventName[] = [];
+let awaitingInitialSession = true;
+const MAX_STARTUP_EVENTS = 20;
+const startupEvents: SiteMetricEventName[] = [];
 
 const OFFICIAL_SOURCE_HOSTS = new Set([
   'house.mn.gov',
@@ -29,14 +31,25 @@ function send(event: SiteMetricEventName) {
 export function setSiteMetricSession(value: string | null, ready: boolean) {
   accessToken = value;
   sessionReady = ready;
-  if (!ready) return;
-  pendingEvents.splice(0).forEach(send);
+  if (!ready) {
+    // Once an account is known, unresolved actions must never inherit a later
+    // account or become anonymous. Cleanup does not reopen startup buffering.
+    if (value !== null) {
+      awaitingInitialSession = false;
+      startupEvents.length = 0;
+    }
+    return;
+  }
+  awaitingInitialSession = false;
+  startupEvents.splice(0).forEach(send);
 }
 
 export function recordSiteMetricEvent(event: SiteMetricEventName) {
   if (isPrivateMetricLocation()) return;
   if (!sessionReady) {
-    pendingEvents.push(event);
+    if (awaitingInitialSession && startupEvents.length < MAX_STARTUP_EVENTS) {
+      startupEvents.push(event);
+    }
     return;
   }
   send(event);

@@ -1,15 +1,18 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-vi.mock('../../data/api', () => ({
+const { recordSiteMetricEventFromApi } = vi.hoisted(() => ({
   recordSiteMetricEventFromApi: vi.fn(() => Promise.resolve()),
 }));
+vi.mock('../../data/api', () => ({ recordSiteMetricEventFromApi }));
 
-import { recordSiteMetricEventFromApi } from '../../data/api';
-import {
-  recordOfficialSourceOpen,
-  recordSiteMetricEvent,
-  setSiteMetricSession,
-} from '../siteMetricEvents';
+let { recordOfficialSourceOpen, recordSiteMetricEvent, setSiteMetricSession } =
+  await import('../siteMetricEvents');
+
+beforeEach(async () => {
+  vi.resetModules();
+  ({ recordOfficialSourceOpen, recordSiteMetricEvent, setSiteMetricSession } =
+    await import('../siteMetricEvents'));
+});
 
 afterEach(() => {
   setSiteMetricSession(null, true);
@@ -60,6 +63,49 @@ describe('privacy-safe Site Metrics events', () => {
     );
   });
 
+  it.each([null, 'test-reader-token', 'test-refreshed-team-token'])(
+    'drops actions during a known team account transition to %s',
+    (nextToken) => {
+      setSiteMetricSession('test-team-token', true);
+      // Effect cleanup must not reopen the initial unknown-account queue.
+      setSiteMetricSession(null, false);
+      setSiteMetricSession('test-team-token', false);
+      recordSiteMetricEvent('official_source_opened');
+      setSiteMetricSession(null, false);
+      recordSiteMetricEvent('bill_search_with_results');
+      setSiteMetricSession(nextToken, true);
+      expect(recordSiteMetricEventFromApi).not.toHaveBeenCalled();
+      recordSiteMetricEvent('legislator_search_with_results');
+      expect(recordSiteMetricEventFromApi).toHaveBeenCalledWith(
+        'legislator_search_with_results',
+        nextToken,
+      );
+    },
+  );
+
+  it('does not reassign startup actions once a token is known but unresolved', () => {
+    recordSiteMetricEvent('bill_search_with_results');
+    setSiteMetricSession('test-team-token', false);
+    recordSiteMetricEvent('official_source_opened');
+    setSiteMetricSession(null, true);
+    expect(recordSiteMetricEventFromApi).not.toHaveBeenCalled();
+  });
+
+  it('bounds startup buffering and flushes it once across effect cleanup', () => {
+    setSiteMetricSession(null, false);
+    for (let index = 0; index < 100; index++) recordSiteMetricEvent('official_source_opened');
+    setSiteMetricSession(null, false);
+    setSiteMetricSession('test-reader-token', true);
+    expect(recordSiteMetricEventFromApi).toHaveBeenCalledTimes(20);
+    setSiteMetricSession(null, false);
+    setSiteMetricSession('test-reader-token', true);
+    expect(recordSiteMetricEventFromApi).toHaveBeenCalledTimes(20);
+    expect(recordSiteMetricEventFromApi).toHaveBeenLastCalledWith(
+      'official_source_opened',
+      'test-reader-token',
+    );
+  });
+
   it.each([
     'https://www.revisor.mn.gov/bills/',
     'https://www.house.mn.gov/sessiondaily/',
@@ -70,6 +116,7 @@ describe('privacy-safe Site Metrics events', () => {
     'https://leg.mn.gov/leg/faq/faq?id=15',
     'https://www.leg.mn.gov/leg/faq/faq?id=15',
   ])('counts an official Minnesota source without sending its address', (url) => {
+    setSiteMetricSession(null, true);
     recordOfficialSourceOpen(url);
 
     expect(recordSiteMetricEventFromApi).toHaveBeenCalledWith('official_source_opened', null);
