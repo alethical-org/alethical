@@ -287,7 +287,7 @@ describe('the bill snapshot says only what the app then draws', () => {
       title: statutoryTitle,
       description: officialDescription,
       ai_analysis: null,
-      official_url: 'https://www.revisor.mn.gov/bills/94/2025/0/HF/5125/versions/1/',
+      official_url: 'https://www.revisor.mn.gov/bills/94/2026/0/HF/5125/versions/0/',
     };
     const bill = mapBillDetail(payload as never, []);
     const fallback = billPageSnapshot(payload as never);
@@ -302,7 +302,7 @@ describe('the bill snapshot says only what the app then draws', () => {
     expect(appHtml(payload)).toContain('>Official bill page</a>');
     expect(fallback.links).toContainEqual({
       label: 'Official bill page',
-      href: 'https://www.revisor.mn.gov/bills/94/2025/0/HF/5125/',
+      href: 'https://www.revisor.mn.gov/bills/94/2026/0/HF/5125/',
     });
     expect(renderPageSnapshot(fallback)).not.toContain(statutoryTitle);
   });

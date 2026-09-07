@@ -18,6 +18,13 @@ request and the merge queue, then test the public addresses.
 Signed-in domain property `sc-domain:alethical.com`, read 7 Sep 2026. The overview
 reports data updated 3 Sep 2026; example crawl dates extend through 5 Sep 2026.
 
+The submitted sitemap reports **Success**, submitted 11 Aug, last read 1 Sep,
+with 13,389 discovered pages. The separate **All submitted pages** indexing
+view shows 6,542 indexed and 6,846 excluded: 6,612 discovered, 200 crawled but
+not indexed, 26 soft 404 and 8 server errors. The reports' totals differ by 1;
+do not force differently updated reports into matching counts. This submitted
+view is the better baseline for intended public addresses than all known URLs.
+
 | Reason | Addresses | Interpretation pending live and code checks |
 | --- | ---: | --- |
 | Discovered, currently not indexed | 6,612 | Found but not crawled; first 50 examples are `/bills` and bill records. |
@@ -134,6 +141,8 @@ generating answers. The 11 reported server errors are no longer reproduced.
 Google accepted the server-error group's validation request on 7 Sep. Its
 status is **Validation started**, not passed. Soft-404 validation waits for
 the official-description repair to be live.
+Google's confirmation email says validation can take a few days and that it
+will email the result.
 
 HF5125 is a content exception: it has no AI analysis, but its official record
 contains this description: “Data centers sales and use tax exemption repealed,
