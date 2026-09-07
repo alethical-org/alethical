@@ -140,4 +140,15 @@ async def unexpected_exception_handler(request: Request, exc: Exception):
         detail="The service hit an unexpected error.",
         instance=str(request.url.path),
     )
-    return JSONResponse(status_code=500, content=payload)
+    # Server-error handling sits outside the normal response middleware.
+    # Private admin failures must remain private even on an unexpected exception.
+    headers = (
+        {
+            "Cache-Control": "private, no-store",
+            "Vary": "Authorization",
+            "X-Robots-Tag": "noindex, nofollow",
+        }
+        if request.url.path.startswith("/api/v1/admin/")
+        else None
+    )
+    return JSONResponse(status_code=500, content=payload, headers=headers)

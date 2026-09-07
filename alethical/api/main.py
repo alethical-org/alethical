@@ -21,6 +21,7 @@ from alethical.api.rate_limit import (
     DEFAULT_PENDING_ACTION_PER_MINUTE,
     limiter_from_env,
 )
+from alethical.api.routers.admin import router as admin_router
 from alethical.api.routers.ask import router as ask_router
 from alethical.api.routers.contact import router as contact_router
 from alethical.api.routers.internal import router as internal_router
@@ -69,6 +70,13 @@ def create_app() -> FastAPI:
         about who holds office right now all live in
         alethical/api/routers/public.py."""
         response = await call_next(request)
+        if request.url.path.startswith("/api/v1/admin/"):
+            response.headers["Cache-Control"] = "private, no-store"
+            response.headers["Vary"] = ", ".join(
+                filter(None, [response.headers.get("Vary"), "Authorization"])
+            )
+            response.headers["X-Robots-Tag"] = "noindex, nofollow"
+            return response
         if (
             request.method == "GET"
             and response.status_code == 200
@@ -116,6 +124,7 @@ def create_app() -> FastAPI:
             return JSONResponse(status_code=503, content={"status": "not_ready"})
         return JSONResponse(content={"status": "ready"})
 
+    app.include_router(admin_router, prefix="/api/v1", tags=["admin"])
     app.include_router(public_router, prefix="/api/v1", tags=["public"])
     app.include_router(site_metrics_router, prefix="/api/v1", tags=["site-metrics"])
     app.include_router(ask_router, prefix="/api/v1", tags=["ask"])

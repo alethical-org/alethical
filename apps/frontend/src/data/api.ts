@@ -1,5 +1,10 @@
 import { Platform } from 'react-native';
 import {
+  adminAccessFromPayload,
+  adminUsersFromPayload,
+  type AdminUsersSearch,
+} from '../lib/adminUsers';
+import {
   completeDanglingTitle,
   completeStatusText,
   STATUS_LABELS,
@@ -815,6 +820,31 @@ async function apiRequest<T>(path: string, init: RequestInit, accessToken: strin
   }
 
   return (await response.json()) as T;
+}
+
+export async function getAdminAccessFromApi(accessToken: string, signal?: AbortSignal) {
+  return adminAccessFromPayload(
+    await apiRequest<unknown>(
+      '/admin/access',
+      { method: 'GET', cache: 'no-store', signal },
+      accessToken,
+    ),
+  );
+}
+
+export async function searchAdminUsersFromApi(
+  accessToken: string,
+  search: AdminUsersSearch,
+  signal?: AbortSignal,
+) {
+  // Email searches stay in the body, never in an address or shared query cache.
+  return adminUsersFromPayload(
+    await apiRequest<unknown>(
+      '/admin/users/search',
+      { method: 'POST', body: JSON.stringify(search), cache: 'no-store', signal },
+      accessToken,
+    ),
+  );
 }
 
 async function publicApiRequest<T>(path: string): Promise<T> {

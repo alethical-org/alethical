@@ -597,6 +597,13 @@ export const STATIC_PAGE_METADATA: Record<string, PageMetadata> = {
   }),
   // Signed-in surface: a search engine would only ever see the signed-out card,
   // so it is left out of the sitemap and unlisted.
+  '/admin/users': pageMetadata({
+    title: titleFor('Users'),
+    socialTitle: 'Users',
+    description: 'Private account information for approved administrators.',
+    canonicalPath: '/admin/users',
+    noindex: true,
+  }),
   '/tracked': pageMetadata({
     title: titleFor('Tracked'),
     socialTitle: 'Tracked',
