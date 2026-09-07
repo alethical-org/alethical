@@ -276,6 +276,16 @@ code sits, never what a reader downloads. **The way to tell the difference is to
 read the 3 named files**, which is what `apps/frontend/scripts/check-first-load-budget.mjs`
 reports on every build.
 
+**And that check cannot see a deferred download that something asks for anyway, so compare it
+against a real browser rather than assuming they agree.** It counts the files the built page
+names, which is right, and a download the running app then fetches immediately is invisible to
+it. Measured live on 7 Sep 2026, median of 5 loads with a fresh browser context per load: the
+sign-in dialog had been given its own download, and `SignInModalProvider` drew it on every page
+with `open` false, so the fetch started the moment the provider mounted and its 8,694 bytes
+landed **before** the app first drew. The check reported 439,253 and a reader was receiving
+452,893. Nothing about either number looked wrong. A deferral is only real once a browser has
+been watched not making the request.
+
 **The 300,000-byte target on
 [#1966](https://github.com/alethical-org/alethical/issues/1966) is not reachable by loading
 things later.** Below every saving sits the framework the whole app is built on:
