@@ -100,10 +100,17 @@ A **bill** arrives with its plain-language title, its bill code and session, its
 summary, when a bill has no key points), where it stands, its chief author, the cited-section labels
 the Summary tab shows, and links to the exact current-version passages when their positions are
 known. It also links to the bill on revisor.mn.gov, to that author's profile, and to the bill list. A
-**legislator** arrives with their name, chamber and district, party, committee assignments, stored
-biography and legislative service when present, capitol office and phone, and links to their official
-chamber profile and to the member list. Home, Find My Legislator, and the plain Bills and Legislators
-directories arrive with their own readable text and links. Answer pages, legal pages and filtered
+**legislator who currently holds a seat** arrives with their name, chamber and district, party,
+committee assignments, stored biography and legislative service when present, capitol office and
+phone, and links to their official chamber profile and to the member list. A **former member** —
+someone who resigned, died or lost their seat, and whose record therefore holds no current service —
+arrives with their stored name and their past record only: their election history and their authored
+bills, when we hold them. Not one current fact is filled in for them, not even a `Sen.` or `Rep.`
+before the name, because nothing in the record says which chamber they sat in, which party they
+belonged to, or which committees they sat on
+([`.claude/rules/grounded-answers.md` rule 12](../../.claude/rules/grounded-answers.md) — a value we
+do not hold is reported as missing, never replaced by a plausible one). Home, Find My Legislator,
+and the plain Bills and Legislators directories arrive with their own readable text and links. Answer pages, legal pages and filtered
 lists carry no first-response snapshot, with 2 deliberate exceptions in the money section below:
 where an address would otherwise show a reader nothing at all until the app arrives, it carries the
 page's own explanation. Serving those words changes nothing about whether a search engine may list
