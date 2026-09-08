@@ -677,22 +677,45 @@ async function committeeListContent(page: number): Promise<PageContent> {
   };
 }
 
-async function committeeFinance(slug: string): Promise<{
+/**
+ * One committee's money for the year the ADDRESS asks for, resolved exactly as the
+ * loaded screen resolves it (`campaignMoneyYear`), so the served figures are the
+ * ones the app then draws and the year it names is the year that was requested.
+ *
+ * A shared `?year=2025` link used to be served the default year's figures and have
+ * them replaced moments later, so a reader briefly read one year's money as the
+ * answer about another (#2021). A preferred address for a search engine is a
+ * reason to set the canonical link, which is untouched here, and never a reason to
+ * show a reader a different year. The resolved year is returned because the
+ * payments list has to ask for the same one.
+ */
+async function committeeFinance(
+  slug: string,
+  requestedYear: string | undefined,
+): Promise<{
   money: CommitteeMoneySnapshotSource;
   registrationNumber: string;
+  year: number;
 }> {
   const registrationNumber = registrationNumberFromSlug(slug);
   // The route reader already refuses an address with no number, so this is the
   // belt-and-braces case rather than the ordinary one.
   if (!registrationNumber) throw new UnknownAddress(`no committee in ${slug}`);
+  const year = campaignMoneyYear(requestedYear);
   const money = await getApiData<CommitteeMoneySnapshotSource>(
-    `/committees/${encodeURIComponent(registrationNumber)}/finance?year=${defaultMoneyYear()}`,
+    `/committees/${encodeURIComponent(registrationNumber)}/finance?year=${year}`,
   );
-  return { money, registrationNumber };
+  return { money, registrationNumber, year };
 }
 
-async function committeeContent(slug: string): Promise<PageContent> {
-  const { money, registrationNumber } = await committeeFinance(slug);
+async function committeeContent(
+  slug: string,
+  requestedYear: string | undefined,
+): Promise<PageContent> {
+  const { money, registrationNumber } = await committeeFinance(
+    slug,
+    requestedYear,
+  );
   return {
     metadata: committeeMoneyPageMetadata(slug, "page", {
       name: committeeSnapshotName(money, registrationNumber),
@@ -706,11 +729,17 @@ async function committeeContent(slug: string): Promise<PageContent> {
   };
 }
 
-async function committeePaymentsContent(slug: string): Promise<PageContent> {
-  const { money, registrationNumber } = await committeeFinance(slug);
+async function committeePaymentsContent(
+  slug: string,
+  requestedYear: string | undefined,
+): Promise<PageContent> {
+  const { money, registrationNumber, year } = await committeeFinance(
+    slug,
+    requestedYear,
+  );
   const params = new URLSearchParams({
     direction: "received",
-    year: String(defaultMoneyYear()),
+    year: String(year),
     sort: "amount",
     limit: String(COMMITTEE_PAYMENTS_PAGE_SIZE),
     offset: "0",
@@ -901,9 +930,9 @@ async function contentFor(
         ? outsideSpendingContent()
         : headOnly(outsideSpendingPageMetadata(target.params));
     case "moneyCommittee":
-      return committeeContent(target.slug);
+      return committeeContent(target.slug, target.year);
     case "moneyCommitteePayments":
-      return committeePaymentsContent(target.slug);
+      return committeePaymentsContent(target.slug, target.year);
     case "privacy":
       return headOnly(STATIC_PAGE_METADATA["/privacy"]);
     case "siteMetrics":

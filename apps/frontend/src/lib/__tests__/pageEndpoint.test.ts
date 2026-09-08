@@ -1550,3 +1550,241 @@ describe('the controls a search page hands to the app', () => {
     expect(servedData(body)).toEqual([]);
   });
 });
+
+/**
+ * A shared committee link naming a year used to be answered with the DEFAULT
+ * year's money and have it replaced moments later, so a reader following a 2025
+ * link briefly read 2026 figures as the answer (#2021). The canonical address is
+ * unchanged: a preferred address for a search engine never licenses showing a
+ * reader a year they did not ask for.
+ */
+describe('a committee address naming a year is answered in that year', () => {
+  const SLUG = 'jane-fonda-climate-pac-41326';
+
+  /** One committee-year, in the data service's own shape. */
+  function financeFor(
+    year: number,
+    money: {
+      splitState: string;
+      reportedTotal: string | null;
+      namedTotal: string | null;
+      inState: string;
+      outState: string;
+      outTotal: string | null;
+    },
+  ) {
+    return {
+      registration_number: '41326',
+      committee_name: 'Jane Fonda Climate PAC',
+      entity_type: 'PCF',
+      entity_sub_type: 'PC',
+      year,
+      fetched_at: '2026-08-12T02:54:22.402100Z',
+      register: {
+        state: 'reported',
+        kind: 'political_committee_or_fund',
+        name: 'Jane Fonda Climate PAC',
+        party: null,
+        office: null,
+        district: null,
+        registration_date: '2022-10-19',
+        termination_date: null,
+        as_of: '2026-08-12',
+        reason: null,
+      },
+      split: {
+        state: money.splitState,
+        reported_total: money.reportedTotal,
+        reported_through: money.reportedTotal ? `${year}-07-20` : null,
+        named_total: money.namedTotal,
+        named_in_kind_total: '0.0000',
+        unnamed_total:
+          money.reportedTotal && money.namedTotal
+            ? String(Number(money.reportedTotal) - Number(money.namedTotal))
+            : null,
+        stated_split_state: 'agrees',
+      },
+      money_in: {
+        state: money.inState,
+        reported_period_start: money.reportedTotal ? `${year}-01-01` : null,
+        other_receipts: [],
+      },
+      money_out: {
+        state: money.outState,
+        reported_total: money.outTotal,
+        reported_through: money.outTotal ? `${year}-07-20` : null,
+        by_type: [],
+      },
+      independent_spending: { state: 'not_reported' },
+    };
+  }
+
+  /** A year whose filings we hold: real figures under that year's own heading. */
+  const YEAR_WITH_FIGURES = {
+    splitState: 'shown',
+    reportedTotal: '880.0000',
+    namedTotal: '700.0000',
+    inState: 'reported',
+    outState: 'reported',
+    outTotal: '120.0000',
+  };
+
+  /** The same committee's other year, so a wrong-year answer is recognisable. */
+  const OTHER_YEAR_FIGURES = {
+    splitState: 'shown',
+    reportedTotal: '360.0000',
+    namedTotal: '300.0000',
+    inState: 'reported',
+    outState: 'reported',
+    outTotal: '40.0000',
+  };
+
+  /** No filing covers the year: rule 12's "Not reported", never a 0. */
+  const NO_FILING = {
+    splitState: 'no_reported_total',
+    reportedTotal: null,
+    namedTotal: null,
+    inState: 'not_reported',
+    outState: 'not_reported',
+    outTotal: null,
+  };
+
+  /** The year is outside the records we hold: unreadable, and still never a 0. */
+  const OUTSIDE_THE_RECORD = {
+    splitState: 'shown',
+    reportedTotal: '880.0000',
+    namedTotal: null,
+    inState: 'unavailable',
+    outState: 'unavailable',
+    outTotal: null,
+  };
+
+  /** Answers a finance read for whichever year it is asked for. */
+  function stubFinance(byYear: Record<number, ReturnType<typeof financeFor>>) {
+    const calls: string[] = [];
+    stubNetwork((url) => {
+      calls.push(url);
+      const year = Number(new URL(url).searchParams.get('year'));
+      const payload = byYear[year];
+      return payload ? { status: 200, payload: { data: payload } } : { status: 404 };
+    });
+    return calls;
+  }
+
+  const BOTH_YEARS = {
+    2025: financeFor(2025, YEAR_WITH_FIGURES),
+    2026: financeFor(2026, OTHER_YEAR_FIGURES),
+  };
+
+  it('asks the data service for the year in the address, not the default one', async () => {
+    const calls = stubFinance(BOTH_YEARS);
+
+    const { status } = await serve({ path: `/money/committees/${SLUG}`, year: '2025' });
+
+    expect(status).toBe(200);
+    expect(calls).toContain('https://api.alethical.com/api/v1/committees/41326/finance?year=2025');
+    expect(calls.some((url) => url.includes('year=2026'))).toBe(false);
+  });
+
+  it('serves the requested year’s figures and none of the other year’s', async () => {
+    stubFinance(BOTH_YEARS);
+
+    const { body } = await serve({ path: `/money/committees/${SLUG}`, year: '2025' });
+
+    expect(body).toContain('$880');
+    expect(body).toContain('Figures for Jan 1, 2025 – Jul 20, 2025');
+    // The exact confusion #2021 describes: the other year's total, under a
+    // heading a reader asked to be about 2025.
+    expect(body).not.toContain('$360');
+  });
+
+  it('still serves the default year when the address names none', async () => {
+    const calls = stubFinance(BOTH_YEARS);
+
+    const { body } = await serve({ path: `/money/committees/${SLUG}` });
+
+    expect(calls).toContain('https://api.alethical.com/api/v1/committees/41326/finance?year=2026');
+    expect(body).toContain('$360');
+  });
+
+  // The whole point of the exercise: what Google is told is unchanged, because a
+  // preferred address is a reason to set the canonical link and nothing else.
+  it('keeps one canonical address per committee, with no year in it', async () => {
+    stubFinance(BOTH_YEARS);
+
+    const { body, headers } = await serve({
+      path: `/money/committees/${SLUG}`,
+      year: '2025',
+    });
+
+    expect(body).toContain(
+      `<link rel="canonical" href="https://www.alethical.com/money/committees/${SLUG}" />`,
+    );
+    expect(body).not.toContain(
+      'canonical" href="https://www.alethical.com/money/committees/' + SLUG + '?year',
+    );
+    expect(headers.get('X-Robots-Tag')).toBeUndefined();
+  });
+
+  it('reads "Not reported" for a requested year with no filing, never 0', async () => {
+    stubFinance({
+      2025: financeFor(2025, NO_FILING),
+      2026: financeFor(2026, OTHER_YEAR_FIGURES),
+    });
+
+    const { body } = await serve({ path: `/money/committees/${SLUG}`, year: '2025' });
+
+    expect(body).toContain('Not reported');
+    expect(body).toContain('No figures cover 2025');
+    expect(body).not.toContain('$0');
+    expect(body).not.toContain('$360');
+  });
+
+  it('says the figures could not be read for a year outside the record, never 0', async () => {
+    stubFinance({
+      2025: financeFor(2025, OUTSIDE_THE_RECORD),
+      2026: financeFor(2026, OTHER_YEAR_FIGURES),
+    });
+
+    const { body } = await serve({ path: `/money/committees/${SLUG}`, year: '2025' });
+
+    // Escaped, because the served HTML is what a reader is handed.
+    expect(body).toContain(escapeHtml("We couldn't load this"));
+    expect(body).not.toContain('$0');
+    expect(body).not.toContain('$360');
+  });
+
+  it('answers the full payments list in the requested year too', async () => {
+    const calls: string[] = [];
+    stubNetwork((url) => {
+      calls.push(url);
+      const parsed = new URL(url);
+      const year = Number(parsed.searchParams.get('year'));
+      if (parsed.pathname.endsWith('/payments')) {
+        return {
+          status: 200,
+          payload: {
+            data: {
+              state: 'reported',
+              payments: [],
+              page: { total_payments: 0 },
+              linkable_registration_numbers: [],
+            },
+          },
+        };
+      }
+      const payload = BOTH_YEARS[year as 2025 | 2026];
+      return payload ? { status: 200, payload: { data: payload } } : { status: 404 };
+    });
+
+    const { status } = await serve({
+      path: `/money/committees/${SLUG}/payments`,
+      year: '2025',
+    });
+
+    expect(status).toBe(200);
+    expect(calls).toContain('https://api.alethical.com/api/v1/committees/41326/finance?year=2025');
+    expect(calls.some((url) => url.includes('/payments') && url.includes('year=2025'))).toBe(true);
+    expect(calls.some((url) => url.includes('year=2026'))).toBe(false);
+  });
+});
