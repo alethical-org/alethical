@@ -417,14 +417,20 @@ the browser's own request list: `/bills` made 4 data-service reads and now makes
 
 ## What the `/bills` wait is actually spent on
 
-`/bills` publishes the site's slowest main-content figure, and 60% of that wait is the
-shared program every address downloads rather than anything the bill list does.
-[`report-page-load-stages.mjs`](../../apps/frontend/scripts/report-page-load-stages.mjs)
+`/bills` publishes the site's slowest main-content figure. In 1 controlled profile, 60% of
+the load is the shared program every address downloads rather than anything the bill list
+does. [`report-page-load-stages.mjs`](../../apps/frontend/scripts/report-page-load-stages.mjs)
 loads an address with a cold cache and a brand-new browser per run, attaches every observer
 before the page loads, and splits the wait into its stages. Measured 7 Sep 2026 against
-production, 9 runs, throttled to 1,600 kbit with 150 ms latency and a processor 4x slower,
-a profile chosen so the total lands within 8% of the published figure and the shares below
-are shares of the real number. The 9 runs spread under 40 ms.
+production, 9 runs, throttled to 1,600 kbit with 150 ms latency and a processor 4x slower.
+The 9 runs spread under 40 ms.
+
+**Every share below belongs to that profile and to no visitor.** The profile was picked so
+its total sits near the published figure, and 2 loads can reach the same total with
+completely different stages behind it, because device, cache state, window width, server
+wait and network all differ. So the shared program leading is a hypothesis about real
+visits, testable by shrinking the program and re-reading the published figure, not a
+measurement of them.
 
 | Stage | 1280x900 | Share |
 |---|---:|---:|
@@ -449,11 +455,14 @@ publishes 2 very different figures.** 3 runs at each width, same profile: 390 px
 at the same early moment, because the first response and its styles are the same whatever
 the window, and what differs is only which element the browser calls largest. On a 1,280 px
 window the first readable paint is 560 ms and a screenshot at 900 ms already carries the
-heading, the count and all 10 bill numbers with their titles, each a working link. So a
-published figure for an address is a wide-window figure, and reading it as the moment a
-reader first sees something overstates it by about 3 seconds. What share of real visits sits on each side of
-600 px is unmeasured: the per-address report deliberately asks Cloudflare for no device or
-width breakdown (`docs/product-onboarding/traffic-guide.md`).
+heading, the count and all 10 bill numbers with their titles, each a working link.
+
+**Those are controlled readings, and they say nothing about the mix of real windows.**
+Nobody knows what share of visits arrives narrow, because the per-address report
+deliberately asks Cloudflare for no device or width breakdown
+(`docs/product-onboarding/traffic-guide.md`). So a published figure for an address may
+average 2 populations that differ by 3 seconds, and a controlled table and a visitor table
+are never read into each other.
 
 **Matching the served text's heading to the app's would move that figure without moving
 anything a reader waits for**, from about 3,300 ms to about 550 ms on every width. It is a
@@ -477,9 +486,10 @@ analysis is 27,441, of which the key points, the suggested questions and the cit
 drawn on the bill page and the Ask page and never on a card. Compressed the same way, the
 response as served is 22,527 bytes, without everything no card draws 15,053, and carrying
 only what a card draws with 1 action line each 9,115. At this profile's bandwidth those are
-113, 75 and 46 ms of transfer, so the whole avenue is worth under 100 ms of 3,832 counting
-the drawing stage as an upper bound on the parsing it also saves. The 490 ms list stage is
-mostly the round trip and the server.
+113, 75 and 46 ms of transfer. What a smaller response saves beyond that transfer is not
+established: a smaller body is also less to parse and less for the server to build, and
+neither was measured. Sizing the whole avenue needs a controlled before-and-after, so the
+bytes above are the finding and the seconds are not.
 
 **A browser cannot split that 490 ms further, because the data service sends no
 `Timing-Allow-Origin` header.** A page may read a cross-origin request's start and end and
