@@ -439,21 +439,22 @@ class DisposablePostgresTest(unittest.TestCase):
                     self.fail("Host identity timeout must not yield")
         self.assertEqual(len(self.removed()), 1)
 
-    def test_only_pytest_receives_disposable_database_url(self):
-        url = "postgresql+psycopg://alethical:alethical@127.0.0.1:49165/alethical"
-        with patch.object(self.checks, "run") as run:
+    def test_pytest_owns_its_database_without_a_second_hook_container(self):
+        with (
+            patch.object(self.checks, "run") as run,
+            patch.object(self.checks, "disposable_postgres") as database,
+        ):
             self.checks.run_suites(self.snapshot, {"backend", "frontend"})
+        database.assert_not_called()
         pytest_calls = [
             call
             for call in run.call_args_list
             if call.args[0] == ["uv", "run", "--frozen", "pytest"]
         ]
         self.assertEqual(len(pytest_calls), 1)
-        self.assertEqual(pytest_calls[0].kwargs["env"]["DATABASE_URL"], url)
         for call in run.call_args_list:
-            if call not in pytest_calls:
-                self.assertNotIn("DATABASE_URL", call.kwargs["env"])
-        self.assertEqual(len(self.removed()), 1)
+            self.assertNotIn("DATABASE_URL", call.kwargs["env"])
+        self.assertEqual(len(self.removed()), 0)
 
 
 if __name__ == "__main__":

@@ -217,7 +217,9 @@ jobs:
         run: uvx ty@0.0.72 check alethical/db
 
       - name: Test backend
-        run: uv run pytest
+        run: |
+          uv run python -m unittest discover -s scripts/tests -p 'test_manual_test_database.py'
+          uv run pytest
 
   frontend:
     needs: changes

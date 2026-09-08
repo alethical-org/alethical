@@ -9,7 +9,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from alethical.db import models as schema
-from alethical.db.session import get_engine
+from alethical.db.session import get_database_url, get_engine
 from alethical.pipeline import anthropic_enrichment, rag_ingest
 from alethical.pipeline.bill_summary_requests import (
     canonical_source_text_fingerprint,
@@ -20,8 +20,9 @@ from alethical.pipeline.minnesota import (
     content_hash,
     parse_bill_text_html,
 )
-from alethical.tests.conftest import DATABASE_URL
 from scripts import repair_missing_bill_sections as repair
+
+DATABASE_URL = get_database_url()
 
 
 OFFICIAL_PAGE = """

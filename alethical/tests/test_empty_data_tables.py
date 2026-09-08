@@ -22,7 +22,7 @@ def test_data_tables_to_empty_covers_our_tables_and_nothing_else() -> None:
 
     `alembic_version` records the migrations already applied and would leave a
     fully-built database claiming to have none; `someone_elses_table` stands for a
-    database that `ALETHICAL_TEST_DATABASE_URL` points at which holds more than ours.
+    table created by another test helper rather than declared by the app's models.
     """
     assert empty_data_tables.data_tables_to_empty(
         declared=["legislator", "bill", "committee"],
