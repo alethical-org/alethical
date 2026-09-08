@@ -150,6 +150,19 @@ exception and only responds to a normal click.
 
 ---
 
+## When the list cannot be loaded
+
+If the bill list itself cannot be read, the page keeps its heading, its search box and all
+its filters, and one line replaces the results: "We couldn't load bills right now. Please
+try again in a moment." You can retype your search or reload from there, because nothing
+you were using is taken away.
+
+The message sits exactly where the first result card would have been, and the page keeps
+the same height it had a moment earlier, so the footer does not jump up the screen
+([#2011](https://github.com/alethical-org/alethical/issues/2011)).
+
+---
+
 ## When nothing matches
 
 You get a calm message that fits what you actually did, and a **"Clear all"** button

@@ -584,6 +584,40 @@ and written out on the other seeds nothing while the page still works, so the mi
 invisible in every screenshot and every test of what the page draws. What settles it is
 the browser's own request list: `/bills` made 4 data-service reads and now makes 1.
 
+## A failed list read holds the space the placeholder rows held
+
+`/bills` and `/legislators` reserve a window's height around every state of their results
+panel, not only the loading one (`useOneScreenTall` in
+`apps/frontend/src/components/Skeleton.tsx`, applied in `SearchBillsScreen.tsx` and
+`SearchLegislatorsScreen.tsx`). A failed read swaps the placeholder rows for 1 sentence,
+which shortened the page by about 690px and pulled the footer 449px up into view in the
+same paint that said the load failed.
+
+**The failure box carries the same 22px top margin the list above it uses.** React reuses
+one element for the list branch and the failure branch, so a failure box with no top margin
+reads to the browser as that element sliding 22px up the page. Equal margins are what make
+the swap invisible.
+
+**What the failure state says and shows is unchanged**, and it already kept the heading,
+the search box and every filter: both screens hand the page frame a header band in every
+state, so the frame's remembered-height rule for a page handed none never applies here.
+
+Measured for [#2011](https://github.com/alethical-org/alethical/issues/2011) on 8 Sep 2026,
+2 local production-like builds each served behind the real page function against the live
+data service, cold browser per address, every record request refused. The baseline
+reproduces the live figures.
+
+| Address | Width | Before | After | Live before |
+|---|---|---:|---:|---:|
+| `/bills` | 1280x900 | 0.1491 | 0.0000 | 0.1491 |
+| `/legislators` | 1280x900 | 0.1082 | 0.0000 | 0.1082 |
+| `/bills` | 390x844 | 0.0000 | 0.0000 | 0.0000 |
+| `/legislators` | 390x844 | 0.0048 | 0.0000 | 0.0048 |
+
+Against Google's passing mark of 0.1. A successful load is unchanged: 0.0000, 0.0000,
+0.0007 and 0.0016 on the same 4 rows both before and after, and the settled desktop page
+screenshots are byte-identical.
+
 ## What the `/bills` wait is actually spent on
 
 `/bills` publishes the site's slowest main-content figure. In 1 controlled profile, 60% of
