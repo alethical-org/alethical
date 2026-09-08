@@ -93,8 +93,10 @@ def test_bill_list_and_bill_detail_support_public_and_signed_in_views(
         "vetoed",
     }
     assert first_bill["ai_analysis"]["summary"]
-    assert first_bill["ai_analysis"]["key_points"]
     assert first_bill["ai_analysis"]["policy_areas"]
+    # A result card draws no key points, so this route no longer sends them
+    # (#2025). The bill page reads them from its own route, asserted below.
+    assert first_bill["ai_analysis"]["key_points"] == []
 
     # The list now ships each bill's action feed so a result card can render the
     # same curated latest-action line as the Bill Detail Actions tab (#581 line).
@@ -153,6 +155,9 @@ def test_bill_list_and_bill_detail_support_public_and_signed_in_views(
     }
     assert detail_payload["all_sponsors"][0]["role"]
     assert "party" in detail_payload["all_sponsors"][0]
+    assert detail_payload["ai_analysis"]["key_points"], (
+        "the bill page still reads its own key points"
+    )
 
     progress_response = client.get(
         "/api/v1/bills/94-2025-SF1832",
@@ -167,6 +172,54 @@ def test_bill_list_and_bill_detail_support_public_and_signed_in_views(
         "passed_senate",
         "signed_into_law",
     ]
+
+
+def test_bill_list_sends_what_a_card_draws_and_ask_still_gets_its_prompts(client):
+    """The result-card route leaves out what a card never puts on screen, and the
+    route that feeds the Ask answer page keeps it.
+
+    Measured on production for 10 bills (#2025): the action history is 62% of a
+    127,201-byte response and each card prints 1 line of it, while the key points,
+    the suggested questions and the citations are 18,218 bytes a card never draws.
+    The 2 unread action fields appear nowhere in `apps/frontend/src` outside a test
+    fixture. The Ask answer page reads a bill's suggested questions straight off
+    the card it is handed, from `/bills/featured`, so that route must keep them.
+    """
+    cards = client.get(
+        "/api/v1/bills", params={"session": "94-2025-regular", "limit": 20}
+    )
+    assert cards.status_code == 200
+    listed = cards.json()["data"]
+    assert listed, "the seeded session should list bills"
+
+    for bill in listed:
+        analysis = bill["ai_analysis"]
+        assert analysis["key_points"] == []
+        assert analysis["question_prompts"] == []
+        assert analysis["citations"] == []
+        for action in bill.get("actions", []):
+            assert "action_group" not in action
+            assert "journal_page" not in action
+
+    # Everything a card draws survives, including the whole action feed its
+    # latest-action line is built from.
+    with_analysis = next(bill for bill in listed if bill["ai_analysis"].get("summary"))
+    assert with_analysis["ai_analysis"]["policy_areas"]
+    with_actions = next(bill for bill in listed if bill.get("actions"))
+    assert with_actions["actions"][0]["action_text"]
+    assert "action_at" in with_actions["actions"][0]
+
+    featured = client.get(
+        "/api/v1/bills/featured", params=[("bill_id", b["id"]) for b in listed[:5]]
+    )
+    assert featured.status_code == 200
+    fed_to_ask = featured.json()["data"]
+    assert fed_to_ask, "featured should answer for the ids it was given"
+    assert any(
+        bill["ai_analysis"].get("question_prompts")
+        or bill["ai_analysis"].get("key_points")
+        for bill in fed_to_ask
+    ), "the route the Ask answer page reads must keep what it draws"
 
 
 def test_bill_directory_view_returns_only_first_response_fields(client):

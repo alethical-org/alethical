@@ -1197,6 +1197,10 @@ def bills(
                 co_author_count=co_author_counts.get(str(row.id), 0),
                 effective_date=effective_dates.get(str(row.id)),
                 session=special_session_ref(row),
+                # Every reader of this route draws result cards, so it sends what a
+                # card draws and nothing else (#2025). The Ask paths and the bill
+                # page read the pieces left out here from their own routes.
+                only_what_a_card_draws=True,
             )
             for row in rows
         ]

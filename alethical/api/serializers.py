@@ -403,11 +403,36 @@ def bill_list_item(
     include_companion: bool = False,
     effective_date: str | None = None,
     session=None,
+    only_what_a_card_draws: bool = False,
 ) -> api_schemas.BillListItem:
+    """One bill as a list row.
+
+    ``only_what_a_card_draws`` leaves out the parts of a bill that a result card
+    never puts on screen, for a caller that draws nothing but cards. It leaves out
+    3 pieces of the AI analysis -- the key points, the suggested questions and the
+    citations -- which the bill page and the Ask page draw from their own reads,
+    and 2 fields on every action, its group and its journal page, which no screen
+    in the app reads at all. Everything a card draws is untouched, including the
+    full action feed the card's latest-action line is built from.
+
+    Measured on the `/bills` response for 10 bills (#2025): 22,527 bytes over the
+    wire become 15,053. It is a third of the bytes and about 38 ms, not a fix for
+    that page's wait, which is 60% the shared program download.
+
+    Off by default, because most callers here are not drawing a card. The Ask
+    answer page reads a bill's suggested questions straight off the card it is
+    handed while its own read is still in flight, so a caller that feeds Ask must
+    leave this alone.
+    """
     # ``session`` is passed only by the Ask paths, and only for a bill outside the
     # Legislature's regular session (#810). Every other caller lists one session's
     # bills under a heading that already names it, so serving it there would repeat
     # the same string on every row for nothing.
+    analysis = ai_analysis_payload(bill.enrichments)
+    if analysis is not None and only_what_a_card_draws:
+        analysis = analysis.model_copy(
+            update={"key_points": [], "question_prompts": [], "citations": []}
+        )
     return api_schemas.BillListItem(
         id=bill.bill_key,
         file_type=bill.file_type,
@@ -425,20 +450,33 @@ def bill_list_item(
         companion=companion_payload(bill) if include_companion else None,
         stats=bill_stats_payload(bill.stats),
         tracked=tracking_payload(bill.tracked_by) if include_tracking else None,
-        ai_analysis=ai_analysis_payload(bill.enrichments),
-        actions=[bill_action_payload(action) for action in bill.actions],
+        ai_analysis=analysis,
+        actions=[
+            bill_action_payload(action, keep_unread_fields=not only_what_a_card_draws)
+            for action in bill.actions
+        ],
     )
 
 
-def bill_action_payload(action) -> api_schemas.BillActionPayload:
+def bill_action_payload(
+    action, *, keep_unread_fields: bool = True
+) -> api_schemas.BillActionPayload:
+    """One action on a bill.
+
+    ``keep_unread_fields`` off leaves out the action's group and its journal page.
+    No screen in the app reads either: they appear nowhere in
+    ``apps/frontend/src`` outside a test fixture. They stay on by default so this
+    change is the one response it was measured on rather than every response that
+    carries an action.
+    """
     return api_schemas.BillActionPayload(
         action_number=action.action_number,
         action_text=action.action_text,
-        action_group=action.action_group,
+        action_group=action.action_group if keep_unread_fields else None,
         action_description=action.action_description,
         committee_name=action.committee_name,
         action_at=action.action_at,
-        journal_page=action.journal_page,
+        journal_page=action.journal_page if keep_unread_fields else None,
         roll_call_text=action.roll_call_text,
         first_seen_at=action.created_at,
     )
