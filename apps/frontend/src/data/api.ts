@@ -832,12 +832,13 @@ export async function getAdminAccessFromApi(accessToken: string, signal?: AbortS
   );
 }
 
-export async function publicApiRequest<T>(path: string): Promise<T> {
+export async function publicApiRequest<T>(path: string, signal?: AbortSignal): Promise<T> {
   const response = await publicReadResponse(publicApiUrl(path), {
     method: 'GET',
     headers: {
       Accept: 'application/json',
     },
+    signal,
   });
 
   if (!response.ok) {
@@ -2838,10 +2839,14 @@ function nameSearchRow(row: ApiNameSearchRowPayload): NameSearchRow | null {
 export async function getCampaignFinanceNameSearchFromApi(
   query: string,
   limit = 5,
+  // Given so a search nobody is waiting for is dropped at the socket when the
+  // reader types on (issue #2020).
+  signal?: AbortSignal,
 ): Promise<NameSearchAnswer> {
   const params = new URLSearchParams({ q: query, limit: String(limit) });
   const response = await publicApiRequest<DetailResponse<ApiNameSearchPayload>>(
     `/campaign-finance/search?${params.toString()}`,
+    signal,
   );
   const payload = response.data;
   const groups: NameSearchGroup[] = (payload.groups ?? []).map((group) => ({

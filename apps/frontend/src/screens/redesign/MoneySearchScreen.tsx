@@ -8,7 +8,7 @@ import {
 } from '../../components/campaignMoney/MoneyListRows';
 import { MoneyNameSearchField } from '../../components/campaignMoney/MoneyNameSearchField';
 import { UnderDevelopmentNotice } from '../../components/campaignMoney/UnderDevelopmentNotice';
-import { Skeleton } from '../../components/Skeleton';
+import { Skeleton, useOneScreenTall } from '../../components/Skeleton';
 import type { NameSearchGroup, NameSearchRow } from '../../data/types';
 import { useCampaignFinanceNameSearch } from '../../hooks/useAppQueries';
 import { useDebouncedSearchCommit } from '../../hooks/useDebouncedSearchCommit';
@@ -82,6 +82,7 @@ import { theme as t } from '../../theme/tokens';
  */
 export function MoneySearchScreen({ navigation, route }: RootScreenProps<'MoneySearch'>) {
   const { isMobile } = useResponsive();
+  const oneScreenTall = useOneScreenTall();
   const query = typeof route.params?.q === 'string' ? route.params.q : '';
 
   const [queryInput, setQueryInput] = useState(query);
@@ -94,6 +95,18 @@ export function MoneySearchScreen({ navigation, route }: RootScreenProps<'MoneyS
 
   const search = useCampaignFinanceNameSearch(query);
   const answer = search.data ?? null;
+
+  /**
+   * True until the answer on hand is the answer to the name in the heading.
+   *
+   * `isPending` alone was not enough. An answer kept from the previous search is
+   * not pending, so the last search's rows, counts and "no matches" card drew
+   * under the new search's heading: "Results for smith" above a list of
+   * education groups (issue #2020). The read no longer keeps one, and this
+   * covers the page's own promise so re-introducing that setting cannot quietly
+   * break it again.
+   */
+  const waitingForThisQuery = search.isPending || search.isPlaceholderData;
 
   useDocumentTitle(
     '/money/search',
@@ -176,79 +189,88 @@ export function MoneySearchScreen({ navigation, route }: RootScreenProps<'MoneyS
             </View>
           </View>
 
-          {query.trim().length === 0 ? (
-            <View style={styles.card}>
-              <Text style={styles.h3}>{NAME_SEARCH_EMPTY_QUERY_TITLE}</Text>
-              <Text style={styles.explain}>{NAME_SEARCH_EMPTY_QUERY_WHY}</Text>
-              <BrowseAllCommittees navigation={navigation} />
-            </View>
-          ) : search.isPending ? (
-            <View style={styles.groupsLoading}>
-              <View role="status" aria-busy style={styles.hidden}>
-                <Text>Searching these records</Text>
+          {/* Every state holds a window's height, never the waiting one alone.
+              Reserving only while waiting moves the same jump onto the states
+              that release it (`useOneScreenTall`), and a reader who changes
+              their search would watch the footer climb into view the moment the
+              rows are replaced. */}
+          <View style={oneScreenTall}>
+            {query.trim().length === 0 ? (
+              <View style={styles.card}>
+                <Text style={styles.h3}>{NAME_SEARCH_EMPTY_QUERY_TITLE}</Text>
+                <Text style={styles.explain}>{NAME_SEARCH_EMPTY_QUERY_WHY}</Text>
+                <BrowseAllCommittees navigation={navigation} />
               </View>
-              <MoneyListRows isMobile={isMobile}>
-                {(['58%', '72%', '44%'] as const).map((width, index) => (
-                  <MoneyListRow key={index} isMobile={isMobile} first={index === 0}>
-                    <View style={styles.rowText}>
-                      <Skeleton width={width} height={14} />
-                      <Skeleton width={200} height={11} style={{ marginTop: 8 }} />
-                    </View>
-                  </MoneyListRow>
-                ))}
-              </MoneyListRows>
-            </View>
-          ) : search.isError ? (
-            <View style={styles.card}>
-              <Text accessibilityRole="alert" style={styles.explain}>
-                We couldn’t search these records just now. This is a problem on our side and says
-                nothing about anyone’s giving. Please try again in a moment.
-              </Text>
-            </View>
-          ) : tooShort ? (
-            <View style={styles.card}>
-              <Text style={styles.h3}>{tooShortTitle(answer?.minQueryLength ?? null)}</Text>
-              <Text style={styles.explain}>{tooShortWhy(answer?.minQueryLength ?? null)}</Text>
-            </View>
-          ) : !anyResult && !everySearched ? (
-            /* Nothing turned up and part of the records went unread, so the page
+            ) : waitingForThisQuery ? (
+              <View style={styles.groupsLoading}>
+                <View role="status" aria-busy style={styles.hidden}>
+                  <Text>Searching these records</Text>
+                </View>
+                <MoneyListRows isMobile={isMobile}>
+                  {(['58%', '72%', '44%'] as const).map((width, index) => (
+                    <MoneyListRow key={index} isMobile={isMobile} first={index === 0}>
+                      <View style={styles.rowText}>
+                        <Skeleton width={width} height={14} />
+                        <Skeleton width={200} height={11} style={{ marginTop: 8 }} />
+                      </View>
+                    </MoneyListRow>
+                  ))}
+                </MoneyListRows>
+              </View>
+            ) : search.isError ? (
+              <View style={styles.card}>
+                <Text accessibilityRole="alert" style={styles.explain}>
+                  We couldn’t search these records just now. This is a problem on our side and says
+                  nothing about anyone’s giving. Please try again in a moment.
+                </Text>
+              </View>
+            ) : tooShort ? (
+              <View style={styles.card}>
+                <Text style={styles.h3}>{tooShortTitle(answer?.minQueryLength ?? null)}</Text>
+                <Text style={styles.explain}>{tooShortWhy(answer?.minQueryLength ?? null)}</Text>
+              </View>
+            ) : !anyResult && !everySearched ? (
+              /* Nothing turned up and part of the records went unread, so the page
                may not claim nothing is filed under the name. */
-            <View style={styles.card}>
-              <Text style={styles.h3}>{NOT_ALL_SEARCHED_TITLE}</Text>
-              <Text style={styles.explain}>{NOT_ALL_SEARCHED_WHY}</Text>
-              <BrowseAllCommittees navigation={navigation} />
-            </View>
-          ) : !anyResult ? (
-            <View style={styles.card}>
-              <Text style={styles.h3}>{noMatchTitle(query)}</Text>
-              <Text style={styles.explain}>{NO_MATCH_WHY}</Text>
-              <BrowseAllCommittees navigation={navigation} />
-            </View>
-          ) : (
-            <View style={styles.groups}>
-              {NAME_SEARCH_GROUP_ORDER.map((kind) => {
-                const group = groups.find((candidate) => candidate.kind === kind);
-                if (!group) return null;
-                return (
-                  <ResultGroup
-                    key={kind}
-                    kind={kind}
-                    group={group}
-                    query={query}
-                    isMobile={isMobile}
-                    navigation={navigation}
-                  />
-                );
-              })}
-              {/* Under the groups, where the drawing prints the list's footnote:
+              <View style={styles.card}>
+                <Text style={styles.h3}>{NOT_ALL_SEARCHED_TITLE}</Text>
+                <Text style={styles.explain}>{NOT_ALL_SEARCHED_WHY}</Text>
+                <BrowseAllCommittees navigation={navigation} />
+              </View>
+            ) : !anyResult ? (
+              <View style={styles.card}>
+                <Text style={styles.h3}>{noMatchTitle(query)}</Text>
+                <Text style={styles.explain}>{NO_MATCH_WHY}</Text>
+                <BrowseAllCommittees navigation={navigation} />
+              </View>
+            ) : (
+              <View style={styles.groups}>
+                {NAME_SEARCH_GROUP_ORDER.map((kind) => {
+                  const group = groups.find((candidate) => candidate.kind === kind);
+                  if (!group) return null;
+                  return (
+                    <ResultGroup
+                      key={kind}
+                      kind={kind}
+                      group={group}
+                      query={query}
+                      isMobile={isMobile}
+                      navigation={navigation}
+                    />
+                  );
+                })}
+                {/* Under the groups, where the drawing prints the list's footnote:
                   how the names were matched, and the counting ceiling when one
                   group hit it. */}
-              <Text style={styles.matchedOn}>{NAME_SEARCH_MATCHED_ON}</Text>
-              {anyCapped && countedUpToNote(answer?.countedUpTo ?? null) ? (
-                <Text style={styles.matchedOn}>{countedUpToNote(answer?.countedUpTo ?? null)}</Text>
-              ) : null}
-            </View>
-          )}
+                <Text style={styles.matchedOn}>{NAME_SEARCH_MATCHED_ON}</Text>
+                {anyCapped && countedUpToNote(answer?.countedUpTo ?? null) ? (
+                  <Text style={styles.matchedOn}>
+                    {countedUpToNote(answer?.countedUpTo ?? null)}
+                  </Text>
+                ) : null}
+              </View>
+            )}
+          </View>
         </Container>
         <Footer />
       </ScrollView>

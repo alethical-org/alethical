@@ -225,6 +225,12 @@ and a link to browse all committees); one group our copy could not read (a gap o
 while the other groups still answer); and loading placeholders that announce themselves to
 screen readers.
 
+**Changing the name shows those loading placeholders, never the last name's answer.** The
+heading, the counts, the rows and the "nothing is filed" card are all claims about the name
+in the box, so the page holds none of them past the moment that name changes. The
+placeholders sit in the space the results held, so nothing a reader can see moves while the
+new answer arrives.
+
 The server answers this address with the page's own explanation and the "what this record does
 not cover" lines, so a reader is told what the box searches before anything has run. It never
 answers with a result for anything typed, and the address stays out of search results, because
