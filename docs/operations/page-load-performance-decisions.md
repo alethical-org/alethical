@@ -469,15 +469,21 @@ anything a reader waits for**, from about 3,300 ms to about 550 ms on every widt
 design question about whether the 2 headings should be the same size, and it is never a
 performance change.
 
-**The 490 ms list stage is what a warm nearby cache costs; a real visit usually pays
-more.** Measured at the origin on 7 Sep 2026 with a cache-busting parameter, 3 reads each:
-the answer takes 565 ms cold against 90 ms when the nearby cache holds it, so a visit that
-finds no copy waits roughly 950 ms for its list rather than 490. The same reads split that
-cold time: 234 ms with no rows returned at all, which is the count and the plan; 307 ms for
-10 rows in the slim view; 454 ms for 1 full row; 565 ms for 10. So most of it is loading
+**The 490 ms list stage is what a warm nearby cache costs, and a visit that finds no copy
+pays more.** Measured at the origin on 7 Sep 2026 with a cache-busting parameter, 3 reads
+each: the answer takes 565 ms cold against 90 ms when the nearby cache holds it, so a visit
+that finds no copy waits roughly 950 ms for its list rather than 490. The same reads split
+that cold time: 234 ms with no rows returned at all, which is the count and the plan; 307 ms
+for 10 rows in the slim view; 454 ms for 1 full row; 565 ms for 10. So most of it is loading
 each bill's full record, and 1 row costs nearly as much as 10, which points at a fixed cost
-in the loading rather than a per-row one. `/bills` holds its answers for 60 seconds and
-takes about 2 visits an hour, so a copy is usually not there.
+in the loading rather than a per-row one.
+
+**Report both numbers with the cache state named, and never claim which one a reader gets.**
+How often a copy is already held is unmeasured, and it cannot be reasoned out from how often
+the page is visited: a first-time visitor can be handed an answer somebody else's visit put
+there minutes earlier, and copies are held per location rather than once for everybody. So
+"565 ms cold, 90 ms warm" is the honest pair, and "most visitors pay 565 ms" is a claim
+nobody here has earned.
 
 **The list response carries far more than a card draws, and its size is not the wait.**
 `/bills` asks for 10 bills and receives 127,201 bytes, 22,145 as production gzips it. Action
