@@ -67,12 +67,14 @@ describe('checkFirstLoadBudget', () => {
   it('holds a limit no bigger than what the build produces today', () => {
     // A limit far above the real size would let the file grow back unnoticed,
     // which is the whole reason this check exists.
-    // The combined account and SEO hosted build measures 389,521 bytes;
-    // private account parsing still loads only with its screen. The end-to-end
-    // freshness deadline (issue 2023) builds 389,961 against main's 389,083, so
-    // the ratchet moved 500 and no further: the allowance left for host variance
-    // is the same 479 bytes it was before, not a bigger one.
-    expect(FIRST_LOAD_LIMIT).toBeLessThanOrEqual(390500);
+    // Every figure here is Vercel's own build, because a local build of the same
+    // commit reads 542 bytes smaller and a ratchet set from the smaller number is
+    // one the hosted build then fails, which stops the deploy
+    // ([issue 2052](https://github.com/alethical-org/alethical/issues/2052)).
+    // Vercel built 390,761 bytes for commit 01ffcbb0, which is the end-to-end
+    // freshness deadline (issue 2023) plus the 2 changes that followed it, so the
+    // ratchet sits 739 above that for the next change to spend.
+    expect(FIRST_LOAD_LIMIT).toBeLessThanOrEqual(391500);
   });
 });
 

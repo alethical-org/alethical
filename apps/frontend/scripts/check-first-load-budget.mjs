@@ -25,24 +25,31 @@ import { pathToFileURL } from 'node:url';
 // SEO release measures 389,521 bytes in Vercel's build, leaving 479 bytes here.
 // Keep this tied to the hosted result, since local configuration changes size.
 //
-// Raised from 390,000 for the end-to-end freshness deadline (issue 2023), with the
-// measurement it asks for. Main built 389,083 bytes; that change builds 389,961,
-// so it costs 878 bytes, and the same 479-byte allowance for host variance puts
-// the ratchet here. What the 878 buys is a bound on how old a claim naming a real
-// person can be by the time somebody reads it, which was previously unbounded for
-// an open tab: it is the deadline itself, the 4 read names it applies to, and the
-// arithmetic that reads a cache's `Age`.
+// **Measure this on Vercel, never on a laptop, and the gap is 542 bytes.** A local
+// build of commit 01ffcbb0 produced 390,219 bytes where Vercel's build of that same
+// commit produced 390,761, all of it in `index-*.js`, whose content hash differs
+// between the 2 because the build inlines configuration a laptop does not hold. A
+// ratchet set from the smaller number is a ratchet the hosted build then fails, and
+// a failed build does not deploy: production served no merge for 50 minutes on
+// 8 Sep 2026 while 4 commits sat merged and unshipped, the first of them the very
+// change that had just moved this limit from a local reading
+// ([issue 2052](https://github.com/alethical-org/alethical/issues/2052)).
 //
-// Two things were done first rather than raising this straight away, and both are
-// worth knowing before anyone raises it again. The 2 withheld sentences moved into
-// the 2 screens that draw them (`lib/committeeMoney.ts`,
-// `lib/legislatorCampaignMoney.ts`), which took 475 bytes off every page that will
-// never print them. And folding the age-reading fetch helper into
-// `publicApiRequest` so there was one implementation made this file 409 bytes
-// BIGGER, because that function has dozens of callers and the wrapper's returned
-// object inlines into each: the duplication in `data/api.ts` is deliberate and
-// measured, and the comment there says so.
-export const FIRST_LOAD_LIMIT = 390500;
+// So the figure here is Vercel's own: 390,761 bytes for 01ffcbb0, plus 739 for the
+// next change to spend, which is more than the measured gap so a hosted build cannot
+// fail a limit a local build passed by a whisker.
+//
+// What the bytes above 390,000 buy, and what was done before spending them. The
+// end-to-end freshness deadline (issue 2023) is a bound on how old a claim naming a
+// real person can be by the time somebody reads it, which was previously unbounded
+// for an open tab. Before that limit moved, the 2 withheld sentences moved into the
+// 2 screens that draw them (`lib/committeeMoney.ts`,
+// `lib/legislatorCampaignMoney.ts`), taking 475 bytes off every page that will never
+// print them; and folding the age-reading fetch helper into `publicApiRequest` made
+// the first load 409 bytes BIGGER, because that function has dozens of callers and
+// the wrapper's returned object inlines into each, so the duplication in
+// `data/api.ts` is deliberate and its comment says so.
+export const FIRST_LOAD_LIMIT = 391500;
 
 /**
  * The exact settings Vercel compresses with, so this reports the bytes a reader

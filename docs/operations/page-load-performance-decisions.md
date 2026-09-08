@@ -404,12 +404,21 @@ the 388,290-byte baseline. The limit is 390,000 bytes to admit this measured fea
 the private list itself is not a cost paid by public readers.
 
 The end-to-end freshness deadline
-([issue 2023](https://github.com/alethical-org/alethical/issues/2023)) adds **878 bytes**: main
-built 389,083 and it builds 389,961, so the limit is 390,500 with the same 479-byte allowance for
-host variance. What every reader downloads for it is the deadline, the 4 read names it applies to,
-and the arithmetic that reads a cache's `Age`. What they do not download is the 2 sentences a
-withheld claim prints, which moved into the 2 screens that draw them and took 475 bytes back off
-every other page.
+([issue 2023](https://github.com/alethical-org/alethical/issues/2023)) adds **878 bytes** measured
+locally: main built 389,083 and it builds 389,961. What every reader downloads for it is the
+deadline, the 4 read names it applies to, and the arithmetic that reads a cache's `Age`. What they
+do not download is the 2 sentences a withheld claim prints, which moved into the 2 screens that
+draw them and took 475 bytes back off every other page.
+
+**The limit is 391,500 bytes and every figure setting it is Vercel's own build, because a local
+build reads 542 bytes smaller and a limit set from the smaller number stops the deploy.** Measured
+on commit `01ffcbb0`: this Mac builds 390,219 bytes where Vercel builds 390,761, the whole
+difference in `index-*.js`, whose content hash differs between the 2 because the build inlines
+configuration a laptop does not hold. On 8 September 2026 a limit of 390,500 set from a local
+reading of 389,961 failed its own hosted build, and production served no merge for 50 minutes with
+4 commits merged and unshipped. So the limit sits 739 bytes above Vercel's 390,761, which is more
+than the measured gap, and the next change to move it takes its number from a hosted build
+([issue 2052](https://github.com/alethical-org/alethical/issues/2052) closes the trap itself).
 
 **One measurement there is worth keeping, because it reverses the tidier choice.** Folding the
 age-reading fetch helper into `publicApiRequest` so there is a single implementation makes the
