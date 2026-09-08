@@ -6,7 +6,7 @@ Net: Destination rows share one spacing pattern; partial-range counts align with
 
 1. [Pull request 2078](https://github.com/alethical-org/alethical/pull/2078) is live: tablet speed text stays inside its card. Fresh production checks at 768 and 1100 pixels show the intended stacked and inline layouts.
 2. Destination measurements include 768 and 1099 pixels. Shared label widths are 170 pixels on computer and 159 pixels on phone.
-3. This separate change is on `codex/site-metrics-row-layout`, based on current main after the tablet release. The next release steps are independent review, current-head checks, merge and a live browser check. Queue order is [recovery pull request 2034](https://github.com/alethical-org/alethical/pull/2034), [code-check pull request 2088](https://github.com/alethical-org/alethical/pull/2088), then this layout release.
+3. This separate change is [pull request 2094](https://github.com/alethical-org/alethical/pull/2094), on `codex/site-metrics-row-layout`. The remaining release steps are current-main checks, merge and a live browser check. Queue order is [recovery pull request 2034](https://github.com/alethical-org/alethical/pull/2034), [code-check pull request 2088](https://github.com/alethical-org/alethical/pull/2088), then this layout release.
 
 This file records approved work and its acceptance checks. Destination implementation followed the completed tablet release.
 
@@ -40,9 +40,9 @@ This file records approved work and its acceptance checks. Destination implement
 
 ## Inspection checkpoint
 
-- `TrafficScreen.tsx` currently gives Bill/Legislator groups a 12px gap, while the Money wrapper and combined Read/Ask/Other wrapper have no internal gap. Money lacks the group border.
+- `TrafficScreen.tsx` gives Bill, Legislator and Money groups the same 12px gap and left border. Read, Ask and Other each occupy a standalone row.
 - Existing activity grid already stretches paired cells. Prove top alignment before adding any height code; no unnecessary change to the lower pair.
-- Current destination label widths are 138px on computer and 118px on phone. Loaded Libre Franklin measurements require 170px on computer and 159px on phone. The current longest label measures 169.796875px at 14.5px and 158.078125px at 13.5px.
+- Destination label widths are 170px on computer and 159px on phone. The current longest label measures 169.796875px at 14.5px and 158.078125px at 13.5px in loaded Libre Franklin.
 - Preserve the existing 10px phone horizontal gap. At 390px, the 308px card interior minus 14px inset, 159px label, 34px percentage and 20px combined gaps leaves an 81px bar. Smaller phones switch all rows together.
 - At 768px, a 278px card interior minus 14px inset, 170px label, 38px percentage and 24px gaps leaves a 32px bar. The requested 80px minimum is phone-only; do not silently extend it to tablet.
 - A practical longer test label, Committee money profiles, measures 167.453125px on phone. A remeasured 168px common width would leave a 72px bar at 390px and must trigger the phone fallback. Future label additions require remeasurement rather than arbitrary fixed-width overflow.
@@ -53,7 +53,7 @@ This file records approved work and its acceptance checks. Destination implement
 - A partial-range action count shares the other values' right edge and is vertically centered with its own label.
 - Partial range occupies its own right-aligned line below the label/value line, with space before the row divider.
 - Preserve all values, words, coverage rules, type sizes and states. Apply the same layout to every action that carries this note.
-- The existing nested Text combines the count and note into 1 intrinsic-width block, leaving the count left-aligned within the wider note and centering the label against both lines. Separate the shared label/value line from the note.
+- The shared label/value line is separate from the note, so the note's width and height cannot displace the count.
 - Add browser checks for number right edges, label/value centers, note separation and neighboring dividers at phone, tablet and desktop widths.
 - The release order above includes both the destination and action-value corrections.
 
@@ -64,4 +64,4 @@ This file records approved work and its acceptance checks. Destination implement
 - All 2,412 frontend checks and TypeScript passed. The normal release build passes its unchanged first-load limit.
 - A test-only browser response substituted Committee money profiles and a remeasured 168-pixel shared phone width. At 390 pixels, all 17 rows stacked, the longer label fit and every bar stayed below its label. No source label or released value changed for this test.
 - All 195 browser checks passed across Chromium, Firefox and WebKit (192 full-suite cases and 3 whole-Money fallback cases). New geometry checks load the published Google fonts in memory.
-- Independent source review found no remaining defect. The fresh reader review and live release check complete the visual acceptance sequence.
+- Independent source review found no remaining defect. A fresh reader review passes at 375, 390, 768 and 1440 pixels with the production fonts. Count alignment, note placement, destination grouping, label fit and paired-card heights pass. The live release check remains.
