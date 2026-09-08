@@ -1,20 +1,11 @@
 import type { PageSnapshot } from './pageSnapshot';
+import { SOCIAL_ACCOUNTS } from './socialLinks';
 
 export const CONTACT_PAGE_HEADING = 'Contact us';
 export const CONTACT_PAGE_SUBTITLE =
   "Questions about a bill, corrections to something we've published, or anything else";
 export const CONTACT_EMAIL = 'ask@alethical.com';
-export const CONTACT_SOCIALS = [
-  {
-    label: 'Facebook',
-    url: 'https://www.facebook.com/people/Alethical/61588261592240/',
-  },
-  {
-    label: 'LinkedIn',
-    url: 'https://www.linkedin.com/company/alethical',
-  },
-  { label: 'X', url: 'https://x.com/alethical' },
-] as const;
+export const CONTACT_SOCIALS = SOCIAL_ACCOUNTS;
 
 export function contactPageSnapshot(): PageSnapshot {
   return {
@@ -26,7 +17,9 @@ export function contactPageSnapshot(): PageSnapshot {
     bodyIsList: false,
     links: [
       { label: CONTACT_EMAIL, href: `mailto:${CONTACT_EMAIL}` },
-      ...CONTACT_SOCIALS.map((social) => ({ label: social.label, href: social.url })),
+      ...CONTACT_SOCIALS.flatMap((social) =>
+        social.url ? [{ label: social.label, href: social.url }] : [],
+      ),
     ],
   };
 }
