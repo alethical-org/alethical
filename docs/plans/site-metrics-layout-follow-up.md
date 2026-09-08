@@ -6,7 +6,7 @@ Net: Destination rows share one spacing pattern; partial-range counts align with
 
 1. [Pull request 2078](https://github.com/alethical-org/alethical/pull/2078) is live: tablet speed text stays inside its card. Fresh production checks at 768 and 1100 pixels show the intended stacked and inline layouts.
 2. Destination measurements include 768 and 1099 pixels. Shared label widths are 170 pixels on computer and 159 pixels on phone.
-3. This separate change is [pull request 2094](https://github.com/alethical-org/alethical/pull/2094), on `codex/site-metrics-row-layout`. The remaining release steps are current-main checks, merge and a live browser check. Queue order is [recovery pull request 2034](https://github.com/alethical-org/alethical/pull/2034), [code-check pull request 2088](https://github.com/alethical-org/alethical/pull/2088), then this layout release.
+3. This separate change is [pull request 2094](https://github.com/alethical-org/alethical/pull/2094), on `codex/site-metrics-row-layout`. The remaining release steps are current-main checks, merge and a live browser check. This layout enters the normal merge queue behind [recovery pull request 2034](https://github.com/alethical-org/alethical/pull/2034) and all existing entries. Independent code-check work is not a prerequisite for this layout.
 
 This file records approved work and its acceptance checks. Destination implementation followed the completed tablet release.
 
