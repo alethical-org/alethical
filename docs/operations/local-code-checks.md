@@ -199,7 +199,7 @@ proof. The release owner updates unchecked items with outcomes before closing th
   [missing explanation](https://github.com/alethical-org/alethical/actions/runs/34241482500),
   [restored explanation](https://github.com/alethical-org/alethical/actions/runs/34241556141),
   [unchanged code-check run](https://github.com/alethical-org/alethical/actions/runs/34241355367).
-- [x] Full local suites pass: 2,406 frontend tests and 2,289 backend tests.
+- [x] Phase-1 local suites pass: 2,406 frontend tests and 2,289 backend tests.
   `just format` completes without changing files, including when run first in a
   fresh checkout with neither root nor frontend dependencies installed.
 - [x] The [real merge-group description run](https://github.com/alethical-org/alethical/actions/runs/34244224539)
@@ -214,15 +214,17 @@ proof. The release owner updates unchecked items with outcomes before closing th
   [phase 1](https://github.com/alethical-org/alethical/pull/2079). The website and API
   deployments succeed, the website answers HTTP 200, and the API reports healthy.
 - [x] An actual phase-2 commit passes through the installed commit hook.
-- [x] An actual upload of phase 2 passes through the installed hook after all
-  2,406 frontend and 2,289 backend tests pass against its exact saved commit.
+- [x] An actual upload of phase 2 passes through the installed hook after the full
+  affected frontend and backend suites pass against its exact saved commit.
   Other active owners adopt the checks through their normal dependency installation
   without changing their in-progress branches on our behalf.
 - [x] Disposable-server fixtures pass. Real containers pass the server-identity
   comparison and are removed after both success and an intentional failure.
   The existing development container is unchanged.
-- [ ] Complete the exact-commit upload with the disposable server. The earlier
-  shared-server upload does not prove this new boundary.
+- [x] The installed hook uploads
+  [commit 40d83310](https://github.com/alethical-org/alethical/commit/40d833105b5315b7ca9f0868fb2883281874d1db)
+  after 2,410 frontend and 2,289 backend tests pass against that exact commit.
+  Backend tests use the verified disposable server, which is removed afterward.
 - [x] `description-checks` is required from GitHub Actions alongside `changes`,
   `backend`, and `frontend`. Strict mode and all other branch protections are unchanged.
 - [x] Phase 2 removes only the old description step and aligns
