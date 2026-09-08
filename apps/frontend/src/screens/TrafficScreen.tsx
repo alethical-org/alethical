@@ -1193,7 +1193,8 @@ function AvailabilityPanel({ state, now }: { state: SourceState<UptimeTotals>; n
 }
 
 function PerformancePanel({ state, now }: { state: SourceState<PerformanceTotals>; now: number }) {
-  const { isMobile } = useResponsive();
+  const { isMobile, isTablet } = useResponsive();
+  const stackResults = isMobile || isTablet;
   if (state.kind === 'unavailable') {
     return (
       <UnavailablePanel
@@ -1255,20 +1256,24 @@ function PerformancePanel({ state, now }: { state: SourceState<PerformanceTotals
             </Text>
             <View
               testID={`site-metrics-speed-result-${index}`}
-              style={[styles.speedResult, isMobile && styles.speedResultMobile]}
+              style={[styles.speedResult, stackResults && styles.speedResultStacked]}
             >
-              {isMobile ? (
+              {stackResults ? (
                 <>
                   <Text
                     testID={`site-metrics-speed-value-${index}`}
-                    style={[styles.speedValue, styles.speedValueMobile]}
+                    style={[styles.speedValue, isMobile && styles.speedValueMobile]}
                   >
                     {row.measurement ?? 'Building sample'}
                   </Text>
                   {row.verdict ? (
                     <Text
                       testID={`site-metrics-speed-verdict-${index}`}
-                      style={[styles.speedVerdict, styles.speedVerdictMobile]}
+                      style={[
+                        styles.speedVerdict,
+                        styles.speedVerdictStacked,
+                        isMobile && styles.speedVerdictMobile,
+                      ]}
                     >
                       {row.verdict}
                     </Text>
@@ -2059,7 +2064,7 @@ const styles = StyleSheet.create({
   speedRows: { marginTop: 12 },
   speedRowsMobile: { paddingHorizontal: 12 },
   speedResult: { flexDirection: 'row', alignItems: 'baseline', gap: 12, flexShrink: 0 },
-  speedResultMobile: { flexDirection: 'column', alignItems: 'flex-end', gap: 0 },
+  speedResultStacked: { flexDirection: 'column', alignItems: 'flex-end', gap: 0 },
   speedVerdict: {
     minWidth: 126,
     textAlign: 'right',
@@ -2069,6 +2074,7 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     fontWeight: '400',
   },
+  speedVerdictStacked: { minWidth: 0 },
   speedVerdictMobile: { minWidth: 0, fontSize: 12.5, lineHeight: 17 },
   speedValue: {
     minWidth: 58,

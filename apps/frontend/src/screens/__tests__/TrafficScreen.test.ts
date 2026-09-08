@@ -235,12 +235,15 @@ describe('public Site metrics page', () => {
     );
     expect(SOURCE).toMatch(/speedRowMobile: \{ paddingVertical: 9, gap: 14 \}/);
     expect(SOURCE).toMatch(
-      /speedResultMobile: \{ flexDirection: 'column', alignItems: 'flex-end', gap: 0 \}/,
+      /speedResultStacked: \{ flexDirection: 'column', alignItems: 'flex-end', gap: 0 \}/,
     );
     expect(SOURCE).toMatch(
       /speedVerdictMobile: \{ minWidth: 0, fontSize: 12\.5, lineHeight: 17 \}/,
     );
     expect(SOURCE).toMatch(/speedValueMobile: \{ minWidth: 0, fontSize: 17, lineHeight: 22 \}/);
+    expect(SOURCE).toContain('const stackResults = isMobile || isTablet');
+    expect(SOURCE).toContain('stackResults && styles.speedResultStacked');
+    expect(SOURCE).toContain('speedVerdictStacked: { minWidth: 0 }');
   });
 
   it('adds collection dates after the 4 measurement sections', () => {

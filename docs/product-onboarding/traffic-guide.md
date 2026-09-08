@@ -49,6 +49,9 @@ markers; their start-date explanation now lives in this bottom section.
 
 The Cloudflare source and reporting dates are the last line in its card, below scope,
 measurement-change, sample-size, and stale-data notes.
+On phone and tablet widths below 1100 pixels, speed ratings sit below their values so
+the full Building sample message fits. Tablet value type stays at 18 pixels; phone type
+stays at 17 pixels. Wider desktop cards keep the rating beside the value.
 
 ## What the numbers mean
 
