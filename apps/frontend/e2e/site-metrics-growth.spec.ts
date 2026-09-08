@@ -240,6 +240,327 @@ async function noHorizontalOverflow(page: Page) {
   ).toBe(true);
 }
 
+// Fetch only public font files in Node; the browser remains isolated from external sites.
+let productionFontCss: Promise<string> | undefined;
+async function loadProductionFonts(page: Page) {
+  productionFontCss ??= (async () => {
+    const response = await fetch(
+      'https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@500&display=swap',
+    );
+    expect(response.ok).toBe(true);
+    let css = await response.text();
+    const urls = [
+      ...new Set(
+        [...css.matchAll(/url\((https:\/\/fonts\.gstatic\.com\/[^)]+)\)/g)].map(
+          (match) => match[1],
+        ),
+      ),
+    ];
+    expect(urls.length).toBeGreaterThan(0);
+    const assets = await Promise.all(
+      urls.map(async (url) => {
+        const asset = await fetch(url);
+        expect(asset.ok).toBe(true);
+        return [
+          url,
+          `data:font/ttf;base64,${Buffer.from(await asset.arrayBuffer()).toString('base64')}`,
+        ] as const;
+      }),
+    );
+    for (const [url, data] of assets) css = css.split(url).join(data);
+    return css;
+  })();
+  await page.addStyleTag({ content: await productionFontCss });
+  expect(
+    await page.evaluate(async () => {
+      const faces = await Promise.all(
+        [
+          '400 14.5px "Libre Franklin"',
+          '500 13.5px "Libre Franklin"',
+          '700 14px "JetBrains Mono"',
+          '800 19px "Libre Franklin"',
+          '500 20px "Space Grotesk"',
+        ].map((font) => document.fonts.load(font)),
+      );
+      await document.fonts.ready;
+      return faces.every(
+        (loaded) => loaded.length > 0 && loaded.every((face) => face.status === 'loaded'),
+      );
+    }),
+  ).toBe(true);
+}
+
+async function destinationGeometry(page: Page) {
+  return page.getByTestId('site-metrics-destinations').evaluate((panel) =>
+    [...panel.querySelectorAll<HTMLElement>('[data-testid$="-bar"]')].map((bar) => {
+      const key = bar.dataset.testid!.replace('site-metrics-destination-', '').replace('-bar', '');
+      const row =
+        panel.querySelector(`[data-testid="site-metrics-destination-${key}-row"]`) ??
+        bar.parentElement!;
+      const label =
+        panel.querySelector(`[data-testid="site-metrics-destination-${key}-label"]`) ??
+        row.firstElementChild!;
+      const percent = bar.nextElementSibling!;
+      const group = row.parentElement!;
+      const range = document.createRange();
+      range.selectNodeContents(label);
+      const labelStyle = getComputedStyle(label);
+      return {
+        key,
+        row: row.getBoundingClientRect().toJSON(),
+        label: label.getBoundingClientRect().toJSON(),
+        bar: bar.getBoundingClientRect().toJSON(),
+        percent: percent.getBoundingClientRect().toJSON(),
+        glyphs: range.getBoundingClientRect().toJSON(),
+        lineHeight: parseFloat(labelStyle.lineHeight),
+        font: labelStyle.fontFamily,
+        radius: getComputedStyle(bar).borderRadius,
+        border: getComputedStyle(group).borderLeftWidth,
+        padding: getComputedStyle(group).paddingLeft,
+      };
+    }),
+  );
+}
+
+for (const width of [375, 390, 767, 768, 820, 1099, 1100, 1440]) {
+  test(`destination layout keeps shared columns and group spacing at ${width}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width, height: 1100 });
+    await installAnswers(page);
+    await openMetrics(page);
+    await loadProductionFonts(page);
+    const phone = width < 768;
+    const stacked = width === 375;
+    const rows = await destinationGeometry(page);
+    expect(rows).toHaveLength(17);
+    const groupStarts = new Set([
+      'billSearch',
+      'legislatorSearch',
+      'money',
+      'read',
+      'legacyAsk',
+      'other',
+    ]);
+    const standalone = new Set(['home', 'read', 'legacyAsk', 'other']);
+    for (const [index, item] of rows.entries()) {
+      expect(item.font).toContain('Libre Franklin');
+      expect(item.label.width, item.key).toBe(stacked ? item.row.width : phone ? 159 : 170);
+      expect(item.label.x, item.key).toBe(rows[0].label.x);
+      expect(item.glyphs.width, item.key).toBeLessThanOrEqual(item.label.width);
+      expect(item.glyphs.height, item.key).toBeLessThanOrEqual(item.lineHeight + 1);
+      expect(item.bar.x, item.key).toBe(rows[0].bar.x);
+      expect(item.bar.right, item.key).toBe(rows[0].bar.right);
+      expect(item.bar.height, item.key).toBe(phone ? 9 : 12);
+      expect(item.radius, item.key).toBe(phone ? '5px' : '6px');
+      expect(item.percent.width, item.key).toBe(phone ? 34 : 38);
+      expect(item.percent.x - item.bar.right, item.key).toBe(phone ? 10 : 12);
+      expect(item.border, item.key).toBe(standalone.has(item.key) ? '0px' : '2px');
+      expect(item.padding, item.key).toBe(standalone.has(item.key) ? '14px' : '12px');
+      if (stacked) {
+        expect(item.bar.y, item.key).toBeGreaterThanOrEqual(item.label.bottom);
+        expect(item.bar.x, item.key).toBe(item.label.x);
+      } else {
+        expect(item.bar.x - item.label.right, item.key).toBe(phone ? 10 : 12);
+        expect(
+          Math.abs(item.bar.y + item.bar.height / 2 - item.label.y - item.label.height / 2),
+          item.key,
+        ).toBeLessThanOrEqual(1);
+      }
+      if (index > 0) {
+        expect(item.row.y - rows[index - 1].row.bottom, item.key).toBe(
+          groupStarts.has(item.key) ? (phone ? 11 : 15) : 12,
+        );
+      }
+    }
+    if (width === 390) expect(rows[0].bar.width).toBe(81);
+    await noHorizontalOverflow(page);
+  });
+
+  test(`activity cards preserve top alignment and bottom slack at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1100 });
+    const answers = fixture();
+    answers.traffic.trafficBreakdown30d!.destinationPageViews = Object.fromEntries(
+      Object.keys(answers.traffic.trafficBreakdown30d!.destinationPageViews).map((key) => [key, 0]),
+    ) as TrafficBreakdown['destinationPageViews'];
+    answers.traffic.pageViews30d = 0;
+    answers.traffic.estimatedVisitors30d = 0;
+    for (const profile of [
+      answers.traffic.trafficBreakdown30d.billProfiles,
+      answers.traffic.trafficBreakdown30d.legislatorProfiles,
+      answers.traffic.trafficBreakdown30d.committeeProfiles!,
+    ]) {
+      profile.pageViews = 0;
+      profile.differentProfilesViewed = { count: 0, capped: false, cap: 100 };
+    }
+    await installAnswers(page, answers);
+    await openMetrics(page);
+    await loadProductionFonts(page);
+    const destinations = page.getByTestId('site-metrics-destinations');
+    const actions = page
+      .getByRole('heading', { name: 'What people do', exact: true })
+      .locator('..');
+    const explore = page.getByTestId('site-metrics-explore');
+    const readers = page.getByRole('heading', { name: 'Readers', exact: true }).locator('..');
+    const cardBoxes = async () =>
+      Promise.all(
+        [destinations, actions, explore, readers].map(async (card) => (await card.boundingBox())!),
+      );
+    const rowOffsets = () =>
+      actions.getByTestId(/^site-metrics-action-row-\d+$/).evaluateAll((rows) => {
+        const top = rows[0].parentElement!.parentElement!.getBoundingClientRect().top;
+        return rows.map((row) => row.getBoundingClientRect().top - top);
+      });
+    const before = await cardBoxes();
+    const offsets = await rowOffsets();
+    await page.getByRole('button', { name: 'Last 30 days', exact: true }).click();
+    await expect(
+      destinations.getByText('No page views in this range yet', { exact: true }),
+    ).toBeVisible();
+    const after = await cardBoxes();
+    expect(await rowOffsets()).toEqual(offsets);
+    if (width >= 768) {
+      for (const boxes of [before, after]) {
+        for (const [left, right] of [
+          [boxes[0], boxes[1]],
+          [boxes[2], boxes[3]],
+        ]) {
+          expect(left.y).toBe(right.y);
+          expect(left.y + left.height).toBe(right.y + right.height);
+        }
+      }
+      const zero = (await destinations
+        .getByText('No page views in this range yet', { exact: true })
+        .boundingBox())!;
+      expect(after[0].y + after[0].height - zero.y - zero.height).toBeGreaterThan(80);
+    } else {
+      expect(after[0].height).toBeLessThan(before[0].height);
+      for (const boxes of [before, after]) {
+        expect(boxes[2].y - boxes[0].y - boxes[0].height).toBe(12);
+        expect(boxes[1].y - boxes[2].y - boxes[2].height).toBe(12);
+        expect(boxes[3].y - boxes[1].y - boxes[1].height).toBe(12);
+      }
+    }
+    await noHorizontalOverflow(page);
+  });
+}
+
+test('whole Money fallback remains one standalone destination at 390px', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 1100 });
+  const answers = fixture();
+  const breakdown = answers.traffic.trafficBreakdown7d;
+  const detailKeys = [
+    'moneySearch',
+    'moneyByRace',
+    'moneyCommitteeList',
+    'moneyCommitteeProfiles',
+    'moneyPayments',
+    'moneyOutsideSpending',
+    'moneyOther',
+  ] as const;
+  for (const key of detailKeys) {
+    breakdown.destinationPageViews.money! += breakdown.destinationPageViews[key]!;
+    delete breakdown.destinationPageViews[key];
+  }
+  delete breakdown.committeeProfiles;
+  await installAnswers(page, answers);
+  await openMetrics(page);
+  await loadProductionFonts(page);
+  const panel = page.getByTestId('site-metrics-destinations');
+  const money = page.getByTestId('site-metrics-destination-money-row');
+  await expect(money.getByText('Money in politics', { exact: true })).toBeVisible();
+  await expect(money.getByText('34%', { exact: true })).toBeVisible();
+  await expect(
+    panel.getByText(
+      'Detailed money-page counts are unavailable. Money in politics includes the whole money section.',
+      { exact: true },
+    ),
+  ).toBeVisible();
+  const rows = await destinationGeometry(page);
+  expect(rows).toHaveLength(10);
+  for (const item of rows) {
+    expect(item.label.x).toBe(rows[0].label.x);
+    expect(item.bar.x).toBe(rows[0].bar.x);
+    expect(item.bar.right).toBe(rows[0].bar.right);
+  }
+  expect(rows.find((item) => item.key === 'money')).toMatchObject({
+    border: '0px',
+    padding: '14px',
+  });
+  expect(
+    await page
+      .getByTestId('site-metrics-destination-rows')
+      .evaluate((list) =>
+        [...list.children].map((group) => group.querySelectorAll('[data-testid$="-row"]').length),
+      ),
+  ).toEqual([1, 2, 3, 1, 1, 1, 1]);
+  await noHorizontalOverflow(page);
+});
+
+for (const width of [390, 768, 1440]) {
+  test(`partial range keeps number aligned and note below at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 1100 });
+    const answers = fixture();
+    answers.records.actions7d.moneySearchesWithResults = 2;
+    answers.records.actions30d.moneySearchesWithResults = 6;
+    answers.records.history!.moneySearchesWithResults!.current7dComplete = false;
+    answers.records.history!.moneySearchesWithResults!.current30dComplete = false;
+    await installAnswers(page, answers);
+    await openMetrics(page);
+    await loadProductionFonts(page);
+    for (const [days, value] of [
+      [7, '2'],
+      [30, '6'],
+    ] as const) {
+      await page.getByRole('button', { name: `Last ${days} days`, exact: true }).click();
+      const action = page.getByTestId('site-metrics-action-row-1');
+      const label = action.getByText('Money searches with results', { exact: true });
+      const note = action.getByText('Partial range', { exact: true });
+      const previous = page
+        .getByTestId('site-metrics-action-row-0')
+        .getByText(days === 7 ? '11' : '33', { exact: true });
+      await expect(note).toBeVisible();
+      const numberBox = await action.evaluate((row, value) => {
+        const element = row.querySelector('[data-testid$="-value"]');
+        if (element) {
+          if (element.textContent !== value) throw new Error('Unexpected action count');
+          return element.getBoundingClientRect().toJSON();
+        }
+        // The old bug nested the note inside the count. Measure its bare digit too,
+        // so this regression fails on alignment rather than a missing test marker.
+        const walker = document.createTreeWalker(row, NodeFilter.SHOW_TEXT);
+        for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+          if (node.textContent?.trim() !== value) continue;
+          const range = document.createRange();
+          range.selectNodeContents(node);
+          return range.getBoundingClientRect().toJSON();
+        }
+        throw new Error('Missing action count');
+      }, value);
+      const [labelBox, noteBox, previousBox, actionBox] = await Promise.all(
+        [label, note, previous, action].map(async (element) => (await element.boundingBox())!),
+      );
+      expect(numberBox.x + numberBox.width).toBeCloseTo(previousBox.x + previousBox.width, 2);
+      expect(
+        Math.abs(labelBox.y + labelBox.height / 2 - numberBox.y - numberBox.height / 2),
+      ).toBeLessThanOrEqual(2);
+      expect(noteBox.y).toBeGreaterThanOrEqual(
+        Math.max(labelBox.y + labelBox.height, numberBox.y + numberBox.height),
+      );
+      expect(noteBox.x + noteBox.width).toBeCloseTo(numberBox.x + numberBox.width, 2);
+      const divider = await action.evaluate((element) =>
+        parseFloat(getComputedStyle(element).borderBottomWidth),
+      );
+      expect(noteBox.y + noteBox.height).toBeLessThanOrEqual(
+        actionBox.y + actionBox.height - divider,
+      );
+      const nextRow = (await page.getByTestId('site-metrics-action-row-2').boundingBox())!;
+      expect(noteBox.y + noteBox.height).toBeLessThan(nextRow.y);
+    }
+    await noHorizontalOverflow(page);
+  });
+}
+
 for (const width of [390, 768, 820, 1099, 1100, 1440]) {
   for (const state of ['building sample', 'needs improvement'] as const) {
     test(`speed values stay inside the card at ${width}px with ${state}`, async ({ page }) => {
@@ -656,13 +977,13 @@ for (const viewport of [
       await expectRow(page, 'Bill searches with results', '0');
       await expectRow(page, 'Money searches with results', 'Not recorded yet');
       await expect(row(page, 'New committee follows')).toContainText('3');
-      await expect(row(page, 'New committee follows')).toContainText('Partial range');
-      await expect(row(page, 'Official source links clicked')).toContainText('Partial range');
+      await expect(page.getByTestId('site-metrics-action-row-6-note')).toHaveText('Partial range');
+      await expect(page.getByTestId('site-metrics-action-row-4-note')).toHaveText('Partial range');
       await page.getByRole('button', { name: 'Last 30 days', exact: true }).click();
       await expectRow(page, 'Bill searches with results', '0');
       await expectRow(page, 'Money searches with results', 'Not recorded yet');
-      await expect(row(page, 'New committee follows')).toContainText('Partial range');
-      await expect(row(page, 'Official source links clicked')).toContainText('Partial range');
+      await expect(page.getByTestId('site-metrics-action-row-6-note')).toHaveText('Partial range');
+      await expect(page.getByTestId('site-metrics-action-row-4-note')).toHaveText('Partial range');
       await noHorizontalOverflow(page);
     });
 
