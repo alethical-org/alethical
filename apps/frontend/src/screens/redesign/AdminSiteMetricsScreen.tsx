@@ -67,9 +67,19 @@ function Card({ title, children }: { title: string; children: ReactNode }) {
     </View>
   );
 }
-function Row({ label, value, note }: { label: string; value: number | string; note?: string }) {
+function Row({
+  label,
+  value,
+  note,
+  last,
+}: {
+  label: string;
+  value: number | string;
+  note?: string;
+  last?: boolean;
+}) {
   return (
-    <View style={styles.row}>
+    <View style={[styles.row, last && styles.lastRow]}>
       <View style={styles.rowTop}>
         <Text style={styles.label}>{label}</Text>
         <Text style={styles.value}>
@@ -296,8 +306,11 @@ function PrivateMetrics({ accessToken }: { accessToken: string }) {
           {!operations ? (
             <Message>{errors.operations}</Message>
           ) : (
-            operations.freshness.map((source) => (
-              <View key={source.source} style={styles.row}>
+            operations.freshness.map((source, index) => (
+              <View
+                key={source.source}
+                style={[styles.row, index === operations.freshness.length - 1 && styles.lastRow]}
+              >
                 <Text accessibilityRole="header" aria-level={3} style={styles.label}>
                   {source.source}
                 </Text>
@@ -378,6 +391,7 @@ function PrivateMetrics({ accessToken }: { accessToken: string }) {
                 label="Total operating cost"
                 value="Unavailable"
                 note={operations.costs.totalOperatingCost.reason}
+                last
               />
             </>
           )}
@@ -473,6 +487,7 @@ const styles = StyleSheet.create({
   },
   cardWide: { width: '48%', flexGrow: 1 },
   row: { paddingVertical: 10, borderBottomWidth: 1, borderColor: t.colors.border, gap: 6 },
+  lastRow: { borderBottomWidth: 0 },
   rowTop: {
     flexDirection: 'row',
     flexWrap: 'wrap',
