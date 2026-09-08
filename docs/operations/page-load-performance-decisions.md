@@ -570,8 +570,9 @@ there minutes earlier, and copies are held per location rather than once for eve
 "565 ms cold, 90 ms warm" is the honest pair, and "most visitors pay 565 ms" is a claim
 nobody here has earned.
 
-**The list response carries far more than a card draws, and its size is not the wait.**
-`/bills` asks for 10 bills and receives 127,201 bytes, 22,145 as production gzips it. Action
+**The list response carried far more than a card draws, and cutting it is worth about
+40 ms.** `/bills` asked for 10 bills and received 127,201 bytes,
+22,145 as production gzipped it. Action
 history is 79,410 of those bytes, 396 rows so that each card can print 1 line, and the AI
 analysis is 27,441, of which the key points, the suggested questions and the citations are
 drawn on the bill page and the Ask page and never on a card. Compressed the same way, the
@@ -582,11 +583,52 @@ established: a smaller body is also less to parse and less for the server to bui
 neither was measured. Sizing the whole avenue needs a controlled before-and-after, so the
 bytes above are the finding and the seconds are not.
 
-**A browser cannot split that 490 ms further, because the data service sends no
-`Timing-Allow-Origin` header.** A page may read a cross-origin request's start and end and
-nothing between, so the connection, the server's own time and the download arrive as 1
-number, and the response's size reads as 0. Anything wanting that split measures it outside
-the browser.
+**The list wait splits into 3 parts, and which one dominates depends entirely on whether
+the answer was already held nearby.** The data service now permits a page on our own site to time its
+own requests (`Timing-Allow-Origin`, #2039), so the parts are readable rather than guessed.
+Measured 8 Sep 2026, same profile, 9 runs, on the trimmed response:
+
+| Inside the list request | Middle run | Range |
+|---|---:|---|
+| Opening the connection | 58 ms | 49 to 137 |
+| Waiting on the server | 35 ms | 31 to 47 |
+| Downloading the answer | 330 ms | 273 to 336 |
+| **The whole request** | **424 ms** | 415 to 456 |
+
+**The server figure here is the warm one.** The probe loads the same address 9 times, so
+every run after the first is answered from a nearby copy. What building the answer costs is
+in the table below, measured on its own.
+
+**A stage's name is not its cause, and this is where that bites.** The download stage being
+the largest does not make the bytes the largest cost. Measured the same day at the same
+profile, fetching the same 2 real answers on their own with nothing else loading:
+
+| Answer | Over the wire | Connecting | Server | Downloading |
+|---|---:|---:|---:|---:|
+| Slim view, warm | 608 B | 63 ms | 38 ms | 121 ms |
+| What a card draws, warm | 14,698 B | 53 ms | 33 ms | 205 ms |
+| Slim view, cold | 608 B | 56 ms | 240 ms | 5 ms |
+| What a card draws, cold | 14,698 B | 58 ms | 497 ms | 78 ms |
+
+A 608-byte answer cannot spend 121 ms transferring 608 bytes, so most of that stage is the
+connection reaching speed rather than the body. **What the size actually costs is the
+difference between the 2 rows: about 84 ms warm and 73 ms cold for 14,090 extra bytes, so
+roughly 5 to 6 ms per 1,000 bytes over the wire at this profile.**
+
+So the size lever is real and small. Removing everything no card draws took the answer from
+22,145 to 14,698 bytes, worth about 40 ms. Going further to a card-shaped 9,115 bytes would
+be worth about another 30 ms.
+
+**Neither is the roughly 330 ms the same stage reads during a page load, and that gap is
+unexplained rather than explained.** The in-page figure reproduces across runs and the
+isolated figure for the same body is 205 ms warm, so the difference is real and not noise.
+Two obvious suspects are ruled out: the probe's own page watcher costs nothing measurable
+(312 ms without it against 307 ms with it, 5 runs each), and in the 1 load checked for it
+nothing else was downloading while the answer arrived. Anything sizing this stage should
+establish the cause first rather than treat it as transfer.
+
+**Cold, the server is the largest part by far**: 497 ms of a 640 ms request against 78 ms of
+downloading. That is the same cost #2040 is filed against, seen from the browser this time.
 
 ## What an uncached money answer spends its time on
 
