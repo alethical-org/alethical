@@ -1,4 +1,4 @@
-<!-- describes: apps/frontend/src/screens/redesign/ContactUsScreen.tsx, apps/frontend/src/lib/contactUs.ts, apps/frontend/src/data/api.ts, apps/frontend/src/navigation/webRoutes.ts, alethical/api/main.py, alethical/api/routers/contact.py, alethical/api/services/contact.py, alethical/db/models.py, alethical/logging.py, alethical/alembic/versions/0027_email_quota_warning_state.py -->
+<!-- describes: apps/frontend/src/screens/redesign/ContactUsScreen.tsx, apps/frontend/src/components/SocialIconLink.tsx, apps/frontend/src/lib/contactUs.ts, apps/frontend/src/lib/socialLinks.ts, apps/frontend/src/theme/primitives.tsx, apps/frontend/src/data/api.ts, apps/frontend/src/navigation/webRoutes.ts, alethical/api/main.py, alethical/api/routers/contact.py, alethical/api/services/contact.py, alethical/db/models.py, alethical/logging.py, alethical/alembic/versions/0027_email_quota_warning_state.py -->
 
 # How Contact us works
 
@@ -15,9 +15,13 @@ copy.
 ## The form
 
 Before the app starts, the first response carries the same heading, explanation,
-email address and social links as the loaded screen. The form and its delivery
-states appear only in the loaded app. Both presentations read their shared
-words from `contactUs.ts`; serving the initial text sends nothing.
+email address and 5 working social links as the loaded screen. The loaded computer
+screen also shows Instagram as a dimmed, unclickable mark until its account exists.
+The phone screen omits the Follow Alethical block because the shared footer repeats
+the same accounts nearby. The form and its delivery states appear only in the loaded
+app. Both presentations read their shared words from `contactUs.ts`, and every loaded
+social row reads its order and destinations from `socialLinks.ts`; serving the initial
+text sends nothing.
 
 The fields stay in this order:
 

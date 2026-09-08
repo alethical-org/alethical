@@ -76,7 +76,9 @@ describe('the static About and Contact snapshots', () => {
     expect(snapshot.subheading).toBe(CONTACT_PAGE_SUBTITLE);
     expect(snapshot.links).toEqual([
       { label: CONTACT_EMAIL, href: `mailto:${CONTACT_EMAIL}` },
-      ...CONTACT_SOCIALS.map((social) => ({ label: social.label, href: social.url })),
+      ...CONTACT_SOCIALS.flatMap((social) =>
+        social.url ? [{ label: social.label, href: social.url }] : [],
+      ),
     ]);
     expect(JSON.stringify(snapshot)).not.toContain('Send message');
     expect(JSON.stringify(snapshot)).not.toContain('MESSAGE');

@@ -3,36 +3,40 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
-const SOURCE = readFileSync(
+const THEME_SOURCE = readFileSync(
   join(dirname(fileURLToPath(import.meta.url)), '..', 'primitives.tsx'),
+  'utf8',
+);
+const LINK_SOURCE = readFileSync(
+  join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'components', 'SocialIconLink.tsx'),
   'utf8',
 );
 
 describe('shared footer social marks', () => {
-  it('keeps the accepted optical sizes, LinkedIn centering, and responsive circles', () => {
-    const glyphs = SOURCE.match(
-      /function FooterSocialGlyph[\s\S]*?\n\}\n\nfunction FooterSocialLink/,
-    )?.[0];
-    const facebook = glyphs?.match(
-      /if \(platform === 'facebook'\) \{[\s\S]*?\n  \}\n  if \(platform === 'linkedin'\)/,
-    )?.[0];
-    const linkedin = glyphs?.match(
-      /if \(platform === 'linkedin'\) \{[\s\S]*?\n  \}\n  return \(/,
-    )?.[0];
-    const circle = SOURCE.match(/footerSocialLink: \{[\s\S]*?\n  \},/)?.[0];
-    const phoneCircle = SOURCE.match(/footerSocialLinkMobile: \{[\s\S]*?\n  \},/)?.[0];
+  it('reads the shared account order and keeps the accepted responsive spacing', () => {
+    expect(THEME_SOURCE).toContain('SOCIAL_ACCOUNTS.map');
+    expect(THEME_SOURCE).toContain('surface="footer"');
+    expect(THEME_SOURCE).toContain("footerTopMobile: { flexDirection: 'column', gap: 32 }");
+    expect(THEME_SOURCE).toContain("footerUtility: { alignItems: 'flex-end', gap: 28 }");
+    expect(THEME_SOURCE).toContain("footerUtilityMobile: { alignItems: 'flex-start', gap: 20 }");
+    expect(THEME_SOURCE).toContain("footerSocialLinks: { flexDirection: 'row', gap: 10 }");
+    expect(THEME_SOURCE).toContain('footerSocialLinksMobile: { gap: 8 }');
+  });
 
-    expect(facebook).toContain('width={23} height={23} viewBox="0 0 24 24"');
-    expect(linkedin).toContain('width={21} height={21} viewBox="0.87 2.87 22 22"');
-    expect(linkedin).not.toContain('M22.22 0H1.77');
-    expect(glyphs).toContain('width={20} height={20} viewBox="0 0 24 24"');
-    expect(circle).toContain('width: 42');
-    expect(circle).toContain('height: 42');
-    expect(phoneCircle).toContain('width: 44');
-    expect(phoneCircle).toContain('height: 44');
-    expect(SOURCE).toContain('mobile && styles.footerSocialLinkMobile');
-    expect(SOURCE).toContain(
-      '<FooterSocialLink key={social.platform} social={social} mobile={isMobile} />',
-    );
+  it('keeps the 6 accepted marks, optical sizes, circle sizes, and active colours', () => {
+    for (const platform of ['linkedin', 'facebook', 'instagram', 'tiktok', 'youtube']) {
+      expect(LINK_SOURCE).toContain(`platform === '${platform}'`);
+    }
+    expect(LINK_SOURCE).toContain('M18.244 2.25h3.308');
+    expect(LINK_SOURCE).toContain('linkedin: 21');
+    expect(LINK_SOURCE).toContain('facebook: 23');
+    expect(LINK_SOURCE).toContain('instagram: 22');
+    expect(LINK_SOURCE).toContain('x: 20');
+    expect(LINK_SOURCE).toContain('tiktok: 21');
+    expect(LINK_SOURCE).toContain('youtube: 23');
+    expect(LINK_SOURCE).toContain('width: 42');
+    expect(LINK_SOURCE).toContain('width: 44');
+    expect(LINK_SOURCE).toContain("backgroundColor: 'rgba(255,255,255,0.07)'");
+    expect(LINK_SOURCE).toContain("backgroundColor: 'rgba(255,255,255,0.16)'");
   });
 });

@@ -126,19 +126,18 @@ describe('Contact us screen contract', () => {
     expect(SCREEN).not.toContain('linkedin-round.png');
     expect(SCREEN).toContain('CONTACT_SOCIALS.map');
     expect(CONTACT_SOCIALS.map((social) => social.url)).toEqual([
-      'https://www.facebook.com/people/Alethical/61588261592240/',
       'https://www.linkedin.com/company/alethical',
+      'https://www.facebook.com/people/Alethical/61588261592240/',
+      null,
       'https://x.com/alethical',
+      'https://www.tiktok.com/@alethicaltruth',
+      'https://www.youtube.com/@Alethical',
     ]);
-    expect(SCREEN).toMatch(
-      /<Svg\s+width=\{24\}\s+height=\{24\}\s+viewBox="0 0 24 24"\s+fill=\{t\.colors\.ink\}\s+aria-hidden/,
+    expect(SCREEN).toContain(
+      '<SocialIconLink key={social.platform} social={social} surface="contact" />',
     );
-    expect(SCREEN).toMatch(
-      /<Svg\s+width=\{22\}\s+height=\{22\}\s+viewBox="0\.87 2\.87 22 22"\s+fill=\{t\.colors\.ink\}\s+aria-hidden/,
-    );
-    expect(SCREEN).toMatch(
-      /<Svg\s+width=\{21\}\s+height=\{21\}\s+viewBox="0 0 24 24"\s+fill=\{t\.colors\.ink\}\s+aria-hidden/,
-    );
+    expect(SCREEN).toContain('{!isMobile ? (');
+    expect(SCREEN).not.toContain('social.label ===');
   });
 
   it('keeps the accepted Contact us spacing, phone action, and link treatments', () => {
@@ -155,5 +154,7 @@ describe('Contact us screen contract', () => {
     expect(cardEyebrowStyle).toContain('letterSpacing: 1.26');
     expect(emailLinkTextStyle).not.toContain('textDecorationLine');
     expect(SCREEN).toContain("emailLinkTextActive: { textDecorationLine: 'underline' }");
+    expect(SCREEN).toContain("justifyContent: 'space-between'");
+    expect(SCREEN).toContain('marginTop: 20');
   });
 });

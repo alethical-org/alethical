@@ -13,6 +13,7 @@ import {
 import Svg, { Path } from 'react-native-svg';
 
 import { GoBackLink } from '../../components/GoBackLink';
+import { SocialIconLink } from '../../components/SocialIconLink';
 import { sendContactMessageFromApi } from '../../data/api';
 import { useResponsive } from '../../hooks/useResponsive';
 import {
@@ -27,7 +28,7 @@ import {
   validateContactForm,
 } from '../../lib/contactUs';
 import { IaItem, MenuKey } from '../../navigation/ia';
-import { externalLinkProps, routePath } from '../../navigation/links';
+import { routePath } from '../../navigation/links';
 import { navigateTopNavItem } from '../../navigation/topNavRoutes';
 import { RootScreenProps } from '../../navigation/types';
 import { browserFillInputProps } from '../../theme/browserFill';
@@ -440,51 +441,16 @@ export function ContactUsScreen({ navigation }: RootScreenProps<'ContactUs'>) {
                 <Text style={styles.cardEyebrow}>EMAIL US</Text>
                 <ContactEmailLink />
               </View>
-              <View style={[styles.infoCard, isMobile && styles.infoCardMobile]}>
-                <Text style={styles.cardEyebrow}>FOLLOW ALETHICAL</Text>
-                <View style={styles.socialRow}>
-                  {CONTACT_SOCIALS.map((social) => (
-                    <Pressable
-                      key={social.label}
-                      {...externalLinkProps(social.url, () => void Linking.openURL(social.url))}
-                      accessibilityLabel={`Alethical on ${social.label} (opens in a new tab)`}
-                      style={({ pressed }) => [styles.socialLink, pressed && styles.socialPressed]}
-                    >
-                      {social.label === 'Facebook' ? (
-                        <Svg
-                          width={24}
-                          height={24}
-                          viewBox="0 0 24 24"
-                          fill={t.colors.ink}
-                          aria-hidden
-                        >
-                          <Path d="M15.12 5.32H17V2.14A26.11 26.11 0 0 0 14.26 2c-2.72 0-4.58 1.66-4.58 4.7v2.6H6.61v3.56h3.07V22h3.68v-9.14h3.06l.46-3.56h-3.52V7.05c0-1.03.28-1.73 1.76-1.73z" />
-                        </Svg>
-                      ) : social.label === 'LinkedIn' ? (
-                        <Svg
-                          width={22}
-                          height={22}
-                          viewBox="0.87 2.87 22 22"
-                          fill={t.colors.ink}
-                          aria-hidden
-                        >
-                          <Path d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.42v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.06 2.06 0 1 1 0-4.13 2.06 2.06 0 0 1 0 4.13zM7.12 20.45H3.56V9h3.56v11.45z" />
-                        </Svg>
-                      ) : (
-                        <Svg
-                          width={21}
-                          height={21}
-                          viewBox="0 0 24 24"
-                          fill={t.colors.ink}
-                          aria-hidden
-                        >
-                          <Path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                        </Svg>
-                      )}
-                    </Pressable>
-                  ))}
+              {!isMobile ? (
+                <View style={styles.infoCard}>
+                  <Text style={styles.cardEyebrow}>FOLLOW ALETHICAL</Text>
+                  <View style={styles.socialRow}>
+                    {CONTACT_SOCIALS.map((social) => (
+                      <SocialIconLink key={social.platform} social={social} surface="contact" />
+                    ))}
+                  </View>
                 </View>
-              </View>
+              ) : null}
             </View>
           </View>
         </Container>
@@ -712,14 +678,9 @@ const styles = StyleSheet.create({
     fontWeight: t.fontWeights.semibold,
   },
   emailLinkTextActive: { textDecorationLine: 'underline' },
-  socialRow: { flexDirection: 'row', gap: 12, marginTop: 18 },
-  socialLink: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: t.colors.surfaces.s400,
-    alignItems: 'center',
-    justifyContent: 'center',
+  socialRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
   },
-  socialPressed: { opacity: 0.72 },
 });
