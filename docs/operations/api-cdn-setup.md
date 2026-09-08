@@ -21,13 +21,22 @@ Measured on production (`EXPLAIN ANALYZE` + `curl`):
 
 The remaining ~1 s is the **multi-query, cross-region round-trip pattern**
 (Railway `us-east4-eqdc4a`, the region `railway.json` actually sets, ↔ Supabase
-`us-east-2`; about 6 queries per bill-list request, measured Aug 7 2026 on that
-route only — the campaign-money routes are heavier and their count is not
-established here) plus app
-overhead — not any single slow query. Squeezing the queries further is
-diminishing returns. Caching the *response* skips all of it: bill lists and bill
-detail are public records that change only when ingestion runs (infrequent,
-human-triggered), so they are safe to serve from an edge cache for a short TTL.
+`us-east-2`; 7 queries per bill-list request, measured 8 Sep 2026 on that route
+only — the campaign-money routes are heavier and their count is not established
+here) plus app overhead — not any single slow query. Caching the *response* skips
+all of it: bill lists and bill detail are public records that change only when
+ingestion runs (infrequent, human-triggered), so they are safe to serve from an
+edge cache for a short TTL.
+
+**Squeezing the queries is worth doing, and a cache is never the reason not to.**
+That count was 11 before #2040, and 4 of the 11 were removed with no served value
+changing, along with about 500 kB of a 10-bill page's payload — most of it whole
+bills' text read to extract 1 date that their own section headings had already
+ruled out. A cache only helps the reader who finds a copy waiting, and how often
+that happens is unmeasured
+([`page-load-performance-decisions.md`](page-load-performance-decisions.md), "What
+the bill list's fixed cost turned out to be" for the statement-by-statement
+figures and the 2 payload findings).
 
 **That last sentence is about the bill-list route and does not carry to the
 campaign-money routes, which is why their count is left open above.** A cache is

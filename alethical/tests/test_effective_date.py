@@ -431,7 +431,13 @@ class _FakeResult:
 
 
 class _FakeDb:
-    """Returns queued .all() results in call order (version query, then sections)."""
+    """Returns queued .all() results in call order.
+
+    ``bill_effective_dates`` reads the sections of a signed bill's current version
+    in one query returning ``(bill_id, heading, raw_text)``. It used to take two,
+    the first only to map a version id back to a bill, and the join now hands the
+    bill id straight back (#2040) -- so one queued result, not two.
+    """
 
     def __init__(self, *results):
         self._results = list(results)
@@ -467,8 +473,7 @@ def test_bill_effective_dates_empty_when_no_signed_bills():
 def test_bill_effective_dates_single_verified_date():
     bill = _signed_bill(1)
     db = _FakeDb(
-        [(1, 10)],  # current version id per signed bill
-        [(10, H, "This section is effective July 1, 2027.")],  # its sections
+        [(1, H, "This section is effective July 1, 2027.")],  # its sections
     )
     assert bill_effective_dates(db, [bill]) == {"1": "July 1, 2027"}
 
@@ -476,10 +481,9 @@ def test_bill_effective_dates_single_verified_date():
 def test_bill_effective_dates_omnibus_falls_back_to_various():
     bill = _signed_bill(2, is_omnibus=True)
     db = _FakeDb(
-        [(2, 20)],
         [
-            (20, H, "This section is effective January 1, 2027."),
-            (20, H, "This section is effective July 1, 2026."),
+            (2, H, "This section is effective January 1, 2027."),
+            (2, H, "This section is effective July 1, 2026."),
         ],
     )
     assert bill_effective_dates(db, [bill]) == {"2": "various dates"}
@@ -489,10 +493,9 @@ def test_bill_effective_dates_omnibus_prefers_verified_over_various():
     # An omnibus whose sections DO resolve to one date shows that date, not "various".
     bill = _signed_bill(4, is_omnibus=True)
     db = _FakeDb(
-        [(4, 40)],
         [
-            (40, H, "This section is effective August 1, 2026."),
-            (40, H, "This section is effective August 1, 2026."),
+            (4, H, "This section is effective August 1, 2026."),
+            (4, H, "This section is effective August 1, 2026."),
         ],
     )
     assert bill_effective_dates(db, [bill]) == {"4": "August 1, 2026"}
@@ -501,7 +504,7 @@ def test_bill_effective_dates_omnibus_prefers_verified_over_various():
 def test_bill_effective_dates_omits_non_omnibus_without_date():
     # Silent sections AND no actions -> nothing to cross-check Tier C against.
     bill = _signed_bill(3)
-    db = _FakeDb([(3, 30)], [(30, None, "Amended statute text, no effective clause.")])
+    db = _FakeDb([(3, None, "Amended statute text, no effective clause.")])
     assert bill_effective_dates(db, [bill]) == {}
 
 
@@ -515,15 +518,15 @@ def test_bill_effective_dates_tier_c_reaches_list_cards():
             _bill_action("Effective date", "08/01/2025"),
         ],
     )
-    db = _FakeDb([(6, 60)], [(60, None, "Amended statute text, no effective clause.")])
+    db = _FakeDb([(6, None, "Amended statute text, no effective clause.")])
     assert bill_effective_dates(db, [bill]) == {"6": "August 1, 2025"}
 
 
 def test_bill_effective_dates_omnibus_various_when_no_current_version():
-    # No current version -> the section query is skipped entirely; an omnibus still
+    # No current version -> the section read returns nothing; an omnibus still
     # falls back to "various dates".
     bill = _signed_bill(5, is_omnibus=True)
-    db = _FakeDb([])  # version query returns nothing; no second query runs
+    db = _FakeDb([])  # the section read finds no rows
     assert bill_effective_dates(db, [bill]) == {"5": "various dates"}
 
 

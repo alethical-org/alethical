@@ -2339,9 +2339,21 @@ def effective_schedule_payload(db: Session, bill_row) -> dict[str, Any] | None:
     return {"kind": "phased", **phased}
 
 
+# Sections whose effective-date heading holds a non-blank character -- the SQL
+# twin of ``(heading or "").strip()`` in the three tier predicates below. A null or
+# empty heading fails the regex, so it is not counted, exactly as Python reads it.
+# Verified against production rather than assumed: of 71,048 section rows, 36,272
+# carry a null heading and 12,751 an empty one, and *none* carries a heading that is
+# whitespace without being empty, so no row can be read one way by Postgres and the
+# other by Python (#2040).
+_SECTIONS_WITH_A_HEADING = func.count().filter(
+    BillVersionSection.effective_date_heading.regexp_match(r"\S")
+)
+
+
 def bill_effective_dates(db: Session, rows) -> dict[str, str]:
     """Effective-date display value per SIGNED bill on a list page, computed set-wise
-    in at most two grouped queries (no per-row N+1) — the list-endpoint counterpart
+    in one grouped query (no per-row N+1) — the list-endpoint counterpart
     to verified_effective_date.
 
     The value is either the verified single statutory date (Tier A/B/C, the SAME source
@@ -2354,31 +2366,59 @@ def bill_effective_dates(db: Session, rows) -> dict[str, str]:
     signed = [row for row in rows if row.status_key == "signed_into_law"]
     if not signed:
         return {}
-    # One query: the current version id for each signed bill.
-    current_version_to_bill = {
-        version_id: bill_id
-        for bill_id, version_id in db.execute(
-            select(BillVersion.bill_id, BillVersion.id).where(
-                BillVersion.bill_id.in_([row.id for row in signed]),
-                BillVersion.is_current.is_(True),
+    signed_ids = [row.id for row in signed]
+    # The current version of each signed bill, as a condition on the one section
+    # read below rather than a read of its own. It used to be a separate statement
+    # whose only product was a version-id-to-bill-id map, and the join hands back
+    # the bill id directly, so a whole cross-region round trip disappears with the
+    # map (#2040). A signed bill with no current version contributes no section
+    # rows here exactly as it contributed no version id before, and
+    # ``resolve_effective_date`` answers None for the empty list either way.
+    current_versions = select(BillVersion.id).where(
+        BillVersion.bill_id.in_(signed_ids),
+        BillVersion.is_current.is_(True),
+    )
+    # One query: the sections of those current versions, grouped back per bill --
+    # but only for the versions whose sections could resolve a date at all, which
+    # is what keeps a whole act's text from crossing the region hop to be thrown
+    # away. All three tiers gate on the effective-date *headings* before reading a
+    # character of section text: A and B need every section to carry one
+    # (``effective_date_from_sections`` /
+    # ``effective_date_day_following_enactment``), C needs none of them to
+    # (``effective_date_all_sections_silent``). A version with some headed and some
+    # silent sections therefore returns None however its text reads, so its text is
+    # never fetched and ``sections_by_bill`` leaves it empty -- which
+    # ``resolve_effective_date`` already answers None for, so the value served is
+    # unchanged (the omnibus "various dates" fallback below is untouched).
+    #
+    # Measured on production 8 Sep 2026, page 1 of ``/bills?sort=progress`` (10
+    # signed bills): 482 kB of section text became 11 kB, because 8 of the 10 mix
+    # headed and silent sections. Corpus-wide across the 146 signed bills, 6,430 kB
+    # of 7,379 kB belongs to that unresolvable shape -- 65 bills of the 146. Every
+    # one of those 146 was replayed old-against-new and served the identical value
+    # (#2040).
+    resolvable_versions = (
+        select(BillVersionSection.bill_version_id)
+        .where(BillVersionSection.bill_version_id.in_(current_versions))
+        .group_by(BillVersionSection.bill_version_id)
+        .having(
+            or_(
+                _SECTIONS_WITH_A_HEADING == 0,
+                _SECTIONS_WITH_A_HEADING == func.count(),
             )
-        ).all()
-    }
-    # One query: all sections for those current versions, grouped back per bill.
+        )
+    )
     sections_by_bill: dict[Any, list[tuple[str | None, str | None]]] = defaultdict(list)
-    if current_version_to_bill:
-        for version_id, heading, raw_text in db.execute(
-            select(
-                BillVersionSection.bill_version_id,
-                BillVersionSection.effective_date_heading,
-                BillVersionSection.raw_text,
-            ).where(
-                BillVersionSection.bill_version_id.in_(list(current_version_to_bill))
-            )
-        ).all():
-            sections_by_bill[current_version_to_bill[version_id]].append(
-                (heading, raw_text)
-            )
+    for bill_id, heading, raw_text in db.execute(
+        select(
+            BillVersion.bill_id,
+            BillVersionSection.effective_date_heading,
+            BillVersionSection.raw_text,
+        )
+        .join(BillVersionSection, BillVersionSection.bill_version_id == BillVersion.id)
+        .where(BillVersionSection.bill_version_id.in_(resolvable_versions))
+    ).all():
+        sections_by_bill[bill_id].append((heading, raw_text))
 
     out: dict[str, str] = {}
     for row in signed:
