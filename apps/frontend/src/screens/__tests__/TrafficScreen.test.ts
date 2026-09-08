@@ -298,7 +298,7 @@ describe('public Site metrics page', () => {
     expect(SOURCE).toContain(
       'Includes Money page views recorded before the Money rows were added.',
     );
-    expect(SOURCE).toContain('Collection start dates are not recorded here.');
+    expect(SOURCE.replace(/\s+/g, ' ')).toContain('Collection start dates are not recorded here.');
     expect(SOURCE).toContain('Start date unavailable');
     const collection = SOURCE.slice(
       SOURCE.indexOf('function CollectionDates('),
