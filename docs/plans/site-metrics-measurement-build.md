@@ -46,7 +46,7 @@ One writer per file. Helpers commit in isolated worktrees and do not release. Ma
 - [x] Public additions and private aggregate report implemented.
 - [x] Authoritative source definitions, missing states and limitations updated.
 - [x] Focused and full checks, migration review, desktop/phone browser checks.
-- [ ] Pull requests, current-main checks, release and live verification.
+- [x] Pull requests, current-main checks, release and live verification.
 
 ## Safety gates and unresolved evidence
 
@@ -67,7 +67,7 @@ The metrics branch contains the shared changes plus the stronger event-time coll
 checks. Anonymous visits wait for the first resolved sign-in state; later identity changes
 apply immediately and never reassign queued events to the next account.
 
-Completed checks include a full 2085-test backend run, all 2306 frontend tests, 49 source-health
+Completed checks include a full 2093-test backend run, all 2306 frontend tests, 49 source-health
 subtests, and 141 phone/desktop browser cases in Chromium, Firefox and WebKit. The browser
 cases include 57 private-report checks with synthetic sign-in data and blocked real-network
 access. A fresh independent reader pass covers normal navigation, Money searching, both
@@ -79,13 +79,24 @@ Money home row is explicitly separate from the whole-Money fallback. The per-add
 report preserves unrounded values for pass/fail and JSON; 63 focused tests include the exact
 0.1 layout threshold and values just above it. Display formatting cannot change a verdict.
 
-Current main is integrated through [pull request 2019](https://github.com/alethical-org/alethical/pull/2019).
-The release is [pull request 2027](https://github.com/alethical-org/alethical/pull/2027).
+The release is [pull request 2027](https://github.com/alethical-org/alethical/pull/2027),
+merged as [commit 49f343c2](https://github.com/alethical-org/alethical/commit/49f343c28420ef0147817b0e5de1b8194bd95fa6).
 The local API-enabled initial download is 389540 compressed bytes against the 390000-byte
-limit. The updated head includes the private browser suite and raw-score comparison repair;
-its current-head and merge-queue checks are the remaining pre-release gates.
+limit. Current-head and merge-queue checks pass. The private browser suite passes locally,
+and automated backend checks cover the raw-score comparison repair.
 
-After those gates: confirm database migration 0052 and both hosted releases, then exercise
-all public sources and private access-denial paths live. No production writes or releases
-have occurred from this metrics branch at this checkpoint. Keep the additive history tables
-in place if application rollback is required; do not run the destructive downgrade.
+## Live release evidence, 8 September 2026
+
+- Public report: https://www.alethical.com/site-metrics. Private report: https://www.alethical.com/admin/site-metrics.
+- Vercel publishes the release at the public address. Railway's successful production release contains the same changes. A read-only production transaction returns migration `0052_site_metric_history` and successfully reads all 3 private aggregate sources.
+- All 7 cached public source checks pass. Checkly reports 100% for both monitored services, with genuine monitoring start and measurement times.
+- Supabase reports 16 current included accounts: 15 confirmed and 1 awaiting confirmation. The completed-hour creation windows report 1 in 7 days and 8 in 30 days. These are surviving accounts, not gross lifetime sign-ups.
+- Money's 7-day report contains 78 committee-page views across 14 different committees. Main Money addresses have separate destination rows. New money-search and follow histories with no recorded start render Not recorded yet, not a fabricated historical 0.
+- Cloudflare reports 1046 largest-content samples, 1043 layout samples, and 12 interaction samples. The interaction score remains Building sample under the 50-measurement rule. Slow content and layout movement remain genuine reported performance problems, not repaired by changing measurement labels.
+- Independent phone and desktop reading passes cover both periods, Money navigation, note wrapping, and private signed-out access. Controlled checks block tracking and state-changing requests.
+- Anonymous and invalid-token private requests return 401 with private, no-store caching. The private HTML has noindex/nofollow and no-referrer headers. Its authenticated states have 57 isolated browser cases; a real administrator sign-in was not performed during this release check.
+- Per-address speed follow-up remains in [issue 2022](https://github.com/alethical-org/alethical/issues/2022). This release corrects raw-score threshold comparison and sample meaning; it does not claim that the remaining address-grouping or release-window work is complete.
+
+Keep the additive history tables in place if application rollback is required; do not run
+the destructive downgrade. No real-user notifications or invented activity are part of the
+release verification.
