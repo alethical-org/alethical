@@ -36,7 +36,12 @@ import {
   severalCommitteesNote,
   confirmedCommitteesWithheldLine,
 } from '../../lib/legislatorCampaignMoney';
-import { coveredPeriodDetail, coveredPeriodLine, stampThroughDate } from '../../lib/committeeMoney';
+import {
+  coveredPeriodDetail,
+  coveredPeriodLine,
+  stampThroughDate,
+  staleHoldNote,
+} from '../../lib/committeeMoney';
 import { centralDateLabel } from '../../lib/moneyLanding';
 import { useLegislatorOutsideSpending } from '../../hooks/useAppQueries';
 import { useCurrentClaimExpiry } from '../../hooks/useCurrentClaimExpiry';
@@ -115,7 +120,14 @@ export function CampaignMoneyTab({
         <YearControl year={year} onSelect={onSelectYear} />
       </View>
 
-      {isError ? (
+      {/* A failed recheck leaves the previous answer in place, so a fault is only a
+          FAILURE CARD when there is nothing to show. Gated on `isError` alone, one
+          failed recheck replaced a correct current page of figures with an apology,
+          and issue 2023's own recheck on returning to a tab is what made that
+          reachable. The committee page already had this right (`isHoldingStale` in
+          CommitteeMoneyScreen.tsx) and this is the same treatment and the same
+          sentence, not a new one. */}
+      {isError && !money ? (
         // Its own state, never a fall-through to "Not reported". A fault on our side
         // must not read as a named person having filed nothing.
         <View style={styles.card}>
@@ -128,6 +140,20 @@ export function CampaignMoneyTab({
         <View style={styles.card}>
           <Text style={styles.muted}>Loading campaign money…</Text>
         </View>
+      ) : isError ? (
+        // Held figures, said plainly above them rather than below: a reader who
+        // stops at the first number is the one who most needs to know it is held.
+        <>
+          <View style={styles.card}>
+            <Text accessibilityRole="alert" style={styles.body}>
+              {staleHoldNote(money.fetchedAt ? centralDateLabel(money.fetchedAt) : null)}
+            </Text>
+          </View>
+          <SeveralCommitteesNote count={money.committees.length} />
+          {money.committees.map((committee) => (
+            <CommitteeCard key={committee.registrationNumber} committee={committee} year={year} />
+          ))}
+        </>
       ) : committeesWithheld && money.committees.length > 0 ? (
         // Ahead of every empty state below, because each of those asserts something
         // about this member that we would not be able to stand behind here.
@@ -158,9 +184,7 @@ export function CampaignMoneyTab({
         </>
       )}
 
-      {money && !isLoading && !isError ? (
-        <OtherOfficeNote count={money.otherOfficeCommittees} />
-      ) : null}
+      {money && !isLoading ? <OtherOfficeNote count={money.otherOfficeCommittees} /> : null}
 
       {/* Money others spent about this member, below the committee's own money in and
           money out and their payment lists, because it is the record a reader of those
