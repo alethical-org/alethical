@@ -20,8 +20,9 @@ addresses are resolved by one router (`apps/frontend/src/navigation/webRoutes.ts
   dialog over the page you are on (`docs/product-onboarding/sign-in-guide.md`); there is no
   sign-in page to route to.
 - **The account control replaces Sign in once you are in**: an avatar with your first name on a
-  desktop-width browser, an avatar that opens a sheet on a phone. It holds a **Tracked Bills**
-  row, with the count of bills you track, leading to `/tracked`, and **Sign out**.
+  desktop-width browser, an avatar that opens a sheet on a phone. It holds a **Tracked**
+  row, with the combined count of bills and committees you follow, leading to `/tracked`,
+  Add or Change password, and **Sign out**.
   Approved administrators also see **Users**, leading to `/admin/users`, and
   **Admin metrics**, leading to `/admin/metrics`. The signed-in profile supplies
   the menu hint; older responses use a separate access check. Every private read

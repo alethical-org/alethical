@@ -236,6 +236,12 @@ The account menu shows the person's name and email, Tracked, Add or Change passw
 out. Tracked shows a count only after both lists (bills and followed committees) have loaded. No number covers both zero tracked
 bills and a list that has not arrived, so the menu never shows a false zero.
 
+Tracked, Add or Change password, and Sign out share the same left edges for their icon boxes
+and labels, on both computer and phone. Each icon is centered inside a fixed square, so a
+different icon cannot shift its label. Long labels stay on 1 line and shorten with an ellipsis;
+the Tracked count keeps its place on the right. The phone Sign out button keeps its outline
+while its contents align with the rows above it.
+
 Approved administrators also see **Users** (`/admin/users`) and **Admin metrics**
 (`/admin/metrics`). The server's optional `is_admin` hint in `/me` makes these entries
 available with the signed-in profile. Older responses without a boolean hint use

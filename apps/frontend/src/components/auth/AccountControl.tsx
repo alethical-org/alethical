@@ -540,11 +540,16 @@ function TrackedRow({
       accessibilityLabel={count === null ? undefined : `Tracked, ${count}`}
       style={({ pressed }) => [
         phone ? styles.sheetTrackedRow : styles.menuTrackedRow,
+        phone ? styles.sheetIconRow : styles.menuIconRow,
         pressed && (phone ? styles.sheetButtonPressed : styles.menuItemPressed),
       ]}
     >
-      <BookmarkIcon size={phone ? 22 : 20} />
-      <Text style={phone ? styles.sheetTrackedLabel : styles.menuTrackedLabel}>Tracked</Text>
+      <View style={phone ? styles.sheetIconBox : styles.menuIconBox}>
+        <BookmarkIcon size={phone ? 22 : 20} />
+      </View>
+      <Text numberOfLines={1} style={phone ? styles.sheetTrackedLabel : styles.menuTrackedLabel}>
+        Tracked
+      </Text>
       {count === null ? null : (
         <Text style={phone ? styles.sheetTrackedCount : styles.menuTrackedCount}>{count}</Text>
       )}
@@ -686,12 +691,16 @@ function DesktopSignOut({ flow }: { flow: ReturnType<typeof useAccountSignOut> }
         onPress={() => void flow.press()}
         style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
       >
-        {flow.state === 'busy' && !reduceMotion ? (
-          <ActivityIndicator size="small" color={t.colors.brand.forest} />
-        ) : (
-          <SignOutIcon color={t.colors.text.faint} />
-        )}
-        <Text style={styles.menuItemText}>{flow.label}</Text>
+        <View style={styles.menuIconBox}>
+          {flow.state === 'busy' && !reduceMotion ? (
+            <ActivityIndicator size="small" color={t.colors.brand.forest} />
+          ) : (
+            <SignOutIcon color={t.colors.text.faint} />
+          )}
+        </View>
+        <Text numberOfLines={1} style={styles.menuItemText}>
+          {flow.label}
+        </Text>
       </Pressable>
       <Text style={styles.desktopSignOutNote}>{OTHER_DEVICE_NOTE}</Text>
     </>
@@ -715,12 +724,16 @@ function PhoneSignOut({ flow }: { flow: ReturnType<typeof useAccountSignOut> }) 
         onPress={() => void flow.press()}
         style={({ pressed }) => [styles.sheetButton, pressed && styles.sheetButtonPressed]}
       >
-        {flow.state === 'busy' && !reduceMotion ? (
-          <ActivityIndicator size="small" color={t.colors.brand.forest} />
-        ) : (
-          <SignOutIcon color={t.colors.text.primary} />
-        )}
-        <Text style={styles.sheetButtonText}>{flow.label}</Text>
+        <View style={styles.sheetIconBox}>
+          {flow.state === 'busy' && !reduceMotion ? (
+            <ActivityIndicator size="small" color={t.colors.brand.forest} />
+          ) : (
+            <SignOutIcon color={t.colors.text.primary} />
+          )}
+        </View>
+        <Text numberOfLines={1} style={styles.sheetButtonText}>
+          {flow.label}
+        </Text>
       </Pressable>
       <Text style={styles.phoneSignOutNote}>{OTHER_DEVICE_NOTE}</Text>
     </>
@@ -767,8 +780,12 @@ function AccountSurfaceContent({
               onPress={onPasswordPress}
               style={({ pressed }) => [styles.menuItem, pressed && styles.menuItemPressed]}
             >
-              <PasswordIcon color={t.colors.text.faint} />
-              <Text style={styles.menuItemText}>{passwordCopy.rowLabel}</Text>
+              <View style={styles.menuIconBox}>
+                <PasswordIcon color={t.colors.text.faint} />
+              </View>
+              <Text numberOfLines={1} style={styles.menuItemText}>
+                {passwordCopy.rowLabel}
+              </Text>
             </Pressable>
             <View style={styles.menuDivider} />
           </>
@@ -792,8 +809,10 @@ function AccountSurfaceContent({
             pressed && styles.sheetButtonPressed,
           ]}
         >
-          <PasswordIcon color={t.colors.text.primary} />
-          <Text style={[styles.sheetButtonText, styles.sheetPasswordText]}>
+          <View style={styles.sheetIconBox}>
+            <PasswordIcon color={t.colors.text.primary} />
+          </View>
+          <Text numberOfLines={1} style={[styles.sheetButtonText, styles.sheetPasswordText]}>
             {passwordCopy.rowLabel}
           </Text>
           <ChevronRightIcon />
@@ -1088,13 +1107,32 @@ const styles = StyleSheet.create({
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
+    minHeight: 44,
     paddingTop: 13,
     paddingRight: 15,
     paddingBottom: 13,
     paddingLeft: 12,
   },
   menuItemPressed: { backgroundColor: t.colors.surfaces.s300 },
+  // Icon boxes share the iconless admin rows' left edge. Keep their spacing
+  // separate because the admin rows use the tracked row's base layout too.
+  menuIconRow: { gap: 12 },
+  sheetIconRow: { gap: 13 },
+  menuIconBox: {
+    width: 20,
+    height: 20,
+    flexShrink: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sheetIconBox: {
+    width: 22,
+    height: 22,
+    flexShrink: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   // The watchlist row. Same padding as the rows around it, with the 44px floor
   // stated rather than left to add up (nav build prompt, 20 Aug 2026).
   menuTrackedRow: {
@@ -1122,6 +1160,8 @@ const styles = StyleSheet.create({
     color: t.colors.text.secondary,
   },
   menuItemText: {
+    flex: 1,
+    minWidth: 0,
     fontFamily: t.typography.ui,
     fontSize: t.fontSizes.small,
     fontWeight: t.fontWeights.semibold,
@@ -1261,16 +1301,18 @@ const styles = StyleSheet.create({
   },
   sheetButton: {
     marginTop: 20,
-    minHeight: 52,
+    minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 9,
+    justifyContent: 'flex-start',
+    gap: 13,
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
     borderColor: t.colors.alpha.ink18,
     borderRadius: 13,
     paddingVertical: 16,
+    // The border adds 1px; this puts the icon at the other phone rows' 2px inset.
+    paddingHorizontal: 1,
   },
   // The phone watchlist row, above Change password. It carries the line ABOVE
   // it; the line between the two is Change password's own top border.
@@ -1306,7 +1348,7 @@ const styles = StyleSheet.create({
     minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 13,
     backgroundColor: t.colors.surfaces.base,
     borderTopWidth: 1,
     borderBottomWidth: 1,
@@ -1316,6 +1358,8 @@ const styles = StyleSheet.create({
   sheetPasswordText: { flex: 1, textAlign: 'left' },
   sheetButtonPressed: { backgroundColor: t.colors.surfaces.s300 },
   sheetButtonText: {
+    flex: 1,
+    minWidth: 0,
     fontFamily: t.typography.ui,
     fontSize: t.fontSizes.lg,
     fontWeight: t.fontWeights.semibold,
