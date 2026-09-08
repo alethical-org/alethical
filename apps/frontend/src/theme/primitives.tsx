@@ -15,7 +15,6 @@ import {
 } from 'react-native';
 import Svg, { Circle, G, Path, Rect } from 'react-native-svg';
 import { ArrowRight, ChevronDown, ChevronUp, Menu, X } from '../components/icons';
-import { SocialIconLink } from '../components/SocialIconLink';
 
 import { theme } from './tokens';
 import { getPageBackgroundStyle } from './pageBackground';
@@ -28,6 +27,7 @@ import {
   navDropdownItems,
 } from '../navigation/ia';
 import { linkProps, routePath } from '../navigation/links';
+import { loadOnDemand } from '../lib/loadOnDemand';
 import { SOCIAL_ACCOUNTS } from '../lib/socialLinks';
 import { pathForRoute } from '../navigation/webRoutes';
 import { NAV_ITEM_HREFS, currentNavItemId, navigateTopNavItem } from '../navigation/topNavRoutes';
@@ -46,6 +46,11 @@ import {
 
 const isWeb = Platform.OS === 'web';
 const t = theme;
+const FooterSocialIconLink = loadOnDemand(() =>
+  import('../components/SocialIconLink').then(({ SocialIconLink }) => ({
+    default: SocialIconLink,
+  })),
+);
 
 function useHover(): [boolean, { onHoverIn: () => void; onHoverOut: () => void }] {
   const [hovered, setHovered] = useState(false);
@@ -1117,7 +1122,7 @@ export function Footer({
           <View style={[styles.footerUtility, isMobile && styles.footerUtilityMobile]}>
             <View style={[styles.footerSocialLinks, isMobile && styles.footerSocialLinksMobile]}>
               {SOCIAL_ACCOUNTS.map((social) => (
-                <SocialIconLink
+                <FooterSocialIconLink
                   key={social.platform}
                   social={social}
                   surface="footer"

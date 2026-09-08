@@ -13,7 +13,6 @@ import {
 import Svg, { Path } from 'react-native-svg';
 
 import { GoBackLink } from '../../components/GoBackLink';
-import { SocialIconLink } from '../../components/SocialIconLink';
 import { sendContactMessageFromApi } from '../../data/api';
 import { useResponsive } from '../../hooks/useResponsive';
 import {
@@ -27,6 +26,7 @@ import {
   initialContactFormState,
   validateContactForm,
 } from '../../lib/contactUs';
+import { loadOnDemand } from '../../lib/loadOnDemand';
 import { IaItem, MenuKey } from '../../navigation/ia';
 import { routePath } from '../../navigation/links';
 import { navigateTopNavItem } from '../../navigation/topNavRoutes';
@@ -35,6 +35,12 @@ import { browserFillInputProps } from '../../theme/browserFill';
 import { fieldFocusRing, fieldOutlineReset, useFieldFocus } from '../../theme/fieldFocus';
 import { Container, Footer, PageBackground, TopNav } from '../../theme/primitives';
 import { prefersReducedMotion, theme as t } from '../../theme/tokens';
+
+const ContactSocialIconLink = loadOnDemand(() =>
+  import('../../components/SocialIconLink').then(({ SocialIconLink }) => ({
+    default: SocialIconLink,
+  })),
+);
 
 const FIELD_LABELS: Record<ContactField, { label: string; optional?: boolean }> = {
   name: { label: 'YOUR NAME', optional: true },
@@ -446,7 +452,11 @@ export function ContactUsScreen({ navigation }: RootScreenProps<'ContactUs'>) {
                   <Text style={styles.cardEyebrow}>FOLLOW ALETHICAL</Text>
                   <View style={styles.socialRow}>
                     {CONTACT_SOCIALS.map((social) => (
-                      <SocialIconLink key={social.platform} social={social} surface="contact" />
+                      <ContactSocialIconLink
+                        key={social.platform}
+                        social={social}
+                        surface="contact"
+                      />
                     ))}
                   </View>
                 </View>

@@ -133,9 +133,8 @@ describe('Contact us screen contract', () => {
       'https://www.tiktok.com/@alethicaltruth',
       'https://www.youtube.com/@Alethical',
     ]);
-    expect(SCREEN).toContain(
-      '<SocialIconLink key={social.platform} social={social} surface="contact" />',
-    );
+    expect(SCREEN).toContain('<ContactSocialIconLink');
+    expect(SCREEN).toContain('surface="contact"');
     expect(SCREEN).toContain('{!isMobile ? (');
     expect(SCREEN).not.toContain('social.label ===');
   });
