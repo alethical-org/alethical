@@ -1,4 +1,4 @@
-<!-- describes: apps/frontend/App.tsx, apps/frontend/package.json, vercel.json, apps/frontend/src/data/api.ts, apps/frontend/src/lib/appQueryClient.ts, apps/frontend/src/lib/billFreshness.ts, apps/frontend/src/navigation/RootNavigator.tsx, apps/frontend/src/providers/AppProviders.tsx, apps/frontend/src/providers/AuthProvider.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, alethical/api/routers/ask.py, alethical/api/routers/public.py, alethical/api/services/outside_spending.py, alethical/api/services/campaign_finance_races.py, alethical/api/services/committee_finance.py, alethical/api/services/campaign_finance_search.py, alethical/pipeline/campaign_finance_filings.py, api/page.ts, .github/workflows/warm-money-pages.yml, apps/frontend/src/providers/AuthProvider.web.tsx, apps/frontend/src/providers/SignInModalProvider.tsx, apps/frontend/src/providers/SignInMachinery.tsx, apps/frontend/src/lib/auth/loadSignInBundle.ts, apps/frontend/src/lib/auth/signInBundle.ts, apps/frontend/src/lib/auth/signInWorkPending.ts, apps/frontend/src/lib/supabaseConfig.ts, apps/frontend/src/components/auth/accountControls.tsx, apps/frontend/scripts/check-first-load-budget.mjs -->
+<!-- describes: apps/frontend/App.tsx, apps/frontend/package.json, vercel.json, apps/frontend/src/data/api.ts, apps/frontend/src/lib/appQueryClient.ts, apps/frontend/src/lib/billFreshness.ts, apps/frontend/src/navigation/RootNavigator.tsx, apps/frontend/src/providers/AppProviders.tsx, apps/frontend/src/providers/AuthProvider.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, alethical/api/routers/ask.py, alethical/api/routers/public.py, alethical/api/services/outside_spending.py, alethical/api/services/campaign_finance_races.py, alethical/api/services/committee_finance.py, alethical/api/services/campaign_finance_search.py, alethical/pipeline/campaign_finance_filings.py, api/page.ts, .github/workflows/warm-money-pages.yml, apps/frontend/src/providers/AuthProvider.web.tsx, apps/frontend/src/providers/SignInModalProvider.tsx, apps/frontend/src/providers/SignInMachinery.tsx, apps/frontend/src/lib/auth/loadSignInBundle.ts, apps/frontend/src/lib/auth/signInBundle.ts, apps/frontend/src/lib/auth/signInWorkPending.ts, apps/frontend/src/lib/supabaseConfig.ts, apps/frontend/src/components/auth/accountControls.tsx, apps/frontend/scripts/check-first-load-budget.mjs, apps/frontend/scripts/report-page-load-stages.mjs -->
 
 # Page-load performance decisions
 
@@ -414,6 +414,65 @@ Against Google's passing mark of 0.1. `/bills` was the worst address on the site
 and written out on the other seeds nothing while the page still works, so the mistake is
 invisible in every screenshot and every test of what the page draws. What settles it is
 the browser's own request list: `/bills` made 4 data-service reads and now makes 1.
+
+## What the `/bills` wait is actually spent on
+
+`/bills` publishes the site's slowest main-content figure, and 60% of that wait is the
+shared program every address downloads rather than anything the bill list does.
+[`report-page-load-stages.mjs`](../../apps/frontend/scripts/report-page-load-stages.mjs)
+loads an address with a cold cache and a brand-new browser per run, attaches every observer
+before the page loads, and splits the wait into its stages. Measured 7 Sep 2026 against
+production, 9 runs, throttled to 1,600 kbit with 150 ms latency and a processor 4x slower,
+a profile chosen so the total lands within 8% of the published figure and the shares below
+are shares of the real number. The 9 runs spread under 40 ms.
+
+| Stage | 1280x900 | Share |
+|---|---:|---:|
+| First response finished | 241 ms | 6% |
+| Downloading the program | 2,281 ms | 60% |
+| Starting the program | 339 ms | 9% |
+| Running on until the list is asked for | 347 ms | 9% |
+| Waiting for the list answer | 490 ms | 13% |
+| Drawing 10 cards | 84 ms | 2% |
+| **Main content** | **3,832 ms** | |
+
+The program is 389,512 bytes over the wire and is the same 3 files every address names, so
+most of this page's wait belongs to the shared first download above, not to the bill list.
+The `/bills` screen's own file is 4,793 bytes. Everything the page itself owns, the list
+request and the drawing, is 574 ms.
+
+**Which element counts as the main content changes with the window's width, so one address
+publishes 2 very different figures.** 3 runs at each width, same profile: 390 px reads
+564 ms and the element is a bill title inside the served text (`SPAN.ps-record-detail`);
+600, 768, 900 and 1,100 px read about 3,256 ms and the element is the app's own heading;
+1,280 px reads 3,860 ms and the element is a card's text. Every width sees the served list
+at the same early moment, and what differs is which element the browser calls largest. So a
+published figure for an address is a wide-window figure, and reading it as the moment a
+reader first sees something overstates it. What share of real visits sits on each side of
+600 px is unmeasured: the per-address report deliberately asks Cloudflare for no device or
+width breakdown (`docs/product-onboarding/traffic-guide.md`).
+
+**Matching the served text's heading to the app's would move that figure without moving
+anything a reader waits for**, from about 3,300 ms to about 550 ms on every width. It is a
+design question about whether the 2 headings should be the same size, and it is never a
+performance change.
+
+**The list response carries far more than a card draws, and its size is not the wait.**
+`/bills` asks for 10 bills and receives 127,201 bytes, 22,145 as production gzips it. Action
+history is 79,410 of those bytes, 396 rows so that each card can print 1 line, and the AI
+analysis is 27,441, of which the key points, the suggested questions and the citations are
+drawn on the bill page and the Ask page and never on a card. Compressed the same way, the
+response as served is 22,527 bytes, without everything no card draws 15,053, and carrying
+only what a card draws with 1 action line each 9,115. At this profile's bandwidth those are
+113, 75 and 46 ms of transfer, so the whole avenue is worth under 100 ms of 3,832 counting
+the drawing stage as an upper bound on the parsing it also saves. The 490 ms list stage is
+mostly the round trip and the server.
+
+**A browser cannot split that 490 ms further, because the data service sends no
+`Timing-Allow-Origin` header.** A page may read a cross-origin request's start and end and
+nothing between, so the connection, the server's own time and the download arrive as 1
+number, and the response's size reads as 0. Anything wanting that split measures it outside
+the browser.
 
 ## What an uncached money answer spends its time on
 
