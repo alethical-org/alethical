@@ -378,6 +378,50 @@ page: 17,736 bytes and the whole marketing page, for a reader who was never goin
 service included** ([#1976](https://github.com/alethical-org/alethical/issues/1976)). The
 section below owns that change and its measurements.
 
+### Which of the 3 files a shared part lands in, and why 2 screens is the whole threshold
+
+A part 1 screen reads is downloaded with that screen and costs a reader who never opens it
+nothing. A part 2 or more screens read goes into the shared file every reader downloads
+(`__common-*.js`). There is no third outcome. Measured 8 Sep 2026 with 2 probe modules built
+for the purpose: the one imported by 1 screen landed in that screen's own file, and the one
+imported by 2 screens landed in `__common-*.js`.
+
+So taking a part out of the program every page needs (`index-*.js`) buys a reader nothing
+unless exactly 1 screen is left reading it, and it can cost. Brotli compresses a file against
+the text already in that file, and `__common-*.js` is a sixth the size of `index-*.js`, so the
+same part is dearer in the smaller one. Measured 8 Sep 2026 on
+[`lib/committeeMoney.ts`](https://github.com/alethical-org/alethical/blob/main/apps/frontend/src/lib/committeeMoney.ts):
+5,064 bytes inside `index-*.js`, 6,077 inside `__common-*.js`, for the identical file.
+
+Read a module's cost in the bytes a reader receives, never in the bytes the file holds.
+`lib/committeeMoney.ts` is 16,528 bytes of the built program once minified and 4,997 bytes of
+what a reader downloads, because English prose beside more English prose compresses about
+3 to 1. A saving quoted from the first number is roughly 3 times the saving there is.
+
+### What every committee page's words cost a reader who opens the homepage
+
+`lib/committeeMoney.ts` holds every sentence a committee's money page can print, and the
+address table reaches it through
+[`lib/paymentsUnderName.ts`](https://github.com/alethical-org/alethical/blob/main/apps/frontend/src/lib/paymentsUnderName.ts),
+so every reader downloads all of them. It is 4,997 bytes of the 391,752-byte first load,
+about 1 byte in 78.
+
+Removing it from the browser entirely measures 387,768 bytes, and that floor is not
+reachable. 48% of the file, counted in source characters, is read by 2 or more screens: the
+money cards a legislator's profile draws are the same cards a committee page draws
+([`components/campaignMoney/MoneyCards.tsx`](https://github.com/alethical-org/alethical/blob/main/apps/frontend/src/components/campaignMoney/MoneyCards.tsx)),
+and 3 more screens read the closed-committee chip. That half lands in `__common-*.js`
+wherever it is put, so a reader still pays it. Cutting the other half loose measures about
+2,000 bytes, against splitting 1,530 lines of reader-facing sentences 3 ways under a rule
+that no word may change.
+
+That measurement closes
+[issue 2070](https://github.com/alethical-org/alethical/issues/2070), which was filed
+against the 39,747-byte reading and asked for a ratchet cut. Doing exactly what it asked —
+leaving no first-load file importing that module — was built and measured on 8 Sep 2026 and
+made the first load 1,013 bytes **bigger**, because the module left `index-*.js` for the
+dearer `__common-*.js` and 7 screens still read it.
+
 **Moving code out of the program every page needs usually saves a reader nothing, and this is
 the trap to know about before planning any more of it.** A page names 3 files, and 1 of them
 is the shared file holding parts that more than 1 screen uses. The web build fills that file

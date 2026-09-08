@@ -1,0 +1,40 @@
+name: PR description
+
+# Editing prose never launches CI or replaces a failed code check with a skip.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited, ready_for_review]
+  merge_group:
+    types: [checks_requested]
+
+# No secrets, write token, cache restore, dependency install, or target event.
+# Like CI, candidate code runs only with read access. This also permits testing
+# the first release of this helper before it exists on the base branch.
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: pr-description-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  description-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check out candidate with read-only access
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Test description checker without database or network
+        run: python -m unittest discover -s scripts/tests -p 'test_pr_description_checks.py'
+      - name: Check current descriptions for the exact proposed code
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python scripts/check_pr_descriptions.py

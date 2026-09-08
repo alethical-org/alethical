@@ -156,7 +156,10 @@ served renders nothing rather than a number:
   own ordering field through one mapping, so the words and the order cannot drift apart.
 - The lanes' **live counts**: registered filers on the Committees lane, and sitting members
   on the Legislators lane, whose text also states how many members' committees a person has
-  confirmed, read live from the confirmation log so it moves as confirmations land. A count
+  confirmed, read live from the confirmation log so it moves as confirmations land. Once
+  every sitting member is confirmed that text reads "Confirmed for every sitting legislator"
+  instead of a count, because the counted wording's closing clause ("for the rest, no
+  figures show on a profile") would then describe nobody (accepted 8 Sep 2026). A count
   that is not served does not appear; a null is our gap and never renders as 0, while a
   served 0 from our own empty log is a verified zero and shows as the number it is.
 

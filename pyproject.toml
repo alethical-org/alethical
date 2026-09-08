@@ -84,3 +84,6 @@ constraint-dependencies = [
 [tool.pytest.ini_options]
 testpaths = ["alethical/tests"]
 pythonpath = ["."]
+
+[dependency-groups]
+dev = ["ruff==0.15.0"]

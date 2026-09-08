@@ -240,6 +240,41 @@ async function noHorizontalOverflow(page: Page) {
   ).toBe(true);
 }
 
+for (const width of [390, 768, 820, 1099, 1100, 1440]) {
+  for (const state of ['building sample', 'needs improvement'] as const) {
+    test(`speed values stay inside the card at ${width}px with ${state}`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 1000 });
+      const answers = fixture();
+      answers.performance.inpP75Ms = state === 'building sample' ? null : 350;
+      answers.performance.inpSamples = state === 'building sample' ? 12 : 65;
+      await installAnswers(page, answers);
+      await openMetrics(page);
+      const panel = page.getByTestId('site-metrics-performance');
+      await panel.scrollIntoViewIfNeeded();
+      const value = page.getByTestId('site-metrics-speed-value-1');
+      await expect(value).toHaveText(state === 'building sample' ? 'Building sample' : '350 ms');
+      await expect(value).toHaveCSS('font-size', width < 768 ? '17px' : '18px');
+      await expect(value).toHaveCSS('font-weight', '800');
+      const outside = await panel.evaluate((element) => {
+        const box = element.getBoundingClientRect();
+        return [...element.querySelectorAll('[data-testid^="site-metrics-speed-"]')]
+          .filter((child) => {
+            const rect = child.getBoundingClientRect();
+            return rect.width > 0 && (rect.left < box.left || rect.right > box.right);
+          })
+          .map((child) => child.getAttribute('data-testid'));
+      });
+      expect(outside).toEqual([]);
+      if (state === 'needs improvement') {
+        await expect(page.getByTestId('site-metrics-speed-verdict-1')).toHaveText(
+          'Needs improvement',
+        );
+      }
+      await noHorizontalOverflow(page);
+    });
+  }
+}
+
 for (const viewport of [
   { name: 'phone', width: 390, height: 844 },
   { name: 'desktop', width: 1440, height: 1200 },

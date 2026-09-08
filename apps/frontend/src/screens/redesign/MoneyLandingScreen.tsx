@@ -22,6 +22,7 @@ import {
   FILES_LAST_COPIED_LABEL,
   FILES_LAST_COPIED_NOTE,
   MONEY_LANDING_HEADING,
+  MONEY_LANDING_SEARCH_NOTE,
   MONEY_LANDING_SUBTITLE,
   MONEY_LANE_BY_RACE,
   MONEY_LANE_COMMITTEES,
@@ -182,11 +183,7 @@ export function MoneyLandingScreen({ navigation }: RootScreenProps<'MoneyLanding
               placeholder={NAME_SEARCH_PLACEHOLDER}
               showSubmitButton
             />
-            <Text style={styles.searchNote}>
-              Matched on the name as it was filed, exactly as typed. We offer no nearest match:
-              names here differ from each other by a single character often enough that a guess
-              would put you on the wrong organisation.
-            </Text>
+            <Text style={styles.searchNote}>{MONEY_LANDING_SEARCH_NOTE}</Text>
           </View>
 
           {/* WHAT WE FOUND — the research lane, first in prominence. The

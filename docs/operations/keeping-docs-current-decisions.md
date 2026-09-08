@@ -1,4 +1,4 @@
-<!-- describes: scripts/check_doc_sync.py -->
+<!-- describes: scripts/check_doc_sync.py, scripts/check_pr_descriptions.py, .github/workflows/pr-description.yml -->
 
 # Keeping docs current — what we decided and why
 
@@ -34,11 +34,9 @@ A doc that describes behaviour names the code it describes, in its own text:
 <!-- describes: path/to/YourScreen.tsx, path/to/your_router.py -->
 ```
 
-**The paths in that example are deliberately made up.** `declared_couplings()` finds every
-`describes:` comment anywhere in a doc's raw text, including one inside a code fence — it does
-not parse Markdown. So an example naming a real file makes *this* doc declare that file, and a
-PR touching it is then told to re-read a decision record that says nothing about it. The first
-draft of this section used `SearchBillsScreen.tsx` and did exactly that.
+**The paths in that example are deliberately made up.** The declaration reader in
+[`scripts/check_doc_sync.py`](../../scripts/check_doc_sync.py) ignores fenced examples.
+An example does not make this decision record describe the code shown inside it.
 
 `scripts/check_doc_sync.py` then fails any PR that changes a declared file without one
 `Docs check:` line in the body saying what the author concluded. "None needed" passes — the
@@ -100,18 +98,56 @@ closed it out: its lasting rules were reconciled into
 `Design change:` gate in `scripts/check_doc_sync.py` and its tests — with no design files
 under `docs/` there is nothing left for that gate to watch.
 
-**Two things about that line trip people up, and the second costs a wasted CI cycle**
-([#1008](https://github.com/alethical-org/alethical/pull/1008), 2026-08-05, hit both):
+### Refreshing a pull request's explanation
 
-- **The colon is load-bearing.** The matcher is `docs\s*check\s*:` (case-insensitive), so a
-  markdown heading — `## Docs check` — does **not** satisfy it, however thorough the section
-  underneath. Write a real `Docs check: …` line, then put the detail below it.
-- **Editing the PR body does not re-arm the check, and neither does re-running the job.** The
-  body reaches the script through `github.event.pull_request.body`, and a bare `pull_request:`
-  trigger fires on opened / synchronize / reopened — not on `edited`. Re-running the failed job
-  replays the *stored* event payload, so it re-reads the old body and fails again identically.
-  **Push a commit** to raise a fresh `synchronize` event with the current body. (Adding this
-  paragraph is the commit that did it.)
+The explanation needs a colon and an outcome on the same line: `Docs check: none needed`
+is valid. An empty label, a hidden comment, or a fenced example is not an explanation.
+The check requires a review statement, not an edit to the guide, and makes no claim that
+software can judge whether the statement is true. Automatic package updates follow the same
+requirement as changes written by people or coding agents.
+
+The separate [PR description workflow](../../.github/workflows/pr-description.yml) runs
+when a pull request opens, changes code, reopens, becomes ready, or has its description
+edited. Its `description-checks` result belongs only to the explanation. It never starts
+the website or server suites and never replaces their results or the `changes` result.
+
+The current-description reader
+([`scripts/check_pr_descriptions.py`](../../scripts/check_pr_descriptions.py)) reads the
+latest body and exact head from GitHub. It checks every changed filename, including the old
+name of a renamed file, against declarations in both the base and candidate snapshots.
+Removing a declaration cannot remove that review requirement within the same change.
+It reads the body, head, and base again before passing. Missing history, incomplete API
+data, a moved revision, or an edit during the check is a failure, not a silent success.
+
+For the merge queue, the current-description reader identifies the queue entry whose built
+revision matches the event. It checks that entry and every entry ahead of it, using each
+pull request's current description and head. It rechecks queue membership and descriptions
+before passing. A queue entry it cannot identify or a queue exceeding the complete 100-entry
+read fails closed. Website and server tests still check the combined code independently.
+
+The PR description workflow uses `pull_request`, never `pull_request_target`, with only
+read access to code and pull requests. It receives no repository secrets and saves no
+checkout credentials. Candidate code runs with that read-only access, as in ordinary CI;
+PR prose and filenames never become shell commands. No token can publish a check result,
+alter repository settings, or write code through this workflow.
+
+### Activating the separate requirement
+
+The safe release order keeps the existing description step inside `changes` until its
+replacement is demonstrated:
+
+1. Land the PR description workflow while retaining the existing CI description step.
+2. Demonstrate `description-checks` on a pull request and on the merge queue. Add
+   `description-checks` from GitHub Actions to the required checks on `main`, retaining
+   `changes`, `backend`, and `frontend` and every existing protection.
+3. Remove only the old description step from CI in a follow-up change. Other `changes`
+   steps remain required and untouched. Update the setup and repository-setting references
+   to name the separate requirement.
+
+During this transition, a failed legacy `changes` run still needs a fresh code event. The
+separate result is independently refreshable; the repeated-upload problem is fully removed
+only after the legacy description step is removed. Rollback restores that legacy step before
+removing the separate required context, so acknowledgment never loses its blocking check.
 
 Measured on 2026-08-03: **11 of 52 docs** declare anything (this said 9 of 47 a few hours earlier the same day; `production-database-schema-drift.md` and the two specs added to the index since both declare code now), and the check **fires on 26 of the
 last 60 merged PRs (43%)**, naming 54 doc-review prompts in total.

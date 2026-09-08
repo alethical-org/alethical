@@ -1,0 +1,35 @@
+{
+  "backend": [
+    ".github/workflows/ci.yml",
+    ".github/check-paths.json",
+    ".githooks/**",
+    ".python-version",
+    "alembic.ini",
+    "alethical/**",
+    "docs/**",
+    "justfile",
+    "lint-staged.config.mjs",
+    "package.json",
+    "pyproject.toml",
+    "scripts/**",
+    "uv.lock"
+  ],
+  "frontend": [
+    ".github/workflows/ci.yml",
+    ".github/check-paths.json",
+    ".githooks/**",
+    "apps/frontend/**",
+    "api/**",
+    "justfile",
+    "lint-staged.config.mjs",
+    "package.json",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+    "scripts/local_checks.py",
+    "scripts/format_frontend.mjs",
+    "scripts/tests/test_local_checks.py",
+    "scripts/tests/test_staged_checks.py",
+    "scripts/install_git_hooks.py",
+    "vercel.json"
+  ]
+}

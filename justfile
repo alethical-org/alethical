@@ -43,18 +43,18 @@ stop-wip-backup:
   -rm -f "$HOME/Library/LaunchAgents/com.alethical.wip-backup.plist"
   @echo "🛑 Automatic snapshots stopped. Existing refs/wip-backup/* snapshots are untouched."
 
-# Point git at this repo's tracked hooks. Run once per clone, before anything else.
+# Activate the tracked checks for this worktree and preserve shared lock protection.
 # Until you run it, a new worktree is NOT auto-locked and `git worktree remove
 # --force` can delete another session's uncommitted work. `core.hooksPath` is local
 # config, so it cannot travel with a clone; this recipe is the one documented way in.
 install-hooks:
-  # Absolute, pointing at the MAIN checkout's .githooks, on purpose. A relative
-  # `core.hooksPath` resolves per worktree, so a worktree that checks out a branch
-  # predating .githooks would silently get no hook. Absolute means every worktree
-  # uses the same hook whatever branch it has out. core.hooksPath is local config
-  # and never committed, so a machine-specific path here costs nothing.
-  git config core.hooksPath "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")/.githooks"
-  @echo "✅ Hooks active from $(git config --get core.hooksPath). New worktrees now auto-lock."
+  python3 scripts/install_git_hooks.py
+
+# One setup entry point for Cursor, Codex, Claude Code, or a terminal.
+setup:
+  uv sync --frozen
+  pnpm install --frozen-lockfile
+  just install-hooks
 
 # Create an isolated worktree off origin/main, fully set up to build & verify.
 # Usage: just worktree my-branch   ->   ../alethical-wt-my-branch (its own deps).
@@ -90,9 +90,10 @@ doctor target="web":
 # on a tree CI calls clean, and `just format` would have rewritten 611 of them into
 # a diff no reviewer asked for. CI is the arbiter, so local must ask the same tool.
 format:
+  pnpm install --frozen-lockfile
   uvx ruff@0.15.0 check --fix alethical scripts
   uvx ruff@0.15.0 format alethical scripts
-  pnpm --dir apps/frontend exec prettier --write .
+  node scripts/format_frontend.mjs
 
 lint:
   uvx ruff@0.15.0 check alethical scripts
@@ -103,6 +104,11 @@ lint:
   uvx ty@0.0.72 check alethical/db
   pnpm install --frozen-lockfile
   pnpm --dir apps/frontend exec tsc --noEmit
+  node scripts/format_frontend.mjs --check
+
+# Format only the staged selection and preserve unfinished edits.
+format-staged:
+  python3 scripts/local_checks.py staged
 
 test-frontend:
   pnpm --dir apps/frontend run test
