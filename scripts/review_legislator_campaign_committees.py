@@ -30,6 +30,19 @@ Six commands, of which two write:
     # rewrite the generated half of the public audit record. Writes 1 file, no database.
     ... record --contributions /path/to/contributions.csv
 
+**Both writing commands ask Cloudflare to throw away the saved copies of every answer
+their decisions made false (#1979).** A shared cache holds a money answer for up to a
+day, so without this a page can keep naming a member after a person has taken the link
+back. It is built and **switched off**: a purge leaves this process only when a
+Cloudflare token with the Cache Purge permission is set (``CLOUDFLARE_API_TOKEN`` plus
+``CLOUDFLARE_ZONE_ID``) **and** ``ALETHICAL_CLEAR_SAVED_ANSWERS=on``. Otherwise the
+command prints the exact prefixes it would have cleared. A clearing that is armed and
+fails prints a banner and exits non-zero; it never undoes the decision.
+
+A sitting clears once at the end rather than after each keystroke, because Cloudflare's
+Free plan allows 5 purge requests a minute and a batch writes more rows than that. The
+cost, said out loud: the first decision's saved copies stand until the sitting ends.
+
 ``--batch`` is for a single sitting: it prints every uncontested proposal with its evidence,
 takes the numbers of any to hold back, and writes the rest only after the reviewer types the
 word ``confirm``. Contested ones stay one at a time, because that is where reading the
@@ -63,6 +76,7 @@ import re
 import sys
 from dataclasses import dataclass
 from datetime import date
+from uuid import UUID
 
 import requests
 from sqlalchemy import create_engine, func, inspect, select
@@ -73,6 +87,11 @@ from alethical.db.session import (
     NO_PREPARED_STATEMENTS,
     database_url_for_target,
     normalize_database_url,
+)
+from alethical.pipeline.cache_purge import (
+    LinkDecision,
+    clear,
+    when_link_decisions_are_written,
 )
 from alethical.pipeline.legislator_committee_match import (
     CommitteeRecord,
@@ -349,6 +368,85 @@ def describe(proposal: Proposal) -> str:
     for reason in proposal.reasons:
         parts.append(f"      needs a look: {reason}")
     return "\n".join(parts)
+
+
+def slug_by_legislator_id(session: Session, ids: set[str]) -> dict[str, str]:
+    """The readable address of each legislator, beside the UUID.
+
+    Both forms address the same read: ``/legislators/{id}/campaign-finance`` accepts a
+    slug or a UUID (``get_legislator_by_id`` in ``alethical/api/routers/public.py``), so
+    a shared cache holds a separate copy per form and clearing one leaves the other.
+    """
+    if not ids:
+        return {}
+    rows = session.execute(
+        select(schema.Legislator.id, schema.Legislator.slug).where(
+            schema.Legislator.id.in_([UUID(value) for value in ids])
+        )
+    ).all()
+    return {str(row.id): row.slug for row in rows if row.slug}
+
+
+def write_then_clear(session: Session, write) -> int:
+    """Run a writing command, then clear what its decisions made false (#1979).
+
+    One shape for all 3 writing commands rather than the same 4 lines at each of
+    them, so the clearing cannot be attached to 2 and forgotten on the third.
+
+    The order is the only one that works: write first, then clear. Clearing before the
+    new state is stored merely makes the next reader save the old answer again. The
+    exit code is the command's own unless a clearing failed, which is its own failure
+    and never undoes the decision.
+    """
+    before = load_existing_decisions(session)
+    code = write()
+    if clear_saved_answers_for_decisions(session, before):
+        return 1
+    return code
+
+
+def clear_saved_answers_for_decisions(
+    session: Session,
+    before: dict[tuple[str, str], str],
+) -> bool:
+    """Clear the saved copies of every answer this sitting's decisions made false (#1979).
+
+    Reads what changed out of the database rather than tracking it while writing, by
+    comparing the decisions held now against ``before``. That way a write path added
+    later is covered without anybody remembering to register it, and the pairs cleared
+    are the pairs that really moved.
+
+    Returns whether a clearing FAILED, so a failure can exit non-zero. Built and
+    switched off: a purge leaves this process only when a Cloudflare token with the
+    Cache Purge permission is set (``CLOUDFLARE_API_TOKEN`` plus ``CLOUDFLARE_ZONE_ID``)
+    **and** ``ALETHICAL_CLEAR_SAVED_ANSWERS=on``. Otherwise it prints the exact prefixes
+    it would have cleared.
+    """
+    after = load_existing_decisions(session)
+    changed = [
+        (registration_number, legislator_id, decision)
+        for (legislator_id, registration_number), decision in after.items()
+        if before.get((legislator_id, registration_number)) != decision
+    ]
+    if not changed:
+        return False
+    slugs = slug_by_legislator_id(
+        session, {legislator_id for _, legislator_id, _ in changed}
+    )
+    clearing = when_link_decisions_are_written(
+        LinkDecision(
+            registration_number=registration_number,
+            decision=decision,
+            legislator_slug=slugs.get(legislator_id),
+            legislator_id=legislator_id,
+        )
+        for registration_number, legislator_id, decision in changed
+    )
+    if clearing is None:  # pragma: no cover - `changed` is non-empty here
+        return False
+    result = clear(clearing)
+    print(result.report(), flush=True)
+    return result.failed
 
 
 def load_existing_decisions(session: Session) -> dict[tuple[str, str], str]:
@@ -1644,8 +1742,18 @@ def main() -> None:
             withdraw_url, echo=False, connect_args=NO_PREPARED_STATEMENTS
         )
         with Session(withdraw_engine) as session:
+            # The sharpest of the 4 events #1979 names. Somebody withdraws a link
+            # precisely when money was attached to the wrong named member, so a saved
+            # copy held past this moment keeps asserting a relationship nobody stands
+            # behind -- an identity error rather than an out-of-date figure, and the
+            # harm `.claude/rules/grounded-answers.md` rule 3 exists to prevent.
             raise SystemExit(
-                run_withdraw(session, args.registration, args.reason, args.reviewer)
+                write_then_clear(
+                    session,
+                    lambda: run_withdraw(
+                        session, args.registration, args.reason, args.reviewer
+                    ),
+                )
             )
 
     if not args.contributions and not args.download:
@@ -1726,16 +1834,28 @@ def main() -> None:
                 )
             )
         elif args.batch:
-            run_batch_review(results, session, args.reviewer, records_through)
-            run_grouped_review(results, session, args.reviewer, records_through, filers)
+
+            def batch() -> int:
+                run_batch_review(results, session, args.reviewer, records_through)
+                run_grouped_review(
+                    results, session, args.reviewer, records_through, filers
+                )
+                return 0
+
+            raise SystemExit(write_then_clear(session, batch))
         else:
-            run_review(
-                results,
-                session,
-                args.reviewer,
-                ProposalTier(args.tier) if args.tier else None,
-                records_through,
-            )
+
+            def one_at_a_time() -> int:
+                run_review(
+                    results,
+                    session,
+                    args.reviewer,
+                    ProposalTier(args.tier) if args.tier else None,
+                    records_through,
+                )
+                return 0
+
+            raise SystemExit(write_then_clear(session, one_at_a_time))
 
 
 if __name__ == "__main__":

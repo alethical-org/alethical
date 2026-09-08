@@ -66,6 +66,19 @@ jobs:
         # uptime reading behind /site-metrics (api/traffic-uptime.ts).
         run: |
           set -u
+          # Every data address here is the app's own request, character for
+          # character. Cloudflare's cache key carries the query string verbatim and
+          # a custom cache key is Enterprise-only, so a warm on a near-miss address
+          # saves a copy no reader ever asks for. Measured 8 Sep 2026 on the live
+          # zone: adding `&sort=newest` to an address already saved returned MISS,
+          # and swapping the order of the same 2 parameters returned a third MISS.
+          #
+          # The 4 addresses and where each one's exact form comes from:
+          #   summary                            no parameters (api.ts:2653)
+          #   committees?limit=50&offset=0       getCampaignFinanceCommitteesFromApi
+          #   races?year=YYYY                    getCampaignFinanceRacesFromApi
+          #   outside-spending?sort=newest       getOutsideSpendingRecordFromApi
+          #
           # The race page asks for the current calendar year, matching
           # campaignMoneyYear() in apps/frontend/src/lib/legislatorCampaignMoney.ts
           # (its floor, EARLIEST_CAMPAIGN_MONEY_YEAR, is 2015 and so never binds).
@@ -80,7 +93,7 @@ jobs:
           https://api.alethical.com/api/v1/campaign-finance/summary
           https://api.alethical.com/api/v1/campaign-finance/committees?limit=50&offset=0
           https://api.alethical.com/api/v1/campaign-finance/races?year=${year}
-          https://api.alethical.com/api/v1/campaign-finance/outside-spending
+          https://api.alethical.com/api/v1/campaign-finance/outside-spending?sort=newest
           "
 
           for address in $addresses; do
