@@ -38,7 +38,7 @@ separate category queries, not just the first 100 paths. Profile breadth adds `+
 prove the list is complete. Alias grouping can leave fewer than 100 distinct committees
 in that capped list; the printed count is then still a lower bound.
 
-The money destinations separate these exact addresses: `/money` (Money in politics),
+The money destinations separate these exact addresses: `/money` (Money home),
 `/money/search` (Money search), `/money/races` (Money by race), `/money/committees` (Committee
 list), `/money/payments` (Payments by name), and `/money/outside-spending` (Outside spending).
 Committee money pages include `/money/committees/*`, covering profiles and their payments

@@ -657,7 +657,7 @@ const DESTINATIONS = [
   ['legislatorSearch', 'Legislator search'],
   ['legislatorProfiles', 'Legislator profiles'],
   ['findMyLegislator', 'Find My Legislator'],
-  ['money', 'Money in politics'],
+  ['money', 'Money home'],
   ['moneySearch', 'Money search'],
   ['moneyByRace', 'Money by race'],
   ['moneyCommitteeList', 'Committee list'],
@@ -692,7 +692,7 @@ function DestinationPanel({ breakdown }: { breakdown: TrafficBreakdown }) {
             isMobile && styles.destinationNameMobile,
           ]}
         >
-          {label}
+          {key === 'money' && !breakdown.committeeProfiles ? 'Money in politics' : label}
         </Text>
         <View
           testID={`site-metrics-destination-${key}-bar`}
@@ -1927,6 +1927,7 @@ const styles = StyleSheet.create({
   },
   panelSearch: { paddingTop: 16, paddingHorizontal: 20, paddingBottom: 18 },
   panelCardMobile: {
+    flex: 0,
     borderRadius: 13,
     paddingHorizontal: 16,
     paddingTop: 15,

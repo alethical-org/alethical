@@ -247,6 +247,34 @@ for (const viewport of [
   test.describe(viewport.name, () => {
     test.use({ viewport });
 
+    test('health cards contain every note without empty stretched phone cards', async ({
+      page,
+    }) => {
+      await installAnswers(page);
+      await openMetrics(page);
+      const availability = page.getByTestId('site-metrics-availability');
+      const performance = page.getByTestId('site-metrics-performance');
+      for (const panel of [availability, performance]) {
+        const overflow = await panel.evaluate((element) => {
+          const box = element.getBoundingClientRect();
+          return [...element.querySelectorAll('*')].some((child) => {
+            const rect = child.getBoundingClientRect();
+            return rect.width > 0 && rect.height > 0 && rect.bottom > box.bottom + 1;
+          });
+        });
+        expect(overflow).toBe(false);
+      }
+      const availabilityBox = (await availability.boundingBox())!;
+      const performanceBox = (await performance.boundingBox())!;
+      if (viewport.name === 'phone') {
+        expect(performanceBox.y - availabilityBox.y - availabilityBox.height).toBe(12);
+        expect(performanceBox.height).toBeGreaterThan(availabilityBox.height);
+      } else {
+        expect(performanceBox.y).toBe(availabilityBox.y);
+        expect(performanceBox.height).toBe(availabilityBox.height);
+      }
+    });
+
     test('account growth changes with 7/30 days while current accounts and follows stay fixed', async ({
       page,
     }) => {
@@ -289,7 +317,7 @@ for (const viewport of [
       await installAnswers(page);
       await openMetrics(page);
       const expected = [
-        ['Money in politics', '8%'],
+        ['Money home', '8%'],
         ['Money search', '5%'],
         ['Money by race', '3%'],
         ['Committee list', '2%'],

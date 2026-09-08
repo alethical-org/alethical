@@ -45,7 +45,7 @@ One writer per file. Helpers commit in isolated worktrees and do not release. Ma
 - [x] Common team/test classification reconciled with prior explicit exclusions.
 - [x] Public additions and private aggregate report implemented.
 - [x] Authoritative source definitions, missing states and limitations updated.
-- [ ] Focused and full checks, migration review, desktop/phone browser checks.
+- [x] Focused and full checks, migration review, desktop/phone browser checks.
 - [ ] Pull requests, current-main checks, release and live verification.
 
 ## Safety gates and unresolved evidence
@@ -67,14 +67,20 @@ The metrics branch contains the shared changes plus the stronger event-time coll
 checks. Anonymous visits wait for the first resolved sign-in state; later identity changes
 apply immediately and never reassign queued events to the next account.
 
-Completed checks include 134 backend tests and 49 health-check subtests, a fresh independent
-authentication/collection review, all 2286 frontend tests, and 69 phone/desktop browser cases
-in Chromium, Firefox and WebKit. The full backend suite is in progress. The metrics screens
-share 1 on-demand download; initial download size is 389326 compressed bytes against the
-unchanged 390000-byte limit.
+Completed checks include all 2085 backend tests, 2306 frontend tests, 49 source-health
+subtests, and 78 phone/desktop browser cases in Chromium, Firefox and WebKit. A fresh
+independent code review's account-transition and initial-page-view findings are covered by
+regression tests. The independent reader review exposed phone health-card note overflow;
+the mobile-only sizing correction has a reproducing browser check. The Money home row is
+explicitly separate from the whole-Money fallback.
 
-Before release: integrate current main, complete browser and full-suite checks, update this
-checkpoint, open the metrics pull request, pass current-head and merge-queue checks, confirm
-database migration 0052 and both hosted releases, then exercise all public sources and
-private access-denial paths live. No production writes or releases have occurred from this
-metrics branch at this checkpoint.
+Current main is integrated through [pull request 2019](https://github.com/alethical-org/alethical/pull/2019).
+The release is [pull request 2027](https://github.com/alethical-org/alethical/pull/2027).
+Current-head backend, frontend, documentation and Vercel preview checks pass. The final
+phone correction needs its clean build, browser recheck and updated-head checks. The local
+API-enabled initial download is 389539 compressed bytes against the 390000-byte limit.
+
+Before release: finish the independent phone recheck, pass updated-head and merge-queue
+checks, confirm database migration 0052 and both hosted releases, then exercise all public
+sources and private access-denial paths live. No production writes or releases have occurred
+from this metrics branch at this checkpoint.
