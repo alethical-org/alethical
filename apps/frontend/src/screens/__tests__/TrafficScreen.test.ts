@@ -33,7 +33,8 @@ describe('public Site metrics page', () => {
     expect(SOURCE).toContain('· Through {formatTrafficWindowEnd(totals.windowEndedAt)} ·');
     expect(SOURCE).not.toContain('Counted by Vercel · Fetched');
     expect(SOURCE).not.toContain('Each total ends at');
-    expect(SOURCE).toContain('Collecting since {formatDate(totals.countingStartedAt)}');
+    expect(SOURCE).toContain('Site visits and page views:');
+    expect(SOURCE).toContain('traffic.totals.countingStartedAt');
     expect(SOURCE).not.toContain(
       'The 7-day and 30-day totals cover only the days collected so far',
     );
@@ -160,8 +161,7 @@ describe('public Site metrics page', () => {
     expect(SOURCE).not.toContain('Measured by Cloudflare · Last 30 days');
     expect(SOURCE).toContain('Percentages show how often Alethical passed automatic checks');
     expect(SOURCE).not.toContain('Percentages show how often Alethical passed automatic checks.');
-    expect(SOURCE).toContain('OPEN VERCEL DASHBOARD');
-    expect(SOURCE).toContain('OPEN CHECKLY DASHBOARD');
+
     expect(SOURCE).not.toContain('REAL VISITS · SLOWEST 1 IN 4');
     expect(SOURCE).toContain('buildingSample ? null : (');
   });
@@ -243,8 +243,8 @@ describe('public Site metrics page', () => {
     expect(SOURCE).toMatch(/speedValueMobile: \{ minWidth: 0, fontSize: 17, lineHeight: 22 \}/);
   });
 
-  it('uses 4 sections, 3 rules, and the accepted heading hierarchy', () => {
-    expect(SOURCE.match(/<View style=\{\[styles\.sectionRule/g)).toHaveLength(3);
+  it('adds collection dates after the 4 measurement sections', () => {
+    expect(SOURCE.match(/<View style=\{\[styles\.sectionRule/g)).toHaveLength(4);
     expect(SOURCE).toMatch(
       /sectionTitle: \{[\s\S]*?color: '#2b6377',[\s\S]*?fontFamily: theme\.typography\.ui,[\s\S]*?fontSize: 20,[\s\S]*?fontWeight: '800'/,
     );
@@ -269,13 +269,46 @@ describe('public Site metrics page', () => {
       /recentSourceRowMobile: \{ flexDirection: 'column', alignItems: 'flex-start', gap: 9 \}/,
     );
     expect(SOURCE).toMatch(/sourceInlineMobile: \{ fontSize: 11\.5/);
-    expect(SOURCE).toMatch(/collectingMobile: \{ marginLeft: 0 \}/);
     expect(SOURCE).toMatch(/noteMobile: \{ marginTop: 0, fontSize: 13\.5/);
     expect(SOURCE).toMatch(/availabilityRowsMobile: \{ paddingHorizontal: 12 \}/);
     expect(SOURCE).toMatch(/speedRowsMobile: \{ paddingHorizontal: 12 \}/);
     expect(SOURCE).toMatch(/searchPairMobile: \{ gap: 14 \}/);
     expect(SOURCE).toMatch(/searchPairMetricMobile: \{ flex: 1 \}/);
     expect(SOURCE).toMatch(/searchPairMetricRightMobile: \{ alignItems: 'flex-end' \}/);
+  });
+
+  it('removes private dashboard links and their account-only display check', () => {
+    for (const label of [
+      'OPEN VERCEL DASHBOARD',
+      'OPEN GOOGLE SEARCH CONSOLE',
+      'OPEN BING WEBMASTER TOOLS',
+      'OPEN CHECKLY DASHBOARD',
+      'OPEN CLOUDFLARE DASHBOARD',
+    ]) {
+      expect(SOURCE).not.toContain(label);
+    }
+    expect(SOURCE).not.toContain('StaffLink');
+    expect(SOURCE).not.toContain('useTeamAccount');
+    expect(SOURCE).not.toContain('getSiteMetricCollectionDecisionFromApi');
+    expect(SOURCE).toContain('See detailed availability');
+  });
+
+  it('keeps collection start dates distinct from first events and reporting periods', () => {
+    expect(SOURCE).toContain('<SectionTitle>Data collection dates</SectionTitle>');
+    expect(SOURCE).toContain(
+      'Includes Money page views recorded before the Money rows were added.',
+    );
+    expect(SOURCE.replace(/\s+/g, ' ')).toContain('Collection start dates are not recorded here.');
+    expect(SOURCE).toContain('Start date unavailable');
+    const collection = SOURCE.slice(
+      SOURCE.indexOf('function CollectionDates('),
+      SOURCE.indexOf('export function TrafficScreen'),
+    );
+    expect(collection).not.toContain('recordingStartedAt');
+    expect(collection).not.toContain('periodStartedOn');
+    expect(SOURCE.indexOf('<CollectionDates traffic=')).toBeGreaterThan(
+      SOURCE.indexOf('<PerformancePanel state='),
+    );
   });
 
   it('shows only the 2 public availability checks selected by the accepted design', () => {

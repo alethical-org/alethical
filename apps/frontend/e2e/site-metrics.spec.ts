@@ -204,12 +204,13 @@ test('Site Metrics matches the accepted desktop measurements', async ({ page }) 
   await waitForMetrics(page);
 
   const sectionHeadings = page.getByRole('heading', { level: 2 });
-  await expect(sectionHeadings).toHaveCount(4);
+  await expect(sectionHeadings).toHaveCount(5);
   for (const name of [
     'Recent traffic',
     'How people use Alethical',
     'Found in search',
     'How well the site works',
+    'Data collection dates',
   ]) {
     const heading = page.getByRole('heading', { name, level: 2, exact: true });
     await expect(heading).toHaveCSS('font-size', '20px');
@@ -291,6 +292,7 @@ test('Site Metrics matches the accepted phone measurements', async ({ page }) =>
     'How people use Alethical',
     'Found in search',
     'How well the site works',
+    'Data collection dates',
   ]) {
     const heading = page.getByRole('heading', { name, level: 2, exact: true });
     await expect(heading).toHaveCSS('font-size', '18px');
@@ -312,19 +314,13 @@ test('Site Metrics matches the accepted phone measurements', async ({ page }) =>
   expect(firstRangeBox?.width).toBeCloseTo(secondRangeBox?.width ?? 0, 1);
 
   const recentSource = page.getByTestId('site-metrics-recent-source');
-  const recentCollecting = page.getByTestId('site-metrics-recent-collecting');
   const recentVisitorNote = page.getByTestId('site-metrics-recent-visitor-note');
   const sourceBox = await recentSource.boundingBox();
-  const collectingBox = await recentCollecting.boundingBox();
   const visitorNoteBox = await recentVisitorNote.boundingBox();
-  expect(collectingBox?.x).toBeCloseTo(sourceBox?.x ?? 0, 1);
   expect(visitorNoteBox?.x).toBeCloseTo(sourceBox?.x ?? 0, 1);
-  expect((collectingBox?.y ?? 0) - ((sourceBox?.y ?? 0) + (sourceBox?.height ?? 0))).toBe(9);
-  expect((visitorNoteBox?.y ?? 0) - ((collectingBox?.y ?? 0) + (collectingBox?.height ?? 0))).toBe(
-    9,
-  );
+  expect((visitorNoteBox?.y ?? 0) - ((sourceBox?.y ?? 0) + (sourceBox?.height ?? 0))).toBe(9);
   await expect(recentSource).toHaveCSS('font-size', '11.5px');
-  await expect(recentCollecting).toHaveCSS('color', 'rgb(143, 90, 18)');
+  await expect(page.getByTestId('site-metrics-recent-collecting')).toHaveCount(0);
 
   await expect(page.getByTestId('site-metrics-explore-views-header')).toHaveCSS(
     'font-size',

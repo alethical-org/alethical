@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Path, RadialGradient, Stop } from 'react-native-svg';
 
-import { getSiteMetricCollectionDecisionFromApi } from '../data/api';
 import {
   getAccountSignupTotalsFromApi,
   getSiteMetricRecordTotalsFromApi,
@@ -29,22 +28,12 @@ import {
 import { externalLinkProps } from '../navigation/links';
 import { useDocumentTitle } from '../navigation/documentTitle';
 import { RootStackParamList } from '../navigation/types';
-import { useAuth } from '../providers/AuthProvider';
 import { Container, Footer, PageBackground, TopNav } from '../theme/primitives';
 import { theme } from '../theme/tokens';
 
 const REFRESH_MS = 5 * 60 * 1000;
 const MINUTE_MS = 60 * 1000;
-const DAY_MS = 24 * 60 * MINUTE_MS;
 const CHECKLY_PUBLIC_STATUS_URL = process.env.EXPO_PUBLIC_CHECKLY_STATUS_URL?.trim() ?? '';
-
-const STAFF_LINKS = {
-  vercel: 'https://vercel.com/dashboard',
-  google: 'https://search.google.com/search-console',
-  bing: 'https://www.bing.com/webmasters/',
-  checkly: 'https://app.checklyhq.com/',
-  cloudflare: 'https://dash.cloudflare.com/',
-};
 
 type ActivityRange = 7 | 30;
 type SourceState<T> =
@@ -133,41 +122,6 @@ function useRecordTotals() {
   }, []);
 
   return state;
-}
-
-function useTeamAccount() {
-  const { isLoading, isSignedIn, user, accessToken } = useAuth();
-  const [decision, setDecision] = useState<{ userId: string; token: string; team: boolean } | null>(
-    null,
-  );
-
-  useEffect(() => {
-    if (isLoading) return;
-    if (!isSignedIn || !user || !accessToken) {
-      setDecision(null);
-      return;
-    }
-    const controller = new AbortController();
-    setDecision(null);
-    void getSiteMetricCollectionDecisionFromApi(accessToken, controller.signal)
-      .then((payload) => {
-        const value = payload as { teamAccount?: unknown } | null;
-        if (!controller.signal.aborted)
-          setDecision({ userId: user.id, token: accessToken, team: value?.teamAccount === true });
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setDecision(null);
-      });
-    return () => controller.abort();
-  }, [isLoading, isSignedIn, user, accessToken]);
-
-  return (
-    !isLoading &&
-    isSignedIn &&
-    decision?.userId === user?.id &&
-    decision?.token === accessToken &&
-    decision?.team === true
-  );
 }
 
 function useAccountSignupTotals() {
@@ -470,18 +424,6 @@ function StaleNote({ stale, fetchedAt, now }: { stale: boolean; fetchedAt: strin
   ) : null;
 }
 
-function StaffLink({ href, label, show }: { href: string; label: string; show: boolean }) {
-  if (!show) return null;
-  return (
-    <Pressable {...externalLinkProps(href)} style={styles.staffLinkTarget}>
-      <View style={styles.staffLinkContent}>
-        <Text style={styles.staffLink}>{label}</Text>
-        <LinkArrow color="#5b30d6" style={styles.staffLinkArrow} />
-      </View>
-    </Pressable>
-  );
-}
-
 function MetricRow({
   label,
   value,
@@ -543,15 +485,7 @@ function MetricRow({
   );
 }
 
-function RecentTraffic({
-  state,
-  now,
-  teamAccount,
-}: {
-  state: SourceState<TrafficTotals>;
-  now: number;
-  teamAccount: boolean;
-}) {
+function RecentTraffic({ state, now }: { state: SourceState<TrafficTotals>; now: number }) {
   const { isMobile } = useResponsive();
   if (state.kind === 'unavailable') {
     return (
@@ -571,9 +505,6 @@ function RecentTraffic({
   const loading = state.kind === 'loading';
   const totals = state.kind === 'ready' ? state.totals : null;
   const stale = state.kind === 'ready' && state.stale;
-  const collecting = totals
-    ? Date.parse(totals.windowEndedAt) - Date.parse(totals.countingStartedAt) < 30 * DAY_MS
-    : false;
 
   return (
     <>
@@ -627,14 +558,6 @@ function RecentTraffic({
                 ? `Last accepted ${ageText(totals.fetchedAt, now)}`
                 : `Checked ${ageText(totals.fetchedAt, now)}`}
             </Text>
-            {collecting ? (
-              <Text
-                testID="site-metrics-recent-collecting"
-                style={[styles.collecting, isMobile && styles.collectingMobile]}
-              >
-                Collecting since {formatDate(totals.countingStartedAt)}
-              </Text>
-            ) : null}
           </View>
           <Text
             testID="site-metrics-recent-visitor-note"
@@ -643,7 +566,6 @@ function RecentTraffic({
             Estimated visitors may include the same person more than once across days or devices
           </Text>
           <StaleNote stale={stale} fetchedAt={totals.fetchedAt} now={now} />
-          <StaffLink href={STAFF_LINKS.vercel} label="OPEN VERCEL DASHBOARD" show={teamAccount} />
         </View>
       ) : null}
     </>
@@ -947,19 +869,6 @@ function ActionsPanel({
         Search totals count each query and filter choice once per search-page visit, when matching
         results are shown.
       </Text>
-      {rows.map(([label]) => {
-        const key = historyKey(label);
-        const start = key && records.history?.[key].recordingStartedAt;
-        return start && coverageNote(label) ? (
-          <Text key={key} style={styles.panelNote}>
-            {label}: {isNewHistory(key) ? 'recorded' : 'counting rules tracked'} since{' '}
-            {formatDate(start)}.
-            {isNewHistory(key)
-              ? ' Earlier activity is not included.'
-              : ' Earlier totals may use older counting rules.'}
-          </Text>
-        ) : null;
-      })}
       {accounts.kind === 'ready' && accounts.stale ? (
         <Text style={styles.panelNote}>
           Account creation totals are waiting for a newer reading.
@@ -1129,12 +1038,10 @@ function SearchPanel({
   source,
   state,
   now,
-  teamAccount,
 }: {
   source: 'Google' | 'Bing';
   state: SourceState<SearchTotals>;
   now: number;
-  teamAccount: boolean;
 }) {
   const { isMobile } = useResponsive();
   if (state.kind === 'unavailable') {
@@ -1171,7 +1078,6 @@ function SearchPanel({
     totals.previousImpressions30d,
   );
   const sourceName = source === 'Google' ? 'Google Search Console' : 'Bing Webmaster Tools';
-  const dashboard = source === 'Google' ? STAFF_LINKS.google : STAFF_LINKS.bing;
   return (
     <Panel surface="search" testID={`site-metrics-search-${source.toLowerCase()}`}>
       <VendorHeading source={source} />
@@ -1205,20 +1111,11 @@ function SearchPanel({
         {state.stale ? ` · Last accepted ${ageText(totals.fetchedAt, now)}` : ''}
       </Text>
       <StaleNote stale={state.stale} fetchedAt={totals.fetchedAt} now={now} />
-      <StaffLink href={dashboard} label={`OPEN ${sourceName.toUpperCase()}`} show={teamAccount} />
     </Panel>
   );
 }
 
-function AvailabilityPanel({
-  state,
-  now,
-  teamAccount,
-}: {
-  state: SourceState<UptimeTotals>;
-  now: number;
-  teamAccount: boolean;
-}) {
+function AvailabilityPanel({ state, now }: { state: SourceState<UptimeTotals>; now: number }) {
   const { isMobile } = useResponsive();
   if (state.kind === 'unavailable') {
     return (
@@ -1272,20 +1169,6 @@ function AvailabilityPanel({
       <Text style={styles.panelNote}>
         Percentages show how often Alethical passed automatic checks
       </Text>
-      {totals.monitoringStartedAt &&
-      Object.values(totals.monitoringStartedAt).some(
-        (started) => started && Date.parse(started) > Date.parse(totals.fetchedAt) - 30 * 86400000,
-      ) ? (
-        <Text style={styles.panelNote}>
-          Monitoring began{' '}
-          {formatDate(
-            Object.values(totals.monitoringStartedAt)
-              .filter((value): value is string => !!value)
-              .sort()[0],
-          )}
-          . The figures cover the checks recorded so far.
-        </Text>
-      ) : null}
       <Text style={styles.source}>
         Checked by Checkly
         {totals.measuredAt
@@ -1305,20 +1188,11 @@ function AvailabilityPanel({
         </Pressable>
       ) : null}
       <StaleNote stale={state.stale} fetchedAt={totals.fetchedAt} now={now} />
-      <StaffLink href={STAFF_LINKS.checkly} label="OPEN CHECKLY DASHBOARD" show={teamAccount} />
     </Panel>
   );
 }
 
-function PerformancePanel({
-  state,
-  now,
-  teamAccount,
-}: {
-  state: SourceState<PerformanceTotals>;
-  now: number;
-  teamAccount: boolean;
-}) {
+function PerformancePanel({ state, now }: { state: SourceState<PerformanceTotals>; now: number }) {
   const { isMobile } = useResponsive();
   if (state.kind === 'unavailable') {
     return (
@@ -1425,13 +1299,6 @@ function PerformancePanel({
           enough yet.
         </Text>
       ) : null}
-      <Text style={styles.source}>
-        Measured by Cloudflare
-        {totals.measurementScope
-          ? ` · ${formatDate(totals.periodStartedOn)} to ${formatDate(totals.periodEndedOn)} (UTC)`
-          : ''}
-        {state.stale ? ` · Last accepted ${ageText(totals.fetchedAt, now)}` : ''}
-      </Text>
       {totals.measurementScope ? (
         <Text style={styles.panelNote}>
           Full page loads only. Known bots are excluded; team visits may be included. Response speed
@@ -1447,12 +1314,84 @@ function PerformancePanel({
         </Text>
       ) : null}
       <StaleNote stale={state.stale} fetchedAt={totals.fetchedAt} now={now} />
-      <StaffLink
-        href={STAFF_LINKS.cloudflare}
-        label="OPEN CLOUDFLARE DASHBOARD"
-        show={teamAccount}
-      />
+      <Text testID="site-metrics-performance-source" style={styles.source}>
+        Measured by Cloudflare
+        {totals.measurementScope
+          ? ` · ${formatDate(totals.periodStartedOn)} to ${formatDate(totals.periodEndedOn)} (UTC)`
+          : ''}
+        {state.stale ? ` · Last accepted ${ageText(totals.fetchedAt, now)}` : ''}
+      </Text>
     </Panel>
+  );
+}
+
+// Collection activation dates are release milestones, not first-event timestamps.
+// Original actions: https://github.com/alethical-org/alethical/pull/1610
+// New action history: https://github.com/alethical-org/alethical/pull/2027 (2026-09-08 UTC)
+function CollectionDates({
+  traffic,
+  uptime,
+}: {
+  traffic: SourceState<TrafficTotals>;
+  uptime: SourceState<UptimeTotals>;
+}) {
+  const { isMobile } = useResponsive();
+  const pageViewsStart = traffic.kind === 'ready' ? traffic.totals.countingStartedAt : null;
+  const monitorDates = uptime.kind === 'ready' ? uptime.totals.monitoringStartedAt : null;
+  const monitorStart = (date: string | null | undefined) =>
+    date
+      ? 'Monitoring since ' + formatDate(date)
+      : uptime.kind === 'loading'
+        ? 'Loading'
+        : 'Start date unavailable';
+  return (
+    <View testID="site-metrics-collection-dates">
+      <SectionTitle>Data collection dates</SectionTitle>
+      <View
+        style={[
+          styles.sectionContent,
+          styles.collectionContent,
+          isMobile && styles.sectionContentMobile,
+        ]}
+      >
+        <Text style={styles.panelNote}>Dates use UTC.</Text>
+        <Text testID="site-metrics-collection-page-views" style={styles.panelNote}>
+          <Text style={styles.collectionLabel}>Site visits and page views:</Text>{' '}
+          {pageViewsStart
+            ? 'Collected since ' + formatDate(pageViewsStart) + '.'
+            : traffic.kind === 'loading'
+              ? 'Loading start date.'
+              : 'Start date unavailable.'}{' '}
+          Includes Money page views recorded before the Money rows were added.
+        </Text>
+        <Text style={styles.panelNote}>
+          <Text style={styles.collectionLabel}>
+            Bill and legislator searches, Find My Legislator, and official source clicks:
+          </Text>{' '}
+          Collected since August 15, 2026. Counting rules changed September 8, 2026; earlier totals
+          may use older rules.
+        </Text>
+        <Text testID="site-metrics-collection-new-actions" style={styles.panelNote}>
+          <Text style={styles.collectionLabel}>
+            Money searches, new bill watches, and new committee follows:
+          </Text>{' '}
+          Collected since September 8, 2026. Earlier activity is not included.
+        </Text>
+        <Text style={styles.panelNote}>
+          <Text style={styles.collectionLabel}>Accounts created:</Text> Uses saved sign-up dates,
+          including accounts created before this report began. Current account and follow totals
+          describe the records that exist now.
+        </Text>
+        <Text testID="site-metrics-collection-availability" style={styles.panelNote}>
+          <Text style={styles.collectionLabel}>Availability checks:</Text> Homepage:{' '}
+          {monitorStart(monitorDates?.website)}; data service: {monitorStart(monitorDates?.api)}.
+        </Text>
+        <Text style={styles.panelNote}>
+          <Text style={styles.collectionLabel}>Google, Bing, and Cloudflare:</Text> Collection start
+          dates are not recorded here. Each section shows its own reporting dates.
+        </Text>
+      </View>
+    </View>
   );
 }
 
@@ -1466,7 +1405,6 @@ export function TrafficScreen() {
   const bing = useTrafficSource('/api/traffic-bing', isSearchTotals);
   const uptime = useTrafficSource('/api/traffic-uptime', isUptimeTotals);
   const performance = useTrafficSource('/api/traffic-performance', isPerformanceTotals);
-  const teamAccount = useTeamAccount();
   const [range, setRange] = useState<ActivityRange>(initialActivityRange);
   const [now, setNow] = useState(Date.now());
   useDocumentTitle('/site-metrics', 'Site Metrics | Alethical');
@@ -1525,7 +1463,7 @@ export function TrafficScreen() {
           <View style={[styles.sectionBlock, isMobile && styles.sectionBlockMobile]}>
             <SectionTitle>Recent traffic</SectionTitle>
             <View style={[styles.sectionContent, isMobile && styles.sectionContentMobile]}>
-              <RecentTraffic state={traffic} now={now} teamAccount={teamAccount} />
+              <RecentTraffic state={traffic} now={now} />
             </View>
           </View>
 
@@ -1653,8 +1591,8 @@ export function TrafficScreen() {
               isMobile && styles.singleColumn,
             ]}
           >
-            <SearchPanel source="Google" state={google} now={now} teamAccount={teamAccount} />
-            <SearchPanel source="Bing" state={bing} now={now} teamAccount={teamAccount} />
+            <SearchPanel source="Google" state={google} now={now} />
+            <SearchPanel source="Bing" state={bing} now={now} />
           </View>
 
           <View style={[styles.sectionRule, isMobile && styles.sectionRuleMobile]} />
@@ -1668,9 +1606,11 @@ export function TrafficScreen() {
               isMobile && styles.singleColumn,
             ]}
           >
-            <AvailabilityPanel state={uptime} now={now} teamAccount={teamAccount} />
-            <PerformancePanel state={performance} now={now} teamAccount={teamAccount} />
+            <AvailabilityPanel state={uptime} now={now} />
+            <PerformancePanel state={performance} now={now} />
           </View>
+          <View style={[styles.sectionRule, isMobile && styles.sectionRuleMobile]} />
+          <CollectionDates traffic={traffic} uptime={uptime} />
         </Container>
         <Footer
           onPrivacy={() => navigation.navigate('Privacy')}
@@ -1730,6 +1670,8 @@ const styles = StyleSheet.create({
   sectionQualifierMobile: { fontSize: 11, lineHeight: 16, letterSpacing: 0.66 },
   sectionContent: { marginTop: 12 },
   sectionContentMobile: { marginTop: 10 },
+  collectionContent: { maxWidth: 780 },
+  collectionLabel: { fontWeight: '600' },
   sectionHeadingActionRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1837,14 +1779,6 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     fontWeight: '500',
   },
-  collecting: {
-    marginLeft: 'auto',
-    color: theme.colors.omnibus.text,
-    fontFamily: theme.typography.body,
-    fontSize: 13.5,
-    lineHeight: 20,
-  },
-  collectingMobile: { marginLeft: 0 },
   noteMobile: { marginTop: 0, fontSize: 13.5, lineHeight: 20 },
   staleText: {
     marginTop: 7,
@@ -2156,17 +2090,6 @@ const styles = StyleSheet.create({
     fontSize: 14.5,
     lineHeight: 20,
     fontWeight: '700',
-  },
-  staffLinkTarget: { minHeight: 44, alignSelf: 'flex-start', justifyContent: 'center' },
-  staffLinkContent: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  staffLinkArrow: { width: 14, height: 14, top: 0 },
-  staffLink: {
-    color: '#5b30d6',
-    fontFamily: theme.typography.mono,
-    fontSize: 11,
-    lineHeight: 16,
-    fontWeight: '700',
-    letterSpacing: 0.8,
   },
   unavailableText: {
     flex: 1,
