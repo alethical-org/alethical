@@ -38,10 +38,13 @@ name: Production release missing
 # Filtering this to website paths would have skipped the run that could have
 # caught either. Both of those ended by luck, when a later commit touching a
 # watched path pulled the earlier change out with it, which on a busy afternoon is
-# 14 and 21 minutes. The longest of the 5 measured windows ran about 14 hours over
-# a quiet night, so what the wait costs is set by how busy the day is rather than
-# by the fault, and that is why noticing cannot be left to somebody happening to
-# look.
+# 14 and 21 minutes. The longest of the 5 measured windows ran 14 hours 22 minutes
+# over a quiet night (18 Aug 14:00:38 to 19 Aug 04:22:52), so what the wait costs
+# is set by how busy the day is rather than by the fault, and that is why noticing
+# cannot be left to somebody happening to look. What that one held back reached no
+# reader, which `scripts/vercel-ignore-build.sh` records in full: the delay is the
+# finding, and attaching a harm to it would be the separate error
+# `.claude/rules/workflow.md` rule 5 is about.
 #
 # QUIET BY CONSTRUCTION. The rule is that the changes between the commit
 # production was built from and `main`'s head must not touch a path the website is
