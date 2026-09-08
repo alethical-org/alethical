@@ -27,7 +27,11 @@ import { META_READ_PATH, policyAreasReadPath, SESSIONS_READ_PATH } from '../lib/
 import { servedClaimAgeMs } from '../lib/currentClaimFreshness';
 import { publicReadResponse } from '../lib/publicRead';
 import { normalizeLegislativeYearRanges } from '../lib/sessionLabel';
-import { legislativeServiceFromHistory } from '../lib/legislatorProfile';
+import {
+  currentChamber,
+  legislativeServiceFromHistory,
+  servesNow as chamberServesNow,
+} from '../lib/legislatorProfile';
 import {
   outsideSpendingLoadFailure,
   type OutsideSpendingState,
@@ -344,7 +348,8 @@ interface ApiBillActionPayload {
   first_seen_at?: string | null;
   roll_call_text?: string | null;
   cross_references?:
-    { code: string; id: string; title?: string | null; status_key?: string | null }[] | null;
+    | { code: string; id: string; title?: string | null; status_key?: string | null }[]
+    | null;
 }
 
 interface ApiDistrictPayload {
@@ -1021,10 +1026,6 @@ function toChamber(fileType: string): Bill['chamber'] {
   return fileType.toUpperCase() === 'HF' ? 'House' : 'Senate';
 }
 
-function toLegislatorChamber(chamber?: string | null): Legislator['chamber'] {
-  return chamber?.toLowerCase() === 'house' ? 'House' : 'Senate';
-}
-
 function toOptionalChamber(chamber?: string | null): Bill['chamber'] | undefined {
   if (!chamber) {
     return undefined;
@@ -1032,7 +1033,12 @@ function toOptionalChamber(chamber?: string | null): Bill['chamber'] | undefined
   return chamber.toLowerCase() === 'house' ? 'House' : 'Senate';
 }
 
-function toParty(party?: string | null): Legislator['party'] {
+/**
+ * A stored party code, or nothing. There is deliberately no catch-all: an empty
+ * party used to come back as `DFL`, so a member whose record names no party was
+ * drawn on the loaded profile as `Democratic-Farmer-Labor` (#2061).
+ */
+function toParty(party?: string | null): Legislator['party'] | undefined {
   const normalized = party?.trim().toUpperCase();
   if (normalized === 'R' || normalized === 'REPUBLICAN') {
     return 'R';
@@ -1041,7 +1047,10 @@ function toParty(party?: string | null): Legislator['party'] {
     return 'I';
   }
   // MN Democrats are the DFL (Democratic-Farmer-Labor); keep the real label.
-  return 'DFL';
+  if (normalized === 'DFL' || normalized === 'D' || normalized === 'DEMOCRAT') {
+    return 'DFL';
+  }
+  return undefined;
 }
 
 function mapSponsor(payload: ApiSponsorPayload): BillSponsor {
@@ -1412,10 +1421,10 @@ function shortName(fullName: string) {
 
 function legislatorRole(payload: ApiLegislatorListItemPayload) {
   const service = payload.current_service;
-  if (!service) {
+  const chamber = currentChamber(service?.chamber);
+  if (!service || !chamberServesNow(chamber)) {
     return 'Current service unavailable';
   }
-  const chamber = toLegislatorChamber(service.chamber);
   return `${chamber} District ${service.district.code}`;
 }
 
@@ -1450,12 +1459,22 @@ export function mapLegislator(
   payload: ApiLegislatorListItemPayload | ApiLegislatorDetailPayload,
 ): Legislator {
   const service = payload.current_service;
-  const chamber = toLegislatorChamber(service?.chamber);
-  const party = toParty(service?.party);
-  const district = service?.district.code ?? 'Unknown';
+  // A record with no current service period says nothing about what this person
+  // does now, so every current claim is left out rather than filled in. The
+  // three that used to be invented: any chamber but `house` became `Senate`, an
+  // absent party became `DFL`, and an absent district became the word
+  // `Unknown`, which drew as `Senate District Unknown` (#2061). Same helper the
+  // first server response uses, so the loaded screen reaches the same answer.
+  const chamber = currentChamber(service?.chamber) || undefined;
+  const servesNow = chamberServesNow(chamber);
+  const party = servesNow ? toParty(service?.party) : undefined;
+  const district = servesNow ? (service?.district.code ?? undefined) : undefined;
   const displayName = payload.full_name;
+  // Committees arrive on their own key rather than inside `current_service`, so
+  // a member who has left still carries the assignments they held. Those are a
+  // claim about what they do now, so they go with the rest.
   const committeeAssignments =
-    'committees' in payload
+    servesNow && 'committees' in payload
       ? (payload.committees ?? []).map((committee) => ({
           name: committee.name,
           role: committee.role ?? null,
@@ -1467,7 +1486,9 @@ export function mapLegislator(
   const stats = payload.stats;
   const focusAreas = [
     stats ? `${stats.total_bill_count} authored bills` : null,
-    stats ? `${stats.committee_count} committees` : null,
+    // Bills authored are a record of what the person did; a committee count is a
+    // claim about seats they hold now, so it goes when the seat does (#2061).
+    stats && servesNow ? `${stats.committee_count} committees` : null,
   ].filter((item): item is string => Boolean(item));
 
   return {

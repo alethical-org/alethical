@@ -22,8 +22,10 @@ import { VoteCountLinkChip } from '../../components/VoteCountLinkChip';
 import { coAuthorCount, formatMonoDate, partyFull, plainBillSummary } from '../../lib/billDetail';
 import {
   buildAskChips,
+  currentDistrictLine,
   legislatorDisplayName,
   legislatorVoteLabel,
+  servesNow,
   splitOfficeAddress,
 } from '../../lib/legislatorProfile';
 import { IaItem, MenuKey } from '../../navigation/ia';
@@ -404,7 +406,10 @@ export function LegislatorProfileMobileScreen() {
       ? legislatorPageMetadata({
           slug: leg.slug ?? leg.id,
           displayName: legislatorDisplayName(leg.name, leg.chamber),
-          districtLine: `${leg.chamber} District ${leg.district}`,
+          // Empty when the record names no current chamber, so the tab keeps the
+          // honest served title instead of gaining `Minnesota Senate District
+          // Unknown` (#2061). Built the same way as the served title.
+          districtLine: currentDistrictLine(leg),
         }).title
       : null,
   );
@@ -456,7 +461,7 @@ export function LegislatorProfileMobileScreen() {
   const shareContent = leg
     ? buildLegislatorShareContent({
         displayName: legislatorDisplayName(leg.name, leg.chamber),
-        districtLine: `${leg.chamber} District ${leg.district}`,
+        districtLine: currentDistrictLine(leg),
         url: publicPageUrl(`/legislators/${encodeURIComponent(leg.slug ?? leg.id)}`),
       })
     : {
@@ -538,15 +543,21 @@ export function LegislatorProfileMobileScreen() {
                     </Text>
                   </View>
                   <View style={styles.metaRow}>
+                    {/* A record with no current service period says nothing about
+                        what this person does now, so neither does this row: no
+                        chamber, no district, no party. Same gate the first server
+                        response uses (#2061). */}
                     <View style={styles.metaLeft}>
-                      <Text
-                        style={styles.metaText}
-                      >{`${leg.chamber} District ${leg.district}`}</Text>
-                      <View style={styles.partyPill}>
-                        <Text numberOfLines={1} style={styles.partyPillText}>
-                          {partyFull(leg.party)}
-                        </Text>
-                      </View>
+                      {currentDistrictLine(leg) ? (
+                        <Text style={styles.metaText}>{currentDistrictLine(leg)}</Text>
+                      ) : null}
+                      {servesNow(leg.chamber) && leg.party ? (
+                        <View style={styles.partyPill}>
+                          <Text numberOfLines={1} style={styles.partyPillText}>
+                            {partyFull(leg.party)}
+                          </Text>
+                        </View>
+                      ) : null}
                     </View>
                     <Pressable
                       accessibilityRole="button"

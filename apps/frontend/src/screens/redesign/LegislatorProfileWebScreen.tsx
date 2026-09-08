@@ -43,9 +43,10 @@ import {
 } from '../../lib/billDetail';
 import {
   buildAskChips,
+  currentDistrictLine,
   legislatorDisplayName,
-  legislatorDistrictLine,
   legislatorVoteLabel,
+  servesNow,
   splitOfficeAddress,
 } from '../../lib/legislatorProfile';
 import { SearchPageShell } from '../../components/search/searchPieces';
@@ -127,7 +128,10 @@ export function LegislatorProfileWebScreen() {
       ? legislatorPageMetadata({
           slug: legislator.slug ?? legislator.id,
           displayName: legislatorDisplayName(legislator.name, legislator.chamber),
-          districtLine: `${legislator.chamber} District ${legislator.district}`,
+          // Empty when the record names no current chamber, so the tab keeps the
+          // honest served title instead of gaining `Minnesota Senate District
+          // Unknown` (#2061). Built the same way as the served title.
+          districtLine: currentDistrictLine(legislator),
         }).title
       : null,
   );
@@ -222,10 +226,16 @@ export function LegislatorProfileWebScreen() {
     );
   }
 
-  const chamberWord = legislator.chamber; // "House" | "Senate"
+  const chamberWord = legislator.chamber; // "House", "Senate", or undefined
+  // A record with no current service period says nothing about what this person
+  // does now, so this page states none of it: no honorific, no chamber, no
+  // district, no party, no committee list, no office and no phone. Same gate the
+  // first server response uses, so the loaded page says what the served page
+  // said instead of overwriting it with guesses a second later (#2061).
+  const holdsSeat = servesNow(chamberWord);
   const displayName = legislatorDisplayName(legislator.name, chamberWord);
-  const partyLabel = partyFull(legislator.party);
-  const districtLine = legislatorDistrictLine(chamberWord, legislator.district);
+  const partyLabel = holdsSeat && legislator.party ? partyFull(legislator.party) : '';
+  const districtLine = currentDistrictLine(legislator);
   // Share the readable slug URL (falls back to the UUID only for a row served
   // without a slug); the backend resolves either form.
   const shareSlug = legislator.slug ?? legislator.id;
@@ -290,20 +300,25 @@ export function LegislatorProfileWebScreen() {
           </View>
         ) : null}
 
-        <View style={styles.card}>
-          <Text accessibilityRole="header" aria-level={2} style={[styles.h2, styles.h2Spaced]}>
-            Committees
-          </Text>
-          {committees.length > 0 ? (
-            <View style={styles.committeeList}>
-              {committees.map((committee) => (
-                <CommitteeRow key={committee.name} name={committee.name} role={committee.role} />
-              ))}
-            </View>
-          ) : (
-            <Text style={styles.emptyNote}>No current committee assignments on record.</Text>
-          )}
-        </View>
+        {/* "No current committee assignments" is itself a claim that the person
+            holds a seat with none, so a record with no current service shows no
+            committee card at all — the same answer the served page gives. */}
+        {holdsSeat ? (
+          <View style={styles.card}>
+            <Text accessibilityRole="header" aria-level={2} style={[styles.h2, styles.h2Spaced]}>
+              Committees
+            </Text>
+            {committees.length > 0 ? (
+              <View style={styles.committeeList}>
+                {committees.map((committee) => (
+                  <CommitteeRow key={committee.name} name={committee.name} role={committee.role} />
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.emptyNote}>No current committee assignments on record.</Text>
+            )}
+          </View>
+        ) : null}
 
         <View>
           <View style={styles.authoredHead}>
@@ -349,41 +364,43 @@ export function LegislatorProfileWebScreen() {
 
       {/* RIGHT COLUMN — contact / source of record */}
       <View style={styles.rightColumn}>
-        <View style={styles.card}>
-          <Text accessibilityRole="header" aria-level={2} style={[styles.h3, styles.h3Spaced]}>
-            Contact
-          </Text>
-          <View style={styles.contactStack}>
-            {office?.leadership ? (
-              <View>
-                <Text style={styles.contactLabel}>LEADERSHIP</Text>
-                <Text style={styles.contactValue}>{office.leadership}</Text>
-              </View>
-            ) : null}
-            {office?.address ? (
-              <View>
-                <Text style={styles.contactLabel}>CAPITOL OFFICE</Text>
-                <Text style={styles.contactValue}>{office.address}</Text>
-              </View>
-            ) : null}
-            {legislator.phone ? (
-              <View>
-                <Text style={styles.contactLabel}>PHONE</Text>
-                <Text style={styles.contactValue}>{legislator.phone}</Text>
-              </View>
-            ) : null}
-            {legislator.profileUrl ? (
-              <SourceLink
-                label={`Official ${chamberWord} profile →`}
-                href={legislator.profileUrl}
-                onPress={() => openUrl(legislator.profileUrl!)}
-              />
-            ) : null}
-            {!legislator.officeAddress && !legislator.phone && !legislator.profileUrl ? (
-              <Text style={styles.emptyNote}>No contact details are on record yet.</Text>
-            ) : null}
+        {holdsSeat ? (
+          <View style={styles.card}>
+            <Text accessibilityRole="header" aria-level={2} style={[styles.h3, styles.h3Spaced]}>
+              Contact
+            </Text>
+            <View style={styles.contactStack}>
+              {office?.leadership ? (
+                <View>
+                  <Text style={styles.contactLabel}>LEADERSHIP</Text>
+                  <Text style={styles.contactValue}>{office.leadership}</Text>
+                </View>
+              ) : null}
+              {office?.address ? (
+                <View>
+                  <Text style={styles.contactLabel}>CAPITOL OFFICE</Text>
+                  <Text style={styles.contactValue}>{office.address}</Text>
+                </View>
+              ) : null}
+              {legislator.phone ? (
+                <View>
+                  <Text style={styles.contactLabel}>PHONE</Text>
+                  <Text style={styles.contactValue}>{legislator.phone}</Text>
+                </View>
+              ) : null}
+              {legislator.profileUrl ? (
+                <SourceLink
+                  label={`Official ${chamberWord} profile →`}
+                  href={legislator.profileUrl}
+                  onPress={() => openUrl(legislator.profileUrl!)}
+                />
+              ) : null}
+              {!legislator.officeAddress && !legislator.phone && !legislator.profileUrl ? (
+                <Text style={styles.emptyNote}>No contact details are on record yet.</Text>
+              ) : null}
+            </View>
           </View>
-        </View>
+        ) : null}
 
         {service && service.lines.length > 0 ? (
           <View style={styles.card}>
@@ -500,15 +517,19 @@ function Hero({
             >
               {displayName}
             </Text>
-            <View style={styles.metaRow}>
-              <Text style={styles.metaText}>{districtLine}</Text>
-              <View style={styles.metaDot} />
-              <View style={styles.partyPill}>
-                <Text numberOfLines={1} style={styles.partyPillText}>
-                  {partyLabel}
-                </Text>
+            {districtLine || partyLabel ? (
+              <View style={styles.metaRow}>
+                {districtLine ? <Text style={styles.metaText}>{districtLine}</Text> : null}
+                {districtLine && partyLabel ? <View style={styles.metaDot} /> : null}
+                {partyLabel ? (
+                  <View style={styles.partyPill}>
+                    <Text numberOfLines={1} style={styles.partyPillText}>
+                      {partyLabel}
+                    </Text>
+                  </View>
+                ) : null}
               </View>
-            </View>
+            ) : null}
           </View>
         </View>
         <SharePopover content={shareContent} />

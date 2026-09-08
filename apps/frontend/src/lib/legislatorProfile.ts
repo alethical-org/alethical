@@ -4,6 +4,46 @@ import { Bill, LegislativeService, LegislatorVote } from '../data/types';
 // + redesign/LegislatorProfileMobileScreen), so the web and mobile layouts stay in
 // sync. Pure functions, unit-testable.
 
+/**
+ * A current service record is the only thing in the payload that says what a
+ * person does NOW: which chamber they sit in, for which district, for which
+ * party, on which committees, at which office and phone. A member who has
+ * resigned, died or lost a seat has no such record, and the API omits
+ * `current_service` entirely rather than emptying its fields.
+ *
+ * So a chamber the record does not name is withheld, never resolved to one of
+ * the two, and a party it does not name never reaches `partyFull`, whose
+ * catch-all answer is `Independent`. Measured 8 Sep 2026: all 6 production
+ * profiles with no current service were served `Sen. <name>` above
+ * `Senate · Independent` from those 2 guesses, 3 of them House members, 1 of
+ * them dead (#1461).
+ *
+ * `.claude/rules/grounded-answers.md` rule 12 is the rule behind it, one step
+ * across from the amounts it was written for: a value we do not hold is
+ * reported as missing, never filled in with a plausible one. What the person
+ * DID is a different claim and stays: the service history is its own stored
+ * record, and a bill they authored is still theirs.
+ *
+ * Shared by the first server response and the loaded screen, so both reach the
+ * same answer. They did not: the served page said `Joe Schomacker` while the
+ * app redrew it a second later as `Sen. Joe Schomacker` of `Senate District
+ * Unknown` from its own separate guesses (#2061).
+ */
+export function currentChamber(value: string | null | undefined): 'House' | 'Senate' | '' {
+  const normalized = (value ?? '').trim().toLowerCase();
+  return normalized === 'house' ? 'House' : normalized === 'senate' ? 'Senate' : '';
+}
+
+/**
+ * True when the record names a chamber the person sits in now. One switch for
+ * every current claim a surface prints — honorific, district, party, committee
+ * list, office, phone, official profile link — so a record with no current
+ * service cannot leave one of them standing beside a name with no seat.
+ */
+export function servesNow(chamber: string | undefined): boolean {
+  return chamber === 'House' || chamber === 'Senate';
+}
+
 // Official title form: "Sen. Omar Fateh" / "Rep. Patty Acomb". The served name is
 // inconsistent ("Senator Omar Fateh", "Patty Acomb"), so strip any title it already
 // carries before prefixing the chamber's abbreviation. Shared because four surfaces
@@ -21,6 +61,19 @@ export function legislatorDistrictLine(
   district: string | null | undefined,
 ): string {
   return district ? `${chamber ?? ''} District ${district}`.trim() : (chamber ?? '');
+}
+
+/**
+ * The chamber-and-district line a surface may print, or an empty string when the
+ * record names no current service. Every surface that shows this line reads it
+ * from here, so the served page and the loaded page cannot disagree (#2061).
+ */
+export function currentDistrictLine(legislator: {
+  chamber?: string | null;
+  district?: string | null;
+}): string {
+  const chamber = currentChamber(legislator.chamber);
+  return servesNow(chamber) ? legislatorDistrictLine(chamber, legislator.district) : '';
 }
 
 export interface LegislatorServiceHistorySource {

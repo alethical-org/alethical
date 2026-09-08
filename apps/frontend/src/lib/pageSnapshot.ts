@@ -13,9 +13,11 @@ import {
 } from './billDetail';
 import { citationSectionHref } from './billText';
 import {
+  currentChamber,
   legislativeServiceFromHistory,
   legislatorDisplayName,
   legislatorDistrictLine,
+  servesNow as chamberServesNow,
   splitOfficeAddress,
 } from './legislatorProfile';
 import type { Citation } from '../data/types';
@@ -395,31 +397,6 @@ export function billDirectoryPageSnapshot(
   };
 }
 
-/**
- * A current service record is the only thing in the payload that says what a
- * person does NOW: which chamber they sit in, for which district, for which
- * party, on which committees, at which office and phone. A member who has
- * resigned, died or lost a seat has no such record, and the API omits
- * `current_service` entirely rather than emptying its fields.
- *
- * So a chamber the record does not name is withheld, never resolved to one of
- * the two, and a party it does not name never reaches `partyFull`, whose
- * catch-all answer is `Independent`. Measured 8 Sep 2026: all 6 production
- * profiles with no current service were served `Sen. <name>` above
- * `Senate · Independent` from those 2 guesses, 3 of them House members, 1 of
- * them dead (#1461).
- *
- * `.claude/rules/grounded-answers.md` rule 12 is the rule behind it, one step
- * across from the amounts it was written for: a value we do not hold is
- * reported as missing, never filled in with a plausible one. What the person
- * DID is a different claim and stays: the service history is its own stored
- * record, and a bill they authored is still theirs.
- */
-function currentChamber(value: string | null | undefined): 'House' | 'Senate' | '' {
-  const normalized = clean(value).toLowerCase();
-  return normalized === 'house' ? 'House' : normalized === 'senate' ? 'Senate' : '';
-}
-
 export interface LegislatorDirectorySnapshotSource {
   id: string;
   slug?: string | null;
@@ -617,10 +594,7 @@ export function legislatorPageSnapshot(
 ): PageSnapshot {
   const service = legislator.current_service ?? {};
   const chamber = currentChamber(service.chamber);
-  // One switch for every current claim on the page, so a record that names no
-  // chamber cannot leave a stale committee list or an office standing beside a
-  // name with no seat.
-  const servesNow = chamber !== '';
+  const servesNow = chamberServesNow(chamber);
   const displayName = legislatorDisplayName(legislator.full_name ?? '', chamber);
   const districtLine = servesNow
     ? legislatorDistrictLine(chamber, service.district?.code ?? undefined)
