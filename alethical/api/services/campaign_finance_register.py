@@ -1,11 +1,20 @@
 """What our campaign-finance records hold right now, counted rather than pasted.
 
-Net: the ``/money`` landing page opens with 3 lane cards, a "files last copied" date and
-a list of the newest filings we hold. Every one of those is a count or a date over the
-live data, so the page cannot say 1,336 registered filers on a day the register holds
-1,603 -- which is exactly what a pasted figure did once
+Net: the ``/money`` landing page opens with 5 lane cards, 4 of them carrying a count, a
+"files last copied" date and a list of the newest filings we hold. Every one of those is a
+count or a date over the live data, so the page cannot say 1,336 registered filers on a
+day the register holds 1,603 -- which is exactly what a pasted figure did once
 (``docs/design/handoff-campaign-money/Campaign money IA.dc.html``, section 01, and the
 data census in [#1661](https://github.com/alethical-org/alethical/issues/1661)).
+
+**The 4 counts are 4 different populations, and each names its own.** Sitting members
+and confirmed links come from tables we own; registered filers and contests come from the
+Board's register; independent-expenditure rows come from the bulk downloads. A contest is
+the race page's own grouping, one office-and-district pair among the candidate committees
+the register gives an office to (``campaign_finance_races``), counted here with the same
+filter so the card and the page it opens cannot disagree. The independent-expenditure
+count is the number of rows in that download, the same population
+``/campaign-finance/outside-spending`` reads with no filter.
 
 **Nothing here sums money, and nothing here can be made to.** No function returns an
 amount, so no total across members or filers exists to be printed, sorted or ranked
@@ -81,6 +90,9 @@ ROWS_REPLACED = "rows_replaced"
 #: No legislative session is marked current, so there is no set of sitting members to
 #: count and no denominator for the confirmed ones.
 NO_CURRENT_SESSION = "no_current_legislative_session"
+#: No download release is published, so there is no independent-expenditure file to count
+#: rows in. A fact about us: a fresh database holds none until the first publish.
+NO_DOWNLOAD_RELEASE = "no_download_release"
 #: The period start came off one of the Board's own transcribed disclosure calendars.
 #: The only source this module will name for a start; there is deliberately no value
 #: meaning "we worked it out".
@@ -242,6 +254,40 @@ class ConfirmationState:
     confirmed_member_count: Optional[int]
     sitting_member_count: Optional[int]
     newest_confirmation_at: Optional[datetime]
+    reason: Optional[str]
+
+
+@dataclass(frozen=True)
+class ContestCount:
+    """How many contests the race page groups the register's candidate committees into.
+
+    One office-and-district pair is one contest, exactly as ``campaign_finance_races``
+    groups them: the Board's register supplies the office and, for most committees, the
+    district, so this is a grouping Minnesota already made rather than one we infer
+    (222 on the live register). ``None`` with the register's own reason when the
+    register cannot be counted, because the contests are read off the same snapshot.
+    """
+
+    state: str
+    contest_count: Optional[int]
+    as_of: Optional[date]
+    snapshot_id: Optional[UUID]
+    reason: Optional[str]
+
+
+@dataclass(frozen=True)
+class IndependentExpenditureRowCount:
+    """How many rows the independent-expenditures download holds in the published release.
+
+    The same population ``/campaign-finance/outside-spending`` reads with no filter
+    (41,130 rows in the live release), so the card's number and the page it opens count
+    the same thing. A row count and never an amount: the file's total is served only by
+    that page, as one subject's own figure (rule 12).
+    """
+
+    state: str
+    row_count: Optional[int]
+    release_id: Optional[UUID]
     reason: Optional[str]
 
 
@@ -423,6 +469,91 @@ def register_summary(db: Session) -> RegisterSummary:
         as_of=_snapshot_date(snapshot),
         snapshot_id=snapshot.id,
         reason=None,
+    )
+
+
+def contest_count(db: Session) -> ContestCount:
+    """Count the race page's contests, live, off the published register.
+
+    Mirrors the grouping in ``campaign_finance_races.races`` clause for clause: candidate
+    committees on the published snapshot that the register gives an office to, grouped by
+    office and district. ``DISTINCT`` treats 2 NULL districts as one group, exactly as the
+    race page's own grouping does for a statewide office, so the Governor's race is 1
+    contest here as it is there.
+
+    Refuses in the same 2 cases the register count refuses, with the register's own
+    reason, because the contests are read off the same rows.
+    """
+    summary = register_summary(db)
+    if summary.state != REPORTED:
+        return ContestCount(
+            state=summary.state,
+            contest_count=None,
+            as_of=summary.as_of,
+            snapshot_id=summary.snapshot_id,
+            reason=summary.reason,
+        )
+    filer = schema.CampaignFinanceFiler
+    contests = (
+        select(filer.office, filer.district)
+        .where(
+            filer.snapshot_id == summary.snapshot_id,
+            filer.kind == schema.CampaignFinanceFilerKind.candidate_committee,
+            filer.office.is_not(None),
+        )
+        .distinct()
+        .subquery()
+    )
+    count = db.scalar(select(func.count()).select_from(contests)) or 0
+    return ContestCount(
+        state=REPORTED,
+        contest_count=count,
+        as_of=summary.as_of,
+        snapshot_id=summary.snapshot_id,
+        reason=None,
+    )
+
+
+def independent_expenditure_row_count(
+    db: Session, release, *, release_no_longer_held: bool = False
+) -> IndependentExpenditureRowCount:
+    """Count the independent-expenditures rows of the published release, live.
+
+    ``release`` is the download release the caller already resolved, or ``None`` when
+    nothing is published. ``release_no_longer_held`` is the caller saying the published
+    release names a pruned snapshot (``ReleaseNoLongerHeld``), which is the same
+    ``rows_replaced`` gap the register count reports rather than a count of 0.
+
+    Refuses in the same way when the snapshot published rows and holds none now: those
+    rows survive exactly one further publish, so an empty count against a populated
+    snapshot means we are reading a replaced set.
+    """
+    if release_no_longer_held:
+        return IndependentExpenditureRowCount(
+            state=UNAVAILABLE, row_count=None, release_id=None, reason=ROWS_REPLACED
+        )
+    if release is None:
+        return IndependentExpenditureRowCount(
+            state=UNAVAILABLE,
+            row_count=None,
+            release_id=None,
+            reason=NO_DOWNLOAD_RELEASE,
+        )
+    source = release.file_for(Dataset.independent_expenditures)
+    row = schema.CampaignFinanceIndependentExpenditureRow
+    count = (
+        db.scalar(select(func.count()).where(row.snapshot_id == source.snapshot_id))
+        or 0
+    )
+    if count == 0 and source.row_count > 0:
+        return IndependentExpenditureRowCount(
+            state=UNAVAILABLE,
+            row_count=None,
+            release_id=release.id,
+            reason=ROWS_REPLACED,
+        )
+    return IndependentExpenditureRowCount(
+        state=REPORTED, row_count=count, release_id=release.id, reason=None
     )
 
 

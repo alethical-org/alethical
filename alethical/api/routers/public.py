@@ -61,7 +61,9 @@ from alethical.api.services.campaign_finance_register import (
     committee_filings,
     committees as register_committees,
     committees_worth_indexing,
+    contest_count,
     freshness,
+    independent_expenditure_row_count,
     legislator_committee_confirmations,
     recent_filings,
     register_entry,
@@ -3770,7 +3772,7 @@ def payments_under_one_printed_name(
 
 @router.get("/campaign-finance/summary", response_model=DetailResponse)
 def campaign_finance_summary(db: Session = Depends(get_db)):
-    """What our campaign-finance records hold right now: 3 counted blocks and 2 dates.
+    """What our campaign-finance records hold right now: 5 counted blocks and 2 dates.
 
     What the ``/money`` landing page opens with, and every figure in it is counted at read
     time rather than written into the page. A pasted count is how that page once said
@@ -3782,10 +3784,10 @@ def campaign_finance_summary(db: Session = Depends(get_db)):
     ``docs/architecture/campaign-finance-system-design.md`` §7, which forbids ranking
     members whose filing calendars differ).
 
-    Three blocks, each with its own ``state``, deliberately rather than one state for the
+    Five blocks, each with its own ``state``, deliberately rather than one state for the
     response. They come from 3 independent places -- the Board's register, our own
     confirmation log, and the bulk downloads -- and one missing piece must not blank the
-    other 2 lanes, which is the same per-block rule
+    other lanes, which is the same per-block rule
     ``/committees/{registration_number}/finance`` follows.
 
     * ``register`` -- how many filers Minnesota's register holds, and how many of each of
@@ -3795,6 +3797,14 @@ def campaign_finance_summary(db: Session = Depends(get_db)):
       the product that speaks about the whole set**; every per-member surface speaks about
       that member alone. ``newest_confirmation_at`` dates it and is ``null`` while nobody
       has confirmed anything, which is today.
+    * ``contests`` -- how many contests the race page groups the register's candidate
+      committees into, one per office-and-district pair, counted off the same register
+      snapshot with the same filter ``/campaign-finance/races`` groups by (222 live), so
+      the Money by race card and the page it opens cannot disagree.
+    * ``independent_expenditure_rows`` -- how many rows the independent-expenditures
+      download holds in the published release (41,130 live), the population
+      ``/campaign-finance/outside-spending`` reads with no filter. A count of rows and
+      never their sum: the Outside spending card says "payments", not a dollar figure.
     * ``freshness`` -- ``downloads_fetched_at`` is the landing's "files last copied" date
       (#861), and ``register_fetched_at`` is when the register and report catalogue were
       copied. Two sources, copied on the same day today, so both are named rather than one
@@ -3803,24 +3813,33 @@ def campaign_finance_summary(db: Session = Depends(get_db)):
 
     **A count we could not compute is ``null``, never 0**, and the block's ``reason`` says
     which of our gaps it was: ``no_filings_snapshot`` (we have loaded no register at all),
-    ``rows_replaced`` (the register we resolved has been replaced under this read), or
-    ``no_current_legislative_session``. A **0 confirmed** is served as ``0``, because the
-    confirmation log is ours and its emptiness is a fact we know rather than a gap.
+    ``rows_replaced`` (the register or the download we resolved has been replaced under
+    this read), ``no_current_legislative_session``, or ``no_download_release`` (no bulk
+    download is published, so there is no independent-expenditure file to count). A
+    **0 confirmed** is served as ``0``, because the confirmation log is ours and its
+    emptiness is a fact we know rather than a gap.
 
     No 503: unlike the committee routes, a missing download release only empties the
-    freshness dates here, and an explicit ``null`` beside a ``reason`` cannot be read as a
-    zero.
+    freshness dates and the independent-expenditure count here, and an explicit ``null``
+    beside a ``reason`` cannot be read as a zero.
     """
     pin_campaign_finance_to_one_view(db)
+    release = None
+    release_no_longer_held = False
     try:
         release = current_campaign_finance_release(db)
     except ReleaseNoLongerHeld:
         # The published release names a pruned snapshot. That is a fact about our copy of
         # the downloads and says nothing about the register, which is a different run, so
-        # the other 2 blocks still answer.
-        release = None
+        # the register, contest and confirmation blocks still answer; only the 2 blocks
+        # read off the downloads go absent, as ``rows_replaced`` rather than as a zero.
+        release_no_longer_held = True
     summary = register_summary(db)
     confirmations = legislator_committee_confirmations(db)
+    contests = contest_count(db)
+    payments = independent_expenditure_row_count(
+        db, release, release_no_longer_held=release_no_longer_held
+    )
     dates = freshness(db, release)
     return DetailResponse(
         data={
@@ -3843,6 +3862,21 @@ def campaign_finance_summary(db: Session = Depends(get_db)):
                 "sitting_member_count": confirmations.sitting_member_count,
                 "newest_confirmation_at": confirmations.newest_confirmation_at,
                 "reason": confirmations.reason,
+            },
+            "contests": {
+                "state": contests.state,
+                "contest_count": contests.contest_count,
+                "as_of": contests.as_of,
+                "snapshot_id": (
+                    str(contests.snapshot_id) if contests.snapshot_id else None
+                ),
+                "reason": contests.reason,
+            },
+            "independent_expenditure_rows": {
+                "state": payments.state,
+                "row_count": payments.row_count,
+                "release_id": str(payments.release_id) if payments.release_id else None,
+                "reason": payments.reason,
             },
             "freshness": {
                 "downloads_fetched_at": dates.downloads_fetched_at,

@@ -34,6 +34,7 @@ from sqlalchemy import select, text
 from alethical.api.services.campaign_finance_register import (
     committees_worth_indexing,
     report_corrections,
+    NO_DOWNLOAD_RELEASE,
     NO_FILINGS_SNAPSHOT,
     ROWS_REPLACED,
 )
@@ -126,6 +127,8 @@ def _filer(
     *,
     kind: FilerKind = FilerKind.candidate_committee,
     name: str = "Port, Lindsey Senate Committee",
+    office: str | None = None,
+    district: str | None = None,
 ):
     db.add(
         models.CampaignFinanceFiler(
@@ -134,7 +137,37 @@ def _filer(
             kind=kind,
             name=name,
             is_incumbent=False,
+            office=office,
+            district=district,
         )
+    )
+    db.commit()
+
+
+def _independent_expenditure_rows(db, release, count: int) -> None:
+    """``count`` rows of the independent-expenditures file, in the release's snapshot.
+
+    Only the columns the count reads are set; every row of the live file names a
+    spender and a committee, and nothing here sums an amount.
+    """
+    for n in range(1, count + 1):
+        db.add(
+            models.CampaignFinanceIndependentExpenditureRow(
+                snapshot_id=release.independent_expenditures_snapshot_id,
+                row_number=n,
+                spender="Housing First Fund",
+                affected_committee_name="Port, Lindsey Senate Committee",
+                affected_committee_reg_num=CANDIDATE,
+            )
+        )
+    db.commit()
+
+
+def _publish_row_count(db, release, count: int) -> None:
+    """What the independent-expenditures snapshot recorded at publish time."""
+    db.execute(
+        text("UPDATE cf_snapshot SET row_count = :n WHERE id = :sid"),
+        {"n": count, "sid": release.independent_expenditures_snapshot_id},
     )
     db.commit()
 
@@ -325,6 +358,128 @@ def test_a_register_whose_rows_were_replaced_refuses_rather_than_counting_zero(
     assert register["state"] == UNAVAILABLE
     assert register["filer_count"] is None
     assert register["reason"] == ROWS_REPLACED
+
+
+# --- The contest count -----------------------------------------------------------
+
+
+def test_the_contest_count_is_the_race_pages_own_grouping(client, db) -> None:
+    """One office-and-district pair is one contest, exactly as /money/races groups them.
+
+    The live register holds 778 candidate committees in 222 contests. The Governor's race
+    is 1 statewide group with no district, so 2 NULL districts under one office count as 1
+    contest here as they do there; a party unit and a candidate committee the register
+    gives no office to are outside the grouping on both surfaces.
+    """
+    snapshot = _filings_snapshot(db, filer_count=6)
+    _filer(db, snapshot, CANDIDATE, office="House", district="12A")
+    _filer(db, snapshot, "18467", office="House", district="12A", name="Other, Someone")
+    _filer(db, snapshot, "18468", office="Senate", district="12", name="Third, Person")
+    _filer(db, snapshot, "18469", office="Governor", name="Governor Hopeful A")
+    _filer(db, snapshot, "18470", office="Governor", name="Governor Hopeful B")
+    _filer(
+        db, snapshot, PARTY_UNIT, kind=FilerKind.party_unit, name="HRCC", office="House"
+    )
+    _filer(db, snapshot, "18471", name="No Office Listed")
+
+    contests = client.get(SUMMARY).json()["data"]["contests"]
+
+    assert contests["state"] == REPORTED
+    assert contests["contest_count"] == 3
+    assert contests["as_of"] == "2026-08-11"
+    assert contests["snapshot_id"] == str(snapshot.id)
+    assert contests["reason"] is None
+
+
+def test_no_register_loaded_leaves_the_contest_count_null(client, db) -> None:
+    """No register is a gap of ours, never "Minnesota has 0 contests"."""
+    contests = client.get(SUMMARY).json()["data"]["contests"]
+
+    assert contests["state"] == UNAVAILABLE
+    assert contests["contest_count"] is None
+    assert contests["reason"] == NO_FILINGS_SNAPSHOT
+
+
+def test_a_replaced_register_leaves_the_contest_count_null(client, db) -> None:
+    """The contests are read off the register's rows, so they share its refusal."""
+    _filings_snapshot(db, filer_count=778)
+
+    contests = client.get(SUMMARY).json()["data"]["contests"]
+
+    assert contests["state"] == UNAVAILABLE
+    assert contests["contest_count"] is None
+    assert contests["reason"] == ROWS_REPLACED
+
+
+# --- The independent-expenditure row count ---------------------------------------
+
+
+def test_the_independent_expenditure_row_count_is_counted_live(client, db) -> None:
+    """The Outside spending card's number is the rows of the file, counted at read time.
+
+    The same population /campaign-finance/outside-spending reads with no filter: 41,130
+    rows in the live release. A count of rows, never a sum of their amounts.
+    """
+    release = _published_release(db)
+    _publish_row_count(db, release, 3)
+    _independent_expenditure_rows(db, release, 3)
+
+    data = client.get(SUMMARY).json()["data"]
+    payments = data["independent_expenditure_rows"]
+
+    assert payments["state"] == REPORTED
+    assert payments["row_count"] == 3
+    assert payments["release_id"] == str(release.id)
+    assert payments["reason"] is None
+    assert "amount" not in str(payments)
+
+
+def test_no_download_release_leaves_the_row_count_null(client, db) -> None:
+    """Nothing published is a fact about us and is never served as 0 payments."""
+    payments = client.get(SUMMARY).json()["data"]["independent_expenditure_rows"]
+
+    assert payments["state"] == UNAVAILABLE
+    assert payments["row_count"] is None
+    assert payments["reason"] == NO_DOWNLOAD_RELEASE
+
+
+def test_a_download_whose_rows_were_replaced_refuses_rather_than_counting_zero(
+    client, db
+) -> None:
+    """A snapshot that published 41,130 rows and holds none has been replaced under us."""
+    release = _published_release(db)
+    _publish_row_count(db, release, 41_130)
+
+    payments = client.get(SUMMARY).json()["data"]["independent_expenditure_rows"]
+
+    assert payments["state"] == UNAVAILABLE
+    assert payments["row_count"] is None
+    assert payments["reason"] == ROWS_REPLACED
+
+
+def test_a_release_no_longer_held_blanks_only_the_download_blocks(client, db) -> None:
+    """A published release naming a pruned snapshot empties the 2 download-read blocks.
+
+    The register, the contests and the confirmations come from other runs and still
+    answer; the row count and the freshness date go absent as ``rows_replaced``, never 0.
+    """
+    snapshot = _filings_snapshot(db, filer_count=1)
+    _filer(db, snapshot, CANDIDATE, office="Senate", district="55")
+    release = _published_release(db)
+    db.execute(
+        text("UPDATE cf_snapshot SET status = 'pruned' WHERE id = :sid"),
+        {"sid": release.independent_expenditures_snapshot_id},
+    )
+    db.commit()
+
+    data = client.get(SUMMARY).json()["data"]
+
+    assert data["independent_expenditure_rows"]["state"] == UNAVAILABLE
+    assert data["independent_expenditure_rows"]["row_count"] is None
+    assert data["independent_expenditure_rows"]["reason"] == ROWS_REPLACED
+    assert data["freshness"]["downloads_fetched_at"] is None
+    assert data["register"]["filer_count"] == 1
+    assert data["contests"]["contest_count"] == 1
 
 
 # --- The confirmation state ----------------------------------------------------
