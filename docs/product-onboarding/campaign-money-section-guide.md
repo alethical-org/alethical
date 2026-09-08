@@ -130,9 +130,9 @@ Top to bottom:
    is the point at which a name becomes required rather than a line below which nobody is
    named — [#1755](https://github.com/alethical-org/alethical/issues/1755)); and, on this
    page only, a 4th line, "No list of every payee — a paid name carries only its spelling on
-   the filing" (accepted 8 Sep 2026), which is the fact that used to sit inside the Who got
-   paid card and describes the record rather than the lane. The other pages that draw this
-   block keep the 3 shared lines. The block closes with "These are properties of the record
+   the filing" (accepted 8 Sep 2026): a property of the record rather than of the Who got paid
+   lane, so it lives in this block and not on that card. The other pages that draw this block
+   keep the 3 shared lines. The block closes with "These are properties of the record
    itself, not gaps we can close". The confirmed-member count is stated once on the page, in
    the Legislators lane, and not repeated here (copy rule A, 1 Sep 2026). On a computer
    (768px and wider) this block sits beside the files-last-copied block; on a phone the two
@@ -149,9 +149,8 @@ Top to bottom:
    guide: the link says research, so a guide featured here would be labelled as something
    it is not. With nothing published the row reads "Nothing is published yet" and nothing
    else — no count of 0 pieces and no second link (a "More on Read" link was proposed and
-   refused; the top bar's Read item is on every page). Until 8 Sep 2026 this was a large
-   card headed WHAT WE FOUND above the lanes; the label is now the product's own word for
-   its writing.
+   refused; the top bar's Read item is on every page). The label is the product's own word
+   for its writing, never a third name for it.
 6. **The most recent completed filing period**, described below.
 
 Three more pieces bind to live data (two public endpoints:
