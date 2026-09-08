@@ -193,25 +193,33 @@ def mirror_raw_files(
             == now.date().toordinal() % 28
         )
         if mirrored.get(key) == size and (
-            verify_all or (recorded and oldest < cutoff) or unrecorded_due
+            verify_all or (rows and (not recorded or oldest < cutoff)) or unrecorded_due
         ):
             candidates.append((oldest, key, size))
+    # A cohort gets a different first key on each 28-day cycle, so a small
+    # budget cannot repeatedly favor the same unrecorded prefix forever.
+    unrecorded = sorted(key for _, key, _ in candidates if key not in bodies)
+    if unrecorded:
+        offset = (now.date().toordinal() // 28) % len(unrecorded)
+        unrecorded = unrecorded[offset:] + unrecorded[:offset]
+    order = {key: index for index, key in enumerate(unrecorded)}
+    candidates.sort(key=lambda item: (item[0], order.get(item[1], len(order)), item[1]))
     selected = set()
     remaining = verify_max_bytes
-    for _, key, size in sorted(candidates):
+    for _, key, size in candidates:
         if size * 2 <= remaining:
             selected.add(key)
             remaining -= size * 2
         else:
             report.verification_deferred += 1
 
-    for key in sorted(set(objects) | set(bodies)):
+    for key in sorted(set(objects) | set(bodies) | set(mirrored)):
         size = objects.get(key, 0)
         rows = bodies.get(key, [])
         try:
             if key not in objects:
                 raise RuntimeError(
-                    "The database names a file missing from the primary store. "
+                    "A recorded file or second copy is missing from the primary store. "
                     + (
                         "A second copy is present; preserve it for recovery."
                         if key in mirrored
@@ -246,8 +254,8 @@ def mirror_raw_files(
                 _verify_existing(source, mirror, key, rows, directory, size)
                 report.verification_bytes += size * 2
                 action = CONFIRMED
-            elif key in mirrored and recorded:
-                action = ALREADY_MIRRORED
+            elif key in mirrored:
+                action = ALREADY_MIRRORED if recorded else ALREADY_PRESENT
             else:
                 action = _mirror_one(source, mirror, key, size, rows, directory)
         except Exception as error:  # noqa: BLE001 - collected, never hidden

@@ -156,7 +156,7 @@ def _describe_only(db: Session, source, mirror) -> int:
     print(f"{len(todo)} object(s) would be copied ({sum(todo.values()):,} bytes):")
     for key in sorted(todo):
         print(f"  {key} ({todo[key]:,} bytes)")
-    missing_primary = sorted(set(rows) - set(objects))
+    missing_primary = sorted((set(rows) | set(present)) - set(objects))
     mismatches = sorted(
         key for key in set(objects) & set(present) if objects[key] != present[key]
     )

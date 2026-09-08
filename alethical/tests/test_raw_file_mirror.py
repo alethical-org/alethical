@@ -753,3 +753,51 @@ def test_cli_full_audit_exits_failure_when_budget_defers_hashes(db, monkeypatch)
     assert command.main() == 1
     assert mirrored_at(db, key) is None
     assert mirror.uploads == []
+
+
+def test_mirror_only_object_is_reported_and_preserved(db, tmp_path):
+    source, mirror = MemoryStore(), MemoryStore({"orphan": b"saved"})
+    report = run(db, source, mirror, tmp_path)
+    assert [failure.key for failure in report.failures] == ["orphan"]
+    assert mirror.objects == {"orphan": b"saved"}
+    assert mirror.uploads == []
+
+
+def test_existing_unconfirmed_object_obeys_zero_read_budget(db, tmp_path):
+    key, data = next(iter(BODIES.items()))
+    add_body(db, key, data)
+    source, mirror = MemoryStore({key: data}), MemoryStore({key: data})
+    source.get = lambda *args, **kwargs: pytest.fail("read despite zero budget")
+    mirror.get = lambda *args, **kwargs: pytest.fail("read despite zero budget")
+    report = mirror_raw_files(
+        db, source, mirror, str(tmp_path), verify_all=True, verify_max_bytes=0
+    )
+    assert report.verification_deferred == 1
+    assert report.verification_bytes == 0
+    assert mirrored_at(db, key) is None
+    assert not report.failures
+
+
+def test_unrecorded_cohort_rotates_first_key_between_cycles(db, tmp_path):
+    now = datetime(2026, 9, 7, tzinfo=timezone.utc)
+    cohort = now.date().toordinal() % 28
+    keys = [
+        str(n) for n in range(1000) if int(sha(str(n).encode()), 16) % 28 == cohort
+    ][:3]
+    source, mirror = (
+        MemoryStore({key: b"x" for key in keys}),
+        MemoryStore({key: b"x" for key in keys}),
+    )
+    checked = set()
+    for cycle in range(len(keys)):
+        report = mirror_raw_files(
+            db,
+            source,
+            mirror,
+            str(tmp_path),
+            verify_max_bytes=2,
+            now=now + timedelta(days=28 * cycle),
+        )
+        checked.update(result.key for result in report.of(CONFIRMED))
+        assert report.verification_bytes == 2
+    assert checked == set(keys)

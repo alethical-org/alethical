@@ -429,15 +429,13 @@ engineering decision that turns a deletion into a move.
 
 **Two honest limits, stated rather than glossed:**
 
-- **Backups.** Supabase takes automatic database backups. A deleted row stays inside
-  them until they roll off. This is unavoidable for any hosted database and is not a
-  reason to soften the promise, but the promise should be worded as "we delete it, and
-  it ages out of our backups on the backup schedule" rather than implying instant
-  erasure everywhere. **The exact backup retention on our Supabase plan is not recorded
-  anywhere in this repo ([#1047](https://github.com/alethical-org/alethical/issues/1047)) and should be confirmed and written into
-  [`docs/operations/repo-and-service-settings.md`](../operations/repo-and-service-settings.md)** —
-  it is a setting that controls the product and does not live in the code, which is
-  exactly what that doc is for.
+- **Backups.** Supabase keeps 7 days of daily database backups on the current Pro
+  plan. A deleted row can remain in a retained backup until that backup expires.
+  The promise should say "we delete it, and it ages out of our backups within
+  7 days" rather than implying instant erasure everywhere.
+  [repo-and-service-settings.md](../operations/repo-and-service-settings.md#database-backups)
+  owns the current setting. Recovery to an exact point between daily backups is
+  not enabled; source-file copies are separate from database backups.
 - **Third parties.** OpenAI and Anthropic received the reader's questions and we cannot
   reach into their systems to delete them. What we can do is say so, and rely on their
   own retention terms. This is another reason §5 rule 3 matters: the fewer copies we

@@ -14,11 +14,11 @@ Net: A current second copy is protection against losing a source file. A timed r
 
 ## Source files: current presence and bounded hash proof
 
-The daily mirror lists both Supabase Storage and Cloudflare R2. Every primary object is part of the check, including objects no production database row names. Every database row naming a stored body is also part of the check, so a missing primary object cannot silently disappear from the work list.
+The daily mirror lists both Supabase Storage and Cloudflare R2. Every object in either store is part of the check, including objects no production database row names. Every database row naming a stored body is also part of the check, so a missing primary object cannot silently disappear from the work list.
 
-A missing Cloudflare copy is uploaded from the primary only after the primary bytes match any recorded hash. Both copies are read back for new or repaired objects. Different sizes or hashes fail without overwriting either copy. A missing primary fails and preserves any second copy for recovery.
+A missing Cloudflare copy is uploaded from the primary only after the primary bytes match any recorded hash. Both copies are read back for new or repaired objects. Observed size or hash conflicts fail without writing either copy. A missing primary fails and preserves any second copy for recovery.
 
-A saved `mirrored_at` value means the last successful hash proof. It never substitutes for current presence. Each daily run renews confirmations older than 7 days, oldest first, within 256 MiB of combined old-object reads across both stores. Objects too large for the remaining budget are deferred visibly. This is a read budget, not a promise that every hash is renewed within 7 days. Unrecorded objects have no saved confirmation time, so their routine hash checks are spread over 28 days by their object key. A full audit includes them all.
+A saved `mirrored_at` value means the last successful hash proof. It never substitutes for current presence. Each daily run renews confirmations older than 7 days, oldest first, within 256 MiB of combined old-object reads across both stores. Objects too large for the remaining budget are deferred visibly. This is a read budget, not a promise that every hash is renewed within 7 days. Unrecorded objects have no saved confirmation time, so their routine hash checks are spread over 28 days by their object key, with the first key rotating on each cycle to avoid repeatedly deferring the same tail. A full audit includes them all.
 
 At the maximum daily old-object budget, 31 runs read at most 7.75 GiB combined, including at most 3.875 GiB from Supabase. New and missing objects are additional, as in the existing copy job. Review remaining included service allowances before increasing the budget; no paid AI is involved. The report distinguishes current presence, hashes read during this run, and hashes deferred by the budget.
 
@@ -45,7 +45,7 @@ The audit uses a read-only database transaction and never calls the upload metho
 PYTHONPATH=. uv run python scripts/mirror_raw_files.py --target production
 ```
 
-Reserve any production repair window first. The mirror adds missing copies and records successful proof; it never deletes or overwrites a conflicting object. If a primary object is missing, preserve Cloudflare's copy, compare its bytes with the database's recorded hash, and restore the exact named object through a separately reviewed recovery step. A changed object needs investigation, not an overwrite that destroys the remaining evidence.
+Reserve any production repair window first. The mirror adds missing copies and records successful proof; it never deletes an object or deliberately overwrites an observed conflict. The inherited upload checks for absence before uploading, rather than using an atomic create-only write. A concurrent writer can race that check, so this is not a guarantee against concurrent overwrites. If a primary object is missing, preserve Cloudflare's copy, compare its bytes with the database's recorded hash, and restore the exact named object through a separately reviewed recovery step. A changed object needs investigation, not an overwrite that destroys the remaining evidence.
 
 ## Database restoration drill
 

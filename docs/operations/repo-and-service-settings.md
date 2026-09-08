@@ -256,6 +256,22 @@ Supabase stores passwords with salted bcrypt. The intended product explanation r
 [`sign-in-guide.md`](../product-onboarding/sign-in-guide.md); it is not a second settings
 list.
 
+## Database backups
+
+The current Supabase Pro plan keeps 7 days of daily physical database backups.
+Recovery to an exact point between daily backups (point-in-time recovery) is not
+currently enabled. A deleted database row can remain in a retained backup until
+that backup expires. This window governs the backup limit described in
+[user-data-retention-policy.md §6](../product-onboarding/user-data-retention-policy.md#6-when-a-reader-asks-us-to-delete-their-data).
+
+Supabase database backups do not contain files stored through its Storage API.
+Those source files need their separate Cloudflare R2 copies. A visible completed
+backup is not a successful restore: follow
+[recovery.md](recovery.md) and record the isolated drill separately.
+Exact backup timestamps and private restoration measurements stay in the private
+recovery evidence. These settings came from the authenticated Supabase dashboard;
+the existing hosted-setting checker does not monitor backup retention.
+
 ## Settings outside this check
 
 Cloudflare's API routing and email records remain in
