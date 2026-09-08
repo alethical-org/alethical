@@ -167,11 +167,9 @@ describe('signed-in set or change password', () => {
     expect(sharedSurface).toContain('<PhoneSignOut flow={signOutFlow} />');
   });
 
-  it('keeps the other-device note in exactly the desktop panel and phone sheet', () => {
-    expect(SOURCE.match(/OTHER_DEVICE_NOTE}/g)).toHaveLength(2);
-    expect(SOURCE).toContain(
-      "const OTHER_DEVICE_NOTE = 'You may still be signed in on other devices';",
-    );
+  it('keeps the sign-out failure message without the retired other-device note', () => {
+    expect(SOURCE).not.toContain('OTHER_DEVICE_NOTE');
+    expect(SOURCE).not.toContain('You may still be signed in on other devices');
     expect(SOURCE).toContain(
       "const SIGN_OUT_FAILURE = 'We couldn’t sign you out. Check your connection and try again.';",
     );

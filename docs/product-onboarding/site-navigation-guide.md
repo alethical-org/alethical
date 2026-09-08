@@ -22,9 +22,11 @@ addresses are resolved by one router (`apps/frontend/src/navigation/webRoutes.ts
 - **The account control replaces Sign in once you are in**: an avatar with your first name on a
   desktop-width browser, an avatar that opens a sheet on a phone. It holds a **Tracked**
   row, with the combined count of bills and committees you follow, leading to `/tracked`,
-  Add or Change password, and **Sign out**.
-  Approved administrators also see **Users**, leading to `/admin/users`, and
-  **Admin metrics**, leading to `/admin/metrics`. The signed-in profile supplies
+  then **Add a password** or **Change password**, and **Sign out**.
+  Approved administrators see an **Admin** group between the password row and Sign out,
+  with **Users**, leading to `/admin/users`, followed by **Metrics**, leading to
+  `/admin/metrics`. The `/admin/metrics` page title remains **Admin metrics**.
+  Desktop and phone use this same order. The signed-in profile supplies
   the menu hint; older responses use a separate access check. Every private read
   still requires a fresh permission check.
   The private report contains combined measurements, not a reader activity list. Being

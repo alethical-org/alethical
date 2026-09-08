@@ -232,24 +232,39 @@ opening Google again.
 
 ## Account menu
 
-The account menu shows the person's name and email, Tracked, Add or Change password, and Sign
-out. Tracked shows a count only after both lists (bills and followed committees) have loaded. No number covers both zero tracked
-bills and a list that has not arrived, so the menu never shows a false zero.
+The account menu shows the person's name and email, followed in order by **Tracked**,
+**Add a password** or **Change password**, an **Admin** group for approved administrators,
+and **Sign out**. The password row keeps its method-specific wording and neutral **Password**
+fallback. The Admin group contains **Users** (`/admin/users`) followed by **Metrics**
+(`/admin/metrics`); the `/admin/metrics` page title remains **Admin metrics**. Desktop and phone
+use this same order. People without administrator access do not see the Admin group.
 
-Tracked and Add or Change password share the same left edges for their icon boxes and labels
-on both computer and phone. Desktop Sign out shares those columns. Each row icon is centered
-inside a fixed square, so a different icon cannot shift its label. Long labels stay on 1 line
-and shorten with an ellipsis; the Tracked count shares the administrator arrows' 18-pixel end space.
+Tracked keeps that name because it includes bills and followed committees. Its combined count
+appears only after both lists have loaded and only when the total is greater than zero.
+
+Tracked, the password row, Users, and Metrics share the same label start on both computer and
+phone. Icons sit in fixed squares: 20 pixels with a 12-pixel gap before the label on desktop,
+22 pixels with a 13-pixel gap on phone. Users and Metrics keep empty icon squares to align
+their labels. Desktop Sign out shares the icon and label columns. The Tracked count shares
+the administrator arrows' 18-pixel end space.
+
+Tracked, the password row, Users, and Metrics have at least 44 pixels of height and 10 pixels
+of top and bottom padding on desktop, keeping the existing horizontal outer inset. On phone
+they have at least 56 pixels of height and 14 pixels of top and bottom padding, without extra
+gaps between rows. Labels may wrap and rows grow to fit. Tracked and the password row each have
+an upper dividing line.
+The Admin group has 1 upper dividing line, with no line between Users and Metrics.
 
 The phone Sign out button centers its icon and label together inside its full-width outline,
 including while pressed, loading, or retrying after a failure. Its icon is 18 pixels with a
 9-pixel gap before the label; the loading spinner uses a 10-pixel gap. The button has 16 pixels
 of padding and 16 pixels of space above it, including when the password row is unavailable.
-The password row keeps its upper dividing line and has no lower line. The failure banner stays
-above the button. Sign out says **Signing out…** while busy and **Try again** after a failure.
+The failure banner stays above the button. Sign out says **Signing out…** while busy and
+**Try again** after a failure. Desktop Sign out stays a left-aligned row with an upper dividing
+line. Neither menu shows a note about staying signed in on other devices before, during,
+or after a failed sign-out.
 
-Approved administrators also see **Users** (`/admin/users`) and **Admin metrics**
-(`/admin/metrics`). The server's optional `is_admin` hint in `/me` makes these entries
+The server's optional `is_admin` hint in `/me` makes the Admin group
 available with the signed-in profile. Older responses without a boolean hint use
 the separate administrator-access check. Private requests always check current
 permission again, independently of the menu hint.

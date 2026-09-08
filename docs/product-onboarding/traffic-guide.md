@@ -219,7 +219,7 @@ no version or `version=1` keep the older response shape without that field, so a
 older open browser can continue reading its report.
 The former `/admin/site-metrics` address redirects to `/admin/metrics`. Refresh and
 the date-range controls share the same width as the account and activity cards.
-The server requires an explicitly allowed account identifier, 1 of the 4 exact confirmed
+The server requires an explicitly allowed account identifier, 1 of the 8 exact confirmed
 administrator mailboxes, and a currently eligible account. This report shows combined counts
 only. Account growth, activity, and operating records can fail independently; unavailable
 sources never become zero. Sign-out, account changes, and token changes remove the previous
