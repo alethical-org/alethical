@@ -239,7 +239,7 @@ bills and a list that has not arrived, so the menu never shows a false zero.
 Tracked, Add or Change password, and Sign out share the same left edges for their icon boxes
 and labels, on both computer and phone. Each icon is centered inside a fixed square, so a
 different icon cannot shift its label. Long labels stay on 1 line and shorten with an ellipsis;
-the Tracked count keeps its place on the right. The phone Sign out button keeps its outline
+the Tracked count shares the administrator arrows' 18-pixel end space. The phone Sign out button keeps its outline
 while its contents align with the rows above it.
 
 Approved administrators also see **Users** (`/admin/users`) and **Admin metrics**
