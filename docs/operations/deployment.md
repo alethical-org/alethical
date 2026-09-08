@@ -265,8 +265,8 @@ owns the current provider, email, password, and confirmation settings.
   commit the live page says built it and compares that with `main`. It opens 1
   issue when a merged change to a website path has not reached readers 10 minutes
   after merging, comments on that same issue rather than opening another, and
-  closes it once readers are up to date. A documents-only merge correctly needs no
-  release and it says nothing. It exists because a merged website change once sat
+  closes it once readers are up to date. A merge that changes no website path
+  correctly needs no release and it says nothing. It exists because a merged website change once sat
   unbuilt for 29 minutes with every check green, no build failure anywhere, and
   the failed-release watch above reporting `skipped`
   ([issue 2075](https://github.com/alethical-org/alethical/issues/2075)).
@@ -281,8 +281,11 @@ owns the current provider, email, password, and confirmation settings.
   `VERCEL_GIT_PREVIOUS_SHA`, rather than against the head's own parent
   (`scripts/vercel-ignore-build.sh`, called from `vercel.json`'s `ignoreCommand`).
   It builds whenever that commit is missing or the build's clone does not hold it,
-  because a comparison it cannot make must never skip a release. A documents-only
-  merge still skips. Comparing against the head's own parent is what left a
+  because a comparison it cannot make must never skip a release. A merge that
+  changes no website path still skips. The fault it removes fires whenever a push's
+  head touches none of those paths, whatever kind of file it is: measured on 8 Sep
+  2026 with a head of notes (`c8ad2698`) and again with a head of scripts, tests
+  and documents (`505b9909`). Comparing against the head's own parent is what left a
   website change unbuilt on 8 Sep 2026
   ([issue 2093](https://github.com/alethical-org/alethical/issues/2093)), and the
   repair for a missed release is the hand-run `vercel-deploy.yml` job.

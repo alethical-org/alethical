@@ -307,8 +307,9 @@ def report(
         f"### The usual cause\n\n"
         f"`vercel.json`'s `ignoreCommand` compares a commit against its immediate parent, and "
         f"the merge queue can advance `main` by several commits in 1 push. Vercel builds the "
-        f"push's head only, so when that head is docs-only every earlier commit in the same "
-        f"push goes unbuilt, however much website code it changed "
+        f"push's head only, and when that head happens to touch none of those paths every "
+        f"earlier commit in the same push goes unbuilt, however much website code it changed. "
+        f"Documents, scripts and tests all do it "
         f"([issue 2075](https://github.com/alethical-org/alethical/issues/2075))."
     )
 
