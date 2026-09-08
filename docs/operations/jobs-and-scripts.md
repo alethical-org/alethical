@@ -2,7 +2,7 @@
 
 <!-- describes: .github/workflows/**, scripts/**, alethical/pipeline/**, alethical/api/routers/ask.py, alethical/api/routers/me.py, alethical/api/services/ask_router.py -->
 
-Net: The repository has 20 GitHub Actions workflows. 16 can start automatically
+Net: The repository has 21 GitHub Actions workflows. 17 can start automatically
 and 4 run only when a person starts them. Scheduled checks, releases, and local
 backups do not call paid AI services. Reader questions and deliberately started
 AI work do.
@@ -11,7 +11,8 @@ AI work do.
 
 | Work | Starts when | What it does | Usage-based cost |
 | --- | --- | --- | --- |
-| Project checks (`.github/workflows/ci.yml`) | Every pull request and push to `main` | Runs the code, formatting, security, and document checks | No paid AI call; [standard GitHub-hosted runners are free for public repositories](https://docs.github.com/en/actions/concepts/billing-and-usage) |
+| Project checks (`.github/workflows/ci.yml`) | Pull request code events, merge-queue checks, and pushes to `main` | Runs the code, formatting, security, and document checks | No paid AI call; [standard GitHub-hosted runners are free for public repositories](https://docs.github.com/en/actions/concepts/billing-and-usage) |
+| Latest change explanation (`.github/workflows/pr-description.yml`) | Pull request opens, code updates, reopens, ready-for-review events, description edits, and merge-queue checks | Reads the latest `Docs check:` explanation against the current code; does not rerun app or server tests or replace their results | No paid AI call; read-only GitHub requests on a standard free runner |
 | New votes (`.github/workflows/vote-backfill.yml`) | Daily at 09:00 UTC | Adds newly published House and Senate roll-call votes | No paid AI call; reads free government sources |
 | Missing bill sections (`.github/workflows/bill-section-gaps.yml`) | Daily at 11:00 UTC | Opens or updates an issue when stored bill text is incomplete | No paid AI call; reads the database |
 | Committee links still agree (`.github/workflows/committee-link-contradictions.yml`) | Weekly, Mondays at 15:00 UTC | Re-reads every campaign account a person confirmed as a politician's against Minnesota's own records, and opens or updates an issue when one no longer agrees | No paid AI call; 2 free government downloads and one read of the database |
@@ -36,7 +37,7 @@ Time and Central Daylight Time, so their local hour changes by 1 during the year
 
 ## What GitHub runs only by hand
 
-These 4 workflows complete the total of 20:
+These 4 workflows complete the total of 21:
 
 | Workflow | Purpose | Usage-based cost |
 | --- | --- | --- |
@@ -50,11 +51,13 @@ owns the workflow count, triggers, and costs.
 
 ## Command-line tools
 
-The `scripts/` folder has 62 runnable files. GitHub jobs call 25 of them, and the
+The `scripts/` folder has 66 runnable files. GitHub jobs call 27 of them, and the
 Mac backup above calls 1. A workflow also calls
 `apps/frontend/scripts/traffic-token-expiry.mjs`, a similarly named script that
 lives in a different folder and is not part of this list or its totals. The
 complete list is grouped here so a new file cannot hide inside a total:
+
+Tests inside `scripts/tests/` are excluded from this direct-file inventory.
 
 | Purpose | Files |
 | --- | --- |
@@ -68,6 +71,8 @@ complete list is grouped here so a new file cannot hide inside a total:
 | Measure what real visitors waited for | `report_page_speed_by_address.py` |
 | Maintain search and stored files | `archive_published_sources.py`, `build_rag_hnsw_index.py`, `mirror_raw_files.py` |
 | Protect unfinished work and rotating read grants | `back-up-uncommitted-worktree-work.sh`, `supabase_oauth_state.mjs` |
+| Check fresh change explanations | `check_pr_descriptions.py` |
+| Install shared Git hooks, format selected files, and test exact upload commits | `install_git_hooks.py`, `format_frontend.mjs`, `local_checks.py` |
 
 Most of these commands use shared code in `alethical/pipeline/`. The queue in
 `alethical/pipeline/oban.py` and `alethical/pipeline/oban_workers.py` can run an
@@ -111,6 +116,8 @@ embedding work is API-only.
 
 ## Related
 
+- [Local code checks](local-code-checks.md) owns clone-wide hook setup, selected-file
+  formatting, isolated upload tests, and the staged description-check activation.
 - [Offline name-search comparison](name-search-offline-benchmark.md) explains the
   local-only commands, exact-answer checks and full-size measurement gates.
 - [How Alethical calls OpenAI and Anthropic, and when it retries](../architecture/ai-provider-calls-and-retries.md):

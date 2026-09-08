@@ -5,6 +5,9 @@
   "volta": {
     "node": "22.23.2"
   },
+  "devDependencies": {
+    "lint-staged": "17.4.1"
+  },
   "dependencies": {
     "@vercel/oidc": "^3.8.2",
     "google-auth-library": "^11.0.0"

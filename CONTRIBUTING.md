@@ -23,7 +23,7 @@ Install these once:
 ```bash
 git clone https://github.com/alethical-org/alethical.git
 cd alethical
-just install-hooks          # one time, per clone — see the note below
+just setup                  # installs saved dependencies and all 3 local Git hooks
 cp .env.example .env        # then fill in the secrets marked "SET THIS"
 just doctor                 # reports missing or wrong local tools before setup fails
 just up                     # starts Postgres + backend + web frontend
@@ -56,12 +56,21 @@ Close and reopen your terminal after `volta setup`. Then `node --version` and
 default Node version. You can use another version manager instead; activate Node
 22 before running Alethical commands.
 
-**`just install-hooks` is not optional if anyone else works in this clone.** It
-points git at this repo's tracked hooks (`.githooks`), and the one hook there locks
-each new worktree as it is created. Without it, `git worktree remove --force` will
-delete somebody's worktree along with their uncommitted work, in one command, with
-no confirmation. Git cannot ship this setting inside a repository — `core.hooksPath`
-is local config — so **a fresh clone is unprotected until you run it.**
+**Run `just setup` in every fresh clone before creating worktrees.** It installs
+the saved Python and frontend dependencies, then runs `just install-hooks`.
+The installer keeps 3 helpers: lock new worktrees (`post-checkout`), format the
+files selected for a commit (`pre-commit`), and test saved code before uploading
+it (`pre-push`). Cursor, Codex, Claude Code, and a terminal use the same helpers.
+Git does not copy this local setting when cloning, so fetching the code alone
+does not activate them.
+
+Installation writes a complete, versioned copy into Git's shared storage before
+changing `core.hooksPath`. That setting applies to every worktree in this clone.
+Coordinate activation with their owners and update older branches from `main`:
+a branch missing the check helper stops instead of silently skipping checks.
+Custom hooks stop installation for an explicit migration; they are not overwritten.
+[Local code checks](docs/operations/local-code-checks.md) owns setup, safety limits,
+and the separate GitHub activation checklist.
 
 What the lock does and does not do: it makes a single `--force` fail and print why.
 `--force --force` still removes the worktree, and `git worktree unlock <path>` clears
@@ -108,13 +117,23 @@ needs no configuration. See `.env.example` for what each variable does.
 | Command | What it does |
 |---|---|
 | `just up` / `just down` | Start / stop the local stack |
+| `just setup` | Install saved dependencies and activate the 3 local Git hooks |
+| `just format-staged` | Format the files selected for the next commit, preserving unfinished edits |
 | `just format` | Auto-format Python (`ruff format`) **and the frontend (Prettier)** |
-| `just lint` | Lint + type-check: `ruff check`, `ty check`, and frontend `tsc --noEmit` |
+| `just lint` | Check Python and frontend formatting, code rules, and types: Ruff, Prettier, ty, and TypeScript |
 | `just migrate` | Apply database migrations (`alembic upgrade head`) |
 | `uv run pytest` | Run the backend test suite |
 | `just test-frontend` | Run the frontend test suite (Vitest) |
 
-Run `just lint`, `just format`, `uv run pytest`, and `just test-frontend` before opening a PR — CI runs the same checks, **plus a `prettier --check` over `apps/frontend` that `just lint` does not cover** (so `just lint` passing is not enough — run `just format` too).
+The commit hook formats the selected files and includes those results in the
+commit. The push hook runs the full app or server suite when that area changes,
+using an isolated copy of the exact commit Git intends to upload. Both suites
+run together when both areas change. Keep local Postgres running on port 54329
+for server tests. `just lint` includes Prettier's frontend formatting check;
+`just format` deliberately formats whole code areas, not just selected files.
+GitHub remains the required check before merging. See
+[Local code checks](docs/operations/local-code-checks.md) for the shared file rules
+and why local checks do not replace GitHub's production build.
 
 **`just lint` and `just format` pin the same tool versions CI runs** (`ruff@0.15.0`,
 `ty@0.0.72` — see the justfile and `.github/workflows/ci.yml`). If you ever call
@@ -177,13 +196,28 @@ A worktree created with plain `git worktree add` has **no `.env`**. Use
 
 ### Frontend tests
 
-The runner is **Vitest** (`apps/frontend`, pinned exact). It runs plain TypeScript modules directly, so there is no Babel or React Native transform chain to keep working, no config file, and the whole suite finishes in well under a second. `jest-expo` was not chosen: it needs the React Native preset and a Babel transform chain to test what are ordinary pure functions. Node's own `node --test` was not chosen either: running TypeScript through it depends on type-stripping whose behaviour varies by Node patch version, and unpinned tooling has turned this repo's CI red before. `pnpm --dir apps/frontend run test:watch` re-runs on save.
+The runner is **Vitest** (`apps/frontend`, pinned exact). It runs the frontend
+test suite through `just test-frontend`. Its running time depends on the suite
+and computer. Use
+`pnpm --dir apps/frontend run test:watch` to rerun tests on save.
 
 **Pure logic gets a test.** Any function that maps input to output with no React, no network and no device — text cleaning, parsing, classifying, labelling, date and vote maths — is expected to ship with tests in `src/lib/__tests__/`. That is the rule; a PR adding one without tests should say why. Component rendering and visual regression are deliberately **not** covered (see [#751](https://github.com/alethical-org/alethical/issues/751)). Browser automation now is, in two on-demand layers owned by the `browser-user-test` skill (`.claude/skills/browser-user-test/SKILL.md`): agent-driven user stories, and Playwright checks in `apps/frontend/e2e/` (`just e2e`, engines for Chrome, Firefox, and Safari). Neither runs in CI yet — deliberately, a pending decision on cost and flakiness policy.
 
 Prefer a fixture of **real** data over invented strings: `src/lib/__tests__/fixtures/` holds real bill sections pulled from the production API, and its `README.md` explains what each one is there to catch and how to add more. Two of the bugs these tests pin were found by measuring against real text and would not have been caught by an example someone made up.
 
-**Format the frontend only with `just format`** (Prettier from the lockfile-pinned toolchain — `3.4.2`, config in `apps/frontend/.prettierrc.json`; run `pnpm install --frozen-lockfile` first if deps look stale). The workspace Prettier is **safe**: if it produces a large diff, the file was genuinely non-conformant — **keep** the formatting, don't reset it. Only a **global or ad-hoc `prettier`** binary (a different version, or run where it can't find the config) reflows spuriously — never use that. CI's format step is `prettier --check .` run **with `working-directory: apps/frontend`** (`.github/workflows/ci.yml`), so its `.` is the frontend package, **not the repo root**: a frontend PR fails if *any* file under `apps/frontend` is non-conformant, even ones you didn't touch — but Markdown and other files outside that directory are not gated. Don't run `prettier --check .` from the repo root and conclude CI is failing: the repo root also includes docs and lockfiles outside that frontend check. If `just format` reformats files unrelated to your change, that's pre-existing debt — format it in a separate `chore/format-*` PR first, then rebase your change on top so its diff stays surgical. A dev-server "expected versions of the packages" warning means your `node_modules` drifted from the lockfile; reinstall before formatting.
+Use `just format-staged` for the next commit, or `just format` for an intentional
+whole-code formatting pass. Both use the installed Prettier version required by
+[`apps/frontend/package.json`](apps/frontend/package.json), currently `3.9.6`,
+with the explicit frontend settings and ignore list. Missing or mismatched
+dependencies stop the helper; run `pnpm install --frozen-lockfile` to restore them.
+Do not use a global formatter or let an editor's personal defaults choose the rules.
+
+GitHub checks all supported files inside `apps/frontend`, including unchanged
+files, through [`scripts/format_frontend.mjs`](scripts/format_frontend.mjs).
+It does not check the repository root as if it were the frontend. A large formatting
+diff is not proof that every edit belongs: check the installed version, settings,
+and actual changes before accepting it. Preserve other tasks' edits and separate
+unrelated formatting repairs from the feature change.
 
 ## Branch & PR workflow
 
@@ -220,7 +254,7 @@ On every PR (`.github/workflows/ci.yml`):
 - **Backend** (when backend paths change): `ruff check`, `ty check`, and `pytest` against a real Postgres
 - **Frontend** (when frontend paths change): `tsc --noEmit`, `prettier --check`, the Vitest suite, and a production build
 - **Doc references** (always, no path filter): `scripts/check_doc_references.py` confirms every `docs/...` path and every relative link inside `docs/` points at a real file. This one runs on every PR on purpose — a broken doc pointer is usually introduced by a docs-only or rules-only change, which the two jobs above skip. You can run it locally any time with `python scripts/check_doc_references.py`.
-- **Docs drift** (on pull requests): `scripts/check_doc_sync.py` fails your PR if it changes code that a doc says it describes and your PR body has no `Docs check:` line. See "Keeping docs current" below for what to write — one sentence clears it, and "none needed" is a valid sentence.
+- **Docs drift** (on pull requests): [`scripts/check_doc_sync.py`](scripts/check_doc_sync.py) requires a visible, nonempty `Docs check:` explanation when declared code changes. The separate `description-checks` job reads the latest description on edits without rerunning app or server tests. During phase 1, the original required `changes` job retains its stored-description check. [Local code checks](docs/operations/local-code-checks.md#github-description-check-activation) owns the proof and activation steps before that old check is removed.
 
 ### Keeping the workflow actions current
 
@@ -382,10 +416,14 @@ single home. What CI enforces on your PR:
 - A doc that describes behaviour names the code it describes in a hidden comment near
   its top: `<!-- describes: <paths> -->`. **If your PR changes a file some doc
   declares, the PR body needs one `Docs check:` line saying what you concluded**
-  (`scripts/check_doc_sync.py`). "Docs check: none needed — internal refactor" passes:
+  ([`scripts/check_doc_sync.py`](scripts/check_doc_sync.py)). "Docs check: none needed, internal refactor" passes:
   the check forces a *look*, never an edit. Editing the doc does not exempt you — read
   the whole doc, then say what you concluded, and search for the claim your change made
   false, not for the name of the thing you changed.
+- A blank line, hidden comment, or fenced example does not count as the explanation.
+  [Local code checks](docs/operations/local-code-checks.md#github-description-check-activation)
+  explains how description edits refresh their own result and why phase 1 still
+  retains the original required check.
 - **Design previews do not land under `docs/`.** Keep HTML previews, screenshots, copied
   assets, and handoff notes with the active task or pull request. Before merging, move
   lasting behavior and copy into the feature guide under `docs/product-onboarding/`,

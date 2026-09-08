@@ -108,6 +108,16 @@ FENCE = re.compile(r"^[ \t]*(`{3,}|~{3,}).*?(?:^[ \t]*\1[ \t]*$|\Z)", re.S | re.
 ACK = re.compile(r"docs\s*check\s*:", re.IGNORECASE)
 
 
+def acknowledged(body: str) -> bool:
+    """Require an outcome, not an empty label or a copied template example."""
+    visible = FENCE.sub("", re.sub(r"<!--.*?-->", "", body, flags=re.S))
+    for line in visible.splitlines():
+        match = ACK.search(line)
+        if match and line[match.end() :].strip(" \t*_`"):
+            return True
+    return False
+
+
 def declared_couplings() -> dict[str, list[str]]:
     """Map each declaring doc to the code globs it says it describes."""
     couplings: dict[str, list[str]] = {}
@@ -176,7 +186,7 @@ def main() -> int:
             stale[doc] = hits
 
     failed = False
-    if stale and ACK.search(body):
+    if stale and acknowledged(body):
         print("Docs check acknowledged in the PR body. Docs possibly affected:")
         for doc, hits in sorted(stale.items()):
             print(f"  {doc} — describes {', '.join(sorted(hits))}")
@@ -204,10 +214,11 @@ def main() -> int:
             "  - The colon is part of what is matched. A '## Docs check' heading with"
         )
         print("    no colon does not count; write 'Docs check:' somewhere in the body.")
-        print("  - Editing the PR body does NOT fix an already-failed run. This job")
-        print("    reads the body from the event that started it, and re-running a job")
-        print("    replays that same event. Push a commit, or close and reopen the PR,")
-        print("    to get a run that sees the new body.\n")
+        print("  - The separate 'description-checks' job reads the latest PR body.")
+        print("    Edit the description to refresh it without uploading code.")
+        print("    During rollout, this legacy CI step still reads its original event.")
+        print("    Editing the description does not clear this legacy CI failure.")
+        print("    An empty label or a fenced example is not an explanation.\n")
 
     return 1 if failed else 0
 
