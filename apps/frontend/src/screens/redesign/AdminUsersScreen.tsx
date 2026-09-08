@@ -431,7 +431,7 @@ const styles = StyleSheet.create({
   },
   introRowMobile: { flexDirection: 'column', alignItems: 'stretch', gap: 16 },
   refreshMobile: { alignSelf: 'flex-end' },
-  excluded: { gap: 14, marginTop: 10 },
+  excluded: { gap: 14, marginTop: 26 },
   excludedEmail: { flex: 1, minWidth: 0 },
   adminLabel: {
     fontFamily: t.typography.ui,
