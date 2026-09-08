@@ -105,7 +105,9 @@ it.each(['/admin', '/admin/users', '/admin/site-metrics'])(
     expect(headers.get('Cache-Control')).toBe('private, no-store');
     expect(headers.get('X-Robots-Tag')).toBe('noindex, nofollow');
     expect(headers.get('Referrer-Policy')).toBe('no-referrer');
-    expect(body).toContain(path === '/admin/site-metrics' ? 'Leadership metrics | Alethical' : 'Users | Alethical');
+    expect(body).toContain(
+      path === '/admin/site-metrics' ? 'Leadership metrics | Alethical' : 'Users | Alethical',
+    );
     expect(body).not.toContain('private@example.test');
     expect(body).not.toContain('Home snapshot');
     expect(body).not.toContain('cloudflareinsights');
