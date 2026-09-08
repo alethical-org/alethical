@@ -52,7 +52,7 @@ owns the workflow count, triggers, and costs.
 
 ## Command-line tools
 
-The `scripts/` folder has 68 runnable files. GitHub jobs call 28 of them, and the
+The `scripts/` folder has 69 runnable files. GitHub jobs call 28 of them, and the
 Mac backup above calls 1. A workflow also calls
 `apps/frontend/scripts/traffic-token-expiry.mjs`, a similarly named script that
 lives in a different folder and is not part of this list or its totals. The
@@ -72,6 +72,7 @@ Tests inside `scripts/tests/` are excluded from this direct-file inventory.
 | Measure what real visitors waited for | `report_origin_share_by_address.py`, `report_page_speed_by_address.py` |
 | Maintain search and stored files | `archive_published_sources.py`, `build_rag_hnsw_index.py`, `mirror_raw_files.py` |
 | Protect unfinished work and rotating read grants | `back-up-uncommitted-worktree-work.sh`, `supabase_oauth_state.mjs` |
+| Decide whether our website host needs to rebuild | `vercel-ignore-build.sh` |
 | Check fresh change explanations | `check_pr_descriptions.py` |
 | Install shared Git hooks, format selected files, and test exact upload commits | `install_git_hooks.py`, `format_frontend.mjs`, `local_checks.py` |
 

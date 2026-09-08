@@ -276,11 +276,16 @@ owns the current provider, email, password, and confirmation settings.
   (`apps/frontend/scripts/stamp-release-commit.mjs`), which is the fastest honest
   answer to "is my merge live" and the same reading the watch above uses.
 - The merge queue can advance `main` by several commits in 1 push, and Vercel
-  builds the push's head only. `vercel.json`'s `ignoreCommand` compares that head
-  against its immediate parent, so when the head is documents-only every earlier
-  commit in the same push goes unbuilt however much website code it changed. That
-  is what happened on 8 Sep 2026, and the repair is the hand-run
-  `vercel-deploy.yml` job.
+  builds the push's head only. The deploy decision therefore compares that head
+  against **the last commit that actually released**, which Vercel names
+  `VERCEL_GIT_PREVIOUS_SHA`, rather than against the head's own parent
+  (`scripts/vercel-ignore-build.sh`, called from `vercel.json`'s `ignoreCommand`).
+  It builds whenever that commit is missing or the build's clone does not hold it,
+  because a comparison it cannot make must never skip a release. A documents-only
+  merge still skips. Comparing against the head's own parent is what left a
+  website change unbuilt on 8 Sep 2026
+  ([issue 2093](https://github.com/alethical-org/alethical/issues/2093)), and the
+  repair for a missed release is the hand-run `vercel-deploy.yml` job.
 - Judge what readers are getting by the `Production` environment's own newest
   deployment state. The `Vercel` commit status does not say which environment ran,
   and the separate `alethical / production` environment is the API rather than the

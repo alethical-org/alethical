@@ -102,7 +102,9 @@ def website_paths() -> list[str]:
     Read rather than copied, so the 2 lists cannot drift. ``vercel.json``'s
     ``ignoreCommand`` is what actually decides whether Vercel builds, and a
     second hand-maintained copy of it here would be a check that slowly stops
-    describing the thing it checks.
+    describing the thing it checks. ``scripts/vercel-ignore-build.sh`` takes the
+    same list after the same ``--``, so the deploy decision and this check can
+    never disagree about which paths matter.
     """
     command = json.loads((ROOT / "vercel.json").read_text())["ignoreCommand"]
     if " -- " not in command:
