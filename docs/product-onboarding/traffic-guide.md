@@ -138,10 +138,10 @@ bots excluded. Account exclusions do not apply to Cloudflare; team visits may re
 is not a claim that all automated visits can be identified.
 Cloudflare Web Analytics uses no cookies, local storage, or fingerprinting.
 
-The shared backend classifier recognizes 6 known team mailboxes, their supported aliases,
+The shared backend classifier recognizes 11 known team mailboxes, their supported aliases,
 configured account identifiers, and test mail domains. Aliases include plus tags and Gmail
 dot and googlemail variations. Excluding 1 linked identity excludes the whole linked account.
-The 6-mailbox exclusion list is broader than the 4 exact administrator mailboxes. Neither
+The 11-mailbox exclusion list is broader than the 4 exact administrator mailboxes. Neither
 an alias nor exclusion status grants administrator access. `TRAFFIC_EXCLUDED_ACCOUNT_IDS`,
 `ALETHICAL_TEST_ACCOUNT_IDS`, and `ALETHICAL_ADMIN_ACCOUNT_IDS` also contribute to exclusions.
 Current reader and follow inventories can be recalculated when classification changes.
@@ -149,11 +149,10 @@ Anonymous history cannot be traced back to remove an account's earlier activity.
 
 ## Accounts and recorded history
 
-Accounts created comes from surviving Supabase sign-up records, including pending email
-confirmation. Deleted, deactivated, banned, anonymous, team, and test accounts are excluded.
-Linked sign-in records count as 1 account, dated by their earliest included creation record.
-Deleted accounts are not included, so past creation totals can decrease. This is not a
-lifetime total of every sign-up attempt.
+Total user accounts on the public `/site-metrics` page counts accounts that currently remain in
+Supabase, including accounts awaiting email confirmation. The activity range does not change
+this total. Deleted, deactivated, banned, anonymous, team, and test accounts are excluded.
+Linked sign-in records count as 1 account. This is not a lifetime total of every sign-up attempt.
 
 Accounts first used counts first signed-in use, not sign-ups. First signed-in use and newly
 created bill and committee follows add anonymous hourly counts in the same transaction as
@@ -334,7 +333,7 @@ The server settings are:
 - `VERCEL_ANALYTICS_TEAM_ID`: the Vercel team identifier;
 - `TRAFFIC_COUNTING_STARTED_AT`: the exact UTC time counting was switched on;
 - `TRAFFIC_EXCLUDED_ACCOUNT_IDS`: additional comma-separated Supabase account identifiers
-  for the backend classifier; the 6 known mailboxes and test-domain rules do not depend on
+  for the backend classifier; the 11 known mailboxes and test-domain rules do not depend on
   this setting. Browser collection uses the authenticated backend decision; and
 - `EXPO_PUBLIC_CHECKLY_STATUS_URL`: the HTTPS public dashboard address on
   `<name>.checkly-dashboards.com`.
