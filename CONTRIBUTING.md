@@ -134,12 +134,22 @@ needs no configuration. See `.env.example` for what each variable does.
 The commit hook formats the selected files and includes those results in the
 commit. The push hook runs the full app or server suite when that area changes,
 using an isolated copy of the exact commit Git intends to upload. Both suites
-run together when both areas change. Keep local Postgres running on port 54329
-for server tests. `just lint` includes Prettier's frontend formatting check;
-`just format` deliberately formats whole code areas, not just selected files.
+run together when both areas change. Upload tests start a disposable Postgres
+server of their own, not the shared development server on port 54329. Docker must
+be running and its `pgvector/pgvector:pg17` image must already be cached. The normal
+Docker Compose setup downloads that image; the push hook never downloads it and
+does not need the shared database running. A read-only identity comparison proves
+the connection reaches that disposable server before tests write anything.
+`just lint` includes Prettier's frontend formatting check; `just format` deliberately
+formats whole code areas, not just selected files.
 GitHub remains the required check before merging. See
 [Local code checks](docs/operations/local-code-checks.md) for the shared file rules
 and why local checks do not replace GitHub's production build.
+
+Changes made directly through GitHub do not run local Git hooks. That is a supported
+editing route, not a local hook-skip setting. They still need the 4 required GitHub
+checks (`changes`, `backend`, `frontend`, `description-checks`) on current code and
+the merge queue's combined code before merging.
 
 **`just lint` and `just format` pin the same tool versions CI runs** (`ruff@0.15.0`,
 `ty@0.0.72` — see the justfile and `.github/workflows/ci.yml`). If you ever call
@@ -147,7 +157,11 @@ and why local checks do not replace GitHub's production build.
 is newest and can format a file differently from CI or report errors CI never sees —
 2 PRs failed that way in one night before the pins landed.
 
-### One local Postgres, one database per worktree
+### Manual server tests use the shared local Postgres
+
+This section describes manually running `uv run pytest`, not the upload hook.
+The upload hook uses a completely separate, disposable database server as described
+in [Local code checks](docs/operations/local-code-checks.md#testing-the-exact-upload).
 
 Every worktree shares the same local Postgres server on `:54329`, but since
 [#898](https://github.com/alethical-org/alethical/issues/898) each gets its **own
@@ -183,11 +197,16 @@ regularly, and neither error message pointed at the cause:
   contained. A dependency bump was once blamed for 502 failing tests that were entirely
   this.
 
-Both are now impossible between worktrees. The second is also self-healing *within* one:
-if the database is left stamped with a revision your tree cannot locate — after a rebase,
-or switching branches in place — the suite drops and rebuilds it rather than dying.
+Separate database names prevent those collisions between active worktrees that share
+the same worktree list. They do not isolate the database server. The setup in
+[`conftest.py`](alethical/tests/conftest.py) also drops test databases it considers
+abandoned, based on that list. A different clone or a forwarded local port can make
+that assumption unsafe. Before a manual run, establish which server the address
+reaches and coordinate with its other users. Do not treat `localhost` as proof of
+ownership. A database stamped with a migration the current branch cannot locate is
+dropped and rebuilt by test setup.
 
-**What is still shared, and the one case not covered.** The Postgres server, role and
+**What manual runs still share.** The Postgres server, role and
 port are shared; only the database name splits. Two `pytest` processes started in the
 *same* worktree at once still share a database and can still collide. Each session gets
 its own worktree, so that is not the failure anyone has hit, and splitting per process

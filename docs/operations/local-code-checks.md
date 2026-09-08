@@ -44,9 +44,12 @@ checks by updating its branch and installing the saved dependencies. An activate
 worktree switched to a branch missing the helper cannot commit or push until that
 branch is updated. The common lock still protects other worktrees meanwhile.
 
-[`CONTRIBUTING.md`](../../CONTRIBUTING.md#first-time-setup) owns prerequisites and
-starting local Postgres. Keep Postgres running on port 54329 before uploading server
-changes. The push check does not start Docker itself.
+[`CONTRIBUTING.md`](../../CONTRIBUTING.md#first-time-setup) owns the normal setup.
+For server upload checks, Docker's background service must be running and
+`pgvector/pgvector:pg17` must already be cached. The normal
+[Docker Compose setup](../../docker-compose.yml) downloads that image. The upload
+hook uses `--pull=never`: it stops if the image is missing instead of fetching one
+during an upload. The shared development database need not be running.
 
 ## Formatting the selected files
 
@@ -107,14 +110,34 @@ computer; the check promises complete affected coverage, not a fixed duration.
 
 The temporary worktree contains the exact saved upload commit. It does not borrow
 unfinished files, the developer's `.env`, or inherited service credentials. An empty
-local `.env` prevents parent-folder settings from leaking in. The supplied database
-address is fixed to local Postgres on port 54329, and the normal worktree-specific
-database setup keeps that test data separate. Logs stay in the temporary worktree.
-The helper removes only the temporary worktree it created.
+local `.env` prevents parent-folder settings from leaking in. Logs stay in the
+temporary worktree. The helper removes only the temporary worktree it created.
 
-Local checks can be bypassed or absent in a fresh clone. GitHub's required checks
-remain the final gate, including checks absent locally such as the production web
-build. Local tests do not prove browser behavior or replace a real user-flow check.
+Server tests use a new Postgres server inside a disposable Docker container, not
+another database name on the shared server. The container uses the cached
+`pgvector/pgvector:pg17` image, fixed test-only credentials, memory-backed data
+(`tmpfs`), and a random port bound only to `127.0.0.1`. It waits for readiness for
+a bounded time and stops the upload if startup fails. Docker must use a local Unix
+socket; inherited remote Docker settings are not used. A read-only identity query
+compares the host connection with the server inside the container before tests may
+write anything. A mismatched or unreachable server stops the upload. Cleanup targets only the
+new container's exact ID, with automatic removal (`--rm`); it never removes other
+containers, uses shared database storage, or connects to an existing server on port 54329.
+
+This boundary matters because the server suite's normal setup also prunes test
+databases it considers abandoned. A separate database name on somebody else's
+server does not contain that cleanup. The upload check's entire server is disposable,
+so pruning cannot reach existing development databases. Manually running
+`uv run pytest` retains its normal shared-server behavior; see
+[Manual server tests](../../CONTRIBUTING.md#manual-server-tests-use-the-shared-local-postgres)
+before running it.
+
+Changes made through GitHub's own editing tools do not invoke local Git hooks.
+That supported route still requires all 4 GitHub checks (`changes`, `backend`,
+`frontend`, `description-checks`) against current code and the merge queue's
+combined code. A fresh clone without local hooks has the same GitHub merge gate.
+GitHub also runs checks absent locally, such as the production web build. Local
+tests do not prove browser behavior or replace a real user-flow check.
 
 ## GitHub description-check activation
 
@@ -169,7 +192,7 @@ proof. The release owner updates unchecked items with outcomes before closing th
   test helper are present with focused fixtures.
 - [x] The independent description workflow and fresh-description fixtures are present;
   the phase-2 code removes the duplicate description step from `changes`.
-- [x] Focused checks cover 12 upload-selection cases, 19 description cases, and
+- [x] Focused checks cover 29 upload-selection and disposable-server cases, 19 description cases, and
   19 real Git/formatter/installer cases. Python formatting and lint pass.
 - [x] A draft description edit fails for a missing explanation and passes after
   restoring it, without another code upload or another CI run:
@@ -195,6 +218,11 @@ proof. The release owner updates unchecked items with outcomes before closing th
   2,406 frontend and 2,289 backend tests pass against its exact saved commit.
   Other active owners adopt the checks through their normal dependency installation
   without changing their in-progress branches on our behalf.
+- [x] Disposable-server fixtures pass. Real containers pass the server-identity
+  comparison and are removed after both success and an intentional failure.
+  The existing development container is unchanged.
+- [ ] Complete the exact-commit upload with the disposable server. The earlier
+  shared-server upload does not prove this new boundary.
 - [x] `description-checks` is required from GitHub Actions alongside `changes`,
   `backend`, and `frontend`. Strict mode and all other branch protections are unchanged.
 - [x] Phase 2 removes only the old description step and aligns

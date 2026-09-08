@@ -7,9 +7,12 @@ import concurrent.futures
 import fnmatch
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
+import time
+import uuid
 from contextlib import contextmanager
 from pathlib import Path
 from typing import TextIO
@@ -121,17 +124,238 @@ def test_environment(snapshot: Path) -> dict[str, str]:
         {
             "CI": "true",
             "ALETHICAL_DATABASE_TARGET": "local",
-            "DATABASE_URL": "postgresql+psycopg://alethical:alethical@localhost:54329/alethical",
             "ALETHICAL_LOG_DIR": str(snapshot / "logs"),
         }
     )
     return env
 
 
-def run_suites(snapshot: Path, suites: set[str]) -> None:
+@contextmanager
+def disposable_postgres(snapshot: Path):
+    """Own a whole temporary server; test cleanup cannot reach shared databases."""
     env = test_environment(snapshot)
+    image = "pgvector/pgvector:pg17"
+    token = uuid.uuid4().hex
+    name = f"alethical-pre-push-{token}"
+    label = "io.alethical.local-checks"
+    docker = ["docker"]
 
+    def call(*args: str, timeout: float = 30):
+        try:
+            return subprocess.run(
+                [*docker, *args],
+                cwd=snapshot,
+                env=env,
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=timeout,
+            )
+        except (OSError, subprocess.TimeoutExpired) as error:
+            raise CheckError(
+                "Docker is unavailable or did not respond. Start local Docker and retry."
+            ) from error
+
+    # A saved Docker context can point at another computer. Inspect configuration
+    # first, then pin every daemon command to the same local Unix socket.
+    context = call("context", "inspect")
+    try:
+        host = json.loads(context.stdout)[0]["Endpoints"]["docker"]["Host"]
+    except (KeyError, IndexError, TypeError, ValueError) as error:
+        raise CheckError("Docker did not identify a local connection.") from error
+    if (
+        context.returncode
+        or not isinstance(host, str)
+        or not host.startswith("unix:///")
+    ):
+        raise CheckError(
+            "Upload tests require a local Docker Unix socket, not a remote Docker connection."
+        )
+    docker.extend(["--host", host])
+    if call("image", "inspect", image).returncode:
+        raise CheckError(
+            f"Local Docker or its cached {image} image is unavailable. No image was downloaded."
+        )
+
+    owned_id = None
+
+    def identify(target: str, expected: str | None = None):
+        inspected = call("container", "inspect", target)
+        if inspected.returncode:
+            return None
+        try:
+            records = json.loads(inspected.stdout)
+            if not isinstance(records, list) or len(records) != 1:
+                raise ValueError("Expected exactly one container")
+            info = records[0]
+            identifier = info["Id"]
+            if (
+                not isinstance(identifier, str)
+                or not re.fullmatch(r"[0-9a-f]{64}", identifier)
+                or (expected is not None and identifier != expected)
+                or info["Name"] != f"/{name}"
+                or info["Config"]["Image"] != image
+                or info["Config"]["Labels"].get(label) != token
+            ):
+                raise ValueError("Container identity did not match")
+            return info
+        except (KeyError, TypeError, ValueError) as error:
+            raise CheckError(
+                "Docker returned an unrecognized container; it will not be used or removed."
+            ) from error
+
+    try:
+        result = call(
+            "run",
+            "--detach",
+            "--rm",
+            "--pull=never",
+            "--name",
+            name,
+            "--label",
+            f"{label}={token}",
+            "--publish",
+            "127.0.0.1::5432",
+            "--tmpfs",
+            "/var/lib/postgresql/data:rw",
+            "--env",
+            "POSTGRES_DB=alethical",
+            "--env",
+            "POSTGRES_USER=alethical",
+            "--env",
+            "POSTGRES_PASSWORD=alethical",
+            image,
+        )
+        identifier = result.stdout.strip()
+        if result.returncode or not re.fullmatch(r"[0-9a-f]{64}", identifier):
+            raise CheckError(
+                "Docker could not create the disposable test server from its cached image."
+            )
+        info = identify(identifier, identifier)
+        if info is None:
+            raise CheckError(
+                "The disposable Docker test server disappeared before it was ready."
+            )
+        owned_id = info["Id"]
+        try:
+            bindings = info["NetworkSettings"]["Ports"]["5432/tcp"]
+            if (
+                not isinstance(bindings, list)
+                or len(bindings) != 1
+                or bindings[0]["HostIp"] != "127.0.0.1"
+                or not re.fullmatch(r"[0-9]+", bindings[0]["HostPort"])
+                or not 1 <= int(bindings[0]["HostPort"]) <= 65535
+                or int(bindings[0]["HostPort"]) == 54329
+            ):
+                raise ValueError("Expected one loopback-only port")
+            port = int(bindings[0]["HostPort"])
+        except (KeyError, TypeError, ValueError) as error:
+            raise CheckError(
+                "Docker did not provide an exact loopback-only test database port."
+            ) from error
+        deadline = time.monotonic() + 45
+        while (remaining := deadline - time.monotonic()) > 0:
+            ready = call(
+                "exec",
+                owned_id,
+                "pg_isready",
+                "-h",
+                "127.0.0.1",
+                "-p",
+                "5432",
+                "-U",
+                "alethical",
+                "-d",
+                "alethical",
+                "-t",
+                "2",
+                timeout=min(5, remaining),
+            )
+            if ready.returncode == 0:
+                break
+            time.sleep(1)
+        else:
+            raise CheckError(
+                "The disposable PostgreSQL test server was not ready within 45 seconds."
+            )
+        database_url = (
+            f"postgresql+psycopg://alethical:alethical@127.0.0.1:{port}/alethical"
+        )
+        # A Docker port mapping can coexist with a native listener or broken VM
+        # forward. Prove the host connection reaches this exact PostgreSQL server
+        # before pytest can migrate, seed, or prune anything.
+        identifier_query = "SELECT system_identifier::text FROM pg_control_system()"
+        server = call(
+            "exec",
+            "--env",
+            "PGPASSWORD=alethical",
+            owned_id,
+            "psql",
+            "-X",
+            "-q",
+            "-A",
+            "-t",
+            "-h",
+            "127.0.0.1",
+            "-U",
+            "alethical",
+            "-d",
+            "alethical",
+            "-c",
+            identifier_query,
+        )
+        expected = server.stdout.strip()
+        if server.returncode or not re.fullmatch(r"[0-9]{1,20}", expected):
+            raise CheckError(
+                "Docker did not identify its PostgreSQL server; tests will not connect."
+            )
+        try:
+            identity = subprocess.run(
+                [
+                    "uv",
+                    "run",
+                    "--frozen",
+                    "python",
+                    "-c",
+                    "import os, sys, psycopg; "
+                    "connection = psycopg.connect(os.environ['DATABASE_URL'].replace('+psycopg', '', 1), "
+                    "connect_timeout=5, options='-c default_transaction_read_only=on -c statement_timeout=5000'); "
+                    f"actual = connection.execute({identifier_query!r}).fetchone()[0]; "
+                    "connection.close(); sys.exit(0 if str(actual) == sys.argv[1] else 1)",
+                    expected,
+                ],
+                cwd=snapshot,
+                env={**env, "DATABASE_URL": database_url},
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=15,
+            )
+        except (OSError, subprocess.TimeoutExpired) as error:
+            raise CheckError(
+                "The host could not prove the disposable database's identity; tests stopped."
+            ) from error
+        if identity.returncode:
+            raise CheckError(
+                "The host database identity does not match this disposable server; tests stopped."
+            )
+        yield database_url
+    finally:
+        # Even a failed `docker run` can leave a created container. Recover only
+        # this invocation's random name, and prove its label/image/ID before rm.
+        if owned_id is None:
+            info = identify(name)
+            if info is not None:
+                owned_id = info["Id"]
+        if owned_id is not None and call("rm", "--force", owned_id).returncode:
+            raise CheckError(
+                f"Docker could not remove this test's container {owned_id}. The upload is stopped."
+            )
+
+
+def run_suites(snapshot: Path, suites: set[str]) -> None:
     def check(suite: str) -> None:
+        env = test_environment(snapshot)
         if suite == "frontend":
             run(["pnpm", "install", "--frozen-lockfile"], snapshot, env=env)
             run(
@@ -203,7 +427,12 @@ def run_suites(snapshot: Path, suites: set[str]) -> None:
                 env=env,
             )
             run(["uvx", "ty@0.0.72", "check", "alethical/db"], snapshot, env=env)
-            run(["uv", "run", "--frozen", "pytest"], snapshot, env=env)
+            with disposable_postgres(snapshot) as database_url:
+                run(
+                    ["uv", "run", "--frozen", "pytest"],
+                    snapshot,
+                    env={**env, "DATABASE_URL": database_url},
+                )
         else:
             raise CheckError(f"Unknown test suite: {suite}")
 
