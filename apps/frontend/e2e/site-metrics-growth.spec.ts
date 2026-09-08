@@ -247,6 +247,149 @@ for (const viewport of [
   test.describe(viewport.name, () => {
     test.use({ viewport });
 
+    test('collection dates stay at the bottom and name the measurements they cover', async ({
+      page,
+    }) => {
+      const answers = fixture();
+      answers.traffic.countingStartedAt = '2026-08-15T02:01:44Z';
+      answers.uptime.monitoringStartedAt = {
+        website: '2026-08-15T14:20:38Z',
+        api: '2026-08-16T14:22:28Z',
+      };
+      await installAnswers(page, answers);
+      await openMetrics(page);
+      const dates = page.getByTestId('site-metrics-collection-dates');
+      await expect(dates).toContainText('Dates use UTC.');
+      await expect(dates).toContainText(
+        'Site visits and page views: Collected since August 15, 2026.',
+      );
+      await expect(dates).toContainText(
+        'Money searches, new bill watches, and new committee follows: Collected since September 8, 2026.',
+      );
+      await expect(dates).toContainText(
+        'Homepage: Monitoring since August 15, 2026; data service: Monitoring since August 16, 2026.',
+      );
+      await expect(dates).toContainText(
+        'Includes Money page views recorded before the Money rows were added.',
+      );
+      const health = (await page.getByTestId('site-metrics-closing-grid').boundingBox())!;
+      const box = (await dates.boundingBox())!;
+      expect(box.y).toBeGreaterThan(health.y + health.height);
+      await expect(page.getByRole('heading', { level: 2 }).last()).toHaveText(
+        'Data collection dates',
+      );
+      await expect(page.getByTestId('site-metrics-recent-collecting')).toHaveCount(0);
+      const before = (await dates.textContent())!;
+      await page.getByRole('button', { name: 'Last 30 days', exact: true }).click();
+      await expect(dates).toHaveText(before);
+      await noHorizontalOverflow(page);
+    });
+
+    test('missing start dates do not become reporting-window or first-event dates', async ({
+      page,
+    }) => {
+      const answers = fixture();
+      const missing: Sources = { ...answers, traffic: null };
+      answers.uptime.monitoringStartedAt = { website: null, api: null };
+      await installAnswers(page, missing);
+      await openMetrics(page);
+      await expect(page.getByTestId('site-metrics-collection-page-views')).toContainText(
+        'Start date unavailable.',
+      );
+      await expect(page.getByTestId('site-metrics-collection-availability')).toContainText(
+        'Homepage: Start date unavailable; data service: Start date unavailable.',
+      );
+      await expectRow(page, 'Accounts created', '8');
+      await noHorizontalOverflow(page);
+    });
+
+    test('Cloudflare source is last after the measurement-change note', async ({ page }) => {
+      const answers = fixture();
+      answers.performance.periodStartedOn = '2026-08-09';
+      answers.performance.periodEndedOn = '2026-09-07';
+      await installAnswers(page, answers);
+      await openMetrics(page);
+      const panel = page.getByTestId('site-metrics-performance');
+      const source = page.getByTestId('site-metrics-performance-source');
+      const warning = panel.getByText(/Cloudflare changed page-load measurement/);
+      await expect(source).toHaveText(
+        'Measured by Cloudflare · August 9, 2026 to September 7, 2026 (UTC)',
+      );
+      const note = (await warning.boundingBox())!;
+      expect((await source.boundingBox())!.y).toBeGreaterThanOrEqual(note.y + note.height);
+      expect(await source.evaluate((node) => node === node.parentElement?.lastElementChild)).toBe(
+        true,
+      );
+      await noHorizontalOverflow(page);
+    });
+
+    test('private dashboard links stay absent for a signed-in team account', async ({ page }) => {
+      const id = '00000000-0000-4000-8000-000000000009';
+      const exp = Math.floor(Date.now() / 1000) + 3600;
+      const encode = (value: unknown) => Buffer.from(JSON.stringify(value)).toString('base64url');
+      const user = {
+        id,
+        aud: 'authenticated',
+        role: 'authenticated',
+        email: 'team-fixture@example.invalid',
+        email_confirmed_at: '2026-01-01T00:00:00Z',
+        created_at: '2026-01-01T00:00:00Z',
+        app_metadata: { provider: 'email', providers: ['email'] },
+        user_metadata: {},
+      };
+      const session = {
+        access_token:
+          encode({ alg: 'HS256', typ: 'JWT' }) +
+          '.' +
+          encode({ sub: id, session_id: 'fixture-team', exp }) +
+          '.not-a-real-signature',
+        refresh_token: 'fixture-refresh',
+        token_type: 'bearer',
+        expires_at: exp,
+        expires_in: 3600,
+        user,
+      };
+      await page.addInitScript(
+        ({ key, session }) => localStorage.setItem(key, JSON.stringify(session)),
+        { key: process.env.E2E_AUTH_STORAGE_KEY ?? 'sb-localhost-auth-token', session },
+      );
+      await installAnswers(page);
+      await page.route('**/api/v1/me', (route) =>
+        route.fulfill({
+          json: {
+            data: {
+              id,
+              primary_email: user.email,
+              display_name: 'Synthetic team account',
+              sign_in_methods: { google: false, password: true },
+            },
+          },
+        }),
+      );
+      await page.route('**/api/v1/site-metrics/collection', (route) =>
+        route.fulfill({
+          json: { collect: false, teamAccount: true, teamExclusionConfigured: true },
+        }),
+      );
+      await page.route('**/api/v1/admin/access', (route) =>
+        route.fulfill({ json: { data: { is_admin: false } } }),
+      );
+      await openMetrics(page);
+      await expect(
+        page.getByRole('button', { name: /Account menu|Account panel for/ }),
+      ).toBeVisible();
+      await expect(page.getByText(/^OPEN (VERCEL|GOOGLE|BING|CHECKLY|CLOUDFLARE)/)).toHaveCount(0);
+      const hrefs = await page
+        .locator('a[href]')
+        .evaluateAll((nodes) => nodes.map((node) => node.getAttribute('href')));
+      for (const href of hrefs) {
+        expect(href).not.toMatch(
+          /vercel\.com\/dashboard|search\.google\.com\/search-console|bing\.com\/webmasters|app\.checklyhq\.com|dash\.cloudflare\.com/,
+        );
+      }
+      await expect(page.getByRole('link', { name: 'See detailed availability' })).toBeVisible();
+    });
+
     test('health cards contain every note without empty stretched phone cards', async ({
       page,
     }) => {

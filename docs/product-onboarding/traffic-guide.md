@@ -15,15 +15,40 @@ The public `/site-metrics` page combines 7 independent sources:
 - Cloudflare Web Analytics shows 30-day page-speed scores from real Chromium visits.
 
 The public totals are the same for signed-in and signed-out readers. The About menu links
-to `/site-metrics`. Accounts classified as team or test accounts also see links to the 5
-private vendor dashboards; each vendor still requires its own sign-in. That classification
-does not grant access to `/admin/metrics`.
+to `/site-metrics`. Private vendor dashboard links are not shown, including to signed-in
+team and test accounts. The separate public Checkly availability link remains. Team/test
+classification does not grant access to `/admin/metrics`.
 
 Each source has its own server route and page state. A Google problem hides only Google.
 A Checkly problem cannot erase Vercel visits. The browser keeps the last good answer from
 each source when a later refresh fails. Vercel's delivery network also keeps the last valid
 Vercel traffic answer available for up to 24 hours when that source temporarily fails, so a
 reload does not immediately replace working traffic totals with an unavailable message.
+
+## Collection dates
+
+The bottom section, Data collection dates, names what each date covers and uses UTC. It
+remains visible after 30 days. The recent-traffic cards keep freshness and the visitor
+explanation, not a separate collecting-since sentence. Action rows keep Partial range
+markers; their start-date explanation now lives in this bottom section.
+
+- Site visits and page views use Vercel's configured counting start, currently August 15,
+  2026. This includes historical Money page views, not just views since Money rows appeared.
+- The original bill/legislator search, Find My Legislator, and source-click collectors were
+  enabled August 15, 2026 ([release](https://github.com/alethical-org/alethical/pull/1610)).
+  Their counting rules changed September 8, 2026; older totals may use older rules.
+- Money searches and new bill/committee-follow history were enabled September 8, 2026 UTC
+  ([release](https://github.com/alethical-org/alethical/pull/2027)). Those dates describe
+  production activation, not the first event. No earlier action history is invented.
+- Account creation uses saved sign-up dates, including earlier accounts. Current account
+  and follow counts are present records, not a historical collection window.
+- Homepage and data-service monitoring start dates come separately from Checkly metadata.
+  They do not prove uninterrupted coverage. A missing date stays unavailable.
+- Google, Bing, and Cloudflare expose reporting windows, not collection-start metadata.
+  Their reporting dates remain with their measurements and are not relabeled as start dates.
+
+The Cloudflare source and reporting dates are the last line in its card, below scope,
+measurement-change, sample-size, and stale-data notes.
 
 ## What the numbers mean
 
@@ -341,7 +366,8 @@ as a sensitive Production setting. It must never be sent to the browser or writt
 
 - Loading: the page says the totals are loading to screen readers and shows quiet placeholders.
 - Normal: each source shows its approved totals, source, time range, and freshness.
-- Collecting history: the counting start sentence appears until 30 complete days exist.
+- Collection dates: the bottom section keeps known starts visible, names what they measure,
+  and reports missing start dates without guessing.
 - Unavailable: the whole totals area says the data is temporarily unavailable and still names Vercel.
 - Zero: a real zero is printed as `0`.
 - Independent source failure: only that company's block says unavailable.
