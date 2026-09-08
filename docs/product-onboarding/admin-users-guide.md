@@ -54,7 +54,8 @@ records again while keeping the selected filters. On desktop it is vertically
 centered beside the introductory description; on phones it sits below the description
 at the right edge. A 48-pixel gap separates this row from the summary cards.
 The email field accepts up to 254 characters
-and stays beside Search on desktop and phone. The source line states when those
+and stays beside Search on desktop and phone. The Search button and email field
+share the same height. The source line states when those
 records were read.
 
 The summary shows confirmed current accounts, first confirmations today, and first

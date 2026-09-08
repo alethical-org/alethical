@@ -28,11 +28,13 @@ function Action({
   onPress,
   disabled = false,
   selected,
+  fillRowHeight = false,
 }: {
   label: string;
   onPress: () => void;
   disabled?: boolean;
   selected?: boolean;
+  fillRowHeight?: boolean;
 }) {
   const { focused, focusProps } = useFieldFocus();
   return (
@@ -45,6 +47,7 @@ function Action({
       {...focusProps}
       style={({ pressed }) => [
         styles.button,
+        fillRowHeight && styles.fillRowHeight,
         selected && styles.selectedButton,
         disabled && styles.disabled,
         pressed && styles.pressed,
@@ -175,7 +178,7 @@ function PrivateUsers({
             {...focusProps}
             style={[styles.input, fieldOutlineReset, ...fieldFocusRing(focused)]}
           />
-          <Action label="Search" onPress={submit} />
+          <Action label="Search" onPress={submit} fillRowHeight />
         </View>
         <View style={styles.filterRow}>
           <View style={styles.filterGroup}>
@@ -507,7 +510,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: t.colors.text.primary,
   },
-  searchRow: { flexDirection: 'row', gap: 10, alignItems: 'center' },
+  searchRow: { flexDirection: 'row', gap: 10, alignItems: 'stretch' },
+  fillRowHeight: { alignSelf: 'stretch' },
   input: {
     flex: 1,
     minWidth: 0,
