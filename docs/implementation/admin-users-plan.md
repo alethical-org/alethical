@@ -2,14 +2,15 @@
 
 ## Approved result
 
-The `/admin/users` page is available from the signed-in account menu to the 4
-administrator accounts Eugene named. Team and test accounts are excluded from
+The `/admin/users` page is available from the signed-in account menu to approved
+administrator accounts. The 8 approved email addresses are listed in
+[admin-users-guide.md](../product-onboarding/admin-users-guide.md). Team and test accounts are excluded from
 results, search, totals, and pagination. There is no switch to include them.
 Alerts, email delivery, and account-changing actions are outside this build.
 
 ## Delivery sequence
 
-1. Bind administrator access to the 4 existing, confirmed Supabase identities in a
+1. Bind administrator access to existing, confirmed approved Supabase identities in a
    private server setting; independently require a current confirmed approved
    email and an active Alethical account. Check denied access and forged identities.
 2. Read minimum account fields from Supabase's existing `auth.users` records,
@@ -30,10 +31,22 @@ This task owns private account visibility. The separate task named `site metrics
 owns public anonymous totals and its own measurement changes. Shared account-count
 definitions and exclusion behavior are coordinated before those public changes.
 
-## Progress
+## Additional administrator activation
+
+Tracked in [issue 2115](https://github.com/alethical-org/alethical/issues/2115).
+
+`alexia@alethical.com`, `joe@alethical.com`, `afnetter@gmail.com`, and
+`joseph.fleishman@gmail.com` are approved and excluded from reader results.
+Activation requires each owner to create and confirm an account. Then verify the
+exact current email and active account state, preserve the existing approved
+identifiers, save the previous private setting, add only the newly confirmed
+identifiers, deploy, and verify both access checks. Do not create accounts, send
+invitations, or bypass the identifier requirement as part of this activation.
+
+## Initial release evidence
 
 - The isolated branch is `codex/admin-users`; dependencies are installed locally.
-- All 4 administrator addresses resolve to unique confirmed Supabase accounts.
+- All 4 initial administrator addresses resolved to unique confirmed Supabase accounts.
 - `auth.users` and the product identity tables share the existing production
   database. No database schema change is needed for the private account list.
 - Frontend implementation is assigned to the `admin_screen` background helper;
@@ -64,5 +77,4 @@ definitions and exclusion behavior are coordinated before those public changes.
   a later sign-in request. The provider now observes the first bundle request
   without downloading it on public visits. The new failing regression passes
   after the fix; all 2,083 frontend checks, types, and the release build pass.
-- Release is [pull request 2017](https://github.com/alethical-org/alethical/pull/2017).
-  Next: clear current-head checks, queue, deploy, live-check.
+- Initial release: [pull request 2017](https://github.com/alethical-org/alethical/pull/2017).

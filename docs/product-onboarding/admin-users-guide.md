@@ -13,12 +13,20 @@ menu and the phone account sheet. Approved administrators also see **Admin metri
 at `/admin/metrics`. Opening `/admin` also leads to `/admin/users`. An administrator may open
 `/admin/users` directly or reload it.
 
-Only these 4 confirmed accounts have administrator access:
+These 8 email addresses are approved for administrator access:
 
 - `angelzierden@gmail.com`
 - `angel@alethical.com`
 - `eug@alethical.com`
 - `alethicaldev@gmail.com`
+- `alexia@alethical.com`
+- `joe@alethical.com`
+- `afnetter@gmail.com`
+- `joseph.fleishman@gmail.com`
+
+Approval does not create an account or activate access. Each owner must sign up
+and confirm their email, and their stable Supabase account identifier must be
+added to the private server setting before administrator access works.
 
 The server checks the signed account identifier, the current confirmed email,
 and whether the account is still active. An email alias, editable profile field,
@@ -72,10 +80,8 @@ Their email addresses appear in a separate **Excluded accounts** section below
 the main list. This section stays visible even when the main list is empty, and
 its contents do not change with search, status, signup-date filters, or pagination.
 There is no control to include them in the totals or main results. Exclusion covers
-the 4 administrator emails and these 7 other team emails:
+the 8 approved administrator emails and these 5 other team emails:
 
-- `afnetter@gmail.com`
-- `joseph.fleishman@gmail.com`
 - `elopinyoga@gmail.com`
 - `elopinmisc@gmail.com`
 - `eugenelopin@gmail.com`
@@ -124,8 +130,10 @@ and the direct page shell omits the Cloudflare measurement script.
 
 ## Server setup and removal
 
-`ALETHICAL_ADMIN_ACCOUNT_IDS` is a server-only comma-separated list of the 4
-approved Supabase identifiers. An absent or malformed list grants no access.
+`ALETHICAL_ADMIN_ACCOUNT_IDS` is a server-only comma-separated list of approved,
+confirmed Supabase account identifiers. Only existing accounts can be listed;
+approving an email does not add an identifier automatically. An absent or malformed
+list grants no access.
 `ALETHICAL_TEST_ACCOUNT_IDS` adds test exclusions; the existing
 `TRAFFIC_EXCLUDED_ACCOUNT_IDS` remains part of the exclusion list. None of these
 settings belongs in a public `EXPO_PUBLIC_` variable.

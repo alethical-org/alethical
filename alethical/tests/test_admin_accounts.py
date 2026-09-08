@@ -24,6 +24,7 @@ from alethical.api.services.account_classification import (
     excluded_provider_subjects,
     is_team_or_test,
 )
+from alethical.api.services.account_signup_metrics import aggregate_account_signups
 from alethical.api.services.admin_accounts import (
     AccountInventory,
     ReaderAccount,
@@ -44,7 +45,17 @@ EXCLUSION_ENV = (
     "ALETHICAL_TEST_ACCOUNT_IDS",
     "ALETHICAL_ADMIN_ACCOUNT_IDS",
 )
-NEW_TEAM_EMAILS = (
+APPROVED_ADMIN_EMAILS = (
+    "angelzierden@gmail.com",
+    "angel@alethical.com",
+    "eug@alethical.com",
+    "alethicaldev@gmail.com",
+    "alexia@alethical.com",
+    "joe@alethical.com",
+    "afnetter@gmail.com",
+    "joseph.fleishman@gmail.com",
+)
+EXCLUSION_ONLY_EMAILS = (
     "elopinyoga@gmail.com",
     "elopinmisc@gmail.com",
     "eugenelopin@gmail.com",
@@ -122,15 +133,7 @@ def test_unsigned_requests_cannot_read_accounts(admin_http, authorization, path)
     admin_http.db.scalar.assert_not_called()
 
 
-@pytest.mark.parametrize(
-    "email",
-    [
-        "angelzierden@gmail.com",
-        "angel@alethical.com",
-        "eug@alethical.com",
-        "alethicaldev@gmail.com",
-    ],
-)
+@pytest.mark.parametrize("email", APPROVED_ADMIN_EMAILS)
 def test_each_exact_approved_email_needs_fresh_confirmation(admin_http, email):
     admin_http.service.authenticate.return_value = principal(email="old@reader.us")
     admin_http.service.resolve_confirmed_email.return_value = principal(email=email)
@@ -143,13 +146,8 @@ def test_each_exact_approved_email_needs_fresh_confirmation(admin_http, email):
     )
 
 
-def test_team_exclusions_do_not_expand_the_four_admin_grants():
-    assert admin.ADMIN_EMAILS == {
-        "angelzierden@gmail.com",
-        "angel@alethical.com",
-        "eug@alethical.com",
-        "alethicaldev@gmail.com",
-    }
+def test_team_exclusions_do_not_expand_the_eight_admin_grants():
+    assert admin.ADMIN_EMAILS == set(APPROVED_ADMIN_EMAILS)
 
 
 @pytest.mark.parametrize(
@@ -159,9 +157,17 @@ def test_team_exclusions_do_not_expand_the_four_admin_grants():
         "angelzierden+admin@gmail.com",
         "angelzierden@googlemail.com",
         "eug+admin@alethical.com",
-        "afnetter@gmail.com",
-        "joseph.fleishman@gmail.com",
-        *NEW_TEAM_EMAILS,
+        "alexia+admin@alethical.com",
+        "al.exia@alethical.com",
+        "joe+admin@alethical.com",
+        "j.oe@alethical.com",
+        "af.netter@gmail.com",
+        "afnetter+admin@gmail.com",
+        "afnetter@googlemail.com",
+        "josephfleishman@gmail.com",
+        "joseph.fleishman+admin@gmail.com",
+        "joseph.fleishman@googlemail.com",
+        *EXCLUSION_ONLY_EMAILS,
         "eug@alethical.com.attacker.us",
         " eug@alethical.com",
         "reader@reader.us",
@@ -185,8 +191,9 @@ def test_aliases_and_exclusion_only_emails_never_grant_admin(admin_http, email):
     "identity",
     [principal(provider_subject=READER_SUBJECT), principal(provider="demo")],
 )
-def test_approved_email_alone_never_grants_admin(admin_http, identity):
-    admin_http.service.authenticate.return_value = identity
+@pytest.mark.parametrize("email", APPROVED_ADMIN_EMAILS)
+def test_approved_email_alone_never_grants_admin(admin_http, identity, email):
+    admin_http.service.authenticate.return_value = replace(identity, email=email)
     response = admin_http.client.get("/api/v1/admin/access", headers=HEADERS)
     assert response.json() == {"data": {"is_admin": False}}
     admin_http.service.resolve_confirmed_email.assert_not_called()
@@ -383,12 +390,7 @@ def test_admin_not_found_and_wrong_method_responses_are_private(
 @pytest.mark.parametrize(
     "email",
     [
-        "angelzierden@gmail.com",
-        "angel@alethical.com",
-        "eug@alethical.com",
-        "alethicaldev@gmail.com",
-        "afnetter@gmail.com",
-        "joseph.fleishman@gmail.com",
+        *APPROVED_ADMIN_EMAILS,
         " An.Gel.Zierden+trial@GoogleMail.com ",
         "eug+trial@alethical.com",
         "person@example.com",
@@ -727,14 +729,20 @@ def test_admin_search_returns_only_account_fields_and_uses_body_filters(
     assert payload["summary"]["confirmed_accounts"] == 2
 
 
-@pytest.mark.parametrize("email", NEW_TEAM_EMAILS)
-def test_new_team_mailboxes_and_gmail_aliases_stay_out_of_reader_metrics(email):
+@pytest.mark.parametrize("email", (*APPROVED_ADMIN_EMAILS, *EXCLUSION_ONLY_EMAILS))
+def test_team_mailboxes_and_aliases_stay_out_of_reader_results_and_metrics(email):
     local, domain = email.split("@")
     aliases = [
         email,
         f"{local}+preview@{domain}",
-        f"{'.'.join(local.replace('.', ''))}@googlemail.com",
     ]
+    if domain == "gmail.com":
+        aliases.extend(
+            [
+                f"{local.replace('.', '')}@gmail.com",
+                f"{'.'.join(local.replace('.', ''))}@googlemail.com",
+            ]
+        )
     rows = [
         inventory_row(f"team-{index}", email=alias)
         for index, alias in enumerate(aliases)
@@ -748,20 +756,30 @@ def test_new_team_mailboxes_and_gmail_aliases_stay_out_of_reader_metrics(email):
     assert {a.email for a in inventory.excluded} == set(aliases)
     assert db.execute.call_count == 1
     assert [a.id for a in load_reader_accounts(inventory_db(rows))] == ["reader"]
-    assert (
-        search_reader_accounts(inventory.included, now=NOW)["summary"][
-            "confirmed_accounts"
-        ]
-        == 1
-    )
+    search = search_reader_accounts(inventory.included, now=NOW)
+    assert search["summary"]["confirmed_accounts"] == 1
+    assert search["page"]["total"] == 1
+    assert [row["id"] for row in search["data"]] == ["reader"]
+    for alias in aliases:
+        assert (
+            search_reader_accounts(inventory.included, query=alias, now=NOW)["data"]
+            == []
+        )
+    metrics = aggregate_account_signups(inventory_db(rows), now=NOW)
+    assert metrics["currentAccountsCreated"] == 1
+    assert metrics["currentConfirmedAccounts"] == 1
+    assert metrics["currentUnconfirmedAccounts"] == 0
+    assert metrics["created7d"] == metrics["created30d"] == 1
 
 
 def test_inactive_team_account_is_absent_from_both_inventory_lists():
     inventory = load_account_inventory(
         inventory_db(
             [
-                inventory_row("disabled", email=NEW_TEAM_EMAILS[0], is_active=False),
-                inventory_row("active", email=NEW_TEAM_EMAILS[1]),
+                inventory_row(
+                    "disabled", email=EXCLUSION_ONLY_EMAILS[0], is_active=False
+                ),
+                inventory_row("active", email=EXCLUSION_ONLY_EMAILS[1]),
             ]
         )
     )
@@ -782,8 +800,10 @@ def test_excluded_account_list_is_independent_of_reader_filters_and_paging(
 ):
     rows = [
         inventory_row("reader", email="person@reader.us"),
-        inventory_row("team", email=NEW_TEAM_EMAILS[0]),
-        inventory_row("pending-team", email=NEW_TEAM_EMAILS[1], confirmed_at=None),
+        inventory_row("team", email=EXCLUSION_ONLY_EMAILS[0]),
+        inventory_row(
+            "pending-team", email=EXCLUSION_ONLY_EMAILS[1], confirmed_at=None
+        ),
     ]
     db = inventory_db(rows)
     loader = Mock(side_effect=lambda _db: load_account_inventory(db))
@@ -797,8 +817,8 @@ def test_excluded_account_list_is_independent_of_reader_filters_and_paging(
     assert_private(response)
     payload = response.json()
     assert payload["excluded_accounts"] == [
-        {"id": "pending-team", "email": NEW_TEAM_EMAILS[1]},
-        {"id": "team", "email": NEW_TEAM_EMAILS[0]},
+        {"id": "pending-team", "email": EXCLUSION_ONLY_EMAILS[1]},
+        {"id": "team", "email": EXCLUSION_ONLY_EMAILS[0]},
     ]
     assert payload["summary"]["confirmed_accounts"] == 1
     assert payload["summary"]["pending_accounts"] == 0
