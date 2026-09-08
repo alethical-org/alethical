@@ -258,10 +258,12 @@ list.
 
 ## Database backups
 
-As observed on 2026-09-08, the current Supabase Pro plan keeps 7 days of daily physical database backups.
+As observed on 2026-09-08, the current Supabase Pro plan advertises 7 days of daily
+physical database backups. The dashboard can still list older backups, so this is
+not a proved maximum time before a deleted row disappears from every backup.
 Recovery to an exact point between daily backups (point-in-time recovery) is not
 currently enabled. A deleted database row can remain in a retained backup until
-that backup expires. This window governs the backup limit described in
+that backup expires. This limit is described in
 [user-data-retention-policy.md §6](../product-onboarding/user-data-retention-policy.md#6-what-deletion-should-mean).
 
 Supabase database backups do not contain files stored through its Storage API.
