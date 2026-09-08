@@ -16,7 +16,7 @@ copy.
 
 Before the app starts, the first response carries the same heading, explanation,
 email address and 5 working social links as the loaded screen. The loaded computer
-screen also shows Instagram as a dimmed, unclickable mark until its account exists.
+screen also shows Instagram at full strength but keeps it unclickable until its account exists.
 The phone screen omits the Follow Alethical block because the shared footer repeats
 the same accounts nearby. The form and its delivery states appear only in the loaded
 app. Both presentations read their shared words from `contactUs.ts`, and every loaded

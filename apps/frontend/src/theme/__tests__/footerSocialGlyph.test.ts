@@ -38,5 +38,7 @@ describe('shared footer social marks', () => {
     expect(LINK_SOURCE).toContain('width: 44');
     expect(LINK_SOURCE).toContain("backgroundColor: 'rgba(255,255,255,0.07)'");
     expect(LINK_SOURCE).toContain("backgroundColor: 'rgba(255,255,255,0.16)'");
+    expect(LINK_SOURCE).toContain('accessibilityLabel={social.label} style={baseStyles}');
+    expect(LINK_SOURCE).not.toContain('opacity:');
   });
 });
