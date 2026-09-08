@@ -99,6 +99,54 @@ describe('a loading page holds its space', () => {
   });
 
   it.each([
+    ['bills', 'SearchBillsScreen.tsx'],
+    ['legislators', 'SearchLegislatorsScreen.tsx'],
+  ])(
+    'holds a screenful around every state of the %s list, so the footer stays below the fold',
+    (_name, file) => {
+      // A failed list read swaps the placeholder rows for one sentence. Without a
+      // reservation the page lost ~690px and the footer was pulled 449px up into
+      // view: 0.1491 of unexpected movement on a desktop /bills read and 0.1082 on
+      // /legislators, against a passing mark of 0.1 (#2011).
+      const source = readFileSync(join(root, 'src', 'screens', 'redesign', file), 'utf8');
+      expect(source).toContain(
+        "import { Skeleton, useOneScreenTall } from '../../components/Skeleton'",
+      );
+      expect(source).toContain('const oneScreenTall = useOneScreenTall();');
+      // Around EVERY state, never the loading one alone, exactly as the detail
+      // pages above do it. Reserving only while loading releases the space at the
+      // moment the read fails, which is the defect itself.
+      expect(source).toContain('<View style={oneScreenTall}>');
+    },
+  );
+
+  it.each([
+    ['bills', 'SearchBillsScreen.tsx'],
+    ['legislators', 'SearchLegislatorsScreen.tsx'],
+  ])('gives the %s failure box the same top margin the list above it uses', (_name, file) => {
+    // React reuses one div for the list branch and the failure branch, so a
+    // failure box with no top margin reads to the browser as that div sliding
+    // 22px up the page (#2011). The two numbers stay equal or it moves again.
+    const source = readFileSync(join(root, 'src', 'screens', 'redesign', file), 'utf8');
+    const listMargin = source.match(/\n {2}(?:list|grid): \{[^}]*marginTop: (\d+)/)?.[1];
+    const stateMargin = source.match(/\n {2}stateBox: \{[\s\S]*?marginTop: (\d+)/)?.[1];
+    expect(listMargin).toBeTruthy();
+    expect(stateMargin).toBe(listMargin);
+  });
+
+  it.each([
+    ['bills', 'SearchBillsScreen.tsx'],
+    ['legislators', 'SearchLegislatorsScreen.tsx'],
+  ])('keeps the %s heading, search box and filters in every state', (_name, file) => {
+    // The first thing #2011 asks for: a reader whose list failed can still
+    // retype their search. The hero is handed over unconditionally, so no branch
+    // can take the box away.
+    const source = readFileSync(join(root, 'src', 'screens', 'redesign', file), 'utf8');
+    expect(source).toMatch(/hero=\{\s*<SearchHero/);
+    expect(source).not.toMatch(/hero=\{null\}/);
+  });
+
+  it.each([
     ['bill, desktop', 'BillDetailWebScreen.tsx'],
     ['legislator, desktop', 'LegislatorProfileWebScreen.tsx'],
   ])('hands the frame a placeholder band while the %s page loads', (_name, file) => {

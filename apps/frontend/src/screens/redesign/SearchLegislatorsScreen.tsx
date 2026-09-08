@@ -38,7 +38,7 @@ import {
   deriveLegislatorRosterHeader,
   type LegislatorPartyFilter,
 } from '../../lib/legislatorRosterHeader';
-import { Skeleton } from '../../components/Skeleton';
+import { Skeleton, useOneScreenTall } from '../../components/Skeleton';
 import { linkProps, routePath } from '../../navigation/links';
 import {
   compareLegislatorNames,
@@ -81,6 +81,14 @@ export function SearchLegislatorsScreen() {
   const route = useRoute<any>();
   const { isDesktop, isMobile } = useResponsive();
   const { scrollAnchorProps, onPageChange } = usePaginatedListScroll();
+  // Every state of the results panel holds a screenful, so the footer starts
+  // below the fold and stays there. A failed read replaces the placeholder
+  // cards with one sentence, which shortened the page by ~690px and yanked the
+  // footer 449px up into view: 0.1491 of unexpected movement on a desktop
+  // /bills read and 0.1082 on /legislators, against a passing mark of 0.1
+  // (#2011). Around EVERY state, never the loading one alone, for the same
+  // reason the detail pages do it (useOneScreenTall in components/Skeleton.tsx).
+  const oneScreenTall = useOneScreenTall();
 
   // URL-addressable filter state, mirroring Search Bills: filters live in the
   // /legislators query string so a filtered roster is shareable, reload-safe,
@@ -295,94 +303,99 @@ export function SearchLegislatorsScreen() {
         />
       }
     >
-      <ResultsHeader
-        {...scrollAnchorProps}
-        // Null until the roster answers, so the line stays blank rather than
-        // saying "0 legislators" about a chamber that has 200 of them (#1996).
-        count={rosterQuery.data ? filtered.length : null}
-        // Singular; ResultsHeader pluralizes it, so one result reads "1 legislator".
-        noun="legislator"
-        sortLabel="Sorted by name (A–Z)"
-        dataAsOf={metaQuery.data?.dataAsOf}
-        uniformDetails
-        showRosterNote={rosterHeader.unnarrowed}
-      />
-
-      {rosterQuery.isLoading ? (
-        <View style={styles.grid} accessible accessibilityLabel="Loading legislators">
-          {SKELETON_CARDS.map((i) => (
-            <View key={i} style={isDesktop ? styles.gridItem : styles.gridItemMobile}>
-              <Skeleton width="100%" height={132} radius={t.radii.card} />
-            </View>
-          ))}
-        </View>
-      ) : rosterQuery.isError ? (
-        <View style={styles.stateBox}>
-          <Text style={styles.stateText}>
-            We couldn’t load legislators right now. Please try again in a moment.
-          </Text>
-        </View>
-      ) : filtered.length === 0 && !emptyState ? (
-        <View style={styles.stateBox} accessibilityLiveRegion="polite">
-          <Text style={styles.stateText}>No legislator data is available for this session.</Text>
-        </View>
-      ) : filtered.length === 0 ? (
-        <NoResults
-          variant="legislators"
-          legislatorState={emptyState ?? undefined}
-          onClear={clearEmptyState}
+      <View style={oneScreenTall}>
+        <ResultsHeader
+          {...scrollAnchorProps}
+          // Null until the roster answers, so the line stays blank rather than
+          // saying "0 legislators" about a chamber that has 200 of them (#1996).
+          count={rosterQuery.data ? filtered.length : null}
+          // Singular; ResultsHeader pluralizes it, so one result reads "1 legislator".
+          noun="legislator"
+          sortLabel="Sorted by name (A–Z)"
+          dataAsOf={metaQuery.data?.dataAsOf}
+          uniformDetails
+          showRosterNote={rosterHeader.unnarrowed}
         />
-      ) : (
-        <>
-          <View style={styles.grid}>
-            {pagination.items.map((legislator, cardIndex) => (
-              <View key={legislator.id} style={isDesktop ? styles.gridItem : styles.gridItemMobile}>
-                <LegislatorResultCard
-                  legislator={legislator}
-                  portraitEager={isLegislatorPortraitEager(cardIndex, isDesktop)}
-                  onPress={() =>
-                    navigation.navigate('LegislatorProfile', {
-                      legislatorId: legislator.slug ?? legislator.id,
-                    })
-                  }
-                />
+
+        {rosterQuery.isLoading ? (
+          <View style={styles.grid} accessible accessibilityLabel="Loading legislators">
+            {SKELETON_CARDS.map((i) => (
+              <View key={i} style={isDesktop ? styles.gridItem : styles.gridItemMobile}>
+                <Skeleton width="100%" height={132} radius={t.radii.card} />
               </View>
             ))}
           </View>
-          <Pagination
-            page={pagination.page}
-            totalPages={pagination.totalPages}
-            hasPrev={pagination.page > 1}
-            hasNext={pagination.page < pagination.totalPages}
-            onPrev={() =>
-              navigation.setParams({
-                page: pagination.page > 2 ? String(pagination.page - 1) : undefined,
-              })
-            }
-            onNext={() => navigation.setParams({ page: String(pagination.page + 1) })}
-            onPageChange={onPageChange}
-            prevHref={
-              defaultDirectory && pagination.page > 1
-                ? directoryPagePath('/legislators', pagination.page - 1)
-                : undefined
-            }
-            nextHref={
-              defaultDirectory && pagination.page < pagination.totalPages
-                ? directoryPagePath('/legislators', pagination.page + 1)
-                : undefined
-            }
-            jumpPages={
-              defaultDirectory
-                ? directoryJumpPages(pagination.page, pagination.totalPages)
-                : undefined
-            }
-            pageHref={(target) => directoryPagePath('/legislators', target)}
-            onPageSelect={(target) =>
-              navigation.setParams({ page: target > 1 ? String(target) : undefined })
-            }
+        ) : rosterQuery.isError ? (
+          <View style={styles.stateBox}>
+            <Text style={styles.stateText}>
+              We couldn’t load legislators right now. Please try again in a moment.
+            </Text>
+          </View>
+        ) : filtered.length === 0 && !emptyState ? (
+          <View style={styles.stateBox} accessibilityLiveRegion="polite">
+            <Text style={styles.stateText}>No legislator data is available for this session.</Text>
+          </View>
+        ) : filtered.length === 0 ? (
+          <NoResults
+            variant="legislators"
+            legislatorState={emptyState ?? undefined}
+            onClear={clearEmptyState}
           />
-        </>
-      )}
+        ) : (
+          <>
+            <View style={styles.grid}>
+              {pagination.items.map((legislator, cardIndex) => (
+                <View
+                  key={legislator.id}
+                  style={isDesktop ? styles.gridItem : styles.gridItemMobile}
+                >
+                  <LegislatorResultCard
+                    legislator={legislator}
+                    portraitEager={isLegislatorPortraitEager(cardIndex, isDesktop)}
+                    onPress={() =>
+                      navigation.navigate('LegislatorProfile', {
+                        legislatorId: legislator.slug ?? legislator.id,
+                      })
+                    }
+                  />
+                </View>
+              ))}
+            </View>
+            <Pagination
+              page={pagination.page}
+              totalPages={pagination.totalPages}
+              hasPrev={pagination.page > 1}
+              hasNext={pagination.page < pagination.totalPages}
+              onPrev={() =>
+                navigation.setParams({
+                  page: pagination.page > 2 ? String(pagination.page - 1) : undefined,
+                })
+              }
+              onNext={() => navigation.setParams({ page: String(pagination.page + 1) })}
+              onPageChange={onPageChange}
+              prevHref={
+                defaultDirectory && pagination.page > 1
+                  ? directoryPagePath('/legislators', pagination.page - 1)
+                  : undefined
+              }
+              nextHref={
+                defaultDirectory && pagination.page < pagination.totalPages
+                  ? directoryPagePath('/legislators', pagination.page + 1)
+                  : undefined
+              }
+              jumpPages={
+                defaultDirectory
+                  ? directoryJumpPages(pagination.page, pagination.totalPages)
+                  : undefined
+              }
+              pageHref={(target) => directoryPagePath('/legislators', target)}
+              onPageSelect={(target) =>
+                navigation.setParams({ page: target > 1 ? String(target) : undefined })
+              }
+            />
+          </>
+        )}
+      </View>
     </SearchPageShell>
   );
 }
@@ -415,6 +428,10 @@ const styles = StyleSheet.create({
   gridItem: { flexBasis: '48%', flexGrow: 1, minWidth: 0 },
   gridItemMobile: { flexBasis: '100%', width: '100%' },
   stateBox: {
+    // The same 22px the list above it uses. React reuses one div for both
+    // branches, so a state box with no top margin reads to the browser as that
+    // div sliding 22px up the page the moment a read fails (#2011).
+    marginTop: 22,
     paddingVertical: 64,
     alignItems: 'center',
     justifyContent: 'center',

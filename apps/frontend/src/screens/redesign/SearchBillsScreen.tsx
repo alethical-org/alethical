@@ -46,7 +46,7 @@ import {
   type SessionDisplaySource,
 } from '../../lib/sessionLabel';
 import { sessionFilterForApi } from '../../lib/sessionFilterForApi';
-import { Skeleton } from '../../components/Skeleton';
+import { Skeleton, useOneScreenTall } from '../../components/Skeleton';
 import {
   BILL_SEARCH_SORT_OPTIONS,
   BILL_SEARCH_SORT_TO_API,
@@ -114,6 +114,14 @@ export function SearchBillsScreen() {
   const route = useRoute<any>();
   const { isTracked, toggleTrack } = useBillTracking();
   const { scrollAnchorProps, onPageChange } = usePaginatedListScroll();
+  // Every state of the results panel holds a screenful, so the footer starts
+  // below the fold and stays there. A failed read replaces five placeholder
+  // rows with one sentence, which shortened the page by ~690px and yanked the
+  // footer 449px up into view: 0.1491 of unexpected movement on a desktop
+  // /bills read and 0.1082 on /legislators, against a passing mark of 0.1
+  // (#2011). Around EVERY state, never the loading one alone, for the same
+  // reason the detail pages do it (useOneScreenTall in components/Skeleton.tsx).
+  const oneScreenTall = useOneScreenTall();
 
   // URL-addressable filter state (issue #135): the filters live in the /bills
   // query string so a filtered view is shareable, bookmarkable, reload-safe, and
@@ -531,42 +539,43 @@ export function SearchBillsScreen() {
         />
       }
     >
-      <FilterChipRow chips={chips} onClearAll={clearFilters} />
-      <ResultsHeader
-        {...scrollAnchorProps}
-        // Null until this read answers, so the line stays blank rather than
-        // saying "0 bills" about a Legislature that has 10,491 of them (#1996).
-        count={billsQuery.data ? resultCount : null}
-        // Singular; ResultsHeader pluralizes it, so one result reads "1 bill".
-        noun="bill"
-        dataAsOf={metaQuery.data?.dataAsOf}
-        sortControl={bills.length > 0 ? sortControl : undefined}
-      />
-
-      {billsQuery.isLoading ? (
-        <View style={styles.list} accessible accessibilityLabel="Loading bills">
-          {SKELETON_ROWS.map((i) => (
-            <Skeleton key={i} width="100%" height={148} radius={t.radii.card} />
-          ))}
-        </View>
-      ) : billsQuery.isError ? (
-        <View style={styles.stateBox}>
-          <Text style={styles.stateText}>
-            We couldn’t load bills right now. Please try again in a moment.
-          </Text>
-        </View>
-      ) : bills.length === 0 ? (
-        <NoResults
-          variant="bills"
-          // The chip row already counts the active filters, so the empty state's
-          // copy branches off it without needing anything new.
-          filterCount={chips.length}
-          query={query}
-          onClear={clearFilters}
+      <View style={oneScreenTall}>
+        <FilterChipRow chips={chips} onClearAll={clearFilters} />
+        <ResultsHeader
+          {...scrollAnchorProps}
+          // Null until this read answers, so the line stays blank rather than
+          // saying "0 bills" about a Legislature that has 10,491 of them (#1996).
+          count={billsQuery.data ? resultCount : null}
+          // Singular; ResultsHeader pluralizes it, so one result reads "1 bill".
+          noun="bill"
+          dataAsOf={metaQuery.data?.dataAsOf}
+          sortControl={bills.length > 0 ? sortControl : undefined}
         />
-      ) : (
-        <>
-          {/* The page half of the failed-watchlist treatment (#1021). It sits HERE and
+
+        {billsQuery.isLoading ? (
+          <View style={styles.list} accessible accessibilityLabel="Loading bills">
+            {SKELETON_ROWS.map((i) => (
+              <Skeleton key={i} width="100%" height={148} radius={t.radii.card} />
+            ))}
+          </View>
+        ) : billsQuery.isError ? (
+          <View style={styles.stateBox}>
+            <Text style={styles.stateText}>
+              We couldn’t load bills right now. Please try again in a moment.
+            </Text>
+          </View>
+        ) : bills.length === 0 ? (
+          <NoResults
+            variant="bills"
+            // The chip row already counts the active filters, so the empty state's
+            // copy branches off it without needing anything new.
+            filterCount={chips.length}
+            query={query}
+            onClear={clearFilters}
+          />
+        ) : (
+          <>
+            {/* The page half of the failed-watchlist treatment (#1021). It sits HERE and
               not on the tracked-bills page, which is where the design first scoped it,
               because the notice's own sentence is only true where the bills came from a
               different request: "everything about the bills themselves loaded normally
@@ -575,58 +584,59 @@ export function SearchBillsScreen() {
               failure leaves nothing to render, and that screen already shows its own
               full-page message instead. Renders nothing unless a signed-in reader's
               watchlist actually failed. */}
-          <TrackedListUnavailableNotice />
-          <View style={styles.list}>
-            {bills.map((bill) => (
-              <BillResultCard
-                key={bill.id}
-                bill={bill}
-                // Editorial "🔥 Hot issue" flag — same list that drives the home
-                // Bill Activity cards (lib/hotIssues.ts). Data-driven, not per-card.
-                hotIssue={isHotIssueBill(bill.id)}
-                tracked={isTracked(bill.id)}
-                onToggleTrack={() => toggleTrack(bill.id, bill.identifier)}
-                // Bill detail now ships as the redesigned mobile screen, so the
-                // card routes there (and roll-calls deep-link to its Votes
-                // section).
-                onPress={() => navigation.navigate('BillDetail', { billId: bill.id })}
-                onSponsorPress={(legislatorId) =>
-                  navigation.navigate('LegislatorProfile', { legislatorId })
-                }
-                onRollCalls={() =>
-                  navigation.navigate('BillDetail', { billId: bill.id, tab: 'votes' })
-                }
-              />
-            ))}
-          </View>
-          <Pagination
-            page={page}
-            totalPages={totalPages}
-            hasPrev={page > 1}
-            hasNext={totalPages != null ? page < totalPages : hasMore}
-            onPrev={() => navigation.setParams({ page: page > 2 ? String(page - 1) : undefined })}
-            onNext={() => navigation.setParams({ page: String(page + 1) })}
-            onPageChange={onPageChange}
-            prevHref={
-              defaultDirectory && page > 1 ? directoryPagePath('/bills', page - 1) : undefined
-            }
-            nextHref={
-              defaultDirectory && totalPages != null && page < totalPages
-                ? directoryPagePath('/bills', page + 1)
-                : undefined
-            }
-            jumpPages={
-              defaultDirectory && totalPages != null
-                ? directoryJumpPages(page, totalPages)
-                : undefined
-            }
-            pageHref={(target) => directoryPagePath('/bills', target)}
-            onPageSelect={(target) =>
-              navigation.setParams({ page: target > 1 ? String(target) : undefined })
-            }
-          />
-        </>
-      )}
+            <TrackedListUnavailableNotice />
+            <View style={styles.list}>
+              {bills.map((bill) => (
+                <BillResultCard
+                  key={bill.id}
+                  bill={bill}
+                  // Editorial "🔥 Hot issue" flag — same list that drives the home
+                  // Bill Activity cards (lib/hotIssues.ts). Data-driven, not per-card.
+                  hotIssue={isHotIssueBill(bill.id)}
+                  tracked={isTracked(bill.id)}
+                  onToggleTrack={() => toggleTrack(bill.id, bill.identifier)}
+                  // Bill detail now ships as the redesigned mobile screen, so the
+                  // card routes there (and roll-calls deep-link to its Votes
+                  // section).
+                  onPress={() => navigation.navigate('BillDetail', { billId: bill.id })}
+                  onSponsorPress={(legislatorId) =>
+                    navigation.navigate('LegislatorProfile', { legislatorId })
+                  }
+                  onRollCalls={() =>
+                    navigation.navigate('BillDetail', { billId: bill.id, tab: 'votes' })
+                  }
+                />
+              ))}
+            </View>
+            <Pagination
+              page={page}
+              totalPages={totalPages}
+              hasPrev={page > 1}
+              hasNext={totalPages != null ? page < totalPages : hasMore}
+              onPrev={() => navigation.setParams({ page: page > 2 ? String(page - 1) : undefined })}
+              onNext={() => navigation.setParams({ page: String(page + 1) })}
+              onPageChange={onPageChange}
+              prevHref={
+                defaultDirectory && page > 1 ? directoryPagePath('/bills', page - 1) : undefined
+              }
+              nextHref={
+                defaultDirectory && totalPages != null && page < totalPages
+                  ? directoryPagePath('/bills', page + 1)
+                  : undefined
+              }
+              jumpPages={
+                defaultDirectory && totalPages != null
+                  ? directoryJumpPages(page, totalPages)
+                  : undefined
+              }
+              pageHref={(target) => directoryPagePath('/bills', target)}
+              onPageSelect={(target) =>
+                navigation.setParams({ page: target > 1 ? String(target) : undefined })
+              }
+            />
+          </>
+        )}
+      </View>
     </SearchPageShell>
   );
 }
@@ -641,6 +651,10 @@ const styles = StyleSheet.create({
   pillRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10 },
   list: { marginTop: 22, gap: 18 },
   stateBox: {
+    // The same 22px the list above it uses. React reuses one div for both
+    // branches, so a state box with no top margin reads to the browser as that
+    // div sliding 22px up the page the moment a read fails (#2011).
+    marginTop: 22,
     paddingVertical: 64,
     alignItems: 'center',
     justifyContent: 'center',

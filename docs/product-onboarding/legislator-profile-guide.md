@@ -90,6 +90,12 @@ such as "Chair", because roles are not ingested; and "signed into law this sessi
 it is not computed. Only what the record holds is drawn (`.claude/rules/grounded-answers.md`
 rule 2).
 
+If the member list itself cannot be read, the directory keeps its heading, its name search
+box and its filters, and one line replaces the cards: "We couldn't load legislators right
+now. Please try again in a moment." The message sits where the first card would have been
+and the page keeps the height it had a moment earlier, so nothing below it jumps up the
+screen ([#2011](https://github.com/alethical-org/alethical/issues/2011)).
+
 ## Lasting source of truth
 
 This guide owns the profile's product behavior. The shared visual and accessibility rules
