@@ -1154,6 +1154,9 @@ const styles = StyleSheet.create({
     color: t.colors.text.primary,
   },
   menuTrackedCount: {
+    width: 18,
+    flexShrink: 0,
+    textAlign: 'center',
     fontFamily: t.typography.mono,
     fontSize: t.fontSizes.small,
     fontWeight: t.fontWeights.bold,
@@ -1337,6 +1340,9 @@ const styles = StyleSheet.create({
     color: t.colors.text.primary,
   },
   sheetTrackedCount: {
+    width: 18,
+    flexShrink: 0,
+    textAlign: 'center',
     fontFamily: t.typography.mono,
     fontSize: t.fontSizes.body,
     fontWeight: t.fontWeights.bold,
