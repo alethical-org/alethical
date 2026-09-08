@@ -27,7 +27,6 @@ import {
   usePrefetchLegislator,
 } from '../../hooks/useAppQueries';
 import { useCurrentClaimExpiry } from '../../hooks/useCurrentClaimExpiry';
-import { CONFIRMED_MEMBER_WITHHELD_LINE } from '../../lib/currentClaimFreshness';
 import { useResponsive } from '../../hooks/useResponsive';
 import {
   AMENDED_CHIP,
@@ -96,6 +95,7 @@ import {
   unlistedReportsLine,
   whoseCommitteeText,
   yearDisplayState,
+  CONFIRMED_MEMBER_WITHHELD_LINE,
   type CommitteeTab,
   type OutsideSpendingSort,
   type OutsideSpendingTab,

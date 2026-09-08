@@ -553,14 +553,25 @@ def test_a_profiles_money_out_says_whether_anybody_checked_it(db, client):
     assert by_number[NAPPER_SENATE]["money_out"]["stated_spending_state"] == "not_run"
 
 
-def test_the_guard_moves_no_figure_a_reader_sees(db, client):
+def test_the_guard_moves_no_figure_a_reader_sees(db, client, monkeypatch):
     """The change is invisible on the wire, proven against the route rather than a type.
 
     Run twice, once with the tagging the guard applies and once with it removed. Every
     byte of the response has to match: a guard that quietly reformatted a dollar figure
     would be worse than the double count it prevents.
+
+    The clock is pinned so that stays a byte comparison. This route serves
+    ``current_claim_validated_at``, the moment it confirmed that these committees are
+    still this member's (issue 2023), and 2 requests genuinely carry 2 moments. Pinning
+    it keeps every other byte under comparison rather than excusing a field from it,
+    which is what dropping the field from both bodies would have done.
     """
+    from alethical.api.routers import public
     from alethical.api.services import legislator_finance as service
+
+    monkeypatch.setattr(
+        public, "_utc_now", lambda: datetime(2026, 9, 7, 12, 0, 0, tzinfo=UTC)
+    )
 
     legislator_id = _two_committees_for_one_member(db)
     url = f"/api/v1/legislators/{legislator_id}/campaign-finance"

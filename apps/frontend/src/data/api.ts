@@ -860,9 +860,13 @@ export async function publicApiRequest<T>(path: string): Promise<T> {
  * A public read, plus what the shared caches said about how long they held the
  * answer.
  *
- * Separate from `publicApiRequest` rather than changing it, because only the 4
- * reads carrying a claim about the state of the world right now need the age, and
- * every other caller wants the body alone.
+ * Deliberately a second function rather than one that `publicApiRequest`
+ * delegates to, and the reason is measured rather than stylistic. Delegating is
+ * the tidier code and it costs **409 bytes** in the first-load bundle, because
+ * `publicApiRequest` has dozens of callers and the wrapper's returned object gets
+ * inlined into each one. Every reader downloads that, on every page, to save one
+ * duplicated error branch here. Only the 4 reads carrying a claim about the state
+ * of the world right now need the age; every other caller wants the body alone.
  *
  * `Age` is a whole number of seconds each cache raises by the time it held the
  * response. It reaches this code only because the API lists it in

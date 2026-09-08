@@ -24,7 +24,25 @@ import { pathToFileURL } from 'node:url';
 // The private account list stays in its screen chunk. The combined account and
 // SEO release measures 389,521 bytes in Vercel's build, leaving 479 bytes here.
 // Keep this tied to the hosted result, since local configuration changes size.
-export const FIRST_LOAD_LIMIT = 390000;
+//
+// Raised from 390,000 for the end-to-end freshness deadline (issue 2023), with the
+// measurement it asks for. Main built 389,083 bytes; that change builds 389,961,
+// so it costs 878 bytes, and the same 479-byte allowance for host variance puts
+// the ratchet here. What the 878 buys is a bound on how old a claim naming a real
+// person can be by the time somebody reads it, which was previously unbounded for
+// an open tab: it is the deadline itself, the 4 read names it applies to, and the
+// arithmetic that reads a cache's `Age`.
+//
+// Two things were done first rather than raising this straight away, and both are
+// worth knowing before anyone raises it again. The 2 withheld sentences moved into
+// the 2 screens that draw them (`lib/committeeMoney.ts`,
+// `lib/legislatorCampaignMoney.ts`), which took 475 bytes off every page that will
+// never print them. And folding the age-reading fetch helper into
+// `publicApiRequest` so there was one implementation made this file 409 bytes
+// BIGGER, because that function has dozens of callers and the wrapper's returned
+// object inlines into each: the duplication in `data/api.ts` is deliberate and
+// measured, and the comment there says so.
+export const FIRST_LOAD_LIMIT = 390500;
 
 /**
  * The exact settings Vercel compresses with, so this reports the bytes a reader

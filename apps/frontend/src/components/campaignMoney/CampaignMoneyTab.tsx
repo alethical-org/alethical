@@ -34,12 +34,12 @@ import {
   filingScheduleNote,
   otherOfficeNote,
   severalCommitteesNote,
+  confirmedCommitteesWithheldLine,
 } from '../../lib/legislatorCampaignMoney';
 import { coveredPeriodDetail, coveredPeriodLine, stampThroughDate } from '../../lib/committeeMoney';
 import { centralDateLabel } from '../../lib/moneyLanding';
 import { useLegislatorOutsideSpending } from '../../hooks/useAppQueries';
 import { useCurrentClaimExpiry } from '../../hooks/useCurrentClaimExpiry';
-import { confirmedCommitteesWithheldLine } from '../../lib/currentClaimFreshness';
 import { useResponsive } from '../../hooks/useResponsive';
 import { CheckedByBlock, FilingStamp, MoneyInBlock, MoneyOutBlock } from './MoneyCards';
 import { outsideSpendingYears } from '../../lib/outsideSpending';

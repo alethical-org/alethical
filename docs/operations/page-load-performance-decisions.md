@@ -403,6 +403,20 @@ search request load only with `/admin/users`. The release measures **389,116 byt
 the 388,290-byte baseline. The limit is 390,000 bytes to admit this measured feature;
 the private list itself is not a cost paid by public readers.
 
+The end-to-end freshness deadline
+([issue 2023](https://github.com/alethical-org/alethical/issues/2023)) adds **878 bytes**: main
+built 389,083 and it builds 389,961, so the limit is 390,500 with the same 479-byte allowance for
+host variance. What every reader downloads for it is the deadline, the 4 read names it applies to,
+and the arithmetic that reads a cache's `Age`. What they do not download is the 2 sentences a
+withheld claim prints, which moved into the 2 screens that draw them and took 475 bytes back off
+every other page.
+
+**One measurement there is worth keeping, because it reverses the tidier choice.** Folding the
+age-reading fetch helper into `publicApiRequest` so there is a single implementation makes the
+first load **409 bytes bigger**, since that function has dozens of callers and the wrapper's
+returned object inlines into each. So `apps/frontend/src/data/api.ts` keeps 2 near-identical
+readers on purpose, and says so where a reader of that file will find it.
+
 **`lib/auth/signInWorkPending.ts` is the whole design, and it answers 1 question: does this page
 load have sign-in work to do?** It says yes when a session is saved in this browser, when the
 address is a sign-in return, when a request was stashed before a redirect to Google, or when a

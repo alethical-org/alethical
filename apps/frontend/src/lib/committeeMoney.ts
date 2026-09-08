@@ -1469,3 +1469,16 @@ export function recordCoverageLines(isBallot: boolean): string[] {
 
 /** Re-exported so the screens import one module for these pages' rules. */
 export { formatDay, formatMoney };
+
+/**
+ * The sentence a page prints where a confirmed member is withheld. It says what
+ * happened and does not pretend the confirmation was withdrawn: those are
+ * different facts, and `null` from the API already means "nobody has confirmed
+ * one", so a withheld claim needs its own words rather than that state's.
+ */
+export const CONFIRMED_MEMBER_WITHHELD_LINE =
+  'We are not naming whose committee this is right now. Someone at Alethical ' +
+  'confirmed a member for it, but a confirmation can be taken back, and we have ' +
+  'not been able to check that recently enough to repeat it here. The money on ' +
+  'this page is the committee’s own filed record and is unaffected. Reload to ' +
+  'try again.';

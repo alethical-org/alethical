@@ -187,35 +187,3 @@ export function currentClaimAgeMs(options: {
 export function msUntilCurrentClaimExpires(ageMs: number): number {
   return Math.max(0, CURRENT_CLAIM_MAX_AGE_MS - ageMs);
 }
-
-/**
- * The sentence a page prints where a confirmed member is withheld. It says what
- * happened and does not pretend the confirmation was withdrawn: those are
- * different facts, and `null` from the API already means "nobody has confirmed
- * one", so a withheld claim needs its own words rather than that state's.
- */
-export const CONFIRMED_MEMBER_WITHHELD_LINE =
-  'We are not naming whose committee this is right now. Someone at Alethical ' +
-  'confirmed a member for it, but a confirmation can be taken back, and we have ' +
-  'not been able to check that recently enough to repeat it here. The money on ' +
-  'this page is the committee’s own filed record and is unaffected. Reload to ' +
-  'try again.';
-
-/**
- * The sentence a legislator's profile prints where their confirmed committees are
- * withheld.
- *
- * Its own words rather than the tab's "nobody has checked yet" panel, for the same
- * reason the committee page needs its own: that panel states nobody has confirmed a
- * committee for this member, and here somebody has. Saying so would replace a claim
- * we cannot vouch for with one that is plainly false.
- */
-export function confirmedCommitteesWithheldLine(legislatorName: string): string {
-  return (
-    `We are not showing ${legislatorName}’s campaign committees right now. ` +
-    'Someone at Alethical confirmed which committees are theirs, but a ' +
-    'confirmation can be taken back, and we have not been able to check that ' +
-    'recently enough to repeat it here. This says nothing about what they raised ' +
-    'or spent. Reload to try again.'
-  );
-}
