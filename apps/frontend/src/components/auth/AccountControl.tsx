@@ -57,9 +57,9 @@ function initialOf(label: string) {
   return label.trim().charAt(0).toUpperCase() || '?';
 }
 
-function SignOutIcon({ color }: { color: string }) {
+function SignOutIcon({ color, size = 17 }: { color: string; size?: number }) {
   return (
-    <Svg width={17} height={17} viewBox="0 0 24 24" fill="none">
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path
         d="M13 4 H7 a2 2 0 0 0-2 2 v12 a2 2 0 0 0 2 2 h6"
         stroke={color}
@@ -709,6 +709,7 @@ function DesktopSignOut({ flow }: { flow: ReturnType<typeof useAccountSignOut> }
 
 function PhoneSignOut({ flow }: { flow: ReturnType<typeof useAccountSignOut> }) {
   const reduceMotion = useReducedMotion();
+  const showSpinner = flow.state === 'busy' && !reduceMotion;
   return (
     <>
       {flow.state === 'failed' ? (
@@ -722,13 +723,17 @@ function PhoneSignOut({ flow }: { flow: ReturnType<typeof useAccountSignOut> }) 
         aria-busy={flow.state === 'busy' || undefined}
         aria-disabled={flow.state === 'busy' || undefined}
         onPress={() => void flow.press()}
-        style={({ pressed }) => [styles.sheetButton, pressed && styles.sheetButtonPressed]}
+        style={({ pressed }) => [
+          styles.sheetButton,
+          showSpinner && styles.sheetButtonBusy,
+          pressed && styles.sheetButtonPressed,
+        ]}
       >
-        <View style={styles.sheetIconBox}>
-          {flow.state === 'busy' && !reduceMotion ? (
+        <View style={styles.phoneSignOutIcon}>
+          {showSpinner ? (
             <ActivityIndicator size="small" color={t.colors.brand.forest} />
           ) : (
-            <SignOutIcon color={t.colors.text.primary} />
+            <SignOutIcon color={t.colors.text.primary} size={18} />
           )}
         </View>
         <Text numberOfLines={1} style={styles.sheetButtonText}>
@@ -1303,19 +1308,24 @@ const styles = StyleSheet.create({
     backgroundColor: t.colors.surfaces.s300,
   },
   sheetButton: {
-    marginTop: 20,
+    marginTop: 16,
+    width: '100%',
     minHeight: 56,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-start',
-    gap: 13,
+    justifyContent: 'center',
+    gap: 9,
     backgroundColor: t.colors.surfaces.base,
     borderWidth: 1,
     borderColor: t.colors.alpha.ink18,
     borderRadius: 13,
-    paddingVertical: 16,
-    // The border adds 1px; this puts the icon at the other phone rows' 2px inset.
-    paddingHorizontal: 1,
+    padding: 16,
+  },
+  sheetButtonBusy: { gap: 10 },
+  phoneSignOutIcon: {
+    flexShrink: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   // The phone watchlist row, above Change password. It carries the line ABOVE
   // it; the line between the two is Change password's own top border.
@@ -1357,14 +1367,12 @@ const styles = StyleSheet.create({
     gap: 13,
     backgroundColor: t.colors.surfaces.base,
     borderTopWidth: 1,
-    borderBottomWidth: 1,
     borderColor: t.colors.alpha.ink08,
     paddingHorizontal: 2,
   },
   sheetPasswordText: { flex: 1, textAlign: 'left' },
   sheetButtonPressed: { backgroundColor: t.colors.surfaces.s300 },
   sheetButtonText: {
-    flex: 1,
     minWidth: 0,
     fontFamily: t.typography.ui,
     fontSize: t.fontSizes.lg,

@@ -236,11 +236,17 @@ The account menu shows the person's name and email, Tracked, Add or Change passw
 out. Tracked shows a count only after both lists (bills and followed committees) have loaded. No number covers both zero tracked
 bills and a list that has not arrived, so the menu never shows a false zero.
 
-Tracked, Add or Change password, and Sign out share the same left edges for their icon boxes
-and labels, on both computer and phone. Each icon is centered inside a fixed square, so a
-different icon cannot shift its label. Long labels stay on 1 line and shorten with an ellipsis;
-the Tracked count shares the administrator arrows' 18-pixel end space. The phone Sign out button keeps its outline
-while its contents align with the rows above it.
+Tracked and Add or Change password share the same left edges for their icon boxes and labels
+on both computer and phone. Desktop Sign out shares those columns. Each row icon is centered
+inside a fixed square, so a different icon cannot shift its label. Long labels stay on 1 line
+and shorten with an ellipsis; the Tracked count shares the administrator arrows' 18-pixel end space.
+
+The phone Sign out button centers its icon and label together inside its full-width outline,
+including while pressed, loading, or retrying after a failure. Its icon is 18 pixels with a
+9-pixel gap before the label; the loading spinner uses a 10-pixel gap. The button has 16 pixels
+of padding and 16 pixels of space above it, including when the password row is unavailable.
+The password row keeps its upper dividing line and has no lower line. The failure banner stays
+above the button. Sign out says **Signing out…** while busy and **Try again** after a failure.
 
 Approved administrators also see **Users** (`/admin/users`) and **Admin metrics**
 (`/admin/metrics`). The server's optional `is_admin` hint in `/me` makes these entries
