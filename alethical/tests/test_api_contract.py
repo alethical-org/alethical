@@ -4450,6 +4450,41 @@ def test_tracking_include_requires_authentication_but_public_surfaces_stay_open(
     assert lookup_response.status_code == 200
 
 
+def test_our_own_pages_may_read_a_requests_timing_and_nobody_else_may(client):
+    """A page on our own site can see what a request to this service spent its time
+    on; a page anywhere else still sees only the total.
+
+    A browser hides a cross-origin request's connection, server wait and download
+    from the page that made it unless the answering service says otherwise with
+    `Timing-Allow-Origin`. Without it a page-load measurement stops at 1 number for
+    the data request, which is why the 490 ms list wait on `/bills` could not be
+    split (#2039). The header names an exact origin, so this asserts both halves:
+    the origin this service already accepts requests from gets it back, and an
+    origin it does not accept gets nothing.
+    """
+    ours = "http://localhost:19006"
+    answered = client.get(
+        "/api/v1/bills",
+        params={"session": "94-2025-regular"},
+        headers={"Origin": ours},
+    )
+    assert answered.status_code == 200
+    assert answered.headers["Timing-Allow-Origin"] == ours
+
+    somebody_else = client.get(
+        "/api/v1/bills",
+        params={"session": "94-2025-regular"},
+        headers={"Origin": "https://not-alethical.example"},
+    )
+    assert somebody_else.status_code == 200
+    assert "Timing-Allow-Origin" not in somebody_else.headers
+
+    # A request with no origin at all is not a page, so there is nobody to permit.
+    no_origin = client.get("/api/v1/bills", params={"session": "94-2025-regular"})
+    assert no_origin.status_code == 200
+    assert "Timing-Allow-Origin" not in no_origin.headers
+
+
 def test_public_bill_reads_are_cacheable_but_user_varying_reads_are_not(
     client, auth_headers
 ):
