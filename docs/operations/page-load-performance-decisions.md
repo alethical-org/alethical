@@ -432,14 +432,24 @@ telling a session to take this figure from the hosted build already existed, was
 was quoted in the commit message that then ignored it, so 4 merges sat unshipped for 50
 minutes. Words were the wrong instrument.
 
-- **An unhosted build is checked against what the host will measure, not against its own
-  total.** `HOSTED_BUILD_EXCESS_BYTES` is 542, measured on commit `01ffcbb0` where a
-  laptop and a GitHub runner both built 390,219 and Vercel built 390,761. Anything that is
-  not Vercel's own build adds that before comparing, and reports the sum rather than its
-  own number, so a passing line can never be quoted as headroom the deploy does not have.
-  Replayed against the incident: 389,961 plus 542 is 390,503, which fails the 390,500
-  limit that was set from it. Its honest limit is that it is one measurement of one
-  commit, so a future commit with a larger gap could still pass here and fail there.
+- **A build that inlined no settings is checked against what a build with them will
+  measure.** `HOSTED_BUILD_EXCESS_BYTES` is 542, measured on commit `01ffcbb0` where a
+  settings-less build produced 390,219 and Vercel produced 390,761. Such a build adds that
+  before comparing, and reports the sum rather than its own number, so a passing line can
+  never be quoted as headroom the deploy does not have. Replayed against the incident:
+  389,961 plus 542 is 390,503, which fails the 390,500 limit that was set from it. Its
+  honest limit is that it is one measurement of one commit, so a future commit with a
+  larger gap could still pass here and fail there.
+
+  **The condition is what the built program CONTAINS, not where it ran, and getting that
+  wrong the first time is worth recording.** This first keyed on Vercel's own `VERCEL=1`,
+  which asks "is this the host" when the question is "did this build have its settings".
+  The main checkout holds a `.env`, so a build there inlines real values and is already the
+  size the host produces; adding the excess there would have failed a build that would
+  have deployed. `firstLoadCarriesItsSettings` now reads the program for a Supabase
+  address instead, because that setting is the one a deployable build cannot work without
+  and the one a worktree never has: measured 8 Sep 2026, 1 hit in the live program and 0
+  in a worktree's build.
 - **A failed production release opens an issue by itself**
   (`.github/workflows/production-release-failed.yml`), on the `deployment_status` event,
   for the `Production` environment only, reusing one issue across a run of failures and

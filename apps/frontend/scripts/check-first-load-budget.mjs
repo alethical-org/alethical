@@ -92,10 +92,21 @@ export function firstLoadFiles(html) {
 /**
  * How many more bytes Vercel's build produces than this one, for the same commit.
  *
- * Measured on commit 01ffcbb0, 8 Sep 2026: a GitHub runner and a laptop both built
- * 390,219 bytes where Vercel built 390,761, the whole difference in `index-*.js`,
- * whose content hash differs between the 2 because the build inlines configuration
- * only the host holds.
+ * Measured on commit 01ffcbb0, 8 Sep 2026: a settings-less build produced 390,219
+ * bytes where Vercel produced 390,761, the whole difference in `index-*.js`.
+ *
+ * THE CAUSE IS KNOWN AND IT IS THE SETTINGS. A deploying build inlines the 6 public
+ * `EXPO_PUBLIC_*` values; a worktree has no `.env` and inlines none. That is only
+ * 261 raw bytes of text, and it becomes 1,510 after minification and 542 compressed,
+ * because the values are high-entropy strings that compress poorly and shift what
+ * the minifier can fold. Node is not involved: the host builds on 24 and a build on
+ * 24 here is byte-identical to one on 22.
+ *
+ * ONE TRAP WHEN RE-MEASURING THIS. Metro caches transforms, so setting the values
+ * and rebuilding produces a byte-identical bundle that still contains none of them.
+ * It took a fresh cache (an empty `TMPDIR` plus `--clear`) to see the difference at
+ * all, and a measurement taken without that read as proof the settings did not
+ * matter.
  *
  * WHY THIS IS ADDED RATHER THAN WRITTEN IN A COMMENT. The comment saying to measure
  * on the host existed, was read, was quoted in the commit message that then ignored
@@ -113,36 +124,47 @@ export function firstLoadFiles(html) {
 export const HOSTED_BUILD_EXCESS_BYTES = 542;
 
 /**
- * Whether this build is the one that deploys. Vercel sets `VERCEL=1` in its build
- * environment, so its own run measures itself and adds nothing.
+ * Whether a built program carries the settings a deploying build inlines.
+ *
+ * ASK THE BUNDLE, NOT THE ENVIRONMENT, and that is the whole correction. This first
+ * keyed on `VERCEL=1`, which reads as "is this the host" and is the wrong question:
+ * the excess is a property of whether the build HAD its settings, not of where it
+ * ran. The main checkout holds a `.env`, so a build there inlines real values and is
+ * already the size the host produces; adding the excess there would fail a build
+ * that would have deployed. A worktree has no `.env` and is the case it is for.
+ *
+ * The marker is a Supabase address, because that setting is the one a build meant to
+ * deploy cannot work without and the one a worktree never has. Measured 8 Sep 2026:
+ * the live program has 1 hit and a worktree's build has 0.
  */
-function buildIsHosted() {
-  return process.env.VERCEL === '1';
+export function firstLoadCarriesItsSettings(programSource) {
+  return programSource.includes('.supabase.co');
 }
 
 export function checkFirstLoadBudget(
   measured,
   limit = FIRST_LOAD_LIMIT,
-  isHosted = buildIsHosted(),
+  carriesItsSettings = true,
 ) {
   const total = measured.reduce((sum, file) => sum + file.bytes, 0);
-  // What the host will enforce. An unhosted build is a smaller build of the same
-  // code, so its own total passing says nothing on its own.
-  const enforced = isHosted ? total : total + HOSTED_BUILD_EXCESS_BYTES;
+  // A build that inlined no settings is a SMALLER build of the same code, so its own
+  // total passing says nothing about the build that deploys.
+  const enforced = carriesItsSettings ? total : total + HOSTED_BUILD_EXCESS_BYTES;
   if (enforced > limit) {
     const lines = measured
       .sort((a, b) => b.bytes - a.bytes)
       .map((file) => `  ${String(file.bytes).padStart(8)}  ${file.name}`)
       .join('\n');
-    const projected = isHosted
+    const projected = carriesItsSettings
       ? ''
-      : `\nThis build measured ${total}. Vercel's build of the same commit runs about ` +
-        `${HOSTED_BUILD_EXCESS_BYTES} bytes larger, so ${enforced} is what its own check will see, ` +
-        'and its failure does not deploy.';
+      : `\nThis build inlined no settings, so it measured ${total}. A build that has them runs ` +
+        `about ${HOSTED_BUILD_EXCESS_BYTES} bytes larger, so ${enforced} is what the deploying ` +
+        "build's own check will see, and its failure does not deploy.";
     throw new Error(
       `Every reader now downloads ${enforced} bytes before this app can draw, over the ${limit}-byte limit by ${enforced - limit}.${projected}\n${lines}\n` +
         'Move what a first page does not need into the screen that needs it, or raise the limit in ' +
-        "apps/frontend/scripts/check-first-load-budget.mjs from a HOSTED build's own figure, never this one's.",
+        'apps/frontend/scripts/check-first-load-budget.mjs from the figure a build WITH its settings ' +
+        'produced, never from one without them.',
     );
   }
   return total;
@@ -160,18 +182,23 @@ async function checkBuiltFirstLoad() {
   for (const name of files) {
     measured.push({ name, bytes: productionBytes(await readFile(new URL(name, directory))) });
   }
-  const total = checkFirstLoadBudget(measured);
-  // The number reported is the one that will be enforced, so a passing line here
-  // cannot be quoted as headroom that the hosted build does not have. That misuse
-  // is exactly what set the limit 261 bytes too low on 8 Sep 2026.
-  const hosted = buildIsHosted();
-  const enforced = hosted ? total : total + HOSTED_BUILD_EXCESS_BYTES;
+  // Read off the built program rather than the environment, so a build is judged by
+  // what it actually contains (`firstLoadCarriesItsSettings`).
+  const program = files.find((name) => name.startsWith('index-')) ?? files[0];
+  const carriesItsSettings = firstLoadCarriesItsSettings(
+    await readFile(new URL(program, directory), 'utf8'),
+  );
+  const total = checkFirstLoadBudget(measured, FIRST_LOAD_LIMIT, carriesItsSettings);
+  // The number reported is the one that will be enforced, so a passing line here can
+  // never be quoted as headroom the deploying build does not have. That misuse is
+  // exactly what set the limit 261 bytes too low on 8 Sep 2026.
+  const enforced = carriesItsSettings ? total : total + HOSTED_BUILD_EXCESS_BYTES;
   console.log(
     `First-load budget passed: ${enforced} bytes of ${FIRST_LOAD_LIMIT} across ${files.length} files ` +
       `(${measured.map((f) => `${f.name.split('-')[0]} ${f.bytes}`).join(', ')})` +
-      (hosted
-        ? ' — measured on the host, so this figure is the one to move the limit from.'
-        : `\n  This build measured ${total}; the +${HOSTED_BUILD_EXCESS_BYTES} is what Vercel's own build adds. ` +
+      (carriesItsSettings
+        ? ' — this build inlined its settings, so this figure is the one to move the limit from.'
+        : `\n  This build inlined no settings, so it measured ${total}; the +${HOSTED_BUILD_EXCESS_BYTES} is what a build with them adds. ` +
           "Never move the limit from this run's number."),
   );
 }

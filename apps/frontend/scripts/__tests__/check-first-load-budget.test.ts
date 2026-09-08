@@ -6,6 +6,7 @@ import {
   FIRST_LOAD_LIMIT,
   HOSTED_BUILD_EXCESS_BYTES,
   checkFirstLoadBudget,
+  firstLoadCarriesItsSettings,
   firstLoadFiles,
   productionBytes,
 } from '../check-first-load-budget.mjs';
@@ -61,9 +62,9 @@ describe('checkFirstLoadBudget', () => {
           { name: '__common-def.js', bytes: 60000 },
         ],
         445000,
-        // Read as the host's own build, so this case stays about the message and
-        // its numbers rather than about the hosted projection, which has its own
-        // cases below.
+        // Read as a build that inlined its settings, so this case stays about the
+        // message and its numbers rather than about the projection, which has its
+        // own cases below.
         true,
       ),
     ).toThrow(/460000 bytes[\s\S]*over the 445000-byte limit by 15000[\s\S]*index-abc\.js/);
@@ -76,30 +77,47 @@ describe('checkFirstLoadBudget', () => {
    * and refused to deploy 4 merges
    * (https://github.com/alethical-org/alethical/issues/2052).
    */
-  it('fails an unhosted build on what the host will measure, not on its own total', () => {
+  it('fails a settings-less build on what a build with settings will measure', () => {
     // 389,961 is the exact local figure that set the limit 261 bytes too low.
     const measured = [{ name: 'index-abc.js', bytes: 389_961 }];
 
     // Its own total fits 390,500 with 539 to spare, which is what made it look safe.
     expect(() => checkFirstLoadBudget(measured, 390_500, true)).not.toThrow();
 
-    // Read as the host will build it, it is over, and it says so in those words.
+    // Read as the settings-less build it was, it is over, and it says so.
     expect(() => checkFirstLoadBudget(measured, 390_500, false)).toThrow(
-      /390503 bytes[\s\S]*over the 390500-byte limit by 3[\s\S]*This build measured 389961/,
+      /390503 bytes[\s\S]*over the 390500-byte limit by 3[\s\S]*inlined no settings, so it measured 389961/,
     );
   });
 
-  it('tells an unhosted build never to move the limit from its own number', () => {
+  it('tells a settings-less build never to move the limit from its own number', () => {
     expect(() =>
       checkFirstLoadBudget([{ name: 'index-abc.js', bytes: 500_000 }], 1_000, false),
-    ).toThrow(/from a HOSTED build's own figure, never this one's/);
+    ).toThrow(/from the figure a build WITH its settings produced, never from one without them/);
   });
 
-  it('adds nothing on the host, because there its own total is what deploys', () => {
+  it('adds nothing to a build that inlined its settings, whose total is what deploys', () => {
     const atTheLimit = [{ name: 'index-abc.js', bytes: 391_500 }];
 
     expect(() => checkFirstLoadBudget(atTheLimit, 391_500, true)).not.toThrow();
     expect(() => checkFirstLoadBudget(atTheLimit, 391_500, false)).toThrow();
+  });
+
+  /**
+   * The correction to the first version of this, which keyed on `VERCEL=1`. The
+   * excess belongs to a build that inlined no settings, not to a build that ran
+   * somewhere particular: the main checkout holds a `.env`, so a build there is
+   * already the size the host produces and adding the excess would fail a build
+   * that would have deployed.
+   */
+  it('reads whether the settings were inlined off the program itself', () => {
+    // Measured 8 Sep 2026: the live program carries a Supabase address and a
+    // worktree's build carries none.
+    expect(firstLoadCarriesItsSettings('a=\"https://abc.supabase.co\";')).toBe(true);
+    expect(firstLoadCarriesItsSettings('a=\"\";b=2;')).toBe(false);
+    // Not fooled by the setting's NAME appearing without a value, which is what a
+    // build with no settings file still contains.
+    expect(firstLoadCarriesItsSettings('EXPO_PUBLIC_SUPABASE_URL')).toBe(false);
   });
 
   it('keeps the limit at or above the hosted figure it was set from', () => {
