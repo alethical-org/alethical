@@ -31,9 +31,26 @@
 # above ended by luck, when a later commit touching a watched path pulled the
 # earlier change out with it. On a busy afternoon that is minutes. Across the 399
 # commits on `main` since 14 Aug 2026 this happened 5 separate times, and the
-# longest ran about 14 hours, 18 Aug 14:03 to 19 Aug 04:17, with the whole first
-# `/money` release sitting unbuilt inside it. So the 14 and 21 minutes above are
-# what a busy day costs, and they are not the size of the fault.
+# longest ran **14 hours 22 minutes**, from `36d95b35` merging at
+# 18 Aug 14:00:38 to the release at 19 Aug 04:22:52. Of the 23 commits in that
+# stretch exactly 3 touched a watched path, and what waited was the fix stopping
+# the money page saying which official figure is bigger when it was wrong on 33 of
+# 76 committee-years ([pull request 1646](https://github.com/alethical-org/alethical/pull/1646))
+# and its honesty correction ([pull request 1655](https://github.com/alethical-org/alethical/pull/1655)).
+# The window ended because the campaign-money phase 1 release
+# ([pull request 1675](https://github.com/alethical-org/alethical/pull/1675))
+# merged at 04:17:05 and published 5 minutes later. So the 14 and 21 minutes above
+# are what a busy day costs, and they are not the size of the fault.
+#
+# AND THE READER HARM IN THAT INSTANCE WAS ZERO, WHICH HAS TO BE SAID HERE. The
+# defect those 2 commits fixed reached nobody: the money section only draws a
+# committee card once a person has confirmed which committee belongs to a member,
+# `legislator_campaign_committee` held 0 rows in production, and no committee page
+# existed to render it (`.claude/rules/workflow.md` rule 5 records the measurement).
+# So this window held back a fix for a figure no reader could see. The delay is the
+# finding; attaching a harm to it would be the reach-is-its-own-question error that
+# rule 5 exists for, and 14 hours proves the wait is bounded by nothing but the
+# next merge to touch a watched path, which needs no harm attached.
 #
 # WHAT IT ASKS INSTEAD. Has anything touched the website since the last commit
 # that actually released. `VERCEL_GIT_PREVIOUS_SHA` is Vercel's own name for that
