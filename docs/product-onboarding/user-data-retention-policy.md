@@ -76,11 +76,12 @@ created its local account record, the most recent time it gained a new sign-in m
 the last time the reader opened their tracked-bills page, and, only once the sign-in
 service has confirmed it, an email address.
 
-The local creation time records first authenticated use, not signup. Public account-creation
-totals use Supabase's original signup time and return counts only. They count surviving
-reader accounts, including unconfirmed accounts; deleted, deactivated, banned, anonymous,
-team, and test accounts are excluded. Linked sign-in records count as 1 account. Deleting
-an account can therefore reduce a past signup-period total.
+The local creation time records first authenticated use, not signup. The public Site Metrics
+total uses current Supabase records and returns a count only. The private leadership page also
+groups surviving accounts by Supabase's original signup time. Both include unconfirmed accounts;
+deleted, deactivated, banned, anonymous, team, and test accounts are excluded. Linked sign-in
+records count as 1 account. Deleting an account reduces the current total and any private
+signup-period total it once contributed to.
 
 **Why "only once confirmed".** `user_account.primary_email` is the address one sign-in
 method uses to find and join an account another sign-in method already made, so it is a

@@ -8,7 +8,7 @@ The public `/site-metrics` page combines 7 independent sources:
 
 - Vercel Web Analytics shows estimated visitors, page views, destinations, and profile breadth for 24 hours, 7 days, or 30 days;
 - Alethical's own records show recorded actions, first signed-in use, and bill and committee follows;
-- Supabase shows surviving accounts created, including confirmed and pending sign-ups;
+- Supabase shows the current surviving user-account total, including confirmed and pending sign-ups; the private leadership page also shows creation windows;
 - Google Search Console shows sitewide appearances and clicks for 30 finalized days;
 - Bing Webmaster Tools shows the same 2 sitewide search totals;
 - Checkly shows 30-day availability for the home page and data service; and
@@ -40,8 +40,9 @@ markers; their start-date explanation now lives in this bottom section.
 - Money searches and new bill/committee-follow history were enabled September 8, 2026 UTC
   ([release](https://github.com/alethical-org/alethical/pull/2027)). Those dates describe
   production activation, not the first event. No earlier action history is invented.
-- Account creation uses saved sign-up dates, including earlier accounts. Current account
-  and follow counts are present records, not a historical collection window.
+- Total user accounts uses current records, so it has no collection start. The private
+  leadership page uses saved sign-up dates for its creation windows, including earlier accounts.
+  Current account and follow counts are present records, not a historical collection window.
 - Homepage and data-service monitoring start dates come separately from Checkly metadata.
   They do not prove uninterrupted coverage. A missing date stays unavailable.
 - Google, Bing, and Cloudflare expose reporting windows, not collection-start metadata.
@@ -98,9 +99,10 @@ financial-information view. Ask remains a visible destination for the existing `
 
 Vercel's periods trail backward from the most recent completed UTC hour. The page shows that
 ending hour in Minnesota's time zone, labeled `CT`. The 3 windows contain 24, 168, and 720
-complete hours. Recorded actions and surviving-account creation use 7-day and 30-day windows
-ending at the last complete UTC hour, with equally long preceding windows. Current account
-and follow inventories are counts at the time read, not creations in that range. Cloudflare
+complete hours. Recorded actions use 7-day and 30-day windows ending at the last complete UTC
+hour, with equally long preceding windows. The private leadership page applies those windows
+to surviving-account creation. Current account and follow inventories are counts at the time
+read, not creations in that range. Cloudflare
 uses 30 complete UTC days; Google and Bing have their own finalized day windows; Checkly
 reports its own rolling 30-day availability. Source date labels must stay separate.
 
