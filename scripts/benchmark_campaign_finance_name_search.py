@@ -32,6 +32,7 @@ from alethical.pipeline.campaign_finance_reader import Release, SourceFile, live
 GROUPS = current._NAME_GROUPS
 VARIANTS = ("current", "displayed_counts", "lookup")
 DATABASE_ENV = "ALETHICAL_SEARCH_BENCHMARK_DATABASE_URL"
+MAX_QUERY_FILE_BYTES = 32 * 1024
 # These are synthetic exercise cases, not the unrecovered original 14-query set.
 SYNTHETIC_QUERIES = (
     "a",
@@ -109,6 +110,9 @@ def check_server(db: Session) -> dict:
 
 def create_synthetic_sources(db: Session, *, names: int = 450) -> Release:
     """Shadow source tables with synthetic rows in this connection only."""
+    # The imported reader uses bare source names. Override an inherited path such
+    # as public,pg_temp so synthetic reads cannot select a permanent source table.
+    db.execute(text("SET LOCAL search_path = pg_temp, public"))
     files = []
     fixtures = [
         "Fixture Rare Name",
@@ -124,7 +128,7 @@ def create_synthetic_sources(db: Session, *, names: int = 450) -> Release:
         None,
     ]
     for _, _, dataset, model, column in GROUPS:
-        table, name = model.__tablename__, column.key
+        table, name = f"pg_temp.{model.__tablename__}", column.key
         db.execute(
             text(
                 f"CREATE TEMP TABLE {table} (snapshot_id uuid, {name} text) ON COMMIT DROP"
@@ -158,7 +162,7 @@ def prepare_lookup(db: Session, release: Release) -> Lookup:
     """Build and independently compare complete generations before marking them ready."""
     db.execute(
         text("""
-        CREATE TEMP TABLE cf_benchmark_name_lookup (
+        CREATE TEMP TABLE pg_temp.cf_benchmark_name_lookup (
             snapshot_id uuid NOT NULL, dataset text NOT NULL, name text NOT NULL,
             payments bigint NOT NULL, PRIMARY KEY (snapshot_id, dataset, name)
         ) ON COMMIT DROP
@@ -192,9 +196,11 @@ def prepare_lookup(db: Session, release: Release) -> Lookup:
         result.ready.add((snapshot, dataset.value))
     started = time.perf_counter()
     db.execute(
-        text("CREATE INDEX ON cf_benchmark_name_lookup USING gin (name gin_trgm_ops)")
+        text(
+            "CREATE INDEX ON pg_temp.cf_benchmark_name_lookup USING gin (name gin_trgm_ops)"
+        )
     )
-    db.execute(text("ANALYZE cf_benchmark_name_lookup"))
+    db.execute(text("ANALYZE pg_temp.cf_benchmark_name_lookup"))
     result.build_ms["index_and_statistics"] = (time.perf_counter() - started) * 1000
     return result
 
@@ -403,6 +409,14 @@ def parser() -> argparse.ArgumentParser:
     return result
 
 
+def read_queries(path: Path) -> list[str]:
+    with path.open("rb") as handle:
+        contents = handle.read(MAX_QUERY_FILE_BYTES + 1)
+    if len(contents) > MAX_QUERY_FILE_BYTES:
+        raise ValueError("query_file_too_large")
+    return json.loads(contents)
+
+
 def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
     if not args.execute:
@@ -424,7 +438,7 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     try:
         queries = (
-            json.loads(args.queries_file.read_text())
+            read_queries(args.queries_file)
             if args.queries_file
             else list(SYNTHETIC_QUERIES)
         )

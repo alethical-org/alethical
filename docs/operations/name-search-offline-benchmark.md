@@ -40,6 +40,11 @@ The default reports the plan only. `--execute` requires an explicit loopback
 PostgreSQL URL in `ALETHICAL_SEARCH_BENCHMARK_DATABASE_URL`. It never reads the
 application's database setting. Host overrides in URL query options are refused.
 The database must already have `pg_trgm` installed; the tool creates no extension.
+The server must also report a loopback address. This strict check refuses a normal
+Docker bridge connection even when its published port is local. Use a native local
+PostgreSQL server for the CLI, never a tunnel or forwarded production connection.
+Neither address check proves physical locality through every possible tunnel;
+confirming a known local copy remains a prerequisite.
 
 ## Synthetic correctness exercise
 
@@ -51,7 +56,9 @@ uv run python -m scripts.benchmark_campaign_finance_name_search \
   --execute --source synthetic --iterations 5 --seconds 60
 ```
 
-Synthetic rows shadow the source tables in this connection only. They include
+Synthetic rows shadow the source tables in this connection only. Every temporary
+write names `pg_temp` explicitly, and synthetic reads put temporary tables first
+even when the inherited search order puts `public` first. They include
 repeated payments, different case, punctuation, rare and common fragments, null
 names, and another source generation. The 14 synthetic query cases are **not the
 original production comparison's 14 strings**. Timings from these rows prove
@@ -64,6 +71,17 @@ database-seeding fixture. They do not empty any existing tables:
 ALETHICAL_TEST_DATABASE_URL=postgresql+psycopg://localhost/search_experiment \
 uv run pytest alethical/tests/test_name_search_offline_benchmark.py
 ```
+
+The name-collision regression creates and removes its own randomly named local
+database. Its connection needs permission to create a database. That isolated
+database contains made-up permanent and temporary rows with identical table names;
+the test checks that both accepted-source and synthetic runs leave the permanent
+rows, indexes and statistics unchanged. Other tests use temporary tables only.
+CI's disposable Docker database is admitted by the test fixture's loopback-URL and
+`pg_trgm` checks, not by relaxing the CLI guard. Only the source-completeness CLI
+tests replace that guard with a test-local metadata adapter. Separate fake-session
+tests cover the real guard's accepted and refused addresses and missing extension;
+a successful CI run is not evidence of a full CLI run on Docker.
 
 ## Compare already accepted local records
 
@@ -84,6 +102,7 @@ uv run python -m scripts.benchmark_campaign_finance_name_search \
   --iterations 10 --seconds 300
 ```
 
+The private query file is read only up to 32 KiB plus 1 byte and refused if larger.
 Limits are 14 queries, 1 to 20 measured repetitions, 1 warmup per variant, 3
 datasets, and at most 300 seconds. Each statement has a maximum 10-second timeout
 and a 1-second lock timeout, shortened by the remaining run budget. Variant order

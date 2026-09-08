@@ -6,6 +6,7 @@ import json
 import os
 import uuid
 from dataclasses import replace
+from unittest.mock import Mock
 
 import pytest
 from sqlalchemy import create_engine, event, text
@@ -24,7 +25,11 @@ def seed_database():
 def db():
     engine = create_engine(bench.local_url(os.environ["DATABASE_URL"]))
     with Session(engine) as session:
-        bench.check_server(session)
+        # CI publishes a disposable Docker database on localhost, but PostgreSQL
+        # reports its bridge address. These helper tests are not CLI locality proof.
+        assert session.scalar(
+            text("SELECT EXISTS (SELECT 1 FROM pg_extension WHERE extname='pg_trgm')")
+        )
         yield session
         session.rollback()
     engine.dispose()
@@ -35,6 +40,28 @@ def corpus(db):
     release = bench.create_synthetic_sources(db, names=205)
     lookup = bench.prepare_lookup(db, release)
     return release, lookup
+
+
+@pytest.fixture
+def collision_db(db):
+    """A separate disposable database keeps the collision test off existing tables."""
+    database_name = f"alethical_search_boundary_{uuid.uuid4().hex}"
+    server = create_engine(db.get_bind().url, isolation_level="AUTOCOMMIT")
+    with server.connect() as connection:
+        connection.exec_driver_sql(f'CREATE DATABASE "{database_name}"')
+    isolated = create_engine(
+        server.url.set(database=database_name), hide_parameters=True
+    )
+    try:
+        with Session(isolated) as session:
+            session.execute(text("CREATE EXTENSION pg_trgm"))
+            yield session
+            session.rollback()
+    finally:
+        isolated.dispose()
+        with server.connect() as connection:
+            connection.exec_driver_sql(f'DROP DATABASE "{database_name}"')
+        server.dispose()
 
 
 def payment_rows(
@@ -155,8 +182,10 @@ def test_each_dataset_keeps_its_own_count(db):
             result = bench.search_group(
                 db, release, "Smith", group, variant, lookup=lookup
             )
-            assert payment_rows(result)[0].payment_count == 3 + index
-            assert payment_rows(result)[0].role == group[1]
+            rows = {row.name: row for row in payment_rows(result)}
+            assert rows["Fixture Smith"].payment_count == 3 + index
+            assert rows["Fixture smith"].payment_count == 3
+            assert all(row.role == group[1] for row in rows.values())
 
 
 def test_missing_release_is_unavailable_not_empty(db):
@@ -295,6 +324,81 @@ def test_temporary_source_and_lookup_tables_disappear_on_rollback(db):
         )
 
 
+def test_public_first_path_never_changes_existing_relations(collision_db):
+    db = collision_db
+    files = []
+    for _, _, dataset, model, column in bench.GROUPS:
+        table = f"public.{model.__tablename__}"
+        db.execute(text(f"CREATE TABLE {table} (snapshot_id uuid, {column.key} text)"))
+        snapshot = uuid.uuid4()
+        db.execute(
+            text(
+                f"INSERT INTO {table} VALUES (:snapshot, 'Existing accepted fixture')"
+            ),
+            {"snapshot": snapshot},
+        )
+        files.append(
+            bench.SourceFile(
+                dataset, snapshot, "https://example.invalid/accepted-fixture", 1
+            )
+        )
+    db.execute(text("CREATE TABLE public.cf_benchmark_name_lookup (name text)"))
+    db.execute(
+        text(
+            "INSERT INTO public.cf_benchmark_name_lookup VALUES ('Existing lookup fixture')"
+        )
+    )
+    db.commit()
+
+    def public_state():
+        values = [
+            db.execute(
+                text(
+                    "SELECT relname, reltuples FROM pg_class JOIN pg_namespace n ON n.oid=relnamespace "
+                    "WHERE n.nspname='public' ORDER BY relname"
+                )
+            ).all()
+        ]
+        for _, _, _, model, _ in bench.GROUPS:
+            values.append(
+                db.execute(text(f"SELECT * FROM public.{model.__tablename__}")).all()
+            )
+        values.append(
+            db.execute(text("SELECT * FROM public.cf_benchmark_name_lookup")).all()
+        )
+        return values
+
+    original = public_state()
+    db.execute(text("SET LOCAL search_path = public, pg_temp"))
+    accepted = bench.Release(uuid.uuid4(), bench.datetime.now(bench.UTC), *files)
+    lookup = bench.prepare_lookup(db, accepted)
+    assert db.scalar(text("SHOW search_path")) == "public, pg_temp"
+    for group in bench.GROUPS:
+        for variant in bench.VARIANTS:
+            answer = bench.search_group(
+                db, accepted, "Existing", group, variant, lookup=lookup
+            )
+            assert [row.name for row in payment_rows(answer)] == [
+                "Existing accepted fixture"
+            ]
+    assert public_state() == original
+    db.rollback()
+
+    db.execute(text("SET LOCAL search_path = public, pg_temp"))
+    synthetic = bench.create_synthetic_sources(db, names=0)
+    lookup = bench.prepare_lookup(db, synthetic)
+    for group in bench.GROUPS:
+        for variant in bench.VARIANTS:
+            answer = bench.search_group(
+                db, synthetic, "rare", group, variant, lookup=lookup
+            )
+            assert {row.name for row in payment_rows(answer)} == {
+                " Fixture Rare Name ",
+                "Fixture Rare Name",
+            }
+    assert public_state() == original
+
+
 def test_short_queries_never_read_payment_rows(db, monkeypatch):
     monkeypatch.setattr(db, "execute", lambda *args, **kwargs: pytest.fail("queried"))
     for variant in bench.VARIANTS:
@@ -323,6 +427,23 @@ def test_bad_query_sets_are_refused_before_connecting(
     assert json.loads(capsys.readouterr().out)["completed"] is False
 
 
+def test_query_file_is_read_with_a_byte_limit(monkeypatch, tmp_path):
+    class BoundedFile:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            pass
+
+        def read(self, size):
+            assert size == bench.MAX_QUERY_FILE_BYTES + 1
+            return b"x" * size
+
+    monkeypatch.setattr(bench.Path, "open", lambda *args, **kwargs: BoundedFile())
+    with pytest.raises(ValueError, match="query_file_too_large"):
+        bench.read_queries(tmp_path / "private-queries.json")
+
+
 def test_budget_expires_before_the_next_statement(monkeypatch, capsys):
     monkeypatch.setenv(bench.DATABASE_ENV, os.environ["DATABASE_URL"])
     clock_values = iter([0.0, 2.0])
@@ -338,11 +459,22 @@ def test_accepted_source_metadata_must_be_complete(
     path = tmp_path / "private-queries.json"
     path.write_text(json.dumps(list(bench.SYNTHETIC_QUERIES)))
     monkeypatch.setenv(bench.DATABASE_ENV, os.environ["DATABASE_URL"])
+    # Exercise source-completeness handling in CI's disposable Docker database.
+    # The real CLI locality guard remains strict and has separate direct tests.
+    monkeypatch.setattr(
+        bench,
+        "check_server",
+        lambda db: {"postgres_version": "test adapter", "collation": "C"},
+    )
+    source_returned = False
 
     def source(db):
+        nonlocal source_returned
         if missing:
+            source_returned = True
             return None
         release = bench.create_synthetic_sources(db, names=0)
+        source_returned = True
         return replace(
             release, contributions=replace(release.contributions, row_count=999)
         )
@@ -357,4 +489,34 @@ def test_accepted_source_metadata_must_be_complete(
         bench.main(["--execute", "--source", "accepted", "--queries-file", str(path)])
         == 1
     )
-    assert json.loads(capsys.readouterr().out)["completed"] is False
+    assert source_returned
+    report = json.loads(capsys.readouterr().out)
+    assert report["completed"] is False and report["error_type"] == "ValueError"
+
+
+@pytest.mark.parametrize("address", ["127.0.0.1", "127.0.0.1/32", "::1", "::1/128"])
+def test_real_cli_server_guard_accepts_loopback(address):
+    db = Mock(spec=Session)
+    db.execute.return_value.one.return_value = (address, "PostgreSQL fixture", "C")
+    db.scalar.return_value = True
+    assert bench.check_server(db) == {
+        "postgres_version": "PostgreSQL fixture",
+        "collation": "C",
+    }
+
+
+@pytest.mark.parametrize("address", ["172.18.0.2/32", "203.0.113.1/32", None])
+def test_real_cli_server_guard_refuses_non_loopback(address):
+    db = Mock(spec=Session)
+    db.execute.return_value.one.return_value = (address, "PostgreSQL fixture", "C")
+    with pytest.raises(ValueError, match="loopback_server_required"):
+        bench.check_server(db)
+    db.scalar.assert_not_called()
+
+
+def test_real_cli_server_guard_refuses_missing_trigram_extension():
+    db = Mock(spec=Session)
+    db.execute.return_value.one.return_value = ("127.0.0.1", "PostgreSQL fixture", "C")
+    db.scalar.return_value = False
+    with pytest.raises(ValueError, match="local_pg_trgm_required"):
+        bench.check_server(db)
