@@ -431,8 +431,8 @@ engineering decision that turns a deletion into a move.
 
 - **Backups.** Supabase keeps 7 days of daily database backups on the current Pro
   plan. A deleted row can remain in a retained backup until that backup expires.
-  The promise should say "we delete it, and it ages out of our backups within
-  7 days" rather than implying instant erasure everywhere.
+  The promise should say "we delete it, and it ages out of Supabase automatic database backups
+  within 7 days" rather than implying instant erasure everywhere.
   [repo-and-service-settings.md](../operations/repo-and-service-settings.md#database-backups)
   owns the current setting. Recovery to an exact point between daily backups is
   not enabled; source-file copies are separate from database backups.

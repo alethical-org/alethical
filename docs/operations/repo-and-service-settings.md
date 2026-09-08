@@ -258,11 +258,11 @@ list.
 
 ## Database backups
 
-The current Supabase Pro plan keeps 7 days of daily physical database backups.
+As observed on 2026-09-08, the current Supabase Pro plan keeps 7 days of daily physical database backups.
 Recovery to an exact point between daily backups (point-in-time recovery) is not
 currently enabled. A deleted database row can remain in a retained backup until
 that backup expires. This window governs the backup limit described in
-[user-data-retention-policy.md §6](../product-onboarding/user-data-retention-policy.md#6-when-a-reader-asks-us-to-delete-their-data).
+[user-data-retention-policy.md §6](../product-onboarding/user-data-retention-policy.md#6-what-deletion-should-mean).
 
 Supabase database backups do not contain files stored through its Storage API.
 Those source files need their separate Cloudflare R2 copies. A visible completed
