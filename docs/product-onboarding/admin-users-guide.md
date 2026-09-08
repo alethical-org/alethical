@@ -46,6 +46,9 @@ capitalization. Press **Search** or Enter to apply it.
 
 **Status** selects all, confirmed, or pending accounts. **Signup date** selects
 any date or accounts created in the last 7 or 30 days. These filters apply together.
+The 2 filter groups share a row where they fit, with 40 pixels between them and
+32 pixels above and below the row. On narrower screens, Signup date wraps below
+Status and the choices wrap within each group.
 **Clear filters** returns to the complete included list. **Refresh** reads current
 records again while keeping the selected filters. On desktop it is vertically
 centered beside the introductory description; on phones it sits below the description
