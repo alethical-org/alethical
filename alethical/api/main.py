@@ -43,15 +43,40 @@ def create_app() -> FastAPI:
         "ALETHICAL_CORS_ORIGINS",
         "http://localhost:19006,http://127.0.0.1:19006,http://localhost:8081,http://127.0.0.1:8081",
     )
+    allowed_origins = [
+        origin.strip() for origin in cors_origins.split(",") if origin.strip()
+    ]
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[
-            origin.strip() for origin in cors_origins.split(",") if origin.strip()
-        ],
+        allow_origins=allowed_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    @app.middleware("http")
+    async def let_our_own_pages_read_their_request_timings(request: Request, call_next):
+        """Let a page on our own site see what a request to this service spent its
+        time on, rather than only how long it took in total.
+
+        A browser hides a cross-origin request's connection, server wait and
+        download from the page that made it, and reports its size as 0, unless the
+        answering service says otherwise with this header. The site and this
+        service are different addresses, so every measurement of a page load
+        stopped at 1 number for the data request and could not say which part of it
+        was slow (#2039). On `/bills` that was a 490 ms figure nobody could split.
+
+        The header names an exact origin, so it echoes the asking origin only when
+        that origin is already on the list this service accepts requests from, and
+        says nothing to anybody else. It exposes timings of our own answers and no
+        reader data: a page can already time its own requests end to end, and this
+        only breaks that total into its parts.
+        """
+        response = await call_next(request)
+        origin = request.headers.get("origin")
+        if origin and origin in allowed_origins:
+            response.headers["Timing-Allow-Origin"] = origin
+        return response
 
     @app.middleware("http")
     async def default_public_cache(request: Request, call_next):
