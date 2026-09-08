@@ -86,6 +86,7 @@ import {
   registeredForLine,
   registerKindFromEntityType,
   registrationNumberFromSlug,
+  SHORT_PAYMENTS_LIMIT,
   showingLine,
   stampThroughDate,
   staleHoldNote,
@@ -732,11 +733,11 @@ function PaymentsSection({
   });
 
   const received = useCommitteePaymentsReceived(registrationNumber, year, {
-    limit: 6,
+    limit: SHORT_PAYMENTS_LIMIT,
     enabled: tab === 'gave',
   });
   const made = useCommitteePaymentsMade(registrationNumber, year, {
-    limit: 6,
+    limit: SHORT_PAYMENTS_LIMIT,
     enabled: tab === 'spent',
   });
   const page = tab === 'gave' ? received.data : made.data;

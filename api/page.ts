@@ -54,10 +54,17 @@ import {
 } from "../apps/frontend/src/lib/outsideSpending";
 import {
   PAGE_CAP as COMMITTEE_PAYMENTS_PAGE_SIZE,
+  committeeMoneyQueryKey,
+  committeePaymentsListQueryKey,
+  committeePaymentsQueryKey,
+  committeeTabFromParam,
   madePaymentRow,
+  paymentsDirection,
   paymentsTabFromParam,
   receivedPaymentRow,
   registrationNumberFromSlug,
+  SHORT_PAYMENTS_LIMIT,
+  type CommitteeTab,
 } from "../apps/frontend/src/lib/committeeMoney";
 import { campaignMoneyYear } from "../apps/frontend/src/lib/legislatorCampaignMoney";
 import {
@@ -746,33 +753,117 @@ async function committeeListContent(page: number): Promise<PageContent> {
  * show a reader a different year. The resolved year is returned because the
  * payments list has to ask for the same one.
  */
-async function committeeFinance(
+function committeeRead(
   slug: string,
   requestedYear: string | undefined,
-): Promise<{
-  money: CommitteeMoneySnapshotSource;
-  registrationNumber: string;
-  year: number;
-}> {
+): { registrationNumber: string; year: number } {
   const registrationNumber = registrationNumberFromSlug(slug);
   // The route reader already refuses an address with no number, so this is the
   // belt-and-braces case rather than the ordinary one.
   if (!registrationNumber) throw new UnknownAddress(`no committee in ${slug}`);
-  const year = campaignMoneyYear(requestedYear);
-  const money = await getApiData<CommitteeMoneySnapshotSource>(
+  return { registrationNumber, year: campaignMoneyYear(requestedYear) };
+}
+
+/**
+ * The finance read, with how old its current claim already was.
+ *
+ * Read with its age because the answer names the member a person signed this
+ * committee off to, which somebody can take back, so it expires (issue 2023).
+ * The age travels on the seeded entry rather than being assumed, which is what
+ * lets the loaded page measure the claim instead of treating it as new.
+ */
+async function committeeFinance(
+  registrationNumber: string,
+  year: number,
+): Promise<{ money: CommitteeMoneySnapshotSource; validatedAgeMs: number }> {
+  const read = await getCurrentClaimRead<CommitteeMoneySnapshotSource>(
     `/committees/${encodeURIComponent(registrationNumber)}/finance?year=${year}`,
   );
-  return { money, registrationNumber, year };
+  return { money: read.data, validatedAgeMs: read.validatedAgeMs };
+}
+
+/**
+ * One page of a committee's payments, or `null` where the read failed.
+ *
+ * A payments read is an addition to a page that already reads correctly, so
+ * losing it serves the committee's identity and period with the list's own
+ * absent state rather than taking the address down.
+ */
+async function committeePayments(
+  registrationNumber: string,
+  options: { direction: "received" | "made"; year: number; limit: number },
+): Promise<CommitteePaymentsPayload | null> {
+  const params = new URLSearchParams({
+    direction: options.direction,
+    year: String(options.year),
+    sort: "amount",
+    limit: String(options.limit),
+    offset: "0",
+  });
+  try {
+    return await getApiData<CommitteePaymentsPayload>(
+      `/committees/${encodeURIComponent(registrationNumber)}/payments?${params.toString()}`,
+    );
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Which short payments list the committee page's own screen reads for the tab the
+ * ADDRESS asks for, or `null` where that tab reads no payments at all.
+ *
+ * The filings tab and the 2 outside-spending tabs read other files, so an address
+ * naming one of them is served no payments seed and nothing is wasted reading one.
+ * A tab the screen later swaps out — an outside-spending tab this filer has no
+ * rows in falls back to who-gave — fetches its list exactly as it did before.
+ */
+function shortPaymentsDirection(tab: CommitteeTab): "received" | "made" | null {
+  if (tab === "gave") return "received";
+  if (tab === "spent") return "made";
+  return null;
 }
 
 async function committeeContent(
   slug: string,
   requestedYear: string | undefined,
+  requestedTab: string | undefined,
 ): Promise<PageContent> {
-  const { money, registrationNumber } = await committeeFinance(
-    slug,
-    requestedYear,
-  );
+  const { registrationNumber, year } = committeeRead(slug, requestedYear);
+  const direction = shortPaymentsDirection(committeeTabFromParam(requestedTab));
+  // Neither read needs the other's answer: the number comes out of the address
+  // and the year out of `campaignMoneyYear`, so waiting for the figures before
+  // asking for the rows would add a whole round trip for nothing (issue 2024).
+  const [finance, shortList] = await Promise.all([
+    committeeFinance(registrationNumber, year),
+    direction
+      ? committeePayments(registrationNumber, {
+          direction,
+          year,
+          limit: SHORT_PAYMENTS_LIMIT,
+        })
+      : Promise.resolve(null),
+  ]);
+  const { money, validatedAgeMs } = finance;
+  const data: PageDataEntry[] = [
+    {
+      key: committeeMoneyQueryKey(registrationNumber, year),
+      payload: money,
+      validatedAgeMs,
+    },
+  ];
+  if (direction && shortList) {
+    data.push({
+      key: committeePaymentsQueryKey({
+        registrationNumber,
+        direction,
+        year,
+        limit: SHORT_PAYMENTS_LIMIT,
+        offset: 0,
+      }),
+      payload: shortList,
+    });
+  }
   return {
     metadata: committeeMoneyPageMetadata(slug, "page", {
       name: committeeSnapshotName(money, registrationNumber),
@@ -783,6 +874,7 @@ async function committeeContent(
     snapshot: renderPageSnapshot(
       committeePageSnapshot(money, registrationNumber),
     ),
+    data,
   };
 }
 
@@ -804,33 +896,43 @@ async function committeePaymentsContent(
   requestedYear: string | undefined,
   requestedTab: string | undefined,
 ): Promise<PageContent> {
-  const { money, registrationNumber, year } = await committeeFinance(
-    slug,
-    requestedYear,
-  );
+  const { registrationNumber, year } = committeeRead(slug, requestedYear);
   const tab = paymentsTabFromParam(requestedTab);
-  const params = new URLSearchParams({
-    direction: tab === "gave" ? "received" : "made",
-    year: String(year),
-    sort: "amount",
-    limit: String(COMMITTEE_PAYMENTS_PAGE_SIZE),
-    offset: "0",
-  });
-  // The list is an addition to a page that already reads correctly, so losing it
-  // serves the committee's identity and period with the list's own absent state
-  // rather than taking the address down.
-  let payments: CommitteePaymentsPayload | null = null;
-  try {
-    payments = await getApiData<CommitteePaymentsPayload>(
-      `/committees/${encodeURIComponent(registrationNumber)}/payments?${params.toString()}`,
-    );
-  } catch {
-    payments = null;
-  }
+  const direction = paymentsDirection(tab);
+  // Neither read needs the other's answer, so they run together. This address
+  // used to wait for the figures before asking for the rows, which added the
+  // whole payments round trip to the first response for nothing (issue 2024).
+  const [finance, payments] = await Promise.all([
+    committeeFinance(registrationNumber, year),
+    committeePayments(registrationNumber, {
+      direction,
+      year,
+      limit: COMMITTEE_PAYMENTS_PAGE_SIZE,
+    }),
+  ]);
+  const { money, validatedAgeMs } = finance;
   const linkable = new Set<string>(
     payments?.linkable_registration_numbers ?? [],
   );
+  const data: PageDataEntry[] = [
+    {
+      key: committeeMoneyQueryKey(registrationNumber, year),
+      payload: money,
+      validatedAgeMs,
+    },
+  ];
+  if (payments) {
+    data.push({
+      key: committeePaymentsListQueryKey({
+        registrationNumber,
+        direction,
+        year,
+      }),
+      payload: payments,
+    });
+  }
   return {
+    data,
     metadata: committeeMoneyPageMetadata(slug, "payments", {
       name: committeeSnapshotName(money, registrationNumber),
       canonicalSlug:
@@ -1025,7 +1127,7 @@ async function contentFor(
         ? outsideSpendingContent()
         : headOnly(outsideSpendingPageMetadata(target.params));
     case "moneyCommittee":
-      return committeeContent(target.slug, target.year);
+      return committeeContent(target.slug, target.year, target.tab);
     case "moneyCommitteePayments":
       return committeePaymentsContent(target.slug, target.year, target.tab);
     case "privacy":

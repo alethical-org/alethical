@@ -5,6 +5,7 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
+  type InfiniteData,
 } from '@tanstack/react-query';
 
 import {
@@ -26,6 +27,9 @@ import {
   getLegislatorVotesFromApi,
   campaignFinanceFilingsFromPayload,
   campaignFinanceSummaryFromPayload,
+  committeeFinanceFromPayload,
+  committeePaymentsMadeFromPayload,
+  committeePaymentsReceivedFromPayload,
   committeeRegisterPageFromPayload,
   getCampaignFinanceCommitteesFromApi,
   getCampaignFinanceRacesFromApi,
@@ -56,6 +60,8 @@ import {
   sendChatMessageToApi,
   setTrackedBillFromApi,
   setTrackedCommitteeFromApi,
+  type ApiCommitteeMoneyPayload,
+  type ApiCommitteePaymentsPayload,
 } from '../data/api';
 import {
   getNotificationPreference,
@@ -73,6 +79,12 @@ import type {
 } from '../data/types';
 import { NotificationPreference, RepresentativeLookupInput } from '../data/types';
 import { COMMITTEE_PAGE_SIZE, committeeRegisterQueryKey } from '../lib/committeeList';
+import {
+  committeeMoneyQueryKey,
+  committeePaymentsListQueryKey,
+  committeePaymentsQueryKey,
+  SHORT_PAYMENTS_LIMIT,
+} from '../lib/committeeMoney';
 import {
   getCampaignFinanceRacesFromApiPayload,
   moneyByRaceQueryKey,
@@ -607,9 +619,19 @@ export function useCampaignFinanceNameSearch(query: string, limit = 5) {
  * rather than blanking (design's service-unreachable state).
  */
 export function useCommitteeMoney(registrationNumber: string | null, year: number) {
+  const key = committeeMoneyQueryKey(registrationNumber, year);
   return useQuery({
-    queryKey: ['committee-money', registrationNumber, year],
+    queryKey: key,
     queryFn: () => getCommitteeFinanceFromApi(registrationNumber ?? '', year),
+    // Both committee addresses are served with this read already made, for the
+    // year the address asked for, so the page draws its figures at once instead
+    // of replacing its own served words with loading placeholders (issue 2024).
+    // `servedAgeMs: 0` because a seeded answer's whole age rides in
+    // `initialDataUpdatedAt` (`lib/pageData.ts`), so adding it here would count
+    // the shared caches twice and withhold the confirmed member early.
+    ...seededQuery(key, (payload: ApiCommitteeMoneyPayload) =>
+      committeeFinanceFromPayload(payload, { servedAgeMs: 0 }),
+    ),
     enabled: Boolean(registrationNumber),
     retry: false,
   });
@@ -621,10 +643,17 @@ export function useCommitteePaymentsReceived(
   year: number,
   options: { limit?: number; offset?: number; enabled?: boolean } = {},
 ) {
-  const limit = options.limit ?? 6;
+  const limit = options.limit ?? SHORT_PAYMENTS_LIMIT;
   const offset = options.offset ?? 0;
+  const key = committeePaymentsQueryKey({
+    registrationNumber,
+    direction: 'received',
+    year,
+    limit,
+    offset,
+  });
   return useQuery({
-    queryKey: ['committee-payments', registrationNumber, 'received', year, limit, offset],
+    queryKey: key,
     queryFn: () =>
       getCommitteePaymentsReceivedFromApi(registrationNumber ?? '', {
         year,
@@ -632,6 +661,10 @@ export function useCommitteePaymentsReceived(
         limit,
         offset,
       }),
+    // A committee address asking for the who-gave tab is served this short list
+    // already read, so its 6 rows are on screen with the figures above them
+    // rather than a request later (issue 2024).
+    ...seededQuery(key, committeePaymentsReceivedFromPayload),
     enabled: Boolean(registrationNumber) && (options.enabled ?? true),
     retry: false,
     placeholderData: keepPreviousData,
@@ -648,8 +681,9 @@ export function useCommitteePaymentsList(
   direction: 'received' | 'made',
   year: number,
 ) {
+  const key = committeePaymentsListQueryKey({ registrationNumber, direction, year });
   return useInfiniteQuery({
-    queryKey: ['committee-payments-list', registrationNumber, direction, year],
+    queryKey: key,
     queryFn: ({
       pageParam,
     }): Promise<CommitteePaymentsPage<CommitteeReceivedPayment | CommitteeMadePayment> | null> =>
@@ -671,6 +705,27 @@ export function useCommitteePaymentsList(
       lastPage && lastPage.hasMore ? allPages.length * 250 : undefined,
     enabled: Boolean(registrationNumber),
     retry: false,
+    // The payments address is served this very page already read, in the year and
+    // the direction the address asked for, so the list a reader can already read
+    // as text is not taken away and fetched again (issue 2024). Spread last
+    // because an earlier spread stops TypeScript inferring the page parameter's
+    // type from `initialPageParam`.
+    ...seededQuery(
+      key,
+      (
+        payload: ApiCommitteePaymentsPayload,
+      ): InfiniteData<
+        CommitteePaymentsPage<CommitteeReceivedPayment | CommitteeMadePayment> | null,
+        number
+      > => ({
+        pages: [
+          direction === 'received'
+            ? committeePaymentsReceivedFromPayload(payload)
+            : committeePaymentsMadeFromPayload(payload),
+        ],
+        pageParams: [0],
+      }),
+    ),
   });
 }
 
@@ -731,10 +786,17 @@ export function useCommitteePaymentsMade(
   year: number,
   options: { limit?: number; offset?: number; enabled?: boolean } = {},
 ) {
-  const limit = options.limit ?? 6;
+  const limit = options.limit ?? SHORT_PAYMENTS_LIMIT;
   const offset = options.offset ?? 0;
+  const key = committeePaymentsQueryKey({
+    registrationNumber,
+    direction: 'made',
+    year,
+    limit,
+    offset,
+  });
   return useQuery({
-    queryKey: ['committee-payments', registrationNumber, 'made', year, limit, offset],
+    queryKey: key,
     queryFn: () =>
       getCommitteePaymentsMadeFromApi(registrationNumber ?? '', {
         year,
@@ -742,6 +804,8 @@ export function useCommitteePaymentsMade(
         limit,
         offset,
       }),
+    // The same for an address asking for the where-it-went tab (issue 2024).
+    ...seededQuery(key, committeePaymentsMadeFromPayload),
     enabled: Boolean(registrationNumber) && (options.enabled ?? true),
     retry: false,
     placeholderData: keepPreviousData,
@@ -799,7 +863,7 @@ export function usePrefetchCommitteeMoney() {
   return (registrationNumber: string, slug: string) => {
     const year = campaignMoneyYear(undefined);
     void queryClient.prefetchQuery({
-      queryKey: ['committee-money', registrationNumber, year],
+      queryKey: committeeMoneyQueryKey(registrationNumber, year),
       queryFn: () => getCommitteeFinanceFromApi(registrationNumber, year),
       retry: false,
     });

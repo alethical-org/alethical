@@ -2051,3 +2051,247 @@ describe('a committee payments address naming a direction is answered in that di
     expect(body).toContain('Who gave to this committee');
   });
 });
+
+/**
+ * The reads a committee's own pages hand to the app, so the browser does not ask
+ * for them a second time (issue 2024).
+ *
+ * These 2 addresses were the ones the reuse work missed. The page function read a
+ * committee's figures to write the words a reader sees, handed on nothing, and the
+ * app then asked the data service for the identical answer and replaced those
+ * words with loading placeholders while it waited.
+ *
+ * Two properties no other case can see:
+ *
+ * - **Every seeded key is the key the app's own hook asks for.** They come from
+ *   the same functions in `lib/committeeMoney.ts` that the hooks call, so a key
+ *   cannot drift. A drifted key does not fail loudly: the app quietly fetches
+ *   again and the second wait comes back unnoticed.
+ * - **The figures and the rows are read together.** Neither read needs the
+ *   other's answer, so the count of requests in flight at once is the measurement.
+ */
+describe('a committee page hands its records to the app', () => {
+  const SLUG = 'jane-fonda-climate-pac-41326';
+
+  const FINANCE = {
+    registration_number: '41326',
+    committee_name: 'Jane Fonda Climate PAC',
+    entity_type: 'PCF',
+    entity_sub_type: 'PC',
+    year: 2026,
+    fetched_at: '2026-08-12T02:54:22.402100Z',
+    confirmed_for: {
+      legislator_id: 'a1',
+      slug: 'jane-fonda',
+      full_name: 'Jane Fonda',
+    },
+    current_claim_validated_at: '2026-09-08T11:54:00.000Z',
+    register: {
+      state: 'reported',
+      kind: 'political_committee_or_fund',
+      name: 'Jane Fonda Climate PAC',
+      registration_date: '2022-10-19',
+      termination_date: null,
+      as_of: '2026-08-12',
+    },
+    split: {
+      state: 'shown',
+      reported_total: '2700.0000',
+      reported_through: '2026-07-20',
+      named_total: '2150.0000',
+      unnamed_total: '550.0000',
+      stated_split_state: 'agrees',
+    },
+    money_in: { state: 'reported', reported_period_start: '2026-01-01', other_receipts: [] },
+    money_out: {
+      state: 'reported',
+      reported_total: '2700.0000',
+      reported_through: '2026-07-20',
+      by_type: [],
+    },
+  };
+
+  const RECEIVED_ROW = {
+    contributor: 'Ulasich, Andrew',
+    contributor_type: 'Individual',
+    amount: '250.0000',
+    received_on: '2026-06-02',
+    receipt_type: 'Contribution',
+    in_kind: 'No',
+  };
+
+  const MADE_ROW = {
+    vendor_name: 'Square Space',
+    vendor_city: 'New York',
+    vendor_state: 'NY',
+    amount: '412.4900',
+    paid_on: '2026-02-19',
+    expenditure_type: 'General Expenditure',
+    purpose: 'Internet Access and Web Hosting: Website',
+    in_kind: 'No',
+  };
+
+  function paymentsPayload(direction: string | null) {
+    const made = direction === 'made';
+    return {
+      state: 'reported',
+      payments: [made ? MADE_ROW : RECEIVED_ROW],
+      page: { limit: 250, offset: 0, has_more: false, total_payments: 1 },
+      linkable_registration_numbers: [],
+      fetched_at: '2026-09-01T12:00:00Z',
+    };
+  }
+
+  /** Every entry in the served data block, as the app's own reader parses it. */
+  function servedData(body: string): {
+    key: unknown[];
+    payload: Record<string, unknown>;
+    validatedAgeMs?: number;
+  }[] {
+    const block = body.match(
+      /<script type="application\/json" id="alethical-page-data">([\s\S]*?)<\/script>/,
+    )?.[1];
+    if (!block) return [];
+    return JSON.parse(block);
+  }
+
+  /** Answers both reads, and records how many were in flight at the same moment. */
+  function stubCommittee(options: { age?: number } = {}) {
+    const calls: string[] = [];
+    let inFlight = 0;
+    const state = { mostAtOnce: 0 };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        calls.push(url);
+        inFlight += 1;
+        state.mostAtOnce = Math.max(state.mostAtOnce, inFlight);
+        // One turn of the microtask queue, which is long enough for a second read
+        // started in parallel to have been issued and short enough that a read
+        // waiting for this one cannot overlap it.
+        await Promise.resolve();
+        inFlight -= 1;
+        const parsed = new URL(url);
+        const isPayments = parsed.pathname.endsWith('/payments');
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            data: isPayments ? paymentsPayload(parsed.searchParams.get('direction')) : FINANCE,
+          }),
+          headers: {
+            get: (name: string) =>
+              name.toLowerCase() === 'age' && options.age !== undefined
+                ? String(options.age)
+                : null,
+          },
+        } as unknown as Response;
+      }),
+    );
+    return { calls, state };
+  }
+
+  it('hands over the year’s figures under the key the committee page asks for', async () => {
+    stubCommittee({ age: 42 });
+
+    const { body } = await serve({ path: `/money/committees/${SLUG}`, year: '2026' });
+
+    const finance = servedData(body).find((entry) => entry.key[0] === 'committee-money');
+    expect(finance?.key).toEqual(['committee-money', '41326', 2026]);
+    expect(finance?.payload).toMatchObject({ registration_number: '41326', year: 2026 });
+    // The claim about whose committee this is expires, so its age travels with it
+    // rather than being assumed (issue 2023).
+    expect(finance?.validatedAgeMs).toBe(42_000);
+  });
+
+  it('hands over the short list for the tab the address asks for, and no other', async () => {
+    stubCommittee();
+
+    const { body } = await serve({
+      path: `/money/committees/${SLUG}`,
+      year: '2026',
+      tab: 'spent',
+    });
+
+    const list = servedData(body).find((entry) => entry.key[0] === 'committee-payments');
+    expect(list?.key).toEqual(['committee-payments', '41326', 'made', 2026, 6, 0]);
+    expect(list?.payload).toMatchObject({ payments: [{ vendor_name: 'Square Space' }] });
+    // Donations under a payments-out heading is the worst thing this page can
+    // print (issue 2038), so the direction not asked for is never handed over.
+    expect(servedData(body).some((entry) => entry.key[2] === 'received')).toBe(false);
+  });
+
+  it('reads no payments at all for a tab that shows none', async () => {
+    const { calls } = stubCommittee();
+
+    const { body } = await serve({
+      path: `/money/committees/${SLUG}`,
+      year: '2026',
+      tab: 'filings',
+    });
+
+    expect(calls.some((url) => url.includes('/payments'))).toBe(false);
+    expect(servedData(body).map((entry) => entry.key[0])).toEqual(['committee-money']);
+  });
+
+  it('hands the payments view its own first page, in the requested year and direction', async () => {
+    stubCommittee();
+
+    const { body } = await serve({
+      path: `/money/committees/${SLUG}/payments`,
+      year: '2026',
+      tab: 'spent',
+    });
+
+    expect(servedData(body).map((entry) => entry.key)).toEqual([
+      ['committee-money', '41326', 2026],
+      ['committee-payments-list', '41326', 'made', 2026],
+    ]);
+  });
+
+  it('reads the figures and the rows at the same time, not one after the other', async () => {
+    const { state } = stubCommittee();
+
+    await serve({ path: `/money/committees/${SLUG}/payments`, year: '2026' });
+
+    // 1 would mean the second read waited for the first to answer, which added a
+    // whole round trip to this address's first response for no reason: the
+    // registration number comes out of the address and the year out of
+    // `campaignMoneyYear`, so neither read needs the other (issue 2024).
+    expect(state.mostAtOnce).toBe(2);
+  });
+
+  it('serves the committee’s own words when the payments read fails', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        const parsed = new URL(url);
+        if (parsed.pathname.endsWith('/payments')) {
+          return {
+            ok: false,
+            status: 500,
+            json: async () => ({}),
+            headers: { get: () => null },
+          } as unknown as Response;
+        }
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ data: FINANCE }),
+          headers: { get: () => null },
+        } as unknown as Response;
+      }),
+    );
+
+    const { body, status } = await serve({
+      path: `/money/committees/${SLUG}/payments`,
+      year: '2026',
+    });
+
+    expect(status).toBe(200);
+    expect(body).toContain('Jane Fonda Climate PAC');
+    // The list is an addition to a page that already reads correctly, so only the
+    // list is missing and the app fetches it as it always did.
+    expect(servedData(body).map((entry) => entry.key[0])).toEqual(['committee-money']);
+  });
+});

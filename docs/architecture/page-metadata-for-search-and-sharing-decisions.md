@@ -1606,6 +1606,21 @@ ask for, and the app draws it with no request of its own.** The transport is a
   never to a held figure: an unreadable payload is dropped, and the app's own read is the path
   every address took before this existed.
 
+### The 2 committee addresses carry theirs too, added 8 Sep 2026
+
+The 5 top-level money addresses were served their records first; a committee's own page and
+its payments view were not, so those 2 kept the second fetch this section removes
+([issue 2024](https://github.com/alethical-org/alethical/issues/2024)). They now carry the
+committee's figures for the year the address asks for, the payments page in the direction it
+asks for, and on the committee page the short list of 6 behind the tab it names. An address
+naming the filings tab or an outside-spending tab carries no payments list, and none of this
+changes any address's `noindex` or its canonical address: §22's table is unchanged.
+
+Two things specific to these 2 addresses, with their measured figures, are in
+[`docs/operations/page-load-performance-decisions.md`](../operations/page-load-performance-decisions.md)
+("What a committee's own pages carry in their first response"): why the figures read is still
+requested while the wait for it is gone, and why a seeded answer's own `servedAgeMs` must be 0.
+
 ### This response's cache window is now a data freshness window
 
 **Serving the records changed what the page cache holds, and that is the one
