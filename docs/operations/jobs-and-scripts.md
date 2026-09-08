@@ -52,7 +52,7 @@ owns the workflow count, triggers, and costs.
 
 ## Command-line tools
 
-The `scripts/` folder has 69 runnable files. GitHub jobs call 28 of them, and the
+The `scripts/` folder has 69 runnable files. GitHub jobs call 27 of them, and the
 Mac backup above calls 1. A workflow also calls
 `apps/frontend/scripts/traffic-token-expiry.mjs`, a similarly named script that
 lives in a different folder and is not part of this list or its totals. The

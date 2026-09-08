@@ -134,12 +134,22 @@ needs no configuration. See `.env.example` for what each variable does.
 The commit hook formats the selected files and includes those results in the
 commit. The push hook runs the full app or server suite when that area changes,
 using an isolated copy of the exact commit Git intends to upload. Both suites
-run together when both areas change. Keep local Postgres running on port 54329
-for server tests. `just lint` includes Prettier's frontend formatting check;
-`just format` deliberately formats whole code areas, not just selected files.
+run together when both areas change. Upload tests start a disposable Postgres
+server of their own, not the shared development server on port 54329. Docker must
+be running and its `pgvector/pgvector:pg17` image must already be cached. The normal
+Docker Compose setup downloads that image; the push hook never downloads it and
+does not need the shared database running. A read-only identity comparison proves
+the connection reaches that disposable server before tests write anything.
+`just lint` includes Prettier's frontend formatting check; `just format` deliberately
+formats whole code areas, not just selected files.
 GitHub remains the required check before merging. See
 [Local code checks](docs/operations/local-code-checks.md) for the shared file rules
 and why local checks do not replace GitHub's production build.
+
+Changes made directly through GitHub do not run local Git hooks. That is a supported
+editing route, not a local hook-skip setting. They still need the 4 required GitHub
+checks (`changes`, `backend`, `frontend`, `description-checks`) on current code and
+the merge queue's combined code before merging.
 
 **`just lint` and `just format` pin the same tool versions CI runs** (`ruff@0.15.0`,
 `ty@0.0.72` — see the justfile and `.github/workflows/ci.yml`). If you ever call
@@ -147,7 +157,11 @@ and why local checks do not replace GitHub's production build.
 is newest and can format a file differently from CI or report errors CI never sees —
 2 PRs failed that way in one night before the pins landed.
 
-### One local Postgres, one database per worktree
+### Manual server tests use the shared local Postgres
+
+This section describes manually running `uv run pytest`, not the upload hook.
+The upload hook uses a completely separate, disposable database server as described
+in [Local code checks](docs/operations/local-code-checks.md#testing-the-exact-upload).
 
 Every worktree shares the same local Postgres server on `:54329`, but since
 [#898](https://github.com/alethical-org/alethical/issues/898) each gets its **own
@@ -183,11 +197,16 @@ regularly, and neither error message pointed at the cause:
   contained. A dependency bump was once blamed for 502 failing tests that were entirely
   this.
 
-Both are now impossible between worktrees. The second is also self-healing *within* one:
-if the database is left stamped with a revision your tree cannot locate — after a rebase,
-or switching branches in place — the suite drops and rebuilds it rather than dying.
+Separate database names prevent those collisions between active worktrees that share
+the same worktree list. They do not isolate the database server. The setup in
+[`conftest.py`](alethical/tests/conftest.py) also drops test databases it considers
+abandoned, based on that list. A different clone or a forwarded local port can make
+that assumption unsafe. Before a manual run, establish which server the address
+reaches and coordinate with its other users. Do not treat `localhost` as proof of
+ownership. A database stamped with a migration the current branch cannot locate is
+dropped and rebuilt by test setup.
 
-**What is still shared, and the one case not covered.** The Postgres server, role and
+**What manual runs still share.** The Postgres server, role and
 port are shared; only the database name splits. Two `pytest` processes started in the
 *same* worktree at once still share a database and can still collide. Each session gets
 its own worktree, so that is not the failure anyone has hit, and splitting per process
@@ -207,7 +226,17 @@ test suite through `just test-frontend`. Its running time depends on the suite
 and computer. Use
 `pnpm --dir apps/frontend run test:watch` to rerun tests on save.
 
-**Pure logic gets a test.** Any function that maps input to output with no React, no network and no device — text cleaning, parsing, classifying, labelling, date and vote maths — is expected to ship with tests in `src/lib/__tests__/`. That is the rule; a PR adding one without tests should say why. Component rendering and visual regression are deliberately **not** covered (see [#751](https://github.com/alethical-org/alethical/issues/751)). Browser automation now is, in two on-demand layers owned by the `browser-user-test` skill (`.claude/skills/browser-user-test/SKILL.md`): agent-driven user stories, and Playwright checks in `apps/frontend/e2e/` (`just e2e`, engines for Chrome, Firefox, and Safari). Neither runs in CI yet — deliberately, a pending decision on cost and flakiness policy.
+**Pure logic gets a test.** Functions that clean, parse, classify, label, or calculate
+data are expected to ship with tests in `src/lib/__tests__/`. A change adding one
+without tests should explain why. The suite also covers rendered components and
+page snapshots, including
+[`AdminUsersScreen.test.tsx`](apps/frontend/src/screens/__tests__/AdminUsersScreen.test.tsx)
+and [`pageSnapshot.test.tsx`](apps/frontend/src/lib/__tests__/pageSnapshot.test.tsx).
+These are not a substitute for checking the site in a real browser. Browser automation
+remains separate: agent-driven user stories and Playwright checks in
+`apps/frontend/e2e/` (`just e2e`, Chrome, Firefox, and Safari), owned by the
+[`browser-user-test` skill](.claude/skills/browser-user-test/SKILL.md).
+Those browser checks run on demand, not in CI, pending the cost and flakiness policy.
 
 Prefer a fixture of **real** data over invented strings: `src/lib/__tests__/fixtures/` holds real bill sections pulled from the production API, and its `README.md` explains what each one is there to catch and how to add more. Two of the bugs these tests pin were found by measuring against real text and would not have been caught by an example someone made up.
 
@@ -260,7 +289,7 @@ On every PR (`.github/workflows/ci.yml`):
 - **Backend** (when backend paths change): `ruff check`, `ty check`, and `pytest` against a real Postgres
 - **Frontend** (when frontend paths change): `tsc --noEmit`, `prettier --check`, the Vitest suite, and a production build
 - **Doc references** (always, no path filter): `scripts/check_doc_references.py` confirms every `docs/...` path and every relative link inside `docs/` points at a real file. This one runs on every PR on purpose — a broken doc pointer is usually introduced by a docs-only or rules-only change, which the two jobs above skip. You can run it locally any time with `python scripts/check_doc_references.py`.
-- **Docs drift** (on pull requests): [`scripts/check_doc_sync.py`](scripts/check_doc_sync.py) requires a visible, nonempty `Docs check:` explanation when declared code changes. The separate `description-checks` job reads the latest description on edits without rerunning app or server tests. During phase 1, the original required `changes` job retains its stored-description check. [Local code checks](docs/operations/local-code-checks.md#github-description-check-activation) owns the proof and activation steps before that old check is removed.
+- **Docs drift** (on pull requests and merge groups): [`scripts/check_pr_descriptions.py`](scripts/check_pr_descriptions.py) requires a visible, nonempty `Docs check:` explanation when declared code changes. The independent `description-checks` job reads the latest description on edits without rerunning app or server tests. Description validation does not live inside `changes`. [Local code checks](docs/operations/local-code-checks.md#github-description-check-activation) owns the release proof and required-check activation checklist.
 
 ### Keeping the workflow actions current
 
@@ -422,14 +451,14 @@ single home. What CI enforces on your PR:
 - A doc that describes behaviour names the code it describes in a hidden comment near
   its top: `<!-- describes: <paths> -->`. **If your PR changes a file some doc
   declares, the PR body needs one `Docs check:` line saying what you concluded**
-  ([`scripts/check_doc_sync.py`](scripts/check_doc_sync.py)). "Docs check: none needed, internal refactor" passes:
+  ([`scripts/check_pr_descriptions.py`](scripts/check_pr_descriptions.py)). "Docs check: none needed, internal refactor" passes:
   the check forces a *look*, never an edit. Editing the doc does not exempt you — read
   the whole doc, then say what you concluded, and search for the claim your change made
   false, not for the name of the thing you changed.
 - A blank line, hidden comment, or fenced example does not count as the explanation.
   [Local code checks](docs/operations/local-code-checks.md#github-description-check-activation)
-  explains how description edits refresh their own result and why phase 1 still
-  retains the original required check.
+  explains how description edits refresh their own result without uploading the
+  code again or restarting app and server tests.
 - **Design previews do not land under `docs/`.** Keep HTML previews, screenshots, copied
   assets, and handoff notes with the active task or pull request. Before merging, move
   lasting behavior and copy into the feature guide under `docs/product-onboarding/`,

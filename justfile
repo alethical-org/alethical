@@ -44,9 +44,8 @@ stop-wip-backup:
   @echo "🛑 Automatic snapshots stopped. Existing refs/wip-backup/* snapshots are untouched."
 
 # Activate the tracked checks for this worktree and preserve shared lock protection.
-# Until you run it, a new worktree is NOT auto-locked and `git worktree remove
-# --force` can delete another session's uncommitted work. `core.hooksPath` is local
-# config, so it cannot travel with a clone; this recipe is the one documented way in.
+# A fresh clone needs setup to install the lock protection. Normal dependency
+# installation also activates these checks for the invoking worktree.
 install-hooks:
   python3 scripts/install_git_hooks.py
 
