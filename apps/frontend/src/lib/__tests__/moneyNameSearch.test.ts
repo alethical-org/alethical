@@ -10,6 +10,7 @@ import {
   GROUP_UNAVAILABLE,
   NAME_SEARCH_GROUP_ORDER,
   NAME_SEARCH_MATCHED_ON,
+  HELD_RESULTS_NOTE,
   NOT_ALL_SEARCHED_TITLE,
   NOT_ALL_SEARCHED_WHY,
   NO_MATCH_WHY,
@@ -174,5 +175,21 @@ describe('the page’s states', () => {
   it('never claims nothing is filed when part of the records went unread', () => {
     expect(NOT_ALL_SEARCHED_TITLE).toContain('could not search all of these records');
     expect(NOT_ALL_SEARCHED_WHY).toContain('not a statement that nothing is filed');
+  });
+
+  // Held results stay on screen and say so. The sentence tracks the committee
+  // page's `staleHoldNote`, which has said the same thing for months, so a reader
+  // who sees both surfaces reads one explanation rather than two (issue #2048).
+  it('says held results are held until the service answers, never that they timed out', () => {
+    expect(HELD_RESULTS_NOTE).toContain('last results we accepted');
+    expect(HELD_RESULTS_NOTE).toContain('held until it answers');
+    expect(HELD_RESULTS_NOTE).not.toContain('expired');
+  });
+
+  // The whole defect: a failed recheck must never leave a reader unable to tell
+  // "our side broke" from "nothing is filed under this name".
+  it('never reads as a statement about what is filed under the name', () => {
+    expect(HELD_RESULTS_NOTE).not.toContain('nothing is filed');
+    expect(HELD_RESULTS_NOTE).not.toContain('could not search');
   });
 });

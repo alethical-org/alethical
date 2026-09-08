@@ -225,6 +225,18 @@ and a link to browse all committees); one group our copy could not read (a gap o
 while the other groups still answer); and loading placeholders that announce themselves to
 screen readers.
 
+**A failed check never takes a correct answer off the screen.** Coming back to a tab that
+has sat for more than 5 minutes rechecks this read, because its person rows say which
+chamber, district and party somebody currently sits for. Where that recheck fails and the
+answer to the name in the heading is still in hand, the results stay and a line above them
+says what they are: "We could not reach our own data service just now, so these are the
+last results we accepted for this name — held until it answers rather than expiring on a
+timer", the same promise a committee page's own figures carry. The "we couldn't search
+these records just now" card is kept for the case where there is no answer at all, because
+a reader handed it cannot tell it apart from "nothing is filed under this name", and
+inventing that distinction for them is the confusion this whole section is built to avoid
+([issue 2048](https://github.com/alethical-org/alethical/issues/2048)).
+
 **Changing the name shows those loading placeholders, never the last name's answer.** The
 heading, the counts, the rows and the "nothing is filed" card are all claims about the name
 in the box, so the page holds none of them past the moment that name changes. The
