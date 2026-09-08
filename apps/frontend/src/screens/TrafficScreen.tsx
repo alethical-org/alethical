@@ -1347,10 +1347,16 @@ function CollectionDates({
   return (
     <View testID="site-metrics-collection-dates">
       <SectionTitle>Data collection dates</SectionTitle>
-      <View style={[styles.sectionContent, isMobile && styles.sectionContentMobile]}>
+      <View
+        style={[
+          styles.sectionContent,
+          styles.collectionContent,
+          isMobile && styles.sectionContentMobile,
+        ]}
+      >
         <Text style={styles.panelNote}>Dates use UTC.</Text>
         <Text testID="site-metrics-collection-page-views" style={styles.panelNote}>
-          Site visits and page views:{' '}
+          <Text style={styles.collectionLabel}>Site visits and page views:</Text>{' '}
           {pageViewsStart
             ? 'Collected since ' + formatDate(pageViewsStart) + '.'
             : traffic.kind === 'loading'
@@ -1359,25 +1365,30 @@ function CollectionDates({
           Includes Money page views recorded before the Money rows were added.
         </Text>
         <Text style={styles.panelNote}>
-          Bill and legislator searches, Find My Legislator, and official source clicks: Collected
-          since August 15, 2026. Counting rules changed September 8, 2026; earlier totals may use
-          older rules.
+          <Text style={styles.collectionLabel}>
+            Bill and legislator searches, Find My Legislator, and official source clicks:
+          </Text>{' '}
+          Collected since August 15, 2026. Counting rules changed September 8, 2026; earlier totals
+          may use older rules.
         </Text>
         <Text testID="site-metrics-collection-new-actions" style={styles.panelNote}>
-          Money searches, new bill watches, and new committee follows: Collected since September 8,
-          2026. Earlier activity is not included.
+          <Text style={styles.collectionLabel}>
+            Money searches, new bill watches, and new committee follows:
+          </Text>{' '}
+          Collected since September 8, 2026. Earlier activity is not included.
         </Text>
         <Text style={styles.panelNote}>
-          Accounts created: Uses saved sign-up dates, including accounts created before this report
-          began. Current account and follow totals describe the records that exist now.
+          <Text style={styles.collectionLabel}>Accounts created:</Text> Uses saved sign-up dates,
+          including accounts created before this report began. Current account and follow totals
+          describe the records that exist now.
         </Text>
         <Text testID="site-metrics-collection-availability" style={styles.panelNote}>
-          Availability checks: Homepage: {monitorStart(monitorDates?.website)}; data service:{' '}
-          {monitorStart(monitorDates?.api)}.
+          <Text style={styles.collectionLabel}>Availability checks:</Text> Homepage:{' '}
+          {monitorStart(monitorDates?.website)}; data service: {monitorStart(monitorDates?.api)}.
         </Text>
         <Text style={styles.panelNote}>
-          Google, Bing, and Cloudflare: Collection start dates are not recorded here. Each section
-          shows its own reporting dates.
+          <Text style={styles.collectionLabel}>Google, Bing, and Cloudflare:</Text> Collection start
+          dates are not recorded here. Each section shows its own reporting dates.
         </Text>
       </View>
     </View>
@@ -1659,6 +1670,8 @@ const styles = StyleSheet.create({
   sectionQualifierMobile: { fontSize: 11, lineHeight: 16, letterSpacing: 0.66 },
   sectionContent: { marginTop: 12 },
   sectionContentMobile: { marginTop: 10 },
+  collectionContent: { maxWidth: 780 },
+  collectionLabel: { fontWeight: '600' },
   sectionHeadingActionRow: {
     flexDirection: 'row',
     alignItems: 'center',
