@@ -316,6 +316,52 @@ export function registrationNumberFromSlug(segment: string | null | undefined): 
   return match ? match[1] : null;
 }
 
+// --- The reads these pages make -------------------------------------------------
+
+/**
+ * The keys the committee pages' reads are stored under, written once so the page
+ * function can hand a record on under the very key the app then asks for
+ * (`lib/pageData.ts`, issue 2024). A key spelled out twice is a key that drifts,
+ * and a drifted key does not fail: the app quietly fetches again and the second
+ * wait comes back unnoticed.
+ */
+export function committeeMoneyQueryKey(
+  registrationNumber: string | null,
+  year: number,
+): readonly unknown[] {
+  return ['committee-money', registrationNumber, year];
+}
+
+/** One page of a committee's short payments list, in one direction. */
+export function committeePaymentsQueryKey(options: {
+  registrationNumber: string | null;
+  direction: 'received' | 'made';
+  year: number;
+  limit: number;
+  offset: number;
+}): readonly unknown[] {
+  const { registrationNumber, direction, year, limit, offset } = options;
+  return ['committee-payments', registrationNumber, direction, year, limit, offset];
+}
+
+/** The full payments view's accumulating list, in one direction. */
+export function committeePaymentsListQueryKey(options: {
+  registrationNumber: string | null;
+  direction: 'received' | 'made';
+  year: number;
+}): readonly unknown[] {
+  const { registrationNumber, direction, year } = options;
+  return ['committee-payments-list', registrationNumber, direction, year];
+}
+
+/** Which direction of the payments file a tab reads. */
+export function paymentsDirection(tab: PaymentsTab): 'received' | 'made' {
+  return tab === 'gave' ? 'received' : 'made';
+}
+
+/** How many rows the committee page's short list asks for. */
+export const SHORT_PAYMENTS_LIMIT = 6;
+
 // --- The period stamp ------------------------------------------------------------
 
 /**

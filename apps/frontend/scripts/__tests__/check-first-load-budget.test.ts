@@ -121,12 +121,13 @@ describe('checkFirstLoadBudget', () => {
   });
 
   it('keeps the limit at or above the hosted figure it was set from', () => {
-    // Vercel measured 390,761 for commit 01ffcbb0. A limit below that is a limit
-    // the deploying build cannot meet, which is the whole defect.
-    expect(FIRST_LOAD_LIMIT).toBeGreaterThanOrEqual(390_761);
+    // Vercel measured 391,582 for the committee record-reuse change (issue 2024).
+    // A limit below that is a limit the deploying build cannot meet, which is the
+    // whole defect.
+    expect(FIRST_LOAD_LIMIT).toBeGreaterThanOrEqual(391_582);
     // And the room left over must cover the gap, or a passing unhosted build could
     // still be a failing hosted one.
-    expect(FIRST_LOAD_LIMIT - 390_761).toBeGreaterThanOrEqual(HOSTED_BUILD_EXCESS_BYTES);
+    expect(FIRST_LOAD_LIMIT - 391_582).toBeGreaterThanOrEqual(HOSTED_BUILD_EXCESS_BYTES);
   });
 
   it('holds a limit no bigger than what the build produces today', () => {
@@ -136,10 +137,10 @@ describe('checkFirstLoadBudget', () => {
     // commit reads 542 bytes smaller and a ratchet set from the smaller number is
     // one the hosted build then fails, which stops the deploy
     // ([issue 2052](https://github.com/alethical-org/alethical/issues/2052)).
-    // Vercel built 390,761 bytes for commit 01ffcbb0, which is the end-to-end
-    // freshness deadline (issue 2023) plus the 2 changes that followed it, so the
-    // ratchet sits 739 above that for the next change to spend.
-    expect(FIRST_LOAD_LIMIT).toBeLessThanOrEqual(391500);
+    // Vercel built 391,582 bytes for the committee record-reuse change, so the
+    // ratchet sits 739 above that for the next change to spend, the same room the
+    // figure before it left.
+    expect(FIRST_LOAD_LIMIT).toBeLessThanOrEqual(392321);
   });
 });
 

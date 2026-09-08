@@ -23,6 +23,7 @@ import {
   notFoundBody,
   notFoundTitle,
   PAYMENTS_TAB_LABELS,
+  paymentsDirection,
   paymentsEyebrow,
   paymentsTabFromParam,
   paymentsTitle,
@@ -90,11 +91,7 @@ export function CommitteePaymentsScreen({
   const money = moneyQuery.data ?? null;
   const notFound = moneyQuery.data === null && !moneyQuery.isPending && !moneyQuery.isError;
 
-  const list = useCommitteePaymentsList(
-    registrationNumber,
-    tab === 'gave' ? 'received' : 'made',
-    year,
-  );
+  const list = useCommitteePaymentsList(registrationNumber, paymentsDirection(tab), year);
 
   const name = money
     ? (money.register.name ?? money.committeeName ?? `Committee ${registrationNumber}`)

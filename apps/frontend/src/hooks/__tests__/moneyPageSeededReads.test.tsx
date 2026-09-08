@@ -17,6 +17,12 @@ vi.mock('../../providers/AuthProvider', () => ({
 }));
 
 import { committeeRegisterQueryKey } from '../../lib/committeeList';
+import {
+  committeeMoneyQueryKey,
+  committeePaymentsListQueryKey,
+  committeePaymentsQueryKey,
+  SHORT_PAYMENTS_LIMIT,
+} from '../../lib/committeeMoney';
 import { createAppQueryClient } from '../../lib/appQueryClient';
 import { moneyByRaceQueryKey } from '../../lib/moneyByRace';
 import { campaignFinanceSummaryQueryKey } from '../../lib/moneyLanding';
@@ -26,6 +32,9 @@ import {
   useCampaignFinanceCommittees,
   useCampaignFinanceRaces,
   useCampaignFinanceSummary,
+  useCommitteeMoney,
+  useCommitteePaymentsList,
+  useCommitteePaymentsReceived,
   useOutsideSpendingRecord,
 } from '../useAppQueries';
 
@@ -56,6 +65,40 @@ const REGISTER = {
   register_total: 1603,
   by_kind: { party_unit: 1 },
   as_of: '2026-08-12',
+};
+
+/** What `/committees/41363/finance?year=2025` serves, as far as these cases read it. */
+const FINANCE = {
+  registration_number: '41363',
+  committee_name: '100 Percent Future Fund',
+  entity_type: 'PCF',
+  entity_sub_type: 'PC',
+  year: 2025,
+  fetched_at: '2026-09-01T12:00:00Z',
+  register: {
+    state: 'reported',
+    name: '100 Percent Future Fund',
+    kind: 'political_committee_or_fund',
+  },
+  split: { state: 'shown', reported_total: '880.0000', named_total: '700.0000' },
+  money_in: { state: 'reported' },
+  money_out: { state: 'reported' },
+};
+
+/** One page of the payments INTO that committee. */
+const RECEIVED = {
+  state: 'reported',
+  payments: [
+    {
+      contributor: 'Ulasich, Andrew',
+      contributor_type: 'Individual',
+      amount: '25.0000',
+      received_on: '2025-12-28',
+    },
+  ],
+  page: { limit: 250, offset: 0, has_more: false, total_payments: 24 },
+  linkable_registration_numbers: [],
+  fetched_at: '2026-09-01T12:00:00Z',
 };
 
 /** One render, capturing what each render pass saw, in order. */
@@ -237,5 +280,112 @@ describe('a money screen draws the served records on its first render', () => {
       figures: null,
       fetchedAt: '2026-09-01T12:00:00Z',
     });
+  });
+
+  it('has one committee’s figures for the year the address asked for', () => {
+    const requests: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: string) => {
+        requests.push(url);
+        throw new Error('the screen must not need this');
+      }),
+    );
+    seed(renderPageData([{ key: committeeMoneyQueryKey('41363', 2025), payload: FINANCE }]));
+
+    const passes = renderOnce(() => useCommitteeMoney('41363', 2025));
+
+    expect(passes[0].isPending).toBe(false);
+    expect(passes[0].data).toMatchObject({
+      registrationNumber: '41363',
+      year: 2025,
+      split: { reportedTotal: '880.0000', namedTotal: '700.0000' },
+    });
+    expect(requests).toEqual([]);
+  });
+
+  it('never answers one year’s question with another year’s figures', () => {
+    seed(renderPageData([{ key: committeeMoneyQueryKey('41363', 2026), payload: FINANCE }]));
+
+    // The exact confusion issue 2021 describes, on the reuse side: a served 2026
+    // answer must not be handed to a page a reader asked to be about 2025.
+    const passes = renderOnce(() => useCommitteeMoney('41363', 2025));
+
+    expect(passes[0].isPending).toBe(true);
+    expect(passes[0].data).toBeUndefined();
+  });
+
+  it('has the committee page’s short list of who gave', () => {
+    seed(
+      renderPageData([
+        {
+          key: committeePaymentsQueryKey({
+            registrationNumber: '41363',
+            direction: 'received',
+            year: 2025,
+            limit: SHORT_PAYMENTS_LIMIT,
+            offset: 0,
+          }),
+          payload: RECEIVED,
+        },
+      ]),
+    );
+
+    const passes = renderOnce(() =>
+      useCommitteePaymentsReceived('41363', 2025, { limit: SHORT_PAYMENTS_LIMIT }),
+    );
+
+    expect(passes[0].isPending).toBe(false);
+    expect(passes[0].data).toMatchObject({
+      state: 'reported',
+      totalPayments: 24,
+      payments: [{ contributor: 'Ulasich, Andrew', amount: '25.0000' }],
+    });
+  });
+
+  it('has the full payments view’s first page, as its first page', () => {
+    seed(
+      renderPageData([
+        {
+          key: committeePaymentsListQueryKey({
+            registrationNumber: '41363',
+            direction: 'received',
+            year: 2025,
+          }),
+          payload: RECEIVED,
+        },
+      ]),
+    );
+
+    const passes = renderOnce(() => useCommitteePaymentsList('41363', 'received', 2025));
+
+    expect(passes[0].isPending).toBe(false);
+    expect(passes[0].data).toMatchObject({
+      pageParams: [0],
+      pages: [{ state: 'reported', totalPayments: 24 }],
+    });
+  });
+
+  it('never answers where-it-went with the money that came in', () => {
+    seed(
+      renderPageData([
+        {
+          key: committeePaymentsListQueryKey({
+            registrationNumber: '41363',
+            direction: 'received',
+            year: 2025,
+          }),
+          payload: RECEIVED,
+        },
+      ]),
+    );
+
+    // Issue 2038's defect on the reuse side. Donations under a payments-out
+    // heading is the worst thing this page can print, so a direction that was
+    // not served loads as it always did.
+    const passes = renderOnce(() => useCommitteePaymentsList('41363', 'made', 2025));
+
+    expect(passes[0].isPending).toBe(true);
+    expect(passes[0].data).toBeUndefined();
   });
 });

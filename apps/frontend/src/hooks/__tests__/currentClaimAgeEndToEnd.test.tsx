@@ -17,14 +17,21 @@ vi.mock('../../providers/AuthProvider', () => ({
 
 import { createAppQueryClient } from '../../lib/appQueryClient';
 import { committeeRegisterQueryKey } from '../../lib/committeeList';
+import { committeeMoneyQueryKey } from '../../lib/committeeMoney';
 import {
   API_SHARED_CACHE_MAX_AGE_MS,
+  currentClaimAgeMs,
+  currentClaimIsWithheld,
   CURRENT_CLAIM_MAX_AGE_MS,
   PAGE_SHARED_CACHE_MAX_AGE_MS,
 } from '../../lib/currentClaimFreshness';
 import { campaignFinanceSummaryQueryKey } from '../../lib/moneyLanding';
 import { renderPageData, resetSeededPayloadsForTests } from '../../lib/pageData';
-import { useCampaignFinanceSummary, useCampaignFinanceCommittees } from '../useAppQueries';
+import {
+  useCampaignFinanceSummary,
+  useCampaignFinanceCommittees,
+  useCommitteeMoney,
+} from '../useAppQueries';
 import { useCurrentClaimExpiry } from '../useCurrentClaimExpiry';
 
 /**
@@ -81,6 +88,24 @@ const REGISTER = {
   register_total: 1603,
   by_kind: { party_unit: 1 },
   as_of: '2026-08-12',
+};
+
+/**
+ * What `/committees/41363/finance?year=2025` serves. The confirmed member is the
+ * claim that expires: a person can take that sign-off back, and past the deadline
+ * the sentence naming them is withheld while every dated figure stays.
+ */
+const FINANCE = {
+  registration_number: '41363',
+  committee_name: '100 Percent Future Fund',
+  year: 2025,
+  fetched_at: '2026-09-01T12:00:00Z',
+  register: { state: 'reported', name: '100 Percent Future Fund' },
+  confirmed_for: { legislator_id: 'abc', slug: 'erin-murphy', full_name: 'Erin Murphy' },
+  current_claim_validated_at: '2026-09-07T11:54:00.000Z',
+  split: { state: 'shown', reported_total: '880.0000', named_total: '700.0000' },
+  money_in: { state: 'reported' },
+  money_out: { state: 'reported' },
 };
 
 type Seen = { isStale: boolean; dataUpdatedAt: number; hasData: boolean };
@@ -192,6 +217,59 @@ describe('an answer embedded in a page reaches the app with its real age', () =>
     expect(passes[0].hasData).toBe(true);
     expect(passes[0].dataUpdatedAt).toBe(NOON.getTime());
     expect(passes[0].isStale).toBe(false);
+  });
+
+  /**
+   * The one way a seeded committee answer can be wrong while every part of it
+   * looks right: the shared caches counted twice.
+   *
+   * A seeded answer's whole age rides in `initialDataUpdatedAt`, so the shaped
+   * answer's own `servedAgeMs` has to be 0. Adding the API cache's age in both
+   * places puts a 16-minute claim at 22 minutes, past a deadline it has not
+   * reached, and the page then withholds a member nobody has withdrawn.
+   */
+  it('counts the API cache once for a served committee answer, not twice', () => {
+    seed(
+      renderPageData([
+        {
+          key: committeeMoneyQueryKey('41363', 2025),
+          payload: FINANCE,
+          validatedAgeMs: API_SHARED_CACHE_MAX_AGE_MS,
+        },
+      ]),
+    );
+
+    const passes: { servedAgeMs: number | undefined; dataUpdatedAt: number }[] = [];
+    function Probe() {
+      const query = useCommitteeMoney('41363', 2025);
+      passes.push({
+        servedAgeMs: query.data?.currentClaim.servedAgeMs,
+        dataUpdatedAt: query.dataUpdatedAt,
+      });
+      return null;
+    }
+    const host = document.createElement('div');
+    document.body.append(host);
+    const client = createAppQueryClient();
+    act(() => {
+      createRoot(host).render(
+        (
+          <QueryClientProvider client={client}>
+            <Probe />
+          </QueryClientProvider>
+        ) as ReactNode,
+      );
+    });
+
+    expect(passes[0].servedAgeMs).toBe(0);
+    const ageNow = currentClaimAgeMs({
+      servedAgeMs: passes[0].servedAgeMs ?? 0,
+      receivedAt: passes[0].dataUpdatedAt,
+      now: NOON.getTime(),
+    });
+    expect(ageNow).toBe(API_SHARED_CACHE_MAX_AGE_MS + PAGE_SHARED_CACHE_MAX_AGE_MS);
+    expect(ageNow).toBe(16 * 60_000);
+    expect(currentClaimIsWithheld(ageNow)).toBe(false);
   });
 });
 

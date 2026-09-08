@@ -632,6 +632,68 @@ and written out on the other seeds nothing while the page still works, so the mi
 invisible in every screenshot and every test of what the page draws. What settles it is
 the browser's own request list: `/bills` made 4 data-service reads and now makes 1.
 
+## What a committee's own pages carry in their first response
+
+`/money/committees/{name}-{number}` and its `/payments` view are served with the reads
+the page function already made handed on inside the same response, under the keys the
+app's own hooks ask for (`committeeMoneyQueryKey`, `committeePaymentsQueryKey` and
+`committeePaymentsListQueryKey` in `apps/frontend/src/lib/committeeMoney.ts`, seeded
+through `apps/frontend/src/lib/pageData.ts`). Before this, both addresses read a
+committee's figures to write the words a reader sees, handed on nothing, and the app then
+asked the data service for the identical answer and replaced those served words with
+loading placeholders while it waited
+([issue 2024](https://github.com/alethical-org/alethical/issues/2024)).
+
+**Three reads are carried and one is chosen by the address.** The committee's figures for
+the year the address asks for; the full payments page on the payments view, in the year and
+the direction the address asks for; and, on the committee page itself, the short list of 6
+behind whichever tab the address names. An address naming the filings tab or an
+outside-spending tab is served no payments list at all, because its screen reads a
+different file and reading one would be work nobody uses.
+
+**The 2 reads run together rather than one after the other.** Neither needs the other's
+answer: the registration number comes out of the address and the year out of
+`campaignMoneyYear`. The payments view used to wait for the figures before asking for the
+rows, which put a whole round trip into its first response for nothing.
+
+**A seeded committee answer carries `servedAgeMs: 0`, and that is not a rounding.** The
+whole age of a seeded answer rides in React Query's `initialDataUpdatedAt`
+(`seededClaimAgeMs`), so passing the API cache's age into the shaped answer as well counts
+the shared caches twice: a 16-minute claim reads as 22 minutes, past a deadline it has not
+reached, and the page then withholds a member nobody has withdrawn.
+`apps/frontend/src/hooks/__tests__/currentClaimAgeEndToEnd.test.tsx` fails on exactly that
+mistake.
+
+**The figures read is still requested, and the wait for it is what is gone.** It carries
+`confirmed_for`, the member a person signed this committee off to, which is a claim about
+the state of the world right now, so a seeded copy is stale on arrival by design: the page
+it travelled in can have sat in the page cache for 10 minutes and the app's own freshness
+window is 5. The reader gets the real figures in the first paint and the recheck happens
+behind them without blanking anything. Only the payments reads are removed outright.
+
+Measured 8 Sep 2026 against the live release and the live data service, with the page
+cache deliberately missed on every read.
+
+| Address | First response, gzipped | Reads removed | Cost |
+|---|---|---|---|
+| `.../100-percent-future-fund-41363?year=2025` | 5,642 → 6,614 | short payments list (567 gzip, 29 ms) | +972 bytes |
+| `.../100-percent-future-fund-41363/payments?year=2025` | 5,470 → 6,749 | full payments page, 24 rows (788 gzip, 31 ms) | +1,279 bytes |
+| `.../mn-dfl-state-central-committee-20003?year=2025` | 5,983 → 7,228 | short payments list (741 gzip, 32 ms) | +1,245 bytes |
+| `.../mn-dfl-state-central-committee-20003/payments?year=2025` | 9,562 → 16,258 | full payments page, 250 rows (5,789 gzip, 34 ms) | +6,696 bytes |
+
+**The 250-row case is a wash on bytes and a round trip cheaper**, which is the whole
+argument for carrying it: 6,696 bytes added against 6,660 removed, arriving in one response
+instead of that response plus a request to a different host. 250 is the cap the address
+serves, so the last row of that table is the worst case rather than a middling one, and the
+rows are already in the response as text either way — the payments snapshot prints every
+one of them.
+
+**The short list of 6 is carried and the outside-spending presence reads are not.** The
+short list costs about 600 to 750 gzipped bytes and removes a read of the same size. Each
+outside-spending read answers a different question about the same filer, returns a page of
+50 rows, and its answer is not in the served text at all, so carrying both would add
+bytes a reader's screen does not already hold.
+
 ## A failed list read holds the space the placeholder rows held
 
 `/bills` and `/legislators` reserve a window's height around every state of their results

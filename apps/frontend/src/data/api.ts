@@ -3209,7 +3209,7 @@ interface ApiCommitteeRegisterPayload {
   as_of?: string | null;
 }
 
-interface ApiCommitteeMoneyPayload {
+export interface ApiCommitteeMoneyPayload {
   /** When the origin last confirmed `confirmed_for`. A validation time, never a
    *  record date (`alethical/api/routers/public.py`). */
   current_claim_validated_at?: string | null;
@@ -3280,27 +3280,23 @@ function committeeBlockState(
 }
 
 /**
- * One committee's money for one year, keyed on its registration number. Resolves
- * `null` on 404 — the number is in neither our copy of the Board's register nor
- * the downloads, which the page renders as a fact about our records rather than
- * an error or a claim that no such committee exists.
+ * One committee's money, shaped from the data service's own JSON.
+ *
+ * Pure, so the answer the page function already read can be handed to the app in
+ * the first response and shaped by this same function (`lib/pageData.ts`, issue
+ * 2024). A seeded figure and a fetched figure cannot differ, because there is one
+ * shaper and it is this one.
+ *
+ * `servedAgeMs` is the age this answer carries that React Query's own
+ * `dataUpdatedAt` does not already record, so a screen adds the two without
+ * double-counting (`data/types.ts`, `CurrentClaimFreshness`). A fetched answer
+ * passes what the shared caches reported; a seeded one passes 0, because its whole
+ * age travelled in `initialDataUpdatedAt`.
  */
-export async function getCommitteeFinanceFromApi(
-  registrationNumber: string,
-  year: number,
-): Promise<CommitteeMoney | null> {
-  let payload: ApiCommitteeMoneyPayload;
-  let ageSeconds: number | null;
-  try {
-    const response = await publicApiRequestWithAge<DetailResponse<ApiCommitteeMoneyPayload>>(
-      `/committees/${encodeURIComponent(registrationNumber)}/finance?year=${year}`,
-    );
-    payload = response.body.data;
-    ageSeconds = response.ageSeconds;
-  } catch (error) {
-    if (isNotFoundError(error)) return null;
-    throw error;
-  }
+export function committeeFinanceFromPayload(
+  payload: ApiCommitteeMoneyPayload,
+  options: { servedAgeMs: number },
+): CommitteeMoney {
   const register = payload.register ?? undefined;
   return {
     registrationNumber: payload.registration_number,
@@ -3345,7 +3341,10 @@ export async function getCommitteeFinanceFromApi(
               : null,
           }
         : null,
-    currentClaim: currentClaimFreshness(payload.current_claim_validated_at, ageSeconds),
+    currentClaim: {
+      servedAgeMs: options.servedAgeMs,
+      validatedAt: payload.current_claim_validated_at ?? null,
+    },
     moneyIn: {
       state: committeeBlockState(payload.money_in?.state),
       itemizedContributionTotal: payload.money_in?.itemized_contribution_total ?? null,
@@ -3389,7 +3388,30 @@ export async function getCommitteeFinanceFromApi(
   };
 }
 
-interface ApiCommitteePaymentsPayload {
+/**
+ * One committee's money for one year, keyed on its registration number. Resolves
+ * `null` on 404 — the number is in neither our copy of the Board's register nor
+ * the downloads, which the page renders as a fact about our records rather than
+ * an error or a claim that no such committee exists.
+ */
+export async function getCommitteeFinanceFromApi(
+  registrationNumber: string,
+  year: number,
+): Promise<CommitteeMoney | null> {
+  try {
+    const response = await publicApiRequestWithAge<DetailResponse<ApiCommitteeMoneyPayload>>(
+      `/committees/${encodeURIComponent(registrationNumber)}/finance?year=${year}`,
+    );
+    return committeeFinanceFromPayload(response.body.data, {
+      servedAgeMs: servedClaimAgeMs(response.ageSeconds),
+    });
+  } catch (error) {
+    if (isNotFoundError(error)) return null;
+    throw error;
+  }
+}
+
+export interface ApiCommitteePaymentsPayload {
   state?: string;
   payments?: Record<string, unknown>[] | null;
   page?: {
@@ -3421,13 +3443,14 @@ function committeePaymentsPage<Payment>(
 
 const asText = (value: unknown): string | null => (typeof value === 'string' ? value : null);
 
-/** Who paid this committee — its own filing's rows, one per payment. */
-export async function getCommitteePaymentsReceivedFromApi(
-  registrationNumber: string,
-  options: { year?: number; sort?: 'date' | 'amount'; limit?: number; offset?: number } = {},
-): Promise<CommitteePaymentsPage<CommitteeReceivedPayment> | null> {
-  const payload = await committeePaymentsRequest(registrationNumber, 'received', options);
-  if (payload === null) return null;
+/**
+ * One page of the payments INTO a committee, shaped from the service's own JSON.
+ * Pure, so a page the page function already read can be handed to the app in the
+ * first response and shaped here rather than fetched again (issue 2024).
+ */
+export function committeePaymentsReceivedFromPayload(
+  payload: ApiCommitteePaymentsPayload,
+): CommitteePaymentsPage<CommitteeReceivedPayment> {
   return committeePaymentsPage(payload, (row) => ({
     contributor: asText(row.contributor),
     contributorRegistrationNumber: asText(row.contributor_registration_number),
@@ -3440,13 +3463,10 @@ export async function getCommitteePaymentsReceivedFromApi(
   }));
 }
 
-/** Who this committee paid — every expenditure type included, each row labelled. */
-export async function getCommitteePaymentsMadeFromApi(
-  registrationNumber: string,
-  options: { year?: number; sort?: 'date' | 'amount'; limit?: number; offset?: number } = {},
-): Promise<CommitteePaymentsPage<CommitteeMadePayment> | null> {
-  const payload = await committeePaymentsRequest(registrationNumber, 'made', options);
-  if (payload === null) return null;
+/** The same for the payments OUT of a committee. */
+export function committeePaymentsMadeFromPayload(
+  payload: ApiCommitteePaymentsPayload,
+): CommitteePaymentsPage<CommitteeMadePayment> {
   return committeePaymentsPage(payload, (row) => ({
     vendorName: asText(row.vendor_name),
     vendorCity: asText(row.vendor_city),
@@ -3459,6 +3479,26 @@ export async function getCommitteePaymentsMadeFromApi(
     purpose: asText(row.purpose),
     inKind: asText(row.in_kind),
   }));
+}
+
+/** Who paid this committee — its own filing's rows, one per payment. */
+export async function getCommitteePaymentsReceivedFromApi(
+  registrationNumber: string,
+  options: { year?: number; sort?: 'date' | 'amount'; limit?: number; offset?: number } = {},
+): Promise<CommitteePaymentsPage<CommitteeReceivedPayment> | null> {
+  const payload = await committeePaymentsRequest(registrationNumber, 'received', options);
+  if (payload === null) return null;
+  return committeePaymentsReceivedFromPayload(payload);
+}
+
+/** Who this committee paid — every expenditure type included, each row labelled. */
+export async function getCommitteePaymentsMadeFromApi(
+  registrationNumber: string,
+  options: { year?: number; sort?: 'date' | 'amount'; limit?: number; offset?: number } = {},
+): Promise<CommitteePaymentsPage<CommitteeMadePayment> | null> {
+  const payload = await committeePaymentsRequest(registrationNumber, 'made', options);
+  if (payload === null) return null;
+  return committeePaymentsMadeFromPayload(payload);
 }
 
 const independentRow = (row: Record<string, unknown>): CommitteeIndependentPayment => ({
