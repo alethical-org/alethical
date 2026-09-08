@@ -18,16 +18,25 @@ import { pathForRoute, stateFromPathname, targetFromPathname } from '../webRoute
 const routeSource = readFileSync(join(__dirname, '..', 'webRoutes.ts'), 'utf8');
 
 describe('private admin addresses', () => {
-  it('keeps leadership metrics private and ignores incoming search state', () => {
-    expect(targetFromPathname('/admin/site-metrics?email=private')).toEqual({
-      kind: 'adminSiteMetrics',
-    });
-    expect(stateFromPathname('/admin/site-metrics')?.routes[1]).toEqual({
-      name: 'AdminSiteMetrics',
-    });
-    expect(pathForRoute({ name: 'AdminSiteMetrics', params: { email: 'private' } })).toBe(
-      '/admin/site-metrics',
+  it.each(['/admin/metrics', '/admin/site-metrics'])(
+    'keeps %s private and ignores incoming search state',
+    (path) => {
+      expect(targetFromPathname(`${path}?email=private`)).toEqual({ kind: 'adminSiteMetrics' });
+      expect(stateFromPathname(path)?.routes[1]).toEqual({ name: 'AdminSiteMetrics' });
+      expect(pathForRoute({ name: 'AdminSiteMetrics', params: { email: 'private' } })).toBe(
+        '/admin/metrics',
+      );
+    },
+  );
+  it('redirects the former metrics address to its canonical address', () => {
+    const config = JSON.parse(
+      readFileSync(join(__dirname, '../../../../..', 'vercel.json'), 'utf8'),
     );
+    expect(config.redirects).toContainEqual({
+      source: '/admin/site-metrics',
+      destination: '/admin/metrics',
+      permanent: true,
+    });
   });
   it.each([
     '/admin',

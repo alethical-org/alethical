@@ -20,7 +20,6 @@ from alethical.api.services.site_metric_history import (
     CREATION_RESPONSE_KEYS,
     claim_event_receipt,
     completed_hour,
-    creation_totals,
     ensure_coverage,
 )
 from alethical.db.schema import load_schema
@@ -137,21 +136,67 @@ def record_site_metric_event(
     return Response(status_code=204)
 
 
-def action_totals(db: Session, cutoff: datetime, ends_at: datetime) -> dict[str, int]:
-    rows = db.execute(
-        select(SiteMetricEvent.event_kind, func.count(SiteMetricEvent.id))
+def action_period_totals(
+    db: Session, windows: dict[str, tuple[datetime, datetime]], ends_at: datetime
+) -> tuple[dict[str, dict[str, int]], dict[str, int]]:
+    """Read each anonymous count table once for all comparison periods."""
+    totals = {
+        period: {
+            key: 0
+            for key in (*EVENT_RESPONSE_KEYS.values(), *CREATION_RESPONSE_KEYS.values())
+        }
+        for period in windows
+    }
+    events = db.execute(
+        select(
+            SiteMetricEvent.event_kind,
+            *(
+                func.count(SiteMetricEvent.id)
+                .filter(
+                    SiteMetricEvent.created_at >= start,
+                    SiteMetricEvent.created_at < end,
+                )
+                .label(period)
+                for period, (start, end) in windows.items()
+            ),
+        )
         .where(
-            SiteMetricEvent.created_at >= cutoff, SiteMetricEvent.created_at < ends_at
+            SiteMetricEvent.created_at >= min(start for start, _ in windows.values()),
+            SiteMetricEvent.created_at < ends_at,
         )
         .group_by(SiteMetricEvent.event_kind)
-    ).all()
-    counts = {kind: int(count) for kind, count in rows}
-    totals = {
-        response_key: counts.get(event_kind, 0)
-        for event_kind, response_key in EVENT_RESPONSE_KEYS.items()
-    }
-    totals.update(creation_totals(db, cutoff, ends_at))
-    return totals
+    ).mappings()
+    for row in events:
+        key = EVENT_RESPONSE_KEYS.get(row["event_kind"])
+        if key is not None:
+            for period in windows:
+                totals[period][key] = int(row[period])
+
+    hourly = schema.SiteMetricHourlyCount
+    creations = db.execute(
+        select(
+            hourly.metric_kind,
+            func.sum(hourly.count).label("all_time"),
+            *(
+                func.sum(hourly.count)
+                .filter(
+                    hourly.bucket_started_at >= start, hourly.bucket_started_at < end
+                )
+                .label(period)
+                for period, (start, end) in windows.items()
+            ),
+        )
+        .where(hourly.bucket_started_at < ends_at)
+        .group_by(hourly.metric_kind)
+    ).mappings()
+    lifetime = {key: 0 for key in CREATION_RESPONSE_KEYS.values()}
+    for row in creations:
+        key = CREATION_RESPONSE_KEYS.get(row["metric_kind"])
+        if key is not None:
+            lifetime[key] = int(row["all_time"] or 0)
+            for period in windows:
+                totals[period][key] = int(row[period] or 0)
+    return totals, lifetime
 
 
 def included_user_ids(db: Session, excluded: set[str]):
@@ -171,8 +216,16 @@ def site_metric_data(db: Session, now: datetime | None = None) -> dict:
     ends_at = completed_hour(now)
     seven_days_ago = ends_at - timedelta(days=7)
     thirty_days_ago = ends_at - timedelta(days=30)
-    actions7d = action_totals(db, seven_days_ago, ends_at)
-    actions30d = action_totals(db, thirty_days_ago, ends_at)
+    period_totals, lifetime_totals = action_period_totals(
+        db,
+        {
+            "actions7d": (seven_days_ago, ends_at),
+            "actions30d": (thirty_days_ago, ends_at),
+            "previousActions7d": (ends_at - timedelta(days=14), seven_days_ago),
+            "previousActions30d": (ends_at - timedelta(days=60), thirty_days_ago),
+        },
+        ends_at,
+    )
 
     coverage = {
         kind: started
@@ -196,73 +249,46 @@ def site_metric_data(db: Session, now: datetime | None = None) -> dict:
             "previous30dComplete": started is not None
             and started <= ends_at - timedelta(days=60),
         }
-    previous7d: dict[str, int | None] = dict(
-        action_totals(db, ends_at - timedelta(days=14), seven_days_ago)
-    )
-    previous30d: dict[str, int | None] = dict(
-        action_totals(db, ends_at - timedelta(days=60), thirty_days_ago)
-    )
+    previous7d: dict[str, int | None] = dict(period_totals["previousActions7d"])
+    previous30d: dict[str, int | None] = dict(period_totals["previousActions30d"])
     for key in all_keys.values():
         if not history[key]["previous7dComplete"]:
             previous7d[key] = None
         if not history[key]["previous30dComplete"]:
             previous30d[key] = None
 
-    readers = {
-        "registeredReaders": int(
-            db.scalar(select(func.count()).select_from(user_ids.subquery())) or 0
+    reader_counts = {
+        "registeredReaders": select(func.count()).select_from(user_ids.subquery()),
+        "currentBillWatches": select(func.count(TrackedBill.id)).where(
+            TrackedBill.user_id.in_(user_ids)
         ),
-        "currentBillWatches": int(
-            db.scalar(
-                select(func.count(TrackedBill.id)).where(
-                    TrackedBill.user_id.in_(user_ids)
-                )
-            )
-            or 0
+        "differentBillsCurrentlyWatched": select(
+            func.count(distinct(TrackedBill.bill_id))
+        ).where(TrackedBill.user_id.in_(user_ids)),
+        "currentBillFollowingReaders": select(
+            func.count(distinct(TrackedBill.user_id))
+        ).where(TrackedBill.user_id.in_(user_ids)),
+        "currentCommitteeFollowingReaders": select(
+            func.count(distinct(TrackedCommittee.user_id))
+        ).where(TrackedCommittee.user_id.in_(user_ids)),
+        "currentCommitteeWatches": select(func.count(TrackedCommittee.id)).where(
+            TrackedCommittee.user_id.in_(user_ids)
         ),
-        "differentBillsCurrentlyWatched": int(
-            db.scalar(
-                select(func.count(distinct(TrackedBill.bill_id))).where(
-                    TrackedBill.user_id.in_(user_ids)
-                )
-            )
-            or 0
-        ),
+        "differentCommitteesCurrentlyWatched": select(
+            func.count(distinct(TrackedCommittee.registration_number))
+        ).where(TrackedCommittee.user_id.in_(user_ids)),
     }
+    counts = db.execute(
+        select(
+            *(
+                statement.scalar_subquery().label(key)
+                for key, statement in reader_counts.items()
+            )
+        )
+    ).one()
+    readers = {key: int(value or 0) for key, value in counts._mapping.items()}
     # Keep the former field as a compatibility alias, not a lifetime-signup claim.
     readers["currentReaderAccounts"] = readers["registeredReaders"]
-    readers["currentBillFollowingReaders"] = int(
-        db.scalar(
-            select(func.count(distinct(TrackedBill.user_id))).where(
-                TrackedBill.user_id.in_(user_ids)
-            )
-        )
-        or 0
-    )
-    readers["currentCommitteeFollowingReaders"] = int(
-        db.scalar(
-            select(func.count(distinct(TrackedCommittee.user_id))).where(
-                TrackedCommittee.user_id.in_(user_ids)
-            )
-        )
-        or 0
-    )
-    readers["currentCommitteeWatches"] = int(
-        db.scalar(
-            select(func.count(TrackedCommittee.id)).where(
-                TrackedCommittee.user_id.in_(user_ids)
-            )
-        )
-        or 0
-    )
-    readers["differentCommitteesCurrentlyWatched"] = int(
-        db.scalar(
-            select(func.count(distinct(TrackedCommittee.registration_number))).where(
-                TrackedCommittee.user_id.in_(user_ids)
-            )
-        )
-        or 0
-    )
 
     def period(days: int):
         starts = ends_at - timedelta(days=days)
@@ -274,14 +300,14 @@ def site_metric_data(db: Session, now: datetime | None = None) -> dict:
         }
 
     return {
-        "actions7d": actions7d,
-        "actions30d": actions30d,
+        "actions7d": period_totals["actions7d"],
+        "actions30d": period_totals["actions30d"],
         "previousActions7d": previous7d,
         "previousActions30d": previous30d,
         "periods7d": period(7),
         "periods30d": period(30),
         "history": history,
-        "totalsSinceStart": creation_totals(db, None, ends_at),
+        "totalsSinceStart": lifetime_totals,
         "readers": readers,
         "fetchedAt": now.isoformat(),
         "teamExclusionConfigured": True,

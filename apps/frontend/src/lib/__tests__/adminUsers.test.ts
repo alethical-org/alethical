@@ -13,6 +13,7 @@ function payload() {
         sign_in_methods: ['email'],
       },
     ],
+    excluded_accounts: [{ id: 'team-account', email: 'team@example.test' }],
     summary: {
       confirmed_accounts: 0,
       pending_accounts: 1,
@@ -32,6 +33,7 @@ describe('private account response', () => {
   it('rejects partial replies instead of inventing zero counts', () => {
     expect(() => adminUsersFromPayload({ ...payload(), summary: {} })).toThrow();
     expect(() => adminUsersFromPayload({ ...payload(), data: undefined })).toThrow();
+    expect(() => adminUsersFromPayload({ ...payload(), excluded_accounts: undefined })).toThrow();
     expect(() => adminUsersFromPayload({ ...payload(), as_of: 'bad date' })).toThrow();
     expect(() =>
       adminUsersFromPayload({
@@ -39,6 +41,18 @@ describe('private account response', () => {
         summary: { ...payload().summary, confirmed_accounts: -1 },
       }),
     ).toThrow();
+  });
+  it('keeps excluded accounts separate and rejects invalid excluded identities', () => {
+    const result = adminUsersFromPayload({
+      ...payload(),
+      excluded_accounts: [{ id: 'team-account', email: null }],
+    });
+    expect(result.excluded_accounts).toEqual([{ id: 'team-account', email: null }]);
+    expect(result.data).toEqual(payload().data);
+    expect(result.summary).toEqual(payload().summary);
+    for (const invalid of [null, {}, { id: '', email: null }, { id: 'team', email: 3 }]) {
+      expect(() => adminUsersFromPayload({ ...payload(), excluded_accounts: [invalid] })).toThrow();
+    }
   });
   it('requires an explicit boolean permission from the server', () => {
     expect(adminAccessFromPayload({ data: { is_admin: true } })).toBe(true);

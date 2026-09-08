@@ -1041,7 +1041,7 @@ async function contentFor(
 
   switch (target.kind) {
     case "adminSiteMetrics":
-      return headOnly(STATIC_PAGE_METADATA["/admin/site-metrics"]);
+      return headOnly(STATIC_PAGE_METADATA["/admin/metrics"]);
     case "adminUsers":
       return headOnly(STATIC_PAGE_METADATA["/admin/users"]);
     case "bill":

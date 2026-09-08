@@ -36,6 +36,7 @@ from alethical.api.services.committee_finance import (
     find_committee,
 )
 from alethical.api.services.sign_in_methods import current_supabase_sign_in_methods
+from alethical.api.services.admin_access import administrator_menu_access
 from alethical.api.services.account_classification import excluded_local_user_ids
 from alethical.api.services.site_metric_history import record_creation
 from alethical.db.schema import load_schema
@@ -657,6 +658,7 @@ def me(
             "display_name": current_user.display_name,
             "primary_email": current_user.primary_email,
             "sign_in_methods": current_supabase_sign_in_methods(db, provider_subject),
+            "is_admin": administrator_menu_access(db, provider_subject),
             "features": ["tracked_bills", "notifications", "chat"],
         }
     )

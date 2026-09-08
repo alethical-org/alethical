@@ -1,4 +1,4 @@
-<!-- describes: alethical/api/routers/admin.py, alethical/api/services/admin_accounts.py, alethical/api/services/account_classification.py, apps/frontend/src/screens/redesign/AdminUsersScreen.tsx, apps/frontend/src/hooks/useAdminAccess.ts, apps/frontend/src/lib/adminUsers.ts, apps/frontend/src/lib/adminAccess.ts, apps/frontend/src/data/adminUsers.ts -->
+<!-- describes: alethical/api/routers/admin.py, alethical/api/routers/me.py, alethical/api/services/admin_access.py, alethical/api/services/admin_accounts.py, alethical/api/services/account_classification.py, apps/frontend/src/screens/redesign/AdminUsersScreen.tsx, apps/frontend/src/hooks/useAdminAccess.ts, apps/frontend/src/lib/adminUsers.ts, apps/frontend/src/lib/adminAccess.ts, apps/frontend/src/data/adminUsers.ts -->
 
 # How private account visibility works
 
@@ -8,9 +8,9 @@ the available sign-in methods. It cannot change an account or send an alert.
 
 ## Opening `/admin/users`
 
-Sign in, open the account menu, and choose **Admin**. This works in the desktop
-menu and the phone account sheet. The entry appears only after the server grants
-access. Opening `/admin` also leads to `/admin/users`. An administrator may open
+Sign in, open the account menu, and choose **Users**. This works in the desktop
+menu and the phone account sheet. Approved administrators also see **Admin metrics**
+at `/admin/metrics`. Opening `/admin` also leads to `/admin/users`. An administrator may open
 `/admin/users` directly or reload it.
 
 Only these 4 confirmed accounts have administrator access:
@@ -24,6 +24,20 @@ The server checks the signed account identifier, the current confirmed email,
 and whether the account is still active. An email alias, editable profile field,
 or a hidden menu entry cannot grant access.
 
+The signed-in profile response (`GET /api/v1/me`) includes an optional `is_admin`
+menu hint. The server derives it from the verified Supabase subject, the configured
+administrator identifiers, and current database records for the exact confirmed
+email and account eligibility. A boolean value lets the menu show or hide the
+administrator entries immediately. If the field is absent or null, the browser
+falls back to `GET /api/v1/admin/access`. A failed optional hint read returns null
+without preventing ordinary sign-in.
+
+The hint is held with the current signed-in profile, not in browser storage. It
+does not authorize a private read: every account or metrics request separately
+checks the sign-in token, fresh provider confirmation, and current account state.
+Changing access can leave a menu entry visible until the profile is read again,
+but the next private request uses the changed permission.
+
 ## Finding an account
 
 The newest signups appear first, 25 per page. **Previous** and **Next** move through
@@ -32,8 +46,10 @@ capitalization. Press **Search** or Enter to apply it.
 
 **Status** selects all, confirmed, or pending accounts. **Signup date** selects
 any date or accounts created in the last 7 or 30 days. These filters apply together.
-**Clear filters** returns to the complete included list. **Refresh** reads current
-records again. The source line states when those records were read.
+**Clear filters** returns to the complete included list. **Refresh**, above the
+summary, reads current records again. The email field accepts up to 254 characters
+and stays beside Search on desktop and phone. The source line states when those
+records were read.
 
 The summary shows confirmed current accounts, first confirmations today, and first
 confirmations in the last 7 and 30 days. The pending total appears beside Status.
@@ -41,12 +57,24 @@ Summary figures always cover every included current account, regardless of searc
 or filters. Today starts at midnight in Minnesota. All displayed dates use
 Minnesota time. The 7- and 30-day figures are rolling periods.
 
-## Accounts that never appear
+## Excluded accounts
 
 Team and test accounts are removed before search, totals, sorting, and pagination.
-There is no control to include them. Exclusion covers the 4 administrator emails,
-the previously excluded team emails `afnetter@gmail.com` and
-`joseph.fleishman@gmail.com`, and configured team/test account identifiers.
+Their email addresses appear in a separate **Excluded accounts** section below
+the main list. This section stays visible even when the main list is empty, and
+its contents do not change with search, status, signup-date filters, or pagination.
+There is no control to include them in the totals or main results. Exclusion covers
+the 4 administrator emails and these 7 other team emails:
+
+- `afnetter@gmail.com`
+- `joseph.fleishman@gmail.com`
+- `elopinyoga@gmail.com`
+- `elopinmisc@gmail.com`
+- `eugenelopin@gmail.com`
+- `adaonstoa@gmail.com`
+- `rohan.mishra1997@gmail.com`
+
+Configured team/test account identifiers are excluded too.
 
 Same-mailbox aliases are excluded too: plus suffixes for known team addresses and
 Gmail's dot and `googlemail.com` variants. Reserved fixture domains `example.com`,
@@ -55,7 +83,8 @@ must have their stable identifier added to the server's test exclusion setting;
 words such as “test” inside an ordinary reader's email do not prove a test account.
 
 If any identity belongs to the team, its entire linked Alethical account is
-excluded. These exclusion rules never grant administrator access.
+excluded from the main results and totals. These exclusion rules never grant
+administrator access.
 
 ## What the dates and totals mean
 
@@ -77,9 +106,10 @@ offers **Retry**, rather than inventing a zero. An empty list distinguishes no
 included accounts from no matches. If a previously available results page becomes
 empty after account changes, **First page** returns to current results.
 
-Signing out or switching accounts immediately removes visible private results
-and cancels pending reads. Searches and account results stay in the open page's
-memory; they are not saved in addresses, browser storage, or shared caches.
+Signing out or switching accounts immediately removes visible private results,
+including the excluded-account list, and cancels pending reads. Searches and account
+results stay in the open page's memory; they are not saved in addresses, browser
+storage, or shared caches.
 Public HTML contains only the page title and description. Search engines are told
 not to list `/admin/users`. Admin page visits are excluded from Vercel analytics,
 and the direct page shell omits the Cloudflare measurement script.

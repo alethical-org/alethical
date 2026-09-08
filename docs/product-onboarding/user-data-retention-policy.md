@@ -560,7 +560,7 @@ hour, and a count. They measure local first use and new bill or committee follow
 Supabase signups. Recording-start markers (`site_metric_coverage`) hold only a measurement
 name and its first recording time. Neither table identifies a person or which bill or
 committee they follow. These totals survive follow and account deletion; missing history
-is not filled from surviving records. The private `/admin/site-metrics` report reads
+is not filled from surviving records. The private `/admin/metrics` report reads
 combined measurements and creates no reader-level activity history. Its server requires
 administrator permission separately from the team-and-test collection exclusion.
 

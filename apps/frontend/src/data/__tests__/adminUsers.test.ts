@@ -7,6 +7,27 @@ afterEach(() => {
 });
 
 describe('private account requests', () => {
+  it.each([true, false, null, undefined, 'true'])(
+    'accepts only a boolean server admin hint (%s)',
+    async (hint) => {
+      vi.stubEnv('EXPO_PUBLIC_API_URL', 'https://api.example.com');
+      vi.stubGlobal(
+        'fetch',
+        vi.fn(
+          async () =>
+            new Response(
+              JSON.stringify({
+                data: { id: 'reader', primary_email: 'reader@example.test', is_admin: hint },
+              }),
+              { status: 200 },
+            ),
+        ),
+      );
+      const { getCurrentUserFromApi } = await import('../api');
+      const user = await getCurrentUserFromApi('test-token');
+      expect(user.isAdmin).toBe(typeof hint === 'boolean' ? hint : undefined);
+    },
+  );
   it('sends credentials and email search in a non-cached POST body, with cancellation', async () => {
     vi.stubEnv('EXPO_PUBLIC_API_URL', 'https://api.example.com');
     const fetch = vi.fn(
@@ -14,6 +35,7 @@ describe('private account requests', () => {
         new Response(
           JSON.stringify({
             data: [],
+            excluded_accounts: [],
             summary: {
               confirmed_accounts: 0,
               pending_accounts: 0,

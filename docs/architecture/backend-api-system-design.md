@@ -1978,6 +1978,14 @@ Purpose:
 
 - signed-in user profile, feature flags, and defaults
 
+`data.is_admin` is an optional boolean menu hint derived from the verified Supabase
+subject, the server's administrator identifier list, and current database eligibility
+for an exact confirmed administrator email. `null` means the optional database read
+failed; older servers may omit the field. Both cases use the existing
+`GET /api/v1/admin/access` fallback. The hint stays with the current in-memory profile
+and does not grant data access. Every private endpoint still performs its fresh
+administrator authorization check.
+
 ### Tracked Bills
 
 #### `GET /api/v1/me/tracked-bills`
@@ -2180,17 +2188,40 @@ Streaming option:
 
 ## Administrator API
 
-#### `GET /api/v1/admin/site-metrics`
+#### `GET /api/v1/admin/site-metrics?version=2`
 
-Serves the private `/admin/site-metrics` report with `Cache-Control: private, no-store`.
+Serves the private `/admin/metrics` report with `Cache-Control: private, no-store`.
 `require_admin` requires a configured Supabase subject, a fresh confirmed exact permitted
 email, and a currently eligible provider account with no deactivated linked local account.
 The collection-exclusion list does not grant access. A signed-in non-administrator receives
 `403`; a missing sign-in receives `401`.
 
 The report combines account, activity, and operations measurements without reader-level
-activity records. Each source is read in a separate database session; a failed source
+activity records. `operations.corpus.legislators` counts all stored people, including
+former members. `operations.corpus.current_legislators` counts distinct people using
+the public roster's current-session, current-service, and known-district predicates.
+Both counts are scalar subqueries in the existing aggregate read. The current frontend
+explicitly requests `version=2`. An omitted version or `version=1` leaves out
+`operations.corpus.current_legislators`, preserving the exact field set expected by
+older open browser bundles. Unsupported versions receive `422`. Each source is read in a separate database session; a failed source
 returns `null` and a fixed error message while other measurements remain available.
+
+#### `GET /api/v1/admin/access`
+
+Returns `data.is_admin` after the same fresh check that protects private data. The
+frontend uses this endpoint when `/me` has no boolean administrator hint. A signed-in
+person without administrator access receives `false`; a missing or invalid sign-in
+receives `401`. Access responses use `Cache-Control: private, no-store`.
+
+#### `POST /api/v1/admin/users/search`
+
+Accepts `query` (up to 254 characters), `status` (`all`, `confirmed`, or `pending`),
+`created_within_days` (`null`, `7`, or `30`), `offset`, and `limit`. The response
+contains the included account page, filtered result count, and summary of all included
+current accounts. `excluded_accounts` is an independent array of `{id, email}` records;
+`email` may be null. It contains eligible current team/test accounts excluded from
+normal results and totals. Search, filters, and pagination never change this array.
+The same fresh administrator check and `private, no-store` policy apply.
 
 ## Internal Operations API
 

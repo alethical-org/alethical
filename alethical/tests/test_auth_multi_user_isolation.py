@@ -306,6 +306,7 @@ def test_google_and_password_sign_in_share_the_same_account_and_saved_data():
             "display_name": "Shared account setting",
             "primary_email": shared_email,
             "sign_in_methods": None,
+            "is_admin": False,
             "features": ["tracked_bills", "notifications", "chat"],
         }
     )

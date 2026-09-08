@@ -91,6 +91,82 @@ def test_corpus_counts_are_stored_rows_not_official_coverage(db):
     assert "official" in result["corpus"]["coveragePercentage"]["reason"]
 
 
+def test_current_legislators_match_roster_without_former_or_unknown_districts(db):
+    current_session = db.scalars(
+        select(models.LegislativeSession).where(
+            models.LegislativeSession.is_current.is_(True)
+        )
+    ).one()
+    district = db.scalars(
+        select(models.District).where(models.District.code.not_like("%-unknown"))
+    ).first()
+    assert district is not None
+    before = leadership_metrics(db, now=NOW)["corpus"]
+    other_session = models.LegislativeSession(
+        jurisdiction_id=current_session.jurisdiction_id,
+        slug="metrics-other-session",
+        session_number=9999,
+        session_type=models.SessionType.special,
+        year_start=2026,
+        year_end=2026,
+        name="Metrics other session",
+        is_current=False,
+    )
+    unknown = models.District(
+        jurisdiction_id=district.jurisdiction_id,
+        chamber_id=district.chamber_id,
+        code="metrics-unknown",
+        label="Unknown test district",
+    )
+    db.add_all([other_session, unknown])
+    db.flush()
+    for name, session_id, district_id, is_current in (
+        ("current", current_session.id, district.id, True),
+        ("former", current_session.id, district.id, False),
+        ("other-session", other_session.id, district.id, True),
+        ("unknown-district", current_session.id, unknown.id, True),
+    ):
+        member = models.Legislator(
+            jurisdiction_id=district.jurisdiction_id,
+            slug=f"metrics-{name}",
+            full_name=f"Metrics {name}",
+            sort_name=f"Metrics {name}",
+        )
+        db.add(member)
+        db.flush()
+        db.add(
+            models.LegislatorServicePeriod(
+                legislator_id=member.id,
+                session_id=session_id,
+                district_id=district_id,
+                chamber_id=district.chamber_id,
+                is_current=is_current,
+            )
+        )
+        if name == "current":
+            db.add(
+                models.LegislatorServicePeriod(
+                    legislator_id=member.id,
+                    session_id=other_session.id,
+                    district_id=district.id,
+                    chamber_id=district.chamber_id,
+                    is_current=True,
+                )
+            )
+    db.flush()
+    corpus = leadership_metrics(db, now=NOW)["corpus"]
+    roster_ids = set(
+        db.scalars(
+            models.legislator_directory_stmt(current_session.id)
+            .with_only_columns(models.Legislator.id)
+            .order_by(None)
+        )
+    )
+    assert corpus["legislators"] == before["legislators"] + 4
+    assert corpus["current_legislators"] == before["current_legislators"] + 1
+    assert corpus["current_legislators"] == len(roster_ids)
+
+
 def test_absent_measurements_are_unavailable_not_zero_cost_or_fake_freshness(db):
     result = leadership_metrics(db, now=NOW)
     assert all(row["lastSucceededAt"] is None for row in result["freshness"])

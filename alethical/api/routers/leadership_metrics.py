@@ -3,7 +3,7 @@
 import logging
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
@@ -17,7 +17,9 @@ logger = logging.getLogger(__name__)
 
 
 @router.get("/admin/site-metrics", dependencies=[Depends(require_admin)])
-def private_site_metrics(db: Session = Depends(get_db)) -> JSONResponse:
+def private_site_metrics(
+    version: int = Query(default=1, ge=1, le=2), db: Session = Depends(get_db)
+) -> JSONResponse:
     # Import only when called, avoiding router registration cycles.
     from alethical.api.routers.site_metrics import site_metric_data
 
@@ -41,4 +43,8 @@ def private_site_metrics(db: Session = Depends(get_db)) -> JSONResponse:
             )
             result[name] = None
             result["errors"][name] = "This measurement is temporarily unavailable."
+    # Older open browser bundles validate exact keys. Keep their report readable
+    # while the new screen explicitly requests the additional current-seat count.
+    if version == 1 and result["operations"] is not None:
+        result["operations"]["corpus"].pop("current_legislators", None)
     return JSONResponse(result, headers={"Cache-Control": "private, no-store"})

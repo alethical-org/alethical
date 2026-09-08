@@ -1,5 +1,7 @@
 """Private aggregates have server-side access checks and independent sources."""
 
+import pytest
+
 from alethical.api.routers.admin import administrator_access, require_admin
 from alethical.api.routers import (
     leadership_metrics as private,
@@ -45,6 +47,25 @@ def test_private_sources_fail_independently(client, monkeypatch):
     assert result["errors"]["operations"]
     assert result["errors"]["accounts"] is None
     assert "private@example" not in response.text
+
+
+@pytest.mark.parametrize("version", [1, 2])
+def test_current_legislator_count_is_opt_in_for_older_browser_bundles(
+    client, monkeypatch, version
+):
+    client.app.dependency_overrides[require_admin] = lambda: None
+    monkeypatch.setattr(
+        private,
+        "leadership_metrics",
+        lambda *a, **kw: {"corpus": {"legislators": 206, "current_legislators": 200}},
+    )
+    monkeypatch.setattr(private, "aggregate_account_signups", lambda *a, **kw: {})
+    monkeypatch.setattr(site_metrics, "site_metric_data", lambda *a, **kw: {})
+    response = client.get(f"/api/v1/admin/site-metrics?version={version}")
+    assert response.status_code == 200
+    corpus = response.json()["operations"]["corpus"]
+    assert corpus["legislators"] == 206
+    assert ("current_legislators" in corpus) is (version == 2)
 
 
 def test_public_signup_failure_never_becomes_zero(client, monkeypatch):

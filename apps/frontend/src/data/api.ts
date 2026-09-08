@@ -123,6 +123,7 @@ interface ApiCurrentUserPayload {
   display_name?: string | null;
   primary_email?: string | null;
   sign_in_methods?: { google: boolean; password: boolean } | null;
+  is_admin?: boolean | null;
 }
 
 interface ApiSponsorPayload {
@@ -1803,6 +1804,7 @@ export async function getCurrentUserFromApi(accessToken: string): Promise<{
   name: string;
   email: string;
   signInMethods: { google: boolean; password: boolean } | null;
+  isAdmin?: boolean;
 }> {
   const response = await apiRequest<DetailResponse<ApiCurrentUserPayload>>(
     '/me',
@@ -1816,6 +1818,7 @@ export async function getCurrentUserFromApi(accessToken: string): Promise<{
     name: (response.data.display_name ?? email.split('@')[0]) || 'Signed-in user',
     email,
     signInMethods: response.data.sign_in_methods ?? null,
+    isAdmin: typeof response.data.is_admin === 'boolean' ? response.data.is_admin : undefined,
   };
 }
 

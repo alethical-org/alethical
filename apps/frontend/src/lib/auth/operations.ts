@@ -8,6 +8,7 @@ export interface AuthUser {
   name: string;
   email: string;
   signInMethods: { google: boolean; password: boolean } | null;
+  isAdmin?: boolean;
 }
 
 export type AuthOperationResult<T = undefined> =

@@ -764,7 +764,7 @@ export function RootNavigator() {
             <Stack.Screen
               name="AdminSiteMetrics"
               component={AdminSiteMetricsScreen}
-              options={{ headerShown: false, title: 'Leadership metrics' }}
+              options={{ headerShown: false, title: 'Admin metrics' }}
             />
             <Stack.Screen
               name="SiteMetrics"

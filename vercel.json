@@ -60,6 +60,11 @@
     }
   ],
   "redirects": [
+    {
+      "source": "/admin/site-metrics",
+      "destination": "/admin/metrics",
+      "permanent": true
+    },
     { "source": "/search", "destination": "/bills", "permanent": true },
     { "source": "/reports", "destination": "/read", "permanent": true },
     { "source": "/reports/:slug", "destination": "/read/research/:slug", "permanent": true },

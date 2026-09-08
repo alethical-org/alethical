@@ -74,8 +74,9 @@ def leadership_metrics(db: Session, *, now: datetime | None = None) -> dict[str,
 def _leadership_metrics(db: Session, *, now: datetime | None) -> dict[str, Any]:
     """Read 4 aggregate queries; never commit, fetch private rows, or call a vendor.
 
-    Corpus counts describe the records stored now, across all sessions. The
-    failure and logged-cost window is [start, end): 30 complete UTC days.
+    Inventory counts describe records stored now across all sessions; the current
+    legislator count follows the public roster. The failure and logged-cost window
+    is [start, end): 30 complete UTC days.
     Freshness describes source-specific checks and published fetch windows,
     never a generic row-update timestamp or a promise about every source record.
     """
@@ -87,6 +88,26 @@ def _leadership_metrics(db: Session, *, now: datetime | None) -> dict[str, Any]:
     start = end - timedelta(days=30)
     run = schema.IngestionRun
     request = schema.BillSummaryRequest
+    # Match the public roster's current-session/current-service predicates,
+    # including its exclusion of unknown districts, but count distinct people.
+    current_session = (
+        select(schema.LegislativeSession.id)
+        .where(schema.LegislativeSession.is_current.is_(True))
+        .scalar_subquery()
+    )
+    current_legislators = (
+        select(func.count(func.distinct(schema.LegislatorServicePeriod.legislator_id)))
+        .join(
+            schema.District,
+            schema.District.id == schema.LegislatorServicePeriod.district_id,
+        )
+        .where(
+            schema.LegislatorServicePeriod.session_id == current_session,
+            schema.LegislatorServicePeriod.is_current.is_(True),
+            schema.District.code.not_like("%-unknown"),
+        )
+        .scalar_subquery()
+    )
 
     # A single round trip, without multiplying counts through joins.
     counts = db.execute(
@@ -95,6 +116,7 @@ def _leadership_metrics(db: Session, *, now: datetime | None) -> dict[str, Any]:
             select(func.count(schema.Legislator.id))
             .scalar_subquery()
             .label("legislators"),
+            current_legislators.label("current_legislators"),
             select(func.count(schema.Committee.id))
             .scalar_subquery()
             .label("committees"),
@@ -218,9 +240,11 @@ def _leadership_metrics(db: Session, *, now: datetime | None) -> dict[str, Any]:
         "corpus": {
             "bills": int(counts.bills),
             "legislators": int(counts.legislators),
+            "current_legislators": int(counts.current_legislators),
             "committees": int(counts.committees),
             "scope": (
-                "All stored records across all sessions, not just current officeholders. "
+                "Inventory counts include all stored records across all sessions. "
+                "Currently serving counts distinct people in the current-session roster. "
                 "Committee records are legislative committees, not campaign committees."
             ),
             "coveragePercentage": {

@@ -354,7 +354,7 @@ HTML — the Expo runtime, a shared file of parts more than 1 screen uses, and t
 every page needs — and the app fetches the screen file for the address it was asked for.
 `docs/operations/deployment.md` § What a web release ships owns the mechanics.
 
-The `/site-metrics` and `/admin/site-metrics` screens share 1 on-demand download through
+The `/site-metrics` and `/admin/metrics` screens share 1 on-demand download through
 `apps/frontend/src/screens/metricsScreens.ts`. The single import target in
 `apps/frontend/src/navigation/screenChunks.ts` keeps their shared report code out of the
 initial common download. Opening either route fetches both screens' code, but private
@@ -1029,6 +1029,28 @@ no rows is silent or beyond our copy (`.claude/rules/grounded-answers.md` rule 1
 Asked of the listed committees alone, a race page with no rows in an open year would
 read "we have nothing for this year" instead of "nobody has filed yet", so that
 question keeps the whole download as its subject and rides in the same statement.
+
+## Private activity totals: 8 Sep 2026
+
+The activity totals used by `/admin/metrics` asked the database 19 questions
+per read. Combining the time windows, lifetime totals, and current reader/follow
+counts reduced that to 6. The 7-day and 30-day UTC boundaries, incomplete-history
+markers, and team/test exclusions retain their existing meaning.
+
+These are 3 runs before and 3 after, using local code against the production
+database in enforced read-only transactions. The clock covers only
+`site_metric_data`; it excludes opening connections, HTTP requests, sign-in
+checks, and browser work. Returned records and query parameters were not printed.
+
+| Code | Database questions per read | Each run, milliseconds | Median, milliseconds |
+|---|---:|---|---:|
+| Before batching | 19 | 646.400, 1,228.734, 622.344 | 646.400 |
+| After batching | 6 | 198.842, 179.917, 185.541 | 185.541 |
+
+The median fell 71.3%. This measures the database-read improvement, not a full
+page-load or deployed-server time. Local database tests enforce the 6-question
+bound and cover exact window edges, incomplete history, excluded/inactive
+accounts, and distinct people and followed records.
 
 ## Remaining options with a real tradeoff or open proof gap
 

@@ -25,7 +25,9 @@ from alethical.api.services.account_classification import (
     is_team_or_test,
 )
 from alethical.api.services.admin_accounts import (
+    AccountInventory,
     ReaderAccount,
+    load_account_inventory,
     load_reader_accounts,
     search_reader_accounts,
 )
@@ -41,6 +43,13 @@ EXCLUSION_ENV = (
     "TRAFFIC_EXCLUDED_ACCOUNT_IDS",
     "ALETHICAL_TEST_ACCOUNT_IDS",
     "ALETHICAL_ADMIN_ACCOUNT_IDS",
+)
+NEW_TEAM_EMAILS = (
+    "elopinyoga@gmail.com",
+    "elopinmisc@gmail.com",
+    "eugenelopin@gmail.com",
+    "adaonstoa@gmail.com",
+    "rohan.mishra1997@gmail.com",
 )
 
 
@@ -134,6 +143,15 @@ def test_each_exact_approved_email_needs_fresh_confirmation(admin_http, email):
     )
 
 
+def test_team_exclusions_do_not_expand_the_four_admin_grants():
+    assert admin.ADMIN_EMAILS == {
+        "angelzierden@gmail.com",
+        "angel@alethical.com",
+        "eug@alethical.com",
+        "alethicaldev@gmail.com",
+    }
+
+
 @pytest.mark.parametrize(
     "email",
     [
@@ -143,6 +161,7 @@ def test_each_exact_approved_email_needs_fresh_confirmation(admin_http, email):
         "eug+admin@alethical.com",
         "afnetter@gmail.com",
         "joseph.fleishman@gmail.com",
+        *NEW_TEAM_EMAILS,
         "eug@alethical.com.attacker.us",
         " eug@alethical.com",
         "reader@reader.us",
@@ -305,6 +324,8 @@ def test_real_supabase_adapter_ignores_editable_metadata(admin_http):
         {"limit": 101},
         {"query": "private-reader@reader.us" * 20},
         {"unexpected": "private-reader@reader.us"},
+        {"include_excluded": True},
+        {"include_team": True},
     ],
 )
 def test_search_validation_never_echoes_private_input(admin_http, body):
@@ -321,7 +342,7 @@ def test_unavailable_account_records_return_a_private_service_error(
 ):
     monkeypatch.setattr(
         admin,
-        "load_reader_accounts",
+        "load_account_inventory",
         Mock(side_effect=RuntimeError("private-reader@reader.us")),
     )
     response = admin_http.client.post(
@@ -333,7 +354,9 @@ def test_unavailable_account_records_return_a_private_service_error(
 
 
 def test_unexpected_admin_error_still_prevents_caching(admin_http, monkeypatch):
-    monkeypatch.setattr(admin, "load_reader_accounts", lambda _db: [])
+    monkeypatch.setattr(
+        admin, "load_account_inventory", lambda _db: AccountInventory([], [])
+    )
     monkeypatch.setattr(
         admin, "search_reader_accounts", Mock(side_effect=RuntimeError("private"))
     )
@@ -417,6 +440,9 @@ def inventory_row(subject, *, email="reader@reader.us", **changes):
         "confirmed_at": NOW - timedelta(days=1),
         "user_id": None,
         "is_active": None,
+        "local_email": None,
+        "linked_emails": [],
+        "linked_subjects": [],
         "providers": ["email"],
         **changes,
     }
@@ -424,11 +450,23 @@ def inventory_row(subject, *, email="reader@reader.us", **changes):
 
 def inventory_db(rows, *, local_users=(), local_identities=()):
     db = Mock(spec=Session)
-    db.execute.side_effect = [
-        result_rows(rows),
-        result_rows(local_users),
-        result_rows(local_identities),
-    ]
+    joined_rows = []
+    for row in rows:
+        linked = [
+            identity for identity in local_identities if identity[0] == row["user_id"]
+        ]
+        local = dict(local_users).get(row["user_id"], row["local_email"])
+        joined_rows.append(
+            {
+                **row,
+                "local_email": local,
+                "linked_emails": [email for _, email, _ in linked]
+                or row["linked_emails"],
+                "linked_subjects": [subject for _, _, subject in linked]
+                or row["linked_subjects"],
+            }
+        )
+    db.execute.side_effect = [result_rows(joined_rows)]
     return db
 
 
@@ -515,10 +553,14 @@ def test_any_excluded_identity_hides_the_whole_local_account(exclusion, monkeypa
         local_identities = [(LOCAL_ACCOUNT, "ordinary@reader.us", "old-link")]
     else:
         rows[1]["is_active"] = False
-    accounts = load_reader_accounts(
+    inventory = load_account_inventory(
         inventory_db(rows, local_users=local_users, local_identities=local_identities)
     )
+    accounts = inventory.included
     assert [a.id for a in accounts] == ["independent"]
+    assert [a.id for a in inventory.excluded] == (
+        [] if exclusion == "inactive" else [str(LOCAL_ACCOUNT)]
+    )
     hidden_search = search_reader_accounts(accounts, query="reader@reader.us", now=NOW)
     assert hidden_search["page"]["total"] == 0
     assert hidden_search["summary"]["confirmed_accounts"] == 1
@@ -660,7 +702,9 @@ def test_admin_search_returns_only_account_fields_and_uses_body_filters(
         account("match", email="find@reader.us"),
         account("other", email="other@reader.us"),
     ]
-    monkeypatch.setattr(admin, "load_reader_accounts", lambda db: records)
+    monkeypatch.setattr(
+        admin, "load_account_inventory", lambda db: AccountInventory(records, [])
+    )
     response = admin_http.client.post(
         "/api/v1/admin/users/search",
         headers=HEADERS,
@@ -669,7 +713,8 @@ def test_admin_search_returns_only_account_fields_and_uses_body_filters(
     assert response.status_code == 200
     assert_private(response)
     payload = response.json()
-    assert set(payload) == {"data", "summary", "page", "as_of"}
+    assert set(payload) == {"data", "summary", "page", "as_of", "excluded_accounts"}
+    assert payload["excluded_accounts"] == []
     assert [row["id"] for row in payload["data"]] == ["match"]
     assert set(payload["data"][0]) == {
         "id",
@@ -680,3 +725,101 @@ def test_admin_search_returns_only_account_fields_and_uses_body_filters(
     }
     assert payload["page"] == {"offset": 0, "limit": 1, "total": 1, "has_more": False}
     assert payload["summary"]["confirmed_accounts"] == 2
+
+
+@pytest.mark.parametrize("email", NEW_TEAM_EMAILS)
+def test_new_team_mailboxes_and_gmail_aliases_stay_out_of_reader_metrics(email):
+    local, domain = email.split("@")
+    aliases = [
+        email,
+        f"{local}+preview@{domain}",
+        f"{'.'.join(local.replace('.', ''))}@googlemail.com",
+    ]
+    rows = [
+        inventory_row(f"team-{index}", email=alias)
+        for index, alias in enumerate(aliases)
+    ]
+    rows.append(inventory_row("reader", email="person@reader.us"))
+    db = inventory_db(rows)
+
+    inventory = load_account_inventory(db)
+
+    assert [a.id for a in inventory.included] == ["reader"]
+    assert {a.email for a in inventory.excluded} == set(aliases)
+    assert db.execute.call_count == 1
+    assert [a.id for a in load_reader_accounts(inventory_db(rows))] == ["reader"]
+    assert (
+        search_reader_accounts(inventory.included, now=NOW)["summary"][
+            "confirmed_accounts"
+        ]
+        == 1
+    )
+
+
+def test_inactive_team_account_is_absent_from_both_inventory_lists():
+    inventory = load_account_inventory(
+        inventory_db(
+            [
+                inventory_row("disabled", email=NEW_TEAM_EMAILS[0], is_active=False),
+                inventory_row("active", email=NEW_TEAM_EMAILS[1]),
+            ]
+        )
+    )
+    assert inventory.included == []
+    assert [a.id for a in inventory.excluded] == ["active"]
+
+
+@pytest.mark.parametrize(
+    "filters",
+    [
+        {},
+        {"query": "no-match", "status": "pending", "created_within_days": 7},
+        {"offset": 25, "limit": 1},
+    ],
+)
+def test_excluded_account_list_is_independent_of_reader_filters_and_paging(
+    admin_http, monkeypatch, filters
+):
+    rows = [
+        inventory_row("reader", email="person@reader.us"),
+        inventory_row("team", email=NEW_TEAM_EMAILS[0]),
+        inventory_row("pending-team", email=NEW_TEAM_EMAILS[1], confirmed_at=None),
+    ]
+    db = inventory_db(rows)
+    loader = Mock(side_effect=lambda _db: load_account_inventory(db))
+    monkeypatch.setattr(admin, "load_account_inventory", loader)
+
+    response = admin_http.client.post(
+        "/api/v1/admin/users/search", headers=HEADERS, json=filters
+    )
+
+    assert response.status_code == 200
+    assert_private(response)
+    payload = response.json()
+    assert payload["excluded_accounts"] == [
+        {"id": "pending-team", "email": NEW_TEAM_EMAILS[1]},
+        {"id": "team", "email": NEW_TEAM_EMAILS[0]},
+    ]
+    assert payload["summary"]["confirmed_accounts"] == 1
+    assert payload["summary"]["pending_accounts"] == 0
+    assert all(row["id"] == "reader" for row in payload["data"])
+    assert payload["page"]["total"] == (0 if "query" in filters else 1)
+    loader.assert_called_once_with(admin_http.db)
+    assert db.execute.call_count == 1
+
+
+def test_ordinary_account_cannot_read_the_separate_excluded_list(
+    admin_http, monkeypatch
+):
+    admin_http.service.authenticate.return_value = principal(
+        provider_subject=READER_SUBJECT
+    )
+    loader = Mock()
+    monkeypatch.setattr(admin, "load_account_inventory", loader)
+    response = admin_http.client.post(
+        "/api/v1/admin/users/search", headers=HEADERS, json={}
+    )
+    assert response.status_code == 403
+    assert "excluded_accounts" not in response.json()
+    loader.assert_not_called()
+    assert_private(response)

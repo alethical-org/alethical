@@ -128,6 +128,13 @@ function PrivateUsers({ accessToken }: { accessToken: string }) {
 
   return (
     <View style={styles.content}>
+      <View style={styles.toolbar}>
+        <Action
+          label="Refresh"
+          disabled={!current}
+          onPress={() => setAttempt((value) => value + 1)}
+        />
+      </View>
       {result ? (
         <View style={styles.summary}>
           {[
@@ -305,7 +312,28 @@ function PrivateUsers({ accessToken }: { accessToken: string }) {
             <Text style={styles.note}>
               Source: Alethical sign-in records · Updated {adminAccountDate(result.as_of)}
             </Text>
-            <Action label="Refresh" onPress={() => setAttempt((value) => value + 1)} />
+          </View>
+          <View style={styles.excluded}>
+            <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
+              Excluded accounts
+            </Text>
+            <Text style={styles.note}>
+              Team and test accounts. These are excluded from all totals and the account results
+              above. Search, status, and signup-date filters do not change this list.
+            </Text>
+            {result.excluded_accounts.length ? (
+              <View style={styles.list}>
+                {result.excluded_accounts.map((account) => (
+                  <View key={account.id} style={styles.account}>
+                    <Text selectable style={[styles.email, styles.excludedEmail]}>
+                      {account.email ?? 'Email not available'}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.body}>No excluded accounts.</Text>
+            )}
           </View>
         </>
       ) : null}
@@ -348,8 +376,8 @@ export function AdminUsersScreen({ navigation }: RootScreenProps<'AdminUsers'>) 
             Users
           </Text>
           <Text style={styles.subhead}>
-            Current accounts and when they first confirmed. Team and test accounts are excluded from
-            every count and result.
+            Current accounts and when they first confirmed. Team and test accounts are listed
+            separately and excluded from all totals and account results.
           </Text>
         </View>
       }
@@ -379,6 +407,9 @@ export function AdminUsersScreen({ navigation }: RootScreenProps<'AdminUsers'>) 
 
 const styles = StyleSheet.create({
   content: { gap: 22, paddingBottom: 32 },
+  toolbar: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center' },
+  excluded: { gap: 14, marginTop: 10 },
+  excludedEmail: { flex: 1, minWidth: 0 },
   adminLabel: {
     fontFamily: t.typography.ui,
     fontSize: 14,
@@ -454,6 +485,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     minWidth: 0,
+    maxWidth: 480,
     minHeight: 46,
     borderWidth: 1,
     borderColor: t.colors.border,

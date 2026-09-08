@@ -589,7 +589,7 @@ function AdminRow({
           pressed && (phone ? styles.sheetButtonPressed : styles.menuItemPressed),
         ]}
       >
-        <Text style={phone ? styles.sheetTrackedLabel : styles.menuTrackedLabel}>Admin</Text>
+        <Text style={phone ? styles.sheetTrackedLabel : styles.menuTrackedLabel}>Users</Text>
         <ChevronRightIcon />
       </Pressable>
       <Pressable
@@ -603,7 +603,7 @@ function AdminRow({
         ]}
       >
         <Text style={phone ? styles.sheetTrackedLabel : styles.menuTrackedLabel}>
-          Leadership metrics
+          Admin metrics
         </Text>
         <ChevronRightIcon />
       </Pressable>

@@ -178,7 +178,8 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
   const segments = normalized.split('/').filter(Boolean);
 
   // Private filters never come from or go into the address.
-  if (normalized === '/admin/site-metrics') return { kind: 'adminSiteMetrics' };
+  if (normalized === '/admin/metrics' || normalized === '/admin/site-metrics')
+    return { kind: 'adminSiteMetrics' };
   if (normalized === '/admin' || normalized === '/admin/users') return { kind: 'adminUsers' };
 
   if (segments.length === 0) {
@@ -641,7 +642,7 @@ export function pathForRoute(activeRoute: {
     case 'AdminUsers':
       return '/admin/users';
     case 'AdminSiteMetrics':
-      return '/admin/site-metrics';
+      return '/admin/metrics';
     case 'SiteMetrics':
       return '/site-metrics';
     case 'Terms':
