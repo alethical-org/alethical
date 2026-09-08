@@ -177,41 +177,45 @@ function PrivateUsers({
           />
           <Action label="Search" onPress={submit} />
         </View>
-        <View style={styles.filterGroup}>
-          <Text style={styles.label}>
-            Status
-            {result ? ` · ${result.summary.pending_accounts.toLocaleString('en-US')} pending` : ''}
-          </Text>
-          <View style={styles.choices}>
-            {(['all', 'confirmed', 'pending'] as const).map((status) => (
-              <Action
-                key={status}
-                label={
-                  status === 'all'
-                    ? 'All accounts'
-                    : status === 'confirmed'
-                      ? 'Confirmed'
-                      : 'Pending'
-                }
-                selected={search.status === status}
-                onPress={() => setSearch((value) => ({ ...value, status, offset: 0 }))}
-              />
-            ))}
+        <View style={styles.filterRow}>
+          <View style={styles.filterGroup}>
+            <Text style={styles.label}>
+              Status
+              {result
+                ? ` · ${result.summary.pending_accounts.toLocaleString('en-US')} pending`
+                : ''}
+            </Text>
+            <View style={styles.choices}>
+              {(['all', 'confirmed', 'pending'] as const).map((status) => (
+                <Action
+                  key={status}
+                  label={
+                    status === 'all'
+                      ? 'All accounts'
+                      : status === 'confirmed'
+                        ? 'Confirmed'
+                        : 'Pending'
+                  }
+                  selected={search.status === status}
+                  onPress={() => setSearch((value) => ({ ...value, status, offset: 0 }))}
+                />
+              ))}
+            </View>
           </View>
-        </View>
-        <View style={styles.filterGroup}>
-          <Text style={styles.label}>Signup date</Text>
-          <View style={styles.choices}>
-            {([null, 7, 30] as const).map((days) => (
-              <Action
-                key={days ?? 'all'}
-                label={days === null ? 'Any signup date' : `Created in last ${days} days`}
-                selected={search.created_within_days === days}
-                onPress={() =>
-                  setSearch((value) => ({ ...value, created_within_days: days, offset: 0 }))
-                }
-              />
-            ))}
+          <View style={styles.filterGroup}>
+            <Text style={styles.label}>Signup date</Text>
+            <View style={styles.choices}>
+              {([null, 7, 30] as const).map((days) => (
+                <Action
+                  key={days ?? 'all'}
+                  label={days === null ? 'Any signup date' : `Created in last ${days} days`}
+                  selected={search.created_within_days === days}
+                  onPress={() =>
+                    setSearch((value) => ({ ...value, created_within_days: days, offset: 0 }))
+                  }
+                />
+              ))}
+            </View>
           </View>
         </View>
       </View>
@@ -518,7 +522,15 @@ const styles = StyleSheet.create({
     color: t.colors.text.primary,
     backgroundColor: t.colors.surface,
   },
-  filterGroup: { gap: 10, marginTop: 10 },
+  filterRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    columnGap: 40,
+    rowGap: 24,
+    marginTop: 22,
+    marginBottom: 10,
+  },
+  filterGroup: { gap: 10, maxWidth: '100%' },
   choices: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   button: {
     minHeight: 44,
