@@ -7,7 +7,8 @@ Net: A current second copy is protection against losing a source file. A timed r
 ## Safety boundaries
 
 - Restore into a newly created, isolated database. Never restore over production or another task's database.
-- Keep database backups and restored reader records private. Use a private directory, restrict file permissions, and delete throwaway copies after the drill. Never put backup files, reader rows, tokens, passwords, or callback addresses into Git, a report, or an issue.
+- Keep private database backups, restored rows, logs, and source samples inside an encrypted temporary volume or disk image. Restrict directories to the operator and files to that operator's read/write access (`0700` and `0600`). A private directory alone does not provide disk encryption. Never put backup files, reader rows, tokens, passwords, or callback addresses into Git, a report, or an issue.
+- Require an authenticated, restricted connection to the disposable database. Prefer a private Unix socket with TCP disabled, socket access restricted to the operator, and an explicit operating-system-user to database-role mapping. Reject other users; accepting any connection from localhost is insufficient.
 - Keep mail delivery, paid generation, and background workers disabled. Reading a restored record does not authorize sending its queued messages or replaying its jobs.
 - Reserve source-database reads with the active ingestion owner. Use 1 dump connection and a short lock-wait limit; do not stop another task or change production settings to make a drill faster.
 - Record the exact backup timestamp, source revision, schema version, and result. A fresh logical dump proves that dump's recovery path. It does not prove Supabase's automatic backups, their retention, or recovery during a complete Supabase outage.
@@ -49,15 +50,15 @@ Reserve any production repair window first. The mirror adds missing copies and r
 
 ## Database restoration drill
 
-1. Read the actual backup inventory in Supabase. Record completed backup times, the earliest and latest restorable time, retention settings, and whether point-in-time recovery is enabled. Do not infer account settings from a pricing page.
+1. Read the actual backup inventory in Supabase. Record the listed completed backup times, retention settings, and whether point-in-time recovery is enabled. Describe a time as successfully restored only after exercising that backup. Do not infer account settings from a pricing page.
 2. Record the database's schema revision and size, active jobs, and active connections without printing record contents. Choose a consistent completed backup. If only a fresh logical export is available, label that limit explicitly.
-3. Create a disposable PostgreSQL instance or database on an isolated local port. Record its empty state and allow connections only from the local machine. Install the PostgreSQL and vector-extension versions the backup requires.
+3. Prepare the encrypted temporary destination and disposable PostgreSQL instance with the access controls above. Put its database files, backup archive, logs, and recovered source samples inside that destination. Record its empty state and prove that the intended operator can connect while other users and TCP connections are rejected. Install the PostgreSQL and vector-extension versions the backup requires.
 4. Restore schema and data from the chosen backup. Time these separately from the search-index build. A successful command alone is not the end of the drill.
 5. Compare table counts and schema state against the same backup snapshot. Check constraints, representative bill records, source links, saved account relationships, and a real search query. Test sign-in only with a designated test account in the isolated environment. Do not print private rows.
 6. Read stored source bytes from the recovered manifest, check their hashes, and show how the restored record reaches them. Source buckets are separate from Supabase database backups.
 7. Keep the restored queue stopped. Saved job arguments can contain production database addresses and independently selected production targets, so pointing the queue itself at a local database does not isolate its jobs. Inspect only aggregate status, then use newly constructed local examples with fake providers to test restart behavior in a separate synthetic test database. An older backup can predate a completed paid call, so quarantine uncertain work and reconcile external completion records before enabling workers; restoration cannot promise that old jobs will run exactly once. Mail and paid calls remain disabled throughout the drill.
 8. Rebuild API and web services from the recorded reviewed revision, restore settings without copying secret values into notes, and test the alternate hostname before any real traffic switch. Coordinate live DNS or hosting changes separately.
-9. Record hours of possible data loss, total recovery time, search-index time, missing pieces, and the exact remaining prerequisite. Remove the private disposable data after the proof. Repeat after material changes to storage or recovery machinery.
+9. Record hours of possible data loss, total recovery time, search-index time, missing pieces, and the exact remaining prerequisite. Save only sanitized aggregate evidence outside the encrypted destination. Stop the task-owned PostgreSQL instance, unmount the encrypted volume, and remove the exact task-owned image and empty mount directory after the proof. Keep the shared-machine reservation open through cleanup. If a failed attempt must remain for a retry, retain it encrypted and record that limit explicitly. Repeat after material changes to storage or recovery machinery.
 
 ## Completion record
 
