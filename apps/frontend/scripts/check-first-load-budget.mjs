@@ -49,7 +49,26 @@ import { pathToFileURL } from 'node:url';
 // the first load 409 bytes BIGGER, because that function has dozens of callers and
 // the wrapper's returned object inlines into each, so the duplication in
 // `data/api.ts` is deliberate and its comment says so.
-export const FIRST_LOAD_LIMIT = 391500;
+//
+// Moved again for issue 2024, to Vercel's own 391,582 bytes for the committee
+// record-reuse change plus the same 739 to spend. What the 297 bytes above the
+// previous figure buy: a committee's own page and its payments view hand their
+// records to the app in the first response, so a reader reads real figures where
+// the served words used to be swapped for loading placeholders. The bytes are 3
+// key builders and the seeding they are wired into, in `hooks/useAppQueries.ts`
+// and `data/api.ts`, both of which every reader downloads.
+//
+// **The cheap 39,747 bytes were looked for first and are their own change**
+// ([issue 2070](https://github.com/alethical-org/alethical/issues/2070)). Every
+// sentence a committee's money page can print is in this download, paid for by
+// somebody opening the homepage, because the address reader imports 1 function
+// from a file that then reaches all of them:
+// `navigation/webRoutes.ts` -> `lib/paymentsUnderName.ts` ->
+// `lib/committeeMoney.ts`. Splitting the address helpers out on their own does
+// not break that chain and measured 126 bytes WORSE, so it needs the 4 label
+// helpers `paymentsUnderName.ts` reads moving as well, which moves words a reader
+// reads between files and is not a change to fold into this one.
+export const FIRST_LOAD_LIMIT = 392321;
 
 /**
  * The exact settings Vercel compresses with, so this reports the bytes a reader
