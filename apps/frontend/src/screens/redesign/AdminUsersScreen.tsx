@@ -323,10 +323,7 @@ function PrivateUsers({
             <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
               Excluded accounts
             </Text>
-            <Text style={styles.note}>
-              Team and test accounts. These are excluded from all totals and the account results
-              above. Search, status, and signup-date filters do not change this list.
-            </Text>
+            <Text style={styles.note}>Team and test accounts excluded from results above.</Text>
             {result.excluded_accounts.length ? (
               <View style={styles.list}>
                 {result.excluded_accounts.map((account) => (
