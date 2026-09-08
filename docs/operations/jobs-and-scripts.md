@@ -2,7 +2,7 @@
 
 <!-- describes: .github/workflows/**, scripts/**, alethical/pipeline/**, alethical/api/routers/ask.py, alethical/api/routers/me.py, alethical/api/services/ask_router.py -->
 
-Net: The repository has 19 GitHub Actions workflows. 15 can start automatically
+Net: The repository has 20 GitHub Actions workflows. 16 can start automatically
 and 4 run only when a person starts them. Scheduled checks, releases, and local
 backups do not call paid AI services. Reader questions and deliberately started
 AI work do.
@@ -25,6 +25,7 @@ AI work do.
 | Hosted service settings (`.github/workflows/hosted-service-settings.yml`) | Monthly at 09:30 UTC on day 1, on relevant pull requests, and after relevant changes reach `main` | Compares the intended GitHub, Vercel, Railway, and Supabase settings with their live read routes; keeps Supabase's rotating read grant as 2 encrypted 90-day artifacts; lists every setting it cannot safely read | No paid AI call; reads existing service APIs on GitHub's standard free runner |
 | Money pages stay warm (`.github/workflows/warm-money-pages.yml`) | After each successful production release, and daily at 16:00 UTC | Reads the 5 money addresses and the 4 campaign-money data routes once, so the first real reader after a release is not the one who waits on a cold read. Prints nothing when every address answers; opens no issue | No paid AI call; a handful of reads of our own live site on GitHub's standard free runner |
 | Public metric source health (`.github/workflows/site-metrics-health.yml`) | Daily at 13:43 UTC, and by hand | Reads 7 cached public measurement answers, checks freshness and counting contracts, and names failures in the run summary | No paid AI call; public reads on GitHub's standard free runner |
+| Failed release says so (`.github/workflows/production-release-failed.yml`) | After each production release, succeeded or failed | Opens 1 issue when the website's own release fails, so a merge that reaches nobody does not sit unnoticed; comments rather than opening a second while it keeps failing, and closes that issue when a release next succeeds. Ignores preview releases, which ship to nobody | No paid AI call; reads 1 deployment event on GitHub's standard free runner |
 | Traffic access key (`.github/workflows/traffic-token-expiry.yml`) | Daily at 12:00 UTC | Opens 1 issue 60 days before the private Vercel Traffic key expires and adds 1 urgent note 14 days before | No paid AI call; reads 1 date stored in the repository |
 | Backend release (Railway Git connection) | A commit reaches `main` | Applies database changes, then releases the API if its readiness check passes | No paid AI call; build and hosting usage stays on the existing Railway account |
 | Website release (Vercel Git connection) | A relevant commit reaches `main` | Builds and releases the web app | No paid AI call; build and hosting usage stays on the existing Vercel account |
@@ -35,7 +36,7 @@ Time and Central Daylight Time, so their local hour changes by 1 during the year
 
 ## What GitHub runs only by hand
 
-These 4 workflows complete the total of 19:
+These 4 workflows complete the total of 20:
 
 | Workflow | Purpose | Usage-based cost |
 | --- | --- | --- |
