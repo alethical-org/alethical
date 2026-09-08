@@ -186,13 +186,15 @@ proof. The release owner updates unchecked items with outcomes before closing th
 - [x] `just setup` activates the owning worktree while the common hook setting stays
   unchanged. Cursor has Prettier extension `12.4.0` and Ruff extension `2026.78.0`.
   These extension versions are separate from the project's pinned formatter versions.
-- [ ] Complete current-head and merge-queue code checks, then merge
-  [phase 1](https://github.com/alethical-org/alethical/pull/2079).
-- [ ] Exercise an actual commit and upload through the installed hooks safely.
+- [x] Current-head and merge-queue code checks pass; merged
+  [phase 1](https://github.com/alethical-org/alethical/pull/2079). The website and API
+  deployments succeed, the website answers HTTP 200, and the API reports healthy.
+- [x] An actual phase-2 commit passes through the installed commit hook.
+- [ ] Exercise an actual upload through the installed hook safely.
   Other active owners adopt the checks through their normal dependency installation
   without changing their in-progress branches on our behalf.
-- [ ] Add the proven `description-checks` context to required GitHub checks while
-  retaining all existing protection.
+- [x] `description-checks` is required from GitHub Actions alongside `changes`,
+  `backend`, and `frontend`. Strict mode and all other branch protections are unchanged.
 - [ ] Merge phase 2 removing only the old description step and update
   [`CONTRIBUTING.md`](../../CONTRIBUTING.md),
   [Repo and service settings](repo-and-service-settings.md), and
