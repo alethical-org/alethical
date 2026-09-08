@@ -21,6 +21,7 @@ import {
   countedUpToNote,
   GROUP_EMPTY,
   GROUP_UNAVAILABLE,
+  HELD_RESULTS_NOTE,
   groupCountLabel,
   groupHeading,
   groupNote,
@@ -107,6 +108,22 @@ export function MoneySearchScreen({ navigation, route }: RootScreenProps<'MoneyS
    * break it again.
    */
   const waitingForThisQuery = search.isPending || search.isPlaceholderData;
+
+  /**
+   * True when a recheck failed while the answer to the name in the heading is
+   * still in hand.
+   *
+   * The read keeps no previous search's answer (`useCampaignFinanceNameSearch`
+   * dropped `keepPreviousData` for issue #2020), so an answer present alongside
+   * a failure is this query's own answer and nothing else. Holding it is the
+   * whole point: replacing a correct page of results with "we couldn't search
+   * these records" states something false about our own records, and a reader
+   * cannot tell that message apart from "nothing is filed under this name"
+   * (issue #2048; `.claude/rules/grounded-answers.md` rule 12 on missing versus
+   * zero). The committee page has held its figures this way for months
+   * (`CommitteeMoneyScreen.tsx`, its `isHoldingStale`).
+   */
+  const isHoldingStale = search.isError && answer !== null;
 
   useDocumentTitle(
     '/money/search',
@@ -195,6 +212,17 @@ export function MoneySearchScreen({ navigation, route }: RootScreenProps<'MoneyS
               their search would watch the footer climb into view the moment the
               rows are replaced. */}
           <View style={oneScreenTall}>
+            {/* Above the results, for the same reason the not-covered box is: a
+                reader who scrolls one row and stops must still be told. Not
+                drawn over the too-short card, which is about the query rather
+                than about our records. */}
+            {isHoldingStale && !tooShort ? (
+              <View style={styles.heldNote}>
+                <Text accessibilityRole="alert" style={styles.heldNoteText}>
+                  {HELD_RESULTS_NOTE}
+                </Text>
+              </View>
+            ) : null}
             {query.trim().length === 0 ? (
               <View style={styles.card}>
                 <Text style={styles.h3}>{NAME_SEARCH_EMPTY_QUERY_TITLE}</Text>
@@ -217,7 +245,7 @@ export function MoneySearchScreen({ navigation, route }: RootScreenProps<'MoneyS
                   ))}
                 </MoneyListRows>
               </View>
-            ) : search.isError ? (
+            ) : search.isError && !answer ? (
               <View style={styles.card}>
                 <Text accessibilityRole="alert" style={styles.explain}>
                   We couldn’t search these records just now. This is a problem on our side and says
@@ -641,6 +669,24 @@ const styles = StyleSheet.create({
     borderColor: t.colors.alpha.ink08,
     borderRadius: 15,
     padding: 22,
+  },
+  // The not-covered box's own panel, because this says the same kind of thing
+  // about our records rather than about a search. Inside the reserved height, so
+  // the container cannot change size when the note appears or goes.
+  heldNote: {
+    marginBottom: 26,
+    maxWidth: 760,
+    backgroundColor: t.colors.surfaces.s200,
+    borderWidth: 1,
+    borderColor: t.colors.alpha.ink08,
+    borderRadius: 15,
+    padding: 22,
+  },
+  heldNoteText: {
+    fontFamily: t.typography.body,
+    fontSize: t.fontSizes.body,
+    lineHeight: 23,
+    color: t.colors.text.secondary,
   },
   notCoveredLabel: {
     fontFamily: t.typography.mono,

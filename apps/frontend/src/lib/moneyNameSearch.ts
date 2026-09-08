@@ -220,6 +220,25 @@ export const GROUP_UNAVAILABLE =
 export const GROUP_EMPTY = 'Nothing here carries that spelling.';
 
 /**
+ * What the page says above results it is holding because a recheck failed.
+ *
+ * A returning reader's tab rechecks every read that claims who currently holds
+ * office, and this one qualifies because its person rows carry chamber, district
+ * and party (`lib/currentClaimFreshness.ts`, issue #2023). A failed recheck
+ * leaves the last accepted answer in hand, so the results stay and this sentence
+ * says why they are older than the moment, rather than the page replacing a
+ * correct answer with a failure card a reader cannot tell apart from "nothing is
+ * filed under this name" (issue #2048).
+ *
+ * Worded off `staleHoldNote` in `lib/committeeMoney.ts`, which a committee page
+ * has printed for months, so the 2 surfaces explain the same condition the same
+ * way. No date: the served answer carries no checked-on stamp to print.
+ */
+export const HELD_RESULTS_NOTE =
+  'We could not reach our own data service just now, so these are the last results we ' +
+  'accepted for this name — held until it answers rather than expiring on a timer.';
+
+/**
  * Whether the whole answer has anything to show. Used to choose between the
  * grouped view and the single no-match card: 5 empty groups read as 5 shrugs,
  * where one sentence saying nothing is filed under that name is the honest
