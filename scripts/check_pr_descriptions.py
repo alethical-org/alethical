@@ -17,7 +17,8 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-from check_doc_sync import DESCRIBES, FENCE, ROOT, acknowledged
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from scripts.check_doc_sync import DESCRIBES, FENCE, ROOT, acknowledged
 
 
 class CheckFailure(Exception):

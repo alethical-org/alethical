@@ -135,6 +135,16 @@ def run_suites(snapshot: Path, suites: set[str]) -> None:
         if suite == "frontend":
             run(["pnpm", "install", "--frozen-lockfile"], snapshot, env=env)
             run(
+                ["pnpm", "--dir", "apps/frontend", "run", "check:expo-packages"],
+                snapshot,
+                env=env,
+            )
+            run(
+                ["pnpm", "--dir", "apps/frontend", "run", "check:build-tool-security"],
+                snapshot,
+                env=env,
+            )
+            run(
                 [
                     "python3",
                     "-m",
@@ -157,6 +167,17 @@ def run_suites(snapshot: Path, suites: set[str]) -> None:
             run(["just", "test-frontend"], snapshot, env=env)
         elif suite == "backend":
             run(["uv", "sync", "--frozen"], snapshot, env=env)
+            run(
+                [
+                    "uv",
+                    "run",
+                    "--frozen",
+                    "python",
+                    "scripts/check_declared_dependencies.py",
+                ],
+                snapshot,
+                env=env,
+            )
             run(
                 [
                     "python3",

@@ -83,8 +83,8 @@ check machinery selects both areas. Files outside both groups select neither.
 
 | Affected area | Checks before upload |
 | --- | --- |
-| Frontend app | Saved dependencies, selected-file helper fixtures, frontend formatting, TypeScript, and the full `just test-frontend` suite |
-| Python server | Saved dependencies, local-check helper fixtures, Ruff code and formatting checks, ty, and the full `uv run --frozen pytest` suite |
+| Frontend app | Saved dependencies, package and build-tool compatibility, selected-file helper fixtures, frontend formatting, TypeScript, and the full `just test-frontend` suite |
+| Python server | Saved and declared dependencies, local-check helper fixtures, Ruff code and formatting checks, ty, and the full `uv run --frozen pytest` suite |
 
 When both areas change, they run together. The helper waits for both to finish
 before removing its temporary worktree, including when a check fails. A failure
@@ -154,9 +154,15 @@ proof. The release owner updates unchecked items with outcomes before closing th
   test helper are present with focused fixtures.
 - [x] The independent description workflow and fresh-description fixtures are present;
   the original required description step remains.
-- [ ] Complete focused checks, full affected suites, formatting, and current-head GitHub
-  checks after the resource hold clears.
-- [ ] Merge phase 1 and prove real description edits refresh only their own check.
+- [x] Focused checks cover 12 upload-selection cases, 19 description cases, and
+  12 real Git/formatter/installer cases. Python formatting and lint pass.
+- [x] A draft description edit fails for a missing explanation and passes after
+  restoring it, without another code upload or another CI run:
+  [missing explanation](https://github.com/alethical-org/alethical/actions/runs/34241482500),
+  [restored explanation](https://github.com/alethical-org/alethical/actions/runs/34241556141),
+  [unchanged code-check run](https://github.com/alethical-org/alethical/actions/runs/34241355367).
+- [ ] Complete full affected local suites and current-head GitHub checks after the
+  resource hold clears, then merge phase 1.
 - [ ] Prove fresh descriptions and code IDs in a nonempty merge-group run, including
   access with the workflow's read-only token.
 - [ ] Coordinate clone-wide hook activation, update active older branches, run
