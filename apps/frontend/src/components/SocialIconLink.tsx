@@ -102,11 +102,7 @@ export function SocialIconLink({
 
   if (!social.url) {
     return (
-      <View
-        accessible
-        accessibilityLabel={social.label}
-        style={[...baseStyles, styles.unavailable]}
-      >
+      <View accessible accessibilityLabel={social.label} style={baseStyles}>
         <SocialGlyph
           platform={social.platform}
           surface={surface}
@@ -157,5 +153,4 @@ const styles = StyleSheet.create({
     backgroundColor: t.colors.surfaces.s400,
   },
   contactActive: { backgroundColor: '#e7e8ec' },
-  unavailable: { opacity: 0.45 },
 });
