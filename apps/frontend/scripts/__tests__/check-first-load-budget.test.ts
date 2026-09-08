@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   FIRST_LOAD_LIMIT,
+  HOSTED_BUILD_EXCESS_BYTES,
   checkFirstLoadBudget,
   firstLoadFiles,
   productionBytes,
@@ -60,8 +61,54 @@ describe('checkFirstLoadBudget', () => {
           { name: '__common-def.js', bytes: 60000 },
         ],
         445000,
+        // Read as the host's own build, so this case stays about the message and
+        // its numbers rather than about the hosted projection, which has its own
+        // cases below.
+        true,
       ),
     ).toThrow(/460000 bytes[\s\S]*over the 445000-byte limit by 15000[\s\S]*index-abc\.js/);
+  });
+
+  /**
+   * The 8 September 2026 incident, as a case. A build that is not the host's is a
+   * SMALLER build of the same code, so its own total fitting proves nothing: the
+   * limit was set to 390,500 from a local 389,961 and Vercel then measured 390,761
+   * and refused to deploy 4 merges
+   * (https://github.com/alethical-org/alethical/issues/2052).
+   */
+  it('fails an unhosted build on what the host will measure, not on its own total', () => {
+    // 389,961 is the exact local figure that set the limit 261 bytes too low.
+    const measured = [{ name: 'index-abc.js', bytes: 389_961 }];
+
+    // Its own total fits 390,500 with 539 to spare, which is what made it look safe.
+    expect(() => checkFirstLoadBudget(measured, 390_500, true)).not.toThrow();
+
+    // Read as the host will build it, it is over, and it says so in those words.
+    expect(() => checkFirstLoadBudget(measured, 390_500, false)).toThrow(
+      /390503 bytes[\s\S]*over the 390500-byte limit by 3[\s\S]*This build measured 389961/,
+    );
+  });
+
+  it('tells an unhosted build never to move the limit from its own number', () => {
+    expect(() =>
+      checkFirstLoadBudget([{ name: 'index-abc.js', bytes: 500_000 }], 1_000, false),
+    ).toThrow(/from a HOSTED build's own figure, never this one's/);
+  });
+
+  it('adds nothing on the host, because there its own total is what deploys', () => {
+    const atTheLimit = [{ name: 'index-abc.js', bytes: 391_500 }];
+
+    expect(() => checkFirstLoadBudget(atTheLimit, 391_500, true)).not.toThrow();
+    expect(() => checkFirstLoadBudget(atTheLimit, 391_500, false)).toThrow();
+  });
+
+  it('keeps the limit at or above the hosted figure it was set from', () => {
+    // Vercel measured 390,761 for commit 01ffcbb0. A limit below that is a limit
+    // the deploying build cannot meet, which is the whole defect.
+    expect(FIRST_LOAD_LIMIT).toBeGreaterThanOrEqual(390_761);
+    // And the room left over must cover the gap, or a passing unhosted build could
+    // still be a failing hosted one.
+    expect(FIRST_LOAD_LIMIT - 390_761).toBeGreaterThanOrEqual(HOSTED_BUILD_EXCESS_BYTES);
   });
 
   it('holds a limit no bigger than what the build produces today', () => {

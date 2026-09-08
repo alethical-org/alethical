@@ -1,4 +1,4 @@
-<!-- describes: apps/frontend/App.tsx, apps/frontend/package.json, vercel.json, apps/frontend/src/data/api.ts, apps/frontend/src/lib/appQueryClient.ts, apps/frontend/src/lib/billFreshness.ts, apps/frontend/src/navigation/RootNavigator.tsx, apps/frontend/src/providers/AppProviders.tsx, apps/frontend/src/providers/AuthProvider.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, alethical/api/routers/ask.py, alethical/api/routers/public.py, alethical/api/services/outside_spending.py, alethical/api/services/campaign_finance_races.py, alethical/api/services/committee_finance.py, alethical/api/services/campaign_finance_search.py, alethical/pipeline/campaign_finance_filings.py, api/page.ts, .github/workflows/warm-money-pages.yml, apps/frontend/src/providers/AuthProvider.web.tsx, apps/frontend/src/providers/SignInModalProvider.tsx, apps/frontend/src/providers/SignInMachinery.tsx, apps/frontend/src/lib/auth/loadSignInBundle.ts, apps/frontend/src/lib/auth/signInBundle.ts, apps/frontend/src/lib/auth/signInWorkPending.ts, apps/frontend/src/lib/supabaseConfig.ts, apps/frontend/src/components/auth/accountControls.tsx, apps/frontend/scripts/check-first-load-budget.mjs, apps/frontend/scripts/report-page-load-stages.mjs, apps/frontend/src/lib/currentClaimFreshness.ts, apps/frontend/src/lib/pageData.ts, apps/frontend/src/hooks/useCurrentClaimExpiry.ts, alethical/api/main.py -->
+<!-- describes: .github/workflows/production-release-failed.yml, apps/frontend/App.tsx, apps/frontend/package.json, vercel.json, apps/frontend/src/data/api.ts, apps/frontend/src/lib/appQueryClient.ts, apps/frontend/src/lib/billFreshness.ts, apps/frontend/src/navigation/RootNavigator.tsx, apps/frontend/src/providers/AppProviders.tsx, apps/frontend/src/providers/AuthProvider.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, alethical/api/routers/ask.py, alethical/api/routers/public.py, alethical/api/services/outside_spending.py, alethical/api/services/campaign_finance_races.py, alethical/api/services/committee_finance.py, alethical/api/services/campaign_finance_search.py, alethical/pipeline/campaign_finance_filings.py, api/page.ts, .github/workflows/warm-money-pages.yml, apps/frontend/src/providers/AuthProvider.web.tsx, apps/frontend/src/providers/SignInModalProvider.tsx, apps/frontend/src/providers/SignInMachinery.tsx, apps/frontend/src/lib/auth/loadSignInBundle.ts, apps/frontend/src/lib/auth/signInBundle.ts, apps/frontend/src/lib/auth/signInWorkPending.ts, apps/frontend/src/lib/supabaseConfig.ts, apps/frontend/src/components/auth/accountControls.tsx, apps/frontend/scripts/check-first-load-budget.mjs, apps/frontend/scripts/report-page-load-stages.mjs, apps/frontend/src/lib/currentClaimFreshness.ts, apps/frontend/src/lib/pageData.ts, apps/frontend/src/hooks/useCurrentClaimExpiry.ts, alethical/api/main.py -->
 
 # Page-load performance decisions
 
@@ -425,6 +425,27 @@ age-reading fetch helper into `publicApiRequest` so there is a single implementa
 first load **409 bytes bigger**, since that function has dozens of callers and the wrapper's
 returned object inlines into each. So `apps/frontend/src/data/api.ts` keeps 2 near-identical
 readers on purpose, and says so where a reader of that file will find it.
+
+**Two mechanisms now enforce what a comment could not
+([issue 2052](https://github.com/alethical-org/alethical/issues/2052)).** The comment
+telling a session to take this figure from the hosted build already existed, was read, and
+was quoted in the commit message that then ignored it, so 4 merges sat unshipped for 50
+minutes. Words were the wrong instrument.
+
+- **An unhosted build is checked against what the host will measure, not against its own
+  total.** `HOSTED_BUILD_EXCESS_BYTES` is 542, measured on commit `01ffcbb0` where a
+  laptop and a GitHub runner both built 390,219 and Vercel built 390,761. Anything that is
+  not Vercel's own build adds that before comparing, and reports the sum rather than its
+  own number, so a passing line can never be quoted as headroom the deploy does not have.
+  Replayed against the incident: 389,961 plus 542 is 390,503, which fails the 390,500
+  limit that was set from it. Its honest limit is that it is one measurement of one
+  commit, so a future commit with a larger gap could still pass here and fail there.
+- **A failed production release opens an issue by itself**
+  (`.github/workflows/production-release-failed.yml`), on the `deployment_status` event,
+  for the `Production` environment only, reusing one issue across a run of failures and
+  closing it when a release next succeeds. This is the half that generalises: the next
+  cause will not be a byte count, and the thing that went wrong on 8 September was nobody
+  looking rather than nobody knowing where to look.
 
 **`lib/auth/signInWorkPending.ts` is the whole design, and it answers 1 question: does this page
 load have sign-in work to do?** It says yes when a session is saved in this browser, when the

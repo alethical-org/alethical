@@ -89,17 +89,60 @@ export function firstLoadFiles(html) {
   );
 }
 
-export function checkFirstLoadBudget(measured, limit = FIRST_LOAD_LIMIT) {
+/**
+ * How many more bytes Vercel's build produces than this one, for the same commit.
+ *
+ * Measured on commit 01ffcbb0, 8 Sep 2026: a GitHub runner and a laptop both built
+ * 390,219 bytes where Vercel built 390,761, the whole difference in `index-*.js`,
+ * whose content hash differs between the 2 because the build inlines configuration
+ * only the host holds.
+ *
+ * WHY THIS IS ADDED RATHER THAN WRITTEN IN A COMMENT. The comment saying to measure
+ * on the host existed, was read, was quoted in the commit message that then ignored
+ * it, and 4 merges sat unshipped for 50 minutes
+ * ([issue 2052](https://github.com/alethical-org/alethical/issues/2052)). Adding it
+ * to every unhosted total makes this check answer the question that actually
+ * matters, which is not "does my build fit" but "will the build that deploys fit".
+ *
+ * HONEST LIMIT, because this is one measurement of one commit. It is not a
+ * guarantee: a future commit whose gap is larger could still pass here and fail on
+ * the host. What it removes is the case that happened, where a local total sat a
+ * few bytes under the limit and the hosted total sat over it. Re-measure it the
+ * next time a hosted build's own figure is in hand, and raise it if it has grown.
+ */
+export const HOSTED_BUILD_EXCESS_BYTES = 542;
+
+/**
+ * Whether this build is the one that deploys. Vercel sets `VERCEL=1` in its build
+ * environment, so its own run measures itself and adds nothing.
+ */
+function buildIsHosted() {
+  return process.env.VERCEL === '1';
+}
+
+export function checkFirstLoadBudget(
+  measured,
+  limit = FIRST_LOAD_LIMIT,
+  isHosted = buildIsHosted(),
+) {
   const total = measured.reduce((sum, file) => sum + file.bytes, 0);
-  if (total > limit) {
+  // What the host will enforce. An unhosted build is a smaller build of the same
+  // code, so its own total passing says nothing on its own.
+  const enforced = isHosted ? total : total + HOSTED_BUILD_EXCESS_BYTES;
+  if (enforced > limit) {
     const lines = measured
       .sort((a, b) => b.bytes - a.bytes)
       .map((file) => `  ${String(file.bytes).padStart(8)}  ${file.name}`)
       .join('\n');
+    const projected = isHosted
+      ? ''
+      : `\nThis build measured ${total}. Vercel's build of the same commit runs about ` +
+        `${HOSTED_BUILD_EXCESS_BYTES} bytes larger, so ${enforced} is what its own check will see, ` +
+        'and its failure does not deploy.';
     throw new Error(
-      `Every reader now downloads ${total} bytes before this app can draw, over the ${limit}-byte limit by ${total - limit}.\n${lines}\n` +
+      `Every reader now downloads ${enforced} bytes before this app can draw, over the ${limit}-byte limit by ${enforced - limit}.${projected}\n${lines}\n` +
         'Move what a first page does not need into the screen that needs it, or raise the limit in ' +
-        'apps/frontend/scripts/check-first-load-budget.mjs with the measurement that justifies it.',
+        "apps/frontend/scripts/check-first-load-budget.mjs from a HOSTED build's own figure, never this one's.",
     );
   }
   return total;
@@ -118,9 +161,18 @@ async function checkBuiltFirstLoad() {
     measured.push({ name, bytes: productionBytes(await readFile(new URL(name, directory))) });
   }
   const total = checkFirstLoadBudget(measured);
+  // The number reported is the one that will be enforced, so a passing line here
+  // cannot be quoted as headroom that the hosted build does not have. That misuse
+  // is exactly what set the limit 261 bytes too low on 8 Sep 2026.
+  const hosted = buildIsHosted();
+  const enforced = hosted ? total : total + HOSTED_BUILD_EXCESS_BYTES;
   console.log(
-    `First-load budget passed: ${total} bytes of ${FIRST_LOAD_LIMIT} across ${files.length} files ` +
-      `(${measured.map((f) => `${f.name.split('-')[0]} ${f.bytes}`).join(', ')})`,
+    `First-load budget passed: ${enforced} bytes of ${FIRST_LOAD_LIMIT} across ${files.length} files ` +
+      `(${measured.map((f) => `${f.name.split('-')[0]} ${f.bytes}`).join(', ')})` +
+      (hosted
+        ? ' — measured on the host, so this figure is the one to move the limit from.'
+        : `\n  This build measured ${total}; the +${HOSTED_BUILD_EXCESS_BYTES} is what Vercel's own build adds. ` +
+          "Never move the limit from this run's number."),
   );
 }
 

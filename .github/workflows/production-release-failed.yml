@@ -1,0 +1,107 @@
+name: Production release failed
+
+# A merge that does not deploy is a merge no reader ever sees, and nothing in this
+# repository said so ([issue 2052](https://github.com/alethical-org/alethical/issues/2052)).
+#
+# On 8 Sep 2026 the website's production build failed on 4 consecutive merges and
+# production served the 02:56 release until 03:59. Every one of those 4 pull
+# requests was green, the merge queue merged all 4, and the failure existed only in
+# Vercel's own build log and the GitHub deployments list. It was found by a person
+# happening to look, an hour in.
+#
+# WHY A CHECK ON THE PULL REQUEST COULD NOT HAVE CAUGHT IT. The 3 required checks
+# run a GitHub runner's build, and the build that failed was Vercel's, of the same
+# commit, producing 542 more bytes. So the only place this is visible is after the
+# merge, which is exactly why it needs its own watch rather than another check.
+#
+# WHY THIS ISSUE-OPENING JOB AND NOT A RED WORKFLOW RUN. A red run in the Actions
+# tab is also something a person has to go and look at, and the whole defect here
+# was nobody looking. An issue reaches the board and the maintainer's notifications.
+#
+# Deliberately narrow, so it cannot cry wolf:
+#
+#   - Production only. A failed PREVIEW deployment ships nothing to anybody and
+#     failed 6 times that same night for its own reasons.
+#   - One issue, reused. A run of consecutive failures comments on the open issue
+#     rather than opening a second one, which is what the 8 Sep incident would have
+#     produced 4 of.
+#   - It closes its own issue when a production release next succeeds, so a resolved
+#     outage does not sit on the board. That is the half the 8 Sep write-up had to
+#     be told to do by hand.
+#
+# Costs nothing per run: one event, a few API calls on a public repository.
+
+on:
+  deployment_status:
+
+concurrency:
+  # Never two of these racing over the same issue. Not cancel-in-progress: a
+  # success arriving while a failure is still being written must not drop either.
+  group: production-release-failed
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  watch:
+    name: Say when a merge stops reaching readers
+    # `Production` is the website. The repository also has an environment named
+    # `alethical / production`, which is a different thing and is not what a reader
+    # gets, and reading the 2 as one is how the 8 Sep incident was first mis-read as
+    # already recovered.
+    if: github.event.deployment_status.environment == 'Production'
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      STATE: ${{ github.event.deployment_status.state }}
+      SHA: ${{ github.event.deployment.sha }}
+      LOG_URL: ${{ github.event.deployment_status.log_url }}
+      TITLE: A merge is not reaching readers, because the production release failed
+    steps:
+      - name: Open or update the issue on a failure, close it on a success
+        run: |
+          set -euo pipefail
+
+          existing=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open \
+            --search "$TITLE in:title" --json number --jq '.[0].number // empty')
+
+          case "$STATE" in
+            failure|error)
+              short="${SHA:0:8}"
+              body=$(printf '%s\n' \
+                "**Net:** Commit \`$short\` merged and its production release failed, so what readers get is still the previous release. Every later merge is stranded behind it until this clears." \
+                "" \
+                "Opened automatically by \`.github/workflows/production-release-failed.yml\`, because 4 merges once sat unshipped for 50 minutes with nothing anywhere saying so ([issue 2052](https://github.com/alethical-org/alethical/issues/2052))." \
+                "" \
+                "### What to do" \
+                "" \
+                "1. Read the failed build's log: $LOG_URL" \
+                "2. The 3 required checks cannot have caught this. They build on a GitHub runner, and the build that failed is Vercel's own, which for the same commit produces about 542 more bytes in \`index-*.js\`. A first-load size failure is therefore invisible until this point." \
+                "3. Judge what readers currently get by the \`Production\` environment's own deployment state, not by the \`Vercel\` commit status, which does not say which environment ran." \
+                "" \
+                "### Two things that will mislead you here" \
+                "" \
+                "- **An automated fetch's status code is not evidence about what readers see.** Vercel's bot protection answers repeated command-line requests with HTTP 403 and a challenge page, whatever user agent they carry, and it lifts after a pause. A real browser passes throughout. Open the address in a browser." \
+                "- **A successful deployment in the \`alethical / production\` environment does not mean the website shipped.** That is a separate environment." \
+                "" \
+                "This issue closes itself when a production release next succeeds.")
+              if [ -n "$existing" ]; then
+                gh issue comment "$existing" --repo "$GITHUB_REPOSITORY" \
+                  --body "Still failing, now on \`$short\`. Build log: $LOG_URL"
+              else
+                gh issue create --repo "$GITHUB_REPOSITORY" \
+                  --title "🚨 $TITLE" --label frontend --body "$body"
+              fi
+              ;;
+            success)
+              if [ -n "$existing" ]; then
+                gh issue close "$existing" --repo "$GITHUB_REPOSITORY" --reason completed \
+                  --comment "Releases are reaching readers again: the production release of \`${SHA:0:8}\` succeeded. Closed automatically. Whatever caused the failures is worth a look if it was not already fixed deliberately."
+              fi
+              ;;
+            *)
+              echo "Nothing to do for state '$STATE'."
+              ;;
+          esac
