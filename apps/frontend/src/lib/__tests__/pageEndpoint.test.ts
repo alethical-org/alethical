@@ -1857,3 +1857,197 @@ describe('a committee address naming a year is answered in that year', () => {
     expect(calls.some((url) => url.includes('year=2026'))).toBe(false);
   });
 });
+
+/**
+ * The same defect as #2021 on a different parameter: the payments address wrote
+ * `direction: "received"` in and never read the tab, so `?tab=spent` was served
+ * the money that came IN under a heading about the money that went out (#2038).
+ */
+describe('a committee payments address naming a direction is answered in that direction', () => {
+  const SLUG = 'jane-fonda-climate-pac-41326';
+  const PAYMENTS = 'https://api.alethical.com/api/v1/committees/41326/payments';
+
+  const FINANCE = {
+    registration_number: '41326',
+    committee_name: 'Jane Fonda Climate PAC',
+    entity_type: 'PCF',
+    entity_sub_type: 'PC',
+    year: 2026,
+    fetched_at: '2026-08-12T02:54:22.402100Z',
+    register: {
+      state: 'reported',
+      kind: 'political_committee_or_fund',
+      name: 'Jane Fonda Climate PAC',
+      party: null,
+      office: null,
+      district: null,
+      registration_date: '2022-10-19',
+      termination_date: null,
+      as_of: '2026-08-12',
+      reason: null,
+    },
+    split: {
+      state: 'shown',
+      reported_total: '2700.0000',
+      reported_through: '2026-07-20',
+      named_total: '2150.0000',
+      named_in_kind_total: '0.0000',
+      unnamed_total: '550.0000',
+      stated_split_state: 'agrees',
+    },
+    money_in: {
+      state: 'reported',
+      reported_period_start: '2026-01-01',
+      other_receipts: [],
+    },
+    money_out: {
+      state: 'reported',
+      reported_total: '2700.0000',
+      reported_through: '2026-07-20',
+      by_type: [],
+    },
+    independent_spending: { state: 'not_reported' },
+  };
+
+  /** A donation in, named the way the service names one. */
+  const RECEIVED = {
+    contributor: 'Ulasich, Andrew',
+    contributor_registration_number: null,
+    contributor_type: 'Individual',
+    amount: '250.0000',
+    received_on: '2026-06-02',
+    receipt_type: 'Contribution',
+    in_kind: 'No',
+  };
+
+  /** A payment out, whose fields are a different set entirely. */
+  const MADE = {
+    vendor_name: 'Square Space',
+    vendor_city: 'New York',
+    vendor_state: 'NY',
+    affected_committee_name: null,
+    affected_committee_registration_number: null,
+    amount: '412.4900',
+    paid_on: '2026-02-19',
+    expenditure_type: 'General Expenditure',
+    purpose: 'Internet Access and Web Hosting: Website',
+    in_kind: 'No',
+  };
+
+  /** Answers a payments read with whichever direction it asked for. */
+  function stubBothDirections(options: { madeState?: string } = {}) {
+    const calls: string[] = [];
+    stubNetwork((url) => {
+      calls.push(url);
+      const parsed = new URL(url);
+      if (!parsed.pathname.endsWith('/payments')) {
+        return { status: 200, payload: { data: FINANCE } };
+      }
+      const made = parsed.searchParams.get('direction') === 'made';
+      const state = made ? (options.madeState ?? 'reported') : 'reported';
+      return {
+        status: 200,
+        payload: {
+          data: {
+            state,
+            payments: state === 'reported' ? [made ? MADE : RECEIVED] : [],
+            page: { total_payments: state === 'reported' ? 1 : null },
+            linkable_registration_numbers: [],
+          },
+        },
+      };
+    });
+    return calls;
+  }
+
+  it('asks the data service for the direction in the address', async () => {
+    const calls = stubBothDirections();
+
+    const { status } = await serve({
+      path: `/money/committees/${SLUG}/payments`,
+      tab: 'spent',
+    });
+
+    expect(status).toBe(200);
+    expect(calls.some((url) => url.startsWith(PAYMENTS) && url.includes('direction=made'))).toBe(
+      true,
+    );
+    expect(calls.some((url) => url.includes('direction=received'))).toBe(false);
+  });
+
+  it('serves the payments out, under the heading about payments out', async () => {
+    stubBothDirections();
+
+    const { body } = await serve({
+      path: `/money/committees/${SLUG}/payments`,
+      tab: 'spent',
+    });
+
+    expect(body).toContain(escapeHtml('Where this committee’s money went'));
+    expect(body).toContain('Every payment named');
+    expect(body).toContain('Square Space');
+    // The exact confusion #2038 describes: a donation in, on a page a reader
+    // asked to be about the money going out.
+    expect(body).not.toContain('Who gave to this committee');
+    expect(body).not.toContain('Ulasich');
+  });
+
+  it('still serves the donations in when the address names no direction', async () => {
+    const calls = stubBothDirections();
+
+    const { body } = await serve({ path: `/money/committees/${SLUG}/payments` });
+
+    expect(
+      calls.some((url) => url.startsWith(PAYMENTS) && url.includes('direction=received')),
+    ).toBe(true);
+    expect(body).toContain('Who gave to this committee');
+    expect(body).toContain('Ulasich');
+  });
+
+  // A direction is a view of one record, not a record of its own, so the address
+  // a reader shares stays the one we call canonical.
+  it('keeps one canonical payments address, with no direction in it', async () => {
+    stubBothDirections();
+
+    const { body, headers } = await serve({
+      path: `/money/committees/${SLUG}/payments`,
+      tab: 'spent',
+    });
+
+    expect(body).toContain(
+      `<link rel="canonical" href="https://www.alethical.com/money/committees/${SLUG}/payments" />`,
+    );
+    expect(body).not.toContain('/payments?tab');
+    expect(headers.get('X-Robots-Tag')).toBeUndefined();
+  });
+
+  it('says no payments are named for the year in the direction asked for', async () => {
+    stubBothDirections({ madeState: 'not_reported' });
+
+    const { body } = await serve({
+      path: `/money/committees/${SLUG}/payments`,
+      tab: 'spent',
+    });
+
+    // The empty sentence belongs to payments out, not to donors, and the page
+    // still carries the committee's own identity and period.
+    expect(body).toContain('No payments named for 2026');
+    expect(body).not.toContain('No donors named for 2026');
+    expect(body).toContain('Jane Fonda Climate PAC');
+    expect(body).not.toContain('Ulasich');
+  });
+
+  it('reads an unknown direction as the donations in, exactly as the screen does', async () => {
+    const calls = stubBothDirections();
+
+    const { body } = await serve({
+      path: `/money/committees/${SLUG}/payments`,
+      tab: 'not-a-direction',
+    });
+
+    expect(
+      calls.some((url) => url.startsWith(PAYMENTS) && url.includes('direction=received')),
+    ).toBe(true);
+    expect(body).toContain('Who gave to this committee');
+  });
+});

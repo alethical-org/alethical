@@ -1420,7 +1420,7 @@ address is not a reason to show its reader nothing. Sorted for this section:
 | `/money/committees` and `?page=N` | record list | the page's 50 filers as ordinary anchors, plus previous/next/jump links |
 | `/money/committees?q=…` or `?kind=…` | filtered view | head only, `noindex`, no canonical — unchanged |
 | `/money/committees/{slug}` and `?year=N` | **record** | the committee's own register facts and its money for the year the address asks for, defaulting to the current filing year; canonical on the bare address either way |
-| `/money/committees/{slug}/payments` and `?year=N` | **record** | the same identity and period for that same year, plus the first 250 named donations |
+| `/money/committees/{slug}/payments`, `?year=N` and `?tab=gave\|spent` | **record** | the same identity and period for that same year, plus the first 250 named payments in the direction the address asks for; canonical on the bare address in every case |
 | `/money/races` | record list | every candidate committee grouped by the contest it registered for, each an ordinary anchor, with each figure's own dates ([#1954](https://github.com/alethical-org/alethical/issues/1954)) |
 | `/money/races?office=…` | filtered view | head only, `noindex`, no canonical |
 | `/money/search` and `?q=…` | filtered view | `noindex` with no canonical, and a body carrying the page's own explanation and what these records do not cover — never a result for anything typed ([#1966](https://github.com/alethical-org/alethical/issues/1966)) |
@@ -1438,16 +1438,23 @@ address is not a reason to show its reader nothing. Sorted for this section:
   last real one answers 404 with `noindex`, as §18 settled for those 2 directories. The retired
   `show` parameter is dropped: a link carrying it lands on page 1, which is where its reader
   started.
-- **A year in the address decides the served figures; a tab does not.** The body carries the year
-  the address asks for, resolved by the same `campaignMoneyYear` the screen resolves it with, so the
-  first thing a reader sees is the year they asked for and the app's own read replaces it with the
-  same figures rather than different ones. Where that year holds no filing the body says
-  "Not reported", and where our records cannot be read for it the body says so; neither is ever a 0
-  (`.claude/rules/grounded-answers.md` rule 12). A tab does not change the body, which carries the
-  whole record exactly as a bill's body is its Summary whichever tab the address names. The
-  canonical address stays the bare one in every case: a preferred address for a search engine is a
-  reason to set the canonical link and never a reason to show a reader a year they did not ask for
-  ([#2021](https://github.com/alethical-org/alethical/issues/2021)).
+- **The served body answers the year the address asks for, and the direction it asks for.** Both are
+  resolved by the readers the screens themselves use, `campaignMoneyYear` for the year and
+  `paymentsTabFromParam` for the payments direction, so the first thing a reader sees is what they
+  asked for and the app's own read replaces it with the same figures rather than different ones.
+  Where the year holds no filing the body says "Not reported", and where our records cannot be read
+  for it the body says so; neither is ever a 0 (`.claude/rules/grounded-answers.md` rule 12). A
+  wrong-parameter body is the worst kind of wrong, because every sentence on it is true of some
+  other question ([#2021](https://github.com/alethical-org/alethical/issues/2021) for the year,
+  [#2038](https://github.com/alethical-org/alethical/issues/2038) for the direction).
+- **A tab that only chooses which part of one record to look at still does not change the body.** On
+  a committee's own page the body carries the whole record whichever tab the address names, exactly
+  as a bill's body is its Summary. The payments view's tab is the exception because it is not a
+  view of one list: money in and money out are 2 different reads answering 2 different questions.
+- **The canonical address is the bare one whatever a year or a tab says.** A preferred address for a
+  search engine is a reason to set the canonical link, and never a reason to show a reader a year or
+  a direction they did not ask for. The 2 committee addresses each keep 1 canonical address, so
+  nothing about serving the requested view reaches a search engine.
 - **Records read for one year are never handed to the app as another year's.** The payload served
   under §23 answers the exact year it was read for or is not served at all, so a seeded figure and
   a fetched figure cannot come from different years.

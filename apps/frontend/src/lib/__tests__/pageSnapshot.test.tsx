@@ -8,7 +8,13 @@ import { renderToStaticMarkup } from 'react-dom/server';
 
 import billFixture from './fixtures/bill-page-snapshot.json';
 import committeeFixture from './fixtures/committee-money-page-snapshot.json';
-import { statedSpendingNote } from '../committeeMoney';
+import {
+  emptyListTitle,
+  madePaymentRow,
+  paymentsEyebrow,
+  paymentsTitle,
+  statedSpendingNote,
+} from '../committeeMoney';
 import committeeEmptyYearFixture from './fixtures/committee-empty-year-snapshot.json';
 import committeePaymentsFixture from './fixtures/committee-payments-page-snapshot.json';
 import legislatorFixture from './fixtures/legislator-page-snapshot.json';
@@ -1409,11 +1415,16 @@ describe('a committee’s full payments list in the first response', () => {
       linkable,
     ),
   );
-  const snapshot = committeePaymentsPageSnapshot(committeeFixture, '41326', {
-    state: committeePaymentsFixture.state,
-    rows,
-    totalPayments: committeePaymentsFixture.page.total_payments,
-  });
+  const snapshot = committeePaymentsPageSnapshot(
+    committeeFixture,
+    '41326',
+    {
+      state: committeePaymentsFixture.state,
+      rows,
+      totalPayments: committeePaymentsFixture.page.total_payments,
+    },
+    'gave',
+  );
   const html = renderPageSnapshot(snapshot);
   const text = visibleText(html);
 
@@ -1460,11 +1471,16 @@ describe('a committee’s full payments list in the first response', () => {
       },
       new Set(['20982']),
     );
-    const linked = committeePaymentsPageSnapshot(committeeFixture, '41326', {
-      state: 'reported',
-      rows: [withCommittee],
-      totalPayments: 1,
-    });
+    const linked = committeePaymentsPageSnapshot(
+      committeeFixture,
+      '41326',
+      {
+        state: 'reported',
+        rows: [withCommittee],
+        totalPayments: 1,
+      },
+      'gave',
+    );
     expect(linked.sections?.[1]?.items?.[0].href).toBe('/money/committees/some-party-unit-20982');
 
     // The individual donors in the fixture carry no registration number at all,
@@ -1478,6 +1494,55 @@ describe('a committee’s full payments list in the first response', () => {
       // Never a profile-shaped address, which is what the old guard protected.
       expect(href).not.toMatch(/^\/money\/(people|donors|committees)\//);
     }
+  });
+
+  // Same list, other direction: every sentence on the page belongs to the money
+  // going OUT, and the rows are payments rather than donations (#2038).
+  it('names the payments-out view by its own words when the address asks for it', () => {
+    const paidOut = committeePaymentsPageSnapshot(
+      committeeFixture,
+      '41326',
+      {
+        state: 'reported',
+        rows: [
+          madePaymentRow(
+            {
+              vendorName: 'Square Space',
+              vendorCity: 'New York',
+              vendorState: 'NY',
+              affectedCommitteeName: null,
+              affectedCommitteeRegistrationNumber: null,
+              amount: '412.4900',
+              paidOn: '2026-02-19',
+              expenditureType: 'General Expenditure',
+              purpose: 'Internet Access and Web Hosting: Website',
+              inKind: 'No',
+            },
+            new Set<string>(),
+          ),
+        ],
+        totalPayments: 1,
+      },
+      'spent',
+    );
+
+    expect(paidOut.heading).toBe(paymentsTitle('spent'));
+    expect(paidOut.sections?.[1]?.heading).toBe(paymentsEyebrow('spent'));
+    expect(visibleText(renderPageSnapshot(paidOut))).toContain('Square Space');
+    expect(paidOut.heading).not.toBe(paymentsTitle('gave'));
+  });
+
+  it('says no PAYMENTS are named for an empty payments-out year, not no donors', () => {
+    const empty = committeePaymentsPageSnapshot(
+      committeeFixture,
+      '41326',
+      { state: 'not_reported', rows: [], totalPayments: null },
+      'spent',
+    );
+    const text = visibleText(renderPageSnapshot(empty));
+
+    expect(text).toContain(emptyListTitle('spent', 2026));
+    expect(text).not.toContain(emptyListTitle('gave', 2026));
   });
 });
 
