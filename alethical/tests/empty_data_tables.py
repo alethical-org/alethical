@@ -27,7 +27,7 @@ stayed green while a local full-suite run was red. That shape cost two sessions 
 45 minutes between them and produced two issues with two different diagnoses.
 
 Its own module rather than living in `conftest.py`, for the same reason
-`database_name.py` and `local_database_guard.py` are separate: pytest imports
+`database_session.py` and `local_database_guard.py` are separate: pytest imports
 `conftest.py` under its own module name, so a test that imported it would get a second
 copy of this module's state and could not see what the fixture recorded. Testing it
 directly is the point -- when this guarantee breaks, every suite stays green and the
@@ -50,10 +50,7 @@ def data_tables_to_empty(declared: Iterable[str], existing: Iterable[str]) -> li
     """The tables this app's own models declare, and only those.
 
     Restricted to declared tables rather than everything in the `public` schema,
-    because `ALETHICAL_TEST_DATABASE_URL` can point the suite at a local database
-    that also holds tables belonging to something else. Emptying those would destroy
-    data this suite has no business touching, and would fail outright where the test
-    role does not own them.
+    so migration bookkeeping and tables created by other test helpers stay intact.
 
     Two things follow from the restriction, both wanted. `alembic_version` is excluded
     by construction, because Alembic owns that table and the models never declare it --

@@ -88,8 +88,7 @@ def push_targets(root: Path, data: str) -> list[tuple[str, list[str]]]:
 
 @contextmanager
 def commit_snapshot(root: Path, sha: str):
-    # Registered worktrees keep the backend's normal test-database pruning from
-    # treating a running snapshot's database as abandoned.
+    # A real worktree lets tools inspect the exact uploaded Git history.
     with tempfile.TemporaryDirectory(prefix="alethical-pre-push-") as directory:
         snapshot = Path(directory) / "checkout"
         git(root, "worktree", "add", "--detach", str(snapshot), sha)
@@ -339,6 +338,7 @@ def disposable_postgres(snapshot: Path):
             raise CheckError(
                 "The host database identity does not match this disposable server; tests stopped."
             )
+        print(f"Test database ready: {name} (local port {port}).", flush=True)
         yield database_url
     finally:
         # Even a failed `docker run` can leave a created container. Recover only
@@ -427,12 +427,25 @@ def run_suites(snapshot: Path, suites: set[str]) -> None:
                 env=env,
             )
             run(["uvx", "ty@0.0.72", "check", "alethical/db"], snapshot, env=env)
-            with disposable_postgres(snapshot) as database_url:
-                run(
-                    ["uv", "run", "--frozen", "pytest"],
-                    snapshot,
-                    env={**env, "DATABASE_URL": database_url},
-                )
+            # The suite owns the same disposable server for manual and hook runs.
+            run(
+                [
+                    "uv",
+                    "run",
+                    "--frozen",
+                    "python",
+                    "-m",
+                    "unittest",
+                    "discover",
+                    "-s",
+                    "scripts/tests",
+                    "-p",
+                    "test_manual_test_database.py",
+                ],
+                snapshot,
+                env=env,
+            )
+            run(["uv", "run", "--frozen", "pytest"], snapshot, env=env)
         else:
             raise CheckError(f"Unknown test suite: {suite}")
 

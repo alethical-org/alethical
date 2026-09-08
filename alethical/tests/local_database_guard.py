@@ -34,6 +34,6 @@ def assert_local_database(url: str, target: str | None = None) -> None:
         raise pytest.UsageError(
             f"Refusing to run the test suite against database host {host!r}. "
             "The suite writes and deletes rows, so it may only run against a local "
-            f"database ({', '.join(sorted(LOCAL_DATABASE_HOSTS))}). Point DATABASE_URL "
-            "at the local Postgres (port 54329) and re-run."
+            f"database ({', '.join(sorted(LOCAL_DATABASE_HOSTS))}). Unset the remote "
+            "DATABASE_URL and re-run to use the suite's temporary Postgres."
         )

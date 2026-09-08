@@ -1,6 +1,6 @@
 # Local code checks
 
-<!-- describes: .githooks/**, .github/check-paths.json, .github/workflows/ci.yml, .github/workflows/pr-description.yml, .vscode/**, justfile, lint-staged.config.mjs, scripts/local_checks.py, scripts/install_git_hooks.py, scripts/format_frontend.mjs, scripts/check_pr_descriptions.py, scripts/check_doc_sync.py, scripts/tests/test_local_checks.py, scripts/tests/test_staged_checks.py, scripts/tests/test_pr_description_checks.py -->
+<!-- describes: .githooks/**, .github/check-paths.json, .github/workflows/ci.yml, .github/workflows/pr-description.yml, .vscode/**, justfile, lint-staged.config.mjs, scripts/local_checks.py, scripts/install_git_hooks.py, scripts/format_frontend.mjs, scripts/check_pr_descriptions.py, scripts/check_doc_sync.py, scripts/tests/test_local_checks.py, scripts/tests/test_staged_checks.py, scripts/tests/test_pr_description_checks.py, alethical/tests/conftest.py, alethical/tests/database_session.py, scripts/tests/test_manual_test_database.py, scripts/check_local_env.py, alethical/tests/test_check_local_env.py -->
 
 Alethical uses the same local checks in Cursor, Codex, Claude Code, and a terminal.
 Git runs the helpers when saving a commit or uploading commits, regardless of which
@@ -50,6 +50,11 @@ For server upload checks, Docker's background service must be running and
 [Docker Compose setup](../../docker-compose.yml) downloads that image. The upload
 hook uses `--pull=never`: it stops if the image is missing instead of fetching one
 during an upload. The shared development database need not be running.
+
+Run `just doctor` to check readiness without changing it. It reports whether this
+working copy's active `pre-commit` and `pre-push` files match the current helpers
+and can run, the saved Docker connection is local and reachable, and the test
+image is cached. It does not install hooks, start Docker, or download the image.
 
 ## Formatting the selected files
 
@@ -113,7 +118,13 @@ unfinished files, the developer's `.env`, or inherited service credentials. An e
 local `.env` prevents parent-folder settings from leaking in. Logs stay in the
 temporary worktree. The helper removes only the temporary worktree it created.
 
-Server tests use a new Postgres server inside a disposable Docker container, not
+## Server-test database safety
+
+Both manual `uv run pytest` and server upload tests use
+[`database_session.py`](../../alethical/tests/database_session.py) to own the server
+until pytest finishes. Manual runs use current working files; upload runs use
+their exact saved snapshot. Each local invocation uses a new Postgres server
+inside a disposable Docker container, not
 another database name on the shared server. The container uses the cached
 `pgvector/pgvector:pg17` image, fixed test-only credentials, memory-backed data
 (`tmpfs`), and a random port bound only to `127.0.0.1`. It waits for readiness for
@@ -124,13 +135,31 @@ write anything. A mismatched or unreachable server stops the upload. Cleanup tar
 new container's exact ID, with automatic removal (`--rm`); it never removes other
 containers, uses shared database storage, or connects to an existing server on port 54329.
 
-This boundary matters because the server suite's normal setup also prunes test
-databases it considers abandoned. A separate database name on somebody else's
-server does not contain that cleanup. The upload check's entire server is disposable,
-so pruning cannot reach existing development databases. Manually running
-`uv run pytest` retains its normal shared-server behavior; see
-[Manual server tests](../../CONTRIBUTING.md#manual-server-tests-use-the-shared-local-postgres)
-before running it.
+The suite never scans a shared server for abandoned test databases or drops a
+database because a working copy disappeared. Different clones and simultaneous
+invocations in one folder each own a complete server. Startup or identity failure
+stops the run before migrations or seeding; no existing address is used as a fallback.
+
+Pytest cleanup removes its server after success, a failing test, collection or
+fixture errors, and keyboard interruption. Normal process termination (`SIGTERM`)
+uses the same cleanup path. A forced kill (`SIGKILL`) or machine crash cannot run
+Python cleanup and may leave that run's container behind. Recovery must identify
+that exact container and owner; never delete containers or databases by a broad
+name match. An old branch without this protection still has its old test behavior.
+
+GitHub Actions has a fresh service per job, so it keeps that service instead of
+starting Docker inside pytest. This exception requires the GitHub Actions marker,
+a numeric run ID, this checkout as the job workspace, and the expected local
+port-5432 database without connection-query overrides. Generic `CI=true` is not
+an opt-out. Manual database overrides are refused. [Manual server tests](../../CONTRIBUTING.md#manual-server-tests-use-a-temporary-postgres)
+owns the everyday command and setup requirements.
+
+Run pytest in a fresh Python process. If an embedded `pytest.main()` call already
+has cached application database connections, configuration refuses before startup.
+Changing the environment or clearing a cache cannot repair database objects held
+by modules that were imported earlier.
+
+## GitHub code checks
 
 Changes made through GitHub's own editing tools do not invoke local Git hooks.
 That supported route still requires all 4 GitHub checks (`changes`, `backend`,

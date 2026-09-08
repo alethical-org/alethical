@@ -54,8 +54,9 @@ just lint
 just migrate
 ```
 
-Frontend tests are Vitest, run from `apps/frontend`. Backend tests are pytest and need
-the local Postgres that `just up` starts.
+Frontend tests are Vitest, run from `apps/frontend`. Backend tests are pytest and
+start their own temporary Postgres. Docker and its cached test image must be ready;
+see [manual server tests](CONTRIBUTING.md#manual-server-tests-use-a-temporary-postgres).
 
 ## Hard lines
 
@@ -147,13 +148,16 @@ The VM snapshot preinstalls `uv`, `just`, Docker (rootful, `fuse-overlayfs` +
 `iptables-legacy`, already configured in `/etc/docker/daemon.json`), Node 22 with
 pnpm 10.33.0, and GCC set as the default `c++`/`cc` (the astral Python's clang can't
 find `libstdc++`, which breaks the `erlpack` C++ build — leave GCC as default). The
-startup update script refreshes dependencies only (`uv sync` + `pnpm install
---frozen-lockfile`). Everything below is a run-time caveat setup can't bake in.
+startup update script refreshes dependencies (`uv sync` + `pnpm install
+--frozen-lockfile`); the frontend install also activates this working copy's Git
+checks. [First-time setup](CONTRIBUTING.md#first-time-setup) owns activation and
+the read-only readiness report (`just doctor`).
 
-- **Install the worktree-protection hook in every fresh clone.** Run
+- **Install the 3 local Git hooks in every fresh clone.** Run
   `just install-hooks` as the first setup command, before any `git worktree add`.
   Git cannot carry `core.hooksPath` in a clone, so worktrees are not locked until this
-  command registers the tracked `.githooks/post-checkout` hook.
+  command registers the tracked `.githooks/post-checkout` hook. The same command
+  activates the current working copy's commit and upload checks.
 - **Docker is not running at session start.** Start it once before `just up` /
   `just migrate`:
   `sudo bash -c 'nohup dockerd >/var/log/dockerd.log 2>&1 &'`, then, if the socket
@@ -166,9 +170,10 @@ startup update script refreshes dependencies only (`uv sync` + `pnpm install
   and writes the bind-mounted `logs/alethical-backend.log` as root, so host pytest
   (which builds the app and configures logging) can't open it. Run it as
   `ALETHICAL_LOG_DIR=/tmp/alethical-logs uv run pytest`. Lint doesn't need this. Note
-  pytest seeds `scripts/load_sample_data.py` into the *local* Postgres it points at.
-- **`just lint` pins the same `ruff`/`ty` versions CI runs** (`ruff@0.15.0`,
-  `ty@0.0.63`). If you call `uvx ruff`/`uvx ty` by hand, pin those versions —
+  pytest seeds `scripts/load_sample_data.py` into its own temporary Postgres, not
+  the database used by the running app.
+- **`just lint` pins the same `ruff`/`ty` versions CI runs.** The pins are listed in
+  [everyday commands](CONTRIBUTING.md#everyday-commands). If you call `uvx ruff`/`uvx ty` by hand, pin those versions —
   unpinned runs pull newer releases that report hundreds of errors CI never sees.
   Frontend lint (`pnpm --dir apps/frontend exec tsc --noEmit`, and
   `prettier --check .` run from `apps/frontend`) is unaffected.

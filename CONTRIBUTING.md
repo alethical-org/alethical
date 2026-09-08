@@ -25,15 +25,18 @@ git clone https://github.com/alethical-org/alethical.git
 cd alethical
 just setup                  # installs saved dependencies and all 3 local Git hooks
 cp .env.example .env        # then fill in the secrets marked "SET THIS"
-just doctor                 # reports missing or wrong local tools before setup fails
+just doctor                 # reports tool, hook, and temporary-database readiness
 just up                     # starts Postgres + backend + web frontend
 ```
 
-`just doctor` is a fast, read-only check that tells
-you whether Docker, uv, just, Node, pnpm, and the Python this project will use
-are ready. It reads the versions from the project itself: `.python-version`,
-`docker-compose.yml`, and `package.json`. It only reports problems, so it never
-stops your work. Use `just doctor ios` before iPhone work or `just doctor
+`just doctor` is a fast, read-only check of required tool versions, this working
+copy's commit and upload protection, and the temporary test-database service.
+It reads required versions from `.python-version`, `docker-compose.yml`, and
+`package.json`. It also checks that Git's active helpers match the current
+`pre-commit` and `pre-push` files and can run, Docker uses a local connection that
+responds, and `pgvector/pgvector:pg17` is already cached. It reports problems
+without installing helpers, starting Docker, downloading an image, or blocking
+work. Use `just doctor ios` before iPhone work or `just doctor
 android` before Android work to also check Xcode or Java; web work does not need
 either one.
 
@@ -157,67 +160,30 @@ the merge queue's combined code before merging.
 is newest and can format a file differently from CI or report errors CI never sees —
 2 PRs failed that way in one night before the pins landed.
 
-### Manual server tests use the shared local Postgres
+### Manual server tests use a temporary Postgres
 
-This section describes manually running `uv run pytest`, not the upload hook.
-The upload hook uses a completely separate, disposable database server as described
-in [Local code checks](docs/operations/local-code-checks.md#testing-the-exact-upload).
+Run `uv run pytest`, with any normal file selection or `-k` filter. It tests the
+current working files, including unfinished edits. Each invocation starts its own
+temporary PostgreSQL server, migrates it, and seeds sample data. Simultaneous runs
+from the same working copy or different clones do not share a database.
 
-Every worktree shares the same local Postgres server on `:54329`, but since
-[#898](https://github.com/alethical-org/alethical/issues/898) each gets its **own
-database** on it, named after the worktree. Nothing to set up and nothing to remember:
-`uv run pytest` in a fresh worktree creates it, migrates it, seeds it, and reuses it on
-later runs — **emptying every table before it re-seeds**, so run two starts from exactly
-the data run one started from. Databases whose worktree has been deleted are dropped
-automatically at the start of the next run, so they do not pile up.
+Docker must be running with `pgvector/pgvector:pg17` already cached. Tests do not
+download an image or fall back to the shared development server. The shared app
+database need not be running. [Local code checks](docs/operations/local-code-checks.md#server-test-database-safety)
+owns the server-identity check, cleanup, and safety limits.
 
-**Why the emptying is there** —
-[#1490, backend tests fail on the second local run](https://github.com/alethical-org/alethical/issues/1490)
-and [#1491, a service-history test fails for good past 20 legislators](https://github.com/alethical-org/alethical/issues/1491).
-`scripts/load_sample_data.py`
-inserts what is missing and updates what it finds, so it is idempotent per row but cannot
-remove rows it did not create. Tests commit legislators, bills and sessions into the seeded
-data and leave them there, so the database used to grow every run — 7 legislators after a
-seed, 54 after one full run, 140 after three. Nothing asserted a row count, so that stayed
-invisible until a test read a paginated endpoint and found the sample rows pushed off the
-page it read. It then failed on every later run, in a file the session had not touched,
-and **CI could not reproduce it** because CI always starts from an empty database. You never
-have to drop your database by hand: the guarantee is covered by
-`alethical/tests/test_empty_data_tables.py`, so removing it fails a named test.
+The test runner selects its verified address before importing test modules, so
+application connections, migrations, and seeding use the same temporary server.
+It does not delete databases based on another clone's working-copy list. Existing
+development and old test databases are left alone. Every run pays for fresh
+migrations and sample data instead of reusing an earlier test database.
 
-**What that fixed.** The suite runs `alembic upgrade head` and re-seeds at setup, against
-whatever database it is pointed at. One shared database therefore produced two failures
-regularly, and neither error message pointed at the cause:
-
-- **Two sessions testing at once wiped each other's tables**, and the loser's whole suite
-  errored during setup — which reads exactly like "your branch broke 459 tests". The tell
-  was the runtime: ~20s run alone, dead in ~5s when it collided.
-- **`Can't locate revision identified by '00xx_…'`, every test erroring at setup.** One
-  worktree's migration stamped the shared database with a revision no other branch
-  contained. A dependency bump was once blamed for 502 failing tests that were entirely
-  this.
-
-Separate database names prevent those collisions between active worktrees that share
-the same worktree list. They do not isolate the database server. The setup in
-[`conftest.py`](alethical/tests/conftest.py) also drops test databases it considers
-abandoned, based on that list. A different clone or a forwarded local port can make
-that assumption unsafe. Before a manual run, establish which server the address
-reaches and coordinate with its other users. Do not treat `localhost` as proof of
-ownership. A database stamped with a migration the current branch cannot locate is
-dropped and rebuilt by test setup.
-
-**What manual runs still share.** The Postgres server, role and
-port are shared; only the database name splits. Two `pytest` processes started in the
-*same* worktree at once still share a database and can still collide. Each session gets
-its own worktree, so that is not the failure anyone has hit, and splitting per process
-would mean a full migrate-and-seed on every run.
-
-**Escape hatch.** `ALETHICAL_TEST_DATABASE_URL` overrides the whole thing if you need a
-specific database. CI is untouched: it pins `DATABASE_URL` to port 5432, and only 54329
-is split.
-
-A worktree created with plain `git worktree add` has **no `.env`**. Use
-`just worktree <branch>`, which links it.
+An explicit `ALETHICAL_TEST_DATABASE_URL` override is refused. A remote
+`DATABASE_URL` or non-local `ALETHICAL_DATABASE_TARGET` is also refused before
+startup. Unset those values for local testing; they cannot direct fixture writes
+into an existing server. GitHub Actions uses its fresh, job-owned PostgreSQL
+service on port 5432 without starting another container. Setting `CI=true` on a
+laptop does not enable that exception.
 
 ### Frontend tests
 
