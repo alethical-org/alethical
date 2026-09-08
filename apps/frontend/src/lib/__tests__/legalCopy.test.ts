@@ -89,8 +89,8 @@ describe('privacy copy', () => {
     expect(guide).toContain('not an exact deletion deadline');
     expect(guide).toContain('Total user accounts on the public `/site-metrics` page');
     expect(guide).toContain('Accounts first used counts first signed-in use, not sign-ups.');
-    expect(guide).toContain('11 known team mailboxes');
-    expect(guide).toContain('4 exact administrator mailboxes');
+    expect(guide).toContain('13 known team mailboxes');
+    expect(guide).toContain('8 exact administrator mailboxes');
     expect(guide).toContain('`CHECKLY_ACCOUNT_ID`, required to match');
     expect(guide).toContain('confidence `sampleSize`');
     expect(guide).toContain('`documentLoads`, not `firstLoad`');

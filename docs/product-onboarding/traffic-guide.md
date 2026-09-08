@@ -140,10 +140,10 @@ bots excluded. Account exclusions do not apply to Cloudflare; team visits may re
 is not a claim that all automated visits can be identified.
 Cloudflare Web Analytics uses no cookies, local storage, or fingerprinting.
 
-The shared backend classifier recognizes 11 known team mailboxes, their supported aliases,
+The shared backend classifier recognizes 13 known team mailboxes, their supported aliases,
 configured account identifiers, and test mail domains. Aliases include plus tags and Gmail
 dot and googlemail variations. Excluding 1 linked identity excludes the whole linked account.
-The 11-mailbox exclusion list is broader than the 4 exact administrator mailboxes. Neither
+The 13-mailbox exclusion list is broader than the 8 exact administrator mailboxes. Neither
 an alias nor exclusion status grants administrator access. `TRAFFIC_EXCLUDED_ACCOUNT_IDS`,
 `ALETHICAL_TEST_ACCOUNT_IDS`, and `ALETHICAL_ADMIN_ACCOUNT_IDS` also contribute to exclusions.
 Current reader and follow inventories can be recalculated when classification changes.
@@ -335,7 +335,7 @@ The server settings are:
 - `VERCEL_ANALYTICS_TEAM_ID`: the Vercel team identifier;
 - `TRAFFIC_COUNTING_STARTED_AT`: the exact UTC time counting was switched on;
 - `TRAFFIC_EXCLUDED_ACCOUNT_IDS`: additional comma-separated Supabase account identifiers
-  for the backend classifier; the 11 known mailboxes and test-domain rules do not depend on
+  for the backend classifier; the 13 known mailboxes and test-domain rules do not depend on
   this setting. Browser collection uses the authenticated backend decision; and
 - `EXPO_PUBLIC_CHECKLY_STATUS_URL`: the HTTPS public dashboard address on
   `<name>.checkly-dashboards.com`.
