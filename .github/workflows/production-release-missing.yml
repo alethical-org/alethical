@@ -30,14 +30,24 @@ name: Production release missing
 # hand and a stalled edge cache all break the same rule, because the question is
 # what a reader gets rather than what a deployment did.
 #
-# WHY IT RUNS ON EVERY PUSH TO `main` AND CARRIES NO `paths:` FILTER. A docs-only
-# push is precisely what hid the unbuilt commit on 8 Sep. Filtering this to
-# website paths would have skipped the run that could have caught it.
+# WHY IT RUNS ON EVERY PUSH TO `main` AND CARRIES NO `paths:` FILTER. A push whose
+# head touches no website path is precisely what hid the unbuilt commit on 8 Sep,
+# and it need not be documents: measured twice that day, once with a head of notes
+# (`c8ad2698`) and once with a head of scripts, tests and documents (`505b9909`,
+# which cancelled the publish carrying `0511f54f`'s legislator profile fix).
+# Filtering this to website paths would have skipped the run that could have
+# caught either. Both of those ended by luck, when a later commit touching a
+# watched path pulled the earlier change out with it, which on a busy afternoon is
+# 14 and 21 minutes. The longest of the 5 measured windows ran about 14 hours over
+# a quiet night, so what the wait costs is set by how busy the day is rather than
+# by the fault, and that is why noticing cannot be left to somebody happening to
+# look.
 #
 # QUIET BY CONSTRUCTION. The rule is that the changes between the commit
 # production was built from and `main`'s head must not touch a path the website is
-# built from. A docs-only merge satisfies that with no build at all, so the ignore
-# step doing its correct job many times a day says nothing here. Measured across
+# built from. A merge that changes none of them satisfies that with no build at
+# all, so the ignore step doing its correct job many times a day says nothing
+# here. Measured across
 # 264 production releases to 8 Sep 2026, a push reaches readers in 48 to 91
 # seconds, so the 10-minute grace inside the check is about 7 times the slowest
 # release ever seen here.

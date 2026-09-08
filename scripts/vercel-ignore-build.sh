@@ -11,15 +11,29 @@
 #     git diff --quiet HEAD^ HEAD -- api apps/frontend ...
 #
 # A build carries every commit since the last release, and GitHub's merge queue
-# can advance `main` by several commits in a single push. So on 8 Sep 2026 a
-# documents-only commit (`c8ad2698`) landed in the same push as a website change
-# (`04005cfd`), Vercel built the push's head only, this comparison honestly found
-# nothing but documents, and the website change under it was never built at all.
-# Readers kept the old page for 14 minutes and nothing failed anywhere
-# ([issue 2075](https://github.com/alethical-org/alethical/issues/2075)). Measured
-# across the 399 commits on `main` since 14 Aug 2026, that happened 5 separate
-# times, the longest gap about 14 hours with the whole first `/money` release
-# sitting unbuilt inside it.
+# can advance `main` by several commits in a single push. Vercel builds the push's
+# head only, so whenever that head happens to touch none of these paths, every
+# earlier commit in the same push goes unbuilt however much website code it
+# changed.
+#
+# THE TRIGGER IS "THE HEAD TOUCHED NO WATCHED PATH", NOT ANYTHING ABOUT NOTES, and
+# it was measured twice on 8 Sep 2026 with different kinds of head:
+#
+#   - `c8ad2698`, notes only, landed in the same push as `04005cfd`, a change to
+#     `api/page.ts` and `apps/frontend`. Readers kept the old page for 14 minutes
+#     ([issue 2075](https://github.com/alethical-org/alethical/issues/2075)).
+#   - `505b9909`, scripts, tests and documents, landed 20 seconds behind
+#     `0511f54f`, whose fix stops a legislator profile naming a seat its member has
+#     left. That is a wrong claim about a named person, and it sat unpublished for
+#     about 21 minutes until an unrelated merge behind it built.
+#
+# HOW LONG IT LASTS IS SET BY HOW BUSY THE DAY IS, NOT BY THE FAULT. Both cases
+# above ended by luck, when a later commit touching a watched path pulled the
+# earlier change out with it. On a busy afternoon that is minutes. Across the 399
+# commits on `main` since 14 Aug 2026 this happened 5 separate times, and the
+# longest ran about 14 hours, 18 Aug 14:03 to 19 Aug 04:17, with the whole first
+# `/money` release sitting unbuilt inside it. So the 14 and 21 minutes above are
+# what a busy day costs, and they are not the size of the fault.
 #
 # WHAT IT ASKS INSTEAD. Has anything touched the website since the last commit
 # that actually released. `VERCEL_GIT_PREVIOUS_SHA` is Vercel's own name for that
