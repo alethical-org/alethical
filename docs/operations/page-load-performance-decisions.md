@@ -862,6 +862,36 @@ stay identical. `alethical/tests/test_bill_list_round_trips.py` counts them inst
 `alethical/tests/test_bill_effective_dates_sql.py` builds the 3 section shapes in real
 Postgres and requires the unresolvable one to fetch no text at all.
 
+**What the origin reads afterwards.** Same method as the reading that raised this: the
+production origin directly, a cache-busting parameter so no nearby copy can answer, on the
+deployed change (commit `a5a42091`, deployed 13:40 UTC 8 Sep 2026). 7 reads each rather
+than 3, reported as the median, because the spread is wide enough that 3 reads can mislead.
+
+| What was asked for | Before | After | After, min of 7 |
+|---|---:|---:|---:|
+| Nothing at all, no database (`/healthz`) | 90 ms | 149 ms | 91 ms |
+| No rows at all, just the count | 234 ms | 192 ms | 169 ms |
+| 10 rows, slim view (`view=directory`) | 307 ms | 306 ms | 241 ms |
+| 1 full row | 454 ms | 336 ms | 333 ms |
+| 10 full rows, what the page asks for | 565 ms | 464 ms | 437 ms |
+
+**The 2 columns were measured from different machines on different days, so read the
+comparison as approximate rather than controlled.** The floor row is why: the machine
+measuring the "after" column sits 59 ms further from the origin at its median, so every
+figure in it carries overhead the "before" column does not. That makes the raw comparison
+harsher on the change than a fair one would be, and the page's own read still moved from
+565 ms to 464 ms.
+
+**Taking each column's own floor off leaves what the server spends**: 475 ms before against
+315 ms after for the 10 full rows a page asks for, and 364 ms against 187 ms for 1 row. That
+subtraction assumes the network cost is a constant added on top, which is close to true and
+not exactly true, so those 4 figures are the shape of the change rather than measurements in
+their own right.
+
+**1 row still costs much of what 10 do, because 7 statements is still 7 hops.** What
+changed is how many, not that the cost is fixed. Closing the remaining gap means reading
+fewer times again, which is the paragraph below.
+
 **What is left, and not attempted here.** Three statements remain that could in principle
 fold into others: the action history, the co-author counts and the effective-date read.
 Each fetches many rows per bill, so folding it into the bill read would repeat every bill's
