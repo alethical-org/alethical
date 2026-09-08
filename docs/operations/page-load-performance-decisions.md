@@ -1184,6 +1184,26 @@ of the tool, put `/api/v1/bills` at 91.9% built here for requests carrying a
 recognised browser against 92.0% for everything else. So the share is a property of
 the window and the traffic rather than of the requester.
 
+**A request count is not reader demand, and the biggest row is the one that proves
+it.** `/api/v1/bills/<bill>` is the busiest address family in the table and its
+volume is a machine walking the whole corpus. Measured over the same 28 days with
+verified bots excluded: the requests are spread across at least 10,000 distinct bill
+addresses, which is the query's own row limit, against a corpus of 10,471 bills; the
+least-requested of those 10,000 was asked 7 times and the busiest single bill only
+215 times; and 106,174 of 117,891 kept records carry no recognised web browser,
+against 5,759 Chrome, 3,377 Firefox and 2,211 Edge. Readers concentrate on a few
+bills and leave most of the corpus untouched, so a near-uniform 7 to 14 requests
+against every address we hold is a sweep. It is not a *verified* bot, so
+`--include-verified-bots` does not separate it and nothing in this dataset can.
+
+**The shares survive that and a ranking by request count does not.** For requests
+carrying a recognised browser `/api/v1/bills/<bill>` is 94.5% built here and 93.6%
+reader waiting, against 96.5% and 95.9% for everything else, which is the same
+near-identical split the bill list shows. So every share above stands. What this
+table cannot answer is which page readers most want faster: page views answer that,
+Vercel already records them, and `api/traffic.ts` reads them. Choosing work by the
+request counts here would be optimising for a crawler.
+
 **The 4 money addresses a job warms, and the ones our own probes reach, are not
 reader behaviour.** `.github/workflows/warm-money-pages.yml` reads
 `campaign-finance/summary`, `committees`, `races` and `outside-spending` after each
