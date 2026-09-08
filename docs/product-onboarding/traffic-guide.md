@@ -229,11 +229,32 @@ interval are not exact sample counts and must not be substituted. Historical ran
 before September 4, 2026 carry a warning that older document-load records may include soft
 navigation. The JSON result names this population `documentLoads`, not `firstLoad`.
 
+`--since-release <commit>` bounds a run to the days after a change went live and prints that
+bound above the table. The window starts on the first whole UTC day after the commit merged,
+because the merge day itself still holds the hours before it: a 5 to 7 September window is not
+a post-release reading for something that shipped on 7 September. `--since <date>` does the
+same from a date, for a boundary that is not a commit here. When no whole day has passed inside
+the bound, the report prints nothing and exits with an error rather than an empty table,
+because an empty reading is not a pass and `--fail-on-breach` would otherwise exit 0 on it.
+
+A committee's own page and its payments page are asked about separately, as
+`/money/committees/<committee>` and `/money/committees/<committee>/payments`. They are 2 pages
+with 2 speeds, and a single prefix match averaged them into a figure true of neither.
+
 With `--what-moved`, the report also lists up to 6 elements associated with layout movement,
 using the same document-load population and each element's actual layout sample count.
 An element's score stays hidden below 50 measurements. Cloudflare orders these elements by
-estimated measurement volume, not movement size. The report does not turn Cloudflare's
-separate poor-score category into a count above Alethical's release limit. An element name
+estimated measurement volume, not movement size.
+
+Each element row also carries how many observations sat above Alethical's own 0.1 limit. That
+count is read from Cloudflare's bands rather than inferred from one of them: Cloudflare calls a
+visit Good at 0.1 or less, Needs Improvement above 0.1 up to 0.25, and Poor above 0.25, so 0.1
+is exactly the Good band's upper edge and the other 2 bands added together are the visits over
+our limit. The Poor band is never read on its own, because on its own it passes every visit
+between 0.1 and 0.25 under a column calling them over the limit. Both bands are read as actual
+confidence sample sizes, and read that way the 3 bands add up to the total exactly: 495, 3 and
+544 against 1,042 on the live account on 7 September 2026. If either band is missing the count
+prints as unknown rather than as a smaller number. An element name
 is a fact about the page rather than the person who opened it; country, device, browser,
 resource, and referrer stay out of the report's requests.
 

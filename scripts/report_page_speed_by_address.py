@@ -50,6 +50,7 @@ import argparse
 import json
 import math
 import os
+import subprocess
 import sys
 import urllib.error
 import urllib.request
@@ -101,7 +102,17 @@ ADDRESSES: tuple[Address, ...] = (
     Address(
         "money_committee_pages",
         "/money/committees/<committee>",
-        'requestPath_like: "/money/committees/%"',
+        # The second wildcard is what keeps a committee's own page to itself. A
+        # plain prefix match also swept in the payments page below, and 2 pages
+        # with 2 speeds average into a figure true of neither. Both filters were
+        # run against the live account on 7 Sep 2026 and returned separate counts.
+        'requestPath_like: "/money/committees/%",'
+        ' requestPath_notlike: "/money/committees/%/%"',
+    ),
+    Address(
+        "money_committee_payments",
+        "/money/committees/<committee>/payments",
+        'requestPath_like: "/money/committees/%/payments"',
     ),
     Address("bills", "/bills", 'requestPath: "/bills"'),
     Address("home", "/", 'requestPath: "/"'),
@@ -125,6 +136,16 @@ def build_query(addresses: tuple[Address, ...], *, what_moved: bool = False) -> 
 
     Never recombine per-kind percentiles. Element rows are ordered by estimated
     observation volume, but displayed counts are actual confidence sample sizes.
+
+    The element rows also ask for 2 of Cloudflare's 3 movement bands, which is what
+    lets a count of observations over issue 1966's own 0.1 limit be read rather than
+    inferred. Google calls a visit Good at 0.1 or less, Needs Improvement above 0.1
+    up to 0.25, and Poor above 0.25, so 0.1 is exactly the Good band's upper edge and
+    everything outside it is over our limit. Counting the Poor band alone, as a first
+    version did, passed every visit between 0.1 and 0.25 under a column calling them
+    over the limit. Read as confidence sample sizes the 3 bands add up to the total
+    exactly, checked against the live account on 7 Sep 2026: 495 Good, 3 Needs
+    Improvement and 544 Poor against a total of 1,042.
     """
     selections = []
     for address in addresses:
@@ -133,7 +154,8 @@ def build_query(addresses: tuple[Address, ...], *, what_moved: bool = False) -> 
         fields = (
             "dimensions { cumulativeLayoutShiftElement }\n"
             "      quantiles { cumulativeLayoutShiftP75 }\n"
-            "      confidence(level: 0.95) { sum { clsTotal { sampleSize } } }"
+            "      confidence(level: 0.95) { sum { clsTotal { sampleSize }"
+            " clsNeedsImprovement { sampleSize } clsPoor { sampleSize } } }"
             if what_moved
             else "quantiles { largestContentfulPaintP75 cumulativeLayoutShiftP75 }\n"
             "      confidence(level: 0.95) { sum { lcpTotal { sampleSize } clsTotal { sampleSize } } }"
@@ -197,6 +219,23 @@ def sample_count(group: dict, metric: str) -> int | None:
     return int(value)
 
 
+def over_our_limit(group: dict) -> int | None:
+    """Observations Cloudflare puts outside its Good band, which ends at our limit.
+
+    That is the Needs Improvement band (above 0.1 up to 0.25) plus the Poor band
+    (above 0.25). Both counts are actual observations, never adaptive estimates, so
+    this is read from the records rather than inferred from a threshold that is not
+    ours. Either band missing makes the answer unknown rather than smaller.
+    """
+    total = 0
+    for band in ("clsNeedsImprovement", "clsPoor"):
+        count = sample_count(group, band)
+        if count is None:
+            return None
+        total += count
+    return total
+
+
 def read_group(
     address: Address, groups: object, min_measurements: int = MIN_MEASUREMENTS
 ) -> Reading:
@@ -237,6 +276,31 @@ def complete_window(
     """Inclusive full UTC days, excluding the day currently in progress."""
     today = (now or datetime.now(UTC)).astimezone(UTC).date()
     return today - timedelta(days=days), today - timedelta(days=1)
+
+
+def first_full_day_after(released_at: datetime) -> date:
+    """The first whole UTC day that lies entirely after a release went out.
+
+    Cloudflare's windows are whole UTC days, so the day a release merged still
+    holds the hours before it merged. A reading meant to say how the site behaves
+    now has to start the day after, or it averages a fix together with the thing
+    it fixed. Issue 2022 was filed on exactly that: a 5 to 7 September window was
+    being read as post-release for a change that shipped on 7 September.
+    """
+    return released_at.astimezone(UTC).date() + timedelta(days=1)
+
+
+def release_merged_at(commit: str) -> datetime:
+    """When a commit landed, read from git rather than typed in by hand."""
+    result = subprocess.run(
+        ["git", "show", "-s", "--format=%cI", commit],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0 or not result.stdout.strip():
+        raise ValueError(f"git does not know the commit {commit!r}")
+    return datetime.fromisoformat(result.stdout.strip().splitlines()[-1])
 
 
 def population_note(started_on: date) -> str:
@@ -350,12 +414,14 @@ def format_report(
     started_on: date,
     ended_on: date,
     min_measurements: int,
+    bound: str | None = None,
 ) -> str:
     return "\n".join(
         [
             f"Real-visitor measurements for {HOST}, {started_on} to {ended_on}, 75th percentile.",
             f"Limits (https://github.com/alethical-org/alethical/issues/1966): main content {MAIN_CONTENT_LIMIT_MS} ms, layout movement {LAYOUT_MOVEMENT_LIMIT}.",
             f"A figure resting on fewer than {max(MIN_MEASUREMENTS, min_measurements)} observations is withheld, not a pass.",
+            *([bound] if bound else []),
             "Main content is the browser's largest-content measurement, not an app-ready timer. September 4 browser checks selected the server-written snapshot.",
             "Counts are actual observations from Cloudflare confidence sample sizes.",
             "Limits use unrounded scores; displayed figures are rounded.",
@@ -382,6 +448,9 @@ def format_what_moved(
     lines = [
         f"What visitors' browsers blamed for movement, {HOST}, {started_on} to {ended_on}.",
         "Counts are Cloudflare confidence sample sizes. Rows rank by estimated measurement volume, not movement size.",
+        f'"Over {LAYOUT_MOVEMENT_LIMIT}" counts observations Cloudflare places above'
+        " its Good band, whose upper edge is that same limit: its Needs Improvement"
+        " band (above 0.1 up to 0.25) plus its Poor band (above 0.25).",
         "An element is part of our own page; nothing about the reader is asked for.",
         population_note(started_on),
     ]
@@ -406,8 +475,12 @@ def format_what_moved(
                 else None
             )
             movement = cell(value, count, min_measurements, "")
+            over = over_our_limit(row)
+            over_label = "count unknown" if over is None else str(over)
             lines.append(
-                f"  {count_label(count)} measurements, 75th percentile {movement} {element or 'nothing moved'}"
+                f"  {count_label(count)} measurements,"
+                f" {over_label} over {LAYOUT_MOVEMENT_LIMIT},"
+                f" 75th percentile {movement} {element or 'nothing moved'}"
             )
     return "\n".join(lines)
 
@@ -417,6 +490,7 @@ def as_json(
     started_on: date,
     ended_on: date,
     min_measurements: int = MIN_MEASUREMENTS,
+    bound: str | None = None,
 ) -> str:
     return json.dumps(
         {
@@ -432,6 +506,7 @@ def as_json(
             "sampleCountSource": "cloudflare-confidence",
             "minimumSamples": max(MIN_MEASUREMENTS, min_measurements),
             "populationNote": population_note(started_on),
+            "releaseBound": bound,
             "documentLoads": [
                 {
                     "address": reading.address.label,
@@ -472,6 +547,23 @@ def main(argv: list[str] | None = None) -> int:
         help="Complete UTC days ending yesterday; 30 by default.",
     )
     parser.add_argument(
+        "--since-release",
+        metavar="COMMIT",
+        help=(
+            "Read only the days after this commit went live. The window starts on"
+            " the first whole UTC day after it merged, because the merge day itself"
+            " still holds the hours before it. Overrides --days."
+        ),
+    )
+    parser.add_argument(
+        "--since",
+        metavar="YYYY-MM-DD",
+        help=(
+            "Read from this date onwards. Overrides --days. For a release boundary"
+            " that is a date rather than a commit in this repository."
+        ),
+    )
+    parser.add_argument(
         "--min-measurements",
         type=int,
         default=MIN_MEASUREMENTS,
@@ -502,6 +594,40 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 2
     started_on, ended_on = complete_window(args.days)
+    bound: str | None = None
+    if args.since_release and args.since:
+        print("Give either --since-release or --since, not both.", file=sys.stderr)
+        return 2
+    if args.since_release:
+        try:
+            merged_at = release_merged_at(args.since_release)
+        except ValueError as error:
+            print(str(error), file=sys.stderr)
+            return 2
+        started_on = first_full_day_after(merged_at)
+        bound = (
+            f"Bounded to after {args.since_release[:12]}, which merged"
+            f" {merged_at.astimezone(UTC):%Y-%m-%d %H:%M} UTC, so the window starts"
+            f" on the first whole day after it, {started_on}."
+        )
+    elif args.since:
+        try:
+            started_on = date.fromisoformat(args.since)
+        except ValueError:
+            print(
+                f"--since needs a date like 2026-09-08, not {args.since!r}.",
+                file=sys.stderr,
+            )
+            return 2
+        bound = f"Bounded to {started_on} onwards, as asked for."
+    if started_on > ended_on:
+        print(
+            "No whole day has passed inside that bound yet: it starts on"
+            f" {started_on} and the last complete day is {ended_on}. Nothing is"
+            " reported, because an empty reading is not a pass.",
+            file=sys.stderr,
+        )
+        return 2
     variables = {
         "accountTag": account,
         "host": HOST,
@@ -545,9 +671,9 @@ def main(argv: list[str] | None = None) -> int:
         for address in ADDRESSES
     ]
     print(
-        as_json(readings, started_on, ended_on, args.min_measurements)
+        as_json(readings, started_on, ended_on, args.min_measurements, bound)
         if args.json
-        else format_report(readings, started_on, ended_on, args.min_measurements)
+        else format_report(readings, started_on, ended_on, args.min_measurements, bound)
     )
     if args.fail_on_breach:
         over = [
