@@ -117,7 +117,7 @@ def test_code_no_doc_describes_is_ignored(monkeypatch):
     # what turns that into a readable failure instead of a mystery exit code.
     # #1233 declared RootNavigator.tsx, so use a different frontend helper that
     # no documentation currently owns.
-    undescribed = ["apps/frontend/src/lib/motionNormalize.ts", "justfile"]
+    undescribed = ["apps/frontend/src/lib/motionNormalize.ts", ".gitignore"]
     couplings = check_doc_sync.declared_couplings()
     for path in undescribed:
         owners = [
