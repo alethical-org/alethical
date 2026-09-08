@@ -505,15 +505,14 @@ Measured 8 Sep 2026, same profile, 9 runs, on the trimmed response:
 
 | Inside the list request | Middle run | Range |
 |---|---:|---|
-| Opening the connection | 55 ms | 51 to 62 |
-| Waiting on the server | 36 ms | 31 to 481 |
-| Downloading the answer | 324 ms | 78 to 338 |
-| **The whole request** | **421 ms** | 414 to 620 |
+| Opening the connection | 58 ms | 49 to 137 |
+| Waiting on the server | 35 ms | 31 to 47 |
+| Downloading the answer | 330 ms | 273 to 336 |
+| **The whole request** | **424 ms** | 415 to 456 |
 
-**The server figure is the warm one and the range says so.** The probe loads the same
-address 9 times, so 8 of those runs were answered from a nearby copy at about 36 ms; the
-single 481 ms run is what building the answer costs. Read the 2 as separate numbers, per the
-rule above.
+**The server figure here is the warm one.** The probe loads the same address 9 times, so
+every run after the first is answered from a nearby copy. What building the answer costs is
+in the table below, measured on its own.
 
 **A stage's name is not its cause, and this is where that bites.** The download stage being
 the largest does not make the bytes the largest cost. Measured the same day at the same
@@ -533,9 +532,15 @@ roughly 5 to 6 ms per 1,000 bytes over the wire at this profile.**
 
 So the size lever is real and small. Removing everything no card draws took the answer from
 22,145 to 14,698 bytes, worth about 40 ms. Going further to a card-shaped 9,115 bytes would
-be worth about another 30 ms. Neither is the 324 ms the page-load stage reads, and what
-accounts for that gap is not established here: during a page load the browser is fetching
-other things over the same throttled connection, which the isolated reads are not.
+be worth about another 30 ms.
+
+**Neither is the roughly 330 ms the same stage reads during a page load, and that gap is
+unexplained rather than explained.** The in-page figure reproduces across runs and the
+isolated figure for the same body is 205 ms warm, so the difference is real and not noise.
+Two obvious suspects are ruled out: the probe's own page watcher costs nothing measurable
+(312 ms without it against 307 ms with it, 5 runs each), and in the 1 load checked for it
+nothing else was downloading while the answer arrived. Anything sizing this stage should
+establish the cause first rather than treat it as transfer.
 
 **Cold, the server is the largest part by far**: 497 ms of a 640 ms request against 78 ms of
 downloading. That is the same cost #2040 is filed against, seen from the browser this time.
