@@ -10,19 +10,35 @@ context, but the Minnesota Legislature remains the source of record.
 
 ## Identity
 
-The heading uses the official title and name. The district line leads with place and
-spells out the chamber, such as **Minneapolis · Senate District 62**. Party names are
-spelled out and use a neutral grey badge. Alethical does not use red, blue, or its green
-action color to suggest a view of a party.
+The heading uses the official title and name. The line under it spells out the chamber
+and the district, such as **Senate District 62**. Party names are spelled out and use a
+neutral grey badge. Alethical does not use red, blue, or its green action color to
+suggest a view of a party.
 
 The portrait, office, phone, and official profile link come from the member's House or
 Senate record. Missing fields disappear instead of showing made-up examples.
+
+A member with no current service period is the case that tests all of that. Someone who
+has resigned, died or lost a seat has no record of a current chamber, district, party,
+committee, office or phone, so the page states none of them: the heading is the stored
+name with no **Sen.** or **Rep.** in front of it, and the line under it, the party badge,
+the committee section and the contact section are absent rather than empty. The browser
+tab title and the share text carry the bare name for the same reason. What the person
+DID still shows, because a service history and an authored bill are records of the past
+rather than claims about the present. The first server response and the loaded page read
+this from the same 2 shared functions (`currentChamber` and `servesNow` in
+`apps/frontend/src/lib/legislatorProfile.ts`), so they cannot disagree — they did, and
+the loaded page overwrote an honest served page with 3 guesses about 6 real named people
+([#2061](https://github.com/alethical-org/alethical/issues/2061),
+[#1461](https://github.com/alethical-org/alethical/issues/1461)).
 
 ## Committees and bills
 
 Current committee assignments show the committee name. A verified leadership role, such
 as Chair, Vice Chair, Co-Chair, or Ranking Minority Member, gets a separate leadership
-badge. A normal assignment gets no empty badge.
+badge. A normal assignment gets no empty badge. A sitting member with no assignments on
+record says so; a member with no current service period shows no committee section at
+all, because "no current assignments" is itself a claim that the person holds a seat.
 
 The bill section shows up to 2 current-session bills for which the member is a chief
 author. **See more** opens that member's official chief-author list on the Minnesota

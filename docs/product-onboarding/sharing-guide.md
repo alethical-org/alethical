@@ -9,7 +9,7 @@ Share sends the page a reader chose, with enough plain-language context for anot
 | Page       | Title                                                       | Description                                                                                | Link                                                                                                                 |
 | ---------- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
 | Bill       | Bill code, session year, and the short plain-language title | The first sentence of the plain-language summary                                           | The bill profile, without a selected tab                                                                             |
-| Legislator | Name, chamber, and district                                 | A fixed sentence naming committees, chief-authored bills, and contact information          | The readable legislator profile address                                                                              |
+| Legislator | Name, plus chamber and district when serving now            | A fixed sentence naming committees, chief-authored bills, and contact information          | The readable legislator profile address                                                                              |
 | Ask answer | The reader's question                                       | A fixed sentence saying the answer is cited and links to the official record               | The public Ask address, keeping only the question, bill, legislator, and saved-suggestion fields needed to rebuild it |
 
 A bill's title reads `HF 719 (2025): Statewide Capital Projects and Bonding Bill`. The year is there
@@ -25,7 +25,8 @@ survive the sentence cut; the words are never rewritten for a search preview.
 
 A legislator's title carries no party label. District and chamber identify a person just as well,
 never go stale mid-term, and keep a partisan word out of a link preview or a search result read on
-its own.
+its own. A former member's title is their bare name, because they hold no chamber or district
+for it to name.
 
 **The legislator sentence lists only sections the profile actually renders**, and this is checked
 rather than assumed. The profile shows Biography, Committees, Chief-Authored Bills, Contact,
@@ -199,8 +200,16 @@ per-piece decision described in
 [campaign-money-section-guide.md](campaign-money-section-guide.md) — a piece marked to be skipped is
 served in full and still asks to be skipped.
 
-**Every word of it is a word the page itself then shows.** There is no separate version written for
-robots. The served text is built from the very same functions the screens use, including the shared
+**Every word of it is a word the page itself then shows, and the page adds none of its own.**
+There is no separate version written for robots. The second half of that sentence is the harder
+half: a former member's served page said only their name while the app redrew it about a second
+later as `Sen. <name>` of `Senate District Unknown`, with a party and 3 committees the record does
+not hold ([#2061](https://github.com/alethical-org/alethical/issues/2061)). Both halves now decide
+it with the same 2 shared functions (`currentChamber` and `servesNow` in
+`apps/frontend/src/lib/legislatorProfile.ts`), and a test mounts each real profile layout and reads
+the words off it
+(`apps/frontend/src/screens/redesign/__tests__/LegislatorProfileNoCurrentService.test.tsx`).
+The served text is built from the very same functions the screens use, including the shared
 legislative-service formatter, and a test renders the real bill header and summary tab from a real
 bill and fails if any served line or exact evidence link is missing from what they draw
 (`apps/frontend/src/lib/__tests__/pageSnapshot.test.tsx`). One thing is deliberately left out rather
