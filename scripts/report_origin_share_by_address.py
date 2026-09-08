@@ -43,10 +43,14 @@ could not have helped them and putting them in a denominator understates the
 cache.
 
 A share resting on fewer than 50 observations is withheld rather than printed,
-because a percentage of 6 requests is not a measurement. Counts are Cloudflare's
-own sampled observation counts; the request estimate multiplies each by that
-group's average sampling interval, which is how Cloudflare's adaptive datasets
-are read back to whole traffic.
+because a percentage of 6 requests is not a measurement. ``count`` is Cloudflare's
+own estimate of whole traffic, already scaled up for the records it dropped under
+load; the records it actually kept are ``confidence.count.sampleSize``, and that is
+what the floor is applied to. Multiplying ``count`` by the sampling interval would
+scale it twice, and because each cache status is its own group with its own
+interval, the double scaling moves the shares as well as the totals (measured
+8 Sep 2026 on the bill list: 1.08 on misses against 1.12 on hits;
+https://developers.cloudflare.com/analytics/graphql-api/features/confidence-intervals/).
 
 Standard library only. Needs CLOUDFLARE_ANALYTICS_API_TOKEN (Account Analytics
 Read) and CLOUDFLARE_ACCOUNT_ID. No database or paid API calls.
@@ -266,7 +270,7 @@ def build_query(
       }}
     ) {{
       count
-      avg {{ sampleInterval }}
+      confidence(level: 0.95) {{ count {{ sampleSize }} }}
       dimensions {{ cacheStatus }}
     }}"""
         )
@@ -283,8 +287,8 @@ def build_query(
     )
 
 
-def observation_count(value: object) -> int | None:
-    """Cloudflare's own count of records it kept; never reconstructed."""
+def whole_number(value: object) -> int | None:
+    """A non-negative whole number Cloudflare returned; anything else is unreadable."""
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         return None
     if not math.isfinite(value) or value < 0 or value > 2**53 - 1:
@@ -292,15 +296,17 @@ def observation_count(value: object) -> int | None:
     return int(value) if int(value) == value else None
 
 
-def sampling_interval(group: object) -> float | None:
-    """How many requests each kept record stands for; 1 means nothing was dropped."""
-    average = group.get("avg") if isinstance(group, dict) else None
-    value = average.get("sampleInterval") if isinstance(average, dict) else None
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        return None
-    if not math.isfinite(value) or value < 1:
-        return None
-    return float(value)
+def request_estimate(group: object) -> int | None:
+    """Cloudflare's ``count``: its own estimate of whole traffic, already scaled."""
+    return whole_number(group.get("count")) if isinstance(group, dict) else None
+
+
+def kept_records(group: object) -> int | None:
+    """``confidence.count.sampleSize``: the records Cloudflare actually kept."""
+    value: object = group
+    for key in ("confidence", "count", "sampleSize"):
+        value = value.get(key) if isinstance(value, dict) else None
+    return whole_number(value)
 
 
 def read_groups(address: Address, groups: object) -> Reading:
@@ -317,17 +323,20 @@ def read_groups(address: Address, groups: object) -> Reading:
             return Reading(address, 0, 0.0, 0.0, None, None, None, {})
         dimensions = group.get("dimensions")
         status = dimensions.get("cacheStatus") if isinstance(dimensions, dict) else None
-        count = observation_count(group.get("count"))
-        interval = sampling_interval(group)
+        estimate = request_estimate(group)
+        kept = kept_records(group)
         if (
             not isinstance(status, str)
             or not status
-            or count is None
-            or interval is None
+            or estimate is None
+            or kept is None
         ):
             return Reading(address, 0, 0.0, 0.0, None, None, None, {})
-        by_status[status] = by_status.get(status, 0.0) + count * interval
-        observations += count
+        # ``count`` is already Cloudflare's whole-traffic estimate. Scaling it by
+        # the sampling interval counted every dropped record twice, and moved the
+        # shares because each status carries its own interval (issue 2121).
+        by_status[status] = by_status.get(status, 0.0) + estimate
+        observations += kept
 
     eligible = sum(by_status.get(status, 0.0) for status in ELIGIBLE_STATUSES)
     ineligible = sum(

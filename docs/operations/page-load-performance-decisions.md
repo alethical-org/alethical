@@ -840,7 +840,7 @@ measurement rather than from how often the page is visited.** Visit frequency ca
 it: a first-time visitor can be handed an answer somebody else's visit put there minutes
 earlier, and copies are held per location rather than once for everybody. What answers it is
 Cloudflare's own record of what its cache did, and on `/api/v1/bills` the reader was the one
-waiting for 86.3% of reads over the 28 days to 7 September 2026 (**How often a reader gets
+waiting for 87.3% of reads over the 28 days to 7 September 2026 (**How often a reader gets
 each of the 2 speeds** below). So the honest pair is still "565 ms cold, 90 ms warm", and the
 cold figure is now known to be what nearly every reader pays.
 
@@ -1080,8 +1080,8 @@ question keeps the whole download as its subject and rides in the same statement
 
 **Both speeds above were real and neither said how often it happens, so every
 decision made from them rested on a guess. It does not any more: over 28 complete
-UTC days, 11 August to 7 September 2026, our own server built 91.6% of the reads of
-`/api/v1/bills`, and the reader was the one waiting for 86.3% of them.** So the
+UTC days, 11 August to 7 September 2026, our own server built 91.9% of the reads of
+`/api/v1/bills`, and the reader was the one waiting for 87.3% of them.** So the
 464 ms origin figure is very nearly what a bill-list reader pays, and the 90 ms
 cached figure describes about 1 read in 8. Read from Cloudflare's own record of its
 own cache by
@@ -1104,29 +1104,29 @@ denominator would report the cache as failing on requests it was never offered.
 
 | API address | Requests | Built here | Reader waited |
 |---|---:|---:|---:|
-| `/api/v1/bills` | 10,323 | 91.6% | 86.3% |
-| `/api/v1/bills/<bill>` | 121,921 | 96.4% | 95.8% |
-| `/api/v1/bills/<bill>/versions` | 4,941 | 98.1% | 97.1% |
-| `/api/v1/bills/<bill>/votes` | 448 | 89.3% | 80.6% |
-| `/api/v1/bills/featured` | 640 | 85.0% | 65.0% |
-| `/api/v1/legislators` | 2,996 | 96.4% | 94.8% |
-| `/api/v1/legislators/<who>` | 3,438 | 96.2% | 92.9% |
-| `/api/v1/legislators/<who>/campaign-finance` | 1,203 | 96.1% | 92.9% |
-| `/api/v1/legislators/<who>/independent-spending` | 1,489 | 94.6% | 80.5% |
-| `/api/v1/legislators/<who>/bills` | 343 | 90.9% | 82.4% |
-| `/api/v1/legislators/<who>/votes` | 332 | 81.0% | 71.4% |
-| `/api/v1/committees/<n>/finance` | 5,801 | 87.5% | 79.7% |
-| `/api/v1/committees/<n>/payments` | 2,139 | 95.6% | 93.5% |
-| `/api/v1/campaign-finance/summary` | 736 | 72.4% | 47.2% |
-| `/api/v1/campaign-finance/committees` | 412 | 79.6% | 60.2% |
-| `/api/v1/campaign-finance/outside-spending` | 391 | 70.8% | 49.9% |
+| `/api/v1/bills` | 9,595 | 91.9% | 87.3% |
+| `/api/v1/bills/<bill>` | 117,303 | 96.3% | 95.7% |
+| `/api/v1/bills/<bill>/versions` | 4,918 | 98.1% | 97.2% |
+| `/api/v1/bills/<bill>/votes` | 442 | 89.1% | 80.5% |
+| `/api/v1/bills/featured` | 559 | 87.1% | 71.6% |
+| `/api/v1/legislators` | 2,985 | 96.5% | 94.9% |
+| `/api/v1/legislators/<who>` | 3,302 | 96.3% | 93.0% |
+| `/api/v1/legislators/<who>/campaign-finance` | 1,185 | 96.9% | 93.8% |
+| `/api/v1/legislators/<who>/independent-spending` | 1,433 | 94.6% | 80.0% |
+| `/api/v1/legislators/<who>/bills` | 325 | 91.4% | 82.8% |
+| `/api/v1/legislators/<who>/votes` | 295 | 82.4% | 72.2% |
+| `/api/v1/committees/<n>/finance` | 5,567 | 87.7% | 79.9% |
+| `/api/v1/committees/<n>/payments` | 2,013 | 95.4% | 93.1% |
+| `/api/v1/campaign-finance/summary` | 664 | 74.4% | 50.8% |
+| `/api/v1/campaign-finance/committees` | 404 | 79.2% | 59.4% |
+| `/api/v1/campaign-finance/outside-spending` | 388 | 70.9% | 49.7% |
 | `/api/v1/campaign-finance/filings` | 311 | 80.7% | 62.1% |
 | `/api/v1/campaign-finance/races` | 228 | 61.4% | 28.5% |
-| `/api/v1/campaign-finance/search` | 112 | 77.7% | 64.3% |
-| `/api/v1/sessions` | 1,873 | 74.1% | 54.7% |
-| `/api/v1/policy-areas` | 687 | 87.9% | 71.7% |
-| `/api/v1/meta` | 822 | 84.0% | 66.9% |
-| every `/api/v1` read | 163,630 | 94.9% | 92.8% |
+| `/api/v1/campaign-finance/search` | 110 | 77.3% | 63.6% |
+| `/api/v1/sessions` | 1,706 | 76.8% | 58.7% |
+| `/api/v1/policy-areas` | 652 | 88.2% | 73.0% |
+| `/api/v1/meta` | 780 | 84.2% | 68.2% |
+| every `/api/v1` read | 157,273 | 95.0% | 92.9% |
 
 `/api/v1/campaign-finance/payments-under-name` (40 records) and
 `/api/v1/committees/<n>/filings` (6) are withheld rather than printed, and so is
@@ -1162,7 +1162,7 @@ above under **How old a current claim can be, end to end**.
 **So a saved database statement is worth its full measured cost to nearly every
 reader, and a cache is not an argument against removing one.** The 4 statements
 removed from the bill list for
-[#2040](https://github.com/alethical-org/alethical/issues/2040) are paid by 91.6% of
+[#2040](https://github.com/alethical-org/alethical/issues/2040) are paid by 91.9% of
 its reads, not by a cold minority.
 
 ### What this measurement can and cannot say
@@ -1178,7 +1178,7 @@ Vercel's own page store does is bounded by `api/page.ts` and is not measured her
 
 **Who is asking turns out not to change the answer, which was worth checking rather
 than assuming.** Verified bots are excluded from the table; counting them in moves
-the bill list from 91.6% to 92.2% and the whole surface from 94.9% to 95.2%. A
+the bill list from 91.9% to 92.5% and the whole surface from 95.0% to 95.2%. A
 one-off read of Cloudflare's browser-family totals, taken to test this and not part
 of the tool, put `/api/v1/bills` at 91.9% built here for requests carrying a
 recognised browser against 92.0% for everything else. So the share is a property of
@@ -1213,14 +1213,20 @@ times inside this window, so 48 of those rows are the warmer.
 4 September, 3 on the 5th, 4 on the 6th and 70 on the 7th. The 2 busy days are the 2
 days this file's own money measurements were taken. So the money rows are largely
 measuring us, and 3 requests a day is the size of the reader traffic underneath them.
-The bill addresses, at 369 a day every day, are not in that position.
+The bill addresses, at 343 a day every day, are not in that position.
 
-**Cloudflare drops records under load and says by how much.** Every count above is
-its own kept-record count multiplied by that group's average sampling interval,
-which ran 1.00 to 1.10 on these rows, so almost nothing was dropped. The floor of 50
-is applied to kept records rather than to the estimate, for the same reason
-`scripts/report_page_speed_by_address.py` does it: an estimate can look like a
-hundred measurements while resting on one.
+**Cloudflare drops records under load and says by how much, and its `count` is
+already corrected for it.** Every count above is Cloudflare's own whole-traffic
+estimate, read straight off `count`; the records it kept are the separate
+`confidence.count.sampleSize`, and the floor of 50 is applied to those, for the same
+reason `scripts/report_page_speed_by_address.py` does it: an estimate can look like a
+hundred measurements while resting on one. Until 8 Sep 2026 the tool multiplied
+`count` by the group's average sampling interval as well, which scaled every total
+twice (up to 10% high on these rows) and, because each cache status is its own group
+with its own interval, moved the shares: on the bill list a second scaling read 91.6%
+built here where the estimates alone read 91.9%
+([issue 2121](https://github.com/alethical-org/alethical/issues/2121)). Every figure
+in this section is from the corrected tool.
 
 **One cross-check is unavailable and the reason is a permission.** Cloudflare's
 unsampled hourly totals would confirm these estimates, and they sit in a zone-scoped

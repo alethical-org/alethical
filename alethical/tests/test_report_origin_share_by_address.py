@@ -28,10 +28,11 @@ ADDRESS = report.Address(
 )
 
 
-def group(status: str, count: int, interval: float = 1.0) -> dict:
+def group(status: str, count: int, kept: int | None = None) -> dict:
+    """One Cloudflare row: ``count`` is its whole-traffic estimate, ``kept`` its records."""
     return {
         "count": count,
-        "avg": {"sampleInterval": interval},
+        "confidence": {"count": {"sampleSize": count if kept is None else kept}},
         "dimensions": {"cacheStatus": status},
     }
 
@@ -240,12 +241,55 @@ def test_a_stale_copy_served_because_the_origin_was_unreachable_built_nothing():
 # --- counts, sampling and refusals -----------------------------------------
 
 
-def test_the_sampling_interval_scales_the_estimate_and_the_floor_stays_on_records():
-    """Cloudflare drops records under load; the interval says how many each stands for."""
-    reading = read(group("miss", 30, interval=10), group("hit", 30, interval=1))
+def test_count_is_the_estimate_and_the_floor_stays_on_kept_records():
+    """``count`` is already scaled for dropped records; ``sampleSize`` is what was kept."""
+    reading = read(group("miss", 300, kept=30), group("hit", 30, kept=30))
     assert reading.eligible_requests == pytest.approx(330)
     assert reading.built_here == pytest.approx(300 / 330)
     assert reading.observations == 60
+
+
+def test_cloudflares_own_documented_example_is_read_as_cloudflare_means_it():
+    """The provider's worked example, not our reading of it, fixes what the fields mean.
+
+    https://developers.cloudflare.com/analytics/graphql-api/features/confidence-intervals/
+    shows ``count`` 42939 beside a confidence ``estimate`` of 42939 and a
+    ``sampleSize`` of 40054: "based on a sample of 40,054, the estimated number of
+    events is 42,939". So ``count`` is the estimate and ``sampleSize`` the records.
+    """
+    row = {
+        "count": 42939,
+        "avg": {"sampleInterval": 1.0720277625205972},
+        "confidence": {
+            "count": {
+                "estimate": 42939,
+                "lower": 42673.44115335711,
+                "upper": 43204.55884664289,
+                "sampleSize": 40054,
+            }
+        },
+        "dimensions": {"cacheStatus": "miss"},
+    }
+    reading = report.read_groups(ADDRESS, [row])
+    assert reading.eligible_requests == 42939
+    assert reading.observations == 40054
+
+
+def test_unequal_sampling_across_statuses_cannot_move_a_share():
+    """Each status is its own group with its own interval; a share reads estimates only.
+
+    Measured 8 Sep 2026 on the bill list: misses at 1.08, hits at 1.12. Scaling each
+    estimate by its own interval a second time moved "built here" from 91.9% to
+    91.6% (issue 2121). With estimates alone, the interval is not in the arithmetic.
+    """
+    miss = group("miss", 4695, kept=4345)
+    miss["avg"] = {"sampleInterval": 1.081}
+    hit = group("hit", 777, kept=697)
+    hit["avg"] = {"sampleInterval": 1.115}
+    reading = report.read_groups(ADDRESS, [miss, hit])
+    assert reading.eligible_requests == 5472
+    assert reading.built_here == pytest.approx(4695 / 5472)
+    assert reading.observations == 4345 + 697
 
 
 @pytest.mark.parametrize("count", [1, 25, 49])
@@ -269,21 +313,21 @@ def test_an_address_nobody_asked_for_says_so_rather_than_showing_a_share():
 @pytest.mark.parametrize(
     "broken",
     [
-        {"count": 60, "avg": {"sampleInterval": 1}, "dimensions": {}},
-        {"count": 60, "avg": {}, "dimensions": {"cacheStatus": "miss"}},
+        {"count": 60, "confidence": {"count": {"sampleSize": 60}}, "dimensions": {}},
+        {"count": 60, "confidence": {}, "dimensions": {"cacheStatus": "miss"}},
         {
             "count": -1,
-            "avg": {"sampleInterval": 1},
+            "confidence": {"count": {"sampleSize": 60}},
             "dimensions": {"cacheStatus": "miss"},
         },
         {
             "count": 1.5,
-            "avg": {"sampleInterval": 1},
+            "confidence": {"count": {"sampleSize": 60}},
             "dimensions": {"cacheStatus": "miss"},
         },
         {
             "count": 60,
-            "avg": {"sampleInterval": 0.5},
+            "confidence": {"count": {"sampleSize": -3}},
             "dimensions": {"cacheStatus": "miss"},
         },
         "not a group",
