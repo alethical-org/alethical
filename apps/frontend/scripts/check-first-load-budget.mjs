@@ -58,16 +58,26 @@ import { pathToFileURL } from 'node:url';
 // key builders and the seeding they are wired into, in `hooks/useAppQueries.ts`
 // and `data/api.ts`, both of which every reader downloads.
 //
-// **The cheap 39,747 bytes were looked for first and are their own change**
-// ([issue 2070](https://github.com/alethical-org/alethical/issues/2070)). Every
-// sentence a committee's money page can print is in this download, paid for by
-// somebody opening the homepage, because the address reader imports 1 function
-// from a file that then reaches all of them:
-// `navigation/webRoutes.ts` -> `lib/paymentsUnderName.ts` ->
-// `lib/committeeMoney.ts`. Splitting the address helpers out on their own does
-// not break that chain and measured 126 bytes WORSE, so it needs the 4 label
-// helpers `paymentsUnderName.ts` reads moving as well, which moves words a reader
-// reads between files and is not a change to fold into this one.
+// **There are no cheap 39,747 bytes here, and the reading that said there were is
+// the trap to avoid** ([issue 2070](https://github.com/alethical-org/alethical/issues/2070),
+// closed on the measurement). Every sentence a committee's money page can print is
+// in this download, paid for by somebody opening the homepage, because the address
+// reader imports 1 function from a file that then reaches all of them:
+// `navigation/webRoutes.ts` -> `lib/paymentsUnderName.ts` -> `lib/committeeMoney.ts`.
+// That file is 39,747 bytes of the built program and **4,997 bytes of what a reader
+// downloads**, because this limit counts compressed bytes and prose beside prose
+// compresses about 3 to 1. Read a module's cost the way this limit does, or a saving
+// comes out 3 times too big.
+//
+// And cutting the chain does not pay, because a part 2 or more screens read moves into
+// `__common-*.js`, which a page names in its HTML and every reader downloads too. Built
+// and measured 8 Sep 2026: with no first-load file importing `lib/committeeMoney.ts` at
+// all, the module moved out of `index-*.js` into the smaller `__common-*.js`, where it
+// compresses worse, and the first load came out **1,013 bytes bigger**. Getting it out of
+// both is worth 3,984 bytes and needs exactly 1 screen left reading it, where 7 read it
+// and 48% of the file is words a legislator's profile draws as well.
+// `docs/operations/page-load-performance-decisions.md` § Which of the 3 files a shared
+// part lands in holds the probe that established the rule.
 export const FIRST_LOAD_LIMIT = 392321;
 
 /**
