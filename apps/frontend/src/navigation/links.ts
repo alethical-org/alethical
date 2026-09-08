@@ -77,6 +77,7 @@ export const routePath = {
   ) => pathForRoute({ name: 'CommitteePayments', params: { slug, ...params } }),
   privacy: () => pathForRoute({ name: 'Privacy' }),
   adminUsers: () => pathForRoute({ name: 'AdminUsers' }),
+  adminSiteMetrics: () => pathForRoute({ name: 'AdminSiteMetrics' }),
   siteMetrics: () => pathForRoute({ name: 'SiteMetrics' }),
   terms: () => pathForRoute({ name: 'Terms' }),
   aboutUs: () => pathForRoute({ name: 'AboutUs' }),

@@ -18,6 +18,17 @@ import { pathForRoute, stateFromPathname, targetFromPathname } from '../webRoute
 const routeSource = readFileSync(join(__dirname, '..', 'webRoutes.ts'), 'utf8');
 
 describe('private admin addresses', () => {
+  it('keeps leadership metrics private and ignores incoming search state', () => {
+    expect(targetFromPathname('/admin/site-metrics?email=private')).toEqual({
+      kind: 'adminSiteMetrics',
+    });
+    expect(stateFromPathname('/admin/site-metrics')?.routes[1]).toEqual({
+      name: 'AdminSiteMetrics',
+    });
+    expect(pathForRoute({ name: 'AdminSiteMetrics', params: { email: 'private' } })).toBe(
+      '/admin/site-metrics',
+    );
+  });
   it.each([
     '/admin',
     '/admin/',

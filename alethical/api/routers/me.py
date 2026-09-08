@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import os
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
@@ -35,6 +36,8 @@ from alethical.api.services.committee_finance import (
     find_committee,
 )
 from alethical.api.services.sign_in_methods import current_supabase_sign_in_methods
+from alethical.api.services.account_classification import excluded_local_user_ids
+from alethical.api.services.site_metric_history import record_creation
 from alethical.db.schema import load_schema
 from alethical.db.session import get_db
 from alethical.pipeline.rag_ingest import (
@@ -515,7 +518,7 @@ def _anthropic_request(model: str, system: str, user: str) -> dict:
 
 def synthesize_grounded_answer(
     question: str,
-    chunks: list,
+    chunks: Sequence,
     *,
     bill_key: str,
     coverage: BillTextCoverage | None = None,
@@ -743,6 +746,8 @@ def put_tracked_bill(
     if tracked is None:
         tracked = TrackedBillModel(user_id=current_user.id, bill_id=bill.id)
         db.add(tracked)
+        if current_user.id not in excluded_local_user_ids(db):
+            record_creation(db, "bill_watch_created")
     tracked.alerts_enabled = request.alerts_enabled
     tracked.note = request.note
     db.commit()
@@ -928,6 +933,8 @@ def put_tracked_committee(
             user_id=current_user.id, registration_number=registration_number
         )
         db.add(tracked)
+        if current_user.id not in excluded_local_user_ids(db):
+            record_creation(db, "committee_watch_created")
         db.commit()
         db.refresh(tracked)
     return DetailResponse(

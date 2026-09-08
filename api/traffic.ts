@@ -47,9 +47,26 @@ const BILLS_FILTER =
 const LEGISLATORS_FILTER =
   "requestPath eq '/legislators' or startswith(requestPath, '/legislators/')";
 const FIND_MY_LEGISLATOR_FILTER = "requestPath eq '/find-my-legislator'";
+const MONEY_FILTER =
+  "requestPath eq '/money' or startswith(requestPath, '/money/')";
+const READ_FILTER =
+  "requestPath eq '/read' or startswith(requestPath, '/read/')";
+const ASK_FILTER = "requestPath eq '/ask' or startswith(requestPath, '/ask/')";
 const BILL_PROFILE_FILTER = "startswith(requestPath, '/bills/')";
 const LEGISLATOR_PROFILE_FILTER = "startswith(requestPath, '/legislators/')";
 const PRODUCTION_FILTER = "environment eq 'production'";
+const MONEY_PAGES = {
+  money: "/money",
+  moneySearch: "/money/search",
+  moneyByRace: "/money/races",
+  moneyCommitteeList: "/money/committees",
+  moneyPayments: "/money/payments",
+  moneyOutsideSpending: "/money/outside-spending",
+} as const;
+type MoneyDetails = {
+  destinations: Record<keyof typeof MONEY_PAGES, number>;
+  committeeProfiles: ProfileTotals;
+};
 
 class TrafficUnavailable extends Error {}
 
@@ -113,6 +130,7 @@ function analyticsUrl(
   const url = new URL(endpoint);
   url.searchParams.set("projectId", projectId);
   url.searchParams.set("teamId", teamId);
+  url.searchParams.set("filter", PRODUCTION_FILTER);
   url.searchParams.set("since", String(since));
   // Vercel treats `until` as inclusive. One millisecond before the boundary
   // keeps every query to completed hours while allowing the echoed end to round.
@@ -191,7 +209,7 @@ async function aggregatePageViewHours(
 
   if (
     !Array.isArray(payload.data) ||
-    !rangeMatches(payload, since, untilExclusive)
+    !queryMatches(payload, since, untilExclusive, PRODUCTION_FILTER)
   ) {
     throw new TrafficUnavailable("Vercel returned incomplete traffic data");
   }
@@ -280,12 +298,13 @@ async function aggregateFilteredPageViews(
   );
   url.searchParams.set("by", "requestPath");
   url.searchParams.set("limit", "1");
-  url.searchParams.set("filter", filter);
+  const productionFilter = `${PRODUCTION_FILTER} and (${filter})`;
+  url.searchParams.set("filter", productionFilter);
 
   const payload = await fetchVercel(url, token);
   if (
     !Array.isArray(payload.data) ||
-    !queryMatches(payload, since, untilExclusive, filter) ||
+    !queryMatches(payload, since, untilExclusive, productionFilter) ||
     !Array.isArray(payload.query?.groupBy) ||
     !payload.query.groupBy.includes("requestPath") ||
     payload.query?.limit !== 1
@@ -322,6 +341,7 @@ async function aggregateProfilePaths(
   teamId: string,
   filter: string,
   prefix: string,
+  identity: (slug: string) => string | null = (slug) => slug,
 ): Promise<ProfileTotals> {
   const url = analyticsUrl(
     AGGREGATE_ENDPOINT,
@@ -332,12 +352,13 @@ async function aggregateProfilePaths(
   );
   url.searchParams.set("by", "requestPath");
   url.searchParams.set("limit", String(PATH_LIMIT));
-  url.searchParams.set("filter", filter);
+  const productionFilter = `${PRODUCTION_FILTER} and (${filter})`;
+  url.searchParams.set("filter", productionFilter);
 
   const payload = await fetchVercel(url, token);
   if (
     !Array.isArray(payload.data) ||
-    !queryMatches(payload, since, untilExclusive, filter) ||
+    !queryMatches(payload, since, untilExclusive, productionFilter) ||
     !Array.isArray(payload.query?.groupBy) ||
     !payload.query.groupBy.includes("requestPath") ||
     payload.query?.limit !== PATH_LIMIT
@@ -377,7 +398,8 @@ async function aggregateProfilePaths(
     if (!profileId) {
       throw new TrafficUnavailable("Vercel returned incomplete traffic data");
     }
-    profileIds.add(profileId);
+    const id = identity(profileId);
+    if (id) profileIds.add(id);
   }
 
   return {
@@ -388,6 +410,60 @@ async function aggregateProfilePaths(
       cap: PATH_LIMIT,
     },
   };
+}
+
+async function aggregateMoneyDetails(
+  since: number,
+  until: number,
+  token: string,
+  projectId: string,
+  teamId: string,
+): Promise<MoneyDetails> {
+  // Exact addresses fit in one grouped query. Committee pages get their own
+  // capped query so thousands of committees cannot hide quiet navigation pages.
+  const filter = `${PRODUCTION_FILTER} and (${Object.values(MONEY_PAGES)
+    .map((path) => `requestPath eq '${path}'`)
+    .join(" or ")})`;
+  const url = analyticsUrl(AGGREGATE_ENDPOINT, since, until, projectId, teamId);
+  url.searchParams.set("filter", filter);
+  url.searchParams.set("by", "requestPath");
+  url.searchParams.set("limit", String(PATH_LIMIT));
+  const [payload, committeeProfiles] = await Promise.all([
+    fetchVercel(url, token),
+    aggregateProfilePaths(
+      since,
+      until,
+      token,
+      projectId,
+      teamId,
+      "startswith(requestPath, '/money/committees/')",
+      "/money/committees/",
+      (slug) => /(\d+)$/.exec(slug)?.[1] ?? null,
+    ),
+  ]);
+  if (
+    !Array.isArray(payload.data) ||
+    !queryMatches(payload, since, until, filter) ||
+    !Array.isArray(payload.query?.groupBy) ||
+    !payload.query.groupBy.includes("requestPath") ||
+    payload.query?.limit !== PATH_LIMIT
+  )
+    throw new TrafficUnavailable("Money page totals are incomplete");
+  const destinations = Object.fromEntries(
+    Object.keys(MONEY_PAGES).map((key) => [key, 0]),
+  ) as MoneyDetails["destinations"];
+  const seen = new Set<string>();
+  for (const row of payload.data as AggregateRow[]) {
+    const entry = Object.entries(MONEY_PAGES).find(
+      ([, path]) => path === row.requestPath,
+    );
+    if (!entry || !nonNegativeInteger(row.pageviews) || seen.has(entry[0])) {
+      throw new TrafficUnavailable("Money page totals are incomplete");
+    }
+    seen.add(entry[0]);
+    destinations[entry[0] as keyof typeof MONEY_PAGES] = row.pageviews;
+  }
+  return { destinations, committeeProfiles };
 }
 
 function chunkedHourRanges(since: number, untilExclusive: number) {
@@ -418,11 +494,21 @@ function trafficBreakdown(
   bills: PageViewCount,
   legislators: PageViewCount,
   findMyLegislator: PageViewCount,
+  money: PageViewCount,
+  read: PageViewCount,
+  legacyAsk: PageViewCount,
   billProfiles: ProfileTotals,
   legislatorProfiles: ProfileTotals,
+  moneyDetails: MoneyDetails | null,
 ) {
   const namedPageViews =
-    home.pageviews + bills.pageviews + legislators.pageviews + findMyLegislator.pageviews;
+    home.pageviews +
+    bills.pageviews +
+    legislators.pageviews +
+    findMyLegislator.pageviews +
+    money.pageviews +
+    read.pageviews +
+    legacyAsk.pageviews;
   if (
     !Number.isSafeInteger(namedPageViews) ||
     namedPageViews > totalPageViews ||
@@ -430,6 +516,21 @@ function trafficBreakdown(
     legislatorProfiles.pageViews > legislators.pageviews
   ) {
     throw new TrafficUnavailable("Vercel returned inconsistent traffic data");
+  }
+  const detailedMoneyTotal = moneyDetails
+    ? Object.values(moneyDetails.destinations).reduce(
+        (sum, value) => sum + value,
+        0,
+      ) + moneyDetails.committeeProfiles.pageViews
+    : 0;
+  if (
+    moneyDetails &&
+    (!Number.isSafeInteger(detailedMoneyTotal) ||
+      detailedMoneyTotal > money.pageviews)
+  ) {
+    throw new TrafficUnavailable(
+      "Money page totals exceed the money section total",
+    );
   }
   return {
     destinationPageViews: {
@@ -439,10 +540,23 @@ function trafficBreakdown(
       legislatorSearch: legislators.pageviews - legislatorProfiles.pageViews,
       legislatorProfiles: legislatorProfiles.pageViews,
       findMyLegislator: findMyLegislator.pageviews,
+      money: money.pageviews,
+      ...(moneyDetails
+        ? {
+            ...moneyDetails.destinations,
+            moneyCommitteeProfiles: moneyDetails.committeeProfiles.pageViews,
+            moneyOther: money.pageviews - detailedMoneyTotal,
+          }
+        : {}),
+      read: read.pageviews,
+      legacyAsk: legacyAsk.pageviews,
       other: totalPageViews - namedPageViews,
     },
     billProfiles,
     legislatorProfiles,
+    ...(moneyDetails
+      ? { committeeProfiles: moneyDetails.committeeProfiles }
+      : {}),
   };
 }
 
@@ -504,14 +618,22 @@ export default async function handler(
       bills7d,
       legislators7d,
       findMyLegislator7d,
+      money7d,
+      read7d,
+      ask7d,
       billProfiles7d,
       legislatorProfiles7d,
       home30d,
       bills30d,
       legislators30d,
       findMyLegislator30d,
+      money30d,
+      read30d,
+      ask30d,
       billProfiles30d,
       legislatorProfiles30d,
+      moneyDetails7d,
+      moneyDetails30d,
     ] = await Promise.all([
       Promise.all(
         ranges.map((range, index) =>
@@ -606,6 +728,42 @@ export default async function handler(
         ),
       ),
       atStage(
+        "7-day money total",
+        aggregateFilteredPageViews(
+          sevenDaysStartedAt,
+          windowEndedAt,
+          token,
+          projectId,
+          teamId,
+          MONEY_FILTER,
+          (path) => path === "/money" || path.startsWith("/money/"),
+        ),
+      ),
+      atStage(
+        "7-day reading total",
+        aggregateFilteredPageViews(
+          sevenDaysStartedAt,
+          windowEndedAt,
+          token,
+          projectId,
+          teamId,
+          READ_FILTER,
+          (path) => path === "/read" || path.startsWith("/read/"),
+        ),
+      ),
+      atStage(
+        "7-day Ask total",
+        aggregateFilteredPageViews(
+          sevenDaysStartedAt,
+          windowEndedAt,
+          token,
+          projectId,
+          teamId,
+          ASK_FILTER,
+          (path) => path === "/ask" || path.startsWith("/ask/"),
+        ),
+      ),
+      atStage(
         "7-day bill profiles",
         aggregateProfilePaths(
           sevenDaysStartedAt,
@@ -678,6 +836,42 @@ export default async function handler(
         ),
       ),
       atStage(
+        "30-day money total",
+        aggregateFilteredPageViews(
+          windowStartedAt,
+          windowEndedAt,
+          token,
+          projectId,
+          teamId,
+          MONEY_FILTER,
+          (path) => path === "/money" || path.startsWith("/money/"),
+        ),
+      ),
+      atStage(
+        "30-day reading total",
+        aggregateFilteredPageViews(
+          windowStartedAt,
+          windowEndedAt,
+          token,
+          projectId,
+          teamId,
+          READ_FILTER,
+          (path) => path === "/read" || path.startsWith("/read/"),
+        ),
+      ),
+      atStage(
+        "30-day Ask total",
+        aggregateFilteredPageViews(
+          windowStartedAt,
+          windowEndedAt,
+          token,
+          projectId,
+          teamId,
+          ASK_FILTER,
+          (path) => path === "/ask" || path.startsWith("/ask/"),
+        ),
+      ),
+      atStage(
         "30-day bill profiles",
         aggregateProfilePaths(
           windowStartedAt,
@@ -701,6 +895,21 @@ export default async function handler(
           "/legislators/",
         ),
       ),
+      // A missing new breakdown must not hide existing traffic totals.
+      aggregateMoneyDetails(
+        sevenDaysStartedAt,
+        windowEndedAt,
+        token,
+        projectId,
+        teamId,
+      ).catch(() => null),
+      aggregateMoneyDetails(
+        windowStartedAt,
+        windowEndedAt,
+        token,
+        projectId,
+        teamId,
+      ).catch(() => null),
     ]);
     const pageViewsByHour = trafficByHourParts.flatMap(
       (traffic) => traffic.pageViews,
@@ -732,8 +941,12 @@ export default async function handler(
           bills7d,
           legislators7d,
           findMyLegislator7d,
+          money7d,
+          read7d,
+          ask7d,
           billProfiles7d,
           legislatorProfiles7d,
+          moneyDetails7d,
         ),
         trafficBreakdown30d: trafficBreakdown(
           pageViews30d,
@@ -741,8 +954,12 @@ export default async function handler(
           bills30d,
           legislators30d,
           findMyLegislator30d,
+          money30d,
+          read30d,
+          ask30d,
           billProfiles30d,
           legislatorProfiles30d,
+          moneyDetails30d,
         ),
         fetchedAt: new Date(fetchedAt).toISOString(),
         windowEndedAt: new Date(windowEndedAt).toISOString(),

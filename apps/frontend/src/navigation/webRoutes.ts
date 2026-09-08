@@ -32,6 +32,7 @@ type WebRouteTarget =
   | { kind: 'outsideSpending'; params: Record<string, string> }
   | { kind: 'privacy' }
   | { kind: 'adminUsers' }
+  | { kind: 'adminSiteMetrics' }
   | { kind: 'siteMetrics' }
   | { kind: 'terms' }
   | { kind: 'aboutUs' }
@@ -177,6 +178,7 @@ export function targetFromPathname(pathname: string): WebRouteTarget {
   const segments = normalized.split('/').filter(Boolean);
 
   // Private filters never come from or go into the address.
+  if (normalized === '/admin/site-metrics') return { kind: 'adminSiteMetrics' };
   if (normalized === '/admin' || normalized === '/admin/users') return { kind: 'adminUsers' };
 
   if (segments.length === 0) {
@@ -638,6 +640,8 @@ export function pathForRoute(activeRoute: {
       return '/privacy';
     case 'AdminUsers':
       return '/admin/users';
+    case 'AdminSiteMetrics':
+      return '/admin/site-metrics';
     case 'SiteMetrics':
       return '/site-metrics';
     case 'Terms':
@@ -839,6 +843,8 @@ export function stateFromPathname(pathname: string): WebNavigationState {
       };
     case 'adminUsers':
       return { routes: [homeTabs, { name: 'AdminUsers' }], index: 1 };
+    case 'adminSiteMetrics':
+      return { routes: [homeTabs, { name: 'AdminSiteMetrics' }], index: 1 };
     case 'siteMetrics':
       return {
         routes: [homeTabs, { name: 'SiteMetrics' }],

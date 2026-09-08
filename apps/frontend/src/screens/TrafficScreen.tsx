@@ -3,7 +3,12 @@ import { useEffect, useState } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Path, RadialGradient, Stop } from 'react-native-svg';
 
-import { getSiteMetricRecordTotalsFromApi } from '../data/api';
+import { getSiteMetricCollectionDecisionFromApi } from '../data/api';
+import {
+  getAccountSignupTotalsFromApi,
+  getSiteMetricRecordTotalsFromApi,
+} from '../data/siteMetricsApi';
+import { type AccountSignupTotals } from '../lib/accountSignupMetrics';
 import { LinkArrow } from '../components/LinkArrow';
 import { useResponsive } from '../hooks/useResponsive';
 import {
@@ -131,35 +136,65 @@ function useRecordTotals() {
 }
 
 function useTeamAccount() {
-  const { isLoading, isSignedIn, user } = useAuth();
-  const [teamAccount, setTeamAccount] = useState(false);
+  const { isLoading, isSignedIn, user, accessToken } = useAuth();
+  const [decision, setDecision] = useState<{ userId: string; token: string; team: boolean } | null>(
+    null,
+  );
 
   useEffect(() => {
     if (isLoading) return;
-    if (!isSignedIn || !user) {
-      setTeamAccount(false);
+    if (!isSignedIn || !user || !accessToken) {
+      setDecision(null);
       return;
     }
     const controller = new AbortController();
-    setTeamAccount(false);
-    void fetch('/api/traffic-collection', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ userId: user.id }),
-      signal: controller.signal,
-    })
-      .then(async (response) => (response.ok ? ((await response.json()) as unknown) : null))
+    setDecision(null);
+    void getSiteMetricCollectionDecisionFromApi(accessToken, controller.signal)
       .then((payload) => {
         const value = payload as { teamAccount?: unknown } | null;
-        if (!controller.signal.aborted) setTeamAccount(value?.teamAccount === true);
+        if (!controller.signal.aborted)
+          setDecision({ userId: user.id, token: accessToken, team: value?.teamAccount === true });
       })
       .catch(() => {
-        if (!controller.signal.aborted) setTeamAccount(false);
+        if (!controller.signal.aborted) setDecision(null);
       });
     return () => controller.abort();
-  }, [isLoading, isSignedIn, user]);
+  }, [isLoading, isSignedIn, user, accessToken]);
 
-  return teamAccount;
+  return (
+    !isLoading &&
+    isSignedIn &&
+    decision?.userId === user?.id &&
+    decision?.token === accessToken &&
+    decision?.team === true
+  );
+}
+
+function useAccountSignupTotals() {
+  const [state, setState] = useState<SourceState<AccountSignupTotals>>({ kind: 'loading' });
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      try {
+        const totals = await getAccountSignupTotalsFromApi();
+        if (active) setState({ kind: 'ready', totals, stale: false });
+      } catch {
+        if (active)
+          setState((current) =>
+            current.kind === 'ready'
+              ? { ...current, stale: true }
+              : { kind: 'unavailable', checkedAt: Date.now() },
+          );
+      }
+    };
+    void load();
+    const timer = setInterval(() => void load(), REFRESH_MS);
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
+  }, []);
+  return state;
 }
 
 function initialActivityRange(): ActivityRange {
@@ -455,6 +490,7 @@ function MetricRow({
   compactMobile = false,
   mobileValueSize = 20,
   testID,
+  note,
 }: {
   label: string;
   value: string;
@@ -463,6 +499,7 @@ function MetricRow({
   compactMobile?: boolean;
   mobileValueSize?: 19 | 20;
   testID?: string;
+  note?: string;
 }) {
   const { isMobile } = useResponsive();
   return (
@@ -495,6 +532,12 @@ function MetricRow({
         ]}
       >
         {value}
+        {note ? (
+          <Text style={styles.metricValueNote}>
+            {'\n'}
+            {note}
+          </Text>
+        ) : null}
       </Text>
     </View>
   );
@@ -614,6 +657,16 @@ const DESTINATIONS = [
   ['legislatorSearch', 'Legislator search'],
   ['legislatorProfiles', 'Legislator profiles'],
   ['findMyLegislator', 'Find My Legislator'],
+  ['money', 'Money home'],
+  ['moneySearch', 'Money search'],
+  ['moneyByRace', 'Money by race'],
+  ['moneyCommitteeList', 'Committee list'],
+  ['moneyCommitteeProfiles', 'Committee money pages'],
+  ['moneyPayments', 'Payments by name'],
+  ['moneyOutsideSpending', 'Outside spending'],
+  ['moneyOther', 'Other money pages'],
+  ['read', 'Read'],
+  ['legacyAsk', 'Ask'],
   ['other', 'Other'],
 ] as const;
 
@@ -624,7 +677,9 @@ function DestinationPanel({ breakdown }: { breakdown: TrafficBreakdown }) {
     0,
   );
   const row = ([key, label]: (typeof DESTINATIONS)[number]) => {
-    const share = (breakdown.destinationPageViews[key] / total) * 100;
+    const value = breakdown.destinationPageViews[key];
+    if (value === undefined) return null;
+    const share = (value / total) * 100;
     return (
       <View
         key={key}
@@ -637,7 +692,7 @@ function DestinationPanel({ breakdown }: { breakdown: TrafficBreakdown }) {
             isMobile && styles.destinationNameMobile,
           ]}
         >
-          {label}
+          {key === 'money' && !breakdown.committeeProfiles ? 'Money in politics' : label}
         </Text>
         <View
           testID={`site-metrics-destination-${key}-bar`}
@@ -649,7 +704,7 @@ function DestinationPanel({ breakdown }: { breakdown: TrafficBreakdown }) {
           />
         </View>
         <Text style={[styles.destinationPercent, isMobile && styles.destinationPercentMobile]}>
-          {Math.round(share)}%
+          {share > 0 && share < 1 ? '<1' : Math.round(share)}%
         </Text>
       </View>
     );
@@ -675,13 +730,22 @@ function DestinationPanel({ breakdown }: { breakdown: TrafficBreakdown }) {
               {row(DESTINATIONS[5])}
             </View>
             <View style={[styles.destinationOuter, isMobile && styles.destinationOuterMobile]}>
-              {row(DESTINATIONS[6])}
+              {DESTINATIONS.slice(6, 14).map(row)}
+            </View>
+            <View style={[styles.destinationOuter, isMobile && styles.destinationOuterMobile]}>
+              {DESTINATIONS.slice(14).map(row)}
             </View>
           </View>
           <Text style={styles.panelNote}>
             Percentages show shares of page views, not visitors. Searches with results are counted
             separately.
           </Text>
+          {breakdown.destinationPageViews.money !== undefined && !breakdown.committeeProfiles ? (
+            <Text style={styles.panelNote}>
+              Detailed money-page counts are unavailable. Money in politics includes the whole money
+              section.
+            </Text>
+          ) : null}
         </>
       )}
     </Panel>
@@ -696,7 +760,20 @@ function ExplorePanel({ breakdown }: { breakdown: TrafficBreakdown }) {
   const { isMobile } = useResponsive();
   const capped =
     breakdown.billProfiles.differentProfilesViewed.capped ||
-    breakdown.legislatorProfiles.differentProfilesViewed.capped;
+    breakdown.legislatorProfiles.differentProfilesViewed.capped ||
+    breakdown.committeeProfiles?.differentProfilesViewed.capped;
+  const profiles: Array<[string, TrafficBreakdown['billProfiles']]> = [
+    ['Bills', breakdown.billProfiles],
+    ['Legislators', breakdown.legislatorProfiles],
+    ...(breakdown.committeeProfiles
+      ? [
+          ['Money committees', breakdown.committeeProfiles] as [
+            string,
+            TrafficBreakdown['billProfiles'],
+          ],
+        ]
+      : []),
+  ];
   return (
     <Panel testID="site-metrics-explore">
       <PanelTitle>What people explore</PanelTitle>
@@ -722,10 +799,7 @@ function ExplorePanel({ breakdown }: { breakdown: TrafficBreakdown }) {
             Different profiles
           </Text>
         </View>
-        {[
-          ['Bills', breakdown.billProfiles],
-          ['Legislators', breakdown.legislatorProfiles],
-        ].map(([label, totals], index) => {
+        {profiles.map(([label, totals], index) => {
           const profile = totals as TrafficBreakdown['billProfiles'];
           return (
             <View
@@ -734,7 +808,7 @@ function ExplorePanel({ breakdown }: { breakdown: TrafficBreakdown }) {
               style={[
                 styles.tableRow,
                 isMobile && styles.tableRowMobile,
-                index === 1 && styles.metricRowLast,
+                index === profiles.length - 1 && styles.metricRowLast,
               ]}
             >
               <Text role="rowheader" style={[styles.metricRowLabel, styles.tableName]}>
@@ -761,24 +835,78 @@ function ExplorePanel({ breakdown }: { breakdown: TrafficBreakdown }) {
       <Text style={styles.panelNote}>
         Profile views include repeat views. Each different profile is counted once.
       </Text>
+      {breakdown.committeeProfiles ? (
+        <Text style={styles.panelNote}>
+          Money committees includes committee profiles and their payment pages. Each committee is
+          counted once across those pages.
+        </Text>
+      ) : null}
       {capped ? (
         <Text style={styles.panelNote}>
-          Shows 100+ when the source cannot list more different profiles
+          A + means the source cannot list every different profile
         </Text>
       ) : null}
     </Panel>
   );
 }
 
-function ActionsPanel({ actions }: { actions: SiteMetricActions }) {
+function ActionsPanel({
+  actions,
+  records,
+  accounts,
+  range,
+}: {
+  actions: SiteMetricActions;
+  records: SiteMetricRecordTotals;
+  accounts: SourceState<AccountSignupTotals>;
+  range: ActivityRange;
+}) {
   const { isMobile } = useResponsive();
   const rows = [
     ['Bill searches with results', actions.billSearchesWithResults],
+    ['Money searches with results', actions.moneySearchesWithResults],
     ['Legislator searches with results', actions.legislatorSearchesWithResults],
     ['Find My Legislator lookups with results', actions.findMyLegislatorWithResults],
-    ['Official source links opened', actions.officialSourceLinksOpened],
+    ['Official source links clicked', actions.officialSourceLinksOpened],
     ['New bill watches', actions.newBillWatches],
+    ['New committee follows', actions.newCommitteeWatches],
   ] as const;
+  const historyKey = (label: string): keyof NonNullable<SiteMetricRecordTotals['history']> =>
+    (
+      ({
+        'Bill searches with results': 'billSearchesWithResults',
+        'Money searches with results': 'moneySearchesWithResults',
+        'Legislator searches with results': 'legislatorSearchesWithResults',
+        'Find My Legislator lookups with results': 'findMyLegislatorWithResults',
+        'Official source links clicked': 'officialSourceLinksOpened',
+        'New bill watches': 'newBillWatches',
+        'New committee follows': 'newCommitteeWatches',
+      }) as const
+    )[label as (typeof rows)[number][0]];
+  const isNewHistory = (key: string) =>
+    ['moneySearchesWithResults', 'newBillWatches', 'newCommitteeWatches'].includes(key);
+  const countValue = (label: string, value: number | undefined) => {
+    if (value === undefined) return 'Not available';
+    const key = historyKey(label);
+    if (
+      isNewHistory(key) &&
+      records.history &&
+      !records.history[key].recordingStartedAt &&
+      value === 0
+    )
+      return 'Not recorded yet';
+    return formatNumber(value);
+  };
+  const coverageNote = (label: string) => {
+    const key = historyKey(label);
+    const history = key && records.history?.[key];
+    if (
+      !history?.recordingStartedAt ||
+      (range === 7 ? history.current7dComplete : history.current30dComplete)
+    )
+      return undefined;
+    return 'Partial range';
+  };
   return (
     <Panel>
       <PanelTitle>What people do</PanelTitle>
@@ -788,21 +916,124 @@ function ActionsPanel({ actions }: { actions: SiteMetricActions }) {
             key={label}
             testID={`site-metrics-action-row-${index}`}
             label={label}
-            value={formatNumber(value)}
-            last={index === rows.length - 1}
+            value={countValue(label, value)}
+            note={coverageNote(label)}
             compactMobile
             mobileValueSize={19}
           />
         ))}
+        <MetricRow
+          label="Accounts created"
+          value={
+            accounts.kind === 'ready'
+              ? formatNumber(range === 7 ? accounts.totals.created7d : accounts.totals.created30d)
+              : accounts.kind === 'loading'
+                ? 'Loading'
+                : 'Not available'
+          }
+          compactMobile
+          mobileValueSize={19}
+          last
+        />
       </View>
       <Text style={styles.panelNote}>
         No search words, addresses, or districts are included in these analytics.
       </Text>
+      <Text style={styles.panelNote}>
+        Account creation totals exclude closed, team, and test accounts. Deleting an account can
+        lower a past creation total.
+      </Text>
+      <Text style={styles.panelNote}>
+        Search totals count each query and filter choice once per search-page visit, when matching
+        results are shown.
+      </Text>
+      {rows.map(([label]) => {
+        const key = historyKey(label);
+        const start = key && records.history?.[key].recordingStartedAt;
+        return start && coverageNote(label) ? (
+          <Text key={key} style={styles.panelNote}>
+            {label}: {isNewHistory(key) ? 'recorded' : 'counting rules tracked'} since{' '}
+            {formatDate(start)}.
+            {isNewHistory(key)
+              ? ' Earlier activity is not included.'
+              : ' Earlier totals may use older counting rules.'}
+          </Text>
+        ) : null;
+      })}
+      {accounts.kind === 'ready' && accounts.stale ? (
+        <Text style={styles.panelNote}>
+          Account creation totals are waiting for a newer reading.
+        </Text>
+      ) : null}
     </Panel>
   );
 }
 
-function ReadersPanel({ totals }: { totals: SiteMetricRecordTotals['readers'] }) {
+function AccountOnlyPanel({
+  title,
+  accounts,
+  range,
+  loading,
+  unavailableText,
+}: {
+  title: 'What people do' | 'Readers';
+  accounts: SourceState<AccountSignupTotals>;
+  range: ActivityRange;
+  loading: boolean;
+  unavailableText: string;
+}) {
+  const { isMobile } = useResponsive();
+  const isCurrent = title === 'Readers';
+  const value =
+    accounts.kind === 'ready'
+      ? formatNumber(
+          isCurrent
+            ? accounts.totals.currentAccountsCreated
+            : range === 7
+              ? accounts.totals.created7d
+              : accounts.totals.created30d,
+        )
+      : accounts.kind === 'loading'
+        ? 'Loading'
+        : 'Not available';
+  return (
+    <Panel busy={loading}>
+      <PanelTitle>{title}</PanelTitle>
+      <View style={[styles.plainRows, isMobile && styles.plainRowsMobile]}>
+        <MetricRow
+          label={isCurrent ? 'Current accounts' : 'Accounts created'}
+          value={value}
+          compactMobile
+          last
+        />
+      </View>
+      <Text style={styles.panelNote} accessibilityLiveRegion="polite">
+        {loading ? 'Loading recorded activity.' : unavailableText}
+      </Text>
+      <Text style={styles.panelNote}>
+        {isCurrent ? 'Current totals; the date range does not apply. ' : ''}
+        Accounts include unconfirmed sign-ups and exclude closed, team, and test accounts.
+        {!isCurrent ? ' Deleting an account can lower a past creation total.' : ''}
+      </Text>
+      {accounts.kind === 'ready' ? (
+        <Text style={styles.source}>
+          Accounts counted by Supabase · Through {formatDate(accounts.totals.asOf)}
+        </Text>
+      ) : null}
+      {accounts.kind === 'ready' && accounts.stale ? (
+        <Text style={styles.panelNote}>Account totals are waiting for a newer reading.</Text>
+      ) : null}
+    </Panel>
+  );
+}
+
+function ReadersPanel({
+  totals,
+  accounts,
+}: {
+  totals: SiteMetricRecordTotals['readers'];
+  accounts: SourceState<AccountSignupTotals>;
+}) {
   const { isMobile } = useResponsive();
   return (
     <Panel>
@@ -810,8 +1041,14 @@ function ReadersPanel({ totals }: { totals: SiteMetricRecordTotals['readers'] })
       <View style={[styles.plainRows, isMobile && styles.plainRowsMobile]}>
         <MetricRow
           testID="site-metrics-reader-row-0"
-          label="Registered readers"
-          value={formatNumber(totals.registeredReaders)}
+          label="Current accounts"
+          value={
+            accounts.kind === 'ready'
+              ? formatNumber(accounts.totals.currentAccountsCreated)
+              : accounts.kind === 'loading'
+                ? 'Loading'
+                : 'Not available'
+          }
           compactMobile
         />
         <MetricRow
@@ -824,14 +1061,56 @@ function ReadersPanel({ totals }: { totals: SiteMetricRecordTotals['readers'] })
           testID="site-metrics-reader-row-2"
           label="Different bills currently watched"
           value={formatNumber(totals.differentBillsCurrentlyWatched)}
-          last
           compactMobile
+        />
+        <MetricRow
+          label="Current committee follows"
+          value={
+            totals.currentCommitteeWatches === undefined
+              ? 'Not available'
+              : formatNumber(totals.currentCommitteeWatches)
+          }
+          compactMobile
+        />
+        <MetricRow
+          label="Different committees currently followed"
+          value={
+            totals.differentCommitteesCurrentlyWatched === undefined
+              ? 'Not available'
+              : formatNumber(totals.differentCommitteesCurrentlyWatched)
+          }
+          compactMobile
+        />
+        <MetricRow
+          label="Readers following bills"
+          value={
+            totals.currentBillFollowingReaders === undefined
+              ? 'Not available'
+              : formatNumber(totals.currentBillFollowingReaders)
+          }
+          compactMobile
+        />
+        <MetricRow
+          label="Readers following committees"
+          value={
+            totals.currentCommitteeFollowingReaders === undefined
+              ? 'Not available'
+              : formatNumber(totals.currentCommitteeFollowingReaders)
+          }
+          compactMobile
+          last
         />
       </View>
       <Text style={styles.panelNote}>
-        Current totals; the date range does not apply. Bill watches count each reader&apos;s watch;
-        different bills count each bill once.
+        Current totals; the date range does not apply. Accounts include unconfirmed sign-ups and
+        exclude closed, team, and test accounts. Each reader&apos;s follow counts separately;
+        different bills and committees count once each.
       </Text>
+      {accounts.kind === 'ready' ? (
+        <Text style={styles.source}>
+          Accounts counted by Supabase · Through {formatDate(accounts.totals.asOf)}
+        </Text>
+      ) : null}
     </Panel>
   );
 }
@@ -971,13 +1250,21 @@ function AvailabilityPanel({
         <MetricRow
           testID="site-metrics-availability-row-0"
           label="Homepage"
-          value={percent(totals.websiteAvailability30d)}
+          value={
+            totals.websiteAvailability30d === null
+              ? 'Not available'
+              : percent(totals.websiteAvailability30d)
+          }
           treatment="availability"
         />
         <MetricRow
           testID="site-metrics-availability-row-1"
           label="Data service"
-          value={percent(totals.apiAvailability30d)}
+          value={
+            totals.apiAvailability30d === null
+              ? 'Not available'
+              : percent(totals.apiAvailability30d)
+          }
           treatment="availability"
           last
         />
@@ -985,8 +1272,25 @@ function AvailabilityPanel({
       <Text style={styles.panelNote}>
         Percentages show how often Alethical passed automatic checks
       </Text>
+      {totals.monitoringStartedAt &&
+      Object.values(totals.monitoringStartedAt).some(
+        (started) => started && Date.parse(started) > Date.parse(totals.fetchedAt) - 30 * 86400000,
+      ) ? (
+        <Text style={styles.panelNote}>
+          Monitoring began{' '}
+          {formatDate(
+            Object.values(totals.monitoringStartedAt)
+              .filter((value): value is string => !!value)
+              .sort()[0],
+          )}
+          . The figures cover the checks recorded so far.
+        </Text>
+      ) : null}
       <Text style={styles.source}>
         Checked by Checkly
+        {totals.measuredAt
+          ? ` · Through ${formatTrafficWindowEnd([totals.measuredAt.website, totals.measuredAt.api].filter((value): value is string => !!value).sort()[0])}`
+          : ''}
         {state.stale ? ` · Last accepted ${ageText(totals.fetchedAt, now)}` : ''}
       </Text>
       {CHECKLY_PUBLIC_STATUS_URL ? (
@@ -1112,16 +1416,36 @@ function PerformancePanel({
       </View>
       {buildingSample ? null : (
         <Text style={styles.panelNote}>
-          At least 75% of measured visits performed this well or better.
+          For each figure, at least 75% of measured page loads performed this well or better.
         </Text>
       )}
       {buildingSample ? (
-        <Text style={styles.panelNote}>Not enough real visits have been measured yet</Text>
+        <Text style={styles.panelNote}>
+          Each score needs at least 50 measurements. Scores marked Building sample do not have
+          enough yet.
+        </Text>
       ) : null}
       <Text style={styles.source}>
         Measured by Cloudflare
+        {totals.measurementScope
+          ? ` · ${formatDate(totals.periodStartedOn)} to ${formatDate(totals.periodEndedOn)} (UTC)`
+          : ''}
         {state.stale ? ` · Last accepted ${ageText(totals.fetchedAt, now)}` : ''}
       </Text>
+      {totals.measurementScope ? (
+        <Text style={styles.panelNote}>
+          Full page loads only. Known bots are excluded; team visits may be included. Response speed
+          measures the browser reaction, not how long a search takes.
+        </Text>
+      ) : null}
+      {totals.measurementScope &&
+      totals.periodStartedOn < '2026-09-04' &&
+      totals.periodEndedOn >= '2026-09-04' ? (
+        <Text style={styles.panelNote}>
+          Cloudflare changed page-load measurement on September 4, 2026. This range includes data
+          from before and after that change.
+        </Text>
+      ) : null}
       <StaleNote stale={state.stale} fetchedAt={totals.fetchedAt} now={now} />
       <StaffLink
         href={STAFF_LINKS.cloudflare}
@@ -1137,6 +1461,7 @@ export function TrafficScreen() {
   const { isMobile } = useResponsive();
   const traffic = useTrafficSource('/api/traffic', isTrafficTotals);
   const records = useRecordTotals();
+  const accounts = useAccountSignupTotals();
   const google = useTrafficSource('/api/traffic-google?window=30', isSearchTotals);
   const bing = useTrafficSource('/api/traffic-bing', isSearchTotals);
   const uptime = useTrafficSource('/api/traffic-uptime', isUptimeTotals);
@@ -1172,7 +1497,7 @@ export function TrafficScreen() {
         ? records.totals.actions7d
         : records.totals.actions30d
       : null;
-  const loading = [traffic, records, google, bing, uptime, performance].some(
+  const loading = [traffic, records, accounts, google, bing, uptime, performance].some(
     (state) => state.kind === 'loading',
   );
 
@@ -1284,10 +1609,17 @@ export function TrafficScreen() {
             </View>
             <View style={!isMobile ? styles.actionsCell : undefined}>
               {actions ? (
-                <ActionsPanel actions={actions} />
+                <ActionsPanel
+                  actions={actions}
+                  records={(records as Extract<typeof records, { kind: 'ready' }>).totals}
+                  accounts={accounts}
+                  range={range}
+                />
               ) : (
-                <ActivityStatusPanel
+                <AccountOnlyPanel
                   title="What people do"
+                  accounts={accounts}
+                  range={range}
                   loading={records.kind === 'loading'}
                   unavailableText="Recorded actions are temporarily unavailable."
                 />
@@ -1295,10 +1627,12 @@ export function TrafficScreen() {
             </View>
             <View style={!isMobile ? styles.readersCell : undefined}>
               {records.kind === 'ready' ? (
-                <ReadersPanel totals={records.totals.readers} />
+                <ReadersPanel totals={records.totals.readers} accounts={accounts} />
               ) : (
-                <ActivityStatusPanel
+                <AccountOnlyPanel
                   title="Readers"
+                  accounts={accounts}
+                  range={range}
                   loading={records.kind === 'loading'}
                   unavailableText="Reader totals are temporarily unavailable."
                 />
@@ -1348,6 +1682,12 @@ export function TrafficScreen() {
 }
 
 const styles = StyleSheet.create({
+  metricValueNote: {
+    fontFamily: 'LibreFranklin_400Regular',
+    fontSize: 12,
+    lineHeight: 18,
+    color: '#8f5a12',
+  },
   page: { flexGrow: 1, backgroundColor: theme.colors.surface },
   main: { width: '100%', maxWidth: 1184, alignSelf: 'center', paddingTop: 72, paddingBottom: 72 },
   mainMobile: { paddingTop: 44, paddingBottom: 48 },
@@ -1587,6 +1927,10 @@ const styles = StyleSheet.create({
   },
   panelSearch: { paddingTop: 16, paddingHorizontal: 20, paddingBottom: 18 },
   panelCardMobile: {
+    flex: undefined,
+    flexBasis: 'auto',
+    flexGrow: 0,
+    flexShrink: 0,
     borderRadius: 13,
     paddingHorizontal: 16,
     paddingTop: 15,

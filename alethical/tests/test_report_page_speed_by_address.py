@@ -1,27 +1,14 @@
-"""Pin the reading and reporting rules in ``scripts/report_page_speed_by_address.py``.
-
-Every case here is about a way the tool could print a wrong number rather than no
-number, because a wrong page-speed figure is what would send someone optimizing the
-wrong page. The Cloudflare request itself is not exercised: it needs a private account
-token, and what a test can check without one is exactly the arithmetic and the
-withholding rules.
-
-Two of these cases exist because the first version of this tool got them wrong, and both
-failures printed a confident number rather than an error:
-
-* it treated Cloudflare's reported totals as measurement counts, when they are those
-  counts multiplied by the sampling interval, so a 50-measurement floor let through a
-  percentile resting on 4 real measurements; and
-* it mixed first loads with clicks inside the site in one percentile, so an address
-  people mostly click into scored as though it were instant.
-"""
+"""Source-shaped speed-report tests, without network, database or reader tracking."""
 
 from __future__ import annotations
 
 import importlib.util
+import json
 import sys
-from datetime import date
+from datetime import UTC, date, datetime, timedelta, timezone
 from pathlib import Path
+
+import pytest
 
 SPEC = importlib.util.spec_from_file_location(
     "report_page_speed_by_address",
@@ -29,254 +16,281 @@ SPEC = importlib.util.spec_from_file_location(
 )
 assert SPEC and SPEC.loader
 report = importlib.util.module_from_spec(SPEC)
-# Registered before it runs because the module defines dataclasses, and
-# ``dataclass`` looks its own module up in ``sys.modules`` while processing them.
 sys.modules[SPEC.name] = report
 SPEC.loader.exec_module(report)
-
 ADDRESS = report.Address("money", "/money", 'requestPath: "/money"')
 
 
-def group(
-    main_micros: object,
-    main_reported: object,
-    layout: object,
-    layout_reported: object,
-    interval: object = 1,
-) -> list:
-    """One address's answer, in the shape Cloudflare returns it.
-
-    ``*_reported`` are Cloudflare's own totals, which are already multiplied by
-    ``interval``, exactly as the live API returns them.
-    """
+def group(main_micros=1_640_000, main_count=60, layout=0.0876, layout_count=60):
     return [
         {
             "quantiles": {
                 "largestContentfulPaintP75": main_micros,
                 "cumulativeLayoutShiftP75": layout,
             },
-            "sum": {"lcpTotal": main_reported, "clsTotal": layout_reported},
-            "avg": {"sampleInterval": interval},
+            "confidence": {
+                "sum": {
+                    "lcpTotal": {"sampleSize": main_count},
+                    "clsTotal": {"sampleSize": layout_count},
+                }
+            },
+            # Decoys prove neither scaled totals nor average intervals determine counts.
+            "sum": {"lcpTotal": 9000, "clsTotal": 9000},
+            "avg": {"sampleInterval": 10},
         }
     ]
 
 
-def reading(*args, min_measurements: int = 50, **kwargs):
-    return report.read_group(
-        ADDRESS, report.FIRST_LOAD, group(*args, **kwargs), min_measurements
-    )
+def reading(*args, min_measurements=50):
+    return report.read_group(ADDRESS, group(*args), min_measurements)
 
 
-def test_microseconds_become_milliseconds() -> None:
-    result = reading(1_640_000, 60, 0.0876, 60)
-    assert result.main_content_ms == 1640.0
-    assert result.layout_movement == 0.088
+def test_confidence_sample_counts_override_scaled_sums():
+    result = reading(2_000_000, 49, 0.1, 50)
+    assert result.main_content_measurements == 49
+    assert result.main_content_ms is None
+    assert result.layout_movement_measurements == 50
+    assert result.layout_movement == 0.1
+
+
+def test_units_preserve_source_precision():
+    result = reading()
+    assert result.main_content_ms == 1640
+    assert result.layout_movement == 0.0876
     assert result.main_content_measurements == 60
 
 
-def test_a_sampled_window_reports_real_measurements_not_cloudflares_estimate() -> None:
-    """The failure that made a first version's figures unreconcilable.
+@pytest.mark.parametrize("count", [0, 1, 49, 50, 365, 1045])
+def test_observation_floor_per_metric(count):
+    result = reading(5_420_000, count, 1, 50)
+    assert result.main_content_measurements == count
+    assert result.main_content_ms == (5420 if count >= 50 else None)
+    assert result.layout_movement == 1
 
-    Cloudflare reported 60 with a sampling interval of 15, which is 4 real
-    measurements. A floor of 50 must withhold the figure rather than let a
-    percentile drawn from 4 readings through as a number.
-    """
-    result = reading(48_000, 60, 0.006, 60, interval=15)
-    assert result.main_content_measurements == 4
+
+@pytest.mark.parametrize(
+    "count",
+    [
+        None,
+        True,
+        False,
+        "50",
+        -1,
+        49.9,
+        float("nan"),
+        float("inf"),
+        2**53,
+        10**400,
+        {},
+        [],
+    ],
+)
+def test_invalid_counts_are_unknown_never_zero_or_estimates(count):
+    result = reading(5_420_000, count, 1, 50)
+    assert result.main_content_measurements is None
+    assert result.main_content_ms is None
+    assert result.layout_movement_measurements == 50
+    assert result.layout_movement == 1
+
+
+@pytest.mark.parametrize("answer", [[], None, {}, [{}], [{}, {}], [{"confidence": []}]])
+def test_missing_or_ambiguous_groups_are_unavailable(answer):
+    result = report.read_group(ADDRESS, answer)
     assert result.main_content_ms is None
     assert result.layout_movement is None
+    assert result.main_content_measurements is None
 
 
-def test_an_unsampled_window_leaves_the_count_alone() -> None:
-    result = reading(4_300_000, 365, 1, 365, interval=1.01)
-    assert result.main_content_measurements == 361
-    assert result.main_content_ms == 4300.0
-
-
-def test_a_missing_interval_never_invents_measurements() -> None:
-    """No interval means no group came back, so the total is taken as it stands."""
-    result = reading(1_000_000, 80, 0.5, 80, interval=None)
-    assert result.sample_interval == 1.0
-    assert result.main_content_measurements == 80
-
-
-def test_minus_one_is_no_measurement_not_a_speed() -> None:
-    """Cloudflare answers -1 where it measured nothing, and -1 ms is not a speed."""
-    result = reading(-1, 200, -1, 200)
+@pytest.mark.parametrize(
+    "value", [-1, -0.1, None, True, "0.1", float("nan"), float("inf")]
+)
+def test_invalid_quantiles_are_not_scores(value):
+    result = reading(value, 60, value, 60)
     assert result.main_content_ms is None
     assert result.layout_movement is None
+    assert result.main_content_measurements == 60
 
 
-def test_a_percentile_from_too_few_measurements_is_withheld() -> None:
-    result = reading(5_420_000, 49, 1, 49)
-    assert result.main_content_ms is None
-    assert result.layout_movement is None
-    assert result.main_content_measurements == 49
+def test_true_zero_quantiles_are_preserved():
+    result = reading(0, 50, 0, 50)
+    assert result.main_content_ms == 0
+    assert result.layout_movement == 0
 
 
-def test_each_metric_is_withheld_on_its_own_count() -> None:
-    """Layout movement and main content are counted separately by Cloudflare."""
-    result = reading(5_420_000, 160, 1, 10)
-    assert result.main_content_ms == 5420.0
-    assert result.layout_movement is None
+def test_floor_cannot_be_lowered_and_can_be_raised():
+    assert reading(1_000_000, 49, 0.1, 49, min_measurements=1).main_content_ms is None
+    assert reading(1_000_000, 50, 0.1, 50, min_measurements=100).main_content_ms is None
 
 
-def test_an_empty_answer_reads_as_no_measurement() -> None:
-    for answer in ([], None, {}, [{}]):
-        result = report.read_group(ADDRESS, report.FIRST_LOAD, answer, 50)
-        assert result.main_content_ms is None
-        assert result.layout_movement is None
-        assert result.main_content_measurements == 0
-
-
-def test_breaches_name_only_the_limits_actually_exceeded() -> None:
-    assert report.breaches(reading(5_420_000, 200, 1, 200)) == [
+def test_limit_boundary_and_independent_breaches():
+    assert report.breaches(reading(2_500_000, 50, 0.1, 50)) == []
+    assert report.breaches(reading(5_420_000, 50, 1, 50)) == [
         "main content",
         "layout movement",
     ]
-    assert report.breaches(reading(1_640_000, 200, 1, 200)) == ["layout movement"]
-    assert report.breaches(reading(2_500_000, 200, 0.1, 200)) == []
+    assert report.breaches(reading(5_420_000, 50, 1, 2)) == ["main content"]
 
 
-def test_a_withheld_figure_never_counts_as_within_the_limit() -> None:
-    """Silence is not a pass: nothing may report a limit met on no measurements."""
-    withheld = reading(9_000_000, 3, 1, 3)
-    assert report.breaches(withheld) == []
+def test_unknown_sibling_cannot_print_a_full_pass():
     table = report.format_table(
-        [withheld], date(2026, 8, 29), date(2026, 9, 4), 50, "FIRST LOAD"
+        [reading(1_000_000, 50, 0.1, None)],
+        date(2026, 8, 8),
+        date(2026, 9, 6),
+        50,
+        "DOCUMENT LOADS",
+    )
+    assert "unavailable" in table
+    assert "not known yet" in table
+    assert "50 / unavailable" in table
+
+
+def test_withheld_score_does_not_print_or_pass():
+    table = report.format_table(
+        [reading(9_000_000, 3, 1, 3)],
+        date(2026, 8, 8),
+        date(2026, 9, 6),
+        50,
+        "DOCUMENT LOADS",
     )
     assert "too few (3)" in table
     assert "9000" not in table
+    assert "not known yet" in table
 
 
-def test_the_report_covers_first_loads_and_says_why_clicks_are_absent() -> None:
-    """Cloudflare's in-app-click records are mostly our own start-up, not a click.
-
-    Read from the beacon's payloads and reproduced 3 times on 4 Sep 2026: the program
-    rewrites the address it already has about 300 ms after a load, Cloudflare opens a
-    record for that, and the record a real click opens carries no figure at all.
-    Reporting those numbers as a click's speed cost 1 wrongly-scoped issue.
-    """
-    first = report.read_group(
-        ADDRESS, report.FIRST_LOAD, group(1_536_000, 115, 1, 115), 50
-    )
-    text = report.format_report([first], date(2026, 8, 29), date(2026, 9, 4), 50)
-    assert "FIRST LOAD" in text
-    assert "1536 ms" in text
-    assert "Clicks inside the site are not reported" in text
-    assert "issue 1988" in text
-
-
-def test_the_report_says_which_moment_main_content_means() -> None:
-    """The figure is the snapshot appearing, not the app drawing, and says so."""
-    text = report.format_report(
-        [reading(1_536_000, 115, 1, 115)], date(2026, 8, 29), date(2026, 9, 4), 50
-    )
-    assert "server-written snapshot" in text
-
-
-def test_the_report_says_the_window_the_percentile_and_both_limits() -> None:
-    text = report.format_report(
-        [reading(1_640_000, 60, 1, 60)], date(2026, 8, 29), date(2026, 9, 4), 50
-    )
-    assert "2026-08-29 to 2026-09-04" in text
-    assert "slowest 1 in 4" in text
-    assert "2500 ms" in text
-    assert "movement 0.1" in text
-
-
-def test_the_table_names_the_sampling_only_when_the_window_was_sampled() -> None:
-    sampled = reading(600, 600, 1, 600, interval=10.13)
-    unsampled = reading(600, 600, 1, 600, interval=1)
-    assert "Cloudflare sampled this window" in report.format_table(
-        [sampled], date(2026, 8, 8), date(2026, 9, 4), 50, "FIRST LOAD"
-    )
-    assert "Cloudflare sampled this window" not in report.format_table(
-        [unsampled], date(2026, 8, 29), date(2026, 9, 4), 50, "FIRST LOAD"
-    )
-
-
-def test_the_request_asks_for_one_kind_of_page_load_and_no_reader_facts() -> None:
-    """A page address is the page. Country, device and browser are the person."""
-    query = report.build_query(report.ADDRESSES, report.FIRST_LOAD)
-    assert 'navigationType: "navigate"' in query
-    for word in (
-        "country",
-        "device",
-        "browser",
-        "element",
-        "resource",
-        "referer",
-        "referrer",
-    ):
-        assert word not in query.lower()
-
-
-def test_the_what_moved_request_asks_for_our_element_and_still_no_reader_facts() -> (
-    None
-):
-    """An element name describes our page; a country or a device describes the person.
-
-    So this one request does ask which element the browser blamed, which is the only
-    way to attribute the movement on the readers who actually produced the figure. A
-    throttled browser on one machine cannot: 14 such runs on 4 Sep 2026 produced 0 to
-    0.06 against a published 1 and named a different element each time.
-    """
-    query = report.build_what_moved_query(report.ADDRESSES, report.FIRST_LOAD)
-    assert "cumulativeLayoutShiftElement" in query
-    assert 'navigationType: "navigate"' in query
-    assert "orderBy: [sum_clsTotal_DESC]" in query
+@pytest.mark.parametrize("builder", [report.build_query, report.build_what_moved_query])
+def test_queries_match_public_document_population_and_actual_counts(builder):
+    query = builder(report.ADDRESSES)
+    for navigation in report.DOCUMENT_NAVIGATION_TYPES:
+        assert json.dumps(navigation) in query
+    assert query.count("navigationType_in:") == len(report.ADDRESSES)
+    assert query.count("bot: 0") == len(report.ADDRESSES)
+    assert "confidence(level: 0.95)" in query
+    assert "clsTotal { sampleSize }" in query
+    assert "sampleInterval" not in query
+    assert "clsPoor" not in query
+    assert "routing-apis" not in query
+    assert "soft-navigation" not in query
+    assert "deliveryType" not in query
     for word in ("country", "device", "browser", "resource", "referer", "referrer"):
         assert word not in query.lower()
     for address in report.ADDRESSES:
         assert f"{address.key}: rumWebVitalsEventsAdaptiveGroups(" in query
-
-
-def test_what_moved_divides_out_the_sampling_and_names_nothing_moved_plainly() -> None:
-    rows = [
-        {
-            "dimensions": {"cumulativeLayoutShiftElement": "#root>div.page-snapshot"},
-            "sum": {"clsTotal": 300, "clsPoor": 200},
-            "avg": {"sampleInterval": 10},
-            "quantiles": {"cumulativeLayoutShiftP75": 1},
-        },
-        {
-            "dimensions": {"cumulativeLayoutShiftElement": None},
-            "sum": {"clsTotal": 70, "clsPoor": 0},
-            "avg": {"sampleInterval": 10},
-            "quantiles": {"cumulativeLayoutShiftP75": 0},
-        },
-    ]
-    text = report.format_what_moved(
-        [(ADDRESS, rows)], date(2026, 8, 29), date(2026, 9, 4)
-    )
-    assert "30 measurements" in text
-    assert "20 of them over the limit" in text
-    assert "#root>div.page-snapshot" in text
-    # A row with no element is the visits where nothing moved, and saying so plainly
-    # beats printing an empty column that reads as missing data.
-    assert "nothing moved" in text
-    assert "2026-08-29 to 2026-09-04" in text
-
-
-def test_what_moved_says_when_an_address_has_no_measurements() -> None:
-    text = report.format_what_moved(
-        [(ADDRESS, [])], date(2026, 8, 29), date(2026, 9, 4)
-    )
-    assert "nothing measured" in text
-
-
-def test_every_address_gets_its_own_selection_and_the_sitewide_one_no_path() -> None:
-    query = report.build_query(report.ADDRESSES, report.FIRST_LOAD)
-    for address in report.ADDRESSES:
-        assert f"{address.key}: rumWebVitalsEventsAdaptiveGroups(" in query
     assert 'requestPath_like: "/money/committees/%"' in query
     assert query.count("requestHost: $host") == len(report.ADDRESSES)
-    assert query.count('navigationType: "navigate"') == len(report.ADDRESSES)
 
 
-def test_the_money_addresses_the_limit_is_written_about_are_all_asked_for() -> None:
-    labels = {address.label for address in report.ADDRESSES}
+def test_main_query_never_requests_element_and_element_query_does():
+    assert "lcpTotal { sampleSize }" in report.build_query(report.ADDRESSES)
+    assert "element" not in report.build_query(report.ADDRESSES).lower()
+    query = report.build_what_moved_query(report.ADDRESSES)
+    assert "cumulativeLayoutShiftElement" in query
+    assert "orderBy: [sum_clsTotal_DESC]" in query
+
+
+def test_what_moved_uses_actual_counts_and_withholds_thin_scores():
+    rows = [group(layout=1, layout_count=49)[0], group(layout=0, layout_count=50)[0]]
+    rows[0]["dimensions"] = {"cumulativeLayoutShiftElement": "#root>div.page-snapshot"}
+    rows[0]["sum"]["clsPoor"] = 3000
+    rows[1]["dimensions"] = {"cumulativeLayoutShiftElement": None}
+    text = report.format_what_moved(
+        [(ADDRESS, rows)], date(2026, 8, 8), date(2026, 9, 6)
+    )
+    assert "49 measurements, 75th percentile too few (49)" in text
+    assert "50 measurements, 75th percentile 0" in text
+    assert "of them over the limit" not in text
+    assert "estimated measurement volume, not movement size" in text
+    assert "#root>div.page-snapshot" in text
+    assert "nothing moved" in text
+
+
+def test_what_moved_unknown_counts_and_empty_address():
+    text = report.format_what_moved(
+        [(ADDRESS, [group(layout_count=None)[0]])], date(2026, 8, 8), date(2026, 9, 6)
+    )
+    assert "unavailable measurements, 75th percentile unavailable" in text
+    assert "nothing measured" in report.format_what_moved(
+        [(ADDRESS, [])], date(2026, 8, 8), date(2026, 9, 6)
+    )
+
+
+def test_default_window_is_30_complete_utc_days():
+    start, end = report.complete_window(now=datetime(2026, 9, 7, 23, 50, tzinfo=UTC))
+    assert (start, end) == (date(2026, 8, 8), date(2026, 9, 6))
+    assert (end - start).days + 1 == 30
+
+
+def test_window_uses_utc_not_local_date_and_supports_explicit_short_window():
+    now = datetime(2026, 9, 7, 23, 50, tzinfo=timezone(timedelta(hours=-4)))
+    assert report.complete_window(7, now=now) == (date(2026, 9, 1), date(2026, 9, 7))
+
+
+def test_rollout_caveat_depends_on_start_not_current_date():
+    assert "cannot isolate" in report.population_note(date(2026, 9, 3))
+    assert "cannot isolate" not in report.population_note(date(2026, 9, 4))
+
+
+def test_report_and_json_disclose_scope_and_actual_counts():
+    values = [reading()]
+    text = report.format_report(values, date(2026, 8, 8), date(2026, 9, 6), 50)
+    assert "DOCUMENT LOADS" in text
+    assert "2026-08-08 to 2026-09-06" in text
+    assert "2500 ms" in text and "movement 0.1" in text
+    assert "confidence sample sizes" in text
+    assert "not an app-ready timer" in text
+    assert "cannot isolate" in text
+    payload = json.loads(report.as_json(values, date(2026, 8, 8), date(2026, 9, 6)))
+    assert payload["measurementScope"] == "document-loads"
+    assert payload["sampleCountSource"] == "cloudflare-confidence"
+    assert payload["knownBotsExcluded"] is True
+    assert payload["minimumSamples"] == 50
+    assert payload["navigationTypes"] == list(report.DOCUMENT_NAVIGATION_TYPES)
+    assert payload["documentLoads"][0]["mainContentMeasurements"] == 60
+    assert "sampleInterval" not in payload["documentLoads"][0]
+    assert "firstLoad" not in payload
+
+
+def test_cli_default_query_without_live_request(monkeypatch, capsys):
+    monkeypatch.setenv("CLOUDFLARE_ANALYTICS_API_TOKEN", "fake-token")
+    monkeypatch.setenv("CLOUDFLARE_ACCOUNT_ID", "fake-account")
+    real_window = report.complete_window
+
+    def window(days):
+        assert days == 30
+        return real_window(days, now=datetime(2026, 9, 7, tzinfo=UTC))
+
+    monkeypatch.setattr(report, "complete_window", window)
+
+    def fake_fetch(query, variables, token):
+        assert variables["start"] == "2026-08-08"
+        assert variables["end"] == "2026-09-06"
+        assert token == "fake-token"
+        assert "confidence(level: 0.95)" in query
+        return {
+            "data": {
+                "viewer": {
+                    "accounts": [{address.key: group() for address in report.ADDRESSES}]
+                }
+            }
+        }
+
+    monkeypatch.setattr(report, "ask_cloudflare", fake_fetch)
+    assert report.main(["--json"]) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert len(payload["documentLoads"]) == len(report.ADDRESSES)
+
+
+@pytest.mark.parametrize("args", [["--min-measurements", "49"], ["--days", "0"]])
+def test_cli_rejects_false_precision_before_any_request(args, monkeypatch):
+    def forbidden(*args):
+        pytest.fail("network request must not run")
+
+    monkeypatch.setattr(report, "ask_cloudflare", forbidden)
+    with pytest.raises(SystemExit) as error:
+        report.main(args)
+    assert error.value.code == 2
+
+
+def test_money_addresses_are_retained():
     assert {
         "/money",
         "/money/committees",
@@ -284,4 +298,122 @@ def test_the_money_addresses_the_limit_is_written_about_are_all_asked_for() -> N
         "/money/outside-spending",
         "/money/search",
         "/money/committees/<committee>",
-    } <= labels
+    } <= {address.label for address in report.ADDRESSES}
+
+
+def test_document_navigation_allowlist_is_the_public_endpoint_population():
+    assert report.DOCUMENT_NAVIGATION_TYPES == (
+        "navigate",
+        "reload",
+        "back-forward",
+        "restore",
+        "prerender",
+    )
+
+
+@pytest.mark.parametrize("option", ["--what-moved", "--fail-on-breach"])
+def test_cli_modes_preserve_count_source_and_breach_exit(option, monkeypatch, capsys):
+    monkeypatch.setenv("CLOUDFLARE_ANALYTICS_API_TOKEN", "fake-token")
+    monkeypatch.setenv("CLOUDFLARE_ACCOUNT_ID", "fake-account")
+
+    def fake_fetch(query, variables, token):
+        assert "confidence(level: 0.95)" in query
+        assert "sampleInterval" not in query
+        assert "bot: 0" in query
+        assert ("cumulativeLayoutShiftElement" in query) == (option == "--what-moved")
+        return {
+            "data": {
+                "viewer": {
+                    "accounts": [
+                        {
+                            address.key: group(9_000_000, 50, 1, 49)
+                            for address in report.ADDRESSES
+                        }
+                    ]
+                }
+            }
+        }
+
+    monkeypatch.setattr(report, "ask_cloudflare", fake_fetch)
+    assert report.main([option]) == (1 if option == "--fail-on-breach" else 0)
+    output = capsys.readouterr()
+    if option == "--what-moved":
+        assert "too few (49)" in output.out
+        assert "75th percentile 1" not in output.out
+    else:
+        assert "Over a money-page limit" in output.err
+
+
+def test_cli_errors_do_not_print_private_provider_values(monkeypatch, capsys):
+    monkeypatch.setenv("CLOUDFLARE_ANALYTICS_API_TOKEN", "fake-token")
+    monkeypatch.setenv("CLOUDFLARE_ACCOUNT_ID", "fake-account")
+    monkeypatch.setattr(
+        report,
+        "ask_cloudflare",
+        lambda *args: {"errors": [{"message": "private provider detail"}]},
+    )
+    assert report.main([]) == 2
+    assert capsys.readouterr().err == "Cloudflare returned errors.\n"
+
+
+@pytest.mark.parametrize(
+    ("layout", "over"), [(0.0999, []), (0.1, []), (0.1004, ["layout movement"])]
+)
+def test_layout_boundary_uses_unrounded_score_in_comparison_and_json(layout, over):
+    result = reading(2_500_000, 50, layout, 50)
+    assert report.breaches(result) == over
+    assert result.layout_movement == layout
+    payload = json.loads(report.as_json([result], date(2026, 8, 8), date(2026, 9, 6)))
+    assert payload["documentLoads"][0]["layoutMovement"] == layout
+    assert payload["documentLoads"][0]["overTheLimit"] == over
+
+
+@pytest.mark.parametrize(
+    ("micros", "over"),
+    [(2_499_990, []), (2_500_000, []), (2_500_040, ["main content"])],
+)
+def test_time_boundary_uses_unrounded_score_in_comparison_and_json(micros, over):
+    result = reading(micros, 50, 0.1, 50)
+    assert report.breaches(result) == over
+    assert result.main_content_ms == micros / 1000
+    payload = json.loads(report.as_json([result], date(2026, 8, 8), date(2026, 9, 6)))
+    assert payload["documentLoads"][0]["mainContentMs"] == micros / 1000
+    assert payload["documentLoads"][0]["overTheLimit"] == over
+
+
+def test_only_rendered_cells_round_while_verdict_keeps_both_small_breaches():
+    result = reading(2_500_040, 50, 0.1004, 50)
+    text = report.format_report([result], date(2026, 8, 8), date(2026, 9, 6), 50)
+    assert "2500 ms" in text
+    assert "main content, layout movement" in text
+    assert "unrounded scores" in text
+    assert report.cell(0.0876, 50, 50, "") == "0.088"
+    assert result.main_content_ms == 2500.04
+    assert result.layout_movement == 0.1004
+
+
+def test_cli_fail_on_breach_uses_raw_scores(monkeypatch, capsys):
+    monkeypatch.setenv("CLOUDFLARE_ANALYTICS_API_TOKEN", "fake-token")
+    monkeypatch.setenv("CLOUDFLARE_ACCOUNT_ID", "fake-account")
+    monkeypatch.setattr(
+        report,
+        "ask_cloudflare",
+        lambda *args: {
+            "data": {
+                "viewer": {
+                    "accounts": [
+                        {
+                            address.key: group(2_500_040, 50, 0.1004, 50)
+                            for address in report.ADDRESSES
+                        }
+                    ]
+                }
+            }
+        },
+    )
+    assert report.main(["--json", "--fail-on-breach"]) == 1
+    captured = capsys.readouterr()
+    row = json.loads(captured.out)["documentLoads"][0]
+    assert row["mainContentMs"] == 2500.04
+    assert row["layoutMovement"] == 0.1004
+    assert row["overTheLimit"] == ["main content", "layout movement"]

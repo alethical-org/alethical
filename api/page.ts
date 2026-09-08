@@ -814,6 +814,8 @@ async function contentFor(
   const target = targetFromPathname(pathWithQuery(query));
 
   switch (target.kind) {
+    case "adminSiteMetrics":
+      return headOnly(STATIC_PAGE_METADATA["/admin/site-metrics"]);
     case "adminUsers":
       return headOnly(STATIC_PAGE_METADATA["/admin/users"]);
     case "bill":
@@ -1001,7 +1003,9 @@ export default async function handler(
   const isEmailLinkPage =
     requestedPath === "/confirm" || requestedPath === "/reset";
   const isForgotPasswordBridge = requestedPath === "/forgot-password";
-  const isAdminPage = targetFromPathname(requestedPath).kind === "adminUsers";
+  const isAdminPage = ["adminUsers", "adminSiteMetrics"].includes(
+    targetFromPathname(requestedPath).kind,
+  );
 
   let content: PageContent;
   let status = 200;

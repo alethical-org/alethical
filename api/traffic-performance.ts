@@ -11,7 +11,13 @@ type VitalsGroup = {
     interactionToNextPaintP75?: unknown;
     cumulativeLayoutShiftP75?: unknown;
   };
-  sum?: { lcpTotal?: unknown; inpTotal?: unknown; clsTotal?: unknown };
+  confidence?: {
+    sum?: {
+      lcpTotal?: { sampleSize?: unknown };
+      inpTotal?: { sampleSize?: unknown };
+      clsTotal?: { sampleSize?: unknown };
+    };
+  };
   avg?: { sampleInterval?: unknown };
 };
 
@@ -19,19 +25,37 @@ const ENDPOINT = "https://api.cloudflare.com/client/v4/graphql";
 const OK_CACHE = "public, max-age=0, s-maxage=300, stale-while-revalidate=60";
 const DAY_MS = 86_400_000;
 const MIN_SAMPLES = 50;
+// Cache/prefetch delivery is a separate dimension. Do not filter it out.
+// https://developers.cloudflare.com/web-analytics/data-metrics/dimensions/
+const DOCUMENT_NAVIGATION_TYPES = [
+  "navigate",
+  "reload",
+  "back-forward",
+  "restore",
+  "prerender",
+];
 const QUERY = `query TrafficVitals($accountTag: string!, $host: string!, $start: Date!, $end: Date!) {
   viewer {
     accounts(filter: { accountTag: $accountTag }) {
       vitals: rumWebVitalsEventsAdaptiveGroups(
         limit: 1
-        filter: { requestHost: $host, date_geq: $start, date_leq: $end }
+        filter: {
+          requestHost: $host, date_geq: $start, date_leq: $end, bot: 0,
+          navigationType_in: ${JSON.stringify(DOCUMENT_NAVIGATION_TYPES)}
+        }
       ) {
         quantiles {
           largestContentfulPaintP75
           interactionToNextPaintP75
           cumulativeLayoutShiftP75
         }
-        sum { lcpTotal inpTotal clsTotal }
+        confidence(level: 0.95) {
+          sum {
+            lcpTotal { sampleSize }
+            inpTotal { sampleSize }
+            clsTotal { sampleSize }
+          }
+        }
         avg { sampleInterval }
       }
     }
@@ -55,14 +79,28 @@ function finiteNonNegative(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0;
 }
 
+function sampleCount(value: unknown): number {
+  // Adaptive sums estimate traffic. sampleSize counts the actual observations
+  // behind each metric, not all beacon events or sum / average sampleInterval.
+  // https://developers.cloudflare.com/analytics/graphql-api/features/confidence-intervals/
+  if (!finiteNonNegative(value) || !Number.isSafeInteger(value)) {
+    throw new PerformanceUnavailable(
+      "Cloudflare returned incomplete sample counts",
+    );
+  }
+  return value;
+}
+
 function enough(
   value: unknown,
   count: number,
   transform: (value: number) => number,
 ) {
-  return count >= MIN_SAMPLES && finiteNonNegative(value)
-    ? transform(value)
-    : null;
+  if (count < MIN_SAMPLES) return null;
+  if (!finiteNonNegative(value)) {
+    throw new PerformanceUnavailable("Cloudflare returned an invalid score");
+  }
+  return transform(value);
 }
 
 export default async function handler(
@@ -87,10 +125,12 @@ export default async function handler(
   }
 
   const fetchedAt = new Date();
-  const periodEndedOn = fetchedAt.toISOString().slice(0, 10);
-  const periodStartedOn = new Date(
-    Date.parse(`${periodEndedOn}T00:00:00.000Z`) - 27 * DAY_MS,
-  )
+  // Last 30 complete UTC days. Exclude today's partial measurements.
+  const today = Date.parse(
+    `${fetchedAt.toISOString().slice(0, 10)}T00:00:00.000Z`,
+  );
+  const periodEndedOn = new Date(today - DAY_MS).toISOString().slice(0, 10);
+  const periodStartedOn = new Date(today - 30 * DAY_MS)
     .toISOString()
     .slice(0, 10);
   try {
@@ -124,19 +164,23 @@ export default async function handler(
       data?: { viewer?: { accounts?: Array<{ vitals?: VitalsGroup[] }> } };
       errors?: unknown;
     };
-    if (payload.errors)
+    if (
+      payload.errors &&
+      (!Array.isArray(payload.errors) || payload.errors.length > 0)
+    )
       throw new PerformanceUnavailable("Cloudflare returned errors");
     const group = payload.data?.viewer?.accounts?.[0]?.vitals?.[0];
-    const lcpSamples = Number(group?.sum?.lcpTotal);
-    const inpSamples = Number(group?.sum?.inpTotal);
-    const clsSamples = Number(group?.sum?.clsTotal);
-    const sampleInterval = Number(group?.avg?.sampleInterval);
-    if (
-      !finiteNonNegative(lcpSamples) ||
-      !finiteNonNegative(inpSamples) ||
-      !finiteNonNegative(clsSamples) ||
-      !finiteNonNegative(sampleInterval)
-    ) {
+    const lcpSamples = sampleCount(
+      group?.confidence?.sum?.lcpTotal?.sampleSize,
+    );
+    const inpSamples = sampleCount(
+      group?.confidence?.sum?.inpTotal?.sampleSize,
+    );
+    const clsSamples = sampleCount(
+      group?.confidence?.sum?.clsTotal?.sampleSize,
+    );
+    const sampleInterval = group?.avg?.sampleInterval;
+    if (!finiteNonNegative(sampleInterval) || sampleInterval < 1) {
       throw new PerformanceUnavailable("Cloudflare returned incomplete data");
     }
 
@@ -163,6 +207,11 @@ export default async function handler(
         ),
         clsSamples,
         sampleInterval,
+        measurementScope: "document-loads",
+        navigationTypes: DOCUMENT_NAVIGATION_TYPES,
+        knownBotsExcluded: true,
+        sampleCountSource: "cloudflare-confidence",
+        minimumSamples: MIN_SAMPLES,
         periodStartedOn,
         periodEndedOn,
         fetchedAt: fetchedAt.toISOString(),

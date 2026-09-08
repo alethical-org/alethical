@@ -1,19 +1,23 @@
 # How the Site metrics page works
 
+<!-- describes: alethical/api/services/account_classification.py, alethical/api/services/account_signup_metrics.py, alethical/api/services/site_metric_history.py, alethical/api/services/leadership_metrics.py, alethical/api/routers/admin.py, alethical/api/routers/site_metric_accounts.py, alethical/api/routers/leadership_metrics.py, apps/frontend/src/screens/redesign/AdminSiteMetricsScreen.tsx, apps/frontend/src/lib/leadershipMetrics.ts, apps/frontend/src/lib/siteMetricPrivacy.ts, apps/frontend/src/hooks/useSearchMetric.ts -->
+
 <!-- describes: api/traffic.ts, api/traffic-google.ts, api/traffic-bing.ts, api/traffic-uptime.ts, api/traffic-performance.ts, api/traffic-collection.ts, alethical/api/routers/site_metrics.py, alethical/db/models.py, alethical/alembic/versions/0038_site_metric_event.py, apps/frontend/src/components/TrafficAnalytics.tsx, apps/frontend/src/components/TrafficAnalytics.web.tsx, apps/frontend/src/lib/traffic.ts, apps/frontend/src/lib/siteMetricEvents.ts, apps/frontend/src/screens/TrafficScreen.tsx, apps/frontend/public/index.html, apps/frontend/scripts/check-traffic-production-env.mjs, apps/frontend/scripts/traffic-token-expiry.mjs, .github/workflows/traffic-token-expiry.yml, scripts/report_page_speed_by_address.py, apps/frontend/scripts/report-page-load-beacons.mjs -->
 
-The public `/site-metrics` page combines 6 independent sources:
+The public `/site-metrics` page combines 7 independent sources:
 
 - Vercel Web Analytics shows estimated visitors, page views, destinations, and profile breadth for 24 hours, 7 days, or 30 days;
-- Alethical's own records show fixed action totals, registered readers, and bill watches;
-- Google Search Console shows sitewide appearances and visits for 30 finalized days;
+- Alethical's own records show recorded actions, first signed-in use, and bill and committee follows;
+- Supabase shows surviving accounts created, including confirmed and pending sign-ups;
+- Google Search Console shows sitewide appearances and clicks for 30 finalized days;
 - Bing Webmaster Tools shows the same 2 sitewide search totals;
 - Checkly shows 30-day availability for the home page and data service; and
 - Cloudflare Web Analytics shows 30-day page-speed scores from real Chromium visits.
 
 The public totals are the same for signed-in and signed-out readers. The About menu links
-to the page. Signed-in team accounts also see links to the 5 private vendor dashboards;
-each vendor still requires its own sign-in.
+to `/site-metrics`. Accounts classified as team or test accounts also see links to the 5
+private vendor dashboards; each vendor still requires its own sign-in. That classification
+does not grant access to `/admin/site-metrics`.
 
 Each source has its own server route and page state. A Google problem hides only Google.
 A Checkly problem cannot erase Vercel visits. The browser keeps the last good answer from
@@ -27,46 +31,111 @@ A page view is 1 page load. Opening several pages creates several views. Opening
 reloading `/site-metrics` creates a view too. Refreshing only the numbers does not.
 
 Vercel counts without an analytics cookie and removes traffic it identifies as automated.
-Destination percentages are shares of page views, not people. Profile breadth is capped at
-`100+` when Vercel cannot list more distinct paths.
+Destination percentages are shares of page views, not people. Every Vercel query explicitly
+selects the production environment. This prevents preview visits from entering the report;
+it is not evidence that earlier totals included preview visits. Destination totals come from
+separate category queries, not just the first 100 paths. Profile breadth adds `+` when Vercel returns its maximum 100 paths, since that does not
+prove the list is complete. Alias grouping can leave fewer than 100 distinct committees
+in that capped list; the printed count is then still a lower bound.
 
-Every period trails backward from the most recent completed UTC hour. The page shows that
+The money destinations separate these exact addresses: `/money` (Money home),
+`/money/search` (Money search), `/money/races` (Money by race), `/money/committees` (Committee
+list), `/money/payments` (Payments by name), and `/money/outside-spending` (Outside spending).
+Committee money pages include `/money/committees/*`, covering profiles and their payments
+pages. Other money pages is the remaining `/money` traffic after these non-overlapping
+groups. The main `/money` row is not also a subtotal of those rows.
+
+Money committees in What people explore counts committee profile and payment-page views.
+Distinct committee counts combine address aliases with the same trailing registration
+number. A capped distinct count is a lower bound, not a complete inventory. Legislator
+money tabs share a legislator address; removing query text means Vercel cannot distinguish
+those tabs from other legislator-page visits. Money totals therefore do not capture every
+financial-information view. Ask remains a visible destination for the existing `/ask` route.
+
+Vercel's periods trail backward from the most recent completed UTC hour. The page shows that
 ending hour in Minnesota's time zone, labeled `CT`. The 3 windows contain 24, 168, and 720
-complete hours. The page fetches a new combined result about every 5 minutes. While fewer
-than 30 days have been collected, it names the counting start date.
+complete hours. Recorded actions and surviving-account creation use 7-day and 30-day windows
+ending at the last complete UTC hour, with equally long preceding windows. Current account
+and follow inventories are counts at the time read, not creations in that range. Cloudflare
+uses 30 complete UTC days; Google and Bing have their own finalized day windows; Checkly
+reports its own rolling 30-day availability. Source date labels must stay separate.
 
 ## Privacy boundary
 
 The browser removes everything after `?` or `#` before sending a page address to Vercel.
-Alethical stores only 4 fixed action names: a bill search with results, a legislator search
-with results, a successful Find My Legislator lookup, and an official Minnesota source link
-opened. Each record has only that fixed name and its time. It never contains search words,
-page paths, addresses, districts, account identifiers, referrers, or other details. New bill
-watches come from the existing bill-watch record instead of a second event.
+Alethical stores 5 fixed action names: a bill search with results, a legislator search with
+results, a money search with results, a successful Find My Legislator lookup, and an official
+Minnesota source link opened. Each event row has only that fixed name and its time. It has
+no search words, page paths, addresses, districts, account identifiers, or referrers. A request
+may also carry a random per-action UUID retry key, stored separately to prevent duplicate
+delivery from adding another action. The key does not identify a visitor or link visits.
 
-Analytics waits until sign-in has been checked. A signed-in account identifier goes only
-to Alethical's private decision route (`/api/traffic-collection`). That route compares the
-identifier with the server-only team list. It returns only whether collection may begin.
-If that private check fails, collection stays off for the signed-in visit. Vercel never
-receives the account identifier.
+Analytics waits until sign-in is resolved. The browser sends the current bearer sign-in token
+to `GET /api/v1/site-metrics/collection`, not a user identifier in a request body. The server
+checks the shared team-and-test classification. The browser applies that answer only to the
+exact account and token that requested it, and checks permission before each Vercel event
+leaves. An account or token change invalidates previous permission immediately. An unresolved
+identity or failed permission check keeps signed-in Vercel collection off. Vercel never
+receives the account identifier. `/admin` and its child addresses are excluded from Vercel
+page-use and anonymous action collection at event time. The older `/api/traffic-collection`
+route returns a private, fixed 410 response. It never reads a caller-supplied account
+identifier or reveals exclusion-list membership; older clients must reload.
 
-Google and Bing return only combined 30-day appearances and visits. The public routes do
+Google and Bing return only combined 30-day appearances and clicks. The public routes do
 not request or return search phrases, page addresses, countries, devices, or positions.
 Google uses a read-only machine account that is separate from a reader's Google sign-in.
 
-Checkly opens only 3 public Alethical addresses from North Virginia. Cloudflare receives
+Checkly opens public Alethical addresses, not reader accounts. Cloudflare receives
 page-speed measurements, page paths without the question text after `?`, referrers, broad
 place and browser facts, and some element or resource details. Alethical publishes none of
-those details. It publishes only sitewide speed scores after at least 50 measured visits.
+those details. It publishes only sitewide speed scores after at least 50 actual measurements
+for each score. These cover document loads, including reloads and restored pages, with known
+bots excluded. Account exclusions do not apply to Cloudflare; team visits may remain. This
+is not a claim that all automated visits can be identified.
 Cloudflare Web Analytics uses no cookies, local storage, or fingerprinting.
 
-The team list uses stable Supabase account identifiers, not email addresses. Save the same
-comma-separated identifiers in Vercel and Railway as `TRAFFIC_EXCLUDED_ACCOUNT_IDS` only
-after each one is confirmed. The live list contains 3 of the 4 team accounts; append the 4th
-identifier after it is confirmed. Vercel stops collecting signed-in page loads for accounts
-on the list, and Railway discards their signed-in actions before storage and removes their
-readers and watches from its totals. Anonymous history collected before an identifier is
-saved cannot be cleaned later. Reader and watch history can be recalculated after it is saved.
+The shared backend classifier recognizes 6 known team mailboxes, their supported aliases,
+configured account identifiers, and test mail domains. Aliases include plus tags and Gmail
+dot and googlemail variations. Excluding 1 linked identity excludes the whole linked account.
+The 6-mailbox exclusion list is broader than the 4 exact administrator mailboxes. Neither
+an alias nor exclusion status grants administrator access. `TRAFFIC_EXCLUDED_ACCOUNT_IDS`,
+`ALETHICAL_TEST_ACCOUNT_IDS`, and `ALETHICAL_ADMIN_ACCOUNT_IDS` also contribute to exclusions.
+Current reader and follow inventories can be recalculated when classification changes.
+Anonymous history cannot be traced back to remove an account's earlier activity.
+
+## Accounts and recorded history
+
+Accounts created comes from surviving Supabase sign-up records, including pending email
+confirmation. Deleted, deactivated, banned, anonymous, team, and test accounts are excluded.
+Linked sign-in records count as 1 account, dated by their earliest included creation record.
+Deleted accounts are not included, so past creation totals can decrease. This is not a
+lifetime total of every sign-up attempt.
+
+Accounts first used counts first signed-in use, not sign-ups. First signed-in use and newly
+created bill and committee follows add anonymous hourly counts in the same transaction as
+the new record. Repeated saves and adding another sign-in method do not add a new creation.
+Unfollowing or closing an account changes the current inventory, not these anonymous counts.
+Re-following after removal creates a new follow record and can add another creation.
+Money activity includes successful money searches, new committee follows, and official
+source clicks, including Campaign Finance Board links. Current committee-follow totals,
+distinct followed committees, and readers following committees describe current records,
+not past creations. No action records store payment amounts or individual interests.
+
+Each action and creation measure has its own recording start and coverage flags. Older
+history is not invented from surviving rows. No newly introduced history says `Not recorded yet`; a partly
+covered current window says `Partial range`. An incomplete previous window is unavailable,
+not `0`. A fully covered window with no matching records is a real zero. These separate
+populations do not establish conversion, retention, revenue, or cross-visit behavior.
+The original 4 action totals retain existing rows. Their coverage date marks tracking
+of the current counting rules, not the first historical action; earlier rows can use older
+rules and cannot be selectively corrected. Both public and private readers must be able
+to distinguish incomplete measurement history from a complete zero.
+
+Search actions count settled results for the current search, not stale placeholder results.
+Legislator results must remain after the displayed chamber and party filters. The same
+normalized query and filter combination counts at most once while that search screen remains
+mounted. A new filter combination with results can count again; reopening the screen can
+count again. These are recorded successful search states, not unique people.
 
 ## Public and private routes
 
@@ -81,13 +150,33 @@ of the last complete hour, the counting start time, and whether team exclusion i
 A valid zero is shown as `0`. A missing or invalid answer is shown as unavailable, never as
 zero.
 
-`/api/traffic-collection` accepts a signed-in account identifier and returns 1 yes-or-no
-collection decision. Its answer is never stored in a public setting.
+`GET /api/v1/site-metrics/collection` requires a valid bearer token and returns only
+`collect`, `teamAccount`, and `teamExclusionConfigured`. The response is private and not cached.
+Here `teamAccount` means team-or-test exclusion, not administrator access.
 
-`/api/v1/site-metrics/events` accepts only the 4 fixed action names. Extra or unknown fields
-are refused. If the signed-in reader is on the team list, the route returns success without
-storing an event. `/api/v1/site-metrics` returns 7-day and 30-day action totals plus current
-reader and watch totals. It never returns event rows or account identifiers.
+`/api/v1/site-metrics/events` accepts only the 5 fixed action names and an optional UUID v4
+`eventId`. Extra or unknown fields are refused. The browser retries a transient failure at
+most once with the same key and original token; clients without a key send once. Duplicate
+keys are ignored for 24 hours. Expired receipt rows are cleared when another action request
+arrives, so this is a duplicate-protection window, not an exact deletion deadline. Excluded
+signed-in accounts return success without storing an event.
+
+`/api/v1/site-metrics?version=2` returns current inventories, anonymous creation and action totals,
+prior-period comparisons, and per-measure coverage. `/api/v1/site-metrics/accounts` returns
+surviving-account creation totals directly from Supabase. Neither public route returns
+event rows, account identifiers, or email addresses. The unversioned activity route keeps
+the previous response shape while older browser sessions finish, so releasing the backend
+before the expanded frontend does not invalidate their working counts.
+
+`/admin/site-metrics` shows Leadership metrics from `GET /api/v1/admin/site-metrics`.
+The server requires an explicitly allowed account identifier, 1 of the 4 exact confirmed
+administrator mailboxes, and a currently eligible account. This report shows combined counts
+only. Account growth, activity, and operating records can fail independently; unavailable
+sources never become zero. Sign-out, account changes, and token changes remove the previous
+private answer. The private answer is not cached or saved in browser storage. Current corpus
+counts span stored sessions. Source-check times are separate from source-publication and
+fetch dates. Failure counts cover recorded failures, and cost figures cover logged estimates
+for 30 complete UTC days, not every error or expense.
 
 `/api/traffic-google?window=30` reads Pacific calendar days from Google, removes every day
 Google marks incomplete, waits 3 days for final data, and returns the latest 30 finalized
@@ -98,17 +187,25 @@ read-only service-account token, so no permanent Google private key is stored.
 the same 2 finalized windows. It uses Bing's JSON service. The older SOAP and XML services
 retire on 31 August 2026; this route does not use them.
 
-`/api/traffic-uptime` reads 30-day availability from 3 Checkly URL monitors. The public page
-shows the home page and data service; Checkly continues checking the Site metrics page without
-using that page's own availability as a public measure of whether people can reach Alethical.
-Each monitor runs from North Virginia every 2 minutes. A missing or invalid percentage makes
-only this route unavailable. It never returns monitor addresses, run logs, check identifiers,
-the Checkly account identifier, or the key.
+`/api/traffic-uptime` reads Checkly's public status dashboard for the website and data-service
+URL monitors. It uses Checkly's reported 30-day success ratios, not the latest passing flag
+or an average of rounded run buckets. The dashboard must be public, belong to the configured
+Checkly account, and contain the 2 distinct configured monitors. Each monitor must be active,
+have a valid percentage and dates, and have an update no more than 15 minutes old. Missing
+or invalid data hides only that monitor's percentage. If neither is available, the route is
+unavailable. No private Checkly API key or Site metrics monitor is needed. The route does not
+return monitor addresses, run logs, check identifiers, or the Checkly account identifier.
 
 `/api/traffic-performance` reads Cloudflare's sitewide Core Web Vitals for
-`www.alethical.com`. It publishes only the slowest 1 in 4 result for main-content paint,
-click response, and unexpected movement, plus the number of samples and date range. A score
-stays hidden until 50 measured visits exist. The Cloudflare token stays on the server.
+`www.alethical.com`. It publishes the score at which 3 in 4 measurements are no worse (the
+75th percentile) for main-content paint,
+click response, and unexpected movement, plus each score's sample count and date range. It
+uses the last 30 complete UTC days, known-bot exclusion, and document navigation types
+`navigate`, `reload`, `back-forward`, `restore`, and `prerender`. Soft navigation is excluded;
+cache and prefetch deliveries are included. Each score stays hidden until its own actual
+sample count is at least 50. These counts come from Cloudflare's confidence `sampleSize`
+fields, not weighted totals divided by an average sampling interval. An invalid or missing
+count cannot produce a published score. The Cloudflare token stays on the server.
 Because the website is served directly by Vercel, `apps/frontend/public/index.html` loads
 Cloudflare's public browser beacon with the public site token. The private account-read token
 never reaches the browser. The beacon is loaded `async` so it can never hold up the app: the
@@ -116,35 +213,37 @@ page lists it before the app's own files, and without `async` a module script wa
 in that list. It still reports page speed, because it sends that report on the page's load
 event rather than on its own position.
 
-A sitewide score cannot be checked against a limit written for one page, because a fast
-page and a slow one average into a figure true of neither.
+A sitewide score cannot prove that a particular page meets its own limit. It combines
+measurements from different pages; a percentile is not an average of their individual scores.
 [`scripts/report_page_speed_by_address.py`](../../scripts/report_page_speed_by_address.py)
 asks Cloudflare the same question one address at a time, for the money pages first, and
 prints the answer to whoever ran it. It reads the same 2 server settings, loads nothing
 into anyone's browser, and publishes nothing.
 
-Two things it does that the sitewide route does not, and both change what a figure means.
-It reads first page loads only, because Cloudflare's records for an address change without a
-page fetch are dominated by the program's own start-up rewriting the address it already has,
-timed from the original page load, while the record a real click opens carries no figure at
-all. And it counts real measurements rather than Cloudflare's reported totals: those totals
-are the raw count multiplied by the sampling interval, so a percentile resting on 4
-measurements can arrive labelled 60. Its default window is 7 days for the same reason, since
-Cloudflare keeps that period unsampled.
+The per-address report uses the same document-load population and actual confidence sample
+counts as the sitewide route. Its default is 30 complete UTC days, excluding today; `--days`
+can select another positive window. Its main-content and layout scores each require their
+own 50 actual measurements. `--min-measurements` can raise that floor, not lower it. Missing
+or invalid sample counts stay unavailable. Weighted totals divided by an average sampling
+interval are not exact sample counts and must not be substituted. Historical ranges starting
+before September 4, 2026 carry a warning that older document-load records may include soft
+navigation. The JSON result names this population `documentLoads`, not `firstLoad`.
 
-It also prints, with `--what-moved`, which element real visitors' browsers blamed for the
-layout movement. Cloudflare records that, so what is moving is answerable on the readers who
-produced the figure rather than in a lab: on 4 Sep 2026, 7,857 real first-load measurements
-blamed `#root>div.page-snapshot`, the server-written snapshot's own container. An element name
-is a fact about our page rather than about the person who opened it, which is why it is read
-while country, device, browser, resource and referrer stay out of every request the tool makes.
+With `--what-moved`, the report also lists up to 6 elements associated with layout movement,
+using the same document-load population and each element's actual layout sample count.
+An element's score stays hidden below 50 measurements. Cloudflare orders these elements by
+estimated measurement volume, not movement size. The report does not turn Cloudflare's
+separate poor-score category into a count above Alethical's release limit. An element name
+is a fact about the page rather than the person who opened it; country, device, browser,
+resource, and referrer stay out of the report's requests.
 
-One thing this makes plain about the sitewide figures on the public page too. The beacon's
-main-content element on a first load is the server-written snapshot's text, so both the
-sitewide score and the per-address ones say when the snapshot appeared rather than when the
-app drew. `apps/frontend/scripts/report-page-load-beacons.mjs` reads the beacon's own
-payloads and shows this, and `docs/research/real-visitor-page-speed-sources.md` records how
-it was found.
+Main-content paint measures the browser's largest content element, not when the app is
+ready. In 3 browser runs on September 4, 2026 that element was the server-written snapshot;
+this does not establish every reader's largest element. The browser report
+[`report-page-load-beacons.mjs`](../../apps/frontend/scripts/report-page-load-beacons.mjs)
+reads the beacon payloads, and
+[`real-visitor-page-speed-sources.md`](../research/real-visitor-page-speed-sources.md)
+records those observations.
 
 Publishing is the line, not measuring. The Privacy Policy tells readers that Alethical
 publishes only sitewide speed scores, so a per-address breakdown on the public page would
@@ -160,9 +259,11 @@ The server settings are:
 - `VERCEL_ANALYTICS_PROJECT_ID`: the Vercel website identifier;
 - `VERCEL_ANALYTICS_TEAM_ID`: the Vercel team identifier;
 - `TRAFFIC_COUNTING_STARTED_AT`: the exact UTC time counting was switched on;
-- `TRAFFIC_EXCLUDED_ACCOUNT_IDS`: comma-separated stable Supabase account identifiers,
-  required in Vercel and Railway and currently holding 3 of the 4 confirmed team accounts; and
-- `EXPO_PUBLIC_CHECKLY_STATUS_URL`: Checkly's public availability-detail address.
+- `TRAFFIC_EXCLUDED_ACCOUNT_IDS`: additional comma-separated Supabase account identifiers
+  for the backend classifier; the 6 known mailboxes and test-domain rules do not depend on
+  this setting. Browser collection uses the authenticated backend decision; and
+- `EXPO_PUBLIC_CHECKLY_STATUS_URL`: the HTTPS public dashboard address on
+  `<name>.checkly-dashboards.com`.
 
 Google Search Console settings:
 
@@ -179,13 +280,13 @@ Bing Webmaster Tools settings:
 
 Checkly settings:
 
-- `CHECKLY_API_KEY`, sensitive;
-- `CHECKLY_ACCOUNT_ID`;
-- `CHECKLY_WEB_CHECK_ID`;
-- `CHECKLY_TRAFFIC_CHECK_ID`; and
+- `CHECKLY_ACCOUNT_ID`, required to match the public dashboard's owner;
+- `CHECKLY_WEB_CHECK_ID`; and
 - `CHECKLY_API_READY_CHECK_ID`.
 
-The 3 checks and public dashboard stay on Checkly's free Hobby plan.
+The dashboard address above and these 3 identity settings are required for public
+availability totals. `CHECKLY_API_KEY` and `CHECKLY_TRAFFIC_CHECK_ID` are not required by the
+public metrics build. A separate Site metrics check may continue operating independently.
 
 Cloudflare settings:
 
@@ -216,8 +317,23 @@ as a sensitive Production setting. It must never be sent to the browser or writt
 - Independent source failure: only that company's block says unavailable.
 - Stale: the last good answer stays visible with a note that a newer reading has not arrived.
 - Capped: a distinct-profile count says `100+` instead of pretending the source returned every path.
-- Cloudflare building history: each speed score says `Building sample` until 50 measured
-  visits exist.
+- Cloudflare building history: each speed score says `Building sample` until that score has
+  50 actual measurements.
 
 The Privacy Policy names Vercel, Google Search Console, Bing Webmaster Tools, Checkly, and
 Cloudflare Web Analytics, along with what each receives and what Alethical publishes.
+
+## Automatic source checks
+
+[`site-metrics-health.yml`](../../.github/workflows/site-metrics-health.yml) reads all 7 cached
+public answers daily and on demand using [`check_site_metrics_health.py`](../../scripts/check_site_metrics_health.py).
+It checks source freshness, matching period boundaries, Money category completeness,
+independent account totals, and actual per-score sample floors. A genuine zero or a score
+building its sample is valid. Missing or stale sources fail by name without hiding the
+remaining checks. It writes only the GitHub run summary; it creates no test visits,
+actions, accounts, messages, paid model calls, or private-interest records.
+
+The public and private metrics screens share 1 on-demand feature download. Their display
+validators and report-only API readers are not imported by the global analytics collector.
+A code-only shared download grants no private access; the backend still checks every private
+request. The unchanged initial-download limit is 390000 compressed bytes.

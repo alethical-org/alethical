@@ -22,8 +22,12 @@ addresses are resolved by one router (`apps/frontend/src/navigation/webRoutes.ts
 - **The account control replaces Sign in once you are in**: an avatar with your first name on a
   desktop-width browser, an avatar that opens a sheet on a phone. It holds a **Tracked Bills**
   row, with the count of bills you track, leading to `/tracked`, and **Sign out**.
-  Approved administrators also see **Admin**, leading to `/admin/users`, after
-  the server grants access. See [How private account visibility works](admin-users-guide.md).
+  Approved administrators also see **Admin**, leading to `/admin/users`, and
+  **Leadership metrics**, leading to `/admin/site-metrics`, after the server grants access.
+  The private report contains combined measurements, not a reader activity list. Being
+  excluded from traffic counts does not grant administrator access. See
+  [How private account visibility works](admin-users-guide.md) and
+  [How Site Metrics works](traffic-guide.md).
 
 ## The greyed "ON THE ROADMAP" group
 
