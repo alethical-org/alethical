@@ -1,0 +1,74 @@
+# Recovering Alethical after a database or source-file failure
+
+<!-- describes: alethical/pipeline/raw_file_mirror.py, scripts/mirror_raw_files.py, railway.json -->
+
+Net: A current second copy is protection against losing a source file. A timed restore is the proof that the database, saved sources, settings, and job state can work together again. These are separate checks.
+
+## Safety boundaries
+
+- Restore into a newly created, isolated database. Never restore over production or another task's database.
+- Keep private database backups, restored rows, logs, and source samples inside an encrypted temporary volume or disk image. Restrict directories to the operator and files to that operator's read/write access (`0700` and `0600`). A private directory alone does not provide disk encryption. Never put backup files, reader rows, tokens, passwords, or callback addresses into Git, a report, or an issue.
+- Require an authenticated, restricted connection to the disposable database. Prefer a private Unix socket with TCP disabled, socket access restricted to the operator, and an explicit operating-system-user to database-role mapping. Reject other users; accepting any connection from localhost is insufficient.
+- Keep mail delivery, paid generation, and background workers disabled. Reading a restored record does not authorize sending its queued messages or replaying its jobs.
+- Reserve source-database reads with the active ingestion owner. Use 1 dump connection and a short lock-wait limit; do not stop another task or change production settings to make a drill faster.
+- Set absolute stop times for the export and local work, leaving time for cleanup. Every retry shares the original stop time and needs renewed resource clearance. Enforce the cutoff outside the task's child process group so a blocked query or application thread cannot silently extend the reservation; never stop processes by a shared name.
+- Record the exact backup timestamp, source revision, schema version, and result. A fresh logical dump proves that dump's recovery path. It does not prove Supabase's automatic backups, their retention, or recovery during a complete Supabase outage.
+
+## Source files: current presence and bounded hash proof
+
+The daily mirror lists both Supabase Storage and Cloudflare R2. Every object in either store is part of the check, including objects no production database row names. Every database row naming a stored body is also part of the check, so a missing primary object cannot silently disappear from the work list.
+
+A missing Cloudflare copy is uploaded from the primary only after the primary bytes match any recorded hash. Both copies are read back for new or repaired objects. Observed size or hash conflicts fail without writing either copy. A missing primary fails and preserves any second copy for recovery.
+
+A saved `mirrored_at` value means the last successful hash proof. It never substitutes for current presence. Each daily run renews confirmations older than 7 days, oldest first, within 256 MiB of combined old-object reads across both stores. Objects too large for the remaining budget are deferred visibly. This is a read budget, not a promise that every hash is renewed within 7 days. Unrecorded objects have no saved confirmation time, so their routine hash checks are spread over 28 days by their object key, with the first key rotating on each cycle to avoid repeatedly deferring the same tail. A full audit includes them all.
+
+At the maximum daily old-object budget, 31 runs read at most 7.75 GiB combined, including at most 3.875 GiB from Supabase. New and missing objects are additional, as in the existing copy job. Review remaining included service allowances before increasing the budget; no paid AI is involved. The report distinguishes current presence, hashes read during this run, and hashes deferred by the budget.
+
+### Read without changing anything
+
+The commands use the existing scoped database and storage settings. They print object identities and aggregate results, never document contents. Run from an isolated worktree with the required environment already loaded privately.
+
+```bash
+# Presence and size inventory, with no object reads or writes.
+PYTHONPATH=. uv run python scripts/mirror_raw_files.py --target production --dry-run
+
+# Read-only hash audit, capped at 16 MiB across both stores.
+PYTHONPATH=. uv run python scripts/mirror_raw_files.py --target production --audit --verify-all --verify-max-mib 16
+
+# Full audit after reserving the download window and sizing both stores.
+PYTHONPATH=. uv run python scripts/mirror_raw_files.py --target production --audit --verify-all --verify-max-mib 4096
+```
+
+The audit uses a read-only database transaction and never calls the upload method. With `--verify-all`, any deferred hash makes the command exit with failure: a small sample must never look like a complete audit. Increase the budget only after counting the total bytes. All temporary file contents are removed after each comparison, including failed reads.
+
+### Repair a missing second copy
+
+```bash
+PYTHONPATH=. uv run python scripts/mirror_raw_files.py --target production
+```
+
+Reserve any production repair window first. The mirror adds missing copies and records successful proof; it never deletes an object or deliberately overwrites an observed conflict. The inherited upload checks for absence before uploading, rather than using an atomic create-only write. A concurrent writer can race that check, so this is not a guarantee against concurrent overwrites. If a primary object is missing, preserve Cloudflare's copy, compare its bytes with the database's recorded hash, and restore the exact named object through a separately reviewed recovery step. A changed object needs investigation, not an overwrite that destroys the remaining evidence.
+
+## Database restoration drill
+
+1. Read the actual backup inventory in Supabase. Record the listed completed backup times, retention settings, and whether point-in-time recovery is enabled. Describe a time as successfully restored only after exercising that backup. Do not infer account settings from a pricing page.
+2. Record the database's schema revision and size, active jobs, and active connections without printing record contents. Choose a consistent completed backup. If only a fresh logical export is available, label that limit explicitly.
+3. Prepare the encrypted temporary destination and disposable PostgreSQL instance with the access controls above. Put its database files, backup archive, logs, and recovered source samples inside that destination. Record its empty state and prove that the intended operator can connect while other users and TCP connections are rejected. Install the PostgreSQL and vector-extension versions the backup requires. Inspect the archive's required role references and create any local Supabase system-role placeholders with `NOLOGIN` before restoring. Local placeholders do not recreate production role attributes, memberships, or ownership.
+4. Restore schema and data from the chosen backup. Time these separately from the search-index build. For archive SQL inspection or streaming, give `pg_restore` an explicit output destination (`--file=-` for a private process pipe); keep the SQL in memory or inside the encrypted destination. A successful command alone is not the end of the drill.
+5. Compare table counts and schema state against the same backup snapshot. Check constraints, representative bill records, source links, saved account relationships, and a real search query. Compare each unvalidated constraint's exact table, name, definition, and validation state against the archive: a preserved `NOT VALID` declaration is distinct from unexpected restore drift. Preserve any original failed check and record that reconciliation separately; matching the archive does not prove old rows satisfy an unvalidated constraint. Test sign-in only with a designated test account in the isolated environment. Do not print private rows.
+6. Read stored source bytes from the recovered manifest, check their hashes, and show how the restored record reaches them. Source buckets are separate from Supabase database backups.
+7. Keep the restored queue stopped. Saved job arguments can contain production database addresses and independently selected production targets, so pointing the queue itself at a local database does not isolate its jobs. Inspect only aggregate status, then use newly constructed local examples with fake providers to test restart behavior in a separate synthetic test database. An older backup can predate a completed paid call, so quarantine uncertain work and reconcile external completion records before enabling workers; restoration cannot promise that old jobs will run exactly once. Mail and paid calls remain disabled throughout the drill.
+8. Rebuild API and web services from the recorded reviewed revision, restore settings without copying secret values into notes, and test the alternate hostname before any real traffic switch. Coordinate live DNS or hosting changes separately.
+9. Record hours of possible data loss, total recovery time, search-index time, missing pieces, and the exact remaining prerequisite. Save only sanitized aggregate evidence outside the encrypted destination. Stop the task-owned PostgreSQL instance, unmount the encrypted volume, and remove the exact task-owned image and empty mount directory after the proof. Keep the shared-machine reservation open through cleanup. If a failed attempt must remain for a retry, retain it encrypted and record that limit explicitly. Repeat after material changes to storage or recovery machinery.
+
+## Completion record
+
+A complete drill records the source backup time, restore start and finish, search-index finish, compared counts and hashes, exercised reader paths, safe job-restart result, and operator. A second operator should be able to follow this procedure from the recorded inputs.
+
+Record compressed-file integrity separately from complete decompression and decoded-content checks. If an expanded source crosses the drill's size limit, stop and retain that precise coverage limit. A source sample is not a complete audit of every stored object. Measurements on a shared development machine are observed local timings, not a controlled benchmark or a full-site outage estimate.
+
+The acceptable loss and outage limits, plus any investment in another region, remain decisions made from measured results. An additional replica by itself does not prove database recovery.
+
+The full drill is tracked in [issue 802](https://github.com/alethical-org/alethical/issues/802). Exact Supabase backup retention is tracked in [issue 1047](https://github.com/alethical-org/alethical/issues/1047). [deployment.md](deployment.md) owns ordinary release and traffic recovery; [repo-and-service-settings.md](repo-and-service-settings.md) owns hosted settings.
+
+The current drill records its production census and private restore measurements separately. Publish only sanitized completion outcomes after confirming the intended destination.

@@ -24,13 +24,13 @@ downloads of dated Minnesota files with no second copy — and those 9 are exact
 unrepeatable as the 3, because the Board has already replaced the files they came
 from.
 
-**What a run costs after the first one: one HEAD request per object, and no bytes.**
-An object whose row already records a confirmed copy is skipped outright, and an
-object with no row is skipped once its copy is present at the same size. That keeps
-a daily run flat as the store grows past the 7 to 10 GB a year §4.5 projects,
-instead of re-reading the whole store every night. Re-proving the *whole* store, and
-proving a restore actually works, is
-`#802 <https://github.com/alethical-org/alethical/issues/802>`_, not this job.
+**Each run checks both current inventories.** A saved confirmation time never
+substitutes for the second store still holding the object. Missing second copies
+are repaired from hash-checked primary bytes; missing primary files and conflicting
+bytes fail without overwriting either copy. Older confirmations are renewed in
+oldest-first order within a bounded read budget. An audit uses the same checks
+without uploading objects or updating rows. A full restore remains a separate
+exercise in ``docs/operations/recovery.md``.
 
 **Which tables hold a stored body is read out of the schema, never listed here
 (#1501).** This job was written for ``cf_snapshot_body`` and named it directly, and
@@ -53,7 +53,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Callable
 
 from sqlalchemy import select
@@ -125,6 +125,8 @@ class MirrorReport:
     # the module docstring — but a number worth surfacing, because it is the gap
     # between what the store holds and what the database can vouch for.
     unrecorded_keys: list[str] = field(default_factory=list)
+    verification_deferred: int = 0
+    verification_bytes: int = 0
 
     def of(self, action: str) -> list[ObjectOutcome]:
         return [outcome for outcome in self.outcomes if outcome.action == action]
@@ -144,47 +146,151 @@ def mirror_raw_files(
     mirror: Any,
     directory: str,
     log: Callable[[str], None] = print,
+    *,
+    audit_only: bool = False,
+    verify_all: bool = False,
+    verify_max_bytes: int = 256 * 1024 * 1024,
+    now: datetime | None = None,
 ) -> MirrorReport:
-    """Copy anything in ``source`` that is not already proven present in ``mirror``.
+    """Check current copies, repair missing mirrors, and renew old hash proofs.
 
-    One object's failure never stops the others: a store that quietly stops copying
-    is worse than no store at all, because it is trusted. Every failure is collected
-    and the caller exits non-zero on them.
+    ``verify_max_bytes`` bounds combined reads of old objects from both stores.
+    New or repaired copies retain the existing complete upload/read-back contract.
+    ``audit_only`` never changes a store or database row. ``verify_all`` requests
+    every object's hashes; deferred work remains explicit in the returned report.
     """
+    if verify_max_bytes < 0:
+        raise ValueError("verify_max_bytes must not be negative")
+    now = now or datetime.now(timezone.utc)
     bodies = rows_by_object_key(db)
     objects = source.list_objects()
+    mirrored = mirror.list_objects()
     report = MirrorReport(
         unrecorded_keys=sorted(key for key in objects if key not in bodies)
     )
     log(
         f"{len(objects)} object(s) in the source store, "
-        f"{len(objects) - len(report.unrecorded_keys)} named by a row in this database, "
+        f"{len(mirrored)} in the second store, "
+        f"{len(bodies)} named by a row in this database, "
         f"across {len(body_tables())} table(s) that hold a stored body"
     )
+    # Objects without a database row cannot carry a confirmation time. Spread their
+    # routine hash checks over 28 days; explicit full audits always include them.
+    from hashlib import sha256
 
-    for key in sorted(objects):
-        size = objects[key]
+    cutoff = now - timedelta(days=7)
+    candidates = []
+    for key, size in objects.items():
         rows = bodies.get(key, [])
-        if rows and all(row.mirrored_at is not None for row in rows):
-            report.outcomes.append(ObjectOutcome(key, ALREADY_MIRRORED, size))
-            continue
+        oldest = min(
+            (row.mirrored_at for row in rows if row.mirrored_at is not None),
+            default=datetime.min.replace(tzinfo=timezone.utc),
+        )
+        recorded = rows and all(row.mirrored_at is not None for row in rows)
+        unrecorded_due = (
+            not rows
+            and int(sha256(key.encode()).hexdigest(), 16) % 28
+            == now.date().toordinal() % 28
+        )
+        if mirrored.get(key) == size and (
+            verify_all or (rows and (not recorded or oldest < cutoff)) or unrecorded_due
+        ):
+            candidates.append((oldest, key, size))
+    # A cohort gets a different first key on each 28-day cycle, so a small
+    # budget cannot repeatedly favor the same unrecorded prefix forever.
+    unrecorded = sorted(key for _, key, _ in candidates if key not in bodies)
+    if unrecorded:
+        offset = (now.date().toordinal() // 28) % len(unrecorded)
+        unrecorded = unrecorded[offset:] + unrecorded[:offset]
+    order = {key: index for index, key in enumerate(unrecorded)}
+    candidates.sort(key=lambda item: (item[0], order.get(item[1], len(order)), item[1]))
+    selected = set()
+    remaining = verify_max_bytes
+    for _, key, size in candidates:
+        if size * 2 <= remaining:
+            selected.add(key)
+            remaining -= size * 2
+        else:
+            report.verification_deferred += 1
+
+    for key in sorted(set(objects) | set(bodies) | set(mirrored)):
+        size = objects.get(key, 0)
+        rows = bodies.get(key, [])
         try:
-            action = _mirror_one(source, mirror, key, size, rows, directory)
-        except Exception as error:  # noqa: BLE001 - reported, never swallowed
+            if key not in objects:
+                raise RuntimeError(
+                    "A recorded file or second copy is missing from the primary store. "
+                    + (
+                        "A second copy is present; preserve it for recovery."
+                        if key in mirrored
+                        else "No second copy is present either."
+                    )
+                )
+            if key in mirrored and mirrored[key] != size:
+                raise RuntimeError(
+                    "The stores disagree on the byte size: one name is claiming "
+                    "two different files. Refusing to overwrite either copy."
+                )
+            for row in rows:
+                expected_size = getattr(row, "compressed_byte_size", None)
+                if expected_size is not None and expected_size != size:
+                    raise RuntimeError(
+                        "The primary byte size disagrees with the database. "
+                        "Refusing to overwrite either copy."
+                    )
+            recorded = rows and all(row.mirrored_at is not None for row in rows)
+            if audit_only:
+                if key not in mirrored:
+                    raise RuntimeError(
+                        "The second copy is missing; audit writes nothing."
+                    )
+                if key in selected:
+                    _verify_existing(source, mirror, key, rows, directory, size)
+                    report.verification_bytes += size * 2
+                    action = CONFIRMED
+                else:
+                    action = ALREADY_PRESENT
+            elif key in selected:
+                _verify_existing(source, mirror, key, rows, directory, size)
+                report.verification_bytes += size * 2
+                action = CONFIRMED
+            elif key in mirrored:
+                action = ALREADY_MIRRORED if recorded else ALREADY_PRESENT
+            else:
+                action = _mirror_one(source, mirror, key, size, rows, directory)
+        except Exception as error:  # noqa: BLE001 - collected, never hidden
             report.outcomes.append(ObjectOutcome(key, FAILED, size, str(error)))
             log(f"  FAILED {key}: {error}")
             continue
         report.outcomes.append(ObjectOutcome(key, action, size))
-        log(f"  {action} {key} ({size:,} bytes)")
-        if rows and action != ALREADY_PRESENT:
-            # Stamped only after the read-back above, so this column means "read
-            # back out of the second copy and confirmed", never "the upload
-            # returned 200". Committed per object so a later failure cannot undo
-            # copies that genuinely happened.
+        if action in (COPIED, CONFIRMED):
+            log(f"  {action} {key} ({size:,} bytes)")
+        if not audit_only and rows and action in (COPIED, CONFIRMED):
             for row in rows:
-                row.mirrored_at = datetime.now(timezone.utc)
+                row.mirrored_at = now
             db.commit()
     return report
+
+
+def _verify_existing(
+    source, mirror, key: str, rows: list[Any], directory: str, size: int
+) -> None:
+    """Read both copies, compare trusted hashes, and never write to either store."""
+    path = os.path.join(directory, "mirror-audit.tmp")
+    try:
+        source.get(key, path, max_bytes=size)
+        digest = sha256_of_file(path)
+        for row in rows:
+            if row.compressed_hash and digest != row.compressed_hash:
+                raise RuntimeError("The primary file disagrees with its recorded hash.")
+        mirror.get(key, path, max_bytes=size)
+        if sha256_of_file(path) != digest:
+            raise RuntimeError(
+                "The second copy disagrees with the primary file's hash."
+            )
+    finally:
+        if os.path.exists(path):
+            os.remove(path)
 
 
 def _mirror_one(
@@ -217,7 +323,7 @@ def _mirror_one(
 
     path = os.path.join(directory, "mirror-body.tmp")
     try:
-        source.get(key, path)
+        source.get(key, path, max_bytes=size)
         digest = sha256_of_file(path)
         for row in rows:
             # A row may name an object and record no hash for it: cf_filing_snapshot's
@@ -248,9 +354,11 @@ def format_report(report: MirrorReport) -> str:
         f"copied now:        {len(report.of(COPIED)):>4}  "
         f"({report.bytes_copied:,} bytes)",
         f"confirmed now:     {len(report.of(CONFIRMED)):>4}",
-        f"already confirmed: {len(report.of(ALREADY_MIRRORED)):>4}",
+        f"present, earlier hash proof: {len(report.of(ALREADY_MIRRORED)):>4}",
         f"already present:   {len(report.of(ALREADY_PRESENT)):>4}",
         f"failed:            {len(report.failures):>4}",
+        f"bytes in successful old-copy hash checks: {report.verification_bytes:,}",
+        f"hash checks deferred by read budget: {report.verification_deferred}",
     ]
     if report.unrecorded_keys:
         lines.append(

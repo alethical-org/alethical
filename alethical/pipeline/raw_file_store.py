@@ -168,12 +168,24 @@ class RawFileStore:
                 "published that day."
             )
 
-    def get(self, key: str, destination: str) -> None:
-        body = self._client.get_object(Bucket=self.bucket, Key=key)["Body"]
+    def get(self, key: str, destination: str, *, max_bytes: int | None = None) -> None:
+        response = self._client.get_object(Bucket=self.bucket, Key=key)
+        body = response["Body"]
         try:
+            if max_bytes is not None and int(response["ContentLength"]) > max_bytes:
+                raise RuntimeError(
+                    "Object grew beyond its inventory size; read refused."
+                )
+            remaining = int(response["ContentLength"])
             with open(destination, "wb") as handle:
-                for chunk in iter(lambda: body.read(READ_CHUNK_BYTES), b""):
+                while remaining:
+                    chunk = body.read(min(READ_CHUNK_BYTES, remaining))
+                    if not chunk:
+                        raise RuntimeError(
+                            "Object read ended before its declared size."
+                        )
                     handle.write(chunk)
+                    remaining -= len(chunk)
         finally:
             body.close()
 

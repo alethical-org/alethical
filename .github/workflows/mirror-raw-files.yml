@@ -17,14 +17,9 @@ name: Copy stored source files to a second place
 # backups, so no displayed figure disappears. What disappears is the ability to
 # show the source bytes behind a figure and to examine a rejected download.
 #
-# Free, at our sizes and well past them: Cloudflare R2 includes the first 10 GB
-# then charges $0.015 per GB, the whole store is 115 MB today and grows an
-# estimated 7 to 10 GB a year, pulling data back out of R2 costs nothing so a
-# restore is free, and GitHub Actions is free on a public repository.
-#
-# Cheap to repeat: an object already recorded as copied is skipped without moving
-# a byte. Measured 12 August 2026 — the first run copied 115 MB in 88 seconds, and
-# the run straight after it took 2 seconds and moved nothing.
+# Lists both current inventories and renews old hash proofs within a combined
+# 256 MiB read budget. New or missing second copies retain full read-back checks.
+# Source-file recovery and service allowances: docs/operations/recovery.md.
 #
 # Design: docs/architecture/campaign-finance-system-design.md §4.5.
 
@@ -131,7 +126,7 @@ jobs:
         run: |
           title="Stored campaign-finance files are not being copied to a second place"
           report=$(cat mirror-report.txt 2>/dev/null || echo "(the job produced no output — it may have failed before reaching either store)")
-          body=$(printf '**Net:** The exact bytes of at least one Minnesota campaign-finance download now exist in only one place, and nothing backs that place up. Minnesota keeps no archive and replaces each file as it grows, so a file lost here cannot be downloaded again — asking returns a different file, and the source behind any figure we published from it is gone for good.\n\n```\n%s\n```\n\n**What to check first.** If the report names missing settings, add them as repository secrets (Settings, then Secrets and variables, then Actions) and re-run this job. If it says one name is claiming two different files, do NOT delete either — a stored file may be the only record of what Minnesota published that day.\n\n**Run it by hand** from a fresh worktree off `origin/main`. It only ever adds, never deletes, and a second run copies nothing:\n\n```\nALETHICAL_DATABASE_TARGET=production PYTHONPATH=. uv run python scripts/mirror_raw_files.py --target production --dry-run\nALETHICAL_DATABASE_TARGET=production PYTHONPATH=. uv run python scripts/mirror_raw_files.py --target production\n```\n\nBackground: [#1402](https://github.com/alethical-org/alethical/issues/1402). Run: %s. Auto-filed by `.github/workflows/mirror-raw-files.yml`.' "$report" "$RUN_URL")
+          body=$(printf '**Net:** At least one stored source file could not be proven present and intact in both stores, or the check could not finish. Preserve every remaining copy. The report distinguishes missing files, conflicting bytes, and unreadable settings.\n\n```\n%s\n```\n\n**What to check first.** If the report names missing settings, add them as repository secrets (Settings, then Secrets and variables, then Actions) and re-run this job. If it says one name is claiming two different files, do NOT delete either — a stored file may be the only record of what Minnesota published that day.\n\n**Run it by hand** from a fresh worktree off `origin/main`. It adds missing second copies and checks older hashes. Preserve conflicting files; do not overwrite them:\n\n```\nALETHICAL_DATABASE_TARGET=production PYTHONPATH=. uv run python scripts/mirror_raw_files.py --target production --dry-run\nALETHICAL_DATABASE_TARGET=production PYTHONPATH=. uv run python scripts/mirror_raw_files.py --target production\n```\n\nBackground: [#1402](https://github.com/alethical-org/alethical/issues/1402). Run: %s. Auto-filed by `.github/workflows/mirror-raw-files.yml`.' "$report" "$RUN_URL")
           existing=$(gh issue list --state open --search "$title in:title" --json number --jq '.[0].number // empty')
           if [ -n "$existing" ]; then
             gh issue comment "$existing" --body "Still failing as of this run — $RUN_URL"$'\n\n```\n'"$report"$'\n```'

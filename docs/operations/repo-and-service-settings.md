@@ -49,7 +49,7 @@ Enabled 2026-07-28.
 | Required approving reviews | `0` | Sessions can merge low-risk work under the repository release rules. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | Required Code Owner review | **No** | Only 1 current owner has reviewed past work, so requiring this would stop releases. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | Dismiss old approvals after a new push | **No** | A required current branch can change after review without causing a repeat-review loop. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
-| Required status checks | `changes`, `backend`, `frontend` | The 3 jobs in `.github/workflows/ci.yml` cover code and documentation. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
+| Required status checks | `description-checks`, `changes`, `backend`, `frontend` | The 4 jobs in `.github/workflows/pr-description.yml` and `.github/workflows/ci.yml` cover the pull-request description, code, and documentation. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | Strict (branch must be up to date) | **On** | Every merge is tested with current `main`. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | Resolve review conversations | **On** | Open review findings must be answered before merge. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | Enforce for admins | **On** | Owners cannot skip a failed check or the pull-request path. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
@@ -58,7 +58,7 @@ Enabled 2026-07-28.
 
 The required `backend` and `frontend` jobs report `skipped` on unrelated changes, which
 GitHub accepts as satisfied. Keep path filters inside jobs, not on the workflow trigger,
-so all 3 required checks always report.
+so all 4 required checks always report.
 
 ## GitHub Actions secrets
 
@@ -255,6 +255,24 @@ address. It changes no confirmed account and reads no other row.
 Supabase stores passwords with salted bcrypt. The intended product explanation remains in
 [`sign-in-guide.md`](../product-onboarding/sign-in-guide.md); it is not a second settings
 list.
+
+## Database backups
+
+As observed on 2026-09-08, the current Supabase Pro plan advertises 7 days of daily
+physical database backups. The dashboard can still list older backups, so this is
+not a proved maximum time before a deleted row disappears from every backup.
+Recovery to an exact point between daily backups (point-in-time recovery) is not
+currently enabled. A deleted database row can remain in a retained backup until
+that backup expires. This limit is described in
+[user-data-retention-policy.md §6](../product-onboarding/user-data-retention-policy.md#6-what-deletion-should-mean).
+
+Supabase database backups do not contain files stored through its Storage API.
+Those source files need their separate Cloudflare R2 copies. A visible completed
+backup is not a successful restore: follow
+[recovery.md](recovery.md) and record the isolated drill separately.
+Exact backup timestamps and private restoration measurements stay in the private
+recovery evidence. These settings came from the authenticated Supabase dashboard;
+the existing hosted-setting checker does not monitor backup retention.
 
 ## Settings outside this check
 
