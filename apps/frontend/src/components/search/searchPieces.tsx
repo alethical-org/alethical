@@ -74,6 +74,7 @@ export function SearchPageShell({
   onPrivacy,
   onTerms,
   heroEndsWithRule,
+  heroBottomPadding,
 }: {
   hero: ReactNode;
   children: ReactNode;
@@ -92,6 +93,8 @@ export function SearchPageShell({
    * ~84px and the body reads as detached from the tabs it belongs to.
    */
   heroEndsWithRule?: boolean;
+  /** Override the space below this page's heading content without changing other pages. */
+  heroBottomPadding?: number;
 }) {
   const historyScrollProps = useHistoryScrollRestoration();
   // A page that fails to load hands this frame no header band at all, while the
@@ -148,7 +151,13 @@ export function SearchPageShell({
                 }
               }}
             >
-              <Container style={[styles.heroBody, heroEndsWithRule && styles.heroBodyFlush]}>
+              <Container
+                style={[
+                  styles.heroBody,
+                  heroBottomPadding !== undefined && { paddingBottom: heroBottomPadding },
+                  heroEndsWithRule && styles.heroBodyFlush,
+                ]}
+              >
                 {hero}
               </Container>
             </View>
