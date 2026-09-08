@@ -20,7 +20,7 @@ from dataclasses import dataclass
 import re
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import select, tuple_
 from sqlalchemy.orm import Session
 
 from alethical.db.schema import load_schema
@@ -72,23 +72,37 @@ def current_legislature_scope(db: Session) -> LegislatureScope:
     old ``db.scalar(...)`` this replaces would have silently picked whichever row the
     database returned first.
     """
-    current = db.scalars(
-        select(LegislativeSession).where(LegislativeSession.is_current.is_(True))
+    # One query, not two. Every session sharing the current one's number and
+    # jurisdiction comes back together, and the primary is picked out in Python,
+    # because the database and the API live in neighbouring regions and each
+    # separate statement pays that hop whatever it asks for. This runs on the bill
+    # list, the bill page, the legislator pages and the Ask paths, so the trip it
+    # saves is one every reader of those was paying (#2040). The grouping and the
+    # sibling order are the ones the two statements produced; the "exactly one
+    # current session" refusal still fires, on the same count -- a second current
+    # session with a different number widens the outer match and is still counted
+    # and still raises.
+    rows = db.scalars(
+        select(LegislativeSession)
+        .where(
+            tuple_(
+                LegislativeSession.session_number, LegislativeSession.jurisdiction_id
+            ).in_(
+                select(
+                    LegislativeSession.session_number,
+                    LegislativeSession.jurisdiction_id,
+                ).where(LegislativeSession.is_current.is_(True))
+            )
+        )
+        .order_by(LegislativeSession.year_start, LegislativeSession.slug)
     ).all()
+    current = [row for row in rows if row.is_current]
     if len(current) != 1:
         raise RuntimeError(
             f"expected exactly one current legislative session, found {len(current)}"
         )
     primary = current[0]
-    siblings = db.scalars(
-        select(LegislativeSession)
-        .where(
-            LegislativeSession.session_number == primary.session_number,
-            LegislativeSession.jurisdiction_id == primary.jurisdiction_id,
-            LegislativeSession.id != primary.id,
-        )
-        .order_by(LegislativeSession.year_start, LegislativeSession.slug)
-    ).all()
+    siblings = tuple(row for row in rows if row.id != primary.id)
     return LegislatureScope(primary=primary, sessions=(primary, *siblings))
 
 

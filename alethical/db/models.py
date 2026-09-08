@@ -3498,9 +3498,33 @@ def bill_list_stmt(
         []
         if directory
         else [
-            selectinload(Bill.stats),
-            selectinload(Bill.chief_sponsorships).selectinload(Sponsorship.legislator),
-            selectinload(Bill.enrichments),
+            # A bill has exactly 1 stats row (``uselist=False``, and ``bill_id`` is
+            # unique on the table), so these 4 counters ride back as 4 more columns
+            # on the bill read itself and cannot repeat a bill row -- the page's
+            # window count and its limit are unaffected. One cross-region trip
+            # fewer, on every card list (#2040).
+            joinedload(Bill.stats),
+            # The chief author's own row rides back on the sponsorship read rather
+            # than costing a second one. A bill has 1 chief-author sponsorship (the
+            # relationship filters to that role), so the join repeats no sponsorship
+            # row and the payload is the same legislator either way -- it is one
+            # cross-region trip fewer, which is what a 1-row page pays for (#2040).
+            selectinload(Bill.chief_sponsorships).joinedload(Sponsorship.legislator),
+            # Only the stored analysis a card actually draws. ``Bill.enrichments`` is
+            # unfiltered, so it returned every enrichment a bill has -- 2 rows for
+            # 10,159 of the 10,517 enriched bills, averaging 3.6 kB of
+            # ``content_json`` each -- and ``current_bill_summary_enrichment``
+            # (alethical/api/serializers.py) then kept 1 and dropped the rest. Every
+            # reader of this relationship goes through that one picker, and it filters
+            # on exactly these 2 columns, so narrowing the load here serves the
+            # identical row while halving what crosses the region hop: 104 kB became
+            # 67 kB on a 10-bill page, measured on production 8 Sep 2026 (#2040).
+            selectinload(
+                Bill.enrichments.and_(
+                    AIEnrichment.enrichment_type == EnrichmentType.bill_summary,
+                    AIEnrichment.is_current.is_(True),
+                )
+            ),
             # Action feed for the result card's curated latest-action line (one extra
             # round trip; ~2.9 actions/bill average, so a small payload).
             selectinload(Bill.actions),

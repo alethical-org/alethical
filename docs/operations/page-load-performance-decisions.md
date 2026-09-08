@@ -796,6 +796,80 @@ establish the cause first rather than treat it as transfer.
 **Cold, the server is the largest part by far**: 497 ms of a 640 ms request against 78 ms of
 downloading. That is the same cost #2040 is filed against, seen from the browser this time.
 
+## What the bill list's fixed cost turned out to be
+
+**The cost that makes 1 row nearly as expensive as 10 is the number of separate database
+statements, not any one of them.** One card list ran 11, and the API and the database sit in
+neighbouring regions, so each one pays a hop across that gap whatever it asks for
+([`api-cdn-setup.md`](api-cdn-setup.md) records the 2 regions). A page asking for 1 row runs
+the same 11 as a page asking for 10, which is the whole shape the readings above show.
+Measured 8 Sep 2026 by running the real route against production and timing every statement
+it issued.
+
+| What the statement was for | 10 rows | 1 row |
+|---|---:|---:|
+| The sessions of the current Legislature, twice | 69 ms | 65 ms |
+| The bills themselves, with the total | 103 ms | 61 ms |
+| Their chief authors, then those authors' own rows | 71 ms | 63 ms |
+| Their 4 counters | 33 ms | 32 ms |
+| Their stored analysis | 128 ms | 40 ms |
+| Their action history | 62 ms | 33 ms |
+| Their co-author counts | 36 ms | 33 ms |
+| The current version of each signed bill, then its sections | 233 ms | 66 ms |
+| **The whole route** | **861 ms** | **409 ms** |
+
+**These timings are from a laptop, where the hop to the database is about 30 ms, and the API
+is far closer than that.** So the figures say which statements exist and roughly how their
+costs compare, and they never say what a reader waits. The origin reading in the table
+further up is what says that.
+
+**The largest single cost was reading whole bills' text to extract one date, and almost all
+of it was thrown away.** A signed bill's card can print the day the law takes effect, and
+that is resolved from the bill's own sections. All 3 ways of resolving it gate on the
+sections' effective-date *headings* before reading a word of section text: 2 of them need
+every section to carry a heading, and the third needs none of them to. So a bill mixing
+headed and silent sections resolves nothing however its text reads. It was still fetching
+that text. On page 1 of `/bills?sort=progress`, where signed bills sort first, that was
+482 kB of section text crossing the region hop to serve 2 bills' dates, because 8 of the 10
+bills mix the 2 shapes. Corpus-wide, 6,430 kB of the 7,379 kB held by the 146 signed bills
+belongs to that unresolvable shape.
+
+**The second was loading every stored analysis a bill has and keeping 1.** A bill keeps its
+superseded summaries: 10,159 of the 10,517 enriched bills hold 2 rows, averaging 3.6 kB of
+stored document each, and the serializer picks the current one and drops the rest. That was
+104 kB fetched on a 10-bill page to use 67 kB of it.
+
+**What the route runs now is 7 statements**, and none of the 4 changes alters a served
+value:
+
+- The sessions of the current Legislature come back in 1 statement rather than 2.
+- A signed bill's effective date is resolved in 1 statement rather than 2, and that
+  statement fetches text only for the bills whose headings leave a tier open.
+- A bill's 4 counters ride back on the bill read itself, which cannot repeat a bill row
+  because a bill has exactly 1 counters row.
+- The chief author's own row rides back on the read of the sponsorship that names them.
+
+**Proved rather than assumed, because "the output is the same" is the whole claim.** Ten
+request shapes -- both sorts, a keyword search, a status filter, a later page, the slim
+view, the count alone, one session and the whole Legislature -- were run against production
+before and after and returned byte-identical bodies. Separately, all 146 signed bills in the
+corpus were replayed through the old and new effective-date reads and served the identical
+value for every one.
+
+**The round-trip counts are pinned by tests, because no assertion about a served value can
+see them.** Every statement above could be split back into 2 and every response body would
+stay identical. `alethical/tests/test_bill_list_round_trips.py` counts them instead, and
+`alethical/tests/test_bill_effective_dates_sql.py` builds the 3 section shapes in real
+Postgres and requires the unresolvable one to fetch no text at all.
+
+**What is left, and not attempted here.** Three statements remain that could in principle
+fold into others: the action history, the co-author counts and the effective-date read.
+Each fetches many rows per bill, so folding it into the bill read would repeat every bill's
+own columns once per action or per co-author, and whether that trades a hop for more bytes
+than it saves is unmeasured. The cache window is deliberately untouched: bills keep the
+short window so a status cannot go stale, which is a product decision and not a fix for a
+slow read.
+
 ## What an uncached money answer spends its time on
 
 A cache decides how often a reader waits. This decides how long that reader waits when
