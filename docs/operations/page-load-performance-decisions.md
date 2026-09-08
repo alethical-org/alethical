@@ -457,6 +457,50 @@ minutes. Words were the wrong instrument.
   cause will not be a byte count, and the thing that went wrong on 8 September was nobody
   looking rather than nobody knowing where to look.
 
+**Rejected: committing the public settings so a local build has no gap to project.** All 6
+`EXPO_PUBLIC_*` values already ship inside the program every reader downloads, so a committed copy
+exposes nothing new, and it would make a worktree measure exactly what the host measures. It still
+loses. This repository is public, so it would put 2 permanently readable credential-shaped strings
+in it, including a Supabase publishable key, where a secret scanner has to be taught to ignore them
+and a future reader has to be told they are safe. What that buys is only that 2 numbers match, and
+`firstLoadCarriesItsSettings` already asks the built program what it contains rather than trusting
+either number. A real standing risk for a cosmetic gain. Revisit only if the settings ever have to
+be present for a local build to be correct rather than merely to be the same size.
+
+**And the reason nobody could confirm the cause for hours: the build reuses a cached translation of
+each module, so setting a variable and rebuilding produces a byte-identical program.** Two sessions
+each set `EXPO_PUBLIC_API_URL`, measured no change, and concluded the settings were not inlined.
+An empty `TMPDIR` plus `--clear` on the export reproduces the host: the program's content hash
+changes and `api.alethical.com` appears where a cached build had it 0 times. Measured 8 Sep 2026.
+The arithmetic is worth keeping because no one would predict it from the code: 261 raw bytes of
+settings become 1,510 after the optimiser and 542 compressed, since the values are high-entropy
+strings that compress poorly and change what the minifier can fold. Two other candidates were ruled
+out by measurement rather than argument, and both are cheap to re-test: the host's Node 24 against a
+local 22 produces byte-identical output on the same source, and 2 consecutive local builds are
+byte-identical, so it is not build-to-build noise.
+
+**Rejected: committing the public settings so a local build has no gap to project.** All 6
+`EXPO_PUBLIC_*` values already ship inside the program every reader downloads, so a committed copy
+exposes nothing new, and it would make a worktree measure exactly what the host measures. It still
+loses. This repository is public, so it would put 2 permanently readable credential-shaped strings
+in it, including a Supabase publishable key, where a secret scanner has to be taught to ignore them
+and a future reader has to be told they are safe. What that buys is only that 2 numbers match, and
+`firstLoadCarriesItsSettings` already asks the built program what it contains rather than trusting
+either number. A real standing risk for a cosmetic gain. Revisit only if the settings ever have to
+be present for a local build to be correct rather than merely to be the same size.
+
+**And the reason nobody could confirm the cause for hours: the build reuses a cached translation of
+each module, so setting a variable and rebuilding produces a byte-identical program.** Two sessions
+each set `EXPO_PUBLIC_API_URL`, measured no change, and concluded the settings were not inlined.
+An empty `TMPDIR` plus `--clear` on the export reproduces the host: the program's content hash
+changes and `api.alethical.com` appears where a cached build had it 0 times. Measured 8 Sep 2026.
+The arithmetic is worth keeping because no one would predict it from the code: 261 raw bytes of
+settings become 1,510 after the optimiser and 542 compressed, since the values are high-entropy
+strings that compress poorly and change what the minifier can fold. Two other candidates were ruled
+out by measurement rather than argument, and both are cheap to re-test: the host's Node 24 against a
+local 22 produces byte-identical output on the same source, and 2 consecutive local builds are
+byte-identical, so it is not build-to-build noise.
+
 **`lib/auth/signInWorkPending.ts` is the whole design, and it answers 1 question: does this page
 load have sign-in work to do?** It says yes when a session is saved in this browser, when the
 address is a sign-in return, when a request was stashed before a redirect to Google, or when a
