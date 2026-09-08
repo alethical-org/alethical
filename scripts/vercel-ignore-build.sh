@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+#
+# Decide whether Vercel needs to build this commit. Exit 0 skips the build, and
+# any other exit code builds. That is Vercel's convention for an Ignored Build
+# Step and this repository's own records confirm it: every docs-only commit on
+# `main` carries the Vercel status "Canceled by Ignored Build Step".
+#
+# WHY THIS EXISTS. The 1-line command it replaces asked whether the NEWEST COMMIT
+# ALONE touched the website:
+#
+#     git diff --quiet HEAD^ HEAD -- api apps/frontend ...
+#
+# A build carries every commit since the last release, and GitHub's merge queue
+# can advance `main` by several commits in a single push. So on 8 Sep 2026 a
+# documents-only commit (`c8ad2698`) landed in the same push as a website change
+# (`04005cfd`), Vercel built the push's head only, this comparison honestly found
+# nothing but documents, and the website change under it was never built at all.
+# Readers kept the old page for 14 minutes and nothing failed anywhere
+# ([issue 2075](https://github.com/alethical-org/alethical/issues/2075)). Measured
+# across the 399 commits on `main` since 14 Aug 2026, that happened 5 separate
+# times, the longest gap about 14 hours with the whole first `/money` release
+# sitting unbuilt inside it.
+#
+# WHAT IT ASKS INSTEAD. Has anything touched the website since the last commit
+# that actually released. `VERCEL_GIT_PREVIOUS_SHA` is Vercel's own name for that
+# commit: "The git SHA of the last successful deployment for the project and
+# branch", build-time only, and "only exposed when an Ignored Build Step is
+# provided" (Vercel's system environment variables reference, read 8 Sep 2026).
+#
+# THE RULE WHEN IT CANNOT TELL: BUILD. An empty variable, a renamed variable, a
+# first deployment, or a clone too shallow to hold that commit all end in a build.
+# Skipping in any of those cases would turn a 14-minute delay into a permanent
+# one, and an unnecessary build costs build minutes while a missed release costs
+# readers the truth.
+#
+# The paths come from `vercel.json` after `--`, so they are stated once and both
+# this and `scripts/check_production_release_reached_readers.py` read the same
+# list. Neither can drift from the other.
+set -uo pipefail
+
+paths=()
+after_separator=0
+for argument in "$@"; do
+  if [ "$argument" = "--" ]; then
+    after_separator=1
+    continue
+  fi
+  if [ "$after_separator" = 1 ]; then paths+=("$argument"); fi
+done
+
+if [ "${#paths[@]}" -eq 0 ]; then
+  echo "Building: no paths were given after \`--\`, so this cannot tell what a release needs."
+  exit 1
+fi
+
+base="${VERCEL_GIT_PREVIOUS_SHA:-}"
+if [ -z "$base" ]; then
+  echo "Building: VERCEL_GIT_PREVIOUS_SHA is empty, so nothing here can prove a build is unnecessary."
+  exit 1
+fi
+
+held() { git cat-file -e "${base}^{commit}" 2>/dev/null; }
+
+if ! held; then git fetch --no-tags --quiet --depth=250 origin "$base" 2>/dev/null || true; fi
+if ! held; then git fetch --no-tags --quiet --unshallow 2>/dev/null || true; fi
+if ! held; then
+  echo "Building: this build's clone does not hold ${base}, and a comparison that cannot be made must never skip a release."
+  exit 1
+fi
+
+if git diff --quiet "$base" HEAD -- "${paths[@]}"; then
+  echo "Skipping: nothing under ${paths[*]} changed between ${base}, the last release, and this commit."
+  exit 0
+fi
+
+echo "Building: something under ${paths[*]} changed between ${base}, the last release, and this commit."
+exit 1
