@@ -574,15 +574,28 @@ function whenBrowserIsIdle(task: () => void): () => void {
  * answers those with its own "too short" state, and rendering that served state
  * is how the page says "type at least 3 characters" instead of "nothing found",
  * which would be a false claim about the records.
+ *
+ * **This read deliberately keeps no previous answer** (no `keepPreviousData`),
+ * unlike the list reads above it. A kept answer is handed back under the next
+ * query's key, and the page prints the typed name in its own heading, so the
+ * previous search's rows, counts and "no matches" card drew under the new
+ * search's heading until the next answer arrived: "Results for smith" above a
+ * list of education groups (issue #2020). Every other state on that page is a
+ * claim about the name in the heading, so there is no answer to keep. With this
+ * off, `data` can only ever be the answer for the query in `queryKey`.
+ *
+ * The signal is passed on so an answer nobody is waiting for is dropped at the
+ * socket: React Query only aborts a request whose `queryFn` actually took the
+ * signal, and a reader typing a longer name leaves the shorter one's request in
+ * flight otherwise.
  */
 export function useCampaignFinanceNameSearch(query: string, limit = 5) {
   const trimmed = query.trim();
   return useQuery({
     queryKey: ['campaign-finance-name-search', trimmed, limit],
-    queryFn: () => getCampaignFinanceNameSearchFromApi(trimmed, limit),
+    queryFn: ({ signal }) => getCampaignFinanceNameSearchFromApi(trimmed, limit, signal),
     enabled: trimmed.length > 0,
     retry: false,
-    placeholderData: keepPreviousData,
   });
 }
 

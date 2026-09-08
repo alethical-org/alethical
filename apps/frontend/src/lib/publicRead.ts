@@ -12,6 +12,21 @@ async function fetchAttempt(input: RequestInfo | URL, init?: RequestInit): Promi
   const controller = new AbortController();
   let timeout: ReturnType<typeof setTimeout> | undefined;
 
+  // The attempt's own timeout owns the signal handed to fetch, so a caller's
+  // signal has to be forwarded onto it or it would be thrown away by the spread
+  // below and cancel nothing.
+  const caller = init?.signal ?? undefined;
+  let stopWatchingCaller: (() => void) | undefined;
+  if (caller) {
+    if (caller.aborted) {
+      controller.abort(caller.reason);
+    } else {
+      const forward = () => controller.abort(caller.reason);
+      caller.addEventListener('abort', forward, { once: true });
+      stopWatchingCaller = () => caller.removeEventListener('abort', forward);
+    }
+  }
+
   const timedOut = new Promise<never>((_, reject) => {
     timeout = setTimeout(() => {
       controller.abort();
@@ -31,6 +46,7 @@ async function fetchAttempt(input: RequestInfo | URL, init?: RequestInit): Promi
     if (timeout !== undefined) {
       clearTimeout(timeout);
     }
+    stopWatchingCaller?.();
   }
 }
 
@@ -50,7 +66,9 @@ export async function publicReadResponse(
       }
       return response;
     } catch (error) {
-      if (attempt === PUBLIC_READ_ATTEMPTS - 1) {
+      // A caller who has given up is not asking for a second chance. Retrying
+      // here would send the request the reader has already moved on from.
+      if (init?.signal?.aborted || attempt === PUBLIC_READ_ATTEMPTS - 1) {
         throw error;
       }
     }
