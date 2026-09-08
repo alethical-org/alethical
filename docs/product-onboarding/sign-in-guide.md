@@ -236,6 +236,12 @@ The account menu shows the person's name and email, Tracked, Add or Change passw
 out. Tracked shows a count only after both lists (bills and followed committees) have loaded. No number covers both zero tracked
 bills and a list that has not arrived, so the menu never shows a false zero.
 
+Approved administrators also see **Admin** (`/admin/users`) and **Leadership metrics**
+(`/admin/site-metrics`). Both wait for the server's administrator permission check.
+Exclusion from traffic counts is a separate decision and grants no private access. See
+[How private account visibility works](admin-users-guide.md) and
+[How Site Metrics works](traffic-guide.md).
+
 Sign out ends only the ordinary session on this browser or device.
 
 ## Live settings and email sender

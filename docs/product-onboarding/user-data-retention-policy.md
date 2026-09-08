@@ -71,10 +71,16 @@ the job that queues them is not wired into anything yet (§2.5).
 
 ### 2.1 The account itself
 
-**What it holds.** A display name, a switch marked "active", the moment the account was
-first created, the most recent time it gained a new sign-in method, the last time the
-reader opened their tracked-bills page, and — only once the sign-in service has
-confirmed it — an email address.
+**What it holds.** A display name, a switch marked "active", the moment Alethical first
+created its local account record, the most recent time it gained a new sign-in method,
+the last time the reader opened their tracked-bills page, and, only once the sign-in
+service has confirmed it, an email address.
+
+The local creation time records first authenticated use, not signup. Public account-creation
+totals use Supabase's original signup time and return counts only. They count surviving
+reader accounts, including unconfirmed accounts; deleted, deactivated, banned, anonymous,
+team, and test accounts are excluded. Linked sign-in records count as 1 account. Deleting
+an account can therefore reduce a past signup-period total.
 
 **Why "only once confirmed".** `user_account.primary_email` is the address one sign-in
 method uses to find and join an account another sign-in method already made, so it is a
@@ -410,10 +416,11 @@ None of this exists yet (§7). This is the specification for when it is built.
 | Sent alerts                     | Deleted      | A delivery receipt for an address we no longer hold                  |
 | Conversations and every message | Deleted      | Typed text (§5) — this is the one that most needs to actually happen |
 
-**What we would keep, and it is a short list.** Counts with nobody attached: how many
-accounts exist, how many bills are followed, how many questions were asked in a month.
-These are already computable without names and are what tells us whether the product
-works. Nothing in that list can be turned back into a person.
+**What we would keep.** Anonymous action counts and hourly totals of local first use,
+bill-follow creation, and committee-follow creation have no account, email, bill, or
+committee identifier attached. Removing a follow or account does not subtract from these
+creation totals. Current account and follow counts are different: they are computed from
+the records still present, so deletion reduces them.
 
 **What we would not keep, and this needs saying explicitly.** No "deleted user" shadow
 row. No email address retained to stop the same person signing up again. No archived
@@ -533,18 +540,39 @@ per-reader analytics record of its own. The public `/site-metrics` page reads on
 24-hour, 7-day, and 30-day totals through a server route whose Vercel access token never
 reaches the browser.
 
-Analytics waits for the sign-in check. A signed-in account identifier goes only to an
-Alethical server route that decides whether the account is on a server-only exclusion
-list. If that decision cannot be read, analytics stays off for the signed-in visit. The
-identifier is never sent to Vercel. The lasting behavior and server settings are in
-`docs/product-onboarding/traffic-guide.md`.
+Analytics waits for the sign-in check. To decide whether to collect, the browser sends its
+sign-in token to Alethical's `/api/v1/site-metrics/collection` route, which determines whether the account
+is excluded as team or test use. It does not trust a browser-supplied account identifier.
+If that decision cannot be read, Vercel analytics stays off for the signed-in visit.
+Neither the token nor account identifier is sent to Vercel. Private `/admin` routes are
+omitted from Vercel page-load and Alethical action collection.
+The behavior and server settings are in [How Site Metrics works](traffic-guide.md).
+
+**Product measurements have no reader attached.** The action table (`site_metric_event`)
+holds a fixed action name and time, not search words, a question, an account, or a browsing
+history. Each action can carry its own random retry key (`eventId`, a UUID), never reused
+to recognise a reader. The receipt table holds only that key and its expiry. It prevents
+duplicate counts for 24 hours; a later action request with a retry key removes expired
+receipts. It is not a scheduled deletion at exactly 24 hours.
+
+Hourly creation counts (`site_metric_hourly_count`) hold only the kind of creation, the
+hour, and a count. They measure local first use and new bill or committee follows, not
+Supabase signups. Recording-start markers (`site_metric_coverage`) hold only a measurement
+name and its first recording time. Neither table identifies a person or which bill or
+committee they follow. These totals survive follow and account deletion; missing history
+is not filled from surviving records. The private `/admin/site-metrics` report reads
+combined measurements and creates no reader-level activity history. Its server requires
+administrator permission separately from the team-and-test collection exclusion.
 
 **Search discovery, availability, and speed stay combined.** Google Search Console and
 Bing Webmaster Tools feed only sitewide 30-day appearance and visit totals to the public
 Site metrics page. Checkly opens only 3 public Alethical addresses. Cloudflare Web Analytics
 uses no cookies, local storage, or fingerprinting, but it receives speed measurements,
 cleaned page paths, referrers, broad place and browser facts, and some element or resource
-details. Alethical publishes only sitewide 30-day speed scores after 50 measured visits.
+details. Alethical publishes a sitewide speed score for the 30 completed UTC days only when
+Cloudflare reports at least 50 actual observations for that specific measurement. A total
+page-load count or an estimated sample count does not meet that requirement. Cloudflare's
+speed sample can include team visits; the Vercel team exclusion does not control its beacon.
 No reader-level record from any of these sources is stored in Alethical's database.
 
 ---
@@ -605,6 +633,8 @@ write path if a real product need appears.
 | Server logs                                          | Whatever the host keeps; no reader data in them at all (§7 rule)                       | Redaction beats retention — the cheapest data to keep safe is data you never wrote                        |
 | Sentry error events                                  | 30 days on Sentry's free plan; no reader data in them (§7)                             | Enough time to fix a failure without creating another copy of anything a reader supplied                  |
 | Anonymous counts                                     | Indefinitely                                                                           | Nothing in them points at a person                                                                        |
+| Measurement recording-start markers                  | Indefinitely                                                                           | A measurement name and time, with no reader attached                                                       |
+| Per-action retry receipts                           | Valid for 24 hours; expired receipts are removed by a later action request with a retry key | Avoids counting a retry twice without identifying a reader                                               |
 
 ---
 

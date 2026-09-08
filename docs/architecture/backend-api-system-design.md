@@ -344,6 +344,11 @@ the token. A person-editable profile field never counts as confirmation.
   `user_account` whose `primary_email` equals the principal's **confirmed** email;
   create one if there is none; then create the `auth_identity` and commit once.
 
+Creating a non-team, non-test `user_account` also increments an anonymous hourly
+`account_created` total in that same transaction. Linking another sign-in method does not
+increment it. This is local first use, not signup: signup measurements use the original
+Supabase `auth.users.created_at` through `account_signup_metrics.py`.
+
 **The email lookup is deliberate.** One person who signs in with Google today and a
 second method tomorrow gets two `auth_identity` rows on the _same_ `user_account`,
 rather than silently starting over with an empty one — which is the whole reason
@@ -1898,7 +1903,57 @@ Purpose:
 
 Real, and undocumented here until the Aug 3 2026 audit.
 
+### Site measurements
+
+#### `GET /api/v1/site-metrics?version=2`
+
+Returns combined action and creation counts for 7-day and 30-day periods ending at the
+last completed UTC hour, plus equal-length previous periods. `history` states when each
+measurement began and whether each window is complete; incomplete previous totals are
+`null`. `totalsSinceStart` contains anonymous creation counts through the same completed
+hour. `readers` contains current local-account and follow counts at `fetchedAt`, not
+lifetime signup or creation totals. Team and test accounts are excluded at collection
+time for actions and creation totals, and at read time for current account and follow counts.
+The default `version=1` keeps the narrower response contract for existing clients.
+
+#### `GET /api/v1/site-metrics/accounts`
+
+Returns counts of surviving reader accounts using their original Supabase signup dates,
+including accounts that have not confirmed their email or made a local account record.
+Deleted, banned, anonymous, deactivated, team, and test accounts are excluded. Linked
+sign-in records count as 1 account, dated by their earliest included Supabase record.
+The 7-day and 30-day comparisons end at the last completed UTC hour; current totals
+include the unfinished hour through `asOf`. Deletion can reduce a past period's count.
+The response contains counts and definitions, never account records. Source failure is
+`503`, not zero. Both public measurement GET routes allow 5-minute shared caching.
+
+#### `POST /api/v1/site-metrics/events`
+
+Accepts only a fixed action name and an optional per-action UUID4 `eventId`; the body is
+limited to 512 bytes and extra fields are rejected. A sign-in token lets the server
+exclude team, test, and deactivated accounts. No token is required for anonymous use.
+`site_metric_event` holds an action kind and time, without account or search text.
+`site_metric_receipt` holds only the retry key and expiry, and counts that key once for
+24 hours. A later receipt-bearing request removes expired keys. The key is per action,
+not per reader or visit, and a rejected duplicate returns the same `204` as a new action.
+
+Anonymous hourly creation totals hold only the creation kind, hour, and count. New local
+accounts, bill follows, and committee follows increment them in the same transaction as
+the saved row. Updating an existing follow or retrying a completed save does not increment
+them. Removing a follow or account leaves these totals intact. Recording-start markers
+hold only a measurement name and time; missing history is not reconstructed from the
+records that remain. See [How Site Metrics works](../product-onboarding/traffic-guide.md).
+
 ## Authenticated User API
+
+### Measurement collection permission
+
+#### `GET /api/v1/site-metrics/collection`
+
+Requires a valid bearer token and returns the server's team-and-test exclusion decision.
+The response is `private, no-store`. It grants no administrator access. A caller-supplied
+account ID cannot determine eligibility; the web host's `/api/traffic-collection` route
+returns `410` so a client using that route must reload.
 
 ### Pending signed-out actions
 
@@ -2122,6 +2177,20 @@ Streaming option:
   `StreamingResponse` or `text/event-stream` handling anywhere in `alethical/api/`.
   `ChatMessageCreateRequest.stream` exists in the schema but `create_chat_message()` never reads
   it, so the field is dead and a client setting it gets an ordinary buffered reply.
+
+## Administrator API
+
+#### `GET /api/v1/admin/site-metrics`
+
+Serves the private `/admin/site-metrics` report with `Cache-Control: private, no-store`.
+`require_admin` requires a configured Supabase subject, a fresh confirmed exact permitted
+email, and a currently eligible provider account with no deactivated linked local account.
+The collection-exclusion list does not grant access. A signed-in non-administrator receives
+`403`; a missing sign-in receives `401`.
+
+The report combines account, activity, and operations measurements without reader-level
+activity records. Each source is read in a separate database session; a failed source
+returns `null` and a fixed error message while other measurements remain available.
 
 ## Internal Operations API
 

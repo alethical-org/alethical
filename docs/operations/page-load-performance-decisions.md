@@ -228,12 +228,18 @@ could request so the idle gap was guaranteed rather than assumed.
 
 ## Each screen downloads with its own route
 
-Every screen the router can show is downloaded when the router first shows it, and not
-before ([#1966](https://github.com/alethical-org/alethical/issues/1966),
+Screen code is downloaded on demand when the router first needs its screen group
+([#1966](https://github.com/alethical-org/alethical/issues/1966),
 [#491](https://github.com/alethical-org/alethical/issues/491)). A page names 3 files in its
 HTML — the Expo runtime, a shared file of parts more than 1 screen uses, and the program
 every page needs — and the app fetches the screen file for the address it was asked for.
 `docs/operations/deployment.md` § What a web release ships owns the mechanics.
+
+The `/site-metrics` and `/admin/site-metrics` screens share 1 on-demand download through
+`apps/frontend/src/screens/metricsScreens.ts`. The single import target in
+`apps/frontend/src/navigation/screenChunks.ts` keeps their shared report code out of the
+initial common download. Opening either route fetches both screens' code, but private
+report data still requires the server's administrator permission check.
 
 Measured on the production build, uncompressed: 1 file of 2,399,276 bytes became a
 first-loaded set of 1,715,154 bytes across 3 files, plus a screen file of 11,567 bytes on
