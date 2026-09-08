@@ -22,6 +22,7 @@ Needs the local Postgres on port 54329.
 from __future__ import annotations
 
 import hashlib
+from datetime import datetime, timedelta, timezone
 import uuid
 from pathlib import Path
 from typing import Iterator, Optional
@@ -54,6 +55,7 @@ class MemoryStore:
     """
 
     def __init__(self, objects: Optional[dict[str, bytes]] = None) -> None:
+        self.bucket = "fake"
         self.objects: dict[str, bytes] = dict(objects or {})
         self.refuse: set[str] = set()
         self.uploads: list[str] = []
@@ -81,7 +83,9 @@ class MemoryStore:
                 f"{expected_sha256}"
             )
 
-    def get(self, key: str, destination: str) -> None:
+    def get(self, key: str, destination: str, *, max_bytes: int | None = None) -> None:
+        if max_bytes is not None and len(self.objects[key]) > max_bytes:
+            raise RuntimeError("Object grew beyond its inventory size; read refused.")
         Path(destination).write_bytes(self.objects[key])
 
 
@@ -111,6 +115,7 @@ def _clear(session) -> None:
     session.execute(text("DELETE FROM cf_snapshot_body"))
     session.execute(text("DELETE FROM cf_report_document"))
     session.execute(text("DELETE FROM cf_snapshot"))
+    session.execute(text("DELETE FROM cf_filing_snapshot"))
     session.commit()
 
 
@@ -552,3 +557,199 @@ def test_a_row_naming_no_object_yet_is_not_counted_as_a_gap(db, tmp_path) -> Non
 
     assert report.outcomes == []
     assert not report.failures
+
+
+def test_a_previously_copied_file_is_repaired_after_the_second_copy_disappears(
+    db, tmp_path
+) -> None:
+    key, data = next(iter(BODIES.items()))
+    source, mirror = MemoryStore({key: data}), MemoryStore()
+    add_body(db, key, data)
+    run(db, source, mirror, tmp_path)
+    del mirror.objects[key]
+
+    report = run(db, source, mirror, tmp_path)
+
+    assert mirror.objects.get(key) == data
+    assert len(report.of(COPIED)) == 1
+    assert not report.failures
+
+
+def test_a_row_whose_primary_file_disappeared_is_a_failure(db, tmp_path) -> None:
+    key, data = next(iter(BODIES.items()))
+    source, mirror = MemoryStore({key: data}), MemoryStore()
+    add_body(db, key, data)
+    run(db, source, mirror, tmp_path)
+    del source.objects[key]
+
+    report = run(db, source, mirror, tmp_path)
+
+    assert [failure.key for failure in report.failures] == [key]
+    assert mirror.objects[key] == data
+
+
+def test_old_same_size_corruption_is_found_without_overwriting(db, tmp_path) -> None:
+    key, data = next(iter(BODIES.items()))
+    source, mirror = MemoryStore({key: data}), MemoryStore()
+    add_body(db, key, data)
+    before = datetime.now(timezone.utc) - timedelta(days=8)
+    mirror_raw_files(db, source, mirror, str(tmp_path), now=before)
+    mirror.objects[key] = b"x" * len(data)
+
+    report = run(db, source, mirror, tmp_path)
+
+    assert [failure.key for failure in report.failures] == [key]
+    assert mirror.objects[key] == b"x" * len(data)
+    assert mirrored_at(db, key) == before
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_old_correct_copy_gets_a_new_hash_confirmation(db, tmp_path) -> None:
+    key, data = next(iter(BODIES.items()))
+    source, mirror = MemoryStore({key: data}), MemoryStore()
+    add_body(db, key, data)
+    before = datetime.now(timezone.utc) - timedelta(days=8)
+    mirror_raw_files(db, source, mirror, str(tmp_path), now=before)
+
+    report = run(db, source, mirror, tmp_path)
+
+    assert len(report.of(CONFIRMED)) == 1
+    assert report.verification_bytes == 2 * len(data)
+    assert mirrored_at(db, key) > before
+    assert len(mirror.uploads) == 1
+
+
+def test_audit_finds_missing_and_corrupt_copies_without_changing_anything(
+    db, tmp_path
+) -> None:
+    source, mirror = MemoryStore(BODIES), MemoryStore()
+    for key, data in BODIES.items():
+        add_body(db, key, data)
+    run(db, source, mirror, tmp_path)
+    keys = list(BODIES)
+    stamps = {key: mirrored_at(db, key) for key in keys}
+    del mirror.objects[keys[0]]
+    mirror.objects[keys[1]] = b"x" * len(BODIES[keys[1]])
+    before = dict(mirror.objects)
+
+    report = mirror_raw_files(
+        db, source, mirror, str(tmp_path), audit_only=True, verify_all=True
+    )
+
+    assert len(report.failures) == 2
+    assert mirror.objects == before
+    assert source.objects == BODIES
+    assert {key: mirrored_at(db, key) for key in keys} == stamps
+
+
+def test_old_copy_hash_reads_respect_the_combined_byte_budget(db, tmp_path) -> None:
+    source, mirror = MemoryStore(BODIES), MemoryStore()
+    for key, data in BODIES.items():
+        add_body(db, key, data)
+    run(db, source, mirror, tmp_path)
+    budget = 2 * max(map(len, BODIES.values()))
+
+    report = mirror_raw_files(
+        db,
+        source,
+        mirror,
+        str(tmp_path),
+        audit_only=True,
+        verify_all=True,
+        verify_max_bytes=budget,
+    )
+
+    assert len(report.of(CONFIRMED)) == 1
+    assert report.verification_bytes <= budget
+    assert report.verification_deferred == 1
+    assert not report.failures
+
+
+def test_old_copy_size_change_is_found_before_its_next_hash_check(db, tmp_path) -> None:
+    key, data = next(iter(BODIES.items()))
+    source, mirror = MemoryStore({key: data}), MemoryStore()
+    add_body(db, key, data)
+    run(db, source, mirror, tmp_path)
+    mirror.objects[key] = b"short"
+
+    report = run(db, source, mirror, tmp_path)
+
+    assert [failure.key for failure in report.failures] == [key]
+    assert mirror.objects[key] == b"short"
+
+
+def test_full_audit_checks_objects_no_database_row_names(db, tmp_path) -> None:
+    source, mirror = MemoryStore(BODIES), MemoryStore(BODIES)
+    key = next(iter(BODIES))
+    mirror.objects[key] = b"x" * len(BODIES[key])
+
+    report = mirror_raw_files(
+        db, source, mirror, str(tmp_path), audit_only=True, verify_all=True
+    )
+
+    assert [failure.key for failure in report.failures] == [key]
+    assert len(report.of(CONFIRMED)) == 1
+    assert mirror.uploads == []
+
+
+def test_audit_read_refuses_growth_after_inventory(tmp_path):
+    from io import BytesIO
+    from types import SimpleNamespace
+
+    from alethical.pipeline.raw_file_store import RawFileStore
+
+    body = BytesIO(b"larger than listed")
+    store = RawFileStore(
+        SimpleNamespace(
+            get_object=lambda **kwargs: {"Body": body, "ContentLength": 18}
+        ),
+        bucket="fake",
+    )
+    with pytest.raises(RuntimeError, match="grew beyond"):
+        store.get("key", str(tmp_path / "body"), max_bytes=1)
+    assert body.closed
+    assert not (tmp_path / "body").exists()
+
+
+def test_audit_read_rejects_truncated_response(tmp_path):
+    from io import BytesIO
+    from types import SimpleNamespace
+
+    from alethical.pipeline.raw_file_store import RawFileStore
+
+    body = BytesIO(b"short")
+    store = RawFileStore(
+        SimpleNamespace(get_object=lambda **kwargs: {"Body": body, "ContentLength": 6}),
+        bucket="fake",
+    )
+    with pytest.raises(RuntimeError, match="ended before"):
+        store.get("key", str(tmp_path / "body"), max_bytes=6)
+    assert body.closed
+
+
+def test_cli_full_audit_exits_failure_when_budget_defers_hashes(db, monkeypatch):
+    from alethical.db.session import database_url_for_target
+    from scripts import mirror_raw_files as command
+
+    key, data = next(iter(BODIES.items()))
+    add_body(db, key, data)
+    source, mirror = MemoryStore({key: data}), MemoryStore({key: data})
+    local_url = database_url_for_target("local")
+    monkeypatch.setattr(command, "raw_file_store_from_env", lambda: source)
+    monkeypatch.setattr(command, "mirror_file_store_from_env", lambda: mirror)
+    monkeypatch.setattr(command, "database_url_for_target", lambda target: local_url)
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "mirror_raw_files.py",
+            "--target",
+            "local",
+            "--audit",
+            "--verify-all",
+            "--verify-max-mib",
+            "0",
+        ],
+    )
+    assert command.main() == 1
+    assert mirrored_at(db, key) is None
+    assert mirror.uploads == []

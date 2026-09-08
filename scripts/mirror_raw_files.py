@@ -36,10 +36,13 @@ repository secrets of the same names in a GitHub Actions run):
 * the 4 ``CLOUDFLARE_R2_*`` settings, to write the second one
 * ``SUPABASE_PROJECT_URL`` and ``SUPABASE_DB_PASSWORD`` for ``--target production``
 
-What it costs: nothing. R2 includes the first 10 GB and the whole store is 115 MB,
-pulling data back out of R2 is free so a restore costs nothing, and GitHub Actions
-is free on a public repository. Design:
-``docs/architecture/campaign-finance-system-design.md`` §4.5.
+Routine old-copy checks read at most 256 MiB combined across both stores per run.
+New and missing copies retain full read-back verification. The current storage plan
+and recovery steps are recorded in ``docs/operations/recovery.md``; no paid AI runs.
+
+    # read-only full audit; a too-small budget reports incomplete and exits 1
+    PYTHONPATH=. uv run python scripts/mirror_raw_files.py --target production \
+        --audit --verify-all --verify-max-mib 4096
 """
 
 from __future__ import annotations
@@ -49,7 +52,7 @@ import os
 import sys
 import tempfile
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 
 from alethical.db.session import (
@@ -76,7 +79,27 @@ def main() -> int:
         action="store_true",
         help="List what would be copied and stop. Moves no bytes, writes nothing.",
     )
+    parser.add_argument(
+        "--audit",
+        action="store_true",
+        help="Check existing copies without uploads or database writes.",
+    )
+    parser.add_argument(
+        "--verify-all",
+        action="store_true",
+        help="Request hash checks for every object, subject to the read budget.",
+    )
+    parser.add_argument(
+        "--verify-max-mib",
+        type=int,
+        default=256,
+        help="Maximum combined MiB read for old-copy hash checks (default 256).",
+    )
     args = parser.parse_args()
+    if args.verify_max_mib < 0:
+        parser.error("--verify-max-mib must not be negative")
+    if args.dry_run and (args.audit or args.verify_all):
+        parser.error("--dry-run cannot be combined with --audit or --verify-all")
 
     source = raw_file_store_from_env()
     mirror = mirror_file_store_from_env()
@@ -86,12 +109,26 @@ def main() -> int:
         database_url_for_target(args.target), connect_args=NO_PREPARED_STATEMENTS
     )
     with Session(engine) as db:
+        if args.audit or args.dry_run:
+            db.execute(text("SET TRANSACTION READ ONLY"))
         if args.dry_run:
             return _describe_only(db, source, mirror)
         with tempfile.TemporaryDirectory(prefix="raw-file-mirror-") as directory:
-            report = mirror_raw_files(db, source, mirror, directory)
+            report = mirror_raw_files(
+                db,
+                source,
+                mirror,
+                directory,
+                audit_only=args.audit,
+                verify_all=args.verify_all,
+                verify_max_bytes=args.verify_max_mib * 1024 * 1024,
+            )
     print(f"\n{format_report(report)}")
-    return 1 if report.failures else 0
+    return (
+        1
+        if report.failures or (args.verify_all and report.verification_deferred)
+        else 0
+    )
 
 
 def _describe_only(db: Session, source, mirror) -> int:
@@ -109,11 +146,7 @@ def _describe_only(db: Session, source, mirror) -> int:
     }
     objects = source.list_objects()
     present = mirror.list_objects()
-    todo = {
-        key: size
-        for key, size in objects.items()
-        if key not in mirrored and key not in present
-    }
+    todo = {key: size for key, size in objects.items() if key not in present}
     tables = ", ".join(model.__tablename__ for model in body_tables())
     print(
         f"\n{len(objects)} object(s) stored, {len(present)} already in the second copy, "
@@ -123,7 +156,15 @@ def _describe_only(db: Session, source, mirror) -> int:
     print(f"{len(todo)} object(s) would be copied ({sum(todo.values()):,} bytes):")
     for key in sorted(todo):
         print(f"  {key} ({todo[key]:,} bytes)")
-    return 0
+    missing_primary = sorted(set(rows) - set(objects))
+    mismatches = sorted(
+        key for key in set(objects) & set(present) if objects[key] != present[key]
+    )
+    for key in missing_primary:
+        print(f"  FAILED primary missing: {key}")
+    for key in mismatches:
+        print(f"  FAILED stores disagree on byte size: {key}")
+    return 1 if missing_primary or mismatches else 0
 
 
 if __name__ == "__main__":

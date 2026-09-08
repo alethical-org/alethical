@@ -704,12 +704,12 @@ and pulling data back out is free so a restore costs nothing.
    production row. A job driven off the rows would have copied a quarter of the
    store and reported success. The other 9 are real downloads of dated Minnesota
    files, exactly as unrepeatable as the 3.
-2. **Repeating it is nearly free, so a daily schedule stays cheap as the store
-   grows.** An object already recorded as copied is skipped without moving a byte.
-   Measured the same day: the first run copied all 115 MB in 88 seconds, and the run
-   straight after it took 2 seconds and moved nothing. Re-proving the *whole* store
-   and proving that a restore actually works is a separate job
-   ([#802](https://github.com/alethical-org/alethical/issues/802)).
+2. **Every run checks both stores now, with bounded checks of older bytes.** A saved
+   copied time never substitutes for the file still existing. Missing second copies
+   are repaired from hash-checked primary bytes; missing primary files and conflicting
+   bytes fail without overwriting either copy. Older confirmations are renewed within
+   a daily read budget. Read-only audit commands, limits, and the separate whole-service
+   restore procedure live in [recovery.md](../operations/recovery.md).
 3. **Which tables hold a stored body is read out of the schema, never listed in the
    job** ([#1501](https://github.com/alethical-org/alethical/issues/1501)). The job was
    written for `cf_snapshot_body` and named it directly, and by the time anybody checked,
