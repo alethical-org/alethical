@@ -67,20 +67,25 @@ The metrics branch contains the shared changes plus the stronger event-time coll
 checks. Anonymous visits wait for the first resolved sign-in state; later identity changes
 apply immediately and never reassign queued events to the next account.
 
-Completed checks include all 2085 backend tests, 2306 frontend tests, 49 source-health
-subtests, and 78 phone/desktop browser cases in Chromium, Firefox and WebKit. A fresh
-independent code review's account-transition and initial-page-view findings are covered by
-regression tests. The independent reader review exposed phone health-card note overflow;
-the mobile-only sizing correction has a reproducing browser check. The Money home row is
-explicitly separate from the whole-Money fallback.
+Completed checks include a full 2085-test backend run, all 2306 frontend tests, 49 source-health
+subtests, and 141 phone/desktop browser cases in Chromium, Firefox and WebKit. The browser
+cases include 57 private-report checks with synthetic sign-in data and blocked real-network
+access. A fresh independent reader pass covers normal navigation, Money searching, both
+activity ranges, signed-out privacy, and the final phone/desktop layout.
+
+The independent code review's account-transition and initial-page-view findings are covered
+by regression tests. Phone health cards wrap every note without forcing equal heights. The
+Money home row is explicitly separate from the whole-Money fallback. The per-address speed
+report preserves unrounded values for pass/fail and JSON; 63 focused tests include the exact
+0.1 layout threshold and values just above it. Display formatting cannot change a verdict.
 
 Current main is integrated through [pull request 2019](https://github.com/alethical-org/alethical/pull/2019).
 The release is [pull request 2027](https://github.com/alethical-org/alethical/pull/2027).
-Current-head backend, frontend, documentation and Vercel preview checks pass. The final
-phone correction needs its clean build, browser recheck and updated-head checks. The local
-API-enabled initial download is 389539 compressed bytes against the 390000-byte limit.
+The local API-enabled initial download is 389540 compressed bytes against the 390000-byte
+limit. The updated head includes the private browser suite and raw-score comparison repair;
+its current-head and merge-queue checks are the remaining pre-release gates.
 
-Before release: finish the independent phone recheck, pass updated-head and merge-queue
-checks, confirm database migration 0052 and both hosted releases, then exercise all public
-sources and private access-denial paths live. No production writes or releases have occurred
-from this metrics branch at this checkpoint.
+After those gates: confirm database migration 0052 and both hosted releases, then exercise
+all public sources and private access-denial paths live. No production writes or releases
+have occurred from this metrics branch at this checkpoint. Keep the additive history tables
+in place if application rollback is required; do not run the destructive downgrade.
