@@ -545,6 +545,7 @@ function BillDetailMobileScreen() {
     // paragraph is shown only as a fallback when there are no bullets (drops the
     // redundant prose the design removed).
     const summary = plainBillSummary(bill.aiAnalysis?.summary);
+    const officialDescription = bill.officialDescription?.trim() ? bill.officialDescription : '';
     // One chip per cited section. The strip shows the section label alone, so two
     // key points citing the same section produce two chips a reader cannot tell
     // apart, both jumping to the same passage. The web tab keeps every citation —
@@ -629,6 +630,7 @@ function BillDetailMobileScreen() {
       chief,
       keyPoints,
       summary,
+      officialDescription,
       citations,
       issues,
       coauthors,
@@ -814,7 +816,13 @@ function BillDetailMobileScreen() {
                 content sections below. */}
               <Section id="summary" onLayout={onSectionLayout} style={styles.firstSection}>
                 <Text accessibilityRole="header" aria-level={2} style={styles.h2}>
-                  Key points
+                  {vm.keyPoints.length > 0
+                    ? 'Key points'
+                    : vm.summary
+                      ? 'Summary'
+                      : vm.officialDescription
+                        ? 'Official description'
+                        : 'Key points'}
                 </Text>
                 {/* The cited bullets ARE the plain-language summary; fall back to the
                   summary paragraph only when there are no bullets (item 1). */}
@@ -829,6 +837,21 @@ function BillDetailMobileScreen() {
                   </View>
                 ) : vm.summary ? (
                   <Text style={styles.lede}>{vm.summary}</Text>
+                ) : vm.officialDescription ? (
+                  <>
+                    <Text style={styles.lede}>{vm.officialDescription}</Text>
+                    {vm.overviewUrl ? (
+                      <View style={styles.officialDescriptionLink}>
+                        <TextLink
+                          label="Official bill page"
+                          arrow
+                          href={vm.overviewUrl}
+                          external
+                          onPress={() => openExternal(vm.overviewUrl as string)}
+                        />
+                      </View>
+                    ) : null}
+                  </>
                 ) : null}
 
                 {/* CITED SECTIONS strip (renders when the record carries citations;
@@ -2246,6 +2269,7 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     color: t.colors.text.secondary,
   },
+  officialDescriptionLink: { marginTop: 12, alignSelf: 'flex-start' },
   emptyLine: {
     marginTop: 14,
     fontFamily: t.typography.body,

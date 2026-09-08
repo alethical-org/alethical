@@ -3,6 +3,15 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 
+import {
+  ABOUT_BELIEFS,
+  ABOUT_NAME_ORIGIN,
+  ABOUT_PAGE_HEADING,
+  ABOUT_PAGE_SOURCE_PROMISE,
+  ABOUT_PAGE_SUBTITLE_LEAD,
+  ABOUT_START_ITEMS,
+} from '../../../lib/aboutUs';
+
 const SCREEN = readFileSync(
   join(dirname(fileURLToPath(import.meta.url)), '..', 'AboutUsScreen.tsx'),
   'utf8',
@@ -10,18 +19,17 @@ const SCREEN = readFileSync(
 
 describe('About us screen contract', () => {
   it('explains the name and the public-record promise in plain words', () => {
-    expect(SCREEN).toContain('TRUTH, UNCONCEALED');
-    expect(SCREEN).toContain('Minnesota’s public record, in everyday words and');
-    expect(SCREEN).toContain('linked to the source.');
-    expect(SCREEN).toContain('Alethical comes from');
-    expect(SCREEN).toContain('ancient Greek');
-    expect(SCREEN).toContain('truth brought into the open');
+    expect(ABOUT_PAGE_HEADING).toBe('TRUTH, UNCONCEALED');
+    expect(ABOUT_PAGE_SUBTITLE_LEAD).toContain('Minnesota’s public record, in everyday words');
+    expect(ABOUT_PAGE_SOURCE_PROMISE).toBe('linked to the source.');
+    expect(ABOUT_NAME_ORIGIN.beforeName).toContain('Alethical comes from');
+    expect(ABOUT_NAME_ORIGIN.betweenNames).toContain('ancient Greek');
+    expect(ABOUT_NAME_ORIGIN.betweenNames).toContain('truth brought into the open');
   });
 
   it('keeps all 6 beliefs and all 6 roadmap items', () => {
-    expect(SCREEN).toContain('const BELIEFS = [');
     expect(SCREEN).toContain('const ROADMAP_ITEMS = [');
-    expect(SCREEN.match(/beliefTitle: '/g)).toHaveLength(6);
+    expect(ABOUT_BELIEFS).toHaveLength(6);
     expect(SCREEN.match(/roadmapTitle: '/g)).toHaveLength(6);
     expect(SCREEN).toContain('Candidates, campaigns, and money');
     expect(SCREEN).toContain('Grounded Ask');
@@ -29,10 +37,10 @@ describe('About us screen contract', () => {
   });
 
   it('makes all 4 starting points real links and keeps roadmap items unlinked', () => {
-    expect(SCREEN.match(/destination: '/g)).toHaveLength(4);
+    expect(ABOUT_START_ITEMS).toHaveLength(4);
     expect(SCREEN).toContain('linkProps(item.href, item.onPress)');
     expect(SCREEN).not.toContain('linkProps(item.roadmap');
-    expect(SCREEN).toContain(
+    expect(ABOUT_START_ITEMS.find((item) => item.destination === 'findMyLegislator')?.body).toBe(
       'See who represents you in the Minnesota House and Senate, and learn about their work and how to contact them.',
     );
   });
@@ -102,7 +110,7 @@ describe('About us screen contract', () => {
   it('lets body prose fill the content column and shortens the feedback label', () => {
     expect(SCREEN).toContain('proseSection: { marginTop: 56 }');
     expect(SCREEN).not.toContain('proseSection: { marginTop: 56, maxWidth: 850 }');
-    expect(SCREEN).toContain("Feedback:{' '}");
+    expect(SCREEN).toContain("{ABOUT_FEEDBACK_LABEL}{' '}");
     expect(SCREEN).not.toContain("Questions and feedback:{' '}");
   });
 });

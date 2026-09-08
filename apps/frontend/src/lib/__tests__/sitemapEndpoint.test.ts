@@ -9,7 +9,7 @@ import { indexedResearch, piecePath } from '../research';
  * adds one to the sitemap, and this stops failing on every publish for a reason
  * that is not a defect.
  */
-const FIXED_PAGE_ROWS = 13;
+const FIXED_PAGE_ROWS = 14;
 /** The numbered directory rows the live counts add: 2 for bills, 1 for
  *  legislators, 2 for the register of campaign committees. */
 const DIRECTORY_PAGE_ROWS = 5;
@@ -116,6 +116,10 @@ describe('sitemap endpoint', () => {
     // never listed (issue #1954).
     expect(body).toContain('<loc>https://www.alethical.com/money/races</loc>');
     expect(body).not.toContain('/money/races?');
+    // Outside spending is one fixed record: its filtered views stay out, but
+    // the bare canonical address belongs in the sitemap (issue #1945).
+    expect(body).toContain('<loc>https://www.alethical.com/money/outside-spending</loc>');
+    expect(body).not.toContain('/money/outside-spending?');
     // Every piece a search engine may list, at its own folder, from the registry.
     for (const piece of indexedResearch()) {
       expect(body).toContain(`<loc>https://www.alethical.com${piecePath(piece)}</loc>`);

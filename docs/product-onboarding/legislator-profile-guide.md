@@ -29,6 +29,10 @@ author. **See more** opens that member's official chief-author list on the Minne
 Revisor website. Past-session archives remain a planned feature and are shown only as
 such.
 
+The first response also carries up to 2 chief-authored bill links from that same
+current-session list. An unavailable or empty list omits this extra section
+without claiming that the legislator authored no bills or hiding the profile.
+
 Preset questions come from issues on bills the member authored. They describe those bills,
 not the member's beliefs or priorities. A question that the current records cannot answer
 must not appear.

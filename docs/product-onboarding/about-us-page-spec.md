@@ -1,4 +1,4 @@
-<!-- describes: apps/frontend/src/screens/redesign/AboutUsScreen.tsx, apps/frontend/src/navigation/webRoutes.ts -->
+<!-- describes: apps/frontend/src/screens/redesign/AboutUsScreen.tsx, apps/frontend/src/lib/aboutUs.ts, apps/frontend/src/navigation/webRoutes.ts -->
 
 # About Us page
 
@@ -23,6 +23,11 @@ language.
 - Green is reserved for the Contact us action and the email link.
 
 ## Small screens
+
+The first response contains the same name origin, purpose, beliefs, public
+starting links and contact text as the loaded screen. Shared words in
+`aboutUs.ts` keep the 2 presentations aligned. The private Track link and planned
+features stay out of this initial text. No data request is needed to serve it.
 
 The belief cards, feature links, roadmap items, and contact area become 1 column below
 the phone breakpoint. Every link keeps a target at least 44 pixels tall.
