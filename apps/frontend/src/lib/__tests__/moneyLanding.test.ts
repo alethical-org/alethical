@@ -7,8 +7,10 @@ import {
   filingPeriodLine,
   formatCount,
   laneCountLine,
+  LANE_COUNT_UNITS,
   legislatorsLaneBody,
   legislatorsLaneSentence,
+  MONEY_LANDING_RECORD_DOES_NOT_COVER,
   MONEY_LANDING_SEARCH_NOTE,
   MONEY_LANDING_SUBTITLE,
   MONEY_LANE_BY_RACE,
@@ -19,6 +21,9 @@ import {
   orderingSentence,
   RECORD_DOES_NOT_COVER,
   RECORD_DOES_NOT_COVER_NOTE,
+  RESEARCH_ROW_EMPTY,
+  RESEARCH_ROW_LABEL,
+  RESEARCH_ROW_LINK,
 } from '../moneyLanding';
 
 // Ruled 1 Sep 2026 (#1924). The subtitle stands alone under the heading and the 5 lane
@@ -42,18 +47,37 @@ describe('the landing’s own standalone lines end without a full stop', () => {
     }
   });
 
-  it('keeps the full stop that separates the 2 sentences inside one lane body', () => {
-    // "…that exact spelling. There is no list of every payee…" — deleting this one would
-    // run 2 sentences together, which is not what the rule asks for.
-    expect(MONEY_LANE_WHO_GOT_PAID.body).toContain('that exact spelling. There is no list');
-    expect(MONEY_LANE_LEGISLATORS.body).not.toContain('.');
-    expect(MONEY_LANE_COMMITTEES.body).not.toContain('.');
-    expect(MONEY_LANE_BY_RACE.body).not.toContain('.');
-    expect(MONEY_LANE_OUTSIDE_SPENDING.body).not.toContain('.');
+  it('carries no full stop inside any stored lane body, now that each is 1 sentence', () => {
+    // The Who got paid body used to carry 2 sentences with the stop kept between them.
+    // Its second sentence was a fact about the record, not the lane, and on 8 Sep 2026 it
+    // moved to the landing's does-not-cover block, so every stored body is now 1 sentence.
+    for (const body of [
+      MONEY_LANE_LEGISLATORS.body,
+      MONEY_LANE_COMMITTEES.body,
+      MONEY_LANE_WHO_GOT_PAID.body,
+      MONEY_LANE_BY_RACE.body,
+      MONEY_LANE_OUTSIDE_SPENDING.body,
+    ]) {
+      expect(body).not.toContain('.');
+    }
   });
 
-  it('the race lane says the order out loud and promises no ranking or total', () => {
-    expect(MONEY_LANE_BY_RACE.body).toContain('district and then name order');
+  it('the Who got paid card says only what the lane does', () => {
+    expect(MONEY_LANE_WHO_GOT_PAID.body).toBe(
+      'Search a name to see every payment filed under that exact spelling',
+    );
+    expect(MONEY_LANE_WHO_GOT_PAID.body).not.toContain('no list of every payee');
+  });
+
+  // Accepted 8 Sep 2026 (proposed by Design): "in district and then name order" is cut.
+  // The order is a property of the list, and the race page prints its own order line
+  // above the rows, so the card no longer states it. The card still promises no ranking.
+  it('the race lane names the grouping and nothing about order, ranking or total', () => {
+    expect(MONEY_LANE_BY_RACE.body).toBe(
+      'Every candidate committee grouped by the seat it is running for, each with its own ' +
+        'filed figures',
+    );
+    expect(MONEY_LANE_BY_RACE.body).not.toContain('order');
     expect(MONEY_LANE_BY_RACE.body).not.toMatch(/total|most|largest|top/i);
   });
 
@@ -134,6 +158,20 @@ describe('the does-not-cover block', () => {
   it('keeps lobbying out of the permanent gaps, because ours is a different kind of absence', () => {
     expect(RECORD_DOES_NOT_COVER).toHaveLength(3);
     expect(RECORD_DOES_NOT_COVER.join(' ').toLowerCase()).not.toContain('lobby');
+    expect(MONEY_LANDING_RECORD_DOES_NOT_COVER.join(' ').toLowerCase()).not.toContain('lobby');
+  });
+
+  // Accepted 8 Sep 2026 (proposed by Design). The fact that left the Who got paid card
+  // is a property of the record, so the landing's block carries it as a 4th line; the
+  // other pages drawing the shared 3-line block are not the landing and keep the 3.
+  it('the landing’s copy adds the payee line as a 4th, after the shared 3', () => {
+    expect(MONEY_LANDING_RECORD_DOES_NOT_COVER).toHaveLength(4);
+    expect(MONEY_LANDING_RECORD_DOES_NOT_COVER.slice(0, 3)).toEqual([...RECORD_DOES_NOT_COVER]);
+    expect(MONEY_LANDING_RECORD_DOES_NOT_COVER[3]).toBe(
+      'No list of every payee — a paid name carries only its spelling on the filing',
+    );
+    // Copy rule C: a line in a stack ends bare.
+    expect(MONEY_LANDING_RECORD_DOES_NOT_COVER[3].endsWith('.')).toBe(false);
   });
 });
 
@@ -148,6 +186,47 @@ describe('lane counts', () => {
   // register held 1,603).
   it('shows nothing when the count is not served', () => {
     expect(laneCountLine(null, 'registered filers')).toBeNull();
+  });
+
+  // The 4 counted lanes, in the words the drawing prints (8 Sep 2026). The unit is a
+  // count of rows or of groupings, never money: "payments" counts the rows of the
+  // independent-expenditures file, and "contests" the race page's office-and-district
+  // groupings.
+  it('prints the 4 count lines the drawing shows, from served numbers', () => {
+    expect(laneCountLine(200, LANE_COUNT_UNITS.legislators)).toBe('200 MEMBERS');
+    expect(laneCountLine(1603, LANE_COUNT_UNITS.committees)).toBe('1,603 REGISTERED FILERS');
+    expect(laneCountLine(222, LANE_COUNT_UNITS.byRace)).toBe('222 CONTESTS');
+    expect(laneCountLine(41130, LANE_COUNT_UNITS.outsideSpending)).toBe('41,130 PAYMENTS');
+  });
+
+  // The Who got paid card has no count, and its slot carries no label either: a grey
+  // "NOTHING TO COUNT" was proposed and withdrawn (false — we hold hundreds of thousands
+  // of payment rows — and colour was its only signal). So there is no unit for it here.
+  it('has no unit for the Who got paid lane, whose slot stays empty', () => {
+    expect(Object.keys(LANE_COUNT_UNITS)).toEqual([
+      'legislators',
+      'committees',
+      'byRace',
+      'outsideSpending',
+    ]);
+    expect(Object.values(LANE_COUNT_UNITS).join(' ')).not.toMatch(/nothing|dollar|\$/i);
+  });
+});
+
+describe('the research row', () => {
+  // A quiet row above the filing list (8 Sep 2026), labelled with the product's own word
+  // for its writing; "WHAT WE FOUND" was a 3rd name for the same thing.
+  it('is labelled RESEARCH and links with the same words as before', () => {
+    expect(RESEARCH_ROW_LABEL).toBe('RESEARCH');
+    expect(RESEARCH_ROW_LINK).toBe('Read the research');
+  });
+
+  // With nothing published the row reads 1 line and nothing else: no count of 0 pieces,
+  // and no second link out to the /read page (proposed, refused).
+  it('says only that nothing is published yet, with no count and no full stop', () => {
+    expect(RESEARCH_ROW_EMPTY).toBe('Nothing is published yet');
+    expect(RESEARCH_ROW_EMPTY).not.toMatch(/\d/);
+    expect(RESEARCH_ROW_EMPTY.endsWith('.')).toBe(false);
   });
 });
 
@@ -345,13 +424,13 @@ describe('the filed date, which is the one fact a page may not substitute for', 
 });
 
 describe('the line under the search field', () => {
-  // The one landing sentence that used to live as text inside the screen, where no test
-  // could pin it. The words are the screen's own, unchanged.
-  it('is the exact sentence the screen prints', () => {
-    expect(MONEY_LANDING_SEARCH_NOTE).toBe(
-      'Matched on the name as it was filed, exactly as typed. We offer no nearest match: ' +
-        'names here differ from each other by a single character often enough that a guess ' +
-        'would put you on the wrong organisation.',
-    );
+  // Shortened 8 Sep 2026 (accepted, proposed by Design) to the one line saying what the
+  // matching does. The cut sentence about nearest matches is not gone from the product:
+  // NO_MATCH_WHY in lib/moneyNameSearch.ts prints it on the results page when a search
+  // finds nothing, which is the moment the case arises.
+  it('is the one line the screen prints, ending bare', () => {
+    expect(MONEY_LANDING_SEARCH_NOTE).toBe('Matched on the name as it was filed, exactly as typed');
+    expect(MONEY_LANDING_SEARCH_NOTE).not.toContain('nearest match');
+    expect(MONEY_LANDING_SEARCH_NOTE.endsWith('.')).toBe(false);
   });
 });

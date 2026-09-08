@@ -28,8 +28,8 @@ import { theme as t } from '../../theme/tokens';
 
 /**
  * The /read page — everything Alethical publishes in its own name, reached
- * from the bar's Read item and from the money landing's "What we found" card
- * (grounded-answers.md rule 13; Design's `/read` handoff, 27 Aug 2026). It sat at
+ * from the bar's Read item (the money landing's research row links to the newest
+ * piece itself) (grounded-answers.md rule 13; Design's `/read` handoff, 27 Aug 2026). It sat at
  * /money/reports until #1698, at /reports until the morning of 27 Aug 2026, and at
  * /reading until that evening (docs/architecture/published-writing-decisions.md
  * §2.1).

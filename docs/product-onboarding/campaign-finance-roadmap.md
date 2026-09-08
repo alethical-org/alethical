@@ -115,7 +115,7 @@ explanation: the *Spending by outside groups* section of
 
 Signed, dated research pieces, each at `/read/research/<name>` and listed on the
 `/read` page, reached from the top
-menu's **Read** item and from the money landing's "What we found" card: our research on
+menu's **Read** item (the money landing's research row links straight to the newest piece): our research on
 the records we hold, what they show when added up, every figure linked back to the record
 behind it. The listing sat inside the money section, at `/money/reports`, until 20 Aug 2026
 ([#1698](https://github.com/alethical-org/alethical/issues/1698)), at `/reports` until the
