@@ -54,6 +54,8 @@ import {
 } from "../apps/frontend/src/lib/outsideSpending";
 import {
   PAGE_CAP as COMMITTEE_PAYMENTS_PAGE_SIZE,
+  madePaymentRow,
+  paymentsTabFromParam,
   receivedPaymentRow,
   registrationNumberFromSlug,
 } from "../apps/frontend/src/lib/committeeMoney";
@@ -540,6 +542,12 @@ type CommitteeRegisterPayload = {
   as_of?: string | null;
 };
 
+/**
+ * One page of a committee's named payments, in either direction. The service
+ * answers `direction=received` with contributor fields and `direction=made` with
+ * vendor fields, so a row carries one set or the other and each shaper reads only
+ * the set its own direction fills.
+ */
 type CommitteePaymentsPayload = {
   state?: string | null;
   payments?:
@@ -551,6 +559,14 @@ type CommitteePaymentsPayload = {
         received_on?: string | null;
         receipt_type?: string | null;
         in_kind?: string | null;
+        vendor_name?: string | null;
+        vendor_city?: string | null;
+        vendor_state?: string | null;
+        affected_committee_name?: string | null;
+        affected_committee_registration_number?: string | null;
+        paid_on?: string | null;
+        expenditure_type?: string | null;
+        purpose?: string | null;
       }[]
     | null;
   page?: { total_payments?: number | null } | null;
@@ -770,16 +786,31 @@ async function committeeContent(
   };
 }
 
+/**
+ * The full payments list for the year AND the direction the address asks for.
+ *
+ * The direction used to be written in as `received`, so `?tab=spent` was served
+ * the money that came IN under a heading about the money that went out (#2038) --
+ * the same defect as the wrong year (#2021) on a different parameter. `tab` is
+ * read with `paymentsTabFromParam`, the reader the screen itself uses, and the
+ * rows are shaped by the same 2 shapers the screen calls, so a served line is a
+ * drawn line rather than a second wording of it.
+ *
+ * The canonical address is the bare payments address in both directions: a
+ * direction is a view of one record, not a record of its own.
+ */
 async function committeePaymentsContent(
   slug: string,
   requestedYear: string | undefined,
+  requestedTab: string | undefined,
 ): Promise<PageContent> {
   const { money, registrationNumber, year } = await committeeFinance(
     slug,
     requestedYear,
   );
+  const tab = paymentsTabFromParam(requestedTab);
   const params = new URLSearchParams({
-    direction: "received",
+    direction: tab === "gave" ? "received" : "made",
     year: String(year),
     sort: "amount",
     limit: String(COMMITTEE_PAYMENTS_PAGE_SIZE),
@@ -807,28 +838,51 @@ async function committeePaymentsContent(
         slug,
     }),
     snapshot: renderPageSnapshot(
-      committeePaymentsPageSnapshot(money, registrationNumber, {
-        state: payments?.state ?? null,
-        rows:
-          payments?.state === "reported"
-            ? (payments.payments ?? []).map((row) =>
-                receivedPaymentRow(
-                  {
-                    contributor: row.contributor ?? null,
-                    contributorRegistrationNumber:
-                      row.contributor_registration_number ?? null,
-                    contributorType: row.contributor_type ?? null,
-                    amount: row.amount ?? null,
-                    receivedOn: row.received_on ?? null,
-                    receiptType: row.receipt_type ?? null,
-                    inKind: row.in_kind ?? null,
-                  },
-                  linkable,
-                ),
-              )
-            : [],
-        totalPayments: payments?.page?.total_payments ?? null,
-      }),
+      committeePaymentsPageSnapshot(
+        money,
+        registrationNumber,
+        {
+          state: payments?.state ?? null,
+          rows:
+            payments?.state === "reported"
+              ? (payments.payments ?? []).map((row) =>
+                  tab === "gave"
+                    ? receivedPaymentRow(
+                        {
+                          contributor: row.contributor ?? null,
+                          contributorRegistrationNumber:
+                            row.contributor_registration_number ?? null,
+                          contributorType: row.contributor_type ?? null,
+                          amount: row.amount ?? null,
+                          receivedOn: row.received_on ?? null,
+                          receiptType: row.receipt_type ?? null,
+                          inKind: row.in_kind ?? null,
+                        },
+                        linkable,
+                      )
+                    : madePaymentRow(
+                        {
+                          vendorName: row.vendor_name ?? null,
+                          vendorCity: row.vendor_city ?? null,
+                          vendorState: row.vendor_state ?? null,
+                          affectedCommitteeName:
+                            row.affected_committee_name ?? null,
+                          affectedCommitteeRegistrationNumber:
+                            row.affected_committee_registration_number ?? null,
+                          amount: row.amount ?? null,
+                          paidOn: row.paid_on ?? null,
+                          expenditureType: row.expenditure_type ?? null,
+                          purpose: row.purpose ?? null,
+                          inKind: row.in_kind ?? null,
+                        },
+                        linkable,
+                      ),
+                )
+              : [],
+          totalPayments: payments?.page?.total_payments ?? null,
+        },
+        tab,
+      ),
     ),
   };
 }
@@ -973,7 +1027,7 @@ async function contentFor(
     case "moneyCommittee":
       return committeeContent(target.slug, target.year);
     case "moneyCommitteePayments":
-      return committeePaymentsContent(target.slug, target.year);
+      return committeePaymentsContent(target.slug, target.year, target.tab);
     case "privacy":
       return headOnly(STATIC_PAGE_METADATA["/privacy"]);
     case "siteMetrics":

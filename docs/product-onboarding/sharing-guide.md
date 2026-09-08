@@ -132,9 +132,11 @@ the first 250 named donations, each with its own date and amount. Every one of t
 through the same functions the screen uses, so a missing figure reads "Not reported" and a filed zero
 reads "$0.00", and a test fails if the served page ever prints an amount the filing does not carry
 ([`.claude/rules/grounded-answers.md` rule 12](../../.claude/rules/grounded-answers.md)). A year named in the
-address is the year those figures are for, so a shared link about one year never shows another
-year's money first. A tab named in the address is deliberately ignored by the served text, which
-carries the page's plain state, exactly as a bill serves its Summary whichever tab the address names.
+address is the year those figures are for, and on the payments page a direction named in the address
+is the direction those payments go, so a shared link never opens on an answer to a different
+question. A tab that only picks which part of one record to look at is still ignored by the served
+text, which carries the page's plain state, exactly as a bill serves its Summary whichever tab the
+address names.
 
 **Money by race** arrives with every contest, and inside each one an ordinary link to every
 candidate committee registered for that seat, with each committee's 2 figures and the dates each

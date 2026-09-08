@@ -103,6 +103,7 @@ import {
   NOT_IN_REGISTER_LINE,
   paymentsEyebrow,
   paymentsTitle,
+  type PaymentsTab,
   RECORD_COVERS_HEADING,
   recordCoverageLines,
   registeredForLine,
@@ -1614,19 +1615,28 @@ export function committeePaymentsPageSnapshot(
     rows: readonly PaymentRow[];
     totalPayments: number | null;
   },
+  // Which direction the ADDRESS asks for. Every sentence below is picked by it,
+  // so a reader who asked where the money went is never answered with the money
+  // that came in (#2038). The rows are shaped by the caller, which reads the
+  // matching direction from the data service.
+  //
+  // Required rather than defaulted: a default would let a caller that forgets it
+  // serve donations under a payments-out heading silently, which is the whole
+  // defect this parameter exists to stop.
+  tab: PaymentsTab,
 ): PageSnapshot {
   const identity = committeeIdentity(money, fallbackRegistrationNumber);
   const year = money.year ?? new Date().getFullYear();
   const served = payments.state === 'reported';
   const showing = served ? showingLine(payments.rows.length, payments.totalPayments) : null;
   return {
-    heading: paymentsTitle('gave'),
+    heading: paymentsTitle(tab),
     subheading: [identity.name, `REG ${identity.registrationNumber}`].join(' · '),
     bodyHeading: '',
     body: [
       ...(showing ? [showing] : []),
-      ...(served ? [] : [emptyListTitle('gave', year), emptyListWhy(year)]),
-      listLinkNote('gave', identity.isBallot),
+      ...(served ? [] : [emptyListTitle(tab, year), emptyListWhy(year)]),
+      listLinkNote(tab, identity.isBallot),
     ],
     bodyIsList: false,
     facts: [],
@@ -1638,7 +1648,7 @@ export function committeePaymentsPageSnapshot(
       ...(payments.rows.length
         ? [
             {
-              heading: paymentsEyebrow('gave'),
+              heading: paymentsEyebrow(tab),
               items: payments.rows.map((row) => ({
                 label: [
                   row.name,

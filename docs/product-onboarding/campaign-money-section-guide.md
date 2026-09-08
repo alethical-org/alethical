@@ -725,10 +725,9 @@ The full list behind a committee's figures — every named payment, largest firs
 payment's own date. The Who gave / Where it went choice and the year are in the address.
 The page loads 250 at a time; the capped-list card says the cap is ours, not the filing's,
 offers the next 250, and links to the filing itself on the Board's site. The version that
-arrives from the server carries the first 250 rows of the Who gave list, which is the one
-the page opens on; the Where it went list and any other year arrive when the page's programs
-run, exactly as a bill page serves its Summary whichever tab the address names. "Showing X of Y"
-is a measured count served with the rows, never a guess. The same naming rules apply: a
+arrives from the server carries the first 250 rows of the list the address asks for, in the
+direction and the year it names, so a shared "Where it went" link opens on payments out rather
+than on donations in. "Showing X of Y" is a measured count served with the rows, never a guess. The same naming rules apply: a
 loan is labelled as reported on its own schedule rather than reading as a gift, transfers
 read "Money given to another campaign" and open no name lookup, and a registered filer's
 number opens its committee page where any other name opens its own exact spelling.
