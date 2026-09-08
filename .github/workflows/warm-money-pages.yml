@@ -96,9 +96,16 @@ jobs:
           https://api.alethical.com/api/v1/campaign-finance/outside-spending?sort=newest
           "
 
+          # Send the address the site's own browsers send. Cloudflare's default
+          # cache identity includes the Origin header, and the API answers it with
+          # `Vary: Origin`, so a copy saved without it is a copy no reader's browser
+          # is ever handed. Measured 8 Sep 2026: the same address, MISS then HIT with
+          # no Origin, then MISS again WITH it (issue 2120). Harmless on the page
+          # addresses, where Vercel ignores it.
           for address in $addresses; do
             status="$(curl --silent --show-error --location \
               --max-time 30 --retry 2 --retry-delay 5 \
+              --header 'Origin: https://www.alethical.com' \
               --output /dev/null --write-out '%{http_code}' \
               "$address" || echo "000")"
             if [ "$status" != "200" ]; then

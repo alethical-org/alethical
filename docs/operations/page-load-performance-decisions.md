@@ -312,6 +312,17 @@ held-but-stale address is answered *from* the held copy rather than replacing it
 So warming makes a first reader fast and does nothing whatever about a corrected
 record. Nothing in the daily schedule counts toward the clearing story above.
 
+**Warming only counts if it saves the copy a browser reads, and until 8 Sep 2026 it
+did not.** Cloudflare's default cache identity includes the `Origin` header a
+browser attaches when the site asks the API, and the API answers it with
+`Vary: Origin`. The warming job and `api/page.ts` sent no such header, so every read
+they made saved a copy under a different identity: measured on one address that day,
+MISS then HIT with no `Origin`, then MISS again with the browser's. Both now send
+`Origin: https://www.alethical.com`, and any origin-share reading taken before that
+change describes a cache the warmers were not warming
+([issue 2120](https://github.com/alethical-org/alethical/issues/2120);
+[`api-cdn-setup.md`](api-cdn-setup.md) holds the measurement table).
+
 **Cloudflare holds a separate copy per edge server, so an occasional slow read
 survives all of this and is not a fault.** Measured 4 Sep 2026: 4 reads of
 `/campaign-finance/outside-spending` seconds apart from one machine all returned

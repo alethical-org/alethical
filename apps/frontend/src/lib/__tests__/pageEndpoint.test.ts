@@ -1747,6 +1747,26 @@ describe('a committee address naming a year is answered in that year', () => {
     2026: financeFor(2026, OTHER_YEAR_FIGURES),
   };
 
+  it('asks the data service as a browser on the site would, so the copy it warms is the one a browser reads', async () => {
+    // Cloudflare's default cache identity includes the Origin header and the API
+    // answers it with `Vary: Origin`. Measured 8 Sep 2026: the same address was
+    // MISS then HIT with no Origin, then MISS again WITH it, so a read without it
+    // saves a copy no reader is handed (issue 2120).
+    stubFinance(BOTH_YEARS);
+
+    await serve({ path: `/money/committees/${SLUG}`, year: '2025' });
+
+    const apiCalls = vi
+      .mocked(fetch)
+      .mock.calls.filter(([url]) => String(url).startsWith('https://api.alethical.com/'));
+    expect(apiCalls.length).toBeGreaterThan(0);
+    for (const [, init] of apiCalls) {
+      expect((init as RequestInit | undefined)?.headers).toMatchObject({
+        Origin: 'https://www.alethical.com',
+      });
+    }
+  });
+
   it('asks the data service for the year in the address, not the default one', async () => {
     const calls = stubFinance(BOTH_YEARS);
 

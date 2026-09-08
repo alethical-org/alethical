@@ -130,10 +130,15 @@ what it sends on, so the window is invisible in the response headers), bounded b
 `api/page.ts` at 300 s plus 300 s. Clearing that store needs `Cache-Tag` headers on
 `api/page.ts` and Vercel's tag invalidation, which is available on all plans.
 
-## Smart Tiered Cache is off for this zone
+## Smart Tiered Cache is on for this zone, since 8 Sep 2026 20:49 UTC
 
-Read from the zone on 8 Sep 2026: `tiered_cache_smart_topology_enable` is `"off"`
-and `editable: true`, on a `Free Website` plan. Turning it on is one call:
+Read from the zone on 8 Sep 2026 at 16:00 UTC: `tiered_cache_smart_topology_enable`
+was `"off"` and `editable: true`, on a `Free Website` plan. Eugene switched it on in
+the dashboard at 20:49:34 UTC the same day (Caching, Tiered Cache, Smart Tiered
+Caching); the zone now reads `"on"` with that `modified_on`. Any before-and-after
+reading of origin share is bounded by that minute. The saved API token can read this
+setting but not change it (a PATCH returns "Authentication error"), so the switch is
+a dashboard action. The call that would change it, for a token that can:
 
 ```bash
 curl -X PATCH "https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/cache/tiered_cache_smart_topology_enable" \
@@ -141,7 +146,7 @@ curl -X PATCH "https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/ca
   -H "Content-Type: application/json" --data '{"value":"on"}'
 ```
 
-What it would buy: a data centre with no saved copy fetches from an upper-tier data
+What it buys: a data centre with no saved copy fetches from an upper-tier data
 centre instead of from Railway, so the per-edge cold read measured below stops
 reaching the origin. Smart Topology is available on every plan; **Generic Global
 Tiered Cache and Regional Tiered Cache are Enterprise-only** -- the zone refuses
@@ -175,6 +180,28 @@ reader ever asks for.
 Every meaningful difference stays its own copy, which is what the default key gives
 for free: year, page, office, committee, direction, name and search text all change
 the address and so all change the key.
+
+**The `Origin` header is part of the identity too, so a warmer must send the one a
+browser sends.** Cloudflare's default cache key includes the `Origin` header a
+browser attaches to a cross-origin request ("Origin header sent by client (for CORS
+support)", https://developers.cloudflare.com/cache/how-to/cache-keys/), and the API
+answers `https://www.alethical.com` with `Access-Control-Allow-Origin` and
+`Vary: Origin`, so the split would happen at any cache that honours `Vary` even
+without Cloudflare's default. Measured on the live API, 8 Sep 2026, one address with
+a unique parameter:
+
+| Request | 1st | 2nd |
+| --- | --- | --- |
+| No `Origin` (what `api/page.ts` and `warm-money-pages.yml` sent until 8 Sep) | MISS | HIT |
+| `Origin: https://www.alethical.com` (what a browser on the site sends) | **MISS** | HIT |
+| No `Origin` again | HIT | |
+
+Two saved copies of identical bytes, and every read the page function and the warming
+job made had been saving the one no browser is handed. Both now send
+`Origin: https://www.alethical.com` on every API read
+([issue 2120](https://github.com/alethical-org/alethical/issues/2120)). `api/sitemap.ts`
+also reads the API and deliberately does not: no browser fetches those addresses, so
+there is no browser copy to warm.
 
 **What the window does and does not touch.** Every money page prints `as_of`,
 read off the loaded snapshot's `fetch_completed_at` and carried inside the
