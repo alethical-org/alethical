@@ -97,9 +97,13 @@ export function orderingSentence(orderedBy: string): string | null {
  * `orderedBy` picks the sentence, from the same served value the ordering sentence
  * derives from.
  *
- * **"Not the largest" survives both wordings and is the load-bearing half.** No row
- * carries an amount and nothing here ever sorts by one; 5 rows with 5 dollar
- * figures would read as a ranking whether anyone sorted them or not.
+ * **The alphabetical wording carries "not the newest and not the largest"; the arrival
+ * wording carries no negative.** The arrival sentence already says positively which rows
+ * were picked ("the ones the Board received most recently"), so a trailing "never the
+ * largest" only restated that boundary (ruled 8 Sep 2026). The alphabetical branches keep
+ * theirs because their positive clause is a different one ("the first by name") and does
+ * not by itself rule out a ranking. No row carries an amount and nothing here ever sorts
+ * by one.
  *
  * The count says REPORTS, not committees, and that wording is load-bearing too. The
  * served figure is `newest_period.filing_count`, and a committee that corrects a
@@ -121,7 +125,7 @@ export function filingsTieSentence(filingCount: number | null, orderedBy = ''): 
     // Board" rather than "it", because the nearest noun to that pronoun was the period.
     const arrival =
       'The rows shown are the ones the Board received most recently, and a report the ' +
-      'Board states no date for sits by the period it covers instead — never the largest.';
+      'Board states no date for sits by the period it covers instead.';
     if (filingCount === null) {
       return `Every committee that filed for this period is listed. ${arrival}`;
     }
@@ -174,6 +178,12 @@ export function centralDateLabel(isoTimestamp: string): string {
  * it ends bare (copy rule C, 1 Sep 2026); `legislatorsLaneBody` supplies the full
  * stop that separates it from the sentence before it.
  *
+ * **Once every sitting member is confirmed the sentence says so and stops.** The
+ * counted wording ends "for the rest, no figures show on a profile", and with the 2
+ * served numbers equal that clause describes nobody (accepted 8 Sep 2026, proposed
+ * by Design). While any member is unconfirmed the counted wording stands, word for
+ * word, so a reader can see how far the confirming has got.
+ *
  * This is the one place the landing states the confirmed count. The does-not-cover
  * block used to state it a second time, with its own dated footnote; that copy came
  * out under copy rule A (a fact once per surface).
@@ -182,6 +192,9 @@ export function legislatorsLaneSentence(confirmation: {
   confirmed: number;
   total: number;
 }): string {
+  if (confirmation.confirmed === confirmation.total) {
+    return 'Confirmed for every sitting legislator';
+  }
   return (
     `Confirmed for ${formatCount(confirmation.confirmed)} of Minnesota's ` +
     `${formatCount(confirmation.total)} sitting legislators — for the rest, no figures show ` +
@@ -221,6 +234,18 @@ export const MONEY_LANDING_HEADING = 'Follow the money';
 export const MONEY_LANDING_SUBTITLE =
   'Every donation and payment Minnesota publishes for state campaigns, searchable by ' +
   'the name it was filed under';
+
+/**
+ * The line under the search field. It says what the matching does and rules out a
+ * nearest-match guess out loud, for the reason `lib/moneyNameSearch.ts` measures: 178
+ * registered filer names sit a single character apart from another, and every one of
+ * those pairs is a different organisation. It lives here rather than as text inside the
+ * screen so a test can pin it, like every other sentence the landing shows.
+ */
+export const MONEY_LANDING_SEARCH_NOTE =
+  'Matched on the name as it was filed, exactly as typed. We offer no nearest match: names ' +
+  'here differ from each other by a single character often enough that a guess would put you ' +
+  'on the wrong organisation.';
 
 export const MONEY_LANE_LEGISLATORS = {
   title: 'Legislators',
