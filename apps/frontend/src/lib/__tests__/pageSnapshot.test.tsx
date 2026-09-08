@@ -521,6 +521,173 @@ describe('the legislator snapshot says only what the profile draws', () => {
     expect(html).not.toContain('Third Bill Must Not Appear');
   });
 
+  /**
+   * A member who has resigned, died or lost a seat: production omits
+   * `current_service` altogether rather than emptying its fields, and leaves
+   * the committee rows from their last sitting attached. Measured 8 Sep 2026
+   * against the live API: 6 of the 206 stored legislators are in this state,
+   * and Joe Schomacker is the one of the 6 who still carries committee rows.
+   *
+   * Everything current is withheld. Everything past stays, because a service
+   * history and an authored bill are records of what the person DID.
+   */
+  it('claims no current office, party, committee or contact without a current service record', () => {
+    const former = legislatorPageSnapshot(
+      {
+        full_name: 'Joe Schomacker',
+        committees: [
+          { name: 'Health Finance and Policy', role: null },
+          { name: 'Human Services Finance and Policy', role: 'Co-Chair' },
+          { name: 'Ways and Means', role: null },
+        ],
+        service_history: {
+          term: 8,
+          periods: [{ chamber: 'house', initial_year: 2010, reelection_years: [2012, 2014] }],
+        },
+      },
+      [
+        {
+          id: '94-2025-HF861',
+          ai_analysis: { short_title: 'Public Safety Radio Grants for Five Counties' },
+          status_key: 'in_committee',
+        },
+      ],
+    );
+    const html = renderPageSnapshot(former);
+
+    expect(former.heading).toBe('Joe Schomacker');
+    expect(former.subheading).toBe('');
+    expect(former.body).toEqual([]);
+    expect(former.facts).toEqual([]);
+    expect(former.links).toEqual([{ label: 'Legislators', href: '/legislators' }]);
+
+    // The 2 invented claims, and the 3 stale committee rows, in the text that
+    // actually ships. `Senate` is banned outright here: this record names the
+    // House and nothing else, so any Senate word on the page is a guess.
+    for (const guess of [
+      'Sen.',
+      'Rep.',
+      'Senate',
+      'Independent',
+      'Democratic-Farmer-Labor',
+      'District',
+      'Committees',
+      'Ways and Means',
+      'Co-Chair',
+      'No current committee assignments on record.',
+      'Capitol office',
+      'Phone',
+      'Official',
+    ]) {
+      expect(html).not.toContain(guess);
+    }
+
+    // What the record does support, still served.
+    expect(html).toContain('Joe Schomacker');
+    expect(html).toContain('<h2>Legislative Service</h2>');
+    expect(html).toContain('Elected to the House: 2010, re-elected 2012, 2014');
+    expect(html).toContain('Term: 8th');
+    expect(html).toContain('Public Safety Radio Grants for Five Counties');
+  });
+
+  /**
+   * The same withholding when the record IS present but names no chamber we
+   * recognise. Every current field is populated here, so this is the case that
+   * proves each one is gated rather than merely absent from the payload.
+   */
+  it('withholds a district, party, office, phone and profile link when no chamber is named', () => {
+    const unnamedChamber = legislatorPageSnapshot({
+      full_name: 'Pat Doe',
+      current_service: {
+        chamber: 'joint',
+        party: 'DFL',
+        district: { code: '22A' },
+        phone: '651-296-0000',
+        office_address: 'Speaker of the House\n100 Rev. Dr. Martin Luther King Jr. Blvd.',
+        profile_url: 'https://www.house.mn.gov/members/profile/99999',
+      },
+      committees: [{ name: 'Ways and Means', role: 'Chair' }],
+    });
+    const html = renderPageSnapshot(unnamedChamber);
+
+    expect(unnamedChamber.heading).toBe('Pat Doe');
+    expect(unnamedChamber.subheading).toBe('');
+    expect(unnamedChamber.body).toEqual([]);
+    expect(unnamedChamber.facts).toEqual([]);
+    expect(unnamedChamber.links).toEqual([{ label: 'Legislators', href: '/legislators' }]);
+    for (const guess of [
+      'Sen.',
+      'Rep.',
+      'Senate',
+      'House',
+      'District 22A',
+      'Democratic-Farmer-Labor',
+      'Independent',
+      'Ways and Means',
+      'Chair',
+      'Leadership',
+      'Speaker',
+      'Capitol office',
+      '651-296-0000',
+      'Phone',
+      'Official',
+      'house.mn.gov',
+    ]) {
+      expect(html).not.toContain(guess);
+    }
+  });
+
+  /**
+   * The paired case. Fixing the missing state must not blank a sitting member,
+   * so every field the 2 tests above ban is required here.
+   */
+  it.each([
+    { chamber: 'house', title: 'Rep.', chamberWord: 'House' },
+    { chamber: 'senate', title: 'Sen.', chamberWord: 'Senate' },
+  ])('keeps every current fact a sitting $chamber member has on record', (member) => {
+    const sitting = legislatorPageSnapshot({
+      full_name: 'Pat Doe',
+      current_service: {
+        chamber: member.chamber,
+        party: 'DFL',
+        district: { code: '22A' },
+        phone: '651-296-0000',
+        office_address: 'Assistant Republican Leader\n100 Rev. Dr. Martin Luther King Jr. Blvd.',
+        profile_url: 'https://www.example.mn.gov/members/profile/99999',
+      },
+      committees: [{ name: 'Ways and Means', role: 'Chair' }],
+    });
+    const html = renderPageSnapshot(sitting);
+
+    expect(sitting.heading).toBe(`${member.title} Pat Doe`);
+    expect(sitting.subheading).toBe(`${member.chamberWord} District 22A · Democratic-Farmer-Labor`);
+    expect(sitting.body).toEqual(['Ways and Means (Chair)']);
+    expect(sitting.facts).toEqual([
+      { label: 'Leadership', lines: ['Assistant Republican Leader'] },
+      { label: 'Capitol office', lines: ['100 Rev. Dr. Martin Luther King Jr. Blvd.'] },
+      { label: 'Phone', lines: ['651-296-0000'] },
+    ]);
+    expect(sitting.links).toEqual([
+      {
+        label: `Official ${member.chamberWord} profile`,
+        href: 'https://www.example.mn.gov/members/profile/99999',
+      },
+      { label: 'Legislators', href: '/legislators' },
+    ]);
+    for (const kept of [
+      `${member.title} Pat Doe`,
+      `${member.chamberWord} District 22A`,
+      'Democratic-Farmer-Labor',
+      '<h2>Committees</h2>',
+      'Ways and Means (Chair)',
+      'Assistant Republican Leader',
+      '651-296-0000',
+      `Official ${member.chamberWord} profile`,
+    ]) {
+      expect(html).toContain(kept);
+    }
+  });
+
   it('omits the chief-authored bill block when no successful rows were served', () => {
     for (const bills of [undefined, null, []] as const) {
       const sparse = legislatorPageSnapshot(legislatorFixture as never, bills);
