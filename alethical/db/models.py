@@ -1146,8 +1146,8 @@ class SiteMetricEvent(UUIDPrimaryKeyMixin, TimestampMixin, Base):
             "'bill_search_with_results', "
             "'legislator_search_with_results', "
             "'find_my_legislator_with_results', "
-            "'money_search_with_results', "
-            "'official_source_opened'"
+            "'official_source_opened', "
+            "'money_search_with_results'"
             ")",
             name="event_kind_allowed",
         ),
