@@ -235,9 +235,10 @@ copied a publication from the Board). Only the validation time expires.
 **Ages are durations added, never 2 clocks subtracted.** A reader's clock can be
 wrong by hours, and `now - validated_at` across 2 machines would then read a stale
 claim as fresh, which is the failure the whole mechanism exists to stop. So the
-caches report what they added through `Age`, which the API now lists in
-`Access-Control-Expose-Headers` so a browser is allowed to read it, and the app adds
-only elapsed time from its own clock. Where `Age` is missing or hidden the app
+caches report what they added through `Age`: the page function reads it off its own
+API response and writes it onto the seeded entry, and the API lists it in
+`Access-Control-Expose-Headers` so a browser is allowed to read it on a read the app
+makes itself. The app then adds only elapsed time from its own clock. Where `Age` is missing or hidden the app
 assumes the worst its window allows, so a header we cannot see costs freshness
 rather than honesty.
 
