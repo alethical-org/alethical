@@ -588,6 +588,42 @@ An explaining paragraph inside a card keeps every full stop it has, however shor
    because it is a different download and a date shared between the 2 would be a claim
    about both that only one of them supports.
 
+**A fourth kind of time exists and is deliberately not printed here.** Our data service
+also reports when it last confirmed that these committees are still this member's, and
+that one governs whether the cards are shown at all rather than what any date on screen
+says. It is kept out of the 3 above because it describes our own checking rather than
+Minnesota's records, and a reader has no use for it while the cards are being drawn
+normally. What it does when it runs out is the section below.
+
+---
+
+## When the tab stops showing the committees, because the match is too old to repeat
+
+These cards are on this member's page **because a person at Alethical confirmed which
+committees are theirs**, and that decision can be taken back. So the tab only repeats it
+while it has been able to check the match inside the last 20 minutes.
+
+Past that it asks our data service again. If that answer arrives, nothing changes on
+screen and the clock starts over. If it cannot be got, the cards are replaced by a short
+paragraph saying we are not showing this member's committees right now, that somebody did
+confirm them, and that this says nothing about what the member raised or spent.
+
+Three things about it are deliberate:
+
+- **It is not the "nobody has checked yet" panel.** Somebody has, and showing that panel
+  would state something plainly false about this member.
+- **A reader in ordinary use never sees it.** The recheck takes under a second. The reader
+  who reaches it is one whose connection, or our service, has failed.
+- **Withholding a match is not the same as hiding a figure.** Every dollar figure carries
+  the period it covers and the day we copied it, so an old one is labelled rather than
+  wrong. A claim about whose committee this is carries no such date and goes wrong
+  silently the moment somebody corrects it, which is why only that one expires.
+
+The 20 minutes, and the arithmetic that produces it, are in
+[`docs/operations/page-load-performance-decisions.md`](../operations/page-load-performance-decisions.md)
+under "How old a current claim can be, end to end"
+([issue 2023](https://github.com/alethical-org/alethical/issues/2023)).
+
 ---
 
 ## Why a year has nothing to show, in the 6 different ways it can happen

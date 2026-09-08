@@ -11,6 +11,7 @@ import {
 import { MONEY_ONLY_GOES_ONE_WAY } from '../researchPieces/moneyOnlyGoesOneWay';
 import { WHO_HAS_TO_REPORT_THEIR_MONEY } from '../researchPieces/whoHasToReportTheirMoney';
 import { escapeHtml } from '../share';
+import { API_SHARED_CACHE_MAX_AGE_MS } from '../currentClaimFreshness';
 
 const { readPageShell } = vi.hoisted(() => ({ readPageShell: vi.fn() }));
 
@@ -60,7 +61,7 @@ function responseRecorder() {
 }
 
 /** Answers data-service requests from `api`; the page shell comes from the bundled file mock. */
-function stubNetwork(api: (path: string) => { status: number; payload?: unknown }) {
+function stubNetwork(api: (path: string) => { status: number; payload?: unknown; age?: number }) {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url: string) => {
@@ -69,6 +70,13 @@ function stubNetwork(api: (path: string) => { status: number; payload?: unknown 
         ok: result.status >= 200 && result.status < 300,
         status: result.status,
         json: async () => result.payload,
+        // A real `Response` always carries headers, and the page function reads
+        // `Age` off the ones that claim something about right now. A case that
+        // sets no age gets no header, which is what an origin miss looks like.
+        headers: {
+          get: (name: string) =>
+            name.toLowerCase() === 'age' && result.age !== undefined ? String(result.age) : null,
+        },
       } as unknown as Response;
     }),
   );
@@ -1219,12 +1227,25 @@ describe('the records a money page hands to the app', () => {
   };
 
   /** Every entry in the served data block, as the app's own reader parses it. */
-  function servedData(body: string): { key: unknown[]; payload: Record<string, unknown> }[] {
+  function servedData(body: string): {
+    key: unknown[];
+    payload: Record<string, unknown>;
+    // Present only on a read whose answer claims something about right now, which
+    // is the whole point of it being optional (issue 2023).
+    validatedAgeMs?: number;
+  }[] {
     const block = body.match(
       /<script type="application\/json" id="alethical-page-data">([\s\S]*?)<\/script>/,
     )?.[1];
     if (!block) return [];
     return JSON.parse(block);
+  }
+
+  /** The seeded summary entry, failing loudly rather than reading a field off nothing. */
+  function servedSummary(body: string) {
+    const entry = servedData(body).find((seeded) => seeded.key[0] === 'campaign-finance-summary');
+    if (!entry) throw new Error('no summary was seeded, so there is no age to read');
+    return entry;
   }
 
   it('hands /money/committees the rows it read, under the key the list asks for', async () => {
@@ -1332,9 +1353,57 @@ describe('the records a money page hands to the app', () => {
     const { body } = await serve({ path: '/money' });
 
     expect(servedData(body)).toEqual([
-      { key: ['campaign-finance-summary'], payload: summary },
+      // The summary counts who sits right now, so it travels with the age it
+      // already had. No `Age` came back here, which is what an origin miss looks
+      // like and what a cache that does not report one looks like, and the two
+      // cannot be told apart — so it is read as the oldest the window allows
+      // rather than as new (issue 2023).
+      {
+        key: ['campaign-finance-summary'],
+        payload: summary,
+        validatedAgeMs: API_SHARED_CACHE_MAX_AGE_MS,
+      },
+      // Dated filings carry the period they cover and the day we copied them, so
+      // they get no clock at all.
       { key: ['campaign-finance-filings', 5], payload: filings },
     ]);
+  });
+
+  it('hands on the age a cache reported for a claim about who sits right now', async () => {
+    const summary = {
+      register: { state: 'reported', filer_count: 1603 },
+      legislator_committee_confirmations: {
+        state: 'reported',
+        confirmed_member_count: 200,
+        sitting_member_count: 200,
+        newest_confirmation_at: '2026-08-30T00:00:00Z',
+      },
+      freshness: { downloads_fetched_at: '2026-09-01T12:00:00Z' },
+    };
+    stubNetwork((url) => ({
+      status: 200,
+      payload: { data: url.includes('/filings') ? {} : summary },
+      // 90 seconds in a shared cache before this function got it.
+      age: 90,
+    }));
+
+    const { body } = await serve({ path: '/money' });
+
+    expect(servedSummary(body).validatedAgeMs).toBe(90_000);
+  });
+
+  it('never lets a reported age exceed the window that produced it', async () => {
+    stubNetwork(() => ({
+      status: 200,
+      payload: { data: { register: { state: 'unavailable' } } },
+      // A cache reporting more than its own window is reporting something
+      // impossible, so the window wins rather than the header.
+      age: 99_999,
+    }));
+
+    const { body } = await serve({ path: '/money' });
+
+    expect(servedSummary(body).validatedAgeMs).toBe(API_SHARED_CACHE_MAX_AGE_MS);
   });
 
   it('still serves /money when a count cannot be read, and hands on nothing for it', async () => {

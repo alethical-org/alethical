@@ -63,6 +63,54 @@ describe('app query refresh', () => {
     unsubscribe();
   });
 
+  /**
+   * The open-tab half of issue 2023. Every money read goes through a key the bill
+   * set does not hold, so before this a returning reader rechecked nothing on a
+   * money page and a member's name could stay on screen for as long as the tab
+   * stayed open.
+   */
+  it('refreshes a stale money read that names who currently holds office', async () => {
+    const request = vi.fn(async () => 'new');
+    const key = ['committee-money', '17868', 2026];
+    const { client, query, unsubscribe } = activeQuery(key, request);
+    client.setQueryData(key, 'old', { updatedAt: Date.now() - APP_QUERY_STALE_TIME - 1 });
+
+    query.onFocus();
+    await vi.waitFor(() => expect(client.getQueryData(key)).toBe('new'));
+
+    expect(request).toHaveBeenCalledTimes(1);
+    unsubscribe();
+  });
+
+  it('refreshes a stale read of whose committee a member has confirmed', async () => {
+    const request = vi.fn(async () => 'new');
+    const key = ['legislator-campaign-money', 'jim-abeler', 2026];
+    const { client, query, unsubscribe } = activeQuery(key, request);
+    client.setQueryData(key, 'old', { updatedAt: Date.now() - APP_QUERY_STALE_TIME - 1 });
+
+    query.onFocus();
+    await vi.waitFor(() => expect(client.getQueryData(key)).toBe('new'));
+
+    expect(request).toHaveBeenCalledTimes(1);
+    unsubscribe();
+  });
+
+  it('leaves a stale read of dated filings alone on focus', async () => {
+    // Deliberate, and the reason is not caution: these figures carry the period
+    // they cover and the day we copied them, so rechecking on every tab switch
+    // would spend a request to redraw the same labelled number.
+    const request = vi.fn(async () => 'new');
+    const key = ['committee-payments', '17868', 'received', 2026];
+    const { client, query, unsubscribe } = activeQuery(key, request);
+    client.setQueryData(key, 'old', { updatedAt: Date.now() - APP_QUERY_STALE_TIME - 1 });
+
+    query.onFocus();
+    await Promise.resolve();
+
+    expect(request).not.toHaveBeenCalled();
+    unsubscribe();
+  });
+
   it('shares 1 request across a burst of focus and reconnect signals', async () => {
     let finishRequest!: (value: string) => void;
     const request = vi.fn(

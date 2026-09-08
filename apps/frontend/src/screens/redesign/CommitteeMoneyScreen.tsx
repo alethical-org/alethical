@@ -26,6 +26,7 @@ import {
   usePrefetchCommitteeMoney,
   usePrefetchLegislator,
 } from '../../hooks/useAppQueries';
+import { useCurrentClaimExpiry } from '../../hooks/useCurrentClaimExpiry';
 import { useResponsive } from '../../hooks/useResponsive';
 import {
   AMENDED_CHIP,
@@ -94,6 +95,7 @@ import {
   unlistedReportsLine,
   whoseCommitteeText,
   yearDisplayState,
+  CONFIRMED_MEMBER_WITHHELD_LINE,
   type CommitteeTab,
   type OutsideSpendingSort,
   type OutsideSpendingTab,
@@ -177,6 +179,18 @@ export function CommitteeMoneyScreen({ navigation, route }: RootScreenProps<'Com
   const money = moneyQuery.data ?? null;
   const notFound = moneyQuery.data === null && !moneyQuery.isPending && !moneyQuery.isError;
 
+  // Whose committee this is can be taken back after it was confirmed, so it is the
+  // one thing on this page that expires. Past the deadline the sentence naming the
+  // member is withheld and every dated figure stays exactly as it is
+  // (`lib/currentClaimFreshness.ts`, issue 2023). `dataUpdatedAt` is 0 before any
+  // answer, which would read as 1970 and withhold on a page that has nothing to
+  // withhold, so it is only passed once there is data.
+  const confirmedMemberWithheld = useCurrentClaimExpiry({
+    servedAgeMs: money?.currentClaim.servedAgeMs,
+    dataUpdatedAt: money ? moneyQuery.dataUpdatedAt : undefined,
+    refetch: moneyQuery.refetch,
+  });
+
   // The canonical forward: an old or misspelled name part lands here by the
   // number, then the address is rewritten in place to the current spelling —
   // never pushed, so the Back button is not trapped between the two.
@@ -247,6 +261,7 @@ export function CommitteeMoneyScreen({ navigation, route }: RootScreenProps<'Com
               registrationNumber={registrationNumber ?? money.registrationNumber}
               isMobile={isMobile}
               isHoldingStale={moneyQuery.isError}
+              confirmedMemberWithheld={confirmedMemberWithheld}
               onSelectYear={onSelectYear}
               onSelectTab={onSelectTab}
               navigation={navigation}
@@ -321,6 +336,7 @@ function CommitteeBody({
   registrationNumber,
   isMobile,
   isHoldingStale,
+  confirmedMemberWithheld,
   onSelectYear,
   onSelectTab,
   navigation,
@@ -332,6 +348,7 @@ function CommitteeBody({
   registrationNumber: string;
   isMobile: boolean;
   isHoldingStale: boolean;
+  confirmedMemberWithheld: boolean;
   onSelectYear: (year: number) => void;
   onSelectTab: (tab: CommitteeTab) => void;
   navigation: RootScreenProps<'CommitteeMoney'>['navigation'];
@@ -358,10 +375,15 @@ function CommitteeBody({
   // matching the bill and legislator lists (usePrefetchBill /
   // usePrefetchLegislator, #1966) plus the route-splitting piece the profile
   // screen now downloads on its own (screenLoaderForPath, #1970/#1975).
+  // The member this page may name RIGHT NOW, which is not the same as the member
+  // the answer carried. Withholding is only ever about naming somebody: where the
+  // answer already names nobody there is nothing to withhold, and an out-of-date
+  // "nobody has confirmed one" can at worst under-claim, never misname a person.
+  const nameableMember = confirmedMemberWithheld ? null : money.confirmedFor;
   const warmConfirmedFor = () => {
-    if (money.confirmedFor) {
-      prefetchLegislator(money.confirmedFor.slug);
-      void screenLoaderForPath(routePath.legislator(money.confirmedFor.slug, { tab: 'money' }))?.();
+    if (nameableMember) {
+      prefetchLegislator(nameableMember.slug);
+      void screenLoaderForPath(routePath.legislator(nameableMember.slug, { tab: 'money' }))?.();
     }
   };
 
@@ -402,20 +424,25 @@ function CommitteeBody({
 
       <View style={styles.whoseCard}>
         <Text style={styles.whoseText}>
-          {whoseCommitteeText(registerKind, money.entitySubType, money.confirmedFor)}
+          {/* Never `whoseCommitteeText(..., null)` while withholding: that sentence
+              says nobody has confirmed a member, which is a different fact and
+              false here. A withheld claim gets its own words. */}
+          {confirmedMemberWithheld && money.confirmedFor
+            ? CONFIRMED_MEMBER_WITHHELD_LINE
+            : whoseCommitteeText(registerKind, money.entitySubType, nameableMember)}
         </Text>
         {/* What the person read, under the sentence saying they read it. A reader who
             arrived here rather than at a profile came asking whose committee this is,
             so the evidence belongs on this page more than on that one. The same block,
             same treatment, as the profile's card foot. */}
-        <CheckedByBlock checked={money.confirmedFor?.checked} />
+        <CheckedByBlock checked={nameableMember?.checked} />
         {/* Only where a person confirmed it. The reader came to a money page, so
             the crossing lands on the member's money rather than their overview. */}
-        {money.confirmedFor ? (
+        {nameableMember ? (
           <Pressable
-            {...linkProps(routePath.legislator(money.confirmedFor.slug, { tab: 'money' }), () =>
+            {...linkProps(routePath.legislator(nameableMember.slug, { tab: 'money' }), () =>
               navigation.push('LegislatorProfile', {
-                legislatorId: money.confirmedFor!.slug,
+                legislatorId: nameableMember.slug,
                 tab: 'money',
               }),
             )}
@@ -424,7 +451,7 @@ function CommitteeBody({
             style={styles.seeAll}
           >
             <Text style={styles.seeAllLabel}>
-              {confirmedMemberLinkLabel(money.confirmedFor.fullName)}
+              {confirmedMemberLinkLabel(nameableMember.fullName)}
             </Text>
             <ForwardArrow color={t.colors.brand.base} />
           </Pressable>

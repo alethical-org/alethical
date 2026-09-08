@@ -34,10 +34,12 @@ import {
   filingScheduleNote,
   otherOfficeNote,
   severalCommitteesNote,
+  confirmedCommitteesWithheldLine,
 } from '../../lib/legislatorCampaignMoney';
 import { coveredPeriodDetail, coveredPeriodLine, stampThroughDate } from '../../lib/committeeMoney';
 import { centralDateLabel } from '../../lib/moneyLanding';
 import { useLegislatorOutsideSpending } from '../../hooks/useAppQueries';
+import { useCurrentClaimExpiry } from '../../hooks/useCurrentClaimExpiry';
 import { useResponsive } from '../../hooks/useResponsive';
 import { CheckedByBlock, FilingStamp, MoneyInBlock, MoneyOutBlock } from './MoneyCards';
 import { outsideSpendingYears } from '../../lib/outsideSpending';
@@ -56,6 +58,12 @@ type Props = {
   money: LegislatorCampaignMoney | undefined;
   isLoading: boolean;
   isError: boolean;
+  /** React Query's own stamp for the money read, so this tab can tell how old the
+   *  confirmation behind these committees is (issue 2023). */
+  moneyUpdatedAt: number | undefined;
+  /** Asked again when that confirmation reaches its deadline, so a reachable
+   *  service restores the committees instead of them being withheld. */
+  refetchMoney: () => void;
   isDesktop: boolean;
   legislatorId: string;
   onOpenSource: (url: string) => void;
@@ -68,10 +76,20 @@ export function CampaignMoneyTab({
   money,
   isLoading,
   isError,
+  moneyUpdatedAt,
+  refetchMoney,
   isDesktop,
   legislatorId,
   onOpenSource,
 }: Props) {
+  // These committees are on this person's page BECAUSE somebody confirmed they are
+  // theirs, and that decision can be taken back. Past the deadline the tab stops
+  // repeating it (`lib/currentClaimFreshness.ts`).
+  const committeesWithheld = useCurrentClaimExpiry({
+    servedAgeMs: money?.currentClaim.servedAgeMs,
+    dataUpdatedAt: money ? moneyUpdatedAt : undefined,
+    refetch: refetchMoney,
+  });
   // Money others spent about this member, from #1332. Fetched here rather than by the
   // profile screens so a reader who never opens this tab never pays for the request,
   // and so both records sit on one page under one heading. It is a different record
@@ -109,6 +127,14 @@ export function CampaignMoneyTab({
       ) : isLoading || !money ? (
         <View style={styles.card}>
           <Text style={styles.muted}>Loading campaign money…</Text>
+        </View>
+      ) : committeesWithheld && money.committees.length > 0 ? (
+        // Ahead of every empty state below, because each of those asserts something
+        // about this member that we would not be able to stand behind here.
+        <View style={styles.card}>
+          <Text accessibilityRole="alert" style={styles.body}>
+            {confirmedCommitteesWithheldLine(legislatorName)}
+          </Text>
         </View>
       ) : emptyStateFor(money.linkState, money.committees.length) === 'unconfirmed' ? (
         <UnconfirmedPanel />

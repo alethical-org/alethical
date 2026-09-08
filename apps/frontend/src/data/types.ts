@@ -722,12 +722,34 @@ export interface MoneyLandingSummary {
   };
 }
 
+/**
+ * How old a claim about the state of the world right now already was when this
+ * answer arrived, and when the origin last confirmed it.
+ *
+ * `servedAgeMs` is the age NOT already recorded in React Query's own
+ * `dataUpdatedAt`, so a screen adds the two and never double-counts: a fetched
+ * answer carries what the shared caches reported in `Age`, and an answer embedded
+ * in a page's first response carries 0 here because its age travelled in
+ * `initialDataUpdatedAt` instead (`lib/pageData.ts`).
+ *
+ * `validatedAt` is the served moment itself, for printing. It is deliberately
+ * never subtracted from a browser clock: 2 clocks disagree, and a reader whose
+ * clock runs slow would be shown a stale claim as a fresh one, which is the
+ * failure the whole mechanism exists to stop (`lib/currentClaimFreshness.ts`).
+ */
+export interface CurrentClaimFreshness {
+  servedAgeMs: number;
+  validatedAt: string | null;
+}
+
 /** A legislator's own campaign money for one year. Read `linkState` before
  *  `committees`: an empty list is never on its own a statement about the person. */
 export interface LegislatorCampaignMoney {
   legislatorId: string;
   year: number;
   linkState: LinkState;
+  /** How old `linkState` and the confirmed committees under it are. */
+  currentClaim: CurrentClaimFreshness;
   /** The day we downloaded Minnesota's files. Not the period the money covers,
    *  which is per committee and always earlier. */
   fetchedAt: string | null;
@@ -818,6 +840,10 @@ export interface CommitteeMoney {
    *  never that a rejection was recorded, which is a decision about our own proposal
    *  rather than a claim about the committee (§7). */
   confirmedFor: ConfirmedCommitteeMember | null;
+  /** How old `confirmedFor` is. A confirmation can be taken back, so past the
+   *  deadline in `lib/currentClaimFreshness.ts` the page withholds the member's
+   *  name and keeps the dated figures. */
+  currentClaim: CurrentClaimFreshness;
   moneyIn: {
     state: MoneyBlockState;
     itemizedContributionTotal: string | null;

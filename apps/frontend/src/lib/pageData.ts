@@ -29,10 +29,24 @@
  * need no hash. Nothing new is added to `script-src`.
  */
 
+import { claimsSomethingCurrent, seededClaimAgeMs } from './currentClaimFreshness';
+
 /** One seeded read: the query key it answers, and the payload the service sent. */
 export interface PageDataEntry {
   key: readonly unknown[];
   payload: unknown;
+  /**
+   * How old this answer's validation already was, in milliseconds, when the page
+   * function read it — measured from the response's `Age` header, not from 2
+   * clocks subtracted (`lib/currentClaimFreshness.ts`).
+   *
+   * Optional, and its absence is not neutral: a seeded answer with no age is
+   * treated as the oldest the whole chain allows, because the app cannot tell a
+   * fresh answer from one a cache held. Only reads whose answer claims something
+   * about the state of the world right now need it; a dated filing carries its
+   * own date and does not expire.
+   */
+  validatedAgeMs?: number;
 }
 
 export const PAGE_DATA_ELEMENT_ID = 'alethical-page-data';
@@ -65,7 +79,15 @@ function escapeJsonForHtml(json: string): string {
 /** The data block for this address, or an empty string where nothing was read. */
 export function renderPageData(entries: readonly PageDataEntry[]): string {
   if (entries.length === 0) return '';
-  const json = JSON.stringify(entries.map((entry) => ({ key: entry.key, payload: entry.payload })));
+  const json = JSON.stringify(
+    entries.map((entry) => ({
+      key: entry.key,
+      payload: entry.payload,
+      // Written only where the page function measured one, so an entry that
+      // never had an age does not gain a misleading `null` in the block.
+      ...(typeof entry.validatedAgeMs === 'number' ? { validatedAgeMs: entry.validatedAgeMs } : {}),
+    })),
+  );
   return `<script type="application/json" id="${PAGE_DATA_ELEMENT_ID}">${escapeJsonForHtml(
     json,
   )}</script>`;
@@ -90,10 +112,26 @@ export function injectPageData(shellHtml: string, dataHtml: string): string {
  */
 let seededPayloads: Map<string, unknown> | null = null;
 
+/**
+ * When each seeded answer was validated, on THIS browser's clock, worked out once
+ * at parse time and never recomputed.
+ *
+ * Separate from the payload map on purpose, and it outlives it: a payload is
+ * consumed the first time a read asks for it, while React Query asks for the
+ * payload and its age in an order this file does not control. Fixed at parse time
+ * rather than computed per call for the same reason — a stamp derived from a
+ * later `Date.now()` would report the same answer as fresher the longer the page
+ * stayed open, which is the direction that hides staleness.
+ */
+let seededValidatedAt: Map<string, number> | null = null;
+
 function loadSeededPayloads(): Map<string, unknown> {
   if (seededPayloads) return seededPayloads;
   const loaded = new Map<string, unknown>();
+  const validatedAt = new Map<string, number>();
   seededPayloads = loaded;
+  seededValidatedAt = validatedAt;
+  const parsedAt = Date.now();
   try {
     if (typeof document === 'undefined') return loaded;
     const element = document.getElementById(PAGE_DATA_ELEMENT_ID);
@@ -105,10 +143,26 @@ function loadSeededPayloads(): Map<string, unknown> {
     if (!Array.isArray(parsed)) return loaded;
     for (const entry of parsed) {
       if (!entry || typeof entry !== 'object') continue;
-      const { key, payload } = entry as Partial<PageDataEntry>;
+      const { key, payload, validatedAgeMs } = entry as Partial<PageDataEntry>;
       if (!Array.isArray(key)) continue;
       if (payload === null || typeof payload !== 'object') continue;
-      loaded.set(JSON.stringify(key), payload);
+      const id = JSON.stringify(key);
+      loaded.set(id, payload);
+      // Only the reads whose answer claims something about the state of the world
+      // right now. A dated filing is deliberately left alone: it carries the
+      // period it covers and the day we copied it, and
+      // `docs/architecture/campaign-finance-system-design.md` prefers an old
+      // labelled figure to a blank one, so aging it out would trade a working
+      // page for nothing. An unstamped read behaves exactly as it did before this
+      // existed.
+      //
+      // An entry that carried no measured age still gets a stamp:
+      // `seededClaimAgeMs` reads a missing age as the oldest the chain allows, so
+      // the absence puts the answer at its deadline rather than making it look
+      // new.
+      if (claimsSomethingCurrent(key)) {
+        validatedAt.set(id, parsedAt - seededClaimAgeMs(validatedAgeMs));
+      }
     }
   } catch {
     // A block we cannot read leaves the map as it stands, and every read then
@@ -157,7 +211,44 @@ export function seededQueryData<Payload, Data>(
   };
 }
 
+/**
+ * When a seeded answer was validated, on this browser's clock, for React Query's
+ * `initialDataUpdatedAt`. `undefined` for every read that does not claim
+ * something about the state of the world right now, which leaves React Query's
+ * own behaviour untouched: it stamps the data at first render, exactly as it did
+ * before this existed.
+ *
+ * Readable whether or not the payload has already been consumed, because React
+ * Query asks for the data and its age in an order this file does not control.
+ */
+export function seededQueryDataUpdatedAt(key: readonly unknown[]): number | undefined {
+  loadSeededPayloads();
+  return seededValidatedAt?.get(JSON.stringify(key));
+}
+
+/**
+ * Both halves of one seeded read, for spreading into a `useQuery` call.
+ *
+ * One function rather than 2 so a hook cannot take the data without its age. That
+ * pairing is the point: an answer seeded with no age is stamped as fetched at
+ * first render, which is exactly the defect issue 2023 was filed for, and it is
+ * invisible at the call site because the page still draws perfectly.
+ *
+ * For a read of dated records the age is `undefined` and React Query behaves
+ * exactly as it did before any of this existed.
+ */
+export function seededQuery<Payload, Data>(
+  key: readonly unknown[],
+  shape: (payload: Payload) => Data,
+): { initialData: () => Data | undefined; initialDataUpdatedAt: number | undefined } {
+  return {
+    initialData: seededQueryData(key, shape),
+    initialDataUpdatedAt: seededQueryDataUpdatedAt(key),
+  };
+}
+
 /** Test seam: forget what this load parsed, so a case can seed a fresh document. */
 export function resetSeededPayloadsForTests(): void {
   seededPayloads = null;
+  seededValidatedAt = null;
 }

@@ -1,4 +1,4 @@
-<!-- describes: apps/frontend/App.tsx, apps/frontend/package.json, vercel.json, apps/frontend/src/data/api.ts, apps/frontend/src/lib/appQueryClient.ts, apps/frontend/src/lib/billFreshness.ts, apps/frontend/src/navigation/RootNavigator.tsx, apps/frontend/src/providers/AppProviders.tsx, apps/frontend/src/providers/AuthProvider.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, alethical/api/routers/ask.py, alethical/api/routers/public.py, alethical/api/services/outside_spending.py, alethical/api/services/campaign_finance_races.py, alethical/api/services/committee_finance.py, alethical/api/services/campaign_finance_search.py, alethical/pipeline/campaign_finance_filings.py, api/page.ts, .github/workflows/warm-money-pages.yml, apps/frontend/src/providers/AuthProvider.web.tsx, apps/frontend/src/providers/SignInModalProvider.tsx, apps/frontend/src/providers/SignInMachinery.tsx, apps/frontend/src/lib/auth/loadSignInBundle.ts, apps/frontend/src/lib/auth/signInBundle.ts, apps/frontend/src/lib/auth/signInWorkPending.ts, apps/frontend/src/lib/supabaseConfig.ts, apps/frontend/src/components/auth/accountControls.tsx, apps/frontend/scripts/check-first-load-budget.mjs, apps/frontend/scripts/report-page-load-stages.mjs -->
+<!-- describes: apps/frontend/App.tsx, apps/frontend/package.json, vercel.json, apps/frontend/src/data/api.ts, apps/frontend/src/lib/appQueryClient.ts, apps/frontend/src/lib/billFreshness.ts, apps/frontend/src/navigation/RootNavigator.tsx, apps/frontend/src/providers/AppProviders.tsx, apps/frontend/src/providers/AuthProvider.tsx, apps/frontend/src/screens/redesign/AskAnswerScreen.tsx, apps/frontend/src/screens/redesign/LegislatorProfileMobileScreen.tsx, alethical/api/routers/ask.py, alethical/api/routers/public.py, alethical/api/services/outside_spending.py, alethical/api/services/campaign_finance_races.py, alethical/api/services/committee_finance.py, alethical/api/services/campaign_finance_search.py, alethical/pipeline/campaign_finance_filings.py, api/page.ts, .github/workflows/warm-money-pages.yml, apps/frontend/src/providers/AuthProvider.web.tsx, apps/frontend/src/providers/SignInModalProvider.tsx, apps/frontend/src/providers/SignInMachinery.tsx, apps/frontend/src/lib/auth/loadSignInBundle.ts, apps/frontend/src/lib/auth/signInBundle.ts, apps/frontend/src/lib/auth/signInWorkPending.ts, apps/frontend/src/lib/supabaseConfig.ts, apps/frontend/src/components/auth/accountControls.tsx, apps/frontend/scripts/check-first-load-budget.mjs, apps/frontend/scripts/report-page-load-stages.mjs, apps/frontend/src/lib/currentClaimFreshness.ts, apps/frontend/src/lib/pageData.ts, apps/frontend/src/hooks/useCurrentClaimExpiry.ts, alethical/api/main.py -->
 
 # Page-load performance decisions
 
@@ -138,10 +138,14 @@ the header carries no long value at all:
   dated figures; a money page carries an identity too, and a mixed response takes
   the shorter rule.
 
-So the worst a reader can be shown is a copy generated **10 minutes** ago, on every
-path including an outage. The cost is real and named: outside those windows a reader
-waits for the page function, and past them an outage returns the handler's own 503
-instead of a dated page.
+So the worst **page copy** a reader can be handed was generated **10 minutes** ago,
+on every path including an outage. That bounds this hop and not what a reader sees:
+the answer inside that page had already aged in the API's own cache before the page
+was built, and until the deadline below existed the app then held it indefinitely.
+The end-to-end figure is 20 minutes and it is set out under "How old a current claim
+can be, end to end". The cost of this hop is real and named: outside those windows a
+reader waits for the page function, and past them an outage returns the handler's own
+503 instead of a dated page.
 
 **Nothing clears a held page copy when a record changes**, which is why the window
 length is the whole protection rather than a backstop. Vercel clears these on a
@@ -177,6 +181,73 @@ copied. A stale answer therefore stays honestly dated. That is not a reason a
 stale answer is acceptable: an old figure with a truthful old date is still an
 old figure, which is why the window is capped above rather than excused by the
 date.
+
+### How old a current claim can be, end to end
+
+**A cache window bounds one hop. Nothing bounded the total until
+[issue 2023](https://github.com/alethical-org/alethical/issues/2023), and the total
+was the number that mattered.** Every hop above was short and every hop's own test
+passed, and a reader could still be shown a member's name indefinitely: the answer
+embedded in a page reached the app's store with no age attached, so the app stamped
+it as fetched at first render whatever its real age, and no money read was ever
+rechecked afterwards. A reader who left a committee page open was never asked to be
+told again.
+
+**The deadline is 20 minutes on a displayed claim about who currently holds office,
+or whose committee this currently is.** It lives in
+[`apps/frontend/src/lib/currentClaimFreshness.ts`](../../apps/frontend/src/lib/currentClaimFreshness.ts)
+as `CURRENT_CLAIM_MAX_AGE_MS`, and it is the sum of the hops rather than a number
+chosen beside them:
+
+| Hop | Worst it adds | Set by |
+| --- | --- | --- |
+| API shared cache, before the page function reads the answer | 6 min | `PUBLIC_CACHE_CONTROL` (`max-age=60` + `stale-while-revalidate=300`) |
+| Page cache, before that page reaches a reader | 10 min | `OK_CACHE` in `api/page.ts` (`s-maxage=300` + `stale-while-revalidate=300`) |
+| The reader's own browser | 4 min | the remainder, and it is a grace period rather than a working window |
+
+`currentClaimDeadlineFitsTheChain` asserts that sum in a test, so raising a cache
+window without raising the deadline fails rather than quietly outliving the figure
+published here.
+
+**Past the deadline the relationship is withheld and every dated figure stays.**
+That split is the whole point: a filing carries the period it covers and the day we
+copied it, so §7's "older and labelled beats blank" still governs the money
+(`docs/architecture/campaign-finance-system-design.md` §7). A claim that a committee
+belongs to a named person carries no such date and goes wrong silently the moment
+somebody takes the confirmation back, which is the identity error
+[`.claude/rules/grounded-answers.md`](../../.claude/rules/grounded-answers.md) rule 3
+exists to prevent. Reaching the deadline asks the service again first, so only a
+reader whose recheck cannot complete sees anything withheld.
+
+**A withheld claim gets its own words and never the "nobody has confirmed one"
+state.** Those are different facts, and swapping in the second would replace a claim
+we cannot vouch for with one that is plainly false. The 2 sentences are
+`CONFIRMED_MEMBER_WITHHELD_LINE` and `confirmedCommitteesWithheldLine` in the same
+file.
+
+**A validation time is a fourth kind of time on these payloads and is served as a
+body field, `current_claim_validated_at`.** Not a header: the page function reads
+the body to write a page's first words, and the app's own store never sees a header
+at all, so a header alone reaches neither. It is deliberately distinct from
+`reported_through` (the period a figure covers), `fetched_at` and `as_of` (the day we
+copied a publication from the Board). Only the validation time expires.
+
+**Ages are durations added, never 2 clocks subtracted.** A reader's clock can be
+wrong by hours, and `now - validated_at` across 2 machines would then read a stale
+claim as fresh, which is the failure the whole mechanism exists to stop. So the
+caches report what they added through `Age`: the page function reads it off its own
+API response and writes it onto the seeded entry, and the API lists it in
+`Access-Control-Expose-Headers` so a browser is allowed to read it on a read the app
+makes itself. The app then adds only elapsed time from its own clock. Where `Age` is missing or hidden the app
+assumes the worst its window allows, so a header we cannot see costs freshness
+rather than honesty.
+
+**What still waits on the clearing key.** Clearing a held copy after a publication, a
+confirmation, a withdrawal or an officeholder change needs a Cloudflare token only
+the maintainer can create
+([issue 1979](https://github.com/alethical-org/alethical/issues/1979)). Until it
+exists the deadline is the whole protection rather than a backstop, which is why it
+is 20 minutes rather than merely shorter than a day.
 
 **A deployment resets Vercel's page cache whatever the header says**, so
 `.github/workflows/warm-money-pages.yml` re-reads the money addresses after each
@@ -331,6 +402,20 @@ search request load only with `/admin/users`. The release measures **389,116 byt
 337,513 for the program, 49,987 shared, and 1,616 runtime. This is 826 bytes (0.21%) above
 the 388,290-byte baseline. The limit is 390,000 bytes to admit this measured feature;
 the private list itself is not a cost paid by public readers.
+
+The end-to-end freshness deadline
+([issue 2023](https://github.com/alethical-org/alethical/issues/2023)) adds **878 bytes**: main
+built 389,083 and it builds 389,961, so the limit is 390,500 with the same 479-byte allowance for
+host variance. What every reader downloads for it is the deadline, the 4 read names it applies to,
+and the arithmetic that reads a cache's `Age`. What they do not download is the 2 sentences a
+withheld claim prints, which moved into the 2 screens that draw them and took 475 bytes back off
+every other page.
+
+**One measurement there is worth keeping, because it reverses the tidier choice.** Folding the
+age-reading fetch helper into `publicApiRequest` so there is a single implementation makes the
+first load **409 bytes bigger**, since that function has dozens of callers and the wrapper's
+returned object inlines into each. So `apps/frontend/src/data/api.ts` keeps 2 near-identical
+readers on purpose, and says so where a reader of that file will find it.
 
 **`lib/auth/signInWorkPending.ts` is the whole design, and it answers 1 question: does this page
 load have sign-in work to do?** It says yes when a session is saved in this browser, when the

@@ -24,6 +24,7 @@ import type { SiteMetricEventName } from '../lib/traffic';
 import { contactEmail, senateProfileUrl } from '../lib/findMyLegislator';
 import { LEGISLATOR_ROSTER_LIMIT } from '../lib/directoryPagination';
 import { META_READ_PATH, policyAreasReadPath, SESSIONS_READ_PATH } from '../lib/searchPageReads';
+import { servedClaimAgeMs } from '../lib/currentClaimFreshness';
 import { publicReadResponse } from '../lib/publicRead';
 import { normalizeLegislativeYearRanges } from '../lib/sessionLabel';
 import { legislativeServiceFromHistory } from '../lib/legislatorProfile';
@@ -52,6 +53,7 @@ import {
   CommitteeReceivedPayment,
   CommitteeRegisterPage,
   CommitteeRegisterRow,
+  CurrentClaimFreshness,
   MoneyByRacePage,
   LegislativeSession,
   Legislator,
@@ -570,6 +572,9 @@ interface ApiBillVotePayload {
 }
 
 interface ApiLegislatorCampaignMoneyPayload {
+  /** When the origin last confirmed `link_state`. A validation time, never a
+   *  record date (`alethical/api/routers/public.py`). */
+  current_claim_validated_at?: string | null;
   legislator_id: string;
   year: number;
   link_state: LegislatorCampaignMoney['linkState'];
@@ -850,6 +855,69 @@ export async function publicApiRequest<T>(path: string, signal?: AbortSignal): P
   }
 
   return (await response.json()) as T;
+}
+
+/**
+ * A public read, plus what the shared caches said about how long they held the
+ * answer.
+ *
+ * Deliberately a second function rather than one that `publicApiRequest`
+ * delegates to, and the reason is measured rather than stylistic. Delegating is
+ * the tidier code and it costs **409 bytes** in the first-load bundle, because
+ * `publicApiRequest` has dozens of callers and the wrapper's returned object gets
+ * inlined into each one. Every reader downloads that, on every page, to save one
+ * duplicated error branch here. Only the 4 reads carrying a claim about the state
+ * of the world right now need the age; every other caller wants the body alone.
+ *
+ * `Age` is a whole number of seconds each cache raises by the time it held the
+ * response. It reaches this code only because the API lists it in
+ * `Access-Control-Expose-Headers` (`alethical/api/main.py`); a browser hides every
+ * other cross-origin response header, and a hidden one is indistinguishable from
+ * an absent one here. Either way `servedClaimAgeMs` reads the absence as the
+ * oldest its window allows, so a header we cannot see costs freshness rather than
+ * honesty.
+ */
+async function publicApiRequestWithAge<T>(
+  path: string,
+): Promise<{ body: T; ageSeconds: number | null }> {
+  const response = await publicReadResponse(publicApiUrl(path), {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    throw apiErrorFromBody(
+      response.status,
+      await response.text(),
+      response.headers.get('Retry-After'),
+    );
+  }
+
+  const rawAge = response.headers.get('Age');
+  const ageSeconds = rawAge === null ? null : Number.parseInt(rawAge, 10);
+  return {
+    body: (await response.json()) as T,
+    ageSeconds: ageSeconds !== null && Number.isFinite(ageSeconds) ? ageSeconds : null,
+  };
+}
+
+/**
+ * The freshness of one answer's current claim, for the shaped record.
+ *
+ * `validated_at` is carried through as served and never turned into an age here:
+ * that would subtract a server clock from a browser clock, and the 2 disagree.
+ * The age comes from the caches' own `Age` instead.
+ */
+function currentClaimFreshness(
+  validatedAt: string | null | undefined,
+  ageSeconds: number | null,
+): CurrentClaimFreshness {
+  return {
+    servedAgeMs: servedClaimAgeMs(ageSeconds),
+    validatedAt: validatedAt ?? null,
+  };
 }
 
 async function publicApiPost<T>(path: string, body: unknown): Promise<T> {
@@ -2403,14 +2471,15 @@ export async function getLegislatorCampaignMoneyFromApi(
   year: number,
 ): Promise<LegislatorCampaignMoney> {
   const params = new URLSearchParams({ year: String(year) });
-  const response = await publicApiRequest<DetailResponse<ApiLegislatorCampaignMoneyPayload>>(
+  const response = await publicApiRequestWithAge<DetailResponse<ApiLegislatorCampaignMoneyPayload>>(
     `/legislators/${encodeURIComponent(legislatorId)}/campaign-finance?${params.toString()}`,
   );
-  const payload = response.data;
+  const payload = response.body.data;
   return {
     legislatorId: payload.legislator_id,
     year: payload.year,
     linkState: payload.link_state,
+    currentClaim: currentClaimFreshness(payload.current_claim_validated_at, response.ageSeconds),
     fetchedAt: payload.fetched_at ?? null,
     otherOfficeCommittees: payload.other_office_committees ?? 0,
     committeesOutsideThisYear: (payload.committees_outside_this_year ?? []).map((entry) => ({
@@ -3141,6 +3210,9 @@ interface ApiCommitteeRegisterPayload {
 }
 
 interface ApiCommitteeMoneyPayload {
+  /** When the origin last confirmed `confirmed_for`. A validation time, never a
+   *  record date (`alethical/api/routers/public.py`). */
+  current_claim_validated_at?: string | null;
   registration_number: string;
   committee_name?: string | null;
   entity_type?: string | null;
@@ -3218,11 +3290,13 @@ export async function getCommitteeFinanceFromApi(
   year: number,
 ): Promise<CommitteeMoney | null> {
   let payload: ApiCommitteeMoneyPayload;
+  let ageSeconds: number | null;
   try {
-    const response = await publicApiRequest<DetailResponse<ApiCommitteeMoneyPayload>>(
+    const response = await publicApiRequestWithAge<DetailResponse<ApiCommitteeMoneyPayload>>(
       `/committees/${encodeURIComponent(registrationNumber)}/finance?year=${year}`,
     );
-    payload = response.data;
+    payload = response.body.data;
+    ageSeconds = response.ageSeconds;
   } catch (error) {
     if (isNotFoundError(error)) return null;
     throw error;
@@ -3271,6 +3345,7 @@ export async function getCommitteeFinanceFromApi(
               : null,
           }
         : null,
+    currentClaim: currentClaimFreshness(payload.current_claim_validated_at, ageSeconds),
     moneyIn: {
       state: committeeBlockState(payload.money_in?.state),
       itemizedContributionTotal: payload.money_in?.itemized_contribution_total ?? null,

@@ -922,3 +922,22 @@ function conditionParagraph(schedule: FilingSchedule): string[] {
   if (!schedule.condition || !formatDay(schedule.nextReportDueOn)) return [];
   return [`The state prints one exemption on that report: “${schedule.condition}”`];
 }
+
+/**
+ * The sentence a legislator's profile prints where their confirmed committees are
+ * withheld.
+ *
+ * Its own words rather than the tab's "nobody has checked yet" panel, for the same
+ * reason the committee page needs its own: that panel states nobody has confirmed a
+ * committee for this member, and here somebody has. Saying so would replace a claim
+ * we cannot vouch for with one that is plainly false.
+ */
+export function confirmedCommitteesWithheldLine(legislatorName: string): string {
+  return (
+    `We are not showing ${legislatorName}’s campaign committees right now. ` +
+    'Someone at Alethical confirmed which committees are theirs, but a ' +
+    'confirmation can be taken back, and we have not been able to check that ' +
+    'recently enough to repeat it here. This says nothing about what they raised ' +
+    'or spent. Reload to try again.'
+  );
+}

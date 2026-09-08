@@ -87,6 +87,8 @@ const unconfirmedMoney: LegislatorCampaignMoney = {
   legislatorId: 'aric-putnam',
   year: 2026,
   linkState: 'unconfirmed',
+  // Just validated, so nothing on the card is withheld for age (issue 2023).
+  currentClaim: { servedAgeMs: 0, validatedAt: '2026-09-01T18:33:35.639027Z' },
   committees: [],
   committeesOutsideThisYear: [],
   otherOfficeCommittees: 0,
@@ -115,6 +117,8 @@ function renderTab({
       money={money}
       isLoading={false}
       isError={false}
+      moneyUpdatedAt={Date.now()}
+      refetchMoney={() => {}}
       isDesktop={isDesktop}
       legislatorId="aric-putnam"
       onOpenSource={vi.fn()}

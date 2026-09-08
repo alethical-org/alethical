@@ -428,6 +428,8 @@ export function LegislatorProfileWebScreen() {
           money={moneyQuery.data}
           isLoading={moneyQuery.isLoading}
           isError={moneyQuery.isError}
+          moneyUpdatedAt={moneyQuery.dataUpdatedAt}
+          refetchMoney={moneyQuery.refetch}
           isDesktop={isDesktop}
           legislatorId={legislatorId}
           onOpenSource={openUrl}

@@ -51,6 +51,14 @@ def create_app() -> FastAPI:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        # `Age` so the app can learn what the shared caches added to an answer.
+        # Every hop between us and a reader raises it by the time it held the
+        # response, and it is the only signal that reports that: a body field
+        # cannot, because a cache replays a body unchanged. Without this the
+        # browser is refused the header and has to assume the worst the window
+        # allows, which is safe and needlessly pessimistic
+        # (`apps/frontend/src/lib/currentClaimFreshness.ts`, issue 2023).
+        expose_headers=["Age"],
     )
 
     @app.middleware("http")

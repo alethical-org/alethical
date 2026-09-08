@@ -260,6 +260,44 @@ def public_cache_control_for_path(path: str) -> str:
     return PUBLIC_CACHE_CONTROL
 
 
+def _utc_now() -> datetime:
+    """Seam so a test can put a known moment through the real code path.
+
+    Named and module-level for the same reason ``_utc_today`` is in
+    ``alethical/api/services/committee_filing_schedule.py``: a test that reads the
+    clock proves nothing about a deadline, because it can only ever assert that
+    ``now`` is ``now``.
+    """
+    return datetime.now(UTC)
+
+
+def current_claim_validated_at() -> datetime:
+    """The moment this request confirmed a claim about the state of the world now.
+
+    Served in the body of the 4 reads named above, and it is a THIRD kind of date
+    that must never be confused with the 2 already on these payloads:
+
+    * ``reported_through`` and ``last_payment_on`` are the period a figure covers.
+    * ``fetched_at`` and ``as_of`` are the day we copied a download or the register
+      from the Board.
+    * this is the moment we last confirmed that somebody holds an office, or that a
+      committee belongs to a named member.
+
+    Only the third expires. A figure carrying its own date is allowed to be old --
+    ``docs/architecture/campaign-finance-system-design.md`` prefers an old labelled
+    figure to a blank one -- while a claim about right now goes wrong silently the
+    moment somebody corrects it.
+
+    IN THE BODY RATHER THAN A HEADER, and that is the point of it. The page function
+    reads the body to write a page's first words, and the app's own store never sees
+    a header at all, so a header alone cannot reach either place. ``Age`` still does
+    the job headers are good at: each shared cache raises it by the time it held the
+    response, which is how a reader learns what the caches added
+    (``apps/frontend/src/lib/currentClaimFreshness.ts``).
+    """
+    return _utc_now()
+
+
 PRIVATE_CACHE_CONTROL = "private, no-store"
 LARGE_OFFSET_COUNT_FIRST = 100_000
 
@@ -3206,6 +3244,9 @@ def committee_finance_for_year(
                 "as_of": register.as_of,
                 "reason": register.reason,
             },
+            # A claim about right now, so it expires; the record dates beside it do
+            # not (``current_claim_validated_at``, issue 2023).
+            "current_claim_validated_at": current_claim_validated_at(),
             "confirmed_for": (
                 {
                     "legislator_id": str(confirmed_member.legislator_id),
@@ -3753,6 +3794,9 @@ def campaign_finance_summary(db: Session = Depends(get_db)):
                 ),
                 "reason": summary.reason,
             },
+            # A claim about right now, so it expires; the record dates beside it do
+            # not (``current_claim_validated_at``, issue 2023).
+            "current_claim_validated_at": current_claim_validated_at(),
             "legislator_committee_confirmations": {
                 "state": confirmations.state,
                 "confirmed_member_count": confirmations.confirmed_member_count,
@@ -4300,6 +4344,9 @@ def campaign_finance_search(
     answer = search_campaign_finance_names(db, release, query=q, limit=limit)
     return DetailResponse(
         data={
+            # A claim about right now, so it expires; the record dates beside it do
+            # not (``current_claim_validated_at``, issue 2023).
+            "current_claim_validated_at": current_claim_validated_at(),
             "state": answer.state,
             "q": answer.query,
             "matched_on": answer.matched_on,
@@ -4532,6 +4579,9 @@ def legislator_campaign_finance(
         data={
             "legislator_id": str(legislator.id),
             "year": finance.year,
+            # A claim about right now, so it expires; the record dates beside it do
+            # not (``current_claim_validated_at``, issue 2023).
+            "current_claim_validated_at": current_claim_validated_at(),
             "link_state": finance.link_state,
             # Confirmed committees this page leaves out because they are for a race
             # other than a legislative seat. Served rather than dropped in silence: a

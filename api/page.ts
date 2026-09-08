@@ -42,6 +42,7 @@ import {
   renderPageData,
   type PageDataEntry,
 } from "../apps/frontend/src/lib/pageData";
+import { servedClaimAgeMs } from "../apps/frontend/src/lib/currentClaimFreshness";
 import {
   campaignFinanceFilingsQueryKey,
   campaignFinanceSummaryQueryKey,
@@ -230,7 +231,9 @@ function titleCase(value: string): string {
     : "";
 }
 
-async function getApiResponse<T>(path: string): Promise<T> {
+async function getApiRead<T>(
+  path: string,
+): Promise<{ body: T; ageSeconds: number | null }> {
   let response: Response;
   try {
     response = await fetch(`${API_ORIGIN}/api/v1${path}`, {
@@ -243,15 +246,45 @@ async function getApiResponse<T>(path: string): Promise<T> {
   if (response.status === 404) throw new RecordNotFound(path);
   if (!response.ok)
     throw new DataUnavailable(`API returned ${response.status}`);
+  const rawAge = response.headers.get("age");
+  const ageSeconds = rawAge === null ? null : Number.parseInt(rawAge, 10);
   try {
-    return (await response.json()) as T;
+    return {
+      body: (await response.json()) as T,
+      ageSeconds:
+        ageSeconds !== null && Number.isFinite(ageSeconds) ? ageSeconds : null,
+    };
   } catch {
     throw new DataUnavailable(`unreadable response for ${path}`);
   }
 }
 
+async function getApiResponse<T>(path: string): Promise<T> {
+  return (await getApiRead<T>(path)).body;
+}
+
 async function getApiData<T>(path: string): Promise<T> {
   return (await getApiResponse<{ data: T }>(path)).data;
+}
+
+/**
+ * A read whose answer claims something about the state of the world right now,
+ * with how old that claim already was when this function got it.
+ *
+ * The age comes from the response's own `Age` header, which every shared cache
+ * raises by the time it held the answer. It travels on the seeded entry so the
+ * app measures the claim's real age instead of assuming the worst its window
+ * allows, which is what an entry without one falls back to
+ * (`apps/frontend/src/lib/currentClaimFreshness.ts`, issue 2023).
+ */
+async function getCurrentClaimRead<T>(
+  path: string,
+): Promise<{ data: T; validatedAgeMs: number }> {
+  const read = await getApiRead<{ data: T }>(path);
+  return {
+    data: read.body.data,
+    validatedAgeMs: servedClaimAgeMs(read.ageSeconds),
+  };
 }
 
 /** A list endpoint's 404 means its current-data selection failed, not that the public page is gone. */
@@ -566,17 +599,25 @@ async function moneyLandingContent(): Promise<PageContent> {
   // the second one costs the response no extra wait. `MoneySummaryPayload` names
   // only the fields the snapshot prints; the object seeded is everything the
   // service sent, which is what the app then shapes.
-  const [summary, filings] = await Promise.all([
-    getApiData<MoneySummaryPayload>("/campaign-finance/summary").catch(
+  const [summaryRead, filings] = await Promise.all([
+    // Read with its age, because this answer counts who sits right now and how
+    // many committee-to-member links are live, so it expires (issue 2023). The
+    // filings beside it are dated records and carry no such clock.
+    getCurrentClaimRead<MoneySummaryPayload>("/campaign-finance/summary").catch(
       () => null,
     ),
     getApiData<unknown>(
       `/campaign-finance/filings?limit=${MONEY_LANDING_FILINGS_LIMIT}`,
     ).catch(() => null),
   ]);
+  const summary = summaryRead?.data ?? null;
   const data: PageDataEntry[] = [];
-  if (summary) {
-    data.push({ key: campaignFinanceSummaryQueryKey(), payload: summary });
+  if (summaryRead) {
+    data.push({
+      key: campaignFinanceSummaryQueryKey(),
+      payload: summaryRead.data,
+      validatedAgeMs: summaryRead.validatedAgeMs,
+    });
   }
   if (filings) {
     data.push({
