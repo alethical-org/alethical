@@ -1927,7 +1927,10 @@ const styles = StyleSheet.create({
   },
   panelSearch: { paddingTop: 16, paddingHorizontal: 20, paddingBottom: 18 },
   panelCardMobile: {
-    flex: 0,
+    flex: undefined,
+    flexBasis: 'auto',
+    flexGrow: 0,
+    flexShrink: 0,
     borderRadius: 13,
     paddingHorizontal: 16,
     paddingTop: 15,
