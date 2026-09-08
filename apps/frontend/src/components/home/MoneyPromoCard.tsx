@@ -34,7 +34,6 @@ import Svg, { Path } from 'react-native-svg';
 import { isWeb, useHover } from '../billDetail/interactions';
 import {
   MONEY_PROMO_BODY,
-  MONEY_PROMO_CAVEAT,
   MONEY_PROMO_COUNT_UNIT,
   MONEY_PROMO_CTA,
   MONEY_PROMO_EYEBROW,
@@ -56,12 +55,10 @@ const SIZES: Record<
     heading: number;
     body: number;
     count: number;
-    caveat: number;
     button: number;
     headingTop: number;
     bodyTop: number;
     countTop: number;
-    caveatTop: number;
     buttonTop: number;
     buttonMinHeight: number;
     buttonPaddingV: number;
@@ -77,13 +74,11 @@ const SIZES: Record<
     heading: 48,
     body: 21,
     count: 17,
-    caveat: 16,
     button: 18,
     headingTop: 30,
     bodyTop: 28,
     countTop: 20,
-    caveatTop: 20,
-    buttonTop: 44,
+    buttonTop: 32,
     buttonMinHeight: 44,
     buttonPaddingV: 18,
     buttonPaddingH: 32,
@@ -97,7 +92,6 @@ const SIZES: Record<
     heading: 34,
     body: 21,
     count: 17,
-    caveat: 17,
     // 17px, not the drawn 19px, and the 2px is a fit correction rather than a
     // taste one. On a real 375px phone the pale-green band's 20px padding leaves
     // a 335px card; its own 24px padding leaves 287px; the button's 20px padding
@@ -109,7 +103,6 @@ const SIZES: Record<
     headingTop: 14,
     bodyTop: 14,
     countTop: 16,
-    caveatTop: 16,
     buttonTop: 24,
     buttonMinHeight: 56,
     buttonPaddingV: 15,
@@ -124,12 +117,10 @@ const SIZES: Record<
     heading: 26,
     body: 17,
     count: 15,
-    caveat: 15,
     button: 16,
     headingTop: 12,
     bodyTop: 11,
     countTop: 13,
-    caveatTop: 13,
     buttonTop: 20,
     buttonMinHeight: 48,
     buttonPaddingV: 13,
@@ -144,12 +135,10 @@ const SIZES: Record<
     heading: 32,
     body: 18,
     count: 16,
-    caveat: 16,
     button: 17,
     headingTop: 14,
     bodyTop: 13,
     countTop: 14,
-    caveatTop: 14,
     buttonTop: 22,
     buttonMinHeight: 48,
     buttonPaddingV: 14,
@@ -265,15 +254,6 @@ export function MoneyPromoCard({
         />
       ) : null}
 
-      <Text
-        style={[
-          styles.caveat,
-          { fontSize: s.caveat, lineHeight: Math.round(s.caveat * 1.48), marginTop: s.caveatTop },
-        ]}
-      >
-        {MONEY_PROMO_CAVEAT}
-      </Text>
-
       <Pressable
         {...linkProps(routePath.money(), onPress)}
         {...hoverProps}
@@ -330,7 +310,6 @@ const styles = StyleSheet.create({
   // emphasis inside its own line, not a second heading. No token sits here.
   countNumber: { fontWeight: t.fontWeights.semibold, color: '#2c322c' },
   countSkeleton: { width: 328, maxWidth: '100%', backgroundColor: 'rgba(17,21,15,0.08)' },
-  caveat: { fontFamily: t.typography.body, color: t.colors.text.faint },
   cta: {
     flexDirection: 'row',
     alignItems: 'center',

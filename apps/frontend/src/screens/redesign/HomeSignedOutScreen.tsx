@@ -2235,7 +2235,9 @@ const styles = StyleSheet.create({
   // override of `undefined` merges as absent — so the cap has to move rather than
   // be cancelled.
   heroLeftSignedIn: { maxWidth: 720 },
-  heroRightSignedOut: { flex: 0.72 },
+  // The signed-out card lost 56px when its caveat was removed. Adding the same
+  // amount to its existing -10px desktop position preserves its bottom edge.
+  heroRightSignedOut: { flex: 0.72, marginTop: 46 },
   answerSection: { backgroundColor: t.colors.surfaces.base, paddingTop: 60, paddingBottom: 80 },
   // The section label, not a headline. At 44px it matched "Bills Moving Through
   // the Legislature" and ranked one worked example equal to a whole section of
