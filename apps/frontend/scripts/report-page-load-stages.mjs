@@ -18,6 +18,14 @@
 //   list request  the data request the list makes, from its first byte to its last
 //   draw          from that response arriving to the cards being on screen
 //
+// EVERY RUN AFTER THE FIRST READS A WARM NEARBY CACHE, so the figure this reports
+// for a screen's own data request is the best case, not the usual one. A page whose
+// answers are held for 60 seconds and which takes a couple of visits an hour serves
+// almost every real visitor from a cold cache instead. On `/bills` that is 565 ms at
+// the origin against 90 ms cached, which is most of a second this probe cannot see.
+// Read the cold number separately, with a cache-busting parameter straight at the
+// data service, and quote both.
+//
 // By default it throttles to the same 400 kbit connection, 400 ms latency and 4x
 // slower processor as `report-page-load-beacons.mjs --slow`, so the 2 probes
 // describe the same visit. That profile is harsher than a real bad visit, which is
