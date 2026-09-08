@@ -118,6 +118,9 @@ RUFF_VERSION = VersionGroup(
     (
         VersionSource("justfile", r"uvx ruff@([0-9.]+)"),
         VersionSource(".github/workflows/ci.yml", r"uvx ruff@([0-9.]+)"),
+        VersionSource("lint-staged.config.mjs", r"ruff@([0-9.]+)"),
+        VersionSource("scripts/local_checks.py", r"ruff@([0-9.]+)"),
+        VersionSource("pyproject.toml", r"ruff==([0-9.]+)"),
     ),
 )
 TY_VERSION = VersionGroup(
@@ -125,6 +128,7 @@ TY_VERSION = VersionGroup(
     (
         VersionSource("justfile", r"uvx ty@([0-9.]+)"),
         VersionSource(".github/workflows/ci.yml", r"uvx ty@([0-9.]+)"),
+        VersionSource("scripts/local_checks.py", r"ty@([0-9.]+)"),
     ),
 )
 VERSION_GROUPS = (

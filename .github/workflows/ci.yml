@@ -54,37 +54,8 @@ jobs:
         id: filter
         uses: dorny/paths-filter@v4
         with:
-          filters: |
-            backend:
-              - ".github/workflows/ci.yml"
-              - ".python-version"
-              - "alembic.ini"
-              - "alethical/**"
-              # A backend test asserts on the content of docs: the docs-drift
-              # guard's suite reads every doc's `describes:` comment, so a
-              # docs-only edit can break a backend test. #921 declared
-              # alethical/db/models.py on a doc and broke
-              # test_code_no_doc_describes_is_ignored with CI green, because a
-              # docs-only PR skipped this job.
-              - "docs/**"
-              - "pyproject.toml"
-              - "scripts/**"
-              - "uv.lock"
-            frontend:
-              - ".github/workflows/ci.yml"
-              - "apps/frontend/**"
-              # The Vercel functions are covered by the frontend suite and by
-              # nothing else: `api/page.ts` serves the first response of every
-              # address, and `pageEndpoint.test.ts`, `pageSnapshot.test.tsx` and
-              # `pageFunctionImports.test.ts` are the only tests that read it.
-              # It matched neither filter, so a change to it ran no job at all:
-              # #1969 moved this file's cache header from `s-maxage=600` to
-              # `s-maxage=3600` and merged green, leaving main with a frontend
-              # test asserting the old value.
-              - "api/**"
-              - "pnpm-lock.yaml"
-              - "pnpm-workspace.yaml"
-              - "vercel.json"
+          # Shared with local upload checks; JSON is also valid YAML.
+          filters: .github/check-paths.json
 
       # Free backstop for private-repo secret scanning. It checks only the new
       # commits in this push or PR and fails for a confirmed live credential or
@@ -103,6 +74,8 @@ jobs:
       # skip. Pure stdlib, so the Python setup above is the only dependency.
       - name: Check doc references resolve
         run: python scripts/check_doc_references.py
+      - name: Test local upload selection without database or network
+        run: python -m unittest discover -s scripts/tests -p 'test_local_checks.py'
       - name: Check quoted doc claims still exist
         run: python scripts/check_doc_quotes.py
       # Rule 16 (.claude/rules/workflow.md): added doc lines state what is
@@ -151,10 +124,10 @@ jobs:
       - name: Check no surface adds a person's campaign committees together
         run: python scripts/check_no_cross_committee_total.py
 
-      # Only meaningful on a PR: it compares against the merge base and reads
-      # the PR body. It checks both docs that describe changed code and frozen
-      # design-bundle edits. On a push to main there is no body, so skip it.
-      - name: Check doc and design changes were explained
+      # Transitional protection: keep until description-checks has passed on a
+      # real PR and merge group and is required on main. This old step reads the
+      # event body; editing prose alone cannot refresh this old CI result.
+      - name: Check doc changes were explained (transition)
         if: github.event_name == 'pull_request'
         env:
           BASE_REF: ${{ github.base_ref }}
@@ -286,6 +259,10 @@ jobs:
         working-directory: ${{ github.workspace }}
         run: pnpm install --frozen-lockfile
 
+      - name: Test staged-edit preservation and hook installation
+        working-directory: ${{ github.workspace }}
+        run: python3 -m unittest discover -s scripts/tests -p 'test_staged_checks.py'
+
       # Expo and React Native packages have to move as one tested set. A normal
       # package update can otherwise mix SDK releases and still install cleanly,
       # then fail only at type-check or build time (#1394).
@@ -302,12 +279,13 @@ jobs:
         run: pnpm exec tsc --noEmit
 
       - name: Format check frontend
-        run: pnpm exec prettier --check .
+        working-directory: ${{ github.workspace }}
+        run: node scripts/format_frontend.mjs --check
 
       # The type and format checks above cannot catch a wrong answer — they check
       # the code is spelled correctly, not that it does the right thing (#751).
-      # Pure-logic tests only: no component, browser or visual tests, so this
-      # needs no simulated DOM and stays a few hundred milliseconds.
+      # Run the complete saved suite, including logic and rendered snapshots.
+      # Browser user-flow checks remain a separate release responsibility.
       - name: Test frontend
         run: pnpm run test
 

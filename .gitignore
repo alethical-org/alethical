@@ -12,7 +12,10 @@ __pycache__/
 !.env.example
 
 .idea/
-.vscode/
+!.vscode/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
 .codex/
 .cursor/
 

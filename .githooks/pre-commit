@@ -1,0 +1,8 @@
+#!/bin/sh
+set -eu
+root=$(git rev-parse --show-toplevel)
+if [ ! -f "$root/scripts/local_checks.py" ]; then
+  echo "Local checks are missing from this branch. Update it from main before committing." >&2
+  exit 1
+fi
+exec python3 "$root/scripts/local_checks.py" staged
