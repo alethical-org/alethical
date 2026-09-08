@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import subprocess
 import sys
 from datetime import UTC, date, datetime, timedelta, timezone
 from pathlib import Path
@@ -43,6 +44,27 @@ def group(main_micros=1_640_000, main_count=60, layout=0.0876, layout_count=60):
 
 def reading(*args, min_measurements=50):
     return report.read_group(ADDRESS, group(*args), min_measurements)
+
+
+def group_with_bands(*, needs_improvement, poor, total):
+    """One element row carrying Cloudflare's movement bands as actual observations.
+
+    The decoy adaptive sums are here for the same reason they are in ``group``: to
+    prove no count is ever reconstructed from an estimate.
+    """
+    return {
+        "dimensions": {"cumulativeLayoutShiftElement": "#root>div.page-snapshot"},
+        "quantiles": {"cumulativeLayoutShiftP75": 1},
+        "confidence": {
+            "sum": {
+                "clsTotal": {"sampleSize": total},
+                "clsNeedsImprovement": {"sampleSize": needs_improvement},
+                "clsPoor": {"sampleSize": poor},
+            }
+        },
+        "sum": {"clsTotal": 9000, "clsNeedsImprovement": 9000, "clsPoor": 9000},
+        "avg": {"sampleInterval": 10},
+    }
 
 
 def test_confidence_sample_counts_override_scaled_sums():
@@ -167,7 +189,10 @@ def test_queries_match_public_document_population_and_actual_counts(builder):
     assert "confidence(level: 0.95)" in query
     assert "clsTotal { sampleSize }" in query
     assert "sampleInterval" not in query
-    assert "clsPoor" not in query
+    # Cloudflare's Poor band starts above 0.25 and our limit is 0.1, so that band is
+    # never read on its own. It may only appear beside the Needs Improvement band
+    # (above 0.1 up to 0.25), which is what makes the pair equal our own limit.
+    assert ("clsPoor" in query) == ("clsNeedsImprovement" in query)
     assert "routing-apis" not in query
     assert "soft-navigation" not in query
     assert "deliveryType" not in query
@@ -195,9 +220,14 @@ def test_what_moved_uses_actual_counts_and_withholds_thin_scores():
     text = report.format_what_moved(
         [(ADDRESS, rows)], date(2026, 8, 8), date(2026, 9, 6)
     )
-    assert "49 measurements, 75th percentile too few (49)" in text
-    assert "50 measurements, 75th percentile 0" in text
+    assert (
+        "49 measurements, count unknown over 0.1, 75th percentile too few (49)" in text
+    )
+    assert "50 measurements, count unknown over 0.1, 75th percentile 0" in text
+    # Never Cloudflare's Poor band on its own. That band starts above 0.25 while our
+    # limit is 0.1, so counting it alone passed every visit in between.
     assert "of them over the limit" not in text
+    assert "3000" not in text
     assert "estimated measurement volume, not movement size" in text
     assert "#root>div.page-snapshot" in text
     assert "nothing moved" in text
@@ -207,7 +237,10 @@ def test_what_moved_unknown_counts_and_empty_address():
     text = report.format_what_moved(
         [(ADDRESS, [group(layout_count=None)[0]])], date(2026, 8, 8), date(2026, 9, 6)
     )
-    assert "unavailable measurements, 75th percentile unavailable" in text
+    assert (
+        "unavailable measurements, count unknown over 0.1,"
+        " 75th percentile unavailable" in text
+    )
     assert "nothing measured" in report.format_what_moved(
         [(ADDRESS, [])], date(2026, 8, 8), date(2026, 9, 6)
     )
@@ -298,7 +331,141 @@ def test_money_addresses_are_retained():
         "/money/outside-spending",
         "/money/search",
         "/money/committees/<committee>",
+        "/money/committees/<committee>/payments",
     } <= {address.label for address in report.ADDRESSES}
+
+
+def test_a_committee_page_is_asked_about_separately_from_its_payments_page():
+    """Issue 2022 defect 5. Two pages with 2 speeds, averaged by one prefix match.
+
+    ``requestPath_notlike`` with a second wildcard is what keeps a committee's own
+    page to itself: it drops any address carrying a further segment, which today is
+    only the payments page. Both filters were run against the live Cloudflare account
+    on 7 Sep 2026 and returned 23 and 12 measurements separately.
+    """
+    by_key = {address.key: address for address in report.ADDRESSES}
+    committee = by_key["money_committee_pages"].filter_fragment
+    payments = by_key["money_committee_payments"].filter_fragment
+    assert 'requestPath_like: "/money/committees/%"' in committee
+    assert 'requestPath_notlike: "/money/committees/%/%"' in committee
+    assert payments == 'requestPath_like: "/money/committees/%/payments"'
+    assert "notlike" not in payments
+    query = report.build_query(report.ADDRESSES)
+    for key in ("money_committee_pages", "money_committee_payments"):
+        assert f"{key}: rumWebVitalsEventsAdaptiveGroups(" in query
+
+
+def test_what_moved_counts_the_middle_band_as_over_our_limit():
+    """Issue 2022 defect 2. Our 0.1 limit is exactly Google's Good band's upper edge.
+
+    So a visit over our limit is its Needs Improvement band (above 0.1 up to 0.25)
+    plus its Poor band (above 0.25). Counting the Poor band alone passed every visit
+    in between under a column calling them over the limit. Both counts are actual
+    observations rather than adaptive estimates, and read that way the 3 bands add up
+    to the total exactly: checked against the live account on 7 Sep 2026 at 495 Good,
+    3 Needs Improvement and 544 Poor against a total of 1,042.
+    """
+    row = group_with_bands(needs_improvement=3, poor=544, total=1042)
+    assert report.over_our_limit(row) == 547
+    text = report.format_what_moved(
+        [(ADDRESS, [row])], date(2026, 8, 8), date(2026, 9, 6)
+    )
+    assert "547 over 0.1" in text
+    assert "Needs Improvement band (above 0.1 up to 0.25)" in text
+    assert "Poor band (above 0.25)" in text
+
+
+def test_a_missing_band_makes_the_over_limit_count_unknown_never_smaller():
+    """Dropping a band silently would print a count that is quietly too low."""
+    row = group_with_bands(needs_improvement=3, poor=544, total=1042)
+    del row["confidence"]["sum"]["clsNeedsImprovement"]
+    assert report.over_our_limit(row) is None
+    text = report.format_what_moved(
+        [(ADDRESS, [row])], date(2026, 8, 8), date(2026, 9, 6)
+    )
+    assert "count unknown over 0.1" in text
+    assert "544 over 0.1" not in text
+
+
+def test_the_element_query_asks_for_both_bands_over_our_limit():
+    query = report.build_what_moved_query(report.ADDRESSES)
+    assert "clsNeedsImprovement { sampleSize }" in query
+    assert "clsPoor { sampleSize }" in query
+    assert "clsTotal { sampleSize }" in query
+
+
+def test_a_release_boundary_starts_the_day_after_the_release() -> None:
+    """Issue 2022 defect 4. A window holding the release day is not post-release.
+
+    Cloudflare's windows are whole UTC days, so the merge day still holds the hours
+    before the merge. Pull request 2006 merged at 22:38 UTC on 7 Sep 2026, so the
+    first whole day entirely after it is 8 Sep, not 7 Sep.
+    """
+    assert report.first_full_day_after(
+        datetime(2026, 9, 7, 22, 38, 17, tzinfo=UTC)
+    ) == date(2026, 9, 8)
+    # A release just after midnight still moves the window to the next whole day.
+    assert report.first_full_day_after(datetime(2026, 9, 7, 0, 4, tzinfo=UTC)) == date(
+        2026, 9, 8
+    )
+    # A release stamped in another zone is read in UTC, where the windows live.
+    assert report.first_full_day_after(
+        datetime(2026, 9, 7, 20, 30, tzinfo=timezone(timedelta(hours=-6)))
+    ) == date(2026, 9, 9)
+
+
+def test_the_release_boundary_reads_the_date_from_git_not_from_a_guess() -> None:
+    first_commit = subprocess.run(
+        ["git", "rev-list", "--max-parents=0", "HEAD"],
+        capture_output=True,
+        text=True,
+        check=True,
+        cwd=Path(__file__).resolve().parents[2],
+    ).stdout.split()[0]
+    assert isinstance(report.release_merged_at(first_commit), datetime)
+    with pytest.raises(ValueError):
+        report.release_merged_at("not-a-commit-at-all")
+
+
+def test_the_report_and_json_print_the_release_bound() -> None:
+    bound = "Bounded to after 7f3b84ec6850, which merged 2026-09-07 22:38 UTC."
+    text = report.format_report(
+        [reading()], date(2026, 9, 8), date(2026, 9, 11), 50, bound
+    )
+    assert bound in text
+    assert (
+        json.loads(
+            report.as_json([reading()], date(2026, 9, 8), date(2026, 9, 11), 50, bound)
+        )["releaseBound"]
+        == bound
+    )
+    # Without a bound the line is absent rather than empty or reading "None".
+    assert "Bounded to" not in report.format_report(
+        [reading()], date(2026, 8, 8), date(2026, 9, 6), 50
+    )
+
+
+def test_an_unstarted_release_window_reports_nothing_rather_than_a_pass(
+    monkeypatch, capsys
+) -> None:
+    """A bound whose first whole day has not arrived yet must not print an empty
+    table. Nothing measured is not the same as nothing over the limit, and with
+    --fail-on-breach an empty table would exit 0 and read as a release that passed.
+    """
+    monkeypatch.setenv("CLOUDFLARE_ANALYTICS_API_TOKEN", "token")
+    monkeypatch.setenv("CLOUDFLARE_ACCOUNT_ID", "account")
+    monkeypatch.setattr(
+        report,
+        "release_merged_at",
+        lambda commit: datetime.now(UTC),
+    )
+
+    def refuse(*args, **kwargs):
+        raise AssertionError("Cloudflare must not be asked about an empty window")
+
+    monkeypatch.setattr(report, "ask_cloudflare", refuse)
+    assert report.main(["--since-release", "abc1234", "--fail-on-breach"]) == 2
+    assert "No whole day has passed inside that bound yet" in capsys.readouterr().err
 
 
 def test_document_navigation_allowlist_is_the_public_endpoint_population():
