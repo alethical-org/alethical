@@ -135,9 +135,14 @@ export function RepresentativeCard({
   const remainingIssueCount = issues.length - shownIssues.length;
   const officialUrl = legislator.profileUrl;
   const service = serviceSummary(legislator.legislativeService);
-  const chamberLabel = legislator.chamber.toUpperCase();
-  const roleLabel = roleTitle(legislator.chamber).toUpperCase();
-  const districtLabel = `${chamberLabel} DISTRICT ${legislator.district}`;
+  // Find My Legislator resolves a district, so every card here holds a current
+  // seat. Still read from the record rather than assumed: a record naming no
+  // chamber prints no seat line at all instead of `undefined DISTRICT
+  // undefined` (#2061).
+  const chamberLabel = (legislator.chamber ?? '').toUpperCase();
+  const roleLabel = legislator.chamber ? roleTitle(legislator.chamber).toUpperCase() : '';
+  const districtLabel =
+    chamberLabel && legislator.district ? `${chamberLabel} DISTRICT ${legislator.district}` : '';
   return (
     <View style={[styles.card, alignSections && styles.alignedCard, mobile && styles.cardMobile]}>
       <View
@@ -187,40 +192,42 @@ export function RepresentativeCard({
         </View>
         <View style={styles.heading}>
           <Text style={styles.name}>{legislator.shortName}</Text>
-          <View
-            accessible
-            accessibilityLabel={`${roleLabel}, ${districtLabel}`}
-            style={[styles.districtEyebrow, mobile && styles.districtEyebrowMobile]}
-          >
-            <Text
-              numberOfLines={1}
-              style={[
-                styles.districtEyebrowText,
-                styles.districtEyebrowPart,
-                mobile && styles.districtEyebrowTextMobile,
-              ]}
+          {roleLabel || districtLabel ? (
+            <View
+              accessible
+              accessibilityLabel={[roleLabel, districtLabel].filter(Boolean).join(', ')}
+              style={[styles.districtEyebrow, mobile && styles.districtEyebrowMobile]}
             >
-              {roleLabel}
-            </Text>
-            {mobile ? null : (
               <Text
                 numberOfLines={1}
-                style={[styles.districtEyebrowText, styles.districtEyebrowSeparator]}
+                style={[
+                  styles.districtEyebrowText,
+                  styles.districtEyebrowPart,
+                  mobile && styles.districtEyebrowTextMobile,
+                ]}
               >
-                ·
+                {roleLabel}
               </Text>
-            )}
-            <Text
-              numberOfLines={1}
-              style={[
-                styles.districtEyebrowText,
-                styles.districtEyebrowPart,
-                mobile && styles.districtEyebrowTextMobile,
-              ]}
-            >
-              {districtLabel}
-            </Text>
-          </View>
+              {mobile ? null : (
+                <Text
+                  numberOfLines={1}
+                  style={[styles.districtEyebrowText, styles.districtEyebrowSeparator]}
+                >
+                  ·
+                </Text>
+              )}
+              <Text
+                numberOfLines={1}
+                style={[
+                  styles.districtEyebrowText,
+                  styles.districtEyebrowPart,
+                  mobile && styles.districtEyebrowTextMobile,
+                ]}
+              >
+                {districtLabel}
+              </Text>
+            </View>
+          ) : null}
         </View>
       </View>
 

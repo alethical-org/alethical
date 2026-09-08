@@ -4,8 +4,8 @@ import { aboutPageSnapshot } from "../apps/frontend/src/lib/aboutUs";
 import { contactPageSnapshot } from "../apps/frontend/src/lib/contactUs";
 
 import {
+  currentDistrictLine,
   legislatorDisplayName,
-  legislatorDistrictLine,
 } from "../apps/frontend/src/lib/legislatorProfile";
 import {
   billDirectoryPageSnapshot,
@@ -394,10 +394,13 @@ async function legislatorContent(id: string): Promise<PageContent> {
         legislator.full_name || "Minnesota legislator",
         chamber,
       ),
-      districtLine: legislatorDistrictLine(
+      // Empty for a member with no current service period, through the same
+      // gate the snapshot below and the loaded screen use, so a record naming a
+      // district but no chamber cannot print a bare `District 21B` either.
+      districtLine: currentDistrictLine({
         chamber,
-        legislator.current_service?.district?.code,
-      ),
+        district: legislator.current_service?.district?.code,
+      }),
     }),
     snapshot: renderPageSnapshot(
       legislatorPageSnapshot(

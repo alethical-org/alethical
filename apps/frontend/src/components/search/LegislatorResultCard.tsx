@@ -144,6 +144,12 @@ export function LegislatorResultCard({
   // param comes from the slug URL), not the UUID.
   const warm = () => prefetchLegislator(legislator.slug ?? legislator.id);
   const committees = legislator.committees ?? [];
+  const seatLine = [
+    legislator.chamber,
+    legislator.district ? `District ${legislator.district}` : null,
+  ]
+    .filter(Boolean)
+    .join(' · ');
   const shown = committees.slice(0, 2);
   const extra = committees.length - shown.length;
   const authored = authoredCount(legislator);
@@ -193,17 +199,23 @@ export function LegislatorResultCard({
         <View style={styles.info}>
           <View style={styles.nameRow}>
             <Text style={styles.name}>{legislator.name}</Text>
-            <View style={styles.partyChip}>
-              <Text style={styles.partyText}>{partyFull(legislator.party)}</Text>
+            {/* The roster this card is built from holds only sitting members, so
+                each has a party, a chamber and a district. Read rather than
+                assumed: a record naming none prints none instead of the word
+                `undefined` or a guessed party (#2061). */}
+            {legislator.party ? (
+              <View style={styles.partyChip}>
+                <Text style={styles.partyText}>{partyFull(legislator.party)}</Text>
+              </View>
+            ) : null}
+          </View>
+          {seatLine ? <Text style={styles.subMeta}>{seatLine}</Text> : null}
+          {legislator.chamber ? (
+            <View style={styles.roleRow}>
+              <View style={styles.roleDot} />
+              <Text style={styles.roleText}>{chamberTitle(legislator.chamber)}</Text>
             </View>
-          </View>
-          <Text style={styles.subMeta}>
-            {legislator.chamber} · District {legislator.district}
-          </Text>
-          <View style={styles.roleRow}>
-            <View style={styles.roleDot} />
-            <Text style={styles.roleText}>{chamberTitle(legislator.chamber)}</Text>
-          </View>
+          ) : null}
         </View>
       </View>
 

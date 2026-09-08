@@ -348,9 +348,17 @@ export interface Legislator {
   slug?: string;
   name: string;
   shortName: string;
-  chamber: Chamber;
-  district: string;
-  party: Party;
+  /** The chamber this person sits in NOW. Undefined when the record holds no
+   *  current service period — a member who resigned, died or lost a seat — so
+   *  every surface checks before printing one. Any missing value used to resolve
+   *  to `Senate`, and the loaded profile printed it (#2061). */
+  chamber?: Chamber;
+  /** Current district code. Undefined when there is no current service, where
+   *  it used to be the literal word `Unknown` and drew as a district name. */
+  district?: string;
+  /** Current party. Undefined when there is no current service, where it used
+   *  to fall through to `DFL`. */
+  party?: Party;
   role: string;
   /** Official biography prose. Undefined when the record carries none — every
    *  surface that renders it must check first rather than print a stand-in. */
