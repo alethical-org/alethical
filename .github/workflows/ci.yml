@@ -124,19 +124,6 @@ jobs:
       - name: Check no surface adds a person's campaign committees together
         run: python scripts/check_no_cross_committee_total.py
 
-      # Transitional protection: keep until description-checks has passed on a
-      # real PR and merge group and is required on main. This old step reads the
-      # event body; editing prose alone cannot refresh this old CI result.
-      - name: Check doc changes were explained (transition)
-        if: github.event_name == 'pull_request'
-        env:
-          BASE_REF: ${{ github.base_ref }}
-          DOC_SYNC_BASE_REF: origin/${{ github.base_ref }}
-          DOC_SYNC_PR_BODY: ${{ github.event.pull_request.body }}
-        run: |
-          git fetch --quiet origin "$BASE_REF"
-          python scripts/check_doc_sync.py
-
   backend:
     needs: changes
     if: ${{ !cancelled() && (github.event_name == 'workflow_dispatch' || needs.changes.outputs.backend == 'true') }}

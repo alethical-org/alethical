@@ -131,10 +131,14 @@ checkout credentials. Candidate code runs with that read-only access, as in ordi
 PR prose and filenames never become shell commands. No token can publish a check result,
 alter repository settings, or write code through this workflow.
 
-### Activating the separate requirement
+### Required description check and release proof
 
-The safe release order keeps the existing description step inside `changes` until its
-replacement is demonstrated:
+The independent `description-checks` job owns the explanation requirement. The `changes`
+job owns its other code, security, and document checks, without a duplicate check of the
+event's stored description. Editing an explanation refreshes its result without uploading
+code or replacing the app and server test results.
+
+The release order preserves protection while the independent requirement is activated:
 
 1. Land the PR description workflow while retaining the existing CI description step.
 2. Demonstrate `description-checks` on a pull request and on the merge queue. Add
@@ -144,10 +148,19 @@ replacement is demonstrated:
    steps remain required and untouched. Update the setup and repository-setting references
    to name the separate requirement.
 
-During this transition, a failed legacy `changes` run still needs a fresh code event. The
-separate result is independently refreshable; the repeated-upload problem is fully removed
-only after the legacy description step is removed. Rollback restores that legacy step before
-removing the separate required context, so acknowledgment never loses its blocking check.
+The [local-check release checklist](local-code-checks.md#implementation-and-verification-checklist)
+records the pending merges and settings activation separately from completed test evidence.
+Rollback restores the original description step before removing the separate required context,
+so acknowledgment never loses its blocking check.
+
+The [merge-group proof run](https://github.com/alethical-org/alethical/actions/runs/34244224539)
+succeeded against the real combined revision `40f1efd338d68348afa3987f234317d6db9ef252`.
+The production step read the latest explanation for
+[pull request 2080](https://github.com/alethical-org/alethical/pull/2080), covering 1 guide,
+and [pull request 2079](https://github.com/alethical-org/alethical/pull/2079), covering 5 guides.
+Its token permissions were Contents read, PullRequests read, and Metadata read. This proves
+the queue lookup and current-description checks work with the workflow's restricted token,
+not just a developer's more powerful GitHub account.
 
 Measured on 2026-08-03: **11 of 52 docs** declare anything (this said 9 of 47 a few hours earlier the same day; `production-database-schema-drift.md` and the two specs added to the index since both declare code now), and the check **fires on 26 of the
 last 60 merged PRs (43%)**, naming 54 doc-review prompts in total.

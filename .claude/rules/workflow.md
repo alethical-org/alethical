@@ -142,19 +142,40 @@ rest; `.claude/rules/grounded-answers.md` carries the product-behavior rules.
 
     **How to verify a merge, in order:**
 
-    - **The merge queue now catches the stale-green hazard automatically — every PR merges through it.** GitHub's merge queue (enabled Aug 17 2026) tests each PR's checks against the queue's projected result, one at a time, rather than against a `main` that may have already moved. Add a PR to the queue with the "Merge when ready" button (or `gh pr merge --auto`, since the queue is what handles the actual merge once checks pass) instead of merging straight off a green PR view; the queue re-runs the three required checks (`changes`, `backend`, `frontend`) against the up-to-date base before merging, so a green PR view is no longer enough on its own — let it enter the queue and merge from there.
+    - **The merge queue catches the stale-green hazard automatically: every PR merges through it.** GitHub's merge queue tests each PR against the queue's projected result, rather than against a `main` that may have moved. Add a PR with "Merge when ready" or `gh pr merge --auto`. The queue requires `changes`, `backend`, `frontend`, and `description-checks` against its up-to-date combined commit before merging. A green PR view alone is not enough.
 
     - **"CI-green" means green against the *current* `main` — this is the queue's job, not yours, but re-run the checks by hand if you ever merge outside the queue or the queue itself is unavailable.** A stale green describes a base that no longer exists: two PRs green alone were red together, and `main` was broken for ~30 minutes ([#990](https://github.com/alethical-org/alethical/pull/990)/[#1020](https://github.com/alethical-org/alethical/pull/1020) — one removed the exact write the other's new test asserted; no text conflict, so GitHub called it mergeable). That incident, and the manual guard below, predate the queue and are why it was added. As a fallback, compare the check run's timestamp to `git log -1 --format=%cI origin/main`; if `main` moved, re-run after a rebase.
 
       **Honest limits of the queue:** it protects against `main` moving between a PR's last green run and its merge — it does not replace human review, and a PR still needs its required checks to pass on the merge-queue's speculative commit before it lands. Dependabot's PRs and any existing auto-merge usage go through the same queue as everything else; nothing observed so far conflicts with it (verified when the queue was enabled — no PR was mid-auto-merge at the time).
 
-    - **Verify against the head SHA, not the PR view, and wait on the required checks by name.** `gh pr checks` lags a force-push and can report the *previous* commit's green ([#1097](https://github.com/alethical-org/alethical/pull/1097)); a "nothing unfinished" loop exits instantly on a commit whose checks haven't registered yet (zero pending); and a count-based floor is satisfiable by Vercel runs with no CI present. The three required checks are `changes`, `backend`, `frontend` (checkable against `gh api repos/alethical-org/alethical/branches/main/protection --jq '.required_status_checks.contexts'`); the `changes` job itself carries the doc-reference, doc-sync, quoted-claims, secret-scan, and NUL-byte steps, so a docs mistake fails `changes` rather than surfacing as a separate check. Poll until all three exist *and* none is unfinished:
+    - **Verify against the head SHA, not the PR view, and wait on the required checks by name.** `gh pr checks` can lag a force-push and report the previous commit's green ([#1097](https://github.com/alethical-org/alethical/pull/1097)). Missing checks are not passing checks. The required names are `changes`, `backend`, `frontend`, and `description-checks`, all from GitHub Actions. The `changes` job checks document references, quoted claims, secrets, and invalid bytes. The separate `description-checks` job reads the latest explanation, including after a description edit. Choose the newest run for each required name so an older success cannot hide a newer failure or make duplicate runs look unfinished forever:
 
       ```bash
-      until [ "$(gh api repos/alethical-org/alethical/commits/$(git rev-parse HEAD)/check-runs --jq '
-        [.check_runs[]|select(.name|IN("changes","backend","frontend"))] as $req
-        | ($req|length == 3) and ([$req[]|select(.status!="completed")]|length == 0)')" = "true" ]
-      do sleep 10; done
+      set -o pipefail
+      check_sha=$(git rev-parse HEAD)
+      # For queue verification, use the actual merge-group SHA instead.
+      while :; do
+        check_state=$(gh api \
+          "repos/alethical-org/alethical/commits/$check_sha/check-runs?per_page=100&filter=all" \
+          --paginate --slurp | jq -c '
+            ["changes","backend","frontend","description-checks"] as $names
+            | [.[].check_runs[] | select(.app.id == 15368)] as $runs
+            | [$names[] as $name
+              | ([$runs[] | select(.name == $name)] | max_by(.id)) as $run
+              | {name: $name, status: ($run.status // "missing"),
+                 conclusion: $run.conclusion}]
+          ') || exit 1
+        if printf '%s' "$check_state" |
+          jq -e 'all(.[]; .status == "completed")' >/dev/null; then
+          break
+        fi
+        sleep 10
+      done
+      printf '%s\n' "$check_state" | jq .
+      printf '%s' "$check_state" | jq -e '
+        all(.[]; .conclusion == "success" or
+          ((.name == "backend" or .name == "frontend") and .conclusion == "skipped"))
+      '
       ```
 
       Then read each `conclusion` — a path-filtered `skipped` is normal (backend-only PRs merge with `frontend` skipped routinely), but `skipped` is never *evidence of passing*, and neither is a missing check. The general rule: **the convenient view is the stale one.** `gh pr view`'s mergeable flag, `gh pr checks`' summary, and a session-start "N commits behind" snapshot are all caches; git refs and the commit's own check-runs are the facts.

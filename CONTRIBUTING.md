@@ -207,7 +207,17 @@ test suite through `just test-frontend`. Its running time depends on the suite
 and computer. Use
 `pnpm --dir apps/frontend run test:watch` to rerun tests on save.
 
-**Pure logic gets a test.** Any function that maps input to output with no React, no network and no device — text cleaning, parsing, classifying, labelling, date and vote maths — is expected to ship with tests in `src/lib/__tests__/`. That is the rule; a PR adding one without tests should say why. Component rendering and visual regression are deliberately **not** covered (see [#751](https://github.com/alethical-org/alethical/issues/751)). Browser automation now is, in two on-demand layers owned by the `browser-user-test` skill (`.claude/skills/browser-user-test/SKILL.md`): agent-driven user stories, and Playwright checks in `apps/frontend/e2e/` (`just e2e`, engines for Chrome, Firefox, and Safari). Neither runs in CI yet — deliberately, a pending decision on cost and flakiness policy.
+**Pure logic gets a test.** Functions that clean, parse, classify, label, or calculate
+data are expected to ship with tests in `src/lib/__tests__/`. A change adding one
+without tests should explain why. The suite also covers rendered components and
+page snapshots, including
+[`AdminUsersScreen.test.tsx`](apps/frontend/src/screens/__tests__/AdminUsersScreen.test.tsx)
+and [`pageSnapshot.test.tsx`](apps/frontend/src/lib/__tests__/pageSnapshot.test.tsx).
+These are not a substitute for checking the site in a real browser. Browser automation
+remains separate: agent-driven user stories and Playwright checks in
+`apps/frontend/e2e/` (`just e2e`, Chrome, Firefox, and Safari), owned by the
+[`browser-user-test` skill](.claude/skills/browser-user-test/SKILL.md).
+Those browser checks run on demand, not in CI, pending the cost and flakiness policy.
 
 Prefer a fixture of **real** data over invented strings: `src/lib/__tests__/fixtures/` holds real bill sections pulled from the production API, and its `README.md` explains what each one is there to catch and how to add more. Two of the bugs these tests pin were found by measuring against real text and would not have been caught by an example someone made up.
 
@@ -260,7 +270,7 @@ On every PR (`.github/workflows/ci.yml`):
 - **Backend** (when backend paths change): `ruff check`, `ty check`, and `pytest` against a real Postgres
 - **Frontend** (when frontend paths change): `tsc --noEmit`, `prettier --check`, the Vitest suite, and a production build
 - **Doc references** (always, no path filter): `scripts/check_doc_references.py` confirms every `docs/...` path and every relative link inside `docs/` points at a real file. This one runs on every PR on purpose — a broken doc pointer is usually introduced by a docs-only or rules-only change, which the two jobs above skip. You can run it locally any time with `python scripts/check_doc_references.py`.
-- **Docs drift** (on pull requests): [`scripts/check_doc_sync.py`](scripts/check_doc_sync.py) requires a visible, nonempty `Docs check:` explanation when declared code changes. The separate `description-checks` job reads the latest description on edits without rerunning app or server tests. During phase 1, the original required `changes` job retains its stored-description check. [Local code checks](docs/operations/local-code-checks.md#github-description-check-activation) owns the proof and activation steps before that old check is removed.
+- **Docs drift** (on pull requests and merge groups): [`scripts/check_pr_descriptions.py`](scripts/check_pr_descriptions.py) requires a visible, nonempty `Docs check:` explanation when declared code changes. The independent `description-checks` job reads the latest description on edits without rerunning app or server tests. Description validation does not live inside `changes`. [Local code checks](docs/operations/local-code-checks.md#github-description-check-activation) owns the release proof and required-check activation checklist.
 
 ### Keeping the workflow actions current
 
@@ -422,14 +432,14 @@ single home. What CI enforces on your PR:
 - A doc that describes behaviour names the code it describes in a hidden comment near
   its top: `<!-- describes: <paths> -->`. **If your PR changes a file some doc
   declares, the PR body needs one `Docs check:` line saying what you concluded**
-  ([`scripts/check_doc_sync.py`](scripts/check_doc_sync.py)). "Docs check: none needed, internal refactor" passes:
+  ([`scripts/check_pr_descriptions.py`](scripts/check_pr_descriptions.py)). "Docs check: none needed, internal refactor" passes:
   the check forces a *look*, never an edit. Editing the doc does not exempt you — read
   the whole doc, then say what you concluded, and search for the claim your change made
   false, not for the name of the thing you changed.
 - A blank line, hidden comment, or fenced example does not count as the explanation.
   [Local code checks](docs/operations/local-code-checks.md#github-description-check-activation)
-  explains how description edits refresh their own result and why phase 1 still
-  retains the original required check.
+  explains how description edits refresh their own result without uploading the
+  code again or restarting app and server tests.
 - **Design previews do not land under `docs/`.** Keep HTML previews, screenshots, copied
   assets, and handoff notes with the active task or pull request. Before merging, move
   lasting behavior and copy into the feature guide under `docs/product-onboarding/`,

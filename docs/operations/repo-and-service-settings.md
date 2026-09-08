@@ -49,7 +49,7 @@ Enabled 2026-07-28.
 | Required approving reviews | `0` | Sessions can merge low-risk work under the repository release rules. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | Required Code Owner review | **No** | Only 1 current owner has reviewed past work, so requiring this would stop releases. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | Dismiss old approvals after a new push | **No** | A required current branch can change after review without causing a repeat-review loop. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
-| Required status checks | `description-checks`, `changes`, `backend`, `frontend` | The 4 jobs in `.github/workflows/pr-description.yml` and `.github/workflows/ci.yml` cover the pull-request description, code, and documentation. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
+| Required status checks | `changes`, `backend`, `frontend`, `description-checks` | Code checks run in `.github/workflows/ci.yml`; `.github/workflows/pr-description.yml` checks the latest change explanation without rerunning code tests. All 4 results must come from GitHub Actions. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | Strict (branch must be up to date) | **On** | Every merge is tested with current `main`. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | Resolve review conversations | **On** | Open review findings must be answered before merge. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
 | Enforce for admins | **On** | Owners cannot skip a failed check or the pull-request path. | Live with `REPO_SETTINGS_TOKEN`; [#1557](https://github.com/alethical-org/alethical/issues/1557) |
@@ -58,7 +58,8 @@ Enabled 2026-07-28.
 
 The required `backend` and `frontend` jobs report `skipped` on unrelated changes, which
 GitHub accepts as satisfied. Keep path filters inside jobs, not on the workflow trigger,
-so all 4 required checks always report.
+so all 4 required checks report for pull requests and merge groups. Editing a pull
+request description refreshes `description-checks`, not the saved code-test results.
 
 ## GitHub Actions secrets
 

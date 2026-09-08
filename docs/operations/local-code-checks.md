@@ -118,7 +118,7 @@ build. Local tests do not prove browser behavior or replace a real user-flow che
 
 ## GitHub description-check activation
 
-Phase 1 adds an independent `description-checks` result through
+The independent `description-checks` result runs through
 [`.github/workflows/pr-description.yml`](../../.github/workflows/pr-description.yml).
 It runs on pull request opens, code updates, reopens, ready-for-review events,
 description edits, and merge-queue checks. Editing prose does not launch the frontend
@@ -140,19 +140,20 @@ The workflow uses a read-only GitHub token and no repository secrets. It runs as
 helper to run in its introducing change before it exists on the base branch, without
 giving the proposed code write access. It never posts replacement code-check results.
 
-Phase 1 retains the original description step in the required `changes` job in
-[`.github/workflows/ci.yml`](../../.github/workflows/ci.yml). That original step
-reads the event's stored description. Therefore a corrected explanation can pass
-`description-checks` while the older `changes` result still fails. Rerunning the
-old event does not refresh its saved description. This temporary overlap preserves
-the existing merge protection while the new workflow receives live proof.
+Description validation belongs only to this workflow, not the `changes` job in
+[`.github/workflows/ci.yml`](../../.github/workflows/ci.yml). A corrected explanation
+refreshes `description-checks`; code, security, and other document checks keep their
+own results. An old event's stored description is not used to judge the current one.
 
-Phase 2 is planned, not activated by merging the workflow file. After a real pull
-request and nonempty merge-group run prove the new check, the release owner adds
-`description-checks` from GitHub Actions to the required checks on `main`, retaining
-`changes`, `backend`, `frontend`, and every other protection. A separate change then
-removes only the old description step and aligns the settings and workflow guides.
-Rollback restores the old step before removing the new required check.
+Activation preserves the merge gate throughout: the release owner lands the
+independent workflow with the original description step retained, proves the new
+check on a pull request and a nonempty merge group, then adds `description-checks`
+from GitHub Actions to the required checks on `main`. The required code checks
+(`changes`, `backend`, `frontend`) and every other protection remain. Only then
+does the phase-2 removal of the original description step merge. The checklist
+below records which release steps are complete; editing these files does not
+change GitHub's settings. Rollback restores the original step before removing
+the independent required check.
 
 [Keeping docs current decisions](keeping-docs-current-decisions.md) owns the
 description-check design. [Repo and service settings](repo-and-service-settings.md)
@@ -167,7 +168,7 @@ proof. The release owner updates unchecked items with outcomes before closing th
 - [x] Shared setup, versioned hook installer, selected-file formatter, and exact-upload
   test helper are present with focused fixtures.
 - [x] The independent description workflow and fresh-description fixtures are present;
-  the original required description step remains.
+  the phase-2 code removes the duplicate description step from `changes`.
 - [x] Focused checks cover 12 upload-selection cases, 19 description cases, and
   19 real Git/formatter/installer cases. Python formatting and lint pass.
 - [x] A draft description edit fails for a missing explanation and passes after
@@ -175,13 +176,21 @@ proof. The release owner updates unchecked items with outcomes before closing th
   [missing explanation](https://github.com/alethical-org/alethical/actions/runs/34241482500),
   [restored explanation](https://github.com/alethical-org/alethical/actions/runs/34241556141),
   [unchanged code-check run](https://github.com/alethical-org/alethical/actions/runs/34241355367).
-- [ ] Complete full affected local suites and current-head GitHub checks after the
-  resource hold clears, then merge phase 1.
-- [ ] Prove fresh descriptions and code IDs in a nonempty merge-group run, including
-  access with the workflow's read-only token.
-- [ ] Activate this task's worktree with `just setup` and exercise an actual commit
-  and upload safely. Other active owners adopt the checks through their normal
-  dependency installation without changing their in-progress branches on our behalf.
+- [x] Full local suites pass: 2,406 frontend tests and 2,289 backend tests.
+  `just format` completes without changing files.
+- [x] The [real merge-group description run](https://github.com/alethical-org/alethical/actions/runs/34244224539)
+  passes on `40f1efd338d68348afa3987f234317d6db9ef252`. Its production step checks
+  [pull request 2080](https://github.com/alethical-org/alethical/pull/2080) against
+  1 guide and [pull request 2079](https://github.com/alethical-org/alethical/pull/2079)
+  against 5 guides. The job reports only Contents, PullRequests, and Metadata read access.
+- [x] `just setup` activates the owning worktree while the common hook setting stays
+  unchanged. Cursor has Prettier extension `12.4.0` and Ruff extension `2026.78.0`.
+  These extension versions are separate from the project's pinned formatter versions.
+- [ ] Complete current-head and merge-queue code checks, then merge
+  [phase 1](https://github.com/alethical-org/alethical/pull/2079).
+- [ ] Exercise an actual commit and upload through the installed hooks safely.
+  Other active owners adopt the checks through their normal dependency installation
+  without changing their in-progress branches on our behalf.
 - [ ] Add the proven `description-checks` context to required GitHub checks while
   retaining all existing protection.
 - [ ] Merge phase 2 removing only the old description step and update
