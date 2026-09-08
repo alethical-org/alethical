@@ -485,8 +485,8 @@ there minutes earlier, and copies are held per location rather than once for eve
 "565 ms cold, 90 ms warm" is the honest pair, and "most visitors pay 565 ms" is a claim
 nobody here has earned.
 
-**The list response carried far more than a card draws, and the download turned out to be
-the largest part of the wait.** `/bills` asked for 10 bills and received 127,201 bytes,
+**The list response carried far more than a card draws, and cutting it is worth about
+40 ms.** `/bills` asked for 10 bills and received 127,201 bytes,
 22,145 as production gzipped it. Action
 history is 79,410 of those bytes, 396 rows so that each card can print 1 line, and the AI
 analysis is 27,441, of which the key points, the suggested questions and the citations are
@@ -498,8 +498,8 @@ established: a smaller body is also less to parse and less for the server to bui
 neither was measured. Sizing the whole avenue needs a controlled before-and-after, so the
 bytes above are the finding and the seconds are not.
 
-**Downloading the answer is most of the list wait, which is the opposite of what the
-unsplit number suggested.** The data service now permits a page on our own site to time its
+**The list wait splits into 3 parts, and which one dominates depends entirely on whether
+the answer was already held nearby.** The data service now permits a page on our own site to time its
 own requests (`Timing-Allow-Origin`, #2039), so the parts are readable rather than guessed.
 Measured 8 Sep 2026, same profile, 9 runs, on the trimmed response:
 
@@ -515,12 +515,30 @@ address 9 times, so 8 of those runs were answered from a nearby copy at about 36
 single 481 ms run is what building the answer costs. Read the 2 as separate numbers, per the
 rule above.
 
-Two things this settles. Reasoning from the unsplit number put most of it on the round trip
-and the server, and the measurement says the opposite: at this profile the bytes are the
-largest part, so response size is worth more than an unsplit figure suggested. And the
-15,101 bytes now sent still take 324 ms here, far longer than the 75 ms their size alone
-implies, because a fresh connection reaches full speed over several round trips rather than
-at once.
+**A stage's name is not its cause, and this is where that bites.** The download stage being
+the largest does not make the bytes the largest cost. Measured the same day at the same
+profile, fetching the same 2 real answers on their own with nothing else loading:
+
+| Answer | Over the wire | Connecting | Server | Downloading |
+|---|---:|---:|---:|---:|
+| Slim view, warm | 608 B | 63 ms | 38 ms | 121 ms |
+| What a card draws, warm | 14,698 B | 53 ms | 33 ms | 205 ms |
+| Slim view, cold | 608 B | 56 ms | 240 ms | 5 ms |
+| What a card draws, cold | 14,698 B | 58 ms | 497 ms | 78 ms |
+
+A 608-byte answer cannot spend 121 ms transferring 608 bytes, so most of that stage is the
+connection reaching speed rather than the body. **What the size actually costs is the
+difference between the 2 rows: about 84 ms warm and 73 ms cold for 14,090 extra bytes, so
+roughly 5 to 6 ms per 1,000 bytes over the wire at this profile.**
+
+So the size lever is real and small. Removing everything no card draws took the answer from
+22,145 to 14,698 bytes, worth about 40 ms. Going further to a card-shaped 9,115 bytes would
+be worth about another 30 ms. Neither is the 324 ms the page-load stage reads, and what
+accounts for that gap is not established here: during a page load the browser is fetching
+other things over the same throttled connection, which the isolated reads are not.
+
+**Cold, the server is the largest part by far**: 497 ms of a 640 ms request against 78 ms of
+downloading. That is the same cost #2040 is filed against, seen from the browser this time.
 
 ## What an uncached money answer spends its time on
 
