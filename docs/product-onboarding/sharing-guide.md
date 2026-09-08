@@ -131,9 +131,10 @@ report the committee filed, and the day we copied the files. **Its payments page
 the first 250 named donations, each with its own date and amount. Every one of those figures goes
 through the same functions the screen uses, so a missing figure reads "Not reported" and a filed zero
 reads "$0.00", and a test fails if the served page ever prints an amount the filing does not carry
-([`.claude/rules/grounded-answers.md` rule 12](../../.claude/rules/grounded-answers.md)). A year or a
-tab named in the address is deliberately ignored by the served text, which carries the page's plain
-state, exactly as a bill serves its Summary whichever tab the address names.
+([`.claude/rules/grounded-answers.md` rule 12](../../.claude/rules/grounded-answers.md)). A year named in the
+address is the year those figures are for, so a shared link about one year never shows another
+year's money first. A tab named in the address is deliberately ignored by the served text, which
+carries the page's plain state, exactly as a bill serves its Summary whichever tab the address names.
 
 **Money by race** arrives with every contest, and inside each one an ordinary link to every
 candidate committee registered for that seat, with each committee's 2 figures and the dates each

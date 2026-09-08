@@ -1419,8 +1419,8 @@ address is not a reason to show its reader nothing. Sorted for this section:
 | `/money` | front door | a short body: heading, its one sentence, the live register count, the copy date, the gaps, and links into the 2 lanes that lead to an indexable page. The 3rd lane opens the name search, which is `noindex`, so it is left out of the served body and reaches a reader when the app renders |
 | `/money/committees` and `?page=N` | record list | the page's 50 filers as ordinary anchors, plus previous/next/jump links |
 | `/money/committees?q=…` or `?kind=…` | filtered view | head only, `noindex`, no canonical — unchanged |
-| `/money/committees/{slug}` | **record** | the committee's own register facts and its money for the current filing year |
-| `/money/committees/{slug}/payments` | **record** | the same identity and period plus the first 250 named donations |
+| `/money/committees/{slug}` and `?year=N` | **record** | the committee's own register facts and its money for the year the address asks for, defaulting to the current filing year; canonical on the bare address either way |
+| `/money/committees/{slug}/payments` and `?year=N` | **record** | the same identity and period for that same year, plus the first 250 named donations |
 | `/money/races` | record list | every candidate committee grouped by the contest it registered for, each an ordinary anchor, with each figure's own dates ([#1954](https://github.com/alethical-org/alethical/issues/1954)) |
 | `/money/races?office=…` | filtered view | head only, `noindex`, no canonical |
 | `/money/search` and `?q=…` | filtered view | `noindex` with no canonical, and a body carrying the page's own explanation and what these records do not cover — never a result for anything typed ([#1966](https://github.com/alethical-org/alethical/issues/1966)) |
@@ -1438,11 +1438,19 @@ address is not a reason to show its reader nothing. Sorted for this section:
   last real one answers 404 with `noindex`, as §18 settled for those 2 directories. The retired
   `show` parameter is dropped: a link carrying it lands on page 1, which is where its reader
   started.
-- **A year or a tab in the address does not change the served body.** The body is the page's
-  canonical state, exactly as a bill's body is its Summary whichever tab the address names. The app
-  then draws the requested year. The alternative — serving what the address asks for — would put
-  several bodies under one canonical address for no gain, since a search engine follows the
-  canonical anyway.
+- **A year in the address decides the served figures; a tab does not.** The body carries the year
+  the address asks for, resolved by the same `campaignMoneyYear` the screen resolves it with, so the
+  first thing a reader sees is the year they asked for and the app's own read replaces it with the
+  same figures rather than different ones. Where that year holds no filing the body says
+  "Not reported", and where our records cannot be read for it the body says so; neither is ever a 0
+  (`.claude/rules/grounded-answers.md` rule 12). A tab does not change the body, which carries the
+  whole record exactly as a bill's body is its Summary whichever tab the address names. The
+  canonical address stays the bare one in every case: a preferred address for a search engine is a
+  reason to set the canonical link and never a reason to show a reader a year they did not ask for
+  ([#2021](https://github.com/alethical-org/alethical/issues/2021)).
+- **Records read for one year are never handed to the app as another year's.** The payload served
+  under §23 answers the exact year it was read for or is not served at all, so a seeded figure and
+  a fetched figure cannot come from different years.
 - **The canonical address is built from the register's own spelling of the name.** A committee's
   address resolves by its trailing registration number alone, so an old or misspelled name part
   still lands on the page and the app then rewrites the address in place. Before this the served
