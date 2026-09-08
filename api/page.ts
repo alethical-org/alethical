@@ -153,6 +153,15 @@ const API_ORIGIN = (
   process.env.EXPO_PUBLIC_API_URL || "https://api.alethical.com"
 ).replace(/\/$/, "");
 
+// The address a reader's browser reports itself from when it asks the API. Every
+// API read below sends it, because Cloudflare's default cache identity includes
+// the Origin header and the API answers it with `Vary: Origin`: a copy saved
+// without it is a copy no browser on the site is ever handed. Measured 8 Sep
+// 2026 on one address: MISS then HIT with no Origin, then MISS again WITH it, so
+// this function had been warming a copy nobody reads
+// (https://github.com/alethical-org/alethical/issues/2120).
+const SITE_ORIGIN = "https://www.alethical.com";
+
 // Long enough for a cold backend, short enough that a hung API can never hold the
 // function open to its own timeout. A slow read becomes a 503, not a stall.
 const API_TIMEOUT_MS = 5000;
@@ -246,7 +255,7 @@ async function getApiRead<T>(
   let response: Response;
   try {
     response = await fetch(`${API_ORIGIN}/api/v1${path}`, {
-      headers: { Accept: "application/json" },
+      headers: { Accept: "application/json", Origin: SITE_ORIGIN },
       signal: AbortSignal.timeout(API_TIMEOUT_MS),
     });
   } catch {
