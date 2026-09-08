@@ -492,6 +492,20 @@ Top to bottom:
    ruled out reads exactly like one nobody has looked at yet: that decision is about our
    own proposal, and it is not a claim about the committee.
 
+   **And the naming has a shelf life.** A confirmation can be taken back, so the page
+   only repeats one it has been able to check inside the last 20 minutes. Past that it
+   asks our data service again; if that answer cannot be got, the card stops naming the
+   member and says so in its own words, and every figure on the page stays exactly where
+   it is with its own dates. It never falls back to the "nobody has confirmed one"
+   sentence, because somebody has, and saying otherwise would be plainly false. In
+   ordinary use a reader never sees this: the recheck takes under a second, and it is the
+   reader whose connection or our service has failed who gets the withheld version rather
+   than a name nobody is standing behind. The deadline and the arithmetic behind the 20
+   minutes are in
+   [`docs/operations/page-load-performance-decisions.md`](../operations/page-load-performance-decisions.md)
+   under "How old a current claim can be, end to end"
+   ([issue 2023](https://github.com/alethical-org/alethical/issues/2023)).
+
 3. **A year switch** (this calendar year and the one before), each year its own address.
 4. **The period panel**: what the committee's own report covers. The end is read off the
    filing; the start appears only when the Board's own published filing calendar prints

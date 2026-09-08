@@ -8,6 +8,10 @@ import requests
 from sqlalchemy import delete, func, select, text
 from sqlalchemy.orm import Session
 
+from fastapi.middleware.cors import CORSMiddleware
+
+from alethical.api.main import create_app
+from alethical.api.routers import public
 from alethical.api.routers.public import public_cache_control_for_path
 from alethical.api.serializers import current_bill_summary_enrichment
 from alethical.db.schema import load_schema
@@ -6648,6 +6652,110 @@ def test_a_read_naming_a_confirmed_committee_for_a_member_gets_the_short_window(
         assert public_cache_control_for_path(identity_bearing) == SHORT_WINDOW, (
             identity_bearing
         )
+
+
+def test_a_read_that_claims_something_current_says_when_it_last_checked(
+    client, monkeypatch
+):
+    """The 2 reads that can answer here state the moment the origin confirmed the
+    claim, in the body.
+
+    A window bounds one hop. It cannot bound what a reader sees, because a page
+    built around an answer can itself be held, and the app's own store never sees a
+    header at all. So the moment travels as a served field and every later hop adds
+    the age it measured
+    (https://github.com/alethical-org/alethical/issues/2023,
+    ``apps/frontend/src/lib/currentClaimFreshness.ts``).
+
+    The clock is pinned rather than read. A test that compared the answer against
+    ``datetime.now`` could only assert that now is now, and would pass just as well
+    if the field were filled in from the day the records were copied.
+    """
+    checked_at = datetime(2026, 9, 7, 12, 0, 0, tzinfo=timezone.utc)
+    monkeypatch.setattr(public, "_utc_now", lambda: checked_at)
+
+    summary = client.get("/api/v1/campaign-finance/summary")
+    assert summary.status_code == 200
+    assert summary.json()["data"]["current_claim_validated_at"] == (
+        "2026-09-07T12:00:00Z"
+    )
+
+    sitting = client.get("/api/v1/legislators", params={"limit": 1}).json()["data"]
+    surname = sitting[0]["full_name"].split()[-1]
+    search = client.get("/api/v1/campaign-finance/search", params={"q": surname})
+    assert search.status_code == 200
+    assert search.json()["data"]["current_claim_validated_at"] == (
+        "2026-09-07T12:00:00Z"
+    )
+
+    # The 2 per-member routes need a seeded money release to answer 200, so the
+    # function itself is read here and the field's presence on those payloads is
+    # held by `apps/frontend/src/lib/__tests__/currentClaimFreshness.test.ts`,
+    # which counts all 4.
+    assert public.current_claim_validated_at() == checked_at
+
+
+def test_the_validation_time_is_none_of_the_record_dates_beside_it(client, monkeypatch):
+    """Three kinds of date sit on one money payload and only one of them expires.
+
+    ``as_of`` and ``downloads_fetched_at`` say when we copied Minnesota's own
+    publications; a figure carrying one of those is allowed to be old, and
+    ``docs/architecture/campaign-finance-system-design.md`` prefers an old labelled
+    figure to a blank one. The validation time says when we last confirmed a claim
+    about the state of the world right now. Collapsing any 2 of the 3 would either
+    expire figures that are fine or keep naming a person nobody stands behind.
+    """
+    monkeypatch.setattr(
+        public, "_utc_now", lambda: datetime(2026, 9, 7, 12, 0, 0, tzinfo=timezone.utc)
+    )
+
+    data = client.get("/api/v1/campaign-finance/summary").json()["data"]
+
+    validated_at = data["current_claim_validated_at"]
+    assert validated_at == "2026-09-07T12:00:00Z"
+    assert validated_at != data["register"]["as_of"]
+    assert validated_at != data["freshness"]["downloads_fetched_at"]
+    assert (
+        validated_at
+        != data["legislator_committee_confirmations"]["newest_confirmation_at"]
+    )
+
+
+def test_a_read_of_only_dated_money_records_carries_no_validation_time(client):
+    """A dated record has nothing to expire, so it is not given a clock.
+
+    Serving one anyway would invite a caller to age out figures that are correct,
+    which is the opposite mistake and the one that empties a working page.
+    """
+    for path in [
+        "/api/v1/campaign-finance/committees",
+        "/api/v1/campaign-finance/filings",
+        "/api/v1/campaign-finance/races?year=2026",
+    ]:
+        response = client.get(path)
+        assert response.status_code == 200, path
+        assert "current_claim_validated_at" not in _every_key(
+            response.json()["data"]
+        ), path
+
+
+def test_the_browser_is_allowed_to_read_how_long_a_cache_held_an_answer():
+    """`Age` is exposed to the app, which is the only way it can learn what the
+    shared caches added.
+
+    A browser hides every cross-origin response header a server does not list, and
+    a hidden header is indistinguishable from an absent one. Without this the app
+    has to assume the worst its window allows on every read, so the deadline still
+    holds and every reader pays the whole cache window for it.
+    """
+    app = create_app()
+    exposed = [
+        middleware
+        for middleware in app.user_middleware
+        if middleware.cls is CORSMiddleware
+    ]
+    assert exposed, "the API must still send CORS headers at all"
+    assert "Age" in exposed[0].kwargs["expose_headers"]
 
 
 def test_a_bill_read_gets_the_short_window(client):

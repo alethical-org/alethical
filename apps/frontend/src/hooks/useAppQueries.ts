@@ -84,7 +84,7 @@ import {
 } from '../lib/moneyLanding';
 import { readerIsSavingData } from '../lib/dataSaving';
 import { campaignMoneyYear } from '../lib/legislatorCampaignMoney';
-import { seededQueryData } from '../lib/pageData';
+import { seededQuery } from '../lib/pageData';
 import { metaQueryKey, policyAreasQueryKey, sessionsQueryKey } from '../lib/searchPageReads';
 import {
   outsideSpendingLoadFailure,
@@ -198,7 +198,7 @@ export function usePolicyAreas(session?: string, scope?: 'legislature') {
   return useQuery({
     queryKey: key,
     queryFn: () => listPolicyAreasFromApi(session, scope),
-    initialData: seededQueryData(key, policyAreasFromPayload),
+    ...seededQuery(key, policyAreasFromPayload),
     retry: false,
   });
 }
@@ -215,7 +215,7 @@ export function useSessions(options: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: key,
     queryFn: listSessionsFromApi,
-    initialData: seededQueryData(key, sessionsFromPayload),
+    ...seededQuery(key, sessionsFromPayload),
     retry: false,
     enabled: options.enabled ?? true,
   });
@@ -227,7 +227,7 @@ export function useMeta() {
   return useQuery({
     queryKey: key,
     queryFn: getMetaFromApi,
-    initialData: seededQueryData(key, metaFromPayload),
+    ...seededQuery(key, metaFromPayload),
     retry: false,
   });
 }
@@ -377,7 +377,7 @@ export function useCampaignFinanceSummary(options: { enabled?: boolean } = {}) {
     queryFn: getCampaignFinanceSummaryFromApi,
     // The /money page function already read this, so on a first load the counts
     // and the copy date are drawn without a second request (issue #1966).
-    initialData: seededQueryData(key, campaignFinanceSummaryFromPayload),
+    ...seededQuery(key, campaignFinanceSummaryFromPayload),
     retry: false,
     // The homepage reads this too, and Home stays mounted beneath a deep-linked
     // stack screen, so an ungated read there would contend with the visible
@@ -393,7 +393,7 @@ export function useCampaignFinanceFilings(limit = 5) {
   return useQuery({
     queryKey: key,
     queryFn: () => getCampaignFinanceFilingsFromApi(limit),
-    initialData: seededQueryData(key, campaignFinanceFilingsFromPayload),
+    ...seededQuery(key, campaignFinanceFilingsFromPayload),
     retry: false,
   });
 }
@@ -420,7 +420,7 @@ export function useCampaignFinanceRaces(options: { year: number; office?: string
     queryFn: (): Promise<MoneyByRacePage> => getCampaignFinanceRacesFromApi({ year, office }),
     // The bare /money/races address is served with this read already made, which
     // is what stops the page downloading all 778 rows a second time (#1966).
-    initialData: seededQueryData(key, (payload: ApiMoneyByRacePayload) =>
+    ...seededQuery(key, (payload: ApiMoneyByRacePayload) =>
       getCampaignFinanceRacesFromApiPayload(payload, year),
     ),
     retry: false,
@@ -449,7 +449,7 @@ export function useCampaignFinanceCommittees(options: {
     // A plain numbered page is served with its own rows already read, so the list
     // is drawn in the app's first paint (#1966). A kind chip or a typed name is a
     // filtered view the page function does not read, and fetches as before.
-    initialData: seededQueryData(key, committeeRegisterPageFromPayload),
+    ...seededQuery(key, committeeRegisterPageFromPayload),
     retry: false,
     placeholderData: keepPreviousData,
   });
@@ -1121,7 +1121,7 @@ export function useOutsideSpendingRecord(options: {
     // The bare /money/outside-spending address is served with this read already
     // made, so its figures are on screen at once rather than after the cold
     // 2,975 ms read that made it the slowest first load on the money pages (#1966).
-    initialData: seededQueryData(key, outsideSpendingRecordPageFromPayload),
+    ...seededQuery(key, outsideSpendingRecordPageFromPayload),
     retry: false,
     placeholderData: keepPreviousData,
   });

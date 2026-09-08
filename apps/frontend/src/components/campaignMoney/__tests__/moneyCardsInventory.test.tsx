@@ -101,6 +101,8 @@ function money(committees: CampaignCommitteeMoney[]): LegislatorCampaignMoney {
     legislatorId: 'aric-putnam',
     year: 2026,
     linkState: 'confirmed',
+    // Just validated, so nothing on the card is withheld for age (issue 2023).
+    currentClaim: { servedAgeMs: 0, validatedAt: '2026-09-01T18:33:35.639027Z' },
     committees,
     committeesOutsideThisYear: [],
     otherOfficeCommittees: 0,
@@ -117,6 +119,8 @@ function render(committees: CampaignCommitteeMoney[]) {
       money={money(committees)}
       isLoading={false}
       isError={false}
+      moneyUpdatedAt={Date.now()}
+      refetchMoney={() => {}}
       isDesktop
       legislatorId="aric-putnam"
       onOpenSource={vi.fn()}

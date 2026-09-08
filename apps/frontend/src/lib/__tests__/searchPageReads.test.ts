@@ -84,7 +84,7 @@ describe('the keys /bills and /legislators are seeded under', () => {
     // fetched a moment later.
     for (const shaper of ['policyAreasFromPayload', 'sessionsFromPayload', 'metaFromPayload']) {
       expect(api).toContain(`export function ${shaper}(`);
-      expect(source('hooks/useAppQueries.ts')).toContain(`seededQueryData(key, ${shaper})`);
+      expect(source('hooks/useAppQueries.ts')).toContain(`...seededQuery(key, ${shaper})`);
     }
     for (const path of ['policyAreasReadPath(', 'SESSIONS_READ_PATH', 'META_READ_PATH']) {
       expect(api).toContain(path);

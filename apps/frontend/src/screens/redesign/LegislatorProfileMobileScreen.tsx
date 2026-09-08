@@ -583,6 +583,8 @@ export function LegislatorProfileMobileScreen() {
                       money={moneyQuery.data}
                       isLoading={moneyQuery.isLoading}
                       isError={moneyQuery.isError}
+                      moneyUpdatedAt={moneyQuery.dataUpdatedAt}
+                      refetchMoney={moneyQuery.refetch}
                       isDesktop={false}
                       legislatorId={legislatorId}
                       onOpenSource={openExternal}
