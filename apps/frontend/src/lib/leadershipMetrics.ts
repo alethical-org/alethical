@@ -19,6 +19,7 @@ export type LeadershipOperations = {
   corpus: {
     bills: number;
     legislators: number;
+    current_legislators: number;
     committees: number;
     scope: string;
     coveragePercentage: UnknownCount;
@@ -148,6 +149,7 @@ const operations = shape({
   corpus: shape({
     bills: count,
     legislators: count,
+    current_legislators: count,
     committees: count,
     scope: text,
     coveragePercentage: unknownCount,
@@ -243,6 +245,7 @@ export function isLeadershipMetrics(value: unknown): value is LeadershipMetrics 
   const o = result.operations;
   if (o) {
     if (
+      o.corpus.current_legislators > o.corpus.legislators ||
       Date.parse(o.periodEndedAt) - Date.parse(o.periodStartedAt) !== 30 * 86400000 ||
       Date.parse(o.periodStartedAt) % 86400000 !== 0 ||
       Date.parse(o.periodEndedAt) % 86400000 !== 0 ||

@@ -7,7 +7,7 @@ const state = vi.hoisted(() => ({
   auth: {
     isLoading: false,
     isSignedIn: true,
-    user: { id: 'test-admin' } as { id: string } | null,
+    user: { id: 'test-admin' } as { id: string; isAdmin?: boolean } | null,
     accessToken: 'test-token-a' as string | null,
   },
   access: vi.fn(),
@@ -64,6 +64,7 @@ const fixture = {
       sign_in_methods: ['google'],
     },
   ],
+  excluded_accounts: [{ id: 'excluded-team', email: 'excluded-team@example.test' }],
   summary: {
     confirmed_accounts: 1,
     pending_accounts: 0,
@@ -108,6 +109,20 @@ afterEach(async () => {
 });
 
 describe('private Users access and cleanup', () => {
+  it('loads immediately from the signed-in capability without another permission request', async () => {
+    state.auth.user = { id: 'test-admin', isAdmin: true };
+    await render();
+    expect(state.access).not.toHaveBeenCalled();
+    expect(state.search).toHaveBeenCalledTimes(1);
+    expect(host.textContent).toContain('fixture@example.com');
+    state.auth.user = { id: 'reader', isAdmin: false };
+    state.auth.accessToken = 'test-reader-token';
+    await render();
+    expect(host.textContent).toContain('Restricted access');
+    expect(host.textContent).not.toContain('fixture@example.com');
+    expect(state.access).not.toHaveBeenCalled();
+    expect(state.search).toHaveBeenCalledTimes(1);
+  });
   it('never requests private rows for a signed-out or ordinary account', async () => {
     state.auth = { isLoading: false, isSignedIn: false, user: null, accessToken: null };
     await render();
@@ -128,16 +143,19 @@ describe('private Users access and cleanup', () => {
   it('clears visible private rows on account change and ignores late permission replies', async () => {
     await render();
     expect(host.textContent).toContain('fixture@example.com');
+    expect(host.textContent).toContain('excluded-team@example.test');
     const pending = deferred<boolean>();
     state.access.mockReturnValueOnce(pending.promise);
     state.auth = { ...state.auth, user: { id: 'reader' }, accessToken: 'test-reader-token' };
     await render();
     expect(host.textContent).not.toContain('fixture@example.com');
+    expect(host.textContent).not.toContain('excluded-team@example.test');
     expect(host.textContent).toContain('Checking access');
     state.auth = { isLoading: false, isSignedIn: false, user: null, accessToken: null };
     await render();
     await act(async () => pending.resolve(true));
     expect(host.textContent).not.toContain('fixture@example.com');
+    expect(host.textContent).not.toContain('excluded-team@example.test');
     expect(state.search).toHaveBeenCalledTimes(1);
     expect(state.access.mock.calls[1][1].aborted).toBe(true);
   });
@@ -152,6 +170,32 @@ describe('private Users access and cleanup', () => {
     expect(signal.aborted).toBe(true);
     await act(async () => pending.resolve(fixture));
     expect(host.textContent).not.toContain('fixture@example.com');
+    expect(host.textContent).not.toContain('excluded-team@example.test');
+  });
+  it('shows excluded accounts separately even when filters match no included accounts', async () => {
+    state.search.mockResolvedValue({
+      ...fixture,
+      data: [],
+      page: { ...fixture.page, total: 0 },
+    });
+    await render();
+    expect(host.textContent).toContain('Excluded accounts');
+    expect(host.textContent).toContain('excluded-team@example.test');
+    expect(host.textContent).toContain('0 matching accounts');
+    await act(async () => {
+      Array.from(host.querySelectorAll('[role="button"]'))
+        .find((node) => node.textContent === 'Pending')
+        ?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    });
+    expect(host.textContent).toContain('No accounts match these filters.');
+    expect(host.textContent).toContain('excluded-team@example.test');
+    expect(state.search.mock.lastCall?.[1].status).toBe('pending');
+  });
+  it('distinguishes a successful empty exclusion list from a failed read', async () => {
+    state.search.mockResolvedValue({ ...fixture, excluded_accounts: [] });
+    await render();
+    expect(host.textContent).toContain('Excluded accounts');
+    expect(host.textContent).toContain('No excluded accounts.');
   });
   it('shows failure and Retry, rather than an empty count, when the data service fails', async () => {
     state.search.mockRejectedValueOnce(new Error('unavailable'));

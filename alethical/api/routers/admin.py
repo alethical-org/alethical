@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import os
 from typing import Literal
-from uuid import UUID
 
 from fastapi import APIRouter, Depends, Header
 from pydantic import BaseModel, ConfigDict, Field
@@ -12,21 +10,14 @@ from supabase_auth.errors import AuthApiError, AuthInvalidJwtError
 
 from alethical.api.auth import get_auth_service
 from alethical.api.problems import problem_exception
+from alethical.api.services.admin_access import ADMIN_EMAILS, configured_admin_subjects
 from alethical.api.services.admin_accounts import (
-    load_reader_accounts,
+    load_account_inventory,
     search_reader_accounts,
 )
 from alethical.db.session import get_db
 
 router = APIRouter(prefix="/admin")
-ADMIN_EMAILS = frozenset(
-    {
-        "angelzierden@gmail.com",
-        "angel@alethical.com",
-        "eug@alethical.com",
-        "alethicaldev@gmail.com",
-    }
-)
 
 
 def administrator_access(
@@ -57,14 +48,7 @@ def administrator_access(
         raise problem_exception(
             503, "Service Unavailable", "Account access is temporarily unavailable."
         ) from None
-    try:
-        allowed_subjects = {
-            str(UUID(value.strip()))
-            for value in os.environ.get("ALETHICAL_ADMIN_ACCOUNT_IDS", "").split(",")
-            if value.strip()
-        }
-    except ValueError:
-        return False
+    allowed_subjects = configured_admin_subjects()
     if (
         principal.provider != "supabase"
         or principal.provider_subject not in allowed_subjects
@@ -140,11 +124,16 @@ def admin_access(is_admin: bool = Depends(administrator_access)) -> dict:
 @router.post("/users/search", dependencies=[Depends(require_admin)])
 def admin_users(search: AccountSearch, db: Session = Depends(get_db)) -> dict:
     try:
-        accounts = load_reader_accounts(db)
+        inventory = load_account_inventory(db)
     except Exception:
         raise problem_exception(
             503,
             "Service Unavailable",
             "Accounts are temporarily unavailable. Try again.",
         ) from None
-    return search_reader_accounts(accounts, **search.model_dump())
+    return {
+        **search_reader_accounts(inventory.included, **search.model_dump()),
+        "excluded_accounts": [
+            {"id": account.id, "email": account.email} for account in inventory.excluded
+        ],
+    }

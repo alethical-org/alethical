@@ -87,7 +87,7 @@ and automated backend checks cover the raw-score comparison repair.
 
 ## Live release evidence, 8 September 2026
 
-- Public report: https://www.alethical.com/site-metrics. Private report: https://www.alethical.com/admin/site-metrics.
+- Public report: https://www.alethical.com/site-metrics. Private report: https://www.alethical.com/admin/metrics.
 - Vercel publishes the release at the public address. Railway's successful production release contains the same changes. A read-only production transaction returns migration `0052_site_metric_history` and successfully reads all 3 private aggregate sources.
 - All 7 cached public source checks pass. Checkly reports 100% for both monitored services, with genuine monitoring start and measurement times.
 - Supabase reports 16 current included accounts: 15 confirmed and 1 awaiting confirmation. The completed-hour creation windows report 1 in 7 days and 8 in 30 days. These are surviving accounts, not gross lifetime sign-ups.

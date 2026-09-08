@@ -8,10 +8,17 @@ export interface AdminAccessResult {
 /** Do not show a previous account's permission, even before effects clean up. */
 export function currentAdminAccess(
   result: AdminAccessResult | null,
-  auth: { isLoading: boolean; isSignedIn: boolean; userId?: string; accessToken: string | null },
+  auth: {
+    isLoading: boolean;
+    isSignedIn: boolean;
+    userId?: string;
+    accessToken: string | null;
+    isAdmin?: boolean;
+  },
 ): AdminAccessState {
   if (auth.isLoading) return 'loading';
   if (!auth.isSignedIn || !auth.userId || !auth.accessToken) return 'signed-out';
+  if (typeof auth.isAdmin === 'boolean') return auth.isAdmin ? 'allowed' : 'restricted';
   if (result?.userId !== auth.userId || result?.accessToken !== auth.accessToken) return 'loading';
   return result.state;
 }

@@ -236,8 +236,11 @@ The account menu shows the person's name and email, Tracked, Add or Change passw
 out. Tracked shows a count only after both lists (bills and followed committees) have loaded. No number covers both zero tracked
 bills and a list that has not arrived, so the menu never shows a false zero.
 
-Approved administrators also see **Admin** (`/admin/users`) and **Leadership metrics**
-(`/admin/site-metrics`). Both wait for the server's administrator permission check.
+Approved administrators also see **Users** (`/admin/users`) and **Admin metrics**
+(`/admin/metrics`). The server's optional `is_admin` hint in `/me` makes these entries
+available with the signed-in profile. Older responses without a boolean hint use
+the separate administrator-access check. Private requests always check current
+permission again, independently of the menu hint.
 Exclusion from traffic counts is a separate decision and grants no private access. See
 [How private account visibility works](admin-users-guide.md) and
 [How Site Metrics works](traffic-guide.md).

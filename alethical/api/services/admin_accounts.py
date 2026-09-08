@@ -10,7 +10,6 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from alethical.api.services.account_classification import (
-    excluded_local_user_ids,
     excluded_provider_subjects,
     is_team_or_test,
 )
@@ -25,7 +24,13 @@ class ReaderAccount:
     sign_in_methods: tuple[str, ...]
 
 
-def load_reader_accounts(db: Session) -> list[ReaderAccount]:
+@dataclass(frozen=True)
+class AccountInventory:
+    included: list[ReaderAccount]
+    excluded: list[ReaderAccount]
+
+
+def load_account_inventory(db: Session) -> AccountInventory:
     # Deliberately omit tokens, passwords, user metadata and activity history.
     # Product created_at is first API provisioning, not Supabase signup time.
     rows = (
@@ -33,7 +38,13 @@ def load_reader_accounts(db: Session) -> list[ReaderAccount]:
             text("""
         SELECT u.id::text AS subject, u.email, u.created_at,
                u.email_confirmed_at AS confirmed_at,
-               a.user_id, p.is_active,
+               a.user_id, p.is_active, p.primary_email AS local_email,
+               ARRAY(SELECT linked.email FROM public.auth_identity linked
+                     WHERE linked.provider = 'supabase'
+                       AND linked.user_id = a.user_id) AS linked_emails,
+               ARRAY(SELECT linked.provider_subject FROM public.auth_identity linked
+                     WHERE linked.provider = 'supabase'
+                       AND linked.user_id = a.user_id) AS linked_subjects,
                ARRAY(SELECT DISTINCT i.provider FROM auth.identities i
                      WHERE i.user_id = u.id ORDER BY i.provider) AS providers
         FROM auth.users u
@@ -48,28 +59,36 @@ def load_reader_accounts(db: Session) -> list[ReaderAccount]:
         .all()
     )
     subjects = excluded_provider_subjects()
-    excluded_users = excluded_local_user_ids(db, subjects)
     groups: dict[str, list] = {}
     excluded_groups: set[str] = set()
+    inactive_groups: set[str] = set()
     for row in rows:
         key = str(row["user_id"] or row["subject"])
         groups.setdefault(key, []).append(row)
+        if row["is_active"] is False:
+            inactive_groups.add(key)
         if (
-            row["is_active"] is False
-            or row["user_id"] in excluded_users
-            or is_team_or_test(
+            is_team_or_test(
                 email=row["email"], provider_subject=row["subject"], excluded=subjects
             )
+            or is_team_or_test(email=row["local_email"], excluded=subjects)
+            or any(
+                is_team_or_test(email=email, excluded=subjects)
+                for email in row["linked_emails"]
+            )
+            or subjects.intersection(row["linked_subjects"])
         ):
             excluded_groups.add(key)
-    accounts = []
+    included = []
+    excluded = []
     for key, members in groups.items():
-        if key in excluded_groups:
+        if key in inactive_groups:
             continue
         members.sort(key=lambda row: (row["created_at"], row["subject"]))
         confirmed = [row for row in members if row["confirmed_at"] is not None]
         display = confirmed[0] if confirmed else members[0]
-        accounts.append(
+        destination = excluded if key in excluded_groups else included
+        destination.append(
             ReaderAccount(
                 id=key,
                 email=display["email"],
@@ -82,7 +101,13 @@ def load_reader_accounts(db: Session) -> list[ReaderAccount]:
                 ),
             )
         )
-    return accounts
+    excluded.sort(key=lambda account: ((account.email or "").casefold(), account.id))
+    return AccountInventory(included=included, excluded=excluded)
+
+
+def load_reader_accounts(db: Session) -> list[ReaderAccount]:
+    """Shared metrics source, with team and test accounts always left out."""
+    return load_account_inventory(db).included
 
 
 def search_reader_accounts(

@@ -69,6 +69,13 @@ afterEach(async () => {
 });
 
 describe('private leadership screen', () => {
+  it('distinguishes stored people from the current roster and explains vacant seats', async () => {
+    await render();
+    expect(container.textContent).toContain('Legislator records, current and former206');
+    expect(container.textContent).toContain('Currently serving200');
+    expect(container.textContent).toContain('Minnesota has 201 seats. Vacant seats aren’t listed.');
+    expect(container.textContent).not.toContain('Stored legislators');
+  });
   it.each(['signed-out', 'restricted', 'loading', 'error'])(
     'does not request metrics without allowed access: %s',
     async (access) => {
@@ -94,7 +101,7 @@ describe('private leadership screen', () => {
     await render();
     expect(originalSignal.aborted).toBe(true);
     expect(container.textContent).not.toContain('2,001');
-    expect(container.textContent).toContain('Loading leadership metrics');
+    expect(container.textContent).toContain('Loading Admin metrics');
     state.auth = { ...state.auth, isSignedIn: false, user: null, accessToken: null };
     state.access.state = 'signed-out';
     await render();
@@ -163,7 +170,7 @@ describe('private leadership screen', () => {
   it('offers a bounded manual retry after the private request fails', async () => {
     vi.mocked(getLeadershipMetricsFromApi).mockRejectedValueOnce(new Error('offline'));
     await render();
-    expect(container.textContent).toContain('Leadership metrics are unavailable');
+    expect(container.textContent).toContain('Admin metrics are unavailable');
     const retry = Array.from(container.querySelectorAll('[role="button"]')).find(
       (node) => node.textContent === 'Retry',
     );

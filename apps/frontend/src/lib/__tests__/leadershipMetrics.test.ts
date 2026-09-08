@@ -3,6 +3,16 @@ import { isLeadershipMetrics, leadershipActionRows, leadershipDate } from '../le
 import { leadershipFixture } from './leadershipMetricsFixture';
 
 describe('leadership aggregate boundary', () => {
+  it('requires a valid current-serving count no larger than stored people', () => {
+    for (const count of [undefined, -1, 1.5, 207]) {
+      const value = leadershipFixture();
+      (value.operations!.corpus as any).current_legislators = count;
+      expect(isLeadershipMetrics(value)).toBe(false);
+    }
+    const value = leadershipFixture();
+    value.operations!.corpus.current_legislators = 0;
+    expect(isLeadershipMetrics(value)).toBe(true);
+  });
   it('rejects action counts too large to represent exactly', () => {
     const value = leadershipFixture();
     value.activity!.actions7d.billSearchesWithResults = Number.MAX_SAFE_INTEGER + 1;

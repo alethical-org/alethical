@@ -25,10 +25,10 @@ export async function getLeadershipMetricsFromApi(
   signal?: AbortSignal,
 ): Promise<LeadershipMetrics> {
   const response = await apiRequest<unknown>(
-    '/admin/site-metrics',
+    '/admin/site-metrics?version=2',
     { method: 'GET', cache: 'no-store', signal },
     accessToken,
   );
-  if (!isLeadershipMetrics(response)) throw new Error('Leadership metrics are unavailable.');
+  if (!isLeadershipMetrics(response)) throw new Error('Admin metrics are unavailable.');
   return response;
 }

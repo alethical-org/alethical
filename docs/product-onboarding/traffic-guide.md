@@ -17,7 +17,7 @@ The public `/site-metrics` page combines 7 independent sources:
 The public totals are the same for signed-in and signed-out readers. The About menu links
 to `/site-metrics`. Accounts classified as team or test accounts also see links to the 5
 private vendor dashboards; each vendor still requires its own sign-in. That classification
-does not grant access to `/admin/site-metrics`.
+does not grant access to `/admin/metrics`.
 
 Each source has its own server route and page state. A Google problem hides only Google.
 A Checkly problem cannot erase Vercel visits. The browser keeps the last good answer from
@@ -168,13 +168,22 @@ event rows, account identifiers, or email addresses. The unversioned activity ro
 the previous response shape while older browser sessions finish, so releasing the backend
 before the expanded frontend does not invalidate their working counts.
 
-`/admin/site-metrics` shows Leadership metrics from `GET /api/v1/admin/site-metrics`.
+`/admin/metrics` shows Admin metrics from `GET /api/v1/admin/site-metrics?version=2`.
+The version-2 response adds the currently serving legislator count. Requests with
+no version or `version=1` keep the older response shape without that field, so an
+older open browser can continue reading its report.
+The former `/admin/site-metrics` address redirects to `/admin/metrics`. Refresh and
+the date-range controls share the same width as the account and activity cards.
 The server requires an explicitly allowed account identifier, 1 of the 4 exact confirmed
 administrator mailboxes, and a currently eligible account. This report shows combined counts
 only. Account growth, activity, and operating records can fail independently; unavailable
 sources never become zero. Sign-out, account changes, and token changes remove the previous
 private answer. The private answer is not cached or saved in browser storage. Current corpus
-counts span stored sessions. Source-check times are separate from source-publication and
+counts span stored sessions. **Legislator records, current and former** counts all
+stored people. **Currently serving** counts distinct people with current service
+in the current regular-session roster, excluding unknown districts, just like
+`/legislators`. Minnesota has 201 seats; vacant seats are not listed. Neither count
+changes with the 7- or 30-day range. Source-check times are separate from source-publication and
 fetch dates. Failure counts cover recorded failures, and cost figures cover logged estimates
 for 30 complete UTC days, not every error or expense.
 

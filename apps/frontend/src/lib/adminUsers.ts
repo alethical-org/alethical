@@ -18,8 +18,14 @@ export interface AdminUser {
   sign_in_methods: string[];
 }
 
+export interface AdminExcludedAccount {
+  id: string;
+  email: string | null;
+}
+
 export interface AdminUsersResult {
   data: AdminUser[];
+  excluded_accounts: AdminExcludedAccount[];
   summary: {
     confirmed_accounts: number;
     pending_accounts: number;
@@ -54,7 +60,11 @@ export function adminUsersFromPayload(payload: unknown): AdminUsersResult {
   const root = object(payload);
   const summary = object(root.summary);
   const page = object(root.page);
-  if (!Array.isArray(root.data) || typeof page.has_more !== 'boolean')
+  if (
+    !Array.isArray(root.data) ||
+    !Array.isArray(root.excluded_accounts) ||
+    typeof page.has_more !== 'boolean'
+  )
     throw new Error('Invalid admin response');
   const data = root.data.map((value): AdminUser => {
     const row = object(value);
@@ -74,10 +84,21 @@ export function adminUsersFromPayload(payload: unknown): AdminUsersResult {
       sign_in_methods: [...row.sign_in_methods],
     };
   });
+  const excluded_accounts = root.excluded_accounts.map((value): AdminExcludedAccount => {
+    const row = object(value);
+    if (
+      typeof row.id !== 'string' ||
+      !row.id ||
+      (row.email !== null && typeof row.email !== 'string')
+    )
+      throw new Error('Invalid excluded account');
+    return { id: row.id, email: row.email as string | null };
+  });
   const limit = count(page.limit);
   if (limit === 0) throw new Error('Invalid admin page');
   return {
     data,
+    excluded_accounts,
     summary: {
       confirmed_accounts: count(summary.confirmed_accounts),
       pending_accounts: count(summary.pending_accounts),

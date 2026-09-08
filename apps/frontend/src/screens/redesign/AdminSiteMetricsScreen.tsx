@@ -12,6 +12,10 @@ import {
   leadershipDate,
   type LeadershipMetrics,
 } from '../../lib/leadershipMetrics';
+import {
+  LEGISLATOR_ROSTER_NOTE_TEXT,
+  LEGISLATOR_SEAT_SOURCE_TEXT,
+} from '../../lib/legislatorRosterHeader';
 import { useDocumentTitle } from '../../navigation/documentTitle';
 import type { MenuKey } from '../../navigation/ia';
 import { routePath } from '../../navigation/links';
@@ -105,13 +109,13 @@ function PrivateMetrics({ accessToken }: { accessToken: string }) {
     return () => controller.abort();
   }, [accessToken, attempt]);
   const current = loaded?.attempt === attempt ? loaded : null;
-  if (!current) return <Message>Loading leadership metrics…</Message>;
+  if (!current) return <Message>Loading Admin metrics…</Message>;
   if (current.restricted)
-    return <Message>Restricted access. This account cannot view leadership metrics.</Message>;
+    return <Message>Restricted access. This account cannot view Admin metrics.</Message>;
   if (!current.result)
     return (
       <Message retry={() => setAttempt((v) => v + 1)}>
-        Leadership metrics are unavailable. Try again.
+        Admin metrics are unavailable. Try again.
       </Message>
     );
   const { accounts, activity, operations, errors, asOf } = current.result;
@@ -131,7 +135,9 @@ function PrivateMetrics({ accessToken }: { accessToken: string }) {
             />
           ))}
         </View>
-        <Action label="Refresh" onPress={() => setAttempt((v) => v + 1)} />
+        <View>
+          <Action label="Refresh" onPress={() => setAttempt((v) => v + 1)} />
+        </View>
       </View>
       <Text style={styles.note}>
         The range changes account creation and recorded activity only. Current records stay current.
@@ -264,7 +270,15 @@ function PrivateMetrics({ accessToken }: { accessToken: string }) {
           ) : (
             <>
               <Row label="Stored bills" value={operations.corpus.bills} />
-              <Row label="Stored legislators" value={operations.corpus.legislators} />
+              <Row
+                label="Legislator records, current and former"
+                value={operations.corpus.legislators}
+              />
+              <Row
+                label="Currently serving"
+                value={operations.corpus.current_legislators}
+                note={`${LEGISLATOR_SEAT_SOURCE_TEXT} ${LEGISLATOR_ROSTER_NOTE_TEXT}`}
+              />
               <Row label="Stored legislative committees" value={operations.corpus.committees} />
               <Text style={styles.note}>{operations.corpus.scope}</Text>
               <Row
@@ -379,7 +393,7 @@ export function AdminSiteMetricsScreen({ navigation }: RootScreenProps<'AdminSit
   const { openSignIn } = useSignInModal();
   const { isMobile } = useResponsive();
   const [openMenu, setOpenMenu] = useState<MenuKey | null>(null);
-  useDocumentTitle('/admin/site-metrics', 'Leadership metrics | Alethical');
+  useDocumentTitle('/admin/metrics', 'Admin metrics | Alethical');
   return (
     <SearchPageShell
       openMenu={openMenu}
@@ -405,7 +419,7 @@ export function AdminSiteMetricsScreen({ navigation }: RootScreenProps<'AdminSit
             aria-level={1}
             style={[styles.h1, isMobile && styles.h1Mobile]}
           >
-            Leadership metrics
+            Admin metrics
           </Text>
           <Text style={styles.intro}>
             Account growth, recorded activity, and the records Alethical holds
@@ -415,16 +429,16 @@ export function AdminSiteMetricsScreen({ navigation }: RootScreenProps<'AdminSit
     >
       {access.state === 'signed-out' ? (
         <View>
-          <Message>Sign in with an administrator account to view leadership metrics.</Message>
+          <Message>Sign in with an administrator account to view Admin metrics.</Message>
           <Action
             label="Sign in"
-            onPress={() => openSignIn({ intent: 'nav', returnTo: '/admin/site-metrics' })}
+            onPress={() => openSignIn({ intent: 'nav', returnTo: '/admin/metrics' })}
           />
         </View>
       ) : access.state === 'loading' || isLoading ? (
         <Message>Checking access…</Message>
       ) : access.state === 'restricted' ? (
-        <Message>Restricted access. This account cannot view leadership metrics.</Message>
+        <Message>Restricted access. This account cannot view Admin metrics.</Message>
       ) : access.state === 'error' ? (
         <Message retry={access.retry}>We couldn’t check access. Try again.</Message>
       ) : access.state === 'allowed' && isSignedIn && user && accessToken ? (
@@ -439,7 +453,13 @@ const styles = StyleSheet.create({
   actionColumn: { flex: 1.5, minWidth: 0, gap: 6 },
   countColumn: { flex: 1, minWidth: 0 },
   content: { gap: 18, paddingBottom: 32 },
-  toolbar: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12 },
+  toolbar: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 12,
+  },
   buttons: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 20, alignItems: 'flex-start' },
   card: {
@@ -451,7 +471,7 @@ const styles = StyleSheet.create({
     backgroundColor: t.colors.surface,
     gap: 12,
   },
-  cardWide: { width: '48%' },
+  cardWide: { width: '48%', flexGrow: 1 },
   row: { paddingVertical: 10, borderBottomWidth: 1, borderColor: t.colors.border, gap: 6 },
   rowTop: {
     flexDirection: 'row',

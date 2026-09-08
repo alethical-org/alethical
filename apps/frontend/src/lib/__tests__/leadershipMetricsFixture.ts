@@ -83,10 +83,11 @@ export function leadershipFixture(): LeadershipMetrics {
       periodEndedAt: asOf,
       corpus: {
         bills: 2001,
-        legislators: 201,
+        legislators: 206,
+        current_legislators: 200,
         committees: 125,
         scope:
-          'All stored records across all sessions, not just current officeholders. Committee records are legislative committees, not campaign committees.',
+          'Inventory counts include all stored records across all sessions. Currently serving counts distinct people in the current-session roster. Committee records are legislative committees, not campaign committees.',
         coveragePercentage: {
           value: null,
           reason: 'No matching official denominator is stored for corpus coverage.',

@@ -103,7 +103,7 @@ async function serve(query: Record<string, string>) {
   return recorder.read();
 }
 
-it.each(['/admin', '/admin/users', '/admin/site-metrics'])(
+it.each(['/admin', '/admin/users', '/admin/metrics', '/admin/site-metrics'])(
   'keeps %s private with no account HTML or analytics',
   async (path) => {
     const network = vi.fn();
@@ -114,7 +114,9 @@ it.each(['/admin', '/admin/users', '/admin/site-metrics'])(
     expect(headers.get('X-Robots-Tag')).toBe('noindex, nofollow');
     expect(headers.get('Referrer-Policy')).toBe('no-referrer');
     expect(body).toContain(
-      path === '/admin/site-metrics' ? 'Leadership metrics | Alethical' : 'Users | Alethical',
+      path === '/admin/metrics' || path === '/admin/site-metrics'
+        ? 'Admin metrics | Alethical'
+        : 'Users | Alethical',
     );
     expect(body).not.toContain('private@example.test');
     expect(body).not.toContain('Home snapshot');
