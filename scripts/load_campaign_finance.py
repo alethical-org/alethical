@@ -54,6 +54,15 @@ the same alerting idiom ``.github/workflows/mirror-raw-files.yml`` uses, reusing
 whatever ``gh`` login already runs this command by hand, since this load carries no
 schedule of its own to attach a token to.
 
+**A run that publishes also asks Cloudflare to throw away the saved copies of every
+money answer (#1979), twice: once the moment the set is live, and again once the 2
+money checks below have written their verdicts.** It is built and **switched off**: a
+purge leaves this process only when a Cloudflare token with the Cache Purge permission
+is set (``CLOUDFLARE_API_TOKEN`` plus ``CLOUDFLARE_ZONE_ID``) **and**
+``ALETHICAL_CLEAR_SAVED_ANSWERS=on``. Otherwise the run prints the exact prefixes it
+would have cleared and carries on. A clearing that is armed and fails prints a banner
+and makes this command exit non-zero; it never undoes the publish.
+
 **A run that publishes then re-runs both money checks against what it just published,
 and waits for them (#1922).** Every verdict either check writes is tied to the exact
 snapshot it judged, so publishing retires all of them at once and every committee page
@@ -93,6 +102,11 @@ from alethical.pipeline.campaign_finance import (  # noqa: E402
 from alethical.pipeline.campaign_finance_recheck import (  # noqa: E402
     recheck_stated_figures,
     recheck_years,
+)
+from alethical.pipeline.cache_purge import (  # noqa: E402
+    clear_after_publish,
+    when_a_money_download_release_lands,
+    when_the_money_checks_finish,
 )
 
 COMMITTEE_LINK_ALERT_TITLE = (
@@ -285,6 +299,7 @@ def main() -> int:
         print(message, file=sys.stderr)
 
     recheck = None
+    clearing_failed = False
     with Session(engine) as session:
         try:
             report = load_campaign_finance(
@@ -309,6 +324,19 @@ def main() -> int:
         if report.committee_link_contradictions and not args.dry_run:
             _file_committee_link_alert(report.committee_link_contradictions)
 
+        # Cleared before the re-check below rather than after it, because the re-check
+        # takes about 72 minutes and a reader should get the new figures now. The order
+        # is the one #1979 requires and the only one that works: publish first, then
+        # clear -- clearing before the new state is live merely makes the next reader
+        # save the old answer again. `clear_after_publish` does nothing when nothing
+        # published, because the previous release is still live and every saved copy of
+        # it is still the right answer.
+        clearing_failed |= clear_after_publish(
+            when_a_money_download_release_lands(),
+            published=report.published,
+            log=lambda message: print(message, flush=True),
+        )
+
         # Only a run that published anything: an unchanged or quarantined run leaves the
         # previous release live, and its verdicts still speak for the payments on
         # screen. Waited for rather than handed off, because both checks can only read a
@@ -318,7 +346,26 @@ def main() -> int:
             recheck = recheck_stated_figures(session, years=args.recheck_years, log=log)
             print(recheck.summary(), flush=True)
 
+        # And again, because the re-check has just written the verdicts that
+        # `/committees/{n}/finance` and `/legislators/{id}/campaign-finance` serve as
+        # `stated_split_state` and `money_out.stated_spending_state`. Clearing only
+        # above would replace a stale copy with a fresh copy saying nobody compared this
+        # committee's figures, and leave that standing for the rest of the window.
+        # #1979 lists 4 events and this is a 5th.
+        clearing_failed |= clear_after_publish(
+            when_the_money_checks_finish(),
+            published=report.published,
+            log=lambda message: print(message, flush=True),
+        )
+
+    # A failed clearing exits non-zero and says so loudly. It never undoes the
+    # publish: the new set is correct and live, and what failed is the step that tells
+    # Cloudflare to stop handing out the old one. A clearing that failed quietly is
+    # the state #1979 calls worse than having no clearing at all, because it would
+    # justify a longer window it is not earning.
     if report.refusal or (recheck is not None and recheck.failed):
+        return 1
+    if clearing_failed:
         return 1
     return 0
 

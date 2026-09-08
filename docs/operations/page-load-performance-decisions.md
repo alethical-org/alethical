@@ -164,6 +164,38 @@ only once clearing is proven for all 4
 ([#1979](https://github.com/alethical-org/alethical/issues/1979)), which is a
 measurement rather than a judgement call.
 
+**The clearing step exists in code and is switched off**
+(`alethical/pipeline/cache_purge.py`). It decides which saved copies each of those
+events makes false, and asks Cloudflare to discard exactly those, by prefix rather
+than by address -- a money answer's address carries a query string and
+purge-by-prefix discards every copy under a path whatever its query string. All 5
+Cloudflare purge methods are on every plan including Free
+([Cloudflare, 1 April 2025](https://developers.cloudflare.com/changelog/post/2025-04-01-purge-for-all/)),
+and the limits that bind are 100 prefixes per request and 5 requests a minute.
+
+A purge leaves the process only when **both** of these hold, and neither holds
+today: a Cloudflare token carrying the **Cache Purge** permission on the
+`alethical.com` zone (`CLOUDFLARE_API_TOKEN` plus `CLOUDFLARE_ZONE_ID`), **and**
+`ALETHICAL_CLEAR_SAVED_ANSWERS=on`. Two conditions rather than one, so a token
+turning up in an environment for another reason cannot start purging by itself.
+Unarmed, each load and each review sitting prints the exact prefixes it would have
+cleared and carries on. **A window lengthens on a measured purge and never on the
+existence of purge code**, which is the whole reason the caps above are still caps.
+
+**A clearing that is armed and fails is loud and never silent.** It prints a banner
+naming the prefixes still being served and makes the command exit non-zero, and it
+never undoes the publish or the decision -- the new state is correct and live, and
+what failed is the step that tells Cloudflare to stop handing out the old one. A
+clearing that failed quietly would be worse than none, because it would justify a
+longer window it is not earning.
+
+**A load clears twice, because the verdicts land about 72 minutes after the
+figures.** A publish re-runs both money checks against what it just published, and
+those write the `stated_split_state` and `money_out.stated_spending_state` a
+committee page serves. Clearing only at publish time would replace a stale copy with
+a fresh copy saying nobody compared this committee's figures. So the events are 5
+rather than the 4 listed above.
+
 **And proving it lifts the cap only where a response names nobody.** Clearing is
 what stops a *stale* copy; the reason a response that can name a person is capped
 is what happens in the window before a correction has propagated. So a
@@ -245,9 +277,25 @@ rather than honesty.
 **What still waits on the clearing key.** Clearing a held copy after a publication, a
 confirmation, a withdrawal or an officeholder change needs a Cloudflare token only
 the maintainer can create
-([issue 1979](https://github.com/alethical-org/alethical/issues/1979)). Until it
-exists the deadline is the whole protection rather than a backstop, which is why it
-is 20 minutes rather than merely shorter than a day.
+([issue 1979](https://github.com/alethical-org/alethical/issues/1979)): My Profile →
+API Tokens → Create Token → Create Custom Token, permission **Zone → Cache Purge →
+Purge**, zone resources **Include → Specific zone → alethical.com**, saved as the
+GitHub Actions secret `CLOUDFLARE_API_TOKEN` and as the same name in the production
+environment. The zone's own id is on the Cloudflare dashboard's overview page and is
+saved as `CLOUDFLARE_ZONE_ID`. Until both exist the deadline is the whole protection
+rather than a backstop, which is why it is 20 minutes rather than merely shorter than
+a day.
+
+**How a purge is proved, once the token exists.** Read the address twice so a copy is
+saved and `Age` is climbing, run the clearing with
+`ALETHICAL_CLEAR_SAVED_ANSWERS=on`, then read the same address again and check that
+`Age` came back small or absent instead of continuing from where it was. On a cache
+hit Cloudflare does send `Age` and it increments correctly -- measured 8 Sep 2026, 8
+reads of one live money page at 12, 15, 18, 21, 25, 28, 31 and 34 seconds -- and on a
+revalidation it sends no `Age` at all, so a purged address returning no `Age` or a
+small one is the signal. Run it once per event, because the prefixes differ per
+event, and read back from more than one machine: Cloudflare holds a copy per edge
+server, so a read-back from one machine proves less than it looks.
 
 **A deployment resets Vercel's page cache whatever the header says**, so
 `.github/workflows/warm-money-pages.yml` re-reads the money addresses after each

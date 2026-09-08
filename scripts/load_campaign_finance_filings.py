@@ -26,6 +26,14 @@ calendar year and the one before it. Requests are spaced 0.25 seconds apart, whi
 the pacing that drew no refusal across roughly 1,200 requests in 2 hours on 11 August
 2026 — an observation about that day, not a rate limit the Board has published.
 
+**A run that publishes also asks Cloudflare to throw away the saved copies of every
+money answer (#1979).** It is built and **switched off**: a purge leaves this process
+only when a Cloudflare token with the Cache Purge permission is set
+(``CLOUDFLARE_API_TOKEN`` plus ``CLOUDFLARE_ZONE_ID``) **and**
+``ALETHICAL_CLEAR_SAVED_ANSWERS=on``. Otherwise the run prints the exact prefixes it
+would have cleared. A clearing that is armed and fails prints a banner and makes this
+command exit non-zero; it never undoes the publish.
+
 **A run that fails its checks is quarantined, not published**, and this command exits
 non-zero. Its responses are kept either way, so a bad run can be examined. That includes
 the very first run, which has nothing to compare against: read the counts it printed,
@@ -74,6 +82,10 @@ from alethical.pipeline.campaign_finance_filings import (  # noqa: E402
     CampaignFinanceFilingsRefusal,
     load_campaign_finance_filings,
     publish_stored_filings,
+)
+from alethical.pipeline.cache_purge import (  # noqa: E402
+    clear_after_publish,
+    when_a_filings_release_lands,
 )
 
 
@@ -161,7 +173,10 @@ def main() -> int:
                     log=lambda message: print(message, file=sys.stderr),
                 )
                 print(run.summary())
-                return 1 if run.blocked else 0
+                failed = clear_after_publish(
+                    when_a_filings_release_lands(), published=run.published
+                )
+                return 1 if (run.blocked or failed) else 0
             run = load_campaign_finance_filings(
                 session,
                 dry_run=args.dry_run,
@@ -175,7 +190,10 @@ def main() -> int:
             return 1
 
     print(run.summary())
-    return 1 if run.blocked else 0
+    failed = clear_after_publish(
+        when_a_filings_release_lands(), published=run.published
+    )
+    return 1 if (run.blocked or failed) else 0
 
 
 if __name__ == "__main__":

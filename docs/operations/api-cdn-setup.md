@@ -87,6 +87,84 @@ clearing for all 4, not on judgement. Tracked on
 `stale-if-error` applies only when the origin is failing, where the last good
 copy beats an error page.
 
+## Clearing a saved copy
+
+`alethical/pipeline/cache_purge.py` decides which saved copies each of those events
+makes false and asks Cloudflare to discard them. It is **switched off**: a purge
+leaves the process only when a token carrying the **Cache Purge** permission is set
+(`CLOUDFLARE_API_TOKEN` plus `CLOUDFLARE_ZONE_ID`) **and**
+`ALETHICAL_CLEAR_SAVED_ANSWERS=on`. Two conditions rather than one, so a token
+turning up for another reason cannot start purging by itself. The token Eugene has
+to create, and the proof recipe once it exists, are in
+[`docs/operations/page-load-performance-decisions.md`](page-load-performance-decisions.md)
+under "How old a current claim can be, end to end".
+
+The token already in the gitignored `.env` is a **different** token and cannot purge:
+it carries `Zone.DNS: Edit`, `Zone.Cache Rules: Edit`, `Zone.Zone Settings: Read` and
+`Zone.Zone: Read`. Editing cache *rules* is not clearing saved copies.
+
+**Prefixes, not addresses.** A money answer's address carries a query string -- year,
+page, office, committee, direction, name, search text -- and that space is far too
+large to list. Purge-by-prefix discards every saved copy under a path whatever its
+query string, which is the only shape that can clear an answer completely. All 5
+purge methods are on every plan including Free
+([Cloudflare changelog, 1 April 2025](https://developers.cloudflare.com/changelog/post/2025-04-01-purge-for-all/));
+the limits that bind are 100 prefixes per request and 5 purge requests a minute.
+
+**A purge can only reach the API host.** The Vercel records are DNS-only, so
+`www.alethical.com` is not behind Cloudflare's cache at all -- measured 8 Sep 2026,
+it answers with `server: Vercel`, no `cf-ray` and no `cf-cache-status`. Vercel holds
+the page HTML in its own store (`x-vercel-cache: HIT`, and it strips `s-maxage` from
+what it sends on, so the window is invisible in the response headers), bounded by
+`api/page.ts` at 300 s plus 300 s. Clearing that store needs `Cache-Tag` headers on
+`api/page.ts` and Vercel's tag invalidation, which is available on all plans.
+
+## Smart Tiered Cache is off for this zone
+
+Read from the zone on 8 Sep 2026: `tiered_cache_smart_topology_enable` is `"off"`
+and `editable: true`, on a `Free Website` plan. Turning it on is one call:
+
+```bash
+curl -X PATCH "https://api.cloudflare.com/client/v4/zones/$CLOUDFLARE_ZONE_ID/cache/tiered_cache_smart_topology_enable" \
+  -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" \
+  -H "Content-Type: application/json" --data '{"value":"on"}'
+```
+
+What it would buy: a data centre with no saved copy fetches from an upper-tier data
+centre instead of from Railway, so the per-edge cold read measured below stops
+reaching the origin. Smart Topology is available on every plan; **Generic Global
+Tiered Cache and Regional Tiered Cache are Enterprise-only** -- the zone refuses
+`regional_tiered_cache` with "not available for your plan type" -- so neither is an
+option here.
+
+## An omitted default and a written-out default are saved twice
+
+The cache rule sets no custom cache key: its whole action is
+`{"cache": true, "edge_ttl": {"mode": "respect_origin"}, "browser_ttl": {"mode":
+"respect_origin"}}`. So the default key applies, which carries the query string
+verbatim, and a custom cache key is Enterprise-only. Measured on the live zone,
+8 Sep 2026, with a unique parameter so nothing else could have saved the address
+first:
+
+| Request | Result |
+| --- | --- |
+| `?probe=N` then `?probe=N` again | MISS, then HIT age 0 |
+| `?probe=N&sort=newest` | MISS -- a second copy of the same answer |
+| `?sort=newest&probe=N` | MISS -- a third copy, so the order counts too |
+
+`sort` defaults to `newest`, so all 3 return identical bytes. **Nothing can merge
+them at the edge on this plan**, which leaves one fix: every requester asks for the
+same address. The app and the page function both send `?sort=newest`
+(`getOutsideSpendingRecordFromApi` in `apps/frontend/src/data/api.ts`), and
+`.github/workflows/warm-money-pages.yml` sends the same. All 4 warmed data addresses
+match the app's own request character for character, and each one's source is named
+in a comment beside the list, because a warm on a near-miss address saves a copy no
+reader ever asks for.
+
+Every meaningful difference stays its own copy, which is what the default key gives
+for free: year, page, office, committee, direction, name and search text all change
+the address and so all change the key.
+
 **What the window does and does not touch.** Every money page prints `as_of`,
 read off the loaded snapshot's `fetch_completed_at` and carried inside the
 payload, so a cached copy prints the day its own records were copied rather than

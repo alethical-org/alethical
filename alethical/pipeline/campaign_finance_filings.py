@@ -1095,6 +1095,13 @@ class FilingsRun:
     checks: list[Check] = field(default_factory=list)
     snapshot_id: Optional[uuid.UUID] = None
     unchanged: bool = False
+    # Set by `publish_filings` and nowhere else, so a caller reads one fact rather
+    # than reassembling it from `snapshot_id`, `unchanged`, `blocked` and `dry_run` --
+    # `snapshot_id` is set at fetch time, including on a run that is later
+    # quarantined. Named to match `CampaignFinanceReport.published` in
+    # `campaign_finance.py`, so both loaders answer "did anything go live?" the same
+    # way and their scripts read the same word (#1979).
+    published: bool = False
     archive_key: Optional[str] = None
     archive_hash: Optional[str] = None
     archive_size: Optional[int] = None
@@ -2359,6 +2366,7 @@ def publish_filings(
         {"snapshot": snapshot.id},
     )
     db.commit()
+    run.published = True
     return snapshot.id
 
 
