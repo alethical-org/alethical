@@ -446,9 +446,12 @@ publishes 2 very different figures.** 3 runs at each width, same profile: 390 px
 564 ms and the element is a bill title inside the served text (`SPAN.ps-record-detail`);
 600, 768, 900 and 1,100 px read about 3,256 ms and the element is the app's own heading;
 1,280 px reads 3,860 ms and the element is a card's text. Every width sees the served list
-at the same early moment, and what differs is which element the browser calls largest. So a
+at the same early moment, because the first response and its styles are the same whatever
+the window, and what differs is only which element the browser calls largest. On a 1,280 px
+window the first readable paint is 560 ms and a screenshot at 900 ms already carries the
+heading, the count and all 10 bill numbers with their titles, each a working link. So a
 published figure for an address is a wide-window figure, and reading it as the moment a
-reader first sees something overstates it. What share of real visits sits on each side of
+reader first sees something overstates it by about 3 seconds. What share of real visits sits on each side of
 600 px is unmeasured: the per-address report deliberately asks Cloudflare for no device or
 width breakdown (`docs/product-onboarding/traffic-guide.md`).
 
@@ -456,6 +459,16 @@ width breakdown (`docs/product-onboarding/traffic-guide.md`).
 anything a reader waits for**, from about 3,300 ms to about 550 ms on every width. It is a
 design question about whether the 2 headings should be the same size, and it is never a
 performance change.
+
+**The 490 ms list stage is what a warm nearby cache costs; a real visit usually pays
+more.** Measured at the origin on 7 Sep 2026 with a cache-busting parameter, 3 reads each:
+the answer takes 565 ms cold against 90 ms when the nearby cache holds it, so a visit that
+finds no copy waits roughly 950 ms for its list rather than 490. The same reads split that
+cold time: 234 ms with no rows returned at all, which is the count and the plan; 307 ms for
+10 rows in the slim view; 454 ms for 1 full row; 565 ms for 10. So most of it is loading
+each bill's full record, and 1 row costs nearly as much as 10, which points at a fixed cost
+in the loading rather than a per-row one. `/bills` holds its answers for 60 seconds and
+takes about 2 visits an hour, so a copy is usually not there.
 
 **The list response carries far more than a card draws, and its size is not the wait.**
 `/bills` asks for 10 bills and receives 127,201 bytes, 22,145 as production gzips it. Action
