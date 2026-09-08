@@ -49,7 +49,7 @@ owns the workflow count, triggers, and costs.
 
 ## Command-line tools
 
-The `scripts/` folder has 61 runnable files. GitHub jobs call 25 of them, and the
+The `scripts/` folder has 62 runnable files. GitHub jobs call 25 of them, and the
 Mac backup above calls 1. A workflow also calls
 `apps/frontend/scripts/traffic-token-expiry.mjs`, a similarly named script that
 lives in a different folder and is not part of this list or its totals. The
@@ -63,6 +63,7 @@ complete list is grouped here so a new file cannot hide inside a total:
 | Repair damage from past bugs | `clean_stale_bill_versions.py`, `correct_bill_current_statuses.py`, `dedupe_ai_enrichment.py`, `delete_fixture_bills.py`, `dump_evidence_document.py`, `reanchor_rag_to_current_version.py`, `repair_companion_links.py`, `repair_incomplete_vote_records.py`, `repair_missing_bill_sections.py`, `repair_mojibake_text.py`, `repair_vote_roster_identities.py` |
 | Review campaign-finance records | `recompute_lobbying_published_figures.py`, `review_legislator_campaign_committees.py`, `show_party_and_caucus_money.py` |
 | Measure AI answers and search | `answer_eval.py`, `retrieval_eval.py`, `try_queries.py`, `validate_query_rubric.py` |
+| Compare printed-name search offline without paid calls or live changes | `benchmark_campaign_finance_name_search.py` |
 | Measure what real visitors waited for | `report_page_speed_by_address.py` |
 | Maintain search and stored files | `archive_published_sources.py`, `build_rag_hnsw_index.py`, `mirror_raw_files.py` |
 | Protect unfinished work and rotating read grants | `back-up-uncommitted-worktree-work.sh`, `supabase_oauth_state.mjs` |
@@ -109,6 +110,8 @@ embedding work is API-only.
 
 ## Related
 
+- [Offline name-search comparison](name-search-offline-benchmark.md) explains the
+  local-only commands, exact-answer checks and full-size measurement gates.
 - [How Alethical calls OpenAI and Anthropic, and when it retries](../architecture/ai-provider-calls-and-retries.md):
   the official-library plan, attempt limits, honest failure state, issue split,
   effort, and remaining unknowns.
