@@ -200,7 +200,7 @@ def sample_count(group: dict, metric: str) -> int | None:
 def read_group(
     address: Address, groups: object, min_measurements: int = MIN_MEASUREMENTS
 ) -> Reading:
-    """Read 1 aggregate without combining percentiles or inventing missing counts."""
+    """Keep unrounded source scores for comparisons and JSON; format only at display."""
     group = groups[0] if isinstance(groups, list) and len(groups) == 1 else None
     group = group if isinstance(group, dict) else {}
     quantiles = group.get("quantiles")
@@ -213,7 +213,7 @@ def read_group(
     return Reading(
         address=address,
         main_content_ms=(
-            round(main_micros / 1000, 1)
+            main_micros / 1000
             if main_micros is not None
             and main_count is not None
             and main_count >= minimum
@@ -221,7 +221,7 @@ def read_group(
         ),
         main_content_measurements=main_count,
         layout_movement=(
-            round(layout, 3)
+            layout
             if layout is not None
             and layout_count is not None
             and layout_count >= minimum
@@ -271,7 +271,12 @@ def breaches(reading: Reading) -> list[str]:
 
 
 def cell(
-    value: float | None, samples: int | None, min_samples: int, suffix: str
+    value: float | None,
+    samples: int | None,
+    min_samples: int,
+    suffix: str,
+    *,
+    precision: int = 3,
 ) -> str:
     if value is None:
         if samples is None:
@@ -279,7 +284,7 @@ def cell(
         if samples < max(MIN_MEASUREMENTS, min_samples):
             return f"too few ({samples})"
         return "not measured"
-    return f"{value:g}{suffix}"
+    return f"{round(value, precision):g}{suffix}"
 
 
 def count_label(count: int | None) -> str:
@@ -315,6 +320,7 @@ def format_table(
                     reading.main_content_measurements,
                     min_measurements,
                     " ms",
+                    precision=1,
                 ),
                 cell(
                     reading.layout_movement,
@@ -352,6 +358,7 @@ def format_report(
             f"A figure resting on fewer than {max(MIN_MEASUREMENTS, min_measurements)} observations is withheld, not a pass.",
             "Main content is the browser's largest-content measurement, not an app-ready timer. September 4 browser checks selected the server-written snapshot.",
             "Counts are actual observations from Cloudflare confidence sample sizes.",
+            "Limits use unrounded scores; displayed figures are rounded.",
             "",
             format_table(
                 document_loads,

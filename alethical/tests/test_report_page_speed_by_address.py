@@ -53,10 +53,10 @@ def test_confidence_sample_counts_override_scaled_sums():
     assert result.layout_movement == 0.1
 
 
-def test_units_and_rounding():
+def test_units_preserve_source_precision():
     result = reading()
     assert result.main_content_ms == 1640
-    assert result.layout_movement == 0.088
+    assert result.layout_movement == 0.0876
     assert result.main_content_measurements == 60
 
 
@@ -354,3 +354,66 @@ def test_cli_errors_do_not_print_private_provider_values(monkeypatch, capsys):
     )
     assert report.main([]) == 2
     assert capsys.readouterr().err == "Cloudflare returned errors.\n"
+
+
+@pytest.mark.parametrize(
+    ("layout", "over"), [(0.0999, []), (0.1, []), (0.1004, ["layout movement"])]
+)
+def test_layout_boundary_uses_unrounded_score_in_comparison_and_json(layout, over):
+    result = reading(2_500_000, 50, layout, 50)
+    assert report.breaches(result) == over
+    assert result.layout_movement == layout
+    payload = json.loads(report.as_json([result], date(2026, 8, 8), date(2026, 9, 6)))
+    assert payload["documentLoads"][0]["layoutMovement"] == layout
+    assert payload["documentLoads"][0]["overTheLimit"] == over
+
+
+@pytest.mark.parametrize(
+    ("micros", "over"),
+    [(2_499_990, []), (2_500_000, []), (2_500_040, ["main content"])],
+)
+def test_time_boundary_uses_unrounded_score_in_comparison_and_json(micros, over):
+    result = reading(micros, 50, 0.1, 50)
+    assert report.breaches(result) == over
+    assert result.main_content_ms == micros / 1000
+    payload = json.loads(report.as_json([result], date(2026, 8, 8), date(2026, 9, 6)))
+    assert payload["documentLoads"][0]["mainContentMs"] == micros / 1000
+    assert payload["documentLoads"][0]["overTheLimit"] == over
+
+
+def test_only_rendered_cells_round_while_verdict_keeps_both_small_breaches():
+    result = reading(2_500_040, 50, 0.1004, 50)
+    text = report.format_report([result], date(2026, 8, 8), date(2026, 9, 6), 50)
+    assert "2500 ms" in text
+    assert "main content, layout movement" in text
+    assert "unrounded scores" in text
+    assert report.cell(0.0876, 50, 50, "") == "0.088"
+    assert result.main_content_ms == 2500.04
+    assert result.layout_movement == 0.1004
+
+
+def test_cli_fail_on_breach_uses_raw_scores(monkeypatch, capsys):
+    monkeypatch.setenv("CLOUDFLARE_ANALYTICS_API_TOKEN", "fake-token")
+    monkeypatch.setenv("CLOUDFLARE_ACCOUNT_ID", "fake-account")
+    monkeypatch.setattr(
+        report,
+        "ask_cloudflare",
+        lambda *args: {
+            "data": {
+                "viewer": {
+                    "accounts": [
+                        {
+                            address.key: group(2_500_040, 50, 0.1004, 50)
+                            for address in report.ADDRESSES
+                        }
+                    ]
+                }
+            }
+        },
+    )
+    assert report.main(["--json", "--fail-on-breach"]) == 1
+    captured = capsys.readouterr()
+    row = json.loads(captured.out)["documentLoads"][0]
+    assert row["mainContentMs"] == 2500.04
+    assert row["layoutMovement"] == 0.1004
+    assert row["overTheLimit"] == ["main content", "layout movement"]
