@@ -485,8 +485,9 @@ there minutes earlier, and copies are held per location rather than once for eve
 "565 ms cold, 90 ms warm" is the honest pair, and "most visitors pay 565 ms" is a claim
 nobody here has earned.
 
-**The list response carries far more than a card draws, and its size is not the wait.**
-`/bills` asks for 10 bills and receives 127,201 bytes, 22,145 as production gzips it. Action
+**The list response carried far more than a card draws, and the download turned out to be
+the largest part of the wait.** `/bills` asked for 10 bills and received 127,201 bytes,
+22,145 as production gzipped it. Action
 history is 79,410 of those bytes, 396 rows so that each card can print 1 line, and the AI
 analysis is 27,441, of which the key points, the suggested questions and the citations are
 drawn on the bill page and the Ask page and never on a card. Compressed the same way, the
@@ -497,11 +498,29 @@ established: a smaller body is also less to parse and less for the server to bui
 neither was measured. Sizing the whole avenue needs a controlled before-and-after, so the
 bytes above are the finding and the seconds are not.
 
-**A browser cannot split that 490 ms further, because the data service sends no
-`Timing-Allow-Origin` header.** A page may read a cross-origin request's start and end and
-nothing between, so the connection, the server's own time and the download arrive as 1
-number, and the response's size reads as 0. Anything wanting that split measures it outside
-the browser.
+**Downloading the answer is most of the list wait, which is the opposite of what the
+unsplit number suggested.** The data service now permits a page on our own site to time its
+own requests (`Timing-Allow-Origin`, #2039), so the parts are readable rather than guessed.
+Measured 8 Sep 2026, same profile, 9 runs, on the trimmed response:
+
+| Inside the list request | Middle run | Range |
+|---|---:|---|
+| Opening the connection | 55 ms | 51 to 62 |
+| Waiting on the server | 36 ms | 31 to 481 |
+| Downloading the answer | 324 ms | 78 to 338 |
+| **The whole request** | **421 ms** | 414 to 620 |
+
+**The server figure is the warm one and the range says so.** The probe loads the same
+address 9 times, so 8 of those runs were answered from a nearby copy at about 36 ms; the
+single 481 ms run is what building the answer costs. Read the 2 as separate numbers, per the
+rule above.
+
+Two things this settles. Reasoning from the unsplit number put most of it on the round trip
+and the server, and the measurement says the opposite: at this profile the bytes are the
+largest part, so response size is worth more than an unsplit figure suggested. And the
+15,101 bytes now sent still take 324 ms here, far longer than the 75 ms their size alone
+implies, because a fresh connection reaches full speed over several round trips rather than
+at once.
 
 ## What an uncached money answer spends its time on
 
