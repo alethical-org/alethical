@@ -24,7 +24,22 @@ def seed_database():
     """This module owns its scratch database and never seeds the worktree database."""
 
 
-def test_current_account_sql_excludes_ineligible_and_linked_team_accounts(monkeypatch):
+@pytest.mark.parametrize(
+    "admin_email",
+    [
+        "angelzierden@gmail.com",
+        "angel@alethical.com",
+        "eug@alethical.com",
+        "alethicaldev@gmail.com",
+        "alexia@alethical.com",
+        "joe@alethical.com",
+        "afnetter@gmail.com",
+        "joseph.fleishman@gmail.com",
+    ],
+)
+def test_current_account_sql_excludes_ineligible_and_linked_team_accounts(
+    monkeypatch, admin_email
+):
     now = datetime.now(timezone.utc)
     admin_id, reader_id, linked_id, pending_id, team_id = [uuid4() for _ in range(5)]
     monkeypatch.setenv("ALETHICAL_ADMIN_ACCOUNT_IDS", str(admin_id))
@@ -36,9 +51,7 @@ def test_current_account_sql_excludes_ineligible_and_linked_team_accounts(monkey
             return AuthenticatedPrincipal("supabase", str(admin_id))
 
         def resolve_confirmed_email(self, token, principal):
-            return AuthenticatedPrincipal(
-                "supabase", str(admin_id), "eug@alethical.com", True
-            )
+            return AuthenticatedPrincipal("supabase", str(admin_id), admin_email, True)
 
     with ScratchDatabase(_local_base_url(), "admin_account_queries") as scratch:
         engine = scratch.engine()
@@ -58,7 +71,7 @@ def test_current_account_sql_excludes_ineligible_and_linked_team_accounts(monkey
                 ):
                     conn.execute(text(ddl))
                 data = [
-                    (admin_id, "eug@alethical.com", now, now),
+                    (admin_id, admin_email, now, now),
                     (reader_id, "reader@public.test", now - timedelta(days=8), now),
                     (linked_id, "reader@public.test", now, now),
                     (pending_id, "pending@public.test", now, None),
@@ -80,7 +93,7 @@ def test_current_account_sql_excludes_ineligible_and_linked_team_accounts(monkey
                 conn.execute(
                     text("INSERT INTO public.user_account VALUES (:id,:email,true)"),
                     [
-                        {"id": admin_id, "email": "eug@alethical.com"},
+                        {"id": admin_id, "email": admin_email},
                         {"id": reader_id, "email": "reader@public.test"},
                     ],
                 )
@@ -92,7 +105,7 @@ def test_current_account_sql_excludes_ineligible_and_linked_team_accounts(monkey
                         {
                             "user_id": admin_id,
                             "subject": str(admin_id),
-                            "email": "eug@alethical.com",
+                            "email": admin_email,
                         },
                         {
                             "user_id": reader_id,
