@@ -11,6 +11,7 @@ Net: A current second copy is protection against losing a source file. A timed r
 - Require an authenticated, restricted connection to the disposable database. Prefer a private Unix socket with TCP disabled, socket access restricted to the operator, and an explicit operating-system-user to database-role mapping. Reject other users; accepting any connection from localhost is insufficient.
 - Keep mail delivery, paid generation, and background workers disabled. Reading a restored record does not authorize sending its queued messages or replaying its jobs.
 - Reserve source-database reads with the active ingestion owner. Use 1 dump connection and a short lock-wait limit; do not stop another task or change production settings to make a drill faster.
+- Set absolute stop times for the export and local work, leaving time for cleanup. Every retry shares the original stop time and needs renewed resource clearance. Enforce the cutoff outside the task's child process group so a blocked query or application thread cannot silently extend the reservation; never stop processes by a shared name.
 - Record the exact backup timestamp, source revision, schema version, and result. A fresh logical dump proves that dump's recovery path. It does not prove Supabase's automatic backups, their retention, or recovery during a complete Supabase outage.
 
 ## Source files: current presence and bounded hash proof
