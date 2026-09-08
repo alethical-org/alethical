@@ -239,6 +239,204 @@ class HookInstallerChecks(GitFixture):
     def installed_path(self):
         return Path(self.git("config", "--get", "core.hooksPath").stdout.strip())
 
+    def at(self, path, *args, check=True, env=None):
+        result = subprocess.run(
+            list(args),
+            cwd=path,
+            env=self.env if env is None else env,
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+        if check:
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        return result
+
+    def test_old_sibling_keeps_shared_hooks_dirty_work_and_commit_ability(self):
+        legacy = self.root / ".githooks"
+        before = (legacy / "post-checkout").read_bytes()
+        # Model the deployed clone, whose common profile has only protection.
+        (legacy / "pre-commit").unlink()
+        (legacy / "pre-push").unlink()
+        self.git("config", "core.hooksPath", str(legacy))
+        old = self.root / "old-sibling"
+        current = self.root / "current-sibling"
+        self.git("worktree", "add", "-q", "-b", "fixture-old", str(old), "HEAD")
+        self.git("worktree", "add", "-q", "-b", "fixture-current", str(current), "HEAD")
+        self.at(old, "git", "rm", "scripts/local_checks.py")
+        self.at(old, "git", "commit", "-qm", "Model old branch without helper")
+        dirty = old / "apps/frontend/other.ts"
+        dirty.write_text("unfinished old branch bytes {\n")
+        before_config = self.at(old, "git", "config", "--get", "core.hooksPath").stdout
+        self.at(current, sys.executable, "scripts/install_git_hooks.py")
+        self.assertEqual(
+            self.at(old, "git", "config", "--get", "core.hooksPath").stdout,
+            before_config,
+        )
+        self.assertEqual(
+            self.git("config", "--local", "--get", "core.hooksPath").stdout.strip(),
+            str(legacy),
+        )
+        self.assertEqual((legacy / "post-checkout").read_bytes(), before)
+        self.assertFalse((legacy / "pre-commit").exists())
+        self.assertEqual(dirty.read_text(), "unfinished old branch bytes {\n")
+        self.at(
+            old, "git", "commit", "--allow-empty", "-qm", "Old branch still commits"
+        )
+        self.assertEqual(dirty.read_text(), "unfinished old branch bytes {\n")
+        self.assertFalse((old / "scripts/local_checks.py").exists())
+        full = Path(
+            self.at(
+                current, "git", "config", "--worktree", "--get", "core.hooksPath"
+            ).stdout.strip()
+        )
+        self.assertEqual(
+            {path.name for path in full.iterdir()},
+            {"post-checkout", "pre-commit", "pre-push"},
+        )
+        self.assertNotEqual(full, legacy)
+
+    def test_new_worktree_inherits_activated_parents_profile(self):
+        self.install()
+        full = self.installed_path()
+        fallback = Path(
+            self.git("config", "--local", "--get", "core.hooksPath").stdout.strip()
+        )
+        self.assertEqual({path.name for path in fallback.iterdir()}, {"post-checkout"})
+        self.assertNotEqual(full, fallback)
+        self.assertEqual(
+            self.git(
+                "config", "--local", "--get", "extensions.worktreeConfig"
+            ).stdout.strip(),
+            "true",
+        )
+        self.assertEqual(
+            self.git("config", "--worktree", "--get", "core.hooksPath").stdout.strip(),
+            str(full),
+        )
+        future = self.root / "future-sibling"
+        self.git("worktree", "add", "-q", "-b", "fixture-future", str(future), "HEAD")
+        self.assertEqual(
+            self.at(future, "git", "config", "--get", "core.hooksPath").stdout.strip(),
+            str(full),
+        )
+        blocks = self.git("worktree", "list", "--porcelain").stdout.split("\n\n")
+        block = next(
+            block
+            for block in blocks
+            if block.startswith(f"worktree {future.resolve()}\n")
+        )
+        self.assertIn("\nlocked", block)
+        selected = future / "apps/frontend/other.ts"
+        selected.write_text("unfinished but intentionally saved {\n")
+        self.at(future, "git", "add", "apps/frontend/other.ts")
+        result = self.at(
+            future,
+            "git",
+            "commit",
+            "-qm",
+            "Inherited checks require dependencies",
+            check=False,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("pnpm install --frozen-lockfile", result.stdout + result.stderr)
+        self.assertEqual(selected.read_text(), "unfinished but intentionally saved {\n")
+        self.assertEqual(
+            (full / "post-checkout").read_bytes(),
+            (self.root / ".githooks/post-checkout").read_bytes(),
+        )
+
+    def test_new_worktree_from_unactivated_parent_uses_lock_only_fallback(self):
+        old = self.root / "unactivated-sibling"
+        future = self.root / "future-from-unactivated"
+        self.git("worktree", "add", "-q", "-b", "fixture-unactivated", str(old), "HEAD")
+        self.install()
+        fallback = self.git(
+            "config", "--local", "--get", "core.hooksPath"
+        ).stdout.strip()
+        self.at(
+            old,
+            "git",
+            "worktree",
+            "add",
+            "-q",
+            "-b",
+            "fixture-lock-only",
+            str(future),
+            "HEAD",
+        )
+        self.assertEqual(
+            self.at(future, "git", "config", "--get", "core.hooksPath").stdout.strip(),
+            fallback,
+        )
+        self.assertEqual(
+            {path.name for path in Path(fallback).iterdir()}, {"post-checkout"}
+        )
+        blocks = self.git("worktree", "list", "--porcelain").stdout.split("\n\n")
+        block = next(
+            block
+            for block in blocks
+            if block.startswith(f"worktree {future.resolve()}\n")
+        )
+        self.assertIn("\nlocked", block)
+        selected = future / "apps/frontend/other.ts"
+        selected.write_text("unfinished but intentionally saved {\n")
+        self.at(future, "git", "add", "apps/frontend/other.ts")
+        self.at(
+            future, "git", "commit", "-qm", "Unactivated parent keeps lock-only hooks"
+        )
+        self.assertEqual(selected.read_text(), "unfinished but intentionally saved {\n")
+
+    def test_ci_without_git_metadata_skips_before_any_git_command(self):
+        outside = self.root / "deployment-without-git"
+        outside.mkdir()
+        result = self.at(
+            outside,
+            sys.executable,
+            str(self.root / "scripts/install_git_hooks.py"),
+            env={**self.env, "CI": "true", "PATH": str(outside)},
+        )
+        self.assertIn("installation skipped", result.stdout)
+        self.assertEqual(result.stderr, "")
+
+    def test_common_worktree_setting_is_refused_without_activation(self):
+        self.git("config", "--local", "core.worktree", str(self.root))
+        result = self.install(check=False)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("explicit Git configuration migration", result.stderr)
+        self.assertFalse((self.root / ".git/alethical-hooks").exists())
+        self.assertNotEqual(
+            self.git(
+                "config", "--local", "--get", "extensions.worktreeConfig", check=False
+            ).returncode,
+            0,
+        )
+
+    def test_common_bare_setting_is_refused_without_activation(self):
+        self.git("config", "--local", "core.bare", "true")
+        # Call install directly: a bare repository has no CLI toplevel by design.
+        result = self.command(
+            sys.executable,
+            "-c",
+            "import sys; from pathlib import Path; sys.path.insert(0, 'scripts'); "
+            "from install_git_hooks import install; install(Path.cwd())",
+            check=False,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("explicit Git configuration migration", result.stderr)
+        self.assertFalse((self.root / ".git/alethical-hooks").exists())
+
+    def test_inactive_worktree_config_is_not_silently_enabled(self):
+        inactive = self.root / ".git/config.worktree"
+        inactive.write_text("[core]\n\thooksPath = /private/unknown-hooks\n")
+        result = self.install(check=False)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Inactive worktree configuration", result.stderr)
+        self.assertEqual(
+            inactive.read_text(), "[core]\n\thooksPath = /private/unknown-hooks\n"
+        )
+        self.assertFalse((self.root / ".git/alethical-hooks").exists())
+
     def test_migration_preserves_original_post_checkout_bytes(self):
         original = self.root / ".githooks/post-checkout"
         before = original.read_bytes()

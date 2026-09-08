@@ -116,7 +116,7 @@ embedding work is API-only.
 
 ## Related
 
-- [Local code checks](local-code-checks.md) owns clone-wide hook setup, selected-file
+- [Local code checks](local-code-checks.md) owns per-worktree hook setup, selected-file
   formatting, isolated upload tests, and the staged description-check activation.
 - [Offline name-search comparison](name-search-offline-benchmark.md) explains the
   local-only commands, exact-answer checks and full-size measurement gates.

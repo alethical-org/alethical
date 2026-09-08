@@ -9,8 +9,8 @@ Cursor defaults. GitHub still decides whether a change may merge.
 
 ## Setup and activation
 
-Run `just setup` from a branch that contains these helpers. It installs the exact
-saved Python and frontend dependencies, then installs 3 Git hooks:
+Run `just setup` in each worktree from a branch that contains these helpers. It
+installs the exact saved Python and frontend dependencies, then installs 3 Git hooks:
 
 | When | Helper | Result |
 | --- | --- | --- |
@@ -20,15 +20,29 @@ saved Python and frontend dependencies, then installs 3 Git hooks:
 
 [`scripts/install_git_hooks.py`](../../scripts/install_git_hooks.py) copies all 3
 helpers into a versioned folder inside Git's shared storage. It changes
-`core.hooksPath` only after the complete copy is ready. Previous versions remain
-available for recovery and commands already running. Custom hooks stop installation
+the current worktree's `core.hooksPath` only after the complete copy is ready.
+Previous versions remain available for recovery and commands already running. Custom hooks stop installation
 until their owner arranges a migration; installation never silently replaces them.
 GitHub skips local hook installation and uses its own checks.
 
-This setting applies to every worktree in the clone. Coordinate activation with
-their owners first, then update older branches from `main`. An older branch missing
-the helper cannot commit or push through these hooks. Fetching or merging the code
-does not install the hooks in another clone. Each clone needs `just setup`.
+The full check profile is scoped to the worktree running setup, using Git's
+`extensions.worktreeConfig` and `git config --worktree`. Existing worktrees keep
+their own settings, branches, and unfinished edits. A fresh clone also receives a
+shared lock-only profile so new worktrees retain the accidental-removal protection.
+Existing shared hooks are preserved. Unsupported custom layouts stop installation.
+
+Git copies per-worktree settings when creating a new worktree from an activated
+one, so that new worktree inherits the full check profile. Install its dependencies
+before committing. Creating a worktree from an unactivated parent keeps that
+parent's existing shared protection. Existing sibling worktrees are not changed.
+
+The root package's `prepare` command activates the current worktree's checks after
+a normal `pnpm install --frozen-lockfile`; `just setup` also calls the installer
+explicitly. GitHub and isolated upload tests set `CI` and skip installation.
+Fetching code alone does not activate an older worktree. Its owner adopts the
+checks by updating its branch and installing the saved dependencies. An activated
+worktree switched to a branch missing the helper cannot commit or push until that
+branch is updated. The common lock still protects other worktrees meanwhile.
 
 [`CONTRIBUTING.md`](../../CONTRIBUTING.md#first-time-setup) owns prerequisites and
 starting local Postgres. Keep Postgres running on port 54329 before uploading server
@@ -155,7 +169,7 @@ proof. The release owner updates unchecked items with outcomes before closing th
 - [x] The independent description workflow and fresh-description fixtures are present;
   the original required description step remains.
 - [x] Focused checks cover 12 upload-selection cases, 19 description cases, and
-  12 real Git/formatter/installer cases. Python formatting and lint pass.
+  19 real Git/formatter/installer cases. Python formatting and lint pass.
 - [x] A draft description edit fails for a missing explanation and passes after
   restoring it, without another code upload or another CI run:
   [missing explanation](https://github.com/alethical-org/alethical/actions/runs/34241482500),
@@ -165,8 +179,9 @@ proof. The release owner updates unchecked items with outcomes before closing th
   resource hold clears, then merge phase 1.
 - [ ] Prove fresh descriptions and code IDs in a nonempty merge-group run, including
   access with the workflow's read-only token.
-- [ ] Coordinate clone-wide hook activation, update active older branches, run
-  `just setup`, and exercise an actual commit and upload safely.
+- [ ] Activate this task's worktree with `just setup` and exercise an actual commit
+  and upload safely. Other active owners adopt the checks through their normal
+  dependency installation without changing their in-progress branches on our behalf.
 - [ ] Add the proven `description-checks` context to required GitHub checks while
   retaining all existing protection.
 - [ ] Merge phase 2 removing only the old description step and update

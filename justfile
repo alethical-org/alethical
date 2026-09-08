@@ -43,7 +43,7 @@ stop-wip-backup:
   -rm -f "$HOME/Library/LaunchAgents/com.alethical.wip-backup.plist"
   @echo "🛑 Automatic snapshots stopped. Existing refs/wip-backup/* snapshots are untouched."
 
-# Point git at this repo's tracked hooks. Run once per clone, before anything else.
+# Activate the tracked checks for this worktree and preserve shared lock protection.
 # Until you run it, a new worktree is NOT auto-locked and `git worktree remove
 # --force` can delete another session's uncommitted work. `core.hooksPath` is local
 # config, so it cannot travel with a clone; this recipe is the one documented way in.

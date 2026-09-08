@@ -8,6 +8,9 @@
   "devDependencies": {
     "lint-staged": "17.4.1"
   },
+  "scripts": {
+    "prepare": "python3 scripts/install_git_hooks.py"
+  },
   "dependencies": {
     "@vercel/oidc": "^3.8.2",
     "google-auth-library": "^11.0.0"

@@ -56,7 +56,7 @@ Close and reopen your terminal after `volta setup`. Then `node --version` and
 default Node version. You can use another version manager instead; activate Node
 22 before running Alethical commands.
 
-**Run `just setup` in every fresh clone before creating worktrees.** It installs
+**Run `just setup` in every working copy before committing.** It installs
 the saved Python and frontend dependencies, then runs `just install-hooks`.
 The installer keeps 3 helpers: lock new worktrees (`post-checkout`), format the
 files selected for a commit (`pre-commit`), and test saved code before uploading
@@ -64,10 +64,16 @@ it (`pre-push`). Cursor, Codex, Claude Code, and a terminal use the same helpers
 Git does not copy this local setting when cloning, so fetching the code alone
 does not activate them.
 
-Installation writes a complete, versioned copy into Git's shared storage before
-changing `core.hooksPath`. That setting applies to every worktree in this clone.
-Coordinate activation with their owners and update older branches from `main`:
-a branch missing the check helper stops instead of silently skipping checks.
+Installation writes a complete, versioned copy into Git's shared storage, then
+activates it only for the current worktree through Git's per-worktree settings.
+Other tasks keep their own settings and unfinished work. A normal
+`pnpm install --frozen-lockfile` also activates the checks in the current worktree;
+GitHub and isolated upload tests skip this installation. Fresh clones also receive
+the existing shared lock-only hook, so future worktrees keep that protection.
+Git can copy the full profile into a new worktree created from an activated one;
+install that new worktree's saved dependencies before committing.
+An activated worktree switched to an older branch missing the helper stops
+instead of silently skipping checks; update that branch before using the checks.
 Custom hooks stop installation for an explicit migration; they are not overwritten.
 [Local code checks](docs/operations/local-code-checks.md) owns setup, safety limits,
 and the separate GitHub activation checklist.
