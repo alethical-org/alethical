@@ -455,32 +455,43 @@ function MetricRow({
         last && styles.metricRowLast,
       ]}
     >
-      <Text
+      <View
         style={[
-          styles.metricRowLabel,
-          isMobile &&
-            (compactMobile || treatment === 'availability') &&
-            styles.metricRowLabelMobile,
+          styles.metricRowLine,
+          isMobile && treatment === 'availability' && styles.metricRowLineAvailabilityMobile,
         ]}
       >
-        {label}
-      </Text>
-      <Text
-        style={[
-          styles.metricRowValue,
-          treatment === 'availability' && styles.metricRowValueAvailability,
-          isMobile && treatment === 'availability' && styles.metricRowValueAvailabilityMobile,
-          isMobile && compactMobile && mobileValueSize === 19 && styles.metricRowValueActionMobile,
-        ]}
-      >
-        {value}
-        {note ? (
-          <Text style={styles.metricValueNote}>
-            {'\n'}
-            {note}
-          </Text>
-        ) : null}
-      </Text>
+        <Text
+          testID={testID ? `${testID}-label` : undefined}
+          style={[
+            styles.metricRowLabel,
+            isMobile &&
+              (compactMobile || treatment === 'availability') &&
+              styles.metricRowLabelMobile,
+          ]}
+        >
+          {label}
+        </Text>
+        <Text
+          testID={testID ? `${testID}-value` : undefined}
+          style={[
+            styles.metricRowValue,
+            treatment === 'availability' && styles.metricRowValueAvailability,
+            isMobile && treatment === 'availability' && styles.metricRowValueAvailabilityMobile,
+            isMobile &&
+              compactMobile &&
+              mobileValueSize === 19 &&
+              styles.metricRowValueActionMobile,
+          ]}
+        >
+          {value}
+        </Text>
+      </View>
+      {note ? (
+        <Text testID={testID ? `${testID}-note` : undefined} style={styles.metricValueNote}>
+          {note}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -594,6 +605,13 @@ const DESTINATIONS = [
 
 function DestinationPanel({ breakdown }: { breakdown: TrafficBreakdown }) {
   const { isMobile } = useResponsive();
+  const [rowsWidth, setRowsWidth] = useState(0);
+  // Re-measure these shared label widths whenever a destination label changes.
+  const labelWidth = isMobile ? styles.destinationNameMobile.width : styles.destinationName.width;
+  const stackRows = isMobile && rowsWidth > 0 && rowsWidth - 14 - labelWidth - 34 - 20 < 80;
+  const moneyDestinations = DESTINATIONS.slice(6, 14).filter(
+    ([key]) => breakdown.destinationPageViews[key] !== undefined,
+  );
   const total = Object.values(breakdown.destinationPageViews).reduce(
     (sum, value) => sum + value,
     0,
@@ -605,29 +623,44 @@ function DestinationPanel({ breakdown }: { breakdown: TrafficBreakdown }) {
     return (
       <View
         key={key}
-        style={[styles.destinationRowLine, isMobile && styles.destinationRowLineMobile]}
+        testID={`site-metrics-destination-${key}-row`}
+        style={[
+          styles.destinationRowLine,
+          isMobile && styles.destinationRowLineMobile,
+          stackRows && styles.destinationRowStacked,
+        ]}
       >
         <Text
+          testID={`site-metrics-destination-${key}-label`}
           style={[
             styles.metricRowLabel,
             styles.destinationName,
             isMobile && styles.destinationNameMobile,
+            stackRows && styles.destinationNameStacked,
           ]}
         >
           {key === 'money' && !breakdown.committeeProfiles ? 'Money in politics' : label}
         </Text>
         <View
-          testID={`site-metrics-destination-${key}-bar`}
-          aria-hidden
-          style={[styles.barTrack, isMobile && styles.barTrackMobile]}
+          style={[
+            styles.destinationBarLine,
+            isMobile && styles.destinationRowLineMobile,
+            stackRows && styles.destinationBarLineStacked,
+          ]}
         >
           <View
-            style={[styles.barFill, isMobile && styles.barFillMobile, { width: `${share}%` }]}
-          />
+            testID={`site-metrics-destination-${key}-bar`}
+            aria-hidden
+            style={[styles.barTrack, isMobile && styles.barTrackMobile]}
+          >
+            <View
+              style={[styles.barFill, isMobile && styles.barFillMobile, { width: `${share}%` }]}
+            />
+          </View>
+          <Text style={[styles.destinationPercent, isMobile && styles.destinationPercentMobile]}>
+            {share > 0 && share < 1 ? '<1' : Math.round(share)}%
+          </Text>
         </View>
-        <Text style={[styles.destinationPercent, isMobile && styles.destinationPercentMobile]}>
-          {share > 0 && share < 1 ? '<1' : Math.round(share)}%
-        </Text>
       </View>
     );
   };
@@ -638,25 +671,37 @@ function DestinationPanel({ breakdown }: { breakdown: TrafficBreakdown }) {
         <Text style={styles.zeroText}>No page views in this range yet</Text>
       ) : (
         <>
-          <View style={styles.destinationRows}>
-            <View style={[styles.destinationOuter, isMobile && styles.destinationOuterMobile]}>
-              {row(DESTINATIONS[0])}
-            </View>
-            <View style={[styles.destinationGroup, isMobile && styles.destinationGroupMobile]}>
+          <View
+            testID="site-metrics-destination-rows"
+            onLayout={(event) => setRowsWidth(event.nativeEvent.layout.width)}
+            style={[styles.destinationRows, isMobile && styles.destinationRowsMobile]}
+          >
+            <View style={styles.destinationOuter}>{row(DESTINATIONS[0])}</View>
+            <View style={styles.destinationGroup}>
               {row(DESTINATIONS[1])}
               {row(DESTINATIONS[2])}
             </View>
-            <View style={[styles.destinationGroup, isMobile && styles.destinationGroupMobile]}>
+            <View style={styles.destinationGroup}>
               {row(DESTINATIONS[3])}
               {row(DESTINATIONS[4])}
               {row(DESTINATIONS[5])}
             </View>
-            <View style={[styles.destinationOuter, isMobile && styles.destinationOuterMobile]}>
-              {DESTINATIONS.slice(6, 14).map(row)}
-            </View>
-            <View style={[styles.destinationOuter, isMobile && styles.destinationOuterMobile]}>
-              {DESTINATIONS.slice(14).map(row)}
-            </View>
+            {moneyDestinations.length ? (
+              <View
+                style={
+                  moneyDestinations.length > 1 ? styles.destinationGroup : styles.destinationOuter
+                }
+              >
+                {moneyDestinations.map(row)}
+              </View>
+            ) : null}
+            {DESTINATIONS.slice(14).map((destination) =>
+              breakdown.destinationPageViews[destination[0]] === undefined ? null : (
+                <View key={destination[0]} style={styles.destinationOuter}>
+                  {row(destination)}
+                </View>
+              ),
+            )}
           </View>
           <Text style={styles.panelNote}>
             Percentages show shares of page views, not visitors. Searches with results are counted
@@ -1632,6 +1677,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
     color: '#8f5a12',
+    fontWeight: '800',
+    textAlign: 'right',
   },
   page: { flexGrow: 1, backgroundColor: theme.colors.surface },
   main: { width: '100%', maxWidth: 1184, alignSelf: 'center', paddingTop: 72, paddingBottom: 72 },
@@ -1881,13 +1928,17 @@ const styles = StyleSheet.create({
   availabilityRowsMobile: { paddingHorizontal: 12 },
   metricRow: {
     paddingVertical: 11,
+    gap: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(17,21,15,0.07)',
+  },
+  metricRowLine: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(17,21,15,0.07)',
   },
+  metricRowLineAvailabilityMobile: { gap: 14 },
   metricRowAvailability: { paddingVertical: 10 },
   metricRowAvailabilityMobile: { paddingVertical: 9, gap: 14 },
   metricRowLast: { borderBottomWidth: 0 },
@@ -1919,6 +1970,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   destinationRows: { marginTop: 18, gap: 15 },
+  destinationRowsMobile: { gap: 11 },
   destinationOuter: { paddingLeft: 14 },
   destinationGroup: {
     gap: 12,
@@ -1926,12 +1978,14 @@ const styles = StyleSheet.create({
     borderLeftWidth: 2,
     borderLeftColor: '#dfe5e1',
   },
-  destinationOuterMobile: { paddingLeft: 12 },
-  destinationGroupMobile: { gap: 8, paddingLeft: 10 },
   destinationRowLine: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   destinationRowLineMobile: { gap: 10 },
-  destinationName: { width: 138, flexGrow: 0, flexShrink: 0 },
-  destinationNameMobile: { width: 118, fontSize: 13.5, lineHeight: 18 },
+  destinationRowStacked: { flexDirection: 'column', alignItems: 'stretch', gap: 4 },
+  destinationName: { width: 170, flexGrow: 0, flexShrink: 0 },
+  destinationNameMobile: { width: 159, fontSize: 13.5, lineHeight: 18 },
+  destinationNameStacked: { width: 'auto' },
+  destinationBarLine: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  destinationBarLineStacked: { flexGrow: 0, flexShrink: 0, flexBasis: 'auto' },
   destinationPercent: {
     width: 38,
     flexGrow: 0,

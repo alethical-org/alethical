@@ -5,6 +5,30 @@ import { describe, expect, it } from 'vitest';
 const SOURCE = readFileSync(join(__dirname, '..', 'TrafficScreen.tsx'), 'utf8');
 
 describe('public Site metrics page', () => {
+  it('keeps partial coverage notes below the aligned label and count', () => {
+    expect(SOURCE).toContain('styles.metricRowLine');
+    expect(SOURCE).toContain('`${testID}-value`');
+    expect(SOURCE).toContain('`${testID}-note`');
+    expect(SOURCE).toMatch(/metricValueNote: \{[\s\S]*?textAlign: 'right'/);
+    expect(SOURCE).not.toContain("{'\\n'}");
+  });
+
+  it('gives destination groups one rhythm and stacks narrow phone rows together', () => {
+    expect(SOURCE).toMatch(/destinationRows: \{ marginTop: 18, gap: 15 \}/);
+    expect(SOURCE).toMatch(/destinationRowsMobile: \{ gap: 11 \}/);
+    expect(SOURCE).toMatch(
+      /destinationGroup: \{\s*gap: 12,\s*paddingLeft: 12,\s*borderLeftWidth: 2/,
+    );
+    expect(SOURCE).toContain(
+      'moneyDestinations.length > 1 ? styles.destinationGroup : styles.destinationOuter',
+    );
+    expect(SOURCE).toMatch(/destinationName: \{ width: 170/);
+    expect(SOURCE).toMatch(/destinationNameMobile: \{ width: 159/);
+    expect(SOURCE).toContain('rowsWidth - 14 - labelWidth - 34 - 20 < 80');
+    expect(SOURCE).toContain('setRowsWidth(event.nativeEvent.layout.width)');
+    expect(SOURCE).toContain('stackRows && styles.destinationRowStacked');
+  });
+
   it('shows visitors and page views for the 3 accepted recent periods', () => {
     expect(SOURCE).toContain('Estimated visitors');
     expect(SOURCE).toContain('Page views');

@@ -53,6 +53,22 @@ On phone and tablet widths below 1100 pixels, speed ratings sit below their valu
 the full Building sample message fits. Tablet value type stays at 18 pixels; phone type
 stays at 17 pixels. Wider desktop cards keep the rating beside the value.
 
+## Activity layout
+
+Where people go uses the same row spacing for Bills, Legislators and Money: 12 pixels
+inside each group, with a 2-pixel left border and 12 pixels of inner padding. Standalone
+destinations have 14 pixels of left padding and no border. Groups and standalone rows are
+15 pixels apart on computer and 11 pixels apart on phone. Shared label widths are
+170 pixels on computer and 159 pixels on phone, measured with the published Libre Franklin
+font. A new label requires remeasuring those widths. If the phone card cannot leave at
+least 80 pixels for each bar, every row places its label above its bar and percentage.
+
+At widths of 768 pixels and above, each activity-card pair shares its taller card's height.
+Content stays at the top and spare space stays below the final note. Below 768 pixels,
+cards stack and use their own heights. Action counts align with their labels and share
+the right edge; Partial range occupies a separate right-aligned line below, with a
+4-pixel gap before the note. Counts, wording and coverage states are unchanged.
+
 ## What the numbers mean
 
 A page view is 1 page load. Opening several pages creates several views. Opening or
