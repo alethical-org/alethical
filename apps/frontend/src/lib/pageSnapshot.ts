@@ -395,6 +395,31 @@ export function billDirectoryPageSnapshot(
   };
 }
 
+/**
+ * A current service record is the only thing in the payload that says what a
+ * person does NOW: which chamber they sit in, for which district, for which
+ * party, on which committees, at which office and phone. A member who has
+ * resigned, died or lost a seat has no such record, and the API omits
+ * `current_service` entirely rather than emptying its fields.
+ *
+ * So a chamber the record does not name is withheld, never resolved to one of
+ * the two, and a party it does not name never reaches `partyFull`, whose
+ * catch-all answer is `Independent`. Measured 8 Sep 2026: all 6 production
+ * profiles with no current service were served `Sen. <name>` above
+ * `Senate · Independent` from those 2 guesses, 3 of them House members, 1 of
+ * them dead (#1461).
+ *
+ * `.claude/rules/grounded-answers.md` rule 12 is the rule behind it, one step
+ * across from the amounts it was written for: a value we do not hold is
+ * reported as missing, never filled in with a plausible one. What the person
+ * DID is a different claim and stays: the service history is its own stored
+ * record, and a bill they authored is still theirs.
+ */
+function currentChamber(value: string | null | undefined): 'House' | 'Senate' | '' {
+  const normalized = clean(value).toLowerCase();
+  return normalized === 'house' ? 'House' : normalized === 'senate' ? 'Senate' : '';
+}
+
 export interface LegislatorDirectorySnapshotSource {
   id: string;
   slug?: string | null;
@@ -420,9 +445,7 @@ export function legislatorDirectoryPageSnapshot(
     bodyIsList: false,
     records: legislators.map((legislator) => {
       const service = legislator.current_service ?? {};
-      const chamberValue = (service.chamber ?? '').toLowerCase();
-      const chamber =
-        chamberValue === 'house' ? 'House' : chamberValue === 'senate' ? 'Senate' : '';
+      const chamber = currentChamber(service.chamber);
       const district = clean(service.district?.code);
       return {
         label: clean(legislator.full_name) || 'Minnesota legislator',
@@ -593,10 +616,16 @@ export function legislatorPageSnapshot(
   chiefAuthoredBills?: readonly BillDirectorySnapshotSource[] | null,
 ): PageSnapshot {
   const service = legislator.current_service ?? {};
-  const chamber = (service.chamber ?? '').toLowerCase() === 'house' ? 'House' : 'Senate';
+  const chamber = currentChamber(service.chamber);
+  // One switch for every current claim on the page, so a record that names no
+  // chamber cannot leave a stale committee list or an office standing beside a
+  // name with no seat.
+  const servesNow = chamber !== '';
   const displayName = legislatorDisplayName(legislator.full_name ?? '', chamber);
-  const districtLine = legislatorDistrictLine(chamber, service.district?.code ?? undefined);
-  const committees = (legislator.committees ?? [])
+  const districtLine = servesNow
+    ? legislatorDistrictLine(chamber, service.district?.code ?? undefined)
+    : '';
+  const committees = (servesNow ? (legislator.committees ?? []) : [])
     .map((committee) => {
       const name = clean(committee.name);
       const role = clean(committee.role);
@@ -628,20 +657,29 @@ export function legislatorPageSnapshot(
       : []),
   ];
 
+  // A stored party code is named in full; a missing one says nothing, because
+  // `partyFull`'s catch-all answer is a party name of its own.
+  const party = servesNow && clean(service.party) ? partyFull(service.party ?? undefined) : '';
   return {
     heading: displayName,
-    subheading: [districtLine, partyFull(service.party ?? undefined)].filter(Boolean).join(' · '),
+    subheading: [districtLine, party].filter(Boolean).join(' · '),
     bodyHeading: 'Committees',
-    body: committees.length ? committees : ['No current committee assignments on record.'],
+    body: committees.length
+      ? committees
+      : servesNow
+        ? ['No current committee assignments on record.']
+        : [],
     bodyIsList: committees.length > 0,
     sections: sections.length ? sections : undefined,
-    facts: [
-      ...fact('Leadership', office.leadership),
-      ...fact('Capitol office', office.address),
-      ...fact('Phone', service.phone),
-    ],
+    facts: servesNow
+      ? [
+          ...fact('Leadership', office.leadership),
+          ...fact('Capitol office', office.address),
+          ...fact('Phone', service.phone),
+        ]
+      : [],
     links: [
-      ...(service.profile_url
+      ...(servesNow && service.profile_url
         ? [{ label: `Official ${chamber} profile`, href: service.profile_url }]
         : []),
       { label: 'Legislators', href: '/legislators' },
