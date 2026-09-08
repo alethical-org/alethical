@@ -250,6 +250,21 @@ owns the current provider, email, password, and confirmation settings.
 
 ## Release and recovery
 
+- A failed web release says so by itself. When the website's production release
+  fails, `.github/workflows/production-release-failed.yml` opens 1 issue naming the
+  commit and linking the build log, comments on that same issue rather than opening
+  another while it keeps failing, and closes it when a release next succeeds. So the
+  first question when a merge is not live is whether that issue is open, not whether
+  anybody noticed. It exists because 4 merges once sat unshipped for 50 minutes with
+  every check green and nothing anywhere saying so
+  ([issue 2052](https://github.com/alethical-org/alethical/issues/2052)). It watches
+  only the `Production` environment, so a failed preview, which ships to nobody,
+  opens nothing.
+- Judge what readers are getting by the `Production` environment's own newest
+  deployment state. The `Vercel` commit status does not say which environment ran,
+  and the separate `alethical / production` environment is the API rather than the
+  website: reading those 2 as one is how the 8 Sep 2026 incident was first mistaken
+  for already recovered.
 - Normal release: merge to `main`. Vercel and Railway each release through their own
   Git connection. Railway runs database migrations before replacing the API.
 - Missed Vercel release: use the Vercel deployment for the reviewed commit and promote
@@ -273,6 +288,15 @@ curl -fsS -o /dev/null -w '%{http_code}\n' https://www.alethical.com/
 Then open 1 bill page, sign in when sign-in changed, and run the narrow ingestion dry
 run when ingestion changed. A `200` response proves the services answer; it does not
 prove a changed user path works.
+
+**A `403` from that second command is not evidence the website is down.** Vercel's bot
+protection answers repeated command-line requests to the website with `403` and a
+challenge page, whatever user agent they carry, and it lifts again after a pause: it
+started doing so on 8 Sep 2026 at about 03:40 UTC after a session polled the address,
+and the same command returned `200` on 3 consecutive attempts later that day. A real
+browser loads normally throughout. So when that command fails, open the address in a
+browser before calling it an outage, and never build a check on it: that is why the
+failed-release watch above compares deployment state instead of fetching the site.
 
 ## Related releases
 
