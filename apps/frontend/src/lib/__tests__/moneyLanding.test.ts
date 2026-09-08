@@ -9,6 +9,7 @@ import {
   laneCountLine,
   legislatorsLaneBody,
   legislatorsLaneSentence,
+  MONEY_LANDING_SEARCH_NOTE,
   MONEY_LANDING_SUBTITLE,
   MONEY_LANE_BY_RACE,
   MONEY_LANE_COMMITTEES,
@@ -62,7 +63,7 @@ describe('the landing’s own standalone lines end without a full stop', () => {
   // profile they already have Confirmed for 200 of Minnesota's 200 sitting legislators".
   it('separates the 2 sentences once the confirmation sentence is attached', () => {
     const drawn = legislatorsLaneBody({ confirmed: 200, total: 200 });
-    expect(drawn).toContain('they already have. Confirmed for 200');
+    expect(drawn).toContain('they already have. Confirmed for every sitting legislator');
     expect(drawn).not.toContain('they already have Confirmed');
   });
 
@@ -204,6 +205,32 @@ describe('confirmation progress', () => {
     );
   });
 
+  // Accepted 8 Sep 2026 (proposed by Design). The counted wording ends "for the rest, no
+  // figures show on a profile", and once the 2 served numbers are equal that clause
+  // describes nobody. Live, both numbers are 200.
+  it('says every sitting legislator once the confirmed count reaches the total', () => {
+    expect(legislatorsLaneSentence({ confirmed: 200, total: 200 })).toBe(
+      'Confirmed for every sitting legislator',
+    );
+    expect(legislatorsLaneSentence({ confirmed: 1, total: 1 })).toBe(
+      'Confirmed for every sitting legislator',
+    );
+    expect(legislatorsLaneSentence({ confirmed: 200, total: 200 }).endsWith('.')).toBe(false);
+  });
+
+  // The 2 branches must stay 2: a future edit that made the every-member wording
+  // unconditional would tell a reader every member is confirmed while some are not.
+  it('keeps the counted wording, word for word, while any member is unconfirmed', () => {
+    expect(legislatorsLaneSentence({ confirmed: 199, total: 200 })).toBe(
+      "Confirmed for 199 of Minnesota's 200 sitting legislators — for the rest, no figures " +
+        'show on a profile',
+    );
+    expect(legislatorsLaneSentence({ confirmed: 199, total: 200 })).not.toContain('every');
+    expect(legislatorsLaneBody({ confirmed: 199, total: 200 })).toContain(
+      'they already have. Confirmed for 199 of',
+    );
+  });
+
   // Copy rule C: the sentence is the last one in a card description, so the drawn body
   // ends without a full stop even though it carries one between its 2 sentences.
   it('ends the drawn Legislators body bare, with the internal stop kept', () => {
@@ -279,8 +306,10 @@ describe('the filed date, which is the one fact a page may not substitute for', 
     expect(byArrival).not.toContain('alphabetically');
     expect(byArrival).not.toContain('not the newest');
     expect(byArrival).toContain('received most recently');
-    // The anti-ranking half survives both wordings: no row carries an amount.
-    expect(byArrival).toContain('never the largest');
+    // The sentence already says positively which rows were picked, so it carries no
+    // trailing negative (ruled 8 Sep 2026): it ends on the undated rows' placement.
+    expect(byArrival).not.toContain('never the largest');
+    expect(byArrival.endsWith('sits by the period it covers instead.')).toBe(true);
     expect(byArrival).toContain('1,203 reports');
     // Read on the live page, the first version ran 2 "and" clauses together and used
     // "it" for a noun that was really the period. Neither is a correctness bug and both
@@ -293,5 +322,36 @@ describe('the filed date, which is the one fact a page may not substitute for', 
     const sentence = filingsTieSentence(null, 'filed_date_then_period_end');
     expect(sentence).not.toMatch(/\d/);
     expect(sentence).toContain('received most recently');
+    expect(sentence).not.toContain('never the largest');
+    expect(sentence.endsWith('sits by the period it covers instead.')).toBe(true);
+  });
+
+  // Only the arrival wording lost its negative. The alphabetical branches' positive
+  // clause ("the first by name") is a different one and does not by itself rule out a
+  // ranking, so they keep "not the newest and not the largest" word for word, under
+  // both the explicit period_end order and the default.
+  it('leaves the alphabetical branches’ own wording untouched', () => {
+    for (const orderedBy of ['period_end', '']) {
+      expect(filingsTieSentence(null, orderedBy)).toBe(
+        'Every committee that filed for this period is listed alphabetically — the rows shown ' +
+          'are the first by name, not the newest and not the largest.',
+      );
+      expect(filingsTieSentence(1203, orderedBy)).toBe(
+        '1,203 reports cover this period, listed alphabetically by filer — the rows shown are ' +
+          'the first by name, not the newest and not the largest.',
+      );
+    }
+  });
+});
+
+describe('the line under the search field', () => {
+  // The one landing sentence that used to live as text inside the screen, where no test
+  // could pin it. The words are the screen's own, unchanged.
+  it('is the exact sentence the screen prints', () => {
+    expect(MONEY_LANDING_SEARCH_NOTE).toBe(
+      'Matched on the name as it was filed, exactly as typed. We offer no nearest match: ' +
+        'names here differ from each other by a single character often enough that a guess ' +
+        'would put you on the wrong organisation.',
+    );
   });
 });
