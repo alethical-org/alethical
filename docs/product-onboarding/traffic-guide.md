@@ -8,7 +8,7 @@ The public `/site-metrics` page combines 7 independent sources:
 
 - Vercel Web Analytics shows estimated visitors, page views, destinations, and profile breadth for 24 hours, 7 days, or 30 days;
 - Alethical's own records show recorded actions, first signed-in use, and bill and committee follows;
-- Supabase shows surviving accounts created, including confirmed and pending sign-ups;
+- Supabase shows the current surviving user-account total, including confirmed and pending sign-ups; the private leadership page also shows creation windows;
 - Google Search Console shows sitewide appearances and clicks for 30 finalized days;
 - Bing Webmaster Tools shows the same 2 sitewide search totals;
 - Checkly shows 30-day availability for the home page and data service; and
@@ -40,8 +40,9 @@ markers; their start-date explanation now lives in this bottom section.
 - Money searches and new bill/committee-follow history were enabled September 8, 2026 UTC
   ([release](https://github.com/alethical-org/alethical/pull/2027)). Those dates describe
   production activation, not the first event. No earlier action history is invented.
-- Account creation uses saved sign-up dates, including earlier accounts. Current account
-  and follow counts are present records, not a historical collection window.
+- Total user accounts uses current records, so it has no collection start. The private
+  leadership page uses saved sign-up dates for its creation windows, including earlier accounts.
+  Current account and follow counts are present records, not a historical collection window.
 - Homepage and data-service monitoring start dates come separately from Checkly metadata.
   They do not prove uninterrupted coverage. A missing date stays unavailable.
 - Google, Bing, and Cloudflare expose reporting windows, not collection-start metadata.
@@ -98,9 +99,10 @@ financial-information view. Ask remains a visible destination for the existing `
 
 Vercel's periods trail backward from the most recent completed UTC hour. The page shows that
 ending hour in Minnesota's time zone, labeled `CT`. The 3 windows contain 24, 168, and 720
-complete hours. Recorded actions and surviving-account creation use 7-day and 30-day windows
-ending at the last complete UTC hour, with equally long preceding windows. Current account
-and follow inventories are counts at the time read, not creations in that range. Cloudflare
+complete hours. Recorded actions use 7-day and 30-day windows ending at the last complete UTC
+hour, with equally long preceding windows. The private leadership page applies those windows
+to surviving-account creation. Current account and follow inventories are counts at the time
+read, not creations in that range. Cloudflare
 uses 30 complete UTC days; Google and Bing have their own finalized day windows; Checkly
 reports its own rolling 30-day availability. Source date labels must stay separate.
 
@@ -138,10 +140,10 @@ bots excluded. Account exclusions do not apply to Cloudflare; team visits may re
 is not a claim that all automated visits can be identified.
 Cloudflare Web Analytics uses no cookies, local storage, or fingerprinting.
 
-The shared backend classifier recognizes 6 known team mailboxes, their supported aliases,
+The shared backend classifier recognizes 11 known team mailboxes, their supported aliases,
 configured account identifiers, and test mail domains. Aliases include plus tags and Gmail
 dot and googlemail variations. Excluding 1 linked identity excludes the whole linked account.
-The 6-mailbox exclusion list is broader than the 4 exact administrator mailboxes. Neither
+The 11-mailbox exclusion list is broader than the 4 exact administrator mailboxes. Neither
 an alias nor exclusion status grants administrator access. `TRAFFIC_EXCLUDED_ACCOUNT_IDS`,
 `ALETHICAL_TEST_ACCOUNT_IDS`, and `ALETHICAL_ADMIN_ACCOUNT_IDS` also contribute to exclusions.
 Current reader and follow inventories can be recalculated when classification changes.
@@ -149,11 +151,10 @@ Anonymous history cannot be traced back to remove an account's earlier activity.
 
 ## Accounts and recorded history
 
-Accounts created comes from surviving Supabase sign-up records, including pending email
-confirmation. Deleted, deactivated, banned, anonymous, team, and test accounts are excluded.
-Linked sign-in records count as 1 account, dated by their earliest included creation record.
-Deleted accounts are not included, so past creation totals can decrease. This is not a
-lifetime total of every sign-up attempt.
+Total user accounts on the public `/site-metrics` page counts accounts that currently remain in
+Supabase, including accounts awaiting email confirmation. The activity range does not change
+this total. Deleted, deactivated, banned, anonymous, team, and test accounts are excluded.
+Linked sign-in records count as 1 account. This is not a lifetime total of every sign-up attempt.
 
 Accounts first used counts first signed-in use, not sign-ups. First signed-in use and newly
 created bill and committee follows add anonymous hourly counts in the same transaction as
@@ -334,7 +335,7 @@ The server settings are:
 - `VERCEL_ANALYTICS_TEAM_ID`: the Vercel team identifier;
 - `TRAFFIC_COUNTING_STARTED_AT`: the exact UTC time counting was switched on;
 - `TRAFFIC_EXCLUDED_ACCOUNT_IDS`: additional comma-separated Supabase account identifiers
-  for the backend classifier; the 6 known mailboxes and test-domain rules do not depend on
+  for the backend classifier; the 11 known mailboxes and test-domain rules do not depend on
   this setting. Browser collection uses the authenticated backend decision; and
 - `EXPO_PUBLIC_CHECKLY_STATUS_URL`: the HTTPS public dashboard address on
   `<name>.checkly-dashboards.com`.

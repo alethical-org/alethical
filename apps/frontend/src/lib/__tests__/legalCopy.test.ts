@@ -51,7 +51,7 @@ describe('privacy copy', () => {
     expect(source).toContain('first signed-in use');
     expect(source).toContain('bill or committee follows');
     expect(source).toContain('including accounts awaiting email confirmation');
-    expect(source).toContain('past creation totals can decrease');
+    expect(source).toContain('totals can decrease');
     expect(source).not.toContain('New bill-watch totals come from the existing watch records');
   });
 
@@ -87,9 +87,9 @@ describe('privacy copy', () => {
     expect(guide).toContain('5 fixed action names');
     expect(guide).toContain('optional UUID v4');
     expect(guide).toContain('not an exact deletion deadline');
-    expect(guide).toContain('past creation totals can decrease');
+    expect(guide).toContain('Total user accounts on the public `/site-metrics` page');
     expect(guide).toContain('Accounts first used counts first signed-in use, not sign-ups.');
-    expect(guide).toContain('6 known team mailboxes');
+    expect(guide).toContain('11 known team mailboxes');
     expect(guide).toContain('4 exact administrator mailboxes');
     expect(guide).toContain('`CHECKLY_ACCOUNT_ID`, required to match');
     expect(guide).toContain('confidence `sampleSize`');

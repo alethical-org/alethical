@@ -628,6 +628,9 @@ for (const viewport of [
       await expect(dates).toContainText(
         'Includes Money page views recorded before the Money rows were added.',
       );
+      await expect(dates).toContainText(
+        'Total user accounts: Uses current account records, so no collection start date applies.',
+      );
       const health = (await page.getByTestId('site-metrics-closing-grid').boundingBox())!;
       const box = (await dates.boundingBox())!;
       expect(box.y).toBeGreaterThan(health.y + health.height);
@@ -655,7 +658,7 @@ for (const viewport of [
       await expect(page.getByTestId('site-metrics-collection-availability')).toContainText(
         'Homepage: Start date unavailable; data service: Start date unavailable.',
       );
-      await expectRow(page, 'Accounts created', '8');
+      await expectRow(page, 'Total user accounts', '80');
       await noHorizontalOverflow(page);
     });
 
@@ -774,19 +777,18 @@ for (const viewport of [
       }
     });
 
-    test('account growth changes with 7/30 days while current accounts and follows stay fixed', async ({
+    test('activity changes with 7/30 days while total accounts and current follows stay fixed', async ({
       page,
     }) => {
       const requests = await installAnswers(page);
       await openMetrics(page);
-      await expectRow(page, 'Accounts created', '8');
-      await expectRow(page, 'Current accounts', '80');
+      await expectRow(page, 'Total user accounts', '80');
       await expectRow(page, 'New committee follows', '3');
       await expectRow(page, 'Money searches with results', '13');
       await expectRow(page, 'Current committee follows', '14');
       await expectRow(page, 'Different committees currently followed', '9');
       await expectRow(page, 'Readers following committees', '7');
-      await expect(page.getByText(/Accounts include unconfirmed sign-ups/)).toBeVisible();
+      await expect(page.getByText(/includes unconfirmed sign-ups/)).toBeVisible();
       const ranges = page.getByRole('group', { name: 'Activity range' });
       if (viewport.name === 'phone') {
         for (const button of await ranges.getByRole('button').all()) {
@@ -794,10 +796,9 @@ for (const viewport of [
         }
       }
       await ranges.getByRole('button', { name: 'Last 30 days', exact: true }).click();
-      await expectRow(page, 'Accounts created', '27');
+      await expectRow(page, 'Total user accounts', '80');
       await expectRow(page, 'Money searches with results', '39');
       await expectRow(page, 'New committee follows', '9');
-      await expectRow(page, 'Current accounts', '80');
       await expectRow(page, 'Current committee follows', '14');
       await expectRow(page, 'Different committees currently followed', '9');
       await expect(ranges.getByRole('button', { name: 'Last 30 days' })).toHaveAttribute(
@@ -805,7 +806,7 @@ for (const viewport of [
         'true',
       );
       await ranges.getByRole('button', { name: 'Last 7 days', exact: true }).click();
-      await expectRow(page, 'Accounts created', '8');
+      await expectRow(page, 'Total user accounts', '80');
       expect(requests).toContain('/api/v1/site-metrics?version=2');
       expect(requests.filter((url) => url === '/api/v1/site-metrics/accounts')).toHaveLength(1);
       expect(requests).not.toContain('/api/v1/site-metrics');
@@ -849,13 +850,12 @@ for (const viewport of [
       await noHorizontalOverflow(page);
     });
 
-    test('an unavailable account source does not turn sign-ups into zero or hide activity', async ({
+    test('an unavailable account source does not turn the total into zero or hide activity', async ({
       page,
     }) => {
       await installAnswers(page, { ...fixture(), accounts: null });
       await openMetrics(page);
-      await expectRow(page, 'Accounts created', 'Not available');
-      await expectRow(page, 'Current accounts', 'Not available');
+      await expectRow(page, 'Total user accounts', 'Not available');
       await expectRow(page, 'Money searches with results', '13');
       await expectRow(page, 'Current committee follows', '14');
       await expect(page.getByTestId('site-metrics-explore')).toBeVisible();
@@ -867,8 +867,8 @@ for (const viewport of [
     }) => {
       await installAnswers(page, { ...fixture(), records: null });
       await openMetrics(page);
-      await expectRow(page, 'Accounts created', '8');
-      await expectRow(page, 'Current accounts', '80');
+      await expectRow(page, 'Total user accounts', '80');
+      await expect(page.getByText('Reader totals are temporarily unavailable.')).toBeVisible();
       await expect(page.getByText('Recorded actions are temporarily unavailable.')).toBeVisible();
       await expect(page.getByTestId('site-metrics-search-google')).toBeVisible();
       await noHorizontalOverflow(page);
@@ -886,20 +886,20 @@ for (const viewport of [
       await openMetrics(page);
       await expectRow(page, 'Homepage', 'Not available');
       await expectRow(page, 'Data service', '99.9%');
-      await expectRow(page, 'Accounts created', '8');
+      await expectRow(page, 'Total user accounts', '80');
       await expect(page.getByTestId('site-metrics-search-google')).toBeVisible();
       await expect(page.getByTestId('site-metrics-speed-value-0')).toHaveText('2 s');
       await noHorizontalOverflow(page);
     });
 
-    test('a failed availability source leaves traffic, growth, search and speed visible', async ({
+    test('a failed availability source leaves traffic, accounts, search and speed visible', async ({
       page,
     }) => {
       await installAnswers(page, { ...fixture(), uptime: null });
       await openMetrics(page);
       await expect(page.getByText('Availability data is temporarily unavailable.')).toBeVisible();
       await expect(page.getByTestId('site-metrics-explore')).toBeVisible();
-      await expectRow(page, 'Accounts created', '8');
+      await expectRow(page, 'Total user accounts', '80');
       await expect(page.getByTestId('site-metrics-search-google')).toBeVisible();
       await expect(page.getByTestId('site-metrics-speed-value-0')).toHaveText('2 s');
       await noHorizontalOverflow(page);
@@ -938,7 +938,7 @@ for (const viewport of [
         page.getByText('Speed and stability data is temporarily unavailable.'),
       ).toBeVisible();
       await expect(page.getByTestId('site-metrics-speed-value-0')).toHaveCount(0);
-      await expectRow(page, 'Accounts created', '8');
+      await expectRow(page, 'Total user accounts', '80');
       await expectRow(page, 'Data service', '99.9%');
       await noHorizontalOverflow(page);
     });

@@ -131,6 +131,14 @@ describe('public Site metrics page', () => {
     expect(SOURCE).toContain('<PanelTitle>Readers</PanelTitle>');
   });
 
+  it('shows 1 current user-account total outside the selected activity range', () => {
+    expect(SOURCE).toContain('label="Total user accounts"');
+    expect(SOURCE).toContain('accounts.totals.currentAccountsCreated');
+    expect(SOURCE).toContain('the activity range does not apply');
+    expect(SOURCE).not.toContain('label="Accounts created"');
+    expect(SOURCE).not.toContain('label="Current accounts"');
+  });
+
   it('keeps the 7 and 30 day activity choices in the address', () => {
     expect(SOURCE).toContain("get('range') === '30'");
     expect(SOURCE).toContain("url.searchParams.set('range', String(next))");

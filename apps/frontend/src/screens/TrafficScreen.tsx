@@ -890,10 +890,11 @@ function ActionsPanel({
           />
         ))}
         <MetricRow
-          label="Accounts created"
+          testID="site-metrics-total-user-accounts"
+          label="Total user accounts"
           value={
             accounts.kind === 'ready'
-              ? formatNumber(range === 7 ? accounts.totals.created7d : accounts.totals.created30d)
+              ? formatNumber(accounts.totals.currentAccountsCreated)
               : accounts.kind === 'loading'
                 ? 'Loading'
                 : 'Not available'
@@ -907,16 +908,19 @@ function ActionsPanel({
         No search words, addresses, or districts are included in these analytics.
       </Text>
       <Text style={styles.panelNote}>
-        Account creation totals exclude closed, team, and test accounts. Deleting an account can
-        lower a past creation total.
+        Total user accounts is a current count, so the activity range does not apply. It includes
+        unconfirmed sign-ups and excludes closed, team, and test accounts.
       </Text>
       <Text style={styles.panelNote}>
         Search totals count each query and filter choice once per search-page visit, when matching
         results are shown.
       </Text>
       {accounts.kind === 'ready' && accounts.stale ? (
-        <Text style={styles.panelNote}>
-          Account creation totals are waiting for a newer reading.
+        <Text style={styles.panelNote}>The user account total is waiting for a newer reading.</Text>
+      ) : null}
+      {accounts.kind === 'ready' ? (
+        <Text style={styles.source}>
+          User accounts counted by Supabase · Through {formatDate(accounts.totals.asOf)}
         </Text>
       ) : null}
     </Panel>
@@ -924,38 +928,28 @@ function ActionsPanel({
 }
 
 function AccountOnlyPanel({
-  title,
   accounts,
-  range,
   loading,
   unavailableText,
 }: {
-  title: 'What people do' | 'Readers';
   accounts: SourceState<AccountSignupTotals>;
-  range: ActivityRange;
   loading: boolean;
   unavailableText: string;
 }) {
   const { isMobile } = useResponsive();
-  const isCurrent = title === 'Readers';
   const value =
     accounts.kind === 'ready'
-      ? formatNumber(
-          isCurrent
-            ? accounts.totals.currentAccountsCreated
-            : range === 7
-              ? accounts.totals.created7d
-              : accounts.totals.created30d,
-        )
+      ? formatNumber(accounts.totals.currentAccountsCreated)
       : accounts.kind === 'loading'
         ? 'Loading'
         : 'Not available';
   return (
     <Panel busy={loading}>
-      <PanelTitle>{title}</PanelTitle>
+      <PanelTitle>What people do</PanelTitle>
       <View style={[styles.plainRows, isMobile && styles.plainRowsMobile]}>
         <MetricRow
-          label={isCurrent ? 'Current accounts' : 'Accounts created'}
+          testID="site-metrics-total-user-accounts"
+          label="Total user accounts"
           value={value}
           compactMobile
           last
@@ -965,29 +959,22 @@ function AccountOnlyPanel({
         {loading ? 'Loading recorded activity.' : unavailableText}
       </Text>
       <Text style={styles.panelNote}>
-        {isCurrent ? 'Current totals; the date range does not apply. ' : ''}
-        Accounts include unconfirmed sign-ups and exclude closed, team, and test accounts.
-        {!isCurrent ? ' Deleting an account can lower a past creation total.' : ''}
+        Total user accounts is a current count, so the activity range does not apply. It includes
+        unconfirmed sign-ups and excludes closed, team, and test accounts.
       </Text>
       {accounts.kind === 'ready' ? (
         <Text style={styles.source}>
-          Accounts counted by Supabase · Through {formatDate(accounts.totals.asOf)}
+          User accounts counted by Supabase · Through {formatDate(accounts.totals.asOf)}
         </Text>
       ) : null}
       {accounts.kind === 'ready' && accounts.stale ? (
-        <Text style={styles.panelNote}>Account totals are waiting for a newer reading.</Text>
+        <Text style={styles.panelNote}>The user account total is waiting for a newer reading.</Text>
       ) : null}
     </Panel>
   );
 }
 
-function ReadersPanel({
-  totals,
-  accounts,
-}: {
-  totals: SiteMetricRecordTotals['readers'];
-  accounts: SourceState<AccountSignupTotals>;
-}) {
+function ReadersPanel({ totals }: { totals: SiteMetricRecordTotals['readers'] }) {
   const { isMobile } = useResponsive();
   return (
     <Panel>
@@ -995,24 +982,12 @@ function ReadersPanel({
       <View style={[styles.plainRows, isMobile && styles.plainRowsMobile]}>
         <MetricRow
           testID="site-metrics-reader-row-0"
-          label="Current accounts"
-          value={
-            accounts.kind === 'ready'
-              ? formatNumber(accounts.totals.currentAccountsCreated)
-              : accounts.kind === 'loading'
-                ? 'Loading'
-                : 'Not available'
-          }
-          compactMobile
-        />
-        <MetricRow
-          testID="site-metrics-reader-row-1"
           label="Current bill watches"
           value={formatNumber(totals.currentBillWatches)}
           compactMobile
         />
         <MetricRow
-          testID="site-metrics-reader-row-2"
+          testID="site-metrics-reader-row-1"
           label="Different bills currently watched"
           value={formatNumber(totals.differentBillsCurrentlyWatched)}
           compactMobile
@@ -1056,15 +1031,9 @@ function ReadersPanel({
         />
       </View>
       <Text style={styles.panelNote}>
-        Current totals; the date range does not apply. Accounts include unconfirmed sign-ups and
-        exclude closed, team, and test accounts. Each reader&apos;s follow counts separately;
-        different bills and committees count once each.
+        Current totals; the activity range does not apply. Each reader&apos;s follow counts
+        separately; different bills and committees count once each.
       </Text>
-      {accounts.kind === 'ready' ? (
-        <Text style={styles.source}>
-          Accounts counted by Supabase · Through {formatDate(accounts.totals.asOf)}
-        </Text>
-      ) : null}
     </Panel>
   );
 }
@@ -1428,9 +1397,8 @@ function CollectionDates({
           Collected since September 8, 2026. Earlier activity is not included.
         </Text>
         <Text style={styles.panelNote}>
-          <Text style={styles.collectionLabel}>Accounts created:</Text> Uses saved sign-up dates,
-          including accounts created before this report began. Current account and follow totals
-          describe the records that exist now.
+          <Text style={styles.collectionLabel}>Total user accounts:</Text> Uses current account
+          records, so no collection start date applies.
         </Text>
         <Text testID="site-metrics-collection-availability" style={styles.panelNote}>
           <Text style={styles.collectionLabel}>Availability checks:</Text> Homepage:{' '}
@@ -1605,22 +1573,18 @@ export function TrafficScreen() {
                 />
               ) : (
                 <AccountOnlyPanel
-                  title="What people do"
                   accounts={accounts}
-                  range={range}
-                  loading={records.kind === 'loading'}
+                  loading={records.kind === 'loading' || accounts.kind === 'loading'}
                   unavailableText="Recorded actions are temporarily unavailable."
                 />
               )}
             </View>
             <View style={!isMobile ? styles.readersCell : undefined}>
               {records.kind === 'ready' ? (
-                <ReadersPanel totals={records.totals.readers} accounts={accounts} />
+                <ReadersPanel totals={records.totals.readers} />
               ) : (
-                <AccountOnlyPanel
+                <ActivityStatusPanel
                   title="Readers"
-                  accounts={accounts}
-                  range={range}
                   loading={records.kind === 'loading'}
                   unavailableText="Reader totals are temporarily unavailable."
                 />
